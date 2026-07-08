@@ -8,6 +8,8 @@ This repo is built phase by phase. Each phase, branch, and PR may happen in a ne
 
 Older handoff documents, attachments, brainstorms, and chat history are not authoritative unless the project owner explicitly reintroduces them.
 
+Check off completed items in `IMPLEMENTATION_PLAN.md` as each phase lands. At the end of the final phase, remove `IMPLEMENTATION_PLAN.md` entirely so the shipped app, README, and durable docs become the source of truth.
+
 ## Start Every Session This Way
 
 1. Read `IMPLEMENTATION_PLAN.md`.
@@ -64,10 +66,11 @@ Before asking for review or opening a PR:
    - confirm no tokens, private hostnames, private URLs, or internal-only notes are being committed,
    - confirm public UI copy does not expose implementation details,
    - confirm analytics, uploads, auth, storage, or external calls are intentional.
-5. Summarize what changed.
-6. Call out any deviations from the plan.
-7. Confirm what remains for later phases.
-8. Keep the PR boundary narrow enough to review comfortably.
+5. Check off completed implementation-plan items for the phase.
+6. Summarize what changed.
+7. Call out any deviations from the plan.
+8. Confirm what remains for later phases.
+9. Keep the PR boundary narrow enough to review comfortably.
 
 Before opening, updating, or responding to PR review feedback, read `docs/pr-review-workflow.md`.
 
