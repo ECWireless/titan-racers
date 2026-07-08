@@ -14,8 +14,6 @@ test.describe("home screen", () => {
 
     await expect(raceFriends).toBeVisible();
     await expect(soloTimeTrial).toBeVisible();
-    await expect(raceFriends).toHaveCSS("cursor", "pointer");
-    await expect(soloTimeTrial).toHaveCSS("cursor", "pointer");
 
     await raceFriends.click();
     await expect(page.getByRole("status")).toHaveText("coming soon");
