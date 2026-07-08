@@ -363,20 +363,20 @@ Key metrics:
 
 ### Phase 0: Plan And Repo Foundation
 
-- Review plan with project owner.
-- Create the first approved plan commit.
-- Scaffold app once plan is approved.
-- Add lint/build/test scripts.
-- Bring over Titan Racers visual tokens and typography direction.
-- Copy only needed site assets into this repo.
+- [x] Review plan with project owner.
+- [x] Create the first approved plan commit.
+- [x] Scaffold app once plan is approved.
+- [x] Add lint/build/test scripts.
+- [x] Bring over Titan Racers visual tokens and typography direction.
+- [x] Copy only needed site assets into this repo.
 
 ### Phase 1: Tiny Engine Spike
 
-- Test the preferred game runtime.
-- Confirm canvas integration in the app shell.
-- Confirm mobile rendering path.
-- Confirm rough kart movement can be tuned quickly.
-- Decide PlayCanvas vs fallback before deeper implementation.
+- [ ] Test the preferred game runtime.
+- [ ] Confirm canvas integration in the app shell.
+- [ ] Confirm mobile rendering path.
+- [ ] Confirm rough kart movement can be tuned quickly.
+- [ ] Decide PlayCanvas vs fallback before deeper implementation.
 
 ### Phase 2: Driving Prototype With Early Controller Support
 
@@ -384,14 +384,14 @@ Goal: make testing fun quickly.
 
 Includes:
 
-- one rough kart,
-- rough test loop,
-- keyboard controls,
-- mobile controls,
-- early gamepad/controller input,
-- lap/checkpoint/timer system,
-- reset/recover behavior,
-- basic analytics hooks.
+- [ ] one rough kart,
+- [ ] rough test loop,
+- [ ] keyboard controls,
+- [ ] mobile controls,
+- [ ] early gamepad/controller input,
+- [ ] lap/checkpoint/timer system,
+- [ ] reset/recover behavior,
+- [ ] basic analytics hooks.
 
 ### Phase 3: Kart Design And Upload System
 
@@ -399,13 +399,13 @@ Goal: prove karts are machines, not skins.
 
 Includes:
 
-- admin-gated upload/register flow,
-- model asset storage integration,
-- rough model dimension reading where practical,
-- starter stat derivation,
-- manual stat overrides,
-- publish/unpublish,
-- three playable uploaded/published karts.
+- [ ] admin-gated upload/register flow,
+- [ ] model asset storage integration,
+- [ ] rough model dimension reading where practical,
+- [ ] starter stat derivation,
+- [ ] manual stat overrides,
+- [ ] publish/unpublish,
+- [ ] three playable uploaded/published karts.
 
 ### Phase 4: Agricultural Zone Track
 
@@ -413,13 +413,13 @@ Goal: make the rough loop feel like Titan Racers.
 
 Includes:
 
-- 2-lap route,
-- hydroponic/service-lane layout,
-- scaled-down kart feel,
-- oversized habitat infrastructure,
-- irrigation tunnel,
-- glass canopy / hero vista,
-- hints of Cylinder curvature or larger habitat beyond the route.
+- [ ] 2-lap route,
+- [ ] hydroponic/service-lane layout,
+- [ ] scaled-down kart feel,
+- [ ] oversized habitat infrastructure,
+- [ ] irrigation tunnel,
+- [ ] glass canopy / hero vista,
+- [ ] hints of Cylinder curvature or larger habitat beyond the route.
 
 ### Phase 5: Solo, Ghosts, Results, Leaderboard
 
@@ -427,12 +427,12 @@ Goal: make solo play replayable.
 
 Includes:
 
-- solo time trial,
-- developer ghost,
-- player-best ghost,
-- result screen,
-- replay flow,
-- login-gated leaderboard submission.
+- [ ] solo time trial,
+- [ ] developer ghost,
+- [ ] player-best ghost,
+- [ ] result screen,
+- [ ] replay flow,
+- [ ] login-gated leaderboard submission.
 
 ### Phase 6: Private Multiplayer
 
@@ -440,16 +440,16 @@ Goal: make the demo social.
 
 Includes:
 
-- private rooms,
-- join by link,
-- 2-4 players,
-- kart selection equals ready,
-- host start,
-- countdown,
-- visible opponents,
-- synced results,
-- replay same room.
-- timeout rule so the race ends when all active players finish or shortly after the first finisher.
+- [ ] private rooms,
+- [ ] join by link,
+- [ ] 2-4 players,
+- [ ] kart selection equals ready,
+- [ ] host start,
+- [ ] countdown,
+- [ ] visible opponents,
+- [ ] synced results,
+- [ ] replay same room.
+- [ ] timeout rule so the race ends when all active players finish or shortly after the first finisher.
 
 ### Phase 7: Public Demo Polish
 
@@ -457,14 +457,16 @@ Goal: make it ready to share.
 
 Includes:
 
-- controller polish,
-- result sharing,
-- mobile performance pass,
-- analytics review,
-- lobby polish,
-- onboarding copy,
-- UI clarity,
-- final visual pass against the Titan Racers site.
+- [ ] controller polish,
+- [ ] result sharing,
+- [ ] mobile performance pass,
+- [ ] analytics review,
+- [ ] lobby polish,
+- [ ] onboarding copy,
+- [ ] UI clarity,
+- [ ] final visual pass against the Titan Racers site.
+
+When the final phase is complete and the demo is accepted, remove this implementation plan from the repo. The shipped app, README, and durable docs should become the source of truth.
 
 ## Verification Plan
 
