@@ -138,11 +138,10 @@ Login is required for:
 
 - persistent racer identity,
 - leaderboard submission,
-- assembler upload access,
+- assembly upload access,
 - admin controls,
-- future ownership.
 
-Privy is the leading candidate, but final auth choice should wait until the scaffold phase stress-tests it against guest play, admin permissions, assembler approval, and wallet/social identity needs.
+Privy is the leading candidate, but final auth choice should wait until the scaffold phase stress-tests it against guest play, admin permissions, assembly access approval, and wallet/social identity needs.
 
 ## Roles And Permissions
 
@@ -162,9 +161,10 @@ Use a simple player-centered model.
 - Can save display name/history.
 - Can submit eligible solo leaderboard results.
 
-### Assembler-Approved Player
+### Assembly-Enabled Player
 
-- A player with upload/design permissions.
+- A normal player account with temporary allowlisted assembly permissions.
+- "Assembler" is a voluntary player activity and social/meta identity, not a separate product role.
 - Can create and edit their own kart drafts.
 - Can upload/register 3D models.
 - Can edit metadata and proposed stats.
@@ -172,8 +172,11 @@ Use a simple player-centered model.
 
 ### Admin
 
-- Launch operator account.
-- Can manage assembler approval.
+- Trusted launch operator account, allowlisted through environment/config at first.
+- Multiple admins are allowed.
+- Can manage temporary assembly access approval.
+- Can access protected course/editor tooling.
+- Can edit track layout and test-scene objects.
 - Can upload/edit kart designs.
 - Can review derived stats.
 - Can override stats.
@@ -194,7 +197,7 @@ Minimum workflow:
 7. Admin publishes/unpublishes the kart.
 8. Published karts appear in player-facing kart selection.
 
-Future assembler-approved players should use the same draft pipeline, gated by permission rather than a separate creator role.
+Future assembly-enabled players should use the same draft pipeline, gated by temporary permission until assembly is ready to release to everyone.
 
 First-pass stat derivation should stay approximate and overrideable. Useful heuristics include:
 
@@ -372,11 +375,11 @@ Key metrics:
 
 ### Phase 1: Tiny Engine Spike
 
-- [ ] Test the preferred game runtime.
-- [ ] Confirm canvas integration in the app shell.
-- [ ] Confirm mobile rendering path.
-- [ ] Confirm rough kart movement can be tuned quickly.
-- [ ] Decide PlayCanvas vs fallback before deeper implementation.
+- [x] Test the preferred game runtime.
+- [x] Confirm canvas integration in the app shell.
+- [x] Confirm mobile rendering path.
+- [x] Confirm rough kart movement can be tuned quickly.
+- [x] Decide PlayCanvas vs fallback before deeper implementation.
 
 ### Phase 2: Driving Prototype With Early Controller Support
 
@@ -389,6 +392,7 @@ Includes:
 - [ ] keyboard controls,
 - [ ] mobile controls,
 - [ ] early gamepad/controller input,
+- [ ] Privy-gated admin allowlist for protected course/editor tooling,
 - [ ] lap/checkpoint/timer system,
 - [ ] reset/recover behavior,
 - [ ] basic analytics hooks.
