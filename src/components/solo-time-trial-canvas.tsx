@@ -123,6 +123,7 @@ const KART_MOVEMENT_TUNING_MINIMUMS: Record<KartMovementTuningKey, number> = {
   maxReverseSpeed: 0.5,
   turnRate: 1,
 };
+const ENABLE_SCENE_TEST_HOOKS = process.env.NODE_ENV !== "production";
 
 type TransformAxis = "x" | "y" | "z";
 
@@ -906,6 +907,13 @@ export function SoloTimeTrialCanvas() {
           );
         }
       } else {
+        if (axis === "y") {
+          syncSelectedPosition();
+          updateSelectionMarker();
+          activeCanvas.focus();
+          return;
+        }
+
         currentStartPosition[axis] = toFixedStep(
           currentStartPosition[axis] + delta,
         );
@@ -1438,7 +1446,7 @@ export function SoloTimeTrialCanvas() {
           ? collidesWithObstacle(new pc.Vec3(firstObstacle.x, 0, firstObstacle.z))
           : false,
         obstacleCount: collisionObstacles.length,
-        startClear: !collidesWithObstacle(START_POSITION),
+        startClear: !collidesWithObstacle(currentStartPosition),
       });
     };
 
@@ -1490,20 +1498,25 @@ export function SoloTimeTrialCanvas() {
     activeCanvas.addEventListener("pointerup", onPointerUp);
     activeCanvas.addEventListener("pointercancel", onPointerUp);
     activeCanvas.addEventListener("wheel", onWheel, { passive: false });
-    activeCanvas.addEventListener(
-      "getTranslateGizmoPoint",
-      onGetTranslateGizmoPoint,
-    );
-    activeCanvas.addEventListener(
-      "getEditableObjectPoint",
-      onGetEditableObjectPoint,
-    );
-    activeCanvas.addEventListener(
-      "getCollisionDebugState",
-      onGetCollisionDebugState,
-    );
-    activeCanvas.addEventListener("getKartDebugState", onGetKartDebugState);
-    activeCanvas.addEventListener("setKartDebugPosition", onSetKartDebugPosition);
+    if (ENABLE_SCENE_TEST_HOOKS) {
+      activeCanvas.addEventListener(
+        "getTranslateGizmoPoint",
+        onGetTranslateGizmoPoint,
+      );
+      activeCanvas.addEventListener(
+        "getEditableObjectPoint",
+        onGetEditableObjectPoint,
+      );
+      activeCanvas.addEventListener(
+        "getCollisionDebugState",
+        onGetCollisionDebugState,
+      );
+      activeCanvas.addEventListener("getKartDebugState", onGetKartDebugState);
+      activeCanvas.addEventListener(
+        "setKartDebugPosition",
+        onSetKartDebugPosition,
+      );
+    }
 
     const smoothedCameraPosition = new pc.Vec3();
     const smoothedLookTarget = new pc.Vec3();
@@ -1687,26 +1700,28 @@ export function SoloTimeTrialCanvas() {
       activeCanvas.removeEventListener("pointerup", onPointerUp);
       activeCanvas.removeEventListener("pointercancel", onPointerUp);
       activeCanvas.removeEventListener("wheel", onWheel);
-      activeCanvas.removeEventListener(
-        "getTranslateGizmoPoint",
-        onGetTranslateGizmoPoint,
-      );
-      activeCanvas.removeEventListener(
-        "getEditableObjectPoint",
-        onGetEditableObjectPoint,
-      );
-      activeCanvas.removeEventListener(
-        "getCollisionDebugState",
-        onGetCollisionDebugState,
-      );
-      activeCanvas.removeEventListener(
-        "getKartDebugState",
-        onGetKartDebugState,
-      );
-      activeCanvas.removeEventListener(
-        "setKartDebugPosition",
-        onSetKartDebugPosition,
-      );
+      if (ENABLE_SCENE_TEST_HOOKS) {
+        activeCanvas.removeEventListener(
+          "getTranslateGizmoPoint",
+          onGetTranslateGizmoPoint,
+        );
+        activeCanvas.removeEventListener(
+          "getEditableObjectPoint",
+          onGetEditableObjectPoint,
+        );
+        activeCanvas.removeEventListener(
+          "getCollisionDebugState",
+          onGetCollisionDebugState,
+        );
+        activeCanvas.removeEventListener(
+          "getKartDebugState",
+          onGetKartDebugState,
+        );
+        activeCanvas.removeEventListener(
+          "setKartDebugPosition",
+          onSetKartDebugPosition,
+        );
+      }
       sceneApiRef.current = null;
       app.destroy();
     };

@@ -213,11 +213,27 @@ test.describe("home screen", () => {
 
     await canvas.click();
     await page.keyboard.down("ArrowUp");
-    await page.waitForTimeout(450);
-    await page.keyboard.up("ArrowUp");
+
+    try {
+      await expect
+        .poll(async () => {
+          const state = await getKartDebugState(canvas);
+
+          return state.speed;
+        })
+        .toBeGreaterThan(startState.speed);
+      await expect
+        .poll(async () => {
+          const state = await getKartDebugState(canvas);
+
+          return Math.hypot(state.x - startState.x, state.z - startState.z);
+        })
+        .toBeGreaterThan(0.75);
+    } finally {
+      await page.keyboard.up("ArrowUp");
+    }
 
     const movedState = await getKartDebugState(canvas);
-
     expect(movedState.speed).toBeGreaterThan(startState.speed);
     expect(movedState.y).toBe(0);
     expect(movedState.verticalVelocity).toBe(0);
@@ -241,11 +257,31 @@ test.describe("home screen", () => {
     await canvas.click();
     await page.keyboard.down("ArrowUp");
     await page.keyboard.down("ArrowLeft");
-    await page.waitForTimeout(450);
-    const turnedState = await getKartDebugState(canvas);
 
-    await page.keyboard.up("ArrowLeft");
-    await page.keyboard.up("ArrowUp");
+    let turnedState = await getKartDebugState(canvas);
+
+    try {
+      await expect
+        .poll(async () => {
+          turnedState = await getKartDebugState(canvas);
+
+          return turnedState.steerAngle;
+        })
+        .toBeGreaterThan(0);
+      await expect
+        .poll(async () => {
+          turnedState = await getKartDebugState(canvas);
+
+          return Math.hypot(
+            turnedState.x - startState.x,
+            turnedState.z - startState.z,
+          );
+        })
+        .toBeGreaterThan(0.5);
+    } finally {
+      await page.keyboard.up("ArrowLeft");
+      await page.keyboard.up("ArrowUp");
+    }
 
     expect(turnedState.steerAngle).toBeGreaterThan(0);
     expect(
@@ -378,7 +414,7 @@ test.describe("home screen", () => {
       .click();
 
     await expect(page.getByTestId("selected-position-x")).toHaveText("X 0.5");
-    await expect(page.getByTestId("selected-position-y")).toHaveText("Y 0.5");
+    await expect(page.getByTestId("selected-position-y")).toHaveText("Y 0");
     await expect(page.getByTestId("selected-position-z")).toHaveText("Z -0.5");
     await expect(page.getByTestId("start-position-x")).toHaveValue("0.5");
     await expect(page.getByTestId("start-position-z")).toHaveValue("-0.5");
