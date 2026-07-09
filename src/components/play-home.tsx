@@ -3,6 +3,8 @@
 import Image from "next/image";
 import { useState } from "react";
 
+import { SoloTimeTrialCanvas } from "./solo-time-trial-canvas";
+
 const actions = [
   {
     label: "Race Friends",
@@ -15,10 +17,15 @@ const actions = [
 ] as const;
 
 export function PlayHome() {
+  const [mode, setMode] = useState<"home" | "solo">("home");
   const [toast, setToast] = useState<string | null>(null);
 
   function showComingSoon() {
     setToast("coming soon");
+  }
+
+  if (mode === "solo") {
+    return <SoloTimeTrialCanvas />;
   }
 
   return (
@@ -49,7 +56,11 @@ export function PlayHome() {
                     : "titan-button titan-button-secondary"
                 }
                 type="button"
-                onClick={showComingSoon}
+                onClick={
+                  action.label === "Solo Time Trial"
+                    ? () => setMode("solo")
+                    : showComingSoon
+                }
               >
                 {action.label}
               </button>
