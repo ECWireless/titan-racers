@@ -64,7 +64,7 @@ The demo is complete only when solo racing, uploaded/published kart designs, gho
 - Robust anti-cheat.
 - Full production-quality art.
 - Real-world kit export pipeline.
-- Complex damage.
+- Complex damage beyond the focused first-pass joint-breakage mechanic.
 - Fuel or battery simulation.
 - Advanced tire physics.
 - Deep tuning UI.
@@ -486,6 +486,8 @@ Includes:
 - [ ] rough model dimension reading where practical,
 - [ ] starter stat derivation,
 - [ ] manual stat overrides,
+- [ ] a minimal authored breakable-joint metadata contract for the three demo
+      karts, without a general-purpose rigging or damage-authoring system,
 - [ ] publish/unpublish,
 - [ ] three playable uploaded/published karts.
 
@@ -532,6 +534,13 @@ Includes:
 - [ ] synced results,
 - [ ] replay same room.
 - [ ] timeout rule so the race ends when all active players finish or shortly after the first finisher.
+- [ ] synchronized kart-joint damage and breakage from crashes using the
+      authored joint metadata established for the three demo karts,
+- [ ] impact severity derived from the involved karts' mass, relative velocity,
+      and angle of attack,
+- [ ] joint damage and breakage from sufficiently severe wall impacts or falls,
+- [ ] a forgiving first-pass breakage model that creates dramatic race moments
+      without expanding into a complex damage simulation.
 
 ### Phase 7: Public Demo Polish
 
