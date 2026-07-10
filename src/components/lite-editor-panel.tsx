@@ -6,9 +6,10 @@ import type {
   StartPosition,
   TransformAxis,
 } from "@/game/contracts";
-
-const TRANSLATE_STEP = 0.5;
-const ROTATE_STEP = 15;
+import {
+  EDITOR_ROTATE_STEP,
+  EDITOR_TRANSLATE_STEP,
+} from "@/game/editor/editor-config";
 
 const EDITABLE_OBJECT_LABELS: Record<EditableObjectId, string> = {
   "obstacle-barrel-a": "Barrel A",
@@ -118,13 +119,13 @@ export function LiteEditorPanel({
 
             <TransformControls
               label="Translate"
-              step={TRANSLATE_STEP}
+              step={EDITOR_TRANSLATE_STEP}
               verb="Move"
               onChange={onTranslateSelected}
             />
             <TransformControls
               label="Rotate"
-              step={ROTATE_STEP}
+              step={EDITOR_ROTATE_STEP}
               verb="Rotate"
               onChange={onRotateSelected}
             />
@@ -174,7 +175,7 @@ export function LiteEditorPanel({
                   data-testid="start-position-x"
                   inputMode="decimal"
                   type="number"
-                  step={TRANSLATE_STEP}
+                  step={EDITOR_TRANSLATE_STEP}
                   value={startPosition.x}
                   onChange={(event) =>
                     onStartPositionChange({
@@ -191,7 +192,7 @@ export function LiteEditorPanel({
                   data-testid="start-position-z"
                   inputMode="decimal"
                   type="number"
-                  step={TRANSLATE_STEP}
+                  step={EDITOR_TRANSLATE_STEP}
                   value={startPosition.z}
                   onChange={(event) =>
                     onStartPositionChange({
@@ -207,14 +208,18 @@ export function LiteEditorPanel({
               <span />
               <NudgeButton
                 label="Move start position forward"
-                onClick={() => onStartPositionNudge(0, -TRANSLATE_STEP)}
+                onClick={() =>
+                  onStartPositionNudge(0, -EDITOR_TRANSLATE_STEP)
+                }
               >
                 ↑
               </NudgeButton>
               <span />
               <NudgeButton
                 label="Move start position left"
-                onClick={() => onStartPositionNudge(-TRANSLATE_STEP, 0)}
+                onClick={() =>
+                  onStartPositionNudge(-EDITOR_TRANSLATE_STEP, 0)
+                }
               >
                 ←
               </NudgeButton>
@@ -227,14 +232,18 @@ export function LiteEditorPanel({
               </button>
               <NudgeButton
                 label="Move start position right"
-                onClick={() => onStartPositionNudge(TRANSLATE_STEP, 0)}
+                onClick={() =>
+                  onStartPositionNudge(EDITOR_TRANSLATE_STEP, 0)
+                }
               >
                 →
               </NudgeButton>
               <span />
               <NudgeButton
                 label="Move start position backward"
-                onClick={() => onStartPositionNudge(0, TRANSLATE_STEP)}
+                onClick={() =>
+                  onStartPositionNudge(0, EDITOR_TRANSLATE_STEP)
+                }
               >
                 ↓
               </NudgeButton>

@@ -18,9 +18,8 @@ import type {
 } from "@/game/contracts";
 import { ChaseCamera } from "@/game/camera/chase-camera";
 import { buildRoughCourse } from "@/game/course/build-rough-course";
-import {
-  ROUGH_COURSE,
-} from "@/game/course/course-definition";
+import { ROUGH_COURSE } from "@/game/course/course-definition";
+import { EDITOR_TRANSLATE_STEP } from "@/game/editor/editor-config";
 import { KeyboardInput } from "@/game/input/keyboard-input";
 import { LegacyKartController } from "@/game/kart/legacy-kart-controller";
 import { createPlayCanvasRuntime } from "@/game/runtime/playcanvas-application";
@@ -28,7 +27,6 @@ import { attachSceneTestAdapter } from "@/game/testing/scene-test-adapter";
 
 const START_POSITION = new pc.Vec3(0, 0, 0);
 const START_YAW = 90;
-const START_NUDGE_STEP = 0.5;
 const KART_MAX_FORWARD_SPEED = 8.5;
 const KART_MAX_REVERSE_SPEED = 3.4;
 const KART_ACCELERATION = 9.5;
@@ -1074,7 +1072,7 @@ export function SoloTimeTrialCanvas() {
         const pickedGizmoAxis = pickTranslateGizmo(event);
 
         if (pickedGizmoAxis) {
-          translateSelected(pickedGizmoAxis, START_NUDGE_STEP);
+          translateSelected(pickedGizmoAxis, EDITOR_TRANSLATE_STEP);
           event.preventDefault();
           activeCanvas.focus();
           return;
@@ -1193,11 +1191,11 @@ export function SoloTimeTrialCanvas() {
     runtime.listen(activeCanvas, "wheel", onWheel, { passive: false });
     const detachSceneTestAdapter = ENABLE_SCENE_TEST_HOOKS
       ? attachSceneTestAdapter(activeCanvas, {
-          getCollisionState: getCollisionDebugState,
+          getCollisionDebugState,
           getEditableObjectPoint: getEditableObjectScreenPoint,
-          getKartState: getKartDebugState,
+          getKartDebugState,
           getTranslateGizmoPoint: getTranslateGizmoScreenPoint,
-          setKartPosition: setKartDebugPosition,
+          setKartDebugPosition,
         })
       : () => undefined;
     runtime.addCleanup(detachSceneTestAdapter);

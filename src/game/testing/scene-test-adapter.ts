@@ -25,11 +25,11 @@ export type KartDebugState = {
 };
 
 export type SceneTestApi = {
-  getCollisionState: () => CollisionDebugState;
+  getCollisionDebugState: () => CollisionDebugState;
   getEditableObjectPoint: (objectId: EditableObjectId) => CanvasPoint;
-  getKartState: () => KartDebugState;
+  getKartDebugState: () => KartDebugState;
   getTranslateGizmoPoint: (axis: TransformAxis) => CanvasPoint;
-  setKartPosition: (position: Position3) => void;
+  setKartDebugPosition: (position: Position3) => void;
 };
 
 export function attachSceneTestAdapter(
@@ -60,7 +60,7 @@ export function attachSceneTestAdapter(
       ((event: CustomEvent<{
         respond: (state: CollisionDebugState) => void;
       }>) => {
-        event.detail.respond(api.getCollisionState());
+        event.detail.respond(api.getCollisionDebugState());
       }) as EventListener,
     ],
     [
@@ -68,13 +68,13 @@ export function attachSceneTestAdapter(
       ((event: CustomEvent<{
         respond: (state: KartDebugState) => void;
       }>) => {
-        event.detail.respond(api.getKartState());
+        event.detail.respond(api.getKartDebugState());
       }) as EventListener,
     ],
     [
       "setKartDebugPosition",
       ((event: CustomEvent<{ position: Position3 }>) => {
-        api.setKartPosition(event.detail.position);
+        api.setKartDebugPosition(event.detail.position);
       }) as EventListener,
     ],
   ];
