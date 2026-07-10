@@ -12,7 +12,7 @@ importers:
         specifier: ^16.2.6
         version: 16.2.10(@babel/core@7.29.7)(@playwright/test@1.61.1)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
       playcanvas:
-        specifier: ^2.20.6
+        specifier: 2.20.6
         version: 2.20.6
       react:
         specifier: ^19.2.6

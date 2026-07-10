@@ -427,21 +427,32 @@ safely. Preserve the accepted visible behavior while separating:
 - [x] editor UI state from engine operations,
 - [x] deliberate development and test adapters from production behavior.
 
-#### PR 2: Driving Simulation
+#### PR 2A: Kart Physics
 
 Treat these as separate tuning and acceptance tasks within one integrated PR:
 
-- [ ] fixed-step simulation and dynamic rigid-body kart physics,
-- [ ] grounded traction, braking, reverse, steering, lateral grip, and weight
+- [x] fixed-step simulation and dynamic rigid-body kart physics,
+- [x] grounded traction, braking, reverse, steering, lateral grip, and weight
       transfer,
-- [ ] support-aware ledge behavior, airborne rotation, landing, and recovery,
+- [x] support-aware ledge behavior, airborne rotation, landing, and recovery,
+
+The kart-physics unit is a standalone PR boundary so the accepted fixed-step,
+rigid-body, support, tire-force, and recovery behavior can be reviewed without
+mixing it with the equally substantial collision and camera systems.
+
+#### PR 2B: Collision Mastery
+
 - [ ] collision behavior for barriers, corners, obstacles, ramps, glancing
       impacts, snagging, bounce, spin, and tunneling,
+
+#### PR 2C: Chase-Camera Mastery
+
 - [ ] chase-camera behavior driven by actual kart motion, orientation, slip,
       impacts, and airborne state.
 
-Split camera work into its own PR if the combined driving-simulation diff stops
-being comfortably reviewable.
+After PR 2C is implemented and verified, run the final proportional integration
+review for the complete driving-simulation phase before merging its final work
+into `main`.
 
 #### PR 3: Protected Course Tooling
 

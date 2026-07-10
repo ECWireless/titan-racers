@@ -1,0 +1,51 @@
+import { expect, test } from "@playwright/test";
+
+import { FixedStepClock } from "../src/game/runtime/fixed-step-clock";
+
+test.describe("fixed-step clock", () => {
+  test("produces the same 60 simulation steps at common render cadences", () => {
+    for (const renderRate of [30, 60, 120]) {
+      const clock = new FixedStepClock();
+      let steps = 0;
+
+      for (let frame = 0; frame < renderRate; frame += 1) {
+        clock.advance(1 / renderRate, () => {
+          steps += 1;
+        });
+      }
+
+      expect(steps).toBe(60);
+    }
+  });
+
+  test("caps catch-up work and reports discarded time", () => {
+    const clock = new FixedStepClock({
+      fixedStepSeconds: 1 / 60,
+      maxCatchUpSteps: 4,
+      maxFrameSeconds: 1,
+    });
+    let steps = 0;
+
+    const frame = clock.advance(0.5, () => {
+      steps += 1;
+    });
+
+    expect(steps).toBe(4);
+    expect(frame.steps).toBe(4);
+    expect(frame.droppedSeconds).toBeCloseTo(26 / 60, 8);
+    expect(frame.accumulatorFraction).toBeCloseTo(0, 8);
+  });
+
+  test("clamps stalls before they enter the accumulator", () => {
+    const clock = new FixedStepClock({ maxFrameSeconds: 0.1 });
+    let steps = 0;
+
+    const frame = clock.advance(2, () => {
+      steps += 1;
+    });
+
+    expect(steps).toBe(4);
+    expect(frame.droppedSeconds).toBeGreaterThan(1.9);
+    expect(frame.accumulatorFraction).toBeLessThan(1);
+  });
+});

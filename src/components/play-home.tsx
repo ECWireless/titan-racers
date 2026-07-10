@@ -25,7 +25,7 @@ export function PlayHome() {
   }
 
   if (mode === "solo") {
-    return <SoloTimeTrialCanvas />;
+    return <SoloTimeTrialCanvas onExit={() => setMode("home")} />;
   }
 
   return (

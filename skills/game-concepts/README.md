@@ -28,4 +28,6 @@ A game-concept node should normally cover:
 
 ## Current Children
 
-No child concepts have been established yet. Add them only when a phase produces substantive, reusable guidance.
+- [`kart-physics/`](kart-physics/README.md): the accepted dynamic rigid-body,
+  wheel-support, tire-force, airborne, and recovery standard for RC-style kart
+  handling.

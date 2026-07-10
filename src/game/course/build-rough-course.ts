@@ -36,6 +36,8 @@ export function buildRoughCourse(
       ROUGH_COURSE.ground.depth,
     ),
     materials.ground,
+    0,
+    true,
   );
 
   buildPillCourse(app, materials);
@@ -56,6 +58,7 @@ export function buildRoughCourse(
         ? materials.obstacleBlock
         : materials.obstacleBarrel,
       obstacle.rotationY,
+      false,
     );
 
     obstacleEntities.set(obstacle.id, entity);
@@ -86,6 +89,8 @@ function buildPillCourse(
     new pc.Vec3(0, 0.01, centerZ),
     new pc.Vec3(halfStraight * 2, 0.08, outerRadius * 2),
     materials.asphalt,
+    0,
+    true,
   );
   createPrimitive(
     app,
@@ -94,6 +99,8 @@ function buildPillCourse(
     new pc.Vec3(-halfStraight, 0.01, centerZ),
     new pc.Vec3(outerRadius * 2, 0.08, outerRadius * 2),
     materials.asphalt,
+    0,
+    true,
   );
   createPrimitive(
     app,
@@ -102,6 +109,8 @@ function buildPillCourse(
     new pc.Vec3(halfStraight, 0.01, centerZ),
     new pc.Vec3(outerRadius * 2, 0.08, outerRadius * 2),
     materials.asphalt,
+    0,
+    true,
   );
   createPrimitive(
     app,
@@ -110,6 +119,8 @@ function buildPillCourse(
     new pc.Vec3(0, 0.08, centerZ),
     new pc.Vec3(halfStraight * 2, 0.08, innerRadius * 2),
     materials.ground,
+    0,
+    true,
   );
   createPrimitive(
     app,
@@ -118,6 +129,8 @@ function buildPillCourse(
     new pc.Vec3(-halfStraight, 0.08, centerZ),
     new pc.Vec3(innerRadius * 2, 0.08, innerRadius * 2),
     materials.ground,
+    0,
+    true,
   );
   createPrimitive(
     app,
@@ -126,6 +139,8 @@ function buildPillCourse(
     new pc.Vec3(halfStraight, 0.08, centerZ),
     new pc.Vec3(innerRadius * 2, 0.08, innerRadius * 2),
     materials.ground,
+    0,
+    true,
   );
   createPrimitive(
     app,
@@ -134,6 +149,9 @@ function buildPillCourse(
     new pc.Vec3(0, 0.14, 0),
     new pc.Vec3(0.18, 0.08, width + 0.4),
     materials.line,
+    0,
+    true,
+    false,
   );
 }
 
@@ -145,6 +163,8 @@ function createPrimitive(
   scale: pc.Vec3,
   material: pc.StandardMaterial,
   rotationY = 0,
+  supportsKart = false,
+  hasPhysics = true,
 ) {
   const entity = new pc.Entity(name);
   entity.addComponent("model", { type });
@@ -154,6 +174,34 @@ function createPrimitive(
   entity.model?.meshInstances?.forEach((meshInstance) => {
     meshInstance.material = material;
   });
+  if (hasPhysics) {
+    entity.tags.add(supportsKart ? "drivable-surface" : "obstacle");
+
+    if (type === "box") {
+      entity.addComponent("collision", {
+        halfExtents: scale.clone().mulScalar(0.5),
+        linearOffset: supportsKart
+          ? new pc.Vec3(0, -position.y - scale.y * 0.5, 0)
+          : pc.Vec3.ZERO,
+        type,
+      });
+    } else {
+      entity.addComponent("collision", {
+        height: scale.y,
+        linearOffset: supportsKart
+          ? new pc.Vec3(0, -position.y - scale.y * 0.5, 0)
+          : pc.Vec3.ZERO,
+        radius: Math.max(scale.x, scale.z) * 0.5,
+        type,
+      });
+    }
+
+    entity.addComponent("rigidbody", {
+      friction: 0.7,
+      restitution: 0,
+      type: pc.BODYTYPE_STATIC,
+    });
+  }
   app.root.addChild(entity);
 
   return entity;

@@ -14,22 +14,49 @@ export type CollisionDebugState = {
 };
 
 export type KartDebugState = {
+  angularSpeed: number;
   isOverGround: boolean;
+  maximumLateralSpeed: number;
+  maximumTireForceUtilization: number;
   maxForwardSpeed: number;
+  rotationX: number;
+  rotationY: number;
+  rotationZ: number;
   speed: number;
   steerAngle: number;
+  supportCount: number;
+  supportEntityNames: string[];
+  supportedWheelNames: string[];
+  saturatedTireCount: number;
   verticalVelocity: number;
+  wheelLoads: Record<string, number>;
   x: number;
   y: number;
   z: number;
+};
+
+export type KartDebugPose = {
+  angularVelocity?: Position3;
+  linearVelocity?: Position3;
+  position: Position3;
+  rotation: Position3;
+};
+
+export type PresentationDebugState = {
+  cameraTrackedPosition: Position3;
+  physicsPosition: Position3;
+  visualPosition: Position3;
 };
 
 export type SceneTestApi = {
   getCollisionDebugState: () => CollisionDebugState;
   getEditableObjectPoint: (objectId: EditableObjectId) => CanvasPoint;
   getKartDebugState: () => KartDebugState;
+  getPresentationDebugState: () => PresentationDebugState;
   getTranslateGizmoPoint: (axis: TransformAxis) => CanvasPoint;
-  setKartDebugPosition: (position: Position3) => void;
+  setKartDebugPose: (pose: KartDebugPose) => void;
+  setSimulationPaused: (paused: boolean) => void;
+  stepSimulation: (steps: number) => void;
 };
 
 export function attachSceneTestAdapter(
@@ -72,9 +99,29 @@ export function attachSceneTestAdapter(
       }) as EventListener,
     ],
     [
-      "setKartDebugPosition",
-      ((event: CustomEvent<{ position: Position3 }>) => {
-        api.setKartDebugPosition(event.detail.position);
+      "getPresentationDebugState",
+      ((event: CustomEvent<{
+        respond: (state: PresentationDebugState) => void;
+      }>) => {
+        event.detail.respond(api.getPresentationDebugState());
+      }) as EventListener,
+    ],
+    [
+      "setSimulationPaused",
+      ((event: CustomEvent<{ paused: boolean }>) => {
+        api.setSimulationPaused(event.detail.paused);
+      }) as EventListener,
+    ],
+    [
+      "stepSimulation",
+      ((event: CustomEvent<{ steps: number }>) => {
+        api.stepSimulation(event.detail.steps);
+      }) as EventListener,
+    ],
+    [
+      "setKartDebugPose",
+      ((event: CustomEvent<{ pose: KartDebugPose }>) => {
+        api.setKartDebugPose(event.detail.pose);
       }) as EventListener,
     ],
   ];
