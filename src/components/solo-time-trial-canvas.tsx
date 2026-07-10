@@ -7,7 +7,6 @@ import { LiteEditorPanel } from "./lite-editor-panel";
 
 import type {
   EditableObjectId,
-  KartController,
   KartMovementTuning,
   KartMovementTuningKey,
   ObstacleObjectId,
@@ -18,15 +17,28 @@ import type {
 } from "@/game/contracts";
 import { ChaseCamera } from "@/game/camera/chase-camera";
 import { buildRoughCourse } from "@/game/course/build-rough-course";
-import { ROUGH_COURSE } from "@/game/course/course-definition";
 import { EDITOR_TRANSLATE_STEP } from "@/game/editor/editor-config";
 import { KeyboardInput } from "@/game/input/keyboard-input";
-import { LegacyKartController } from "@/game/kart/legacy-kart-controller";
-import { createPlayCanvasRuntime } from "@/game/runtime/playcanvas-application";
+import {
+  DynamicKartController,
+  type DynamicWheel,
+} from "@/game/kart/dynamic-kart-controller";
+import {
+  createPlayCanvasRuntime,
+  loadAmmoPhysics,
+} from "@/game/runtime/playcanvas-application";
+import {
+  calculateBoxInertia,
+  setExplicitRigidBodyInertia,
+} from "@/game/runtime/ammo-rigid-body";
 import { attachSceneTestAdapter } from "@/game/testing/scene-test-adapter";
 
 const START_POSITION = new pc.Vec3(0, 0, 0);
 const START_YAW = 90;
+const KART_ROOT_HEIGHT = 0.28;
+const KART_MASS = 120;
+const KART_CHASSIS_DIMENSIONS = { x: 1.25, y: 0.55, z: 1.85 } as const;
+const KART_INERTIA = calculateBoxInertia(KART_MASS, KART_CHASSIS_DIMENSIONS);
 const KART_MAX_FORWARD_SPEED = 8.5;
 const KART_MAX_REVERSE_SPEED = 3.4;
 const KART_ACCELERATION = 9.5;
@@ -34,7 +46,6 @@ const KART_BRAKE_FORCE = 14;
 const KART_DRAG = 4.2;
 const KART_TURN_RATE = 116;
 const KART_GRAVITY = 18;
-const KART_FRONT_AXLE_OFFSET = 0.58;
 const KART_RESET_FALL_Y = -10;
 const EDITOR_CAMERA_START_DISTANCE = 28;
 const EDITOR_CAMERA_MIN_DISTANCE = 4;
@@ -43,9 +54,6 @@ const EDITOR_CAMERA_PAN_SPEED = 5;
 const EDITOR_CAMERA_FAST_MULTIPLIER = 2.5;
 const EDITOR_CAMERA_ORBIT_SPEED = 0.25;
 const EDITOR_CAMERA_PAN_PIXEL_SCALE = 0.0015;
-const COURSE_CENTER_Z = ROUGH_COURSE.centerZ;
-const GROUND_WIDTH = ROUGH_COURSE.ground.width;
-const GROUND_DEPTH = ROUGH_COURSE.ground.depth;
 const TRANSLATE_GIZMO_LENGTH = 2.2;
 const TRANSLATE_GIZMO_HEAD_OFFSET = 2.55;
 const TRANSLATE_GIZMO_PICK_RADIUS = 28;
@@ -74,7 +82,9 @@ function clamp(value: number, min: number, max: number) {
 }
 
 function toFixedStep(value: number) {
-  return Number(value.toFixed(2));
+  const roundedValue = Number(value.toFixed(2));
+
+  return Object.is(roundedValue, -0) ? 0 : roundedValue;
 }
 
 const KART_MOVEMENT_TUNING_MINIMUMS: Record<KartMovementTuningKey, number> = {
@@ -88,10 +98,18 @@ const KART_MOVEMENT_TUNING_MINIMUMS: Record<KartMovementTuningKey, number> = {
 };
 const ENABLE_SCENE_TEST_HOOKS = process.env.NODE_ENV !== "production";
 
-export function SoloTimeTrialCanvas() {
+type SoloTimeTrialCanvasProps = {
+  onExit: () => void;
+};
+
+export function SoloTimeTrialCanvas({ onExit }: SoloTimeTrialCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const editorOpenRef = useRef(false);
   const sceneApiRef = useRef<SceneApi | null>(null);
   const [editorOpen, setEditorOpen] = useState(false);
+  const [sceneStatus, setSceneStatus] = useState<
+    "initializing" | "ready" | "failed"
+  >("initializing");
   const [selectedObjectId, setSelectedObjectId] =
     useState<EditableObjectId>("start-position");
   const [selectedPosition, setSelectedPosition] = useState<Position3>({
@@ -120,8 +138,27 @@ export function SoloTimeTrialCanvas() {
     }
 
     const activeCanvas = canvas;
+    let cancelled = false;
+    let activeRuntime: ReturnType<typeof createPlayCanvasRuntime> | null = null;
+
+    const initializeScene = async () => {
+      await loadAmmoPhysics();
+
+      if (cancelled) {
+        return;
+      }
+
     const runtime = createPlayCanvasRuntime(activeCanvas);
+    activeRuntime = runtime;
+    runtime.initialize();
     const { app } = runtime;
+    const rigidBodySystem = app.systems.rigidbody;
+
+    if (!rigidBodySystem) {
+      throw new Error("PlayCanvas rigid-body system is unavailable");
+    }
+
+    rigidBodySystem.gravity.set(0, -KART_GRAVITY, 0);
     activeCanvas.focus();
 
     const kartMaterial = createMaterial(new pc.Color(0.95, 0.18, 0.08));
@@ -178,6 +215,24 @@ export function SoloTimeTrialCanvas() {
       const meshInstances = entity.model?.meshInstances;
       meshInstances?.forEach((meshInstance) => {
         meshInstance.material = material;
+      });
+      parent.addChild(entity);
+
+      return entity;
+    }
+
+    function createChildCollisionBox(
+      parent: pc.Entity,
+      name: string,
+      position: pc.Vec3,
+      halfExtents: pc.Vec3,
+    ) {
+      const entity = new pc.Entity(name);
+
+      entity.setLocalPosition(position);
+      entity.addComponent("collision", {
+        halfExtents,
+        type: "box",
       });
       parent.addChild(entity);
 
@@ -258,28 +313,48 @@ export function SoloTimeTrialCanvas() {
     );
 
     const kart = new pc.Entity("box-kart");
-    kart.setPosition(START_POSITION);
+    kart.setPosition(
+      START_POSITION.x,
+      START_POSITION.y + KART_ROOT_HEIGHT,
+      START_POSITION.z,
+    );
     kart.setEulerAngles(0, START_YAW, 0);
+    kart.addComponent("collision", { type: "compound" });
     app.root.addChild(kart);
+    const kartVisual = new pc.Entity("kart-visual");
+
+    kart.addChild(kartVisual);
     const currentStartPosition = START_POSITION.clone();
     const currentStartRotation = new pc.Vec3(0, START_YAW, 0);
 
-    const body = createBox(
+    createChildBox(
+      kartVisual,
       "kart-body",
-      new pc.Vec3(0, 0.35, 0),
+      new pc.Vec3(0, 0.07, 0),
       new pc.Vec3(1.25, 0.45, 1.85),
       kartMaterial,
     );
-    const cockpit = createBox(
+    createChildBox(
+      kartVisual,
       "kart-cockpit",
-      new pc.Vec3(0, 0.78, -0.2),
+      new pc.Vec3(0, 0.5, -0.2),
       new pc.Vec3(0.72, 0.42, 0.78),
       cockpitMaterial,
     );
-    kart.addChild(body);
-    kart.addChild(cockpit);
+    createChildCollisionBox(
+      kart,
+      "kart-body-collision",
+      new pc.Vec3(0, 0.07, 0),
+      new pc.Vec3(0.625, 0.225, 0.925),
+    );
+    createChildCollisionBox(
+      kart,
+      "kart-cockpit-collision",
+      new pc.Vec3(0, 0.5, -0.2),
+      new pc.Vec3(0.36, 0.21, 0.39),
+    );
 
-    const frontWheelPivots: pc.Entity[] = [];
+    const dynamicWheels: DynamicWheel[] = [];
 
     ([
       ["front-left", -0.78, -0.58],
@@ -288,8 +363,10 @@ export function SoloTimeTrialCanvas() {
       ["rear-right", 0.78, 0.62],
     ] satisfies [string, number, number][]).forEach(([name, x, z]) => {
       const wheelPivot = new pc.Entity(`kart-wheel-pivot-${name}`);
-      wheelPivot.setLocalPosition(x, 0.26, z);
-      kart.addChild(wheelPivot);
+      const localPosition = new pc.Vec3(x, -0.02, z);
+
+      wheelPivot.setLocalPosition(localPosition);
+      kartVisual.addChild(wheelPivot);
 
       createChildCylinder(
         wheelPivot,
@@ -308,10 +385,49 @@ export function SoloTimeTrialCanvas() {
         new pc.Vec3(0, 0, 90),
       );
 
-      if (name.startsWith("front")) {
-        frontWheelPivots.push(wheelPivot);
-      }
+      dynamicWheels.push({
+        driven: name.startsWith("rear"),
+        localPosition,
+        name,
+        pivot: wheelPivot,
+        steered: name.startsWith("front"),
+      });
     });
+
+    kart.addComponent("rigidbody", {
+      angularDamping: 0.08,
+      friction: 0.12,
+      linearDamping: 0.015,
+      mass: KART_MASS,
+      restitution: 0.04,
+      type: pc.BODYTYPE_DYNAMIC,
+    });
+    setExplicitRigidBodyInertia(kart, KART_MASS, KART_INERTIA);
+
+    const kartPresentation = {
+      currentPosition: kart.getPosition().clone(),
+      currentRotation: kart.getRotation().clone(),
+      previousPosition: kart.getPosition().clone(),
+      previousRotation: kart.getRotation().clone(),
+    };
+    const interpolatedKartPosition = new pc.Vec3();
+    const interpolatedKartRotation = new pc.Quat();
+
+    function captureKartPresentationState() {
+      kartPresentation.previousPosition.copy(kartPresentation.currentPosition);
+      kartPresentation.previousRotation.copy(kartPresentation.currentRotation);
+      kartPresentation.currentPosition.copy(kart.getPosition());
+      kartPresentation.currentRotation.copy(kart.getRotation());
+    }
+
+    function snapKartPresentationState() {
+      kartPresentation.currentPosition.copy(kart.getPosition());
+      kartPresentation.currentRotation.copy(kart.getRotation());
+      kartPresentation.previousPosition.copy(kartPresentation.currentPosition);
+      kartPresentation.previousRotation.copy(kartPresentation.currentRotation);
+      kartVisual.setLocalPosition(0, 0, 0);
+      kartVisual.setLocalRotation(pc.Quat.IDENTITY);
+    }
 
     const selectionOutline = new pc.Entity("selection-outline");
     selectionOutline.enabled = false;
@@ -404,7 +520,7 @@ export function SoloTimeTrialCanvas() {
       clearColor: new pc.Color(0.52, 0.7, 0.86),
     });
     app.root.addChild(camera);
-    const chaseCamera = new ChaseCamera(camera, kart, activeCanvas);
+    const chaseCamera = new ChaseCamera(camera, kartVisual, activeCanvas);
 
     const light = new pc.Entity();
     light.addComponent("light");
@@ -431,32 +547,6 @@ export function SoloTimeTrialCanvas() {
     let activeMovementTuning: KartMovementTuning = {
       ...DEFAULT_KART_MOVEMENT_TUNING,
     };
-    function updateFrontWheelSteering(steerAngle: number) {
-      frontWheelPivots.forEach((wheelPivot) => {
-        wheelPivot.setLocalEulerAngles(0, steerAngle, 0);
-      });
-    }
-
-    function rotateKartAroundSteeringAxle(yawDelta: number) {
-      const frontAxlePosition = kart
-        .getPosition()
-        .clone()
-        .add(kart.forward.clone().mulScalar(KART_FRONT_AXLE_OFFSET));
-
-      kart.rotate(0, yawDelta, 0);
-
-      const movedFrontAxlePosition = kart
-        .getPosition()
-        .clone()
-        .add(kart.forward.clone().mulScalar(KART_FRONT_AXLE_OFFSET));
-
-      kart.setPosition(
-        kart
-          .getPosition()
-          .clone()
-          .add(frontAxlePosition.sub(movedFrontAxlePosition)),
-      );
-    }
 
     function getEditableObjectPosition(objectId: EditableObjectId) {
       if (objectId === "kart") {
@@ -617,6 +707,23 @@ export function SoloTimeTrialCanvas() {
       updateSelectionMarker();
     }
 
+    function editStaticRigidBody(
+      entity: pc.Entity,
+      editTransform: () => void,
+    ) {
+      const rigidBody = entity.rigidbody;
+
+      if (rigidBody) {
+        rigidBody.enabled = false;
+      }
+
+      editTransform();
+
+      if (rigidBody) {
+        rigidBody.enabled = true;
+      }
+    }
+
     function rotateSelected(axis: TransformAxis, delta: number) {
       if (selectedEditableObjectId === "kart") {
         const rotation = kart.getEulerAngles();
@@ -636,7 +743,9 @@ export function SoloTimeTrialCanvas() {
           const nextRotation = rotation.clone();
 
           nextRotation[axis] = toFixedStep(rotation[axis] + delta);
-          obstacleEntity.setEulerAngles(nextRotation);
+          editStaticRigidBody(obstacleEntity, () => {
+            obstacleEntity.setEulerAngles(nextRotation);
+          });
         }
       } else {
         currentStartRotation[axis] = toFixedStep(
@@ -673,7 +782,9 @@ export function SoloTimeTrialCanvas() {
           const nextPosition = position.clone();
 
           nextPosition[axis] = toFixedStep(position[axis] + delta);
-          obstacleEntity.setPosition(nextPosition);
+          editStaticRigidBody(obstacleEntity, () => {
+            obstacleEntity.setPosition(nextPosition);
+          });
           syncObstacleCollision(
             selectedEditableObjectId as ObstacleObjectId,
             nextPosition,
@@ -926,13 +1037,26 @@ export function SoloTimeTrialCanvas() {
     }
 
     function resetKart() {
-      kart.setPosition(currentStartPosition);
-      kart.setEulerAngles(
+      const resetPosition = new pc.Vec3(
+        currentStartPosition.x,
+        currentStartPosition.y + KART_ROOT_HEIGHT,
+        currentStartPosition.z,
+      );
+      const resetRotation = new pc.Quat().setFromEulerAngles(
         currentStartRotation.x,
         currentStartRotation.y,
         currentStartRotation.z,
       );
+
+      if (isEditorMode) {
+        kart.setPosition(resetPosition);
+        kart.setRotation(resetRotation);
+      } else {
+        kart.rigidbody?.teleport(resetPosition, resetRotation);
+      }
+
       kartController.reset();
+      snapKartPresentationState();
       keyboardInput.clear();
       if (isEditorMode) {
         frameStartPosition();
@@ -972,9 +1096,22 @@ export function SoloTimeTrialCanvas() {
       keyboardInput.clear();
 
       if (isEditorMode) {
+        if (kart.rigidbody) {
+          kart.rigidbody.type = pc.BODYTYPE_KINEMATIC;
+        }
         frameStartPosition();
         updateSelectionMarker();
       } else {
+        if (kart.rigidbody) {
+          const editedPosition = kart.getPosition().clone();
+          const editedRotation = kart.getRotation().clone();
+
+          kart.rigidbody.type = pc.BODYTYPE_DYNAMIC;
+          setExplicitRigidBodyInertia(kart, KART_MASS, KART_INERTIA);
+          kart.rigidbody.teleport(editedPosition, editedRotation);
+          kartController.reset();
+          snapKartPresentationState();
+        }
         activeEditorDrag = null;
         updateSelectionMarker();
         chaseCamera.update(1, 0);
@@ -994,27 +1131,14 @@ export function SoloTimeTrialCanvas() {
       });
     }
 
-    function isOverGroundPlane(position: pc.Vec3) {
-      const groundHalfWidth = GROUND_WIDTH / 2;
-      const groundHalfDepth = GROUND_DEPTH / 2;
-
-      return (
-        position.x >= -groundHalfWidth &&
-        position.x <= groundHalfWidth &&
-        position.z >= COURSE_CENTER_Z - groundHalfDepth &&
-        position.z <= COURSE_CENTER_Z + groundHalfDepth
-      );
-    }
-
-    const kartController: KartController = new LegacyKartController({
-      collidesAt: collidesWithObstacle,
+    const kartController = new DynamicKartController({
+      app,
       fallResetY: KART_RESET_FALL_Y,
-      isOverGround: isOverGroundPlane,
       kart,
+      mass: KART_MASS,
       onFallReset: resetKart,
-      rotateAroundSteeringAxle: rotateKartAroundSteeringAxle,
       tuning: activeMovementTuning,
-      updateWheelSteering: updateFrontWheelSteering,
+      wheels: dynamicWheels,
     });
 
     function setSceneMovementTuning(nextMovementTuning: KartMovementTuning) {
@@ -1160,26 +1284,111 @@ export function SoloTimeTrialCanvas() {
 
     const getKartDebugState = () => {
       const kartPosition = kart.getPosition();
+      const kartRotation = kart.getEulerAngles();
+      const angularSpeed = kart.rigidbody?.angularVelocity.length() ?? 0;
+      const supportCount = kartController.state.supportCount;
+      const maximumLateralSpeed = Math.max(
+        0,
+        ...kartController.state.wheelTelemetry.map((wheel) =>
+          Math.abs(wheel.lateralSpeed),
+        ),
+      );
+      const maximumTireForceUtilization = Math.max(
+        0,
+        ...kartController.state.wheelTelemetry.map(
+          (wheel) => wheel.tireForceUtilization,
+        ),
+      );
 
       return {
-        isOverGround: isOverGroundPlane(kartPosition),
+        angularSpeed: toFixedStep(angularSpeed),
+        isOverGround: supportCount !== 0,
+        maximumLateralSpeed: toFixedStep(maximumLateralSpeed),
+        maximumTireForceUtilization: toFixedStep(
+          maximumTireForceUtilization,
+        ),
         maxForwardSpeed: toFixedStep(activeMovementTuning.maxForwardSpeed),
+        rotationX: toFixedStep(kartRotation.x),
+        rotationY: toFixedStep(kartRotation.y),
+        rotationZ: toFixedStep(kartRotation.z),
         speed: toFixedStep(kartController.state.speed),
         steerAngle: toFixedStep(kartController.state.steerAngle),
+        supportCount,
+        supportEntityNames: [...kartController.state.supportEntityNames],
+        supportedWheelNames: [...kartController.state.supportedWheelNames],
+        saturatedTireCount: kartController.state.wheelTelemetry.filter(
+          (wheel) => wheel.tireForceUtilization >= 0.995,
+        ).length,
         verticalVelocity: toFixedStep(kartController.state.verticalVelocity),
+        wheelLoads: Object.fromEntries(
+          kartController.state.wheelTelemetry.map((wheel) => [
+            wheel.name,
+            toFixedStep(wheel.suspensionLoad),
+          ]),
+        ),
         x: toFixedStep(kartPosition.x),
         y: toFixedStep(kartPosition.y),
         z: toFixedStep(kartPosition.z),
       };
     };
 
-    const setKartDebugPosition = (position: Position3) => {
-      kart.setPosition(
-        position.x,
-        position.y,
-        position.z,
+    const getPresentationDebugState = () => {
+      const physicsPosition = kart.getPosition();
+      const visualPosition = kartVisual.getPosition();
+      const cameraTrackedPosition = chaseCamera.getTrackedPosition();
+
+      return {
+        cameraTrackedPosition: {
+          x: toFixedStep(cameraTrackedPosition.x),
+          y: toFixedStep(cameraTrackedPosition.y),
+          z: toFixedStep(cameraTrackedPosition.z),
+        },
+        physicsPosition: {
+          x: toFixedStep(physicsPosition.x),
+          y: toFixedStep(physicsPosition.y),
+          z: toFixedStep(physicsPosition.z),
+        },
+        visualPosition: {
+          x: toFixedStep(visualPosition.x),
+          y: toFixedStep(visualPosition.y),
+          z: toFixedStep(visualPosition.z),
+        },
+      };
+    };
+
+    const setKartDebugPose = (pose: {
+      angularVelocity?: Position3;
+      linearVelocity?: Position3;
+      position: Position3;
+      rotation: Position3;
+    }) => {
+      kart.rigidbody?.teleport(
+        new pc.Vec3(pose.position.x, pose.position.y, pose.position.z),
+        new pc.Quat().setFromEulerAngles(
+          pose.rotation.x,
+          pose.rotation.y,
+          pose.rotation.z,
+        ),
       );
       kartController.reset();
+
+      if (kart.rigidbody && pose.linearVelocity) {
+        kart.rigidbody.linearVelocity = new pc.Vec3(
+          pose.linearVelocity.x,
+          pose.linearVelocity.y,
+          pose.linearVelocity.z,
+        );
+      }
+
+      if (kart.rigidbody && pose.angularVelocity) {
+        kart.rigidbody.angularVelocity = new pc.Vec3(
+          pose.angularVelocity.x,
+          pose.angularVelocity.y,
+          pose.angularVelocity.z,
+        );
+      }
+
+      snapKartPresentationState();
       chaseCamera.update(1, 0);
     };
 
@@ -1194,15 +1403,48 @@ export function SoloTimeTrialCanvas() {
           getCollisionDebugState,
           getEditableObjectPoint: getEditableObjectScreenPoint,
           getKartDebugState,
+          getPresentationDebugState,
           getTranslateGizmoPoint: getTranslateGizmoScreenPoint,
-          setKartDebugPosition,
+          setKartDebugPose,
+          setSimulationPaused: (paused) => runtime.setPaused(paused),
+          stepSimulation: (steps) => runtime.stepFixed(steps),
         })
       : () => undefined;
     runtime.addCleanup(detachSceneTestAdapter);
 
     chaseCamera.update(1, 0);
 
+    runtime.onFixedStep((dt) => {
+      if (!isEditorMode) {
+        kartController.update(keyboardInput.getDrivingInput(), dt);
+      }
+    });
+
+    runtime.onRender(({ accumulatorFraction, frameSeconds }) => {
+      interpolatedKartPosition.lerp(
+        kartPresentation.previousPosition,
+        kartPresentation.currentPosition,
+        accumulatorFraction,
+      );
+      interpolatedKartRotation.slerp(
+        kartPresentation.previousRotation,
+        kartPresentation.currentRotation,
+        accumulatorFraction,
+      );
+      kartVisual.setPosition(interpolatedKartPosition);
+      kartVisual.setRotation(interpolatedKartRotation);
+
+      if (!isEditorMode) {
+        chaseCamera.update(
+          frameSeconds,
+          keyboardInput.getDrivingInput().steer,
+        );
+      }
+    });
+
     app.on("update", (dt) => {
+      captureKartPresentationState();
+
       if (isEditorMode) {
         const editorMovement = keyboardInput.getEditorMovement();
         const moveSpeed =
@@ -1223,18 +1465,36 @@ export function SoloTimeTrialCanvas() {
 
       const drivingInput = keyboardInput.getDrivingInput();
       const turnDirection = drivingInput.steer;
-      kartController.update(drivingInput, dt);
 
       if (turnDirection !== 0) {
         updateSelectionMarker();
       }
 
-      chaseCamera.update(dt, turnDirection);
+    });
+
+      if (editorOpenRef.current) {
+        setEditorMode(true);
+      }
+
+      runtime.start();
+      activeCanvas.dataset.sceneReady = "true";
+      setSceneStatus("ready");
+      runtime.addCleanup(() => {
+        delete activeCanvas.dataset.sceneReady;
+      });
+    };
+
+    void initializeScene().catch((error: unknown) => {
+      if (!cancelled) {
+        console.error("Unable to initialize the PlayCanvas scene", error);
+        setSceneStatus("failed");
+      }
     });
 
     return () => {
+      cancelled = true;
       sceneApiRef.current = null;
-      runtime.destroy();
+      activeRuntime?.destroy();
     };
   }, []);
 
@@ -1291,6 +1551,7 @@ export function SoloTimeTrialCanvas() {
     setEditorOpen((isOpen) => {
       const nextIsOpen = !isOpen;
 
+      editorOpenRef.current = nextIsOpen;
       sceneApiRef.current?.setEditorMode(nextIsOpen);
       canvasRef.current?.focus();
 
@@ -1308,22 +1569,62 @@ export function SoloTimeTrialCanvas() {
         tabIndex={0}
         className="block h-[100dvh] w-[100dvw]"
       />
-      <LiteEditorPanel
-        editorOpen={editorOpen}
-        movementTuning={movementTuning}
-        onMovementTuningChange={updateMovementTuning}
-        onMovementTuningReset={resetMovementTuning}
-        onResetKart={resetKart}
-        onRotateSelected={rotateSelected}
-        onStartPositionChange={updateStartPosition}
-        onStartPositionNudge={nudgeStartPosition}
-        onToggleEditor={toggleEditorMode}
-        onTranslateSelected={translateSelected}
-        selectedObjectId={selectedObjectId}
-        selectedPosition={selectedPosition}
-        selectedRotation={selectedRotation}
-        startPosition={startPosition}
-      />
+      {sceneStatus === "ready" ? (
+        <LiteEditorPanel
+          editorOpen={editorOpen}
+          movementTuning={movementTuning}
+          onMovementTuningChange={updateMovementTuning}
+          onMovementTuningReset={resetMovementTuning}
+          onResetKart={resetKart}
+          onRotateSelected={rotateSelected}
+          onStartPositionChange={updateStartPosition}
+          onStartPositionNudge={nudgeStartPosition}
+          onToggleEditor={toggleEditorMode}
+          onTranslateSelected={translateSelected}
+          selectedObjectId={selectedObjectId}
+          selectedPosition={selectedPosition}
+          selectedRotation={selectedRotation}
+          startPosition={startPosition}
+        />
+      ) : (
+        <div className="absolute inset-0 z-20 grid place-items-center bg-titan-black/88 px-6 text-center font-mono text-titan-ice">
+          <div className="grid max-w-md gap-4 border border-titan-ice/20 bg-titan-black p-6 shadow-[0_20px_70px_rgb(0_0_0/0.5)]">
+            {sceneStatus === "initializing" ? (
+              <p role="status" aria-live="polite">
+                Preparing kart physics…
+              </p>
+            ) : (
+              <div className="grid gap-3" role="alert" aria-live="assertive">
+                <p className="font-bold uppercase tracking-[0.12em] text-titan-hazard">
+                  Unable to start the race
+                </p>
+                <p className="text-sm text-titan-ice/78">
+                  The kart physics engine could not load. Reload the app, or
+                  return to mode selection.
+                </p>
+              </div>
+            )}
+            <div className="flex flex-wrap justify-center gap-3">
+              {sceneStatus === "failed" ? (
+                <button
+                  type="button"
+                  className="titan-button titan-button-primary"
+                  onClick={() => window.location.reload()}
+                >
+                  Reload
+                </button>
+              ) : null}
+              <button
+                type="button"
+                className="titan-button titan-button-secondary"
+                onClick={onExit}
+              >
+                Exit
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   );
 }

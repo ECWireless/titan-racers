@@ -93,6 +93,10 @@ export class ChaseCamera {
     this.camera.lookAt(this.smoothedLookTarget);
   }
 
+  getTrackedPosition() {
+    return this.kart.getPosition().clone();
+  }
+
   private getSettings() {
     return this.canvas.clientHeight > this.canvas.clientWidth * 1.15
       ? MOBILE_SETTINGS

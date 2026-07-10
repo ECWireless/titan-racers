@@ -26,4 +26,6 @@ The source code and authoritative project documents remain the final authority f
 
 ## Current Children
 
-No child project-system nodes have been established yet. Add them as systems become stable enough to document without competing with active phase planning.
+- [Kart physics](kart-physics/README.md): fixed-step simulation, dynamic chassis,
+  wheel support and tire forces, presentation interpolation, telemetry, and
+  reset behavior.

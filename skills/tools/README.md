@@ -23,4 +23,5 @@ Prefer primary documentation and direct runtime evidence. Link back to relevant 
 
 ## Current Children
 
-No child tool nodes have been established yet. A PlayCanvas node should be introduced when its Phase 1 findings are deliberately consolidated and reviewed.
+- [`playcanvas-ammo/`](playcanvas-ammo/README.md): the accepted mapping from
+  Titan Racers' fixed-step kart-physics standard to PlayCanvas and Ammo/Bullet.
