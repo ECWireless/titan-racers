@@ -385,17 +385,95 @@ Key metrics:
 
 Goal: make testing fun quickly.
 
-Includes:
+Deliver Phase 2 through five narrow PRs. Each task inside a bundled PR keeps its
+own focused implementation session, acceptance gate, verification evidence, and
+conventional commit. Do not move to the next task until the current behavior is
+accepted, even when both tasks share a PR.
 
-- [ ] one rough kart,
-- [ ] rough test loop,
-- [ ] keyboard controls,
-- [ ] mobile controls,
-- [ ] early gamepad/controller input,
-- [ ] Privy-gated admin allowlist for protected course/editor tooling,
-- [ ] lap/checkpoint/timer system,
-- [ ] reset/recover behavior,
-- [ ] basic analytics hooks.
+For each substantial game system, use the repository Skills Tree as a required
+knowledge-first workflow before implementation:
+
+1. Research the engine-independent gold standard deeply, favoring primary
+   sources and strong practical evidence.
+2. Review the proposed standard with the feature lead, then record the accepted
+   behavior, failure modes, and validation evidence under
+   `skills/game-concepts/`.
+3. Research how the approved concept maps onto the selected engine, libraries,
+   and platform constraints. Review those choices with the feature lead, then
+   record the accepted APIs, limitations, and working methods under
+   `skills/tools/`.
+4. Implement and verify the system against both accepted knowledge nodes.
+5. After the implementation is accepted, document its actual responsibilities,
+   data flow, invariants, source ownership, verification paths, and limitations
+   under `skills/project-systems/`.
+
+Apply this workflow independently to kart physics, collisions, chase-camera
+behavior, course editing, input, race progression and recovery, and any other
+system whose quality depends on substantive game-development knowledge. Do not
+write a project-system node speculatively before its implementation has been
+validated, and do not present exploratory research as an accepted gold
+standard.
+
+#### PR 1: Gameplay Architecture
+
+Establish only the minimum durable seams needed to replace spike behavior
+safely. Preserve the accepted visible behavior while separating:
+
+- [x] PlayCanvas application and scene lifecycle,
+- [x] data-driven course construction,
+- [x] the current kart controller behind a replaceable interface,
+- [x] a normalized input contract initially backed by keyboard input,
+- [x] chase-camera behavior,
+- [x] editor UI state from engine operations,
+- [x] deliberate development and test adapters from production behavior.
+
+#### PR 2: Driving Simulation
+
+Treat these as separate tuning and acceptance tasks within one integrated PR:
+
+- [ ] fixed-step simulation and dynamic rigid-body kart physics,
+- [ ] grounded traction, braking, reverse, steering, lateral grip, and weight
+      transfer,
+- [ ] support-aware ledge behavior, airborne rotation, landing, and recovery,
+- [ ] collision behavior for barriers, corners, obstacles, ramps, glancing
+      impacts, snagging, bounce, spin, and tunneling,
+- [ ] chase-camera behavior driven by actual kart motion, orientation, slip,
+      impacts, and airborne state.
+
+Split camera work into its own PR if the combined driving-simulation diff stops
+being comfortably reviewable.
+
+#### PR 3: Protected Course Tooling
+
+- [ ] define and implement the required editable course-data model,
+- [ ] establish selection, transform, placement, checkpoint/start placement,
+      collision visualization, persistence/export, undo, and reset behavior,
+- [ ] add Privy authentication,
+- [ ] enforce an environment-configured admin allowlist at both the UI and
+      server authorization boundaries.
+
+#### PR 4: Rough Race Loop
+
+- [ ] unified keyboard, mobile touch, and early gamepad/controller input,
+- [ ] explicit loading, ready, countdown, racing, paused, recovering, and
+      finished states,
+- [ ] ordered checkpoints, laps, timer, and invalid-progression handling,
+- [ ] safe checkpoint recovery with orientation and velocity reset,
+- [ ] a rough test loop that can be completed through every supported input.
+
+#### PR 5: Telemetry And Runtime Resilience
+
+- [ ] provider-neutral analytics event contract,
+- [ ] privacy-conscious Postgres gameplay telemetry using anonymous guest
+      sessions and summarized events rather than per-frame data,
+- [ ] Vercel Web Analytics for page, performance, and supported funnel events,
+- [ ] focus loss, visibility change, resize, input cancellation, lower frame
+      rate, loading, and WebGL/context failure behavior,
+- [ ] integrated Phase 2 verification and independent review.
+
+Phase 2 remains limited to one rough kart and a rough test loop. Kart uploads,
+Agricultural Zone visual production, ghosts, leaderboard submission, and
+multiplayer remain in their later phases.
 
 ### Phase 3: Kart Design And Upload System
 

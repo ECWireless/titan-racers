@@ -28,7 +28,8 @@ Check off completed items in `IMPLEMENTATION_PLAN.md` as each phase lands. At th
    - what stack or architecture choices need agreement,
    - what files or systems are likely to change,
    - how the work will be verified,
-   - where the PR should stop.
+   - where the PR should stop,
+   - what independent-review gate the PR will require.
 11. Break the phase into sequential tasks.
 12. Wait for explicit approval before implementation.
 
@@ -48,7 +49,8 @@ Before writing code, agree on:
 - assets to copy or generate,
 - testing and verification commands,
 - commit strategy,
-- PR description shape.
+- PR description shape,
+- pre-PR independent-review strategy.
 
 If the agent wants to choose a framework, dependency, service, or major pattern, explain why and get agreement first.
 
@@ -76,27 +78,33 @@ Before asking for review or opening a PR:
    - confirm no tokens, private hostnames, private URLs, or internal-only notes are being committed,
    - confirm public UI copy does not expose implementation details,
    - confirm analytics, uploads, auth, storage, or external calls are intentional.
-5. Check off completed implementation-plan items for the phase.
-6. Summarize what changed.
-7. Call out any deviations from the plan.
-8. Confirm what remains for later phases.
-9. Keep the PR boundary narrow enough to review comfortably.
+5. Run and resolve the proportional fresh-context independent-review gate for
+   the completed PR-sized unit.
+6. Check off completed implementation-plan items for the PR scope.
+7. Summarize what changed.
+8. Call out any deviations from the plan.
+9. Confirm what remains for later PRs or phases.
+10. Keep the PR boundary narrow enough to review comfortably.
 
 Before opening, updating, or responding to PR review feedback, read `docs/pr-review-workflow.md`.
 
-## Pre-Merge Independent Review
+## Pre-PR Independent Review
 
-Run an independent review after a phase's implementation and verification are complete but before merging it into `main`. This is a pre-merge gate, not a ritual required whenever an unfinished session ends.
+Run an independent review after each PR-sized unit's implementation and verification are complete but before declaring that unit complete, staging it for publication, or preparing/opening its PR. The trigger is PR readiness, not the end of a Codex session: an unfinished unit does not require the gate merely because a session is ending, while multiple completed PRs in one session each require their own gate.
+
+When a phase spans multiple PRs, review each completed PR independently against its intended base and approved scope. After the complete phase has been implemented and verified, run a final proportional integration review before merging the final phase work into `main`. Do not treat earlier per-PR reviews as a substitute for reviewing cross-PR behavior at the completed-phase boundary.
+
+For that final integration gate, apply the same review procedure using the complete phase goal and acceptance criteria, the full integrated diff from the approved phase baseline through the final worktree, and reviewer count and specialties sized to the aggregate consequences of the entire phase rather than only the final PR.
 
 ### Reviewer Count
 
-- Use one fresh-context, read-only reviewer for a normal completed phase.
-- Use two specialized reviewers when the phase materially changes privacy, security, authentication, data migrations, foundational architecture, external integrations, or other high-consequence boundaries.
+- Use one fresh-context, read-only reviewer for a normal completed PR.
+- Use two specialized reviewers when the PR materially changes privacy, security, authentication, data migrations, foundational architecture, external integrations, or other high-consequence boundaries.
 - Add more reviewers only when they have clearly distinct review responsibilities. Repeated general reviews create noise rather than confidence.
 
 Suggested specialties are:
 
-- **Technical and gameplay reviewer:** correctness, failure modes, tests, architecture, runtime behavior, physics and input behavior, dependency choices, unnecessary complexity, and phase-scope compliance.
+- **Technical and gameplay reviewer:** correctness, failure modes, tests, architecture, runtime behavior, physics and input behavior, dependency choices, unnecessary complexity, and PR/phase-scope compliance.
 - **Security and privacy reviewer:** authentication, authorization, secrets, analytics, data handling, uploads, external integrations, and trust boundaries.
 - **Experience reviewer:** user-visible behavior, accessibility, responsive layout, control clarity, and keyboard, touch, and gamepad experience when a phase has substantial interface or gameplay work.
 
@@ -104,7 +112,7 @@ Suggested specialties are:
 
 1. Finish the agreed implementation and run its verification commands.
 2. Freeze implementation edits while the review is in progress.
-3. Give each reviewer the approved phase goal, acceptance criteria, stopping point, relevant project docs, and complete diff from the approved `main` baseline.
+3. Give each reviewer the approved PR goal, acceptance criteria, stopping point, relevant project docs, and complete diff from the intended PR base, normally the approved `main` baseline.
 4. Keep reviewers read-only. They report findings but do not edit files, create commits, merge, or broaden scope.
 5. Require evidence-based findings with severity, file and line references when applicable, the violated contract or risk, and a concise correction direction. Reviewers should explicitly say when they found no actionable issue.
 6. Classify findings as:
