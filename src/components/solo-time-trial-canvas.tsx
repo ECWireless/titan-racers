@@ -98,6 +98,23 @@ const KART_MOVEMENT_TUNING_MINIMUMS: Record<KartMovementTuningKey, number> = {
 };
 const ENABLE_SCENE_TEST_HOOKS = process.env.NODE_ENV !== "production";
 
+type SceneInitializationTestControl = {
+  forcePostRuntimeFailure?: boolean;
+  runtimeDestroyCount?: number;
+};
+
+function getSceneInitializationTestControl() {
+  if (!ENABLE_SCENE_TEST_HOOKS) {
+    return undefined;
+  }
+
+  return (
+    globalThis as typeof globalThis & {
+      __TITAN_RACERS_SCENE_TEST__?: SceneInitializationTestControl;
+    }
+  ).__TITAN_RACERS_SCENE_TEST__;
+}
+
 type SoloTimeTrialCanvasProps = {
   onExit: () => void;
 };
@@ -138,6 +155,7 @@ export function SoloTimeTrialCanvas({ onExit }: SoloTimeTrialCanvasProps) {
     }
 
     const activeCanvas = canvas;
+    const sceneTestControl = getSceneInitializationTestControl();
     let cancelled = false;
     let activeRuntime: ReturnType<typeof createPlayCanvasRuntime> | null = null;
 
@@ -151,6 +169,11 @@ export function SoloTimeTrialCanvas({ onExit }: SoloTimeTrialCanvasProps) {
     const runtime = createPlayCanvasRuntime(activeCanvas);
     activeRuntime = runtime;
     runtime.initialize();
+
+    if (sceneTestControl?.forcePostRuntimeFailure) {
+      throw new Error("Forced post-runtime scene initialization failure");
+    }
+
     const { app } = runtime;
     const rigidBodySystem = app.systems.rigidbody;
 
@@ -1485,6 +1508,17 @@ export function SoloTimeTrialCanvas({ onExit }: SoloTimeTrialCanvasProps) {
     };
 
     void initializeScene().catch((error: unknown) => {
+      const failedRuntime = activeRuntime;
+
+      failedRuntime?.destroy();
+      activeRuntime = null;
+      sceneApiRef.current = null;
+
+      if (failedRuntime && sceneTestControl) {
+        sceneTestControl.runtimeDestroyCount =
+          (sceneTestControl.runtimeDestroyCount ?? 0) + 1;
+      }
+
       if (!cancelled) {
         console.error("Unable to initialize the PlayCanvas scene", error);
         setSceneStatus("failed");

@@ -268,6 +268,44 @@ test.describe("home screen", () => {
     expect(pageErrors).toEqual([]);
   });
 
+  test("destroys the runtime when scene setup fails after initialization", async ({
+    page,
+  }) => {
+    await page.addInitScript(() => {
+      (
+        window as typeof window & {
+          __TITAN_RACERS_SCENE_TEST__?: {
+            forcePostRuntimeFailure: boolean;
+            runtimeDestroyCount: number;
+          };
+        }
+      ).__TITAN_RACERS_SCENE_TEST__ = {
+        forcePostRuntimeFailure: true,
+        runtimeDestroyCount: 0,
+      };
+    });
+    await page.goto("/");
+    await page.getByRole("button", { name: "Solo Time Trial" }).click();
+
+    await expect(
+      page.getByRole("alert").filter({ hasText: "Unable to start the race" }),
+    ).toBeVisible();
+    await expect
+      .poll(() =>
+        page.evaluate(
+          () =>
+            (
+              window as typeof window & {
+                __TITAN_RACERS_SCENE_TEST__?: {
+                  runtimeDestroyCount?: number;
+                };
+              }
+            ).__TITAN_RACERS_SCENE_TEST__?.runtimeDestroyCount ?? 0,
+        ),
+      )
+      .toBe(1);
+  });
+
   test("keeps the mobile solo canvas sized and kart centered", async ({
     page,
   }, testInfo) => {
