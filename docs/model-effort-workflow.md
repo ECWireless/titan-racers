@@ -8,6 +8,26 @@ The agent may assess the work and recommend a model-effort setting, but it must 
 
 When the active setting is not visible to the agent, say that it is unknown rather than guessing. If a different setting would materially improve the work, explain why and ask the feature lead to make the change before continuing. Available effort levels and their behavior may vary by model and Codex surface.
 
+## Top-Line Recommendation For Every Task
+
+Begin the first user-facing response to every new task with a single top-line
+effort recommendation in this format:
+
+> Effort recommendation: High — this task requires foundational architecture
+> judgment and consequential review.
+
+Recommend the lowest adequate level for the specific task, even when the task
+continues within an existing session or several PRs are completed in one
+session. Reassess rather than carrying the previous task's recommendation
+forward automatically.
+
+When the active setting is not visible, say so. If the feature lead reports a
+current setting that differs from the recommendation and the mismatch matters
+for substantive work, pause before beginning that work and wait for explicit
+confirmation that the setting was changed or deliberately retained. A known,
+adequate setting may be acknowledged without delaying the task. Low-risk,
+mechanical work should not be inflated merely to force a switch.
+
 ## Session Start
 
 During the phase debrief:

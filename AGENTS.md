@@ -28,15 +28,16 @@ Each phase should begin with alignment on:
 - sequential tasks,
 - acceptance criteria,
 - verification commands,
-- commit and PR boundary.
+- commit and PR boundary,
+- pre-PR independent-review strategy.
 
 Use conventional commit messages.
 
 Do not stage, commit, push, open PRs, comment on PRs, or resolve GitHub threads without explicit user approval.
 
-Before ending a branch or preparing a PR, perform the standard final pass from `docs/session-workflow.md`: user-facing QA, code review, and privacy/security review.
+Before ending a branch or preparing a PR, perform the standard final pass from `docs/session-workflow.md`: user-facing QA, code review, privacy/security review, and the proportional fresh-context independent-review gate.
 
-After a phase's implementation and verification are complete, run the proportional independent-review gate from `docs/session-workflow.md` before merging the phase into `main`.
+Run the independent-review gate for every completed PR-sized unit before declaring it complete, staging it for publication, or preparing/opening its PR. This applies even when several PRs are completed in one Codex session. When a phase spans multiple PRs, also run a final proportional integration review after the complete phase has been implemented and verified, before merging the final phase work into `main`.
 
 For browser QA, prefer the repo's Playwright tests first. Playwright Agent CLI skills may be useful for richer ad hoc browser workflows if installed locally, but they are not required for normal verification.
 
