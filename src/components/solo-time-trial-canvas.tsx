@@ -1552,6 +1552,13 @@ export function SoloTimeTrialCanvas({ onExit }: SoloTimeTrialCanvasProps) {
     runtime.addCleanup(() => collisionObserver.destroy());
     let cameraImpactId = 0;
     let latestCameraImpact: ChaseCameraImpact | null = null;
+    const chaseCameraSnapshot: ChaseCameraSnapshot = {
+      impact: null,
+      linearVelocity: new pc.Vec3(),
+      position: new pc.Vec3(),
+      rotation: new pc.Quat(),
+      supportCount: 0,
+    };
     const suspensionMetrics = {
       maximumCompression: 0,
       maximumSupportedWheels: 0,
@@ -1618,14 +1625,15 @@ export function SoloTimeTrialCanvas({ onExit }: SoloTimeTrialCanvasProps) {
     function getChaseCameraSnapshot(
       supportCount = kartController.state.supportCount,
     ): ChaseCameraSnapshot {
-      return {
-        impact: latestCameraImpact,
-        linearVelocity:
-          kart.rigidbody?.linearVelocity.clone() ?? new pc.Vec3(),
-        position: kartVisual.getPosition().clone(),
-        rotation: kartVisual.getRotation().clone(),
-        supportCount,
-      };
+      chaseCameraSnapshot.impact = latestCameraImpact;
+      chaseCameraSnapshot.linearVelocity.copy(
+        kart.rigidbody?.linearVelocity ?? pc.Vec3.ZERO,
+      );
+      chaseCameraSnapshot.position.copy(kartVisual.getPosition());
+      chaseCameraSnapshot.rotation.copy(kartVisual.getRotation());
+      chaseCameraSnapshot.supportCount = supportCount;
+
+      return chaseCameraSnapshot;
     }
 
     function captureCollisionMetrics() {

@@ -162,6 +162,10 @@ export class ChaseCamera {
   private readonly desiredImpactOffset = new pc.Vec3();
   private readonly correctedPosition = new pc.Vec3();
   private readonly trackedPosition = new pc.Vec3();
+  private readonly scaledHeading = new pc.Vec3();
+  private readonly scaledRight = new pc.Vec3();
+  private readonly pivotToHit = new pc.Vec3();
+  private readonly desiredDirection = new pc.Vec3();
   private smoothedFov = DESKTOP_SETTINGS.fov;
   private airborneBlend = 0;
   private lastImpactId = -1;
@@ -324,22 +328,26 @@ export class ChaseCamera {
 
     this.desiredPosition
       .copy(snapshot.position)
-      .sub(this.chaseHeading.clone().mulScalar(settings.distance));
+      .sub(
+        this.scaledHeading.copy(this.chaseHeading).mulScalar(settings.distance),
+      );
     this.desiredPosition.y +=
       settings.height + this.airborneBlend * AIRBORNE_VERTICAL_LAG;
-    this.desiredPosition.add(this.kartRight.clone().mulScalar(slipOffset));
+    this.desiredPosition.add(
+      this.scaledRight.copy(this.kartRight).mulScalar(slipOffset),
+    );
 
     this.desiredLookTarget
       .copy(snapshot.position)
-      .add(this.chaseHeading.clone().mulScalar(lookAhead));
+      .add(this.scaledHeading.copy(this.chaseHeading).mulScalar(lookAhead));
     this.desiredLookTarget.y += 0.45;
     this.desiredLookTarget.add(
-      this.kartRight.clone().mulScalar(slipOffset * 0.65),
+      this.scaledRight.copy(this.kartRight).mulScalar(slipOffset * 0.65),
     );
   }
 
   private resolveObstruction() {
-    this.cameraPivot.copy(this.getTrackedPosition());
+    this.cameraPivot.copy(this.trackedPosition);
     this.cameraPivot.y += CAMERA_PIVOT_HEIGHT;
     const obstruction = this.queryObstruction(
       this.cameraPivot,
@@ -354,17 +362,19 @@ export class ChaseCamera {
       return;
     }
 
-    const pivotToHit = obstruction.point.clone().sub(this.cameraPivot);
-    const hitDistance = pivotToHit.length();
+    const hitDistance = this.pivotToHit
+      .copy(obstruction.point)
+      .sub(this.cameraPivot)
+      .length();
     const correctedDistance = Math.max(hitDistance - OBSTRUCTION_MARGIN, 0);
-    const desiredDirection = this.desiredPosition
-      .clone()
+    this.desiredDirection
+      .copy(this.desiredPosition)
       .sub(this.cameraPivot)
       .normalize();
 
     this.correctedPosition
       .copy(this.cameraPivot)
-      .add(desiredDirection.mulScalar(correctedDistance));
+      .add(this.desiredDirection.mulScalar(correctedDistance));
     this.obstructionDistance = correctedDistance;
   }
 
