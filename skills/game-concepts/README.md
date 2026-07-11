@@ -28,6 +28,9 @@ A game-concept node should normally cover:
 
 ## Current Children
 
+- [`chase-camera/`](chase-camera/README.md): the accepted engine-independent
+  standard for motion-led vehicle framing, slip readability, impacts, airborne
+  behavior, obstruction handling, and reset coherence.
 - [`collisions/`](collisions/README.md): the accepted engine-independent
   standard for forgiving, physically coherent vehicle contacts, collision
   geometry, impact response, snag prevention, and tunneling protection.

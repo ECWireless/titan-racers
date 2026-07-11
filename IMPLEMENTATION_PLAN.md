@@ -447,7 +447,7 @@ mixing it with the equally substantial collision and camera systems.
 
 #### PR 2C: Chase-Camera Mastery
 
-- [ ] chase-camera behavior driven by actual kart motion, orientation, slip,
+- [x] chase-camera behavior driven by actual kart motion, orientation, slip,
       impacts, and airborne state.
 
 After PR 2C is implemented and verified, run the final proportional integration

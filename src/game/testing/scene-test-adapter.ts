@@ -3,6 +3,7 @@ import type {
   Position3,
   TransformAxis,
 } from "../contracts";
+import type { ChaseCameraDiagnostics } from "../camera/chase-camera";
 
 type CanvasPoint = { x: number; y: number } | null;
 
@@ -13,6 +14,8 @@ export type CollisionDebugState = {
   rampCount: number;
   startClear: boolean;
 };
+
+export type CameraDebugState = ChaseCameraDiagnostics;
 
 export type KartDebugState = {
   airbornePitchActive: boolean;
@@ -80,6 +83,7 @@ export type CollisionResponseDebugState = {
 };
 
 export type SceneTestApi = {
+  getCameraDebugState: () => CameraDebugState;
   getCollisionDebugState: () => CollisionDebugState;
   getCollisionResponseDebugState: () => CollisionResponseDebugState;
   getEditableObjectPoint: (objectId: EditableObjectId) => CanvasPoint;
@@ -97,6 +101,14 @@ export function attachSceneTestAdapter(
   api: SceneTestApi,
 ) {
   const listeners: Array<[string, EventListener]> = [
+    [
+      "getCameraDebugState",
+      ((event: CustomEvent<{
+        respond: (state: CameraDebugState) => void;
+      }>) => {
+        event.detail.respond(api.getCameraDebugState());
+      }) as EventListener,
+    ],
     [
       "getTranslateGizmoPoint",
       ((event: CustomEvent<{

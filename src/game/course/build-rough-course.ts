@@ -4,6 +4,7 @@ import type { ObstacleObjectId } from "../contracts";
 import { PHYSICS_GROUP, PHYSICS_MASK } from "../physics/collision-groups";
 import {
   ROUGH_COURSE,
+  ROUGH_COURSE_CAMERA_FIXTURES,
   ROUGH_COURSE_COLLISION_FIXTURES,
   ROUGH_COURSE_OBSTACLES,
   ROUGH_COURSE_RAMPS,
@@ -89,6 +90,21 @@ export function buildRoughCourse(
     ),
   );
 
+  const cameraFixtureEntities = ROUGH_COURSE_CAMERA_FIXTURES.map((fixture) =>
+    createPrimitive(
+      app,
+      "box",
+      fixture.id,
+      new pc.Vec3(
+        fixture.position.x,
+        fixture.position.y,
+        fixture.position.z,
+      ),
+      new pc.Vec3(fixture.scale.x, fixture.scale.y, fixture.scale.z),
+      materials.obstacleBlock,
+    ),
+  );
+
   const collisionFixtureEntities = includeCollisionFixtures
     ? ROUGH_COURSE_COLLISION_FIXTURES.map((fixture) =>
         createPrimitive(
@@ -107,6 +123,7 @@ export function buildRoughCourse(
     : [];
 
   return {
+    cameraFixtureEntities,
     collisionFixtureEntities,
     collisionObstacles,
     obstacleEntities,

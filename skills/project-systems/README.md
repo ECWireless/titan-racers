@@ -26,6 +26,9 @@ The source code and authoritative project documents remain the final authority f
 
 ## Current Children
 
+- [Chase camera](chase-camera/README.md): motion-led heading and look-ahead,
+  slip and reverse policy, speed framing, impact and airborne response,
+  obstruction correction, explicit snapping, diagnostics, and camera fixtures.
 - [Kart physics](kart-physics/README.md): fixed-step simulation, dynamic chassis,
   wheel support and tire forces, presentation interpolation, telemetry, and
   reset behavior.

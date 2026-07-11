@@ -35,6 +35,24 @@ export type RoughCourseCollisionFixture = {
   scale: Position3;
 };
 
+export type RoughCourseCameraFixture = RoughCourseCollisionFixture;
+
+// Visible rough-course geometry for hands-on chase-camera obstruction and
+// close-corner testing. These sit beyond the normal loop in a small test bay.
+export const ROUGH_COURSE_CAMERA_FIXTURES: readonly RoughCourseCameraFixture[] =
+  [
+    {
+      id: "camera-test-large-wall",
+      position: { x: 0, y: 2.5, z: -18 },
+      scale: { x: 16, y: 5, z: 0.6 },
+    },
+    {
+      id: "camera-test-corner-wall",
+      position: { x: 7.7, y: 2.5, z: -16.3 },
+      scale: { x: 0.6, y: 5, z: 4 },
+    },
+  ];
+
 // These are opt-in, non-production fixtures for reproducible fixed-step impact
 // response and high-speed tunneling checks.
 export const ROUGH_COURSE_COLLISION_FIXTURES: readonly RoughCourseCollisionFixture[] =
