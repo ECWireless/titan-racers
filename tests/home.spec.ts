@@ -85,6 +85,33 @@ async function getCollisionDebugState(canvas: Locator) {
   );
 }
 
+async function getCameraDebugState(canvas: Locator) {
+  await waitForSceneReady(canvas);
+
+  return canvas.evaluate(
+    (element) =>
+      new Promise<{
+        airborneBlend: number;
+        cameraPosition: { x: number; y: number; z: number };
+        desiredPosition: { x: number; y: number; z: number };
+        fov: number;
+        impactOffset: { x: number; y: number; z: number };
+        lookTarget: { x: number; y: number; z: number };
+        obstructed: boolean;
+        obstructionDistance: number | null;
+        planarSpeed: number;
+        signedSlipDegrees: number;
+        snapCount: number;
+      }>((resolve) => {
+        element.dispatchEvent(
+          new CustomEvent("getCameraDebugState", {
+            detail: { respond: resolve },
+          }),
+        );
+      }),
+  );
+}
+
 async function getCollisionResponseDebugState(canvas: Locator) {
   await waitForSceneReady(canvas);
 
@@ -936,6 +963,195 @@ test.describe("home screen", () => {
     );
   });
 
+  test("drives chase framing from speed and actual planar slip", async ({
+    page,
+  }, testInfo) => {
+    await page.goto("/");
+    await page.getByRole("button", { name: "Solo Time Trial" }).click();
+
+    const canvas = page.getByTestId("solo-time-trial-canvas");
+    await setSimulationPaused(canvas, true);
+    await setKartDebugPose(canvas, {
+      linearVelocity: { x: -12, y: 0, z: 7 },
+      position: { x: 0, y: 0.43, z: 0 },
+      rotation: { x: 0, y: 90, z: 0 },
+    });
+    for (let frame = 0; frame < 10; frame += 1) {
+      await stepSimulation(canvas, 3);
+    }
+
+    const movingCamera = await getCameraDebugState(canvas);
+
+    expect(movingCamera.planarSpeed).toBeGreaterThan(8);
+    expect(Math.abs(movingCamera.signedSlipDegrees)).toBeGreaterThan(5);
+    const baseFov = testInfo.project.name === "mobile" ? 58 : 45;
+    const maximumFov = testInfo.project.name === "mobile" ? 63 : 51;
+
+    expect(movingCamera.fov).toBeGreaterThan(baseFov);
+    expect(movingCamera.fov).toBeLessThanOrEqual(maximumFov);
+    expect(
+      Math.hypot(
+        movingCamera.cameraPosition.x - movingCamera.desiredPosition.x,
+        movingCamera.cameraPosition.y - movingCamera.desiredPosition.y,
+        movingCamera.cameraPosition.z - movingCamera.desiredPosition.z,
+      ),
+    ).toBeLessThan(2);
+  });
+
+  test("corrects the chase camera against the visible wall and releases it", async ({
+    page,
+  }) => {
+    await page.goto("/");
+    await page.getByRole("button", { name: "Solo Time Trial" }).click();
+
+    const canvas = page.getByTestId("solo-time-trial-canvas");
+    await setSimulationPaused(canvas, true);
+    await setKartDebugPose(canvas, {
+      position: { x: 0, y: 0.43, z: -16 },
+      rotation: { x: 0, y: 180, z: 0 },
+    });
+
+    const obstructedCamera = await getCameraDebugState(canvas);
+
+    expect(obstructedCamera.obstructed).toBe(true);
+    expect(obstructedCamera.obstructionDistance).not.toBeNull();
+    expect(obstructedCamera.obstructionDistance).toBeLessThan(6);
+
+    await setKartDebugPose(canvas, {
+      position: { x: 0, y: 0.43, z: -7 },
+      rotation: { x: 0, y: 180, z: 0 },
+    });
+
+    const clearCamera = await getCameraDebugState(canvas);
+
+    expect(clearCamera.obstructed).toBe(false);
+    expect(clearCamera.obstructionDistance).toBeNull();
+    expect(clearCamera.snapCount).toBeGreaterThan(
+      obstructedCamera.snapCount,
+    );
+
+    await setKartDebugPose(canvas, {
+      position: { x: 0, y: 0.43, z: -17 },
+      rotation: { x: 0, y: 180, z: 0 },
+    });
+
+    const closeCamera = await getCameraDebugState(canvas);
+
+    expect(closeCamera.obstructed).toBe(true);
+    expect(closeCamera.obstructionDistance).not.toBeNull();
+    expect(closeCamera.obstructionDistance).toBeGreaterThanOrEqual(0);
+    expect(closeCamera.obstructionDistance).toBeLessThan(1);
+  });
+
+  test("keeps the kart visible inside the camera-test corner", async ({
+    page,
+  }) => {
+    await page.goto("/");
+    await page.getByRole("button", { name: "Solo Time Trial" }).click();
+
+    const canvas = page.getByTestId("solo-time-trial-canvas");
+    await setSimulationPaused(canvas, true);
+    await setKartDebugPose(canvas, {
+      position: { x: 6, y: 0.43, z: -16 },
+      rotation: { x: 0, y: 90, z: 0 },
+    });
+
+    const cornerCamera = await getCameraDebugState(canvas);
+
+    expect(cornerCamera.obstructed).toBe(true);
+    expect(cornerCamera.obstructionDistance).not.toBeNull();
+    expect(cornerCamera.obstructionDistance).toBeGreaterThan(1);
+    expect(cornerCamera.obstructionDistance).toBeLessThan(6);
+
+    await setKartDebugPose(canvas, {
+      position: { x: 2, y: 0.43, z: -12 },
+      rotation: { x: 0, y: -90, z: 0 },
+    });
+
+    expect((await getCameraDebugState(canvas)).obstructed).toBe(false);
+  });
+
+  test("adds one bounded camera response for a hard impact", async ({
+    page,
+  }) => {
+    await page.goto("/?collision-fixtures");
+    await page.getByRole("button", { name: "Solo Time Trial" }).click();
+
+    const canvas = page.getByTestId("solo-time-trial-canvas");
+    await setSimulationPaused(canvas, true);
+    await setKartDebugPose(canvas, {
+      linearVelocity: { x: 0, y: 0, z: 17 },
+      position: { x: 4, y: 0.43, z: 25.5 },
+      rotation: { x: 0, y: 0, z: 0 },
+    });
+    await stepSimulation(canvas, 36);
+
+    const impactCamera = await getCameraDebugState(canvas);
+    const impactMagnitude = Math.hypot(
+      impactCamera.impactOffset.x,
+      impactCamera.impactOffset.y,
+      impactCamera.impactOffset.z,
+    );
+
+    expect(impactMagnitude).toBeGreaterThan(0.1);
+    expect(impactMagnitude).toBeLessThanOrEqual(0.22);
+
+    for (let frame = 0; frame < 8; frame += 1) {
+      await stepSimulation(canvas, 3);
+    }
+
+    const recoveredCamera = await getCameraDebugState(canvas);
+
+    expect(
+      Math.hypot(
+        recoveredCamera.impactOffset.x,
+        recoveredCamera.impactOffset.y,
+        recoveredCamera.impactOffset.z,
+      ),
+    ).toBeLessThan(impactMagnitude);
+  });
+
+  test("keeps airborne framing world-up and blends back after landing", async ({
+    page,
+  }) => {
+    await page.goto("/");
+    await page.getByRole("button", { name: "Solo Time Trial" }).click();
+
+    const canvas = page.getByTestId("solo-time-trial-canvas");
+    await setSimulationPaused(canvas, true);
+    await setKartDebugPose(canvas, {
+      angularVelocity: { x: 1, y: 0.5, z: 1.5 },
+      linearVelocity: { x: 7, y: -2, z: 0 },
+      position: { x: -10, y: 3, z: 0 },
+      rotation: { x: 20, y: 90, z: 25 },
+    });
+
+    const airborneCamera = await getCameraDebugState(canvas);
+
+    expect(airborneCamera.airborneBlend).toBe(1);
+    expect(airborneCamera.cameraPosition.y).toBeGreaterThan(6);
+
+    let kart = await getKartDebugState(canvas);
+
+    for (let batch = 0; batch < 15 && kart.supportCount === 0; batch += 1) {
+      await stepSimulation(canvas, 8);
+      kart = await getKartDebugState(canvas);
+    }
+
+    expect(kart.supportCount).toBeGreaterThan(0);
+
+    for (let frame = 0; frame < 10; frame += 1) {
+      await stepSimulation(canvas, 2);
+    }
+
+    const landedCamera = await getCameraDebugState(canvas);
+
+    expect(landedCamera.airborneBlend).toBeLessThan(0.35);
+    expect(Number.isFinite(landedCamera.cameraPosition.x)).toBe(true);
+    expect(Number.isFinite(landedCamera.cameraPosition.y)).toBe(true);
+    expect(Number.isFinite(landedCamera.cameraPosition.z)).toBe(true);
+  });
+
   test("edits the solo start position", async ({ page }) => {
     await page.goto("/");
 
@@ -1043,6 +1259,49 @@ test.describe("home screen", () => {
       .click();
 
     await expect(page.getByTestId("selected-position-x")).toHaveText("X 0.5");
+  });
+
+  test("releases an elevated rotated editor kart into physical floor contact", async ({
+    page,
+  }, testInfo) => {
+    test.skip(
+      testInfo.project.name === "mobile",
+      "Mobile editor object picking needs a separate ergonomics pass.",
+    );
+
+    await page.goto("/");
+    await page.getByRole("button", { name: "Solo Time Trial" }).click();
+    await openEditor(page);
+
+    const canvas = page.getByTestId("solo-time-trial-canvas");
+    const kartPoint = await getEditableObjectPoint(canvas, "kart");
+
+    expect(kartPoint).not.toBeNull();
+    await canvas.click({
+      position: { x: kartPoint?.x ?? 0, y: kartPoint?.y ?? 0 },
+    });
+
+    for (let step = 0; step < 6; step += 1) {
+      await page
+        .getByRole("button", { name: "Move selected positive Y" })
+        .click();
+    }
+    for (let step = 0; step < 3; step += 1) {
+      await page
+        .getByRole("button", { name: "Rotate selected positive X" })
+        .click();
+    }
+
+    await expect(page.getByTestId("selected-position-y")).toHaveText("Y 3.43");
+    await expect(page.getByTestId("selected-rotation-x")).toHaveText("RX 45");
+    await page.getByRole("button", { name: "Drive" }).click();
+
+    await stepSimulation(canvas, 50);
+
+    const kart = await getKartDebugState(canvas);
+
+    expect(kart.y).toBeGreaterThan(-1);
+    expect(kart.supportCount).toBeGreaterThan(0);
   });
 
   test("translates with the visual editor arrows", async ({

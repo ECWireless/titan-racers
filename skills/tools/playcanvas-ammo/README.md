@@ -19,6 +19,9 @@ implementation has been accepted.
 
 ## Focused Children
 
+- [`chase-camera/`](chase-camera/README.md): accepted PlayCanvas 2.20.6 mapping
+  for motion-led chase-camera state, collision-observer impulses, obstruction
+  raycasts, presentation interpolation, and camera-focused verification.
 - [`collisions/`](collisions/README.md): accepted PlayCanvas 2.20.6 and
   vendored-Ammo mapping for collision geometry, contact telemetry, material
   response, continuous collision detection, and collision verification.

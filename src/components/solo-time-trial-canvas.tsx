@@ -16,7 +16,13 @@ import type {
   TransformAxis,
 } from "@/game/contracts";
 import { KartCollisionObserver } from "@/game/collision/kart-collision-observer";
-import { ChaseCamera } from "@/game/camera/chase-camera";
+import {
+  calculateImpactStrength,
+  ChaseCamera,
+  selectStrongerImpact,
+  type ChaseCameraImpact,
+  type ChaseCameraSnapshot,
+} from "@/game/camera/chase-camera";
 import { buildRoughCourse } from "@/game/course/build-rough-course";
 import { EDITOR_TRANSLATE_STEP } from "@/game/editor/editor-config";
 import { KeyboardInput } from "@/game/input/keyboard-input";
@@ -471,6 +477,7 @@ export function SoloTimeTrialCanvas({ onExit }: SoloTimeTrialCanvasProps) {
     }
 
     const {
+      cameraFixtureEntities,
       collisionFixtureEntities,
       collisionObstacles,
       obstacleEntities,
@@ -841,7 +848,27 @@ export function SoloTimeTrialCanvas({ onExit }: SoloTimeTrialCanvasProps) {
       clearColor: new pc.Color(0.52, 0.7, 0.86),
     });
     app.root.addChild(camera);
-    const chaseCamera = new ChaseCamera(camera, kartVisual, activeCanvas);
+    const chaseCamera = new ChaseCamera(
+      camera,
+      activeCanvas,
+      (pivot, desiredPosition) => {
+        const hit = rigidBodySystem.raycastFirst(pivot, desiredPosition, {
+          filterCollisionGroup: PHYSICS_GROUP.kart,
+          filterCollisionMask: PHYSICS_MASK.kart,
+          filterCallback: (entity: pc.Entity) =>
+            entity !== kart &&
+            (entity.tags.has("obstacle") ||
+              entity.tags.has("drivable-surface")),
+        });
+
+        return hit
+          ? {
+              normal: hit.normal.clone(),
+              point: hit.point.clone(),
+            }
+          : null;
+      },
+    );
 
     app.scene.ambientLight = new pc.Color(0.34, 0.39, 0.46);
 
@@ -1427,6 +1454,7 @@ export function SoloTimeTrialCanvas({ onExit }: SoloTimeTrialCanvasProps) {
 
       kartController.reset();
       snapKartPresentationState();
+      latestCameraImpact = null;
       keyboardInput.clear();
       if (isEditorMode) {
         frameStartPosition();
@@ -1434,7 +1462,7 @@ export function SoloTimeTrialCanvas({ onExit }: SoloTimeTrialCanvasProps) {
         syncSelectedRotation();
         updateSelectionMarker();
       } else {
-        chaseCamera.update(1, 0);
+        chaseCamera.snap(getChaseCameraSnapshot(dynamicWheels.length));
       }
       activeCanvas.focus();
     }
@@ -1463,6 +1491,7 @@ export function SoloTimeTrialCanvas({ onExit }: SoloTimeTrialCanvasProps) {
     function setEditorMode(nextEditorMode: boolean) {
       isEditorMode = nextEditorMode;
       kartController.reset();
+      latestCameraImpact = null;
       keyboardInput.clear();
 
       if (isEditorMode) {
@@ -1470,6 +1499,8 @@ export function SoloTimeTrialCanvas({ onExit }: SoloTimeTrialCanvasProps) {
         editableObjectQuaternions.set("kart", kart.getRotation().clone());
         if (kart.rigidbody) {
           kart.rigidbody.type = pc.BODYTYPE_KINEMATIC;
+          kart.rigidbody.group = PHYSICS_GROUP.kart;
+          kart.rigidbody.mask = PHYSICS_MASK.kart;
         }
         frameStartPosition();
         updateSelectionMarker();
@@ -1479,6 +1510,8 @@ export function SoloTimeTrialCanvas({ onExit }: SoloTimeTrialCanvasProps) {
           const editedRotation = kart.getRotation().clone();
 
           kart.rigidbody.type = pc.BODYTYPE_DYNAMIC;
+          kart.rigidbody.group = PHYSICS_GROUP.kart;
+          kart.rigidbody.mask = PHYSICS_MASK.kart;
           setExplicitRigidBodyInertia(kart, KART_MASS, KART_INERTIA);
           configureRigidBodyCcd(kart, KART_CCD_CONFIGURATION);
           kart.rigidbody.teleport(editedPosition, editedRotation);
@@ -1487,7 +1520,7 @@ export function SoloTimeTrialCanvas({ onExit }: SoloTimeTrialCanvasProps) {
         }
         activeEditorDrag = null;
         updateSelectionMarker();
-        chaseCamera.update(1, 0);
+        chaseCamera.snap(getChaseCameraSnapshot(dynamicWheels.length));
       }
 
       activeCanvas.focus();
@@ -1517,6 +1550,8 @@ export function SoloTimeTrialCanvas({ onExit }: SoloTimeTrialCanvasProps) {
     runtime.addCleanup(() => kartController.destroy());
     const collisionObserver = new KartCollisionObserver(rigidBodySystem, kart);
     runtime.addCleanup(() => collisionObserver.destroy());
+    let cameraImpactId = 0;
+    let latestCameraImpact: ChaseCameraImpact | null = null;
     const suspensionMetrics = {
       maximumCompression: 0,
       maximumSupportedWheels: 0,
@@ -1524,6 +1559,7 @@ export function SoloTimeTrialCanvas({ onExit }: SoloTimeTrialCanvasProps) {
       minimumSupportedWheels: dynamicWheels.length,
     };
     const collisionEntityNames = new Set([
+      ...cameraFixtureEntities.map((entity) => entity.name),
       ...collisionFixtureEntities.map((entity) => entity.name),
       ...obstacleEntities.keys(),
     ]);
@@ -1552,6 +1588,44 @@ export function SoloTimeTrialCanvas({ onExit }: SoloTimeTrialCanvasProps) {
       collisionMetrics.maximumImpulse = 0;
       collisionMetrics.postLinearVelocity = { x: 0, y: 0, z: 0 };
       collisionMetrics.preLinearVelocity = { x: 0, y: 0, z: 0 };
+    }
+
+    function captureCameraImpact() {
+      const solidContacts = collisionObserver.lastFrame?.contacts.filter(
+        (contact) => collisionEntityNames.has(contact.otherEntityName),
+      );
+
+      if (!solidContacts || solidContacts.length === 0) {
+        return;
+      }
+
+      const strongestContact = solidContacts.reduce((strongest, contact) =>
+        contact.approachSpeed > strongest.approachSpeed ? contact : strongest,
+      );
+
+      if (calculateImpactStrength(strongestContact.approachSpeed) <= 0) {
+        return;
+      }
+
+      cameraImpactId += 1;
+      latestCameraImpact = selectStrongerImpact(latestCameraImpact, {
+        approachSpeed: strongestContact.approachSpeed,
+        id: cameraImpactId,
+        normal: strongestContact.normal,
+      });
+    }
+
+    function getChaseCameraSnapshot(
+      supportCount = kartController.state.supportCount,
+    ): ChaseCameraSnapshot {
+      return {
+        impact: latestCameraImpact,
+        linearVelocity:
+          kart.rigidbody?.linearVelocity.clone() ?? new pc.Vec3(),
+        position: kartVisual.getPosition().clone(),
+        rotation: kartVisual.getRotation().clone(),
+        supportCount,
+      };
     }
 
     function captureCollisionMetrics() {
@@ -1955,6 +2029,7 @@ export function SoloTimeTrialCanvas({ onExit }: SoloTimeTrialCanvasProps) {
       kartController.reset();
       resetSuspensionMetrics();
       resetCollisionMetrics();
+      latestCameraImpact = null;
 
       configureRigidBodyCcd(kart, {
         ...KART_CCD_CONFIGURATION,
@@ -1981,7 +2056,13 @@ export function SoloTimeTrialCanvas({ onExit }: SoloTimeTrialCanvasProps) {
       }
 
       snapKartPresentationState();
-      chaseCamera.update(1, 0);
+      chaseCamera.snap(
+        getChaseCameraSnapshot(
+          pose.position.y > KART_ROOT_HEIGHT + 0.5
+            ? 0
+            : dynamicWheels.length,
+        ),
+      );
     };
 
     runtime.listen(activeCanvas, "contextmenu", onContextMenu);
@@ -1992,6 +2073,7 @@ export function SoloTimeTrialCanvas({ onExit }: SoloTimeTrialCanvasProps) {
     runtime.listen(activeCanvas, "wheel", onWheel, { passive: false });
     const detachSceneTestAdapter = ENABLE_SCENE_TEST_HOOKS
       ? attachSceneTestAdapter(activeCanvas, {
+          getCameraDebugState: () => chaseCamera.getDiagnostics(),
           getCollisionDebugState,
           getCollisionResponseDebugState,
           getEditableObjectPoint: getEditableObjectScreenPoint,
@@ -2006,7 +2088,7 @@ export function SoloTimeTrialCanvas({ onExit }: SoloTimeTrialCanvasProps) {
       : () => undefined;
     runtime.addCleanup(detachSceneTestAdapter);
 
-    chaseCamera.update(1, 0);
+    chaseCamera.snap(getChaseCameraSnapshot(dynamicWheels.length));
 
     runtime.onFixedStep((dt) => {
       collisionObserver.beginStep();
@@ -2019,6 +2101,7 @@ export function SoloTimeTrialCanvas({ onExit }: SoloTimeTrialCanvasProps) {
     runtime.onPostFixedStep((dt) => {
       collisionObserver.endStep();
       captureCollisionMetrics();
+      captureCameraImpact();
 
       if (!isEditorMode) {
         kartController.postUpdate(keyboardInput.getDrivingInput(), dt);
@@ -2046,10 +2129,8 @@ export function SoloTimeTrialCanvas({ onExit }: SoloTimeTrialCanvasProps) {
       renderWheelPresentation(accumulatorFraction);
 
       if (!isEditorMode) {
-        chaseCamera.update(
-          frameSeconds,
-          keyboardInput.getDrivingInput().steer,
-        );
+        chaseCamera.update(frameSeconds, getChaseCameraSnapshot());
+        latestCameraImpact = null;
       }
     });
 

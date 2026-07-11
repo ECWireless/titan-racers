@@ -2,8 +2,30 @@ import { expect, test } from "@playwright/test";
 
 import {
   ROUGH_COURSE,
+  ROUGH_COURSE_CAMERA_FIXTURES,
   ROUGH_COURSE_RAMPS,
 } from "../src/game/course/course-definition";
+
+test("places a visible large wall and L-corner beyond the normal loop", () => {
+  const largeWall = ROUGH_COURSE_CAMERA_FIXTURES.find(
+    (fixture) => fixture.id === "camera-test-large-wall",
+  );
+  const cornerWall = ROUGH_COURSE_CAMERA_FIXTURES.find(
+    (fixture) => fixture.id === "camera-test-corner-wall",
+  );
+
+  expect(ROUGH_COURSE_CAMERA_FIXTURES).toHaveLength(2);
+  expect(largeWall?.scale.x).toBeGreaterThanOrEqual(12);
+  expect(largeWall?.scale.y).toBeGreaterThanOrEqual(4);
+  expect(cornerWall?.scale.z).toBeGreaterThanOrEqual(4);
+  expect(cornerWall?.position.x).toBeCloseTo(
+    (largeWall?.scale.x ?? 0) * 0.5 - (cornerWall?.scale.x ?? 0) * 0.5,
+  );
+  expect(largeWall?.position.z).toBeLessThan(
+    ROUGH_COURSE.centerZ - ROUGH_COURSE.road.turnRadius -
+      ROUGH_COURSE.road.width / 2,
+  );
+});
 
 test("places the super-tall ramp on the lower straight for counter-clockwise traffic", () => {
   const ramp = ROUGH_COURSE_RAMPS.find(
