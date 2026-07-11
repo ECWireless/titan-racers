@@ -1,0 +1,5 @@
+export const KART_WHEEL_RADIUS = 0.29;
+export const KART_WHEEL_WIDTH = 0.3;
+export const KART_SUSPENSION_TRAVEL = 0.42;
+export const KART_SUSPENSION_REST_TRAVEL = 0.23;
+export const KART_SUSPENSION_MAX_COMPRESSION_Y = 0.06;

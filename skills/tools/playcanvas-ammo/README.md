@@ -17,6 +17,15 @@ ownership and data flow belong under
 [`../../project-systems/`](../../project-systems/README.md) after the
 implementation has been accepted.
 
+## Focused Children
+
+- [`collisions/`](collisions/README.md): accepted PlayCanvas 2.20.6 and
+  vendored-Ammo mapping for collision geometry, contact telemetry, material
+  response, continuous collision detection, and collision verification.
+- [`wheel-suspension/`](wheel-suspension/README.md): accepted finite-radius
+  wheel-sweep and visible-suspension mapping for the pinned browser physics
+  stack.
+
 ## Supported Baseline
 
 - PlayCanvas Engine: `2.20.6`, to be pinned exactly while the custom runtime
@@ -148,6 +157,15 @@ Apply sustained responses as forces on every fixed step. Reserve impulses for
 genuinely instantaneous events such as an explicit gameplay kick or a later
 damage response. Do not write the dynamic entity's transform during ordinary
 driving.
+
+For a bounded passive airborne pitch policy, derive signed pitch from
+`entity.forward.y`, project `rigidbody.angularVelocity` onto `entity.right`, and
+calculate a critically damped proportional-derivative acceleration toward the
+accepted small nose-up target. Clamp that acceleration, multiply by the local
+X-axis pitch inertia, and submit the result through
+`RigidBodyComponent.applyTorque` before the fixed world step. Gate the torque
+on zero supported wheels and apply it only along the local pitch axis so yaw,
+roll, linear momentum, and solver collision response remain untouched.
 
 The controller should use PlayCanvas vectors at the adapter boundary but keep
 its tuning, telemetry, and accepted state contracts as ordinary TypeScript

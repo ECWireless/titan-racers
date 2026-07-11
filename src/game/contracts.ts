@@ -1,9 +1,7 @@
 export type TransformAxis = "x" | "y" | "z";
 
 export type ObstacleObjectId =
-  | "obstacle-concrete-block-a"
   | "obstacle-barrel-a"
-  | "obstacle-concrete-block-b"
   | "obstacle-barrel-b";
 
 export type EditableObjectId = "start-position" | "kart" | ObstacleObjectId;
@@ -48,6 +46,7 @@ export type SceneApi = {
   rotateSelected: (axis: TransformAxis, delta: number) => void;
   resetKart: () => void;
   setEditorMode: (isEditorMode: boolean) => void;
+  setPaused: (paused: boolean) => void;
   setMovementTuning: (movementTuning: KartMovementTuning) => void;
   setStartPosition: (startPosition: StartPosition) => void;
   translateSelected: (axis: TransformAxis, delta: number) => void;

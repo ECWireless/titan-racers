@@ -442,7 +442,7 @@ mixing it with the equally substantial collision and camera systems.
 
 #### PR 2B: Collision Mastery
 
-- [ ] collision behavior for barriers, corners, obstacles, ramps, glancing
+- [x] collision behavior for barriers, corners, obstacles, ramps, glancing
       impacts, snagging, bounce, spin, and tunneling,
 
 #### PR 2C: Chase-Camera Mastery

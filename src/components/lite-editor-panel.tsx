@@ -14,8 +14,6 @@ import {
 const EDITABLE_OBJECT_LABELS: Record<EditableObjectId, string> = {
   "obstacle-barrel-a": "Barrel A",
   "obstacle-barrel-b": "Barrel B",
-  "obstacle-concrete-block-a": "Block A",
-  "obstacle-concrete-block-b": "Block B",
   "start-position": "Start Position",
   kart: "Kart",
 };

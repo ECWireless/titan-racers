@@ -19,6 +19,9 @@ export class PlayCanvasRuntime {
   private readonly cleanups: Array<() => void> = [];
   private readonly clock = new FixedStepClock();
   private readonly fixedStepListeners = new Set<(stepSeconds: number) => void>();
+  private readonly postFixedStepListeners = new Set<
+    (stepSeconds: number) => void
+  >();
   private readonly renderListeners = new Set<(frame: FixedStepFrame) => void>();
   private readonly cancelAnimationFrame: (animationFrameId: number) => void;
   private readonly cancelApplicationTick: (app: pc.Application) => void;
@@ -59,6 +62,11 @@ export class PlayCanvasRuntime {
   onRender(listener: (frame: FixedStepFrame) => void) {
     this.renderListeners.add(listener);
     this.addCleanup(() => this.renderListeners.delete(listener));
+  }
+
+  onPostFixedStep(listener: (stepSeconds: number) => void) {
+    this.postFixedStepListeners.add(listener);
+    this.addCleanup(() => this.postFixedStepListeners.delete(listener));
   }
 
   setPaused(paused: boolean) {
@@ -196,6 +204,7 @@ export class PlayCanvasRuntime {
   private executeFixedStep(stepSeconds: number) {
     this.fixedStepListeners.forEach((listener) => listener(stepSeconds));
     this.app.update(stepSeconds);
+    this.postFixedStepListeners.forEach((listener) => listener(stepSeconds));
   }
 }
 

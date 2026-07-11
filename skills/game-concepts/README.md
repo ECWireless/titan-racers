@@ -28,6 +28,9 @@ A game-concept node should normally cover:
 
 ## Current Children
 
+- [`collisions/`](collisions/README.md): the accepted engine-independent
+  standard for forgiving, physically coherent vehicle contacts, collision
+  geometry, impact response, snag prevention, and tunneling protection.
 - [`kart-physics/`](kart-physics/README.md): the accepted dynamic rigid-body,
   wheel-support, tire-force, airborne, and recovery standard for RC-style kart
   handling.
