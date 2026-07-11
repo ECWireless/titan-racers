@@ -7,14 +7,22 @@ import type {
 type CanvasPoint = { x: number; y: number } | null;
 
 export type CollisionDebugState = {
-  blockAX: number | null;
+  obstacleAX: number | null;
   obstacleBlocksKart: boolean;
   obstacleCount: number;
+  rampCount: number;
   startClear: boolean;
 };
 
 export type KartDebugState = {
+  airbornePitchActive: boolean;
+  airbornePitchAngle: number;
+  airbornePitchRate: number;
+  airbornePitchTarget: number;
+  airbornePitchTorque: number;
   angularSpeed: number;
+  chassisClearance: number;
+  forward: Position3;
   isOverGround: boolean;
   maximumLateralSpeed: number;
   maximumTireForceUtilization: number;
@@ -28,8 +36,11 @@ export type KartDebugState = {
   supportEntityNames: string[];
   supportedWheelNames: string[];
   saturatedTireCount: number;
+  up: Position3;
   verticalVelocity: number;
+  wheelHubYs: Record<string, number>;
   wheelLoads: Record<string, number>;
+  wheelSweepFractions: Record<string, number | null>;
   x: number;
   y: number;
   z: number;
@@ -37,6 +48,7 @@ export type KartDebugState = {
 
 export type KartDebugPose = {
   angularVelocity?: Position3;
+  ccdEnabled?: boolean;
   linearVelocity?: Position3;
   position: Position3;
   rotation: Position3;
@@ -48,11 +60,32 @@ export type PresentationDebugState = {
   visualPosition: Position3;
 };
 
+export type SuspensionDebugState = {
+  maximumCompression: number;
+  maximumSupportedWheels: number;
+  minimumChassisClearance: number;
+  minimumSupportedWheels: number;
+};
+
+export type CollisionResponseDebugState = {
+  ccdMotionThreshold: number | null;
+  ccdSweptSphereRadius: number | null;
+  contactedEntityNames: string[];
+  impactFrameCount: number;
+  maximumAngularSpeedAfterImpact: number;
+  maximumApproachSpeed: number;
+  maximumImpulse: number;
+  postLinearVelocity: Position3;
+  preLinearVelocity: Position3;
+};
+
 export type SceneTestApi = {
   getCollisionDebugState: () => CollisionDebugState;
+  getCollisionResponseDebugState: () => CollisionResponseDebugState;
   getEditableObjectPoint: (objectId: EditableObjectId) => CanvasPoint;
   getKartDebugState: () => KartDebugState;
   getPresentationDebugState: () => PresentationDebugState;
+  getSuspensionDebugState: () => SuspensionDebugState;
   getTranslateGizmoPoint: (axis: TransformAxis) => CanvasPoint;
   setKartDebugPose: (pose: KartDebugPose) => void;
   setSimulationPaused: (paused: boolean) => void;
@@ -91,6 +124,14 @@ export function attachSceneTestAdapter(
       }) as EventListener,
     ],
     [
+      "getCollisionResponseDebugState",
+      ((event: CustomEvent<{
+        respond: (state: CollisionResponseDebugState) => void;
+      }>) => {
+        event.detail.respond(api.getCollisionResponseDebugState());
+      }) as EventListener,
+    ],
+    [
       "getKartDebugState",
       ((event: CustomEvent<{
         respond: (state: KartDebugState) => void;
@@ -104,6 +145,14 @@ export function attachSceneTestAdapter(
         respond: (state: PresentationDebugState) => void;
       }>) => {
         event.detail.respond(api.getPresentationDebugState());
+      }) as EventListener,
+    ],
+    [
+      "getSuspensionDebugState",
+      ((event: CustomEvent<{
+        respond: (state: SuspensionDebugState) => void;
+      }>) => {
+        event.detail.respond(api.getSuspensionDebugState());
       }) as EventListener,
     ],
     [

@@ -15,6 +15,12 @@ guidance belongs under [`../../tools/`](../../tools/README.md), while the actual
 shipped data flow and source ownership belong under
 [`../../project-systems/`](../../project-systems/README.md).
 
+## Focused Children
+
+- [`wheel-suspension/`](wheel-suspension/README.md): accepted extension for
+  finite-radius wheel support, visible ride height, articulated suspension, and
+  readable landing compression.
+
 ## Standard
 
 Build the kart as a genuine dynamic rigid body with wheel-level support and
@@ -71,8 +77,11 @@ mass distribution, then tune it deliberately. Treat center-of-mass and inertia
 changes as handling changes, not generic stability knobs.
 
 Physical wheel bodies and drivetrain articulations are not required. The
-visual wheels may follow the support and steering solution while the chassis
-remains the authoritative rigid body.
+visual wheels should follow the support, steering, and suspension solution
+while the chassis remains the authoritative rigid body. See the focused
+[`wheel-suspension`](wheel-suspension/README.md) extension when wheel volume,
+visible ride height, articulated suspension, or landing compression is in
+scope.
 
 ### Wheel support and suspension
 
@@ -142,6 +151,15 @@ proportional substepping rather than by erasing impact velocity.
 Any air-control assist must be modest, bounded, separately tunable, and unable
 to erase the launch state or incoming collision impulse.
 
+A passive pitch-stability moment is appropriate when a short-wheelbase kart's
+natural ramp rotation produces a consistently unfun nose dive. Model it as a
+bounded torque from signed pitch attitude and local pitch angular velocity,
+with a small target attitude. Activate it only when every wheel is unsupported
+and leave yaw, roll, linear velocity, and collision response authoritative.
+This represents the combined stabilizing effect of mass distribution,
+aerodynamic center of pressure, and spinning wheels; it must not become an
+instant upright snap.
+
 Recovery is a separate policy. Automatic recovery may run only after a
 documented stuck or invalid-state threshold. A deliberate player reset may act
 immediately, but its destination, orientation, and velocity-clearing behavior
@@ -178,6 +196,7 @@ target feel needs, such as:
 - traction shaping,
 - anti-roll response based on left/right suspension load,
 - bounded yaw stabilization tied to grounded state and driver intent, and
+- bounded passive airborne pitch stability, and
 - modest airborne control.
 
 Assists must not directly lock orientation, force the chassis onto a path,
@@ -198,7 +217,9 @@ Development telemetry should expose:
 - longitudinal and lateral point velocity or slip,
 - requested and clamped tire forces,
 - grounded, partial-support, and airborne state, and
-- linear and angular velocity.
+- linear and angular velocity; and
+- signed airborne pitch, local pitch rate, target attitude, applied stability
+  torque, and whether the stability policy is active.
 
 Visual and numeric telemetry is part of the implementation standard because it
 makes tuning causal and regressions diagnosable.

@@ -108,6 +108,24 @@ test("manual stepping advances exact updates and renders once", () => {
   ]);
 });
 
+test("runs post-step listeners after the whole-world update", () => {
+  const { events, runtime } = createRuntimeHarness();
+
+  runtime.onFixedStep(() => events.push("fixed-listener"));
+  runtime.onPostFixedStep(() => events.push("post-fixed-listener"));
+  runtime.start();
+  runtime.setPaused(true);
+  events.length = 0;
+  runtime.stepFixed(1);
+
+  expect(events).toEqual([
+    "fixed-listener",
+    "update",
+    "post-fixed-listener",
+    "render",
+  ]);
+});
+
 test("destroy cancels the frame and releases listeners exactly once", () => {
   const { cancelledFrames, events, runtime, scheduledFrames } =
     createRuntimeHarness();

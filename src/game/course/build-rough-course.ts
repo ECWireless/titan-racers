@@ -1,7 +1,13 @@
 import * as pc from "playcanvas";
 
 import type { ObstacleObjectId } from "../contracts";
-import { ROUGH_COURSE, ROUGH_COURSE_OBSTACLES } from "./course-definition";
+import { PHYSICS_GROUP, PHYSICS_MASK } from "../physics/collision-groups";
+import {
+  ROUGH_COURSE,
+  ROUGH_COURSE_COLLISION_FIXTURES,
+  ROUGH_COURSE_OBSTACLES,
+  ROUGH_COURSE_RAMPS,
+} from "./course-definition";
 
 export type CollisionObstacle = {
   id: ObstacleObjectId;
@@ -16,11 +22,13 @@ type RoughCourseMaterials = {
   line: pc.StandardMaterial;
   obstacleBarrel: pc.StandardMaterial;
   obstacleBlock: pc.StandardMaterial;
+  ramp: pc.StandardMaterial;
 };
 
 export function buildRoughCourse(
   app: pc.Application,
   materials: RoughCourseMaterials,
+  includeCollisionFixtures = false,
 ) {
   const obstacleEntities = new Map<ObstacleObjectId, pc.Entity>();
   const collisionObstacles: CollisionObstacle[] = [];
@@ -70,7 +78,74 @@ export function buildRoughCourse(
     });
   });
 
-  return { collisionObstacles, obstacleEntities };
+  const rampEntities = ROUGH_COURSE_RAMPS.map((ramp) =>
+    createRamp(
+      app,
+      ramp.id,
+      new pc.Vec3(ramp.position.x, ramp.position.y, ramp.position.z),
+      new pc.Vec3(ramp.scale.x, ramp.scale.y, ramp.scale.z),
+      new pc.Vec3(ramp.rotation.x, ramp.rotation.y, ramp.rotation.z),
+      materials.ramp,
+    ),
+  );
+
+  const collisionFixtureEntities = includeCollisionFixtures
+    ? ROUGH_COURSE_COLLISION_FIXTURES.map((fixture) =>
+        createPrimitive(
+          app,
+          "box",
+          fixture.id,
+          new pc.Vec3(
+            fixture.position.x,
+            fixture.position.y,
+            fixture.position.z,
+          ),
+          new pc.Vec3(fixture.scale.x, fixture.scale.y, fixture.scale.z),
+          materials.obstacleBlock,
+        ),
+      )
+    : [];
+
+  return {
+    collisionFixtureEntities,
+    collisionObstacles,
+    obstacleEntities,
+    rampEntities,
+  };
+}
+
+function createRamp(
+  app: pc.Application,
+  name: string,
+  position: pc.Vec3,
+  scale: pc.Vec3,
+  rotation: pc.Vec3,
+  material: pc.StandardMaterial,
+) {
+  const entity = new pc.Entity(name);
+
+  entity.addComponent("model", { type: "box" });
+  entity.setPosition(position);
+  entity.setEulerAngles(rotation);
+  entity.setLocalScale(scale);
+  entity.model?.meshInstances?.forEach((meshInstance) => {
+    meshInstance.material = material;
+  });
+  entity.tags.add("drivable-surface");
+  entity.addComponent("collision", {
+    halfExtents: scale.clone().mulScalar(0.5),
+    type: "box",
+  });
+  entity.addComponent("rigidbody", {
+    friction: 0.55,
+    group: PHYSICS_GROUP.drivableSurface,
+    mask: PHYSICS_MASK.drivableSurface,
+    restitution: 0,
+    type: pc.BODYTYPE_STATIC,
+  });
+  app.root.addChild(entity);
+
+  return entity;
 }
 
 function buildPillCourse(
@@ -198,6 +273,12 @@ function createPrimitive(
 
     entity.addComponent("rigidbody", {
       friction: 0.7,
+      group: supportsKart
+        ? PHYSICS_GROUP.drivableSurface
+        : PHYSICS_GROUP.solidObstacle,
+      mask: supportsKart
+        ? PHYSICS_MASK.drivableSurface
+        : PHYSICS_MASK.solidObstacle,
       restitution: 0,
       type: pc.BODYTYPE_STATIC,
     });

@@ -29,3 +29,6 @@ The source code and authoritative project documents remain the final authority f
 - [Kart physics](kart-physics/README.md): fixed-step simulation, dynamic chassis,
   wheel support and tire forces, presentation interpolation, telemetry, and
   reset behavior.
+- [Collisions](collisions/README.md): compound kart envelope, course collision
+  geometry, filtering, contact observation, targeted CCD, response telemetry,
+  ramps, and controlled impact verification.
