@@ -20,6 +20,8 @@ type RoughCourseMaterials = Record<CourseVisualMaterial, pc.StandardMaterial>;
 
 export type CourseObjectProjection = ReturnType<typeof projectCourseObject>;
 
+// Custom factories must return an unattached entity. The builder owns scene
+// attachment so the complete course batch can be committed atomically.
 type CourseEntityFactory = (
   projection: CourseObjectProjection,
   material: pc.StandardMaterial,

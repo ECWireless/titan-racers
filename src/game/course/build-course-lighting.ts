@@ -13,6 +13,8 @@ export type CourseLightingProjection = ReturnType<
   typeof projectCourseLighting
 >["directionalLights"][number];
 
+// Custom factories must return an unattached entity. The builder owns scene
+// attachment so the complete lighting batch can be committed atomically.
 type CourseLightingEntityFactory = (
   projection: CourseLightingProjection,
 ) => pc.Entity;
