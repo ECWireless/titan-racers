@@ -8,19 +8,30 @@ import {
   courseDocumentSchema,
   ROUGH_COURSE_DOCUMENT,
 } from "@/game/course/course-document";
+import { COURSE_EDITOR_OBJECT_LIMIT } from "@/game/editor/course-editor-document";
 
 import { CourseEditorShell } from "./course-editor-shell";
 
 const COURSE_ID = "rough-course";
 
-const persistedCourseRevisionSchema = z.strictObject({
-  authorUserId: z.string().min(1),
-  courseId: z.string().min(1),
-  createdAt: z.string().datetime(),
-  document: courseDocumentSchema,
-  revision: z.number().int().positive(),
-  schemaVersion: z.number().int().positive(),
-});
+const persistedCourseRevisionSchema = z
+  .strictObject({
+    authorUserId: z.string().min(1),
+    courseId: z.string().min(1),
+    createdAt: z.string().datetime(),
+    document: courseDocumentSchema,
+    revision: z.number().int().positive(),
+    schemaVersion: z.number().int().positive(),
+  })
+  .superRefine((revision, context) => {
+    if (revision.document.objects.length > COURSE_EDITOR_OBJECT_LIMIT) {
+      context.addIssue({
+        code: "custom",
+        message: `The course editor supports at most ${COURSE_EDITOR_OBJECT_LIMIT} objects.`,
+        path: ["document", "objects"],
+      });
+    }
+  });
 
 export type CourseEditorRevision = z.infer<
   typeof persistedCourseRevisionSchema

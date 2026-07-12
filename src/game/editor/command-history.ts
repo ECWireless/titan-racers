@@ -9,10 +9,16 @@ export class CommandHistory<T> {
   private commands: EditorCommand<T>[] = [];
   private index = 0;
   private loadedValue: T;
+  private readonly maxCommands: number;
   private value: T;
 
-  constructor(loadedValue: T) {
+  constructor(loadedValue: T, maxCommands = 100) {
+    if (!Number.isInteger(maxCommands) || maxCommands < 1) {
+      throw new Error("Command history limit must be a positive integer.");
+    }
+
     this.loadedValue = loadedValue;
+    this.maxCommands = maxCommands;
     this.value = loadedValue;
   }
 
@@ -44,6 +50,13 @@ export class CommandHistory<T> {
     this.value = command.apply(this.value);
     this.commands.push(command);
     this.index += 1;
+    const overflow = this.commands.length - this.maxCommands;
+    if (overflow > 0) {
+      this.commands.splice(0, overflow);
+      this.index -= overflow;
+      this.cleanIndex =
+        this.cleanIndex < overflow ? -1 : this.cleanIndex - overflow;
+    }
 
     return this.value;
   }

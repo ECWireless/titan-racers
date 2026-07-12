@@ -80,4 +80,19 @@ test.describe("course editor command history", () => {
     expect(history.canRedo).toBe(false);
     expect(history.isDirty).toBe(false);
   });
+
+  test("bounds retained commands while preserving the latest undo window", () => {
+    const history = new CommandHistory<DocumentFixture>({ name: "0" }, 3);
+    for (let index = 1; index <= 5; index += 1) {
+      history.execute(renameCommand(String(index - 1), String(index)));
+    }
+
+    expect(history.current.name).toBe("5");
+    expect(history.isDirty).toBe(true);
+    expect(history.undo().name).toBe("4");
+    expect(history.undo().name).toBe("3");
+    expect(history.undo().name).toBe("2");
+    expect(history.canUndo).toBe(false);
+    expect(history.undo().name).toBe("2");
+  });
 });

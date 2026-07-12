@@ -64,7 +64,9 @@ coordinates.
 IDs are unique across every addressable object and directional light in one
 course document. They are opaque authored identifiers rather than array indexes
 or labels. Deleting an object does not permit silent ID reuse inside the active
-editing session.
+editing session. Keep a session-level issued-ID set across delete, undo, redo,
+and branch replacement; a newly allocated object or checkpoint must skip every
+ID issued since the revision was loaded.
 
 Checkpoint order is explicit, unique, and contiguous. Array position may be
 used for presentation, but race progression must consume validated checkpoint
@@ -145,7 +147,9 @@ into the portable document.
 Model each accepted edit as a command that can apply and reverse one coherent
 document change. Continuous pointer manipulation may compress into one command
 when the gesture completes. Pushing a new command after undo clears the redo
-branch.
+branch. Retain a bounded recent command window so long editing sessions do not
+hold unlimited full-document snapshots; truncating the clean boundary leaves
+the session dirty.
 
 Track a clean index representing the loaded or last-saved document. Dirty state
 means the current history index differs from that clean index. This follows the
@@ -179,9 +183,41 @@ Use a familiar tool layout without reproducing a general-purpose engine editor:
 - the course viewport as the primary surface; and
 - a contextual inspector for exact authored values.
 
+Keep the viewport toolbar compact: standard transform, snap, diagnostics,
+framing, and help icons carry accessible names and explanatory hover/focus
+tooltips instead of long operational labels. Diagnostics that substantially
+change viewport readability should default off and remain one action away.
+
 On narrow screens, keep the viewport primary and expose the outline and
 inspector as dismissible panels. Controls must remain reachable without relying
 on hover, and ordinary guest racing must not inherit editor input or layout.
+Direct 3D handles and precise inspector controls are complementary: touch users
+must be able to complete ordinary placement and correction without depending on
+small axis targets. One-finger orbit plus two-finger pan/pinch should coexist
+with tap selection, while every accepted nudge or completed gizmo gesture enters
+history as one coherent document command.
+
+Camera help must name both input families in-product: one-finger orbit,
+two-finger pan, and pinch zoom on touch; right-drag orbit, Shift-drag pan, and
+wheel zoom on pointer devices. Once a second touch joins a gesture, every
+participating pointer is ineligible for tap selection through release or
+cancellation.
+
+Snapping must be visible and reversible rather than an implicit transform rule.
+The editor defaults gizmo transforms to bounded increments and exposes the
+current snap state in the toolbar. Box and checkpoint scaling is per-axis so the
+committed document matches the direct-manipulation preview. Cylinder height is
+independent while its two radial axes remain paired because version one owns one
+collision radius rather than an elliptical cylinder. Direct handles and coarse
+inspector controls provide the same constraints. Camera cursor feedback
+distinguishes orbit from pan on pointer devices.
+
+Palette presets instantiate ordinary bounded document objects with unique
+stable IDs near the loaded start area. Course outline selection and viewport
+picking resolve the same authored IDs. Deletion cannot remove the start and must
+retain at least one checkpoint; deleting a checkpoint reestablishes contiguous
+explicit order. An optional human-facing object label may change independently
+while its stable ID remains unchanged.
 
 ## Validation Evidence
 
@@ -203,8 +239,7 @@ on hover, and ordinary guest racing must not inherit editor input or layout.
 - Database revisions and protected APIs are implemented by the candidate
   [`identity-course-persistence`](../../project-systems/identity-course-persistence/README.md)
   system.
-- Placement palette, collision visualization, undo/redo, and save/reload UI
-  belong to PR 3C.
+- Save/reload UI and final command-history integration remain PR 3C work.
 - Basic environment-light controls belong to PR 3C; arbitrary placeable lights
   and advanced rendering effects remain deferred.
 - Final Agricultural Zone meshes and art authoring remain later-phase work.

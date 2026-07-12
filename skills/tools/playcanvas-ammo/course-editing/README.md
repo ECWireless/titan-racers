@@ -131,6 +131,55 @@ Primary references:
 - <https://github.com/playcanvas/editor/blob/main/src/editor/layout/layout.ts>
 - <https://github.com/playcanvas/editor/blob/main/src/editor/toolbar/toolbar-history.ts>
 
+## Implemented Authoring Mapping
+
+The protected editor uses PlayCanvas 2.20.6 as a visual projection without
+creating editor-only physics bodies. `Picker` resolves editable rendered nodes
+and the collision diagnostic projection back to stable document selections.
+`TranslateGizmo`, `RotateGizmo`, and a shape-aware `ScaleGizmo` attach to the
+current projection. A completed gesture reads the runtime transform once,
+validates the resulting portable document, and adds one command to
+application-owned history. Start uses an exact authored-transform root with its
+raised visual marker on a child, preventing presentation offsets from entering
+spawn data during any gizmo edit.
+
+The shipped adapter uses maintained `TransformGizmo.snap` and per-tool
+`snapIncrement` values: 0.25 meters for translation, 5 degrees for rotation,
+and 0.1 for scale steps. Boxes and checkpoints retain independent axis handles;
+their visual scale, box half-extents, and collision offset update component by
+component. Cylinders expose their height axis plus the maintained gizmo's radial
+plane, with `uniform = true` on that plane so both radial visual axes continue
+to match the portable collision radius. Inspector controls apply the same
+shape-specific rules without a precision drag.
+
+Shape-aware scaling keeps visual and collision meaning coherent: box
+half-extents and offsets scale on the corresponding axis, while cylinder height
+is independent from its paired radial dimensions. Elliptical cylinder scaling
+remains unavailable because the portable contract owns one radius.
+
+Collision diagnostics are separate high-contrast orange wireframe projections built
+directly from each document collision union. They have no collision or rigidbody
+component; tapping one resolves its owning document object rather than selecting
+the diagnostic entity. The toolbar describes them as physics collision shapes
+and makes clear that showing or hiding them does not edit course data. The
+diagnostic material is emissive and depth-independent so authored physics
+outlines remain legible over the course visuals. Diagnostics default hidden so
+the author opts into the intentionally strong overlay. Diagnostic entities are
+created only while visible and destroyed when hidden rather than consuming
+scene resources for an inactive tool. Teardown removes each diagnostic root
+from the selection map before destroying it so repeated toggles retain no stale
+graph nodes.
+
+The editor camera uses right-drag orbit, Shift-drag pan, and wheel zoom on
+desktop. Touch uses one-pointer orbit and two-pointer pan/pinch zoom. Inspector
+nudge controls remain the precision and accessibility fallback for direct gizmo
+manipulation. Pointer cursors switch to grabbing during orbit and move during
+pan, then restore the default selection cursor when the camera gesture ends. A
+compact help action documents one-finger orbit, two-finger pan, pinch zoom, and
+their mouse equivalents without consuming persistent toolbar width. Two-touch
+gestures consume both participating pointers, and cancellation never falls
+through to picking.
+
 ## Verification
 
 1. Every seed object produces the expected entity name, transform, material,
@@ -150,5 +199,5 @@ Primary references:
 - Box and cylinder are the only approved version-one primitives.
 - The runtime continues to use the existing model-component primitives during
   PR 3A; adopting render components is a separate migration.
-- PR 3A does not create checkpoint triggers or collision debug visuals.
-- The implemented project-system node must wait for accepted runtime evidence.
+- Checkpoint authoring visuals remain editor-only until race progression owns
+  runtime trigger lifecycle.

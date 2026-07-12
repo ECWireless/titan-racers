@@ -68,6 +68,7 @@ const courseObjectSchema = z.strictObject({
   category: z.enum(["surface", "obstacle", "feature", "fixture", "marker"]),
   editable: z.boolean(),
   id: courseIdSchema,
+  label: z.string().trim().min(1).max(80).optional(),
   transform: transformSchema,
   visual: visualSchema,
   collision: z
