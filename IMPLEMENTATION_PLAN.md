@@ -506,20 +506,20 @@ course-authoring experience.
 
 ##### PR 3B: Identity, Authorization, And Course Persistence
 
-- [ ] add the local Postgres and hosted Neon persistence foundation with
+- [x] add the local Postgres and hosted Neon persistence foundation with
       version-controlled migrations,
-- [ ] add Better Auth with Postgres-backed sessions and one approved
+- [x] add Better Auth with Postgres-backed sessions and one approved
       conventional admin login method,
-- [ ] store canonical application users, linked provider identities, and
+- [x] store canonical application users, linked provider identities, and
       application roles in Postgres,
-- [ ] bootstrap the first admin through a documented database operation and
+- [x] bootstrap the first admin through a documented database operation and
       enforce the admin role at centralized server/data authorization
       boundaries,
-- [ ] store portable course documents as immutable Postgres JSONB revisions
+- [x] store portable course documents as immutable Postgres JSONB revisions
       with author attribution, schema version, and optimistic concurrency,
-- [ ] add protected course load/save APIs while keeping the product UI
+- [x] add protected course load/save APIs while keeping the product UI
       unchanged,
-- [ ] stop before player-facing EOA login, embedded wallets, or the visible
+- [x] stop before player-facing EOA login, embedded wallets, or the visible
       course editor.
 
 ##### PR 3C: Protected Course Editor

@@ -7,9 +7,16 @@ Playable demo app for Titan Racers.
 ## Development
 
 ```bash
+cp .env.example .env
+docker compose up -d postgres
 corepack pnpm install
+corepack pnpm db:migrate
 corepack pnpm dev
 ```
+
+Database migration, Google OAuth, first-admin bootstrap, and the current manual
+production workflow are documented in
+[`docs/database-operations.md`](docs/database-operations.md).
 
 ## Phase 0 Scope
 

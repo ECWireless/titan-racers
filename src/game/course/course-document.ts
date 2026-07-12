@@ -2,7 +2,7 @@ import { z } from "zod";
 
 import roughCourseDocumentJson from "./rough-course.v1.json";
 
-const courseIdSchema = z
+export const courseIdSchema = z
   .string()
   .min(1)
   .max(80)

@@ -26,6 +26,10 @@ The source code and authoritative project documents remain the final authority f
 
 ## Current Children
 
+- [Identity and course persistence](identity-course-persistence/README.md):
+  Better Auth Google identities, Postgres sessions and roles, centralized admin
+  authorization, Drizzle migrations, immutable course revisions, and protected
+  load/save APIs.
 - [Course data](course-data/README.md): versioned validated course documents,
   canonical seed/export serialization, stable authored IDs, bounded primitive
   geometry, start/checkpoint data, and PlayCanvas construction.
