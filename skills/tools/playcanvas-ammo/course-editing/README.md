@@ -123,6 +123,14 @@ collaboration, asset, and general scene-graph systems are deliberately not part
 of Titan Racers: this application already owns a React shell, a bounded course
 document, immutable database revisions, and a narrower command history.
 
+PlayCanvas also distinguishes continuously saved editable project state from a
+published playable build and lets an operator promote one build to the primary
+audience-facing version. Titan Racers adopts that product boundary without
+copying PlayCanvas hosting: Save Draft creates an application-owned private
+revision, while a later protected Publish operation promotes one saved revision
+to the guest runtime. Download Backup remains portable-document recovery rather
+than a synonym for publishing.
+
 Primary references:
 
 - <https://github.com/playcanvas/editor>
@@ -130,6 +138,8 @@ Primary references:
 - <https://github.com/playcanvas/editor/blob/main/src/editor/viewport/viewport-pick.ts>
 - <https://github.com/playcanvas/editor/blob/main/src/editor/layout/layout.ts>
 - <https://github.com/playcanvas/editor/blob/main/src/editor/toolbar/toolbar-history.ts>
+- <https://developer.playcanvas.com/user-manual/editor/>
+- <https://developer.playcanvas.com/user-manual/editor/publishing/web/playcanvas-hosting/>
 
 ## Implemented Authoring Mapping
 

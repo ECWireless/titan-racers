@@ -537,10 +537,27 @@ course-authoring experience.
 - [ ] expose basic course-level ambient, sun, and optional fill-light controls
       for color, intensity, direction, and bounded shadow quality, with a reset
       to the loaded lighting setup,
-- [ ] implement command-based undo/redo, reset-to-loaded-revision, dirty-state,
-      save, reload, and portable export behavior,
+- [ ] implement command-based undo/redo, revert-to-loaded-draft, dirty-state,
+      conflict-safe draft saving, latest-draft recovery, and a secondary
+      portable backup download,
 - [ ] verify desktop and narrow-screen authoring workflows without changing
       ordinary guest racing access.
+
+Complete protected course tooling through three separately QA-reviewed final
+slices. First finish private draft persistence and bounded lighting authoring.
+Then add an explicit preview/publish boundary: saved drafts remain private,
+publishing promotes one validated saved revision to the live guest course, and
+the editor identifies both draft and live revision state. Finally remove the
+development-only Lite Editor after the protected draft and publishing paths can
+replace it without losing required test fixtures. Revision history/restore may
+join the publishing slice; real-time collaboration and automatic multi-author
+merging remain later production-tooling work.
+
+Keep `rough-course` as the permanent editor, physics, collision, camera, and
+recovery sandbox with a guarded seed-restore operation that appends an immutable
+revision. Author the official Agricultural Zone under the separate stable course
+ID `agricultural-zone`; publishing and guest runtime selection must never
+conflate the sandbox head with the official live track.
 
 #### PR 4: Rough Race Loop
 

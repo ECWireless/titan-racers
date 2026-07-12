@@ -32,8 +32,10 @@ editor commands, persistence UI, or the future add-object palette.
   schema, cross-document ID and checkpoint-order refinements, canonical sorting,
   parsing, serialization, inferred TypeScript types, and validated seed export.
 - `src/game/course/rough-course.v1.json` is the canonical portable rough-course
-  seed. It contains the start, six inactive ordered checkpoints, ordinary
-  surfaces and objects, camera fixtures, and opt-in collision fixtures.
+  sandbox seed. It contains the start, six inactive ordered checkpoints,
+  ordinary surfaces and objects, camera fixtures, and opt-in collision fixtures.
+  It permanently restores only course ID `rough-course`; the official future
+  Agricultural Zone document uses the distinct ID `agricultural-zone`.
 - `src/game/course/build-rough-course.ts` projects a validated document into
   PlayCanvas visual, collision, rigid-body, tag, group, and mask state. It
   returns stable-ID entity maps plus the retained transitional lookups consumed

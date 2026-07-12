@@ -339,7 +339,7 @@ test.describe("protected course editor access", () => {
     await expect(
       page.getByRole("button", { name: "Frame selection" }),
     ).not.toHaveAttribute("aria-pressed");
-    await page.getByRole("link", { name: "Exit" }).focus();
+    await page.getByRole("button", { name: "Exit course editor" }).focus();
     await page.keyboard.press("2");
     await expect(moveTool).toHaveAttribute("aria-pressed", "true");
     const canvas = page.getByTestId("course-editor-canvas");
@@ -377,6 +377,9 @@ test.describe("protected course editor access", () => {
       await expect(page.getByRole("button", { name: "Close panel" })).toBeFocused();
       await expect(dialog.getByRole("heading", { name: "Add object" })).toBeVisible();
       await expect(dialog.getByRole("button", { name: "block" })).toBeVisible();
+      await expect(
+        dialog.getByRole("heading", { name: "Environment" }),
+      ).toBeVisible();
       await page.keyboard.press("Escape");
       await expect(dialog).toHaveCount(0);
       await expect(courseButton).toBeFocused();
@@ -426,16 +429,470 @@ test.describe("protected course editor access", () => {
       await page.setViewportSize({ width: 1200, height: 800 });
       await expect(page.getByRole("dialog")).toHaveCount(0);
       await expect(page.locator("header")).toHaveJSProperty("inert", false);
-      await expect(page.getByRole("link", { name: "Exit" })).toBeEnabled();
+      await expect(
+        page.getByRole("button", { name: "Exit course editor" }),
+      ).toBeEnabled();
     } else {
       await expect(page.getByTestId("editor-revision")).toHaveText(
-        "Revision 3",
+        "Draft r3",
       );
       await expect(page.getByRole("button", { name: "block" })).toBeVisible();
+      await expect(page.getByRole("heading", { name: "Environment" })).toBeVisible();
       await expect(page.getByTestId("editor-selection")).toHaveText(
         "start-position",
       );
     }
+  });
+
+  test("saves a private draft and advances the clean revision", async ({
+    page,
+  }, testInfo) => {
+    test.skip(testInfo.project.name !== "desktop", "Draft API coverage runs once.");
+    let savedPayload: { document: typeof ROUGH_COURSE_DOCUMENT; expectedRevision: number } | null = null;
+
+    await page.route(courseApiPattern, async (route) => {
+      if (route.request().method() === "PUT") {
+        savedPayload = route.request().postDataJSON();
+        await route.fulfill({
+          body: JSON.stringify({
+            authorUserId: "admin-test-user",
+            courseId: ROUGH_COURSE_DOCUMENT.courseId,
+            createdAt: new Date("2026-07-12T00:05:00.000Z").toISOString(),
+            document: savedPayload!.document,
+            revision: 4,
+            schemaVersion: ROUGH_COURSE_DOCUMENT.schemaVersion,
+          }),
+          contentType: "application/json",
+          status: 200,
+        });
+        return;
+      }
+
+      await route.fulfill({
+        body: JSON.stringify({
+          authorUserId: "admin-test-user",
+          courseId: ROUGH_COURSE_DOCUMENT.courseId,
+          createdAt: new Date("2026-07-12T00:00:00.000Z").toISOString(),
+          document: ROUGH_COURSE_DOCUMENT,
+          revision: 3,
+          schemaVersion: ROUGH_COURSE_DOCUMENT.schemaVersion,
+        }),
+        contentType: "application/json",
+        status: 200,
+      });
+    });
+
+    await page.goto("/editor");
+    await page.getByRole("button", { name: "block" }).click();
+    const saveButton = page.getByRole("button", { name: "Save draft" });
+    await expect(saveButton).toBeEnabled();
+    await saveButton.click();
+
+    await expect(page.getByTestId("editor-revision")).toHaveText("Draft r4");
+    await expect(saveButton).toBeDisabled();
+    expect(savedPayload).toMatchObject({ expectedRevision: 3 });
+    expect(savedPayload!.document.objects.at(-1)?.id).toBe("block-1");
+  });
+
+  test("persists collapsed Course and Inspector sections in the browser", async ({
+    page,
+  }, testInfo) => {
+    test.skip(testInfo.project.name !== "desktop", "Preference coverage runs once.");
+    await page.route(courseApiPattern, async (route) => {
+      await route.fulfill({
+        body: JSON.stringify({
+          authorUserId: "admin-test-user",
+          courseId: ROUGH_COURSE_DOCUMENT.courseId,
+          createdAt: new Date("2026-07-12T00:00:00.000Z").toISOString(),
+          document: ROUGH_COURSE_DOCUMENT,
+          revision: 3,
+          schemaVersion: ROUGH_COURSE_DOCUMENT.schemaVersion,
+        }),
+        contentType: "application/json",
+        status: 200,
+      });
+    });
+
+    await page.goto("/editor");
+    const outline = page.getByRole("button", { name: "Course outline" });
+    const position = page.getByRole("button", { name: "Position", exact: true });
+    await expect(outline).toHaveAttribute("aria-expanded", "true");
+    await expect(position).toHaveAttribute("aria-expanded", "true");
+    await outline.click();
+    await position.click();
+    await page.reload();
+
+    await expect(outline).toHaveAttribute("aria-expanded", "false");
+    await expect(position).toHaveAttribute("aria-expanded", "false");
+    await expect(page.getByRole("button", { name: "Start Spawn" })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "Position x increase" })).toHaveCount(0);
+  });
+
+  test("serializes delayed draft saves and blocks duplicate shortcuts", async ({
+    page,
+  }, testInfo) => {
+    test.skip(testInfo.project.name !== "desktop", "Save serialization runs once.");
+    let releaseSave!: () => void;
+    const saveGate = new Promise<void>((resolve) => {
+      releaseSave = resolve;
+    });
+    let putCount = 0;
+
+    await page.route(courseApiPattern, async (route) => {
+      if (route.request().method() === "PUT") {
+        putCount += 1;
+        const payload = route.request().postDataJSON();
+        await saveGate;
+        await route.fulfill({
+          body: JSON.stringify({
+            authorUserId: "admin-test-user",
+            courseId: ROUGH_COURSE_DOCUMENT.courseId,
+            createdAt: new Date("2026-07-12T00:05:00.000Z").toISOString(),
+            document: payload.document,
+            revision: 4,
+            schemaVersion: ROUGH_COURSE_DOCUMENT.schemaVersion,
+          }),
+          contentType: "application/json",
+          status: 200,
+        });
+        return;
+      }
+      await route.fulfill({
+        body: JSON.stringify({
+          authorUserId: "admin-test-user",
+          courseId: ROUGH_COURSE_DOCUMENT.courseId,
+          createdAt: new Date("2026-07-12T00:00:00.000Z").toISOString(),
+          document: ROUGH_COURSE_DOCUMENT,
+          revision: 3,
+          schemaVersion: ROUGH_COURSE_DOCUMENT.schemaVersion,
+        }),
+        contentType: "application/json",
+        status: 200,
+      });
+    });
+
+    await page.goto("/editor");
+    await page.getByRole("button", { name: "block" }).click();
+    await page.getByRole("button", { name: "Save draft" }).click();
+    await expect.poll(() => putCount).toBe(1);
+    await expect(page.getByTestId("editor-toolbar-shell")).toHaveJSProperty(
+      "inert",
+      true,
+    );
+    await page.keyboard.press("Control+s");
+    await page.keyboard.press("Control+s");
+    expect(putCount).toBe(1);
+
+    releaseSave();
+    await expect(page.getByTestId("editor-revision")).toHaveText("Draft r4");
+    await expect(page.getByRole("button", { name: "Save draft" })).toBeDisabled();
+  });
+
+  test("blocks authoring while the latest draft is loading", async ({
+    page,
+  }, testInfo) => {
+    test.skip(testInfo.project.name !== "desktop", "Latest-draft locking runs once.");
+    let getCount = 0;
+    let releaseLatest!: () => void;
+    const latestGate = new Promise<void>((resolve) => {
+      releaseLatest = resolve;
+    });
+    const latestDocument = {
+      ...structuredClone(ROUGH_COURSE_DOCUMENT),
+      name: "Latest Locked Draft",
+    };
+
+    await page.route(courseApiPattern, async (route) => {
+      if (route.request().method() === "GET") {
+        getCount += 1;
+        if (getCount > 1) {
+          await latestGate;
+        }
+      }
+      await route.fulfill({
+        body: JSON.stringify({
+          authorUserId: "admin-test-user",
+          courseId: ROUGH_COURSE_DOCUMENT.courseId,
+          createdAt: new Date("2026-07-12T00:00:00.000Z").toISOString(),
+          document: getCount > 1 ? latestDocument : ROUGH_COURSE_DOCUMENT,
+          revision: getCount > 1 ? 4 : 3,
+          schemaVersion: ROUGH_COURSE_DOCUMENT.schemaVersion,
+        }),
+        contentType: "application/json",
+        status: 200,
+      });
+    });
+
+    await page.goto("/editor");
+    await page.getByRole("button", { name: "block" }).click();
+    await page.getByRole("button", { name: "Course actions" }).click();
+    await page.getByRole("button", { name: "Load latest draft" }).click();
+    await page
+      .getByRole("dialog", { name: "Discard unsaved changes?" })
+      .getByRole("button", { name: "Load latest draft" })
+      .click();
+    await expect.poll(() => getCount).toBe(2);
+    await expect(page.getByTestId("editor-toolbar-shell")).toHaveJSProperty(
+      "inert",
+      true,
+    );
+    await expect(page.getByRole("button", { name: "Undo" })).toBeDisabled();
+
+    releaseLatest();
+    await expect(page.getByText("Latest Locked Draft")).toBeVisible();
+    await expect(page.getByTestId("editor-revision")).toHaveText("Draft r4");
+    await expect(
+      page.getByRole("button", { name: "Course actions" }),
+    ).toBeFocused();
+  });
+
+  test("keeps header and bottom actions inside narrow mobile viewports", async ({
+    page,
+  }, testInfo) => {
+    test.skip(testInfo.project.name !== "mobile", "Narrow action coverage is mobile-only.");
+    await page.route(courseApiPattern, async (route) => {
+      await route.fulfill({
+        body: JSON.stringify({
+          authorUserId: "admin-test-user",
+          courseId: ROUGH_COURSE_DOCUMENT.courseId,
+          createdAt: new Date("2026-07-12T00:00:00.000Z").toISOString(),
+          document: ROUGH_COURSE_DOCUMENT,
+          revision: 7,
+          schemaVersion: ROUGH_COURSE_DOCUMENT.schemaVersion,
+        }),
+        contentType: "application/json",
+        status: 200,
+      });
+    });
+
+    for (const width of [350, 375, 412]) {
+      await page.setViewportSize({ width, height: 760 });
+      await page.goto("/editor");
+      await expect(page.getByTestId("course-editor-shell")).toBeVisible();
+      await expect
+        .poll(() =>
+          page.evaluate(
+            () =>
+              document.documentElement.scrollWidth -
+              document.documentElement.clientWidth,
+          ),
+        )
+        .toBe(0);
+
+      const actions = [
+        page.getByRole("button", { name: "Exit course editor" }),
+        page.getByRole("button", { name: "Undo" }),
+        page.getByRole("button", { name: "Redo" }),
+        page.getByRole("button", { name: "Save draft" }),
+        page.getByRole("button", { name: "Course actions" }),
+        page.getByRole("button", { name: "Course", exact: true }),
+        page.getByRole("button", { name: "Inspector" }),
+      ];
+      for (const action of actions) {
+        const bounds = await action.boundingBox();
+        expect(bounds).not.toBeNull();
+        expect(bounds!.x).toBeGreaterThanOrEqual(0);
+        expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(width);
+      }
+
+      await page.getByRole("button", { name: "Course actions" }).click();
+      const signOut = page.getByRole("button", { name: "Sign out" });
+      await expect(signOut).toBeVisible();
+      await expect
+        .poll(() =>
+          signOut.evaluate((element) => {
+            const bounds = element.getBoundingClientRect();
+            const hit = document.elementFromPoint(
+              bounds.left + bounds.width / 2,
+              bounds.top + bounds.height / 2,
+            );
+            return hit === element || element.contains(hit);
+          }),
+        )
+        .toBe(true);
+      await page.keyboard.press("Escape");
+      await expect(signOut).toHaveCount(0);
+      await expect(
+        page.getByRole("button", { name: "Course actions" }),
+      ).toBeFocused();
+      await page.getByRole("button", { name: "Course actions" }).click();
+      await page.getByRole("button", { name: "Move" }).click();
+      await expect(signOut).toHaveCount(0);
+    }
+  });
+
+  test("preserves local work on conflict and confirms loading the winning draft", async ({
+    page,
+  }, testInfo) => {
+    test.skip(testInfo.project.name !== "desktop", "Conflict coverage runs once.");
+    let conflicted = false;
+    let putCount = 0;
+    const winningDocument = {
+      ...structuredClone(ROUGH_COURSE_DOCUMENT),
+      name: "Winning Draft",
+    };
+
+    await page.route(courseApiPattern, async (route) => {
+      if (route.request().method() === "PUT") {
+        putCount += 1;
+        conflicted = true;
+        await route.fulfill({
+          body: JSON.stringify({ error: "Revision conflict." }),
+          contentType: "application/json",
+          status: 409,
+        });
+        return;
+      }
+      await route.fulfill({
+        body: JSON.stringify({
+          authorUserId: conflicted ? "winning-admin" : "admin-test-user",
+          courseId: ROUGH_COURSE_DOCUMENT.courseId,
+          createdAt: new Date("2026-07-12T00:00:00.000Z").toISOString(),
+          document: conflicted ? winningDocument : ROUGH_COURSE_DOCUMENT,
+          revision: conflicted ? 4 : 3,
+          schemaVersion: ROUGH_COURSE_DOCUMENT.schemaVersion,
+        }),
+        contentType: "application/json",
+        status: 200,
+      });
+    });
+
+    await page.goto("/editor");
+    await page.getByRole("button", { name: "block" }).click();
+    await page.getByRole("button", { name: "Save draft" }).click();
+    const alert = page
+      .getByTestId("course-editor-shell")
+      .getByRole("alert");
+    await expect(alert).toContainText("Your local changes are intact");
+    await expect(page.getByRole("button", { name: "Undo" })).toBeEnabled();
+    await alert.getByRole("button", { name: "Load latest draft" }).click();
+    const dialog = page.getByRole("dialog", { name: "Discard unsaved changes?" });
+    await expect(dialog).toBeVisible();
+    await expect(
+      page.getByTestId("course-editor-shell").getByRole("alert"),
+    ).toHaveCount(0);
+    await page.keyboard.press("Control+z");
+    await page.keyboard.press("Control+s");
+    await expect(page.getByRole("button", { name: "Undo" })).toBeEnabled();
+    expect(putCount).toBe(1);
+    const keepEditing = dialog.getByRole("button", { name: "Keep editing" });
+    const loadLatest = dialog.getByRole("button", { name: "Load latest draft" });
+    await expect(keepEditing).toBeFocused();
+    await page.keyboard.press("Shift+Tab");
+    await expect(loadLatest).toBeFocused();
+    await page.keyboard.press("Tab");
+    await expect(keepEditing).toBeFocused();
+    await loadLatest.click();
+
+    await expect(page.getByText("Winning Draft")).toBeVisible();
+    await expect(page.getByTestId("editor-revision")).toHaveText("Draft r4");
+    await expect(page.getByRole("button", { name: "Undo" })).toBeDisabled();
+    await expect(
+      page.getByRole("button", { name: "Course actions" }),
+    ).toBeFocused();
+  });
+
+  test("authors and resets lighting, downloads a backup, and reverts local work", async ({
+    page,
+  }, testInfo) => {
+    test.skip(testInfo.project.name !== "desktop", "Draft recovery coverage runs once.");
+    await page.route(courseApiPattern, async (route) => {
+      await route.fulfill({
+        body: JSON.stringify({
+          authorUserId: "admin-test-user",
+          courseId: ROUGH_COURSE_DOCUMENT.courseId,
+          createdAt: new Date("2026-07-12T00:00:00.000Z").toISOString(),
+          document: ROUGH_COURSE_DOCUMENT,
+          revision: 3,
+          schemaVersion: ROUGH_COURSE_DOCUMENT.schemaVersion,
+        }),
+        contentType: "application/json",
+        status: 200,
+      });
+    });
+
+    await page.goto("/editor");
+    const ambientIntensity = page.getByRole("spinbutton", {
+      name: "Ambient intensity",
+    });
+    await ambientIntensity.fill("4.1");
+    await expect(ambientIntensity).toHaveValue("4");
+    await expect(page.getByRole("button", { name: "Save draft" })).toBeEnabled();
+    await page.getByRole("button", { name: "Reset lighting" }).click();
+    await expect(ambientIntensity).toHaveValue("1");
+
+    await page.getByRole("button", { name: "block" }).click();
+    await page.getByRole("button", { name: "Course actions" }).click();
+    const downloadPromise = page.waitForEvent("download");
+    await page.getByRole("button", { name: "Download backup" }).click();
+    const download = await downloadPromise;
+    expect(download.suggestedFilename()).toBe("rough-course.draft-r3.json");
+
+    await page.getByRole("button", { name: "Course actions" }).click();
+    await page.getByRole("button", { name: "Revert changes" }).click();
+    const dialog = page.getByRole("dialog", { name: "Discard unsaved changes?" });
+    await expect(dialog).toBeVisible();
+    await dialog.getByRole("button", { name: "Revert changes" }).click();
+    await expect(page.getByRole("button", { name: "Undo" })).toBeDisabled();
+    await expect(page.getByRole("button", { name: /block-1/ })).toHaveCount(0);
+  });
+
+  test("confirms dirty exit and sign-out and guards browser unload", async ({
+    page,
+  }, testInfo) => {
+    test.skip(testInfo.project.name !== "desktop", "Dirty navigation coverage runs once.");
+    let signOutCount = 0;
+    await page.route(courseApiPattern, async (route) => {
+      await route.fulfill({
+        body: JSON.stringify({
+          authorUserId: "admin-test-user",
+          courseId: ROUGH_COURSE_DOCUMENT.courseId,
+          createdAt: new Date("2026-07-12T00:00:00.000Z").toISOString(),
+          document: ROUGH_COURSE_DOCUMENT,
+          revision: 3,
+          schemaVersion: ROUGH_COURSE_DOCUMENT.schemaVersion,
+        }),
+        contentType: "application/json",
+        status: 200,
+      });
+    });
+    await page.route("**/api/auth/sign-out", async (route) => {
+      signOutCount += 1;
+      await route.fulfill({
+        body: JSON.stringify({ success: true }),
+        contentType: "application/json",
+        status: 200,
+      });
+    });
+
+    await page.goto("/editor");
+    await page.getByRole("button", { name: "block" }).click();
+    expect(
+      await page.evaluate(() => {
+        const event = new Event("beforeunload", { cancelable: true });
+        window.dispatchEvent(event);
+        return event.defaultPrevented;
+      }),
+    ).toBe(true);
+
+    const exit = page.getByRole("button", { name: "Exit course editor" });
+    await exit.click();
+    let dialog = page.getByRole("dialog", { name: "Discard unsaved changes?" });
+    await dialog.getByRole("button", { name: "Keep editing" }).click();
+    await expect(exit).toBeFocused();
+
+    await page.getByRole("button", { name: "Sign out" }).click();
+    dialog = page.getByRole("dialog", { name: "Discard unsaved changes?" });
+    await expect(dialog).toContainText("Signing out now");
+    await dialog.getByRole("button", { name: "Keep editing" }).click();
+    expect(signOutCount).toBe(0);
+
+    await exit.click();
+    await page
+      .getByRole("dialog", { name: "Discard unsaved changes?" })
+      .getByRole("button", { name: "Exit editor" })
+      .click();
+    await expect(page).toHaveURL(/\/$/);
   });
 
   test("selects and authors course objects across desktop and mobile controls", async ({
@@ -524,7 +981,10 @@ test.describe("protected course editor access", () => {
     if (testInfo.project.name === "mobile") {
       await inspector.getByRole("button", { name: "Close panel" }).click();
     }
-    await page.getByRole("button", { exact: true, name: "Scale" }).click();
+    await page
+      .getByTestId("editor-toolbar-shell")
+      .getByRole("button", { exact: true, name: "Scale" })
+      .click();
     await expect(canvas).toHaveAttribute("data-tool", "scale");
     await page.getByRole("button", { name: "Snap On" }).click();
     await expect(page.getByRole("button", { name: "Snap Off" })).toHaveAttribute(
@@ -653,7 +1113,10 @@ test.describe("protected course editor access", () => {
     await page.getByRole("button", { name: "Undo" }).click();
     await expect(page.getByTestId("position-x-value")).toHaveText("0.00");
 
-    await page.getByRole("button", { exact: true, name: "Scale" }).click();
+    await page
+      .getByTestId("editor-toolbar-shell")
+      .getByRole("button", { exact: true, name: "Scale" })
+      .click();
     const scalePoints = await getCourseEditorScaleGizmoPoints(canvas, "x");
     expect(scalePoints?.handle).not.toBeNull();
     expect(scalePoints?.origin).not.toBeNull();
@@ -816,7 +1279,7 @@ test.describe("protected course editor access", () => {
     await expect(canvas).toHaveAttribute("data-selected-id", "block-1");
   });
 
-  test("signs out from the protected workspace", async ({ page }) => {
+  test("signs out from the protected workspace", async ({ page }, testInfo) => {
     let signOutHeaders: Record<string, string> = {};
     let signOutPayload: unknown;
     await page.route(courseApiPattern, async (route) => {
@@ -844,7 +1307,12 @@ test.describe("protected course editor access", () => {
     });
 
     await page.goto("/editor");
-    await page.getByRole("button", { name: "Sign out" }).click();
+    if (testInfo.project.name === "mobile") {
+      await page.getByRole("button", { name: "Course actions" }).click();
+      await page.getByRole("button", { name: "Sign out" }).click();
+    } else {
+      await page.getByRole("button", { name: "Sign out" }).click();
+    }
 
     await expect(
       page.getByText("Sign in with an approved admin account to continue."),

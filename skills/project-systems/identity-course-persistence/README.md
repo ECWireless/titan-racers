@@ -35,8 +35,8 @@ login UI or visible editor behavior; those remain PR 3C work.
 - `src/app/api/auth/[...all]/route.ts` mounts Better Auth without adding UI.
 - `src/app/api/admin/courses/[courseId]/route.ts` owns admin-only course load and
   save transport.
-- `scripts/` and `docs/database-operations.md` own migration and first-admin
-  operations.
+- `scripts/` and `docs/database-operations.md` own migration, first-admin,
+  anonymization, and guarded sandbox-reset operations.
 
 ## Identity And Authorization Flow
 
@@ -79,6 +79,10 @@ login UI or visible editor behavior; those remain PR 3C work.
 - Course documents contain no revision IDs, author IDs, timestamps, or other
   database metadata.
 - Revisions are append-only and fully attributed.
+- `rough-course` is a permanent sandbox course. Resetting it appends the
+  validated source-controlled seed as a new attributed revision and never
+  deletes history; the official Agricultural Zone uses the separate stable ID
+  `agricultural-zone`.
 - Application traffic may use a pooled Neon connection; production migrations
   require the explicit direct migration URL and never run at app startup.
 

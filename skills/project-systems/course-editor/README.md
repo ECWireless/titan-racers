@@ -14,11 +14,12 @@ document-driven authoring experience defined by the engine-independent
 the PlayCanvas mapping in
 [`tools/playcanvas-ammo/course-editing`](../../tools/playcanvas-ammo/course-editing/README.md).
 
-The system currently owns protected access, revision loading, the responsive
+The system currently owns protected access, draft-revision loading, the responsive
 authoring shell, document history, a visual-only PlayCanvas course projection,
 palette placement, stable-ID selection, transforms, start/checkpoint authoring,
-deletion, and authoritative collision diagnostics. Persistence actions and
-lighting controls remain the next implementation unit.
+deletion, and authoritative collision diagnostics. Conflict-safe private draft
+actions and lighting controls are the active implementation unit; live-course
+publishing follows as its own QA and review boundary.
 
 ## Current Source Ownership
 
@@ -31,7 +32,8 @@ lighting controls remain the next implementation unit.
   overwriting an existing revision.
 - `src/components/course-editor/course-editor-shell.tsx` owns the responsive
   course outline, preset palette, transform/history toolbar, inspector nudges,
-  deletion, revision state, keyboard commands, and mobile dialog workflow.
+  deletion, private-draft actions, bounded environment controls, revision and
+  conflict state, keyboard commands, and mobile dialog workflow.
 - `src/components/course-editor/course-editor-canvas.tsx` owns the React boundary
   for the lifecycle-managed PlayCanvas authoring viewport and test hooks.
 - `src/game/editor/course-editor-document.ts` owns bounded presets, unique IDs,
@@ -83,9 +85,53 @@ lighting controls remain the next implementation unit.
   pan/pinch with two pointers, and use inspector nudges instead of precision
   reliance on 3D handles. Multi-touch gestures cannot fall through to selection.
 - Replacing a redo branch invalidates an unreachable clean index.
-- Marking a successful save clean also advances the reset baseline to that
-  saved document. Reload and reset-to-loaded clear transient history and
-  establish clean state.
+- Marking a successful draft save clean also advances the revert baseline to
+  that saved document. Loading the latest draft and reverting changes clear
+  transient history and establish clean state.
+- Saving a draft never changes the live guest course. A later protected publish
+  operation promotes one validated saved revision, and the editor must identify
+  draft and live revision state without placing persistence metadata inside the
+  portable document.
+- Portable JSON is exposed as a secondary Download Backup action for recovery
+  and interchange, including unsaved validated work; it is not the ordinary
+  save/load mental model.
+- Save Draft and `Ctrl/Cmd+S` send the validated current document with the
+  loaded draft revision as the optimistic-concurrency expectation. A conflict
+  leaves local history and selection intact and offers Download Backup or a
+  confirmed Load Latest Draft path; transport and response-validation failures
+  likewise retain local work.
+- Save Draft and Load Latest Draft are serialized by an immediate in-flight
+  guard. Authoring surfaces become temporarily inert until the request settles,
+  so the saved/loaded snapshot and command-history clean boundary cannot diverge
+  and repeated shortcuts cannot submit competing requests.
+- Dirty Exit and Sign Out require the same destructive confirmation used by
+  draft recovery. Refresh, close, and external browser navigation receive the
+  native before-unload warning while work is dirty. Confirmation dialogs trap
+  keyboard focus, close on Escape, and restore the invoking control when the
+  author keeps editing.
+- Ambient and key/fill lighting controls mutate only bounded portable lighting
+  data. Fill is the optional second directional light, and Reset Lighting is
+  one history command back to the last loaded or saved draft setup. Manual
+  numeric entry clamps to the portable schema bounds before it becomes a
+  command.
+- The header presents Save Draft as a compact accessible save icon with a
+  hover/focus tooltip and disabled clean-state explanation. Course and Inspector
+  top-level groups are independently collapsible; their disclosure preferences
+  share one versioned browser-local setting across desktop and mobile layouts.
+  Invalid or unavailable browser storage falls back to every group open and
+  never blocks authoring.
+- Narrow mobile headers keep fixed icon actions from shrinking, move Sign Out
+  into the Course Actions menu, and use a bounded three-column bottom control
+  row with compact Course, draft, and Inspect labels so no action extends beyond
+  the viewport.
+- Course Actions is an ordinary disclosure action list rather than an ARIA menu:
+  its native buttons retain normal Tab order, while Escape restores trigger
+  focus and outside pointer interaction dismisses the list.
+- The protected editor currently targets the permanent `rough-course` sandbox.
+  The source-controlled seed can be restored through the guarded database
+  operation documented in `docs/database-operations.md`; the official
+  `agricultural-zone` course remains a separate future document and revision
+  history.
 - Narrow screens keep the viewport primary. The Course outline uses a
   width-contained modal bottom sheet with a scrim and focus containment; the
   Inspector uses a non-modal split-view drawer that resizes the viewport so the
@@ -107,8 +153,14 @@ lighting controls remain the next implementation unit.
 - Run `pnpm lint`, `pnpm typecheck`, and `pnpm build` before feature-lead QA.
 - Preserve the existing guest and gameplay regression suite.
 
-## Deferred Within PR 3C
+## Remaining PR 3C Slices
 
-- Lighting controls, save conflicts, reload, reset, and portable export.
-- Removing the transitional in-race Lite Editor occurs with the final PR 3C
-  integration slice, after the protected editor owns the complete save workflow.
+- Active slice: bounded lighting controls, conflict-safe Save Draft, Revert
+  Changes, contextual Load Latest Draft recovery, and Download Backup.
+- Publishing slice: separately track a live revision, preview and publish only a
+  saved draft, and make ordinary guest racing consume that published document.
+- Final integration slice: remove the transitional in-race Lite Editor after
+  the protected editor owns the complete draft and publishing workflow.
+- Revision history/restore may join publishing. Arbitrary light placement,
+  advanced environment rendering, real-time collaboration, and automatic
+  multi-author merging remain later production-tooling work.

@@ -26,6 +26,10 @@ export type CourseEditorGeometry = {
   scale?: { x: number; y: number; z: number };
 };
 
+export type CourseEditorColor = CourseDocument["lighting"]["ambient"]["color"];
+export type CourseEditorDirectionalLight =
+  CourseDocument["lighting"]["directionalLights"][number];
+
 const PRESET_OBJECTS: Record<
   CourseObjectPreset,
   Omit<CourseObject, "id" | "transform">
@@ -456,6 +460,73 @@ export function collectCourseDocumentIds(document: CourseDocument) {
     ...document.checkpoints.map(({ id }) => id),
     ...document.lighting.directionalLights.map(({ id }) => id),
   ]);
+}
+
+export function updateAmbientLighting(
+  document: CourseDocument,
+  update: Partial<{
+    color: CourseEditorColor;
+    intensity: number;
+  }>,
+) {
+  return parseCourseDocument({
+    ...document,
+    lighting: {
+      ...document.lighting,
+      ambient: { ...document.lighting.ambient, ...update },
+    },
+  });
+}
+
+export function updateDirectionalLight(
+  document: CourseDocument,
+  lightId: string,
+  update: Partial<
+    Pick<
+      CourseEditorDirectionalLight,
+      "color" | "intensity" | "rotation" | "shadowQuality"
+    >
+  >,
+) {
+  return parseCourseDocument({
+    ...document,
+    lighting: {
+      ...document.lighting,
+      directionalLights: document.lighting.directionalLights.map((light) =>
+        light.id === lightId ? { ...light, ...update } : light,
+      ),
+    },
+  });
+}
+
+export function setFillLightEnabled(
+  document: CourseDocument,
+  enabled: boolean,
+  fillLight?: CourseEditorDirectionalLight,
+) {
+  const [keyLight, currentFillLight] = document.lighting.directionalLights;
+  if (!keyLight || enabled === Boolean(currentFillLight)) {
+    return document;
+  }
+
+  return parseCourseDocument({
+    ...document,
+    lighting: {
+      ...document.lighting,
+      directionalLights: enabled
+        ? [
+            keyLight,
+            fillLight ?? {
+              color: { b: 0.9, g: 0.68, r: 0.55 },
+              id: nextStableId(document, "fill-light", new Set()),
+              intensity: 0.32,
+              rotation: { x: 28, y: -132, z: 0 },
+              shadowQuality: "off" as const,
+            },
+          ]
+        : [keyLight],
+    },
+  });
 }
 
 function nextStableId(

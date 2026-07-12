@@ -15,7 +15,8 @@
     "db:migrate": "drizzle-kit migrate",
     "db:migrate:production": "tsx scripts/migrate-production.ts",
     "db:bootstrap-admin": "tsx scripts/bootstrap-admin.ts",
-    "db:anonymize-user": "tsx scripts/anonymize-user.ts"
+    "db:anonymize-user": "tsx scripts/anonymize-user.ts",
+    "db:reset-sandbox-course": "tsx scripts/reset-sandbox-course.ts"
   },
   "dependencies": {
     "@better-auth/drizzle-adapter": "^1.6.23",

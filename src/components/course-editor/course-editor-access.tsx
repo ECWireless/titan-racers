@@ -12,9 +12,9 @@ import { COURSE_EDITOR_OBJECT_LIMIT } from "@/game/editor/course-editor-document
 
 import { CourseEditorShell } from "./course-editor-shell";
 
-const COURSE_ID = "rough-course";
+export const COURSE_EDITOR_COURSE_ID = "rough-course";
 
-const persistedCourseRevisionSchema = z
+export const persistedCourseRevisionSchema = z
   .strictObject({
     authorUserId: z.string().min(1),
     courseId: z.string().min(1),
@@ -47,7 +47,7 @@ type AccessState =
 
 async function resolveAccessState(): Promise<AccessState> {
   try {
-    const response = await fetch(`/api/admin/courses/${COURSE_ID}`, {
+    const response = await fetch(`/api/admin/courses/${COURSE_EDITOR_COURSE_ID}`, {
       cache: "no-store",
       credentials: "include",
     });
@@ -142,7 +142,7 @@ export function CourseEditorAccess() {
     setInitializationPending(true);
 
     try {
-      const response = await fetch(`/api/admin/courses/${COURSE_ID}`, {
+      const response = await fetch(`/api/admin/courses/${COURSE_EDITOR_COURSE_ID}`, {
         body: JSON.stringify({
           document: ROUGH_COURSE_DOCUMENT,
           expectedRevision: null,

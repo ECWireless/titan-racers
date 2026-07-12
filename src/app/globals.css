@@ -105,6 +105,7 @@ button {
 
 .editor-tool-button {
   display: inline-grid;
+  flex-shrink: 0;
   width: 2.5rem;
   height: 2.5rem;
   place-items: center;

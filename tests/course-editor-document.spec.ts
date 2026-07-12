@@ -11,6 +11,9 @@ import {
   renameCourseObject,
   scaleSelectionAxis,
   scaleSelectionUniformly,
+  setFillLightEnabled,
+  updateAmbientLighting,
+  updateDirectionalLight,
   updateSelectionGeometry,
 } from "../src/game/editor/course-editor-document";
 
@@ -199,5 +202,46 @@ test.describe("course editor document commands", () => {
     });
     document = addCourseCheckpoint(document, issuedIds);
     expect(document.checkpoints.at(-1)?.id).toBe("checkpoint-2");
+  });
+
+  test("edits bounded portable lighting without changing scene-only state", () => {
+    const document = structuredClone(ROUGH_COURSE_DOCUMENT);
+    const keyLight = document.lighting.directionalLights[0];
+    const ambientEdited = updateAmbientLighting(document, {
+      color: { b: 0.3, g: 0.2, r: 0.1 },
+      intensity: 1.25,
+    });
+    const keyEdited = updateDirectionalLight(ambientEdited, keyLight.id, {
+      intensity: 1.5,
+      rotation: { ...keyLight.rotation, y: 48 },
+      shadowQuality: "high",
+    });
+
+    expect(keyEdited.lighting.ambient).toEqual({
+      color: { b: 0.3, g: 0.2, r: 0.1 },
+      intensity: 1.25,
+    });
+    expect(keyEdited.lighting.directionalLights[0]).toMatchObject({
+      id: keyLight.id,
+      intensity: 1.5,
+      rotation: { y: 48 },
+      shadowQuality: "high",
+    });
+    expect(keyEdited.lighting.directionalLights[1]).toEqual(
+      document.lighting.directionalLights[1],
+    );
+    expect(keyEdited.objects).toEqual(document.objects);
+  });
+
+  test("disables and restores one optional fill light", () => {
+    const document = structuredClone(ROUGH_COURSE_DOCUMENT);
+    const fillLight = document.lighting.directionalLights[1];
+    const disabled = setFillLightEnabled(document, false);
+    const restored = setFillLightEnabled(disabled, true, fillLight);
+
+    expect(disabled.lighting.directionalLights).toHaveLength(1);
+    expect(restored.lighting.directionalLights).toEqual(
+      document.lighting.directionalLights,
+    );
   });
 });

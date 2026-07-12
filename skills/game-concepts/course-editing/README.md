@@ -139,8 +139,11 @@ the canonical text.
 
 A source-controlled seed is the rough-course baseline, test fixture, and
 recovery input. Later persistence stores complete validated documents as
-immutable revisions. Runtime database rows and revision metadata must not leak
-into the portable document.
+immutable private draft revisions. A separately tracked published revision
+identifies the validated saved document available to ordinary guest racing;
+saving a draft must never silently change the live course. Runtime database
+rows, draft/live status, and revision metadata must not leak into the portable
+document.
 
 ## Edit History And Reset Semantics
 
@@ -157,14 +160,29 @@ well-established command-stack and clean-state model described by Qt's undo
 framework: <https://doc.qt.io/qt-6/qundostack.html>.
 
 - **Undo/redo** traverses accepted authoring commands.
-- **Reset** restores the loaded revision and clears transient manipulation.
-- **Reload** replaces the document with the latest authorized persisted
-  revision after explicit confirmation when dirty.
+- **Revert changes** restores the loaded or last-saved draft and clears
+  transient manipulation after explicit confirmation when dirty.
+- **Load latest draft** replaces the document with the latest authorized saved
+  draft. Keep this contextual to conflict recovery rather than presenting
+  loading as the ordinary authoring workflow.
+- **Save draft** validates and stores a new private immutable revision without
+  changing the live guest course.
+- **Publish** promotes one saved draft revision to the live guest course through
+  a separate authorized operation. Dirty work must be saved before it can be
+  published.
+- **Download backup** serializes the current validated document, including
+  unsaved work, as an advanced recovery/interchange action rather than the
+  editor's primary persistence model.
+- **Leave protection** confirms editor Exit and Sign Out while dirty and uses
+  the platform before-unload warning for refresh, close, or external browser
+  navigation. A pending save or latest-draft load temporarily locks mutation so
+  accepted commands cannot cross an asynchronous persistence boundary.
 - **Recovery baseline** restores the source-controlled seed only through a
   separately labelled destructive action.
 
 PR 3A implements the document and deterministic serialization, not the command
-stack UI. PR 3C implements the history and visible reset/reload behavior.
+stack UI. PR 3C implements history, private draft persistence, visible recovery,
+and the explicit preview/publish boundary.
 
 ## Protected Editor Experience
 
