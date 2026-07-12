@@ -2,13 +2,12 @@ import * as pc from "playcanvas";
 
 import type { ObstacleObjectId } from "../contracts";
 import { PHYSICS_GROUP, PHYSICS_MASK } from "../physics/collision-groups";
-import {
-  ROUGH_COURSE,
-  ROUGH_COURSE_CAMERA_FIXTURES,
-  ROUGH_COURSE_COLLISION_FIXTURES,
-  ROUGH_COURSE_OBSTACLES,
-  ROUGH_COURSE_RAMPS,
-} from "./course-definition";
+import type {
+  CourseDocument,
+  CourseObject,
+  CourseVisualMaterial,
+} from "./course-document";
+import { ROUGH_COURSE_DOCUMENT } from "./course-document";
 
 export type CollisionObstacle = {
   id: ObstacleObjectId;
@@ -17,290 +16,208 @@ export type CollisionObstacle = {
   z: number;
 };
 
-type RoughCourseMaterials = {
-  asphalt: pc.StandardMaterial;
-  ground: pc.StandardMaterial;
-  line: pc.StandardMaterial;
-  obstacleBarrel: pc.StandardMaterial;
-  obstacleBlock: pc.StandardMaterial;
-  ramp: pc.StandardMaterial;
+type RoughCourseMaterials = Record<CourseVisualMaterial, pc.StandardMaterial>;
+
+export type CourseObjectProjection = ReturnType<typeof projectCourseObject>;
+
+// Custom factories must return an unattached entity. The builder owns scene
+// attachment so the complete course batch can be committed atomically.
+type CourseEntityFactory = (
+  projection: CourseObjectProjection,
+  material: pc.StandardMaterial,
+) => pc.Entity;
+
+type BuildRoughCourseOptions = {
+  createEntity?: CourseEntityFactory;
+  document?: CourseDocument;
+  includeCollisionFixtures?: boolean;
+  materials: RoughCourseMaterials;
 };
+
+function isLegacyEditableObstacleId(id: string): id is ObstacleObjectId {
+  return id === "obstacle-barrel-a" || id === "obstacle-barrel-b";
+}
+
+function toVec3(vector: { x: number; y: number; z: number }) {
+  return new pc.Vec3(vector.x, vector.y, vector.z);
+}
+
+export function selectCourseObjectsForBuild(
+  document: CourseDocument,
+  includeCollisionFixtures: boolean,
+) {
+  return document.objects.filter(
+    (object) =>
+      object.availability === "standard" || includeCollisionFixtures,
+  );
+}
+
+export function projectCourseObject(object: CourseObject) {
+  const collision = object.collision;
+  const supportsKart = collision?.role === "drivable-surface";
+
+  return {
+    availability: object.availability,
+    category: object.category,
+    collision,
+    editable: object.editable,
+    id: object.id,
+    physics: collision
+      ? {
+          friction: collision.friction,
+          group: supportsKart
+            ? PHYSICS_GROUP.drivableSurface
+            : PHYSICS_GROUP.solidObstacle,
+          mask: supportsKart
+            ? PHYSICS_MASK.drivableSurface
+            : PHYSICS_MASK.solidObstacle,
+          restitution: collision.restitution,
+          tag: supportsKart ? "drivable-surface" : "obstacle",
+        }
+      : null,
+    transform: object.transform,
+    visual: object.visual,
+  } as const;
+}
 
 export function buildRoughCourse(
   app: pc.Application,
-  materials: RoughCourseMaterials,
-  includeCollisionFixtures = false,
+  {
+    createEntity = createCourseEntity,
+    document = ROUGH_COURSE_DOCUMENT,
+    includeCollisionFixtures = false,
+    materials,
+  }: BuildRoughCourseOptions,
 ) {
   const obstacleEntities = new Map<ObstacleObjectId, pc.Entity>();
   const collisionObstacles: CollisionObstacle[] = [];
+  const courseEntities = new Map<string, pc.Entity>();
+  const cameraFixtureEntities: pc.Entity[] = [];
+  const collisionFixtureEntities: pc.Entity[] = [];
+  const rampEntities: pc.Entity[] = [];
+  const stagedEntities: pc.Entity[] = [];
 
-  createPrimitive(
-    app,
-    "box",
-    "ground",
-    new pc.Vec3(0, -0.06, ROUGH_COURSE.centerZ),
-    new pc.Vec3(
-      ROUGH_COURSE.ground.width,
-      0.1,
-      ROUGH_COURSE.ground.depth,
-    ),
-    materials.ground,
-    0,
-    true,
-  );
+  try {
+    selectCourseObjectsForBuild(document, includeCollisionFixtures).forEach(
+      (object) => {
+        const projection = projectCourseObject(object);
+        const entity = createEntity(
+          projection,
+          materials[projection.visual.material],
+        );
 
-  buildPillCourse(app, materials);
+        stagedEntities.push(entity);
+        courseEntities.set(object.id, entity);
 
-  ROUGH_COURSE_OBSTACLES.forEach((obstacle) => {
-    const position = new pc.Vec3(
-      obstacle.position.x,
-      obstacle.position.y,
-      obstacle.position.z,
+        if (object.availability === "collision-test") {
+          collisionFixtureEntities.push(entity);
+        } else if (object.category === "fixture") {
+          cameraFixtureEntities.push(entity);
+        }
+
+        if (object.visual.material === "ramp") {
+          rampEntities.push(entity);
+        }
+
+        if (
+          object.category === "obstacle" &&
+          isLegacyEditableObstacleId(object.id)
+        ) {
+          obstacleEntities.set(object.id, entity);
+          collisionObstacles.push({
+            id: object.id,
+            // Preserve the transitional Lite Editor selection/clearance
+            // footprint. Physics consumes the independent collision radius.
+            radius: Math.max(object.visual.scale.x, object.visual.scale.z),
+            x: object.transform.position.x,
+            z: object.transform.position.z,
+          });
+        }
+      },
     );
-    const entity = createPrimitive(
-      app,
-      obstacle.kind,
-      obstacle.id,
-      position,
-      new pc.Vec3(obstacle.scale.x, obstacle.scale.y, obstacle.scale.z),
-      obstacle.kind === "box"
-        ? materials.obstacleBlock
-        : materials.obstacleBarrel,
-      obstacle.rotationY,
-      false,
-    );
 
-    obstacleEntities.set(obstacle.id, entity);
-    collisionObstacles.push({
-      id: obstacle.id,
-      radius: obstacle.collisionRadius,
-      x: position.x,
-      z: position.z,
-    });
-  });
-
-  const rampEntities = ROUGH_COURSE_RAMPS.map((ramp) =>
-    createRamp(
-      app,
-      ramp.id,
-      new pc.Vec3(ramp.position.x, ramp.position.y, ramp.position.z),
-      new pc.Vec3(ramp.scale.x, ramp.scale.y, ramp.scale.z),
-      new pc.Vec3(ramp.rotation.x, ramp.rotation.y, ramp.rotation.z),
-      materials.ramp,
-    ),
-  );
-
-  const cameraFixtureEntities = ROUGH_COURSE_CAMERA_FIXTURES.map((fixture) =>
-    createPrimitive(
-      app,
-      "box",
-      fixture.id,
-      new pc.Vec3(
-        fixture.position.x,
-        fixture.position.y,
-        fixture.position.z,
-      ),
-      new pc.Vec3(fixture.scale.x, fixture.scale.y, fixture.scale.z),
-      materials.obstacleBlock,
-    ),
-  );
-
-  const collisionFixtureEntities = includeCollisionFixtures
-    ? ROUGH_COURSE_COLLISION_FIXTURES.map((fixture) =>
-        createPrimitive(
-          app,
-          "box",
-          fixture.id,
-          new pc.Vec3(
-            fixture.position.x,
-            fixture.position.y,
-            fixture.position.z,
-          ),
-          new pc.Vec3(fixture.scale.x, fixture.scale.y, fixture.scale.z),
-          materials.obstacleBlock,
-        ),
-      )
-    : [];
+    stagedEntities.forEach((entity) => app.root.addChild(entity));
+  } catch (error) {
+    stagedEntities.forEach((entity) => entity.destroy());
+    throw error;
+  }
 
   return {
     cameraFixtureEntities,
     collisionFixtureEntities,
     collisionObstacles,
+    courseEntities,
     obstacleEntities,
     rampEntities,
   };
 }
 
-function createRamp(
-  app: pc.Application,
-  name: string,
-  position: pc.Vec3,
-  scale: pc.Vec3,
-  rotation: pc.Vec3,
+function createCourseEntity(
+  projection: CourseObjectProjection,
   material: pc.StandardMaterial,
 ) {
-  const entity = new pc.Entity(name);
+  const entity = new pc.Entity(projection.id);
 
-  entity.addComponent("model", { type: "box" });
-  entity.setPosition(position);
-  entity.setEulerAngles(rotation);
-  entity.setLocalScale(scale);
+  try {
+    return configureCourseEntity(entity, projection, material);
+  } catch (error) {
+    entity.destroy();
+    throw error;
+  }
+}
+
+function configureCourseEntity(
+  entity: pc.Entity,
+  projection: CourseObjectProjection,
+  material: pc.StandardMaterial,
+) {
+  entity.addComponent("model", { type: projection.visual.shape });
+  entity.setPosition(toVec3(projection.transform.position));
+  entity.setEulerAngles(toVec3(projection.transform.rotation));
+  entity.setLocalScale(toVec3(projection.visual.scale));
   entity.model?.meshInstances?.forEach((meshInstance) => {
     meshInstance.material = material;
   });
-  entity.tags.add("drivable-surface");
-  entity.addComponent("collision", {
-    halfExtents: scale.clone().mulScalar(0.5),
-    type: "box",
-  });
-  entity.addComponent("rigidbody", {
-    friction: 0.55,
-    group: PHYSICS_GROUP.drivableSurface,
-    mask: PHYSICS_MASK.drivableSurface,
-    restitution: 0,
-    type: pc.BODYTYPE_STATIC,
-  });
-  app.root.addChild(entity);
 
-  return entity;
-}
+  const collision = projection.collision;
+  const physics = projection.physics;
 
-function buildPillCourse(
-  app: pc.Application,
-  materials: Pick<RoughCourseMaterials, "asphalt" | "ground" | "line">,
-) {
-  const { centerZ } = ROUGH_COURSE;
-  const { halfStraight, turnRadius, width } = ROUGH_COURSE.road;
-  const outerRadius = turnRadius + width / 2;
-  const innerRadius = turnRadius - width / 2;
+  if (collision && physics) {
+    const angularOffset = new pc.Quat().setFromEulerAngles(
+      collision.offset.rotation.x,
+      collision.offset.rotation.y,
+      collision.offset.rotation.z,
+    );
+    const linearOffset = toVec3(collision.offset.position);
 
-  createPrimitive(
-    app,
-    "box",
-    "course-outer-straight",
-    new pc.Vec3(0, 0.01, centerZ),
-    new pc.Vec3(halfStraight * 2, 0.08, outerRadius * 2),
-    materials.asphalt,
-    0,
-    true,
-  );
-  createPrimitive(
-    app,
-    "cylinder",
-    "course-left-cap",
-    new pc.Vec3(-halfStraight, 0.01, centerZ),
-    new pc.Vec3(outerRadius * 2, 0.08, outerRadius * 2),
-    materials.asphalt,
-    0,
-    true,
-  );
-  createPrimitive(
-    app,
-    "cylinder",
-    "course-right-cap",
-    new pc.Vec3(halfStraight, 0.01, centerZ),
-    new pc.Vec3(outerRadius * 2, 0.08, outerRadius * 2),
-    materials.asphalt,
-    0,
-    true,
-  );
-  createPrimitive(
-    app,
-    "box",
-    "course-inner-straight",
-    new pc.Vec3(0, 0.08, centerZ),
-    new pc.Vec3(halfStraight * 2, 0.08, innerRadius * 2),
-    materials.ground,
-    0,
-    true,
-  );
-  createPrimitive(
-    app,
-    "cylinder",
-    "course-left-cutout",
-    new pc.Vec3(-halfStraight, 0.08, centerZ),
-    new pc.Vec3(innerRadius * 2, 0.08, innerRadius * 2),
-    materials.ground,
-    0,
-    true,
-  );
-  createPrimitive(
-    app,
-    "cylinder",
-    "course-right-cutout",
-    new pc.Vec3(halfStraight, 0.08, centerZ),
-    new pc.Vec3(innerRadius * 2, 0.08, innerRadius * 2),
-    materials.ground,
-    0,
-    true,
-  );
-  createPrimitive(
-    app,
-    "box",
-    "start-finish-line",
-    new pc.Vec3(0, 0.14, 0),
-    new pc.Vec3(0.18, 0.08, width + 0.4),
-    materials.line,
-    0,
-    true,
-    false,
-  );
-}
+    entity.tags.add(physics.tag);
 
-function createPrimitive(
-  app: pc.Application,
-  type: "box" | "cylinder",
-  name: string,
-  position: pc.Vec3,
-  scale: pc.Vec3,
-  material: pc.StandardMaterial,
-  rotationY = 0,
-  supportsKart = false,
-  hasPhysics = true,
-) {
-  const entity = new pc.Entity(name);
-  entity.addComponent("model", { type });
-  entity.setPosition(position);
-  entity.setEulerAngles(0, rotationY, 0);
-  entity.setLocalScale(scale);
-  entity.model?.meshInstances?.forEach((meshInstance) => {
-    meshInstance.material = material;
-  });
-  if (hasPhysics) {
-    entity.tags.add(supportsKart ? "drivable-surface" : "obstacle");
-
-    if (type === "box") {
+    if (collision.shape === "box") {
       entity.addComponent("collision", {
-        halfExtents: scale.clone().mulScalar(0.5),
-        linearOffset: supportsKart
-          ? new pc.Vec3(0, -position.y - scale.y * 0.5, 0)
-          : pc.Vec3.ZERO,
-        type,
+        angularOffset,
+        halfExtents: toVec3(collision.halfExtents),
+        linearOffset,
+        type: "box",
       });
     } else {
       entity.addComponent("collision", {
-        height: scale.y,
-        linearOffset: supportsKart
-          ? new pc.Vec3(0, -position.y - scale.y * 0.5, 0)
-          : pc.Vec3.ZERO,
-        radius: Math.max(scale.x, scale.z) * 0.5,
-        type,
+        angularOffset,
+        axis: collision.axis,
+        height: collision.height,
+        linearOffset,
+        radius: collision.radius,
+        type: "cylinder",
       });
     }
 
     entity.addComponent("rigidbody", {
-      friction: 0.7,
-      group: supportsKart
-        ? PHYSICS_GROUP.drivableSurface
-        : PHYSICS_GROUP.solidObstacle,
-      mask: supportsKart
-        ? PHYSICS_MASK.drivableSurface
-        : PHYSICS_MASK.solidObstacle,
-      restitution: 0,
+      friction: physics.friction,
+      group: physics.group,
+      mask: physics.mask,
+      restitution: physics.restitution,
       type: pc.BODYTYPE_STATIC,
     });
   }
-  app.root.addChild(entity);
 
   return entity;
 }

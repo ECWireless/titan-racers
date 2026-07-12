@@ -29,7 +29,7 @@ recovery policy, editor camera controls, or race progression.
   contact point, normal, approach speed, impulse, and pre/post velocity data.
 - `src/game/kart/dynamic-kart-controller.ts` remains the owner of supported
   wheel count and authoritative vertical velocity.
-- `src/game/course/course-definition.ts` defines the visible off-loop camera
+- `src/game/course/rough-course.v1.json` defines the visible off-loop camera
   test bay: one large wall and a shortened L-corner outside the established
   maximum-speed lane.
 - `src/game/course/build-rough-course.ts` creates those fixtures as ordinary
@@ -103,7 +103,7 @@ Focused coverage includes:
 
 - `tests/chase-camera.spec.ts` for reliable-speed signed slip, reverse sign
   stability, impact severity bounds, and equivalent exponential smoothing;
-- `tests/course-definition.spec.ts` for visible large-wall/L-corner geometry
+- `tests/course-document.spec.ts` for visible large-wall/L-corner geometry
   beyond the normal loop;
 - `tests/home.spec.ts` for presentation coherence and reset snapping,
   motion-led slip and desktop/mobile FOV, wall obstruction and release, corner

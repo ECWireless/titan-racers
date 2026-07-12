@@ -8,11 +8,37 @@ import type { ChaseCameraDiagnostics } from "../camera/chase-camera";
 type CanvasPoint = { x: number; y: number } | null;
 
 export type CollisionDebugState = {
+  ambientLightB: number;
+  ambientLightG: number;
+  ambientLightR: number;
+  barrelCollisionAxis: number | null;
+  barrelCollisionHeight: number | null;
+  barrelCollisionRadius: number | null;
+  barrelMaterialMapped: boolean;
+  barrelPhysicsFriction: number | null;
+  barrelPhysicsGroup: number | null;
+  barrelPhysicsMask: number | null;
+  barrelPhysicsRestitution: number | null;
+  courseEntityCount: number;
+  directionalLightCount: number;
+  fillLightCastsShadows: boolean | null;
+  groundCollisionHalfExtentX: number | null;
+  groundCollisionOffsetY: number | null;
+  groundCollisionShape: string | null;
+  groundIsDrivable: boolean;
+  keyLightCastsShadows: boolean | null;
+  keyLightIntensity: number | null;
+  keyLightRotationX: number | null;
+  keyLightRotationY: number | null;
+  keyLightShadowResolution: number | null;
+  obstacleAInteractionRadius: number | null;
   obstacleAX: number | null;
   obstacleBlocksKart: boolean;
   obstacleCount: number;
   rampCount: number;
   startClear: boolean;
+  startLineHasCollision: boolean;
+  startLineHasRigidBody: boolean;
 };
 
 export type CameraDebugState = ChaseCameraDiagnostics;

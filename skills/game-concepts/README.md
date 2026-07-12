@@ -28,6 +28,9 @@ A game-concept node should normally cover:
 
 ## Current Children
 
+- [`course-editing/`](course-editing/README.md): the accepted document-centered
+  standard for versioned course data, stable identities, primitive authoring,
+  checkpoint ordering, validation, deterministic export, and edit history.
 - [`chase-camera/`](chase-camera/README.md): the accepted engine-independent
   standard for motion-led vehicle framing, slip readability, impacts, airborne
   behavior, obstruction handling, and reset coherence.

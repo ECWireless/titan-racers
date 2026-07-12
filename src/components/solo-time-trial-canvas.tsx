@@ -23,7 +23,12 @@ import {
   type ChaseCameraImpact,
   type ChaseCameraSnapshot,
 } from "@/game/camera/chase-camera";
+import { buildCourseLighting } from "@/game/course/build-course-lighting";
 import { buildRoughCourse } from "@/game/course/build-rough-course";
+import {
+  getCourseStartTransform,
+  ROUGH_COURSE_DOCUMENT,
+} from "@/game/course/course-document";
 import { EDITOR_TRANSLATE_STEP } from "@/game/editor/editor-config";
 import { KeyboardInput } from "@/game/input/keyboard-input";
 import {
@@ -49,8 +54,18 @@ import {
 } from "@/game/runtime/ammo-rigid-body";
 import { attachSceneTestAdapter } from "@/game/testing/scene-test-adapter";
 
-const START_POSITION = new pc.Vec3(0, 0, 0);
-const START_YAW = 90;
+const COURSE_DOCUMENT = ROUGH_COURSE_DOCUMENT;
+const START_TRANSFORM = getCourseStartTransform(COURSE_DOCUMENT);
+const START_POSITION = new pc.Vec3(
+  START_TRANSFORM.position.x,
+  START_TRANSFORM.position.y,
+  START_TRANSFORM.position.z,
+);
+const START_ROTATION = new pc.Vec3(
+  START_TRANSFORM.rotation.x,
+  START_TRANSFORM.rotation.y,
+  START_TRANSFORM.rotation.z,
+);
 const KART_ROOT_HEIGHT = 0.43;
 const KART_MASS = 120;
 const KART_BODY_MASS = 70;
@@ -202,9 +217,9 @@ export function SoloTimeTrialCanvas({ onExit }: SoloTimeTrialCanvasProps) {
     z: START_POSITION.z,
   });
   const [selectedRotation, setSelectedRotation] = useState<Position3>({
-    x: 0,
-    y: START_YAW,
-    z: 0,
+    x: START_ROTATION.x,
+    y: START_ROTATION.y,
+    z: START_ROTATION.z,
   });
   const [startPosition, setStartPosition] = useState<StartPosition>({
     x: START_POSITION.x,
@@ -480,11 +495,11 @@ export function SoloTimeTrialCanvas({ onExit }: SoloTimeTrialCanvasProps) {
       cameraFixtureEntities,
       collisionFixtureEntities,
       collisionObstacles,
+      courseEntities,
       obstacleEntities,
       rampEntities,
-    } = buildRoughCourse(
-      app,
-      {
+    } = buildRoughCourse(app, {
+      materials: {
         asphalt: asphaltMaterial,
         ground: groundMaterial,
         line: lineMaterial,
@@ -492,9 +507,11 @@ export function SoloTimeTrialCanvas({ onExit }: SoloTimeTrialCanvasProps) {
         obstacleBlock: obstacleBlockMaterial,
         ramp: rampMaterial,
       },
-      ENABLE_SCENE_TEST_HOOKS &&
+      document: COURSE_DOCUMENT,
+      includeCollisionFixtures:
+        ENABLE_SCENE_TEST_HOOKS &&
         new URLSearchParams(window.location.search).has("collision-fixtures"),
-    );
+    });
 
     function syncObstacleCollision(id: ObstacleObjectId, position: pc.Vec3) {
       const collisionObstacle = collisionObstacles.find(
@@ -511,17 +528,22 @@ export function SoloTimeTrialCanvas({ onExit }: SoloTimeTrialCanvasProps) {
 
     const startMarker = createBox(
       "start-position",
-      new pc.Vec3(START_POSITION.x, 0.14, START_POSITION.z),
+      new pc.Vec3(
+        START_POSITION.x,
+        START_POSITION.y + 0.14,
+        START_POSITION.z,
+      ),
       new pc.Vec3(2.2, 0.04, 1.6),
       markerMaterial,
-      START_YAW,
+      START_ROTATION.y,
     );
+    startMarker.setEulerAngles(START_ROTATION);
 
     const kart = new pc.Entity("box-kart");
     const initialKartRotation = new pc.Quat().setFromEulerAngles(
-      0,
-      START_YAW,
-      0,
+      START_ROTATION.x,
+      START_ROTATION.y,
+      START_ROTATION.z,
     );
     kart.setPosition(
       getKartRootPosition(
@@ -540,7 +562,7 @@ export function SoloTimeTrialCanvas({ onExit }: SoloTimeTrialCanvasProps) {
 
     kart.addChild(kartVisual);
     const currentStartPosition = START_POSITION.clone();
-    const currentStartRotation = new pc.Vec3(0, START_YAW, 0);
+    const currentStartRotation = START_ROTATION.clone();
 
     createChildBox(
       kartVisual,
@@ -870,29 +892,9 @@ export function SoloTimeTrialCanvas({ onExit }: SoloTimeTrialCanvasProps) {
       },
     );
 
-    app.scene.ambientLight = new pc.Color(0.34, 0.39, 0.46);
-
-    const keyLight = new pc.Entity("warm-key-light");
-    keyLight.addComponent("light", {
-      castShadows: true,
-      color: new pc.Color(1, 0.91, 0.78),
-      intensity: 0.78,
-      shadowBias: 0.2,
-      shadowDistance: 45,
-      shadowResolution: 1024,
-      type: "directional",
+    const lightingEntities = buildCourseLighting(app, {
+      document: COURSE_DOCUMENT,
     });
-    keyLight.setEulerAngles(52, 38, 0);
-    app.root.addChild(keyLight);
-
-    const fillLight = new pc.Entity("cool-fill-light");
-    fillLight.addComponent("light", {
-      color: new pc.Color(0.55, 0.68, 0.9),
-      intensity: 0.32,
-      type: "directional",
-    });
-    fillLight.setEulerAngles(28, -132, 0);
-    app.root.addChild(fillLight);
 
     let isEditorMode = false;
     let selectedEditableObjectId: EditableObjectId = "start-position";
@@ -916,7 +918,7 @@ export function SoloTimeTrialCanvas({ onExit }: SoloTimeTrialCanvasProps) {
     };
     const editableObjectRotations = new Map<EditableObjectId, pc.Vec3>([
       ["start-position", currentStartRotation.clone()],
-      ["kart", new pc.Vec3(0, START_YAW, 0)],
+      ["kart", START_ROTATION.clone()],
       ...[...obstacleEntities.entries()].map(
         ([id, entity]) => [id, entity.getEulerAngles().clone()] as const,
       ),
@@ -1852,8 +1854,40 @@ export function SoloTimeTrialCanvas({ onExit }: SoloTimeTrialCanvasProps) {
       const obstacleA = collisionObstacles.find(
         (obstacle) => obstacle.id === "obstacle-barrel-a",
       );
+      const obstacleAEntity = obstacleEntities.get("obstacle-barrel-a");
+      const ground = courseEntities.get("ground");
+      const keyLight = lightingEntities.get("warm-key-light");
+      const fillLight = lightingEntities.get("cool-fill-light");
+      const startFinishLine = courseEntities.get("start-finish-line");
 
       return {
+        barrelCollisionAxis: obstacleAEntity?.collision?.axis ?? null,
+        barrelCollisionHeight: obstacleAEntity?.collision?.height ?? null,
+        barrelCollisionRadius: obstacleAEntity?.collision?.radius ?? null,
+        barrelMaterialMapped:
+          obstacleAEntity?.model?.meshInstances?.[0]?.material ===
+          obstacleBarrelMaterial,
+        barrelPhysicsFriction: obstacleAEntity?.rigidbody?.friction ?? null,
+        barrelPhysicsGroup: obstacleAEntity?.rigidbody?.group ?? null,
+        barrelPhysicsMask: obstacleAEntity?.rigidbody?.mask ?? null,
+        barrelPhysicsRestitution:
+          obstacleAEntity?.rigidbody?.restitution ?? null,
+        ambientLightB: app.scene.ambientLight.b,
+        ambientLightG: app.scene.ambientLight.g,
+        ambientLightR: app.scene.ambientLight.r,
+        courseEntityCount: courseEntities.size,
+        directionalLightCount: lightingEntities.size,
+        fillLightCastsShadows: fillLight?.light?.castShadows ?? null,
+        groundCollisionHalfExtentX: ground?.collision?.halfExtents?.x ?? null,
+        groundCollisionOffsetY: ground?.collision?.linearOffset?.y ?? null,
+        groundCollisionShape: ground?.collision?.type ?? null,
+        groundIsDrivable: ground?.tags.has("drivable-surface") ?? false,
+        keyLightCastsShadows: keyLight?.light?.castShadows ?? null,
+        keyLightIntensity: keyLight?.light?.intensity ?? null,
+        keyLightRotationX: keyLight?.getEulerAngles().x ?? null,
+        keyLightRotationY: keyLight?.getEulerAngles().y ?? null,
+        keyLightShadowResolution: keyLight?.light?.shadowResolution ?? null,
+        obstacleAInteractionRadius: obstacleA?.radius ?? null,
         obstacleAX: obstacleA ? toFixedStep(obstacleA.x) : null,
         obstacleBlocksKart: firstObstacle
           ? collidesWithObstacle(new pc.Vec3(firstObstacle.x, 0, firstObstacle.z))
@@ -1861,6 +1895,8 @@ export function SoloTimeTrialCanvas({ onExit }: SoloTimeTrialCanvasProps) {
         obstacleCount: collisionObstacles.length,
         rampCount: rampEntities.length,
         startClear: !collidesWithObstacle(currentStartPosition),
+        startLineHasCollision: Boolean(startFinishLine?.collision),
+        startLineHasRigidBody: Boolean(startFinishLine?.rigidbody),
       };
     };
 

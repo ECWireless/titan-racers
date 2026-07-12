@@ -20,7 +20,10 @@ The demo is complete only when solo racing, uploaded/published kart designs, gho
 - PlayCanvas is the preferred runtime candidate, but the spike can challenge that if another path is clearly better.
 - Use Postgres locally and Neon when hosted.
 - Store larger assets in S3-compatible object storage; keep metadata in Postgres.
-- Privy is the leading auth candidate, but should be stress-tested against the exact demo needs before final selection.
+- Use Better Auth with Postgres-backed sessions and application-owned identities.
+- Keep application identity provider-neutral so connected EOA login can be added
+  through SIWE and embedded-wallet infrastructure can be integrated later without
+  replacing Titan Racers user IDs.
 - Target the playable app as a separate experience from the marketing site, likely `play.titanracers.com`.
 
 ## Product Scope
@@ -130,7 +133,7 @@ Store uploaded models and larger generated assets in S3-compatible object storag
 
 Postgres stores object keys, URLs, ownership, status, and metadata.
 
-### Auth
+### Auth And Authorization
 
 Guest play must stay frictionless.
 
@@ -141,7 +144,25 @@ Login is required for:
 - assembly upload access,
 - admin controls,
 
-Privy is the leading candidate, but final auth choice should wait until the scaffold phase stress-tests it against guest play, admin permissions, assembly access approval, and wallet/social identity needs.
+Use Better Auth with Postgres-backed sessions. Begin with one conventional social
+login method for protected administration, then add player-facing login methods
+when their product flows require them. Guest racing must not require an auth
+session.
+
+Titan Racers application user IDs remain canonical. Authentication-provider
+accounts, connected EOAs, and any future embedded-wallet provider IDs attach to
+the application user rather than replacing that identity. Add connected EOA
+login and explicit account linking through SIWE with the Phase 5 player identity
+and leaderboard work. Embedded wallets and on-chain transactions remain deferred
+until an accepted product requirement justifies the additional provider,
+security, and operational boundaries.
+
+Store application roles in Postgres and enforce them close to protected data and
+mutation boundaries. Client-side visibility checks improve the experience but
+are never the authoritative permission check. Bootstrap the first admin through
+a documented database operation requiring database credentials; do not expose a
+public role-promotion endpoint or use a deployment environment allowlist as the
+durable authorization source.
 
 ## Roles And Permissions
 
@@ -172,7 +193,7 @@ Use a simple player-centered model.
 
 ### Admin
 
-- Trusted launch operator account, allowlisted through environment/config at first.
+- Trusted launch operator account with a Postgres-backed admin role.
 - Multiple admins are allowed.
 - Can manage temporary assembly access approval.
 - Can access protected course/editor tooling.
@@ -456,12 +477,70 @@ into `main`.
 
 #### PR 3: Protected Course Tooling
 
-- [ ] define and implement the required editable course-data model,
-- [ ] establish selection, transform, placement, checkpoint/start placement,
-      collision visualization, persistence/export, undo, and reset behavior,
-- [ ] add Privy authentication,
-- [ ] enforce an environment-configured admin allowlist at both the UI and
-      server authorization boundaries.
+Split protected course tooling into three independently reviewable PR-sized
+units. Keep PRs 3A and 3B product-UI-neutral; PR 3C is the first new visible
+course-authoring experience.
+
+##### PR 3A: Course Data Foundation
+
+- [x] research and approve the engine-independent course-editing standard and
+      its PlayCanvas mapping,
+- [x] define a versioned, validated, portable course-document contract with
+      stable object and checkpoint IDs,
+- [x] define a bounded primitive-object catalog with shape-specific dimensions
+      and semantic visual/collision defaults that later editor placement can
+      instantiate without changing the persisted contract,
+- [x] model course objects, transforms, collision shapes, start placement, and
+      ordered checkpoints without coupling persisted data to PlayCanvas entity
+      instances,
+- [x] model bounded course-level ambient and directional lighting, including
+      color, intensity, direction, and safe shadow-quality presets, while
+      preserving the accepted rough-course presentation,
+- [x] construct the accepted rough course from the course document while
+      preserving its accepted visible, physics, collision, camera, and driving
+      behavior,
+- [x] add deterministic import/export serialization, validation, and a
+      source-controlled seed course suitable for tests and recovery,
+- [x] stop before durable database persistence, authentication, authorization,
+      or new editor UI.
+
+##### PR 3B: Identity, Authorization, And Course Persistence
+
+- [ ] add the local Postgres and hosted Neon persistence foundation with
+      version-controlled migrations,
+- [ ] add Better Auth with Postgres-backed sessions and one approved
+      conventional admin login method,
+- [ ] store canonical application users, linked provider identities, and
+      application roles in Postgres,
+- [ ] bootstrap the first admin through a documented database operation and
+      enforce the admin role at centralized server/data authorization
+      boundaries,
+- [ ] store portable course documents as immutable Postgres JSONB revisions
+      with author attribution, schema version, and optimistic concurrency,
+- [ ] add protected course load/save APIs while keeping the product UI
+      unchanged,
+- [ ] stop before player-facing EOA login, embedded wallets, or the visible
+      course editor.
+
+##### PR 3C: Protected Course Editor
+
+- [ ] replace the development-only Lite Editor with a protected admin course
+      editor and login/access experience,
+- [ ] provide an add-object palette of approved course presets such as blocks,
+      barriers, barrels, ramps, and platforms, backed by the bounded primitive
+      course-object contract rather than special engine-only objects,
+- [ ] establish selection, transform, placement, and deletion behavior for the
+      approved editable object types,
+- [ ] establish start placement and ordered checkpoint authoring,
+- [ ] visualize the authoritative collision shapes without creating a second
+      collision-geometry model,
+- [ ] expose basic course-level ambient, sun, and optional fill-light controls
+      for color, intensity, direction, and bounded shadow quality, with a reset
+      to the loaded lighting setup,
+- [ ] implement command-based undo/redo, reset-to-loaded-revision, dirty-state,
+      save, reload, and portable export behavior,
+- [ ] verify desktop and narrow-screen authoring workflows without changing
+      ordinary guest racing access.
 
 #### PR 4: Rough Race Loop
 
@@ -527,7 +606,14 @@ Includes:
 - [ ] player-best ghost,
 - [ ] result screen,
 - [ ] replay flow,
+- [ ] player-facing authentication and explicit account-linking experience,
+- [ ] connected EOA login through SIWE without making wallet addresses the
+      canonical Titan Racers user identity,
 - [ ] login-gated leaderboard submission.
+
+Keep Phase 5 wallet scope to authentication and account linking. Embedded
+wallets, token balances, gameplay transaction signing, and other on-chain
+behavior require a separately accepted future scope.
 
 ### Phase 6: Private Multiplayer
 
