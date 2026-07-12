@@ -1,0 +1,27 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1783825360224,
+      "tag": "0000_identity-course-persistence",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1783826672930,
+      "tag": "0001_default-player-role",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1783827350529,
+      "tag": "0002_user-anonymization",
+      "breakpoints": true
+    }
+  ]
+}

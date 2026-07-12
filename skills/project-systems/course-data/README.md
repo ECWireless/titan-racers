@@ -21,9 +21,10 @@ stable authored IDs, start/checkpoint records, bounded primitive definitions,
 semantic collision roles, bounded environment lighting, diagnostic
 availability, and construction of static PlayCanvas course entities.
 
-It does not own database revisions, authentication, authorization, active race
-progression, visible checkpoint triggers, editor commands, persistence UI, or
-the future add-object palette.
+Database revisions, authentication, and authorization are now owned by
+[`identity-course-persistence`](../identity-course-persistence/README.md). This
+node still does not own active race progression, visible checkpoint triggers,
+editor commands, persistence UI, or the future add-object palette.
 
 ## Source Ownership
 
@@ -136,7 +137,7 @@ silently stripped. The complete document validates before scene construction.
 - The six checkpoint placements are inactive authoring data until PR 4 validates
   progression and recovery behavior.
 - Postgres revisions, Better Auth, application roles, and protected course APIs
-  belong to PR 3B.
+  are implemented by the candidate identity-and-course-persistence system.
 - Add-object presets, full selection, collision visualization, undo/redo,
   reset-to-loaded-revision, save/reload, and export UI belong to PR 3C.
 - Basic ambient and directional-light controls belong to PR 3C. Arbitrary

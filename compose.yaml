@@ -1,0 +1,19 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: titan_racers
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_USER: postgres
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d titan_racers"]
+      interval: 2s
+      timeout: 3s
+      retries: 15
+    ports:
+      - "55432:5432"
+    volumes:
+      - titan-racers-postgres:/var/lib/postgresql/data
+
+volumes:
+  titan-racers-postgres:

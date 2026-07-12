@@ -179,7 +179,9 @@ stack UI. PR 3C implements the history and visible reset/reload behavior.
 - Version one supports only box and cylinder primitives.
 - Checkpoints are authored but remain behaviorally inactive until the rough
   race-loop work.
-- Database revisions and protected APIs belong to PR 3B.
+- Database revisions and protected APIs are implemented by the candidate
+  [`identity-course-persistence`](../../project-systems/identity-course-persistence/README.md)
+  system.
 - Placement palette, collision visualization, undo/redo, and save/reload UI
   belong to PR 3C.
 - Basic environment-light controls belong to PR 3C; arbitrary placeable lights
