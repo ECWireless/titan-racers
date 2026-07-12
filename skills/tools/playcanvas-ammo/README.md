@@ -19,6 +19,9 @@ implementation has been accepted.
 
 ## Focused Children
 
+- [`course-editing/`](course-editing/README.md): accepted PlayCanvas 2.20.6
+  mapping for validated course documents, primitive construction, semantic
+  collision roles, fixture gating, and collision debug geometry.
 - [`chase-camera/`](chase-camera/README.md): accepted PlayCanvas 2.20.6 mapping
   for motion-led chase-camera state, collision-observer impulses, obstruction
   raycasts, presentation interpolation, and camera-focused verification.

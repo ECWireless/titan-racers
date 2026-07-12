@@ -1,5 +1,10 @@
 import { expect, type Locator, test } from "@playwright/test";
 
+import {
+  PHYSICS_GROUP,
+  PHYSICS_MASK,
+} from "../src/game/physics/collision-groups";
+
 type TransformAxis = "x" | "y" | "z";
 type EditableObjectId =
   | "start-position"
@@ -68,11 +73,37 @@ async function getCollisionDebugState(canvas: Locator) {
   return canvas.evaluate(
     (element) =>
       new Promise<{
+        ambientLightB: number;
+        ambientLightG: number;
+        ambientLightR: number;
+        barrelCollisionAxis: number | null;
+        barrelCollisionHeight: number | null;
+        barrelCollisionRadius: number | null;
+        barrelMaterialMapped: boolean;
+        barrelPhysicsFriction: number | null;
+        barrelPhysicsGroup: number | null;
+        barrelPhysicsMask: number | null;
+        barrelPhysicsRestitution: number | null;
+        courseEntityCount: number;
+        directionalLightCount: number;
+        fillLightCastsShadows: boolean | null;
+        groundCollisionHalfExtentX: number | null;
+        groundCollisionOffsetY: number | null;
+        groundCollisionShape: string | null;
+        groundIsDrivable: boolean;
+        keyLightCastsShadows: boolean | null;
+        keyLightIntensity: number | null;
+        keyLightRotationX: number | null;
+        keyLightRotationY: number | null;
+        keyLightShadowResolution: number | null;
+        obstacleAInteractionRadius: number | null;
         obstacleAX: number | null;
         obstacleBlocksKart: boolean;
         obstacleCount: number;
         rampCount: number;
         startClear: boolean;
+        startLineHasCollision: boolean;
+        startLineHasRigidBody: boolean;
       }>((resolve) => {
         element.dispatchEvent(
           new CustomEvent("getCollisionDebugState", {
@@ -1341,10 +1372,36 @@ test.describe("home screen", () => {
     const canvas = page.getByTestId("solo-time-trial-canvas");
     const collisionState = await getCollisionDebugState(canvas);
 
+    expect(collisionState.ambientLightR).toBeCloseTo(0.34);
+    expect(collisionState.ambientLightG).toBeCloseTo(0.39);
+    expect(collisionState.ambientLightB).toBeCloseTo(0.46);
+    expect(collisionState.barrelCollisionAxis).toBe(1);
+    expect(collisionState.barrelCollisionHeight).toBe(0.9);
+    expect(collisionState.barrelCollisionRadius).toBe(0.45);
+    expect(collisionState.barrelMaterialMapped).toBe(true);
+    expect(collisionState.barrelPhysicsFriction).toBe(0.7);
+    expect(collisionState.barrelPhysicsGroup).toBe(PHYSICS_GROUP.solidObstacle);
+    expect(collisionState.barrelPhysicsMask).toBe(PHYSICS_MASK.solidObstacle);
+    expect(collisionState.barrelPhysicsRestitution).toBe(0);
+    expect(collisionState.courseEntityCount).toBe(13);
+    expect(collisionState.directionalLightCount).toBe(2);
+    expect(collisionState.keyLightIntensity).toBeCloseTo(0.78);
+    expect(collisionState.keyLightRotationX).toBeCloseTo(52);
+    expect(collisionState.keyLightRotationY).toBeCloseTo(38);
+    expect(collisionState.keyLightCastsShadows).toBe(true);
+    expect(collisionState.keyLightShadowResolution).toBe(1024);
+    expect(collisionState.fillLightCastsShadows).toBe(false);
+    expect(collisionState.groundCollisionShape).toBe("box");
+    expect(collisionState.groundCollisionHalfExtentX).toBe(44);
+    expect(collisionState.groundCollisionOffsetY).toBe(0.01);
+    expect(collisionState.groundIsDrivable).toBe(true);
+    expect(collisionState.obstacleAInteractionRadius).toBe(0.9);
     expect(collisionState.obstacleCount).toBe(2);
     expect(collisionState.rampCount).toBe(1);
     expect(collisionState.obstacleBlocksKart).toBe(true);
     expect(collisionState.startClear).toBe(true);
+    expect(collisionState.startLineHasCollision).toBe(false);
+    expect(collisionState.startLineHasRigidBody).toBe(false);
   });
 
   test("resolves a high-speed straight wall impact without tunneling", async ({

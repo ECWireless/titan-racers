@@ -37,14 +37,14 @@ multiplayer kart contact policy, or general recovery-system expansion.
 - `src/game/runtime/playcanvas-application.ts` provides distinct pre-physics
   and post-physics fixed-step callbacks so collision observation brackets the
   Ammo solve.
-- `src/game/course/course-definition.ts` defines the accepted sparse play
+- `src/game/course/rough-course.v1.json` defines the accepted sparse play
   course: two cylinder obstacles, one super-tall ramp centered on the lower
   straight for counter-clockwise traffic, and controlled straight, thin-wall,
-  convex-corner, and concave-corner impact fixtures.
-  `build-rough-course.ts` creates their simple static rigid bodies with explicit
-  filtering. Diagnostic walls are constructed only when non-production test
-  hooks and the deliberate `?collision-fixtures` route are both active; they
-  cannot appear in production or the normal course.
+  convex-corner, and concave-corner impact fixtures. The validated
+  `build-rough-course.ts` projection creates their simple static rigid bodies
+  with explicit filtering. Diagnostic walls are constructed only when
+  non-production test hooks and the deliberate `?collision-fixtures` route are
+  both active; they cannot appear in production or the normal course.
 - `src/game/testing/scene-test-adapter.ts` exposes test-only controlled poses,
   exact manual steps, wheel/suspension state, CCD configuration and deliberate
   disabled baseline, contacted entity names, approach speed, impulse, and

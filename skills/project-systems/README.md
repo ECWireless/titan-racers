@@ -26,6 +26,9 @@ The source code and authoritative project documents remain the final authority f
 
 ## Current Children
 
+- [Course data](course-data/README.md): versioned validated course documents,
+  canonical seed/export serialization, stable authored IDs, bounded primitive
+  geometry, start/checkpoint data, and PlayCanvas construction.
 - [Chase camera](chase-camera/README.md): motion-led heading and look-ahead,
   slip and reverse policy, speed framing, impact and airborne response,
   obstruction correction, explicit snapping, diagnostics, and camera fixtures.
