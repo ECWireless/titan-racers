@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 
 import { expect, test } from "@playwright/test";
-import { sql } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 
 import {
   GET as getPersistedCourse,
@@ -11,6 +11,7 @@ import { db } from "../src/db/client";
 import {
   accounts,
   courseRevisions,
+  courses,
   sessions,
   userRoles,
   users,
@@ -161,6 +162,94 @@ test.describe("course persistence and authorization", () => {
       authorized: true,
       userId,
     });
+  });
+
+  test("rejects unauthorized course initialization without creating rows", async () => {
+    const authContext = await testAuth.$context;
+    const savedUser = await authContext.test.saveUser(
+      authContext.test.createUser({
+        email: `${randomUUID()}@example.invalid`,
+        name: "Non Admin Initialization Test",
+      }),
+    );
+    const courseId = `unauthorized-initialization-${randomUUID()}`;
+    const document = structuredClone(ROUGH_COURSE_DOCUMENT);
+    document.courseId = courseId;
+    const makeRequest = (headers?: Headers) =>
+      new Request(`http://127.0.0.1:3873/api/admin/courses/${courseId}`, {
+        body: JSON.stringify({ document, expectedRevision: null }),
+        headers: new Headers([
+          ...(headers?.entries() ?? []),
+          ["content-type", "application/json"],
+        ]),
+        method: "PUT",
+      });
+
+    const unauthenticatedResponse = await putPersistedCourse(makeRequest(), {
+      params: Promise.resolve({ courseId }),
+    });
+    expect(unauthenticatedResponse.status).toBe(401);
+
+    const { headers } = await authContext.test.login({ userId: savedUser.id });
+    const nonAdminResponse = await putPersistedCourse(makeRequest(headers), {
+      params: Promise.resolve({ courseId }),
+    });
+    expect(nonAdminResponse.status).toBe(403);
+
+    await expect(
+      db.select().from(courses).where(eq(courses.id, courseId)),
+    ).resolves.toEqual([]);
+    await expect(
+      db
+        .select()
+        .from(courseRevisions)
+        .where(eq(courseRevisions.courseId, courseId)),
+    ).resolves.toEqual([]);
+  });
+
+  test("allows exactly one competing first revision", async () => {
+    const userId = randomUUID();
+    const courseId = `first-revision-race-${randomUUID()}`;
+    const document = structuredClone(ROUGH_COURSE_DOCUMENT);
+    document.courseId = courseId;
+
+    await db.insert(users).values({
+      email: `${userId}@example.invalid`,
+      emailVerified: true,
+      id: userId,
+      name: "First Revision Race Test",
+    });
+
+    const saves = await Promise.allSettled(
+      ["First A", "First B"].map((name) =>
+        saveCourseRevision({
+          authorUserId: userId,
+          document: { ...structuredClone(document), name },
+          expectedRevision: null,
+        }),
+      ),
+    );
+
+    expect(saves.filter(({ status }) => status === "fulfilled")).toHaveLength(1);
+    expect(saves.filter(({ status }) => status === "rejected")).toHaveLength(1);
+    expect(
+      saves.find(({ status }) => status === "rejected"),
+    ).toMatchObject({
+      status: "rejected",
+      reason: expect.any(CourseConflictError),
+    });
+    await expect(
+      db
+        .select({ revision: courseRevisions.revision })
+        .from(courseRevisions)
+        .where(eq(courseRevisions.courseId, courseId)),
+    ).resolves.toEqual([{ revision: 1 }]);
+    await expect(
+      db
+        .select({ currentRevision: courses.currentRevision })
+        .from(courses)
+        .where(eq(courses.id, courseId)),
+    ).resolves.toEqual([{ currentRevision: 1 }]);
   });
 
   test("loads a course through a real Better Auth session and protected API", async () => {

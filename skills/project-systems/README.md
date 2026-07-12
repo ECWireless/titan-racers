@@ -26,6 +26,9 @@ The source code and authoritative project documents remain the final authority f
 
 ## Current Children
 
+- [Protected course editor](course-editor/README.md): protected revision loading,
+  document command history, responsive authoring shell, and the staged PR 3C
+  editor implementation.
 - [Identity and course persistence](identity-course-persistence/README.md):
   Better Auth Google identities, Postgres sessions and roles, centralized admin
   authorization, Drizzle migrations, immutable course revisions, and protected

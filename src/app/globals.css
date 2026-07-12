@@ -102,3 +102,43 @@ button {
   border-color: rgb(247 242 232 / 58%);
   color: var(--titan-ice);
 }
+
+.editor-tool-button {
+  display: inline-grid;
+  width: 2.5rem;
+  height: 2.5rem;
+  place-items: center;
+  border: 1px solid rgb(247 242 232 / 18%);
+  background: rgb(7 7 6 / 28%);
+  color: rgb(247 242 232 / 82%);
+  font-size: 1rem;
+}
+
+.editor-tool-button:hover:not(:disabled) {
+  border-color: var(--titan-hazard);
+  color: var(--titan-hazard);
+}
+
+.editor-tool-button:focus-visible,
+.editor-mobile-panel-button:focus-visible {
+  outline: 2px solid var(--titan-hazard);
+  outline-offset: 2px;
+}
+
+.editor-tool-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.3;
+}
+
+.editor-mobile-panel-button {
+  min-height: 2.75rem;
+  border: 1px solid rgb(247 242 232 / 22%);
+  background: rgb(7 7 6 / 82%);
+  padding: 0.6rem 0.85rem;
+  color: rgb(247 242 232 / 84%);
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  backdrop-filter: blur(8px);
+}

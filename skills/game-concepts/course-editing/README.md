@@ -162,6 +162,27 @@ framework: <https://doc.qt.io/qt-6/qundostack.html>.
 PR 3A implements the document and deterministic serialization, not the command
 stack UI. PR 3C implements the history and visible reset/reload behavior.
 
+## Protected Editor Experience
+
+The editor UI must remain downstream of authoritative authorization. An
+unauthenticated or unauthorized visitor may see a login or access-status screen,
+but must not receive an editable workspace merely because client state claims an
+admin identity. An authenticated account without editor authority must retain a
+visible sign-out path so the operator can switch accounts. Load the protected
+course revision first, validate the response, and only then create the authoring
+session.
+
+Use a familiar tool layout without reproducing a general-purpose engine editor:
+
+- a compact transform and history toolbar;
+- a course outline for starts, checkpoints, objects, and lights;
+- the course viewport as the primary surface; and
+- a contextual inspector for exact authored values.
+
+On narrow screens, keep the viewport primary and expose the outline and
+inspector as dismissible panels. Controls must remain reachable without relying
+on hover, and ordinary guest racing must not inherit editor input or layout.
+
 ## Validation Evidence
 
 1. Valid seed data parses and canonicalizes deterministically.

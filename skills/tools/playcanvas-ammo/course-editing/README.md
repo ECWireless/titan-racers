@@ -103,6 +103,34 @@ The visualization must update from the same in-memory document command that
 updates runtime collision geometry and must never become a selectable physical
 object itself.
 
+## Open-Source Editor Reference
+
+PR 3C research reviewed the MIT-licensed PlayCanvas Editor frontend as a
+reference implementation. Reuse the pinned Engine's maintained APIs directly
+instead of copying the complete Editor architecture:
+
+- `TranslateGizmo`, `RotateGizmo`, and `ScaleGizmo` provide transform lifecycle
+  events suitable for one command per completed gesture;
+- `Picker` provides viewport selection without inventing a parallel hit-test
+  model;
+- picking should pause while a transform handle owns the pointer; and
+- transform mode, local/world coordinates, snapping, focus, undo, and redo
+  should remain explicit toolbar actions with keyboard equivalents.
+
+The upstream Editor's hierarchy/viewport/inspector layout and collapsed
+narrow-screen panels are useful interaction references. Its Observer, PCUI,
+collaboration, asset, and general scene-graph systems are deliberately not part
+of Titan Racers: this application already owns a React shell, a bounded course
+document, immutable database revisions, and a narrower command history.
+
+Primary references:
+
+- <https://github.com/playcanvas/editor>
+- <https://github.com/playcanvas/editor/blob/main/src/editor/viewport/gizmo/gizmo-transform.ts>
+- <https://github.com/playcanvas/editor/blob/main/src/editor/viewport/viewport-pick.ts>
+- <https://github.com/playcanvas/editor/blob/main/src/editor/layout/layout.ts>
+- <https://github.com/playcanvas/editor/blob/main/src/editor/toolbar/toolbar-history.ts>
+
 ## Verification
 
 1. Every seed object produces the expected entity name, transform, material,
