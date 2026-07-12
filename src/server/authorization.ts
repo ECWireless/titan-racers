@@ -49,7 +49,7 @@ export function authorizationErrorResponse(status: 401 | 403 | 503) {
     status === 401
       ? "Authentication required."
       : status === 403
-        ? "Admin role required."
+        ? "Required role missing."
         : "Authentication is not configured.";
 
   return Response.json({ error: message }, { status });

@@ -17,7 +17,7 @@ function assertVariables(names: readonly string[]) {
 }
 
 function assertStrongAuthSecret() {
-  if ((process.env.BETTER_AUTH_SECRET?.length ?? 0) < 32) {
+  if ((process.env.BETTER_AUTH_SECRET?.trim().length ?? 0) < 32) {
     throw new Error("BETTER_AUTH_SECRET must contain at least 32 characters.");
   }
 }

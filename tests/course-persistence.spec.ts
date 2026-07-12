@@ -26,6 +26,14 @@ import {
 import { anonymizeUserByEmail } from "../src/server/user-anonymization";
 import { testAuth } from "./support/test-auth";
 
+const requiredIntegrationVariables = [
+  "DATABASE_URL",
+  "BETTER_AUTH_SECRET",
+  "BETTER_AUTH_URL",
+  "GOOGLE_CLIENT_ID",
+  "GOOGLE_CLIENT_SECRET",
+] as const;
+
 test.describe("course persistence and authorization", () => {
   test.describe.configure({ mode: "serial" });
 
@@ -35,8 +43,8 @@ test.describe("course persistence and authorization", () => {
       "Database integration runs once in the desktop project.",
     );
     test.skip(
-      !process.env.DATABASE_URL,
-      "DATABASE_URL is required for persistence integration tests.",
+      requiredIntegrationVariables.some((name) => !process.env[name]?.trim()),
+      "Database and auth environment variables are required for persistence integration tests.",
     );
   });
 
@@ -227,8 +235,10 @@ test.describe("course persistence and authorization", () => {
     const body = (await response.json()) as { url: string };
     const authorizationUrl = new URL(body.url);
     expect(authorizationUrl.hostname).toBe("accounts.google.com");
-    expect(authorizationUrl.searchParams.get("client_id")).toBe("test-client");
-    expect(body.url).not.toContain("test-secret");
+    expect(authorizationUrl.searchParams.get("client_id")).toBe(
+      process.env.GOOGLE_CLIENT_ID,
+    );
+    expect(authorizationUrl.searchParams.has("client_secret")).toBe(false);
   });
 
   test("disables account linking and never retains Google token material", async () => {
