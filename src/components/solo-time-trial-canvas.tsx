@@ -3,6 +3,7 @@
 import * as pc from "playcanvas";
 import {
   type KeyboardEvent as ReactKeyboardEvent,
+  type PointerEvent as ReactPointerEvent,
   useEffect,
   useMemo,
   useRef,
@@ -29,7 +30,12 @@ import {
   getCourseStartTransform,
   ROUGH_COURSE_DOCUMENT,
 } from "@/game/course/course-document";
-import { KeyboardInput } from "@/game/input/keyboard-input";
+import { PlayerInputManager } from "@/game/input/player-input-manager";
+import { useControllerMenuNavigation } from "@/game/input/use-controller-menu-navigation";
+import {
+  normalizeTouchSteering,
+  type TouchPedalAction,
+} from "@/game/input/touch-input";
 import {
   DynamicKartController,
   type DynamicWheel,
@@ -163,7 +169,99 @@ type SoloTimeTrialCanvasProps = {
   courseDocument?: CourseDocument;
   onExit: () => void;
 };
-type SoloSceneControls = { setPaused: (paused: boolean) => void };
+type SoloSceneControls = {
+  pressTouchPedal: (pointerId: number, action: TouchPedalAction) => void;
+  releaseTouch: (pointerId: number) => void;
+  requestTouchReset: () => void;
+  setTouchSteering: (pointerId: number, value: number) => void;
+  setPaused: (paused: boolean) => void;
+};
+
+const TOUCH_KEYBOARD_POINTER_IDS: Record<TouchPedalAction, number> = {
+  accelerate: -1,
+  brakeReverse: -2,
+};
+const TOUCH_KEYBOARD_STEERING_POINTER_ID = -3;
+
+function ResetIcon() {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 24 24">
+      <path d="M6.3 7.2A7 7 0 1 1 5 14" />
+      <path d="M6.3 3.8v3.4H2.9" />
+    </svg>
+  );
+}
+
+function PauseIcon() {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 24 24">
+      <path d="M8 6v12M16 6v12" />
+    </svg>
+  );
+}
+
+function AcceleratorIcon() {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 24 24">
+      <path d="M9.5 3.5h5l1.7 17h-8.4l1.7-17Z" />
+      <path d="M10.2 8h4M9.7 12h4.6M9.3 16h5.4" />
+    </svg>
+  );
+}
+
+function BrakeIcon() {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 24 24">
+      <rect height="12" rx="3" width="18" x="3" y="6" />
+      <path d="M7 10h10M7 14h10" />
+    </svg>
+  );
+}
+
+function getTouchSteeringValueText(value: number) {
+  if (value === 0) {
+    return "Centered";
+  }
+  const direction = value < 0 ? "left" : "right";
+  return `${Math.round(Math.abs(value) * 100)}% ${direction}`;
+}
+
+function setTouchPedalPresentation(
+  elements: Partial<Record<TouchPedalAction, HTMLButtonElement>>,
+  action: TouchPedalAction,
+  active: boolean,
+) {
+  elements[action]?.setAttribute("aria-pressed", String(active));
+}
+
+function clearTouchPedalPresentation(
+  elements: Partial<Record<TouchPedalAction, HTMLButtonElement>>,
+) {
+  setTouchPedalPresentation(elements, "accelerate", false);
+  setTouchPedalPresentation(elements, "brakeReverse", false);
+}
+
+function setTouchSteeringPresentation(
+  steeringElement: HTMLDivElement | null,
+  knob: HTMLSpanElement | null,
+  value: number,
+) {
+  const steer = normalizeTouchSteering(value);
+  steeringElement?.setAttribute(
+    "aria-valuenow",
+    String(Number(steer.toFixed(2))),
+  );
+  steeringElement?.setAttribute(
+    "aria-valuetext",
+    getTouchSteeringValueText(steer),
+  );
+  if (steeringElement) {
+    steeringElement.dataset.active = String(steer !== 0);
+  }
+  if (knob) {
+    knob.style.transform = `translate(-50%, -50%) translateX(${steer * 64}%)`;
+  }
+}
 
 export function SoloTimeTrialCanvas({
   courseDocument = ROUGH_COURSE_DOCUMENT,
@@ -186,35 +284,50 @@ export function SoloTimeTrialCanvas({
     };
   }, [COURSE_DOCUMENT]);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const pauseMenuRef = useRef<HTMLDivElement | null>(null);
   const resumeButtonRef = useRef<HTMLButtonElement | null>(null);
   const sceneApiRef = useRef<SoloSceneControls | null>(null);
+  const statusMenuRef = useRef<HTMLDivElement | null>(null);
+  const touchPedalElementsRef = useRef<
+    Partial<Record<TouchPedalAction, HTMLButtonElement>>
+  >({});
+  const touchSteeringElementRef = useRef<HTMLDivElement | null>(null);
+  const touchSteeringKnobRef = useRef<HTMLSpanElement | null>(null);
+  const touchSteeringPointerRef = useRef<number | null>(null);
   const [driveCursorHidden, setDriveCursorHidden] = useState(false);
   const [gamePaused, setGamePaused] = useState(false);
   const [sceneStatus, setSceneStatus] = useState<
     "initializing" | "ready" | "failed"
   >("initializing");
 
+  useControllerMenuNavigation({
+    containerRef: pauseMenuRef,
+    enabled: gamePaused,
+    onBack: resumeRace,
+    onMenu: resumeRace,
+  });
+  useControllerMenuNavigation({
+    containerRef: statusMenuRef,
+    enabled: sceneStatus !== "ready",
+    onBack: onExit,
+  });
+
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       if (
         event.code !== "Escape" ||
         event.repeat ||
-        sceneStatus !== "ready"
+        sceneStatus !== "ready" ||
+        !gamePaused
       ) {
         return;
       }
 
       event.preventDefault();
-
-      const nextPaused = !gamePaused;
-
-      sceneApiRef.current?.setPaused(nextPaused);
-      setGamePaused(nextPaused);
-      setDriveCursorHidden(!nextPaused);
-
-      if (!nextPaused) {
-        requestAnimationFrame(() => canvasRef.current?.focus());
-      }
+      sceneApiRef.current?.setPaused(false);
+      setGamePaused(false);
+      setDriveCursorHidden(true);
+      requestAnimationFrame(() => canvasRef.current?.focus());
     };
 
     window.addEventListener("keydown", onKeyDown);
@@ -753,6 +866,7 @@ export function SoloTimeTrialCanvas({
     let activeMovementTuning: KartMovementTuning = {
       ...DEFAULT_KART_MOVEMENT_TUNING,
     };
+    let inputManager: PlayerInputManager | null = null;
 
     function editStaticRigidBody(
       entity: pc.Entity,
@@ -826,7 +940,7 @@ export function SoloTimeTrialCanvas({
       kartController.reset();
       snapKartPresentationState();
       latestCameraImpact = null;
-      keyboardInput.clear();
+      inputManager?.clear();
       chaseCamera.snap(getChaseCameraSnapshot(dynamicWheels.length));
       activeCanvas.focus();
     }
@@ -1049,14 +1163,43 @@ export function SoloTimeTrialCanvas({
       activeCanvas.focus();
     }
 
-    const keyboardInput = new KeyboardInput(window, resetKart);
-    keyboardInput.attach();
-    runtime.addCleanup(() => keyboardInput.detach());
+    const getGamepads = () => navigator.getGamepads?.() ?? [];
+    inputManager = new PlayerInputManager(window, getGamepads);
+    inputManager.attach();
+    runtime.addCleanup(() => inputManager.detach());
+    const clearTouchPresentation = () => {
+      touchSteeringPointerRef.current = null;
+      clearTouchPedalPresentation(touchPedalElementsRef.current);
+      setTouchSteeringPresentation(
+        touchSteeringElementRef.current,
+        touchSteeringKnobRef.current,
+        0,
+      );
+    };
+    runtime.listen(window, "blur", () => {
+      inputManager.clear();
+      clearTouchPresentation();
+    });
+    runtime.listen(document, "visibilitychange", () => {
+      if (document.hidden) {
+        inputManager.clear();
+        clearTouchPresentation();
+      }
+    });
 
     sceneApiRef.current = {
+      pressTouchPedal: (pointerId, action) =>
+        inputManager.pressTouchPedal(pointerId, action),
+      releaseTouch: (pointerId) => inputManager.releaseTouch(pointerId),
+      requestTouchReset: () => inputManager.requestTouchReset(),
+      setTouchSteering: (pointerId, value) =>
+        inputManager.setTouchSteering(pointerId, value),
       setPaused: (paused) => {
-        keyboardInput.clear();
+        inputManager.setEnabled(false);
         runtime.setPaused(paused);
+        if (!paused) {
+          queueMicrotask(() => inputManager.setEnabled(true));
+        }
       },
     };
 
@@ -1343,6 +1486,7 @@ export function SoloTimeTrialCanvas({
           getKartScreenPoint,
           getPresentationDebugState,
           getSuspensionDebugState,
+          resetKart,
           setCourseObjectDebugTransform,
           setKartDebugPose,
           setKartMovementTuning: setSceneMovementTuning,
@@ -1355,10 +1499,30 @@ export function SoloTimeTrialCanvas({
 
     chaseCamera.snap(getChaseCameraSnapshot(dynamicWheels.length));
 
+    let latestDrivingInput = inputManager.sampleDrivingInput().driving;
+
     runtime.onFixedStep((dt) => {
       collisionObserver.beginStep();
 
-      kartController.update(keyboardInput.getDrivingInput(), dt);
+      const sample = inputManager.sampleDrivingInput();
+      latestDrivingInput = sample.driving;
+
+      if (sample.actions.pauseRequested) {
+        inputManager.setEnabled(false);
+        runtime.setPaused(true);
+        clearTouchPresentation();
+        setGamePaused(true);
+        setDriveCursorHidden(false);
+        return;
+      }
+
+      if (sample.actions.resetRequested) {
+        resetKart();
+        clearTouchPresentation();
+        latestDrivingInput = inputManager.sampleDrivingInput().driving;
+      }
+
+      kartController.update(latestDrivingInput, dt);
     });
 
     runtime.onPostFixedStep((dt) => {
@@ -1366,7 +1530,7 @@ export function SoloTimeTrialCanvas({
       captureCollisionMetrics();
       captureCameraImpact();
 
-      kartController.postUpdate(keyboardInput.getDrivingInput(), dt);
+      kartController.postUpdate(latestDrivingInput, dt);
     });
 
     runtime.onRender(({ accumulatorFraction, frameSeconds }) => {
@@ -1453,8 +1617,182 @@ export function SoloTimeTrialCanvas({
 
   function pauseRace() {
     sceneApiRef.current?.setPaused(true);
+    touchSteeringPointerRef.current = null;
+    clearTouchPedalPresentation(touchPedalElementsRef.current);
+    setTouchSteeringPresentation(
+      touchSteeringElementRef.current,
+      touchSteeringKnobRef.current,
+      0,
+    );
     setGamePaused(true);
     setDriveCursorHidden(false);
+  }
+
+  function pressTouchControl(
+    event: ReactPointerEvent<HTMLButtonElement>,
+    action: TouchPedalAction,
+  ) {
+    event.preventDefault();
+    try {
+      event.currentTarget.setPointerCapture(event.pointerId);
+    } catch {
+      // Synthetic browser tests may not create an active native pointer stream.
+      // The adapter still receives the same semantic press and release events.
+    }
+    sceneApiRef.current?.pressTouchPedal(event.pointerId, action);
+    setTouchPedalPresentation(touchPedalElementsRef.current, action, true);
+  }
+
+  function releaseTouchControl(
+    event: ReactPointerEvent<HTMLButtonElement>,
+    action: TouchPedalAction,
+  ) {
+    sceneApiRef.current?.releaseTouch(event.pointerId);
+    setTouchPedalPresentation(touchPedalElementsRef.current, action, false);
+  }
+
+  function pressTouchControlFromKeyboard(
+    event: ReactKeyboardEvent<HTMLButtonElement>,
+    action: TouchPedalAction,
+  ) {
+    if ((event.key !== " " && event.key !== "Enter") || event.repeat) {
+      return;
+    }
+    event.preventDefault();
+    sceneApiRef.current?.pressTouchPedal(
+      TOUCH_KEYBOARD_POINTER_IDS[action],
+      action,
+    );
+    setTouchPedalPresentation(touchPedalElementsRef.current, action, true);
+  }
+
+  function releaseTouchControlFromKeyboard(
+    event: ReactKeyboardEvent<HTMLButtonElement>,
+    action: TouchPedalAction,
+  ) {
+    if (event.key !== " " && event.key !== "Enter") {
+      return;
+    }
+    event.preventDefault();
+    sceneApiRef.current?.releaseTouch(TOUCH_KEYBOARD_POINTER_IDS[action]);
+    setTouchPedalPresentation(touchPedalElementsRef.current, action, false);
+  }
+
+  function blurTouchControl(action: TouchPedalAction) {
+    sceneApiRef.current?.releaseTouch(TOUCH_KEYBOARD_POINTER_IDS[action]);
+    setTouchPedalPresentation(touchPedalElementsRef.current, action, false);
+  }
+
+  function updateTouchSteering(pointerId: number, value: number) {
+    sceneApiRef.current?.setTouchSteering(pointerId, value);
+    setTouchSteeringPresentation(
+      touchSteeringElementRef.current,
+      touchSteeringKnobRef.current,
+      value,
+    );
+  }
+
+  function getTouchSteeringFromPointer(
+    event: ReactPointerEvent<HTMLDivElement>,
+  ) {
+    const bounds = event.currentTarget.getBoundingClientRect();
+    const maximumTravel = bounds.width * 0.3;
+    if (maximumTravel <= 0) {
+      return 0;
+    }
+    const centerX = bounds.left + bounds.width / 2;
+    return (event.clientX - centerX) / maximumTravel;
+  }
+
+  function pressTouchSteering(event: ReactPointerEvent<HTMLDivElement>) {
+    event.preventDefault();
+    touchSteeringPointerRef.current = event.pointerId;
+    try {
+      event.currentTarget.setPointerCapture(event.pointerId);
+    } catch {
+      // Synthetic browser tests may not create an active native pointer stream.
+    }
+    updateTouchSteering(
+      event.pointerId,
+      getTouchSteeringFromPointer(event),
+    );
+  }
+
+  function moveTouchSteering(event: ReactPointerEvent<HTMLDivElement>) {
+    if (touchSteeringPointerRef.current !== event.pointerId) {
+      return;
+    }
+    event.preventDefault();
+    updateTouchSteering(
+      event.pointerId,
+      getTouchSteeringFromPointer(event),
+    );
+  }
+
+  function releaseTouchSteering(event: ReactPointerEvent<HTMLDivElement>) {
+    if (touchSteeringPointerRef.current !== event.pointerId) {
+      return;
+    }
+    sceneApiRef.current?.releaseTouch(event.pointerId);
+    touchSteeringPointerRef.current = null;
+    setTouchSteeringPresentation(
+      touchSteeringElementRef.current,
+      touchSteeringKnobRef.current,
+      0,
+    );
+  }
+
+  function pressTouchSteeringFromKeyboard(
+    event: ReactKeyboardEvent<HTMLDivElement>,
+  ) {
+    if (
+      (event.key !== "ArrowLeft" && event.key !== "ArrowRight") ||
+      event.repeat
+    ) {
+      return;
+    }
+    event.preventDefault();
+    event.stopPropagation();
+    updateTouchSteering(
+      TOUCH_KEYBOARD_STEERING_POINTER_ID,
+      event.key === "ArrowLeft" ? -1 : 1,
+    );
+  }
+
+  function releaseTouchSteeringFromKeyboard(
+    event: ReactKeyboardEvent<HTMLDivElement>,
+  ) {
+    if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") {
+      return;
+    }
+    event.preventDefault();
+    event.stopPropagation();
+    sceneApiRef.current?.releaseTouch(TOUCH_KEYBOARD_STEERING_POINTER_ID);
+    setTouchSteeringPresentation(
+      touchSteeringElementRef.current,
+      touchSteeringKnobRef.current,
+      0,
+    );
+  }
+
+  function blurTouchSteering() {
+    sceneApiRef.current?.releaseTouch(TOUCH_KEYBOARD_STEERING_POINTER_ID);
+    setTouchSteeringPresentation(
+      touchSteeringElementRef.current,
+      touchSteeringKnobRef.current,
+      0,
+    );
+  }
+
+  function resetTouchKart() {
+    sceneApiRef.current?.requestTouchReset();
+    touchSteeringPointerRef.current = null;
+    clearTouchPedalPresentation(touchPedalElementsRef.current);
+    setTouchSteeringPresentation(
+      touchSteeringElementRef.current,
+      touchSteeringKnobRef.current,
+      0,
+    );
   }
 
   function resumeRace() {
@@ -1527,7 +1865,10 @@ export function SoloTimeTrialCanvas({
               role="dialog"
               onKeyDown={handlePauseDialogKeyDown}
             >
-              <div className="grid w-full max-w-sm gap-5 border border-titan-ice/20 bg-titan-black/94 p-7 shadow-[0_24px_90px_rgb(0_0_0/0.6)]">
+              <div
+                className="grid w-full max-w-sm gap-5 border border-titan-ice/20 bg-titan-black/94 p-7 shadow-[0_24px_90px_rgb(0_0_0/0.6)]"
+                ref={pauseMenuRef}
+              >
                 <div className="grid gap-2">
                   <p
                     className="text-xs font-bold uppercase tracking-[0.2em] text-titan-hazard"
@@ -1543,6 +1884,7 @@ export function SoloTimeTrialCanvas({
                   <button
                     type="button"
                     className="titan-button titan-button-primary"
+                    data-controller-default="true"
                     ref={resumeButtonRef}
                     onClick={resumeRace}
                   >
@@ -1562,13 +1904,107 @@ export function SoloTimeTrialCanvas({
           {!gamePaused ? (
             <>
               <button
+                aria-label="Reset kart"
+                className="race-touch-reset race-touch-utility absolute left-[max(0.75rem,env(safe-area-inset-left))] top-[max(0.75rem,env(safe-area-inset-top))] z-20"
+                type="button"
+                onClick={resetTouchKart}
+              >
+                <ResetIcon />
+              </button>
+              <button
                 aria-label="Pause race"
-                className="race-pause-button absolute right-[max(1rem,env(safe-area-inset-right))] top-[max(1rem,env(safe-area-inset-top))] z-20 min-h-11 items-center border border-titan-ice/28 bg-titan-black/82 px-4 font-mono text-[0.68rem] font-bold uppercase tracking-[0.14em] text-titan-ice/86 backdrop-blur hover:border-titan-hazard hover:text-titan-hazard focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-titan-hazard"
+                className="race-pause-button race-touch-utility absolute right-[max(0.75rem,env(safe-area-inset-right))] top-[max(0.75rem,env(safe-area-inset-top))] z-20"
                 type="button"
                 onClick={pauseRace}
               >
-                Pause
+                <PauseIcon />
               </button>
+              <div
+                aria-label="Touch driving controls"
+                className="race-touch-controls absolute inset-x-0 bottom-0 z-20 justify-between px-[max(1rem,env(safe-area-inset-left))] pb-[max(1rem,env(safe-area-inset-bottom))] pr-[max(1rem,env(safe-area-inset-right))]"
+                role="group"
+              >
+                <div
+                  aria-label="Steering"
+                  aria-orientation="horizontal"
+                  aria-valuemax={1}
+                  aria-valuemin={-1}
+                  aria-valuenow={0}
+                  aria-valuetext="Centered"
+                  className="race-touch-steering"
+                  data-active="false"
+                  onBlur={blurTouchSteering}
+                  onContextMenu={(event) => event.preventDefault()}
+                  onKeyDown={pressTouchSteeringFromKeyboard}
+                  onKeyUp={releaseTouchSteeringFromKeyboard}
+                  onLostPointerCapture={releaseTouchSteering}
+                  onPointerCancel={releaseTouchSteering}
+                  onPointerDown={pressTouchSteering}
+                  onPointerMove={moveTouchSteering}
+                  onPointerUp={releaseTouchSteering}
+                  role="slider"
+                  ref={touchSteeringElementRef}
+                  tabIndex={0}
+                >
+                  <span aria-hidden="true" className="race-touch-steering-axis">
+                    <span>‹</span>
+                    <span>›</span>
+                  </span>
+                  <span
+                    aria-hidden="true"
+                    className="race-touch-steering-knob"
+                    ref={touchSteeringKnobRef}
+                    style={{
+                      transform: "translate(-50%, -50%) translateX(0%)",
+                    }}
+                  >
+                    <span />
+                  </span>
+                </div>
+                <div className="race-touch-pedals">
+                  {([
+                    ["brakeReverse", "Brake / Reverse"],
+                    ["accelerate", "Accelerate"],
+                  ] as const).map(([action, label]) => (
+                    <button
+                      key={action}
+                      aria-label={label}
+                      aria-pressed="false"
+                      className={`race-touch-action race-touch-pedal ${action === "accelerate" ? "race-touch-accelerator" : "race-touch-brake"}`}
+                      ref={(element) => {
+                        if (element) {
+                          touchPedalElementsRef.current[action] = element;
+                        } else {
+                          delete touchPedalElementsRef.current[action];
+                        }
+                      }}
+                      type="button"
+                      onBlur={() => blurTouchControl(action)}
+                      onContextMenu={(event) => event.preventDefault()}
+                      onKeyDown={(event) =>
+                        pressTouchControlFromKeyboard(event, action)
+                      }
+                      onKeyUp={(event) =>
+                        releaseTouchControlFromKeyboard(event, action)
+                      }
+                      onLostPointerCapture={(event) =>
+                        releaseTouchControl(event, action)
+                      }
+                      onPointerCancel={(event) =>
+                        releaseTouchControl(event, action)
+                      }
+                      onPointerDown={(event) => pressTouchControl(event, action)}
+                      onPointerUp={(event) => releaseTouchControl(event, action)}
+                    >
+                      {action === "accelerate" ? (
+                        <AcceleratorIcon />
+                      ) : (
+                        <BrakeIcon />
+                      )}
+                    </button>
+                  ))}
+                </div>
+              </div>
               <div className="pointer-events-none absolute bottom-4 right-4 z-10 hidden font-mono text-[0.68rem] font-bold uppercase tracking-[0.14em] text-titan-ice/55 lg:block">
                 Esc · Pause
               </div>
@@ -1577,7 +2013,10 @@ export function SoloTimeTrialCanvas({
         </>
       ) : (
         <div className="absolute inset-0 z-20 grid place-items-center bg-titan-black/88 px-6 text-center font-mono text-titan-ice">
-          <div className="grid max-w-md gap-4 border border-titan-ice/20 bg-titan-black p-6 shadow-[0_20px_70px_rgb(0_0_0/0.5)]">
+          <div
+            className="grid max-w-md gap-4 border border-titan-ice/20 bg-titan-black p-6 shadow-[0_20px_70px_rgb(0_0_0/0.5)]"
+            ref={statusMenuRef}
+          >
             {sceneStatus === "initializing" ? (
               <p role="status" aria-live="polite">
                 Preparing kart physics…
@@ -1598,6 +2037,7 @@ export function SoloTimeTrialCanvas({
                 <button
                   type="button"
                   className="titan-button titan-button-primary"
+                  data-controller-default="true"
                   onClick={() => window.location.reload()}
                 >
                   Reload
@@ -1606,6 +2046,9 @@ export function SoloTimeTrialCanvas({
               <button
                 type="button"
                 className="titan-button titan-button-secondary"
+                data-controller-default={
+                  sceneStatus === "initializing" ? "true" : undefined
+                }
                 onClick={onExit}
               >
                 Exit

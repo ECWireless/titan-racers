@@ -23,5 +23,9 @@ Prefer primary documentation and direct runtime evidence. Link back to relevant 
 
 ## Current Children
 
+- [`browser-player-input/`](browser-player-input/README.md): the validated
+  mapping from normalized player actions to browser Keyboard Events, Pointer
+  Events, Gamepad API polling, React touch controls, and the repository-owned
+  fixed-step PlayCanvas runtime.
 - [`playcanvas-ammo/`](playcanvas-ammo/README.md): the accepted mapping from
   Titan Racers' fixed-step kart-physics standard to PlayCanvas and Ammo/Bullet.

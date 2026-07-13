@@ -82,6 +82,12 @@ button {
   outline-offset: 4px;
 }
 
+[data-controller-navigation="true"] .titan-button:focus,
+[data-controller-menu-ready="true"] .titan-button:focus {
+  outline: 2px solid var(--titan-hazard);
+  outline-offset: 4px;
+}
+
 .titan-button-primary {
   border-color: var(--titan-orange);
   background: var(--titan-orange);
@@ -148,9 +154,238 @@ button {
   display: none;
 }
 
+.race-touch-controls,
+.race-touch-reset {
+  display: none;
+}
+
+.race-touch-controls {
+  pointer-events: none;
+  align-items: flex-end;
+}
+
+.race-touch-action {
+  touch-action: none;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.race-touch-steering {
+  pointer-events: auto;
+  position: relative;
+  width: 7.25rem;
+  height: 7.25rem;
+  flex: 0 0 auto;
+  touch-action: none;
+  user-select: none;
+  overflow: hidden;
+  border: 1px solid rgb(247 242 232 / 28%);
+  border-radius: 999px;
+  background:
+    radial-gradient(circle at 50% 48%, rgb(247 242 232 / 7%) 0 34%, transparent 35%),
+    rgb(7 7 6 / 32%);
+  box-shadow:
+    inset 0 0 0 1px rgb(7 7 6 / 28%),
+    inset 0 0 28px rgb(0 0 0 / 22%),
+    0 8px 28px rgb(0 0 0 / 18%);
+  backdrop-filter: blur(4px);
+  -webkit-tap-highlight-color: transparent;
+}
+
+.race-touch-steering-axis {
+  position: absolute;
+  inset: 0.6rem 0.75rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  color: rgb(247 242 232 / 36%);
+  font-family: var(--font-geist-mono), monospace;
+  font-size: 2rem;
+  font-weight: 500;
+  line-height: 1;
+}
+
+.race-touch-steering-axis::after {
+  position: absolute;
+  right: 1.3rem;
+  left: 1.3rem;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgb(247 242 232 / 20%), transparent);
+  content: "";
+}
+
+.race-touch-steering-knob {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  display: grid;
+  width: 3.35rem;
+  height: 3.35rem;
+  place-items: center;
+  border: 1px solid rgb(247 242 232 / 54%);
+  border-radius: 999px;
+  background: linear-gradient(145deg, rgb(37 38 37 / 90%), rgb(7 7 6 / 72%));
+  box-shadow:
+    inset 0 1px 1px rgb(255 255 255 / 10%),
+    0 5px 16px rgb(0 0 0 / 34%);
+  transition:
+    border-color 120ms ease,
+    box-shadow 120ms ease;
+  will-change: transform;
+}
+
+.race-touch-steering-knob > span {
+  width: 1.25rem;
+  height: 0.2rem;
+  border-radius: 999px;
+  background: rgb(247 242 232 / 58%);
+  box-shadow: 0 -0.42rem 0 rgb(247 242 232 / 20%), 0 0.42rem 0 rgb(247 242 232 / 20%);
+}
+
+.race-touch-steering[data-active="true"] {
+  border-color: rgb(237 113 37 / 68%);
+}
+
+.race-touch-steering[data-active="true"] .race-touch-steering-knob {
+  border-color: var(--color-titan-hazard);
+  box-shadow:
+    inset 0 1px 1px rgb(255 255 255 / 12%),
+    0 0 0 3px rgb(237 113 37 / 12%),
+    0 0 22px rgb(237 113 37 / 28%);
+}
+
+.race-touch-steering:focus-visible,
+.race-touch-action:focus-visible,
+.race-touch-utility:focus-visible {
+  outline: 2px solid var(--color-titan-hazard);
+  outline-offset: 3px;
+}
+
+.race-touch-pedals {
+  pointer-events: auto;
+  display: flex;
+  align-items: flex-end;
+  gap: 0.7rem;
+}
+
+.race-touch-pedal {
+  display: grid;
+  place-items: center;
+  border: 1px solid rgb(247 242 232 / 38%);
+  background: rgb(7 7 6 / 38%);
+  color: rgb(247 242 232 / 74%);
+  box-shadow:
+    inset 0 1px 1px rgb(255 255 255 / 7%),
+    0 8px 24px rgb(0 0 0 / 20%);
+  backdrop-filter: blur(4px);
+  transition:
+    border-color 100ms ease,
+    background 100ms ease,
+    box-shadow 100ms ease,
+    color 100ms ease,
+    transform 100ms ease;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.race-touch-pedal svg {
+  width: 2.15rem;
+  height: 2.15rem;
+  fill: none;
+  stroke: currentcolor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.5;
+}
+
+.race-touch-brake {
+  width: 4.25rem;
+  height: 4.25rem;
+  margin-bottom: 1.7rem;
+  border-radius: 999px;
+}
+
+.race-touch-accelerator {
+  width: 4.9rem;
+  height: 5.7rem;
+  border-radius: 2.4rem 2.4rem 2rem 2rem;
+}
+
+.race-touch-action[aria-pressed="true"],
+.race-touch-action:active {
+  border-color: rgb(237 113 37 / 90%);
+  background: rgb(237 113 37 / 42%);
+  color: rgb(255 248 238 / 96%);
+  box-shadow:
+    inset 0 1px 1px rgb(255 255 255 / 12%),
+    0 0 0 3px rgb(237 113 37 / 12%),
+    0 0 24px rgb(237 113 37 / 30%);
+  transform: scale(0.96);
+}
+
+.race-touch-utility {
+  width: 3rem;
+  height: 3rem;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgb(247 242 232 / 26%);
+  border-radius: 999px;
+  background: rgb(7 7 6 / 36%);
+  color: rgb(247 242 232 / 70%);
+  box-shadow: 0 6px 18px rgb(0 0 0 / 16%);
+  backdrop-filter: blur(4px);
+  -webkit-tap-highlight-color: transparent;
+}
+
+.race-touch-utility svg {
+  width: 1.35rem;
+  height: 1.35rem;
+  fill: none;
+  stroke: currentcolor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.8;
+}
+
+.race-touch-reset {
+  display: none;
+}
+
 @media (any-pointer: coarse), (hover: none) {
   .race-pause-button {
     display: inline-flex;
+  }
+
+  .race-touch-controls {
+    display: flex;
+  }
+
+  .race-touch-reset {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+}
+
+@media (orientation: landscape) and (max-height: 500px) {
+  .race-touch-steering {
+    width: 5.75rem;
+    height: 5.75rem;
+  }
+
+  .race-touch-steering-knob {
+    width: 2.75rem;
+    height: 2.75rem;
+  }
+
+  .race-touch-brake {
+    width: 3.75rem;
+    height: 3.75rem;
+    margin-bottom: 1.1rem;
+  }
+
+  .race-touch-accelerator {
+    width: 4.25rem;
+    height: 4.8rem;
   }
 }
 

@@ -28,9 +28,10 @@ owns only Resume and Exit.
 - `src/components/course-editor/course-editor-access.tsx` loads the protected
   rough-course revision, distinguishes authentication, authorization, and
   environment failures, validates successful API responses, starts Google
-  login, signs out active editor sessions, and lets an authorized admin
-  initialize a missing course from the validated recovery seed without
-  overwriting an existing revision.
+  login, replaces a forbidden session through a sign-out-then-account-selection
+  flow, signs out active editor sessions, and lets an authorized admin initialize
+  a missing course from the validated recovery seed without overwriting an
+  existing revision.
 - `src/components/course-editor/course-editor-shell.tsx` owns the responsive
   course outline, preset palette, transform/history toolbar, inspector nudges,
   deletion, private-draft actions, bounded environment controls, revision and
@@ -61,6 +62,10 @@ owns only Resume and Exit.
 ## Current Invariants
 
 - A protected API response, not client visibility state, gates the workspace.
+- A forbidden Google identity receives an explicit account-switch action. The
+  local Better Auth session is removed before the next provider sign-in begins,
+  and the provider always presents account selection rather than silently
+  reusing the browser's active Google account.
 - Unknown successful response data crosses the course-document schema before
   entering editor state.
 - Seed initialization is offered only after an authorized load returns not
@@ -169,6 +174,9 @@ owns only Resume and Exit.
 - Run focused `tests/course-editor-document.spec.ts` coverage once in the
   desktop project.
 - Run `tests/course-editor.spec.ts` in desktop and mobile projects.
+- Run `tests/auth-configuration.spec.ts` alongside the editor access scenarios;
+  the 2026-07-13 account-selection change passed the complete protected-editor
+  matrix with 36 passes and 12 intentional project-specific skips.
 - Keep direct protected-route denial and competing first-revision coverage in
   `tests/course-persistence.spec.ts` whenever seed initialization changes.
 - Run `pnpm lint`, `pnpm typecheck`, and `pnpm build` before feature-lead QA.

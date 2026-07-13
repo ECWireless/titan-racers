@@ -253,12 +253,13 @@ Gamepad support moves early in the build so testing can happen from a TV/couch s
 
 Initial controller mapping:
 
-- left stick: steer,
+- left stick: steer in-race and move through menus vertically,
+- D-pad: digital steering in-race and menu navigation,
 - right trigger: accelerate,
 - left trigger: brake/reverse,
-- A button: boost if boost exists,
-- Y button: reset/recover,
-- menu/start: pause.
+- A button: reset/recover in-race and confirm in menus,
+- B button: back in menus,
+- menu/start: pause/resume.
 
 Optional:
 
@@ -563,12 +564,45 @@ conflate the sandbox head with the official live track.
 
 #### PR 4: Rough Race Loop
 
-- [ ] unified keyboard, mobile touch, and early gamepad/controller input,
-- [ ] explicit loading, ready, countdown, racing, paused, recovering, and
+Complete the rough race loop through three separately reviewed PR-sized slices.
+Research significant game concepts through the Skills Tree before implementation,
+map the accepted standards to the current browser and PlayCanvas tooling, and
+document the verified shipped systems after each slice lands.
+
+##### PR 4A: Unified Player Input
+
+- [x] define one normalized action contract for steering, throttle,
+      brake/reverse, reset, and pause,
+- [x] unify keyboard, mobile touch, and early gamepad/controller input behind
+      device-specific adapters,
+- [x] establish device arbitration, analog dead zones, disconnect behavior,
+      pointer cancellation, held-input clearing, and pause-safe input handling,
+- [x] provide accessible analog touch steering, touch pedals, and deterministic
+      adapter tests,
+- [x] support controller focus, confirm, back, pause/resume, and exit across
+      guest-play mode selection and race overlays without requiring a mouse,
+- [x] stop before countdowns, checkpoints, laps, or race timing.
+
+##### PR 4B: Race Lifecycle And Progression
+
+- [ ] add explicit loading, ready, countdown, racing, paused, recovering, and
       finished states,
-- [ ] ordered checkpoints, laps, timer, and invalid-progression handling,
-- [ ] safe checkpoint recovery with orientation and velocity reset,
-- [ ] a rough test loop that can be completed through every supported input.
+- [ ] add ordered checkpoints, laps, deterministic timing, and
+      invalid-progression handling,
+- [ ] add safe checkpoint recovery with route-aligned orientation and linear
+      and angular velocity reset,
+- [ ] stop before the final integrated HUD and full cross-device loop
+      acceptance.
+
+##### PR 4C: Integrated Rough Race Loop
+
+- [ ] connect unified input to the complete race lifecycle,
+- [ ] add countdown, checkpoint, lap, timer, recovery, and rough finish
+      presentation,
+- [ ] tune rough-course triggers and recovery placements,
+- [ ] complete the rough test loop through every supported input family,
+- [ ] run PR-level verification and independent review plus a proportional
+      integration review across the complete PR 4 race-loop work.
 
 #### PR 5: Telemetry And Runtime Resilience
 

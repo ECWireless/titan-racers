@@ -529,6 +529,7 @@ test.describe("course persistence and authorization", () => {
     expect(authorizationUrl.searchParams.get("client_id")).toBe(
       process.env.GOOGLE_CLIENT_ID,
     );
+    expect(authorizationUrl.searchParams.get("prompt")).toBe("select_account");
     expect(authorizationUrl.searchParams.has("client_secret")).toBe(false);
   });
 

@@ -114,12 +114,28 @@ export function CourseEditorAccess() {
     };
   }, []);
 
-  async function signInWithGoogle() {
+  async function signInWithGoogle({
+    replaceCurrentSession = false,
+  }: { replaceCurrentSession?: boolean } = {}) {
     setSignInPending(true);
 
     try {
+      if (replaceCurrentSession) {
+        const signOutResponse = await fetch("/api/auth/sign-out", {
+          body: JSON.stringify({}),
+          credentials: "include",
+          headers: { "content-type": "application/json" },
+          method: "POST",
+        });
+
+        if (!signOutResponse.ok) {
+          throw new Error("The current account could not be signed out.");
+        }
+      }
+
       const response = await fetch("/api/auth/sign-in/social", {
         body: JSON.stringify({ callbackURL: "/editor", provider: "google" }),
+        credentials: "include",
         headers: { "content-type": "application/json" },
         method: "POST",
       });
@@ -251,11 +267,15 @@ export function CourseEditorAccess() {
           ) : accessState.status === "forbidden" ? (
             <button
               className="titan-button titan-button-primary"
-              disabled={signOutPending}
+              disabled={signInPending}
               type="button"
-              onClick={() => void signOut()}
+              onClick={() =>
+                void signInWithGoogle({ replaceCurrentSession: true })
+              }
             >
-              {signOutPending ? "Signing out..." : "Sign out"}
+              {signInPending
+                ? "Choosing account..."
+                : "Choose another Google account"}
             </button>
           ) : accessState.status === "error" ? (
             <button
@@ -295,7 +315,8 @@ function AccessMessage({ accessState }: { accessState: AccessState }) {
   if (accessState.status === "forbidden") {
     return (
       <p className="border border-titan-rust/55 bg-titan-rust/10 px-4 py-3 text-sm text-titan-ice/78" role="alert">
-        This account does not have course-editor access.
+        This account does not have course-editor access. Choose another Google
+        account to continue.
       </p>
     );
   }

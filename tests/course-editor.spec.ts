@@ -198,7 +198,10 @@ test.describe("protected course editor access", () => {
     ).toBeVisible();
   });
 
-  test("explains a signed-in account without the admin role", async ({ page }) => {
+  test("lets a signed-in account without the admin role choose another Google account", async ({
+    page,
+  }) => {
+    const authRequests: string[] = [];
     await page.route(courseApiPattern, async (route) => {
       await route.fulfill({
         body: JSON.stringify({ error: "Required role missing." }),
@@ -207,8 +210,20 @@ test.describe("protected course editor access", () => {
       });
     });
     await page.route("**/api/auth/sign-out", async (route) => {
+      authRequests.push("sign-out");
       await route.fulfill({
         body: JSON.stringify({ success: true }),
+        contentType: "application/json",
+        status: 200,
+      });
+    });
+    await page.route("**/api/auth/sign-in/social", async (route) => {
+      authRequests.push("sign-in");
+      await route.fulfill({
+        body: JSON.stringify({
+          redirect: true,
+          url: "http://127.0.0.1:3873/editor?oauth=account-switch",
+        }),
         contentType: "application/json",
         status: 200,
       });
@@ -217,13 +232,16 @@ test.describe("protected course editor access", () => {
     await page.goto("/editor");
 
     await expect(
-      page.getByText("This account does not have course-editor access."),
+      page.getByText(
+        "This account does not have course-editor access. Choose another Google account to continue.",
+      ),
     ).toBeVisible();
     await expect(page.getByTestId("course-editor-shell")).toHaveCount(0);
-    await page.getByRole("button", { name: "Sign out" }).click();
-    await expect(
-      page.getByText("Sign in with an approved admin account to continue."),
-    ).toBeVisible();
+    await page
+      .getByRole("button", { name: "Choose another Google account" })
+      .click();
+    await expect(page).toHaveURL(/oauth=account-switch/);
+    expect(authRequests).toEqual(["sign-out", "sign-in"]);
   });
 
   test("lets an authorized admin initialize a missing seed course", async ({

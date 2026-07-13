@@ -15,6 +15,14 @@ export type DrivingInput = {
   throttle: number;
 };
 
+export type PlayerInputActions = {
+  accelerate: number;
+  brakeReverse: number;
+  pauseRequested: boolean;
+  resetRequested: boolean;
+  steer: number;
+};
+
 export type KartControllerState = {
   speed: number;
   steerAngle: number;

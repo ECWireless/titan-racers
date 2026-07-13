@@ -116,6 +116,7 @@ export type SceneTestApi = {
   getKartScreenPoint: () => CanvasPoint;
   getPresentationDebugState: () => PresentationDebugState;
   getSuspensionDebugState: () => SuspensionDebugState;
+  resetKart: () => void;
   setCourseObjectDebugTransform: (
     objectId: CourseTestObstacleId,
     transform: { position?: Position3; rotation?: Position3 },
@@ -186,6 +187,12 @@ export function attachSceneTestAdapter(
         respond: (state: SuspensionDebugState) => void;
       }>) => {
         event.detail.respond(api.getSuspensionDebugState());
+      }) as EventListener,
+    ],
+    [
+      "resetKart",
+      (() => {
+        api.resetKart();
       }) as EventListener,
     ],
     [

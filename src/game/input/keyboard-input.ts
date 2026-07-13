@@ -1,6 +1,28 @@
-import type { DrivingInput } from "../contracts";
+import type {
+  ContinuousPlayerInput,
+  PlayerInputSource,
+  PlayerInputSourceSnapshot,
+} from "./player-input";
+
+type KeyboardEventTarget = Pick<
+  Window,
+  "addEventListener" | "removeEventListener"
+>;
 
 const HANDLED_KEYS = new Set([
+  "ArrowUp",
+  "ArrowDown",
+  "ArrowLeft",
+  "ArrowRight",
+  "Escape",
+  "KeyW",
+  "KeyA",
+  "KeyS",
+  "KeyD",
+  "KeyR",
+]);
+
+const DRIVING_KEYS = new Set([
   "ArrowUp",
   "ArrowDown",
   "ArrowLeft",
@@ -9,45 +31,55 @@ const HANDLED_KEYS = new Set([
   "KeyA",
   "KeyS",
   "KeyD",
-  "KeyR",
 ]);
 
-export class KeyboardInput {
+export class KeyboardInput implements PlayerInputSource {
   readonly pressedKeys = new Set<string>();
+  private pauseRequested = false;
+  private resetRequested = false;
 
   constructor(
-    private readonly target: Window,
-    private readonly onReset: () => void,
+    private readonly target: KeyboardEventTarget,
+    private readonly onDrivingActivity: () => void = () => undefined,
   ) {}
 
   attach() {
-    this.target.addEventListener("keydown", this.onKeyDown);
-    this.target.addEventListener("keyup", this.onKeyUp);
+    this.target.addEventListener("keydown", this.onKeyDown as EventListener);
+    this.target.addEventListener("keyup", this.onKeyUp as EventListener);
   }
 
   detach() {
-    this.target.removeEventListener("keydown", this.onKeyDown);
-    this.target.removeEventListener("keyup", this.onKeyUp);
+    this.target.removeEventListener("keydown", this.onKeyDown as EventListener);
+    this.target.removeEventListener("keyup", this.onKeyUp as EventListener);
     this.clear();
   }
 
   clear() {
     this.pressedKeys.clear();
+    this.pauseRequested = false;
+    this.resetRequested = false;
   }
 
-  getDrivingInput(): DrivingInput {
-    const throttle =
-      Number(this.hasAny("ArrowUp", "KeyW")) -
-      Number(this.hasAny("ArrowDown", "KeyS"));
-
+  getContinuousInput(): ContinuousPlayerInput {
     return {
-      brake: throttle < 0 ? 1 : 0,
-      reset: false,
+      accelerate: Number(this.hasAny("ArrowUp", "KeyW")),
+      brakeReverse: Number(this.hasAny("ArrowDown", "KeyS")),
       steer:
-        Number(this.hasAny("ArrowLeft", "KeyA")) -
-        Number(this.hasAny("ArrowRight", "KeyD")),
-      throttle,
+        Number(this.hasAny("ArrowRight", "KeyD")) -
+        Number(this.hasAny("ArrowLeft", "KeyA")),
     };
+  }
+
+  sample(): PlayerInputSourceSnapshot {
+    const snapshot = {
+      ...this.getContinuousInput(),
+      pauseRequested: this.pauseRequested,
+      resetRequested: this.resetRequested,
+    };
+
+    this.pauseRequested = false;
+    this.resetRequested = false;
+    return snapshot;
   }
 
   private hasAny(...keys: string[]) {
@@ -61,12 +93,24 @@ export class KeyboardInput {
 
     event.preventDefault();
 
-    if (event.code === "KeyR") {
-      this.onReset();
+    if (event.repeat) {
       return;
     }
 
-    this.pressedKeys.add(event.code);
+    if (event.code === "KeyR") {
+      this.resetRequested = true;
+      return;
+    }
+
+    if (event.code === "Escape") {
+      this.pauseRequested = true;
+      return;
+    }
+
+    if (!this.pressedKeys.has(event.code)) {
+      this.pressedKeys.add(event.code);
+      this.onDrivingActivity();
+    }
   };
 
   private readonly onKeyUp = (event: KeyboardEvent) => {
@@ -75,6 +119,8 @@ export class KeyboardInput {
     }
 
     event.preventDefault();
-    this.pressedKeys.delete(event.code);
+    if (DRIVING_KEYS.has(event.code)) {
+      this.pressedKeys.delete(event.code);
+    }
   };
 }

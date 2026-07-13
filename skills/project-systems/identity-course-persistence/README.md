@@ -27,7 +27,8 @@ login and authoring experience belongs to the completed protected
 - `drizzle/` contains the reviewed version-controlled Postgres migrations,
   including database triggers for default player roles and immutable revisions.
 - `src/db/client.ts` owns the shared node-postgres pool and Drizzle client.
-- `src/lib/auth.ts` configures Better Auth's Drizzle adapter and Google provider.
+- `src/lib/auth.ts` configures Better Auth's Drizzle adapter and Google provider,
+  including an explicit Google account-selection prompt for every sign-in.
 - `src/server/authorization.ts` validates live sessions and database roles at
   protected server boundaries.
 - `src/server/request-guards.ts` enforces strict JSON and same-origin browser
@@ -46,7 +47,9 @@ login and authoring experience belongs to the completed protected
 
 ## Identity And Authorization Flow
 
-1. Google authenticates the external identity through Better Auth.
+1. Better Auth sends Google `prompt=select_account`, so every sign-in asks the
+   player to choose an identity instead of silently reusing the browser's active
+   Google account. Google then authenticates the selected external identity.
 2. Better Auth creates or resolves a canonical `users.id` and linked `accounts`
    row; provider IDs never replace the application user ID. Google token
    material is discarded because the application does not call Google APIs.
@@ -90,6 +93,9 @@ login and authoring experience belongs to the completed protected
 ## Accepted Invariants
 
 - Authentication proves identity; Postgres roles grant authority.
+- Google sign-in always presents explicit account selection. A forbidden editor
+  session is signed out before another OAuth attempt begins, so switching
+  identities cannot be mistaken for account linking.
 - Custom protected course mutations accept only `application/json` from the
   direct request origin or configured canonical application/auth origins, so
   reverse-proxied same-origin traffic remains valid. Foreign or missing origins,
@@ -116,14 +122,22 @@ login and authoring experience belongs to the completed protected
 
 ## Verification
 
+- `tests/auth-configuration.spec.ts` covers the environment-independent Google
+  account-selection policy.
 - `tests/course-persistence.spec.ts` covers default roles, role denial and
   approval, real Better Auth sessions, protected API load/save, Google OAuth
-  initiation, immutable attribution, and competing stale saves.
+  initiation including the generated account-selection parameter, immutable
+  attribution, and competing stale saves.
 - `pnpm db:check`, `pnpm lint`, `pnpm typecheck`, and `pnpm build` cover migration,
   static, and production-build boundaries.
 - The production migration command is rehearsed from an empty Postgres database,
   and the created tables and triggers are inspected directly.
 - The full desktop/mobile Playwright matrix remains the gameplay regression gate.
+
+## Primary Reference
+
+- [Better Auth Google provider: Always ask to select an account](https://better-auth.com/docs/authentication/google#always-ask-to-select-an-account)
+  defines the server-side `prompt: "select_account"` configuration used here.
 
 ## Known Limits And Deferred Work
 
