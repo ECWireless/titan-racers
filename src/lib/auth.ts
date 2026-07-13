@@ -27,6 +27,7 @@ export const auth = betterAuth({
     google: {
       clientId: process.env.GOOGLE_CLIENT_ID ?? unavailableValue,
       clientSecret: process.env.GOOGLE_CLIENT_SECRET ?? unavailableValue,
+      prompt: "select_account",
     },
   },
   databaseHooks: {
