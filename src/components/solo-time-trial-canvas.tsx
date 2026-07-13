@@ -1003,13 +1003,24 @@ export function SoloTimeTrialCanvas({
     }
 
     function requestRaceRecovery() {
+      const sessionSnapshot = raceSession.snapshot;
       const requestedTransform = raceSession.requestRecovery();
 
       if (!requestedTransform) {
+        if (
+          sessionSnapshot.state === "loading" ||
+          sessionSnapshot.state === "ready" ||
+          sessionSnapshot.state === "countdown"
+        ) {
+          resetKart();
+          clearTouchPresentation();
+          return true;
+        }
+
         return false;
       }
 
-      const candidates = raceSession.snapshot.recoveryCandidates;
+      const candidates = sessionSnapshot.recoveryCandidates;
       const recoveryTransform =
         candidates
           .map(({ transform }) => findSupportedRecoveryTransform(transform))
@@ -1677,7 +1688,7 @@ export function SoloTimeTrialCanvas({
       kartController.postUpdate(latestDrivingInput, dt);
 
       const currentRacePosition = kart.getPosition();
-      if (raceSession.snapshot.state === "racing") {
+      if (raceSession.acceptsDriving) {
         lastRaceProgressionResult = raceSession.processMovement(
           {
             x: previousRacePosition.x,

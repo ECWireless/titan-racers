@@ -84,5 +84,13 @@ test.describe("fixed-step clock", () => {
     expect(frame.steps).toBe(1);
     expect(frame.droppedFrameSeconds).toBe(0);
     expect(frame.droppedSeconds).toBe(0);
+    expect(frame.accumulatorFraction).toBe(0);
+
+    const resumedFrame = clock.advance(0, () => {
+      steps += 1;
+    });
+
+    expect(steps).toBe(1);
+    expect(resumedFrame.steps).toBe(0);
   });
 });

@@ -820,6 +820,30 @@ test.describe("home screen", () => {
     await page.goto("/");
     await page.getByRole("button", { name: "Solo Time Trial" }).click();
     const canvas = page.getByTestId("solo-time-trial-canvas");
+
+    await setSimulationPaused(canvas, true);
+    expect(await getRaceDebugState(canvas)).toMatchObject({
+      state: "countdown",
+    });
+    await setKartDebugPose(canvas, {
+      angularVelocity: { x: 3, y: 2, z: 1 },
+      linearVelocity: { x: 5, y: -2, z: 4 },
+      position: { x: -12, y: -20, z: 5 },
+      rotation: { x: 15, y: 20, z: -10 },
+    });
+    await requestRaceRecovery(canvas);
+
+    const preRaceReset = await getPresentationDebugState(canvas);
+    expect(preRaceReset.visualPosition.x).toBeCloseTo(
+      ROUGH_COURSE_DOCUMENT.start.position.x,
+    );
+    expect(preRaceReset.visualPosition.z).toBeCloseTo(
+      ROUGH_COURSE_DOCUMENT.start.position.z,
+    );
+    expect(await getRaceDebugState(canvas)).toMatchObject({
+      state: "countdown",
+    });
+
     await advanceRaceToRacing(canvas);
 
     const firstCheckpoint = ROUGH_COURSE_DOCUMENT.checkpoints[0];
@@ -830,6 +854,7 @@ test.describe("home screen", () => {
       position: { x: -12, y: 4, z: 5 },
       rotation: { x: 15, y: 20, z: -10 },
     });
+    await requestRaceRecovery(canvas);
     await requestRaceRecovery(canvas);
 
     const recovering = await getRaceDebugState(canvas);
@@ -848,6 +873,12 @@ test.describe("home screen", () => {
     });
     expect(recoveredKart.forward.x).toBeCloseTo(-Math.SQRT1_2, 1);
     expect(recoveredKart.forward.z).toBeCloseTo(Math.SQRT1_2, 1);
+    expect(presentation.visualPosition.x).toBeCloseTo(
+      firstCheckpoint.recovery.position.x,
+    );
+    expect(presentation.visualPosition.z).toBeCloseTo(
+      firstCheckpoint.recovery.position.z,
+    );
     expect(presentation.cameraTrackedPosition).toEqual(
       presentation.visualPosition,
     );

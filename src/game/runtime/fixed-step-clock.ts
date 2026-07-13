@@ -72,6 +72,7 @@ export class FixedStepClock {
 
       if (!shouldContinue) {
         stoppedEarly = true;
+        this.accumulatorSeconds = 0;
         break;
       }
     }
