@@ -104,9 +104,14 @@ const lightingSchema = z.strictObject({
   directionalLights: z.array(directionalLightSchema).min(1).max(2),
 });
 
+export const COURSE_CHECKPOINT_LIMIT = 256;
+
 export const courseDocumentSchema = z
   .strictObject({
-    checkpoints: z.array(checkpointSchema).min(1).max(256),
+    checkpoints: z
+      .array(checkpointSchema)
+      .min(1)
+      .max(COURSE_CHECKPOINT_LIMIT),
     courseId: courseIdSchema,
     lighting: lightingSchema,
     name: z.string().trim().min(1).max(120),

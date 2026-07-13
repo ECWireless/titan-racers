@@ -1,10 +1,38 @@
 import { expect, type Locator, test } from "@playwright/test";
 
 import { ROUGH_COURSE_DOCUMENT } from "../src/game/course/course-document";
+import { COURSE_EDITOR_CHECKPOINT_LIMIT } from "../src/game/editor/course-editor-document";
 
 const courseApiPattern = "**/api/admin/courses/rough-course";
 const coursePublicationApiPattern =
   "**/api/admin/courses/rough-course/publication";
+
+function courseAtCheckpointLimit() {
+  const document = structuredClone(ROUGH_COURSE_DOCUMENT);
+  const template = document.checkpoints[0]!;
+  document.checkpoints = Array.from(
+    { length: COURSE_EDITOR_CHECKPOINT_LIMIT },
+    (_, index) => ({
+      ...structuredClone(template),
+      id: `limit-checkpoint-${index + 1}`,
+      order: index + 1,
+      position: { ...template.position, z: index },
+    }),
+  );
+  const objectTemplate = document.objects[0]!;
+  document.objects = Array.from(
+    { length: 500 },
+    (_, index) => ({
+      ...structuredClone(objectTemplate),
+      id: `limit-object-${index + 1}`,
+      transform: {
+        ...structuredClone(objectTemplate.transform),
+        position: { ...objectTemplate.transform.position, x: index % 100 },
+      },
+    }),
+  );
+  return document;
+}
 
 async function waitForEditorScene(canvas: Locator) {
   await expect(canvas).toHaveAttribute("data-scene-ready", "true");
@@ -447,6 +475,59 @@ test.describe("protected course editor access", () => {
         "start-position",
       );
     }
+  });
+
+  test("disables creation and explains the editor limits", async ({
+    page,
+  }, testInfo) => {
+    testInfo.setTimeout(120_000);
+    const document = courseAtCheckpointLimit();
+    await page.route(courseApiPattern, async (route) => {
+      await route.fulfill({
+        body: JSON.stringify({
+          authorUserId: "admin-test-user",
+          courseId: document.courseId,
+          createdAt: new Date("2026-07-12T00:00:00.000Z").toISOString(),
+          document,
+          revision: 3,
+          schemaVersion: document.schemaVersion,
+        }),
+        contentType: "application/json",
+        status: 200,
+      });
+    });
+
+    await page.goto("/editor");
+    if (testInfo.project.name === "mobile") {
+      await page.getByRole("button", { name: "Course", exact: true }).click();
+    }
+    const panel =
+      testInfo.project.name === "mobile"
+        ? page.getByRole("dialog", { name: "Course" })
+        : page;
+    const addCheckpoint = panel.getByRole("button", {
+      name: "Add checkpoint",
+    });
+    await expect(addCheckpoint).toBeDisabled();
+    await expect(addCheckpoint).toHaveAttribute(
+      "title",
+      `Checkpoint limit reached (${COURSE_EDITOR_CHECKPOINT_LIMIT})`,
+    );
+    await expect(
+      panel.getByText(
+        `Checkpoint limit reached (${COURSE_EDITOR_CHECKPOINT_LIMIT})`,
+        { exact: true },
+      ),
+    ).toBeVisible();
+    const blockPreset = panel.getByRole("button", { name: "block" });
+    await expect(blockPreset).toBeDisabled();
+    await expect(blockPreset).toHaveAttribute(
+      "title",
+      "Editor object limit reached (500)",
+    );
+    await expect(
+      panel.getByText("Editor object limit reached (500)", { exact: true }),
+    ).toBeVisible();
   });
 
   test("saves a private draft and advances the clean revision", async ({

@@ -2,6 +2,7 @@ import { expect, test } from "@playwright/test";
 
 import { ROUGH_COURSE_DOCUMENT } from "../src/game/course/course-document";
 import {
+  COURSE_EDITOR_CHECKPOINT_LIMIT,
   addCourseCheckpoint,
   addCourseObjectPreset,
   collectCourseDocumentIds,
@@ -16,6 +17,21 @@ import {
   updateDirectionalLight,
   updateSelectionGeometry,
 } from "../src/game/editor/course-editor-document";
+
+function courseAtCheckpointLimit() {
+  const document = structuredClone(ROUGH_COURSE_DOCUMENT);
+  const template = document.checkpoints[0]!;
+  document.checkpoints = Array.from(
+    { length: COURSE_EDITOR_CHECKPOINT_LIMIT },
+    (_, index) => ({
+      ...structuredClone(template),
+      id: `limit-checkpoint-${index + 1}`,
+      order: index + 1,
+      position: { ...template.position, z: index },
+    }),
+  );
+  return document;
+}
 
 test.describe("course editor document commands", () => {
   test.beforeEach(async ({}, testInfo) => {
@@ -41,6 +57,12 @@ test.describe("course editor document commands", () => {
       editable: true,
       visual: { shape: "cylinder" },
     });
+  });
+
+  test("keeps checkpoint creation bounded at the document limit", () => {
+    const document = courseAtCheckpointLimit();
+    expect(document.checkpoints).toHaveLength(COURSE_EDITOR_CHECKPOINT_LIMIT);
+    expect(addCourseCheckpoint(document)).toBe(document);
   });
 
   test("uniformly scales visual and authoritative collision geometry", () => {

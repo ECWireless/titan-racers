@@ -70,9 +70,9 @@ owns only Resume and Exit.
 - Guest racing never exposes course-authoring controls. Development-only
   runtime mutations are reachable only through the non-production scene test
   adapter and are absent from production builds. Keyboard users pause with
-  Escape, while narrow-screen racers receive an explicit safe-area-aware Pause
-  action; both paths open the same focus-contained Resume/Exit modal and return
-  focus to the race on resume.
+  Escape, while coarse-pointer or no-hover devices retain an explicit
+  safe-area-aware Pause action at every viewport width; both paths open the same
+  focus-contained Resume/Exit modal and return focus to the race on resume.
 - Command history is document-oriented and independent of PlayCanvas entities.
 - History retains the latest 100 commands; a truncated clean boundary remains
   dirty rather than retaining unlimited document snapshots.
@@ -80,8 +80,9 @@ owns only Resume and Exit.
   a portable document and enters history as one coherent command.
 - Runtime entities, selection outlines, checkpoint markers, gizmos, and
   collision wireframes remain disposable projections of stable document IDs.
-- The protected editor accepts at most 500 course objects, retains issued IDs
-  as session tombstones, and creates collision diagnostics only while visible.
+- The protected editor accepts at most 500 course objects and 256 checkpoints,
+  disables creation at either limit, retains issued IDs as session tombstones,
+  and creates collision diagnostics only while visible.
 - Box and checkpoint axes scale independently; cylinder height is independent
   while its two radial axes remain paired to one authoritative collision radius.
   Direct handles and inspector controls preserve the same rule. Collision

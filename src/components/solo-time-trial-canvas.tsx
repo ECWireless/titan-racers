@@ -1563,7 +1563,7 @@ export function SoloTimeTrialCanvas({
             <>
               <button
                 aria-label="Pause race"
-                className="absolute right-[max(1rem,env(safe-area-inset-right))] top-[max(1rem,env(safe-area-inset-top))] z-20 min-h-11 border border-titan-ice/28 bg-titan-black/82 px-4 font-mono text-[0.68rem] font-bold uppercase tracking-[0.14em] text-titan-ice/86 backdrop-blur hover:border-titan-hazard hover:text-titan-hazard focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-titan-hazard lg:hidden"
+                className="race-pause-button absolute right-[max(1rem,env(safe-area-inset-right))] top-[max(1rem,env(safe-area-inset-top))] z-20 min-h-11 items-center border border-titan-ice/28 bg-titan-black/82 px-4 font-mono text-[0.68rem] font-bold uppercase tracking-[0.14em] text-titan-ice/86 backdrop-blur hover:border-titan-hazard hover:text-titan-hazard focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-titan-hazard"
                 type="button"
                 onClick={pauseRace}
               >

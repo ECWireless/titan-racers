@@ -30,6 +30,8 @@ login and authoring experience belongs to the completed protected
 - `src/lib/auth.ts` configures Better Auth's Drizzle adapter and Google provider.
 - `src/server/authorization.ts` validates live sessions and database roles at
   protected server boundaries.
+- `src/server/request-guards.ts` enforces strict JSON and same-origin browser
+  boundaries for custom authenticated mutations.
 - `src/server/course-repository.ts` validates portable documents and owns atomic
   revision creation, latest-revision and publication loading, publication
   attribution, and optimistic concurrency.
@@ -88,6 +90,11 @@ login and authoring experience belongs to the completed protected
 ## Accepted Invariants
 
 - Authentication proves identity; Postgres roles grant authority.
+- Custom protected course mutations accept only `application/json` from the
+  direct request origin or configured canonical application/auth origins, so
+  reverse-proxied same-origin traffic remains valid. Foreign or missing origins,
+  cross-site fetch metadata, and simple form-compatible content types are
+  rejected before request parsing.
 - Email is only a credentialed bootstrap lookup and never a durable admin
   allowlist.
 - Guest racing and the existing product UI do not require a database session.

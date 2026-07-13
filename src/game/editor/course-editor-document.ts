@@ -1,4 +1,5 @@
 import {
+  COURSE_CHECKPOINT_LIMIT,
   type CourseDocument,
   type CourseObject,
   parseCourseDocument,
@@ -12,6 +13,7 @@ export const COURSE_OBJECT_PRESETS = [
   "platform",
 ] as const;
 export const COURSE_EDITOR_OBJECT_LIMIT = 500;
+export const COURSE_EDITOR_CHECKPOINT_LIMIT = COURSE_CHECKPOINT_LIMIT;
 
 export type CourseObjectPreset = (typeof COURSE_OBJECT_PRESETS)[number];
 
@@ -186,6 +188,9 @@ export function addCourseCheckpoint(
   document: CourseDocument,
   reservedIds: ReadonlySet<string> = new Set(),
 ) {
+  if (document.checkpoints.length >= COURSE_EDITOR_CHECKPOINT_LIMIT) {
+    return document;
+  }
   const order = document.checkpoints.length + 1;
   const previous = document.checkpoints.at(-1);
   const checkpoint = {

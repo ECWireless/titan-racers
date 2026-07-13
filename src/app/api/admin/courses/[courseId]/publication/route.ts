@@ -11,6 +11,7 @@ import {
   loadLatestCoursePublication,
   publishCourseRevision,
 } from "@/server/course-repository";
+import { protectedJsonMutationError } from "@/server/request-guards";
 
 const publishRequestSchema = z.strictObject({
   expectedPublicationId: z.number().int().positive().nullable(),
@@ -39,6 +40,10 @@ export async function POST(request: Request, context: RouteContext) {
   const authorization = await authorizeRole(request, "admin");
   if (!authorization.authorized) {
     return authorizationErrorResponse(authorization.status);
+  }
+  const mutationError = protectedJsonMutationError(request);
+  if (mutationError) {
+    return mutationError;
   }
 
   let payload: z.infer<typeof publishRequestSchema>;

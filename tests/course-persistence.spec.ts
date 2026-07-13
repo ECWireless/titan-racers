@@ -43,6 +43,9 @@ const requiredIntegrationVariables = [
   "GOOGLE_CLIENT_ID",
   "GOOGLE_CLIENT_SECRET",
 ] as const;
+const TEST_ORIGIN = "http://127.0.0.1:3873";
+const CONFIGURED_ORIGIN =
+  process.env.NEXT_PUBLIC_APP_URL ?? process.env.BETTER_AUTH_URL ?? TEST_ORIGIN;
 
 test.describe("course persistence and authorization", () => {
   test.describe.configure({ mode: "serial" });
@@ -297,7 +300,10 @@ test.describe("course persistence and authorization", () => {
 
     const updatedDocument = structuredClone(document);
     updatedDocument.name = "Protected API Revision Two";
-    const saveRequest = () =>
+    const saveRequest = (
+      origin = CONFIGURED_ORIGIN,
+      contentType = "application/json",
+    ) =>
       new Request(`http://127.0.0.1:3873/api/admin/courses/${courseId}`, {
         body: JSON.stringify({
           document: updatedDocument,
@@ -305,10 +311,22 @@ test.describe("course persistence and authorization", () => {
         }),
         headers: new Headers([
           ...headers.entries(),
-          ["content-type", "application/json"],
+          ["content-type", contentType],
+          ["origin", origin],
         ]),
         method: "PUT",
       });
+
+    const foreignOriginResponse = await putPersistedCourse(
+      saveRequest("https://malicious.titanracers.com"),
+      { params: Promise.resolve({ courseId }) },
+    );
+    expect(foreignOriginResponse.status).toBe(403);
+    const plainTextResponse = await putPersistedCourse(
+      saveRequest(TEST_ORIGIN, "text/plain"),
+      { params: Promise.resolve({ courseId }) },
+    );
+    expect(plainTextResponse.status).toBe(415);
 
     const saveResponse = await putPersistedCourse(saveRequest(), {
       params: Promise.resolve({ courseId }),
@@ -371,15 +389,32 @@ test.describe("course persistence and authorization", () => {
     expect(unpublishedResponse.status).toBe(404);
     expect(unpublishedResponse.headers.get("cache-control")).toBe("no-store");
 
-    const firstPublicationResponse = await postCoursePublication(
+    const publicationRequest = (
+      origin = CONFIGURED_ORIGIN,
+      contentType = "application/json",
+    ) =>
       new Request(`http://127.0.0.1:3873/api/admin/courses/${courseId}/publication`, {
         body: JSON.stringify({ expectedPublicationId: null, revision: 1 }),
         headers: new Headers([
           ...headers.entries(),
-          ["content-type", "application/json"],
+          ["content-type", contentType],
+          ["origin", origin],
         ]),
         method: "POST",
-      }),
+      });
+    const foreignPublicationResponse = await postCoursePublication(
+      publicationRequest("https://malicious.titanracers.com"),
+      context,
+    );
+    expect(foreignPublicationResponse.status).toBe(403);
+    const plainTextPublicationResponse = await postCoursePublication(
+      publicationRequest(TEST_ORIGIN, "text/plain"),
+      context,
+    );
+    expect(plainTextPublicationResponse.status).toBe(415);
+
+    const firstPublicationResponse = await postCoursePublication(
+      publicationRequest(),
       context,
     );
     expect(firstPublicationResponse.status).toBe(201);

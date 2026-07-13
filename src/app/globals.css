@@ -144,6 +144,16 @@ button {
   backdrop-filter: blur(8px);
 }
 
+.race-pause-button {
+  display: none;
+}
+
+@media (any-pointer: coarse), (hover: none) {
+  .race-pause-button {
+    display: inline-flex;
+  }
+}
+
 @media (orientation: landscape) and (max-height: 500px) and (max-width: 1023px) {
   .editor-mobile-workspace-inspector {
     flex-direction: row;

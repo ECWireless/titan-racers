@@ -1754,7 +1754,7 @@ test.describe("home screen", () => {
     page,
   }, testInfo) => {
     test.skip(testInfo.project.name !== "mobile", "Mobile pause control only.");
-    await page.setViewportSize({ height: 390, width: 844 });
+    await page.setViewportSize({ height: 800, width: 1280 });
 
     await page.goto("/");
     await page.getByRole("button", { name: "Solo Time Trial" }).click();
@@ -1766,7 +1766,7 @@ test.describe("home screen", () => {
     const pauseBounds = await pause.boundingBox();
     expect(pauseBounds).not.toBeNull();
     expect((pauseBounds?.x ?? 0) + (pauseBounds?.width ?? 0)).toBeLessThanOrEqual(
-      844,
+      1280,
     );
     await pause.click();
     const dialog = page.getByRole("dialog", { name: "Paused" });
@@ -1801,6 +1801,7 @@ test.describe("home screen", () => {
     await waitForSceneReady(canvas);
     await canvas.focus();
     await expect(canvas).toHaveCSS("cursor", "none");
+    await expect(page.locator(".race-pause-button")).toBeHidden();
 
     await page.mouse.move(520, 320);
     await expect(canvas).toHaveCSS("cursor", "none");

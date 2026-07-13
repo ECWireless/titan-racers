@@ -14,6 +14,7 @@ import {
 } from "@/game/course/course-publication";
 import {
   COURSE_OBJECT_PRESETS,
+  COURSE_EDITOR_CHECKPOINT_LIMIT,
   COURSE_EDITOR_OBJECT_LIMIT,
   type CourseEditorSelection,
   type CourseObjectPreset,
@@ -297,6 +298,9 @@ export function CourseEditorShell({
 
   function addCheckpoint() {
     const nextDocument = addCourseCheckpoint(document, issuedIdsRef.current);
+    if (nextDocument === document) {
+      return;
+    }
     const checkpoint = nextDocument.checkpoints.at(-1);
     if (!commitDocument("Add checkpoint", nextDocument)) {
       return;
@@ -1829,6 +1833,12 @@ function CoursePanel({
   onSelect: (selection: CourseEditorSelection) => void;
   selection: CourseEditorSelection;
 }) {
+  const objectLimitReached =
+    document.objects.length >= COURSE_EDITOR_OBJECT_LIMIT;
+  const objectLimitMessageId = useId();
+  const checkpointLimitReached =
+    document.checkpoints.length >= COURSE_EDITOR_CHECKPOINT_LIMIT;
+  const checkpointLimitMessageId = useId();
   return (
     <div className="grid min-w-0 gap-5 text-xs">
       <CollapsibleSection
@@ -1839,11 +1849,14 @@ function CoursePanel({
         <div className="grid min-w-0 grid-cols-2 gap-2">
           {COURSE_OBJECT_PRESETS.map((preset) => (
             <button
+              aria-describedby={
+                objectLimitReached ? objectLimitMessageId : undefined
+              }
               className="min-h-11 border border-titan-ice/15 bg-titan-black/24 px-2 py-2 font-bold uppercase tracking-[0.08em] text-titan-ice/78 hover:border-titan-hazard hover:text-titan-hazard focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-titan-hazard disabled:cursor-not-allowed disabled:opacity-35"
-              disabled={document.objects.length >= COURSE_EDITOR_OBJECT_LIMIT}
+              disabled={objectLimitReached}
               key={preset}
               title={
-                document.objects.length >= COURSE_EDITOR_OBJECT_LIMIT
+                objectLimitReached
                   ? `Editor object limit reached (${COURSE_EDITOR_OBJECT_LIMIT})`
                   : `Add ${preset}`
               }
@@ -1854,13 +1867,40 @@ function CoursePanel({
             </button>
           ))}
         </div>
+        {objectLimitReached ? (
+          <p
+            className="text-[0.65rem] font-bold uppercase tracking-[0.08em] text-titan-muted"
+            id={objectLimitMessageId}
+            role="status"
+          >
+            Editor object limit reached ({COURSE_EDITOR_OBJECT_LIMIT})
+          </p>
+        ) : null}
         <button
-          className="min-h-11 border border-titan-blue/40 bg-titan-blue/5 px-3 py-2 font-bold uppercase tracking-[0.08em] text-titan-blue hover:border-titan-blue focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-titan-blue"
+          aria-describedby={
+            checkpointLimitReached ? checkpointLimitMessageId : undefined
+          }
+          className="min-h-11 border border-titan-blue/40 bg-titan-blue/5 px-3 py-2 font-bold uppercase tracking-[0.08em] text-titan-blue hover:border-titan-blue focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-titan-blue disabled:cursor-not-allowed disabled:opacity-35"
+          disabled={checkpointLimitReached}
+          title={
+            checkpointLimitReached
+              ? `Checkpoint limit reached (${COURSE_EDITOR_CHECKPOINT_LIMIT})`
+              : "Add checkpoint"
+          }
           type="button"
           onClick={onAddCheckpoint}
         >
           Add checkpoint
         </button>
+        {checkpointLimitReached ? (
+          <p
+            className="text-[0.65rem] font-bold uppercase tracking-[0.08em] text-titan-muted"
+            id={checkpointLimitMessageId}
+            role="status"
+          >
+            Checkpoint limit reached ({COURSE_EDITOR_CHECKPOINT_LIMIT})
+          </p>
+        ) : null}
       </CollapsibleSection>
 
       <EnvironmentControls
