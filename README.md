@@ -14,8 +14,8 @@ corepack pnpm db:migrate
 corepack pnpm dev
 ```
 
-Database migration, Google OAuth, first-admin bootstrap, and the current manual
-production workflow are documented in
+Database migration, Google OAuth, first-admin bootstrap, permanent sandbox
+course reset, and the current manual production workflow are documented in
 [`docs/database-operations.md`](docs/database-operations.md).
 
 ## Phase 0 Scope

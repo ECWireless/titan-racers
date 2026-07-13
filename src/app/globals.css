@@ -102,3 +102,68 @@ button {
   border-color: rgb(247 242 232 / 58%);
   color: var(--titan-ice);
 }
+
+.editor-tool-button {
+  display: inline-grid;
+  flex-shrink: 0;
+  width: 2.5rem;
+  height: 2.5rem;
+  place-items: center;
+  border: 1px solid rgb(247 242 232 / 18%);
+  background: rgb(7 7 6 / 28%);
+  color: rgb(247 242 232 / 82%);
+  font-size: 1rem;
+}
+
+.editor-tool-button:hover:not(:disabled) {
+  border-color: var(--titan-hazard);
+  color: var(--titan-hazard);
+}
+
+.editor-tool-button:focus-visible,
+.editor-mobile-panel-button:focus-visible {
+  outline: 2px solid var(--titan-hazard);
+  outline-offset: 2px;
+}
+
+.editor-tool-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.3;
+}
+
+.editor-mobile-panel-button {
+  min-height: 2.75rem;
+  border: 1px solid rgb(247 242 232 / 22%);
+  background: rgb(7 7 6 / 82%);
+  padding: 0.6rem 0.85rem;
+  color: rgb(247 242 232 / 84%);
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  backdrop-filter: blur(8px);
+}
+
+.race-pause-button {
+  display: none;
+}
+
+@media (any-pointer: coarse), (hover: none) {
+  .race-pause-button {
+    display: inline-flex;
+  }
+}
+
+@media (orientation: landscape) and (max-height: 500px) and (max-width: 1023px) {
+  .editor-mobile-workspace-inspector {
+    flex-direction: row;
+  }
+
+  .editor-mobile-inspector {
+    width: min(24rem, 48vw);
+    height: 100%;
+    min-height: 0;
+    border-top: 0;
+    border-left: 1px solid rgb(247 242 232 / 24%);
+  }
+}

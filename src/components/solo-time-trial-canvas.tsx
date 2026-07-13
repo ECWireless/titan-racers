@@ -1,19 +1,18 @@
 "use client";
 
 import * as pc from "playcanvas";
-import { useEffect, useRef, useState } from "react";
-
-import { LiteEditorPanel } from "./lite-editor-panel";
+import {
+  type KeyboardEvent as ReactKeyboardEvent,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 
 import type {
-  EditableObjectId,
   KartMovementTuning,
-  KartMovementTuningKey,
-  ObstacleObjectId,
+  CourseTestObstacleId,
   Position3,
-  SceneApi,
-  StartPosition,
-  TransformAxis,
 } from "@/game/contracts";
 import { KartCollisionObserver } from "@/game/collision/kart-collision-observer";
 import {
@@ -26,10 +25,10 @@ import {
 import { buildCourseLighting } from "@/game/course/build-course-lighting";
 import { buildRoughCourse } from "@/game/course/build-rough-course";
 import {
+  type CourseDocument,
   getCourseStartTransform,
   ROUGH_COURSE_DOCUMENT,
 } from "@/game/course/course-document";
-import { EDITOR_TRANSLATE_STEP } from "@/game/editor/editor-config";
 import { KeyboardInput } from "@/game/input/keyboard-input";
 import {
   DynamicKartController,
@@ -54,18 +53,6 @@ import {
 } from "@/game/runtime/ammo-rigid-body";
 import { attachSceneTestAdapter } from "@/game/testing/scene-test-adapter";
 
-const COURSE_DOCUMENT = ROUGH_COURSE_DOCUMENT;
-const START_TRANSFORM = getCourseStartTransform(COURSE_DOCUMENT);
-const START_POSITION = new pc.Vec3(
-  START_TRANSFORM.position.x,
-  START_TRANSFORM.position.y,
-  START_TRANSFORM.position.z,
-);
-const START_ROTATION = new pc.Vec3(
-  START_TRANSFORM.rotation.x,
-  START_TRANSFORM.rotation.y,
-  START_TRANSFORM.rotation.z,
-);
 const KART_ROOT_HEIGHT = 0.43;
 const KART_MASS = 120;
 const KART_BODY_MASS = 70;
@@ -101,16 +88,6 @@ const KART_DRAG = 4.2;
 const KART_TURN_RATE = 116;
 const KART_GRAVITY = 18;
 const KART_RESET_FALL_Y = -10;
-const EDITOR_CAMERA_START_DISTANCE = 28;
-const EDITOR_CAMERA_MIN_DISTANCE = 4;
-const EDITOR_CAMERA_MAX_DISTANCE = 56;
-const EDITOR_CAMERA_PAN_SPEED = 5;
-const EDITOR_CAMERA_FAST_MULTIPLIER = 2.5;
-const EDITOR_CAMERA_ORBIT_SPEED = 0.25;
-const EDITOR_CAMERA_PAN_PIXEL_SCALE = 0.0015;
-const TRANSLATE_GIZMO_LENGTH = 2.2;
-const TRANSLATE_GIZMO_HEAD_OFFSET = 2.55;
-const TRANSLATE_GIZMO_PICK_RADIUS = 28;
 const KART_COLLISION_RADIUS = 0.95;
 const KART_CCD_CONFIGURATION = {
   motionThreshold: 0.12,
@@ -133,10 +110,6 @@ function createMaterial(color: pc.Color) {
   material.update();
 
   return material;
-}
-
-function clamp(value: number, min: number, max: number) {
-  return Math.min(Math.max(value, min), max);
 }
 
 function toFixedStep(value: number) {
@@ -167,15 +140,6 @@ function getKartRootPosition(chassisPosition: pc.Vec3, rotation: pc.Quat) {
   );
 }
 
-const KART_MOVEMENT_TUNING_MINIMUMS: Record<KartMovementTuningKey, number> = {
-  acceleration: 0.5,
-  brakeForce: 0.5,
-  drag: 0,
-  gravity: 0,
-  maxForwardSpeed: 0.5,
-  maxReverseSpeed: 0.5,
-  turnRate: 1,
-};
 const ENABLE_SCENE_TEST_HOOKS = process.env.NODE_ENV !== "production";
 
 type SceneInitializationTestControl = {
@@ -196,38 +160,39 @@ function getSceneInitializationTestControl() {
 }
 
 type SoloTimeTrialCanvasProps = {
+  courseDocument?: CourseDocument;
   onExit: () => void;
 };
+type SoloSceneControls = { setPaused: (paused: boolean) => void };
 
-export function SoloTimeTrialCanvas({ onExit }: SoloTimeTrialCanvasProps) {
+export function SoloTimeTrialCanvas({
+  courseDocument = ROUGH_COURSE_DOCUMENT,
+  onExit,
+}: SoloTimeTrialCanvasProps) {
+  const COURSE_DOCUMENT = courseDocument;
+  const { START_POSITION, START_ROTATION } = useMemo(() => {
+    const startTransform = getCourseStartTransform(COURSE_DOCUMENT);
+    return {
+      START_POSITION: new pc.Vec3(
+        startTransform.position.x,
+        startTransform.position.y,
+        startTransform.position.z,
+      ),
+      START_ROTATION: new pc.Vec3(
+        startTransform.rotation.x,
+        startTransform.rotation.y,
+        startTransform.rotation.z,
+      ),
+    };
+  }, [COURSE_DOCUMENT]);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const editorOpenRef = useRef(false);
-  const sceneApiRef = useRef<SceneApi | null>(null);
-  const [editorOpen, setEditorOpen] = useState(false);
+  const resumeButtonRef = useRef<HTMLButtonElement | null>(null);
+  const sceneApiRef = useRef<SoloSceneControls | null>(null);
   const [driveCursorHidden, setDriveCursorHidden] = useState(false);
   const [gamePaused, setGamePaused] = useState(false);
   const [sceneStatus, setSceneStatus] = useState<
     "initializing" | "ready" | "failed"
   >("initializing");
-  const [selectedObjectId, setSelectedObjectId] =
-    useState<EditableObjectId>("start-position");
-  const [selectedPosition, setSelectedPosition] = useState<Position3>({
-    x: START_POSITION.x,
-    y: START_POSITION.y,
-    z: START_POSITION.z,
-  });
-  const [selectedRotation, setSelectedRotation] = useState<Position3>({
-    x: START_ROTATION.x,
-    y: START_ROTATION.y,
-    z: START_ROTATION.z,
-  });
-  const [startPosition, setStartPosition] = useState<StartPosition>({
-    x: START_POSITION.x,
-    z: START_POSITION.z,
-  });
-  const [movementTuning, setMovementTuning] = useState<KartMovementTuning>(
-    DEFAULT_KART_MOVEMENT_TUNING,
-  );
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -241,16 +206,6 @@ export function SoloTimeTrialCanvas({ onExit }: SoloTimeTrialCanvasProps) {
 
       event.preventDefault();
 
-      if (editorOpenRef.current) {
-        editorOpenRef.current = false;
-        sceneApiRef.current?.setEditorMode(false);
-        sceneApiRef.current?.setPaused(true);
-        setEditorOpen(false);
-        setGamePaused(true);
-        setDriveCursorHidden(false);
-        return;
-      }
-
       const nextPaused = !gamePaused;
 
       sceneApiRef.current?.setPaused(nextPaused);
@@ -258,7 +213,7 @@ export function SoloTimeTrialCanvas({ onExit }: SoloTimeTrialCanvasProps) {
       setDriveCursorHidden(!nextPaused);
 
       if (!nextPaused) {
-        canvasRef.current?.focus();
+        requestAnimationFrame(() => canvasRef.current?.focus());
       }
     };
 
@@ -266,6 +221,12 @@ export function SoloTimeTrialCanvas({ onExit }: SoloTimeTrialCanvasProps) {
 
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [gamePaused, sceneStatus]);
+
+  useEffect(() => {
+    if (gamePaused) {
+      requestAnimationFrame(() => resumeButtonRef.current?.focus());
+    }
+  }, [gamePaused]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -317,10 +278,6 @@ export function SoloTimeTrialCanvas({ onExit }: SoloTimeTrialCanvasProps) {
     const obstacleBlockMaterial = createMaterial(new pc.Color(0.82, 0.78, 0.68));
     const obstacleBarrelMaterial = createMaterial(new pc.Color(0.96, 0.45, 0.12));
     const rampMaterial = createMaterial(new pc.Color(0.35, 0.39, 0.42));
-    const selectionMaterial = createMaterial(new pc.Color(0.1, 0.82, 0.98));
-    const gizmoXMaterial = createMaterial(new pc.Color(0.95, 0.14, 0.12));
-    const gizmoYMaterial = createMaterial(new pc.Color(0.15, 0.82, 0.25));
-    const gizmoZMaterial = createMaterial(new pc.Color(0.16, 0.42, 1));
 
     function createBox(
       name: string,
@@ -471,26 +428,6 @@ export function SoloTimeTrialCanvas({ onExit }: SoloTimeTrialCanvasProps) {
       bar.setLocalScale(radius * 2, length, radius * 2);
     }
 
-    function createCone(
-      name: string,
-      position: pc.Vec3,
-      scale: pc.Vec3,
-      material: pc.StandardMaterial,
-      eulerAngles = new pc.Vec3(0, 0, 0),
-    ) {
-      const entity = new pc.Entity(name);
-      entity.addComponent("model", { type: "cone" });
-      entity.setPosition(position);
-      entity.setEulerAngles(eulerAngles);
-      entity.setLocalScale(scale);
-      entity.model?.meshInstances?.forEach((meshInstance) => {
-        meshInstance.material = material;
-      });
-      app.root.addChild(entity);
-
-      return entity;
-    }
-
     const {
       cameraFixtureEntities,
       collisionFixtureEntities,
@@ -513,7 +450,10 @@ export function SoloTimeTrialCanvas({ onExit }: SoloTimeTrialCanvasProps) {
         new URLSearchParams(window.location.search).has("collision-fixtures"),
     });
 
-    function syncObstacleCollision(id: ObstacleObjectId, position: pc.Vec3) {
+    function syncObstacleCollision(
+      id: CourseTestObstacleId,
+      position: pc.Vec3,
+    ) {
       const collisionObstacle = collisionObstacles.find(
         (obstacle) => obstacle.id === id,
       );
@@ -779,92 +719,6 @@ export function SoloTimeTrialCanvas({ onExit }: SoloTimeTrialCanvasProps) {
       });
     }
 
-    const selectionOutline = new pc.Entity("selection-outline");
-    selectionOutline.enabled = false;
-    app.root.addChild(selectionOutline);
-    const selectionOutlineNorth = createChildBox(
-      selectionOutline,
-      "selection-outline-north",
-      new pc.Vec3(0, 0, 1),
-      new pc.Vec3(2.6, 0.06, 0.08),
-      selectionMaterial,
-    );
-    const selectionOutlineSouth = createChildBox(
-      selectionOutline,
-      "selection-outline-south",
-      new pc.Vec3(0, 0, -1),
-      new pc.Vec3(2.6, 0.06, 0.08),
-      selectionMaterial,
-    );
-    const selectionOutlineEast = createChildBox(
-      selectionOutline,
-      "selection-outline-east",
-      new pc.Vec3(1.3, 0, 0),
-      new pc.Vec3(0.08, 0.06, 2),
-      selectionMaterial,
-    );
-    const selectionOutlineWest = createChildBox(
-      selectionOutline,
-      "selection-outline-west",
-      new pc.Vec3(-1.3, 0, 0),
-      new pc.Vec3(0.08, 0.06, 2),
-      selectionMaterial,
-    );
-
-    const translateGizmo = new pc.Entity("translate-gizmo");
-    translateGizmo.enabled = false;
-    app.root.addChild(translateGizmo);
-
-    const gizmoXShaft = createBox(
-      "translate-gizmo-x-shaft",
-      new pc.Vec3(TRANSLATE_GIZMO_LENGTH / 2, 0, 0),
-      new pc.Vec3(TRANSLATE_GIZMO_LENGTH, 0.08, 0.08),
-      gizmoXMaterial,
-    );
-    const gizmoXHead = createCone(
-      "translate-gizmo-x-head",
-      new pc.Vec3(TRANSLATE_GIZMO_HEAD_OFFSET, 0, 0),
-      new pc.Vec3(0.34, 0.62, 0.34),
-      gizmoXMaterial,
-      new pc.Vec3(0, 0, -90),
-    );
-    const gizmoYShaft = createBox(
-      "translate-gizmo-y-shaft",
-      new pc.Vec3(0, TRANSLATE_GIZMO_LENGTH / 2, 0),
-      new pc.Vec3(0.08, TRANSLATE_GIZMO_LENGTH, 0.08),
-      gizmoYMaterial,
-    );
-    const gizmoYHead = createCone(
-      "translate-gizmo-y-head",
-      new pc.Vec3(0, TRANSLATE_GIZMO_HEAD_OFFSET, 0),
-      new pc.Vec3(0.34, 0.62, 0.34),
-      gizmoYMaterial,
-    );
-    const gizmoZShaft = createBox(
-      "translate-gizmo-z-shaft",
-      new pc.Vec3(0, 0, TRANSLATE_GIZMO_LENGTH / 2),
-      new pc.Vec3(0.08, 0.08, TRANSLATE_GIZMO_LENGTH),
-      gizmoZMaterial,
-    );
-    const gizmoZHead = createCone(
-      "translate-gizmo-z-head",
-      new pc.Vec3(0, 0, TRANSLATE_GIZMO_HEAD_OFFSET),
-      new pc.Vec3(0.34, 0.62, 0.34),
-      gizmoZMaterial,
-      new pc.Vec3(90, 0, 0),
-    );
-
-    [
-      gizmoXShaft,
-      gizmoXHead,
-      gizmoYShaft,
-      gizmoYHead,
-      gizmoZShaft,
-      gizmoZHead,
-    ].forEach((gizmoPart) => {
-      translateGizmo.addChild(gizmoPart);
-    });
-
     const camera = new pc.Entity();
     camera.addComponent("camera", {
       clearColor: new pc.Color(0.52, 0.7, 0.86),
@@ -896,546 +750,69 @@ export function SoloTimeTrialCanvas({ onExit }: SoloTimeTrialCanvasProps) {
       document: COURSE_DOCUMENT,
     });
 
-    let isEditorMode = false;
-    let selectedEditableObjectId: EditableObjectId = "start-position";
-    let activeEditorDrag:
-      | {
-          mode: "orbit" | "pan";
-          pointerId: number;
-          x: number;
-          y: number;
-        }
-      | null = null;
-
-    const editorCamera = {
-      distance: EDITOR_CAMERA_START_DISTANCE,
-      pitch: 68,
-      pivot: new pc.Vec3(START_POSITION.x, 0, START_POSITION.z),
-      yaw: 45,
-    };
     let activeMovementTuning: KartMovementTuning = {
       ...DEFAULT_KART_MOVEMENT_TUNING,
     };
-    const editableObjectRotations = new Map<EditableObjectId, pc.Vec3>([
-      ["start-position", currentStartRotation.clone()],
-      ["kart", START_ROTATION.clone()],
-      ...[...obstacleEntities.entries()].map(
-        ([id, entity]) => [id, entity.getEulerAngles().clone()] as const,
-      ),
-    ]);
-    const editableObjectQuaternions = new Map<EditableObjectId, pc.Quat>([
-      [
-        "start-position",
-        new pc.Quat().setFromEulerAngles(
-          currentStartRotation.x,
-          currentStartRotation.y,
-          currentStartRotation.z,
-        ),
-      ],
-      ["kart", kart.getRotation().clone()],
-      ...[...obstacleEntities.entries()].map(
-        ([id, entity]) => [id, entity.getRotation().clone()] as const,
-      ),
-    ]);
-
-    function getEditableObjectPosition(objectId: EditableObjectId) {
-      if (objectId === "kart") {
-        return kartVisual.getPosition();
-      }
-
-      const obstacleEntity = obstacleEntities.get(objectId as ObstacleObjectId);
-
-      if (obstacleEntity) {
-        return obstacleEntity.getPosition();
-      }
-
-      return currentStartPosition.clone();
-    }
-
-    function getEditableObjectRotation(objectId: EditableObjectId) {
-      return (
-        editableObjectRotations.get(objectId)?.clone() ?? new pc.Vec3()
-      );
-    }
-
-    function syncSelectedPosition(objectId = selectedEditableObjectId) {
-      const position = getEditableObjectPosition(objectId);
-
-      setSelectedPosition({
-        x: toFixedStep(position.x),
-        y: toFixedStep(position.y),
-        z: toFixedStep(position.z),
-      });
-    }
-
-    function syncSelectedRotation(objectId = selectedEditableObjectId) {
-      const rotation = getEditableObjectRotation(objectId);
-
-      setSelectedRotation({
-        x: toFixedStep(rotation.x),
-        y: toFixedStep(rotation.y),
-        z: toFixedStep(rotation.z),
-      });
-    }
-
-    function updateTranslateGizmo() {
-      translateGizmo.enabled = isEditorMode;
-
-      if (!isEditorMode) {
-        return;
-      }
-
-      const selectedPosition = getEditableObjectPosition(
-        selectedEditableObjectId,
-      );
-      const heightOffset =
-        selectedEditableObjectId === "kart"
-          ? 1.05
-          : obstacleEntities.has(selectedEditableObjectId as ObstacleObjectId)
-            ? 1.1
-            : 0.42;
-
-      translateGizmo.setPosition(
-        selectedPosition.x,
-        selectedPosition.y + heightOffset,
-        selectedPosition.z,
-      );
-      translateGizmo.setEulerAngles(0, 0, 0);
-    }
-
-    function setSelectionOutline(
-      position: pc.Vec3,
-      rotation: pc.Vec3,
-      width: number,
-      depth: number,
-    ) {
-      const barThickness = 0.08;
-
-      selectionOutline.setPosition(position);
-      selectionOutline.setEulerAngles(rotation.x, rotation.y, rotation.z);
-      selectionOutlineNorth.setLocalPosition(0, 0, depth / 2);
-      selectionOutlineNorth.setLocalScale(width + barThickness, 0.06, barThickness);
-      selectionOutlineSouth.setLocalPosition(0, 0, -depth / 2);
-      selectionOutlineSouth.setLocalScale(width + barThickness, 0.06, barThickness);
-      selectionOutlineEast.setLocalPosition(width / 2, 0, 0);
-      selectionOutlineEast.setLocalScale(barThickness, 0.06, depth + barThickness);
-      selectionOutlineWest.setLocalPosition(-width / 2, 0, 0);
-      selectionOutlineWest.setLocalScale(barThickness, 0.06, depth + barThickness);
-    }
-
-    function updateSelectionMarker() {
-      selectionOutline.enabled = isEditorMode;
-      updateTranslateGizmo();
-
-      if (!isEditorMode) {
-        return;
-      }
-
-      if (selectedEditableObjectId === "kart") {
-        const kartPosition = kartVisual.getPosition();
-        setSelectionOutline(
-          new pc.Vec3(kartPosition.x, kartPosition.y + 0.18, kartPosition.z),
-          new pc.Vec3(0, kart.getEulerAngles().y, 0),
-          2.25,
-          2.85,
-        );
-        return;
-      }
-
-      const selectedObstacle = obstacleEntities.get(
-        selectedEditableObjectId as ObstacleObjectId,
-      );
-
-      if (selectedObstacle) {
-        const obstaclePosition = selectedObstacle.getPosition();
-        const obstacleRotation = selectedObstacle.getEulerAngles();
-        const collisionObstacle = collisionObstacles.find(
-          (obstacle) => obstacle.id === selectedEditableObjectId,
-        );
-        const markerRadius = collisionObstacle
-          ? collisionObstacle.radius * 2.35
-          : 2.25;
-
-        setSelectionOutline(
-          new pc.Vec3(
-            obstaclePosition.x,
-            obstaclePosition.y + 0.18,
-            obstaclePosition.z,
-          ),
-          obstacleRotation,
-          markerRadius,
-          markerRadius,
-        );
-        return;
-      }
-
-      setSelectionOutline(
-        new pc.Vec3(
-          currentStartPosition.x,
-          currentStartPosition.y + 0.18,
-          currentStartPosition.z,
-        ),
-        currentStartRotation,
-        2.6,
-        2,
-      );
-    }
-
-    function selectEditableObject(objectId: EditableObjectId) {
-      selectedEditableObjectId = objectId;
-      setSelectedObjectId(objectId);
-      syncSelectedPosition(objectId);
-      syncSelectedRotation(objectId);
-      updateSelectionMarker();
-    }
 
     function editStaticRigidBody(
       entity: pc.Entity,
       editTransform: () => void,
     ) {
-      const rigidBody = entity.rigidbody;
-
-      if (rigidBody) {
-        rigidBody.enabled = false;
+      if (entity.rigidbody) {
+        entity.rigidbody.enabled = false;
       }
 
       editTransform();
 
-      if (rigidBody) {
-        rigidBody.enabled = true;
+      if (entity.rigidbody) {
+        entity.rigidbody.enabled = true;
       }
     }
 
-    function rotateSelected(axis: TransformAxis, delta: number) {
-      const rotation = getEditableObjectRotation(selectedEditableObjectId);
-      const currentQuaternion =
-        editableObjectQuaternions.get(selectedEditableObjectId)?.clone() ??
-        new pc.Quat().setFromEulerAngles(rotation.x, rotation.y, rotation.z);
-      const nextRotation = rotation.clone();
-      const worldAxis =
-        axis === "x"
-          ? pc.Vec3.RIGHT
-          : axis === "y"
-            ? pc.Vec3.UP
-            : pc.Vec3.FORWARD;
-      const deltaRotation = new pc.Quat().setFromAxisAngle(worldAxis, delta);
-      const nextQuaternion = new pc.Quat().mul2(
-        deltaRotation,
-        currentQuaternion,
-      );
-
-      nextRotation[axis] = toFixedStep(rotation[axis] + delta);
-      editableObjectRotations.set(selectedEditableObjectId, nextRotation);
-      editableObjectQuaternions.set(selectedEditableObjectId, nextQuaternion);
-
-      if (selectedEditableObjectId === "kart") {
-        const chassisPosition = kartVisual.getPosition().clone();
-
-        kart.setRotation(nextQuaternion);
-        kart.setPosition(getKartRootPosition(chassisPosition, nextQuaternion));
-        kartVisual.setLocalPosition(kartGeometryOffset);
-      } else if (
-        obstacleEntities.has(selectedEditableObjectId as ObstacleObjectId)
-      ) {
-        const obstacleEntity = obstacleEntities.get(
-          selectedEditableObjectId as ObstacleObjectId,
-        );
-
-        if (obstacleEntity) {
-          editStaticRigidBody(obstacleEntity, () => {
-            obstacleEntity.setRotation(nextQuaternion);
-          });
-        }
-      } else {
-        currentStartRotation.copy(nextRotation);
-        startMarker.setRotation(nextQuaternion);
+    function setCourseObjectDebugTransform(
+      objectId: CourseTestObstacleId,
+      transform: { position?: Position3; rotation?: Position3 },
+    ) {
+      const entity = obstacleEntities.get(objectId);
+      if (!entity) {
+        return;
       }
 
-      syncSelectedRotation();
-      updateSelectionMarker();
-      activeCanvas.focus();
-    }
-
-    function translateSelected(axis: TransformAxis, delta: number) {
-      if (selectedEditableObjectId === "kart") {
-        const position = kartVisual.getPosition();
-        const nextPosition = position.clone();
-
-        nextPosition[axis] = toFixedStep(position[axis] + delta);
-        kart.setPosition(
-          getKartRootPosition(nextPosition, kart.getRotation().clone()),
-        );
-        kartVisual.setLocalPosition(kartGeometryOffset);
-      } else if (
-        obstacleEntities.has(selectedEditableObjectId as ObstacleObjectId)
-      ) {
-        const obstacleEntity = obstacleEntities.get(
-          selectedEditableObjectId as ObstacleObjectId,
-        );
-
-        if (obstacleEntity) {
-          const position = obstacleEntity.getPosition();
-          const nextPosition = position.clone();
-
-          nextPosition[axis] = toFixedStep(position[axis] + delta);
-          editStaticRigidBody(obstacleEntity, () => {
-            obstacleEntity.setPosition(nextPosition);
-          });
-          syncObstacleCollision(
-            selectedEditableObjectId as ObstacleObjectId,
-            nextPosition,
+      editStaticRigidBody(entity, () => {
+        if (transform.position) {
+          entity.setPosition(
+            transform.position.x,
+            transform.position.y,
+            transform.position.z,
           );
         }
-      } else {
-        if (axis === "y") {
-          syncSelectedPosition();
-          updateSelectionMarker();
-          activeCanvas.focus();
-          return;
-        }
-
-        currentStartPosition[axis] = toFixedStep(
-          currentStartPosition[axis] + delta,
-        );
-        startMarker.setPosition(
-          currentStartPosition.x,
-          currentStartPosition.y + 0.14,
-          currentStartPosition.z,
-        );
-        setStartPosition({
-          x: toFixedStep(currentStartPosition.x),
-          z: toFixedStep(currentStartPosition.z),
-        });
-
-        if (isEditorMode) {
-          editorCamera.pivot.set(
-            currentStartPosition.x,
-            currentStartPosition.y,
-            currentStartPosition.z,
+        if (transform.rotation) {
+          entity.setEulerAngles(
+            transform.rotation.x,
+            transform.rotation.y,
+            transform.rotation.z,
           );
-          updateEditorCamera();
         }
-      }
-
-      syncSelectedPosition();
-      updateSelectionMarker();
-      activeCanvas.focus();
-    }
-
-    function worldToCanvasPoint(worldPosition: pc.Vec3) {
-      const cameraComponent = camera.camera;
-
-      if (!cameraComponent) {
-        return null;
-      }
-
-      const rect = activeCanvas.getBoundingClientRect();
-      const screenPosition = cameraComponent.worldToScreen(worldPosition);
-
-      return {
-        x: screenPosition.x / (activeCanvas.width / rect.width),
-        y: screenPosition.y / (activeCanvas.height / rect.height),
-      };
-    }
-
-    function pickTranslateGizmo(event: PointerEvent) {
-      if (!isEditorMode) {
-        return null;
-      }
-
-      const rect = activeCanvas.getBoundingClientRect();
-      const pointerX = event.clientX - rect.left;
-      const pointerY = event.clientY - rect.top;
-      const origin = translateGizmo.getPosition();
-      const samplePoints: Record<TransformAxis, pc.Vec3[]> = {
-        x: [origin.clone().add(new pc.Vec3(TRANSLATE_GIZMO_HEAD_OFFSET, 0, 0))],
-        y: [origin.clone().add(new pc.Vec3(0, TRANSLATE_GIZMO_HEAD_OFFSET, 0))],
-        z: [origin.clone().add(new pc.Vec3(0, 0, TRANSLATE_GIZMO_HEAD_OFFSET))],
-      };
-      let closestAxis: TransformAxis | null = null;
-      let closestDistance = Number.POSITIVE_INFINITY;
-
-      (["x", "y", "z"] satisfies TransformAxis[]).forEach((axis) => {
-        samplePoints[axis].forEach((samplePoint) => {
-          const canvasPoint = worldToCanvasPoint(samplePoint);
-
-          if (!canvasPoint) {
-            return;
-          }
-
-          const distance = Math.hypot(
-            canvasPoint.x - pointerX,
-            canvasPoint.y - pointerY,
-          );
-
-          if (distance < closestDistance) {
-            closestAxis = axis;
-            closestDistance = distance;
-          }
-        });
       });
 
-      if (closestDistance <= TRANSLATE_GIZMO_PICK_RADIUS) {
-        return closestAxis;
-      }
-
-      return null;
-    }
-
-    function getTranslateGizmoScreenPoint(axis: TransformAxis) {
-      return worldToCanvasPoint(
-        translateGizmo
-          .getPosition()
-          .clone()
-          .add(
-            new pc.Vec3(
-              axis === "x" ? TRANSLATE_GIZMO_HEAD_OFFSET : 0,
-              axis === "y" ? TRANSLATE_GIZMO_HEAD_OFFSET : 0,
-              axis === "z" ? TRANSLATE_GIZMO_HEAD_OFFSET : 0,
-            ),
+      if (transform.position) {
+        syncObstacleCollision(
+          objectId,
+          new pc.Vec3(
+            transform.position.x,
+            transform.position.y,
+            transform.position.z,
           ),
-      );
-    }
-
-    function getEditableObjectScreenPoint(objectId: EditableObjectId) {
-      const position = getEditableObjectPosition(objectId);
-
-      return worldToCanvasPoint(
-        new pc.Vec3(
-          position.x,
-          objectId === "kart"
-            ? 0.65
-            : obstacleEntities.has(objectId as ObstacleObjectId)
-              ? position.y + 0.4
-              : 0.2,
-          position.z,
-        ),
-      );
-    }
-
-    function pickEditableObject(event: PointerEvent) {
-      const rect = activeCanvas.getBoundingClientRect();
-      const pointerX = event.clientX - rect.left;
-      const pointerY = event.clientY - rect.top;
-      const screenDistances = new Map<EditableObjectId, number>();
-
-      ([
-        "kart",
-        "obstacle-barrel-a",
-        "obstacle-barrel-b",
-        "start-position",
-      ] satisfies EditableObjectId[]).forEach((id) => {
-        const objectPosition = getEditableObjectPosition(id);
-        const worldPosition = new pc.Vec3(
-          objectPosition.x,
-          id === "kart"
-            ? 0.65
-            : obstacleEntities.has(id as ObstacleObjectId)
-              ? objectPosition.y + 0.4
-              : 0.2,
-          objectPosition.z,
         );
-        const canvasPoint = worldToCanvasPoint(worldPosition);
-
-        if (!canvasPoint) {
-          return;
-        }
-
-        screenDistances.set(
-          id,
-          Math.hypot(canvasPoint.x - pointerX, canvasPoint.y - pointerY),
-        );
-      });
-
-      if ((screenDistances.get("kart") ?? Number.POSITIVE_INFINITY) <= 42) {
-        return "kart";
       }
-
-      const obstacleHit = ([
-        "obstacle-barrel-a",
-        "obstacle-barrel-b",
-      ] satisfies ObstacleObjectId[]).find((id) => {
-        const collisionObstacle = collisionObstacles.find(
-          (obstacle) => obstacle.id === id,
-        );
-        const pickRadius = collisionObstacle
-          ? clamp(collisionObstacle.radius * 42, 38, 58)
-          : 44;
-
-        return (
-          (screenDistances.get(id) ?? Number.POSITIVE_INFINITY) <= pickRadius
-        );
-      });
-
-      if (obstacleHit) {
-        return obstacleHit;
-      }
-
-      if (
-        (screenDistances.get("start-position") ?? Number.POSITIVE_INFINITY) <=
-        78
-      ) {
-        return "start-position";
-      }
-
-      return null;
-    }
-
-    function getEditorForward() {
-      const yawRadians = (editorCamera.yaw * Math.PI) / 180;
-
-      return new pc.Vec3(Math.sin(yawRadians), 0, Math.cos(yawRadians))
-        .normalize();
-    }
-
-    function getEditorRight() {
-      const forward = getEditorForward();
-
-      return new pc.Vec3(forward.z, 0, -forward.x).normalize();
-    }
-
-    function updateEditorCamera() {
-      const yawRadians = (editorCamera.yaw * Math.PI) / 180;
-      const pitchRadians = (editorCamera.pitch * Math.PI) / 180;
-      const horizontalDistance =
-        Math.cos(pitchRadians) * editorCamera.distance;
-      const position = new pc.Vec3(
-        editorCamera.pivot.x + Math.sin(yawRadians) * horizontalDistance,
-        editorCamera.pivot.y + Math.sin(pitchRadians) * editorCamera.distance,
-        editorCamera.pivot.z + Math.cos(yawRadians) * horizontalDistance,
-      );
-
-      camera.setPosition(position);
-      camera.lookAt(editorCamera.pivot.x, 0, editorCamera.pivot.z);
-    }
-
-    function frameStartPosition() {
-      editorCamera.pivot.set(
-        currentStartPosition.x,
-        currentStartPosition.y,
-        currentStartPosition.z,
-      );
-      editorCamera.distance = EDITOR_CAMERA_START_DISTANCE;
-      editorCamera.pitch = 68;
-      updateEditorCamera();
-    }
-
-    function panEditorCamera(xDelta: number, zDelta: number) {
-      const right = getEditorRight().mulScalar(xDelta);
-      const forward = getEditorForward().mulScalar(zDelta);
-
-      editorCamera.pivot.add(right).add(forward);
-      updateEditorCamera();
     }
 
     function resetKart() {
-      const resetRotation =
-        editableObjectQuaternions.get("start-position")?.clone() ??
-        new pc.Quat().setFromEulerAngles(
-          currentStartRotation.x,
-          currentStartRotation.y,
-          currentStartRotation.z,
-        );
+      const resetRotation = new pc.Quat().setFromEulerAngles(
+        currentStartRotation.x,
+        currentStartRotation.y,
+        currentStartRotation.z,
+      );
       const resetPosition = getKartRootPosition(
         new pc.Vec3(
           currentStartPosition.x,
@@ -1445,31 +822,18 @@ export function SoloTimeTrialCanvas({ onExit }: SoloTimeTrialCanvasProps) {
         resetRotation,
       );
 
-      if (isEditorMode) {
-        kart.setPosition(resetPosition);
-        kart.setRotation(resetRotation);
-        editableObjectRotations.set("kart", currentStartRotation.clone());
-        editableObjectQuaternions.set("kart", resetRotation.clone());
-      } else {
-        kart.rigidbody?.teleport(resetPosition, resetRotation);
-      }
-
+      kart.rigidbody?.teleport(resetPosition, resetRotation);
       kartController.reset();
       snapKartPresentationState();
       latestCameraImpact = null;
       keyboardInput.clear();
-      if (isEditorMode) {
-        frameStartPosition();
-        syncSelectedPosition();
-        syncSelectedRotation();
-        updateSelectionMarker();
-      } else {
-        chaseCamera.snap(getChaseCameraSnapshot(dynamicWheels.length));
-      }
+      chaseCamera.snap(getChaseCameraSnapshot(dynamicWheels.length));
       activeCanvas.focus();
     }
 
-    function setSceneStartPosition(nextStartPosition: StartPosition) {
+    function setSceneStartPosition(
+      nextStartPosition: Pick<Position3, "x" | "z">,
+    ) {
       currentStartPosition.set(
         nextStartPosition.x,
         currentStartPosition.y,
@@ -1480,52 +844,6 @@ export function SoloTimeTrialCanvas({ onExit }: SoloTimeTrialCanvasProps) {
         currentStartPosition.y + 0.14,
         currentStartPosition.z,
       );
-      if (selectedEditableObjectId === "start-position") {
-        syncSelectedPosition("start-position");
-      }
-      updateSelectionMarker();
-
-      if (isEditorMode) {
-        frameStartPosition();
-      }
-    }
-
-    function setEditorMode(nextEditorMode: boolean) {
-      isEditorMode = nextEditorMode;
-      kartController.reset();
-      latestCameraImpact = null;
-      keyboardInput.clear();
-
-      if (isEditorMode) {
-        editableObjectRotations.set("kart", kart.getEulerAngles().clone());
-        editableObjectQuaternions.set("kart", kart.getRotation().clone());
-        if (kart.rigidbody) {
-          kart.rigidbody.type = pc.BODYTYPE_KINEMATIC;
-          kart.rigidbody.group = PHYSICS_GROUP.kart;
-          kart.rigidbody.mask = PHYSICS_MASK.kart;
-        }
-        frameStartPosition();
-        updateSelectionMarker();
-      } else {
-        if (kart.rigidbody) {
-          const editedPosition = kart.getPosition().clone();
-          const editedRotation = kart.getRotation().clone();
-
-          kart.rigidbody.type = pc.BODYTYPE_DYNAMIC;
-          kart.rigidbody.group = PHYSICS_GROUP.kart;
-          kart.rigidbody.mask = PHYSICS_MASK.kart;
-          setExplicitRigidBodyInertia(kart, KART_MASS, KART_INERTIA);
-          configureRigidBodyCcd(kart, KART_CCD_CONFIGURATION);
-          kart.rigidbody.teleport(editedPosition, editedRotation);
-          kartController.reset();
-          snapKartPresentationState();
-        }
-        activeEditorDrag = null;
-        updateSelectionMarker();
-        chaseCamera.snap(getChaseCameraSnapshot(dynamicWheels.length));
-      }
-
-      activeCanvas.focus();
     }
 
     function collidesWithObstacle(position: pc.Vec3) {
@@ -1720,133 +1038,26 @@ export function SoloTimeTrialCanvas({ onExit }: SoloTimeTrialCanvasProps) {
       });
     }
 
-    function setSceneMovementTuning(nextMovementTuning: KartMovementTuning) {
-      activeMovementTuning = { ...nextMovementTuning };
+    function setSceneMovementTuning(
+      nextMovementTuning: Partial<KartMovementTuning>,
+    ) {
+      activeMovementTuning = {
+        ...activeMovementTuning,
+        ...nextMovementTuning,
+      };
       kartController.setTuning(activeMovementTuning);
       activeCanvas.focus();
     }
 
+    const keyboardInput = new KeyboardInput(window, resetKart);
+    keyboardInput.attach();
+    runtime.addCleanup(() => keyboardInput.detach());
+
     sceneApiRef.current = {
-      getEditableObjectScreenPoint,
-      getTranslateGizmoScreenPoint,
-      rotateSelected,
-      resetKart,
-      setEditorMode,
-      setMovementTuning: setSceneMovementTuning,
       setPaused: (paused) => {
         keyboardInput.clear();
         runtime.setPaused(paused);
       },
-      setStartPosition: setSceneStartPosition,
-      translateSelected,
-    };
-
-    const keyboardInput = new KeyboardInput(
-      window,
-      resetKart,
-      frameStartPosition,
-      () => isEditorMode,
-    );
-    keyboardInput.attach();
-    runtime.addCleanup(() => keyboardInput.detach());
-
-    const onContextMenu = (event: MouseEvent) => {
-      if (isEditorMode) {
-        event.preventDefault();
-      }
-    };
-
-    const onPointerDown = (event: PointerEvent) => {
-      if (!isEditorMode) {
-        return;
-      }
-
-      if (event.button === 2) {
-        activeEditorDrag = {
-          mode: "orbit",
-          pointerId: event.pointerId,
-          x: event.clientX,
-          y: event.clientY,
-        };
-      } else if (event.button === 1 || (event.button === 0 && event.shiftKey)) {
-        activeEditorDrag = {
-          mode: "pan",
-          pointerId: event.pointerId,
-          x: event.clientX,
-          y: event.clientY,
-        };
-      } else {
-        const pickedGizmoAxis = pickTranslateGizmo(event);
-
-        if (pickedGizmoAxis) {
-          translateSelected(pickedGizmoAxis, EDITOR_TRANSLATE_STEP);
-          event.preventDefault();
-          activeCanvas.focus();
-          return;
-        }
-
-        const pickedObjectId = pickEditableObject(event);
-
-        if (pickedObjectId) {
-          selectEditableObject(pickedObjectId);
-        }
-
-        event.preventDefault();
-        activeCanvas.focus();
-        return;
-      }
-
-      event.preventDefault();
-      activeCanvas.setPointerCapture(event.pointerId);
-      activeCanvas.focus();
-    };
-
-    const onPointerMove = (event: PointerEvent) => {
-      if (!activeEditorDrag || activeEditorDrag.pointerId !== event.pointerId) {
-        return;
-      }
-
-      const xDelta = event.clientX - activeEditorDrag.x;
-      const yDelta = event.clientY - activeEditorDrag.y;
-      activeEditorDrag.x = event.clientX;
-      activeEditorDrag.y = event.clientY;
-
-      if (activeEditorDrag.mode === "orbit") {
-        editorCamera.yaw -= xDelta * EDITOR_CAMERA_ORBIT_SPEED;
-        editorCamera.pitch = clamp(
-          editorCamera.pitch + yDelta * EDITOR_CAMERA_ORBIT_SPEED,
-          35,
-          86,
-        );
-        updateEditorCamera();
-      } else {
-        const panScale =
-          editorCamera.distance * EDITOR_CAMERA_PAN_PIXEL_SCALE;
-        panEditorCamera(-xDelta * panScale, -yDelta * panScale);
-      }
-    };
-
-    const onPointerUp = (event: PointerEvent) => {
-      if (!activeEditorDrag || activeEditorDrag.pointerId !== event.pointerId) {
-        return;
-      }
-
-      activeEditorDrag = null;
-      activeCanvas.releasePointerCapture(event.pointerId);
-    };
-
-    const onWheel = (event: WheelEvent) => {
-      if (!isEditorMode) {
-        return;
-      }
-
-      event.preventDefault();
-      editorCamera.distance = clamp(
-        editorCamera.distance + event.deltaY * 0.01,
-        EDITOR_CAMERA_MIN_DISTANCE,
-        EDITOR_CAMERA_MAX_DISTANCE,
-      );
-      updateEditorCamera();
     };
 
     const getCollisionDebugState = () => {
@@ -2109,24 +1320,34 @@ export function SoloTimeTrialCanvas({ onExit }: SoloTimeTrialCanvasProps) {
       );
     };
 
-    runtime.listen(activeCanvas, "contextmenu", onContextMenu);
-    runtime.listen(activeCanvas, "pointerdown", onPointerDown);
-    runtime.listen(activeCanvas, "pointermove", onPointerMove);
-    runtime.listen(activeCanvas, "pointerup", onPointerUp);
-    runtime.listen(activeCanvas, "pointercancel", onPointerUp);
-    runtime.listen(activeCanvas, "wheel", onWheel, { passive: false });
+    const getKartScreenPoint = () => {
+      if (!camera.camera) {
+        return null;
+      }
+      const rect = activeCanvas.getBoundingClientRect();
+      const screenPosition = camera.camera.worldToScreen(
+        kartVisual.getPosition(),
+      );
+      return {
+        x: screenPosition.x / (activeCanvas.width / rect.width),
+        y: screenPosition.y / (activeCanvas.height / rect.height),
+      };
+    };
+
     const detachSceneTestAdapter = ENABLE_SCENE_TEST_HOOKS
       ? attachSceneTestAdapter(activeCanvas, {
           getCameraDebugState: () => chaseCamera.getDiagnostics(),
           getCollisionDebugState,
           getCollisionResponseDebugState,
-          getEditableObjectPoint: getEditableObjectScreenPoint,
           getKartDebugState,
+          getKartScreenPoint,
           getPresentationDebugState,
           getSuspensionDebugState,
-          getTranslateGizmoPoint: getTranslateGizmoScreenPoint,
+          setCourseObjectDebugTransform,
           setKartDebugPose,
+          setKartMovementTuning: setSceneMovementTuning,
           setSimulationPaused: (paused) => runtime.setPaused(paused),
+          setStartPosition: setSceneStartPosition,
           stepSimulation: (steps) => runtime.stepFixed(steps),
         })
       : () => undefined;
@@ -2137,9 +1358,7 @@ export function SoloTimeTrialCanvas({ onExit }: SoloTimeTrialCanvasProps) {
     runtime.onFixedStep((dt) => {
       collisionObserver.beginStep();
 
-      if (!isEditorMode) {
-        kartController.update(keyboardInput.getDrivingInput(), dt);
-      }
+      kartController.update(keyboardInput.getDrivingInput(), dt);
     });
 
     runtime.onPostFixedStep((dt) => {
@@ -2147,9 +1366,7 @@ export function SoloTimeTrialCanvas({ onExit }: SoloTimeTrialCanvasProps) {
       captureCollisionMetrics();
       captureCameraImpact();
 
-      if (!isEditorMode) {
-        kartController.postUpdate(keyboardInput.getDrivingInput(), dt);
-      }
+      kartController.postUpdate(keyboardInput.getDrivingInput(), dt);
     });
 
     runtime.onRender(({ accumulatorFraction, frameSeconds }) => {
@@ -2172,13 +1389,11 @@ export function SoloTimeTrialCanvas({ onExit }: SoloTimeTrialCanvasProps) {
       kartVisual.setRotation(interpolatedKartRotation);
       renderWheelPresentation(accumulatorFraction);
 
-      if (!isEditorMode) {
-        chaseCamera.update(frameSeconds, getChaseCameraSnapshot());
-        latestCameraImpact = null;
-      }
+      chaseCamera.update(frameSeconds, getChaseCameraSnapshot());
+      latestCameraImpact = null;
     });
 
-    app.on("update", (dt) => {
+    app.on("update", () => {
       captureKartPresentationState();
       captureWheelPresentationState();
       suspensionMetrics.maximumCompression = Math.max(
@@ -2200,41 +1415,12 @@ export function SoloTimeTrialCanvas({ onExit }: SoloTimeTrialCanvasProps) {
         kartVisual.getPosition().y - 0.26,
       );
 
-      if (isEditorMode) {
-        const editorMovement = keyboardInput.getEditorMovement();
-        const moveSpeed =
-          EDITOR_CAMERA_PAN_SPEED *
-          (editorMovement.fast ? EDITOR_CAMERA_FAST_MULTIPLIER : 1);
-        const lateralDirection = editorMovement.lateral;
-        const forwardDirection = editorMovement.forward;
-
-        if (lateralDirection !== 0 || forwardDirection !== 0) {
-          panEditorCamera(
-            lateralDirection * moveSpeed * dt,
-            forwardDirection * moveSpeed * dt,
-          );
-        }
-
-        return;
-      }
-
-      const drivingInput = keyboardInput.getDrivingInput();
-      const turnDirection = drivingInput.steer;
-
-      if (turnDirection !== 0) {
-        updateSelectionMarker();
-      }
-
     });
-
-      if (editorOpenRef.current) {
-        setEditorMode(true);
-      }
 
       runtime.start();
       activeCanvas.dataset.sceneReady = "true";
       setSceneStatus("ready");
-      setDriveCursorHidden(!editorOpenRef.current);
+      setDriveCursorHidden(true);
       runtime.addCleanup(() => {
         delete activeCanvas.dataset.sceneReady;
       });
@@ -2263,72 +1449,10 @@ export function SoloTimeTrialCanvas({ onExit }: SoloTimeTrialCanvasProps) {
       sceneApiRef.current = null;
       activeRuntime?.destroy();
     };
-  }, []);
+  }, [COURSE_DOCUMENT, START_POSITION, START_ROTATION]);
 
-  function updateStartPosition(nextStartPosition: StartPosition) {
-    setStartPosition(nextStartPosition);
-    sceneApiRef.current?.setStartPosition(nextStartPosition);
-  }
-
-  function updateMovementTuning(
-    key: KartMovementTuningKey,
-    nextValue: number,
-  ) {
-    const safeNextValue = Number.isFinite(nextValue)
-      ? Math.max(nextValue, KART_MOVEMENT_TUNING_MINIMUMS[key])
-      : KART_MOVEMENT_TUNING_MINIMUMS[key];
-
-    setMovementTuning((currentMovementTuning) => {
-      const nextMovementTuning = {
-        ...currentMovementTuning,
-        [key]: safeNextValue,
-      };
-
-      sceneApiRef.current?.setMovementTuning(nextMovementTuning);
-
-      return nextMovementTuning;
-    });
-  }
-
-  function resetMovementTuning() {
-    setMovementTuning(DEFAULT_KART_MOVEMENT_TUNING);
-    sceneApiRef.current?.setMovementTuning(DEFAULT_KART_MOVEMENT_TUNING);
-  }
-
-  function nudgeStartPosition(xDelta: number, zDelta: number) {
-    updateStartPosition({
-      x: toFixedStep(startPosition.x + xDelta),
-      z: toFixedStep(startPosition.z + zDelta),
-    });
-  }
-
-  function translateSelected(axis: TransformAxis, delta: number) {
-    sceneApiRef.current?.translateSelected(axis, delta);
-  }
-
-  function rotateSelected(axis: TransformAxis, delta: number) {
-    sceneApiRef.current?.rotateSelected(axis, delta);
-  }
-
-  function resetKart() {
-    sceneApiRef.current?.resetKart();
-  }
-
-  function openEditorFromPause() {
-    editorOpenRef.current = true;
-    sceneApiRef.current?.setEditorMode(true);
-    sceneApiRef.current?.setPaused(false);
-    setGamePaused(false);
-    setEditorOpen(true);
-    setDriveCursorHidden(false);
-    canvasRef.current?.focus();
-  }
-
-  function closeEditorToPause() {
-    editorOpenRef.current = false;
-    sceneApiRef.current?.setEditorMode(false);
+  function pauseRace() {
     sceneApiRef.current?.setPaused(true);
-    setEditorOpen(false);
     setGamePaused(true);
     setDriveCursorHidden(false);
   }
@@ -2337,7 +1461,30 @@ export function SoloTimeTrialCanvas({ onExit }: SoloTimeTrialCanvasProps) {
     sceneApiRef.current?.setPaused(false);
     setGamePaused(false);
     setDriveCursorHidden(true);
-    canvasRef.current?.focus();
+    requestAnimationFrame(() => canvasRef.current?.focus());
+  }
+
+  function handlePauseDialogKeyDown(event: ReactKeyboardEvent<HTMLDivElement>) {
+    if (event.key !== "Tab") {
+      return;
+    }
+    const buttons = Array.from(
+      event.currentTarget.querySelectorAll<HTMLButtonElement>(
+        "button:not(:disabled)",
+      ),
+    );
+    const first = buttons[0];
+    const last = buttons.at(-1);
+    if (!first || !last) {
+      return;
+    }
+    if (event.shiftKey && window.document.activeElement === first) {
+      event.preventDefault();
+      last.focus();
+    } else if (!event.shiftKey && window.document.activeElement === last) {
+      event.preventDefault();
+      first.focus();
+    }
   }
 
   return (
@@ -2346,11 +1493,11 @@ export function SoloTimeTrialCanvas({ onExit }: SoloTimeTrialCanvasProps) {
         ref={canvasRef}
         id="application"
         data-testid="solo-time-trial-canvas"
-        aria-label="Solo Time Trial PlayCanvas test"
+        aria-label="Solo Time Trial race"
+        inert={gamePaused}
         tabIndex={0}
         className={`block h-[100dvh] w-[100dvw] ${
           driveCursorHidden &&
-          !editorOpen &&
           !gamePaused &&
           sceneStatus === "ready"
             ? "cursor-none"
@@ -2358,75 +1505,48 @@ export function SoloTimeTrialCanvas({ onExit }: SoloTimeTrialCanvasProps) {
         }`}
         onBlur={() => setDriveCursorHidden(false)}
         onFocus={() => {
-          setDriveCursorHidden(
-            !editorOpenRef.current &&
-              !gamePaused &&
-              sceneStatus === "ready",
-          );
+          setDriveCursorHidden(!gamePaused && sceneStatus === "ready");
         }}
         onPointerEnter={() => {
-          setDriveCursorHidden(
-            !editorOpenRef.current &&
-              !gamePaused &&
-              sceneStatus === "ready",
-          );
+          setDriveCursorHidden(!gamePaused && sceneStatus === "ready");
         }}
         onPointerLeave={() => setDriveCursorHidden(false)}
         onPointerMove={() => {
-          if (
-            !editorOpenRef.current &&
-            !gamePaused &&
-            sceneStatus === "ready"
-          ) {
+          if (!gamePaused && sceneStatus === "ready") {
             setDriveCursorHidden(true);
           }
         }}
       />
       {sceneStatus === "ready" ? (
         <>
-          {editorOpen ? (
-            <LiteEditorPanel
-          editorOpen={editorOpen}
-          movementTuning={movementTuning}
-          onMovementTuningChange={updateMovementTuning}
-          onMovementTuningReset={resetMovementTuning}
-          onResetKart={resetKart}
-          onRotateSelected={rotateSelected}
-          onStartPositionChange={updateStartPosition}
-          onStartPositionNudge={nudgeStartPosition}
-          onToggleEditor={closeEditorToPause}
-          onTranslateSelected={translateSelected}
-          selectedObjectId={selectedObjectId}
-          selectedPosition={selectedPosition}
-          selectedRotation={selectedRotation}
-          startPosition={startPosition}
-            />
-          ) : null}
-          {gamePaused && !editorOpen ? (
-            <div className="absolute inset-0 z-30 grid place-items-center bg-titan-black/72 px-6 text-center font-mono text-titan-ice backdrop-blur-sm">
+          {gamePaused ? (
+            <div
+              aria-labelledby="pause-dialog-title"
+              aria-modal="true"
+              className="absolute inset-0 z-30 grid place-items-center bg-titan-black/72 px-6 text-center font-mono text-titan-ice backdrop-blur-sm"
+              role="dialog"
+              onKeyDown={handlePauseDialogKeyDown}
+            >
               <div className="grid w-full max-w-sm gap-5 border border-titan-ice/20 bg-titan-black/94 p-7 shadow-[0_24px_90px_rgb(0_0_0/0.6)]">
                 <div className="grid gap-2">
-                  <p className="text-xs font-bold uppercase tracking-[0.2em] text-titan-hazard">
+                  <p
+                    className="text-xs font-bold uppercase tracking-[0.2em] text-titan-hazard"
+                    id="pause-dialog-title"
+                  >
                     Paused
                   </p>
                   <p className="text-sm text-titan-ice/70">
-                    Press Esc to resume
+                    Resume when you&apos;re ready
                   </p>
                 </div>
                 <div className="grid gap-3">
                   <button
                     type="button"
                     className="titan-button titan-button-primary"
+                    ref={resumeButtonRef}
                     onClick={resumeRace}
                   >
                     Resume
-                  </button>
-                  <button
-                    type="button"
-                    className="titan-button titan-button-secondary"
-                    onClick={openEditorFromPause}
-                  >
-                    Edit
                   </button>
                   <button
                     type="button"
@@ -2439,10 +1559,20 @@ export function SoloTimeTrialCanvas({ onExit }: SoloTimeTrialCanvasProps) {
               </div>
             </div>
           ) : null}
-          {!editorOpen && !gamePaused ? (
-            <div className="pointer-events-none absolute bottom-4 right-4 z-10 font-mono text-[0.68rem] font-bold uppercase tracking-[0.14em] text-titan-ice/55">
-              Esc · Pause
-            </div>
+          {!gamePaused ? (
+            <>
+              <button
+                aria-label="Pause race"
+                className="race-pause-button absolute right-[max(1rem,env(safe-area-inset-right))] top-[max(1rem,env(safe-area-inset-top))] z-20 min-h-11 items-center border border-titan-ice/28 bg-titan-black/82 px-4 font-mono text-[0.68rem] font-bold uppercase tracking-[0.14em] text-titan-ice/86 backdrop-blur hover:border-titan-hazard hover:text-titan-hazard focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-titan-hazard"
+                type="button"
+                onClick={pauseRace}
+              >
+                Pause
+              </button>
+              <div className="pointer-events-none absolute bottom-4 right-4 z-10 hidden font-mono text-[0.68rem] font-bold uppercase tracking-[0.14em] text-titan-ice/55 lg:block">
+                Esc · Pause
+              </div>
+            </>
           ) : null}
         </>
       ) : (

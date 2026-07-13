@@ -10,9 +10,6 @@ const HANDLED_KEYS = new Set([
   "KeyS",
   "KeyD",
   "KeyR",
-  "KeyF",
-  "ShiftLeft",
-  "ShiftRight",
 ]);
 
 export class KeyboardInput {
@@ -21,8 +18,6 @@ export class KeyboardInput {
   constructor(
     private readonly target: Window,
     private readonly onReset: () => void,
-    private readonly onFrameEditorSelection: () => void,
-    private readonly isEditorMode: () => boolean,
   ) {}
 
   attach() {
@@ -55,18 +50,6 @@ export class KeyboardInput {
     };
   }
 
-  getEditorMovement() {
-    return {
-      fast: this.hasAny("ShiftLeft", "ShiftRight"),
-      lateral:
-        Number(this.hasAny("ArrowRight", "KeyD")) -
-        Number(this.hasAny("ArrowLeft", "KeyA")),
-      forward:
-        Number(this.hasAny("ArrowUp", "KeyW")) -
-        Number(this.hasAny("ArrowDown", "KeyS")),
-    };
-  }
-
   private hasAny(...keys: string[]) {
     return keys.some((key) => this.pressedKeys.has(key));
   }
@@ -80,11 +63,6 @@ export class KeyboardInput {
 
     if (event.code === "KeyR") {
       this.onReset();
-      return;
-    }
-
-    if (event.code === "KeyF" && this.isEditorMode()) {
-      this.onFrameEditorSelection();
       return;
     }
 

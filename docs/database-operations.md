@@ -29,6 +29,12 @@ corepack pnpm db:check
 Generated SQL and Drizzle metadata are version-controlled and reviewed. Do not
 use `drizzle-kit push` against shared or production databases.
 
+Course publication adds an append-only `course_publications` table with a
+database-level immutable trigger and a composite reference to an existing saved
+course revision. Apply and rehearse that migration through the same reviewed
+workflow; do not manually update publication history or simulate publishing by
+changing draft rows.
+
 ## Google OAuth
 
 Create a Google OAuth web client and configure these redirect URIs:
@@ -92,6 +98,30 @@ baseline player role remain so immutable course revisions keep referential
 integrity. The supplied email and real profile values are never written to
 documentation or logs.
 
+## Permanent Sandbox Course Reset
+
+`rough-course` is the permanent authoring and regression sandbox. It remains
+separate from the future official `agricultural-zone` course so editor, physics,
+collision, camera, and recovery fixtures never need to be embedded in the
+player-facing track.
+
+From a trusted machine, restore the sandbox to the validated source-controlled
+seed with an existing application admin identity:
+
+```bash
+corepack pnpm db:reset-sandbox-course \
+  --email operator@example.com \
+  --confirm rough-course
+```
+
+The explicit course-ID confirmation guards the destructive product intent. The
+operation does not delete or rewrite immutable history: it validates the seed
+and appends it as the next attributed draft revision using optimistic
+concurrency. It fails if another author advances the sandbox during the reset.
+The command uses `DATABASE_URL`, so confirm which database that variable targets
+before running it. The supplied email is used only for the credentialed admin
+lookup and is never logged or stored in configuration.
+
 ## Production Migration And Preview Policy
 
 For the current early demo, the hosted preview may use the production Neon
@@ -120,7 +150,7 @@ Application traffic uses the pooled Neon `DATABASE_URL`. The direct migration
 credential should not be present in the application runtime when the hosting
 platform can keep deployment credentials separate.
 
-Ordinary `db:generate`, `db:check`, and `db:migrate` commands intentionally read
-only `DATABASE_URL`; they never fall back to `DATABASE_MIGRATION_URL`. The
-production credential is consumed only by the explicitly named
-`db:migrate:production` script.
+Ordinary `db:generate`, `db:check`, `db:migrate`, and sandbox-reset commands
+intentionally read only `DATABASE_URL`; they never fall back to
+`DATABASE_MIGRATION_URL`. The production credential is consumed only by the
+explicitly named `db:migrate:production` script.

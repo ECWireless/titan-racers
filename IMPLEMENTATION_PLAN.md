@@ -524,23 +524,42 @@ course-authoring experience.
 
 ##### PR 3C: Protected Course Editor
 
-- [ ] replace the development-only Lite Editor with a protected admin course
+- [x] replace the development-only Lite Editor with a protected admin course
       editor and login/access experience,
-- [ ] provide an add-object palette of approved course presets such as blocks,
+- [x] provide an add-object palette of approved course presets such as blocks,
       barriers, barrels, ramps, and platforms, backed by the bounded primitive
       course-object contract rather than special engine-only objects,
-- [ ] establish selection, transform, placement, and deletion behavior for the
+- [x] establish selection, transform, placement, and deletion behavior for the
       approved editable object types,
-- [ ] establish start placement and ordered checkpoint authoring,
-- [ ] visualize the authoritative collision shapes without creating a second
+- [x] establish start placement and ordered checkpoint authoring,
+- [x] visualize the authoritative collision shapes without creating a second
       collision-geometry model,
-- [ ] expose basic course-level ambient, sun, and optional fill-light controls
+- [x] expose basic course-level ambient, sun, and optional fill-light controls
       for color, intensity, direction, and bounded shadow quality, with a reset
       to the loaded lighting setup,
-- [ ] implement command-based undo/redo, reset-to-loaded-revision, dirty-state,
-      save, reload, and portable export behavior,
-- [ ] verify desktop and narrow-screen authoring workflows without changing
+- [x] implement command-based undo/redo, revert-to-loaded-draft, dirty-state,
+      conflict-safe draft saving, latest-draft recovery, and a secondary
+      portable backup download,
+- [x] verify desktop and narrow-screen authoring workflows without changing
       ordinary guest racing access.
+
+Complete protected course tooling through three separately QA-reviewed final
+slices. First finish private draft persistence and bounded lighting authoring.
+Then add an explicit preview/publish boundary: saved drafts remain private,
+publishing appends one attributed concurrency-safe event that promotes a
+validated saved revision, the editor identifies both draft and published state,
+and guest racing reads only the latest publication for its explicitly configured
+course ID. Finally remove the
+development-only Lite Editor after the protected draft and publishing paths can
+replace it without losing required test fixtures. Revision history/restore,
+real-time collaboration, and automatic multi-author merging remain later
+production-tooling work.
+
+Keep `rough-course` as the permanent editor, physics, collision, camera, and
+recovery sandbox with a guarded seed-restore operation that appends an immutable
+revision. Author the official Agricultural Zone under the separate stable course
+ID `agricultural-zone`; publishing and guest runtime selection must never
+conflate the sandbox head with the official live track.
 
 #### PR 4: Rough Race Loop
 

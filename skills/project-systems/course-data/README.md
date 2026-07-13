@@ -31,24 +31,30 @@ editor commands, persistence UI, or the future add-object palette.
 - `src/game/course/course-document.ts` defines the strict Zod version-one
   schema, cross-document ID and checkpoint-order refinements, canonical sorting,
   parsing, serialization, inferred TypeScript types, and validated seed export.
+- `src/game/course/course-ids.ts` keeps permanent sandbox, future official, and
+  current guest-runtime course selection explicit; `course-publication.ts`
+  validates protected publication and privacy-minimized public runtime shapes.
 - `src/game/course/rough-course.v1.json` is the canonical portable rough-course
-  seed. It contains the start, six inactive ordered checkpoints, ordinary
-  surfaces and objects, camera fixtures, and opt-in collision fixtures.
+  sandbox seed. It contains the start, six inactive ordered checkpoints,
+  ordinary surfaces and objects, camera fixtures, and opt-in collision fixtures.
+  It permanently restores only course ID `rough-course`; the official future
+  Agricultural Zone document uses the distinct ID `agricultural-zone`.
 - `src/game/course/build-rough-course.ts` projects a validated document into
   PlayCanvas visual, collision, rigid-body, tag, group, and mask state. It
-  returns stable-ID entity maps plus the retained transitional lookups consumed
-  by the Lite Editor and test adapter.
+  returns stable-ID entity maps plus two explicit sandbox obstacle lookups used
+  by reset-clearance checks and the non-production scene test adapter.
 - `src/game/course/build-course-lighting.ts` projects bounded ambient and
   directional-light records into PlayCanvas scene state and fixed shadow
   presets.
 - `src/components/solo-time-trial-canvas.tsx` reads the validated start transform,
-  passes repository-owned material instances to the builder, and keeps the
-  existing editor/runtime behavior unchanged.
+  accepts a validated course document, passes repository-owned material
+  instances to the builder, and projects the same published document through
+  course geometry, start, collision, and lighting construction.
 - `tests/course-document.spec.ts` owns schema, seed, catalog, stable-ID,
   checkpoint-order, canonical round-trip, invalid-input, and retained-geometry
   assertions.
 - `tests/home.spec.ts` verifies runtime construction and all retained gameplay,
-  collision, camera, editor, and supported-viewport behavior.
+  collision, camera, pause, test-adapter, and supported-viewport behavior.
 
 ## Document Contract
 
@@ -108,8 +114,8 @@ silently stripped. The complete document validates before scene construction.
 - The source seed serializes canonically with lexically sorted object keys,
   retained array order, two-space indentation, and one trailing newline.
 - Parsing and serializing the canonical seed reproduces it byte-for-byte.
-- The accepted course appearance, kart physics, collision, camera, reset, and
-  Lite Editor behavior remain unchanged.
+- The accepted course appearance, kart physics, collision, camera, and reset
+  behavior remain unchanged while authoring lives only in the protected editor.
 - Lighting is bounded to ambient plus two directional lights and four shadow
   presets; raw renderer tuning is not portable course data.
 
@@ -123,15 +129,14 @@ silently stripped. The complete document validates before scene construction.
   atomic rollback, and atomic attachment cases.
 - `tests/home.spec.ts`: course entity count, ground collider mapping, semantic
   drivable role, obstacle/ramp registration, complete collision and camera
-  scenarios, start editing, and retained Lite Editor manipulation.
-- Desktop Playwright: 84 passed and one intentional mobile-only skip.
-- Mobile Playwright: 78 passed and seven intentional desktop-editor skips.
+  scenarios, and explicit non-production start/tuning/transform fixtures.
 - `pnpm lint`, `pnpm typecheck`, and `pnpm build` pass.
 
 ## Known Limits And Deferred Work
 
-- The transitional Lite Editor still knows the two barrel IDs explicitly. PR 3C
-  replaces it with document-driven selection and placement.
+- The sandbox runtime test adapter retains two explicit barrel IDs for focused
+  collision-transform fixtures; ordinary authoring uses document-driven stable
+  IDs in the protected editor.
 - Box and cylinder are the only approved primitives. Ramp and later palette
   entries are presets over those primitives rather than new shape kinds.
 - The six checkpoint placements are inactive authoring data until PR 4 validates
@@ -139,6 +144,7 @@ silently stripped. The complete document validates before scene construction.
 - Postgres revisions, Better Auth, application roles, and protected course APIs
   are implemented by the candidate identity-and-course-persistence system.
 - Add-object presets, full selection, collision visualization, undo/redo,
-  reset-to-loaded-revision, save/reload, and export UI belong to PR 3C.
-- Basic ambient and directional-light controls belong to PR 3C. Arbitrary
+  reset-to-loaded-revision, save/reload, publication, and backup download are
+  implemented by the protected course editor.
+- Basic ambient and directional-light controls are implemented. Arbitrary
   placeable lights, skyboxes, fog, and post-processing remain deferred.

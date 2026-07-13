@@ -1,7 +1,7 @@
 import type {
-  EditableObjectId,
+  KartMovementTuning,
+  CourseTestObstacleId,
   Position3,
-  TransformAxis,
 } from "../contracts";
 import type { ChaseCameraDiagnostics } from "../camera/chase-camera";
 
@@ -112,13 +112,18 @@ export type SceneTestApi = {
   getCameraDebugState: () => CameraDebugState;
   getCollisionDebugState: () => CollisionDebugState;
   getCollisionResponseDebugState: () => CollisionResponseDebugState;
-  getEditableObjectPoint: (objectId: EditableObjectId) => CanvasPoint;
   getKartDebugState: () => KartDebugState;
+  getKartScreenPoint: () => CanvasPoint;
   getPresentationDebugState: () => PresentationDebugState;
   getSuspensionDebugState: () => SuspensionDebugState;
-  getTranslateGizmoPoint: (axis: TransformAxis) => CanvasPoint;
+  setCourseObjectDebugTransform: (
+    objectId: CourseTestObstacleId,
+    transform: { position?: Position3; rotation?: Position3 },
+  ) => void;
   setKartDebugPose: (pose: KartDebugPose) => void;
+  setKartMovementTuning: (tuning: Partial<KartMovementTuning>) => void;
   setSimulationPaused: (paused: boolean) => void;
+  setStartPosition: (position: Pick<Position3, "x" | "z">) => void;
   stepSimulation: (steps: number) => void;
 };
 
@@ -133,24 +138,6 @@ export function attachSceneTestAdapter(
         respond: (state: CameraDebugState) => void;
       }>) => {
         event.detail.respond(api.getCameraDebugState());
-      }) as EventListener,
-    ],
-    [
-      "getTranslateGizmoPoint",
-      ((event: CustomEvent<{
-        axis: TransformAxis;
-        respond: (point: CanvasPoint) => void;
-      }>) => {
-        event.detail.respond(api.getTranslateGizmoPoint(event.detail.axis));
-      }) as EventListener,
-    ],
-    [
-      "getEditableObjectPoint",
-      ((event: CustomEvent<{
-        objectId: EditableObjectId;
-        respond: (point: CanvasPoint) => void;
-      }>) => {
-        event.detail.respond(api.getEditableObjectPoint(event.detail.objectId));
       }) as EventListener,
     ],
     [
@@ -175,6 +162,14 @@ export function attachSceneTestAdapter(
         respond: (state: KartDebugState) => void;
       }>) => {
         event.detail.respond(api.getKartDebugState());
+      }) as EventListener,
+    ],
+    [
+      "getKartScreenPoint",
+      ((event: CustomEvent<{
+        respond: (point: CanvasPoint) => void;
+      }>) => {
+        event.detail.respond(api.getKartScreenPoint());
       }) as EventListener,
     ],
     [
@@ -209,6 +204,30 @@ export function attachSceneTestAdapter(
       "setKartDebugPose",
       ((event: CustomEvent<{ pose: KartDebugPose }>) => {
         api.setKartDebugPose(event.detail.pose);
+      }) as EventListener,
+    ],
+    [
+      "setKartMovementTuning",
+      ((event: CustomEvent<{ tuning: Partial<KartMovementTuning> }>) => {
+        api.setKartMovementTuning(event.detail.tuning);
+      }) as EventListener,
+    ],
+    [
+      "setStartPosition",
+      ((event: CustomEvent<{ position: Pick<Position3, "x" | "z"> }>) => {
+        api.setStartPosition(event.detail.position);
+      }) as EventListener,
+    ],
+    [
+      "setCourseObjectDebugTransform",
+      ((event: CustomEvent<{
+        objectId: CourseTestObstacleId;
+        transform: { position?: Position3; rotation?: Position3 };
+      }>) => {
+        api.setCourseObjectDebugTransform(
+          event.detail.objectId,
+          event.detail.transform,
+        );
       }) as EventListener,
     ],
   ];

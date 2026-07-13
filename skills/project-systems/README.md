@@ -26,6 +26,9 @@ The source code and authoritative project documents remain the final authority f
 
 ## Current Children
 
+- [Protected course editor](course-editor/README.md): protected revision loading,
+  responsive document authoring, PlayCanvas picking and gizmos, mobile precision
+  controls, collision diagnostics, private drafts, and live publication.
 - [Identity and course persistence](identity-course-persistence/README.md):
   Better Auth Google identities, Postgres sessions and roles, centralized admin
   authorization, Drizzle migrations, immutable course revisions, and protected

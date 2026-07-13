@@ -1,16 +1,23 @@
 import { randomUUID } from "node:crypto";
 
 import { expect, test } from "@playwright/test";
-import { sql } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 
 import {
   GET as getPersistedCourse,
   PUT as putPersistedCourse,
 } from "../src/app/api/admin/courses/[courseId]/route";
+import {
+  GET as getCoursePublication,
+  POST as postCoursePublication,
+} from "../src/app/api/admin/courses/[courseId]/publication/route";
+import { GET as getPublishedCourse } from "../src/app/api/courses/[courseId]/published/route";
 import { db } from "../src/db/client";
 import {
   accounts,
+  coursePublications,
   courseRevisions,
+  courses,
   sessions,
   userRoles,
   users,
@@ -20,7 +27,10 @@ import { auth } from "../src/lib/auth";
 import { authorizeRole } from "../src/server/authorization";
 import {
   CourseConflictError,
+  CoursePublicationConflictError,
+  loadLatestCoursePublication,
   loadLatestCourseRevision,
+  publishCourseRevision,
   saveCourseRevision,
 } from "../src/server/course-repository";
 import { anonymizeUserByEmail } from "../src/server/user-anonymization";
@@ -33,6 +43,9 @@ const requiredIntegrationVariables = [
   "GOOGLE_CLIENT_ID",
   "GOOGLE_CLIENT_SECRET",
 ] as const;
+const TEST_ORIGIN = "http://127.0.0.1:3873";
+const CONFIGURED_ORIGIN =
+  process.env.NEXT_PUBLIC_APP_URL ?? process.env.BETTER_AUTH_URL ?? TEST_ORIGIN;
 
 test.describe("course persistence and authorization", () => {
   test.describe.configure({ mode: "serial" });
@@ -163,6 +176,94 @@ test.describe("course persistence and authorization", () => {
     });
   });
 
+  test("rejects unauthorized course initialization without creating rows", async () => {
+    const authContext = await testAuth.$context;
+    const savedUser = await authContext.test.saveUser(
+      authContext.test.createUser({
+        email: `${randomUUID()}@example.invalid`,
+        name: "Non Admin Initialization Test",
+      }),
+    );
+    const courseId = `unauthorized-initialization-${randomUUID()}`;
+    const document = structuredClone(ROUGH_COURSE_DOCUMENT);
+    document.courseId = courseId;
+    const makeRequest = (headers?: Headers) =>
+      new Request(`http://127.0.0.1:3873/api/admin/courses/${courseId}`, {
+        body: JSON.stringify({ document, expectedRevision: null }),
+        headers: new Headers([
+          ...(headers?.entries() ?? []),
+          ["content-type", "application/json"],
+        ]),
+        method: "PUT",
+      });
+
+    const unauthenticatedResponse = await putPersistedCourse(makeRequest(), {
+      params: Promise.resolve({ courseId }),
+    });
+    expect(unauthenticatedResponse.status).toBe(401);
+
+    const { headers } = await authContext.test.login({ userId: savedUser.id });
+    const nonAdminResponse = await putPersistedCourse(makeRequest(headers), {
+      params: Promise.resolve({ courseId }),
+    });
+    expect(nonAdminResponse.status).toBe(403);
+
+    await expect(
+      db.select().from(courses).where(eq(courses.id, courseId)),
+    ).resolves.toEqual([]);
+    await expect(
+      db
+        .select()
+        .from(courseRevisions)
+        .where(eq(courseRevisions.courseId, courseId)),
+    ).resolves.toEqual([]);
+  });
+
+  test("allows exactly one competing first revision", async () => {
+    const userId = randomUUID();
+    const courseId = `first-revision-race-${randomUUID()}`;
+    const document = structuredClone(ROUGH_COURSE_DOCUMENT);
+    document.courseId = courseId;
+
+    await db.insert(users).values({
+      email: `${userId}@example.invalid`,
+      emailVerified: true,
+      id: userId,
+      name: "First Revision Race Test",
+    });
+
+    const saves = await Promise.allSettled(
+      ["First A", "First B"].map((name) =>
+        saveCourseRevision({
+          authorUserId: userId,
+          document: { ...structuredClone(document), name },
+          expectedRevision: null,
+        }),
+      ),
+    );
+
+    expect(saves.filter(({ status }) => status === "fulfilled")).toHaveLength(1);
+    expect(saves.filter(({ status }) => status === "rejected")).toHaveLength(1);
+    expect(
+      saves.find(({ status }) => status === "rejected"),
+    ).toMatchObject({
+      status: "rejected",
+      reason: expect.any(CourseConflictError),
+    });
+    await expect(
+      db
+        .select({ revision: courseRevisions.revision })
+        .from(courseRevisions)
+        .where(eq(courseRevisions.courseId, courseId)),
+    ).resolves.toEqual([{ revision: 1 }]);
+    await expect(
+      db
+        .select({ currentRevision: courses.currentRevision })
+        .from(courses)
+        .where(eq(courses.id, courseId)),
+    ).resolves.toEqual([{ currentRevision: 1 }]);
+  });
+
   test("loads a course through a real Better Auth session and protected API", async () => {
     const authContext = await testAuth.$context;
     const savedUser = await authContext.test.saveUser(
@@ -199,7 +300,10 @@ test.describe("course persistence and authorization", () => {
 
     const updatedDocument = structuredClone(document);
     updatedDocument.name = "Protected API Revision Two";
-    const saveRequest = () =>
+    const saveRequest = (
+      origin = CONFIGURED_ORIGIN,
+      contentType = "application/json",
+    ) =>
       new Request(`http://127.0.0.1:3873/api/admin/courses/${courseId}`, {
         body: JSON.stringify({
           document: updatedDocument,
@@ -207,10 +311,22 @@ test.describe("course persistence and authorization", () => {
         }),
         headers: new Headers([
           ...headers.entries(),
-          ["content-type", "application/json"],
+          ["content-type", contentType],
+          ["origin", origin],
         ]),
         method: "PUT",
       });
+
+    const foreignOriginResponse = await putPersistedCourse(
+      saveRequest("https://malicious.titanracers.com"),
+      { params: Promise.resolve({ courseId }) },
+    );
+    expect(foreignOriginResponse.status).toBe(403);
+    const plainTextResponse = await putPersistedCourse(
+      saveRequest(TEST_ORIGIN, "text/plain"),
+      { params: Promise.resolve({ courseId }) },
+    );
+    expect(plainTextResponse.status).toBe(415);
 
     const saveResponse = await putPersistedCourse(saveRequest(), {
       params: Promise.resolve({ courseId }),
@@ -222,6 +338,181 @@ test.describe("course persistence and authorization", () => {
       params: Promise.resolve({ courseId }),
     });
     expect(staleSaveResponse.status).toBe(409);
+  });
+
+  test("publishes only saved revisions with attribution and optimistic concurrency", async () => {
+    const authContext = await testAuth.$context;
+    const savedUser = await authContext.test.saveUser(
+      authContext.test.createUser({
+        email: `${randomUUID()}@example.invalid`,
+        name: "Course Publication Test",
+      }),
+    );
+    await db.insert(userRoles).values({ role: "admin", userId: savedUser.id });
+
+    const courseId = `publication-${randomUUID()}`;
+    const firstDocument = structuredClone(ROUGH_COURSE_DOCUMENT);
+    firstDocument.courseId = courseId;
+    await saveCourseRevision({
+      authorUserId: savedUser.id,
+      document: firstDocument,
+      expectedRevision: null,
+    });
+    const secondDocument = { ...structuredClone(firstDocument), name: "Second Draft" };
+    await saveCourseRevision({
+      authorUserId: savedUser.id,
+      document: secondDocument,
+      expectedRevision: 1,
+    });
+    const thirdDocument = { ...structuredClone(firstDocument), name: "Third Draft" };
+    await saveCourseRevision({
+      authorUserId: savedUser.id,
+      document: thirdDocument,
+      expectedRevision: 2,
+    });
+
+    const { headers } = await authContext.test.login({ userId: savedUser.id });
+    const context = { params: Promise.resolve({ courseId }) };
+    const missingCourseId = `missing-publication-${randomUUID()}`;
+    const missingCourseResponse = await postCoursePublication(
+      new Request(
+        `http://127.0.0.1:3873/api/admin/courses/${missingCourseId}/publication`,
+        {
+          body: JSON.stringify({ expectedPublicationId: null, revision: 1 }),
+          headers: new Headers([
+            ...headers.entries(),
+            ["content-type", "application/json"],
+            ["origin", CONFIGURED_ORIGIN],
+          ]),
+          method: "POST",
+        },
+      ),
+      { params: Promise.resolve({ courseId: missingCourseId }) },
+    );
+    expect(missingCourseResponse.status).toBe(404);
+    await expect(missingCourseResponse.json()).resolves.toEqual({
+      error: "The requested course or saved revision does not exist.",
+    });
+
+    const missingRevisionResponse = await postCoursePublication(
+      new Request(
+        `http://127.0.0.1:3873/api/admin/courses/${courseId}/publication`,
+        {
+          body: JSON.stringify({ expectedPublicationId: null, revision: 4 }),
+          headers: new Headers([
+            ...headers.entries(),
+            ["content-type", "application/json"],
+            ["origin", CONFIGURED_ORIGIN],
+          ]),
+          method: "POST",
+        },
+      ),
+      context,
+    );
+    expect(missingRevisionResponse.status).toBe(404);
+    await expect(missingRevisionResponse.json()).resolves.toEqual({
+      error: "The requested course or saved revision does not exist.",
+    });
+
+    const publicationStatus = await getCoursePublication(
+      new Request(`http://127.0.0.1:3873/api/admin/courses/${courseId}/publication`, {
+        headers,
+      }),
+      context,
+    );
+    expect(publicationStatus.status).toBe(200);
+    await expect(publicationStatus.json()).resolves.toEqual({ publication: null });
+
+    const unpublishedResponse = await getPublishedCourse(
+      new Request(`http://127.0.0.1:3873/api/courses/${courseId}/published`),
+      context,
+    );
+    expect(unpublishedResponse.status).toBe(404);
+    expect(unpublishedResponse.headers.get("cache-control")).toBe("no-store");
+
+    const publicationRequest = (
+      origin = CONFIGURED_ORIGIN,
+      contentType = "application/json",
+    ) =>
+      new Request(`http://127.0.0.1:3873/api/admin/courses/${courseId}/publication`, {
+        body: JSON.stringify({ expectedPublicationId: null, revision: 1 }),
+        headers: new Headers([
+          ...headers.entries(),
+          ["content-type", contentType],
+          ["origin", origin],
+        ]),
+        method: "POST",
+      });
+    const foreignPublicationResponse = await postCoursePublication(
+      publicationRequest("https://malicious.titanracers.com"),
+      context,
+    );
+    expect(foreignPublicationResponse.status).toBe(403);
+    const plainTextPublicationResponse = await postCoursePublication(
+      publicationRequest(TEST_ORIGIN, "text/plain"),
+      context,
+    );
+    expect(plainTextPublicationResponse.status).toBe(415);
+
+    const firstPublicationResponse = await postCoursePublication(
+      publicationRequest(),
+      context,
+    );
+    expect(firstPublicationResponse.status).toBe(201);
+    const firstPublication = (await firstPublicationResponse.json()) as {
+      publicationId: number;
+    };
+    expect(firstPublication.publicationId).toBeGreaterThan(0);
+
+    const publishedResponse = await getPublishedCourse(
+      new Request(`http://127.0.0.1:3873/api/courses/${courseId}/published`),
+      context,
+    );
+    expect(publishedResponse.status).toBe(200);
+    const publishedPayload = await publishedResponse.json();
+    expect(publishedPayload).toMatchObject({
+      document: { name: ROUGH_COURSE_DOCUMENT.name },
+      revision: 1,
+    });
+    expect(publishedPayload).not.toHaveProperty("authorUserId");
+    expect(publishedPayload).not.toHaveProperty("publishedByUserId");
+    expect(publishedPayload).not.toHaveProperty("publicationId");
+
+    const competingPublications = await Promise.allSettled(
+      [2, 3].map((revision) =>
+        publishCourseRevision({
+          courseId,
+          expectedPublicationId: firstPublication.publicationId,
+          publishedByUserId: savedUser.id,
+          revision,
+        }),
+      ),
+    );
+    expect(
+      competingPublications.filter(({ status }) => status === "fulfilled"),
+    ).toHaveLength(1);
+    expect(
+      competingPublications.find(({ status }) => status === "rejected"),
+    ).toMatchObject({
+      reason: expect.any(CoursePublicationConflictError),
+      status: "rejected",
+    });
+
+    const latestPublication = await loadLatestCoursePublication(courseId);
+    expect(latestPublication?.revision).toBeGreaterThan(1);
+
+    let immutablePublicationError: unknown;
+    try {
+      await db.execute(
+        sql`delete from ${coursePublications} where ${coursePublications.courseId} = ${courseId}`,
+      );
+    } catch (error) {
+      immutablePublicationError = error;
+    }
+    expect(immutablePublicationError).toBeInstanceOf(Error);
+    expect(
+      (immutablePublicationError as Error & { cause?: Error }).cause?.message,
+    ).toMatch(/course publications are immutable/);
   });
 
   test("initiates Google login through the mounted Better Auth handler", async ({
