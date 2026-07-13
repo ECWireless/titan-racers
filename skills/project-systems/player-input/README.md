@@ -21,8 +21,10 @@ one-shot reset and pause requests, accessible touch-driving controls, and
 controller navigation through guest-play menus and race overlays.
 
 Race countdowns, progression, checkpoint recovery, lap timing, and finish state
-remain PR 4B/4C work. Kart force calculations remain owned by the kart-physics
-system.
+are owned by the separate
+[`race-progression`](../race-progression/README.md) system. Final integrated race
+HUD presentation remains PR 4C work. Kart force calculations remain owned by
+the kart-physics system.
 
 ## Source Ownership
 
@@ -35,8 +37,8 @@ system.
 - `src/game/input/keyboard-input.ts` owns WASD/arrow driving state and one-shot R
   reset and Escape pause edges.
 - `src/game/input/touch-input.ts` owns a continuous pointer-specific steering
-  value with a rescaled `0.08` dead zone, independent pedal-pointer state, and
-  reset request state.
+  value with a rescaled `0.08` dead zone and touch-only `1.5` response exponent,
+  independent pedal-pointer state, and reset request state.
 - `src/game/input/gamepad-input.ts` polls browser snapshots, accepts only the
   standard mapping, applies the `0.15` candidate steering dead zone, maps the
   left stick/D-pad/triggers/south/center-right controls, detects reset/pause
@@ -112,10 +114,12 @@ replace visible text while native or ARIA semantics retain accessible names.
 Primary controls remain at least 44 CSS pixels in portrait and compact landscape.
 
 The pad maps horizontal travel to `-1..1`, applies the touch adapter's `0.08`
-dead zone, clamps the knob at the visual boundary, ignores vertical motion, and
-recenters on release. It exposes horizontal slider semantics and arrow-key
-operation. Pedals retain native button semantics, `aria-pressed`, and Space or
-Enter hold/release behavior.
+dead zone, then raises the remaining magnitude to the `1.5` power. This
+touch-only curve reduces gain near center while preserving sign and full lock
+at the edge. The control clamps the knob at the visual boundary, ignores
+vertical motion, and recenters on release. It exposes horizontal slider
+semantics and arrow-key operation. Pedals retain native button semantics,
+`aria-pressed`, and Space or Enter hold/release behavior.
 
 Only driving controls use `touch-action: none`. Each control captures and tracks
 its pointer ID, so analog steering and acceleration/braking coexist and one
@@ -231,8 +235,9 @@ until disconnect. Nonstandard mappings remain neutral and non-fatal.
 - Controller menu navigation is deliberately limited to guest mode selection
   and race loading/error/pause overlays. The protected course editor remains a
   keyboard, pointer, and touch authoring surface in this slice.
-- Touch steering response, visual opacity, pedal spacing, and the `0.08` dead
-  zone remain subject to representative-device playtesting.
+- The `1.5` touch steering exponent and `0.08` dead zone are the accepted mobile
+  baseline. Additional device diversity may justify future control settings;
+  visual opacity and pedal spacing remain tunable presentation values.
 - Touch controls are visible through coarse-pointer/no-hover capability queries;
   a future settings surface may add a manual visibility preference if hybrid
   hardware proves it necessary.

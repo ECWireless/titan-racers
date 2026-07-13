@@ -286,7 +286,7 @@ test.describe("protected course editor access", () => {
 
     await expect(page.getByTestId("course-editor-shell")).toBeVisible();
     expect(savePayload).toMatchObject({
-      document: { courseId: "rough-course", schemaVersion: 1 },
+      document: { courseId: "rough-course", schemaVersion: 2 },
       expectedRevision: null,
     });
   });

@@ -112,6 +112,10 @@ concurrently.
 - Give the steering pad a small center dead zone, clamp travel at the visual
   boundary, and ignore vertical displacement. A two-axis joystick would imply
   driving behavior the kart does not support.
+- After the dead zone, apply a bounded response curve that preserves full lock
+  at the edge while reducing steering gain near the center. Keep this in the
+  touch adapter so keyboard, controller, and kart-physics response do not
+  change with touch feel tuning.
 - Use separate hold controls for accelerate and brake/reverse. Track each active
   pointer by ID so analog steering and a pedal can be held at the same time and
   one pointer release cannot cancel another control.
@@ -272,8 +276,9 @@ game art or assets are copied.
 
 ## Known Limits
 
-- Touch steering response, layout, and controller dead-zone values remain
-  candidates until feature-lead playthrough acceptance.
+- The `1.5` touch steering response curve and `0.08` dead zone are the accepted
+  mobile baseline. Additional device diversity may justify a future settings
+  surface rather than changing the shared baseline implicitly.
 - The custom slider-style steering pad requires representative touch assistive-
   technology testing; WAI-ARIA notes that synthesized slider key gestures are
   not uniformly implemented across touch screen readers.

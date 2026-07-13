@@ -28,6 +28,10 @@ A game-concept node should normally cover:
 
 ## Current Children
 
+- [`race-progression/`](race-progression/README.md): the accepted
+  engine-independent standard for explicit race lifecycle, deterministic
+  timing, ordered checkpoints and laps, invalid-progression handling, and safe
+  checkpoint recovery.
 - [`player-input/`](player-input/README.md): the validated engine-independent
   standard for normalized driving actions, concurrent keyboard, touch, and
   controller support, device arbitration, cancellation, and accessible control

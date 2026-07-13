@@ -84,7 +84,7 @@ test.describe("course persistence and authorization", () => {
       authorUserId: userId,
       courseId,
       revision: 1,
-      schemaVersion: 1,
+      schemaVersion: 2,
     });
 
     const secondDocument = structuredClone(document);
@@ -123,7 +123,7 @@ test.describe("course persistence and authorization", () => {
       authorUserId: userId,
       courseId,
       revision: 3,
-      schemaVersion: 1,
+      schemaVersion: 2,
     });
 
     let immutableRevisionError: unknown;
@@ -139,6 +139,82 @@ test.describe("course persistence and authorization", () => {
     expect(
       (immutableRevisionError as Error & { cause?: Error }).cause?.message,
     ).toMatch(/course revisions are immutable/);
+  });
+
+  test("loads and publishes an immutable one-checkpoint v1 revision as v2", async () => {
+    const userId = randomUUID();
+    const courseId = `legacy-one-checkpoint-${randomUUID()}`;
+    const source = structuredClone(ROUGH_COURSE_DOCUMENT);
+    const legacyStart = {
+      id: source.start.id,
+      position: source.start.position,
+      rotation: source.start.rotation,
+    };
+    const legacyDocument = {
+      ...source,
+      checkpoints: source.checkpoints.slice(0, 1).map((checkpoint) => ({
+        halfExtents: checkpoint.halfExtents,
+        id: checkpoint.id,
+        order: checkpoint.order,
+        position: checkpoint.position,
+        rotation: checkpoint.rotation,
+      })),
+      courseId,
+      schemaVersion: 1 as const,
+      start: legacyStart,
+    };
+
+    await db.insert(users).values({
+      email: `${userId}@example.invalid`,
+      emailVerified: true,
+      id: userId,
+      name: "Legacy Course Test",
+    });
+    await db.insert(courses).values({
+      createdByUserId: userId,
+      currentRevision: 1,
+      id: courseId,
+    });
+    await db.insert(courseRevisions).values({
+      authorUserId: userId,
+      courseId,
+      document: legacyDocument,
+      id: randomUUID(),
+      revision: 1,
+      schemaVersion: 1,
+    });
+
+    const loaded = await loadLatestCourseRevision(courseId);
+    expect(loaded).toMatchObject({
+      document: {
+        checkpoints: [{ forward: { x: -1, y: 0, z: 0 } }],
+        schemaVersion: 2,
+      },
+      schemaVersion: 2,
+    });
+
+    await publishCourseRevision({
+      courseId,
+      expectedPublicationId: null,
+      publishedByUserId: userId,
+      revision: 1,
+    });
+    const published = await loadLatestCoursePublication(courseId);
+    expect(published).toMatchObject({
+      document: { schemaVersion: 2 },
+      revision: 1,
+      schemaVersion: 2,
+    });
+
+    const [stored] = await db
+      .select({
+        document: courseRevisions.document,
+        schemaVersion: courseRevisions.schemaVersion,
+      })
+      .from(courseRevisions)
+      .where(eq(courseRevisions.courseId, courseId));
+    expect(stored.schemaVersion).toBe(1);
+    expect(stored.document).toMatchObject({ schemaVersion: 1 });
   });
 
   test("requires a database-backed admin role", async () => {
@@ -327,6 +403,29 @@ test.describe("course persistence and authorization", () => {
       { params: Promise.resolve({ courseId }) },
     );
     expect(plainTextResponse.status).toBe(415);
+
+    const invalidDocument = structuredClone(updatedDocument);
+    invalidDocument.checkpoints[0].forward = { x: 0, y: 0, z: 0 };
+    const invalidSaveResponse = await putPersistedCourse(
+      new Request(`http://127.0.0.1:3873/api/admin/courses/${courseId}`, {
+        body: JSON.stringify({
+          document: invalidDocument,
+          expectedRevision: 1,
+        }),
+        headers: new Headers([
+          ...headers.entries(),
+          ["content-type", "application/json"],
+          ["origin", CONFIGURED_ORIGIN],
+        ]),
+        method: "PUT",
+      }),
+      { params: Promise.resolve({ courseId }) },
+    );
+    expect(invalidSaveResponse.status).toBe(400);
+    await expect(invalidSaveResponse.json()).resolves.toMatchObject({
+      error: "Course document validation failed.",
+      issues: expect.any(Array),
+    });
 
     const saveResponse = await putPersistedCourse(saveRequest(), {
       params: Promise.resolve({ courseId }),

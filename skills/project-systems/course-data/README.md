@@ -22,21 +22,25 @@ semantic collision roles, bounded environment lighting, diagnostic
 availability, and construction of static PlayCanvas course entities.
 
 Database revisions, authentication, and authorization are now owned by
-[`identity-course-persistence`](../identity-course-persistence/README.md). This
-node still does not own active race progression, visible checkpoint triggers,
-editor commands, persistence UI, or the future add-object palette.
+[`identity-course-persistence`](../identity-course-persistence/README.md).
+Active race progression and checkpoint recovery are owned by
+[`race-progression`](../race-progression/README.md). This node still does not
+own editor commands, persistence UI, or the future add-object palette.
 
 ## Source Ownership
 
-- `src/game/course/course-document.ts` defines the strict Zod version-one
-  schema, cross-document ID and checkpoint-order refinements, canonical sorting,
-  parsing, serialization, inferred TypeScript types, and validated seed export.
+- `src/game/course/course-document.ts` defines strict Zod version-one and
+  canonical version-two schemas, deterministic v1-to-v2 normalization,
+  cross-document ID and checkpoint-order refinements, gate-face direction
+  alignment, canonical sorting, serialization, inferred TypeScript types, and
+  validated seed export.
 - `src/game/course/course-ids.ts` keeps permanent sandbox, future official, and
   current guest-runtime course selection explicit; `course-publication.ts`
   validates protected publication and privacy-minimized public runtime shapes.
-- `src/game/course/rough-course.v1.json` is the canonical portable rough-course
-  sandbox seed. It contains the start, six inactive ordered checkpoints,
-  ordinary surfaces and objects, camera fixtures, and opt-in collision fixtures.
+- `src/game/course/rough-course.v2.json` is the canonical portable rough-course
+  sandbox seed. It contains the start/finish gate, six ordered checkpoints with
+  directed gate and recovery data, ordinary surfaces and objects, camera
+  fixtures, and opt-in collision fixtures.
   It permanently restores only course ID `rough-course`; the official future
   Agricultural Zone document uses the distinct ID `agricultural-zone`.
 - `src/game/course/build-rough-course.ts` projects a validated document into
@@ -58,22 +62,23 @@ editor commands, persistence UI, or the future add-object palette.
 
 ## Document Contract
 
-Version one is strict JSON using metres, Y-up positions, and Euler degrees. It
-contains:
+Canonical version two is strict JSON using metres, Y-up positions, and Euler
+degrees. It contains:
 
-- literal schema version `1`;
+- literal schema version `2`;
 - a stable course ID and name;
-- one stable start ID and transform;
+- one stable start ID, transform, and bounded start-gate half-extents;
 - one ambient-light record and one-to-two stable directional-light records;
 - one-to-256 checkpoints whose explicit order must match a contiguous array
-  order starting at one; and
+  order starting at one, each with bounded oriented half-extents, a normalized
+  gate-face direction, and a recovery transform; and
 - one-to-5,000 course objects.
 
 Every addressable start, checkpoint, object, and directional-light ID is unique
 across the complete document. IDs use lowercase kebab-case and are independent
 of PlayCanvas entities.
 
-Version-one visual primitives are box and cylinder. Each object owns category,
+Visual primitives are box and cylinder. Each object owns category,
 availability, editor eligibility, transform, visual primitive, positive scale,
 and semantic material. Optional collision data independently owns a box or
 cylinder shape, local transform, physical dimensions, semantic role, friction,
@@ -82,6 +87,8 @@ and restitution.
 Coordinates and dimensions are finite and bounded to the accepted authoring
 envelope. Unknown fields and unsupported enum values fail rather than being
 silently stripped. The complete document validates before scene construction.
+Immutable stored version-one revisions remain readable through deterministic
+in-memory normalization; canonical serialization and new saves use version two.
 
 ## Construction Flow
 
@@ -109,8 +116,8 @@ silently stripped. The complete document validates before scene construction.
 - Visual scale does not silently define collision dimensions.
 - Objects without collision data receive no collision or rigid-body component.
 - Diagnostic collision fixtures cannot appear in production or ordinary play.
-- Checkpoint data exists for later race progression but creates no active
-  triggers in PR 3A.
+- Checkpoint data is projected into plain directed swept gates by the separate
+  race-progression system; it does not create collision-trigger entities.
 - The source seed serializes canonically with lexically sorted object keys,
   retained array order, two-space indentation, and one trailing newline.
 - Parsing and serializing the canonical seed reproduces it byte-for-byte.
@@ -121,7 +128,7 @@ silently stripped. The complete document validates before scene construction.
 
 ## Verification
 
-- `tests/course-document.spec.ts`: fourteen focused document, validation,
+- `tests/course-document.spec.ts`: eighteen focused document, validation,
   start-transform, and retained-geometry cases.
 - `tests/course-lighting.spec.ts`: four ambient-intensity, shadow-preset,
   rollback, and atomic-attachment cases.
@@ -139,8 +146,8 @@ silently stripped. The complete document validates before scene construction.
   IDs in the protected editor.
 - Box and cylinder are the only approved primitives. Ramp and later palette
   entries are presets over those primitives rather than new shape kinds.
-- The six checkpoint placements are inactive authoring data until PR 4 validates
-  progression and recovery behavior.
+- The six checkpoint placements drive the accepted rough-loop progression and
+  recovery behavior; final checkpoint and race HUD presentation remains PR 4C.
 - Postgres revisions, Better Auth, application roles, and protected course APIs
   are implemented by the candidate identity-and-course-persistence system.
 - Add-object presets, full selection, collision visualization, undo/redo,

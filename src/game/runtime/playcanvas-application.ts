@@ -18,7 +18,12 @@ export class PlayCanvasRuntime {
   readonly app: pc.Application;
   private readonly cleanups: Array<() => void> = [];
   private readonly clock = new FixedStepClock();
-  private readonly fixedStepListeners = new Set<(stepSeconds: number) => void>();
+  private readonly fixedStepListeners = new Set<
+    (stepSeconds: number) => void
+  >();
+  private readonly discardedTimeListeners = new Set<
+    (discardedSeconds: number) => void
+  >();
   private readonly postFixedStepListeners = new Set<
     (stepSeconds: number) => void
   >();
@@ -33,6 +38,7 @@ export class PlayCanvasRuntime {
   private initialized = false;
   private lastFrameTimestamp: number | null = null;
   private paused = false;
+  private pauseAfterCurrentStep = false;
   private started = false;
 
   constructor(
@@ -41,11 +47,14 @@ export class PlayCanvasRuntime {
   ) {
     this.app = dependencies.app ?? new pc.Application(canvas);
     this.cancelAnimationFrame =
-      dependencies.cancelAnimationFrame ?? window.cancelAnimationFrame.bind(window);
+      dependencies.cancelAnimationFrame ??
+      window.cancelAnimationFrame.bind(window);
     this.cancelApplicationTick =
-      dependencies.cancelApplicationTick ?? pc.AppBase.cancelTick.bind(pc.AppBase);
+      dependencies.cancelApplicationTick ??
+      pc.AppBase.cancelTick.bind(pc.AppBase);
     this.requestAnimationFrame =
-      dependencies.requestAnimationFrame ?? window.requestAnimationFrame.bind(window);
+      dependencies.requestAnimationFrame ??
+      window.requestAnimationFrame.bind(window);
     this.app.setCanvasResolution(pc.RESOLUTION_AUTO);
     this.app.setCanvasFillMode(pc.FILLMODE_FILL_WINDOW);
   }
@@ -57,6 +66,11 @@ export class PlayCanvasRuntime {
   onFixedStep(listener: (stepSeconds: number) => void) {
     this.fixedStepListeners.add(listener);
     this.addCleanup(() => this.fixedStepListeners.delete(listener));
+  }
+
+  onDiscardedTime(listener: (discardedSeconds: number) => void) {
+    this.discardedTimeListeners.add(listener);
+    this.addCleanup(() => this.discardedTimeListeners.delete(listener));
   }
 
   onRender(listener: (frame: FixedStepFrame) => void) {
@@ -75,8 +89,17 @@ export class PlayCanvasRuntime {
     }
 
     this.paused = paused;
+    this.pauseAfterCurrentStep = false;
     this.clock.reset();
     this.lastFrameTimestamp = null;
+  }
+
+  requestPauseAtFixedStepBoundary() {
+    if (this.paused) {
+      return;
+    }
+
+    this.pauseAfterCurrentStep = true;
   }
 
   stepFixed(steps = 1) {
@@ -98,6 +121,7 @@ export class PlayCanvasRuntime {
 
     const frame = {
       accumulatorFraction: 0,
+      droppedFrameSeconds: 0,
       droppedSeconds: 0,
       frameSeconds: steps * this.clock.fixedStepSeconds,
       steps,
@@ -171,7 +195,10 @@ export class PlayCanvasRuntime {
       this.animationFrameId = null;
     }
 
-    this.cleanups.splice(0).reverse().forEach((cleanup) => cleanup());
+    this.cleanups
+      .splice(0)
+      .reverse()
+      .forEach((cleanup) => cleanup());
     this.app.destroy();
   }
 
@@ -192,9 +219,29 @@ export class PlayCanvasRuntime {
       return;
     }
 
-    const frame = this.clock.advance(frameSeconds, (stepSeconds) => {
+    const advancedFrame = this.clock.advance(frameSeconds, (stepSeconds) => {
       this.executeFixedStep(stepSeconds);
+
+      if (this.pauseAfterCurrentStep) {
+        this.paused = true;
+        this.pauseAfterCurrentStep = false;
+        return false;
+      }
     });
+
+    if (this.paused) {
+      this.clock.reset();
+      this.lastFrameTimestamp = null;
+    }
+    const frame = this.paused
+      ? { ...advancedFrame, accumulatorFraction: 0 }
+      : advancedFrame;
+
+    if (frame.droppedFrameSeconds > 0) {
+      this.discardedTimeListeners.forEach((listener) =>
+        listener(frame.droppedFrameSeconds),
+      );
+    }
 
     this.renderListeners.forEach((listener) => listener(frame));
     this.app.render();

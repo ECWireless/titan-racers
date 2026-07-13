@@ -32,6 +32,7 @@ test.describe("fixed-step clock", () => {
 
     expect(steps).toBe(4);
     expect(frame.steps).toBe(4);
+    expect(frame.droppedFrameSeconds).toBeCloseTo(26 / 60, 8);
     expect(frame.droppedSeconds).toBeCloseTo(26 / 60, 8);
     expect(frame.accumulatorFraction).toBeCloseTo(0, 8);
   });
@@ -45,7 +46,51 @@ test.describe("fixed-step clock", () => {
     });
 
     expect(steps).toBe(4);
+    expect(frame.droppedFrameSeconds).toBeGreaterThan(1.9);
     expect(frame.droppedSeconds).toBeGreaterThan(1.9);
     expect(frame.accumulatorFraction).toBeLessThan(1);
+  });
+
+  test("reports per-frame drops separately from the cumulative total", () => {
+    const clock = new FixedStepClock({
+      fixedStepSeconds: 0.1,
+      maxCatchUpSteps: 1,
+      maxFrameSeconds: 1,
+    });
+
+    const first = clock.advance(0.3, () => undefined);
+    const second = clock.advance(0.2, () => undefined);
+
+    expect(first.droppedFrameSeconds).toBeCloseTo(0.2);
+    expect(first.droppedSeconds).toBeCloseTo(0.2);
+    expect(second.droppedFrameSeconds).toBeCloseTo(0.1);
+    expect(second.droppedSeconds).toBeCloseTo(0.3);
+  });
+
+  test("stops catch-up without treating paused accumulator time as discarded", () => {
+    const clock = new FixedStepClock({
+      fixedStepSeconds: 0.1,
+      maxCatchUpSteps: 4,
+      maxFrameSeconds: 1,
+    });
+    let steps = 0;
+
+    const frame = clock.advance(0.4, () => {
+      steps += 1;
+      return false;
+    });
+
+    expect(steps).toBe(1);
+    expect(frame.steps).toBe(1);
+    expect(frame.droppedFrameSeconds).toBe(0);
+    expect(frame.droppedSeconds).toBe(0);
+    expect(frame.accumulatorFraction).toBe(0);
+
+    const resumedFrame = clock.advance(0, () => {
+      steps += 1;
+    });
+
+    expect(steps).toBe(1);
+    expect(resumedFrame.steps).toBe(0);
   });
 });

@@ -72,7 +72,9 @@ export async function loadLatestCourseRevision(
     return null;
   }
 
-  return { ...row, document: parseCourseDocument(row.document) };
+  const document = parseCourseDocument(row.document);
+
+  return { ...row, document, schemaVersion: document.schemaVersion };
 }
 
 export async function saveCourseRevision(input: {
@@ -168,7 +170,9 @@ export async function loadLatestCoursePublication(
     return null;
   }
 
-  return { ...row, document: parseCourseDocument(row.document) };
+  const document = parseCourseDocument(row.document);
+
+  return { ...row, document, schemaVersion: document.schemaVersion };
 }
 
 export async function publishCourseRevision(input: {
@@ -226,12 +230,14 @@ export async function publishCourseRevision(input: {
     if (!revision) {
       throw new CoursePublicationTargetError();
     }
+    const document = parseCourseDocument(revision.document);
 
     if (latestPublication?.revision === input.revision) {
       return {
         ...revision,
         ...latestPublication,
-        document: parseCourseDocument(revision.document),
+        document,
+        schemaVersion: document.schemaVersion,
       };
     }
 
@@ -251,7 +257,8 @@ export async function publishCourseRevision(input: {
     return {
       ...revision,
       ...publication,
-      document: parseCourseDocument(revision.document),
+      document,
+      schemaVersion: document.schemaVersion,
     };
   });
 }

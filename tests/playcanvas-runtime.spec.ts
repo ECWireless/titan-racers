@@ -40,8 +40,7 @@ function createRuntimeHarness() {
 
   function runNextFrame(timestamp: number) {
     const nextFrame = scheduledFrames.entries().next().value as
-      | [number, FrameRequestCallback]
-      | undefined;
+      [number, FrameRequestCallback] | undefined;
 
     if (!nextFrame) {
       throw new Error("Expected a scheduled animation frame");
@@ -124,6 +123,66 @@ test("runs post-step listeners after the whole-world update", () => {
     "post-fixed-listener",
     "render",
   ]);
+});
+
+test("reports discarded active time after fixed steps and before rendering", () => {
+  const { events, runNextFrame, runtime } = createRuntimeHarness();
+
+  runtime.onFixedStep(() => events.push("fixed-listener"));
+  runtime.onPostFixedStep(() => events.push("post-fixed-listener"));
+  runtime.onDiscardedTime((seconds) =>
+    events.push(`discarded-${seconds.toFixed(3)}`),
+  );
+  runtime.onRender(() => events.push("render-listener"));
+  runtime.start();
+  runNextFrame(0);
+  events.length = 0;
+
+  runNextFrame(500);
+
+  expect(events).toEqual([
+    "fixed-listener",
+    "update",
+    "post-fixed-listener",
+    "fixed-listener",
+    "update",
+    "post-fixed-listener",
+    "fixed-listener",
+    "update",
+    "post-fixed-listener",
+    "fixed-listener",
+    "update",
+    "post-fixed-listener",
+    "discarded-0.433",
+    "render-listener",
+    "render",
+  ]);
+});
+
+test("pauses on one completed fixed-step boundary without extra catch-up", () => {
+  const { events, runNextFrame, runtime } = createRuntimeHarness();
+
+  runtime.onFixedStep(() => {
+    events.push("fixed-listener");
+    runtime.requestPauseAtFixedStepBoundary();
+  });
+  runtime.onPostFixedStep(() => events.push("post-fixed-listener"));
+  runtime.onDiscardedTime(() => events.push("discarded"));
+  runtime.onRender(() => events.push("render-listener"));
+  runtime.start();
+  runNextFrame(0);
+  events.length = 0;
+
+  runNextFrame(1000 / 15);
+
+  expect(events).toEqual([
+    "fixed-listener",
+    "update",
+    "post-fixed-listener",
+    "render-listener",
+    "render",
+  ]);
+  expect(() => runtime.stepFixed(1)).not.toThrow();
 });
 
 test("destroy cancels the frame and releases listeners exactly once", () => {

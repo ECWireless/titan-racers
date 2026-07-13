@@ -4,6 +4,10 @@ import type {
   Position3,
 } from "../contracts";
 import type { ChaseCameraDiagnostics } from "../camera/chase-camera";
+import type {
+  RaceProgressionResult,
+  RaceSessionSnapshot,
+} from "../race/race-session";
 
 type CanvasPoint = { x: number; y: number } | null;
 
@@ -89,6 +93,10 @@ export type PresentationDebugState = {
   visualPosition: Position3;
 };
 
+export type RaceDebugState = RaceSessionSnapshot & {
+  lastProgressionResult: RaceProgressionResult;
+};
+
 export type SuspensionDebugState = {
   maximumCompression: number;
   maximumSupportedWheels: number;
@@ -115,7 +123,9 @@ export type SceneTestApi = {
   getKartDebugState: () => KartDebugState;
   getKartScreenPoint: () => CanvasPoint;
   getPresentationDebugState: () => PresentationDebugState;
+  getRaceDebugState: () => RaceDebugState;
   getSuspensionDebugState: () => SuspensionDebugState;
+  requestRaceRecovery: () => void;
   resetKart: () => void;
   setCourseObjectDebugTransform: (
     objectId: CourseTestObstacleId,
@@ -123,6 +133,10 @@ export type SceneTestApi = {
   ) => void;
   setKartDebugPose: (pose: KartDebugPose) => void;
   setKartMovementTuning: (tuning: Partial<KartMovementTuning>) => void;
+  setRaceDebugMovement: (
+    previousPosition: Position3,
+    currentPosition: Position3,
+  ) => void;
   setSimulationPaused: (paused: boolean) => void;
   setStartPosition: (position: Pick<Position3, "x" | "z">) => void;
   stepSimulation: (steps: number) => void;
@@ -135,64 +149,108 @@ export function attachSceneTestAdapter(
   const listeners: Array<[string, EventListener]> = [
     [
       "getCameraDebugState",
-      ((event: CustomEvent<{
-        respond: (state: CameraDebugState) => void;
-      }>) => {
+      ((
+        event: CustomEvent<{
+          respond: (state: CameraDebugState) => void;
+        }>,
+      ) => {
         event.detail.respond(api.getCameraDebugState());
       }) as EventListener,
     ],
     [
       "getCollisionDebugState",
-      ((event: CustomEvent<{
-        respond: (state: CollisionDebugState) => void;
-      }>) => {
+      ((
+        event: CustomEvent<{
+          respond: (state: CollisionDebugState) => void;
+        }>,
+      ) => {
         event.detail.respond(api.getCollisionDebugState());
       }) as EventListener,
     ],
     [
       "getCollisionResponseDebugState",
-      ((event: CustomEvent<{
-        respond: (state: CollisionResponseDebugState) => void;
-      }>) => {
+      ((
+        event: CustomEvent<{
+          respond: (state: CollisionResponseDebugState) => void;
+        }>,
+      ) => {
         event.detail.respond(api.getCollisionResponseDebugState());
       }) as EventListener,
     ],
     [
       "getKartDebugState",
-      ((event: CustomEvent<{
-        respond: (state: KartDebugState) => void;
-      }>) => {
+      ((
+        event: CustomEvent<{
+          respond: (state: KartDebugState) => void;
+        }>,
+      ) => {
         event.detail.respond(api.getKartDebugState());
       }) as EventListener,
     ],
     [
       "getKartScreenPoint",
-      ((event: CustomEvent<{
-        respond: (point: CanvasPoint) => void;
-      }>) => {
+      ((
+        event: CustomEvent<{
+          respond: (point: CanvasPoint) => void;
+        }>,
+      ) => {
         event.detail.respond(api.getKartScreenPoint());
       }) as EventListener,
     ],
     [
       "getPresentationDebugState",
-      ((event: CustomEvent<{
-        respond: (state: PresentationDebugState) => void;
-      }>) => {
+      ((
+        event: CustomEvent<{
+          respond: (state: PresentationDebugState) => void;
+        }>,
+      ) => {
         event.detail.respond(api.getPresentationDebugState());
       }) as EventListener,
     ],
     [
+      "getRaceDebugState",
+      ((
+        event: CustomEvent<{
+          respond: (state: RaceDebugState) => void;
+        }>,
+      ) => {
+        event.detail.respond(api.getRaceDebugState());
+      }) as EventListener,
+    ],
+    [
       "getSuspensionDebugState",
-      ((event: CustomEvent<{
-        respond: (state: SuspensionDebugState) => void;
-      }>) => {
+      ((
+        event: CustomEvent<{
+          respond: (state: SuspensionDebugState) => void;
+        }>,
+      ) => {
         event.detail.respond(api.getSuspensionDebugState());
+      }) as EventListener,
+    ],
+    [
+      "requestRaceRecovery",
+      (() => {
+        api.requestRaceRecovery();
       }) as EventListener,
     ],
     [
       "resetKart",
       (() => {
         api.resetKart();
+      }) as EventListener,
+    ],
+    [
+      "setRaceDebugMovement",
+      ((
+        event: CustomEvent<{
+          currentPosition: Position3;
+          previousPosition: Position3;
+        }>,
+      ) => {
+        api.setRaceDebugMovement(
+          event.detail.previousPosition,
+          event.detail.currentPosition,
+        );
       }) as EventListener,
     ],
     [
@@ -227,10 +285,12 @@ export function attachSceneTestAdapter(
     ],
     [
       "setCourseObjectDebugTransform",
-      ((event: CustomEvent<{
-        objectId: CourseTestObstacleId;
-        transform: { position?: Position3; rotation?: Position3 };
-      }>) => {
+      ((
+        event: CustomEvent<{
+          objectId: CourseTestObstacleId;
+          transform: { position?: Position3; rotation?: Position3 };
+        }>,
+      ) => {
         api.setCourseObjectDebugTransform(
           event.detail.objectId,
           event.detail.transform,

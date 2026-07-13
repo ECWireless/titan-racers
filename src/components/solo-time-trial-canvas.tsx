@@ -11,6 +11,7 @@ import {
 } from "react";
 
 import type {
+  DrivingInput,
   KartMovementTuning,
   CourseTestObstacleId,
   Position3,
@@ -57,6 +58,12 @@ import {
   getRigidBodyCcdConfiguration,
   setExplicitRigidBodyInertia,
 } from "@/game/runtime/ammo-rigid-body";
+import { createRaceSessionConfig } from "@/game/race/playcanvas-race-course";
+import {
+  RaceSession,
+  type RaceProgressionResult,
+  type RaceTransform,
+} from "@/game/race/race-session";
 import { attachSceneTestAdapter } from "@/game/testing/scene-test-adapter";
 
 const KART_ROOT_HEIGHT = 0.43;
@@ -99,6 +106,12 @@ const KART_CCD_CONFIGURATION = {
   motionThreshold: 0.12,
   sweptSphereRadius: 0.16,
 } as const;
+const NEUTRAL_DRIVING_INPUT: DrivingInput = {
+  brake: 0,
+  reset: false,
+  steer: 0,
+  throttle: 0,
+};
 
 const DEFAULT_KART_MOVEMENT_TUNING = {
   acceleration: KART_ACCELERATION,
@@ -374,9 +387,14 @@ export function SoloTimeTrialCanvas({
     if (!rigidBodySystem) {
       throw new Error("PlayCanvas rigid-body system is unavailable");
     }
+    const activeRigidBodySystem = rigidBodySystem;
 
     rigidBodySystem.gravity.set(0, -KART_GRAVITY, 0);
     activeCanvas.focus();
+    const raceSession = new RaceSession(
+      createRaceSessionConfig(COURSE_DOCUMENT),
+    );
+    let lastRaceProgressionResult: RaceProgressionResult = { kind: "none" };
 
     const kartMaterial = createMaterial(new pc.Color(0.95, 0.18, 0.08));
     const cockpitMaterial = createMaterial(new pc.Color(0.05, 0.08, 0.11));
@@ -803,6 +821,7 @@ export function SoloTimeTrialCanvas({
       previousPosition: kart.getPosition().clone(),
       previousRotation: kart.getRotation().clone(),
     };
+    const previousRacePosition = kart.getPosition().clone();
     const interpolatedKartPosition = new pc.Vec3();
     const interpolatedKartVisualPosition = new pc.Vec3();
     const interpolatedKartRotation = new pc.Quat();
@@ -937,12 +956,108 @@ export function SoloTimeTrialCanvas({
       );
 
       kart.rigidbody?.teleport(resetPosition, resetRotation);
+      if (kart.rigidbody) {
+        kart.rigidbody.linearVelocity = new pc.Vec3();
+        kart.rigidbody.angularVelocity = new pc.Vec3();
+        kart.rigidbody.activate();
+      }
       kartController.reset();
       snapKartPresentationState();
+      previousRacePosition.copy(kart.getPosition());
       latestCameraImpact = null;
       inputManager?.clear();
       chaseCamera.snap(getChaseCameraSnapshot(dynamicWheels.length));
       activeCanvas.focus();
+    }
+
+    function findSupportedRecoveryTransform(transform: RaceTransform) {
+      const rayStart = new pc.Vec3(
+        transform.position.x,
+        transform.position.y + 2,
+        transform.position.z,
+      );
+      const rayEnd = new pc.Vec3(
+        transform.position.x,
+        transform.position.y - 2,
+        transform.position.z,
+      );
+      const hit = activeRigidBodySystem.raycastFirst(rayStart, rayEnd, {
+        filterCollisionGroup: PHYSICS_GROUP.kart,
+        filterCollisionMask: PHYSICS_MASK.kart,
+        filterCallback: (entity: pc.Entity) =>
+          entity !== kart && entity.tags.has("drivable-surface"),
+      });
+
+      if (!hit) {
+        return null;
+      }
+
+      return {
+        position: {
+          x: transform.position.x,
+          y: hit.point.y,
+          z: transform.position.z,
+        },
+        rotation: { ...transform.rotation },
+      } satisfies RaceTransform;
+    }
+
+    function requestRaceRecovery() {
+      const sessionSnapshot = raceSession.snapshot;
+      const requestedTransform = raceSession.requestRecovery();
+
+      if (!requestedTransform) {
+        if (
+          sessionSnapshot.state === "loading" ||
+          sessionSnapshot.state === "ready" ||
+          sessionSnapshot.state === "countdown"
+        ) {
+          resetKart();
+          clearTouchPresentation();
+          return true;
+        }
+
+        return false;
+      }
+
+      const candidates = sessionSnapshot.recoveryCandidates;
+      const recoveryTransform =
+        candidates
+          .map(({ transform }) => findSupportedRecoveryTransform(transform))
+          .find((transform) => transform !== null) ??
+        candidates.at(-1)?.transform ??
+        requestedTransform;
+      const resetRotation = new pc.Quat().setFromEulerAngles(
+        recoveryTransform.rotation.x,
+        recoveryTransform.rotation.y,
+        recoveryTransform.rotation.z,
+      );
+      const resetPosition = getKartRootPosition(
+        new pc.Vec3(
+          recoveryTransform.position.x,
+          recoveryTransform.position.y + KART_ROOT_HEIGHT,
+          recoveryTransform.position.z,
+        ),
+        resetRotation,
+      );
+
+      kart.rigidbody?.teleport(resetPosition, resetRotation);
+      if (kart.rigidbody) {
+        kart.rigidbody.linearVelocity = new pc.Vec3();
+        kart.rigidbody.angularVelocity = new pc.Vec3();
+        kart.rigidbody.activate();
+      }
+      kartController.reset();
+      resetSuspensionMetrics();
+      resetCollisionMetrics();
+      snapKartPresentationState();
+      previousRacePosition.copy(kart.getPosition());
+      latestCameraImpact = null;
+      inputManager?.clear();
+      clearTouchPresentation();
+      chaseCamera.snap(getChaseCameraSnapshot(dynamicWheels.length));
+      activeCanvas.focus();
+      return true;
     }
 
     function setSceneStartPosition(
@@ -976,7 +1091,7 @@ export function SoloTimeTrialCanvas({
       fallResetY: KART_RESET_FALL_Y,
       kart,
       mass: KART_MASS,
-      onFallReset: resetKart,
+      onFallReset: requestRaceRecovery,
       pitchInertia: KART_INERTIA.x,
       tuning: activeMovementTuning,
       wheels: dynamicWheels,
@@ -1196,6 +1311,13 @@ export function SoloTimeTrialCanvas({
         inputManager.setTouchSteering(pointerId, value),
       setPaused: (paused) => {
         inputManager.setEnabled(false);
+        if (paused) {
+          raceSession.pause();
+          previousRacePosition.copy(kart.getPosition());
+        } else {
+          raceSession.resume();
+          previousRacePosition.copy(kart.getPosition());
+        }
         runtime.setPaused(paused);
         if (!paused) {
           queueMicrotask(() => inputManager.setEnabled(true));
@@ -1454,6 +1576,7 @@ export function SoloTimeTrialCanvas({
       }
 
       snapKartPresentationState();
+      previousRacePosition.copy(kart.getPosition());
       chaseCamera.snap(
         getChaseCameraSnapshot(
           pose.position.y > KART_ROOT_HEIGHT + 0.5
@@ -1461,6 +1584,32 @@ export function SoloTimeTrialCanvas({
             : dynamicWheels.length,
         ),
       );
+    };
+
+    const setRaceDebugMovement = (
+      previousPosition: Position3,
+      currentPosition: Position3,
+    ) => {
+      previousRacePosition.set(
+        previousPosition.x,
+        previousPosition.y,
+        previousPosition.z,
+      );
+      kart.rigidbody?.teleport(
+        new pc.Vec3(
+          currentPosition.x,
+          currentPosition.y,
+          currentPosition.z,
+        ),
+        kart.getRotation(),
+      );
+      if (kart.rigidbody) {
+        kart.rigidbody.linearVelocity = new pc.Vec3();
+        kart.rigidbody.angularVelocity = new pc.Vec3();
+        kart.rigidbody.activate();
+      }
+      kartController.reset();
+      snapKartPresentationState();
     };
 
     const getKartScreenPoint = () => {
@@ -1485,11 +1634,17 @@ export function SoloTimeTrialCanvas({
           getKartDebugState,
           getKartScreenPoint,
           getPresentationDebugState,
+          getRaceDebugState: () => ({
+            ...raceSession.snapshot,
+            lastProgressionResult: lastRaceProgressionResult,
+          }),
           getSuspensionDebugState,
+          requestRaceRecovery,
           resetKart,
           setCourseObjectDebugTransform,
           setKartDebugPose,
           setKartMovementTuning: setSceneMovementTuning,
+          setRaceDebugMovement,
           setSimulationPaused: (paused) => runtime.setPaused(paused),
           setStartPosition: setSceneStartPosition,
           stepSimulation: (steps) => runtime.stepFixed(steps),
@@ -1500,28 +1655,28 @@ export function SoloTimeTrialCanvas({
     chaseCamera.snap(getChaseCameraSnapshot(dynamicWheels.length));
 
     let latestDrivingInput = inputManager.sampleDrivingInput().driving;
+    let pauseAfterFixedStep = false;
 
     runtime.onFixedStep((dt) => {
       collisionObserver.beginStep();
 
       const sample = inputManager.sampleDrivingInput();
-      latestDrivingInput = sample.driving;
+      pauseAfterFixedStep = sample.actions.pauseRequested;
+      raceSession.advanceTime(dt);
 
-      if (sample.actions.pauseRequested) {
+      if (pauseAfterFixedStep) {
         inputManager.setEnabled(false);
-        runtime.setPaused(true);
         clearTouchPresentation();
-        setGamePaused(true);
-        setDriveCursorHidden(false);
-        return;
       }
 
       if (sample.actions.resetRequested) {
-        resetKart();
-        clearTouchPresentation();
-        latestDrivingInput = inputManager.sampleDrivingInput().driving;
+        requestRaceRecovery();
       }
 
+      latestDrivingInput =
+        raceSession.acceptsDriving && !pauseAfterFixedStep
+          ? sample.driving
+          : NEUTRAL_DRIVING_INPUT;
       kartController.update(latestDrivingInput, dt);
     });
 
@@ -1531,6 +1686,35 @@ export function SoloTimeTrialCanvas({
       captureCameraImpact();
 
       kartController.postUpdate(latestDrivingInput, dt);
+
+      const currentRacePosition = kart.getPosition();
+      if (raceSession.acceptsDriving) {
+        lastRaceProgressionResult = raceSession.processMovement(
+          {
+            x: previousRacePosition.x,
+            y: previousRacePosition.y,
+            z: previousRacePosition.z,
+          },
+          {
+            x: currentRacePosition.x,
+            y: currentRacePosition.y,
+            z: currentRacePosition.z,
+          },
+        );
+      }
+      previousRacePosition.copy(currentRacePosition);
+
+      if (pauseAfterFixedStep) {
+        raceSession.pause();
+        runtime.requestPauseAtFixedStepBoundary();
+        pauseAfterFixedStep = false;
+        setGamePaused(true);
+        setDriveCursorHidden(false);
+      }
+    });
+
+    runtime.onDiscardedTime((discardedSeconds) => {
+      raceSession.advanceTime(discardedSeconds);
     });
 
     runtime.onRender(({ accumulatorFraction, frameSeconds }) => {
@@ -1581,6 +1765,8 @@ export function SoloTimeTrialCanvas({
 
     });
 
+      raceSession.markReady();
+      raceSession.startCountdown();
       runtime.start();
       activeCanvas.dataset.sceneReady = "true";
       setSceneStatus("ready");
@@ -1712,10 +1898,7 @@ export function SoloTimeTrialCanvas({
     } catch {
       // Synthetic browser tests may not create an active native pointer stream.
     }
-    updateTouchSteering(
-      event.pointerId,
-      getTouchSteeringFromPointer(event),
-    );
+    updateTouchSteering(event.pointerId, getTouchSteeringFromPointer(event));
   }
 
   function moveTouchSteering(event: ReactPointerEvent<HTMLDivElement>) {
@@ -1723,10 +1906,7 @@ export function SoloTimeTrialCanvas({
       return;
     }
     event.preventDefault();
-    updateTouchSteering(
-      event.pointerId,
-      getTouchSteeringFromPointer(event),
-    );
+    updateTouchSteering(event.pointerId, getTouchSteeringFromPointer(event));
   }
 
   function releaseTouchSteering(event: ReactPointerEvent<HTMLDivElement>) {
@@ -1835,9 +2015,7 @@ export function SoloTimeTrialCanvas({
         inert={gamePaused}
         tabIndex={0}
         className={`block h-[100dvh] w-[100dvw] ${
-          driveCursorHidden &&
-          !gamePaused &&
-          sceneStatus === "ready"
+          driveCursorHidden && !gamePaused && sceneStatus === "ready"
             ? "cursor-none"
             : "cursor-default"
         }`}
@@ -1993,8 +2171,12 @@ export function SoloTimeTrialCanvas({
                       onPointerCancel={(event) =>
                         releaseTouchControl(event, action)
                       }
-                      onPointerDown={(event) => pressTouchControl(event, action)}
-                      onPointerUp={(event) => releaseTouchControl(event, action)}
+                      onPointerDown={(event) =>
+                        pressTouchControl(event, action)
+                      }
+                      onPointerUp={(event) =>
+                        releaseTouchControl(event, action)
+                      }
                     >
                       {action === "accelerate" ? (
                         <AcceleratorIcon />
