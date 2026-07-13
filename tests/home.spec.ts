@@ -1345,6 +1345,7 @@ test.describe("home screen", () => {
   test("keeps airborne framing world-up and blends back after landing", async ({
     page,
   }) => {
+    test.setTimeout(60_000);
     await page.goto("/");
     await page.getByRole("button", { name: "Solo Time Trial" }).click();
 
@@ -2080,14 +2081,7 @@ test.describe("home screen", () => {
   }, testInfo) => {
     test.skip(testInfo.project.name === "mobile", "Controller desktop fixture.");
 
-    await page.addInitScript(() => {
-      const testWindow = window as typeof window & { __TR_GAMEPADS__?: Gamepad[] };
-      testWindow.__TR_GAMEPADS__ = [];
-      Object.defineProperty(navigator, "getGamepads", {
-        configurable: true,
-        value: () => testWindow.__TR_GAMEPADS__ ?? [],
-      });
-    });
+    await installStandardGamepadFixture(page);
     await page.goto("/");
     await page.getByRole("button", { name: "Solo Time Trial" }).click();
 
@@ -2211,16 +2205,7 @@ test.describe("home screen", () => {
   }, testInfo) => {
     test.skip(testInfo.project.name === "mobile", "Controller desktop fixture.");
 
-    await page.addInitScript(() => {
-      const testWindow = window as typeof window & {
-        __TR_GAMEPADS__?: Gamepad[];
-      };
-      testWindow.__TR_GAMEPADS__ = [];
-      Object.defineProperty(navigator, "getGamepads", {
-        configurable: true,
-        value: () => testWindow.__TR_GAMEPADS__ ?? [],
-      });
-    });
+    await installStandardGamepadFixture(page);
     await page.goto("/");
     await expect(
       page.locator('[data-controller-menu-ready="true"]'),

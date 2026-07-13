@@ -866,6 +866,7 @@ export function SoloTimeTrialCanvas({
     let activeMovementTuning: KartMovementTuning = {
       ...DEFAULT_KART_MOVEMENT_TUNING,
     };
+    let inputManager: PlayerInputManager | null = null;
 
     function editStaticRigidBody(
       entity: pc.Entity,
@@ -939,7 +940,7 @@ export function SoloTimeTrialCanvas({
       kartController.reset();
       snapKartPresentationState();
       latestCameraImpact = null;
-      inputManager.clear();
+      inputManager?.clear();
       chaseCamera.snap(getChaseCameraSnapshot(dynamicWheels.length));
       activeCanvas.focus();
     }
@@ -1163,7 +1164,7 @@ export function SoloTimeTrialCanvas({
     }
 
     const getGamepads = () => navigator.getGamepads?.() ?? [];
-    const inputManager = new PlayerInputManager(window, getGamepads);
+    inputManager = new PlayerInputManager(window, getGamepads);
     inputManager.attach();
     runtime.addCleanup(() => inputManager.detach());
     const clearTouchPresentation = () => {
