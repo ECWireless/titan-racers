@@ -25,7 +25,7 @@ export class CoursePublicationConflictError extends Error {
 
 export class CoursePublicationTargetError extends Error {
   constructor() {
-    super("The requested saved course revision does not exist.");
+    super("The requested course or saved revision does not exist.");
     this.name = "CoursePublicationTargetError";
   }
 }

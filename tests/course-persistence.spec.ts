@@ -373,6 +373,47 @@ test.describe("course persistence and authorization", () => {
 
     const { headers } = await authContext.test.login({ userId: savedUser.id });
     const context = { params: Promise.resolve({ courseId }) };
+    const missingCourseId = `missing-publication-${randomUUID()}`;
+    const missingCourseResponse = await postCoursePublication(
+      new Request(
+        `http://127.0.0.1:3873/api/admin/courses/${missingCourseId}/publication`,
+        {
+          body: JSON.stringify({ expectedPublicationId: null, revision: 1 }),
+          headers: new Headers([
+            ...headers.entries(),
+            ["content-type", "application/json"],
+            ["origin", CONFIGURED_ORIGIN],
+          ]),
+          method: "POST",
+        },
+      ),
+      { params: Promise.resolve({ courseId: missingCourseId }) },
+    );
+    expect(missingCourseResponse.status).toBe(404);
+    await expect(missingCourseResponse.json()).resolves.toEqual({
+      error: "The requested course or saved revision does not exist.",
+    });
+
+    const missingRevisionResponse = await postCoursePublication(
+      new Request(
+        `http://127.0.0.1:3873/api/admin/courses/${courseId}/publication`,
+        {
+          body: JSON.stringify({ expectedPublicationId: null, revision: 4 }),
+          headers: new Headers([
+            ...headers.entries(),
+            ["content-type", "application/json"],
+            ["origin", CONFIGURED_ORIGIN],
+          ]),
+          method: "POST",
+        },
+      ),
+      context,
+    );
+    expect(missingRevisionResponse.status).toBe(404);
+    await expect(missingRevisionResponse.json()).resolves.toEqual({
+      error: "The requested course or saved revision does not exist.",
+    });
+
     const publicationStatus = await getCoursePublication(
       new Request(`http://127.0.0.1:3873/api/admin/courses/${courseId}/publication`, {
         headers,
