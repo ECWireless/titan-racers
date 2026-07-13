@@ -28,6 +28,10 @@ A game-concept node should normally cover:
 
 ## Current Children
 
+- [`player-input/`](player-input/README.md): the validated engine-independent
+  standard for normalized driving actions, concurrent keyboard, touch, and
+  controller support, device arbitration, cancellation, and accessible control
+  presentation.
 - [`course-editing/`](course-editing/README.md): the accepted document-centered
   standard for versioned course data, stable identities, primitive authoring,
   checkpoint ordering, validation, deterministic export, and edit history.

@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useState } from "react";
+import { useRef, useState } from "react";
 
 import {
   ROUGH_COURSE_DOCUMENT,
@@ -10,6 +10,7 @@ import {
 } from "@/game/course/course-document";
 import { CURRENT_GUEST_COURSE_ID } from "@/game/course/course-ids";
 import { publishedCourseRuntimeSchema } from "@/game/course/course-publication";
+import { useControllerMenuNavigation } from "@/game/input/use-controller-menu-navigation";
 
 import { SoloTimeTrialCanvas } from "./solo-time-trial-canvas";
 
@@ -25,12 +26,18 @@ const actions = [
 ] as const;
 
 export function PlayHome() {
+  const modeMenuRef = useRef<HTMLDivElement | null>(null);
   const [mode, setMode] = useState<"home" | "solo">("home");
   const [toast, setToast] = useState<string | null>(null);
   const [soloPending, setSoloPending] = useState(false);
   const [courseDocument, setCourseDocument] = useState<CourseDocument>(
     ROUGH_COURSE_DOCUMENT,
   );
+
+  useControllerMenuNavigation({
+    containerRef: modeMenuRef,
+    enabled: mode === "home",
+  });
 
   function showComingSoon() {
     setToast("coming soon");
@@ -96,7 +103,7 @@ export function PlayHome() {
           <p className="mb-4 font-mono text-xs font-bold uppercase tracking-[0.22em] text-titan-hazard">
             Choose game mode
           </p>
-          <div className="grid gap-4">
+          <div className="grid gap-4" ref={modeMenuRef}>
             {actions.map((action) => (
               <button
                 key={action.label}

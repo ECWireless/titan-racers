@@ -26,6 +26,9 @@ The source code and authoritative project documents remain the final authority f
 
 ## Current Children
 
+- [Player input](player-input/README.md): normalized fixed-step driving actions,
+  keyboard, multi-touch, and standard-gamepad adapters, intentional-activity
+  arbitration, cancellation, accessible touch controls, reset, and pause.
 - [Protected course editor](course-editor/README.md): protected revision loading,
   responsive document authoring, PlayCanvas picking and gizmos, mobile precision
   controls, collision diagnostics, private drafts, and live publication.

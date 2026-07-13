@@ -1,4 +1,4 @@
-import { expect, type Locator, test } from "@playwright/test";
+import { expect, type Locator, type Page, test } from "@playwright/test";
 
 import { ROUGH_COURSE_DOCUMENT } from "../src/game/course/course-document";
 
@@ -9,6 +9,54 @@ import {
 
 async function waitForSceneReady(canvas: Locator) {
   await expect(canvas).toHaveAttribute("data-scene-ready", "true");
+}
+
+async function setStandardTestGamepad(
+  page: Page,
+  {
+    axes = [0, 0, 0, 0],
+    buttons: buttonValues = {},
+  }: {
+    axes?: number[];
+    buttons?: Record<number, number>;
+  } = {},
+) {
+  await page.evaluate(
+    ({ axes: nextAxes, buttonValues: nextButtonValues }) => {
+      const buttons = Array.from({ length: 17 }, (_, index) => {
+        const value = nextButtonValues[index] ?? 0;
+        return { pressed: value > 0, touched: value > 0, value };
+      });
+      const testWindow = window as typeof window & {
+        __TR_GAMEPADS__?: Gamepad[];
+      };
+      testWindow.__TR_GAMEPADS__ = [
+        {
+          axes: nextAxes,
+          buttons,
+          connected: true,
+          id: "Automated standard controller",
+          index: 0,
+          mapping: "standard",
+          timestamp: performance.now(),
+        } as unknown as Gamepad,
+      ];
+    },
+    { axes, buttonValues },
+  );
+}
+
+async function installStandardGamepadFixture(page: Page) {
+  await page.addInitScript(() => {
+    const testWindow = window as typeof window & {
+      __TR_GAMEPADS__?: Gamepad[];
+    };
+    testWindow.__TR_GAMEPADS__ = [];
+    Object.defineProperty(navigator, "getGamepads", {
+      configurable: true,
+      value: () => testWindow.__TR_GAMEPADS__ ?? [],
+    });
+  });
 }
 
 async function getKartScreenPoint(canvas: Locator) {
@@ -306,6 +354,13 @@ async function setSimulationPaused(canvas: Locator, paused: boolean) {
   }, paused);
 }
 
+async function resetKart(canvas: Locator) {
+  await waitForSceneReady(canvas);
+  await canvas.evaluate((element) => {
+    element.dispatchEvent(new CustomEvent("resetKart"));
+  });
+}
+
 async function stepSimulation(canvas: Locator, steps = 1) {
   await canvas.evaluate((element, requestedSteps) => {
     element.dispatchEvent(
@@ -438,6 +493,7 @@ test.describe("home screen", () => {
   test("shows an accessible error and reloads after kart physics cannot load", async ({
     page,
   }) => {
+    await installStandardGamepadFixture(page);
     await page.route("**/vendor/ammo/**", (route) => route.abort());
     await page.goto("/");
     await page.getByRole("button", { name: "Solo Time Trial" }).click();
@@ -446,8 +502,14 @@ test.describe("home screen", () => {
       page.getByRole("alert").filter({ hasText: "Unable to start the race" }),
     ).toBeVisible();
     await page.unroute("**/vendor/ammo/**");
-    await page.getByRole("button", { name: "Reload" }).click();
+    await expect(
+      page.locator('[data-controller-menu-ready="true"]'),
+    ).toHaveCount(1);
+    await setStandardTestGamepad(page);
+    await page.waitForTimeout(50);
+    await setStandardTestGamepad(page, { buttons: { 0: 1 } });
     await expect(page.getByText("Choose game mode")).toBeVisible();
+    await setStandardTestGamepad(page);
     await page.getByRole("button", { name: "Solo Time Trial" }).click();
     await expect(page.getByTestId("solo-time-trial-canvas")).toHaveAttribute(
       "data-scene-ready",
@@ -465,6 +527,7 @@ test.describe("home screen", () => {
     const pageErrors: Error[] = [];
 
     page.on("pageerror", (error) => pageErrors.push(error));
+    await installStandardGamepadFixture(page);
     await page.route("**/vendor/ammo/**", async (route) => {
       await blockedRequest;
       await route.abort();
@@ -475,12 +538,54 @@ test.describe("home screen", () => {
     await expect(page.getByRole("status")).toHaveText(
       "Preparing kart physics…",
     );
-    await page.getByRole("button", { name: "Exit" }).click();
+    await expect(
+      page.locator('[data-controller-menu-ready="true"]'),
+    ).toHaveCount(1);
+    await setStandardTestGamepad(page);
+    await page.waitForTimeout(50);
+    await setStandardTestGamepad(page, { buttons: { 0: 1 } });
     await expect(page.getByText("Choose game mode")).toBeVisible();
+    await setStandardTestGamepad(page);
 
     releaseRequest();
     await page.unrouteAll({ behavior: "wait" });
     expect(pageErrors).toEqual([]);
+  });
+
+  test("exits a failed race with controller focus or back", async ({ page }) => {
+    await installStandardGamepadFixture(page);
+    await page.route("**/vendor/ammo/**", (route) => route.abort());
+    await page.goto("/");
+    await page.getByRole("button", { name: "Solo Time Trial" }).click();
+
+    const failedAlert = page
+      .getByRole("alert")
+      .filter({ hasText: "Unable to start the race" });
+    await expect(failedAlert).toBeVisible();
+    await expect(
+      page.locator('[data-controller-menu-ready="true"]'),
+    ).toHaveCount(1);
+    await setStandardTestGamepad(page);
+    await page.waitForTimeout(50);
+    await setStandardTestGamepad(page, { buttons: { 13: 1 } });
+    const exit = page.getByRole("button", { name: "Exit" });
+    await expect(exit).toBeFocused();
+    await setStandardTestGamepad(page);
+    await page.waitForTimeout(50);
+    await setStandardTestGamepad(page, { buttons: { 0: 1 } });
+    await expect(page.getByText("Choose game mode")).toBeVisible();
+
+    await page.reload();
+    await expect(page.getByText("Choose game mode")).toBeVisible();
+    await setStandardTestGamepad(page);
+    await page.getByRole("button", { name: "Solo Time Trial" }).click();
+    await expect(failedAlert).toBeVisible();
+    await expect(
+      page.locator('[data-controller-menu-ready="true"]'),
+    ).toHaveCount(1);
+    await page.waitForTimeout(50);
+    await setStandardTestGamepad(page, { buttons: { 1: 1 } });
+    await expect(page.getByText("Choose game mode")).toBeVisible();
   });
 
   test("destroys the runtime when scene setup fails after initialization", async ({
@@ -615,6 +720,14 @@ test.describe("home screen", () => {
     expect(
       Math.hypot(movedState.x - startState.x, movedState.z - startState.z),
     ).toBeGreaterThan(0.75);
+
+    await page.keyboard.press("r");
+    await expect
+      .poll(async () => {
+        const state = await getKartDebugState(canvas);
+        return Math.hypot(state.x - startState.x, state.z - startState.z);
+      })
+      .toBeLessThan(0.1);
   });
 
   test("settles at rest without chassis drift or rotation", async ({ page }) => {
@@ -1279,7 +1392,7 @@ test.describe("home screen", () => {
     const canvas = page.getByTestId("solo-time-trial-canvas");
     await setSimulationPaused(canvas, true);
     await setStartPosition(canvas, { x: 0.5, z: 0.5 });
-    await page.keyboard.press("r");
+    await resetKart(canvas);
 
     const presentation = await getPresentationDebugState(canvas);
     expect(presentation.visualPosition.x).toBeCloseTo(0.5);
@@ -1306,6 +1419,13 @@ test.describe("home screen", () => {
   });
 
   test("registers course obstacle collision", async ({ page }) => {
+    await page.route("**/api/courses/rough-course/published", async (route) => {
+      await route.fulfill({
+        body: JSON.stringify({ error: "Published course not found." }),
+        contentType: "application/json",
+        status: 404,
+      });
+    });
     await page.goto("/");
 
     await page.getByRole("button", { name: "Solo Time Trial" }).click();
@@ -1659,6 +1779,14 @@ test.describe("home screen", () => {
   test("keeps a rear-balanced pitch attitude after ramp takeoff", async ({
     page,
   }) => {
+    test.setTimeout(60_000);
+    await page.route("**/api/courses/rough-course/published", async (route) => {
+      await route.fulfill({
+        body: JSON.stringify({ error: "Published course not found." }),
+        contentType: "application/json",
+        status: 404,
+      });
+    });
     await page.goto("/");
     await page.getByRole("button", { name: "Solo Time Trial" }).click();
 
@@ -1810,9 +1938,359 @@ test.describe("home screen", () => {
     await expect(canvas).toHaveCSS("cursor", "default");
     await expect(page.getByRole("button", { name: "Edit" })).toHaveCount(0);
 
-    await page.getByRole("button", { name: "Resume" }).click();
+    await page.keyboard.press("Escape");
     await expect(page.getByText("Paused", { exact: true })).not.toBeVisible();
     await expect(canvas).toHaveCSS("cursor", "none");
+    await page.waitForTimeout(250);
+    await expect(page.getByText("Paused", { exact: true })).not.toBeVisible();
+  });
+
+  test("drives with simultaneous analog steering and accessible touch pedals", async ({
+    page,
+  }, testInfo) => {
+    test.skip(testInfo.project.name !== "mobile", "Touch controls only.");
+
+    await page.goto("/");
+    await page.getByRole("button", { name: "Solo Time Trial" }).click();
+
+    const canvas = page.getByTestId("solo-time-trial-canvas");
+    await waitForSceneReady(canvas);
+    await expect
+      .poll(async () => getKartDebugState(canvas))
+      .toMatchObject({ supportCount: 4 });
+
+    const accelerate = page.getByRole("button", { name: "Accelerate" });
+    const steering = page.getByRole("slider", { name: "Steering" });
+    const brake = page.getByRole("button", { name: "Brake / Reverse" });
+    const reset = page.getByRole("button", { name: "Reset kart" });
+
+    for (const control of [accelerate, steering, brake, reset]) {
+      await expect(control).toBeVisible();
+      const bounds = await control.boundingBox();
+      expect(bounds?.width ?? 0).toBeGreaterThanOrEqual(44);
+      expect(bounds?.height ?? 0).toBeGreaterThanOrEqual(44);
+    }
+
+    const start = await getKartDebugState(canvas);
+    const steeringBounds = await steering.boundingBox();
+    expect(steeringBounds).not.toBeNull();
+    await accelerate.dispatchEvent("pointerdown", {
+      buttons: 1,
+      pointerId: 11,
+      pointerType: "touch",
+    });
+    const steeringCenterX =
+      (steeringBounds?.x ?? 0) + (steeringBounds?.width ?? 0) * 0.5;
+    const steeringCenterY =
+      (steeringBounds?.y ?? 0) + (steeringBounds?.height ?? 0) * 0.5;
+    await page.mouse.move(steeringCenterX, steeringCenterY);
+    await page.mouse.down();
+    await page.mouse.move(
+      (steeringBounds?.x ?? 0) +
+        (steeringBounds?.width ?? 0) * (0.5 + 0.162),
+      steeringCenterY,
+    );
+    await expect(accelerate).toHaveAttribute("aria-pressed", "true");
+    await expect(steering).toHaveAttribute("aria-valuenow", "0.5");
+    await expect(steering).toHaveAttribute("data-active", "true");
+
+    await expect
+      .poll(async () => (await getKartDebugState(canvas)).speed)
+      .toBeGreaterThan(start.speed + 0.5);
+    await expect
+      .poll(async () => Math.abs((await getKartDebugState(canvas)).steerAngle))
+      .toBeGreaterThan(1);
+
+    await page.mouse.move(
+      (steeringBounds?.x ?? 0) + (steeringBounds?.width ?? 0) * 1.2,
+      steeringCenterY,
+    );
+    await expect(steering).toHaveAttribute("aria-valuenow", "1");
+
+    await accelerate.dispatchEvent("pointercancel", {
+      pointerId: 11,
+      pointerType: "touch",
+    });
+    await page.mouse.up();
+    await expect(accelerate).toHaveAttribute("aria-pressed", "false");
+    await expect(steering).toHaveAttribute("aria-valuenow", "0");
+    await expect(steering).toHaveAttribute("data-active", "false");
+    await expect
+      .poll(async () => Math.abs((await getKartDebugState(canvas)).steerAngle))
+      .toBeLessThan(0.5);
+
+    await steering.dispatchEvent("pointerdown", {
+      buttons: 1,
+      clientX:
+        (steeringBounds?.x ?? 0) +
+        (steeringBounds?.width ?? 0) * (0.5 - 0.162),
+      clientY: steeringCenterY,
+      pointerId: 12,
+      pointerType: "touch",
+    });
+    await expect(steering).toHaveAttribute("aria-valuenow", "-0.5");
+    await steering.dispatchEvent("pointercancel", {
+      pointerId: 12,
+      pointerType: "touch",
+    });
+    await expect(steering).toHaveAttribute("aria-valuenow", "0");
+
+    await steering.dispatchEvent("pointerdown", {
+      buttons: 1,
+      clientX:
+        (steeringBounds?.x ?? 0) +
+        (steeringBounds?.width ?? 0) * (0.5 + 0.162),
+      clientY: steeringCenterY,
+      pointerId: 13,
+      pointerType: "touch",
+    });
+    await expect(steering).toHaveAttribute("aria-valuenow", "0.5");
+    await steering.dispatchEvent("lostpointercapture", {
+      pointerId: 13,
+      pointerType: "touch",
+    });
+    await expect(steering).toHaveAttribute("aria-valuenow", "0");
+
+    await reset.click();
+    await expect
+      .poll(async () => {
+        const state = await getKartDebugState(canvas);
+        return Math.hypot(state.x - start.x, state.z - start.z);
+      })
+      .toBeLessThan(0.1);
+
+    await accelerate.focus();
+    await page.keyboard.down("Space");
+    await expect(accelerate).toHaveAttribute("aria-pressed", "true");
+    await expect
+      .poll(async () => (await getKartDebugState(canvas)).speed)
+      .toBeGreaterThan(0.5);
+    await page.keyboard.up("Space");
+    await expect(accelerate).toHaveAttribute("aria-pressed", "false");
+
+    await steering.focus();
+    await page.keyboard.down("ArrowLeft");
+    await expect(steering).toHaveAttribute("aria-valuenow", "-1");
+    await page.keyboard.up("ArrowLeft");
+    await expect(steering).toHaveAttribute("aria-valuenow", "0");
+  });
+
+  test("drives and pauses with a standard-mapped controller snapshot", async ({
+    page,
+  }, testInfo) => {
+    test.skip(testInfo.project.name === "mobile", "Controller desktop fixture.");
+
+    await page.addInitScript(() => {
+      const testWindow = window as typeof window & { __TR_GAMEPADS__?: Gamepad[] };
+      testWindow.__TR_GAMEPADS__ = [];
+      Object.defineProperty(navigator, "getGamepads", {
+        configurable: true,
+        value: () => testWindow.__TR_GAMEPADS__ ?? [],
+      });
+    });
+    await page.goto("/");
+    await page.getByRole("button", { name: "Solo Time Trial" }).click();
+
+    const canvas = page.getByTestId("solo-time-trial-canvas");
+    await waitForSceneReady(canvas);
+    await expect
+      .poll(async () => getKartDebugState(canvas))
+      .toMatchObject({ supportCount: 4 });
+    const start = await getKartDebugState(canvas);
+
+    await page.evaluate(() => {
+      const buttons = Array.from({ length: 17 }, () => ({
+        pressed: false,
+        touched: false,
+        value: 0,
+      }));
+      buttons[7] = { pressed: true, touched: true, value: 1 };
+      const testWindow = window as typeof window & { __TR_GAMEPADS__?: Gamepad[] };
+      testWindow.__TR_GAMEPADS__ = [{
+        axes: [0.55, 0, 0, 0],
+        buttons,
+        connected: true,
+        id: "Automated standard controller",
+        index: 0,
+        mapping: "standard",
+        timestamp: performance.now(),
+      } as unknown as Gamepad];
+    });
+
+    await expect
+      .poll(async () => (await getKartDebugState(canvas)).speed)
+      .toBeGreaterThan(start.speed + 0.5);
+    await expect
+      .poll(async () => Math.abs((await getKartDebugState(canvas)).steerAngle))
+      .toBeGreaterThan(1);
+
+    await page.evaluate(() => {
+      const testWindow = window as typeof window & { __TR_GAMEPADS__?: Gamepad[] };
+      const gamepad = testWindow.__TR_GAMEPADS__?.[0];
+      if (!gamepad) return;
+      const buttons = [...gamepad.buttons] as Array<{
+        pressed: boolean;
+        touched: boolean;
+        value: number;
+      }>;
+      buttons[7] = { pressed: false, touched: false, value: 0 };
+      buttons[0] = { pressed: true, touched: true, value: 1 };
+      testWindow.__TR_GAMEPADS__ = [{ ...gamepad, axes: [0, 0, 0, 0], buttons } as Gamepad];
+    });
+
+    await expect
+      .poll(async () => {
+        const state = await getKartDebugState(canvas);
+        return Math.hypot(state.x - start.x, state.z - start.z);
+      })
+      .toBeLessThan(0.1);
+
+    await page.evaluate(() => {
+      const testWindow = window as typeof window & { __TR_GAMEPADS__?: Gamepad[] };
+      const gamepad = testWindow.__TR_GAMEPADS__?.[0];
+      if (!gamepad) return;
+      const buttons = [...gamepad.buttons] as Array<{
+        pressed: boolean;
+        touched: boolean;
+        value: number;
+      }>;
+      buttons[0] = { pressed: false, touched: false, value: 0 };
+      testWindow.__TR_GAMEPADS__ = [{ ...gamepad, buttons } as Gamepad];
+    });
+    await page.waitForTimeout(100);
+    await page.evaluate(() => {
+      const testWindow = window as typeof window & { __TR_GAMEPADS__?: Gamepad[] };
+      const gamepad = testWindow.__TR_GAMEPADS__?.[0];
+      if (!gamepad) return;
+      const buttons = [...gamepad.buttons] as Array<{
+        pressed: boolean;
+        touched: boolean;
+        value: number;
+      }>;
+      buttons[9] = { pressed: true, touched: true, value: 1 };
+      testWindow.__TR_GAMEPADS__ = [{ ...gamepad, buttons } as Gamepad];
+    });
+
+    const pauseDialog = page.getByRole("dialog", { name: "Paused" });
+    await expect(pauseDialog).toBeVisible();
+    await pauseDialog.getByRole("button", { name: "Resume" }).click();
+    await expect(pauseDialog).not.toBeVisible();
+    await page.waitForTimeout(250);
+    await expect(pauseDialog).not.toBeVisible();
+
+    await page.evaluate(() => {
+      const testWindow = window as typeof window & { __TR_GAMEPADS__?: Gamepad[] };
+      const gamepad = testWindow.__TR_GAMEPADS__?.[0];
+      if (!gamepad) return;
+      const buttons = [...gamepad.buttons] as Array<{
+        pressed: boolean;
+        touched: boolean;
+        value: number;
+      }>;
+      buttons[9] = { pressed: false, touched: false, value: 0 };
+      testWindow.__TR_GAMEPADS__ = [{ ...gamepad, buttons } as Gamepad];
+    });
+    await page.waitForTimeout(100);
+    await page.evaluate(() => {
+      const testWindow = window as typeof window & { __TR_GAMEPADS__?: Gamepad[] };
+      const gamepad = testWindow.__TR_GAMEPADS__?.[0];
+      if (!gamepad) return;
+      const buttons = [...gamepad.buttons] as Array<{
+        pressed: boolean;
+        touched: boolean;
+        value: number;
+      }>;
+      buttons[9] = { pressed: true, touched: true, value: 1 };
+      testWindow.__TR_GAMEPADS__ = [{ ...gamepad, buttons } as Gamepad];
+    });
+    await expect(pauseDialog).toBeVisible();
+  });
+
+  test("navigates guest menus end-to-end with a standard controller snapshot", async ({
+    page,
+  }, testInfo) => {
+    test.skip(testInfo.project.name === "mobile", "Controller desktop fixture.");
+
+    await page.addInitScript(() => {
+      const testWindow = window as typeof window & {
+        __TR_GAMEPADS__?: Gamepad[];
+      };
+      testWindow.__TR_GAMEPADS__ = [];
+      Object.defineProperty(navigator, "getGamepads", {
+        configurable: true,
+        value: () => testWindow.__TR_GAMEPADS__ ?? [],
+      });
+    });
+    await page.goto("/");
+    await expect(
+      page.locator('[data-controller-menu-ready="true"]'),
+    ).toHaveCount(1);
+    await setStandardTestGamepad(page);
+    await page.waitForTimeout(50);
+
+    const soloTimeTrial = page.getByRole("button", {
+      name: "Solo Time Trial",
+    });
+    await setStandardTestGamepad(page, { buttons: { 13: 1 } });
+    await expect(soloTimeTrial).toBeFocused();
+    await setStandardTestGamepad(page);
+    await page.waitForTimeout(50);
+    await setStandardTestGamepad(page, { buttons: { 0: 1 } });
+
+    const canvas = page.getByTestId("solo-time-trial-canvas");
+    await expect(canvas).toBeVisible();
+    await setStandardTestGamepad(page);
+    await waitForSceneReady(canvas);
+    await page.waitForTimeout(50);
+
+    const pauseDialog = page.getByRole("dialog", { name: "Paused" });
+    const resume = pauseDialog.getByRole("button", { name: "Resume" });
+    const exit = pauseDialog.getByRole("button", { name: "Exit" });
+
+    await setStandardTestGamepad(page, { buttons: { 9: 1 } });
+    await expect(pauseDialog).toBeVisible();
+    await expect(
+      pauseDialog.locator('[data-controller-menu-ready="true"]'),
+    ).toHaveCount(1);
+    await expect(resume).toHaveCSS("outline-style", "solid");
+    await expect(resume).toHaveCSS("outline-width", "2px");
+    await setStandardTestGamepad(page);
+    await page.waitForTimeout(50);
+
+    await setStandardTestGamepad(page, { buttons: { 13: 1 } });
+    await expect(exit).toBeFocused();
+    await setStandardTestGamepad(page);
+    await page.waitForTimeout(50);
+    await setStandardTestGamepad(page, { buttons: { 13: 1 } });
+    await expect(resume).toBeFocused();
+    await setStandardTestGamepad(page);
+    await page.waitForTimeout(50);
+    await setStandardTestGamepad(page, { buttons: { 0: 1 } });
+    await expect(pauseDialog).not.toBeVisible();
+    await setStandardTestGamepad(page);
+    await page.waitForTimeout(100);
+
+    await setStandardTestGamepad(page, { buttons: { 9: 1 } });
+    await expect(pauseDialog).toBeVisible();
+    await setStandardTestGamepad(page);
+    await page.waitForTimeout(50);
+    await setStandardTestGamepad(page, { buttons: { 1: 1 } });
+    await expect(pauseDialog).not.toBeVisible();
+    await setStandardTestGamepad(page);
+    await page.waitForTimeout(100);
+
+    await setStandardTestGamepad(page, { buttons: { 9: 1 } });
+    await expect(pauseDialog).toBeVisible();
+    await setStandardTestGamepad(page);
+    await page.waitForTimeout(50);
+    await setStandardTestGamepad(page, { buttons: { 13: 1 } });
+    await expect(exit).toBeFocused();
+    await setStandardTestGamepad(page);
+    await page.waitForTimeout(50);
+    await setStandardTestGamepad(page, { buttons: { 0: 1 } });
+    await expect(
+      page.getByRole("button", { name: "Solo Time Trial" }),
+    ).toBeVisible();
   });
 
   test("keeps transformed test-obstacle collision synchronized", async ({
