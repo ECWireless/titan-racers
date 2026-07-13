@@ -60,6 +60,7 @@ import {
 } from "@/game/runtime/ammo-rigid-body";
 import { createRaceSessionConfig } from "@/game/race/playcanvas-race-course";
 import {
+  createLoadingRacePresentationSnapshot,
   createRacePresentationSnapshot,
   racePresentationSnapshotsEqual,
   type RacePresentationSnapshot,
@@ -168,6 +169,7 @@ const ENABLE_SCENE_TEST_HOOKS = process.env.NODE_ENV !== "production";
 
 type SceneInitializationTestControl = {
   forcePostRuntimeFailure?: boolean;
+  forceRaceSessionFailure?: boolean;
   runtimeDestroyCount?: number;
 };
 
@@ -195,14 +197,6 @@ type SoloSceneControls = {
   setTouchSteering: (pointerId: number, value: number) => void;
   setPaused: (paused: boolean) => void;
 };
-
-function createInitialRacePresentation(
-  courseDocument: CourseDocument,
-): RacePresentationSnapshot {
-  const session = new RaceSession(createRaceSessionConfig(courseDocument));
-
-  return createRacePresentationSnapshot(session.snapshot);
-}
 
 const TOUCH_KEYBOARD_POINTER_IDS: Record<TouchPedalAction, number> = {
   accelerate: -1,
@@ -326,9 +320,7 @@ export function SoloTimeTrialCanvas({
   const [driveCursorHidden, setDriveCursorHidden] = useState(false);
   const [gamePaused, setGamePaused] = useState(false);
   const [racePresentation, setRacePresentation] =
-    useState<RacePresentationSnapshot>(() =>
-      createInitialRacePresentation(COURSE_DOCUMENT),
-    );
+    useState<RacePresentationSnapshot>(createLoadingRacePresentationSnapshot);
   const [sceneStatus, setSceneStatus] = useState<
     "initializing" | "ready" | "failed"
   >("initializing");
@@ -424,6 +416,11 @@ export function SoloTimeTrialCanvas({
 
     rigidBodySystem.gravity.set(0, -KART_GRAVITY, 0);
     activeCanvas.focus();
+
+    if (sceneTestControl?.forceRaceSessionFailure) {
+      throw new Error("Forced race-session initialization failure");
+    }
+
     const raceSession = new RaceSession(
       createRaceSessionConfig(COURSE_DOCUMENT),
     );

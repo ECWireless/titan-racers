@@ -1,6 +1,7 @@
 import { expect, test } from "@playwright/test";
 
 import {
+  createLoadingRacePresentationSnapshot,
   createRacePresentationSnapshot,
   formatRaceTime,
   racePresentationSnapshotsEqual,
@@ -48,6 +49,19 @@ test.describe("race presentation", () => {
     expect(formatRaceTime(61_999_999)).toBe("1:01.9");
     expect(formatRaceTime(61_999_999, 3)).toBe("1:01.999");
     expect(formatRaceTime(Number.NaN)).toBe("0:00.0");
+  });
+
+  test("creates a non-authoritative loading state without a race session", () => {
+    expect(createLoadingRacePresentationSnapshot()).toEqual({
+      announcement: "",
+      countdownValue: null,
+      cue: null,
+      currentLap: 1,
+      elapsedTime: "0:00.0",
+      lapCount: 1,
+      lapTimes: [],
+      state: "loading",
+    });
   });
 
   test("projects countdown, progress, recovery, and finish states", () => {

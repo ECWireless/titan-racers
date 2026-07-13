@@ -729,6 +729,44 @@ test.describe("home screen", () => {
       .toBe(1);
   });
 
+  test("shows a controlled failure when race-session setup throws", async ({
+    page,
+  }) => {
+    await page.addInitScript(() => {
+      (
+        window as typeof window & {
+          __TITAN_RACERS_SCENE_TEST__?: {
+            forceRaceSessionFailure: boolean;
+            runtimeDestroyCount: number;
+          };
+        }
+      ).__TITAN_RACERS_SCENE_TEST__ = {
+        forceRaceSessionFailure: true,
+        runtimeDestroyCount: 0,
+      };
+    });
+    await page.goto("/");
+    await page.getByRole("button", { name: "Solo Time Trial" }).click();
+
+    await expect(
+      page.getByRole("alert").filter({ hasText: "Unable to start the race" }),
+    ).toBeVisible();
+    await expect
+      .poll(() =>
+        page.evaluate(
+          () =>
+            (
+              window as typeof window & {
+                __TITAN_RACERS_SCENE_TEST__?: {
+                  runtimeDestroyCount?: number;
+                };
+              }
+            ).__TITAN_RACERS_SCENE_TEST__?.runtimeDestroyCount ?? 0,
+        ),
+      )
+      .toBe(1);
+  });
+
   test("runs the deterministic two-lap race lifecycle through ordered gates", async ({
     page,
   }, testInfo) => {

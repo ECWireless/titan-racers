@@ -18,6 +18,19 @@ const MICROSECONDS_PER_SECOND = 1_000_000;
 const GO_CUE_MICROSECONDS = 1_200_000;
 const LAP_CUE_MICROSECONDS = 1_300_000;
 
+export function createLoadingRacePresentationSnapshot(): RacePresentationSnapshot {
+  return {
+    announcement: "",
+    countdownValue: null,
+    cue: null,
+    currentLap: 1,
+    elapsedTime: "0:00.0",
+    lapCount: 1,
+    lapTimes: [],
+    state: "loading",
+  };
+}
+
 export function formatRaceTime(microseconds: number, precision = 1) {
   const safeMicroseconds = Number.isFinite(microseconds)
     ? Math.max(0, Math.floor(microseconds))
