@@ -656,12 +656,15 @@ document the verified shipped systems after each slice lands.
 
 ##### PR 4C: Integrated Rough Race Loop
 
-- [ ] connect unified input to the complete race lifecycle,
-- [ ] add countdown, checkpoint, lap, timer, recovery, and rough finish
-      presentation,
-- [ ] tune rough-course triggers and recovery placements,
-- [ ] complete the rough test loop through every supported input family,
-- [ ] run PR-level verification and independent review plus a proportional
+- [x] connect unified input to the complete race lifecycle,
+- [x] add countdown, player-relevant route feedback, lap, timer, recovery, and
+      rough finish presentation without exposing invisible checkpoint counts,
+- [x] tune rough-course triggers and recovery placements, with feature-lead QA
+      confirming that no geometry changes are required for this slice,
+- [x] complete the rough test loop through combined keyboard, touch, and
+      controller driving coverage, deterministic traversal, and feature-lead
+      cross-device feel QA,
+- [x] run PR-level verification and independent review plus a proportional
       integration review across the complete PR 4 race-loop work.
 
 #### PR 5: Telemetry And Runtime Resilience

@@ -26,6 +26,9 @@ The source code and authoritative project documents remain the final authority f
 
 ## Current Children
 
+- [Race presentation](race-presentation/README.md): authoritative snapshot
+  projection, countdown, lap/time HUD, recovery announcement, finish results, and
+  keyboard/controller replay flow.
 - [Race progression](race-progression/README.md): deterministic lifecycle,
   directed swept checkpoint gates, ordered laps, monotonic timing, pause-safe
   fixed-step integration, and checkpoint recovery.

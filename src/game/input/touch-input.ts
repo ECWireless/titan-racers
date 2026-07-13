@@ -8,7 +8,7 @@ import { applyAxialDeadZone } from "./player-input";
 export type TouchPedalAction = "accelerate" | "brakeReverse";
 
 export const TOUCH_STEERING_DEAD_ZONE = 0.08;
-export const TOUCH_STEERING_RESPONSE_EXPONENT = 1.5;
+export const TOUCH_STEERING_RESPONSE_EXPONENT = 1.75;
 
 export function normalizeTouchSteering(value: number) {
   const steer = applyAxialDeadZone(value, TOUCH_STEERING_DEAD_ZONE);

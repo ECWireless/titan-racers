@@ -60,6 +60,11 @@ import {
 } from "@/game/runtime/ammo-rigid-body";
 import { createRaceSessionConfig } from "@/game/race/playcanvas-race-course";
 import {
+  createRacePresentationSnapshot,
+  racePresentationSnapshotsEqual,
+  type RacePresentationSnapshot,
+} from "@/game/race/race-presentation";
+import {
   RaceSession,
   type RaceProgressionResult,
   type RaceTransform,
@@ -186,9 +191,18 @@ type SoloSceneControls = {
   pressTouchPedal: (pointerId: number, action: TouchPedalAction) => void;
   releaseTouch: (pointerId: number) => void;
   requestTouchReset: () => void;
+  restartRace: () => boolean;
   setTouchSteering: (pointerId: number, value: number) => void;
   setPaused: (paused: boolean) => void;
 };
+
+function createInitialRacePresentation(
+  courseDocument: CourseDocument,
+): RacePresentationSnapshot {
+  const session = new RaceSession(createRaceSessionConfig(courseDocument));
+
+  return createRacePresentationSnapshot(session.snapshot);
+}
 
 const TOUCH_KEYBOARD_POINTER_IDS: Record<TouchPedalAction, number> = {
   accelerate: -1,
@@ -297,6 +311,8 @@ export function SoloTimeTrialCanvas({
     };
   }, [COURSE_DOCUMENT]);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const finishMenuRef = useRef<HTMLDivElement | null>(null);
+  const restartButtonRef = useRef<HTMLButtonElement | null>(null);
   const pauseMenuRef = useRef<HTMLDivElement | null>(null);
   const resumeButtonRef = useRef<HTMLButtonElement | null>(null);
   const sceneApiRef = useRef<SoloSceneControls | null>(null);
@@ -309,6 +325,10 @@ export function SoloTimeTrialCanvas({
   const touchSteeringPointerRef = useRef<number | null>(null);
   const [driveCursorHidden, setDriveCursorHidden] = useState(false);
   const [gamePaused, setGamePaused] = useState(false);
+  const [racePresentation, setRacePresentation] =
+    useState<RacePresentationSnapshot>(() =>
+      createInitialRacePresentation(COURSE_DOCUMENT),
+    );
   const [sceneStatus, setSceneStatus] = useState<
     "initializing" | "ready" | "failed"
   >("initializing");
@@ -318,6 +338,11 @@ export function SoloTimeTrialCanvas({
     enabled: gamePaused,
     onBack: resumeRace,
     onMenu: resumeRace,
+  });
+  useControllerMenuNavigation({
+    containerRef: finishMenuRef,
+    enabled: racePresentation.state === "finished",
+    onBack: onExit,
   });
   useControllerMenuNavigation({
     containerRef: statusMenuRef,
@@ -353,6 +378,14 @@ export function SoloTimeTrialCanvas({
       requestAnimationFrame(() => resumeButtonRef.current?.focus());
     }
   }, [gamePaused]);
+
+  useEffect(() => {
+    if (racePresentation.state !== "finished") {
+      return;
+    }
+
+    requestAnimationFrame(() => restartButtonRef.current?.focus());
+  }, [racePresentation.state]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -395,6 +428,30 @@ export function SoloTimeTrialCanvas({
       createRaceSessionConfig(COURSE_DOCUMENT),
     );
     let lastRaceProgressionResult: RaceProgressionResult = { kind: "none" };
+    let lastRaceAnnouncementResult: RaceProgressionResult = { kind: "none" };
+    let lastRacePresentation = createRacePresentationSnapshot(
+      raceSession.snapshot,
+      lastRaceAnnouncementResult,
+    );
+
+    function publishRacePresentation() {
+      const nextPresentation = createRacePresentationSnapshot(
+        raceSession.snapshot,
+        lastRaceAnnouncementResult,
+      );
+
+      if (
+        racePresentationSnapshotsEqual(
+          lastRacePresentation,
+          nextPresentation,
+        )
+      ) {
+        return;
+      }
+
+      lastRacePresentation = nextPresentation;
+      setRacePresentation(nextPresentation);
+    }
 
     const kartMaterial = createMaterial(new pc.Color(0.95, 0.18, 0.08));
     const cockpitMaterial = createMaterial(new pc.Color(0.05, 0.08, 0.11));
@@ -1020,6 +1077,8 @@ export function SoloTimeTrialCanvas({
         return false;
       }
 
+      lastRaceAnnouncementResult = { kind: "none" };
+
       const candidates = sessionSnapshot.recoveryCandidates;
       const recoveryTransform =
         candidates
@@ -1307,6 +1366,19 @@ export function SoloTimeTrialCanvas({
         inputManager.pressTouchPedal(pointerId, action),
       releaseTouch: (pointerId) => inputManager.releaseTouch(pointerId),
       requestTouchReset: () => inputManager.requestTouchReset(),
+      restartRace: () => {
+        if (!raceSession.restart()) {
+          return false;
+        }
+
+        lastRaceProgressionResult = { kind: "none" };
+        lastRaceAnnouncementResult = { kind: "none" };
+        resetKart();
+        inputManager.setEnabled(true);
+        previousRacePosition.copy(kart.getPosition());
+        publishRacePresentation();
+        return true;
+      },
       setTouchSteering: (pointerId, value) =>
         inputManager.setTouchSteering(pointerId, value),
       setPaused: (paused) => {
@@ -1379,7 +1451,9 @@ export function SoloTimeTrialCanvas({
     const getKartDebugState = () => {
       const kartPosition = kart.getPosition();
       const kartRotation = kart.getEulerAngles();
-      const angularSpeed = kart.rigidbody?.angularVelocity.length() ?? 0;
+      const angularVelocity = kart.rigidbody?.angularVelocity ?? pc.Vec3.ZERO;
+      const linearVelocity = kart.rigidbody?.linearVelocity ?? pc.Vec3.ZERO;
+      const angularSpeed = angularVelocity.length();
       const supportCount = kartController.state.supportCount;
       const maximumLateralSpeed = Math.max(
         0,
@@ -1409,6 +1483,11 @@ export function SoloTimeTrialCanvas({
           kartController.state.airbornePitch.appliedTorque,
         ),
         angularSpeed: toFixedStep(angularSpeed),
+        angularVelocity: {
+          x: toFixedStep(angularVelocity.x),
+          y: toFixedStep(angularVelocity.y),
+          z: toFixedStep(angularVelocity.z),
+        },
         chassisClearance: toFixedStep(kartVisual.getPosition().y - 0.26),
         forward: {
           x: toFixedStep(kart.forward.x),
@@ -1416,6 +1495,11 @@ export function SoloTimeTrialCanvas({
           z: toFixedStep(kart.forward.z),
         },
         isOverGround: supportCount !== 0,
+        linearVelocity: {
+          x: toFixedStep(linearVelocity.x),
+          y: toFixedStep(linearVelocity.y),
+          z: toFixedStep(linearVelocity.z),
+        },
         maximumLateralSpeed: toFixedStep(maximumLateralSpeed),
         maximumTireForceUtilization: toFixedStep(
           maximumTireForceUtilization,
@@ -1589,6 +1673,7 @@ export function SoloTimeTrialCanvas({
     const setRaceDebugMovement = (
       previousPosition: Position3,
       currentPosition: Position3,
+      preserveMotion = false,
     ) => {
       previousRacePosition.set(
         previousPosition.x,
@@ -1603,12 +1688,14 @@ export function SoloTimeTrialCanvas({
         ),
         kart.getRotation(),
       );
-      if (kart.rigidbody) {
+      if (kart.rigidbody && !preserveMotion) {
         kart.rigidbody.linearVelocity = new pc.Vec3();
         kart.rigidbody.angularVelocity = new pc.Vec3();
         kart.rigidbody.activate();
       }
-      kartController.reset();
+      if (!preserveMotion) {
+        kartController.reset();
+      }
       snapKartPresentationState();
     };
 
@@ -1661,7 +1748,9 @@ export function SoloTimeTrialCanvas({
       collisionObserver.beginStep();
 
       const sample = inputManager.sampleDrivingInput();
-      pauseAfterFixedStep = sample.actions.pauseRequested;
+      pauseAfterFixedStep =
+        sample.actions.pauseRequested &&
+        raceSession.snapshot.state !== "finished";
       raceSession.advanceTime(dt);
 
       if (pauseAfterFixedStep) {
@@ -1689,7 +1778,7 @@ export function SoloTimeTrialCanvas({
 
       const currentRacePosition = kart.getPosition();
       if (raceSession.acceptsDriving) {
-        lastRaceProgressionResult = raceSession.processMovement(
+        const progressionResult = raceSession.processMovement(
           {
             x: previousRacePosition.x,
             y: previousRacePosition.y,
@@ -1701,16 +1790,29 @@ export function SoloTimeTrialCanvas({
             z: currentRacePosition.z,
           },
         );
+        lastRaceProgressionResult = progressionResult;
+        if (progressionResult.kind !== "none") {
+          lastRaceAnnouncementResult = progressionResult;
+        }
+        if (lastRaceProgressionResult.kind === "finished") {
+          inputManager.setEnabled(false);
+          clearTouchPresentation();
+          setDriveCursorHidden(false);
+        }
       }
       previousRacePosition.copy(currentRacePosition);
 
       if (pauseAfterFixedStep) {
-        raceSession.pause();
-        runtime.requestPauseAtFixedStepBoundary();
+        const paused = raceSession.pause();
         pauseAfterFixedStep = false;
-        setGamePaused(true);
-        setDriveCursorHidden(false);
+        if (paused) {
+          runtime.requestPauseAtFixedStepBoundary();
+          setGamePaused(true);
+          setDriveCursorHidden(false);
+        }
       }
+
+      publishRacePresentation();
     });
 
     runtime.onDiscardedTime((discardedSeconds) => {
@@ -1739,6 +1841,7 @@ export function SoloTimeTrialCanvas({
 
       chaseCamera.update(frameSeconds, getChaseCameraSnapshot());
       latestCameraImpact = null;
+      publishRacePresentation();
     });
 
     app.on("update", () => {
@@ -1767,6 +1870,7 @@ export function SoloTimeTrialCanvas({
 
       raceSession.markReady();
       raceSession.startCountdown();
+      publishRacePresentation();
       runtime.start();
       activeCanvas.dataset.sceneReady = "true";
       setSceneStatus("ready");
@@ -1982,7 +2086,17 @@ export function SoloTimeTrialCanvas({
     requestAnimationFrame(() => canvasRef.current?.focus());
   }
 
-  function handlePauseDialogKeyDown(event: ReactKeyboardEvent<HTMLDivElement>) {
+  function restartRace() {
+    if (!sceneApiRef.current?.restartRace()) {
+      return;
+    }
+
+    setGamePaused(false);
+    setDriveCursorHidden(true);
+    requestAnimationFrame(() => canvasRef.current?.focus());
+  }
+
+  function handleDialogKeyDown(event: ReactKeyboardEvent<HTMLDivElement>) {
     if (event.key !== "Tab") {
       return;
     }
@@ -2012,36 +2126,105 @@ export function SoloTimeTrialCanvas({
         id="application"
         data-testid="solo-time-trial-canvas"
         aria-label="Solo Time Trial race"
-        inert={gamePaused}
+        inert={gamePaused || racePresentation.state === "finished"}
         tabIndex={0}
         className={`block h-[100dvh] w-[100dvw] ${
-          driveCursorHidden && !gamePaused && sceneStatus === "ready"
+          driveCursorHidden &&
+          !gamePaused &&
+          racePresentation.state !== "finished" &&
+          sceneStatus === "ready"
             ? "cursor-none"
             : "cursor-default"
         }`}
         onBlur={() => setDriveCursorHidden(false)}
         onFocus={() => {
-          setDriveCursorHidden(!gamePaused && sceneStatus === "ready");
+          setDriveCursorHidden(
+            !gamePaused &&
+              racePresentation.state !== "finished" &&
+              sceneStatus === "ready",
+          );
         }}
         onPointerEnter={() => {
-          setDriveCursorHidden(!gamePaused && sceneStatus === "ready");
+          setDriveCursorHidden(
+            !gamePaused &&
+              racePresentation.state !== "finished" &&
+              sceneStatus === "ready",
+          );
         }}
         onPointerLeave={() => setDriveCursorHidden(false)}
         onPointerMove={() => {
-          if (!gamePaused && sceneStatus === "ready") {
+          if (
+            !gamePaused &&
+            racePresentation.state !== "finished" &&
+            sceneStatus === "ready"
+          ) {
             setDriveCursorHidden(true);
           }
         }}
       />
       {sceneStatus === "ready" ? (
         <>
+          {racePresentation.state !== "finished" ? (
+            <section
+              aria-label="Race status"
+              className="race-status-hud pointer-events-none absolute inset-x-0 top-0 z-10 font-mono text-titan-ice"
+            >
+              <div className="race-status-cluster">
+                <div className="race-status-lap">
+                  <span>Lap</span>
+                  <strong>
+                    <b>{String(racePresentation.currentLap).padStart(2, "0")}</b>
+                    <i>/</i>
+                    <small>
+                      {String(racePresentation.lapCount).padStart(2, "0")}
+                    </small>
+                  </strong>
+                </div>
+                <span aria-hidden="true" className="race-status-divider" />
+                <div className="race-status-time">
+                  <span>Race time</span>
+                  <time
+                    dateTime={`PT${racePresentation.elapsedTime.replace(":", "M")}S`}
+                  >
+                    {racePresentation.elapsedTime}
+                  </time>
+                </div>
+              </div>
+            </section>
+          ) : null}
+          <p
+            aria-atomic="true"
+            aria-live="polite"
+            className="sr-only"
+            role="status"
+          >
+            {racePresentation.announcement}
+          </p>
+          {!gamePaused && racePresentation.cue ? (
+            <div
+              aria-hidden="true"
+              className="race-lifecycle-cue pointer-events-none absolute inset-0 z-10 grid place-items-center font-mono font-black uppercase text-titan-ice"
+            >
+              <span
+                className={
+                  racePresentation.cue === "Go!"
+                    ? "race-lifecycle-cue-motion race-lifecycle-cue-go"
+                    : racePresentation.cue.startsWith("Lap ")
+                      ? "race-lifecycle-cue-motion race-lifecycle-cue-lap"
+                      : undefined
+                }
+              >
+                {racePresentation.cue}
+              </span>
+            </div>
+          ) : null}
           {gamePaused ? (
             <div
               aria-labelledby="pause-dialog-title"
               aria-modal="true"
               className="absolute inset-0 z-30 grid place-items-center bg-titan-black/72 px-6 text-center font-mono text-titan-ice backdrop-blur-sm"
               role="dialog"
-              onKeyDown={handlePauseDialogKeyDown}
+              onKeyDown={handleDialogKeyDown}
             >
               <div
                 className="grid w-full max-w-sm gap-5 border border-titan-ice/20 bg-titan-black/94 p-7 shadow-[0_24px_90px_rgb(0_0_0/0.6)]"
@@ -2079,7 +2262,67 @@ export function SoloTimeTrialCanvas({
               </div>
             </div>
           ) : null}
-          {!gamePaused ? (
+          {racePresentation.state === "finished" ? (
+            <div
+              aria-labelledby="finish-dialog-title"
+              aria-modal="true"
+              className="absolute inset-0 z-30 grid place-items-center bg-titan-black/76 px-6 text-center font-mono text-titan-ice backdrop-blur-sm"
+              role="dialog"
+              onKeyDown={handleDialogKeyDown}
+            >
+              <div
+                className="grid w-full max-w-sm gap-5 border border-titan-hazard/50 bg-titan-black/96 p-7 shadow-[0_24px_90px_rgb(0_0_0/0.7)]"
+                ref={finishMenuRef}
+              >
+                <div className="grid gap-2">
+                  <p
+                    className="text-xs font-bold uppercase tracking-[0.2em] text-titan-hazard"
+                    id="finish-dialog-title"
+                  >
+                    Finish
+                  </p>
+                  <p className="text-4xl font-black tabular-nums tracking-tight">
+                    {racePresentation.elapsedTime}
+                  </p>
+                </div>
+                <ol
+                  aria-label="Lap times"
+                  className="grid gap-2 border-y border-titan-ice/15 py-3 text-sm"
+                >
+                  {racePresentation.lapTimes.map((lapTime, index) => (
+                    <li
+                      className="flex items-center justify-between gap-4"
+                      key={`${index + 1}-${lapTime}`}
+                    >
+                      <span className="uppercase tracking-[0.12em] text-titan-ice/60">
+                        Lap {index + 1}
+                      </span>
+                      <span className="font-bold tabular-nums">{lapTime}</span>
+                    </li>
+                  ))}
+                </ol>
+                <div className="grid gap-3">
+                  <button
+                    type="button"
+                    className="titan-button titan-button-primary"
+                    data-controller-default="true"
+                    ref={restartButtonRef}
+                    onClick={restartRace}
+                  >
+                    Race again
+                  </button>
+                  <button
+                    type="button"
+                    className="titan-button titan-button-secondary"
+                    onClick={onExit}
+                  >
+                    Exit
+                  </button>
+                </div>
+              </div>
+            </div>
+          ) : null}
+          {!gamePaused && racePresentation.state !== "finished" ? (
             <>
               <button
                 aria-label="Reset kart"

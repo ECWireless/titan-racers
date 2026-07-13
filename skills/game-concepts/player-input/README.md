@@ -276,7 +276,7 @@ game art or assets are copied.
 
 ## Known Limits
 
-- The `1.5` touch steering response curve and `0.08` dead zone are the accepted
+- The `1.75` touch steering response curve and `0.08` dead zone are the accepted
   mobile baseline. Additional device diversity may justify a future settings
   surface rather than changing the shared baseline implicitly.
 - The custom slider-style steering pad requires representative touch assistive-

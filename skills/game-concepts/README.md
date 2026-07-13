@@ -28,6 +28,9 @@ A game-concept node should normally cover:
 
 ## Current Children
 
+- [`race-presentation/`](race-presentation/README.md): the candidate standard
+  for legible countdown, lap/time status, recovery, finish results, and
+  accessible race-state communication.
 - [`race-progression/`](race-progression/README.md): the accepted
   engine-independent standard for explicit race lifecycle, deterministic
   timing, ordered checkpoints and laps, invalid-progression handling, and safe

@@ -48,6 +48,7 @@ export type CollisionDebugState = {
 export type CameraDebugState = ChaseCameraDiagnostics;
 
 export type KartDebugState = {
+  angularVelocity: Position3;
   airbornePitchActive: boolean;
   airbornePitchAngle: number;
   airbornePitchRate: number;
@@ -57,6 +58,7 @@ export type KartDebugState = {
   chassisClearance: number;
   forward: Position3;
   isOverGround: boolean;
+  linearVelocity: Position3;
   maximumLateralSpeed: number;
   maximumTireForceUtilization: number;
   maxForwardSpeed: number;
@@ -136,6 +138,7 @@ export type SceneTestApi = {
   setRaceDebugMovement: (
     previousPosition: Position3,
     currentPosition: Position3,
+    preserveMotion?: boolean,
   ) => void;
   setSimulationPaused: (paused: boolean) => void;
   setStartPosition: (position: Pick<Position3, "x" | "z">) => void;
@@ -244,12 +247,14 @@ export function attachSceneTestAdapter(
       ((
         event: CustomEvent<{
           currentPosition: Position3;
+          preserveMotion?: boolean;
           previousPosition: Position3;
         }>,
       ) => {
         api.setRaceDebugMovement(
           event.detail.previousPosition,
           event.detail.currentPosition,
+          event.detail.preserveMotion,
         );
       }) as EventListener,
     ],
