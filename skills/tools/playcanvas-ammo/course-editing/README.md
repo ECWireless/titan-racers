@@ -131,6 +131,11 @@ revision, while a later protected Publish operation promotes one saved revision
 to the guest runtime. Download Backup remains portable-document recovery rather
 than a synonym for publishing.
 
+Titan Racers guest construction now resolves the explicit current guest course,
+validates its privacy-minimized published response, and passes that portable
+document into the same `buildRoughCourse` and `buildCourseLighting` projections.
+The renderer never reads a mutable database draft or publication metadata.
+
 Primary references:
 
 - <https://github.com/playcanvas/editor>

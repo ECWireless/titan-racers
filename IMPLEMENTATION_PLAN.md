@@ -546,8 +546,10 @@ course-authoring experience.
 Complete protected course tooling through three separately QA-reviewed final
 slices. First finish private draft persistence and bounded lighting authoring.
 Then add an explicit preview/publish boundary: saved drafts remain private,
-publishing promotes one validated saved revision to the live guest course, and
-the editor identifies both draft and live revision state. Finally remove the
+publishing appends one attributed concurrency-safe event that promotes a
+validated saved revision, the editor identifies both draft and published state,
+and guest racing reads only the latest publication for its explicitly configured
+course ID. Finally remove the
 development-only Lite Editor after the protected draft and publishing paths can
 replace it without losing required test fixtures. Revision history/restore may
 join the publishing slice; real-time collaboration and automatic multi-author

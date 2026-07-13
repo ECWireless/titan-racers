@@ -9,6 +9,10 @@ import {
   serializeCourseDocument,
 } from "@/game/course/course-document";
 import {
+  type CoursePublicationSummary,
+  persistedCoursePublicationSchema,
+} from "@/game/course/course-publication";
+import {
   COURSE_OBJECT_PRESETS,
   COURSE_EDITOR_OBJECT_LIMIT,
   type CourseEditorSelection,
@@ -41,6 +45,11 @@ type DraftActionState =
   | { status: "saving" }
   | { message: string; status: "error" }
   | { status: "conflict" };
+type PublicationActionState =
+  | { status: "idle" }
+  | { status: "publishing" }
+  | { revision: number; status: "success" }
+  | { message: string; status: "error" };
 type RecoveryAction = "exit" | "latest" | "revert" | "sign-out";
 type EditorSection =
   | "course-add"
@@ -82,6 +91,8 @@ export function CourseEditorShell({
   const [draftAction, setDraftAction] = useState<DraftActionState>({
     status: "idle",
   });
+  const [publicationAction, setPublicationAction] =
+    useState<PublicationActionState>({ status: "idle" });
   const [actionsOpen, setActionsOpen] = useState(false);
   const [operationPending, setOperationPending] = useState(false);
   const [sectionOpen, setSectionOpen] = useState(DEFAULT_EDITOR_SECTIONS);
@@ -556,6 +567,76 @@ export function CourseEditorShell({
     URL.revokeObjectURL(url);
   }
 
+  function summarizePublication(
+    publication: ReturnType<typeof persistedCoursePublicationSchema.parse>,
+  ): CoursePublicationSummary {
+    return {
+      publicationId: publication.publicationId,
+      publishedAt: publication.publishedAt,
+      publishedByUserId: publication.publishedByUserId,
+      revision: publication.revision,
+    };
+  }
+
+  async function publishDraft() {
+    if (
+      operationPendingRef.current ||
+      history.isDirty ||
+      currentRevision.publication?.revision === currentRevision.revision
+    ) {
+      return;
+    }
+    operationPendingRef.current = true;
+    setOperationPending(true);
+    setPublicationAction({ status: "publishing" });
+    setActionsOpen(false);
+
+    try {
+      const response = await fetch(
+        `/api/admin/courses/${COURSE_EDITOR_COURSE_ID}/publication`,
+        {
+          body: JSON.stringify({
+            expectedPublicationId:
+              currentRevision.publication?.publicationId ?? null,
+            revision: currentRevision.revision,
+          }),
+          credentials: "include",
+          headers: { "content-type": "application/json" },
+          method: "POST",
+        },
+      );
+
+      if (response.status === 409) {
+        setPublicationAction({
+          message:
+            "Another administrator published this course first. Reload the latest draft status before publishing again.",
+          status: "error",
+        });
+        return;
+      }
+      if (!response.ok) {
+        throw new Error("The draft could not be published.");
+      }
+
+      const publication = persistedCoursePublicationSchema.parse(
+        await response.json(),
+      );
+      setCurrentRevision((current) => ({
+        ...current,
+        publication: summarizePublication(publication),
+      }));
+      setPublicationAction({ revision: publication.revision, status: "success" });
+    } catch {
+      setPublicationAction({
+        message: "The saved draft could not be published. It remains private.",
+        status: "error",
+      });
+    } finally {
+      operationPendingRef.current = false;
+      setOperationPending(false);
+    }
+  }
+
   function closeMobilePanel() {
     const trigger =
       mobilePanel === "course"
@@ -626,6 +707,7 @@ export function CourseEditorShell({
         target instanceof HTMLInputElement ||
         target instanceof HTMLTextAreaElement ||
         target instanceof HTMLSelectElement ||
+        (target instanceof HTMLElement && target.isContentEditable) ||
         mobilePanel
       ) {
         return;
@@ -656,6 +738,23 @@ export function CourseEditorShell({
         return;
       }
 
+      const unmodifiedShortcut =
+        !event.altKey && !event.ctrlKey && !event.metaKey && !event.shiftKey;
+      if (unmodifiedShortcut && event.key === "1") {
+        setTool("translate");
+        return;
+      } else if (unmodifiedShortcut && event.key === "2") {
+        setTool("rotate");
+        return;
+      } else if (
+        unmodifiedShortcut &&
+        event.key === "3" &&
+        selection.kind !== "start"
+      ) {
+        setTool("scale");
+        return;
+      }
+
       const viewportFocused =
         target instanceof HTMLCanvasElement &&
         target.dataset.testid === "course-editor-canvas";
@@ -663,13 +762,7 @@ export function CourseEditorShell({
         return;
       }
 
-      if (event.key === "1") {
-        setTool("translate");
-      } else if (event.key === "2") {
-        setTool("rotate");
-      } else if (event.key === "3" && selection.kind !== "start") {
-        setTool("scale");
-      } else if (event.key.toLowerCase() === "f") {
+      if (unmodifiedShortcut && event.key.toLowerCase() === "f") {
         setFrameRequest((request) => request + 1);
       } else if ((event.key === "Delete" || event.key === "Backspace") && canDelete) {
         event.preventDefault();
@@ -721,7 +814,9 @@ export function CourseEditorShell({
           className="hidden border border-titan-ice/15 bg-titan-black/40 px-3 py-2 text-[0.65rem] font-bold uppercase tracking-[0.12em] text-titan-muted sm:inline-flex"
           data-testid="editor-revision"
         >
-          Draft r{currentRevision.revision}
+          Draft r{currentRevision.revision} · Published {currentRevision.publication
+            ? `r${currentRevision.publication.revision}`
+            : "none"}
         </span>
         <button
           aria-label="Undo"
@@ -762,6 +857,29 @@ export function CourseEditorShell({
         >
           <ToolbarIcon name="save" />
         </ToolbarIconButton>
+        <div className="hidden sm:block">
+          <ToolbarIconButton
+            disabled={
+              history.isDirty ||
+              operationPending ||
+              currentRevision.publication?.revision === currentRevision.revision
+            }
+            label="Publish saved draft"
+            tooltip={
+              publicationAction.status === "publishing"
+                ? `Publishing draft r${currentRevision.revision}…`
+                : history.isDirty
+                  ? "Save the draft before publishing"
+                  : currentRevision.publication?.revision ===
+                      currentRevision.revision
+                    ? `Draft r${currentRevision.revision} is published`
+                    : `Publish draft r${currentRevision.revision} to the guest course`
+            }
+            onClick={() => void publishDraft()}
+          >
+            <ToolbarIcon name="publish" />
+          </ToolbarIconButton>
+        </div>
         <div className="relative" ref={actionsContainerRef}>
           <button
             aria-controls="course-actions-list"
@@ -790,6 +908,30 @@ export function CourseEditorShell({
               />
               <CourseAction label="Download backup" onClick={downloadBackup} />
               <div className="sm:hidden">
+                <CourseAction
+                  disabled={
+                    history.isDirty ||
+                    currentRevision.publication?.revision ===
+                      currentRevision.revision
+                  }
+                  description={
+                    history.isDirty
+                      ? "Save the draft before publishing"
+                      : currentRevision.publication?.revision ===
+                          currentRevision.revision
+                        ? `Draft r${currentRevision.revision} is already live`
+                        : `Make draft r${currentRevision.revision} the guest course`
+                  }
+                  label={
+                    history.isDirty
+                      ? "Save before publishing"
+                      : currentRevision.publication?.revision ===
+                          currentRevision.revision
+                        ? `Draft r${currentRevision.revision} is published`
+                        : "Publish saved draft"
+                  }
+                  onClick={() => void publishDraft()}
+                />
                 <CourseAction
                   disabled={signOutPending}
                   label={signOutPending ? "Signing out…" : "Sign out"}
@@ -911,7 +1053,7 @@ export function CourseEditorShell({
             <span className="whitespace-nowrap border border-titan-ice/15 bg-titan-black/78 px-2 py-2 text-[0.58rem] font-bold uppercase tracking-[0.08em] text-titan-muted backdrop-blur">
               {history.isDirty
                 ? "Unsaved"
-                : `Draft r${currentRevision.revision}`}
+                : `D${currentRevision.revision} · P${currentRevision.publication?.revision ?? "—"}`}
             </span>
             <button
               aria-label={mobilePanel === "inspector" ? "Hide inspector" : "Inspector"}
@@ -1066,6 +1208,17 @@ export function CourseEditorShell({
         />
       ) : null}
 
+      {publicationAction.status !== "idle" ? (
+        <PublicationStatusBanner
+          state={publicationAction}
+          onDismiss={() => setPublicationAction({ status: "idle" })}
+          onReload={() => {
+            setPublicationAction({ status: "idle" });
+            void loadLatestDraft();
+          }}
+        />
+      ) : null}
+
       {recoveryAction ? (
         <RecoveryDialog
           action={recoveryAction}
@@ -1078,23 +1231,93 @@ export function CourseEditorShell({
 }
 
 function CourseAction({
+  description,
   disabled = false,
   label,
   onClick,
 }: {
+  description?: string;
   disabled?: boolean;
   label: string;
   onClick: () => void;
 }) {
   return (
     <button
-      className="min-h-10 px-3 text-left text-[0.65rem] font-bold uppercase tracking-[0.08em] text-titan-ice/78 hover:bg-titan-ice/8 hover:text-titan-hazard"
+      className="grid min-h-10 gap-0.5 px-3 py-2 text-left text-[0.65rem] font-bold uppercase tracking-[0.08em] text-titan-ice/78 hover:bg-titan-ice/8 hover:text-titan-hazard disabled:cursor-not-allowed disabled:text-titan-muted/55 disabled:hover:bg-transparent"
       disabled={disabled}
       type="button"
       onClick={onClick}
     >
-      {label}
+      <span>{label}</span>
+      {description ? (
+        <span className="text-[0.56rem] normal-case tracking-normal text-titan-muted/80">
+          {description}
+        </span>
+      ) : null}
     </button>
+  );
+}
+
+function PublicationStatusBanner({
+  onDismiss,
+  onReload,
+  state,
+}: {
+  onDismiss: () => void;
+  onReload: () => void;
+  state: Exclude<PublicationActionState, { status: "idle" }>;
+}) {
+  const isError = state.status === "error";
+  return (
+    <section
+      className={`fixed inset-x-3 bottom-20 z-[60] mx-auto grid max-w-2xl gap-3 border bg-titan-black/98 p-4 shadow-[0_18px_70px_rgb(0_0_0/0.75)] sm:grid-cols-[1fr_auto] lg:bottom-3 ${
+        isError ? "border-titan-rust/70" : "border-titan-hazard/60"
+      }`}
+      data-testid="publication-status"
+      role={isError ? "alert" : "status"}
+    >
+      <div>
+        <p
+          className={`font-mono text-xs font-bold uppercase tracking-[0.12em] ${
+            isError ? "text-titan-rust" : "text-titan-hazard"
+          }`}
+        >
+          {state.status === "publishing"
+            ? "Publishing course"
+            : state.status === "success"
+              ? "Course published"
+              : "Publication failed"}
+        </p>
+        <p className="mt-1 text-sm text-titan-ice/78">
+          {state.status === "publishing"
+            ? "Making the saved draft available to guest racing…"
+            : state.status === "success"
+              ? `Draft r${state.revision} is now available to guest racing.`
+              : state.message}
+        </p>
+      </div>
+      {state.status !== "publishing" ? (
+        <div className="flex flex-wrap items-center justify-end gap-2">
+          {isError ? (
+            <button
+              className="min-h-10 border border-titan-ice/22 px-3 font-mono text-[0.65rem] font-bold uppercase tracking-[0.08em] text-titan-ice/78 hover:border-titan-hazard hover:text-titan-hazard"
+              type="button"
+              onClick={onReload}
+            >
+              Reload status
+            </button>
+          ) : null}
+          <button
+            aria-label="Dismiss publication message"
+            className="editor-tool-button"
+            type="button"
+            onClick={onDismiss}
+          >
+            ×
+          </button>
+        </div>
+      ) : null}
+    </section>
   );
 }
 
@@ -1432,6 +1655,7 @@ function ToolbarIcon({
     | "collision"
     | "frame"
     | "help"
+    | "publish"
     | "save"
     | "snap";
 }) {
@@ -1479,6 +1703,13 @@ function ToolbarIcon({
       <svg {...common}>
         <path d="M5 4h12l2 2v14H5V4Z" />
         <path d="M8 4v6h8V4M8 20v-6h8v6" />
+      </svg>
+    );
+  }
+  if (name === "publish") {
+    return (
+      <svg {...common}>
+        <path d="M12 16V3M7 8l5-5 5 5M5 13v7h14v-7" />
       </svg>
     );
   }

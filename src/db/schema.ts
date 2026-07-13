@@ -1,6 +1,7 @@
 import {
   boolean,
   check,
+  foreignKey,
   index,
   integer,
   jsonb,
@@ -178,6 +179,38 @@ export const courseRevisions = pgTable(
     check(
       "course_revisions_schema_version_positive",
       sql`${table.schemaVersion} > 0`,
+    ),
+  ],
+);
+
+export const coursePublications = pgTable(
+  "course_publications",
+  {
+    id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+    courseId: text("course_id")
+      .notNull()
+      .references(() => courses.id, { onDelete: "restrict" }),
+    revision: integer("revision").notNull(),
+    publishedByUserId: text("published_by_user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "restrict" }),
+    createdAt: timestamp("created_at", { mode: "date", withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => [
+    foreignKey({
+      columns: [table.courseId, table.revision],
+      foreignColumns: [courseRevisions.courseId, courseRevisions.revision],
+      name: "course_publications_course_revision_fk",
+    }).onDelete("restrict"),
+    index("course_publications_course_id_id_idx").on(table.courseId, table.id),
+    index("course_publications_published_by_user_id_idx").on(
+      table.publishedByUserId,
+    ),
+    check(
+      "course_publications_revision_positive",
+      sql`${table.revision} > 0`,
     ),
   ],
 );

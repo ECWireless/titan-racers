@@ -1,7 +1,7 @@
 "use client";
 
 import * as pc from "playcanvas";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import { LiteEditorPanel } from "./lite-editor-panel";
 
@@ -26,6 +26,7 @@ import {
 import { buildCourseLighting } from "@/game/course/build-course-lighting";
 import { buildRoughCourse } from "@/game/course/build-rough-course";
 import {
+  type CourseDocument,
   getCourseStartTransform,
   ROUGH_COURSE_DOCUMENT,
 } from "@/game/course/course-document";
@@ -54,18 +55,6 @@ import {
 } from "@/game/runtime/ammo-rigid-body";
 import { attachSceneTestAdapter } from "@/game/testing/scene-test-adapter";
 
-const COURSE_DOCUMENT = ROUGH_COURSE_DOCUMENT;
-const START_TRANSFORM = getCourseStartTransform(COURSE_DOCUMENT);
-const START_POSITION = new pc.Vec3(
-  START_TRANSFORM.position.x,
-  START_TRANSFORM.position.y,
-  START_TRANSFORM.position.z,
-);
-const START_ROTATION = new pc.Vec3(
-  START_TRANSFORM.rotation.x,
-  START_TRANSFORM.rotation.y,
-  START_TRANSFORM.rotation.z,
-);
 const KART_ROOT_HEIGHT = 0.43;
 const KART_MASS = 120;
 const KART_BODY_MASS = 70;
@@ -196,10 +185,30 @@ function getSceneInitializationTestControl() {
 }
 
 type SoloTimeTrialCanvasProps = {
+  courseDocument?: CourseDocument;
   onExit: () => void;
 };
 
-export function SoloTimeTrialCanvas({ onExit }: SoloTimeTrialCanvasProps) {
+export function SoloTimeTrialCanvas({
+  courseDocument = ROUGH_COURSE_DOCUMENT,
+  onExit,
+}: SoloTimeTrialCanvasProps) {
+  const COURSE_DOCUMENT = courseDocument;
+  const { START_POSITION, START_ROTATION } = useMemo(() => {
+    const startTransform = getCourseStartTransform(COURSE_DOCUMENT);
+    return {
+      START_POSITION: new pc.Vec3(
+        startTransform.position.x,
+        startTransform.position.y,
+        startTransform.position.z,
+      ),
+      START_ROTATION: new pc.Vec3(
+        startTransform.rotation.x,
+        startTransform.rotation.y,
+        startTransform.rotation.z,
+      ),
+    };
+  }, [COURSE_DOCUMENT]);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const editorOpenRef = useRef(false);
   const sceneApiRef = useRef<SceneApi | null>(null);
@@ -2263,7 +2272,7 @@ export function SoloTimeTrialCanvas({ onExit }: SoloTimeTrialCanvasProps) {
       sceneApiRef.current = null;
       activeRuntime?.destroy();
     };
-  }, []);
+  }, [COURSE_DOCUMENT, START_POSITION, START_ROTATION]);
 
   function updateStartPosition(nextStartPosition: StartPosition) {
     setStartPosition(nextStartPosition);

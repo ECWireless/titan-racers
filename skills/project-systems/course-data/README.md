@@ -31,6 +31,9 @@ editor commands, persistence UI, or the future add-object palette.
 - `src/game/course/course-document.ts` defines the strict Zod version-one
   schema, cross-document ID and checkpoint-order refinements, canonical sorting,
   parsing, serialization, inferred TypeScript types, and validated seed export.
+- `src/game/course/course-ids.ts` keeps permanent sandbox, future official, and
+  current guest-runtime course selection explicit; `course-publication.ts`
+  validates protected publication and privacy-minimized public runtime shapes.
 - `src/game/course/rough-course.v1.json` is the canonical portable rough-course
   sandbox seed. It contains the start, six inactive ordered checkpoints,
   ordinary surfaces and objects, camera fixtures, and opt-in collision fixtures.
@@ -44,8 +47,9 @@ editor commands, persistence UI, or the future add-object palette.
   directional-light records into PlayCanvas scene state and fixed shadow
   presets.
 - `src/components/solo-time-trial-canvas.tsx` reads the validated start transform,
-  passes repository-owned material instances to the builder, and keeps the
-  existing editor/runtime behavior unchanged.
+  accepts a validated course document, passes repository-owned material
+  instances to the builder, and projects the same published document through
+  course geometry, start, collision, and lighting construction.
 - `tests/course-document.spec.ts` owns schema, seed, catalog, stable-ID,
   checkpoint-order, canonical round-trip, invalid-input, and retained-geometry
   assertions.

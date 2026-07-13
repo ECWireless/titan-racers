@@ -8,11 +8,13 @@ import {
   courseDocumentSchema,
   ROUGH_COURSE_DOCUMENT,
 } from "@/game/course/course-document";
+import { SANDBOX_COURSE_ID } from "@/game/course/course-ids";
+import { coursePublicationSummarySchema } from "@/game/course/course-publication";
 import { COURSE_EDITOR_OBJECT_LIMIT } from "@/game/editor/course-editor-document";
 
 import { CourseEditorShell } from "./course-editor-shell";
 
-export const COURSE_EDITOR_COURSE_ID = "rough-course";
+export const COURSE_EDITOR_COURSE_ID = SANDBOX_COURSE_ID;
 
 export const persistedCourseRevisionSchema = z
   .strictObject({
@@ -22,6 +24,7 @@ export const persistedCourseRevisionSchema = z
     document: courseDocumentSchema,
     revision: z.number().int().positive(),
     schemaVersion: z.number().int().positive(),
+    publication: coursePublicationSummarySchema.nullable().default(null),
   })
   .superRefine((revision, context) => {
     if (revision.document.objects.length > COURSE_EDITOR_OBJECT_LIMIT) {

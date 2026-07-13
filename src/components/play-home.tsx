@@ -4,6 +4,13 @@ import Image from "next/image";
 import Link from "next/link";
 import { useState } from "react";
 
+import {
+  ROUGH_COURSE_DOCUMENT,
+  type CourseDocument,
+} from "@/game/course/course-document";
+import { CURRENT_GUEST_COURSE_ID } from "@/game/course/course-ids";
+import { publishedCourseRuntimeSchema } from "@/game/course/course-publication";
+
 import { SoloTimeTrialCanvas } from "./solo-time-trial-canvas";
 
 const actions = [
@@ -20,13 +27,49 @@ const actions = [
 export function PlayHome() {
   const [mode, setMode] = useState<"home" | "solo">("home");
   const [toast, setToast] = useState<string | null>(null);
+  const [soloPending, setSoloPending] = useState(false);
+  const [courseDocument, setCourseDocument] = useState<CourseDocument>(
+    ROUGH_COURSE_DOCUMENT,
+  );
 
   function showComingSoon() {
     setToast("coming soon");
   }
 
+  async function startSoloTimeTrial() {
+    setSoloPending(true);
+    let nextCourseDocument = ROUGH_COURSE_DOCUMENT;
+    try {
+      const response = await fetch(
+        `/api/courses/${CURRENT_GUEST_COURSE_ID}/published`,
+        {
+        cache: "no-store",
+        signal: AbortSignal.timeout(3_000),
+        },
+      );
+      if (response.ok) {
+        const publication = publishedCourseRuntimeSchema.parse(
+          await response.json(),
+        );
+        nextCourseDocument = publication.document;
+      }
+    } catch {
+      // The validated bundled sandbox keeps guest play available during an
+      // unavailable database or malformed publication response.
+    } finally {
+      setCourseDocument(nextCourseDocument);
+      setSoloPending(false);
+      setMode("solo");
+    }
+  }
+
   if (mode === "solo") {
-    return <SoloTimeTrialCanvas onExit={() => setMode("home")} />;
+    return (
+      <SoloTimeTrialCanvas
+        courseDocument={courseDocument}
+        onExit={() => setMode("home")}
+      />
+    );
   }
 
   return (
@@ -57,6 +100,7 @@ export function PlayHome() {
             {actions.map((action) => (
               <button
                 key={action.label}
+                disabled={action.label === "Solo Time Trial" && soloPending}
                 className={
                   action.variant === "primary"
                     ? "titan-button titan-button-primary"
@@ -65,11 +109,13 @@ export function PlayHome() {
                 type="button"
                 onClick={
                   action.label === "Solo Time Trial"
-                    ? () => setMode("solo")
+                    ? () => void startSoloTimeTrial()
                     : showComingSoon
                 }
               >
-                {action.label}
+                {action.label === "Solo Time Trial" && soloPending
+                  ? "Preparing Course…"
+                  : action.label}
               </button>
             ))}
           </div>

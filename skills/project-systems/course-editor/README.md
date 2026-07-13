@@ -17,9 +17,9 @@ the PlayCanvas mapping in
 The system currently owns protected access, draft-revision loading, the responsive
 authoring shell, document history, a visual-only PlayCanvas course projection,
 palette placement, stable-ID selection, transforms, start/checkpoint authoring,
-deletion, and authoritative collision diagnostics. Conflict-safe private draft
-actions and lighting controls are the active implementation unit; live-course
-publishing follows as its own QA and review boundary.
+deletion, authoritative collision diagnostics, conflict-safe private draft
+actions, lighting controls, append-only publication, and published guest-course
+loading. Removing the transitional Lite Editor is the remaining PR 3C unit.
 
 ## Current Source Ownership
 
@@ -132,14 +132,22 @@ publishing follows as its own QA and review boundary.
   operation documented in `docs/database-operations.md`; the official
   `agricultural-zone` course remains a separate future document and revision
   history.
+- Draft and Published revision state are shown separately. Publish remains
+  disabled while dirty or when the saved draft is already current, uses a
+  compact desktop icon and a mobile Course Actions entry, and submits the known
+  publication ID as its optimistic-concurrency base. Publication failure leaves
+  the saved draft private and intact.
 - Narrow screens keep the viewport primary. The Course outline uses a
   width-contained modal bottom sheet with a scrim and focus containment; the
   Inspector uses a non-modal split-view drawer that resizes the viewport so the
   selected object remains visible during precision edits; short landscape
   screens switch that split to side-by-side.
-- Single-character transform, frame, and delete shortcuts require viewport
-  focus. Icon explanations render as visible hover/focus tooltips, including
-  the unavailable Start scale action.
+- The `1`/`2`/`3` transform shortcuts remain available after using editor
+  buttons so toolbar interaction does not silently suspend them. They stay
+  inactive while typing, while a modal panel is open, or when a browser/system
+  modifier is held. Frame and delete shortcuts require viewport focus. Icon
+  explanations render as visible hover/focus tooltips, including the
+  unavailable Start scale action.
 
 ## Verification
 
@@ -153,14 +161,10 @@ publishing follows as its own QA and review boundary.
 - Run `pnpm lint`, `pnpm typecheck`, and `pnpm build` before feature-lead QA.
 - Preserve the existing guest and gameplay regression suite.
 
-## Remaining PR 3C Slices
+## Remaining PR 3C Slice
 
-- Active slice: bounded lighting controls, conflict-safe Save Draft, Revert
-  Changes, contextual Load Latest Draft recovery, and Download Backup.
-- Publishing slice: separately track a live revision, preview and publish only a
-  saved draft, and make ordinary guest racing consume that published document.
 - Final integration slice: remove the transitional in-race Lite Editor after
   the protected editor owns the complete draft and publishing workflow.
-- Revision history/restore may join publishing. Arbitrary light placement,
-  advanced environment rendering, real-time collaboration, and automatic
-  multi-author merging remain later production-tooling work.
+- Revision history/restore, arbitrary light placement, advanced environment
+  rendering, real-time collaboration, and automatic multi-author merging
+  remain later production-tooling work.

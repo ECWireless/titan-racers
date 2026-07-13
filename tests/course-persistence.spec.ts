@@ -7,9 +7,15 @@ import {
   GET as getPersistedCourse,
   PUT as putPersistedCourse,
 } from "../src/app/api/admin/courses/[courseId]/route";
+import {
+  GET as getCoursePublication,
+  POST as postCoursePublication,
+} from "../src/app/api/admin/courses/[courseId]/publication/route";
+import { GET as getPublishedCourse } from "../src/app/api/courses/[courseId]/published/route";
 import { db } from "../src/db/client";
 import {
   accounts,
+  coursePublications,
   courseRevisions,
   courses,
   sessions,
@@ -21,7 +27,10 @@ import { auth } from "../src/lib/auth";
 import { authorizeRole } from "../src/server/authorization";
 import {
   CourseConflictError,
+  CoursePublicationConflictError,
+  loadLatestCoursePublication,
   loadLatestCourseRevision,
+  publishCourseRevision,
   saveCourseRevision,
 } from "../src/server/course-repository";
 import { anonymizeUserByEmail } from "../src/server/user-anonymization";
@@ -311,6 +320,123 @@ test.describe("course persistence and authorization", () => {
       params: Promise.resolve({ courseId }),
     });
     expect(staleSaveResponse.status).toBe(409);
+  });
+
+  test("publishes only saved revisions with attribution and optimistic concurrency", async () => {
+    const authContext = await testAuth.$context;
+    const savedUser = await authContext.test.saveUser(
+      authContext.test.createUser({
+        email: `${randomUUID()}@example.invalid`,
+        name: "Course Publication Test",
+      }),
+    );
+    await db.insert(userRoles).values({ role: "admin", userId: savedUser.id });
+
+    const courseId = `publication-${randomUUID()}`;
+    const firstDocument = structuredClone(ROUGH_COURSE_DOCUMENT);
+    firstDocument.courseId = courseId;
+    await saveCourseRevision({
+      authorUserId: savedUser.id,
+      document: firstDocument,
+      expectedRevision: null,
+    });
+    const secondDocument = { ...structuredClone(firstDocument), name: "Second Draft" };
+    await saveCourseRevision({
+      authorUserId: savedUser.id,
+      document: secondDocument,
+      expectedRevision: 1,
+    });
+    const thirdDocument = { ...structuredClone(firstDocument), name: "Third Draft" };
+    await saveCourseRevision({
+      authorUserId: savedUser.id,
+      document: thirdDocument,
+      expectedRevision: 2,
+    });
+
+    const { headers } = await authContext.test.login({ userId: savedUser.id });
+    const context = { params: Promise.resolve({ courseId }) };
+    const publicationStatus = await getCoursePublication(
+      new Request(`http://127.0.0.1:3873/api/admin/courses/${courseId}/publication`, {
+        headers,
+      }),
+      context,
+    );
+    expect(publicationStatus.status).toBe(200);
+    await expect(publicationStatus.json()).resolves.toEqual({ publication: null });
+
+    const unpublishedResponse = await getPublishedCourse(
+      new Request(`http://127.0.0.1:3873/api/courses/${courseId}/published`),
+      context,
+    );
+    expect(unpublishedResponse.status).toBe(404);
+    expect(unpublishedResponse.headers.get("cache-control")).toBe("no-store");
+
+    const firstPublicationResponse = await postCoursePublication(
+      new Request(`http://127.0.0.1:3873/api/admin/courses/${courseId}/publication`, {
+        body: JSON.stringify({ expectedPublicationId: null, revision: 1 }),
+        headers: new Headers([
+          ...headers.entries(),
+          ["content-type", "application/json"],
+        ]),
+        method: "POST",
+      }),
+      context,
+    );
+    expect(firstPublicationResponse.status).toBe(201);
+    const firstPublication = (await firstPublicationResponse.json()) as {
+      publicationId: number;
+    };
+    expect(firstPublication.publicationId).toBeGreaterThan(0);
+
+    const publishedResponse = await getPublishedCourse(
+      new Request(`http://127.0.0.1:3873/api/courses/${courseId}/published`),
+      context,
+    );
+    expect(publishedResponse.status).toBe(200);
+    const publishedPayload = await publishedResponse.json();
+    expect(publishedPayload).toMatchObject({
+      document: { name: ROUGH_COURSE_DOCUMENT.name },
+      revision: 1,
+    });
+    expect(publishedPayload).not.toHaveProperty("authorUserId");
+    expect(publishedPayload).not.toHaveProperty("publishedByUserId");
+    expect(publishedPayload).not.toHaveProperty("publicationId");
+
+    const competingPublications = await Promise.allSettled(
+      [2, 3].map((revision) =>
+        publishCourseRevision({
+          courseId,
+          expectedPublicationId: firstPublication.publicationId,
+          publishedByUserId: savedUser.id,
+          revision,
+        }),
+      ),
+    );
+    expect(
+      competingPublications.filter(({ status }) => status === "fulfilled"),
+    ).toHaveLength(1);
+    expect(
+      competingPublications.find(({ status }) => status === "rejected"),
+    ).toMatchObject({
+      reason: expect.any(CoursePublicationConflictError),
+      status: "rejected",
+    });
+
+    const latestPublication = await loadLatestCoursePublication(courseId);
+    expect(latestPublication?.revision).toBeGreaterThan(1);
+
+    let immutablePublicationError: unknown;
+    try {
+      await db.execute(
+        sql`delete from ${coursePublications} where ${coursePublications.courseId} = ${courseId}`,
+      );
+    } catch (error) {
+      immutablePublicationError = error;
+    }
+    expect(immutablePublicationError).toBeInstanceOf(Error);
+    expect(
+      (immutablePublicationError as Error & { cause?: Error }).cause?.message,
+    ).toMatch(/course publications are immutable/);
   });
 
   test("initiates Google login through the mounted Better Auth handler", async ({

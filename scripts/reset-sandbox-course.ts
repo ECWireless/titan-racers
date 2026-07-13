@@ -5,12 +5,11 @@ import { and, eq, sql } from "drizzle-orm";
 import { db, pool } from "../src/db/client";
 import { userRoles, users } from "../src/db/schema";
 import { ROUGH_COURSE_DOCUMENT } from "../src/game/course/course-document";
+import { SANDBOX_COURSE_ID } from "../src/game/course/course-ids";
 import {
   loadLatestCourseRevision,
   saveCourseRevision,
 } from "../src/server/course-repository";
-
-const SANDBOX_COURSE_ID = "rough-course";
 
 function readRequiredFlag(flag: string) {
   const index = process.argv.indexOf(flag);

@@ -169,7 +169,8 @@ framework: <https://doc.qt.io/qt-6/qundostack.html>.
   changing the live guest course.
 - **Publish** promotes one saved draft revision to the live guest course through
   a separate authorized operation. Dirty work must be saved before it can be
-  published.
+  published. Publication is an append-only attributed event, not a mutation of
+  the saved document or draft head.
 - **Download backup** serializes the current validated document, including
   unsaved work, as an advanced recovery/interchange action rather than the
   editor's primary persistence model.
@@ -183,6 +184,12 @@ framework: <https://doc.qt.io/qt-6/qundostack.html>.
 PR 3A implements the document and deterministic serialization, not the command
 stack UI. PR 3C implements history, private draft persistence, visible recovery,
 and the explicit preview/publish boundary.
+
+Publishing one course does not choose which course the game launches. Runtime
+selection uses one explicit configured course ID, then loads only that course's
+latest publication. The current demo selects permanent sandbox `rough-course`;
+the future official track retains the separate `agricultural-zone` ID and can
+replace the configured guest selection without merging either history.
 
 ## Protected Editor Experience
 
@@ -257,7 +264,8 @@ while its stable ID remains unchanged.
 - Database revisions and protected APIs are implemented by the candidate
   [`identity-course-persistence`](../../project-systems/identity-course-persistence/README.md)
   system.
-- Save/reload UI and final command-history integration remain PR 3C work.
+- Protected save/reload, command history, and publication UI are implemented;
+  final removal of the transitional Lite Editor remains PR 3C work.
 - Basic environment-light controls belong to PR 3C; arbitrary placeable lights
   and advanced rendering effects remain deferred.
 - Final Agricultural Zone meshes and art authoring remain later-phase work.

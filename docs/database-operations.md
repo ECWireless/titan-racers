@@ -29,6 +29,12 @@ corepack pnpm db:check
 Generated SQL and Drizzle metadata are version-controlled and reviewed. Do not
 use `drizzle-kit push` against shared or production databases.
 
+Course publication adds an append-only `course_publications` table with a
+database-level immutable trigger and a composite reference to an existing saved
+course revision. Apply and rehearse that migration through the same reviewed
+workflow; do not manually update publication history or simulate publishing by
+changing draft rows.
+
 ## Google OAuth
 
 Create a Google OAuth web client and configure these redirect URIs:

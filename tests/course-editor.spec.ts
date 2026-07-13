@@ -3,6 +3,8 @@ import { expect, type Locator, test } from "@playwright/test";
 import { ROUGH_COURSE_DOCUMENT } from "../src/game/course/course-document";
 
 const courseApiPattern = "**/api/admin/courses/rough-course";
+const coursePublicationApiPattern =
+  "**/api/admin/courses/rough-course/publication";
 
 async function waitForEditorScene(canvas: Locator) {
   await expect(canvas).toHaveAttribute("data-scene-ready", "true");
@@ -341,11 +343,14 @@ test.describe("protected course editor access", () => {
     ).not.toHaveAttribute("aria-pressed");
     await page.getByRole("button", { name: "Exit course editor" }).focus();
     await page.keyboard.press("2");
-    await expect(moveTool).toHaveAttribute("aria-pressed", "true");
+    await expect(page.getByRole("button", { name: "Rotate" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
     const canvas = page.getByTestId("course-editor-canvas");
     await canvas.focus();
-    await page.keyboard.press("2");
-    await expect(page.getByRole("button", { name: "Rotate" })).toHaveAttribute(
+    await page.keyboard.press("1");
+    await expect(moveTool).toHaveAttribute(
       "aria-pressed",
       "true",
     );
@@ -434,7 +439,7 @@ test.describe("protected course editor access", () => {
       ).toBeEnabled();
     } else {
       await expect(page.getByTestId("editor-revision")).toHaveText(
-        "Draft r3",
+        "Draft r3 · Published none",
       );
       await expect(page.getByRole("button", { name: "block" })).toBeVisible();
       await expect(page.getByRole("heading", { name: "Environment" })).toBeVisible();
@@ -488,10 +493,153 @@ test.describe("protected course editor access", () => {
     await expect(saveButton).toBeEnabled();
     await saveButton.click();
 
-    await expect(page.getByTestId("editor-revision")).toHaveText("Draft r4");
+    await expect(page.getByTestId("editor-revision")).toHaveText(
+      "Draft r4 · Published none",
+    );
     await expect(saveButton).toBeDisabled();
     expect(savedPayload).toMatchObject({ expectedRevision: 3 });
     expect(savedPayload!.document.objects.at(-1)?.id).toBe("block-1");
+  });
+
+  test("publishes only the clean saved draft and updates live status", async ({
+    page,
+  }, testInfo) => {
+    let publishPayload: unknown;
+    let releasePublication = () => {};
+    const publicationGate = new Promise<void>((resolve) => {
+      releasePublication = resolve;
+    });
+    await page.route(courseApiPattern, async (route) => {
+      await route.fulfill({
+        body: JSON.stringify({
+          authorUserId: "admin-test-user",
+          courseId: ROUGH_COURSE_DOCUMENT.courseId,
+          createdAt: new Date("2026-07-12T00:00:00.000Z").toISOString(),
+          document: ROUGH_COURSE_DOCUMENT,
+          publication: {
+            publicationId: 8,
+            publishedAt: new Date("2026-07-12T00:00:00.000Z").toISOString(),
+            publishedByUserId: "admin-test-user",
+            revision: 2,
+          },
+          revision: 3,
+          schemaVersion: ROUGH_COURSE_DOCUMENT.schemaVersion,
+        }),
+        contentType: "application/json",
+        status: 200,
+      });
+    });
+    await page.route(coursePublicationApiPattern, async (route) => {
+      publishPayload = route.request().postDataJSON();
+      await publicationGate;
+      await route.fulfill({
+        body: JSON.stringify({
+          authorUserId: "admin-test-user",
+          courseId: ROUGH_COURSE_DOCUMENT.courseId,
+          createdAt: new Date("2026-07-12T00:00:00.000Z").toISOString(),
+          document: ROUGH_COURSE_DOCUMENT,
+          publicationId: 9,
+          publishedAt: new Date("2026-07-12T00:05:00.000Z").toISOString(),
+          publishedByUserId: "admin-test-user",
+          revision: 3,
+          schemaVersion: ROUGH_COURSE_DOCUMENT.schemaVersion,
+        }),
+        contentType: "application/json",
+        status: 201,
+      });
+    });
+
+    await page.goto("/editor");
+    await expect(page.getByTestId("editor-revision")).toContainText(
+      "Draft r3 · Published r2",
+    );
+    if (testInfo.project.name === "mobile") {
+      await page.getByRole("button", { name: "Course actions" }).click();
+    }
+    let publish = page.getByRole("button", { name: "Publish saved draft" });
+    await expect(publish).toBeEnabled();
+    await publish.click();
+    await expect(page.getByTestId("publication-status")).toContainText(
+      "Publishing course",
+    );
+    releasePublication();
+    await expect(page.getByTestId("editor-revision")).toContainText(
+      "Draft r3 · Published r3",
+    );
+    await expect(page.getByTestId("publication-status")).toContainText(
+      "Draft r3 is now available to guest racing.",
+    );
+    if (testInfo.project.name === "mobile") {
+      await page.getByRole("button", { name: "Course actions" }).click();
+      publish = page.getByRole("button", { name: "Draft r3 is published" });
+      await expect(publish).toContainText("Draft r3 is already live");
+    }
+    await expect(publish).toBeDisabled();
+    expect(publishPayload).toEqual({
+      expectedPublicationId: 8,
+      revision: 3,
+    });
+
+    if (testInfo.project.name === "mobile") {
+      await page.getByRole("button", { name: "Course actions" }).click();
+      await page.getByRole("button", { name: "Course", exact: true }).click();
+      await page
+        .getByRole("dialog", { name: "Course" })
+        .getByRole("button", { name: "block" })
+        .click();
+      await page.getByRole("button", { name: "Course actions" }).click();
+      publish = page.getByRole("button", { name: "Save before publishing" });
+      await expect(publish).toContainText("Save the draft before publishing");
+    } else {
+      await page.getByRole("button", { name: "block" }).click();
+    }
+    await expect(publish).toBeDisabled();
+  });
+
+  test("reports publication conflicts separately from draft failures", async ({
+    page,
+  }, testInfo) => {
+    test.skip(testInfo.project.name !== "desktop", "Conflict feedback runs once.");
+    await page.route(courseApiPattern, async (route) => {
+      await route.fulfill({
+        body: JSON.stringify({
+          authorUserId: "admin-test-user",
+          courseId: ROUGH_COURSE_DOCUMENT.courseId,
+          createdAt: new Date("2026-07-12T00:00:00.000Z").toISOString(),
+          document: ROUGH_COURSE_DOCUMENT,
+          publication: {
+            publicationId: 8,
+            publishedAt: new Date("2026-07-12T00:00:00.000Z").toISOString(),
+            publishedByUserId: "admin-test-user",
+            revision: 2,
+          },
+          revision: 3,
+          schemaVersion: ROUGH_COURSE_DOCUMENT.schemaVersion,
+        }),
+        contentType: "application/json",
+        status: 200,
+      });
+    });
+    await page.route(coursePublicationApiPattern, async (route) => {
+      await route.fulfill({
+        body: JSON.stringify({ error: "Publication conflict." }),
+        contentType: "application/json",
+        status: 409,
+      });
+    });
+
+    await page.goto("/editor");
+    await page.getByRole("button", { name: "Publish saved draft" }).click();
+    const publicationError = page.getByRole("alert").filter({
+      hasText: "Publication failed",
+    });
+    await expect(publicationError).toContainText(
+      "Another administrator published this course first.",
+    );
+    await expect(
+      publicationError.getByRole("button", { name: "Reload status" }),
+    ).toBeVisible();
+    await expect(page.getByText("Draft action failed")).toHaveCount(0);
   });
 
   test("persists collapsed Course and Inspector sections in the browser", async ({
@@ -584,7 +732,9 @@ test.describe("protected course editor access", () => {
     expect(putCount).toBe(1);
 
     releaseSave();
-    await expect(page.getByTestId("editor-revision")).toHaveText("Draft r4");
+    await expect(page.getByTestId("editor-revision")).toHaveText(
+      "Draft r4 · Published none",
+    );
     await expect(page.getByRole("button", { name: "Save draft" })).toBeDisabled();
   });
 
@@ -640,7 +790,9 @@ test.describe("protected course editor access", () => {
 
     releaseLatest();
     await expect(page.getByText("Latest Locked Draft")).toBeVisible();
-    await expect(page.getByTestId("editor-revision")).toHaveText("Draft r4");
+    await expect(page.getByTestId("editor-revision")).toHaveText(
+      "Draft r4 · Published none",
+    );
     await expect(
       page.getByRole("button", { name: "Course actions" }),
     ).toBeFocused();
@@ -785,7 +937,9 @@ test.describe("protected course editor access", () => {
     await loadLatest.click();
 
     await expect(page.getByText("Winning Draft")).toBeVisible();
-    await expect(page.getByTestId("editor-revision")).toHaveText("Draft r4");
+    await expect(page.getByTestId("editor-revision")).toHaveText(
+      "Draft r4 · Published none",
+    );
     await expect(page.getByRole("button", { name: "Undo" })).toBeDisabled();
     await expect(
       page.getByRole("button", { name: "Course actions" }),
@@ -943,6 +1097,14 @@ test.describe("protected course editor access", () => {
 
     await expect(canvas).toHaveAttribute("data-selected-id", "block-1");
     await expect(page.getByRole("button", { name: "Undo" })).toBeEnabled();
+    if (testInfo.project.name === "desktop") {
+      await page.keyboard.press("2");
+      await expect(canvas).toHaveAttribute("data-tool", "rotate");
+      await page.keyboard.press("3");
+      await expect(canvas).toHaveAttribute("data-tool", "scale");
+      await page.keyboard.press("Control+1");
+      await expect(canvas).toHaveAttribute("data-tool", "scale");
+    }
     if (testInfo.project.name === "mobile") {
       await expect(canvas).toBeFocused();
       await page.getByRole("button", { name: "Course", exact: true }).click();
@@ -969,6 +1131,14 @@ test.describe("protected course editor access", () => {
     await expect(inspector.getByTestId("editor-selection")).toHaveText("block-1");
     await inspector.getByRole("button", { name: "Position x increase" }).click();
     await expect(inspector.getByTestId("position-x-value")).toHaveText("0.25");
+    await inspector.getByRole("textbox", { name: "Object name" }).fill("Pit block");
+    await inspector.getByRole("textbox", { name: "Object name" }).press("1");
+    await expect(inspector.getByRole("textbox", { name: "Object name" })).toHaveValue(
+      "Pit block1",
+    );
+    if (testInfo.project.name === "desktop") {
+      await expect(canvas).toHaveAttribute("data-tool", "scale");
+    }
     await inspector.getByRole("textbox", { name: "Object name" }).fill("Pit block");
     await inspector.getByRole("button", { name: "Apply" }).click();
     await expect(inspector.getByRole("textbox", { name: "Object name" })).toHaveValue(

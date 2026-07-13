@@ -1,5 +1,7 @@
 import { expect, type Locator, test } from "@playwright/test";
 
+import { ROUGH_COURSE_DOCUMENT } from "../src/game/course/course-document";
+
 import {
   PHYSICS_GROUP,
   PHYSICS_MASK,
@@ -338,6 +340,86 @@ test.describe("home screen", () => {
     expect(viewport).not.toBeNull();
     expect(Math.round(box?.width ?? 0)).toBe(viewport?.width);
     expect(Math.round(box?.height ?? 0)).toBe(viewport?.height);
+  });
+
+  test("constructs guest racing from the published course revision", async ({
+    page,
+  }) => {
+    const publishedDocument = structuredClone(ROUGH_COURSE_DOCUMENT);
+    publishedDocument.lighting.ambient.color = { b: 0.4, g: 0.3, r: 0.2 };
+    await page.route("**/api/courses/rough-course/published", async (route) => {
+      await route.fulfill({
+        body: JSON.stringify({
+          courseId: "rough-course",
+          document: publishedDocument,
+          publishedAt: new Date("2026-07-12T00:05:00.000Z").toISOString(),
+          revision: 3,
+          schemaVersion: 1,
+        }),
+        contentType: "application/json",
+        status: 200,
+      });
+    });
+
+    await page.goto("/");
+    await page.getByRole("button", { name: "Solo Time Trial" }).click();
+    const canvas = page.getByTestId("solo-time-trial-canvas");
+    const state = await getCollisionDebugState(canvas);
+    expect(state.ambientLightR).toBeCloseTo(0.2);
+    expect(state.ambientLightG).toBeCloseTo(0.3);
+    expect(state.ambientLightB).toBeCloseTo(0.4);
+  });
+
+  test("returns to the bundled course when a later publication fetch fails", async ({
+    page,
+  }) => {
+    const publishedDocument = structuredClone(ROUGH_COURSE_DOCUMENT);
+    publishedDocument.lighting.ambient.color = { b: 0.4, g: 0.3, r: 0.2 };
+    let requestCount = 0;
+    await page.route("**/api/courses/rough-course/published", async (route) => {
+      requestCount += 1;
+      if (requestCount > 1) {
+        await route.fulfill({
+          body: JSON.stringify({ error: "Published course not found." }),
+          contentType: "application/json",
+          status: 404,
+        });
+        return;
+      }
+      await route.fulfill({
+        body: JSON.stringify({
+          courseId: "rough-course",
+          document: publishedDocument,
+          publishedAt: new Date("2026-07-12T00:05:00.000Z").toISOString(),
+          revision: 3,
+          schemaVersion: 1,
+        }),
+        contentType: "application/json",
+        status: 200,
+      });
+    });
+
+    await page.goto("/");
+    await page.getByRole("button", { name: "Solo Time Trial" }).click();
+    let canvas = page.getByTestId("solo-time-trial-canvas");
+    let state = await getCollisionDebugState(canvas);
+    expect(state.ambientLightR).toBeCloseTo(0.2);
+
+    await page.keyboard.press("Escape");
+    await page.getByRole("button", { name: "Exit", exact: true }).click();
+    await page.getByRole("button", { name: "Solo Time Trial" }).click();
+    canvas = page.getByTestId("solo-time-trial-canvas");
+    state = await getCollisionDebugState(canvas);
+    expect(state.ambientLightR).toBeCloseTo(
+      ROUGH_COURSE_DOCUMENT.lighting.ambient.color.r,
+    );
+    expect(state.ambientLightG).toBeCloseTo(
+      ROUGH_COURSE_DOCUMENT.lighting.ambient.color.g,
+    );
+    expect(state.ambientLightB).toBeCloseTo(
+      ROUGH_COURSE_DOCUMENT.lighting.ambient.color.b,
+    );
+    expect(requestCount).toBe(2);
   });
 
   test("shows an accessible error and reloads after kart physics cannot load", async ({
