@@ -1,6 +1,6 @@
 import * as pc from "playcanvas";
 
-import type { ObstacleObjectId } from "../contracts";
+import type { CourseTestObstacleId } from "../contracts";
 import { PHYSICS_GROUP, PHYSICS_MASK } from "../physics/collision-groups";
 import type {
   CourseDocument,
@@ -10,7 +10,7 @@ import type {
 import { ROUGH_COURSE_DOCUMENT } from "./course-document";
 
 export type CollisionObstacle = {
-  id: ObstacleObjectId;
+  id: CourseTestObstacleId;
   radius: number;
   x: number;
   z: number;
@@ -34,7 +34,7 @@ type BuildRoughCourseOptions = {
   materials: RoughCourseMaterials;
 };
 
-function isLegacyEditableObstacleId(id: string): id is ObstacleObjectId {
+function isCourseTestObstacleId(id: string): id is CourseTestObstacleId {
   return id === "obstacle-barrel-a" || id === "obstacle-barrel-b";
 }
 
@@ -89,7 +89,7 @@ export function buildRoughCourse(
     materials,
   }: BuildRoughCourseOptions,
 ) {
-  const obstacleEntities = new Map<ObstacleObjectId, pc.Entity>();
+  const obstacleEntities = new Map<CourseTestObstacleId, pc.Entity>();
   const collisionObstacles: CollisionObstacle[] = [];
   const courseEntities = new Map<string, pc.Entity>();
   const cameraFixtureEntities: pc.Entity[] = [];
@@ -121,12 +121,12 @@ export function buildRoughCourse(
 
         if (
           object.category === "obstacle" &&
-          isLegacyEditableObstacleId(object.id)
+          isCourseTestObstacleId(object.id)
         ) {
           obstacleEntities.set(object.id, entity);
           collisionObstacles.push({
             id: object.id,
-            // Preserve the transitional Lite Editor selection/clearance
+            // Preserve the deterministic reset-clearance and runtime test
             // footprint. Physics consumes the independent collision radius.
             radius: Math.max(object.visual.scale.x, object.visual.scale.z),
             x: object.transform.position.x,

@@ -134,7 +134,9 @@ than a synonym for publishing.
 Titan Racers guest construction now resolves the explicit current guest course,
 validates its privacy-minimized published response, and passes that portable
 document into the same `buildRoughCourse` and `buildCourseLighting` projections.
-The renderer never reads a mutable database draft or publication metadata.
+The renderer never reads a mutable database draft or publication metadata and
+contains no player-facing editor mode. Runtime mutation fixtures are exposed
+only through the non-production scene test adapter.
 
 Primary references:
 

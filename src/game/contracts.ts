@@ -1,18 +1,12 @@
-export type TransformAxis = "x" | "y" | "z";
-
-export type ObstacleObjectId =
+export type CourseTestObstacleId =
   | "obstacle-barrel-a"
   | "obstacle-barrel-b";
-
-export type EditableObjectId = "start-position" | "kart" | ObstacleObjectId;
 
 export type Position3 = {
   x: number;
   y: number;
   z: number;
 };
-
-export type StartPosition = Pick<Position3, "x" | "z">;
 
 export type DrivingInput = {
   brake: number;
@@ -34,24 +28,6 @@ export interface KartController {
   update(input: DrivingInput, deltaSeconds: number): void;
 }
 
-export type SceneApi = {
-  getEditableObjectScreenPoint: (objectId: EditableObjectId) => {
-    x: number;
-    y: number;
-  } | null;
-  getTranslateGizmoScreenPoint: (axis: TransformAxis) => {
-    x: number;
-    y: number;
-  } | null;
-  rotateSelected: (axis: TransformAxis, delta: number) => void;
-  resetKart: () => void;
-  setEditorMode: (isEditorMode: boolean) => void;
-  setPaused: (paused: boolean) => void;
-  setMovementTuning: (movementTuning: KartMovementTuning) => void;
-  setStartPosition: (startPosition: StartPosition) => void;
-  translateSelected: (axis: TransformAxis, delta: number) => void;
-};
-
 export type KartMovementTuning = {
   acceleration: number;
   brakeForce: number;
@@ -61,5 +37,3 @@ export type KartMovementTuning = {
   maxReverseSpeed: number;
   turnRate: number;
 };
-
-export type KartMovementTuningKey = keyof KartMovementTuning;

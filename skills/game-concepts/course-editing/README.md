@@ -264,8 +264,8 @@ while its stable ID remains unchanged.
 - Database revisions and protected APIs are implemented by the candidate
   [`identity-course-persistence`](../../project-systems/identity-course-persistence/README.md)
   system.
-- Protected save/reload, command history, and publication UI are implemented;
-  final removal of the transitional Lite Editor remains PR 3C work.
+- Protected save/reload, command history, publication, and replacement of the
+  development-only editor are implemented by PR 3C.
 - Basic environment-light controls belong to PR 3C; arbitrary placeable lights
   and advanced rendering effects remain deferred.
 - Final Agricultural Zone meshes and art authoring remain later-phase work.

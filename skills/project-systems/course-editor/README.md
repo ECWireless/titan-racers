@@ -2,9 +2,9 @@
 
 ## Status
 
-**Maturity:** In progress. PR 3C implementation began on 2026-07-12. Each
-planned commit is verified, feature-lead QA tested, and independently reviewed
-before publication approval.
+**Maturity:** Candidate. PR 3C implementation is complete as of 2026-07-13 and
+awaits final feature-lead QA, independent slice review, and full-phase
+integration review before publication approval.
 
 ## Purpose And Scope
 
@@ -19,7 +19,8 @@ authoring shell, document history, a visual-only PlayCanvas course projection,
 palette placement, stable-ID selection, transforms, start/checkpoint authoring,
 deletion, authoritative collision diagnostics, conflict-safe private draft
 actions, lighting controls, append-only publication, and published guest-course
-loading. Removing the transitional Lite Editor is the remaining PR 3C unit.
+loading. The guest runtime contains no course-authoring surface; its pause menu
+owns only Resume and Exit.
 
 ## Current Source Ownership
 
@@ -51,6 +52,11 @@ loading. Removing the transitional Lite Editor is the remaining PR 3C unit.
 - `tests/course-editor-document.spec.ts` covers preset, stable-ID, collision
   scaling, start placement, checkpoint ordering, and deletion rules.
 - `tests/course-editor-history.spec.ts` covers command and clean-state rules.
+- `src/components/solo-time-trial-canvas.tsx` consumes the configured published
+  course without exposing the removed development editor.
+- `src/game/testing/scene-test-adapter.ts` preserves explicit non-production
+  physics fixtures for tuning, start placement, obstacle transforms, and scene
+  diagnostics without shipping player-facing authoring controls.
 
 ## Current Invariants
 
@@ -61,6 +67,12 @@ loading. Removing the transitional Lite Editor is the remaining PR 3C unit.
   found; the protected save uses an empty expected revision and treats a
   competing initializer as a reload rather than an overwrite.
 - Guest racing remains available without an authentication or database session.
+- Guest racing never exposes course-authoring controls. Development-only
+  runtime mutations are reachable only through the non-production scene test
+  adapter and are absent from production builds. Keyboard users pause with
+  Escape, while narrow-screen racers receive an explicit safe-area-aware Pause
+  action; both paths open the same focus-contained Resume/Exit modal and return
+  focus to the race on resume.
 - Command history is document-oriented and independent of PlayCanvas entities.
 - History retains the latest 100 commands; a truncated clean boundary remains
   dirty rather than retaining unlimited document snapshots.
@@ -161,10 +173,8 @@ loading. Removing the transitional Lite Editor is the remaining PR 3C unit.
 - Run `pnpm lint`, `pnpm typecheck`, and `pnpm build` before feature-lead QA.
 - Preserve the existing guest and gameplay regression suite.
 
-## Remaining PR 3C Slice
+## Deferred Work
 
-- Final integration slice: remove the transitional in-race Lite Editor after
-  the protected editor owns the complete draft and publishing workflow.
 - Revision history/restore, arbitrary light placement, advanced environment
   rendering, real-time collaboration, and automatic multi-author merging
   remain later production-tooling work.

@@ -7,65 +7,21 @@ import {
   PHYSICS_MASK,
 } from "../src/game/physics/collision-groups";
 
-type TransformAxis = "x" | "y" | "z";
-type EditableObjectId =
-  | "start-position"
-  | "kart"
-  | "obstacle-barrel-a"
-  | "obstacle-barrel-b";
-
 async function waitForSceneReady(canvas: Locator) {
   await expect(canvas).toHaveAttribute("data-scene-ready", "true");
 }
 
-async function openEditor(page: import("@playwright/test").Page) {
-  await waitForSceneReady(page.getByTestId("solo-time-trial-canvas"));
-  await page.keyboard.press("Escape");
-  await expect(page.getByText("Paused", { exact: true })).toBeVisible();
-  await page.getByRole("button", { name: "Edit" }).click();
-}
-
-async function getTranslateGizmoPoint(
-  canvas: Locator,
-  axis: TransformAxis,
-) {
+async function getKartScreenPoint(canvas: Locator) {
   await waitForSceneReady(canvas);
-
   return canvas.evaluate(
-    (element, requestedAxis) =>
+    (element) =>
       new Promise<{ x: number; y: number } | null>((resolve) => {
         element.dispatchEvent(
-          new CustomEvent("getTranslateGizmoPoint", {
-            detail: {
-              axis: requestedAxis,
-              respond: resolve,
-            },
+          new CustomEvent("getKartScreenPoint", {
+            detail: { respond: resolve },
           }),
         );
       }),
-    axis,
-  );
-}
-
-async function getEditableObjectPoint(
-  canvas: Locator,
-  objectId: EditableObjectId,
-) {
-  await waitForSceneReady(canvas);
-
-  return canvas.evaluate(
-    (element, requestedObjectId) =>
-      new Promise<{ x: number; y: number } | null>((resolve) => {
-        element.dispatchEvent(
-          new CustomEvent("getEditableObjectPoint", {
-            detail: {
-              objectId: requestedObjectId,
-              respond: resolve,
-            },
-          }),
-        );
-      }),
-    objectId,
   );
 }
 
@@ -279,6 +235,63 @@ async function setKartDebugPose(
       );
     },
     pose,
+  );
+}
+
+async function setKartMovementTuning(
+  canvas: Locator,
+  tuning: Partial<{
+    acceleration: number;
+    brakeForce: number;
+    drag: number;
+    gravity: number;
+    maxForwardSpeed: number;
+    maxReverseSpeed: number;
+    turnRate: number;
+  }>,
+) {
+  await waitForSceneReady(canvas);
+  await canvas.evaluate((element, requestedTuning) => {
+    element.dispatchEvent(
+      new CustomEvent("setKartMovementTuning", {
+        detail: { tuning: requestedTuning },
+      }),
+    );
+  }, tuning);
+}
+
+async function setStartPosition(
+  canvas: Locator,
+  position: { x: number; z: number },
+) {
+  await waitForSceneReady(canvas);
+  await canvas.evaluate((element, requestedPosition) => {
+    element.dispatchEvent(
+      new CustomEvent("setStartPosition", {
+        detail: { position: requestedPosition },
+      }),
+    );
+  }, position);
+}
+
+async function setCourseObjectDebugTransform(
+  canvas: Locator,
+  objectId: "obstacle-barrel-a" | "obstacle-barrel-b",
+  transform: {
+    position?: { x: number; y: number; z: number };
+    rotation?: { x: number; y: number; z: number };
+  },
+) {
+  await waitForSceneReady(canvas);
+  await canvas.evaluate(
+    (element, request) => {
+      element.dispatchEvent(
+        new CustomEvent("setCourseObjectDebugTransform", {
+          detail: request,
+        }),
+      );
+    },
+    { objectId, transform },
   );
 }
 
@@ -547,7 +560,7 @@ test.describe("home screen", () => {
     expect(canvasSize.width).toBeGreaterThan(0);
     expect(canvasSize.height).toBeGreaterThan(0);
 
-    const kartPoint = await getEditableObjectPoint(canvas, "kart");
+    const kartPoint = await getKartScreenPoint(canvas);
 
     expect(kartPoint).not.toBeNull();
     expect(
@@ -870,29 +883,21 @@ test.describe("home screen", () => {
     expect(recoveredState.saturatedTireCount).toBe(0);
   });
 
-  test("edits solo kart movement tuning in the lite editor", async ({
+  test("applies movement tuning through the scene test adapter", async ({
     page,
   }) => {
     await page.goto("/");
 
     await page.getByRole("button", { name: "Solo Time Trial" }).click();
-    await openEditor(page);
-
     const canvas = page.getByTestId("solo-time-trial-canvas");
-    const maxSpeedInput = page.getByTestId("movement-maxForwardSpeed");
+    expect((await getKartDebugState(canvas)).maxForwardSpeed).toBe(17);
 
-    await expect(maxSpeedInput).toHaveValue("17");
-
-    await maxSpeedInput.fill("11");
-
-    await expect(maxSpeedInput).toHaveValue("11");
+    await setKartMovementTuning(canvas, { maxForwardSpeed: 11 });
     await expect
       .poll(async () => (await getKartDebugState(canvas)).maxForwardSpeed)
       .toBe(11);
 
-    await page.getByRole("button", { name: "Defaults" }).click();
-
-    await expect(maxSpeedInput).toHaveValue("17");
+    await setKartMovementTuning(canvas, { maxForwardSpeed: 17 });
     await expect
       .poll(async () => (await getKartDebugState(canvas)).maxForwardSpeed)
       .toBe(17);
@@ -1265,185 +1270,39 @@ test.describe("home screen", () => {
     expect(Number.isFinite(landedCamera.cameraPosition.z)).toBe(true);
   });
 
-  test("edits the solo start position", async ({ page }) => {
-    await page.goto("/");
-
-    await page.getByRole("button", { name: "Solo Time Trial" }).click();
-    await openEditor(page);
-
-    const startX = page.getByTestId("start-position-x");
-    const startZ = page.getByTestId("start-position-z");
-
-    await expect(startX).toHaveValue("0");
-    await expect(startZ).toHaveValue("0");
-
-    await page
-      .getByRole("button", { name: "Move start position right" })
-      .click();
-    await page
-      .getByRole("button", { name: "Move start position backward" })
-      .click();
-
-    await expect(startX).toHaveValue("0.5");
-    await expect(startZ).toHaveValue("0.5");
-
-    await page.getByRole("button", { name: "Reset" }).click();
-    await expect(page.getByTestId("solo-time-trial-canvas")).toBeVisible();
-  });
-
-  test("selects editable solo objects in editor mode", async ({
+  test("applies the authored start through the scene test adapter", async ({
     page,
-  }, testInfo) => {
-    test.skip(
-      testInfo.project.name === "mobile",
-      "Mobile editor object picking needs a separate ergonomics pass.",
-    );
-
+  }) => {
     await page.goto("/");
-
     await page.getByRole("button", { name: "Solo Time Trial" }).click();
-    await openEditor(page);
-
-    await expect(page.getByTestId("selected-editor-object")).toHaveText(
-      "Start Position",
-    );
 
     const canvas = page.getByTestId("solo-time-trial-canvas");
-    const kartPoint = await getEditableObjectPoint(canvas, "kart");
+    await setSimulationPaused(canvas, true);
+    await setStartPosition(canvas, { x: 0.5, z: 0.5 });
+    await page.keyboard.press("r");
 
-    expect(kartPoint).not.toBeNull();
-
-    await canvas.click({
-      position: {
-        x: kartPoint?.x ?? 0,
-        y: kartPoint?.y ?? 0,
-      },
-    });
-
-    await expect(page.getByTestId("selected-editor-object")).toHaveText("Kart");
+    const presentation = await getPresentationDebugState(canvas);
+    expect(presentation.visualPosition.x).toBeCloseTo(0.5);
+    expect(presentation.visualPosition.z).toBeCloseTo(0.5);
   });
 
-  test("translates the selected solo editor object", async ({
+  test("releases an elevated rotated test kart into physical floor contact", async ({
     page,
-  }, testInfo) => {
-    test.skip(
-      testInfo.project.name === "mobile",
-      "Mobile editor object picking needs a separate ergonomics pass.",
-    );
-
-    await page.goto("/");
-
-    await page.getByRole("button", { name: "Solo Time Trial" }).click();
-    await openEditor(page);
-
-    await page
-      .getByRole("button", { name: "Move selected positive X" })
-      .click();
-    await page
-      .getByRole("button", { name: "Move selected positive Y" })
-      .click();
-    await page
-      .getByRole("button", { name: "Move selected negative Z" })
-      .click();
-
-    await expect(page.getByTestId("selected-position-x")).toHaveText("X 0.5");
-    await expect(page.getByTestId("selected-position-y")).toHaveText("Y 0");
-    await expect(page.getByTestId("selected-position-z")).toHaveText("Z -0.5");
-    await expect(page.getByTestId("start-position-x")).toHaveValue("0.5");
-    await expect(page.getByTestId("start-position-z")).toHaveValue("-0.5");
-
-    const canvas = page.getByTestId("solo-time-trial-canvas");
-    const kartPoint = await getEditableObjectPoint(canvas, "kart");
-
-    expect(kartPoint).not.toBeNull();
-
-    await canvas.click({
-      position: {
-        x: kartPoint?.x ?? 0,
-        y: kartPoint?.y ?? 0,
-      },
-    });
-
-    await expect(page.getByTestId("selected-editor-object")).toHaveText("Kart");
-    await expect(page.getByTestId("selected-position-x")).toHaveText("X 0");
-
-    await page
-      .getByRole("button", { name: "Move selected positive X" })
-      .click();
-
-    await expect(page.getByTestId("selected-position-x")).toHaveText("X 0.5");
-  });
-
-  test("releases an elevated rotated editor kart into physical floor contact", async ({
-    page,
-  }, testInfo) => {
-    test.skip(
-      testInfo.project.name === "mobile",
-      "Mobile editor object picking needs a separate ergonomics pass.",
-    );
-
+  }) => {
     await page.goto("/");
     await page.getByRole("button", { name: "Solo Time Trial" }).click();
-    await openEditor(page);
 
     const canvas = page.getByTestId("solo-time-trial-canvas");
-    const kartPoint = await getEditableObjectPoint(canvas, "kart");
-
-    expect(kartPoint).not.toBeNull();
-    await canvas.click({
-      position: { x: kartPoint?.x ?? 0, y: kartPoint?.y ?? 0 },
+    await setSimulationPaused(canvas, true);
+    await setKartDebugPose(canvas, {
+      position: { x: 0, y: 3.43, z: 0 },
+      rotation: { x: 45, y: 0, z: 0 },
     });
-
-    for (let step = 0; step < 6; step += 1) {
-      await page
-        .getByRole("button", { name: "Move selected positive Y" })
-        .click();
-    }
-    for (let step = 0; step < 3; step += 1) {
-      await page
-        .getByRole("button", { name: "Rotate selected positive X" })
-        .click();
-    }
-
-    await expect(page.getByTestId("selected-position-y")).toHaveText("Y 3.43");
-    await expect(page.getByTestId("selected-rotation-x")).toHaveText("RX 45");
-    await page.getByRole("button", { name: "Drive" }).click();
-
-    await stepSimulation(canvas, 50);
+    await stepSimulation(canvas, 150);
 
     const kart = await getKartDebugState(canvas);
-
     expect(kart.y).toBeGreaterThan(-1);
     expect(kart.supportCount).toBeGreaterThan(0);
-  });
-
-  test("translates with the visual editor arrows", async ({
-    page,
-  }, testInfo) => {
-    test.skip(
-      testInfo.project.name === "mobile",
-      "Mobile gizmo ergonomics need a separate layout pass.",
-    );
-
-    await page.goto("/");
-
-    await page.getByRole("button", { name: "Solo Time Trial" }).click();
-    await openEditor(page);
-
-    const canvas = page.getByTestId("solo-time-trial-canvas");
-    const xArrowPoint = await getTranslateGizmoPoint(canvas, "x");
-
-    expect(xArrowPoint).not.toBeNull();
-
-    await canvas.click({
-      position: {
-        x: xArrowPoint?.x ?? 0,
-        y: xArrowPoint?.y ?? 0,
-      },
-    });
-
-    await expect(page.getByTestId("selected-position-x")).toHaveText("X 0.5");
-    await expect(page.getByTestId("start-position-x")).toHaveValue("0.5");
   });
 
   test("registers course obstacle collision", async ({ page }) => {
@@ -1891,7 +1750,43 @@ test.describe("home screen", () => {
     ).toBeGreaterThan(-0.1);
   });
 
-  test("keeps the drive cursor hidden and restores it for editing", async ({
+  test("pauses and resumes from the mobile race HUD", async ({
+    page,
+  }, testInfo) => {
+    test.skip(testInfo.project.name !== "mobile", "Mobile pause control only.");
+    await page.setViewportSize({ height: 390, width: 844 });
+
+    await page.goto("/");
+    await page.getByRole("button", { name: "Solo Time Trial" }).click();
+
+    const canvas = page.getByTestId("solo-time-trial-canvas");
+    await expect(canvas).toHaveAccessibleName("Solo Time Trial race");
+    const pause = page.getByRole("button", { name: "Pause race" });
+    await expect(pause).toBeVisible();
+    const pauseBounds = await pause.boundingBox();
+    expect(pauseBounds).not.toBeNull();
+    expect((pauseBounds?.x ?? 0) + (pauseBounds?.width ?? 0)).toBeLessThanOrEqual(
+      844,
+    );
+    await pause.click();
+    const dialog = page.getByRole("dialog", { name: "Paused" });
+    await expect(dialog).toBeVisible();
+    await expect(dialog).toContainText("Resume when you're ready");
+    const resume = dialog.getByRole("button", { name: "Resume" });
+    const exit = dialog.getByRole("button", { name: "Exit" });
+    await expect(resume).toBeFocused();
+    await page.keyboard.press("Shift+Tab");
+    await expect(exit).toBeFocused();
+    await page.keyboard.press("Tab");
+    await expect(resume).toBeFocused();
+
+    await resume.click();
+    await expect(page.getByText("Paused", { exact: true })).not.toBeVisible();
+    await expect(canvas).toBeFocused();
+    await expect(pause).toBeVisible();
+  });
+
+  test("keeps the drive cursor hidden and restores it while paused", async ({
     page,
   }, testInfo) => {
     test.skip(
@@ -1903,151 +1798,35 @@ test.describe("home screen", () => {
     await page.getByRole("button", { name: "Solo Time Trial" }).click();
 
     const canvas = page.getByTestId("solo-time-trial-canvas");
-
     await waitForSceneReady(canvas);
     await canvas.focus();
     await expect(canvas).toHaveCSS("cursor", "none");
 
     await page.mouse.move(520, 320);
     await expect(canvas).toHaveCSS("cursor", "none");
-    await openEditor(page);
-    await expect(canvas).toHaveCSS("cursor", "default");
-    await page.getByRole("button", { name: "Drive" }).click();
+    await page.keyboard.press("Escape");
     await expect(page.getByText("Paused", { exact: true })).toBeVisible();
     await expect(canvas).toHaveCSS("cursor", "default");
+    await expect(page.getByRole("button", { name: "Edit" })).toHaveCount(0);
+
     await page.getByRole("button", { name: "Resume" }).click();
     await expect(page.getByText("Paused", { exact: true })).not.toBeVisible();
     await expect(canvas).toHaveCSS("cursor", "none");
   });
 
-  test("edits selectable course obstacles", async ({ page }, testInfo) => {
-    test.skip(
-      testInfo.project.name === "mobile",
-      "Mobile editor object picking needs a separate ergonomics pass.",
-    );
-
+  test("keeps transformed test-obstacle collision synchronized", async ({
+    page,
+  }) => {
     await page.goto("/");
-
     await page.getByRole("button", { name: "Solo Time Trial" }).click();
-    await openEditor(page);
 
     const canvas = page.getByTestId("solo-time-trial-canvas");
-    const obstaclePoint = await getEditableObjectPoint(
-      canvas,
-      "obstacle-barrel-a",
-    );
-
-    expect(obstaclePoint).not.toBeNull();
-
-    await canvas.evaluate((element, point) => {
-      const rect = element.getBoundingClientRect();
-
-      element.dispatchEvent(
-        new PointerEvent("pointerdown", {
-          bubbles: true,
-          clientX: rect.left + point.x,
-          clientY: rect.top + point.y,
-        }),
-      );
-    }, obstaclePoint ?? { x: 0, y: 0 });
-
-    await expect(page.getByTestId("selected-editor-object")).toHaveText(
-      "Barrel A",
-    );
-    await expect(page.getByTestId("selected-position-x")).toHaveText("X 14.5");
-    await expect(page.getByTestId("selected-rotation-y")).toHaveText("RY 0");
-
-    await page
-      .getByRole("button", { name: "Move selected positive X" })
-      .click();
-
-    await expect(page.getByTestId("selected-position-x")).toHaveText("X 15");
+    await setCourseObjectDebugTransform(canvas, "obstacle-barrel-a", {
+      position: { x: 15, y: 0.75, z: -3 },
+      rotation: { x: 0, y: 15, z: 0 },
+    });
 
     const movedCollisionState = await getCollisionDebugState(canvas);
     expect(movedCollisionState.obstacleAX).toBe(15);
-
-    await page
-      .getByRole("button", { name: "Rotate selected positive Y" })
-      .click();
-
-    await expect(page.getByTestId("selected-rotation-y")).toHaveText("RY 15");
-  });
-
-  test("rotates the selected solo editor object", async ({
-    page,
-  }, testInfo) => {
-    test.skip(
-      testInfo.project.name === "mobile",
-      "Mobile editor object picking needs a separate ergonomics pass.",
-    );
-
-    await page.goto("/");
-
-    await page.getByRole("button", { name: "Solo Time Trial" }).click();
-    await openEditor(page);
-
-    await expect(page.getByTestId("selected-rotation-y")).toHaveText("RY 90");
-
-    await page
-      .getByRole("button", { name: "Rotate selected positive Y" })
-      .click();
-    await page
-      .getByRole("button", { name: "Rotate selected positive Y" })
-      .click();
-    await page
-      .getByRole("button", { name: "Rotate selected positive X" })
-      .click();
-    await page
-      .getByRole("button", { name: "Rotate selected negative Z" })
-      .click();
-
-    await expect(page.getByTestId("selected-rotation-x")).toHaveText("RX 15");
-    await expect(page.getByTestId("selected-rotation-y")).toHaveText("RY 120");
-    await expect(page.getByTestId("selected-rotation-z")).toHaveText("RZ -15");
-
-    const canvas = page.getByTestId("solo-time-trial-canvas");
-    const kartPoint = await getEditableObjectPoint(canvas, "kart");
-
-    expect(kartPoint).not.toBeNull();
-
-    await canvas.click({
-      position: {
-        x: kartPoint?.x ?? 0,
-        y: kartPoint?.y ?? 0,
-      },
-    });
-
-    await expect(page.getByTestId("selected-editor-object")).toHaveText("Kart");
-    await expect
-      .poll(async () =>
-        Number(
-          (await page.getByTestId("selected-rotation-y").textContent())?.replace(
-            "RY ",
-            "",
-          ),
-        ),
-      )
-      .toBeCloseTo(90, 1);
-
-    await page
-      .getByRole("button", { name: "Rotate selected positive X" })
-      .click();
-
-    await expect(page.getByTestId("selected-rotation-x")).toHaveText("RX 15");
-    await expect(page.getByTestId("selected-rotation-z")).toHaveText("RZ 0");
-
-    const kartRotation = await getKartDebugState(canvas);
-
-    expect(Math.abs(kartRotation.up.x)).toBeLessThan(0.05);
-    expect(Math.abs(kartRotation.up.z)).toBeGreaterThan(0.2);
-
-    await page
-      .getByRole("button", { name: "Rotate selected negative Y" })
-      .click();
-    await page
-      .getByRole("button", { name: "Rotate selected negative Y" })
-      .click();
-
-    await expect(page.getByTestId("selected-rotation-y")).toHaveText("RY 60");
   });
 });

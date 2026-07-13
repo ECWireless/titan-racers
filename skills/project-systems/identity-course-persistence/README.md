@@ -16,8 +16,9 @@ server-side admin authorization, immutable course revisions, and protected
 course load/save APIs.
 
 It keeps the portable course document defined by
-[`course-data`](../course-data/README.md) free of database metadata. It adds no
-login UI or visible editor behavior; those remain PR 3C work.
+[`course-data`](../course-data/README.md) free of database metadata. The visible
+login and authoring experience belongs to the completed protected
+[`course-editor`](../course-editor/README.md) system.
 
 ## Source Ownership
 
@@ -119,7 +120,8 @@ login UI or visible editor behavior; those remain PR 3C work.
 
 ## Known Limits And Deferred Work
 
-- PR 3C adds the visible login/access experience and protected course editor.
+- The visible login/access experience and protected course editor are owned by
+  the completed PR 3C course-editor system.
 - Player-facing EOA/SIWE login, explicit account linking UI, and embedded wallets
   remain deferred.
 - Automated Neon preview branches and production deployment migrations are not
