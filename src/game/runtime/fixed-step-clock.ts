@@ -1,5 +1,6 @@
 export type FixedStepFrame = {
   accumulatorFraction: number;
+  droppedFrameSeconds: number;
   droppedSeconds: number;
   frameSeconds: number;
   steps: number;
@@ -35,10 +36,7 @@ export class FixedStepClock {
       throw new Error("fixedStepSeconds must be a positive finite number");
     }
 
-    if (
-      !Number.isInteger(this.maxCatchUpSteps) ||
-      this.maxCatchUpSteps <= 0
-    ) {
+    if (!Number.isInteger(this.maxCatchUpSteps) || this.maxCatchUpSteps <= 0) {
       throw new Error("maxCatchUpSteps must be a positive integer");
     }
 
@@ -47,7 +45,10 @@ export class FixedStepClock {
     }
   }
 
-  advance(frameSeconds: number, fixedStep: (stepSeconds: number) => void) {
+  advance(
+    frameSeconds: number,
+    fixedStep: (stepSeconds: number) => boolean | void,
+  ) {
     const safeFrameSeconds = Number.isFinite(frameSeconds)
       ? Math.max(frameSeconds, 0)
       : 0;
@@ -60,16 +61,25 @@ export class FixedStepClock {
     this.accumulatorSeconds += acceptedFrameSeconds;
 
     let steps = 0;
+    let stoppedEarly = false;
     while (
       this.accumulatorSeconds + STEP_EPSILON >= this.fixedStepSeconds &&
       steps < this.maxCatchUpSteps
     ) {
-      fixedStep(this.fixedStepSeconds);
+      const shouldContinue = fixedStep(this.fixedStepSeconds) !== false;
       this.accumulatorSeconds -= this.fixedStepSeconds;
       steps += 1;
+
+      if (!shouldContinue) {
+        stoppedEarly = true;
+        break;
+      }
     }
 
-    if (this.accumulatorSeconds + STEP_EPSILON >= this.fixedStepSeconds) {
+    if (
+      !stoppedEarly &&
+      this.accumulatorSeconds + STEP_EPSILON >= this.fixedStepSeconds
+    ) {
       const droppedWholeSteps =
         Math.floor(
           (this.accumulatorSeconds + STEP_EPSILON) / this.fixedStepSeconds,
@@ -84,6 +94,7 @@ export class FixedStepClock {
 
     return {
       accumulatorFraction: this.accumulatorSeconds / this.fixedStepSeconds,
+      droppedFrameSeconds: droppedThisFrame,
       droppedSeconds: this.droppedSeconds,
       frameSeconds: acceptedFrameSeconds,
       steps,

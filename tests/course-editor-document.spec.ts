@@ -179,7 +179,9 @@ test.describe("course editor document commands", () => {
   });
 
   test("adds and deletes ordered checkpoints while retaining one minimum", () => {
-    const document = addCourseCheckpoint(structuredClone(ROUGH_COURSE_DOCUMENT));
+    const document = addCourseCheckpoint(
+      structuredClone(ROUGH_COURSE_DOCUMENT),
+    );
     const added = document.checkpoints.at(-1)!;
     const deleted = deleteCourseSelection(document, {
       id: document.checkpoints[1].id,
@@ -187,6 +189,20 @@ test.describe("course editor document commands", () => {
     });
 
     expect(added.id).toBe("checkpoint-1");
+    expect(added.forward).toEqual({
+      x: expect.any(Number),
+      y: 0,
+      z: expect.any(Number),
+    });
+    expect(Math.hypot(added.forward.x, added.forward.z)).toBeCloseTo(1);
+    expect(added.recovery).toEqual({
+      position: {
+        x: added.position.x,
+        y: added.position.y - added.halfExtents.y,
+        z: added.position.z,
+      },
+      rotation: added.rotation,
+    });
     expect(deleted.checkpoints.map(({ order }) => order)).toEqual(
       deleted.checkpoints.map((_, index) => index + 1),
     );
@@ -201,6 +217,47 @@ test.describe("course editor document commands", () => {
         kind: "checkpoint",
       }),
     ).toBe(oneCheckpoint);
+  });
+
+  test("translates checkpoint recovery position with its gate", () => {
+    const document = structuredClone(ROUGH_COURSE_DOCUMENT);
+    const checkpoint = document.checkpoints[0];
+    const moved = nudgeSelection(
+      document,
+      { id: checkpoint.id, kind: "checkpoint" },
+      "position",
+      "x",
+      0.25,
+    );
+
+    expect(moved.checkpoints[0].position.x).toBe(checkpoint.position.x + 0.25);
+    expect(moved.checkpoints[0].recovery.position.x).toBe(
+      checkpoint.recovery.position.x + 0.25,
+    );
+    expect(moved.checkpoints[0].recovery.rotation).toEqual(
+      checkpoint.recovery.rotation,
+    );
+  });
+
+  test("rotates a checkpoint gate face and preserves it across axis-changing scale", () => {
+    const document = structuredClone(ROUGH_COURSE_DOCUMENT);
+    const checkpoint = document.checkpoints[0];
+    const selection = { id: checkpoint.id, kind: "checkpoint" } as const;
+    const geometry = getSelectionGeometry(document, selection)!;
+    const rotated = updateSelectionGeometry(document, selection, {
+      ...geometry,
+      rotation: { ...geometry.rotation, y: 90 },
+    });
+
+    expect(rotated.checkpoints[0].forward).toEqual({ x: 0, y: 0, z: 1 });
+
+    const scaled = updateSelectionGeometry(rotated, selection, {
+      ...getSelectionGeometry(rotated, selection)!,
+      scale: { x: 10, y: 3, z: 2 },
+    });
+
+    expect(scaled.checkpoints[0].halfExtents).toEqual({ x: 5, y: 1.5, z: 1 });
+    expect(scaled.checkpoints[0].forward).toEqual({ x: 0, y: 0, z: 1 });
   });
 
   test("does not reuse deleted object or checkpoint IDs in one editing session", () => {

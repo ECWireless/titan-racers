@@ -1,6 +1,11 @@
 {
   "checkpoints": [
     {
+      "forward": {
+        "x": -1,
+        "y": 0,
+        "z": 0
+      },
       "halfExtents": {
         "x": 0.4,
         "y": 1.5,
@@ -13,6 +18,18 @@
         "y": 1.5,
         "z": 0
       },
+      "recovery": {
+        "position": {
+          "x": -20,
+          "y": 0,
+          "z": 0
+        },
+        "rotation": {
+          "x": 0,
+          "y": 135,
+          "z": 0
+        }
+      },
       "rotation": {
         "x": 0,
         "y": 0,
@@ -20,6 +37,11 @@
       }
     },
     {
+      "forward": {
+        "x": 0,
+        "y": 0,
+        "z": 1
+      },
       "halfExtents": {
         "x": 0.4,
         "y": 1.5,
@@ -32,6 +54,18 @@
         "y": 1.5,
         "z": 8
       },
+      "recovery": {
+        "position": {
+          "x": -28,
+          "y": 0,
+          "z": 8
+        },
+        "rotation": {
+          "x": 0,
+          "y": -135,
+          "z": 0
+        }
+      },
       "rotation": {
         "x": 0,
         "y": 90,
@@ -39,6 +73,11 @@
       }
     },
     {
+      "forward": {
+        "x": 1,
+        "y": 0,
+        "z": 0
+      },
       "halfExtents": {
         "x": 0.4,
         "y": 1.5,
@@ -51,6 +90,18 @@
         "y": 1.5,
         "z": 16
       },
+      "recovery": {
+        "position": {
+          "x": -20,
+          "y": 0,
+          "z": 16
+        },
+        "rotation": {
+          "x": 0,
+          "y": -90,
+          "z": 0
+        }
+      },
       "rotation": {
         "x": 0,
         "y": 0,
@@ -58,6 +109,11 @@
       }
     },
     {
+      "forward": {
+        "x": 1,
+        "y": 0,
+        "z": 0
+      },
       "halfExtents": {
         "x": 0.4,
         "y": 1.5,
@@ -70,6 +126,18 @@
         "y": 1.5,
         "z": 16
       },
+      "recovery": {
+        "position": {
+          "x": 20,
+          "y": 0,
+          "z": 16
+        },
+        "rotation": {
+          "x": 0,
+          "y": -45,
+          "z": 0
+        }
+      },
       "rotation": {
         "x": 0,
         "y": 0,
@@ -77,6 +145,11 @@
       }
     },
     {
+      "forward": {
+        "x": 0,
+        "y": 0,
+        "z": -1
+      },
       "halfExtents": {
         "x": 0.4,
         "y": 1.5,
@@ -89,6 +162,18 @@
         "y": 1.5,
         "z": 8
       },
+      "recovery": {
+        "position": {
+          "x": 28,
+          "y": 0,
+          "z": 8
+        },
+        "rotation": {
+          "x": 0,
+          "y": 45,
+          "z": 0
+        }
+      },
       "rotation": {
         "x": 0,
         "y": 90,
@@ -96,6 +181,11 @@
       }
     },
     {
+      "forward": {
+        "x": -1,
+        "y": 0,
+        "z": 0
+      },
       "halfExtents": {
         "x": 0.4,
         "y": 1.5,
@@ -107,6 +197,18 @@
         "x": 20,
         "y": 1.5,
         "z": 0
+      },
+      "recovery": {
+        "position": {
+          "x": 20,
+          "y": 0,
+          "z": 0
+        },
+        "rotation": {
+          "x": 0,
+          "y": 90,
+          "z": 0
+        }
       },
       "rotation": {
         "x": 0,
@@ -977,8 +1079,13 @@
       }
     }
   ],
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "start": {
+    "gateHalfExtents": {
+      "x": 4,
+      "y": 1.5,
+      "z": 0.4
+    },
     "id": "start-position",
     "position": {
       "x": 0,

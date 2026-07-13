@@ -1,6 +1,7 @@
 import { expect, type Locator, type Page, test } from "@playwright/test";
 
 import { ROUGH_COURSE_DOCUMENT } from "../src/game/course/course-document";
+import type { RaceDebugState } from "../src/game/testing/scene-test-adapter";
 
 import {
   PHYSICS_GROUP,
@@ -240,6 +241,44 @@ async function getPresentationDebugState(canvas: Locator) {
   );
 }
 
+async function getRaceDebugState(canvas: Locator) {
+  await waitForSceneReady(canvas);
+
+  return canvas.evaluate(
+    (element) =>
+      new Promise<RaceDebugState>((resolve) => {
+        element.dispatchEvent(
+          new CustomEvent("getRaceDebugState", {
+            detail: { respond: resolve },
+          }),
+        );
+      }),
+  );
+}
+
+async function setRaceDebugMovement(
+  canvas: Locator,
+  previousPosition: { x: number; y: number; z: number },
+  currentPosition: { x: number; y: number; z: number },
+) {
+  await waitForSceneReady(canvas);
+  await canvas.evaluate(
+    (element, movement) => {
+      element.dispatchEvent(
+        new CustomEvent("setRaceDebugMovement", { detail: movement }),
+      );
+    },
+    { currentPosition, previousPosition },
+  );
+}
+
+async function requestRaceRecovery(canvas: Locator) {
+  await waitForSceneReady(canvas);
+  await canvas.evaluate((element) => {
+    element.dispatchEvent(new CustomEvent("requestRaceRecovery"));
+  });
+}
+
 async function getSuspensionDebugState(canvas: Locator) {
   await waitForSceneReady(canvas);
 
@@ -272,18 +311,15 @@ async function setKartDebugPose(
 ) {
   await waitForSceneReady(canvas);
 
-  await canvas.evaluate(
-    (element, requestedPose) => {
-      element.dispatchEvent(
-        new CustomEvent("setKartDebugPose", {
-          detail: {
-            pose: requestedPose,
-          },
-        }),
-      );
-    },
-    pose,
-  );
+  await canvas.evaluate((element, requestedPose) => {
+    element.dispatchEvent(
+      new CustomEvent("setKartDebugPose", {
+        detail: {
+          pose: requestedPose,
+        },
+      }),
+    );
+  }, pose);
 }
 
 async function setKartMovementTuning(
@@ -371,6 +407,43 @@ async function stepSimulation(canvas: Locator, steps = 1) {
   }, steps);
 }
 
+async function advanceRaceToRacing(canvas: Locator) {
+  await setSimulationPaused(canvas, true);
+  const countdown = await getRaceDebugState(canvas);
+  const steps =
+    Math.ceil(countdown.countdownRemainingMicroseconds / (1_000_000 / 60)) + 1;
+
+  await stepSimulation(canvas, steps);
+  await expect
+    .poll(async () => (await getRaceDebugState(canvas)).state)
+    .toBe("racing");
+}
+
+async function crossRaceTarget(
+  canvas: Locator,
+  target: {
+    forward: { x: number; y: number; z: number };
+    position: { x: number; y: number; z: number };
+  },
+  offset = { x: 0, y: 0, z: 0 },
+) {
+  await setRaceDebugMovement(
+    canvas,
+    {
+      x: target.position.x + offset.x - target.forward.x,
+      y: target.position.y + offset.y - target.forward.y,
+      z: target.position.z + offset.z - target.forward.z,
+    },
+    {
+      x: target.position.x + offset.x + target.forward.x,
+      y: target.position.y + offset.y + target.forward.y,
+      z: target.position.z + offset.z + target.forward.z,
+    },
+  );
+  await stepSimulation(canvas);
+  return getRaceDebugState(canvas);
+}
+
 test.describe("home screen", () => {
   test.describe.configure({ mode: "serial" });
 
@@ -422,7 +495,7 @@ test.describe("home screen", () => {
           document: publishedDocument,
           publishedAt: new Date("2026-07-12T00:05:00.000Z").toISOString(),
           revision: 3,
-          schemaVersion: 1,
+          schemaVersion: 2,
         }),
         contentType: "application/json",
         status: 200,
@@ -460,7 +533,7 @@ test.describe("home screen", () => {
           document: publishedDocument,
           publishedAt: new Date("2026-07-12T00:05:00.000Z").toISOString(),
           revision: 3,
-          schemaVersion: 1,
+          schemaVersion: 2,
         }),
         contentType: "application/json",
         status: 200,
@@ -552,7 +625,9 @@ test.describe("home screen", () => {
     expect(pageErrors).toEqual([]);
   });
 
-  test("exits a failed race with controller focus or back", async ({ page }) => {
+  test("exits a failed race with controller focus or back", async ({
+    page,
+  }) => {
     await installStandardGamepadFixture(page);
     await page.route("**/vendor/ammo/**", (route) => route.abort());
     await page.goto("/");
@@ -626,6 +701,187 @@ test.describe("home screen", () => {
       .toBe(1);
   });
 
+  test("runs the deterministic two-lap race lifecycle through ordered gates", async ({
+    page,
+  }, testInfo) => {
+    testInfo.setTimeout(90_000);
+    test.skip(
+      testInfo.project.name !== "desktop",
+      "Race progression integration only needs to run once.",
+    );
+
+    await page.goto("/");
+    await page.getByRole("button", { name: "Solo Time Trial" }).click();
+    const canvas = page.getByTestId("solo-time-trial-canvas");
+    await advanceRaceToRacing(canvas);
+
+    const startYaw = (ROUGH_COURSE_DOCUMENT.start.rotation.y * Math.PI) / 180;
+    const startTarget = {
+      forward: { x: -Math.sin(startYaw), y: 0, z: -Math.cos(startYaw) },
+      position: {
+        x: ROUGH_COURSE_DOCUMENT.start.position.x,
+        y:
+          ROUGH_COURSE_DOCUMENT.start.position.y +
+          ROUGH_COURSE_DOCUMENT.start.gateHalfExtents.y,
+        z: ROUGH_COURSE_DOCUMENT.start.position.z,
+      },
+    };
+    const checkpoints = ROUGH_COURSE_DOCUMENT.checkpoints;
+    const checkpointOffsets = [
+      { x: 0, y: 0, z: 1 },
+      { x: 1, y: 0, z: 0 },
+      { x: 0, y: 0, z: -1 },
+      { x: 0, y: 0, z: 1 },
+      { x: -1, y: 0, z: 0 },
+      { x: 0, y: 0, z: -1 },
+    ];
+
+    expect(
+      (await crossRaceTarget(canvas, checkpoints[1])).lastProgressionResult,
+    ).toEqual({
+      kind: "rejected",
+      reason: "out-of-order",
+      targetId: checkpoints[1].id,
+    });
+    expect(
+      (await crossRaceTarget(canvas, startTarget)).lastProgressionResult,
+    ).toEqual({
+      kind: "rejected",
+      reason: "finish-before-checkpoints",
+    });
+
+    let race = await crossRaceTarget(canvas, checkpoints[0]);
+    expect(race).toMatchObject({
+      activeRecovery: { id: checkpoints[0].id },
+      currentLap: 1,
+      expectedTargetId: checkpoints[1].id,
+      lastProgressionResult: {
+        checkpointId: checkpoints[0].id,
+        kind: "checkpoint",
+      },
+    });
+    expect(
+      (await crossRaceTarget(canvas, checkpoints[0])).lastProgressionResult,
+    ).toEqual({
+      kind: "rejected",
+      reason: "repeated",
+      targetId: checkpoints[0].id,
+    });
+
+    for (const [index, checkpoint] of checkpoints.entries()) {
+      if (index === 0) {
+        continue;
+      }
+
+      race = await crossRaceTarget(
+        canvas,
+        checkpoint,
+        checkpointOffsets[index],
+      );
+      expect(race.lastProgressionResult).toEqual({
+        checkpointId: checkpoint.id,
+        kind: "checkpoint",
+      });
+    }
+    race = await crossRaceTarget(canvas, startTarget);
+    expect(race).toMatchObject({
+      currentLap: 2,
+      expectedTargetId: checkpoints[0].id,
+      lastProgressionResult: { kind: "lap", lap: 1 },
+      state: "racing",
+    });
+
+    for (const [index, checkpoint] of checkpoints.entries()) {
+      race = await crossRaceTarget(
+        canvas,
+        checkpoint,
+        checkpointOffsets[index],
+      );
+      expect(race.lastProgressionResult.kind).toBe("checkpoint");
+    }
+    race = await crossRaceTarget(canvas, startTarget);
+    expect(race).toMatchObject({
+      completedLapMicroseconds: [expect.any(Number), expect.any(Number)],
+      expectedTargetId: null,
+      lastProgressionResult: { kind: "finished", lap: 2 },
+      state: "finished",
+    });
+  });
+
+  test("recovers at the latest supported checkpoint and pauses stabilization", async ({
+    page,
+  }, testInfo) => {
+    testInfo.setTimeout(60_000);
+    test.skip(
+      testInfo.project.name !== "desktop",
+      "Race recovery integration only needs to run once.",
+    );
+
+    await page.goto("/");
+    await page.getByRole("button", { name: "Solo Time Trial" }).click();
+    const canvas = page.getByTestId("solo-time-trial-canvas");
+    await advanceRaceToRacing(canvas);
+
+    const firstCheckpoint = ROUGH_COURSE_DOCUMENT.checkpoints[0];
+    await crossRaceTarget(canvas, firstCheckpoint);
+    await setKartDebugPose(canvas, {
+      angularVelocity: { x: 3, y: 2, z: 1 },
+      linearVelocity: { x: 5, y: -2, z: 4 },
+      position: { x: -12, y: 4, z: 5 },
+      rotation: { x: 15, y: 20, z: -10 },
+    });
+    await requestRaceRecovery(canvas);
+
+    const recovering = await getRaceDebugState(canvas);
+    const recoveredKart = await getKartDebugState(canvas);
+    const presentation = await getPresentationDebugState(canvas);
+    expect(recovering).toMatchObject({
+      activeRecovery: { id: firstCheckpoint.id },
+      expectedTargetId: ROUGH_COURSE_DOCUMENT.checkpoints[1].id,
+      recoveryRemainingMicroseconds: 500_000,
+      state: "recovering",
+    });
+    expect(recoveredKart).toMatchObject({
+      angularSpeed: 0,
+      speed: 0,
+      verticalVelocity: 0,
+    });
+    expect(recoveredKart.forward.x).toBeCloseTo(-Math.SQRT1_2, 1);
+    expect(recoveredKart.forward.z).toBeCloseTo(Math.SQRT1_2, 1);
+    expect(presentation.cameraTrackedPosition).toEqual(
+      presentation.visualPosition,
+    );
+
+    await stepSimulation(canvas, 10);
+    const beforePause = await getRaceDebugState(canvas);
+    await page
+      .locator(".race-pause-button")
+      .evaluate((button: HTMLButtonElement) => button.click());
+    await expect(page.getByRole("dialog", { name: "Paused" })).toBeVisible();
+    expect(await getRaceDebugState(canvas)).toMatchObject({
+      recoveryRemainingMicroseconds: beforePause.recoveryRemainingMicroseconds,
+      resumableState: "recovering",
+      state: "paused",
+    });
+    await stepSimulation(canvas, 20);
+    expect(
+      (await getRaceDebugState(canvas)).recoveryRemainingMicroseconds,
+    ).toBe(beforePause.recoveryRemainingMicroseconds);
+
+    await page.getByRole("button", { name: "Resume" }).click();
+    await setSimulationPaused(canvas, true);
+    await stepSimulation(canvas, 40);
+    const recovered = await getRaceDebugState(canvas);
+    expect(recovered).toMatchObject({
+      expectedTargetId: ROUGH_COURSE_DOCUMENT.checkpoints[1].id,
+      recoveryRemainingMicroseconds: 0,
+      state: "racing",
+    });
+    expect(recovered.elapsedRaceMicroseconds).toBeGreaterThan(
+      beforePause.elapsedRaceMicroseconds,
+    );
+  });
+
   test("keeps the mobile solo canvas sized and kart centered", async ({
     page,
   }, testInfo) => {
@@ -668,9 +924,9 @@ test.describe("home screen", () => {
     const kartPoint = await getKartScreenPoint(canvas);
 
     expect(kartPoint).not.toBeNull();
-    expect(
-      Math.abs((kartPoint?.x ?? 0) - (box?.width ?? 0) / 2),
-    ).toBeLessThan((box?.width ?? 0) * 0.12);
+    expect(Math.abs((kartPoint?.x ?? 0) - (box?.width ?? 0) / 2)).toBeLessThan(
+      (box?.width ?? 0) * 0.12,
+    );
     expect(kartPoint?.y ?? 0).toBeGreaterThan((box?.height ?? 0) * 0.35);
     expect(kartPoint?.y ?? 0).toBeLessThan((box?.height ?? 0) * 0.78);
   });
@@ -730,7 +986,9 @@ test.describe("home screen", () => {
       .toBeLessThan(0.1);
   });
 
-  test("settles at rest without chassis drift or rotation", async ({ page }) => {
+  test("settles at rest without chassis drift or rotation", async ({
+    page,
+  }) => {
     await page.goto("/");
 
     await page.getByRole("button", { name: "Solo Time Trial" }).click();
@@ -748,10 +1006,7 @@ test.describe("home screen", () => {
     const laterState = await getKartDebugState(canvas);
 
     expect(
-      Math.hypot(
-        laterState.x - settledState.x,
-        laterState.z - settledState.z,
-      ),
+      Math.hypot(laterState.x - settledState.x, laterState.z - settledState.z),
     ).toBeLessThan(0.03);
     expect(Math.abs(laterState.y - settledState.y)).toBeLessThan(0.03);
     expect(laterState.angularSpeed).toBeLessThan(0.08);
@@ -836,11 +1091,9 @@ test.describe("home screen", () => {
         .poll(async () => {
           const { wheelLoads } = await getKartDebugState(canvas);
           const frontLoad =
-            (wheelLoads["front-left"] ?? 0) +
-            (wheelLoads["front-right"] ?? 0);
+            (wheelLoads["front-left"] ?? 0) + (wheelLoads["front-right"] ?? 0);
           const rearLoad =
-            (wheelLoads["rear-left"] ?? 0) +
-            (wheelLoads["rear-right"] ?? 0);
+            (wheelLoads["rear-left"] ?? 0) + (wheelLoads["rear-right"] ?? 0);
 
           return frontLoad - rearLoad - preBrakingFrontMinusRear;
         })
@@ -873,11 +1126,9 @@ test.describe("home screen", () => {
         .poll(async () => {
           const { wheelLoads } = await getKartDebugState(canvas);
           const rearLoad =
-            (wheelLoads["rear-left"] ?? 0) +
-            (wheelLoads["rear-right"] ?? 0);
+            (wheelLoads["rear-left"] ?? 0) + (wheelLoads["rear-right"] ?? 0);
           const frontLoad =
-            (wheelLoads["front-left"] ?? 0) +
-            (wheelLoads["front-right"] ?? 0);
+            (wheelLoads["front-left"] ?? 0) + (wheelLoads["front-right"] ?? 0);
 
           return rearLoad - frontLoad;
         })
@@ -895,7 +1146,7 @@ test.describe("home screen", () => {
     await page.getByRole("button", { name: "Solo Time Trial" }).click();
 
     const canvas = page.getByTestId("solo-time-trial-canvas");
-    await setSimulationPaused(canvas, true);
+    await advanceRaceToRacing(canvas);
     await setKartDebugPose(canvas, {
       position: { x: 30, y: 0.43, z: -12 },
       rotation: { x: 0, y: 90, z: 0 },
@@ -923,7 +1174,7 @@ test.describe("home screen", () => {
     await page.getByRole("button", { name: "Solo Time Trial" }).click();
 
     const canvas = page.getByTestId("solo-time-trial-canvas");
-    await setSimulationPaused(canvas, true);
+    await advanceRaceToRacing(canvas);
     await setKartDebugPose(canvas, {
       position: { x: 0, y: 0.43, z: -12 },
       rotation: { x: 0, y: 90, z: 0 },
@@ -1025,7 +1276,7 @@ test.describe("home screen", () => {
 
     const canvas = page.getByTestId("solo-time-trial-canvas");
     await expect(canvas).toBeVisible();
-    await setSimulationPaused(canvas, true);
+    await advanceRaceToRacing(canvas);
     await setKartDebugPose(canvas, {
       angularVelocity: { x: 2, y: 1, z: 3 },
       linearVelocity: { x: 4, y: -8, z: 2 },
@@ -1096,7 +1347,8 @@ test.describe("home screen", () => {
     for (
       let step = 0;
       step < 120 &&
-      Math.max(Math.abs(edgeState.rotationX), Math.abs(edgeState.rotationZ)) <= 4;
+      Math.max(Math.abs(edgeState.rotationX), Math.abs(edgeState.rotationZ)) <=
+        4;
       step += 1
     ) {
       await stepSimulation(canvas);
@@ -1138,7 +1390,11 @@ test.describe("home screen", () => {
 
     let landedState = airborneState;
 
-    for (let batch = 0; batch < 12 && landedState.supportCount === 0; batch += 1) {
+    for (
+      let batch = 0;
+      batch < 12 && landedState.supportCount === 0;
+      batch += 1
+    ) {
       await stepSimulation(canvas, 10);
       landedState = await getKartDebugState(canvas);
     }
@@ -1155,7 +1411,7 @@ test.describe("home screen", () => {
     await page.getByRole("button", { name: "Solo Time Trial" }).click();
 
     const canvas = page.getByTestId("solo-time-trial-canvas");
-    await setSimulationPaused(canvas, true);
+    await advanceRaceToRacing(canvas);
     await setKartDebugPose(canvas, {
       linearVelocity: { x: 3, y: 0, z: 0 },
       position: { x: 0, y: 2, z: 8 },
@@ -1257,9 +1513,7 @@ test.describe("home screen", () => {
 
     expect(clearCamera.obstructed).toBe(false);
     expect(clearCamera.obstructionDistance).toBeNull();
-    expect(clearCamera.snapCount).toBeGreaterThan(
-      obstructedCamera.snapCount,
-    );
+    expect(clearCamera.snapCount).toBeGreaterThan(obstructedCamera.snapCount);
 
     await setKartDebugPose(canvas, {
       position: { x: 0, y: 0.43, z: -17 },
@@ -1485,9 +1739,7 @@ test.describe("home screen", () => {
     const collision = await getCollisionResponseDebugState(canvas);
     const kart = await getKartDebugState(canvas);
 
-    expect(collision.contactedEntityNames).toContain(
-      "collision-response-wall",
-    );
+    expect(collision.contactedEntityNames).toContain("collision-response-wall");
     expect(collision.maximumApproachSpeed).toBeGreaterThan(12);
     expect(collision.maximumImpulse).toBeGreaterThan(0);
     expect(kart.z).toBeLessThan(28.5);
@@ -1513,9 +1765,7 @@ test.describe("home screen", () => {
     const collision = await getCollisionResponseDebugState(canvas);
     const kart = await getKartDebugState(canvas);
 
-    expect(collision.contactedEntityNames).toContain(
-      "collision-response-wall",
-    );
+    expect(collision.contactedEntityNames).toContain("collision-response-wall");
     expect(collision.postLinearVelocity.x).toBeGreaterThan(7);
     expect(kart.x).toBeGreaterThan(4);
     expect(kart.z).toBeLessThan(28.5);
@@ -1539,9 +1789,7 @@ test.describe("home screen", () => {
 
     const collision = await getCollisionResponseDebugState(canvas);
 
-    expect(collision.contactedEntityNames).toContain(
-      "collision-response-wall",
-    );
+    expect(collision.contactedEntityNames).toContain("collision-response-wall");
     expect(collision.maximumAngularSpeedAfterImpact).toBeGreaterThan(0.2);
     expect(collision.maximumAngularSpeedAfterImpact).toBeLessThan(15);
   });
@@ -1595,10 +1843,7 @@ test.describe("home screen", () => {
 
     const collision = await getCollisionResponseDebugState(canvas);
     const cornerState = await getKartDebugState(canvas);
-    const cornerDistance = Math.hypot(
-      cornerState.x - 29,
-      cornerState.z - 30,
-    );
+    const cornerDistance = Math.hypot(cornerState.x - 29, cornerState.z - 30);
 
     expect(collision.contactedEntityNames).toContain(
       "collision-corner-horizontal-wall",
@@ -1644,9 +1889,7 @@ test.describe("home screen", () => {
     const kart = await getKartDebugState(canvas);
 
     expect(collision.ccdMotionThreshold).toBe(0);
-    expect(collision.contactedEntityNames).toContain(
-      "collision-ccd-thin-wall",
-    );
+    expect(collision.contactedEntityNames).toContain("collision-ccd-thin-wall");
     expect(kart.x).toBeGreaterThan(-33.5);
   });
 
@@ -1671,9 +1914,7 @@ test.describe("home screen", () => {
 
     expect(collision.ccdMotionThreshold).toBe(0.12);
     expect(collision.ccdSweptSphereRadius).toBe(0.16);
-    expect(collision.contactedEntityNames).toContain(
-      "collision-ccd-thin-wall",
-    );
+    expect(collision.contactedEntityNames).toContain("collision-ccd-thin-wall");
     expect(collision.maximumApproachSpeed).toBeGreaterThan(17);
     expect(kart.x).toBeGreaterThan(-33.5);
   });
@@ -1704,7 +1945,9 @@ test.describe("home screen", () => {
     expect(kart.x).toBeGreaterThan(-31.2);
   });
 
-  test("keeps a fast rotational thin-wall contact bounded", async ({ page }) => {
+  test("keeps a fast rotational thin-wall contact bounded", async ({
+    page,
+  }) => {
     await page.goto("/?collision-fixtures");
     await page.getByRole("button", { name: "Solo Time Trial" }).click();
 
@@ -1721,9 +1964,7 @@ test.describe("home screen", () => {
     const collision = await getCollisionResponseDebugState(canvas);
     const kart = await getKartDebugState(canvas);
 
-    expect(collision.contactedEntityNames).toContain(
-      "collision-ccd-thin-wall",
-    );
+    expect(collision.contactedEntityNames).toContain("collision-ccd-thin-wall");
     expect(collision.maximumAngularSpeedAfterImpact).toBeLessThan(25);
     expect(kart.x).toBeGreaterThan(-33.5);
   });
@@ -1744,9 +1985,9 @@ test.describe("home screen", () => {
 
     expect(state.chassisClearance).toBeGreaterThan(0.06);
     expect(Object.keys(state.wheelHubYs)).toHaveLength(4);
-    expect(Object.values(state.wheelHubYs).every((y) => y >= -0.36 && y <= 0.06)).toBe(
-      true,
-    );
+    expect(
+      Object.values(state.wheelHubYs).every((y) => y >= -0.36 && y <= 0.06),
+    ).toBe(true);
     expect(
       Object.values(state.wheelSweepFractions).every(
         (fraction) => fraction !== null && fraction >= 0 && fraction <= 1,
@@ -1793,7 +2034,7 @@ test.describe("home screen", () => {
 
     const canvas = page.getByTestId("solo-time-trial-canvas");
 
-    await setSimulationPaused(canvas, true);
+    await advanceRaceToRacing(canvas);
     await setKartDebugPose(canvas, {
       linearVelocity: { x: 17, y: 0, z: 0 },
       position: { x: -14, y: 0.4, z: 16 },
@@ -1894,9 +2135,9 @@ test.describe("home screen", () => {
     await expect(pause).toBeVisible();
     const pauseBounds = await pause.boundingBox();
     expect(pauseBounds).not.toBeNull();
-    expect((pauseBounds?.x ?? 0) + (pauseBounds?.width ?? 0)).toBeLessThanOrEqual(
-      1280,
-    );
+    expect(
+      (pauseBounds?.x ?? 0) + (pauseBounds?.width ?? 0),
+    ).toBeLessThanOrEqual(1280);
     await pause.click();
     const dialog = page.getByRole("dialog", { name: "Paused" });
     await expect(dialog).toBeVisible();
@@ -1987,12 +2228,11 @@ test.describe("home screen", () => {
     await page.mouse.move(steeringCenterX, steeringCenterY);
     await page.mouse.down();
     await page.mouse.move(
-      (steeringBounds?.x ?? 0) +
-        (steeringBounds?.width ?? 0) * (0.5 + 0.162),
+      (steeringBounds?.x ?? 0) + (steeringBounds?.width ?? 0) * (0.5 + 0.162),
       steeringCenterY,
     );
     await expect(accelerate).toHaveAttribute("aria-pressed", "true");
-    await expect(steering).toHaveAttribute("aria-valuenow", "0.5");
+    await expect(steering).toHaveAttribute("aria-valuenow", "0.35");
     await expect(steering).toHaveAttribute("data-active", "true");
 
     await expect
@@ -2023,13 +2263,12 @@ test.describe("home screen", () => {
     await steering.dispatchEvent("pointerdown", {
       buttons: 1,
       clientX:
-        (steeringBounds?.x ?? 0) +
-        (steeringBounds?.width ?? 0) * (0.5 - 0.162),
+        (steeringBounds?.x ?? 0) + (steeringBounds?.width ?? 0) * (0.5 - 0.162),
       clientY: steeringCenterY,
       pointerId: 12,
       pointerType: "touch",
     });
-    await expect(steering).toHaveAttribute("aria-valuenow", "-0.5");
+    await expect(steering).toHaveAttribute("aria-valuenow", "-0.35");
     await steering.dispatchEvent("pointercancel", {
       pointerId: 12,
       pointerType: "touch",
@@ -2039,13 +2278,12 @@ test.describe("home screen", () => {
     await steering.dispatchEvent("pointerdown", {
       buttons: 1,
       clientX:
-        (steeringBounds?.x ?? 0) +
-        (steeringBounds?.width ?? 0) * (0.5 + 0.162),
+        (steeringBounds?.x ?? 0) + (steeringBounds?.width ?? 0) * (0.5 + 0.162),
       clientY: steeringCenterY,
       pointerId: 13,
       pointerType: "touch",
     });
-    await expect(steering).toHaveAttribute("aria-valuenow", "0.5");
+    await expect(steering).toHaveAttribute("aria-valuenow", "0.35");
     await steering.dispatchEvent("lostpointercapture", {
       pointerId: 13,
       pointerType: "touch",
@@ -2079,7 +2317,10 @@ test.describe("home screen", () => {
   test("drives and pauses with a standard-mapped controller snapshot", async ({
     page,
   }, testInfo) => {
-    test.skip(testInfo.project.name === "mobile", "Controller desktop fixture.");
+    test.skip(
+      testInfo.project.name === "mobile",
+      "Controller desktop fixture.",
+    );
 
     await installStandardGamepadFixture(page);
     await page.goto("/");
@@ -2099,16 +2340,20 @@ test.describe("home screen", () => {
         value: 0,
       }));
       buttons[7] = { pressed: true, touched: true, value: 1 };
-      const testWindow = window as typeof window & { __TR_GAMEPADS__?: Gamepad[] };
-      testWindow.__TR_GAMEPADS__ = [{
-        axes: [0.55, 0, 0, 0],
-        buttons,
-        connected: true,
-        id: "Automated standard controller",
-        index: 0,
-        mapping: "standard",
-        timestamp: performance.now(),
-      } as unknown as Gamepad];
+      const testWindow = window as typeof window & {
+        __TR_GAMEPADS__?: Gamepad[];
+      };
+      testWindow.__TR_GAMEPADS__ = [
+        {
+          axes: [0.55, 0, 0, 0],
+          buttons,
+          connected: true,
+          id: "Automated standard controller",
+          index: 0,
+          mapping: "standard",
+          timestamp: performance.now(),
+        } as unknown as Gamepad,
+      ];
     });
 
     await expect
@@ -2119,7 +2364,9 @@ test.describe("home screen", () => {
       .toBeGreaterThan(1);
 
     await page.evaluate(() => {
-      const testWindow = window as typeof window & { __TR_GAMEPADS__?: Gamepad[] };
+      const testWindow = window as typeof window & {
+        __TR_GAMEPADS__?: Gamepad[];
+      };
       const gamepad = testWindow.__TR_GAMEPADS__?.[0];
       if (!gamepad) return;
       const buttons = [...gamepad.buttons] as Array<{
@@ -2129,7 +2376,9 @@ test.describe("home screen", () => {
       }>;
       buttons[7] = { pressed: false, touched: false, value: 0 };
       buttons[0] = { pressed: true, touched: true, value: 1 };
-      testWindow.__TR_GAMEPADS__ = [{ ...gamepad, axes: [0, 0, 0, 0], buttons } as Gamepad];
+      testWindow.__TR_GAMEPADS__ = [
+        { ...gamepad, axes: [0, 0, 0, 0], buttons } as Gamepad,
+      ];
     });
 
     await expect
@@ -2140,7 +2389,9 @@ test.describe("home screen", () => {
       .toBeLessThan(0.1);
 
     await page.evaluate(() => {
-      const testWindow = window as typeof window & { __TR_GAMEPADS__?: Gamepad[] };
+      const testWindow = window as typeof window & {
+        __TR_GAMEPADS__?: Gamepad[];
+      };
       const gamepad = testWindow.__TR_GAMEPADS__?.[0];
       if (!gamepad) return;
       const buttons = [...gamepad.buttons] as Array<{
@@ -2153,7 +2404,9 @@ test.describe("home screen", () => {
     });
     await page.waitForTimeout(100);
     await page.evaluate(() => {
-      const testWindow = window as typeof window & { __TR_GAMEPADS__?: Gamepad[] };
+      const testWindow = window as typeof window & {
+        __TR_GAMEPADS__?: Gamepad[];
+      };
       const gamepad = testWindow.__TR_GAMEPADS__?.[0];
       if (!gamepad) return;
       const buttons = [...gamepad.buttons] as Array<{
@@ -2173,7 +2426,9 @@ test.describe("home screen", () => {
     await expect(pauseDialog).not.toBeVisible();
 
     await page.evaluate(() => {
-      const testWindow = window as typeof window & { __TR_GAMEPADS__?: Gamepad[] };
+      const testWindow = window as typeof window & {
+        __TR_GAMEPADS__?: Gamepad[];
+      };
       const gamepad = testWindow.__TR_GAMEPADS__?.[0];
       if (!gamepad) return;
       const buttons = [...gamepad.buttons] as Array<{
@@ -2186,7 +2441,9 @@ test.describe("home screen", () => {
     });
     await page.waitForTimeout(100);
     await page.evaluate(() => {
-      const testWindow = window as typeof window & { __TR_GAMEPADS__?: Gamepad[] };
+      const testWindow = window as typeof window & {
+        __TR_GAMEPADS__?: Gamepad[];
+      };
       const gamepad = testWindow.__TR_GAMEPADS__?.[0];
       if (!gamepad) return;
       const buttons = [...gamepad.buttons] as Array<{
@@ -2203,7 +2460,10 @@ test.describe("home screen", () => {
   test("navigates guest menus end-to-end with a standard controller snapshot", async ({
     page,
   }, testInfo) => {
-    test.skip(testInfo.project.name === "mobile", "Controller desktop fixture.");
+    test.skip(
+      testInfo.project.name === "mobile",
+      "Controller desktop fixture.",
+    );
 
     await installStandardGamepadFixture(page);
     await page.goto("/");

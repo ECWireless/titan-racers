@@ -6,7 +6,9 @@ Build a browser-playable Titan Racers demo that proves the core fantasy:
 
 > Race tiny buildable karts through forbidden service routes inside humanity's last Titan colony.
 
-The demo is complete only when solo racing, uploaded/published kart designs, ghosts, leaderboard-ready results, private multiplayer, and controller support are all working.
+The demo is complete only when solo racing, uploaded/published kart designs,
+ghosts, leaderboard-ready results, immediate community-course publishing and
+discovery, private multiplayer, and controller support are all working.
 
 ## Alignment Summary
 
@@ -32,7 +34,11 @@ The demo is complete only when solo racing, uploaded/published kart designs, gho
 
 - Mobile-friendly playable web app.
 - Fast guest entry into racing.
-- One playable track: Agricultural Zone Service Circuit.
+- One official playable track: Agricultural Zone Service Circuit.
+- Player-authored courses that logged-in players can publish immediately from
+  the bounded course editor.
+- Public community-course discovery with reversible player thumbs-ups, admin
+  featuring, and safety unpublishing.
 - Two-lap solo time trial.
 - Three playable published kart designs from the upload/publish pipeline.
 - Kart selection with:
@@ -85,6 +91,7 @@ Use a Next/React-style app shell unless the scaffold phase reveals a strong reas
 - admin/assembler upload surfaces,
 - results,
 - leaderboard,
+- community-course authoring, discovery, ranking, and curation,
 - rooms and lobby UI,
 - sharing,
 - analytics,
@@ -121,11 +128,16 @@ Use Postgres for relational data:
 - race sessions,
 - race results,
 - leaderboard entries,
+- player-owned course drafts and immutable published revisions,
+- community-course thumbs-ups and admin feature state,
 - multiplayer room records where useful.
 
 Use local Postgres for development and Neon for hosted environments.
 
-The backend should expose API surfaces for player, kart, race, room, result, and leaderboard data. Multiplayer also needs a realtime server or realtime-capable service; exact framework should be chosen during implementation.
+The backend should expose API surfaces for player, kart, course, course
+publication, course discovery, course ranking, race, room, result, and
+leaderboard data. Multiplayer also needs a realtime server or realtime-capable
+service; exact framework should be chosen during implementation.
 
 ### Asset Storage
 
@@ -141,6 +153,7 @@ Login is required for:
 
 - persistent racer identity,
 - leaderboard submission,
+- community-course authoring, publishing, and thumbs-ups,
 - assembly upload access,
 - admin controls,
 
@@ -171,6 +184,7 @@ Use a simple player-centered model.
 ### Guest
 
 - Can race casually.
+- Can browse and race published official and community courses.
 - Can join private rooms.
 - Can see local race results.
 - Cannot submit to global leaderboard.
@@ -181,6 +195,10 @@ Use a simple player-centered model.
 - Logged-in identity.
 - Can save display name/history.
 - Can submit eligible solo leaderboard results.
+- Can create and edit their own private course drafts.
+- Can immediately publish validated revisions of their own courses.
+- Can unpublish their own courses.
+- Can give or remove one thumbs-up per published community course.
 
 ### Assembly-Enabled Player
 
@@ -198,6 +216,9 @@ Use a simple player-centered model.
 - Can manage temporary assembly access approval.
 - Can access protected course/editor tooling.
 - Can edit track layout and test-scene objects.
+- Can feature or unfeature published community courses.
+- Can safety-unpublish broken, malicious, or inappropriate community courses
+  without deleting their revision history.
 - Can upload/edit kart designs.
 - Can review derived stats.
 - Can override stats.
@@ -285,9 +306,9 @@ The game HUD should feel like a racing operations interface, not a lore panel or
 
 The primary multiplayer-friendly CTA should be "Race Friends" or equivalent language with that emotional shape.
 
-## Track Direction
+## Official Track Direction
 
-One track:
+One official authored track:
 
 > Agricultural Zone Service Circuit
 
@@ -326,6 +347,39 @@ Solo leaderboard:
 - login required to submit,
 - guests can race and see local result,
 - multiplayer is room-only for v1.
+
+## Community Course Publishing
+
+Community publishing is immediate rather than approval-gated. Any logged-in
+player can use the bounded primitive course editor to create a private draft and
+publish a validated immutable revision. Guests can browse and race published
+courses, but persistent authorship and ranking actions require a player
+identity.
+
+The public catalog distinguishes:
+
+- the official Agricultural Zone Service Circuit,
+- admin-featured community courses,
+- popular community courses ranked by reversible thumbs-ups,
+- newly published community courses.
+
+Each logged-in player can give at most one reversible thumbs-up per published
+course. Do not use downvotes or multi-value star ratings for the first version.
+Admin featuring is an explicit curation signal and must not alter the community
+thumbs-up count or ranking data.
+
+There is no pre-publication moderation queue. Safety controls still include
+server-side ownership and authorization, bounded player-authored text,
+course-document validation, publish-rate limiting, and an admin safety-unpublish
+operation. Unpublishing hides a course from public discovery and ordinary guest
+play without deleting its authored drafts, immutable publication history,
+attribution, or prior administrative actions.
+
+Publishing a newer revision must not mutate an earlier published revision or
+silently change the course revision associated with historical race data.
+Custom course asset uploads, player-to-player collaborative editing, comments,
+downvotes, and a general-purpose moderation queue remain outside the first
+community-course release.
 
 ## Multiplayer
 
@@ -369,6 +423,9 @@ Track at minimum:
 - login started,
 - login completed,
 - leaderboard submitted,
+- community course published,
+- community course selected,
+- community course thumbs-up added or removed,
 - controller detected,
 - input type used,
 - dropped before race start,
@@ -382,7 +439,10 @@ Key metrics:
 - replay rate,
 - multiplayer room join success,
 - share click rate,
-- login conversion after race.
+- login conversion after race,
+- community course publish success,
+- community course play rate,
+- community course thumbs-up rate.
 
 ## Implementation Phases
 
@@ -585,13 +645,13 @@ document the verified shipped systems after each slice lands.
 
 ##### PR 4B: Race Lifecycle And Progression
 
-- [ ] add explicit loading, ready, countdown, racing, paused, recovering, and
+- [x] add explicit loading, ready, countdown, racing, paused, recovering, and
       finished states,
-- [ ] add ordered checkpoints, laps, deterministic timing, and
+- [x] add ordered checkpoints, laps, deterministic timing, and
       invalid-progression handling,
-- [ ] add safe checkpoint recovery with route-aligned orientation and linear
+- [x] add safe checkpoint recovery with route-aligned orientation and linear
       and angular velocity reset,
-- [ ] stop before the final integrated HUD and full cross-device loop
+- [x] stop before the final integrated HUD and full cross-device loop
       acceptance.
 
 ##### PR 4C: Integrated Rough Race Loop
@@ -662,13 +722,69 @@ Includes:
 - [ ] player-facing authentication and explicit account-linking experience,
 - [ ] connected EOA login through SIWE without making wallet addresses the
       canonical Titan Racers user identity,
-- [ ] login-gated leaderboard submission.
+- [ ] login-gated leaderboard submission,
+- [ ] revision-aware race and result identity that records the stable course ID
+      and immutable publication revision without hard-coding the official
+      course.
 
 Keep Phase 5 wallet scope to authentication and account linking. Embedded
 wallets, token balances, gameplay transaction signing, and other on-chain
 behavior require a separately accepted future scope.
 
-### Phase 6: Private Multiplayer
+### Phase 6: Community Courses
+
+Goal: let players publish, discover, race, and curate community-made courses
+without a pre-publication approval queue.
+
+Deliver community courses through three independently reviewable PR-sized
+units. Reuse the validated portable course-document and immutable-revision
+foundation; do not create a second course format or a separate editor.
+
+#### PR 6A: Player Course Ownership And Publishing
+
+- [ ] extend the protected editor into a role-aware player authoring experience
+      without exposing admin-only controls,
+- [ ] let logged-in players create, load, edit, and save only their own private
+      course drafts,
+- [ ] let owners immediately publish validated immutable revisions and publish
+      newer revisions without mutating earlier publications,
+- [ ] let owners unpublish their own courses while retaining revision history,
+      attribution, and historical race identity,
+- [ ] enforce ownership, validation, bounded text, and publish-rate limits at
+      server and data boundaries,
+- [ ] keep guests out of persistent authoring and publishing.
+
+#### PR 6B: Public Course Discovery And Play
+
+- [ ] add a public catalog that clearly distinguishes the official Agricultural
+      Zone Service Circuit from community courses,
+- [ ] support featured, popular, and newly published discovery views,
+- [ ] let guests and logged-in players launch any currently published course,
+- [ ] bind each race to a stable course ID and immutable publication revision,
+- [ ] preserve official-course selection and recovery behavior while removing
+      any rough-course or Agricultural Zone assumptions from shared race
+      systems,
+- [ ] stop before custom course assets, collaborative editing, comments, or
+      community-course-specific ghosts and leaderboards.
+
+#### PR 6C: Community Ranking, Featuring, And Safety Controls
+
+- [ ] let each logged-in player add or remove one thumbs-up per published
+      community course,
+- [ ] keep community ranking data distinct from admin featuring,
+- [ ] let admins feature and unfeature published community courses,
+- [ ] let admins safety-unpublish broken, malicious, or inappropriate courses
+      without deleting their immutable history or administrative audit trail,
+- [ ] keep unpublished courses out of discovery and ordinary guest play,
+- [ ] verify ownership, ranking integrity, rate limits, authorization, public
+      catalog behavior, and narrow-screen authoring and discovery.
+
+After Phase 6 is implemented and verified, run the final proportional
+integration review across player authoring, immediate publication, discovery,
+ranking, featuring, safety unpublishing, and revision-aware racing before
+merging the final phase work into `main`.
+
+### Phase 7: Private Multiplayer
 
 Goal: make the demo social.
 
@@ -692,7 +808,7 @@ Includes:
 - [ ] a forgiving first-pass breakage model that creates dramatic race moments
       without expanding into a complex damage simulation.
 
-### Phase 7: Public Demo Polish
+### Phase 8: Public Demo Polish
 
 Goal: make it ready to share.
 
@@ -740,8 +856,27 @@ Admin/upload verification should include:
 - published kart appears in public selection,
 - unpublished kart disappears from public selection.
 
+Community-course verification should include:
+
+- player can create, save, publish, revise, and unpublish only their own course,
+- publishing is immediate and does not require admin approval,
+- guest can browse and race a published community course,
+- a race remains bound to the publication revision it started with,
+- each player can add or remove only one thumbs-up per course,
+- featured, popular, and new catalog views remain distinct,
+- admin can feature, unfeature, and safety-unpublish a course,
+- safety-unpublished courses disappear from public discovery without losing
+  revision history or audit data,
+- unauthorized cross-owner and admin-only mutations are blocked.
+
 ## First Build Agreement
 
 Before coding the scaffold:
 
-> Make the plan the first approved commit. Then build a Next/React demo app around a tiny engine spike, move quickly into fun RC-style driving with early gamepad support, add the real admin-gated upload/publish pipeline, turn the rough loop into the Agricultural Zone, then complete ghosts, leaderboard-ready results, private multiplayer, and final demo polish.
+> Make the plan the first approved commit. Then build a Next/React demo app
+> around a tiny engine spike, move quickly into fun RC-style driving with early
+> gamepad support, add the real admin-gated kart upload/publish pipeline, turn
+> the rough loop into the Agricultural Zone, complete ghosts and
+> leaderboard-ready results, open the bounded course editor to immediate
+> player publishing and community discovery, then finish private multiplayer
+> and final demo polish.

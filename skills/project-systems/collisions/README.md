@@ -37,7 +37,7 @@ multiplayer kart contact policy, or general recovery-system expansion.
 - `src/game/runtime/playcanvas-application.ts` provides distinct pre-physics
   and post-physics fixed-step callbacks so collision observation brackets the
   Ammo solve.
-- `src/game/course/rough-course.v1.json` defines the accepted sparse play
+- `src/game/course/rough-course.v2.json` defines the accepted sparse play
   course: two cylinder obstacles, one super-tall ramp centered on the lower
   straight for counter-clockwise traffic, and controlled straight, thin-wall,
   convex-corner, and concave-corner impact fixtures. The validated

@@ -15,18 +15,65 @@ function cloneSeed() {
   return structuredClone(ROUGH_COURSE_DOCUMENT);
 }
 
+function createVersionOneSeed() {
+  const document = cloneSeed();
+  const start = {
+    id: document.start.id,
+    position: document.start.position,
+    rotation: document.start.rotation,
+  };
+
+  return {
+    ...document,
+    checkpoints: document.checkpoints.map((checkpoint) => ({
+      halfExtents: checkpoint.halfExtents,
+      id: checkpoint.id,
+      order: checkpoint.order,
+      position: checkpoint.position,
+      rotation: checkpoint.rotation,
+    })),
+    schemaVersion: 1 as const,
+    start,
+  };
+}
+
 function findObject(id: string) {
   return ROUGH_COURSE_DOCUMENT.objects.find((object) => object.id === id);
 }
 
 test("parses the versioned rough course with stable IDs and ordered checkpoints", () => {
-  expect(ROUGH_COURSE_DOCUMENT.schemaVersion).toBe(1);
+  expect(ROUGH_COURSE_DOCUMENT.schemaVersion).toBe(2);
   expect(ROUGH_COURSE_DOCUMENT.units).toBe("meters");
   expect(ROUGH_COURSE_DOCUMENT.start.id).toBe("start-position");
   expect(ROUGH_COURSE_DOCUMENT.checkpoints).toHaveLength(6);
   expect(
     ROUGH_COURSE_DOCUMENT.checkpoints.map((checkpoint) => checkpoint.order),
   ).toEqual([1, 2, 3, 4, 5, 6]);
+  expect(ROUGH_COURSE_DOCUMENT.start.gateHalfExtents).toEqual({
+    x: 4,
+    y: 1.5,
+    z: 0.4,
+  });
+  expect(
+    ROUGH_COURSE_DOCUMENT.checkpoints.map((checkpoint) => checkpoint.forward),
+  ).toEqual([
+    { x: -1, y: 0, z: 0 },
+    { x: 0, y: 0, z: 1 },
+    { x: 1, y: 0, z: 0 },
+    { x: 1, y: 0, z: 0 },
+    { x: 0, y: 0, z: -1 },
+    { x: -1, y: 0, z: 0 },
+  ]);
+  for (const checkpoint of ROUGH_COURSE_DOCUMENT.checkpoints) {
+    expect(
+      Math.hypot(
+        checkpoint.forward.x,
+        checkpoint.forward.y,
+        checkpoint.forward.z,
+      ),
+    ).toBeCloseTo(1, 8);
+    expect(checkpoint.recovery.position.y).toBe(0);
+  }
 
   const ids = [
     ROUGH_COURSE_DOCUMENT.start.id,
@@ -155,7 +202,7 @@ test("keeps the expanded ground approximately 1.5 times its original area", () =
 test("serializes the seed deterministically and round trips without changes", () => {
   const serialized = serializeCourseDocument(ROUGH_COURSE_DOCUMENT);
   const source = readFileSync(
-    join(process.cwd(), "src/game/course/rough-course.v1.json"),
+    join(process.cwd(), "src/game/course/rough-course.v2.json"),
     "utf8",
   );
 
@@ -163,6 +210,61 @@ test("serializes the seed deterministically and round trips without changes", ()
   expect(serializeCourseDocument(JSON.parse(serialized))).toBe(serialized);
   expect(parseCourseDocument(JSON.parse(serialized))).toEqual(
     ROUGH_COURSE_DOCUMENT,
+  );
+});
+
+test("normalizes version-one course data without mutating the stored input", () => {
+  const input = createVersionOneSeed();
+  const storedInput = structuredClone(input);
+  const normalized = parseCourseDocument(input);
+
+  expect(input).toEqual(storedInput);
+  expect(normalized).toEqual(ROUGH_COURSE_DOCUMENT);
+  expect(normalized.schemaVersion).toBe(2);
+});
+
+test("normalizes a valid one-checkpoint version-one course", () => {
+  const input = createVersionOneSeed();
+  input.checkpoints = [input.checkpoints[0]];
+  const storedInput = structuredClone(input);
+
+  const normalized = parseCourseDocument(input);
+
+  expect(input).toEqual(storedInput);
+  expect(normalized.checkpoints).toHaveLength(1);
+  expect(normalized.checkpoints[0]).toMatchObject({
+    forward: { x: -1, y: 0, z: 0 },
+    recovery: {
+      position: { x: -20, y: 0, z: 0 },
+      rotation: { x: 0, y: -90, z: 0 },
+    },
+  });
+});
+
+test("aligns legacy diagonal version-two directions to the full gate face", () => {
+  const input = cloneSeed();
+  const diagonal = Math.SQRT1_2;
+  input.checkpoints[1].forward = { x: -diagonal, y: 0, z: diagonal };
+  const storedInput = structuredClone(input);
+
+  const normalized = parseCourseDocument(input);
+
+  expect(input).toEqual(storedInput);
+  expect(normalized.checkpoints[1].forward).toEqual({ x: 0, y: 0, z: 1 });
+});
+
+test("rejects non-normalized checkpoint directions", () => {
+  const input = cloneSeed();
+  input.checkpoints[0].forward.x = -2;
+
+  const result = courseDocumentSchema.safeParse(input);
+
+  expect(result.success).toBe(false);
+  expect(result.error?.issues).toContainEqual(
+    expect.objectContaining({
+      message: "Checkpoint forward direction must be normalized",
+      path: ["checkpoints", 0, "forward"],
+    }),
   );
 });
 

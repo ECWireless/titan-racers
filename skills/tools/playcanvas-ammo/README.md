@@ -19,6 +19,10 @@ implementation has been accepted.
 
 ## Focused Children
 
+- [`race-progression/`](race-progression/README.md): accepted PlayCanvas 2.20.6
+  mapping for fixed-step race lifecycle, directed gate crossings,
+  discarded-time charging, version-two course normalization, and supported
+  checkpoint recovery.
 - [`course-editing/`](course-editing/README.md): accepted PlayCanvas 2.20.6
   mapping for validated course documents, primitive construction, semantic
   collision roles, fixture gating, and collision debug geometry.

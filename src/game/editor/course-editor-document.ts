@@ -3,6 +3,7 @@ import {
   type CourseDocument,
   type CourseObject,
   parseCourseDocument,
+  rotateCourseDirection,
 } from "../course/course-document";
 
 export const COURSE_OBJECT_PRESETS = [
@@ -193,18 +194,34 @@ export function addCourseCheckpoint(
   }
   const order = document.checkpoints.length + 1;
   const previous = document.checkpoints.at(-1);
+  const routeRotation = previous?.recovery.rotation ?? document.start.rotation;
+  const yawRadians = (routeRotation.y * Math.PI) / 180;
+  const routeForward = {
+    x: -Math.sin(yawRadians),
+    y: 0,
+    z: -Math.cos(yawRadians),
+  };
+  const previousGroundPosition = previous?.recovery.position ?? document.start.position;
+  const position = {
+    x: roundEditorValue(previousGroundPosition.x + routeForward.x * 8),
+    y: roundEditorValue(previousGroundPosition.y + 1.5),
+    z: roundEditorValue(previousGroundPosition.z + routeForward.z * 8),
+  };
   const checkpoint = {
+    forward: routeForward,
     halfExtents: { x: 3, y: 1.5, z: 0.5 },
     id: nextStableId(document, "checkpoint", reservedIds),
     order,
-    position: previous
-      ? {
-          x: previous.position.x,
-          y: previous.position.y,
-          z: roundEditorValue(previous.position.z + 8),
-        }
-      : { ...document.start.position },
-    rotation: previous ? { ...previous.rotation } : { ...document.start.rotation },
+    position,
+    recovery: {
+      position: {
+        x: position.x,
+        y: roundEditorValue(position.y - 1.5),
+        z: position.z,
+      },
+      rotation: { ...routeRotation },
+    },
+    rotation: { ...routeRotation },
   };
 
   return parseCourseDocument({
@@ -298,12 +315,37 @@ export function updateSelectionGeometry(
         checkpoint.id === selection.id
           ? {
               ...checkpoint,
+              forward: rotateCourseDirection(
+                checkpoint.forward,
+                checkpoint.rotation,
+                rotation,
+              ),
               halfExtents: geometry.scale
                 ? mapVector(geometry.scale, (value) =>
                     Math.max(0.05, roundEditorValue(value / 2)),
                   )
                 : checkpoint.halfExtents,
               position,
+              recovery: {
+                ...checkpoint.recovery,
+                position: {
+                  x: roundEditorValue(
+                    checkpoint.recovery.position.x +
+                      position.x -
+                      checkpoint.position.x,
+                  ),
+                  y: roundEditorValue(
+                    checkpoint.recovery.position.y +
+                      position.y -
+                      checkpoint.position.y,
+                  ),
+                  z: roundEditorValue(
+                    checkpoint.recovery.position.z +
+                      position.z -
+                      checkpoint.position.z,
+                  ),
+                },
+              },
               rotation,
             }
           : checkpoint,

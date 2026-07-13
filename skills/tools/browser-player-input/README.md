@@ -60,6 +60,9 @@ adapter owns pointer IDs and normalized state.
   value on captured `pointermove` and recenter it on every terminal path.
 - Apply a small visual/input center dead zone and clamp the knob at the pad's
   horizontal travel limit. Vertical motion does not affect steering.
+- Shape the post-dead-zone touch magnitude with the accepted bounded response
+  exponent. Preserve zero, sign, monotonicity, and full lock so the center gains
+  precision without weakening maximum steering or changing other adapters.
 - On pedal `pointerdown`, register the pointer ID for that action and request
   pointer capture from the button.
 - On `pointerup`, `pointercancel`, or `lostpointercapture`, release only that

@@ -26,6 +26,9 @@ The source code and authoritative project documents remain the final authority f
 
 ## Current Children
 
+- [Race progression](race-progression/README.md): deterministic lifecycle,
+  directed swept checkpoint gates, ordered laps, monotonic timing, pause-safe
+  fixed-step integration, and checkpoint recovery.
 - [Player input](player-input/README.md): normalized fixed-step driving actions,
   keyboard, multi-touch, and standard-gamepad adapters, intentional-activity
   arbitration, cancellation, accessible touch controls, reset, and pause.
