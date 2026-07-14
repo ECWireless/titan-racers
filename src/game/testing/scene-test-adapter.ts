@@ -1,8 +1,4 @@
-import type {
-  KartMovementTuning,
-  CourseTestObstacleId,
-  Position3,
-} from "../contracts";
+import type { CourseTestObstacleId, KartTuning, Position3 } from "../contracts";
 import type { ChaseCameraDiagnostics } from "../camera/chase-camera";
 import type {
   RaceProgressionResult,
@@ -56,10 +52,14 @@ export type KartDebugState = {
   airbornePitchTorque: number;
   angularSpeed: number;
   chassisClearance: number;
+  driftSmokeLevels: Record<string, number>;
+  driftSmokeWheelNames: string[];
   forward: Position3;
   isOverGround: boolean;
   linearVelocity: Position3;
   maximumLateralSpeed: number;
+  maximumSlipAngle: number;
+  maximumSteerAngle: number;
   maximumTireForceUtilization: number;
   maxForwardSpeed: number;
   rotationX: number;
@@ -71,10 +71,12 @@ export type KartDebugState = {
   supportEntityNames: string[];
   supportedWheelNames: string[];
   saturatedTireCount: number;
+  tuning: KartTuning;
   up: Position3;
   verticalVelocity: number;
   wheelHubYs: Record<string, number>;
   wheelLoads: Record<string, number>;
+  wheelSlipAngles: Record<string, number>;
   wheelSweepFractions: Record<string, number | null>;
   x: number;
   y: number;
@@ -134,7 +136,7 @@ export type SceneTestApi = {
     transform: { position?: Position3; rotation?: Position3 },
   ) => void;
   setKartDebugPose: (pose: KartDebugPose) => void;
-  setKartMovementTuning: (tuning: Partial<KartMovementTuning>) => void;
+  setKartMovementTuning: (tuning: Partial<KartTuning>) => void;
   setRaceDebugMovement: (
     previousPosition: Position3,
     currentPosition: Position3,
@@ -143,6 +145,7 @@ export type SceneTestApi = {
   setSimulationPaused: (paused: boolean) => void;
   setStartPosition: (position: Pick<Position3, "x" | "z">) => void;
   stepSimulation: (steps: number) => void;
+  stepSimulationWithKartSamples: (steps: number) => KartDebugState[];
 };
 
 export function attachSceneTestAdapter(
@@ -271,6 +274,19 @@ export function attachSceneTestAdapter(
       }) as EventListener,
     ],
     [
+      "stepSimulationWithKartSamples",
+      ((
+        event: CustomEvent<{
+          respond: (states: KartDebugState[]) => void;
+          steps: number;
+        }>,
+      ) => {
+        event.detail.respond(
+          api.stepSimulationWithKartSamples(event.detail.steps),
+        );
+      }) as EventListener,
+    ],
+    [
       "setKartDebugPose",
       ((event: CustomEvent<{ pose: KartDebugPose }>) => {
         api.setKartDebugPose(event.detail.pose);
@@ -278,7 +294,7 @@ export function attachSceneTestAdapter(
     ],
     [
       "setKartMovementTuning",
-      ((event: CustomEvent<{ tuning: Partial<KartMovementTuning> }>) => {
+      ((event: CustomEvent<{ tuning: Partial<KartTuning> }>) => {
         api.setKartMovementTuning(event.detail.tuning);
       }) as EventListener,
     ],

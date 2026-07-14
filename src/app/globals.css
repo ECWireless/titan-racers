@@ -345,11 +345,11 @@ button {
   -webkit-tap-highlight-color: transparent;
 }
 
-.race-touch-steering {
+.race-touch-joystick {
   pointer-events: auto;
   position: relative;
-  width: 7.25rem;
-  height: 7.25rem;
+  width: 8.5rem;
+  height: 8.5rem;
   flex: 0 0 auto;
   touch-action: none;
   user-select: none;
@@ -357,7 +357,11 @@ button {
   border: 1px solid rgb(247 242 232 / 28%);
   border-radius: 999px;
   background:
-    radial-gradient(circle at 50% 48%, rgb(247 242 232 / 7%) 0 34%, transparent 35%),
+    radial-gradient(
+      circle at 50% 48%,
+      rgb(247 242 232 / 7%) 0 34%,
+      transparent 35%
+    ),
     rgb(7 7 6 / 32%);
   box-shadow:
     inset 0 0 0 1px rgb(7 7 6 / 28%),
@@ -367,29 +371,76 @@ button {
   -webkit-tap-highlight-color: transparent;
 }
 
-.race-touch-steering-axis {
+.race-touch-joystick-directions {
   position: absolute;
-  inset: 0.6rem 0.75rem;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
+  inset: 0;
   color: rgb(247 242 232 / 36%);
   font-family: var(--font-geist-mono), monospace;
-  font-size: 2rem;
+  font-size: 1.15rem;
   font-weight: 500;
   line-height: 1;
 }
 
-.race-touch-steering-axis::after {
+.race-touch-joystick-directions::before,
+.race-touch-joystick-directions::after {
   position: absolute;
-  right: 1.3rem;
-  left: 1.3rem;
-  height: 1px;
-  background: linear-gradient(90deg, transparent, rgb(247 242 232 / 20%), transparent);
+  top: 50%;
+  left: 50%;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgb(247 242 232 / 18%),
+    transparent
+  );
   content: "";
+  transform: translate(-50%, -50%);
 }
 
-.race-touch-steering-knob {
+.race-touch-joystick-directions::before {
+  width: 66%;
+  height: 1px;
+}
+
+.race-touch-joystick-directions::after {
+  width: 1px;
+  height: 66%;
+  background: linear-gradient(
+    0deg,
+    transparent,
+    rgb(247 242 232 / 18%),
+    transparent
+  );
+}
+
+.race-touch-joystick-directions > span {
+  position: absolute;
+}
+
+.race-touch-joystick-up {
+  top: 0.55rem;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.race-touch-joystick-right {
+  top: 50%;
+  right: 0.55rem;
+  transform: translateY(-50%);
+}
+
+.race-touch-joystick-down {
+  bottom: 0.55rem;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.race-touch-joystick-left {
+  top: 50%;
+  left: 0.55rem;
+  transform: translateY(-50%);
+}
+
+.race-touch-joystick-knob {
   position: absolute;
   top: 50%;
   left: 50%;
@@ -409,19 +460,21 @@ button {
   will-change: transform;
 }
 
-.race-touch-steering-knob > span {
+.race-touch-joystick-knob > span {
   width: 1.25rem;
   height: 0.2rem;
   border-radius: 999px;
   background: rgb(247 242 232 / 58%);
-  box-shadow: 0 -0.42rem 0 rgb(247 242 232 / 20%), 0 0.42rem 0 rgb(247 242 232 / 20%);
+  box-shadow:
+    0 -0.42rem 0 rgb(247 242 232 / 20%),
+    0 0.42rem 0 rgb(247 242 232 / 20%);
 }
 
-.race-touch-steering[data-active="true"] {
+.race-touch-joystick[data-active="true"] {
   border-color: rgb(237 113 37 / 68%);
 }
 
-.race-touch-steering[data-active="true"] .race-touch-steering-knob {
+.race-touch-joystick[data-active="true"] .race-touch-joystick-knob {
   border-color: var(--color-titan-hazard);
   box-shadow:
     inset 0 1px 1px rgb(255 255 255 / 12%),
@@ -429,7 +482,7 @@ button {
     0 0 22px rgb(237 113 37 / 28%);
 }
 
-.race-touch-steering:focus-visible,
+.race-touch-joystick:focus-visible,
 .race-touch-action:focus-visible,
 .race-touch-utility:focus-visible {
   outline: 2px solid var(--color-titan-hazard);
@@ -581,12 +634,12 @@ button {
     font-size: 1.08rem;
   }
 
-  .race-touch-steering {
-    width: 5.75rem;
-    height: 5.75rem;
+  .race-touch-joystick {
+    width: 6.75rem;
+    height: 6.75rem;
   }
 
-  .race-touch-steering-knob {
+  .race-touch-joystick-knob {
     width: 2.75rem;
     height: 2.75rem;
   }

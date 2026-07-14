@@ -4,7 +4,7 @@ export type PlayerInputDevice = "gamepad" | "keyboard" | "touch";
 
 export type ContinuousPlayerInput = Pick<
   PlayerInputActions,
-  "accelerate" | "brakeReverse" | "steer"
+  "accelerate" | "brakeReverse" | "handbrake" | "steer"
 >;
 
 export type PlayerInputSourceSnapshot = ContinuousPlayerInput & {
@@ -15,6 +15,7 @@ export type PlayerInputSourceSnapshot = ContinuousPlayerInput & {
 export const NEUTRAL_CONTINUOUS_INPUT: ContinuousPlayerInput = {
   accelerate: 0,
   brakeReverse: 0,
+  handbrake: 0,
   steer: 0,
 };
 
@@ -38,6 +39,7 @@ export function normalizeContinuousInput(
   return {
     accelerate: clampInput(input.accelerate, 0, 1),
     brakeReverse: clampInput(input.brakeReverse, 0, 1),
+    handbrake: clampInput(input.handbrake, 0, 1),
     steer: clampInput(input.steer, -1, 1),
   };
 }
@@ -60,6 +62,7 @@ export function applyAxialDeadZone(value: number, deadZone: number) {
 export function toDrivingInput(input: PlayerInputActions): DrivingInput {
   return {
     brake: input.brakeReverse,
+    handbrake: input.handbrake,
     reset: false,
     // The normalized player contract follows the browser gamepad axis
     // convention (left negative, right positive). The accepted kart controller

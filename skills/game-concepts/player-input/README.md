@@ -54,6 +54,7 @@ Expose continuous action state separately from one-shot requests:
 - `steer`: `-1` full left through `0` neutral to `1` full right;
 - `accelerate`: `0` released through `1` fully engaged;
 - `brakeReverse`: `0` released through `1` fully engaged;
+- `handbrake`: `0` released through `1` fully engaged;
 - `resetRequested`: one edge for each deliberate reset activation; and
 - `pauseRequested`: one edge for each deliberate pause activation.
 
@@ -94,6 +95,7 @@ concurrently.
 ### Keyboard
 
 - Support both WASD and arrow-key driving bindings.
+- Bind either physical Shift key to handbrake while driving input is owned.
 - Use physical-key codes for the established layout-independent driving
   positions.
 - Prevent the page's default arrow behavior only while the race surface owns
@@ -106,26 +108,32 @@ concurrently.
 - Use explicit semantic DOM controls rather than interpreting gestures across
   the whole game canvas. Controls may use familiar racing icons instead of
   visible text, but they retain accessible names and state.
-- Use a fixed virtual steering pad whose horizontal thumb displacement maps
-  continuously to `steer`. The knob recenters on release, pointer cancellation,
-  lost capture, pause, focus loss, or teardown.
-- Give the steering pad a small center dead zone, clamp travel at the visual
-  boundary, and ignore vertical displacement. A two-axis joystick would imply
-  driving behavior the kart does not support.
-- After the dead zone, apply a bounded response curve that preserves full lock
-  at the edge while reducing steering gain near the center. Keep this in the
-  touch adapter so keyboard, controller, and kart-physics response do not
-  change with touch feel tuning.
-- Use separate hold controls for accelerate and brake/reverse. Track each active
-  pointer by ID so analog steering and a pedal can be held at the same time and
-  one pointer release cannot cancel another control.
+- Use a fixed two-axis virtual joystick whose horizontal thumb displacement
+  maps continuously to `steer`, upward displacement maps continuously to
+  `accelerate`, and downward displacement maps continuously to `brakeReverse`.
+  The knob recenters on release, pointer cancellation, lost capture, pause,
+  focus loss, or teardown.
+- Clamp the joystick to a circular boundary and apply one radial center dead
+  zone so diagonal input retains its direction without exceeding unit
+  magnitude. After the dead zone, apply a bounded magnitude response curve that
+  preserves full authority at the rim while reducing steering and throttle gain
+  near the center. Keep this in the touch adapter so keyboard, controller, and
+  kart-physics response do not change with touch feel tuning.
+- Keep separate hold controls for accelerate and brake/reverse as digital and
+  accessible alternatives. Track each active pointer by ID so the joystick and
+  a pedal can be held at the same time and one pointer release cannot cancel
+  another control.
+- This slice exposes no separate touch handbrake; the continuous brake/reverse
+  control can still produce tire slip through the shared physics model.
 - Treat pointer up, pointer cancel, lost capture, pause, and teardown as release.
 - Apply direct-manipulation suppression only to the control regions that need
   it; do not disable ordinary browser gestures across unrelated UI.
 - Give every control an accessible name, visible state, keyboard-operable DOM
   semantics, and a target comfortably larger than the WCAG 2.2 24 CSS-pixel
-  minimum. Expose the steering pad as an adjustable value and aim for at least
-  44 CSS pixels for primary race controls.
+  minimum. Aim for at least 44 CSS pixels for primary race controls. Give the
+  two-axis joystick an accessible name, instructions, directional keyboard
+  fallback, and visible state without misrepresenting it as a one-axis ARIA
+  slider.
 - Respect viewport safe-area insets and avoid covering the central driving
   view, pause control, or critical status presentation.
 
@@ -137,9 +145,9 @@ concurrently.
 - Poll the current controller snapshot at the gameplay sampling boundary;
   connection events alone are not current input state.
 - Use left-stick horizontal for analog steering, standard left/right triggers
-  for brake/reverse and accelerate, directional-pad left/right as digital
-  steering alternatives, the south face button for reset, and the center-right
-  button for pause.
+  for brake/reverse and accelerate, the west face button for handbrake,
+  directional-pad left/right as digital steering alternatives, the south face
+  button for reset, and the center-right button for pause.
 - Apply a configurable steering dead zone and rescale the remaining magnitude
   back across the usable range. A candidate starting threshold is `0.15`, to be
   tuned through representative hardware rather than treated as universal.
@@ -266,6 +274,7 @@ game art or assets are copied.
 - [Xbox Accessibility Guideline 112: UI navigation](https://learn.microsoft.com/en-us/xbox/accessibility/xbox-accessibility-guidelines/112)
 - [WAI-ARIA Authoring Practices keyboard interface](https://www.w3.org/WAI/ARIA/apg/practices/keyboard-interface/)
 - [WAI-ARIA Authoring Practices modal dialog pattern](https://www.w3.org/WAI/ARIA/apg/patterns/dialog-modal/)
+- [Unity Input System radial stick dead-zone processing](https://docs.unity3d.com/Packages/com.unity.inputsystem@1.4/manual/Processors.html)
 - [Gameloft Asphalt Legends control selection](https://gameloft.helpshift.com/hc/en/15-asphalt-legends/faq/573-how-can-i-change-the-control-options/)
 - [Vector Unit Beach Buggy Racing 2 input families](https://www.vectorunit.com/bbr2tesla)
 
@@ -276,12 +285,12 @@ game art or assets are copied.
 
 ## Known Limits
 
-- The `1.75` touch steering response curve and `0.08` dead zone are the accepted
-  mobile baseline. Additional device diversity may justify a future settings
-  surface rather than changing the shared baseline implicitly.
-- The custom slider-style steering pad requires representative touch assistive-
-  technology testing; WAI-ARIA notes that synthesized slider key gestures are
-  not uniformly implemented across touch screen readers.
+- The `1.75` touch joystick magnitude response curve and `0.08` radial dead zone
+  are the accepted mobile baseline. Additional device diversity may justify a
+  future settings surface rather than changing the shared baseline implicitly.
+- The custom two-axis joystick retains labelled group semantics, instructions,
+  arrow-key operation, and separate native pedal alternatives, but still
+  requires representative touch assistive-technology testing.
 - PR 4A does not add remapping, rebinding persistence, controller glyphs,
   vibration, motion controls, nonstandard controller profiles, or controller
   navigation for the protected course-authoring tool.

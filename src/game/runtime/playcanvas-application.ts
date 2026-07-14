@@ -132,7 +132,7 @@ export class PlayCanvasRuntime {
     this.app.render();
   }
 
-  stepFixed(steps = 1) {
+  stepFixed<TSample = never>(steps = 1, sample?: () => TSample) {
     if (!this.started || this.destroyed) {
       throw new Error("PlayCanvas runtime must be running before manual steps");
     }
@@ -145,8 +145,12 @@ export class PlayCanvasRuntime {
       throw new Error("Manual step count must be a positive integer");
     }
 
+    const samples: TSample[] = [];
     for (let step = 0; step < steps; step += 1) {
       this.executeFixedStep(this.clock.fixedStepSeconds);
+      if (sample) {
+        samples.push(sample());
+      }
     }
 
     const frame = {
@@ -160,6 +164,8 @@ export class PlayCanvasRuntime {
     this.frameEndListeners.forEach((listener) => listener(frame));
     this.renderListeners.forEach((listener) => listener(frame));
     this.app.render();
+
+    return samples;
   }
 
   initialize() {

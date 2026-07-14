@@ -119,6 +119,72 @@ Use separate designer-facing behavior for:
 - rolling resistance and speed-dependent drag, and
 - optional front/rear grip balance.
 
+Steering authority must decrease progressively with forward or reverse speed.
+Preserve enough low-speed lock for deliberate maneuvering, but do not let a
+full digital steering input retain the same sharp wheel angle near top speed.
+Input response and maximum angle are separate controls: reducing only response
+delays an overly sharp turn, while reducing only the angle can still create an
+abrupt initial weight transfer. Validate both the settled turning radius and
+the onset of steering at representative low, medium, and high speeds.
+
+Drift is an ordinary tire state, never a toggled handling mode. Derive a
+continuous slip angle from each supported wheel's longitudinal and lateral
+contact velocity. Tire response should rise toward peak grip, then fall
+progressively toward a lower sliding-friction plateau as slip grows. The same
+curve applies whether slip began through speed, steering, service braking,
+rear-wheel handbraking, acceleration, weight transfer, a surface transition,
+or an impact.
+
+Service braking and a rear-biased handbrake must consume the same combined
+longitudinal/lateral tire-force budget as every other wheel force. A handbrake
+input may request rear-wheel braking, but it must not set a drift flag, apply a
+yaw impulse, overwrite angular velocity, or directly switch grip coefficients.
+Low-speed handbraking should primarily slow the kart; useful rotation requires
+speed, lateral demand, and the resulting physical imbalance. Counter-steering,
+throttle modulation, reduced slip, and recovered wheel load must allow grip to
+return progressively.
+
+A simplified controller without wheel angular velocity may use hard braking
+demand as a bounded proxy for longitudinal slip, but only after meaningful
+lateral slip has already developed. Progressively lower the combined-force
+envelope toward kinetic sliding friction as both brake demand and slip grow.
+Straight-line braking and light trail braking must retain the ordinary tire
+curve, and releasing the brake or recovering slip must restore grip smoothly.
+This is continuous combined-slip behavior, not a drift state or a source of
+artificial momentum.
+
+If hard-braking slides retain too much yaw, first shape the existing tire forces
+instead of adding a feedback torque that can fight the contact model. A
+simplified controller may reduce braking force as combined slip develops and
+continuously shorten the horizontal application lever and stiffness of the
+existing lateral force under hard braking. Because zero lateral contact speed
+still produces zero lateral force, braking demand alone cannot create a drift.
+Keep the vertical contact offset so lateral load still creates chassis roll and
+suspension response. This passive balance must remain continuous, preserve the
+ordinary force application when braking is light, and never lock heading,
+inject lateral momentum, or overwrite angular velocity.
+
+Tire smoke is presentation evidence of dissipative tire-road slip, not a force
+or handling mode. When wheel angular velocity is modeled, longitudinal slip
+ratio is the correct source for braking and powered-wheel smoke. A simpler
+controller may instead require supported contact, meaningful speed, strong
+brake demand, and substantial tire-force utilization before showing light
+straight-line braking smoke; that proxy must not alter grip or create lateral
+slip. A countdown burnout may similarly visualize forward-throttle intent with
+a stronger two-layer plume at
+the supported driven wheels while the start hold prevents motion. Treat that as
+an explicit presentation approximation, stop it promptly when input or support
+is lost, and keep measured lateral slip responsible for heavier drift smoke.
+
+Chassis lean during sharp turns and drift must come from the rigid body's mass
+properties, tire-force application points, and independently loaded suspension.
+Tune center-of-mass height, roll inertia, spring rate, and damping together so
+outside suspension compresses, inside suspension extends, and the body rolls
+toward the outside of the turn. Do not rotate a presentation child, apply a
+canned roll torque, or add artificial downward force to imitate load transfer.
+The accepted response must settle after grip recovery and retain stable rest,
+ledge, ramp, landing, and collision behavior.
+
 Exact steering geometry is secondary to coherent contact directions and
 visible wheel angles. Add Ackermann-style inner/outer angle differences only
 if they materially improve the result.
@@ -207,6 +273,26 @@ overwrite collision impulses, or create support where no wheel has contact.
 Keep tuning parameters in coherent groups with metres, kilograms, seconds,
 newtons, and radians where applicable. Compute sensible starting values from
 mass, gravity, geometry, and static wheel load when possible.
+
+A live tuning surface should consume the same typed defaults and validation as
+the simulation rather than maintaining a second UI-only copy. Expose exact
+numeric controls for runtime-safe behavior parameters, apply changes without a
+scene rebuild, and provide one unambiguous reset to the authored defaults.
+Give unfamiliar physics terms concise contextual explanations that work with
+pointer hover, keyboard focus, and touch without relying on browser `title`
+text. Help content should be dismissible, hoverable, persistent while engaged,
+and programmatically associated with its numeric control.
+Reject non-finite values, bound dangerous extremes, and preserve required
+ordering between related thresholds such as peak/sliding slip, assist
+start/full angles, and smoke start/stop hysteresis. Keep structural parameters
+that require rebuilding collision shapes, mass properties, wheel geometry, or
+particle resources out of a live drawer.
+
+Session tuning should remain ephemeral unless persistence is a separately
+approved product capability. Closing the surface must retain the current
+session values; resetting or beginning a new session must recover the authored
+baseline without browser storage, account data, telemetry, or hidden profile
+state.
 
 Development telemetry should expose:
 

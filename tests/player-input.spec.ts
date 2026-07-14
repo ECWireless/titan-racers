@@ -10,7 +10,7 @@ import {
   toDrivingInput,
 } from "../src/game/input/player-input";
 import {
-  normalizeTouchSteering,
+  normalizeTouchJoystick,
   TouchInput,
 } from "../src/game/input/touch-input";
 
@@ -27,13 +27,23 @@ class KeyboardTarget {
     this.listeners.get(type)?.delete(listener);
   }
 
-  dispatch(type: string, code: string, repeat = false) {
+  dispatch(
+    type: string,
+    code: string,
+    repeat = false,
+    target?: { isContentEditable?: boolean; tagName?: string },
+  ) {
+    let prevented = false;
     const event = {
       code,
-      preventDefault: () => undefined,
+      preventDefault: () => {
+        prevented = true;
+      },
       repeat,
+      target,
     } as KeyboardEvent;
     this.listeners.get(type)?.forEach((listener) => listener(event as Event));
+    return prevented;
   }
 }
 
@@ -52,8 +62,9 @@ function standardGamepad({
 } = {}): Gamepad {
   return {
     axes,
-    buttons: Array.from({ length: 17 }, (_, buttonIndex) =>
-      buttons[buttonIndex] ?? gamepadButton(),
+    buttons: Array.from(
+      { length: 17 },
+      (_, buttonIndex) => buttons[buttonIndex] ?? gamepadButton(),
     ),
     connected: true,
     hapticActuators: [],
@@ -72,10 +83,18 @@ test.describe("player input", () => {
     expect(applyAxialDeadZone(0.1, 0.15)).toBe(0);
     expect(applyAxialDeadZone(-0.575, 0.15)).toBeCloseTo(-0.5, 6);
     expect(applyAxialDeadZone(1, 0.15)).toBe(1);
-    expect(normalizeTouchSteering(0.04)).toBe(0);
-    expect(normalizeTouchSteering(0.54)).toBeCloseTo(0.5 ** 1.75, 6);
-    expect(normalizeTouchSteering(-0.54)).toBeCloseTo(-(0.5 ** 1.75), 6);
-    expect(normalizeTouchSteering(1)).toBe(1);
+    expect(normalizeTouchJoystick(0.04, 0).x).toBe(0);
+    expect(normalizeTouchJoystick(0.54, 0).x).toBeCloseTo(0.5 ** 1.75, 6);
+    expect(normalizeTouchJoystick(-0.54, 0).x).toBeCloseTo(-(0.5 ** 1.75), 6);
+    expect(normalizeTouchJoystick(1, 0).x).toBe(1);
+    expect(normalizeTouchJoystick(0.04, -0.04)).toEqual({ x: 0, y: 0 });
+    expect(
+      normalizeTouchJoystick(Number.NaN, Number.POSITIVE_INFINITY),
+    ).toEqual({ x: 0, y: 0 });
+    const diagonal = normalizeTouchJoystick(1, -1);
+    expect(Math.hypot(diagonal.x, diagonal.y)).toBeCloseTo(1, 6);
+    expect(diagonal.x).toBeCloseTo(Math.SQRT1_2, 6);
+    expect(diagonal.y).toBeCloseTo(-Math.SQRT1_2, 6);
   });
 
   test("maps normalized acceleration and brake/reverse to existing kart intent", () => {
@@ -83,11 +102,18 @@ test.describe("player input", () => {
       toDrivingInput({
         accelerate: 0.75,
         brakeReverse: 0.25,
+        handbrake: 0.6,
         pauseRequested: false,
         resetRequested: false,
         steer: -0.5,
       }),
-    ).toEqual({ brake: 0.25, reset: false, steer: 0.5, throttle: 0.5 });
+    ).toEqual({
+      brake: 0.25,
+      handbrake: 0.6,
+      reset: false,
+      steer: 0.5,
+      throttle: 0.5,
+    });
   });
 
   test("keyboard supports both binding families and consumes action edges once", () => {
@@ -95,12 +121,13 @@ test.describe("player input", () => {
     let activityCount = 0;
     const keyboard = new KeyboardInput(
       target as unknown as Window,
-      () => activityCount += 1,
+      () => (activityCount += 1),
     );
     keyboard.attach();
 
     target.dispatch("keydown", "KeyW");
     target.dispatch("keydown", "ArrowLeft");
+    target.dispatch("keydown", "ShiftLeft");
     target.dispatch("keydown", "KeyR");
     target.dispatch("keydown", "KeyR", true);
     target.dispatch("keydown", "Escape");
@@ -108,47 +135,88 @@ test.describe("player input", () => {
     expect(keyboard.sample()).toEqual({
       accelerate: 1,
       brakeReverse: 0,
+      handbrake: 1,
       pauseRequested: true,
       resetRequested: true,
       steer: -1,
     });
     expect(keyboard.sample().resetRequested).toBe(false);
     expect(keyboard.sample().pauseRequested).toBe(false);
-    expect(activityCount).toBe(2);
+    expect(activityCount).toBe(3);
 
     keyboard.clear();
     expect(keyboard.getContinuousInput()).toEqual({
       accelerate: 0,
       brakeReverse: 0,
+      handbrake: 0,
       steer: 0,
     });
     keyboard.detach();
   });
 
-  test("touch retains analog steering and pedal pointers independently", () => {
-    let activityCount = 0;
-    const touch = new TouchInput(() => activityCount += 1);
+  test("leaves native editing keys to focused form controls", () => {
+    const target = new KeyboardTarget();
+    const keyboard = new KeyboardInput(target as unknown as Window);
+    keyboard.attach();
 
-    touch.setSteering(1, -0.54);
+    expect(
+      target.dispatch("keydown", "ArrowUp", false, { tagName: "INPUT" }),
+    ).toBe(false);
+    expect(
+      target.dispatch("keydown", "Escape", false, { tagName: "INPUT" }),
+    ).toBe(false);
+    expect(keyboard.sample()).toEqual({
+      accelerate: 0,
+      brakeReverse: 0,
+      handbrake: 0,
+      pauseRequested: false,
+      resetRequested: false,
+      steer: 0,
+    });
+
+    keyboard.detach();
+  });
+
+  test("touch maps a two-axis joystick continuously and retains pedal pointers independently", () => {
+    let activityCount = 0;
+    const touch = new TouchInput(() => (activityCount += 1));
+
+    touch.setJoystick(1, -0.54, -0.54);
+    const diagonalMagnitude = Math.hypot(0.54, 0.54);
+    const shapedMagnitude = ((diagonalMagnitude - 0.08) / (1 - 0.08)) ** 1.75;
     touch.pressPedal(2, "accelerate");
     expect(touch.getContinuousInput()).toMatchObject({
       accelerate: 1,
       brakeReverse: 0,
+      handbrake: 0,
     });
-    expect(touch.getContinuousInput().steer).toBeCloseTo(-(0.5 ** 1.75), 6);
+    expect(touch.getContinuousInput().steer).toBeCloseTo(
+      -(shapedMagnitude * Math.SQRT1_2),
+      6,
+    );
 
     touch.release(1);
     expect(touch.getContinuousInput()).toEqual({
       accelerate: 1,
       brakeReverse: 0,
+      handbrake: 0,
       steer: 0,
     });
     expect(activityCount).toBe(2);
+
+    touch.release(2);
+    touch.setJoystick(3, 0, 0.54);
+    expect(touch.getContinuousInput()).toMatchObject({
+      accelerate: 0,
+      brakeReverse: 0.5 ** 1.75,
+      steer: 0,
+    });
 
     touch.clear();
     expect(touch.getContinuousInput()).toEqual({
       accelerate: 0,
       brakeReverse: 0,
+      handbrake: 0,
       steer: 0,
     });
   });
@@ -158,7 +226,7 @@ test.describe("player input", () => {
     let activityCount = 0;
     const input = new GamepadInput(
       () => [current],
-      () => activityCount += 1,
+      () => (activityCount += 1),
     );
 
     expect(input.sample().steer).toBe(0);
@@ -187,11 +255,12 @@ test.describe("player input", () => {
     expect(input.sample().accelerate).toBe(0);
   });
 
-  test("maps the brake trigger and digital D-pad steering fallback", () => {
+  test("maps brake, handbrake, and digital D-pad steering fallback", () => {
     let current = standardGamepad({
       axes: [0.575, 0, 0, 0],
       buttons: {
         6: gamepadButton(0.4),
+        2: gamepadButton(0.7),
         14: gamepadButton(1),
       },
     });
@@ -199,6 +268,7 @@ test.describe("player input", () => {
 
     expect(input.sample()).toMatchObject({
       brakeReverse: 0.4,
+      handbrake: 0.7,
       steer: -1,
     });
 
@@ -304,6 +374,7 @@ test.describe("player input", () => {
     expect(input.sample()).toEqual({
       accelerate: 0,
       brakeReverse: 0,
+      handbrake: 0,
       pauseRequested: false,
       resetRequested: false,
       steer: 0,
@@ -351,7 +422,7 @@ test.describe("player input", () => {
     let activityCount = 0;
     const input = new GamepadInput(
       () => [current],
-      () => activityCount += 1,
+      () => (activityCount += 1),
     );
 
     for (let axis = 0.16; axis <= 0.3; axis += 0.01) {
@@ -391,10 +462,9 @@ test.describe("player input", () => {
   test("changes continuous ownership only after intentional device activity", () => {
     const target = new KeyboardTarget();
     let current = standardGamepad({ axes: [0.1, 0, 0, 0] });
-    const manager = new PlayerInputManager(
-      target as unknown as Window,
-      () => [current],
-    );
+    const manager = new PlayerInputManager(target as unknown as Window, () => [
+      current,
+    ]);
     manager.attach();
 
     target.dispatch("keydown", "KeyW");

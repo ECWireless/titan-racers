@@ -4,15 +4,18 @@ import * as pc from "playcanvas";
 import {
   type KeyboardEvent as ReactKeyboardEvent,
   type PointerEvent as ReactPointerEvent,
+  useCallback,
   useEffect,
   useMemo,
   useRef,
   useState,
 } from "react";
 
+import { KartTuningDrawer } from "@/components/kart-tuning-drawer";
 import type {
   DrivingInput,
-  KartMovementTuning,
+  KartTuning,
+  KartTuningKey,
   CourseTestObstacleId,
   Position3,
 } from "@/game/contracts";
@@ -32,15 +35,21 @@ import {
   ROUGH_COURSE_DOCUMENT,
 } from "@/game/course/course-document";
 import { PlayerInputManager } from "@/game/input/player-input-manager";
+import { isEditableKeyboardTarget } from "@/game/input/keyboard-input";
 import { useControllerMenuNavigation } from "@/game/input/use-controller-menu-navigation";
 import {
-  normalizeTouchSteering,
+  normalizeTouchJoystick,
   type TouchPedalAction,
 } from "@/game/input/touch-input";
 import {
   DynamicKartController,
   type DynamicWheel,
 } from "@/game/kart/dynamic-kart-controller";
+import { KartDriftSmoke } from "@/game/kart/kart-drift-smoke";
+import {
+  DEFAULT_KART_TUNING,
+  normalizeKartTuning,
+} from "@/game/kart/kart-tuning";
 import {
   KART_SUSPENSION_MAX_COMPRESSION_Y,
   KART_SUSPENSION_REST_TRAVEL,
@@ -81,7 +90,7 @@ const KART_ROOT_HEIGHT = 0.43;
 const KART_MASS = 120;
 const KART_BODY_MASS = 70;
 const KART_COCKPIT_MASS = KART_MASS - KART_BODY_MASS;
-const KART_BODY_MASS_CENTER = { x: 0, y: -0.25, z: 0 } as const;
+const KART_BODY_MASS_CENTER = { x: 0, y: -0.18, z: 0 } as const;
 const KART_COCKPIT_POSITION = { x: 0, y: 0.24, z: 0.48 } as const;
 const KART_CENTER_OF_MASS_OFFSET = {
   x:
@@ -104,13 +113,6 @@ const KART_GEOMETRY_OFFSET = {
 } as const;
 const KART_CHASSIS_DIMENSIONS = { x: 1.25, y: 0.55, z: 1.85 } as const;
 const KART_INERTIA = calculateBoxInertia(KART_MASS, KART_CHASSIS_DIMENSIONS);
-const KART_MAX_FORWARD_SPEED = 17;
-const KART_MAX_REVERSE_SPEED = 3.4;
-const KART_ACCELERATION = 9.5;
-const KART_BRAKE_FORCE = 14;
-const KART_DRAG = 4.2;
-const KART_TURN_RATE = 116;
-const KART_GRAVITY = 18;
 const KART_RESET_FALL_Y = -10;
 const KART_COLLISION_RADIUS = 0.95;
 const KART_CCD_CONFIGURATION = {
@@ -119,19 +121,10 @@ const KART_CCD_CONFIGURATION = {
 } as const;
 const NEUTRAL_DRIVING_INPUT: DrivingInput = {
   brake: 0,
+  handbrake: 0,
   reset: false,
   steer: 0,
   throttle: 0,
-};
-
-const DEFAULT_KART_MOVEMENT_TUNING = {
-  acceleration: KART_ACCELERATION,
-  brakeForce: KART_BRAKE_FORCE,
-  drag: KART_DRAG,
-  gravity: KART_GRAVITY,
-  maxForwardSpeed: KART_MAX_FORWARD_SPEED,
-  maxReverseSpeed: KART_MAX_REVERSE_SPEED,
-  turnRate: KART_TURN_RATE,
 };
 
 function createMaterial(color: pc.Color) {
@@ -196,11 +189,13 @@ type SoloTimeTrialCanvasProps = {
   onExit: () => void;
 };
 type SoloSceneControls = {
+  clearInput: () => void;
   pressTouchPedal: (pointerId: number, action: TouchPedalAction) => void;
   releaseTouch: (pointerId: number) => void;
   requestTouchReset: () => void;
   restartRace: () => boolean;
-  setTouchSteering: (pointerId: number, value: number) => void;
+  setKartTuning: (tuning: Partial<KartTuning>) => void;
+  setTouchJoystick: (pointerId: number, x: number, y: number) => void;
   setPaused: (paused: boolean) => void;
 };
 
@@ -208,7 +203,7 @@ const TOUCH_KEYBOARD_POINTER_IDS: Record<TouchPedalAction, number> = {
   accelerate: -1,
   brakeReverse: -2,
 };
-const TOUCH_KEYBOARD_STEERING_POINTER_ID = -3;
+const TOUCH_KEYBOARD_JOYSTICK_POINTER_ID = -3;
 
 function ResetIcon() {
   return (
@@ -245,14 +240,6 @@ function BrakeIcon() {
   );
 }
 
-function getTouchSteeringValueText(value: number) {
-  if (value === 0) {
-    return "Centered";
-  }
-  const direction = value < 0 ? "left" : "right";
-  return `${Math.round(Math.abs(value) * 100)}% ${direction}`;
-}
-
 function setTouchPedalPresentation(
   elements: Partial<Record<TouchPedalAction, HTMLButtonElement>>,
   action: TouchPedalAction,
@@ -268,25 +255,31 @@ function clearTouchPedalPresentation(
   setTouchPedalPresentation(elements, "brakeReverse", false);
 }
 
-function setTouchSteeringPresentation(
-  steeringElement: HTMLDivElement | null,
+function setTouchJoystickPresentation(
+  joystickElement: HTMLDivElement | null,
   knob: HTMLSpanElement | null,
-  value: number,
+  x: number,
+  y: number,
 ) {
-  const steer = normalizeTouchSteering(value);
-  steeringElement?.setAttribute(
-    "aria-valuenow",
-    String(Number(steer.toFixed(2))),
-  );
-  steeringElement?.setAttribute(
-    "aria-valuetext",
-    getTouchSteeringValueText(steer),
-  );
-  if (steeringElement) {
-    steeringElement.dataset.active = String(steer !== 0);
+  const rawMagnitude = Math.hypot(x, y);
+  const clampedScale = rawMagnitude > 1 ? 1 / rawMagnitude : 1;
+  const visualX = Number.isFinite(x) ? x * clampedScale : 0;
+  const visualY = Number.isFinite(y) ? y * clampedScale : 0;
+  const joystick = normalizeTouchJoystick(x, y);
+  if (joystickElement) {
+    joystickElement.dataset.active = String(
+      joystick.x !== 0 || joystick.y !== 0,
+    );
+    joystickElement.dataset.steer = String(Number(joystick.x.toFixed(2)));
+    joystickElement.dataset.throttle = String(
+      Number((-joystick.y).toFixed(2)),
+    );
   }
   if (knob) {
-    knob.style.transform = `translate(-50%, -50%) translateX(${steer * 64}%)`;
+    const maximumTravel = joystickElement
+      ? Math.max((joystickElement.clientWidth - knob.offsetWidth) / 2, 0)
+      : 0;
+    knob.style.transform = `translate(-50%, -50%) translate(${visualX * maximumTravel}px, ${visualY * maximumTravel}px)`;
   }
 }
 
@@ -320,15 +313,20 @@ export function SoloTimeTrialCanvas({
   const touchPedalElementsRef = useRef<
     Partial<Record<TouchPedalAction, HTMLButtonElement>>
   >({});
-  const touchSteeringElementRef = useRef<HTMLDivElement | null>(null);
-  const touchSteeringKnobRef = useRef<HTMLSpanElement | null>(null);
-  const touchSteeringPointerRef = useRef<number | null>(null);
+  const touchJoystickElementRef = useRef<HTMLDivElement | null>(null);
+  const touchJoystickKnobRef = useRef<HTMLSpanElement | null>(null);
+  const touchJoystickPointerRef = useRef<number | null>(null);
   const gameplayTelemetryStartedRef = useRef(false);
   const [gameplayTelemetry] = useState(
     () => new GameplayRunTelemetry(httpGameplayTelemetrySink),
   );
   const [driveCursorHidden, setDriveCursorHidden] = useState(false);
   const [gamePaused, setGamePaused] = useState(false);
+  const [kartTuningOpen, setKartTuningOpen] = useState(false);
+  const [kartTuning, setKartTuning] = useState<KartTuning>(() => ({
+    ...DEFAULT_KART_TUNING,
+  }));
+  const kartTuningRef = useRef(kartTuning);
   const [racePresentation, setRacePresentation] =
     useState<RacePresentationSnapshot>(createLoadingRacePresentationSnapshot);
   const [sceneStatus, setSceneStatus] = useState<
@@ -433,8 +431,9 @@ export function SoloTimeTrialCanvas({
       throw new Error("PlayCanvas rigid-body system is unavailable");
     }
     const activeRigidBodySystem = rigidBodySystem;
+    let activeKartTuning = normalizeKartTuning(kartTuningRef.current);
 
-    rigidBodySystem.gravity.set(0, -KART_GRAVITY, 0);
+    rigidBodySystem.gravity.set(0, -activeKartTuning.gravity, 0);
     activeCanvas.focus();
 
     if (sceneTestControl?.forceRaceSessionFailure) {
@@ -459,10 +458,7 @@ export function SoloTimeTrialCanvas({
       );
 
       if (
-        racePresentationSnapshotsEqual(
-          lastRacePresentation,
-          nextPresentation,
-        )
+        racePresentationSnapshotsEqual(lastRacePresentation, nextPresentation)
       ) {
         return;
       }
@@ -475,14 +471,22 @@ export function SoloTimeTrialCanvas({
     const cockpitMaterial = createMaterial(new pc.Color(0.05, 0.08, 0.11));
     const wheelMaterial = createMaterial(new pc.Color(0.02, 0.025, 0.03));
     const wheelHubMaterial = createMaterial(new pc.Color(0.8, 0.82, 0.78));
-    const suspensionArmMaterial = createMaterial(new pc.Color(0.48, 0.54, 0.57));
-    const suspensionShockMaterial = createMaterial(new pc.Color(1, 0.67, 0.12));
+    const suspensionArmMaterial = createMaterial(
+      new pc.Color(0.48, 0.54, 0.57),
+    );
+    const suspensionShockMaterial = createMaterial(
+      new pc.Color(1, 0.67, 0.12),
+    );
     const asphaltMaterial = createMaterial(new pc.Color(0.08, 0.08, 0.09));
     const lineMaterial = createMaterial(new pc.Color(0.95, 0.92, 0.86));
     const markerMaterial = createMaterial(new pc.Color(1, 0.85, 0.15));
     const groundMaterial = createMaterial(new pc.Color(0.08, 0.36, 0.26));
-    const obstacleBlockMaterial = createMaterial(new pc.Color(0.82, 0.78, 0.68));
-    const obstacleBarrelMaterial = createMaterial(new pc.Color(0.96, 0.45, 0.12));
+    const obstacleBlockMaterial = createMaterial(
+      new pc.Color(0.82, 0.78, 0.68),
+    );
+    const obstacleBarrelMaterial = createMaterial(
+      new pc.Color(0.96, 0.45, 0.12),
+    );
     const rampMaterial = createMaterial(new pc.Color(0.35, 0.39, 0.42));
 
     function createBox(
@@ -798,12 +802,14 @@ export function SoloTimeTrialCanvas({
     const initialHubY =
       KART_SUSPENSION_MAX_COMPRESSION_Y - KART_SUSPENSION_REST_TRAVEL;
 
-    ([
-      ["front-left", -0.78, -0.58],
-      ["front-right", 0.78, -0.58],
-      ["rear-left", -0.78, 0.62],
-      ["rear-right", 0.78, 0.62],
-    ] satisfies [string, number, number][]).forEach(([name, x, z]) => {
+    (
+      [
+        ["front-left", -0.78, -0.58],
+        ["front-right", 0.78, -0.58],
+        ["rear-left", -0.78, 0.62],
+        ["rear-right", 0.78, 0.62],
+      ] satisfies [string, number, number][]
+    ).forEach(([name, x, z]) => {
       const wheelPivot = new pc.Entity(`kart-wheel-pivot-${name}`);
       const visualLocalPosition = new pc.Vec3(x, initialHubY, z);
       const localPosition = offsetKartGeometry(visualLocalPosition.clone());
@@ -878,13 +884,13 @@ export function SoloTimeTrialCanvas({
     });
 
     kart.addComponent("rigidbody", {
-      angularDamping: 0.08,
-      friction: 0.12,
+      angularDamping: activeKartTuning.angularDamping,
+      friction: activeKartTuning.chassisFriction,
       group: PHYSICS_GROUP.kart,
-      linearDamping: 0.015,
+      linearDamping: activeKartTuning.linearDamping,
       mask: PHYSICS_MASK.kart,
       mass: KART_MASS,
-      restitution: 0.04,
+      restitution: activeKartTuning.chassisRestitution,
       type: pc.BODYTYPE_DYNAMIC,
     });
     setExplicitRigidBodyInertia(kart, KART_MASS, KART_INERTIA);
@@ -907,8 +913,12 @@ export function SoloTimeTrialCanvas({
     );
 
     function captureKartPresentationState() {
-      kartPresentation.previousPosition.copy(kartPresentation.currentPosition);
-      kartPresentation.previousRotation.copy(kartPresentation.currentRotation);
+      kartPresentation.previousPosition.copy(
+        kartPresentation.currentPosition,
+      );
+      kartPresentation.previousRotation.copy(
+        kartPresentation.currentRotation,
+      );
       kartPresentation.currentPosition.copy(kart.getPosition());
       kartPresentation.currentRotation.copy(kart.getRotation());
     }
@@ -916,8 +926,12 @@ export function SoloTimeTrialCanvas({
     function snapKartPresentationState() {
       kartPresentation.currentPosition.copy(kart.getPosition());
       kartPresentation.currentRotation.copy(kart.getRotation());
-      kartPresentation.previousPosition.copy(kartPresentation.currentPosition);
-      kartPresentation.previousRotation.copy(kartPresentation.currentRotation);
+      kartPresentation.previousPosition.copy(
+        kartPresentation.currentPosition,
+      );
+      kartPresentation.previousRotation.copy(
+        kartPresentation.currentRotation,
+      );
       kartVisual.setLocalPosition(kartGeometryOffset);
       kartVisual.setLocalRotation(pc.Quat.IDENTITY);
       wheelPresentations.forEach((wheel) => {
@@ -951,15 +965,17 @@ export function SoloTimeTrialCanvas({
             }
           : null;
       },
+      Math.max(
+        activeKartTuning.maxForwardSpeed,
+        activeKartTuning.maxReverseSpeed,
+      ),
     );
 
     const lightingEntities = buildCourseLighting(app, {
       document: COURSE_DOCUMENT,
     });
 
-    let activeMovementTuning: KartMovementTuning = {
-      ...DEFAULT_KART_MOVEMENT_TUNING,
-    };
+    let driftSmoke: KartDriftSmoke | null = null;
     let inputManager: PlayerInputManager | null = null;
 
     function editStaticRigidBody(
@@ -1037,6 +1053,7 @@ export function SoloTimeTrialCanvas({
         kart.rigidbody.activate();
       }
       kartController.reset();
+      driftSmoke?.stop();
       snapKartPresentationState();
       previousRacePosition.copy(kart.getPosition());
       latestCameraImpact = null;
@@ -1127,6 +1144,7 @@ export function SoloTimeTrialCanvas({
         kart.rigidbody.activate();
       }
       kartController.reset();
+      driftSmoke?.stop();
       resetSuspensionMetrics();
       resetCollisionMetrics();
       snapKartPresentationState();
@@ -1172,11 +1190,17 @@ export function SoloTimeTrialCanvas({
       mass: KART_MASS,
       onFallReset: requestRaceRecovery,
       pitchInertia: KART_INERTIA.x,
-      tuning: activeMovementTuning,
+      tuning: activeKartTuning,
       wheels: dynamicWheels,
     });
     runtime.addCleanup(() => kartController.destroy());
-    const collisionObserver = new KartCollisionObserver(rigidBodySystem, kart);
+    driftSmoke = new KartDriftSmoke(dynamicWheels, activeKartTuning);
+    const activeDriftSmoke = driftSmoke;
+    runtime.addCleanup(() => activeDriftSmoke.destroy());
+    const collisionObserver = new KartCollisionObserver(
+      rigidBodySystem,
+      kart,
+    );
     runtime.addCleanup(() => collisionObserver.destroy());
     let cameraImpactId = 0;
     let latestCameraImpact: ChaseCameraImpact | null = null;
@@ -1300,7 +1324,10 @@ export function SoloTimeTrialCanvas({
 
     function captureWheelPresentationState() {
       const telemetryByName = new Map(
-        kartController.state.wheelTelemetry.map((wheel) => [wheel.name, wheel]),
+        kartController.state.wheelTelemetry.map((wheel) => [
+          wheel.name,
+          wheel,
+        ]),
       );
 
       wheelPresentations.forEach((wheel) => {
@@ -1346,15 +1373,28 @@ export function SoloTimeTrialCanvas({
       });
     }
 
-    function setSceneMovementTuning(
-      nextMovementTuning: Partial<KartMovementTuning>,
-    ) {
-      activeMovementTuning = {
-        ...activeMovementTuning,
-        ...nextMovementTuning,
-      };
-      kartController.setTuning(activeMovementTuning);
-      activeCanvas.focus();
+    function setSceneKartTuning(nextTuning: Partial<KartTuning>) {
+      activeKartTuning = normalizeKartTuning({
+        ...activeKartTuning,
+        ...nextTuning,
+      });
+      kartTuningRef.current = activeKartTuning;
+      setKartTuning({ ...activeKartTuning });
+      kartController.setTuning(activeKartTuning);
+      activeRigidBodySystem.gravity.set(0, -activeKartTuning.gravity, 0);
+      chaseCamera.setMaximumSpeed(
+        Math.max(
+          activeKartTuning.maxForwardSpeed,
+          activeKartTuning.maxReverseSpeed,
+        ),
+      );
+      if (kart.rigidbody) {
+        kart.rigidbody.angularDamping = activeKartTuning.angularDamping;
+        kart.rigidbody.friction = activeKartTuning.chassisFriction;
+        kart.rigidbody.linearDamping = activeKartTuning.linearDamping;
+        kart.rigidbody.restitution = activeKartTuning.chassisRestitution;
+      }
+      driftSmoke?.setTuning(activeKartTuning);
     }
 
     const getGamepads = () => navigator.getGamepads?.() ?? [];
@@ -1364,11 +1404,12 @@ export function SoloTimeTrialCanvas({
     inputManager.attach();
     runtime.addCleanup(() => inputManager.detach());
     const clearTouchPresentation = () => {
-      touchSteeringPointerRef.current = null;
+      touchJoystickPointerRef.current = null;
       clearTouchPedalPresentation(touchPedalElementsRef.current);
-      setTouchSteeringPresentation(
-        touchSteeringElementRef.current,
-        touchSteeringKnobRef.current,
+      setTouchJoystickPresentation(
+        touchJoystickElementRef.current,
+        touchJoystickKnobRef.current,
+        0,
         0,
       );
     };
@@ -1377,6 +1418,9 @@ export function SoloTimeTrialCanvas({
       const changed = paused ? raceSession.pause() : raceSession.resume();
       if (!changed) {
         return false;
+      }
+      if (paused) {
+        driftSmoke?.stop();
       }
       inputManager.setEnabled(false);
       previousRacePosition.copy(kart.getPosition());
@@ -1394,6 +1438,7 @@ export function SoloTimeTrialCanvas({
         return false;
       }
       gameplayTelemetry.recordAutomaticPause();
+      setKartTuningOpen(false);
       setGamePaused(true);
       setDriveCursorHidden(false);
       publishRacePresentation();
@@ -1426,16 +1471,20 @@ export function SoloTimeTrialCanvas({
       setDriveCursorHidden(false);
     };
 
-    runtime.listen<WebGLContextEvent>(activeCanvas, "webglcontextlost", () => {
-      pauseForInterruption();
-      runtime.setRenderingSuspended(true);
-      setSceneStatus("context_lost");
-      setDriveCursorHidden(false);
-      contextRestoreTimeoutId = window.setTimeout(
-        () => failGraphicsRuntime("webgl_context_lost"),
-        sceneTestControl?.contextRestoreTimeoutMs ?? 10_000,
-      );
-    });
+    runtime.listen<WebGLContextEvent>(
+      activeCanvas,
+      "webglcontextlost",
+      () => {
+        pauseForInterruption();
+        runtime.setRenderingSuspended(true);
+        setSceneStatus("context_lost");
+        setDriveCursorHidden(false);
+        contextRestoreTimeoutId = window.setTimeout(
+          () => failGraphicsRuntime("webgl_context_lost"),
+          sceneTestControl?.contextRestoreTimeoutMs ?? 10_000,
+        );
+      },
+    );
     runtime.listen<WebGLContextEvent>(
       activeCanvas,
       "webglcontextrestored",
@@ -1460,6 +1509,7 @@ export function SoloTimeTrialCanvas({
     });
 
     sceneApiRef.current = {
+      clearInput: () => inputManager.clear(),
       pressTouchPedal: (pointerId, action) =>
         inputManager.pressTouchPedal(pointerId, action),
       releaseTouch: (pointerId) => inputManager.releaseTouch(pointerId),
@@ -1482,8 +1532,9 @@ export function SoloTimeTrialCanvas({
         publishRacePresentation();
         return true;
       },
-      setTouchSteering: (pointerId, value) =>
-        inputManager.setTouchSteering(pointerId, value),
+      setKartTuning: (nextTuning) => setSceneKartTuning(nextTuning),
+      setTouchJoystick: (pointerId, x, y) =>
+        inputManager.setTouchJoystick(pointerId, x, y),
       setPaused: (paused) => {
         setScenePaused(paused);
       },
@@ -1530,7 +1581,9 @@ export function SoloTimeTrialCanvas({
         obstacleAInteractionRadius: obstacleA?.radius ?? null,
         obstacleAX: obstacleA ? toFixedStep(obstacleA.x) : null,
         obstacleBlocksKart: firstObstacle
-          ? collidesWithObstacle(new pc.Vec3(firstObstacle.x, 0, firstObstacle.z))
+          ? collidesWithObstacle(
+              new pc.Vec3(firstObstacle.x, 0, firstObstacle.z),
+            )
           : false,
         obstacleCount: collisionObstacles.length,
         rampCount: rampEntities.length,
@@ -1551,6 +1604,12 @@ export function SoloTimeTrialCanvas({
         0,
         ...kartController.state.wheelTelemetry.map((wheel) =>
           Math.abs(wheel.lateralSpeed),
+        ),
+      );
+      const maximumSlipAngle = Math.max(
+        0,
+        ...kartController.state.wheelTelemetry.map(
+          (wheel) => wheel.slipAngle,
         ),
       );
       const maximumTireForceUtilization = Math.max(
@@ -1581,6 +1640,7 @@ export function SoloTimeTrialCanvas({
           z: toFixedStep(angularVelocity.z),
         },
         chassisClearance: toFixedStep(kartVisual.getPosition().y - 0.26),
+        driftSmokeLevels: driftSmoke?.levelsByWheel ?? {},
         forward: {
           x: toFixedStep(kart.forward.x),
           y: toFixedStep(kart.forward.y),
@@ -1593,21 +1653,25 @@ export function SoloTimeTrialCanvas({
           z: toFixedStep(linearVelocity.z),
         },
         maximumLateralSpeed: toFixedStep(maximumLateralSpeed),
-        maximumTireForceUtilization: toFixedStep(
-          maximumTireForceUtilization,
+        maximumSteerAngle: toFixedStep(
+          kartController.state.maximumSteerAngle,
         ),
-        maxForwardSpeed: toFixedStep(activeMovementTuning.maxForwardSpeed),
+        maximumSlipAngle: toFixedStep(maximumSlipAngle),
+        maximumTireForceUtilization: toFixedStep(maximumTireForceUtilization),
+        maxForwardSpeed: toFixedStep(activeKartTuning.maxForwardSpeed),
         rotationX: toFixedStep(kartRotation.x),
         rotationY: toFixedStep(kartRotation.y),
         rotationZ: toFixedStep(kartRotation.z),
         speed: toFixedStep(kartController.state.speed),
         steerAngle: toFixedStep(kartController.state.steerAngle),
+        driftSmokeWheelNames: driftSmoke?.activeWheelNames ?? [],
         supportCount,
         supportEntityNames: [...kartController.state.supportEntityNames],
         supportedWheelNames: [...kartController.state.supportedWheelNames],
         saturatedTireCount: kartController.state.wheelTelemetry.filter(
           (wheel) => wheel.tireForceUtilization >= 0.995,
         ).length,
+        tuning: { ...activeKartTuning },
         up: {
           x: toFixedStep(kart.up.x),
           y: toFixedStep(kart.up.y),
@@ -1618,6 +1682,12 @@ export function SoloTimeTrialCanvas({
           kartController.state.wheelTelemetry.map((wheel) => [
             wheel.name,
             toFixedStep(wheel.hubLocalY),
+          ]),
+        ),
+        wheelSlipAngles: Object.fromEntries(
+          kartController.state.wheelTelemetry.map((wheel) => [
+            wheel.name,
+            toFixedStep(wheel.slipAngle),
           ]),
         ),
         wheelLoads: Object.fromEntries(
@@ -1723,6 +1793,7 @@ export function SoloTimeTrialCanvas({
         ),
       );
       kartController.reset();
+      driftSmoke?.stop();
       resetSuspensionMetrics();
       resetCollisionMetrics();
       latestCameraImpact = null;
@@ -1755,9 +1826,7 @@ export function SoloTimeTrialCanvas({
       previousRacePosition.copy(kart.getPosition());
       chaseCamera.snap(
         getChaseCameraSnapshot(
-          pose.position.y > KART_ROOT_HEIGHT + 0.5
-            ? 0
-            : dynamicWheels.length,
+          pose.position.y > KART_ROOT_HEIGHT + 0.5 ? 0 : dynamicWheels.length,
         ),
       );
     };
@@ -1773,11 +1842,7 @@ export function SoloTimeTrialCanvas({
         previousPosition.z,
       );
       kart.rigidbody?.teleport(
-        new pc.Vec3(
-          currentPosition.x,
-          currentPosition.y,
-          currentPosition.z,
-        ),
+        new pc.Vec3(currentPosition.x, currentPosition.y, currentPosition.z),
         kart.getRotation(),
       );
       if (kart.rigidbody && !preserveMotion) {
@@ -1787,6 +1852,7 @@ export function SoloTimeTrialCanvas({
       }
       if (!preserveMotion) {
         kartController.reset();
+        driftSmoke?.stop();
       }
       snapKartPresentationState();
     };
@@ -1822,18 +1888,22 @@ export function SoloTimeTrialCanvas({
           resetKart,
           setCourseObjectDebugTransform,
           setKartDebugPose,
-          setKartMovementTuning: setSceneMovementTuning,
+          setKartMovementTuning: setSceneKartTuning,
           setRaceDebugMovement,
           setSimulationPaused: (paused) => runtime.setPaused(paused),
           setStartPosition: setSceneStartPosition,
           stepSimulation: (steps) => runtime.stepFixed(steps),
+          stepSimulationWithKartSamples: (steps) =>
+            runtime.stepFixed(steps, getKartDebugState),
         })
       : () => undefined;
     runtime.addCleanup(detachSceneTestAdapter);
 
     chaseCamera.snap(getChaseCameraSnapshot(dynamicWheels.length));
 
-    let latestDrivingInput = inputManager.sampleDrivingInput().driving;
+    let latestRequestedDrivingInput =
+      inputManager.sampleDrivingInput().driving;
+    let latestDrivingInput = latestRequestedDrivingInput;
     let pauseAfterFixedStep = false;
     let raceFinishedThisFrame = false;
 
@@ -1841,6 +1911,7 @@ export function SoloTimeTrialCanvas({
       collisionObserver.beginStep();
 
       const sample = inputManager.sampleDrivingInput();
+      latestRequestedDrivingInput = sample.driving;
       pauseAfterFixedStep =
         sample.actions.pauseRequested &&
         raceSession.snapshot.state !== "finished";
@@ -1895,6 +1966,7 @@ export function SoloTimeTrialCanvas({
           raceFinishedThisFrame = true;
           inputManager.setEnabled(false);
           clearTouchPresentation();
+          setKartTuningOpen(false);
           setDriveCursorHidden(false);
         }
       }
@@ -1905,10 +1977,20 @@ export function SoloTimeTrialCanvas({
         pauseAfterFixedStep = false;
         if (paused) {
           runtime.requestPauseAtFixedStepBoundary();
+          setKartTuningOpen(false);
           setGamePaused(true);
           setDriveCursorHidden(false);
         }
       }
+
+      const raceState = raceSession.snapshot.state;
+      driftSmoke?.update(kartController.state.wheelTelemetry, {
+        brake: raceState === "racing" ? latestDrivingInput.brake : 0,
+        countdownThrottle:
+          raceState === "countdown"
+            ? Math.max(latestRequestedDrivingInput.throttle, 0)
+            : 0,
+      });
 
       publishRacePresentation();
     });
@@ -1979,26 +2061,25 @@ export function SoloTimeTrialCanvas({
         suspensionMetrics.minimumChassisClearance,
         kartVisual.getPosition().y - 0.26,
       );
-
     });
 
-      raceSession.markReady();
-      raceSession.startCountdown();
-      publishRacePresentation();
-      runtime.start();
-      activeCanvas.dataset.sceneReady = "true";
-      setSceneFailureCode(null);
-      setSceneStatus("ready");
-      gameplayTelemetry.markRuntimeLoaded();
-      setDriveCursorHidden(true);
-      if (document.hidden || !document.hasFocus()) {
-        pauseForInterruption();
-        gameplayTelemetry.flushRuntimeHealth();
-      }
-      runtime.addCleanup(() => {
-        delete activeCanvas.dataset.sceneReady;
-      });
-    };
+    raceSession.markReady();
+    raceSession.startCountdown();
+    publishRacePresentation();
+    runtime.start();
+    activeCanvas.dataset.sceneReady = "true";
+    setSceneFailureCode(null);
+    setSceneStatus("ready");
+    gameplayTelemetry.markRuntimeLoaded();
+    setDriveCursorHidden(true);
+    if (document.hidden || !document.hasFocus()) {
+      pauseForInterruption();
+      gameplayTelemetry.flushRuntimeHealth();
+    }
+    runtime.addCleanup(() => {
+      delete activeCanvas.dataset.sceneReady;
+    });
+  };
 
     void initializeScene().catch((error: unknown) => {
       const failedRuntime = activeRuntime;
@@ -2016,14 +2097,10 @@ export function SoloTimeTrialCanvas({
         console.error("Unable to initialize the PlayCanvas scene", error);
         gameplayTelemetry.fail(
           "load_failed",
-          failedRuntime
-            ? "scene_initialization_failed"
-            : "physics_load_failed",
+          failedRuntime ? "scene_initialization_failed" : "physics_load_failed",
         );
         setSceneFailureCode(
-          failedRuntime
-            ? "scene_initialization_failed"
-            : "physics_load_failed",
+          failedRuntime ? "scene_initialization_failed" : "physics_load_failed",
         );
         setSceneStatus("failed");
       }
@@ -2036,15 +2113,82 @@ export function SoloTimeTrialCanvas({
     };
   }, [COURSE_DOCUMENT, START_POSITION, START_ROTATION, gameplayTelemetry]);
 
-  function pauseRace() {
-    sceneApiRef.current?.setPaused(true);
-    touchSteeringPointerRef.current = null;
+  function updateKartTuning(key: KartTuningKey, value: number) {
+    const nextTuning = normalizeKartTuning({
+      ...kartTuningRef.current,
+      [key]: value,
+    });
+    kartTuningRef.current = nextTuning;
+    setKartTuning(nextTuning);
+    sceneApiRef.current?.setKartTuning(nextTuning);
+  }
+
+  const updateKartTuningOpen = useCallback((open: boolean) => {
+    setKartTuningOpen(open);
+    if (!open) {
+      requestAnimationFrame(() => canvasRef.current?.focus());
+      return;
+    }
+    sceneApiRef.current?.clearInput();
+    touchJoystickPointerRef.current = null;
     clearTouchPedalPresentation(touchPedalElementsRef.current);
-    setTouchSteeringPresentation(
-      touchSteeringElementRef.current,
-      touchSteeringKnobRef.current,
+    setTouchJoystickPresentation(
+      touchJoystickElementRef.current,
+      touchJoystickKnobRef.current,
+      0,
       0,
     );
+  }, []);
+
+  useEffect(() => {
+    const toggleKartTuning = (event: KeyboardEvent) => {
+      if (
+        event.code !== "KeyT" ||
+        event.repeat ||
+        event.altKey ||
+        event.ctrlKey ||
+        event.metaKey ||
+        event.shiftKey ||
+        isEditableKeyboardTarget(event.target) ||
+        gamePaused ||
+        racePresentation.state === "finished" ||
+        sceneStatus !== "ready"
+      ) {
+        return;
+      }
+
+      event.preventDefault();
+      updateKartTuningOpen(!kartTuningOpen);
+    };
+
+    window.addEventListener("keydown", toggleKartTuning);
+    return () => window.removeEventListener("keydown", toggleKartTuning);
+  }, [
+    gamePaused,
+    kartTuningOpen,
+    racePresentation.state,
+    sceneStatus,
+    updateKartTuningOpen,
+  ]);
+
+  function resetKartTuning() {
+    const defaults = { ...DEFAULT_KART_TUNING };
+    kartTuningRef.current = defaults;
+    setKartTuning(defaults);
+    sceneApiRef.current?.setKartTuning(defaults);
+  }
+
+  function pauseRace() {
+    sceneApiRef.current?.setPaused(true);
+    touchJoystickPointerRef.current = null;
+    clearTouchPedalPresentation(touchPedalElementsRef.current);
+    setTouchJoystickPresentation(
+      touchJoystickElementRef.current,
+      touchJoystickKnobRef.current,
+      0,
+      0,
+    );
+    setKartTuningOpen(false);
     setGamePaused(true);
     setDriveCursorHidden(false);
   }
@@ -2109,108 +2253,135 @@ export function SoloTimeTrialCanvas({
     setTouchPedalPresentation(touchPedalElementsRef.current, action, false);
   }
 
-  function updateTouchSteering(pointerId: number, value: number) {
-    sceneApiRef.current?.setTouchSteering(pointerId, value);
-    setTouchSteeringPresentation(
-      touchSteeringElementRef.current,
-      touchSteeringKnobRef.current,
-      value,
+  function updateTouchJoystick(pointerId: number, x: number, y: number) {
+    sceneApiRef.current?.setTouchJoystick(pointerId, x, y);
+    setTouchJoystickPresentation(
+      touchJoystickElementRef.current,
+      touchJoystickKnobRef.current,
+      x,
+      y,
     );
   }
 
-  function getTouchSteeringFromPointer(
+  function getTouchJoystickFromPointer(
     event: ReactPointerEvent<HTMLDivElement>,
   ) {
     const bounds = event.currentTarget.getBoundingClientRect();
     const maximumTravel = bounds.width * 0.3;
     if (maximumTravel <= 0) {
-      return 0;
+      return { x: 0, y: 0 };
     }
     const centerX = bounds.left + bounds.width / 2;
-    return (event.clientX - centerX) / maximumTravel;
+    const centerY = bounds.top + bounds.height / 2;
+    return {
+      x: (event.clientX - centerX) / maximumTravel,
+      y: (event.clientY - centerY) / maximumTravel,
+    };
   }
 
-  function pressTouchSteering(event: ReactPointerEvent<HTMLDivElement>) {
+  function pressTouchJoystick(event: ReactPointerEvent<HTMLDivElement>) {
     event.preventDefault();
-    touchSteeringPointerRef.current = event.pointerId;
+    touchJoystickPointerRef.current = event.pointerId;
     try {
       event.currentTarget.setPointerCapture(event.pointerId);
     } catch {
       // Synthetic browser tests may not create an active native pointer stream.
     }
-    updateTouchSteering(event.pointerId, getTouchSteeringFromPointer(event));
+    const value = getTouchJoystickFromPointer(event);
+    updateTouchJoystick(event.pointerId, value.x, value.y);
   }
 
-  function moveTouchSteering(event: ReactPointerEvent<HTMLDivElement>) {
-    if (touchSteeringPointerRef.current !== event.pointerId) {
+  function moveTouchJoystick(event: ReactPointerEvent<HTMLDivElement>) {
+    if (touchJoystickPointerRef.current !== event.pointerId) {
       return;
     }
     event.preventDefault();
-    updateTouchSteering(event.pointerId, getTouchSteeringFromPointer(event));
+    const value = getTouchJoystickFromPointer(event);
+    updateTouchJoystick(event.pointerId, value.x, value.y);
   }
 
-  function releaseTouchSteering(event: ReactPointerEvent<HTMLDivElement>) {
-    if (touchSteeringPointerRef.current !== event.pointerId) {
+  function releaseTouchJoystick(event: ReactPointerEvent<HTMLDivElement>) {
+    if (touchJoystickPointerRef.current !== event.pointerId) {
       return;
     }
     sceneApiRef.current?.releaseTouch(event.pointerId);
-    touchSteeringPointerRef.current = null;
-    setTouchSteeringPresentation(
-      touchSteeringElementRef.current,
-      touchSteeringKnobRef.current,
+    touchJoystickPointerRef.current = null;
+    setTouchJoystickPresentation(
+      touchJoystickElementRef.current,
+      touchJoystickKnobRef.current,
+      0,
       0,
     );
   }
 
-  function pressTouchSteeringFromKeyboard(
+  function pressTouchJoystickFromKeyboard(
     event: ReactKeyboardEvent<HTMLDivElement>,
   ) {
     if (
-      (event.key !== "ArrowLeft" && event.key !== "ArrowRight") ||
+      !["ArrowDown", "ArrowLeft", "ArrowRight", "ArrowUp"].includes(
+        event.key,
+      ) ||
       event.repeat
     ) {
       return;
     }
     event.preventDefault();
     event.stopPropagation();
-    updateTouchSteering(
-      TOUCH_KEYBOARD_STEERING_POINTER_ID,
-      event.key === "ArrowLeft" ? -1 : 1,
-    );
+    const value = {
+      ArrowDown: { x: 0, y: 1 },
+      ArrowLeft: { x: -1, y: 0 },
+      ArrowRight: { x: 1, y: 0 },
+      ArrowUp: { x: 0, y: -1 },
+    }[event.key];
+    if (value) {
+      updateTouchJoystick(
+        TOUCH_KEYBOARD_JOYSTICK_POINTER_ID,
+        value.x,
+        value.y,
+      );
+    }
   }
 
-  function releaseTouchSteeringFromKeyboard(
+  function releaseTouchJoystickFromKeyboard(
     event: ReactKeyboardEvent<HTMLDivElement>,
   ) {
-    if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") {
+    if (
+      !["ArrowDown", "ArrowLeft", "ArrowRight", "ArrowUp"].includes(event.key)
+    ) {
       return;
     }
     event.preventDefault();
     event.stopPropagation();
-    sceneApiRef.current?.releaseTouch(TOUCH_KEYBOARD_STEERING_POINTER_ID);
-    setTouchSteeringPresentation(
-      touchSteeringElementRef.current,
-      touchSteeringKnobRef.current,
+    sceneApiRef.current?.releaseTouch(TOUCH_KEYBOARD_JOYSTICK_POINTER_ID);
+    setTouchJoystickPresentation(
+      touchJoystickElementRef.current,
+      touchJoystickKnobRef.current,
+      0,
       0,
     );
   }
 
-  function blurTouchSteering() {
-    sceneApiRef.current?.releaseTouch(TOUCH_KEYBOARD_STEERING_POINTER_ID);
-    setTouchSteeringPresentation(
-      touchSteeringElementRef.current,
-      touchSteeringKnobRef.current,
+  function blurTouchJoystick() {
+    sceneApiRef.current?.releaseTouch(TOUCH_KEYBOARD_JOYSTICK_POINTER_ID);
+    if (touchJoystickPointerRef.current !== null) {
+      return;
+    }
+    setTouchJoystickPresentation(
+      touchJoystickElementRef.current,
+      touchJoystickKnobRef.current,
+      0,
       0,
     );
   }
 
   function resetTouchKart() {
     sceneApiRef.current?.requestTouchReset();
-    touchSteeringPointerRef.current = null;
+    touchJoystickPointerRef.current = null;
     clearTouchPedalPresentation(touchPedalElementsRef.current);
-    setTouchSteeringPresentation(
-      touchSteeringElementRef.current,
-      touchSteeringKnobRef.current,
+    setTouchJoystickPresentation(
+      touchJoystickElementRef.current,
+      touchJoystickKnobRef.current,
+      0,
       0,
     );
   }
@@ -2258,6 +2429,13 @@ export function SoloTimeTrialCanvas({
   return (
     <main className="fixed inset-0 z-50 bg-black">
       <canvas
+        aria-keyshortcuts={
+          !gamePaused &&
+          racePresentation.state !== "finished" &&
+          sceneStatus === "ready"
+            ? "T"
+            : undefined
+        }
         ref={canvasRef}
         id="application"
         data-testid="solo-time-trial-canvas"
@@ -2304,6 +2482,16 @@ export function SoloTimeTrialCanvas({
       />
       {sceneStatus === "ready" ? (
         <>
+          {kartTuningOpen &&
+          !gamePaused &&
+          racePresentation.state !== "finished" ? (
+            <KartTuningDrawer
+              onChange={updateKartTuning}
+              onClose={() => updateKartTuningOpen(false)}
+              onReset={resetKartTuning}
+              tuning={kartTuning}
+            />
+          ) : null}
           {racePresentation.state !== "finished" ? (
             <section
               aria-label="Race status"
@@ -2313,7 +2501,9 @@ export function SoloTimeTrialCanvas({
                 <div className="race-status-lap">
                   <span>Lap</span>
                   <strong>
-                    <b>{String(racePresentation.currentLap).padStart(2, "0")}</b>
+                    <b>
+                      {String(racePresentation.currentLap).padStart(2, "0")}
+                    </b>
                     <i>/</i>
                     <small>
                       {String(racePresentation.lapCount).padStart(2, "0")}
@@ -2480,53 +2670,64 @@ export function SoloTimeTrialCanvas({
               >
                 <PauseIcon />
               </button>
-              <div
-                aria-label="Touch driving controls"
-                className="race-touch-controls absolute inset-x-0 bottom-0 z-20 justify-between px-[max(1rem,env(safe-area-inset-left))] pb-[max(1rem,env(safe-area-inset-bottom))] pr-[max(1rem,env(safe-area-inset-right))]"
-                role="group"
-              >
+              {!kartTuningOpen ? (
                 <div
-                  aria-label="Steering"
-                  aria-orientation="horizontal"
-                  aria-valuemax={1}
-                  aria-valuemin={-1}
-                  aria-valuenow={0}
-                  aria-valuetext="Centered"
-                  className="race-touch-steering"
+                  aria-label="Touch driving controls"
+                  className="race-touch-controls absolute inset-x-0 bottom-0 z-20 justify-between px-[max(1rem,env(safe-area-inset-left))] pb-[max(1rem,env(safe-area-inset-bottom))] pr-[max(1rem,env(safe-area-inset-right))]"
+                  role="group"
+                >
+                <div
+                  aria-describedby="touch-joystick-instructions"
+                  aria-label="Drive joystick"
+                  aria-roledescription="two-axis joystick"
+                  className="race-touch-joystick"
                   data-active="false"
-                  onBlur={blurTouchSteering}
+                  data-steer="0"
+                  data-throttle="0"
+                  onBlur={blurTouchJoystick}
                   onContextMenu={(event) => event.preventDefault()}
-                  onKeyDown={pressTouchSteeringFromKeyboard}
-                  onKeyUp={releaseTouchSteeringFromKeyboard}
-                  onLostPointerCapture={releaseTouchSteering}
-                  onPointerCancel={releaseTouchSteering}
-                  onPointerDown={pressTouchSteering}
-                  onPointerMove={moveTouchSteering}
-                  onPointerUp={releaseTouchSteering}
-                  role="slider"
-                  ref={touchSteeringElementRef}
+                  onKeyDown={pressTouchJoystickFromKeyboard}
+                  onKeyUp={releaseTouchJoystickFromKeyboard}
+                  onLostPointerCapture={releaseTouchJoystick}
+                  onPointerCancel={releaseTouchJoystick}
+                  onPointerDown={pressTouchJoystick}
+                  onPointerMove={moveTouchJoystick}
+                  onPointerUp={releaseTouchJoystick}
+                  role="group"
+                  ref={touchJoystickElementRef}
                   tabIndex={0}
                 >
-                  <span aria-hidden="true" className="race-touch-steering-axis">
-                    <span>‹</span>
-                    <span>›</span>
+                  <span
+                    className="sr-only"
+                    id="touch-joystick-instructions"
+                  >
+                    Drag up to accelerate, down to brake or reverse, and left
+                    or right to steer. Arrow keys provide the same controls.
+                  </span>
+                  <span aria-hidden="true" className="race-touch-joystick-directions">
+                    <span className="race-touch-joystick-up">↑</span>
+                    <span className="race-touch-joystick-right">→</span>
+                    <span className="race-touch-joystick-down">↓</span>
+                    <span className="race-touch-joystick-left">←</span>
                   </span>
                   <span
                     aria-hidden="true"
-                    className="race-touch-steering-knob"
-                    ref={touchSteeringKnobRef}
+                    className="race-touch-joystick-knob"
+                    ref={touchJoystickKnobRef}
                     style={{
-                      transform: "translate(-50%, -50%) translateX(0%)",
+                      transform: "translate(-50%, -50%) translate(0, 0)",
                     }}
                   >
                     <span />
                   </span>
                 </div>
                 <div className="race-touch-pedals">
-                  {([
-                    ["brakeReverse", "Brake / Reverse"],
-                    ["accelerate", "Accelerate"],
-                  ] as const).map(([action, label]) => (
+                  {(
+                    [
+                      ["brakeReverse", "Brake / Reverse"],
+                      ["accelerate", "Accelerate"],
+                    ] as const
+                  ).map(([action, label]) => (
                     <button
                       key={action}
                       aria-label={label}
@@ -2569,9 +2770,10 @@ export function SoloTimeTrialCanvas({
                     </button>
                   ))}
                 </div>
-              </div>
+                </div>
+              ) : null}
               <div className="pointer-events-none absolute bottom-4 right-4 z-10 hidden font-mono text-[0.68rem] font-bold uppercase tracking-[0.14em] text-titan-ice/55 lg:block">
-                Esc · Pause
+                T · Tuning&nbsp;&nbsp; Esc · Pause
               </div>
             </>
           ) : null}

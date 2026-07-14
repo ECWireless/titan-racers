@@ -20,6 +20,8 @@ const HANDLED_KEYS = new Set([
   "KeyS",
   "KeyD",
   "KeyR",
+  "ShiftLeft",
+  "ShiftRight",
 ]);
 
 const DRIVING_KEYS = new Set([
@@ -31,7 +33,24 @@ const DRIVING_KEYS = new Set([
   "KeyA",
   "KeyS",
   "KeyD",
+  "ShiftLeft",
+  "ShiftRight",
 ]);
+
+export function isEditableKeyboardTarget(target: EventTarget | null) {
+  if (!target || typeof target !== "object") {
+    return false;
+  }
+  const element = target as {
+    isContentEditable?: boolean;
+    tagName?: string;
+  };
+
+  return (
+    element.isContentEditable === true ||
+    ["INPUT", "SELECT", "TEXTAREA"].includes(element.tagName ?? "")
+  );
+}
 
 export class KeyboardInput implements PlayerInputSource {
   readonly pressedKeys = new Set<string>();
@@ -64,6 +83,7 @@ export class KeyboardInput implements PlayerInputSource {
     return {
       accelerate: Number(this.hasAny("ArrowUp", "KeyW")),
       brakeReverse: Number(this.hasAny("ArrowDown", "KeyS")),
+      handbrake: Number(this.hasAny("ShiftLeft", "ShiftRight")),
       steer:
         Number(this.hasAny("ArrowRight", "KeyD")) -
         Number(this.hasAny("ArrowLeft", "KeyA")),
@@ -87,7 +107,10 @@ export class KeyboardInput implements PlayerInputSource {
   }
 
   private readonly onKeyDown = (event: KeyboardEvent) => {
-    if (!HANDLED_KEYS.has(event.code)) {
+    if (
+      !HANDLED_KEYS.has(event.code) ||
+      isEditableKeyboardTarget(event.target)
+    ) {
       return;
     }
 
@@ -118,7 +141,9 @@ export class KeyboardInput implements PlayerInputSource {
       return;
     }
 
-    event.preventDefault();
+    if (!isEditableKeyboardTarget(event.target)) {
+      event.preventDefault();
+    }
     if (DRIVING_KEYS.has(event.code)) {
       this.pressedKeys.delete(event.code);
     }
