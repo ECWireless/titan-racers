@@ -38,7 +38,7 @@ import { PlayerInputManager } from "@/game/input/player-input-manager";
 import { isEditableKeyboardTarget } from "@/game/input/keyboard-input";
 import { useControllerMenuNavigation } from "@/game/input/use-controller-menu-navigation";
 import {
-  normalizeTouchSteering,
+  normalizeTouchJoystick,
   type TouchPedalAction,
 } from "@/game/input/touch-input";
 import {
@@ -195,7 +195,7 @@ type SoloSceneControls = {
   requestTouchReset: () => void;
   restartRace: () => boolean;
   setKartTuning: (tuning: Partial<KartTuning>) => void;
-  setTouchSteering: (pointerId: number, value: number) => void;
+  setTouchJoystick: (pointerId: number, x: number, y: number) => void;
   setPaused: (paused: boolean) => void;
 };
 
@@ -203,7 +203,7 @@ const TOUCH_KEYBOARD_POINTER_IDS: Record<TouchPedalAction, number> = {
   accelerate: -1,
   brakeReverse: -2,
 };
-const TOUCH_KEYBOARD_STEERING_POINTER_ID = -3;
+const TOUCH_KEYBOARD_JOYSTICK_POINTER_ID = -3;
 
 function ResetIcon() {
   return (
@@ -240,14 +240,6 @@ function BrakeIcon() {
   );
 }
 
-function getTouchSteeringValueText(value: number) {
-  if (value === 0) {
-    return "Centered";
-  }
-  const direction = value < 0 ? "left" : "right";
-  return `${Math.round(Math.abs(value) * 100)}% ${direction}`;
-}
-
 function setTouchPedalPresentation(
   elements: Partial<Record<TouchPedalAction, HTMLButtonElement>>,
   action: TouchPedalAction,
@@ -263,25 +255,31 @@ function clearTouchPedalPresentation(
   setTouchPedalPresentation(elements, "brakeReverse", false);
 }
 
-function setTouchSteeringPresentation(
-  steeringElement: HTMLDivElement | null,
+function setTouchJoystickPresentation(
+  joystickElement: HTMLDivElement | null,
   knob: HTMLSpanElement | null,
-  value: number,
+  x: number,
+  y: number,
 ) {
-  const steer = normalizeTouchSteering(value);
-  steeringElement?.setAttribute(
-    "aria-valuenow",
-    String(Number(steer.toFixed(2))),
-  );
-  steeringElement?.setAttribute(
-    "aria-valuetext",
-    getTouchSteeringValueText(steer),
-  );
-  if (steeringElement) {
-    steeringElement.dataset.active = String(steer !== 0);
+  const rawMagnitude = Math.hypot(x, y);
+  const clampedScale = rawMagnitude > 1 ? 1 / rawMagnitude : 1;
+  const visualX = Number.isFinite(x) ? x * clampedScale : 0;
+  const visualY = Number.isFinite(y) ? y * clampedScale : 0;
+  const joystick = normalizeTouchJoystick(x, y);
+  if (joystickElement) {
+    joystickElement.dataset.active = String(
+      joystick.x !== 0 || joystick.y !== 0,
+    );
+    joystickElement.dataset.steer = String(Number(joystick.x.toFixed(2)));
+    joystickElement.dataset.throttle = String(
+      Number((-joystick.y).toFixed(2)),
+    );
   }
   if (knob) {
-    knob.style.transform = `translate(-50%, -50%) translateX(${steer * 64}%)`;
+    const maximumTravel = joystickElement
+      ? Math.max((joystickElement.clientWidth - knob.offsetWidth) / 2, 0)
+      : 0;
+    knob.style.transform = `translate(-50%, -50%) translate(${visualX * maximumTravel}px, ${visualY * maximumTravel}px)`;
   }
 }
 
@@ -315,9 +313,9 @@ export function SoloTimeTrialCanvas({
   const touchPedalElementsRef = useRef<
     Partial<Record<TouchPedalAction, HTMLButtonElement>>
   >({});
-  const touchSteeringElementRef = useRef<HTMLDivElement | null>(null);
-  const touchSteeringKnobRef = useRef<HTMLSpanElement | null>(null);
-  const touchSteeringPointerRef = useRef<number | null>(null);
+  const touchJoystickElementRef = useRef<HTMLDivElement | null>(null);
+  const touchJoystickKnobRef = useRef<HTMLSpanElement | null>(null);
+  const touchJoystickPointerRef = useRef<number | null>(null);
   const gameplayTelemetryStartedRef = useRef(false);
   const [gameplayTelemetry] = useState(
     () => new GameplayRunTelemetry(httpGameplayTelemetrySink),
@@ -1406,11 +1404,12 @@ export function SoloTimeTrialCanvas({
     inputManager.attach();
     runtime.addCleanup(() => inputManager.detach());
     const clearTouchPresentation = () => {
-      touchSteeringPointerRef.current = null;
+      touchJoystickPointerRef.current = null;
       clearTouchPedalPresentation(touchPedalElementsRef.current);
-      setTouchSteeringPresentation(
-        touchSteeringElementRef.current,
-        touchSteeringKnobRef.current,
+      setTouchJoystickPresentation(
+        touchJoystickElementRef.current,
+        touchJoystickKnobRef.current,
+        0,
         0,
       );
     };
@@ -1534,8 +1533,8 @@ export function SoloTimeTrialCanvas({
         return true;
       },
       setKartTuning: (nextTuning) => setSceneKartTuning(nextTuning),
-      setTouchSteering: (pointerId, value) =>
-        inputManager.setTouchSteering(pointerId, value),
+      setTouchJoystick: (pointerId, x, y) =>
+        inputManager.setTouchJoystick(pointerId, x, y),
       setPaused: (paused) => {
         setScenePaused(paused);
       },
@@ -2131,11 +2130,12 @@ export function SoloTimeTrialCanvas({
       return;
     }
     sceneApiRef.current?.clearInput();
-    touchSteeringPointerRef.current = null;
+    touchJoystickPointerRef.current = null;
     clearTouchPedalPresentation(touchPedalElementsRef.current);
-    setTouchSteeringPresentation(
-      touchSteeringElementRef.current,
-      touchSteeringKnobRef.current,
+    setTouchJoystickPresentation(
+      touchJoystickElementRef.current,
+      touchJoystickKnobRef.current,
+      0,
       0,
     );
   }, []);
@@ -2180,11 +2180,12 @@ export function SoloTimeTrialCanvas({
 
   function pauseRace() {
     sceneApiRef.current?.setPaused(true);
-    touchSteeringPointerRef.current = null;
+    touchJoystickPointerRef.current = null;
     clearTouchPedalPresentation(touchPedalElementsRef.current);
-    setTouchSteeringPresentation(
-      touchSteeringElementRef.current,
-      touchSteeringKnobRef.current,
+    setTouchJoystickPresentation(
+      touchJoystickElementRef.current,
+      touchJoystickKnobRef.current,
+      0,
       0,
     );
     setKartTuningOpen(false);
@@ -2252,108 +2253,135 @@ export function SoloTimeTrialCanvas({
     setTouchPedalPresentation(touchPedalElementsRef.current, action, false);
   }
 
-  function updateTouchSteering(pointerId: number, value: number) {
-    sceneApiRef.current?.setTouchSteering(pointerId, value);
-    setTouchSteeringPresentation(
-      touchSteeringElementRef.current,
-      touchSteeringKnobRef.current,
-      value,
+  function updateTouchJoystick(pointerId: number, x: number, y: number) {
+    sceneApiRef.current?.setTouchJoystick(pointerId, x, y);
+    setTouchJoystickPresentation(
+      touchJoystickElementRef.current,
+      touchJoystickKnobRef.current,
+      x,
+      y,
     );
   }
 
-  function getTouchSteeringFromPointer(
+  function getTouchJoystickFromPointer(
     event: ReactPointerEvent<HTMLDivElement>,
   ) {
     const bounds = event.currentTarget.getBoundingClientRect();
     const maximumTravel = bounds.width * 0.3;
     if (maximumTravel <= 0) {
-      return 0;
+      return { x: 0, y: 0 };
     }
     const centerX = bounds.left + bounds.width / 2;
-    return (event.clientX - centerX) / maximumTravel;
+    const centerY = bounds.top + bounds.height / 2;
+    return {
+      x: (event.clientX - centerX) / maximumTravel,
+      y: (event.clientY - centerY) / maximumTravel,
+    };
   }
 
-  function pressTouchSteering(event: ReactPointerEvent<HTMLDivElement>) {
+  function pressTouchJoystick(event: ReactPointerEvent<HTMLDivElement>) {
     event.preventDefault();
-    touchSteeringPointerRef.current = event.pointerId;
+    touchJoystickPointerRef.current = event.pointerId;
     try {
       event.currentTarget.setPointerCapture(event.pointerId);
     } catch {
       // Synthetic browser tests may not create an active native pointer stream.
     }
-    updateTouchSteering(event.pointerId, getTouchSteeringFromPointer(event));
+    const value = getTouchJoystickFromPointer(event);
+    updateTouchJoystick(event.pointerId, value.x, value.y);
   }
 
-  function moveTouchSteering(event: ReactPointerEvent<HTMLDivElement>) {
-    if (touchSteeringPointerRef.current !== event.pointerId) {
+  function moveTouchJoystick(event: ReactPointerEvent<HTMLDivElement>) {
+    if (touchJoystickPointerRef.current !== event.pointerId) {
       return;
     }
     event.preventDefault();
-    updateTouchSteering(event.pointerId, getTouchSteeringFromPointer(event));
+    const value = getTouchJoystickFromPointer(event);
+    updateTouchJoystick(event.pointerId, value.x, value.y);
   }
 
-  function releaseTouchSteering(event: ReactPointerEvent<HTMLDivElement>) {
-    if (touchSteeringPointerRef.current !== event.pointerId) {
+  function releaseTouchJoystick(event: ReactPointerEvent<HTMLDivElement>) {
+    if (touchJoystickPointerRef.current !== event.pointerId) {
       return;
     }
     sceneApiRef.current?.releaseTouch(event.pointerId);
-    touchSteeringPointerRef.current = null;
-    setTouchSteeringPresentation(
-      touchSteeringElementRef.current,
-      touchSteeringKnobRef.current,
+    touchJoystickPointerRef.current = null;
+    setTouchJoystickPresentation(
+      touchJoystickElementRef.current,
+      touchJoystickKnobRef.current,
+      0,
       0,
     );
   }
 
-  function pressTouchSteeringFromKeyboard(
+  function pressTouchJoystickFromKeyboard(
     event: ReactKeyboardEvent<HTMLDivElement>,
   ) {
     if (
-      (event.key !== "ArrowLeft" && event.key !== "ArrowRight") ||
+      !["ArrowDown", "ArrowLeft", "ArrowRight", "ArrowUp"].includes(
+        event.key,
+      ) ||
       event.repeat
     ) {
       return;
     }
     event.preventDefault();
     event.stopPropagation();
-    updateTouchSteering(
-      TOUCH_KEYBOARD_STEERING_POINTER_ID,
-      event.key === "ArrowLeft" ? -1 : 1,
-    );
+    const value = {
+      ArrowDown: { x: 0, y: 1 },
+      ArrowLeft: { x: -1, y: 0 },
+      ArrowRight: { x: 1, y: 0 },
+      ArrowUp: { x: 0, y: -1 },
+    }[event.key];
+    if (value) {
+      updateTouchJoystick(
+        TOUCH_KEYBOARD_JOYSTICK_POINTER_ID,
+        value.x,
+        value.y,
+      );
+    }
   }
 
-  function releaseTouchSteeringFromKeyboard(
+  function releaseTouchJoystickFromKeyboard(
     event: ReactKeyboardEvent<HTMLDivElement>,
   ) {
-    if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") {
+    if (
+      !["ArrowDown", "ArrowLeft", "ArrowRight", "ArrowUp"].includes(event.key)
+    ) {
       return;
     }
     event.preventDefault();
     event.stopPropagation();
-    sceneApiRef.current?.releaseTouch(TOUCH_KEYBOARD_STEERING_POINTER_ID);
-    setTouchSteeringPresentation(
-      touchSteeringElementRef.current,
-      touchSteeringKnobRef.current,
+    sceneApiRef.current?.releaseTouch(TOUCH_KEYBOARD_JOYSTICK_POINTER_ID);
+    setTouchJoystickPresentation(
+      touchJoystickElementRef.current,
+      touchJoystickKnobRef.current,
+      0,
       0,
     );
   }
 
-  function blurTouchSteering() {
-    sceneApiRef.current?.releaseTouch(TOUCH_KEYBOARD_STEERING_POINTER_ID);
-    setTouchSteeringPresentation(
-      touchSteeringElementRef.current,
-      touchSteeringKnobRef.current,
+  function blurTouchJoystick() {
+    sceneApiRef.current?.releaseTouch(TOUCH_KEYBOARD_JOYSTICK_POINTER_ID);
+    if (touchJoystickPointerRef.current !== null) {
+      return;
+    }
+    setTouchJoystickPresentation(
+      touchJoystickElementRef.current,
+      touchJoystickKnobRef.current,
+      0,
       0,
     );
   }
 
   function resetTouchKart() {
     sceneApiRef.current?.requestTouchReset();
-    touchSteeringPointerRef.current = null;
+    touchJoystickPointerRef.current = null;
     clearTouchPedalPresentation(touchPedalElementsRef.current);
-    setTouchSteeringPresentation(
-      touchSteeringElementRef.current,
-      touchSteeringKnobRef.current,
+    setTouchJoystickPresentation(
+      touchJoystickElementRef.current,
+      touchJoystickKnobRef.current,
+      0,
       0,
     );
   }
@@ -2649,37 +2677,45 @@ export function SoloTimeTrialCanvas({
                   role="group"
                 >
                 <div
-                  aria-label="Steering"
-                  aria-orientation="horizontal"
-                  aria-valuemax={1}
-                  aria-valuemin={-1}
-                  aria-valuenow={0}
-                  aria-valuetext="Centered"
-                  className="race-touch-steering"
+                  aria-describedby="touch-joystick-instructions"
+                  aria-label="Drive joystick"
+                  aria-roledescription="two-axis joystick"
+                  className="race-touch-joystick"
                   data-active="false"
-                  onBlur={blurTouchSteering}
+                  data-steer="0"
+                  data-throttle="0"
+                  onBlur={blurTouchJoystick}
                   onContextMenu={(event) => event.preventDefault()}
-                  onKeyDown={pressTouchSteeringFromKeyboard}
-                  onKeyUp={releaseTouchSteeringFromKeyboard}
-                  onLostPointerCapture={releaseTouchSteering}
-                  onPointerCancel={releaseTouchSteering}
-                  onPointerDown={pressTouchSteering}
-                  onPointerMove={moveTouchSteering}
-                  onPointerUp={releaseTouchSteering}
-                  role="slider"
-                  ref={touchSteeringElementRef}
+                  onKeyDown={pressTouchJoystickFromKeyboard}
+                  onKeyUp={releaseTouchJoystickFromKeyboard}
+                  onLostPointerCapture={releaseTouchJoystick}
+                  onPointerCancel={releaseTouchJoystick}
+                  onPointerDown={pressTouchJoystick}
+                  onPointerMove={moveTouchJoystick}
+                  onPointerUp={releaseTouchJoystick}
+                  role="group"
+                  ref={touchJoystickElementRef}
                   tabIndex={0}
                 >
-                  <span aria-hidden="true" className="race-touch-steering-axis">
-                    <span>‹</span>
-                    <span>›</span>
+                  <span
+                    className="sr-only"
+                    id="touch-joystick-instructions"
+                  >
+                    Drag up to accelerate, down to brake or reverse, and left
+                    or right to steer. Arrow keys provide the same controls.
+                  </span>
+                  <span aria-hidden="true" className="race-touch-joystick-directions">
+                    <span className="race-touch-joystick-up">↑</span>
+                    <span className="race-touch-joystick-right">→</span>
+                    <span className="race-touch-joystick-down">↓</span>
+                    <span className="race-touch-joystick-left">←</span>
                   </span>
                   <span
                     aria-hidden="true"
-                    className="race-touch-steering-knob"
-                    ref={touchSteeringKnobRef}
+                    className="race-touch-joystick-knob"
+                    ref={touchJoystickKnobRef}
                     style={{
-                      transform: "translate(-50%, -50%) translateX(0%)",
+                      transform: "translate(-50%, -50%) translate(0, 0)",
                     }}
                   >
                     <span />

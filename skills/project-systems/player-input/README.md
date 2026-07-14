@@ -81,10 +81,11 @@ remain owned by the kart-physics system.
 
 ## Runtime Flow
 
-1. Keyboard events update held keys and queue reset/pause edges. The touch
-   steering pad maps horizontal pointer displacement continuously while touch
-   pedal events update pointer-specific holds. The gamepad adapter polls the
-   latest browser snapshots during sampling.
+1. Keyboard events update held keys and queue reset/pause edges. The touch drive
+   joystick maps a circular two-axis pointer displacement continuously into
+   steering plus forward/reverse intent while touch pedal events update
+   pointer-specific digital alternatives. The gamepad adapter polls the latest
+   browser snapshots during sampling.
 2. A digital press or meaningful post-dead-zone analog change marks that device
    family intentionally active. Connection and resting-stick noise do not.
 3. Immediately before a fixed physics step, the manager samples all adapters.
@@ -110,23 +111,27 @@ It never writes driving state or synthesizes keyboard events.
 
 ## Touch Presentation
 
-The race HUD exposes a fixed analog steering pad at the lower left, accelerator
+The race HUD exposes a fixed analog drive joystick at the lower left, accelerator
 and brake/reverse pedals at the lower right, and compact reset/pause utilities
 in the top corners on coarse/no-hover devices. Original inline SVG glyphs
 replace visible text while native or ARIA semantics retain accessible names.
 Primary controls remain at least 44 CSS pixels in portrait and compact landscape.
 
-The pad maps horizontal travel to `-1..1`, applies the touch adapter's `0.08`
-dead zone, then raises the remaining magnitude to the `1.75` power. This
-touch-only curve reduces gain near center while preserving sign and full lock
-at the edge. The control clamps the knob at the visual boundary, ignores
-vertical motion, and recenters on release. It exposes horizontal slider
-semantics and arrow-key operation. Pedals retain native button semantics,
-`aria-pressed`, and Space or Enter hold/release behavior.
+The joystick maps horizontal travel to steering, upward travel to acceleration,
+and downward travel to brake/reverse. It clamps raw displacement to a circle,
+applies the touch adapter's `0.08` radial dead zone, then raises the remaining
+magnitude to the `1.75` power while preserving vector direction. This touch-only
+curve reduces gain near center while preserving full authority at the rim. The
+portrait pad is `8.5rem` square and compact-landscape pad is `6.75rem`, increasing
+input travel by roughly 17% over the accepted steering-only baseline.
+The knob follows the clamped physical pointer position and recenters on release.
+The labelled two-axis group provides instructions and four-arrow keyboard
+operation. Pedals retain native button semantics, `aria-pressed`, and Space or
+Enter hold/release behavior.
 
 Only driving controls use `touch-action: none`. Each control captures and tracks
-its pointer ID, so analog steering and acceleration/braking coexist and one
-pointer release does not clear another. Pointer up, pointer cancel, lost
+its pointer ID, so joystick and digital-pedal input coexist and one pointer
+release does not clear another. Pointer up, pointer cancel, lost
 capture, blur, hidden visibility, pause, reset, and teardown release retained
 state and presentation.
 
@@ -205,9 +210,10 @@ until disconnect. Nonstandard mappings remain neutral and non-fatal.
 - Four focused controller UI scenarios pass together for visible default pause
   focus, initializing-state Exit, failed-state Reload, focused failed-state
   Exit, failed-state Back, and neutral setup across those transitions.
-- Focused `tests/home.spec.ts` mobile analog steering/pedal and desktop
-  continuous-controller scenarios pass, including captured drag, clamping,
-  pointer cancellation/capture loss, recentering, and neutral re-arming.
+- Focused `tests/home.spec.ts` mobile two-axis joystick/pedal and desktop
+  continuous-controller scenarios pass, including partial forward/steering,
+  full forward, reverse, captured drag, circular clamping, pointer
+  cancellation/capture loss, recentering, and neutral re-arming.
 - The complete `pnpm test:e2e` desktop/mobile matrix passes 250 cases and skips
   52 by project/environment design. This includes every new input adapter,
   touch-driving, controller gameplay, controller-menu, and retained gameplay
@@ -246,9 +252,10 @@ until disconnect. Nonstandard mappings remain neutral and non-fatal.
 - Controller menu navigation is deliberately limited to guest mode selection
   and race loading/error/pause/finish overlays. The protected course editor
   remains a keyboard, pointer, and touch authoring surface in this slice.
-- The `1.75` touch steering exponent and `0.08` dead zone are the accepted mobile
-  baseline. Additional device diversity may justify future control settings;
-  visual opacity and pedal spacing remain tunable presentation values.
+- The `1.75` touch joystick magnitude exponent, `0.08` radial dead zone, and
+  larger travel are the current mobile baseline. Additional representative
+  device QA may justify future control settings; visual opacity and pedal
+  spacing remain tunable presentation values.
 - Touch controls are visible through coarse-pointer/no-hover capability queries;
   a future settings surface may add a manual visibility preference if hybrid
   hardware proves it necessary.

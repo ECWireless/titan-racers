@@ -58,32 +58,33 @@ PlayCanvas or React.
 
 ## Pointer And React Mapping
 
-Render a semantic adjustable steering pad plus `button` elements for accelerate
+Render a labelled two-axis drive joystick plus `button` elements for accelerate
 and brake/reverse. React owns presentation and pointer geometry; a plain touch
 adapter owns pointer IDs and normalized state.
 
-- On steering `pointerdown`, register the pointer ID, request capture, and map
-  horizontal displacement from the fixed pad center into `-1..1`. Update that
-  value on captured `pointermove` and recenter it on every terminal path.
-- Apply a small visual/input center dead zone and clamp the knob at the pad's
-  horizontal travel limit. Vertical motion does not affect steering.
-- Shape the post-dead-zone touch magnitude with the accepted bounded response
-  exponent. Preserve zero, sign, monotonicity, and full lock so the center gains
-  precision without weakening maximum steering or changing other adapters.
+- On joystick `pointerdown`, register the pointer ID, request capture, and map
+  displacement from the fixed pad center into a two-axis vector. Horizontal
+  input supplies steering; upward input supplies acceleration; downward input
+  supplies brake/reverse. Update on captured `pointermove` and recenter on every
+  terminal path.
+- Clamp the knob to the pad's circular travel limit. Apply the accepted radial
+  dead zone and bounded response exponent to vector magnitude while preserving
+  direction, zero, monotonicity, and full authority at the rim.
 - On pedal `pointerdown`, register the pointer ID for that action and request
   pointer capture from the button.
 - On `pointerup`, `pointercancel`, or `lostpointercapture`, release only that
   pointer's action.
-- Permit multiple pointer IDs so steering and acceleration/braking work
+- Permit multiple pointer IDs so joystick and pedal input work
   together.
 - Use `touch-action: none` and selection suppression on the driving controls,
   not the full canvas or page.
 - Do not infer release from pointer position leaving the element after capture.
 - Release all pointers on pause, hidden visibility, blur, unmount, or scene
   teardown.
-- Expose steering as a labelled slider-style value with arrow-key operation.
+- Expose the joystick as a labelled two-axis group with concise instructions
+  and four-arrow keyboard operation rather than invalid one-axis slider state.
   Use `aria-pressed` when a pedal is active, while retaining visible engaged
-  treatments for both steering and pedals.
+  treatments for both joystick and pedals.
 
 Pointer capture retargets subsequent pointer events until release, while the
 browser can still end the stream with `pointercancel` or lost capture. Handle
@@ -212,9 +213,9 @@ listener and clears all retained device and pointer state.
   touch when no controller is exposed.
 - Synthetic controller snapshots verify mapping and lifecycle behavior but not
   physical ergonomics, platform-specific latency, or hardware dead zones.
-- The custom touch steering slider requires representative screen-reader QA;
-  keyboard semantics alone do not prove that a touch assistive technology can
-  synthesize the expected adjustment gestures.
+- The custom two-axis touch joystick requires representative screen-reader QA;
+  labelled group semantics, instructions, arrow-key operation, and native pedal
+  alternatives do not prove every touch assistive technology can operate it.
 - Input-related clearing on focus and visibility changes belongs here; broader
   lifecycle response and bounded health reporting are implemented by the
   [`runtime-resilience`](../../project-systems/runtime-resilience/README.md) and

@@ -10,7 +10,7 @@ import {
   toDrivingInput,
 } from "../src/game/input/player-input";
 import {
-  normalizeTouchSteering,
+  normalizeTouchJoystick,
   TouchInput,
 } from "../src/game/input/touch-input";
 
@@ -83,10 +83,18 @@ test.describe("player input", () => {
     expect(applyAxialDeadZone(0.1, 0.15)).toBe(0);
     expect(applyAxialDeadZone(-0.575, 0.15)).toBeCloseTo(-0.5, 6);
     expect(applyAxialDeadZone(1, 0.15)).toBe(1);
-    expect(normalizeTouchSteering(0.04)).toBe(0);
-    expect(normalizeTouchSteering(0.54)).toBeCloseTo(0.5 ** 1.75, 6);
-    expect(normalizeTouchSteering(-0.54)).toBeCloseTo(-(0.5 ** 1.75), 6);
-    expect(normalizeTouchSteering(1)).toBe(1);
+    expect(normalizeTouchJoystick(0.04, 0).x).toBe(0);
+    expect(normalizeTouchJoystick(0.54, 0).x).toBeCloseTo(0.5 ** 1.75, 6);
+    expect(normalizeTouchJoystick(-0.54, 0).x).toBeCloseTo(-(0.5 ** 1.75), 6);
+    expect(normalizeTouchJoystick(1, 0).x).toBe(1);
+    expect(normalizeTouchJoystick(0.04, -0.04)).toEqual({ x: 0, y: 0 });
+    expect(
+      normalizeTouchJoystick(Number.NaN, Number.POSITIVE_INFINITY),
+    ).toEqual({ x: 0, y: 0 });
+    const diagonal = normalizeTouchJoystick(1, -1);
+    expect(Math.hypot(diagonal.x, diagonal.y)).toBeCloseTo(1, 6);
+    expect(diagonal.x).toBeCloseTo(Math.SQRT1_2, 6);
+    expect(diagonal.y).toBeCloseTo(-Math.SQRT1_2, 6);
   });
 
   test("maps normalized acceleration and brake/reverse to existing kart intent", () => {
@@ -169,18 +177,23 @@ test.describe("player input", () => {
     keyboard.detach();
   });
 
-  test("touch retains analog steering and pedal pointers independently", () => {
+  test("touch maps a two-axis joystick continuously and retains pedal pointers independently", () => {
     let activityCount = 0;
     const touch = new TouchInput(() => (activityCount += 1));
 
-    touch.setSteering(1, -0.54);
+    touch.setJoystick(1, -0.54, -0.54);
+    const diagonalMagnitude = Math.hypot(0.54, 0.54);
+    const shapedMagnitude = ((diagonalMagnitude - 0.08) / (1 - 0.08)) ** 1.75;
     touch.pressPedal(2, "accelerate");
     expect(touch.getContinuousInput()).toMatchObject({
       accelerate: 1,
       brakeReverse: 0,
       handbrake: 0,
     });
-    expect(touch.getContinuousInput().steer).toBeCloseTo(-(0.5 ** 1.75), 6);
+    expect(touch.getContinuousInput().steer).toBeCloseTo(
+      -(shapedMagnitude * Math.SQRT1_2),
+      6,
+    );
 
     touch.release(1);
     expect(touch.getContinuousInput()).toEqual({
@@ -190,6 +203,14 @@ test.describe("player input", () => {
       steer: 0,
     });
     expect(activityCount).toBe(2);
+
+    touch.release(2);
+    touch.setJoystick(3, 0, 0.54);
+    expect(touch.getContinuousInput()).toMatchObject({
+      accelerate: 0,
+      brakeReverse: 0.5 ** 1.75,
+      steer: 0,
+    });
 
     touch.clear();
     expect(touch.getContinuousInput()).toEqual({

@@ -55,11 +55,11 @@ export class PlayerInputManager {
     this.touch.pressPedal(pointerId, action);
   }
 
-  setTouchSteering(pointerId: number, value: number) {
+  setTouchJoystick(pointerId: number, x: number, y: number) {
     if (!this.enabled) {
       return;
     }
-    this.touch.setSteering(pointerId, value);
+    this.touch.setJoystick(pointerId, x, y);
   }
 
   releaseTouch(pointerId: number) {

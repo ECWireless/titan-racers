@@ -3154,7 +3154,7 @@ test.describe("home screen", () => {
     await expect(page.getByText("Paused", { exact: true })).not.toBeVisible();
   });
 
-  test("drives with simultaneous analog steering and accessible touch pedals", async ({
+  test("drives continuously in two axes with the touch joystick and accessible pedals", async ({
     page,
   }, testInfo) => {
     test.skip(testInfo.project.name !== "mobile", "Touch controls only.");
@@ -3169,11 +3169,11 @@ test.describe("home screen", () => {
       .toMatchObject({ supportCount: 4 });
 
     const accelerate = page.getByRole("button", { name: "Accelerate" });
-    const steering = page.getByRole("slider", { name: "Steering" });
+    const joystick = page.getByRole("group", { name: "Drive joystick" });
     const brake = page.getByRole("button", { name: "Brake / Reverse" });
     const reset = page.getByRole("button", { name: "Reset kart" });
 
-    for (const control of [accelerate, steering, brake, reset]) {
+    for (const control of [accelerate, joystick, brake, reset]) {
       await expect(control).toBeVisible();
       const bounds = await control.boundingBox();
       expect(bounds?.width ?? 0).toBeGreaterThanOrEqual(44);
@@ -3181,26 +3181,29 @@ test.describe("home screen", () => {
     }
 
     const start = await getKartDebugState(canvas);
-    const steeringBounds = await steering.boundingBox();
-    expect(steeringBounds).not.toBeNull();
-    await accelerate.dispatchEvent("pointerdown", {
+    const joystickBounds = await joystick.boundingBox();
+    expect(joystickBounds).not.toBeNull();
+    expect(joystickBounds?.width ?? 0).toBeGreaterThanOrEqual(130);
+    const joystickCenterX =
+      (joystickBounds?.x ?? 0) + (joystickBounds?.width ?? 0) * 0.5;
+    const joystickCenterY =
+      (joystickBounds?.y ?? 0) + (joystickBounds?.height ?? 0) * 0.5;
+    const joystickTravel = (joystickBounds?.width ?? 0) * 0.3;
+
+    await joystick.dispatchEvent("pointerdown", {
       buttons: 1,
+      clientX: joystickCenterX + joystickTravel * 0.54,
+      clientY: joystickCenterY - joystickTravel * 0.54,
       pointerId: 11,
       pointerType: "touch",
     });
-    const steeringCenterX =
-      (steeringBounds?.x ?? 0) + (steeringBounds?.width ?? 0) * 0.5;
-    const steeringCenterY =
-      (steeringBounds?.y ?? 0) + (steeringBounds?.height ?? 0) * 0.5;
-    await page.mouse.move(steeringCenterX, steeringCenterY);
-    await page.mouse.down();
-    await page.mouse.move(
-      (steeringBounds?.x ?? 0) + (steeringBounds?.width ?? 0) * (0.5 + 0.162),
-      steeringCenterY,
-    );
-    await expect(accelerate).toHaveAttribute("aria-pressed", "true");
-    await expect(steering).toHaveAttribute("aria-valuenow", "0.3");
-    await expect(steering).toHaveAttribute("data-active", "true");
+    await expect(joystick).toHaveAttribute("data-steer", "0.42");
+    await expect(joystick).toHaveAttribute("data-throttle", "0.42");
+    await expect(joystick).toHaveAttribute("data-active", "true");
+    await joystick.focus();
+    await accelerate.focus();
+    await expect(joystick).toHaveAttribute("data-steer", "0.42");
+    await expect(joystick).toHaveAttribute("data-throttle", "0.42");
 
     await expect
       .poll(async () => (await getKartDebugState(canvas)).speed)
@@ -3209,53 +3212,53 @@ test.describe("home screen", () => {
       .poll(async () => Math.abs((await getKartDebugState(canvas)).steerAngle))
       .toBeGreaterThan(1);
 
-    await page.mouse.move(
-      (steeringBounds?.x ?? 0) + (steeringBounds?.width ?? 0) * 1.2,
-      steeringCenterY,
-    );
-    await expect(steering).toHaveAttribute("aria-valuenow", "1");
-
-    await accelerate.dispatchEvent("pointercancel", {
+    await joystick.dispatchEvent("pointermove", {
+      buttons: 1,
+      clientX: joystickCenterX,
+      clientY: joystickCenterY - joystickTravel * 1.2,
       pointerId: 11,
       pointerType: "touch",
     });
-    await page.mouse.up();
-    await expect(accelerate).toHaveAttribute("aria-pressed", "false");
-    await expect(steering).toHaveAttribute("aria-valuenow", "0");
-    await expect(steering).toHaveAttribute("data-active", "false");
+    await expect(joystick).toHaveAttribute("data-steer", "0");
+    await expect(joystick).toHaveAttribute("data-throttle", "1");
+
+    await joystick.dispatchEvent("pointerup", {
+      pointerId: 11,
+      pointerType: "touch",
+    });
+    await expect(joystick).toHaveAttribute("data-throttle", "0");
+    await expect(joystick).toHaveAttribute("data-active", "false");
     await expect
       .poll(async () => Math.abs((await getKartDebugState(canvas)).steerAngle))
       .toBeLessThan(0.5);
 
-    await steering.dispatchEvent("pointerdown", {
+    await joystick.dispatchEvent("pointerdown", {
       buttons: 1,
-      clientX:
-        (steeringBounds?.x ?? 0) + (steeringBounds?.width ?? 0) * (0.5 - 0.162),
-      clientY: steeringCenterY,
+      clientX: joystickCenterX - joystickTravel * 0.54,
+      clientY: joystickCenterY,
       pointerId: 12,
       pointerType: "touch",
     });
-    await expect(steering).toHaveAttribute("aria-valuenow", "-0.3");
-    await steering.dispatchEvent("pointercancel", {
+    await expect(joystick).toHaveAttribute("data-steer", "-0.3");
+    await joystick.dispatchEvent("pointercancel", {
       pointerId: 12,
       pointerType: "touch",
     });
-    await expect(steering).toHaveAttribute("aria-valuenow", "0");
+    await expect(joystick).toHaveAttribute("data-steer", "0");
 
-    await steering.dispatchEvent("pointerdown", {
+    await joystick.dispatchEvent("pointerdown", {
       buttons: 1,
-      clientX:
-        (steeringBounds?.x ?? 0) + (steeringBounds?.width ?? 0) * (0.5 + 0.162),
-      clientY: steeringCenterY,
+      clientX: joystickCenterX + joystickTravel * 0.54,
+      clientY: joystickCenterY,
       pointerId: 13,
       pointerType: "touch",
     });
-    await expect(steering).toHaveAttribute("aria-valuenow", "0.3");
-    await steering.dispatchEvent("lostpointercapture", {
+    await expect(joystick).toHaveAttribute("data-steer", "0.3");
+    await joystick.dispatchEvent("lostpointercapture", {
       pointerId: 13,
       pointerType: "touch",
     });
-    await expect(steering).toHaveAttribute("aria-valuenow", "0");
+    await expect(joystick).toHaveAttribute("data-steer", "0");
 
     await reset.click();
     await expect
@@ -3264,6 +3267,29 @@ test.describe("home screen", () => {
         return Math.hypot(state.x - start.x, state.z - start.z);
       })
       .toBeLessThan(0.1);
+
+    await joystick.dispatchEvent("pointerdown", {
+      buttons: 1,
+      clientX: joystickCenterX,
+      clientY: joystickCenterY + joystickTravel * 1.2,
+      pointerId: 14,
+      pointerType: "touch",
+    });
+    await expect(joystick).toHaveAttribute("data-throttle", "-1");
+    await expect
+      .poll(async () => {
+        const state = await getKartDebugState(canvas);
+        return (
+          state.linearVelocity.x * state.forward.x +
+          state.linearVelocity.y * state.forward.y +
+          state.linearVelocity.z * state.forward.z
+        );
+      })
+      .toBeLessThan(-0.5);
+    await joystick.dispatchEvent("pointercancel", {
+      pointerId: 14,
+      pointerType: "touch",
+    });
 
     await accelerate.focus();
     await page.keyboard.down("Space");
@@ -3274,11 +3300,35 @@ test.describe("home screen", () => {
     await page.keyboard.up("Space");
     await expect(accelerate).toHaveAttribute("aria-pressed", "false");
 
-    await steering.focus();
+    await joystick.focus();
     await page.keyboard.down("ArrowLeft");
-    await expect(steering).toHaveAttribute("aria-valuenow", "-1");
+    await expect(joystick).toHaveAttribute("data-steer", "-1");
     await page.keyboard.up("ArrowLeft");
-    await expect(steering).toHaveAttribute("aria-valuenow", "0");
+    await expect(joystick).toHaveAttribute("data-steer", "0");
+
+    await page.keyboard.down("ArrowUp");
+    await expect(joystick).toHaveAttribute("data-throttle", "1");
+    await page.keyboard.up("ArrowUp");
+    await expect(joystick).toHaveAttribute("data-throttle", "0");
+
+    await page.setViewportSize({ height: 450, width: 900 });
+    const landscapeJoystickBounds = await joystick.boundingBox();
+    const landscapeAccelerateBounds = await accelerate.boundingBox();
+    const landscapeBrakeBounds = await brake.boundingBox();
+    expect(landscapeJoystickBounds?.width ?? 0).toBeGreaterThanOrEqual(100);
+    expect(
+      (landscapeJoystickBounds?.y ?? 0) +
+        (landscapeJoystickBounds?.height ?? 0),
+    ).toBeLessThanOrEqual(450);
+    expect(
+      (landscapeJoystickBounds?.x ?? 0) +
+        (landscapeJoystickBounds?.width ?? 0),
+    ).toBeLessThan(
+      Math.min(
+        landscapeAccelerateBounds?.x ?? 900,
+        landscapeBrakeBounds?.x ?? 900,
+      ),
+    );
   });
 
   test("drives and pauses with a standard-mapped controller snapshot", async ({
