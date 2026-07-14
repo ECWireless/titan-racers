@@ -56,10 +56,14 @@ export type KartDebugState = {
   airbornePitchTorque: number;
   angularSpeed: number;
   chassisClearance: number;
+  driftSmokeLevels: Record<string, number>;
+  driftSmokeWheelNames: string[];
   forward: Position3;
   isOverGround: boolean;
   linearVelocity: Position3;
   maximumLateralSpeed: number;
+  maximumSlipAngle: number;
+  maximumSteerAngle: number;
   maximumTireForceUtilization: number;
   maxForwardSpeed: number;
   rotationX: number;
@@ -75,6 +79,7 @@ export type KartDebugState = {
   verticalVelocity: number;
   wheelHubYs: Record<string, number>;
   wheelLoads: Record<string, number>;
+  wheelSlipAngles: Record<string, number>;
   wheelSweepFractions: Record<string, number | null>;
   x: number;
   y: number;
@@ -143,6 +148,7 @@ export type SceneTestApi = {
   setSimulationPaused: (paused: boolean) => void;
   setStartPosition: (position: Pick<Position3, "x" | "z">) => void;
   stepSimulation: (steps: number) => void;
+  stepSimulationWithKartSamples: (steps: number) => KartDebugState[];
 };
 
 export function attachSceneTestAdapter(
@@ -268,6 +274,19 @@ export function attachSceneTestAdapter(
       "stepSimulation",
       ((event: CustomEvent<{ steps: number }>) => {
         api.stepSimulation(event.detail.steps);
+      }) as EventListener,
+    ],
+    [
+      "stepSimulationWithKartSamples",
+      ((
+        event: CustomEvent<{
+          respond: (states: KartDebugState[]) => void;
+          steps: number;
+        }>,
+      ) => {
+        event.detail.respond(
+          api.stepSimulationWithKartSamples(event.detail.steps),
+        );
       }) as EventListener,
     ],
     [

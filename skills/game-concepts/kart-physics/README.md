@@ -127,6 +127,52 @@ delays an overly sharp turn, while reducing only the angle can still create an
 abrupt initial weight transfer. Validate both the settled turning radius and
 the onset of steering at representative low, medium, and high speeds.
 
+Drift is an ordinary tire state, never a toggled handling mode. Derive a
+continuous slip angle from each supported wheel's longitudinal and lateral
+contact velocity. Tire response should rise toward peak grip, then fall
+progressively toward a lower sliding-friction plateau as slip grows. The same
+curve applies whether slip began through speed, steering, service braking,
+rear-wheel handbraking, acceleration, weight transfer, a surface transition,
+or an impact.
+
+Service braking and a rear-biased handbrake must consume the same combined
+longitudinal/lateral tire-force budget as every other wheel force. A handbrake
+input may request rear-wheel braking, but it must not set a drift flag, apply a
+yaw impulse, overwrite angular velocity, or directly switch grip coefficients.
+Low-speed handbraking should primarily slow the kart; useful rotation requires
+speed, lateral demand, and the resulting physical imbalance. Counter-steering,
+throttle modulation, reduced slip, and recovered wheel load must allow grip to
+return progressively.
+
+A simplified controller without wheel angular velocity may use hard braking
+demand as a bounded proxy for longitudinal slip, but only after meaningful
+lateral slip has already developed. Progressively lower the combined-force
+envelope toward kinetic sliding friction as both brake demand and slip grow.
+Straight-line braking and light trail braking must retain the ordinary tire
+curve, and releasing the brake or recovering slip must restore grip smoothly.
+This is continuous combined-slip behavior, not a drift state or a source of
+artificial momentum.
+
+If hard-braking slides retain too much yaw, first shape the existing tire forces
+instead of adding a feedback torque that can fight the contact model. A
+simplified controller may reduce braking force as combined slip develops and
+continuously shorten the horizontal application lever and stiffness of the
+existing lateral force under hard braking. Because zero lateral contact speed
+still produces zero lateral force, braking demand alone cannot create a drift.
+Keep the vertical contact offset so lateral load still creates chassis roll and
+suspension response. This passive balance must remain continuous, preserve the
+ordinary force application when braking is light, and never lock heading,
+inject lateral momentum, or overwrite angular velocity.
+
+Chassis lean during sharp turns and drift must come from the rigid body's mass
+properties, tire-force application points, and independently loaded suspension.
+Tune center-of-mass height, roll inertia, spring rate, and damping together so
+outside suspension compresses, inside suspension extends, and the body rolls
+toward the outside of the turn. Do not rotate a presentation child, apply a
+canned roll torque, or add artificial downward force to imitate load transfer.
+The accepted response must settle after grip recovery and retain stable rest,
+ledge, ramp, landing, and collision behavior.
+
 Exact steering geometry is secondary to coherent contact directions and
 visible wheel angles. Add Ackermann-style inner/outer angle differences only
 if they materially improve the result.

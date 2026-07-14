@@ -20,6 +20,8 @@ const HANDLED_KEYS = new Set([
   "KeyS",
   "KeyD",
   "KeyR",
+  "ShiftLeft",
+  "ShiftRight",
 ]);
 
 const DRIVING_KEYS = new Set([
@@ -31,6 +33,8 @@ const DRIVING_KEYS = new Set([
   "KeyA",
   "KeyS",
   "KeyD",
+  "ShiftLeft",
+  "ShiftRight",
 ]);
 
 export class KeyboardInput implements PlayerInputSource {
@@ -64,6 +68,7 @@ export class KeyboardInput implements PlayerInputSource {
     return {
       accelerate: Number(this.hasAny("ArrowUp", "KeyW")),
       brakeReverse: Number(this.hasAny("ArrowDown", "KeyS")),
+      handbrake: Number(this.hasAny("ShiftLeft", "ShiftRight")),
       steer:
         Number(this.hasAny("ArrowRight", "KeyD")) -
         Number(this.hasAny("ArrowLeft", "KeyA")),

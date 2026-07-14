@@ -27,6 +27,10 @@ mastery remain separate systems and PR-sized units.
   suspension forces, grounded tire forces, steering, braking, reverse, rolling
   resistance, speed response, bounded zero-support pitch-stability torque, and
   physics telemetry.
+- `src/game/kart/kart-tire-model.ts` owns continuous slip angle, peak-to-sliding
+  grip, and hard-braking combined-slip force shaping.
+- `src/game/kart/kart-drift-smoke.ts` owns rear-wheel smoke driven only by that
+  rear wheel's supported speed and measured slip, with start/stop hysteresis.
 - `src/game/kart/kart-steering.ts` owns the engine-independent speed-sensitive
   maximum steering-angle curve.
 - `src/components/solo-time-trial-canvas.tsx` constructs the compound chassis,
@@ -51,8 +55,11 @@ mastery remain separate systems and PR-sized units.
    maximum droop. Collision groups restrict support to drivable surfaces.
 4. A supported wheel calculates compression, damper velocity, non-negative
    normal load, contact-point velocity, longitudinal force, and lateral force.
-   Combined tire force is limited by load and grip before being applied at the
-   contact offset.
+   Combined tire force is limited by load and grip. Longitudinal force remains
+   at the contact offset; under hard braking, the horizontal lever and stiffness
+   of existing lateral force reduce continuously while its vertical offset
+   remains physical. With no lateral contact speed there is no lateral force to
+   shape, so braking demand cannot create a drift or inject sideways momentum.
 5. When all four wheels are unsupported, the controller derives signed pitch
    and local pitch rate, then applies a clamped critically damped torque toward
    a six-degree nose-up target. The policy changes neither linear velocity nor
@@ -70,7 +77,7 @@ mastery remain separate systems and PR-sized units.
 - A frame stall cannot trigger an unbounded catch-up spiral.
 - The kart is one dynamic six-degree-of-freedom compound rigid body with an
   explicit 120 kg mass, deliberate local inertia tensor, and combined center of
-  mass about 20 cm rearward and 4.6 cm lower than the chassis visual origin.
+  mass about 20 cm rearward and 0.5 cm lower than the chassis visual origin.
 - No ordinary driving path writes the authoritative dynamic transform.
 - Each wheel independently gains and loses support; an unsupported wheel
   contributes no suspension or tire force.
@@ -83,6 +90,8 @@ mastery remain separate systems and PR-sized units.
 - Suspension force is non-negative and bounded. Tire force scales with normal
   load and shares a combined grip limit across longitudinal and lateral demand.
 - Braking stops forward motion before reverse drive engages.
+- Shift or standard gamepad west-face input requests rear-wheel handbraking;
+  drift remains a continuous tire-slip result rather than an input mode.
 - Steering authority falls progressively from 18 degrees at rest to 6 degrees
   at the configured forward-speed limit, while the default steering response
   approaches that bounded target at 80 degrees per second. Reverse steering

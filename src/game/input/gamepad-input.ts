@@ -10,6 +10,7 @@ export type GamepadProvider = () => ArrayLike<Gamepad | null>;
 
 const ACTIVITY_CHANGE_THRESHOLD = 0.08;
 const BUTTON_RESET = 0;
+const BUTTON_HANDBRAKE = 2;
 const BUTTON_BRAKE_REVERSE = 6;
 const BUTTON_ACCELERATE = 7;
 const BUTTON_PAUSE = 9;
@@ -31,6 +32,7 @@ function hasIntentionalInput(gamepad: Gamepad, deadZone: number) {
     applyAxialDeadZone(gamepad.axes[AXIS_STEER] ?? 0, deadZone) !== 0 ||
     buttonValue(gamepad, BUTTON_ACCELERATE) > 0 ||
     buttonValue(gamepad, BUTTON_BRAKE_REVERSE) > 0 ||
+    buttonValue(gamepad, BUTTON_HANDBRAKE) > 0 ||
     buttonPressed(gamepad, BUTTON_DPAD_LEFT) ||
     buttonPressed(gamepad, BUTTON_DPAD_RIGHT) ||
     buttonPressed(gamepad, BUTTON_RESET) ||
@@ -43,6 +45,7 @@ export class GamepadInput implements PlayerInputSource {
   private activityBaseline: ContinuousPlayerInput = {
     accelerate: 0,
     brakeReverse: 0,
+    handbrake: 0,
     steer: 0,
   };
   private lastPausePressed = false;
@@ -57,7 +60,12 @@ export class GamepadInput implements PlayerInputSource {
 
   clear() {
     this.activeIndex = null;
-    this.activityBaseline = { accelerate: 0, brakeReverse: 0, steer: 0 };
+    this.activityBaseline = {
+      accelerate: 0,
+      brakeReverse: 0,
+      handbrake: 0,
+      steer: 0,
+    };
     this.lastPausePressed = false;
     this.lastResetPressed = false;
     this.requiresNeutral = true;
@@ -103,7 +111,12 @@ export class GamepadInput implements PlayerInputSource {
 
     if (!gamepad) {
       this.activeIndex = null;
-      this.activityBaseline = { accelerate: 0, brakeReverse: 0, steer: 0 };
+      this.activityBaseline = {
+        accelerate: 0,
+        brakeReverse: 0,
+        handbrake: 0,
+        steer: 0,
+      };
       this.lastPausePressed = false;
       this.lastResetPressed = false;
       return this.neutralSnapshot();
@@ -119,6 +132,7 @@ export class GamepadInput implements PlayerInputSource {
     const continuous = {
       accelerate: buttonValue(gamepad, BUTTON_ACCELERATE),
       brakeReverse: buttonValue(gamepad, BUTTON_BRAKE_REVERSE),
+      handbrake: buttonValue(gamepad, BUTTON_HANDBRAKE),
       steer: digitalSteer || analogSteer,
     };
     const meaningfulActivation =
@@ -126,6 +140,8 @@ export class GamepadInput implements PlayerInputSource {
         this.activityBaseline.accelerate + ACTIVITY_CHANGE_THRESHOLD ||
       continuous.brakeReverse >=
         this.activityBaseline.brakeReverse + ACTIVITY_CHANGE_THRESHOLD ||
+      continuous.handbrake >=
+        this.activityBaseline.handbrake + ACTIVITY_CHANGE_THRESHOLD ||
       Math.abs(continuous.steer) >=
         Math.abs(this.activityBaseline.steer) + ACTIVITY_CHANGE_THRESHOLD ||
       (Math.sign(continuous.steer) !== Math.sign(this.activityBaseline.steer) &&
@@ -133,6 +149,7 @@ export class GamepadInput implements PlayerInputSource {
     const hasDrivingIntent =
       continuous.accelerate > 0 ||
       continuous.brakeReverse > 0 ||
+      continuous.handbrake > 0 ||
       continuous.steer !== 0;
 
     if (hasDrivingIntent && meaningfulActivation) {
@@ -140,7 +157,12 @@ export class GamepadInput implements PlayerInputSource {
       this.activityBaseline = continuous;
       this.onDrivingActivity();
     } else if (!hasDrivingIntent) {
-      this.activityBaseline = { accelerate: 0, brakeReverse: 0, steer: 0 };
+      this.activityBaseline = {
+        accelerate: 0,
+        brakeReverse: 0,
+        handbrake: 0,
+        steer: 0,
+      };
     }
 
     const pausePressed = buttonPressed(gamepad, BUTTON_PAUSE);
@@ -160,6 +182,7 @@ export class GamepadInput implements PlayerInputSource {
     return {
       accelerate: 0,
       brakeReverse: 0,
+      handbrake: 0,
       pauseRequested: false,
       resetRequested: false,
       steer: 0,

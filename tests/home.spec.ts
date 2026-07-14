@@ -1,7 +1,10 @@
 import { expect, type Locator, type Page, test } from "@playwright/test";
 
 import { ROUGH_COURSE_DOCUMENT } from "../src/game/course/course-document";
-import type { RaceDebugState } from "../src/game/testing/scene-test-adapter";
+import type {
+  KartDebugState,
+  RaceDebugState,
+} from "../src/game/testing/scene-test-adapter";
 
 import {
   PHYSICS_GROUP,
@@ -180,40 +183,7 @@ async function getKartDebugState(canvas: Locator) {
 
   return canvas.evaluate(
     (element) =>
-      new Promise<{
-        airbornePitchActive: boolean;
-        airbornePitchAngle: number;
-        airbornePitchRate: number;
-        airbornePitchTarget: number;
-        airbornePitchTorque: number;
-        angularSpeed: number;
-        angularVelocity: { x: number; y: number; z: number };
-        chassisClearance: number;
-        forward: { x: number; y: number; z: number };
-        isOverGround: boolean;
-        linearVelocity: { x: number; y: number; z: number };
-        maximumLateralSpeed: number;
-        maximumSteerAngle: number;
-        maximumTireForceUtilization: number;
-        maxForwardSpeed: number;
-        rotationX: number;
-        rotationY: number;
-        rotationZ: number;
-        speed: number;
-        steerAngle: number;
-        supportCount: number;
-        supportEntityNames: string[];
-        supportedWheelNames: string[];
-        saturatedTireCount: number;
-        up: { x: number; y: number; z: number };
-        verticalVelocity: number;
-        wheelHubYs: Record<string, number>;
-        wheelLoads: Record<string, number>;
-        wheelSweepFractions: Record<string, number | null>;
-        x: number;
-        y: number;
-        z: number;
-      }>((resolve) => {
+      new Promise<KartDebugState>((resolve) => {
         element.dispatchEvent(
           new CustomEvent("getKartDebugState", {
             detail: {
@@ -409,6 +379,20 @@ async function stepSimulation(canvas: Locator, steps = 1) {
       }),
     );
   }, steps);
+}
+
+async function stepSimulationWithKartSamples(canvas: Locator, steps: number) {
+  return canvas.evaluate(
+    (element, requestedSteps) =>
+      new Promise<KartDebugState[]>((resolve) => {
+        element.dispatchEvent(
+          new CustomEvent("stepSimulationWithKartSamples", {
+            detail: { respond: resolve, steps: requestedSteps },
+          }),
+        );
+      }),
+    steps,
+  );
 }
 
 async function advanceRaceToRacing(canvas: Locator) {
@@ -791,9 +775,8 @@ test.describe("home screen", () => {
     const initialRace = await getRaceDebugState(canvas);
     await stepSimulation(
       canvas,
-      Math.ceil(
-        initialRace.countdownRemainingMicroseconds / (1_000_000 / 60),
-      ) + 1,
+      Math.ceil(initialRace.countdownRemainingMicroseconds / (1_000_000 / 60)) +
+        1,
     );
     await expect
       .poll(async () => (await getRaceDebugState(canvas)).state)
@@ -1051,7 +1034,9 @@ test.describe("home screen", () => {
     await expect(raceStatus).toContainText("Lap01/02");
     await expect(raceStatus).toContainText("Race time0:00.0");
     await expect(raceStatus).not.toContainText("Gates");
-    await expect(page.locator(".race-lifecycle-cue span")).toHaveText(/^[123]$/);
+    await expect(page.locator(".race-lifecycle-cue span")).toHaveText(
+      /^[123]$/,
+    );
 
     const [clusterBox, resetBox, pauseBox] = await Promise.all([
       cluster.boundingBox(),
@@ -1064,9 +1049,9 @@ test.describe("home screen", () => {
     expect((resetBox?.x ?? 0) + (resetBox?.width ?? 0)).toBeLessThanOrEqual(
       clusterBox?.x ?? 0,
     );
-    expect(
-      (clusterBox?.x ?? 0) + (clusterBox?.width ?? 0),
-    ).toBeLessThanOrEqual(pauseBox?.x ?? 0);
+    expect((clusterBox?.x ?? 0) + (clusterBox?.width ?? 0)).toBeLessThanOrEqual(
+      pauseBox?.x ?? 0,
+    );
   });
 
   test("recovers at the latest supported checkpoint and pauses stabilization", async ({
@@ -1595,6 +1580,208 @@ test.describe("home screen", () => {
     expect(recoveredState.saturatedTireCount).toBe(0);
   });
 
+  test("derives natural, service-brake, and handbrake drift from tire slip", async ({
+    page,
+  }) => {
+    await page.goto("/");
+    await page.getByRole("button", { name: "Solo Time Trial" }).click();
+
+    const canvas = page.getByTestId("solo-time-trial-canvas");
+    await advanceRaceToRacing(canvas);
+    await setSimulationPaused(canvas, true);
+    const baseline = await getKartDebugState(canvas);
+    const baselineRightY =
+      baseline.forward.z * baseline.up.x - baseline.forward.x * baseline.up.z;
+    const baselineRollDegrees =
+      Math.asin(Math.min(Math.max(baselineRightY, -1), 1)) * (180 / Math.PI);
+
+    async function runScenario(keys: string[]) {
+      await setKartDebugPose(canvas, {
+        linearVelocity: {
+          x: baseline.forward.x * 14,
+          y: 0,
+          z: baseline.forward.z * 14,
+        },
+        position: { x: 0, y: 0.43, z: -12 },
+        rotation: {
+          x: baseline.rotationX,
+          y: baseline.rotationY,
+          z: baseline.rotationZ,
+        },
+      });
+      await canvas.click();
+      for (const key of keys) {
+        await page.keyboard.down(key);
+      }
+
+      let maximumFrontSlip = 0;
+      let maximumChassisLateralSpeed = 0;
+      let maximumLateralLoadDifference = 0;
+      let maximumRearSlip = 0;
+      let maximumRollChange = 0;
+      let maximumSmokeLevel = 0;
+      let maximumSlip = 0;
+      let maximumSuspensionDifference = 0;
+      let maximumYawChange = 0;
+      let maximumYawStepChange = 0;
+      let previousYaw = baseline.rotationY;
+      let retainedPlanarSpeed = 0;
+      let smokeLevelTotal = 0;
+      const smokeWheelNames = new Set<string>();
+      try {
+        const states = await stepSimulationWithKartSamples(canvas, 24);
+        for (const state of states) {
+          retainedPlanarSpeed = Math.hypot(
+            state.linearVelocity.x,
+            state.linearVelocity.z,
+          );
+          const currentRight = {
+            x: state.forward.y * state.up.z - state.forward.z * state.up.y,
+            y: state.forward.z * state.up.x - state.forward.x * state.up.z,
+            z: state.forward.x * state.up.y - state.forward.y * state.up.x,
+          };
+          maximumChassisLateralSpeed = Math.max(
+            maximumChassisLateralSpeed,
+            Math.abs(
+              state.linearVelocity.x * currentRight.x +
+                state.linearVelocity.y * currentRight.y +
+                state.linearVelocity.z * currentRight.z,
+            ),
+          );
+          state.driftSmokeWheelNames.forEach((wheelName) =>
+            smokeWheelNames.add(wheelName),
+          );
+          maximumSmokeLevel = Math.max(
+            maximumSmokeLevel,
+            ...Object.values(state.driftSmokeLevels),
+          );
+          smokeLevelTotal += Object.values(state.driftSmokeLevels).reduce(
+            (total, level) => total + level,
+            0,
+          );
+          maximumSlip = Math.max(maximumSlip, state.maximumSlipAngle);
+          maximumFrontSlip = Math.max(
+            maximumFrontSlip,
+            state.wheelSlipAngles["front-left"] ?? 0,
+            state.wheelSlipAngles["front-right"] ?? 0,
+          );
+          maximumRearSlip = Math.max(
+            maximumRearSlip,
+            state.wheelSlipAngles["rear-left"] ?? 0,
+            state.wheelSlipAngles["rear-right"] ?? 0,
+          );
+          const leftLoad =
+            (state.wheelLoads["front-left"] ?? 0) +
+            (state.wheelLoads["rear-left"] ?? 0);
+          const rightLoad =
+            (state.wheelLoads["front-right"] ?? 0) +
+            (state.wheelLoads["rear-right"] ?? 0);
+          maximumLateralLoadDifference = Math.max(
+            maximumLateralLoadDifference,
+            Math.abs(leftLoad - rightLoad),
+          );
+          const leftHubY =
+            ((state.wheelHubYs["front-left"] ?? 0) +
+              (state.wheelHubYs["rear-left"] ?? 0)) /
+            2;
+          const rightHubY =
+            ((state.wheelHubYs["front-right"] ?? 0) +
+              (state.wheelHubYs["rear-right"] ?? 0)) /
+            2;
+          maximumSuspensionDifference = Math.max(
+            maximumSuspensionDifference,
+            Math.abs(leftHubY - rightHubY),
+          );
+          const rollDegrees =
+            Math.asin(Math.min(Math.max(currentRight.y, -1), 1)) *
+            (180 / Math.PI);
+          const rollChange = Math.abs(rollDegrees - baselineRollDegrees);
+          maximumRollChange = Math.max(maximumRollChange, rollChange);
+          const yawChange = Math.abs(
+            ((((state.rotationY - baseline.rotationY + 180) % 360) + 360) %
+              360) -
+              180,
+          );
+          maximumYawChange = Math.max(maximumYawChange, yawChange);
+          const yawStepChange = Math.abs(
+            ((((state.rotationY - previousYaw + 180) % 360) + 360) % 360) - 180,
+          );
+          maximumYawStepChange = Math.max(maximumYawStepChange, yawStepChange);
+          previousYaw = state.rotationY;
+        }
+      } finally {
+        for (const key of [...keys].reverse()) {
+          await page.keyboard.up(key);
+        }
+      }
+
+      return {
+        maximumChassisLateralSpeed,
+        maximumFrontSlip,
+        maximumLateralLoadDifference,
+        maximumRearSlip,
+        maximumRollChange,
+        maximumSmokeLevel,
+        maximumSlip,
+        maximumSuspensionDifference,
+        maximumYawChange,
+        maximumYawStepChange,
+        retainedPlanarSpeed,
+        smokeLevelTotal,
+        smokeWheelNames: [...smokeWheelNames],
+      };
+    }
+
+    const natural = await runScenario(["ArrowUp", "ArrowLeft"]);
+    const serviceBrake = await runScenario([
+      "ArrowUp",
+      "ArrowDown",
+      "ArrowLeft",
+    ]);
+    const handbrake = await runScenario(["ArrowUp", "ArrowLeft", "Shift"]);
+    const evidence = JSON.stringify({ handbrake, natural, serviceBrake });
+
+    expect(natural.maximumSlip, evidence).toBeGreaterThan(0.14);
+    expect(serviceBrake.maximumSlip, evidence).toBeGreaterThan(0.14);
+    expect(handbrake.maximumSlip, evidence).toBeGreaterThan(0.085);
+    expect(serviceBrake.maximumChassisLateralSpeed, evidence).toBeGreaterThan(
+      1,
+    );
+    expect(handbrake.maximumChassisLateralSpeed, evidence).toBeGreaterThan(1);
+    expect(serviceBrake.retainedPlanarSpeed, evidence).toBeGreaterThan(8.5);
+    expect(handbrake.retainedPlanarSpeed, evidence).toBeGreaterThan(11);
+    expect(handbrake.maximumSmokeLevel, evidence).toBeGreaterThanOrEqual(1);
+    expect(serviceBrake.smokeLevelTotal, evidence).toBeGreaterThan(
+      natural.smokeLevelTotal,
+    );
+    expect(serviceBrake.maximumYawChange, evidence).toBeLessThan(
+      natural.maximumYawChange * 0.4,
+    );
+    expect(handbrake.maximumYawChange, evidence).toBeLessThan(
+      natural.maximumYawChange * 0.65,
+    );
+    expect(serviceBrake.maximumYawStepChange, evidence).toBeLessThan(2);
+    expect(handbrake.maximumYawStepChange, evidence).toBeLessThan(2);
+    expect(handbrake.maximumRollChange, evidence).toBeGreaterThan(1);
+    expect(handbrake.maximumRollChange, evidence).toBeLessThan(20);
+    expect(handbrake.maximumLateralLoadDifference, evidence).toBeGreaterThan(
+      80,
+    );
+    expect(handbrake.maximumSuspensionDifference, evidence).toBeGreaterThan(
+      0.015,
+    );
+    expect(handbrake.smokeWheelNames.length, evidence).toBeGreaterThan(0);
+    expect(
+      handbrake.smokeWheelNames.every((wheelName) =>
+        wheelName.startsWith("rear"),
+      ),
+      evidence,
+    ).toBe(true);
+
+    await resetKart(canvas);
+    expect((await getKartDebugState(canvas)).driftSmokeWheelNames).toEqual([]);
+  });
+
   test("applies movement tuning through the scene test adapter", async ({
     page,
   }) => {
@@ -1644,7 +1831,7 @@ test.describe("home screen", () => {
 
     expect({ x: resetState.x, y: resetState.y, z: resetState.z }).toEqual({
       x: 0.2,
-      y: 0.38,
+      y: 0.43,
       z: 0,
     });
     expect(Math.abs(resetState.rotationX)).toBeLessThan(0.05);
@@ -2533,7 +2720,9 @@ test.describe("home screen", () => {
     });
     test.skip(!contextLossSupported, "WEBGL_lose_context is unavailable.");
 
-    await expect(page.getByText("Restoring graphics", { exact: true })).toBeVisible();
+    await expect(
+      page.getByText("Restoring graphics", { exact: true }),
+    ).toBeVisible();
     await page.evaluate(() => {
       (
         window as typeof window & {
@@ -2558,7 +2747,12 @@ test.describe("home screen", () => {
           width: (element as HTMLCanvasElement).width,
         })),
       )
-      .toEqual({ clientHeight: 700, clientWidth: 900, height: 700, width: 900 });
+      .toEqual({
+        clientHeight: 700,
+        clientWidth: 900,
+        height: 700,
+        width: 900,
+      });
     expect((await getRaceDebugState(canvas)).state).toBe("paused");
 
     await pauseDialog.getByRole("button", { name: "Resume" }).click();

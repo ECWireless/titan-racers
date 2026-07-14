@@ -41,6 +41,7 @@ the resulting driving intent to kart gameplay.
   controls.
 - Bind `KeyboardEvent.code` values `KeyW`, `KeyA`, `KeyS`, `KeyD`, and the four
   arrow codes to established physical driving positions.
+- Bind `ShiftLeft` and `ShiftRight` to the continuous handbrake action.
 - Bind `KeyR` to reset and `Escape` to pause without accepting repeated keydown
   events as new action edges.
 - Call `preventDefault()` only for handled input while gameplay owns it.
@@ -90,14 +91,15 @@ Browsers may expose a controller only after the player interacts with it.
 
 For a gamepad whose `mapping` is `standard`, use the standard indices:
 
-| Action | Standard control | Index |
-| --- | --- | ---: |
-| Steer | Left-stick horizontal axis | axis 0 |
-| Digital steer | D-pad left/right | buttons 14/15 |
-| Brake/reverse | Left trigger | button 6 |
-| Accelerate | Right trigger | button 7 |
-| Reset | South face button | button 0 |
-| Pause | Center-right button | button 9 |
+| Action        | Standard control           |         Index |
+| ------------- | -------------------------- | ------------: |
+| Steer         | Left-stick horizontal axis |        axis 0 |
+| Digital steer | D-pad left/right           | buttons 14/15 |
+| Brake/reverse | Left trigger               |      button 6 |
+| Accelerate    | Right trigger              |      button 7 |
+| Handbrake     | West face button           |      button 2 |
+| Reset         | South face button          |      button 0 |
+| Pause         | Center-right button        |      button 9 |
 
 Use `GamepadButton.value` for analog triggers and fall back to `pressed` as
 `1` when needed. Clamp axes and button values before normalization. Apply a

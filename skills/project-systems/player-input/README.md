@@ -35,16 +35,17 @@ remain owned by the kart-physics system.
 - `src/game/input/player-input.ts` owns clamping, dead-zone rescaling, neutral
   values, the device/source types, and the explicit sign conversion into the
   accepted kart-controller steering convention.
-- `src/game/input/keyboard-input.ts` owns WASD/arrow driving state and one-shot R
-  reset and Escape pause edges.
+- `src/game/input/keyboard-input.ts` owns WASD/arrow driving state, either Shift
+  key as the held handbrake, and one-shot R reset and Escape pause edges.
 - `src/game/input/touch-input.ts` owns a continuous pointer-specific steering
   value with a rescaled `0.08` dead zone and touch-only `1.75` response exponent,
   independent pedal-pointer state, and reset request state.
 - `src/game/input/gamepad-input.ts` polls browser snapshots, accepts only the
   standard mapping, applies the `0.15` candidate steering dead zone, maps the
-  left stick/D-pad/triggers/south/center-right controls, detects reset/pause
-  edges, retains the first intentionally active controller until disconnect,
-  and requires a neutral release before input can re-arm after clearing.
+  left stick/D-pad/triggers/west/south/center-right controls, maps west-face
+  button 2 to handbrake, detects reset/pause edges, retains the first
+  intentionally active controller until disconnect, and requires a neutral
+  release before input can re-arm after clearing.
 - `src/game/input/gamepad-menu-input.ts` owns controller UI neutral arming,
   vertical-stick hysteresis, D-pad movement, delayed hold repeat, and
   confirm/back/menu edge detection independently of gameplay sampling.
@@ -136,6 +137,7 @@ PR 4A supports one active browser controller with `mapping === "standard"`:
 - buttons 14/15: digital steering fallback;
 - button 6: brake/reverse;
 - button 7: accelerate;
+- button 2: handbrake;
 - button 0: reset; and
 - button 9: pause.
 

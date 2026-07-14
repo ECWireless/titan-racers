@@ -83,11 +83,18 @@ test.describe("player input", () => {
       toDrivingInput({
         accelerate: 0.75,
         brakeReverse: 0.25,
+        handbrake: 0.6,
         pauseRequested: false,
         resetRequested: false,
         steer: -0.5,
       }),
-    ).toEqual({ brake: 0.25, reset: false, steer: 0.5, throttle: 0.5 });
+    ).toEqual({
+      brake: 0.25,
+      handbrake: 0.6,
+      reset: false,
+      steer: 0.5,
+      throttle: 0.5,
+    });
   });
 
   test("keyboard supports both binding families and consumes action edges once", () => {
@@ -101,6 +108,7 @@ test.describe("player input", () => {
 
     target.dispatch("keydown", "KeyW");
     target.dispatch("keydown", "ArrowLeft");
+    target.dispatch("keydown", "ShiftLeft");
     target.dispatch("keydown", "KeyR");
     target.dispatch("keydown", "KeyR", true);
     target.dispatch("keydown", "Escape");
@@ -108,18 +116,20 @@ test.describe("player input", () => {
     expect(keyboard.sample()).toEqual({
       accelerate: 1,
       brakeReverse: 0,
+      handbrake: 1,
       pauseRequested: true,
       resetRequested: true,
       steer: -1,
     });
     expect(keyboard.sample().resetRequested).toBe(false);
     expect(keyboard.sample().pauseRequested).toBe(false);
-    expect(activityCount).toBe(2);
+    expect(activityCount).toBe(3);
 
     keyboard.clear();
     expect(keyboard.getContinuousInput()).toEqual({
       accelerate: 0,
       brakeReverse: 0,
+      handbrake: 0,
       steer: 0,
     });
     keyboard.detach();
@@ -134,6 +144,7 @@ test.describe("player input", () => {
     expect(touch.getContinuousInput()).toMatchObject({
       accelerate: 1,
       brakeReverse: 0,
+      handbrake: 0,
     });
     expect(touch.getContinuousInput().steer).toBeCloseTo(-(0.5 ** 1.75), 6);
 
@@ -141,6 +152,7 @@ test.describe("player input", () => {
     expect(touch.getContinuousInput()).toEqual({
       accelerate: 1,
       brakeReverse: 0,
+      handbrake: 0,
       steer: 0,
     });
     expect(activityCount).toBe(2);
@@ -149,6 +161,7 @@ test.describe("player input", () => {
     expect(touch.getContinuousInput()).toEqual({
       accelerate: 0,
       brakeReverse: 0,
+      handbrake: 0,
       steer: 0,
     });
   });
@@ -187,11 +200,12 @@ test.describe("player input", () => {
     expect(input.sample().accelerate).toBe(0);
   });
 
-  test("maps the brake trigger and digital D-pad steering fallback", () => {
+  test("maps brake, handbrake, and digital D-pad steering fallback", () => {
     let current = standardGamepad({
       axes: [0.575, 0, 0, 0],
       buttons: {
         6: gamepadButton(0.4),
+        2: gamepadButton(0.7),
         14: gamepadButton(1),
       },
     });
@@ -199,6 +213,7 @@ test.describe("player input", () => {
 
     expect(input.sample()).toMatchObject({
       brakeReverse: 0.4,
+      handbrake: 0.7,
       steer: -1,
     });
 
@@ -304,6 +319,7 @@ test.describe("player input", () => {
     expect(input.sample()).toEqual({
       accelerate: 0,
       brakeReverse: 0,
+      handbrake: 0,
       pauseRequested: false,
       resetRequested: false,
       steer: 0,

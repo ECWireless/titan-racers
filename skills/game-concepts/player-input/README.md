@@ -54,6 +54,7 @@ Expose continuous action state separately from one-shot requests:
 - `steer`: `-1` full left through `0` neutral to `1` full right;
 - `accelerate`: `0` released through `1` fully engaged;
 - `brakeReverse`: `0` released through `1` fully engaged;
+- `handbrake`: `0` released through `1` fully engaged;
 - `resetRequested`: one edge for each deliberate reset activation; and
 - `pauseRequested`: one edge for each deliberate pause activation.
 
@@ -94,6 +95,7 @@ concurrently.
 ### Keyboard
 
 - Support both WASD and arrow-key driving bindings.
+- Bind either physical Shift key to handbrake while driving input is owned.
 - Use physical-key codes for the established layout-independent driving
   positions.
 - Prevent the page's default arrow behavior only while the race surface owns
@@ -119,6 +121,8 @@ concurrently.
 - Use separate hold controls for accelerate and brake/reverse. Track each active
   pointer by ID so analog steering and a pedal can be held at the same time and
   one pointer release cannot cancel another control.
+- This slice exposes no separate touch handbrake; the continuous brake/reverse
+  control can still produce tire slip through the shared physics model.
 - Treat pointer up, pointer cancel, lost capture, pause, and teardown as release.
 - Apply direct-manipulation suppression only to the control regions that need
   it; do not disable ordinary browser gestures across unrelated UI.
@@ -137,9 +141,9 @@ concurrently.
 - Poll the current controller snapshot at the gameplay sampling boundary;
   connection events alone are not current input state.
 - Use left-stick horizontal for analog steering, standard left/right triggers
-  for brake/reverse and accelerate, directional-pad left/right as digital
-  steering alternatives, the south face button for reset, and the center-right
-  button for pause.
+  for brake/reverse and accelerate, the west face button for handbrake,
+  directional-pad left/right as digital steering alternatives, the south face
+  button for reset, and the center-right button for pause.
 - Apply a configurable steering dead zone and rescale the remaining magnitude
   back across the usable range. A candidate starting threshold is `0.15`, to be
   tuned through representative hardware rather than treated as universal.

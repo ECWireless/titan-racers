@@ -67,6 +67,7 @@ export class TouchInput implements PlayerInputSource {
     return {
       accelerate: Number(actions.has("accelerate")),
       brakeReverse: Number(actions.has("brakeReverse")),
+      handbrake: 0,
       steer: this.steeringPointer?.value ?? 0,
     };
   }

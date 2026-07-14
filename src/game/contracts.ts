@@ -10,6 +10,7 @@ export type Position3 = {
 
 export type DrivingInput = {
   brake: number;
+  handbrake: number;
   reset: boolean;
   steer: number;
   throttle: number;
@@ -18,6 +19,7 @@ export type DrivingInput = {
 export type PlayerInputActions = {
   accelerate: number;
   brakeReverse: number;
+  handbrake: number;
   pauseRequested: boolean;
   resetRequested: boolean;
   steer: number;

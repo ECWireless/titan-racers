@@ -41,6 +41,7 @@ import {
   DynamicKartController,
   type DynamicWheel,
 } from "@/game/kart/dynamic-kart-controller";
+import { KartDriftSmoke } from "@/game/kart/kart-drift-smoke";
 import {
   KART_SUSPENSION_MAX_COMPRESSION_Y,
   KART_SUSPENSION_REST_TRAVEL,
@@ -81,7 +82,7 @@ const KART_ROOT_HEIGHT = 0.43;
 const KART_MASS = 120;
 const KART_BODY_MASS = 70;
 const KART_COCKPIT_MASS = KART_MASS - KART_BODY_MASS;
-const KART_BODY_MASS_CENTER = { x: 0, y: -0.25, z: 0 } as const;
+const KART_BODY_MASS_CENTER = { x: 0, y: -0.18, z: 0 } as const;
 const KART_COCKPIT_POSITION = { x: 0, y: 0.24, z: 0.48 } as const;
 const KART_CENTER_OF_MASS_OFFSET = {
   x:
@@ -119,6 +120,7 @@ const KART_CCD_CONFIGURATION = {
 } as const;
 const NEUTRAL_DRIVING_INPUT: DrivingInput = {
   brake: 0,
+  handbrake: 0,
   reset: false,
   steer: 0,
   throttle: 0,
@@ -459,10 +461,7 @@ export function SoloTimeTrialCanvas({
       );
 
       if (
-        racePresentationSnapshotsEqual(
-          lastRacePresentation,
-          nextPresentation,
-        )
+        racePresentationSnapshotsEqual(lastRacePresentation, nextPresentation)
       ) {
         return;
       }
@@ -475,14 +474,22 @@ export function SoloTimeTrialCanvas({
     const cockpitMaterial = createMaterial(new pc.Color(0.05, 0.08, 0.11));
     const wheelMaterial = createMaterial(new pc.Color(0.02, 0.025, 0.03));
     const wheelHubMaterial = createMaterial(new pc.Color(0.8, 0.82, 0.78));
-    const suspensionArmMaterial = createMaterial(new pc.Color(0.48, 0.54, 0.57));
-    const suspensionShockMaterial = createMaterial(new pc.Color(1, 0.67, 0.12));
+    const suspensionArmMaterial = createMaterial(
+      new pc.Color(0.48, 0.54, 0.57),
+    );
+    const suspensionShockMaterial = createMaterial(
+      new pc.Color(1, 0.67, 0.12),
+    );
     const asphaltMaterial = createMaterial(new pc.Color(0.08, 0.08, 0.09));
     const lineMaterial = createMaterial(new pc.Color(0.95, 0.92, 0.86));
     const markerMaterial = createMaterial(new pc.Color(1, 0.85, 0.15));
     const groundMaterial = createMaterial(new pc.Color(0.08, 0.36, 0.26));
-    const obstacleBlockMaterial = createMaterial(new pc.Color(0.82, 0.78, 0.68));
-    const obstacleBarrelMaterial = createMaterial(new pc.Color(0.96, 0.45, 0.12));
+    const obstacleBlockMaterial = createMaterial(
+      new pc.Color(0.82, 0.78, 0.68),
+    );
+    const obstacleBarrelMaterial = createMaterial(
+      new pc.Color(0.96, 0.45, 0.12),
+    );
     const rampMaterial = createMaterial(new pc.Color(0.35, 0.39, 0.42));
 
     function createBox(
@@ -798,12 +805,14 @@ export function SoloTimeTrialCanvas({
     const initialHubY =
       KART_SUSPENSION_MAX_COMPRESSION_Y - KART_SUSPENSION_REST_TRAVEL;
 
-    ([
-      ["front-left", -0.78, -0.58],
-      ["front-right", 0.78, -0.58],
-      ["rear-left", -0.78, 0.62],
-      ["rear-right", 0.78, 0.62],
-    ] satisfies [string, number, number][]).forEach(([name, x, z]) => {
+    (
+      [
+        ["front-left", -0.78, -0.58],
+        ["front-right", 0.78, -0.58],
+        ["rear-left", -0.78, 0.62],
+        ["rear-right", 0.78, 0.62],
+      ] satisfies [string, number, number][]
+    ).forEach(([name, x, z]) => {
       const wheelPivot = new pc.Entity(`kart-wheel-pivot-${name}`);
       const visualLocalPosition = new pc.Vec3(x, initialHubY, z);
       const localPosition = offsetKartGeometry(visualLocalPosition.clone());
@@ -907,8 +916,12 @@ export function SoloTimeTrialCanvas({
     );
 
     function captureKartPresentationState() {
-      kartPresentation.previousPosition.copy(kartPresentation.currentPosition);
-      kartPresentation.previousRotation.copy(kartPresentation.currentRotation);
+      kartPresentation.previousPosition.copy(
+        kartPresentation.currentPosition,
+      );
+      kartPresentation.previousRotation.copy(
+        kartPresentation.currentRotation,
+      );
       kartPresentation.currentPosition.copy(kart.getPosition());
       kartPresentation.currentRotation.copy(kart.getRotation());
     }
@@ -916,8 +929,12 @@ export function SoloTimeTrialCanvas({
     function snapKartPresentationState() {
       kartPresentation.currentPosition.copy(kart.getPosition());
       kartPresentation.currentRotation.copy(kart.getRotation());
-      kartPresentation.previousPosition.copy(kartPresentation.currentPosition);
-      kartPresentation.previousRotation.copy(kartPresentation.currentRotation);
+      kartPresentation.previousPosition.copy(
+        kartPresentation.currentPosition,
+      );
+      kartPresentation.previousRotation.copy(
+        kartPresentation.currentRotation,
+      );
       kartVisual.setLocalPosition(kartGeometryOffset);
       kartVisual.setLocalRotation(pc.Quat.IDENTITY);
       wheelPresentations.forEach((wheel) => {
@@ -960,6 +977,7 @@ export function SoloTimeTrialCanvas({
     let activeMovementTuning: KartMovementTuning = {
       ...DEFAULT_KART_MOVEMENT_TUNING,
     };
+    let driftSmoke: KartDriftSmoke | null = null;
     let inputManager: PlayerInputManager | null = null;
 
     function editStaticRigidBody(
@@ -1037,6 +1055,7 @@ export function SoloTimeTrialCanvas({
         kart.rigidbody.activate();
       }
       kartController.reset();
+      driftSmoke?.stop();
       snapKartPresentationState();
       previousRacePosition.copy(kart.getPosition());
       latestCameraImpact = null;
@@ -1127,6 +1146,7 @@ export function SoloTimeTrialCanvas({
         kart.rigidbody.activate();
       }
       kartController.reset();
+      driftSmoke?.stop();
       resetSuspensionMetrics();
       resetCollisionMetrics();
       snapKartPresentationState();
@@ -1176,7 +1196,13 @@ export function SoloTimeTrialCanvas({
       wheels: dynamicWheels,
     });
     runtime.addCleanup(() => kartController.destroy());
-    const collisionObserver = new KartCollisionObserver(rigidBodySystem, kart);
+    driftSmoke = new KartDriftSmoke(dynamicWheels);
+    const activeDriftSmoke = driftSmoke;
+    runtime.addCleanup(() => activeDriftSmoke.destroy());
+    const collisionObserver = new KartCollisionObserver(
+      rigidBodySystem,
+      kart,
+    );
     runtime.addCleanup(() => collisionObserver.destroy());
     let cameraImpactId = 0;
     let latestCameraImpact: ChaseCameraImpact | null = null;
@@ -1300,7 +1326,10 @@ export function SoloTimeTrialCanvas({
 
     function captureWheelPresentationState() {
       const telemetryByName = new Map(
-        kartController.state.wheelTelemetry.map((wheel) => [wheel.name, wheel]),
+        kartController.state.wheelTelemetry.map((wheel) => [
+          wheel.name,
+          wheel,
+        ]),
       );
 
       wheelPresentations.forEach((wheel) => {
@@ -1378,6 +1407,9 @@ export function SoloTimeTrialCanvas({
       if (!changed) {
         return false;
       }
+      if (paused) {
+        driftSmoke?.stop();
+      }
       inputManager.setEnabled(false);
       previousRacePosition.copy(kart.getPosition());
       runtime.setPaused(paused);
@@ -1426,16 +1458,20 @@ export function SoloTimeTrialCanvas({
       setDriveCursorHidden(false);
     };
 
-    runtime.listen<WebGLContextEvent>(activeCanvas, "webglcontextlost", () => {
-      pauseForInterruption();
-      runtime.setRenderingSuspended(true);
-      setSceneStatus("context_lost");
-      setDriveCursorHidden(false);
-      contextRestoreTimeoutId = window.setTimeout(
-        () => failGraphicsRuntime("webgl_context_lost"),
-        sceneTestControl?.contextRestoreTimeoutMs ?? 10_000,
-      );
-    });
+    runtime.listen<WebGLContextEvent>(
+      activeCanvas,
+      "webglcontextlost",
+      () => {
+        pauseForInterruption();
+        runtime.setRenderingSuspended(true);
+        setSceneStatus("context_lost");
+        setDriveCursorHidden(false);
+        contextRestoreTimeoutId = window.setTimeout(
+          () => failGraphicsRuntime("webgl_context_lost"),
+          sceneTestControl?.contextRestoreTimeoutMs ?? 10_000,
+        );
+      },
+    );
     runtime.listen<WebGLContextEvent>(
       activeCanvas,
       "webglcontextrestored",
@@ -1530,7 +1566,9 @@ export function SoloTimeTrialCanvas({
         obstacleAInteractionRadius: obstacleA?.radius ?? null,
         obstacleAX: obstacleA ? toFixedStep(obstacleA.x) : null,
         obstacleBlocksKart: firstObstacle
-          ? collidesWithObstacle(new pc.Vec3(firstObstacle.x, 0, firstObstacle.z))
+          ? collidesWithObstacle(
+              new pc.Vec3(firstObstacle.x, 0, firstObstacle.z),
+            )
           : false,
         obstacleCount: collisionObstacles.length,
         rampCount: rampEntities.length,
@@ -1551,6 +1589,12 @@ export function SoloTimeTrialCanvas({
         0,
         ...kartController.state.wheelTelemetry.map((wheel) =>
           Math.abs(wheel.lateralSpeed),
+        ),
+      );
+      const maximumSlipAngle = Math.max(
+        0,
+        ...kartController.state.wheelTelemetry.map(
+          (wheel) => wheel.slipAngle,
         ),
       );
       const maximumTireForceUtilization = Math.max(
@@ -1581,6 +1625,7 @@ export function SoloTimeTrialCanvas({
           z: toFixedStep(angularVelocity.z),
         },
         chassisClearance: toFixedStep(kartVisual.getPosition().y - 0.26),
+        driftSmokeLevels: driftSmoke?.levelsByWheel ?? {},
         forward: {
           x: toFixedStep(kart.forward.x),
           y: toFixedStep(kart.forward.y),
@@ -1596,15 +1641,15 @@ export function SoloTimeTrialCanvas({
         maximumSteerAngle: toFixedStep(
           kartController.state.maximumSteerAngle,
         ),
-        maximumTireForceUtilization: toFixedStep(
-          maximumTireForceUtilization,
-        ),
+        maximumSlipAngle: toFixedStep(maximumSlipAngle),
+        maximumTireForceUtilization: toFixedStep(maximumTireForceUtilization),
         maxForwardSpeed: toFixedStep(activeMovementTuning.maxForwardSpeed),
         rotationX: toFixedStep(kartRotation.x),
         rotationY: toFixedStep(kartRotation.y),
         rotationZ: toFixedStep(kartRotation.z),
         speed: toFixedStep(kartController.state.speed),
         steerAngle: toFixedStep(kartController.state.steerAngle),
+        driftSmokeWheelNames: driftSmoke?.activeWheelNames ?? [],
         supportCount,
         supportEntityNames: [...kartController.state.supportEntityNames],
         supportedWheelNames: [...kartController.state.supportedWheelNames],
@@ -1621,6 +1666,12 @@ export function SoloTimeTrialCanvas({
           kartController.state.wheelTelemetry.map((wheel) => [
             wheel.name,
             toFixedStep(wheel.hubLocalY),
+          ]),
+        ),
+        wheelSlipAngles: Object.fromEntries(
+          kartController.state.wheelTelemetry.map((wheel) => [
+            wheel.name,
+            toFixedStep(wheel.slipAngle),
           ]),
         ),
         wheelLoads: Object.fromEntries(
@@ -1726,6 +1777,7 @@ export function SoloTimeTrialCanvas({
         ),
       );
       kartController.reset();
+      driftSmoke?.stop();
       resetSuspensionMetrics();
       resetCollisionMetrics();
       latestCameraImpact = null;
@@ -1758,9 +1810,7 @@ export function SoloTimeTrialCanvas({
       previousRacePosition.copy(kart.getPosition());
       chaseCamera.snap(
         getChaseCameraSnapshot(
-          pose.position.y > KART_ROOT_HEIGHT + 0.5
-            ? 0
-            : dynamicWheels.length,
+          pose.position.y > KART_ROOT_HEIGHT + 0.5 ? 0 : dynamicWheels.length,
         ),
       );
     };
@@ -1776,11 +1826,7 @@ export function SoloTimeTrialCanvas({
         previousPosition.z,
       );
       kart.rigidbody?.teleport(
-        new pc.Vec3(
-          currentPosition.x,
-          currentPosition.y,
-          currentPosition.z,
-        ),
+        new pc.Vec3(currentPosition.x, currentPosition.y, currentPosition.z),
         kart.getRotation(),
       );
       if (kart.rigidbody && !preserveMotion) {
@@ -1790,6 +1836,7 @@ export function SoloTimeTrialCanvas({
       }
       if (!preserveMotion) {
         kartController.reset();
+        driftSmoke?.stop();
       }
       snapKartPresentationState();
     };
@@ -1830,6 +1877,8 @@ export function SoloTimeTrialCanvas({
           setSimulationPaused: (paused) => runtime.setPaused(paused),
           setStartPosition: setSceneStartPosition,
           stepSimulation: (steps) => runtime.stepFixed(steps),
+          stepSimulationWithKartSamples: (steps) =>
+            runtime.stepFixed(steps, getKartDebugState),
         })
       : () => undefined;
     runtime.addCleanup(detachSceneTestAdapter);
@@ -1913,6 +1962,10 @@ export function SoloTimeTrialCanvas({
         }
       }
 
+      driftSmoke?.update(
+        raceSession.acceptsDriving ? kartController.state.wheelTelemetry : [],
+      );
+
       publishRacePresentation();
     });
 
@@ -1982,26 +2035,25 @@ export function SoloTimeTrialCanvas({
         suspensionMetrics.minimumChassisClearance,
         kartVisual.getPosition().y - 0.26,
       );
-
     });
 
-      raceSession.markReady();
-      raceSession.startCountdown();
-      publishRacePresentation();
-      runtime.start();
-      activeCanvas.dataset.sceneReady = "true";
-      setSceneFailureCode(null);
-      setSceneStatus("ready");
-      gameplayTelemetry.markRuntimeLoaded();
-      setDriveCursorHidden(true);
-      if (document.hidden || !document.hasFocus()) {
-        pauseForInterruption();
-        gameplayTelemetry.flushRuntimeHealth();
-      }
-      runtime.addCleanup(() => {
-        delete activeCanvas.dataset.sceneReady;
-      });
-    };
+    raceSession.markReady();
+    raceSession.startCountdown();
+    publishRacePresentation();
+    runtime.start();
+    activeCanvas.dataset.sceneReady = "true";
+    setSceneFailureCode(null);
+    setSceneStatus("ready");
+    gameplayTelemetry.markRuntimeLoaded();
+    setDriveCursorHidden(true);
+    if (document.hidden || !document.hasFocus()) {
+      pauseForInterruption();
+      gameplayTelemetry.flushRuntimeHealth();
+    }
+    runtime.addCleanup(() => {
+      delete activeCanvas.dataset.sceneReady;
+    });
+  };
 
     void initializeScene().catch((error: unknown) => {
       const failedRuntime = activeRuntime;
@@ -2019,14 +2071,10 @@ export function SoloTimeTrialCanvas({
         console.error("Unable to initialize the PlayCanvas scene", error);
         gameplayTelemetry.fail(
           "load_failed",
-          failedRuntime
-            ? "scene_initialization_failed"
-            : "physics_load_failed",
+          failedRuntime ? "scene_initialization_failed" : "physics_load_failed",
         );
         setSceneFailureCode(
-          failedRuntime
-            ? "scene_initialization_failed"
-            : "physics_load_failed",
+          failedRuntime ? "scene_initialization_failed" : "physics_load_failed",
         );
         setSceneStatus("failed");
       }
@@ -2316,7 +2364,9 @@ export function SoloTimeTrialCanvas({
                 <div className="race-status-lap">
                   <span>Lap</span>
                   <strong>
-                    <b>{String(racePresentation.currentLap).padStart(2, "0")}</b>
+                    <b>
+                      {String(racePresentation.currentLap).padStart(2, "0")}
+                    </b>
                     <i>/</i>
                     <small>
                       {String(racePresentation.lapCount).padStart(2, "0")}
@@ -2526,10 +2576,12 @@ export function SoloTimeTrialCanvas({
                   </span>
                 </div>
                 <div className="race-touch-pedals">
-                  {([
-                    ["brakeReverse", "Brake / Reverse"],
-                    ["accelerate", "Accelerate"],
-                  ] as const).map(([action, label]) => (
+                  {(
+                    [
+                      ["brakeReverse", "Brake / Reverse"],
+                      ["accelerate", "Accelerate"],
+                    ] as const
+                  ).map(([action, label]) => (
                     <button
                       key={action}
                       aria-label={label}
