@@ -449,12 +449,21 @@ function TuningFieldControl({
   tuning: KartTuning;
 }) {
   const [helpOpen, setHelpOpen] = useState(false);
+  const tuningValue = tuning[field.key];
+  const [draftValue, setDraftValue] = useState(() => String(tuningValue));
   const helpButtonRef = useRef<HTMLButtonElement>(null);
   const fieldRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
   const bounds = KART_TUNING_BOUNDS[field.key];
   const descriptionId = `kart-tuning-description-${field.key}`;
   const inputId = `kart-tuning-input-${field.key}`;
   const tooltipId = `kart-tuning-tooltip-${field.key}`;
+
+  useEffect(() => {
+    if (document.activeElement !== inputRef.current) {
+      setDraftValue(String(tuningValue));
+    }
+  }, [tuningValue]);
 
   useEffect(() => {
     if (!helpOpen) {
@@ -540,8 +549,11 @@ function TuningFieldControl({
         min={bounds.minimum}
         step={bounds.step}
         type="number"
-        value={tuning[field.key]}
+        ref={inputRef}
+        value={draftValue}
+        onBlur={() => setDraftValue(String(tuning[field.key]))}
         onChange={(event) => {
+          setDraftValue(event.currentTarget.value);
           if (Number.isFinite(event.currentTarget.valueAsNumber)) {
             onChange(field.key, event.currentTarget.valueAsNumber);
           }

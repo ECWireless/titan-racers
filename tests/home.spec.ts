@@ -2009,6 +2009,9 @@ test.describe("home screen", () => {
     const reverseSpeed = page.getByTestId("kart-tuning-maxReverseSpeed");
     const gravity = page.getByTestId("kart-tuning-gravity");
     const angularDamping = page.getByTestId("kart-tuning-angularDamping");
+    const pitchTarget = page.getByTestId(
+      "kart-tuning-airbornePitchTargetDegrees",
+    );
     const yawReduction = page.getByTestId(
       "kart-tuning-maximumBrakingYawLeverReduction",
     );
@@ -2020,8 +2023,15 @@ test.describe("home screen", () => {
     await page.keyboard.press("t");
     await expect(drawer).toBeVisible();
     await drawer.locator("summary").filter({ hasText: "Chassis body" }).click();
+    await drawer
+      .locator("summary")
+      .filter({ hasText: "Airborne and settling" })
+      .click();
     await angularDamping.fill("0.2");
     await yawReduction.fill("0.5");
+    await pitchTarget.selectText();
+    await pitchTarget.pressSequentially("-5.5");
+    await expect(pitchTarget).toHaveValue("-5.5");
     await expect
       .poll(
         async () => (await getKartDebugState(canvas)).tuning.maxForwardSpeed,
@@ -2040,6 +2050,23 @@ test.describe("home screen", () => {
     await expect
       .poll(async () => (await getKartDebugState(canvas)).tuning.angularDamping)
       .toBe(0.2);
+    await expect
+      .poll(
+        async () =>
+          (await getKartDebugState(canvas)).tuning.airbornePitchTargetDegrees,
+      )
+      .toBe(-5.5);
+
+    await pitchTarget.selectText();
+    await pitchTarget.pressSequentially("-");
+    await maxSpeed.focus();
+    await expect(pitchTarget).toHaveValue("-5.5");
+    await expect
+      .poll(
+        async () =>
+          (await getKartDebugState(canvas)).tuning.airbornePitchTargetDegrees,
+      )
+      .toBe(-5.5);
 
     await setSimulationPaused(canvas, true);
     await gravity.fill("0");
@@ -2059,6 +2086,7 @@ test.describe("home screen", () => {
     await expect(gravity).toHaveValue("18");
     await expect(angularDamping).toHaveValue("0.08");
     await expect(yawReduction).toHaveValue("0.9");
+    await expect(pitchTarget).toHaveValue("6");
     await expect
       .poll(async () => (await getKartDebugState(canvas)).tuning)
       .toEqual(DEFAULT_KART_TUNING);
