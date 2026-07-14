@@ -2,9 +2,8 @@
 
 ## Status
 
-**Maturity:** Candidate. PR 3C implementation is complete as of 2026-07-13 and
-awaits final feature-lead QA, independent slice review, and full-phase
-integration review before publication approval.
+**Maturity:** Validated. PR 3C implementation, feature-lead QA, independent
+slice review, and Phase 2 regression coverage are complete as of 2026-07-14.
 
 ## Purpose And Scope
 

@@ -2,9 +2,10 @@
 
 ## Status
 
-**Maturity:** Validated. PR 5A implementation passed focused pure, route,
-real-Postgres, desktop, and mobile verification, production/static checks, two
-independent review passes, and feature-lead gameplay/dashboard QA on 2026-07-14.
+**Maturity:** Validated. PR 5A established the system, and PR 5B's bounded
+automatic-pause and discarded-time extension passed focused browser,
+real-Postgres, privacy/security, technical, and feature-lead acceptance on
+2026-07-14.
 
 ## Purpose And Scope
 
@@ -14,9 +15,9 @@ through the browser and Postgres mapping in
 [`tools/browser-postgres-telemetry`](../../tools/browser-postgres-telemetry/README.md).
 
 It owns anonymous solo-run milestones, one summarized Postgres row per attempt,
-protected operational aggregates, the `/admin/telemetry` dashboard, and
-automatic Vercel page views. PR 5B will add bounded runtime-health totals and
-failure recovery. This system does not own leaderboard results, ghosts,
+protected operational aggregates, the `/admin/telemetry` dashboard, automatic
+Vercel page views, and two bounded runtime-health totals. This system does not
+own leaderboard results, ghosts,
 anti-cheat, player history, raw physics diagnostics, or persistent guest
 identity.
 
@@ -28,7 +29,7 @@ identity.
   same-origin guest writer.
 - `src/server/gameplay-telemetry-repository.ts` owns idempotent server-timestamped
   Postgres transitions and server-derived deployment attribution.
-- `src/db/schema.ts` and `drizzle/0004_*` through `0009_*` own the typed run
+- `src/db/schema.ts` and `drizzle/0004_*` through `0010_*` own the typed run
   table, enum values, lifecycle and attribution constraints, triggers, and
   timestamp index.
 - `src/game/telemetry/gameplay-dashboard.ts` owns pure aggregate semantics and
@@ -41,9 +42,10 @@ identity.
   range selection, empty/populated states, operational summaries, and responsive
   presentation.
 - `src/app/layout.tsx` mounts Vercel Web Analytics for automatic page views only.
-- `src/components/solo-time-trial-canvas.tsx` emits existing race milestones,
-  input-family activity, recovery count, terminal outcome, and allowlisted load
-  failures without awaiting telemetry.
+- `src/components/solo-time-trial-canvas.tsx` emits race milestones,
+  input-family activity, recovery count, automatic safety pauses, aggregate
+  discarded time, terminal outcome, and allowlisted failures without awaiting
+  telemetry.
 
 ## Runtime Flow
 
@@ -57,11 +59,14 @@ identity.
 4. Deliberate driving activity records a coarse set containing keyboard, touch,
    or gamepad; repeated activity and device switching add no event rows.
 5. Accepted race recovery increments one in-memory counter.
-6. Finish, explicit in-app exit, or allowlisted load failure queues one
+6. Automatic lifecycle pauses and fixed-step overload update two bounded
+   in-memory totals. A hidden document queues their current monotonic summary.
+7. Finish, explicit in-app exit, or allowlisted failure queues one
    `run_ended` summary. A five-second transport timeout prevents one unavailable
    request from blocking later milestones. Terminal fetch uses `keepalive` but
    remains best-effort.
-7. Postgres accepts safe duplicates, rejects invalid or conflicting lifecycle
+8. Postgres accepts safe duplicates, keeps runtime-health totals monotonic,
+   rejects invalid or conflicting lifecycle
    transitions, and leaves missing terminals open. The dashboard classifies
    recent open rows as active and rows older than 30 minutes as unfinished.
 
@@ -77,6 +82,8 @@ identity.
   events, arbitrary metadata, URLs, exception messages, or stack traces.
 - The database stores no IP address, user agent, referrer, raw control, kart
   transform, per-frame sample, or replayable activity timeline.
+- Runtime health contains no focus timestamps, viewport dimensions, device or
+  graphics details, exception text, or stack traces.
 - Gameplay does not wait for or surface telemetry transport; unavailable
   telemetry cannot prevent loading, racing, restart, finish, or exit.
 - The dashboard API validates and returns funnel conversions, terminal-racing
@@ -112,5 +119,5 @@ identity.
 - Infrastructure abuse controls are deployment concerns if public traffic shows
   need; same-origin checks alone do not stop a non-browser client from imitating
   an allowed request.
-- PR 5B owns focus/visibility, resize, low-frame-rate, and WebGL/context failure
-  policy plus their bounded summary fields.
+- Hidden-document health updates and abrupt terminal reporting remain
+  best-effort; unfinished runs are not classified as crashes.

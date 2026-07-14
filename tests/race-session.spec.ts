@@ -241,4 +241,26 @@ test.describe("race session", () => {
 
     expect(session.snapshot.elapsedRaceMicroseconds).toBe(750_000);
   });
+
+  test("charges final-frame discarded time to the finished race and final lap", () => {
+    const session = new RaceSession(config());
+    startRace(session);
+
+    for (let lap = 0; lap < 2; lap += 1) {
+      session.advanceTime(5 + lap);
+      expect(cross(session, 1).kind).toBe("checkpoint");
+      expect(cross(session, 2).kind).toBe("checkpoint");
+      expect(cross(session, 3).kind).toBe(lap === 0 ? "lap" : "finished");
+    }
+
+    expect(session.accountFinalFrameDiscardedTime(0.4)).toBe(true);
+    expect(session.snapshot).toMatchObject({
+      completedLapMicroseconds: [5_000_000, 6_400_000],
+      elapsedRaceMicroseconds: 11_400_000,
+      state: "finished",
+    });
+    expect(() => session.accountFinalFrameDiscardedTime(Number.NaN)).toThrow(
+      "Race time increments must be finite and non-negative",
+    );
+  });
 });

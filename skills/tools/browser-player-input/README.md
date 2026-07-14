@@ -208,6 +208,9 @@ listener and clears all retained device and pointer state.
   keyboard semantics alone do not prove that a touch assistive technology can
   synthesize the expected adjustment gestures.
 - Input-related clearing on focus and visibility changes belongs here; broader
-  runtime response and telemetry remain PR 5 work.
+  lifecycle response and bounded health reporting are implemented by the
+  [`runtime-resilience`](../../project-systems/runtime-resilience/README.md) and
+  [`gameplay-telemetry`](../../project-systems/gameplay-telemetry/README.md)
+  systems.
 - PR 4A menu navigation covers guest-play mode selection and race overlays, not
   the protected course editor or a general spatial-navigation engine.

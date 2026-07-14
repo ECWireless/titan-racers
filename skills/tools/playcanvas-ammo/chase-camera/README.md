@@ -236,8 +236,9 @@ Behavioral acceptance remains owned by the engine-independent camera node.
 - Exact heading blend, slip shaping, impact thresholds, FOV range, damping,
   obstruction margin, and airborne transition timing require implementation
   measurements and feature-lead tuning.
-- Playable touch input remains PR 4 scope; PR 2C mobile acceptance covers
-  framing and controlled browser scenarios rather than touch driving.
+- Playable touch driving is implemented by the validated
+  [`player-input`](../../../project-systems/player-input/README.md) system; the
+  camera retains its own framing and controlled-browser acceptance coverage.
 - The camera-test wall and corner are rough-course fixtures, not final
   Agricultural Zone art or guaranteed final-track geometry.
 

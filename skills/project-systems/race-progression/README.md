@@ -141,12 +141,9 @@ with no remaining P0-P3 issue.
 
 ## Known Limits And Deferred Work
 
-- PR 4B deliberately retains the minimal pre-existing race presentation. PR 4C
-  owns countdown, checkpoint, lap, timer, recovery, and finish HUD integration
-  plus the complete cross-device rough-loop acceptance pass.
 - Race results and progress are session-memory only. Leaderboards, telemetry,
-  summarized analytics, runtime resilience, and eligibility policy remain later
-  phases.
+  ghosts, and competitive eligibility remain later phases; the shipped telemetry
+  retains only bounded run summaries and runtime-health totals.
 - The rough course remains a development loop. Agricultural Zone art, final
   trigger/recovery tuning, community courses, ratings, highlighting, and
   unpublish/safety controls remain separately planned work.

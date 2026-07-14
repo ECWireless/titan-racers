@@ -74,6 +74,7 @@ import { attachSceneTestAdapter } from "@/game/testing/scene-test-adapter";
 import {
   GameplayRunTelemetry,
   httpGameplayTelemetrySink,
+  type GameplayRunFailureCode,
 } from "@/game/telemetry/gameplay-run-events";
 
 const KART_ROOT_HEIGHT = 0.43;
@@ -172,6 +173,7 @@ function getKartRootPosition(chassisPosition: pc.Vec3, rotation: pc.Quat) {
 const ENABLE_SCENE_TEST_HOOKS = process.env.NODE_ENV !== "production";
 
 type SceneInitializationTestControl = {
+  contextRestoreTimeoutMs?: number;
   forcePostRuntimeFailure?: boolean;
   forceRaceSessionFailure?: boolean;
   runtimeDestroyCount?: number;
@@ -330,12 +332,14 @@ export function SoloTimeTrialCanvas({
   const [racePresentation, setRacePresentation] =
     useState<RacePresentationSnapshot>(createLoadingRacePresentationSnapshot);
   const [sceneStatus, setSceneStatus] = useState<
-    "initializing" | "ready" | "failed"
+    "initializing" | "ready" | "context_lost" | "failed"
   >("initializing");
+  const [sceneFailureCode, setSceneFailureCode] =
+    useState<GameplayRunFailureCode | null>(null);
 
   useControllerMenuNavigation({
     containerRef: pauseMenuRef,
-    enabled: gamePaused,
+    enabled: gamePaused && sceneStatus === "ready",
     onBack: resumeRace,
     onMenu: resumeRace,
   });
@@ -381,10 +385,10 @@ export function SoloTimeTrialCanvas({
   }, [gamePaused, sceneStatus]);
 
   useEffect(() => {
-    if (gamePaused) {
+    if (gamePaused && sceneStatus === "ready") {
       requestAnimationFrame(() => resumeButtonRef.current?.focus());
     }
-  }, [gamePaused]);
+  }, [gamePaused, sceneStatus]);
 
   useEffect(() => {
     if (racePresentation.state !== "finished") {
@@ -405,6 +409,7 @@ export function SoloTimeTrialCanvas({
     const sceneTestControl = getSceneInitializationTestControl();
     let cancelled = false;
     let activeRuntime: ReturnType<typeof createPlayCanvasRuntime> | null = null;
+    let contextRestoreTimeoutId: number | null = null;
 
     const initializeScene = async () => {
       await loadAmmoPhysics();
@@ -1367,14 +1372,90 @@ export function SoloTimeTrialCanvas({
         0,
       );
     };
-    runtime.listen(window, "blur", () => {
+
+    const setScenePaused = (paused: boolean) => {
+      inputManager.setEnabled(false);
+      const changed = paused ? raceSession.pause() : raceSession.resume();
+      if (!changed) {
+        return false;
+      }
+      previousRacePosition.copy(kart.getPosition());
+      runtime.setPaused(paused);
+      if (!paused) {
+        queueMicrotask(() => inputManager.setEnabled(true));
+      }
+      return changed;
+    };
+
+    const pauseForInterruption = () => {
       inputManager.clear();
       clearTouchPresentation();
-    });
+      if (!setScenePaused(true)) {
+        return false;
+      }
+      gameplayTelemetry.recordAutomaticPause();
+      setGamePaused(true);
+      setDriveCursorHidden(false);
+      publishRacePresentation();
+      return true;
+    };
+
+    runtime.listen(window, "blur", pauseForInterruption);
     runtime.listen(document, "visibilitychange", () => {
-      if (document.hidden) {
-        inputManager.clear();
-        clearTouchPresentation();
+      if (!document.hidden) {
+        return;
+      }
+      pauseForInterruption();
+      gameplayTelemetry.flushRuntimeHealth();
+    });
+    runtime.listen(window, "resize", () => runtime.resizeCanvas());
+    runtime.listen(window, "orientationchange", () => runtime.resizeCanvas());
+
+    const failGraphicsRuntime = (failureCode: GameplayRunFailureCode) => {
+      if (contextRestoreTimeoutId !== null) {
+        window.clearTimeout(contextRestoreTimeoutId);
+        contextRestoreTimeoutId = null;
+      }
+      gameplayTelemetry.fail("runtime_failed", failureCode);
+      runtime.destroy();
+      activeRuntime = null;
+      sceneApiRef.current = null;
+      setSceneFailureCode(failureCode);
+      setSceneStatus("failed");
+      setGamePaused(false);
+      setDriveCursorHidden(false);
+    };
+
+    runtime.listen<WebGLContextEvent>(activeCanvas, "webglcontextlost", () => {
+      pauseForInterruption();
+      runtime.setRenderingSuspended(true);
+      setSceneStatus("context_lost");
+      setDriveCursorHidden(false);
+      contextRestoreTimeoutId = window.setTimeout(
+        () => failGraphicsRuntime("webgl_context_lost"),
+        sceneTestControl?.contextRestoreTimeoutMs ?? 10_000,
+      );
+    });
+    runtime.listen<WebGLContextEvent>(
+      activeCanvas,
+      "webglcontextrestored",
+      () => {
+        if (contextRestoreTimeoutId !== null) {
+          window.clearTimeout(contextRestoreTimeoutId);
+          contextRestoreTimeoutId = null;
+        }
+        try {
+          runtime.restoreRendering();
+          setSceneStatus("ready");
+        } catch {
+          failGraphicsRuntime("webgl_context_restore_failed");
+        }
+      },
+    );
+    runtime.addCleanup(() => {
+      if (contextRestoreTimeoutId !== null) {
+        window.clearTimeout(contextRestoreTimeoutId);
+        contextRestoreTimeoutId = null;
       }
     });
 
@@ -1394,6 +1475,8 @@ export function SoloTimeTrialCanvas({
         lastRaceProgressionResult = { kind: "none" };
         lastRaceAnnouncementResult = { kind: "none" };
         resetKart();
+        runtime.setPaused(false);
+        setGamePaused(false);
         inputManager.setEnabled(true);
         previousRacePosition.copy(kart.getPosition());
         publishRacePresentation();
@@ -1402,18 +1485,7 @@ export function SoloTimeTrialCanvas({
       setTouchSteering: (pointerId, value) =>
         inputManager.setTouchSteering(pointerId, value),
       setPaused: (paused) => {
-        inputManager.setEnabled(false);
-        if (paused) {
-          raceSession.pause();
-          previousRacePosition.copy(kart.getPosition());
-        } else {
-          raceSession.resume();
-          previousRacePosition.copy(kart.getPosition());
-        }
-        runtime.setPaused(paused);
-        if (!paused) {
-          queueMicrotask(() => inputManager.setEnabled(true));
-        }
+        setScenePaused(paused);
       },
     };
 
@@ -1763,6 +1835,7 @@ export function SoloTimeTrialCanvas({
 
     let latestDrivingInput = inputManager.sampleDrivingInput().driving;
     let pauseAfterFixedStep = false;
+    let raceFinishedThisFrame = false;
 
     runtime.onFixedStep((dt) => {
       collisionObserver.beginStep();
@@ -1819,9 +1892,7 @@ export function SoloTimeTrialCanvas({
           lastRaceAnnouncementResult = progressionResult;
         }
         if (lastRaceProgressionResult.kind === "finished") {
-          gameplayTelemetry.complete(
-            Math.round(raceSession.snapshot.elapsedRaceMicroseconds / 1_000),
-          );
+          raceFinishedThisFrame = true;
           inputManager.setEnabled(false);
           clearTouchPresentation();
           setDriveCursorHidden(false);
@@ -1843,7 +1914,23 @@ export function SoloTimeTrialCanvas({
     });
 
     runtime.onDiscardedTime((discardedSeconds) => {
-      raceSession.advanceTime(discardedSeconds);
+      if (raceFinishedThisFrame) {
+        raceSession.accountFinalFrameDiscardedTime(discardedSeconds);
+      } else {
+        raceSession.advanceTime(discardedSeconds);
+      }
+      gameplayTelemetry.recordDiscardedTime(discardedSeconds);
+    });
+
+    runtime.onFrameEnd(() => {
+      if (!raceFinishedThisFrame) {
+        return;
+      }
+      raceFinishedThisFrame = false;
+      gameplayTelemetry.complete(
+        Math.round(raceSession.snapshot.elapsedRaceMicroseconds / 1_000),
+      );
+      publishRacePresentation();
     });
 
     runtime.onRender(({ accumulatorFraction, frameSeconds }) => {
@@ -1900,9 +1987,14 @@ export function SoloTimeTrialCanvas({
       publishRacePresentation();
       runtime.start();
       activeCanvas.dataset.sceneReady = "true";
+      setSceneFailureCode(null);
       setSceneStatus("ready");
       gameplayTelemetry.markRuntimeLoaded();
       setDriveCursorHidden(true);
+      if (document.hidden || !document.hasFocus()) {
+        pauseForInterruption();
+        gameplayTelemetry.flushRuntimeHealth();
+      }
       runtime.addCleanup(() => {
         delete activeCanvas.dataset.sceneReady;
       });
@@ -1924,6 +2016,11 @@ export function SoloTimeTrialCanvas({
         console.error("Unable to initialize the PlayCanvas scene", error);
         gameplayTelemetry.fail(
           "load_failed",
+          failedRuntime
+            ? "scene_initialization_failed"
+            : "physics_load_failed",
+        );
+        setSceneFailureCode(
           failedRuntime
             ? "scene_initialization_failed"
             : "physics_load_failed",
@@ -2165,7 +2262,11 @@ export function SoloTimeTrialCanvas({
         id="application"
         data-testid="solo-time-trial-canvas"
         aria-label="Solo Time Trial race"
-        inert={gamePaused || racePresentation.state === "finished"}
+        inert={
+          gamePaused ||
+          racePresentation.state === "finished" ||
+          sceneStatus !== "ready"
+        }
         tabIndex={0}
         className={`block h-[100dvh] w-[100dvw] ${
           driveCursorHidden &&
@@ -2485,14 +2586,27 @@ export function SoloTimeTrialCanvas({
               <p role="status" aria-live="polite">
                 Preparing kart physics…
               </p>
+            ) : sceneStatus === "context_lost" ? (
+              <div className="grid gap-3" role="status" aria-live="polite">
+                <p className="font-bold uppercase tracking-[0.12em] text-titan-hazard">
+                  Restoring graphics
+                </p>
+                <p className="text-sm text-titan-ice/78">
+                  The race is safely paused while the browser restores the
+                  graphics context.
+                </p>
+              </div>
             ) : (
               <div className="grid gap-3" role="alert" aria-live="assertive">
                 <p className="font-bold uppercase tracking-[0.12em] text-titan-hazard">
-                  Unable to start the race
+                  {sceneFailureCode?.startsWith("webgl_")
+                    ? "Unable to continue the race"
+                    : "Unable to start the race"}
                 </p>
                 <p className="text-sm text-titan-ice/78">
-                  The kart physics engine could not load. Reload the app, or
-                  return to mode selection.
+                  {sceneFailureCode?.startsWith("webgl_")
+                    ? "Graphics could not be restored. Reload the app, or return to mode selection."
+                    : "The kart physics engine could not load. Reload the app, or return to mode selection."}
                 </p>
               </div>
             )}
@@ -2511,7 +2625,7 @@ export function SoloTimeTrialCanvas({
                 type="button"
                 className="titan-button titan-button-secondary"
                 data-controller-default={
-                  sceneStatus === "initializing" ? "true" : undefined
+                  sceneStatus !== "failed" ? "true" : undefined
                 }
                 onClick={exitRace}
               >

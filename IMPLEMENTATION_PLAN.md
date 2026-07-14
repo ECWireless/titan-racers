@@ -689,11 +689,11 @@ input, movement, per-frame, hardware-identity, or player-journey capture.
 
 ##### PR 5B: Runtime Resilience And Phase 2 Closeout
 
-- [ ] focus loss, visibility change, resize, input cancellation, lower frame
+- [x] focus loss, visibility change, resize, input cancellation, lower frame
       rate, loading, and WebGL/context failure behavior,
-- [ ] summarized runtime-health reporting through the PR 5A gameplay-run
+- [x] summarized runtime-health reporting through the PR 5A gameplay-run
       contract and dashboard,
-- [ ] integrated Phase 2 verification and independent review.
+- [x] integrated Phase 2 verification and independent review.
 
 Phase 2 remains limited to one rough kart and a rough test loop. Kart uploads,
 Agricultural Zone visual production, ghosts, leaderboard submission, and

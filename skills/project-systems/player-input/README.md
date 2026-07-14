@@ -242,5 +242,5 @@ until disconnect. Nonstandard mappings remain neutral and non-fatal.
 - Touch controls are visible through coarse-pointer/no-hover capability queries;
   a future settings surface may add a manual visibility preference if hybrid
   hardware proves it necessary.
-- PR 5 still owns broader focus, visibility, resize, lower-frame-rate, and
-  runtime-failure policy beyond the input clearing implemented here.
+- The runtime-resilience system owns broader focus, visibility, resize,
+  lower-frame-rate, and runtime-failure policy beyond input clearing.

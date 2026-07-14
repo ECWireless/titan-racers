@@ -301,6 +301,26 @@ export class RaceSession {
     }
   }
 
+  accountFinalFrameDiscardedTime(seconds: number) {
+    if (!Number.isFinite(seconds) || seconds < 0) {
+      throw new Error("Race time increments must be finite and non-negative");
+    }
+    if (seconds === 0 || this.state !== "finished") {
+      return false;
+    }
+
+    const exactMicroseconds =
+      seconds * MICROSECONDS_PER_SECOND + this.subMicrosecondRemainder;
+    const addedMicroseconds = Math.floor(exactMicroseconds + 1e-9);
+    this.subMicrosecondRemainder = exactMicroseconds - addedMicroseconds;
+    this.elapsedRaceMicroseconds += addedMicroseconds;
+    const finalLapIndex = this.completedLapMicroseconds.length - 1;
+    if (finalLapIndex >= 0) {
+      this.completedLapMicroseconds[finalLapIndex] += addedMicroseconds;
+    }
+    return true;
+  }
+
   processMovement(
     previousPosition: RaceVector3,
     currentPosition: RaceVector3,

@@ -1,9 +1,8 @@
 # PlayCanvas And Ammo Race Progression
 
-**Maturity:** Candidate. The feature lead accepted this PlayCanvas 2.20.6 and
-browser-runtime mapping for PR 4B on 2026-07-13. Promote it to validated only
-after the course-version, fixed-step, directed-gate, recovery, browser,
-independent-review, and feature-lead acceptance gates pass.
+**Maturity:** Validated. The PlayCanvas 2.20.6 and browser-runtime mapping passed
+the course-version, fixed-step, directed-gate, recovery, browser,
+independent-review, and feature-lead acceptance gates for PR 4B on 2026-07-13.
 
 ## Purpose And Scope
 
@@ -190,10 +189,9 @@ overlay projection. Keep the separate controller-menu polling path active while
 the simulation is paused. Opening, resuming, and exiting continue to use real
 DOM focus and the normalized input system's clearing/re-arming guarantees.
 
-The final countdown, checkpoint, lap, timer, recovery, and finish HUD remains PR
-4C. PR 4B may expose a non-production semantic race snapshot through the scene
-test adapter and minimal status evidence needed for runtime QA; do not make that
-adapter production authority.
+The shipped countdown, checkpoint, lap, timer, recovery, and finish HUD projects
+the authoritative race snapshot through React. The scene test adapter remains
+non-production verification infrastructure and must not become runtime authority.
 
 ## Persistence Boundary
 

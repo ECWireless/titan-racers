@@ -15,6 +15,7 @@ function createRuntimeHarness() {
   const app = {
     destroy: () => events.push("destroy"),
     render: () => events.push("render"),
+    resizeCanvas: () => events.push("resize"),
     setCanvasFillMode: () => undefined,
     setCanvasResolution: () => undefined,
     start: () => events.push("start"),
@@ -133,6 +134,7 @@ test("reports discarded active time after fixed steps and before rendering", () 
   runtime.onDiscardedTime((seconds) =>
     events.push(`discarded-${seconds.toFixed(3)}`),
   );
+  runtime.onFrameEnd(() => events.push("frame-end"));
   runtime.onRender(() => events.push("render-listener"));
   runtime.start();
   runNextFrame(0);
@@ -154,6 +156,7 @@ test("reports discarded active time after fixed steps and before rendering", () 
     "update",
     "post-fixed-listener",
     "discarded-0.433",
+    "frame-end",
     "render-listener",
     "render",
   ]);
@@ -183,6 +186,24 @@ test("pauses on one completed fixed-step boundary without extra catch-up", () =>
     "render",
   ]);
   expect(() => runtime.stepFixed(1)).not.toThrow();
+});
+
+test("suspends rendering during graphics interruption and resets before recovery", () => {
+  const { events, runNextFrame, runtime } = createRuntimeHarness();
+
+  runtime.start();
+  runNextFrame(0);
+  events.length = 0;
+  runtime.setPaused(true);
+  runtime.setRenderingSuspended(true);
+  runNextFrame(500);
+
+  expect(events).toEqual([]);
+
+  runtime.restoreRendering();
+  runNextFrame(1_000);
+
+  expect(events).toEqual(["resize", "render", "render"]);
 });
 
 test("destroy cancels the frame and releases listeners exactly once", () => {

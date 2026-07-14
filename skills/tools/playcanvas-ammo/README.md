@@ -1,8 +1,8 @@
 # PlayCanvas and Ammo
 
-**Maturity:** Candidate. The feature lead accepted this tool mapping on
-2026-07-10. Promote it to validated only after the runtime, physics integration,
-and kart implementation pass their agreed browser and gameplay verification.
+**Maturity:** Validated. The runtime, physics integration, and kart
+implementation passed their agreed browser and gameplay verification and were
+accepted by the feature lead on 2026-07-10.
 
 ## Purpose and Scope
 
