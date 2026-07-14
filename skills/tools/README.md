@@ -23,6 +23,9 @@ Prefer primary documentation and direct runtime evidence. Link back to relevant 
 
 ## Current Children
 
+- [`browser-race-presentation/`](browser-race-presentation/README.md): the
+  candidate mapping from authoritative race snapshots to bounded React updates,
+  semantic HUD/dialog presentation, safe-area layout, and controller focus.
 - [`browser-player-input/`](browser-player-input/README.md): the validated
   mapping from normalized player actions to browser Keyboard Events, Pointer
   Events, Gamepad API polling, React touch controls, and the repository-owned

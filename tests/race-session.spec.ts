@@ -166,6 +166,31 @@ test.describe("race session", () => {
     });
   });
 
+  test("restarts a finished race from a clean countdown", () => {
+    const session = new RaceSession(config());
+    startRace(session);
+
+    for (let lap = 0; lap < 2; lap += 1) {
+      session.advanceTime(5 + lap);
+      expect(cross(session, 1).kind).toBe("checkpoint");
+      expect(cross(session, 2).kind).toBe("checkpoint");
+      expect(cross(session, 3).kind).toBe(lap === 0 ? "lap" : "finished");
+    }
+
+    expect(session.restart()).toBe(true);
+    expect(session.restart()).toBe(false);
+    expect(session.snapshot).toMatchObject({
+      activeRecovery: { id: "start" },
+      completedLapMicroseconds: [],
+      countdownRemainingMicroseconds: 3_000_000,
+      currentLap: 1,
+      elapsedRaceMicroseconds: 0,
+      expectedTargetId: "checkpoint-1",
+      recoveryCandidates: [{ id: "start" }],
+      state: "countdown",
+    });
+  });
+
   test("charges recovery time, pauses it, and resumes from the safe transform", () => {
     const session = new RaceSession(config());
     startRace(session);

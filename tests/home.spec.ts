@@ -187,9 +187,11 @@ async function getKartDebugState(canvas: Locator) {
         airbornePitchTarget: number;
         airbornePitchTorque: number;
         angularSpeed: number;
+        angularVelocity: { x: number; y: number; z: number };
         chassisClearance: number;
         forward: { x: number; y: number; z: number };
         isOverGround: boolean;
+        linearVelocity: { x: number; y: number; z: number };
         maximumLateralSpeed: number;
         maximumTireForceUtilization: number;
         maxForwardSpeed: number;
@@ -260,6 +262,7 @@ async function setRaceDebugMovement(
   canvas: Locator,
   previousPosition: { x: number; y: number; z: number },
   currentPosition: { x: number; y: number; z: number },
+  preserveMotion = false,
 ) {
   await waitForSceneReady(canvas);
   await canvas.evaluate(
@@ -268,7 +271,7 @@ async function setRaceDebugMovement(
         new CustomEvent("setRaceDebugMovement", { detail: movement }),
       );
     },
-    { currentPosition, previousPosition },
+    { currentPosition, preserveMotion, previousPosition },
   );
 }
 
@@ -426,6 +429,7 @@ async function crossRaceTarget(
     position: { x: number; y: number; z: number };
   },
   offset = { x: 0, y: 0, z: 0 },
+  preserveMotion = false,
 ) {
   await setRaceDebugMovement(
     canvas,
@@ -439,13 +443,33 @@ async function crossRaceTarget(
       y: target.position.y + offset.y + target.forward.y,
       z: target.position.z + offset.z + target.forward.z,
     },
+    preserveMotion,
   );
   await stepSimulation(canvas);
   return getRaceDebugState(canvas);
 }
 
+async function useBundledRoughCourse(page: Page) {
+  await page.route("**/api/courses/rough-course/published", async (route) => {
+    await route.fulfill({
+      body: JSON.stringify({
+        courseId: "rough-course",
+        document: ROUGH_COURSE_DOCUMENT,
+        publishedAt: new Date("2026-07-12T00:05:00.000Z").toISOString(),
+        revision: 1,
+        schemaVersion: 2,
+      }),
+      contentType: "application/json",
+      status: 200,
+    });
+  });
+}
+
 test.describe("home screen", () => {
   test.describe.configure({ mode: "serial" });
+  test.beforeEach(async ({ page }) => {
+    await useBundledRoughCourse(page);
+  });
 
   test("shows player-first mode selection with coming soon feedback", async ({
     page,
@@ -583,10 +607,14 @@ test.describe("home screen", () => {
     await setStandardTestGamepad(page, { buttons: { 0: 1 } });
     await expect(page.getByText("Choose game mode")).toBeVisible();
     await setStandardTestGamepad(page);
+    await expect(
+      page.locator('[data-controller-menu-ready="true"]'),
+    ).toHaveCount(1);
     await page.getByRole("button", { name: "Solo Time Trial" }).click();
     await expect(page.getByTestId("solo-time-trial-canvas")).toHaveAttribute(
       "data-scene-ready",
       "true",
+      { timeout: 15_000 },
     );
   });
 
@@ -701,19 +729,84 @@ test.describe("home screen", () => {
       .toBe(1);
   });
 
+  test("shows a controlled failure when race-session setup throws", async ({
+    page,
+  }) => {
+    await page.addInitScript(() => {
+      (
+        window as typeof window & {
+          __TITAN_RACERS_SCENE_TEST__?: {
+            forceRaceSessionFailure: boolean;
+            runtimeDestroyCount: number;
+          };
+        }
+      ).__TITAN_RACERS_SCENE_TEST__ = {
+        forceRaceSessionFailure: true,
+        runtimeDestroyCount: 0,
+      };
+    });
+    await page.goto("/");
+    await page.getByRole("button", { name: "Solo Time Trial" }).click();
+
+    await expect(
+      page.getByRole("alert").filter({ hasText: "Unable to start the race" }),
+    ).toBeVisible();
+    await expect
+      .poll(() =>
+        page.evaluate(
+          () =>
+            (
+              window as typeof window & {
+                __TITAN_RACERS_SCENE_TEST__?: {
+                  runtimeDestroyCount?: number;
+                };
+              }
+            ).__TITAN_RACERS_SCENE_TEST__?.runtimeDestroyCount ?? 0,
+        ),
+      )
+      .toBe(1);
+  });
+
   test("runs the deterministic two-lap race lifecycle through ordered gates", async ({
     page,
   }, testInfo) => {
-    testInfo.setTimeout(90_000);
+    testInfo.setTimeout(180_000);
     test.skip(
       testInfo.project.name !== "desktop",
       "Race progression integration only needs to run once.",
     );
 
+    await installStandardGamepadFixture(page);
     await page.goto("/");
     await page.getByRole("button", { name: "Solo Time Trial" }).click();
     const canvas = page.getByTestId("solo-time-trial-canvas");
-    await advanceRaceToRacing(canvas);
+    await setSimulationPaused(canvas, true);
+    await resetKart(canvas);
+    const initialKart = await getKartDebugState(canvas);
+    const initialRace = await getRaceDebugState(canvas);
+    await stepSimulation(
+      canvas,
+      Math.ceil(
+        initialRace.countdownRemainingMicroseconds / (1_000_000 / 60),
+      ) + 1,
+    );
+    await expect
+      .poll(async () => (await getRaceDebugState(canvas)).state)
+      .toBe("racing");
+    const raceStatus = page.getByRole("region", { name: "Race status" });
+    const raceAnnouncement = page.getByRole("status");
+    const lifecycleCue = page.locator(".race-lifecycle-cue span");
+    await expect(raceStatus).toContainText("Lap01/02");
+    await expect(raceStatus).toContainText("Race time0:00.0");
+    await expect(raceStatus).not.toContainText("Gates");
+    await expect(lifecycleCue).toHaveText("Go!");
+    await expect(lifecycleCue).toHaveCSS(
+      "animation-name",
+      "race-lifecycle-cue-reveal",
+    );
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    await expect(lifecycleCue).toHaveCSS("animation-name", "none");
+    await page.emulateMedia({ reducedMotion: "no-preference" });
 
     const startYaw = (ROUGH_COURSE_DOCUMENT.start.rotation.y * Math.PI) / 180;
     const startTarget = {
@@ -749,6 +842,9 @@ test.describe("home screen", () => {
       kind: "rejected",
       reason: "finish-before-checkpoints",
     });
+    await expect(raceAnnouncement).toHaveText("Lap route incomplete");
+    await stepSimulation(canvas, 2);
+    await expect(raceAnnouncement).toHaveText("Lap route incomplete");
 
     let race = await crossRaceTarget(canvas, checkpoints[0]);
     expect(race).toMatchObject({
@@ -790,6 +886,15 @@ test.describe("home screen", () => {
       lastProgressionResult: { kind: "lap", lap: 1 },
       state: "racing",
     });
+    await expect(raceStatus).toContainText("Lap02/02");
+    await expect(lifecycleCue).toHaveText("Lap 2");
+    await expect(lifecycleCue).toHaveCSS(
+      "animation-name",
+      "race-lifecycle-cue-reveal",
+    );
+    await expect(raceAnnouncement).toHaveText("Lap 2 of 2");
+    await stepSimulation(canvas, 2);
+    await expect(raceAnnouncement).toHaveText("Lap 2 of 2");
 
     for (const [index, checkpoint] of checkpoints.entries()) {
       race = await crossRaceTarget(
@@ -799,13 +904,156 @@ test.describe("home screen", () => {
       );
       expect(race.lastProgressionResult.kind).toBe("checkpoint");
     }
-    race = await crossRaceTarget(canvas, startTarget);
+    await setKartDebugPose(canvas, {
+      angularVelocity: { x: 2, y: 3, z: 1 },
+      linearVelocity: { x: 4, y: 2, z: -3 },
+      position: { x: 25, y: 3, z: 25 },
+      rotation: { x: 12, y: 40, z: -8 },
+    });
+    await setStandardTestGamepad(page, { buttons: { 9: 1 } });
+    race = await crossRaceTarget(
+      canvas,
+      startTarget,
+      { x: 0, y: 0, z: 0 },
+      true,
+    );
     expect(race).toMatchObject({
       completedLapMicroseconds: [expect.any(Number), expect.any(Number)],
       expectedTargetId: null,
       lastProgressionResult: { kind: "finished", lap: 2 },
       state: "finished",
     });
+    const finishedKart = await getKartDebugState(canvas);
+    expect(
+      Math.hypot(
+        finishedKart.linearVelocity.x,
+        finishedKart.linearVelocity.y,
+        finishedKart.linearVelocity.z,
+      ),
+    ).toBeGreaterThan(1);
+    expect(
+      Math.hypot(
+        finishedKart.angularVelocity.x,
+        finishedKart.angularVelocity.y,
+        finishedKart.angularVelocity.z,
+      ),
+    ).toBeGreaterThan(1);
+    const finishDialog = page.getByRole("dialog", { name: "Finish" });
+    const pauseDialog = page.getByRole("dialog", { name: "Paused" });
+    await expect(finishDialog).toBeVisible();
+    await expect(pauseDialog).not.toBeVisible();
+    await expect(raceAnnouncement).toHaveText(/^Race finished in 0:/);
+    const lapTimes = finishDialog.getByRole("listitem");
+    await expect(lapTimes).toHaveCount(2);
+    await expect(lapTimes.first()).toContainText("Lap 1");
+    await expect(lapTimes.last()).toContainText("Lap 2");
+    const raceAgain = finishDialog.getByRole("button", {
+      name: "Race again",
+    });
+    const finishExit = finishDialog.getByRole("button", { name: "Exit" });
+    await expect(raceAgain).toBeFocused();
+    await setStandardTestGamepad(page);
+    await expect(
+      finishDialog.locator('[data-controller-menu-ready="true"]'),
+    ).toHaveCount(1);
+    await page.waitForTimeout(50);
+    await setStandardTestGamepad(page, { buttons: { 13: 1 } });
+    await expect(finishExit).toBeFocused();
+    await setStandardTestGamepad(page);
+    await page.waitForTimeout(50);
+    await setStandardTestGamepad(page, { buttons: { 13: 1 } });
+    await expect(raceAgain).toBeFocused();
+    await setStandardTestGamepad(page);
+    await page.waitForTimeout(50);
+    await setStandardTestGamepad(page, { buttons: { 0: 1, 7: 1 } });
+    await expect(finishDialog).not.toBeVisible();
+    await expect
+      .poll(async () => (await getRaceDebugState(canvas)).state)
+      .toBe("countdown");
+    await expect(raceStatus).toContainText("Lap01/02");
+    await expect(raceStatus).not.toContainText("Gates");
+    await expect(canvas).toBeFocused();
+
+    const restartedKart = await getKartDebugState(canvas);
+    const restartedPresentation = await getPresentationDebugState(canvas);
+    expect(restartedKart).toMatchObject({
+      angularSpeed: 0,
+      angularVelocity: { x: 0, y: 0, z: 0 },
+      linearVelocity: { x: 0, y: 0, z: 0 },
+      speed: 0,
+      verticalVelocity: 0,
+    });
+    expect(restartedKart.x).toBeCloseTo(initialKart.x);
+    expect(restartedKart.z).toBeCloseTo(initialKart.z);
+    expect(restartedKart.rotationX).toBeCloseTo(initialKart.rotationX, 1);
+    expect(restartedKart.rotationY).toBeCloseTo(initialKart.rotationY, 1);
+    expect(restartedKart.rotationZ).toBeCloseTo(initialKart.rotationZ, 1);
+    expect(restartedKart.forward.x).toBeCloseTo(initialKart.forward.x, 1);
+    expect(restartedKart.forward.y).toBeCloseTo(initialKart.forward.y, 1);
+    expect(restartedKart.forward.z).toBeCloseTo(initialKart.forward.z, 1);
+    expect(restartedPresentation.cameraTrackedPosition).toEqual(
+      restartedPresentation.visualPosition,
+    );
+
+    await advanceRaceToRacing(canvas);
+    await stepSimulation(canvas, 20);
+    expect((await getKartDebugState(canvas)).speed).toBeLessThan(0.5);
+    await setStandardTestGamepad(page);
+    await stepSimulation(canvas);
+
+    for (let lap = 0; lap < 2; lap += 1) {
+      for (const [index, checkpoint] of checkpoints.entries()) {
+        await crossRaceTarget(canvas, checkpoint, checkpointOffsets[index]);
+      }
+      race = await crossRaceTarget(canvas, startTarget);
+    }
+    expect(race.state).toBe("finished");
+    await expect(finishDialog).toBeVisible();
+    await setStandardTestGamepad(page);
+    await expect(
+      finishDialog.locator('[data-controller-menu-ready="true"]'),
+    ).toHaveCount(1);
+    await page.waitForTimeout(50);
+    await setStandardTestGamepad(page, { buttons: { 1: 1 } });
+    await expect(
+      page.getByRole("button", { name: "Solo Time Trial" }),
+    ).toBeVisible();
+  });
+
+  test("keeps the rough-race HUD clear of mobile utilities", async ({
+    page,
+  }, testInfo) => {
+    test.skip(testInfo.project.name !== "mobile", "Mobile HUD layout only.");
+    await page.setViewportSize({ height: 700, width: 350 });
+    await page.goto("/");
+    await page.getByRole("button", { name: "Solo Time Trial" }).click();
+
+    const canvas = page.getByTestId("solo-time-trial-canvas");
+    await setSimulationPaused(canvas, true);
+    const raceStatus = page.getByRole("region", { name: "Race status" });
+    const cluster = raceStatus.locator(".race-status-cluster");
+    const reset = page.getByRole("button", { name: "Reset kart" });
+    const pause = page.getByRole("button", { name: "Pause race" });
+
+    await expect(raceStatus).toContainText("Lap01/02");
+    await expect(raceStatus).toContainText("Race time0:00.0");
+    await expect(raceStatus).not.toContainText("Gates");
+    await expect(page.locator(".race-lifecycle-cue span")).toHaveText(/^[123]$/);
+
+    const [clusterBox, resetBox, pauseBox] = await Promise.all([
+      cluster.boundingBox(),
+      reset.boundingBox(),
+      pause.boundingBox(),
+    ]);
+    expect(clusterBox).not.toBeNull();
+    expect(resetBox).not.toBeNull();
+    expect(pauseBox).not.toBeNull();
+    expect((resetBox?.x ?? 0) + (resetBox?.width ?? 0)).toBeLessThanOrEqual(
+      clusterBox?.x ?? 0,
+    );
+    expect(
+      (clusterBox?.x ?? 0) + (clusterBox?.width ?? 0),
+    ).toBeLessThanOrEqual(pauseBox?.x ?? 0);
   });
 
   test("recovers at the latest supported checkpoint and pauses stabilization", async ({
@@ -2263,7 +2511,7 @@ test.describe("home screen", () => {
       steeringCenterY,
     );
     await expect(accelerate).toHaveAttribute("aria-pressed", "true");
-    await expect(steering).toHaveAttribute("aria-valuenow", "0.35");
+    await expect(steering).toHaveAttribute("aria-valuenow", "0.3");
     await expect(steering).toHaveAttribute("data-active", "true");
 
     await expect
@@ -2299,7 +2547,7 @@ test.describe("home screen", () => {
       pointerId: 12,
       pointerType: "touch",
     });
-    await expect(steering).toHaveAttribute("aria-valuenow", "-0.35");
+    await expect(steering).toHaveAttribute("aria-valuenow", "-0.3");
     await steering.dispatchEvent("pointercancel", {
       pointerId: 12,
       pointerType: "touch",
@@ -2314,7 +2562,7 @@ test.describe("home screen", () => {
       pointerId: 13,
       pointerType: "touch",
     });
-    await expect(steering).toHaveAttribute("aria-valuenow", "0.35");
+    await expect(steering).toHaveAttribute("aria-valuenow", "0.3");
     await steering.dispatchEvent("lostpointercapture", {
       pointerId: 13,
       pointerType: "touch",

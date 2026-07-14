@@ -22,9 +22,10 @@ controller navigation through guest-play menus and race overlays.
 
 Race countdowns, progression, checkpoint recovery, lap timing, and finish state
 are owned by the separate
-[`race-progression`](../race-progression/README.md) system. Final integrated race
-HUD presentation remains PR 4C work. Kart force calculations remain owned by
-the kart-physics system.
+[`race-progression`](../race-progression/README.md) system. Integrated HUD,
+finish, and replay behavior are owned by
+[`race-presentation`](../race-presentation/README.md). Kart force calculations
+remain owned by the kart-physics system.
 
 ## Source Ownership
 
@@ -37,7 +38,7 @@ the kart-physics system.
 - `src/game/input/keyboard-input.ts` owns WASD/arrow driving state and one-shot R
   reset and Escape pause edges.
 - `src/game/input/touch-input.ts` owns a continuous pointer-specific steering
-  value with a rescaled `0.08` dead zone and touch-only `1.5` response exponent,
+  value with a rescaled `0.08` dead zone and touch-only `1.75` response exponent,
   independent pedal-pointer state, and reset request state.
 - `src/game/input/gamepad-input.ts` polls browser snapshots, accepts only the
   standard mapping, applies the `0.15` candidate steering dead zone, maps the
@@ -56,8 +57,8 @@ the kart-physics system.
 - `src/components/solo-time-trial-canvas.tsx` attaches the manager, samples once
   before each 60 Hz physics step, applies reset/pause requests, clears input at
   lifecycle boundaries, renders touch controls without using React state as
-  physics input, and scopes controller navigation to loading/error and pause
-  overlays.
+  physics input, and scopes controller navigation to loading/error, pause, and
+  finish overlays.
 - `src/components/play-home.tsx` scopes controller focus and activation to the
   guest mode-selection actions without extending navigation into the protected
   course editor.
@@ -114,7 +115,7 @@ replace visible text while native or ARIA semantics retain accessible names.
 Primary controls remain at least 44 CSS pixels in portrait and compact landscape.
 
 The pad maps horizontal travel to `-1..1`, applies the touch adapter's `0.08`
-dead zone, then raises the remaining magnitude to the `1.5` power. This
+dead zone, then raises the remaining magnitude to the `1.75` power. This
 touch-only curve reduces gain near center while preserving sign and full lock
 at the edge. The control clamps the knob at the visual boundary, ignores
 vertical motion, and recenters on release. It exposes horizontal slider
@@ -233,9 +234,9 @@ until disconnect. Nonstandard mappings remain neutral and non-fatal.
   vibration, motion control, nonstandard mappings, and multi-controller
   reassignment while an active controller remains connected.
 - Controller menu navigation is deliberately limited to guest mode selection
-  and race loading/error/pause overlays. The protected course editor remains a
-  keyboard, pointer, and touch authoring surface in this slice.
-- The `1.5` touch steering exponent and `0.08` dead zone are the accepted mobile
+  and race loading/error/pause/finish overlays. The protected course editor
+  remains a keyboard, pointer, and touch authoring surface in this slice.
+- The `1.75` touch steering exponent and `0.08` dead zone are the accepted mobile
   baseline. Additional device diversity may justify future control settings;
   visual opacity and pedal spacing remain tunable presentation values.
 - Touch controls are visible through coarse-pointer/no-hover capability queries;

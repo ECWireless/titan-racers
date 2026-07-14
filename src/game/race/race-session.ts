@@ -206,6 +206,32 @@ export class RaceSession {
     return true;
   }
 
+  restart() {
+    if (this.state !== "finished") {
+      return false;
+    }
+
+    this.state = "countdown";
+    this.resumableState = null;
+    this.countdownRemainingMicroseconds = toConfiguredMicroseconds(
+      this.config.countdownSeconds,
+      "countdownSeconds",
+    );
+    this.recoveryRemainingMicroseconds = 0;
+    this.elapsedRaceMicroseconds = 0;
+    this.lapStartedAtMicroseconds = 0;
+    this.completedLapMicroseconds = [];
+    this.currentLap = 1;
+    this.expectedCheckpointIndex = 0;
+    this.activeRecovery = {
+      id: this.config.startGate.id,
+      transform: cloneTransform(this.config.startRecovery),
+    };
+    this.recoveryCandidates = [this.activeRecovery];
+    this.subMicrosecondRemainder = 0;
+    return true;
+  }
+
   requestRecovery() {
     if (this.state !== "racing") {
       return null;

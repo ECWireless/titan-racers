@@ -73,8 +73,8 @@ test.describe("player input", () => {
     expect(applyAxialDeadZone(-0.575, 0.15)).toBeCloseTo(-0.5, 6);
     expect(applyAxialDeadZone(1, 0.15)).toBe(1);
     expect(normalizeTouchSteering(0.04)).toBe(0);
-    expect(normalizeTouchSteering(0.54)).toBeCloseTo(0.5 ** 1.5, 6);
-    expect(normalizeTouchSteering(-0.54)).toBeCloseTo(-(0.5 ** 1.5), 6);
+    expect(normalizeTouchSteering(0.54)).toBeCloseTo(0.5 ** 1.75, 6);
+    expect(normalizeTouchSteering(-0.54)).toBeCloseTo(-(0.5 ** 1.75), 6);
     expect(normalizeTouchSteering(1)).toBe(1);
   });
 
@@ -135,7 +135,7 @@ test.describe("player input", () => {
       accelerate: 1,
       brakeReverse: 0,
     });
-    expect(touch.getContinuousInput().steer).toBeCloseTo(-(0.5 ** 1.5), 6);
+    expect(touch.getContinuousInput().steer).toBeCloseTo(-(0.5 ** 1.75), 6);
 
     touch.release(1);
     expect(touch.getContinuousInput()).toEqual({
