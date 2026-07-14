@@ -699,6 +699,25 @@ Phase 2 remains limited to one rough kart and a rough test loop. Kart uploads,
 Agricultural Zone visual production, ghosts, leaderboard submission, and
 multiplayer remain in their later phases.
 
+#### Phase 2 Feedback Polish
+
+Complete the accepted Phase 2 feedback polish before beginning Phase 3. Keep
+each sub-item as a separately QA-accepted conventional commit, and do not move
+to the next item until the feature lead has accepted the current behavior.
+
+- [x] greatly reduce ordinary steering sharpness while preserving useful
+      low-speed maneuvering,
+- [ ] make progressive drift available through the physical tire model at all
+      times, with braking and a rear-biased handbrake making initiation common
+      without enabling a scripted drift mode,
+- [ ] increase reverse top speed while keeping forward and reverse behavior
+      separately tunable,
+- [ ] replace mobile's horizontal steering-only pad with proportional two-axis
+      steering and forward/brake-reverse intent,
+- [ ] distinguish physical in-place manual righting from automatic off-course
+      checkpoint recovery, and
+- [ ] add Shift-modified multi-object editor selection and group translation.
+
 ### Phase 3: Kart Design And Upload System
 
 Goal: prove karts are machines, not skins.

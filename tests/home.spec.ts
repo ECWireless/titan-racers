@@ -1345,6 +1345,7 @@ test.describe("home screen", () => {
     }
 
     expect(turnedState.steerAngle).toBeGreaterThan(0);
+    expect(turnedState.steerAngle).toBeLessThanOrEqual(18);
     expect(
       Math.hypot(turnedState.x - startState.x, turnedState.z - startState.z),
     ).toBeGreaterThan(0.5);

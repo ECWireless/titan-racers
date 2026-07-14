@@ -119,6 +119,14 @@ Use separate designer-facing behavior for:
 - rolling resistance and speed-dependent drag, and
 - optional front/rear grip balance.
 
+Steering authority must decrease progressively with forward or reverse speed.
+Preserve enough low-speed lock for deliberate maneuvering, but do not let a
+full digital steering input retain the same sharp wheel angle near top speed.
+Input response and maximum angle are separate controls: reducing only response
+delays an overly sharp turn, while reducing only the angle can still create an
+abrupt initial weight transfer. Validate both the settled turning radius and
+the onset of steering at representative low, medium, and high speeds.
+
 Exact steering geometry is secondary to coherent contact directions and
 visible wheel angles. Add Ackermann-style inner/outer angle differences only
 if they materially improve the result.

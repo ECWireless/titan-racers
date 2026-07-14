@@ -27,6 +27,8 @@ mastery remain separate systems and PR-sized units.
   suspension forces, grounded tire forces, steering, braking, reverse, rolling
   resistance, speed response, bounded zero-support pitch-stability torque, and
   physics telemetry.
+- `src/game/kart/kart-steering.ts` owns the engine-independent speed-sensitive
+  maximum steering-angle curve.
 - `src/components/solo-time-trial-canvas.tsx` constructs the compound chassis,
   models a 70 kg lower body plus a 50 kg rear cockpit mass, places the physics
   root at their combined center of mass, applies mass properties, connects input
@@ -81,6 +83,10 @@ mastery remain separate systems and PR-sized units.
 - Suspension force is non-negative and bounded. Tire force scales with normal
   load and shares a combined grip limit across longitudinal and lateral demand.
 - Braking stops forward motion before reverse drive engages.
+- Steering authority falls progressively from 18 degrees at rest to 6 degrees
+  at the configured forward-speed limit, while the default steering response
+  approaches that bounded target at 80 degrees per second. Reverse steering
+  consumes the same speed-magnitude curve.
 - Partial support applies forces at the remaining wheel locations and never
   invokes an upright lock.
 - Airborne motion preserves gravity, linear momentum, yaw/roll angular motion,

@@ -13,14 +13,12 @@ import {
   KART_WHEEL_RADIUS,
   KART_WHEEL_WIDTH,
 } from "./kart-dimensions";
+import { getMaximumSteerAngle } from "./kart-steering";
 import {
   AmmoWheelSweep,
   requireAmmoDynamicsWorld,
 } from "../runtime/ammo-wheel-sweep";
 
-const MAX_STEER_ANGLE = 28;
-const MIN_HIGH_SPEED_STEER_ANGLE = 14;
-const STEER_RESPONSE = 150;
 const SUSPENSION_SPRING_RATE = 11_500;
 const SUSPENSION_DAMPER_RATE = 620;
 const SUSPENSION_BUMP_START = 0.17;
@@ -204,20 +202,16 @@ export class DynamicKartController implements KartController {
     const linearVelocity = rigidBody.linearVelocity.clone();
     const angularVelocity = rigidBody.angularVelocity.clone();
     const chassisForwardSpeed = linearVelocity.dot(bodyForward);
-    const speedRatio = clamp(
-      Math.abs(chassisForwardSpeed) / this.tuning.maxForwardSpeed,
-      0,
-      1,
+    const maximumSteerAngle = getMaximumSteerAngle(
+      chassisForwardSpeed,
+      this.tuning.maxForwardSpeed,
     );
-    const maximumSteerAngle =
-      MAX_STEER_ANGLE -
-      (MAX_STEER_ANGLE - MIN_HIGH_SPEED_STEER_ANGLE) * speedRatio;
 
     this.setSteerAngle(
       approachValue(
         this.state.steerAngle,
         input.steer * maximumSteerAngle,
-        STEER_RESPONSE * deltaSeconds,
+        this.tuning.turnRate * deltaSeconds,
       ),
     );
 
