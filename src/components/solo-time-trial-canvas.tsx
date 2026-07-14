@@ -1593,6 +1593,9 @@ export function SoloTimeTrialCanvas({
           z: toFixedStep(linearVelocity.z),
         },
         maximumLateralSpeed: toFixedStep(maximumLateralSpeed),
+        maximumSteerAngle: toFixedStep(
+          kartController.state.maximumSteerAngle,
+        ),
         maximumTireForceUtilization: toFixedStep(
           maximumTireForceUtilization,
         ),

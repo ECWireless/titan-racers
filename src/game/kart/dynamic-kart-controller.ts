@@ -56,6 +56,7 @@ type DynamicKartControllerOptions = {
 
 export type DynamicKartControllerState = KartControllerState & {
   airbornePitch: AirbornePitchTelemetry;
+  maximumSteerAngle: number;
   supportCount: number;
   supportEntityNames: string[];
   supportedWheelNames: string[];
@@ -116,6 +117,7 @@ export class DynamicKartController implements KartController {
       rate: 0,
       target: AIRBORNE_PITCH_TARGET,
     },
+    maximumSteerAngle: 0,
     speed: 0,
     steerAngle: 0,
     supportCount: 0,
@@ -175,6 +177,10 @@ export class DynamicKartController implements KartController {
     this.state.supportedWheelNames = [];
     this.state.verticalVelocity = 0;
     this.state.wheelTelemetry = [];
+    this.state.maximumSteerAngle = getMaximumSteerAngle(
+      0,
+      this.tuning.maxForwardSpeed,
+    );
     this.setSteerAngle(0);
   }
 
@@ -206,6 +212,7 @@ export class DynamicKartController implements KartController {
       chassisForwardSpeed,
       this.tuning.maxForwardSpeed,
     );
+    this.state.maximumSteerAngle = maximumSteerAngle;
 
     this.setSteerAngle(
       approachValue(

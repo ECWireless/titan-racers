@@ -193,6 +193,7 @@ async function getKartDebugState(canvas: Locator) {
         isOverGround: boolean;
         linearVelocity: { x: number; y: number; z: number };
         maximumLateralSpeed: number;
+        maximumSteerAngle: number;
         maximumTireForceUtilization: number;
         maxForwardSpeed: number;
         rotationX: number;
@@ -1349,6 +1350,61 @@ test.describe("home screen", () => {
     expect(
       Math.hypot(turnedState.x - startState.x, turnedState.z - startState.z),
     ).toBeGreaterThan(0.5);
+  });
+
+  test("applies speed-sensitive steering authority in the live controller", async ({
+    page,
+  }) => {
+    await page.goto("/");
+    await page.getByRole("button", { name: "Solo Time Trial" }).click();
+
+    const canvas = page.getByTestId("solo-time-trial-canvas");
+    await advanceRaceToRacing(canvas);
+    await setSimulationPaused(canvas, true);
+
+    const baseline = await getKartDebugState(canvas);
+    const position = { x: 0, y: 0.43, z: -12 };
+    const rotation = {
+      x: baseline.rotationX,
+      y: baseline.rotationY,
+      z: baseline.rotationZ,
+    };
+
+    for (const [speed, expectedMaximum] of [
+      [0, 18],
+      [8.5, 12],
+      [17, 6],
+    ] as const) {
+      await setKartDebugPose(canvas, {
+        linearVelocity: {
+          x: baseline.forward.x * speed,
+          y: 0,
+          z: baseline.forward.z * speed,
+        },
+        position,
+        rotation,
+      });
+      await stepSimulation(canvas);
+
+      const state = await getKartDebugState(canvas);
+      expect(state.speed).toBeCloseTo(speed, 1);
+      expect(state.maximumSteerAngle).toBeCloseTo(expectedMaximum, 1);
+    }
+
+    await canvas.click();
+    await page.keyboard.down("ArrowLeft");
+    try {
+      await stepSimulation(canvas, 4);
+    } finally {
+      await page.keyboard.up("ArrowLeft");
+    }
+
+    const highSpeedSteering = await getKartDebugState(canvas);
+    expect(highSpeedSteering.steerAngle).toBeGreaterThan(0);
+    expect(highSpeedSteering.maximumSteerAngle).toBeLessThan(8);
+    expect(highSpeedSteering.steerAngle).toBeLessThanOrEqual(
+      highSpeedSteering.maximumSteerAngle,
+    );
   });
 
   test("brakes before engaging reverse", async ({ page }) => {
