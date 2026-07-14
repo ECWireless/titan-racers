@@ -1,0 +1,2 @@
+ALTER TABLE "gameplay_runs" ADD COLUMN "runtime_load_time_ms" integer;--> statement-breakpoint
+ALTER TABLE "gameplay_runs" ADD CONSTRAINT "gameplay_runs_runtime_load_time_nonnegative" CHECK ("gameplay_runs"."runtime_load_time_ms" is null or "gameplay_runs"."runtime_load_time_ms" >= 0);

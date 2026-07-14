@@ -35,6 +35,16 @@ course revision. Apply and rehearse that migration through the same reviewed
 workflow; do not manually update publication history or simulate publishing by
 changing draft rows.
 
+PR 5A adds the typed `gameplay_runs` summary table through the same migration
+workflow. Guest rows are anonymous and carry permanent guest attribution
+separately from the nullable account foreign key. Database constraints and
+triggers enforce known courses, valid lifecycle order, immutable attribution,
+and frozen terminal summaries while still allowing an authenticated account
+link to be erased on deletion. The table must never be populated with raw input,
+per-frame movement, IP addresses, user agents, or arbitrary metadata. The
+protected dashboard reads aggregates only; ordinary operators should not query
+individual run IDs or add ad hoc identifying fields.
+
 ## Google OAuth
 
 Create a Google OAuth web client and configure these redirect URIs:

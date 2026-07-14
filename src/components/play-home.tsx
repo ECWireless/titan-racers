@@ -90,12 +90,20 @@ export function PlayHome() {
           priority
           className="h-11 w-auto sm:h-14"
         />
-        <Link
-          className="border border-titan-ice/20 bg-titan-black/36 px-3 py-2 font-mono text-[0.68rem] font-bold uppercase tracking-[0.14em] text-titan-ice/72 backdrop-blur transition hover:border-titan-hazard hover:text-titan-hazard focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-titan-hazard"
-          href="/editor"
-        >
-          Course Editor
-        </Link>
+        <nav aria-label="Protected tools" className="flex flex-wrap justify-end gap-2">
+          <Link
+            className="border border-titan-ice/20 bg-titan-black/36 px-3 py-2 font-mono text-[0.68rem] font-bold uppercase tracking-[0.14em] text-titan-ice/72 backdrop-blur transition hover:border-titan-hazard hover:text-titan-hazard focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-titan-hazard"
+            href="/admin/telemetry"
+          >
+            Telemetry
+          </Link>
+          <Link
+            className="border border-titan-ice/20 bg-titan-black/36 px-3 py-2 font-mono text-[0.68rem] font-bold uppercase tracking-[0.14em] text-titan-ice/72 backdrop-blur transition hover:border-titan-hazard hover:text-titan-hazard focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-titan-hazard"
+            href="/editor"
+          >
+            Course Editor
+          </Link>
+        </nav>
       </header>
 
       <div className="flex flex-1 items-center justify-center py-16 text-center">

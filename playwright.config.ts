@@ -14,7 +14,7 @@ export default defineConfig({
     trace: "on-first-retry",
   },
   webServer: {
-    command: "COREPACK_HOME=/tmp/corepack corepack pnpm dev --hostname 127.0.0.1 --port 3873",
+    command: "NEXT_PUBLIC_GAMEPLAY_TELEMETRY_ENABLED=false COREPACK_HOME=/tmp/corepack corepack pnpm dev --hostname 127.0.0.1 --port 3873",
     url: "http://127.0.0.1:3873",
     reuseExistingServer: !process.env.CI,
     timeout: 120_000,

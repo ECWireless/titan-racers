@@ -28,6 +28,9 @@ A game-concept node should normally cover:
 
 ## Current Children
 
+- [`gameplay-telemetry/`](gameplay-telemetry/README.md): the candidate
+  engine-independent standard for minimal, privacy-conscious gameplay-run
+  summaries and operator-facing learning.
 - [`race-presentation/`](race-presentation/README.md): the candidate standard
   for legible countdown, lap/time status, recovery, finish results, and
   accessible race-state communication.

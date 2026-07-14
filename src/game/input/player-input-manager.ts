@@ -16,7 +16,12 @@ export class PlayerInputManager {
   private activeDevice: PlayerInputDevice = "keyboard";
   private enabled = true;
 
-  constructor(target: Window, getGamepads: GamepadProvider) {
+  constructor(
+    target: Window,
+    getGamepads: GamepadProvider,
+    private readonly onDeviceActivity: (device: PlayerInputDevice) => void = () =>
+      undefined,
+  ) {
     this.keyboard = new KeyboardInput(target, () => this.activate("keyboard"));
     this.touch = new TouchInput(() => this.activate("touch"));
     this.gamepad = new GamepadInput(getGamepads, () => this.activate("gamepad"));
@@ -96,5 +101,6 @@ export class PlayerInputManager {
 
   private activate(device: PlayerInputDevice) {
     this.activeDevice = device;
+    this.onDeviceActivity(device);
   }
 }
