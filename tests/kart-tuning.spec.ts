@@ -37,7 +37,13 @@ test.describe("kart tuning", () => {
     const tuning = normalizeKartTuning({
       brakingAssistFullAngleDegrees: 2,
       brakingAssistStartAngleDegrees: 8,
+      brakingSmokeStartDemand: 0.4,
+      brakingSmokeStartTireForceUtilization: 0.3,
+      brakingSmokeStopDemand: 0.8,
+      brakingSmokeStopTireForceUtilization: 0.9,
       brakingSlideStartAngleDegrees: 30,
+      countdownSmokeStartThrottle: 0.3,
+      countdownSmokeStopThrottle: 0.8,
       driftSmokeStartSlipAngleDegrees: 9,
       driftSmokeStartSpeed: 4,
       driftSmokeStopSlipAngleDegrees: 12,
@@ -66,6 +72,15 @@ test.describe("kart tuning", () => {
     );
     expect(tuning.brakingAssistFullAngleDegrees).toBeGreaterThan(
       tuning.brakingAssistStartAngleDegrees,
+    );
+    expect(tuning.brakingSmokeStopDemand).toBeLessThanOrEqual(
+      tuning.brakingSmokeStartDemand,
+    );
+    expect(tuning.brakingSmokeStopTireForceUtilization).toBeLessThanOrEqual(
+      tuning.brakingSmokeStartTireForceUtilization,
+    );
+    expect(tuning.countdownSmokeStopThrottle).toBeLessThanOrEqual(
+      tuning.countdownSmokeStartThrottle,
     );
     expect(tuning.driftSmokeStopSpeed).toBeLessThanOrEqual(
       tuning.driftSmokeStartSpeed,

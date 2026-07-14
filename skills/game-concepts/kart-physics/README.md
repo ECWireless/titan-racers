@@ -164,6 +164,18 @@ suspension response. This passive balance must remain continuous, preserve the
 ordinary force application when braking is light, and never lock heading,
 inject lateral momentum, or overwrite angular velocity.
 
+Tire smoke is presentation evidence of dissipative tire-road slip, not a force
+or handling mode. When wheel angular velocity is modeled, longitudinal slip
+ratio is the correct source for braking and powered-wheel smoke. A simpler
+controller may instead require supported contact, meaningful speed, strong
+brake demand, and substantial tire-force utilization before showing light
+straight-line braking smoke; that proxy must not alter grip or create lateral
+slip. A countdown burnout may similarly visualize forward-throttle intent with
+a stronger two-layer plume at
+the supported driven wheels while the start hold prevents motion. Treat that as
+an explicit presentation approximation, stop it promptly when input or support
+is lost, and keep measured lateral slip responsible for heavier drift smoke.
+
 Chassis lean during sharp turns and drift must come from the rigid body's mass
 properties, tire-force application points, and independently loaded suspension.
 Tune center-of-mass height, roll inertia, spring rate, and damping together so

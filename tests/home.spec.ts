@@ -1838,6 +1838,82 @@ test.describe("home screen", () => {
       .toBe(17);
   });
 
+  test("emits tire smoke for countdown throttle and straight hard braking", async ({
+    page,
+  }) => {
+    await page.goto("/");
+    await page.getByRole("button", { name: "Solo Time Trial" }).click();
+
+    const canvas = page.getByTestId("solo-time-trial-canvas");
+    await waitForSceneReady(canvas);
+    await setSimulationPaused(canvas, true);
+    await canvas.click();
+    await page.keyboard.down("ArrowUp");
+
+    try {
+      await stepSimulation(canvas, 2);
+    } finally {
+      await page.keyboard.up("ArrowUp");
+    }
+
+    const countdownState = await getKartDebugState(canvas);
+
+    expect((await getRaceDebugState(canvas)).state).toBe("countdown");
+    expect(Math.abs(countdownState.speed)).toBeLessThan(0.1);
+    expect(countdownState.driftSmokeWheelNames.sort()).toEqual([
+      "rear-left",
+      "rear-right",
+    ]);
+    expect(
+      Object.values(countdownState.driftSmokeLevels).every(
+        (level) => level === 2,
+      ),
+    ).toBe(true);
+    await stepSimulation(canvas);
+    expect((await getKartDebugState(canvas)).driftSmokeWheelNames).toEqual([]);
+
+    await advanceRaceToRacing(canvas);
+    const baseline = await getKartDebugState(canvas);
+    await setKartDebugPose(canvas, {
+      linearVelocity: {
+        x: baseline.forward.x * 14,
+        y: 0,
+        z: baseline.forward.z * 14,
+      },
+      position: { x: 0, y: 0.43, z: -12 },
+      rotation: {
+        x: baseline.rotationX,
+        y: baseline.rotationY,
+        z: baseline.rotationZ,
+      },
+    });
+    await stepSimulation(canvas, 5);
+    await page.keyboard.down("ArrowDown");
+
+    let brakingSamples: KartDebugState[] = [];
+    try {
+      brakingSamples = await stepSimulationWithKartSamples(canvas, 12);
+    } finally {
+      await page.keyboard.up("ArrowDown");
+    }
+
+    const smokyBrakingSamples = brakingSamples.filter(
+      (state) => state.driftSmokeWheelNames.length > 0,
+    );
+    const brakingEvidence = JSON.stringify(
+      brakingSamples.map((state) => ({
+        maximumSlipAngle: state.maximumSlipAngle,
+        maximumTireForceUtilization: state.maximumTireForceUtilization,
+        smoke: state.driftSmokeWheelNames,
+        speed: state.speed,
+      })),
+    );
+    expect(smokyBrakingSamples.length, brakingEvidence).toBeGreaterThan(0);
+    expect(
+      Math.max(...smokyBrakingSamples.map((state) => state.maximumSlipAngle)),
+    ).toBeLessThan((4 * Math.PI) / 180);
+  });
+
   test("edits and resets the production kart tuning drawer", async ({
     page,
   }, testInfo) => {
@@ -1876,7 +1952,7 @@ test.describe("home screen", () => {
       await expect(page.getByTestId(`kart-tuning-${key}`)).toHaveCount(1);
     }
     await expect(drawer.locator('button[aria-label^="Explain "]')).toHaveCount(
-      46,
+      52,
     );
     if (testInfo.project.name === "mobile") {
       await expect(touchControls).toBeHidden();

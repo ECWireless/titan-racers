@@ -1,7 +1,10 @@
 import { expect, test } from "@playwright/test";
 
 import {
+  getBrakingSmokeLevel,
+  getCountdownSmokeLevel,
   getDriftSmokeLevel,
+  getTireSmokeLevel,
   shouldEmitDriftSmoke,
 } from "../src/game/kart/kart-drift-smoke";
 
@@ -14,6 +17,7 @@ test.describe("kart drift smoke", () => {
       name: "rear-left",
       slipAngle: degreesToRadians(8),
       supported: true,
+      tireForceUtilization: 0.7,
     };
 
     expect(shouldEmitDriftSmoke(driftingRearWheel)).toBe(true);
@@ -40,6 +44,7 @@ test.describe("kart drift smoke", () => {
       name: "rear-right",
       slipAngle: degreesToRadians(3.5),
       supported: true,
+      tireForceUtilization: 0.7,
     };
 
     expect(shouldEmitDriftSmoke(settlingRearWheel)).toBe(false);
@@ -58,6 +63,7 @@ test.describe("kart drift smoke", () => {
       name: "rear-left",
       slipAngle: degreesToRadians(8),
       supported: true,
+      tireForceUtilization: 0.7,
     };
 
     expect(getDriftSmokeLevel(lightDrift)).toBe(1);
@@ -70,5 +76,55 @@ test.describe("kart drift smoke", () => {
     expect(
       getDriftSmokeLevel({ ...lightDrift, slipAngle: degreesToRadians(9) }, 2),
     ).toBe(2);
+  });
+
+  test("emits light smoke for a heavily loaded straight-line braking tire", () => {
+    const hardBrakingWheel = {
+      longitudinalSpeed: 12,
+      name: "front-left",
+      slipAngle: 0,
+      supported: true,
+      tireForceUtilization: 1,
+    };
+
+    expect(getDriftSmokeLevel(hardBrakingWheel)).toBe(0);
+    expect(getBrakingSmokeLevel(hardBrakingWheel, 1)).toBe(1);
+    expect(getBrakingSmokeLevel(hardBrakingWheel, 0)).toBe(0);
+    expect(
+      getBrakingSmokeLevel(
+        { ...hardBrakingWheel, tireForceUtilization: 0.2 },
+        1,
+      ),
+    ).toBe(0);
+    expect(
+      getBrakingSmokeLevel({ ...hardBrakingWheel, supported: false }, 1),
+    ).toBe(0);
+    expect(
+      getTireSmokeLevel(hardBrakingWheel, {
+        brake: 1,
+        countdownThrottle: 0,
+      }),
+    ).toBe(1);
+  });
+
+  test("emits countdown burnout smoke only from supported rear tires", () => {
+    const countdownWheel = {
+      longitudinalSpeed: 0,
+      name: "rear-right",
+      slipAngle: 0,
+      supported: true,
+      tireForceUtilization: 0,
+    };
+
+    expect(getCountdownSmokeLevel(countdownWheel, 1)).toBe(2);
+    expect(
+      getCountdownSmokeLevel({ ...countdownWheel, name: "front-right" }, 1),
+    ).toBe(0);
+    expect(
+      getCountdownSmokeLevel({ ...countdownWheel, supported: false }, 1),
+    ).toBe(0);
+    expect(getCountdownSmokeLevel(countdownWheel, 0.1)).toBe(0);
+    expect(getCountdownSmokeLevel(countdownWheel, 0)).toBe(0);
+    expect(getCountdownSmokeLevel(countdownWheel, 0.25, true)).toBe(2);
   });
 });

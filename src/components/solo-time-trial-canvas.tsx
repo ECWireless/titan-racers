@@ -1902,7 +1902,9 @@ export function SoloTimeTrialCanvas({
 
     chaseCamera.snap(getChaseCameraSnapshot(dynamicWheels.length));
 
-    let latestDrivingInput = inputManager.sampleDrivingInput().driving;
+    let latestRequestedDrivingInput =
+      inputManager.sampleDrivingInput().driving;
+    let latestDrivingInput = latestRequestedDrivingInput;
     let pauseAfterFixedStep = false;
     let raceFinishedThisFrame = false;
 
@@ -1910,6 +1912,7 @@ export function SoloTimeTrialCanvas({
       collisionObserver.beginStep();
 
       const sample = inputManager.sampleDrivingInput();
+      latestRequestedDrivingInput = sample.driving;
       pauseAfterFixedStep =
         sample.actions.pauseRequested &&
         raceSession.snapshot.state !== "finished";
@@ -1981,9 +1984,14 @@ export function SoloTimeTrialCanvas({
         }
       }
 
-      driftSmoke?.update(
-        raceSession.acceptsDriving ? kartController.state.wheelTelemetry : [],
-      );
+      const raceState = raceSession.snapshot.state;
+      driftSmoke?.update(kartController.state.wheelTelemetry, {
+        brake: raceState === "racing" ? latestDrivingInput.brake : 0,
+        countdownThrottle:
+          raceState === "countdown"
+            ? Math.max(latestRequestedDrivingInput.throttle, 0)
+            : 0,
+      });
 
       publishRacePresentation();
     });

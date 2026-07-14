@@ -47,10 +47,16 @@ export type KartTuning = {
   brakeReverseStopSpeed: number;
   brakingAssistFullAngleDegrees: number;
   brakingAssistStartAngleDegrees: number;
+  brakingSmokeStartDemand: number;
+  brakingSmokeStartTireForceUtilization: number;
+  brakingSmokeStopDemand: number;
+  brakingSmokeStopTireForceUtilization: number;
   brakingSlideStartAngleDegrees: number;
   brakingSlideStartDemand: number;
   chassisFriction: number;
   chassisRestitution: number;
+  countdownSmokeStartThrottle: number;
+  countdownSmokeStopThrottle: number;
   drag: number;
   driftSmokeStartSlipAngleDegrees: number;
   driftSmokeStartSpeed: number;

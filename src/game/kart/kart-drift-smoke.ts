@@ -6,15 +6,33 @@ import { DEFAULT_KART_TUNING } from "./kart-tuning";
 
 const DRIFT_SMOKE_PARTICLE_LIFETIME = 0.72;
 const DRIFT_SMOKE_PARTICLE_COUNT = 8;
+const DRIFT_SMOKE_LOCAL_Y = -0.18;
+const DRIFT_SMOKE_LOCAL_Z = 0.08;
+const COUNTDOWN_SMOKE_LOCAL_Y = 0.45;
+const COUNTDOWN_SMOKE_LOCAL_Z = 0.35;
 
 function degreesToRadians(degrees: number) {
   return degrees * (Math.PI / 180);
 }
 
-type DriftSmokeWheelSample = Pick<
+type TireSmokeWheelSample = Pick<
   DynamicWheelTelemetry,
-  "longitudinalSpeed" | "name" | "slipAngle" | "supported"
+  | "longitudinalSpeed"
+  | "name"
+  | "slipAngle"
+  | "supported"
+  | "tireForceUtilization"
 >;
+
+export type TireSmokeIntent = {
+  brake: number;
+  countdownThrottle: number;
+};
+
+const NEUTRAL_TIRE_SMOKE_INTENT: TireSmokeIntent = {
+  brake: 0,
+  countdownThrottle: 0,
+};
 
 type DriftSmokeWheelMount = {
   name: string;
@@ -30,7 +48,7 @@ type DriftSmokeEmitter = {
 };
 
 export function getDriftSmokeLevel(
-  wheel: DriftSmokeWheelSample,
+  wheel: TireSmokeWheelSample,
   previousLevel = 0,
   tuning: KartTuning = DEFAULT_KART_TUNING,
 ) {
@@ -63,8 +81,71 @@ export function getDriftSmokeLevel(
   return slipAngle >= heavySlipAngle ? 2 : 1;
 }
 
+export function getBrakingSmokeLevel(
+  wheel: TireSmokeWheelSample,
+  brakeDemand: number,
+  wasActive = false,
+  tuning: KartTuning = DEFAULT_KART_TUNING,
+) {
+  if (!wheel.supported) {
+    return 0;
+  }
+
+  const minimumSpeed = wasActive
+    ? tuning.driftSmokeStopSpeed
+    : tuning.driftSmokeStartSpeed;
+  const minimumDemand = wasActive
+    ? tuning.brakingSmokeStopDemand
+    : tuning.brakingSmokeStartDemand;
+  const minimumUtilization = wasActive
+    ? tuning.brakingSmokeStopTireForceUtilization
+    : tuning.brakingSmokeStartTireForceUtilization;
+
+  return brakeDemand > 0 &&
+    wheel.longitudinalSpeed >= minimumSpeed &&
+    brakeDemand >= minimumDemand &&
+    wheel.tireForceUtilization >= minimumUtilization
+    ? 1
+    : 0;
+}
+
+export function getCountdownSmokeLevel(
+  wheel: TireSmokeWheelSample,
+  throttleDemand: number,
+  wasActive = false,
+  tuning: KartTuning = DEFAULT_KART_TUNING,
+) {
+  if (!wheel.name.startsWith("rear") || !wheel.supported) {
+    return 0;
+  }
+
+  const minimumThrottle = wasActive
+    ? tuning.countdownSmokeStopThrottle
+    : tuning.countdownSmokeStartThrottle;
+
+  return throttleDemand > 0 && throttleDemand >= minimumThrottle ? 2 : 0;
+}
+
+export function getTireSmokeLevel(
+  wheel: TireSmokeWheelSample,
+  intent: TireSmokeIntent = NEUTRAL_TIRE_SMOKE_INTENT,
+  previousLevel = 0,
+  tuning: KartTuning = DEFAULT_KART_TUNING,
+) {
+  return Math.max(
+    getDriftSmokeLevel(wheel, previousLevel, tuning),
+    getBrakingSmokeLevel(wheel, intent.brake, previousLevel > 0, tuning),
+    getCountdownSmokeLevel(
+      wheel,
+      intent.countdownThrottle,
+      previousLevel > 0,
+      tuning,
+    ),
+  );
+}
+
 export function shouldEmitDriftSmoke(
-  wheel: DriftSmokeWheelSample,
+  wheel: TireSmokeWheelSample,
   wasActive = false,
   tuning: KartTuning = DEFAULT_KART_TUNING,
 ) {
@@ -77,7 +158,7 @@ function createSmokeEmitter(
 ): DriftSmokeEmitter {
   const layerName = level === 1 ? "light" : "heavy";
   const entity = new pc.Entity(`kart-drift-smoke-${layerName}-${mount.name}`);
-  entity.setLocalPosition(0, -0.18, 0.08);
+  entity.setLocalPosition(0, DRIFT_SMOKE_LOCAL_Y, DRIFT_SMOKE_LOCAL_Z);
   mount.pivot.addChild(entity);
 
   const alphaGraph = new pc.Curve([
@@ -156,6 +237,7 @@ function createSmokeEmitter(
 
 export class KartDriftSmoke {
   private readonly emitters: DriftSmokeEmitter[];
+  private countdownLifted = false;
   private tuning: KartTuning;
 
   constructor(
@@ -163,12 +245,10 @@ export class KartDriftSmoke {
     tuning: KartTuning = DEFAULT_KART_TUNING,
   ) {
     this.tuning = { ...tuning };
-    this.emitters = wheels
-      .filter((wheel) => wheel.name.startsWith("rear"))
-      .flatMap((wheel) => [
-        createSmokeEmitter(wheel, 1),
-        createSmokeEmitter(wheel, 2),
-      ]);
+    this.emitters = wheels.flatMap((wheel) => [
+      createSmokeEmitter(wheel, 1),
+      createSmokeEmitter(wheel, 2),
+    ]);
   }
 
   get activeWheelNames() {
@@ -216,7 +296,22 @@ export class KartDriftSmoke {
     this.tuning = { ...tuning };
   }
 
-  update(wheelTelemetry: readonly DriftSmokeWheelSample[]) {
+  update(
+    wheelTelemetry: readonly TireSmokeWheelSample[],
+    intent: TireSmokeIntent = NEUTRAL_TIRE_SMOKE_INTENT,
+  ) {
+    const countdownLifted = intent.countdownThrottle > 0;
+    if (countdownLifted !== this.countdownLifted) {
+      this.countdownLifted = countdownLifted;
+      this.emitters.forEach((emitter) =>
+        emitter.entity.setLocalPosition(
+          0,
+          countdownLifted ? COUNTDOWN_SMOKE_LOCAL_Y : DRIFT_SMOKE_LOCAL_Y,
+          countdownLifted ? COUNTDOWN_SMOKE_LOCAL_Z : DRIFT_SMOKE_LOCAL_Z,
+        ),
+      );
+    }
+
     const telemetryByName = new Map(
       wheelTelemetry.map((wheel) => [wheel.name, wheel]),
     );
@@ -225,8 +320,9 @@ export class KartDriftSmoke {
     const nextLevels = new Map(
       [...telemetryByName].map(([wheelName, telemetry]) => [
         wheelName,
-        getDriftSmokeLevel(
+        getTireSmokeLevel(
           telemetry,
+          intent,
           currentLevels[wheelName] ?? 0,
           this.tuning,
         ),

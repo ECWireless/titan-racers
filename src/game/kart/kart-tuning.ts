@@ -17,10 +17,16 @@ export const DEFAULT_KART_TUNING: KartTuning = {
   brakeReverseStopSpeed: 0.04,
   brakingAssistFullAngleDegrees: 10,
   brakingAssistStartAngleDegrees: 4,
+  brakingSmokeStartDemand: 0.65,
+  brakingSmokeStartTireForceUtilization: 0.4,
+  brakingSmokeStopDemand: 0.52,
+  brakingSmokeStopTireForceUtilization: 0.3,
   brakingSlideStartAngleDegrees: 7,
   brakingSlideStartDemand: 0.65,
   chassisFriction: 0.12,
   chassisRestitution: 0.04,
+  countdownSmokeStartThrottle: 0.35,
+  countdownSmokeStopThrottle: 0.2,
   drag: 4.2,
   driftSmokeStartSlipAngleDegrees: 4,
   driftSmokeStartSpeed: 6,
@@ -71,10 +77,24 @@ export const KART_TUNING_BOUNDS: Record<KartTuningKey, KartTuningBound> = {
   brakeReverseStopSpeed: { maximum: 1, minimum: 0, step: 0.01 },
   brakingAssistFullAngleDegrees: { maximum: 45, minimum: 0.5, step: 0.5 },
   brakingAssistStartAngleDegrees: { maximum: 44.5, minimum: 0, step: 0.5 },
+  brakingSmokeStartDemand: { maximum: 1, minimum: 0, step: 0.01 },
+  brakingSmokeStartTireForceUtilization: {
+    maximum: 1,
+    minimum: 0,
+    step: 0.01,
+  },
+  brakingSmokeStopDemand: { maximum: 1, minimum: 0, step: 0.01 },
+  brakingSmokeStopTireForceUtilization: {
+    maximum: 1,
+    minimum: 0,
+    step: 0.01,
+  },
   brakingSlideStartAngleDegrees: { maximum: 44.5, minimum: 0, step: 0.5 },
   brakingSlideStartDemand: { maximum: 0.99, minimum: 0, step: 0.01 },
   chassisFriction: { maximum: 2, minimum: 0, step: 0.01 },
   chassisRestitution: { maximum: 1, minimum: 0, step: 0.01 },
+  countdownSmokeStartThrottle: { maximum: 1, minimum: 0, step: 0.05 },
+  countdownSmokeStopThrottle: { maximum: 1, minimum: 0, step: 0.05 },
   drag: { maximum: 15, minimum: 0, step: 0.1 },
   driftSmokeStartSlipAngleDegrees: { maximum: 45, minimum: 0, step: 0.5 },
   driftSmokeStartSpeed: { maximum: 30, minimum: 0, step: 0.5 },
@@ -188,6 +208,18 @@ export function normalizeKartTuning(tuning: Partial<KartTuning>): KartTuning {
   next.brakingAssistFullAngleDegrees = Math.max(
     next.brakingAssistFullAngleDegrees,
     next.brakingAssistStartAngleDegrees + 0.5,
+  );
+  next.brakingSmokeStopDemand = Math.min(
+    next.brakingSmokeStopDemand,
+    next.brakingSmokeStartDemand,
+  );
+  next.brakingSmokeStopTireForceUtilization = Math.min(
+    next.brakingSmokeStopTireForceUtilization,
+    next.brakingSmokeStartTireForceUtilization,
+  );
+  next.countdownSmokeStopThrottle = Math.min(
+    next.countdownSmokeStopThrottle,
+    next.countdownSmokeStartThrottle,
   );
   next.driftSmokeStopSpeed = Math.min(
     next.driftSmokeStopSpeed,

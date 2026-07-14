@@ -342,11 +342,11 @@ const TUNING_GROUPS: TuningGroup[] = [
     ],
   },
   {
-    label: "Drift smoke",
+    label: "Tire smoke",
     fields: [
       {
         description:
-          "Minimum rear-wheel speed required to begin emitting drift smoke.",
+          "Minimum supported-wheel speed required to begin emitting drift or hard-braking smoke.",
         key: "driftSmokeStartSpeed",
         label: "Start speed",
         unit: "m/s",
@@ -385,6 +385,48 @@ const TUNING_GROUPS: TuningGroup[] = [
         key: "heavyDriftSmokeStopSlipAngleDegrees",
         label: "Heavy stop",
         unit: "deg",
+      },
+      {
+        description:
+          "Service-brake input required before a supported tire under substantial load can begin emitting straight-line braking smoke.",
+        key: "brakingSmokeStartDemand",
+        label: "Brake start demand",
+        unit: "ratio",
+      },
+      {
+        description:
+          "Lower service-brake input where active straight-line braking smoke stops, preventing rapid flicker around the start value.",
+        key: "brakingSmokeStopDemand",
+        label: "Brake stop demand",
+        unit: "ratio",
+      },
+      {
+        description:
+          "Fraction of the available tire-force envelope that must be requested before hard braking can begin emitting smoke.",
+        key: "brakingSmokeStartTireForceUtilization",
+        label: "Brake start load",
+        unit: "ratio",
+      },
+      {
+        description:
+          "Lower tire-force utilization where active braking smoke stops as the tire load recovers.",
+        key: "brakingSmokeStopTireForceUtilization",
+        label: "Brake stop load",
+        unit: "ratio",
+      },
+      {
+        description:
+          "Forward-throttle input required to begin rear-wheel burnout smoke while the starting countdown holds the kart stationary.",
+        key: "countdownSmokeStartThrottle",
+        label: "Countdown start",
+        unit: "ratio",
+      },
+      {
+        description:
+          "Lower throttle threshold used to stop an active countdown burnout without flickering around the start value.",
+        key: "countdownSmokeStopThrottle",
+        label: "Countdown stop",
+        unit: "ratio",
       },
     ],
   },

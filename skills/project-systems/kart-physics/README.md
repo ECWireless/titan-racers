@@ -31,8 +31,12 @@ mastery remain separate systems and PR-sized units.
   grip, and hard-braking combined-slip force shaping.
 - `src/game/kart/kart-tuning.ts` owns the complete authored runtime-safe tuning
   baseline, public numeric bounds, and cross-field normalization.
-- `src/game/kart/kart-drift-smoke.ts` owns rear-wheel smoke driven only by that
-  rear wheel's supported speed and measured slip, with start/stop hysteresis.
+- `src/game/kart/kart-drift-smoke.ts` owns supported-wheel tire smoke. Measured
+  rear-wheel speed and lateral slip drive drifting levels; hard service-brake
+  demand plus substantial tire-force utilization permits light straight-line
+  braking smoke; countdown forward-throttle intent permits a two-layer
+  rear-wheel start-hold burnout. Each path has bounded gating and release
+  hysteresis.
 - `src/game/kart/kart-steering.ts` owns the engine-independent speed-sensitive
   maximum steering-angle curve.
 - `src/components/solo-time-trial-canvas.tsx` constructs the compound chassis,
@@ -99,6 +103,16 @@ mastery remain separate systems and PR-sized units.
   still stops forward motion before applying reverse drive.
 - Shift or standard gamepad west-face input requests rear-wheel handbraking;
   drift remains a continuous tire-slip result rather than an input mode.
+- Tire smoke remains presentation-only. Supported rear-wheel lateral slip
+  controls ordinary and heavy drift smoke. During racing, a hard service brake
+  at meaningful forward speed can add light smoke only from supported wheels
+  carrying substantial tire demand, even without lateral slip. During the
+  countdown, meaningful forward throttle can add a stronger two-layer plume
+  only at the supported rear driven wheels while gameplay continues to hold the
+  kart stationary. The countdown path temporarily raises and trails the
+  existing emitter placement so stationary particles remain visible, then
+  restores the ordinary tire-local placement before driving. None of these
+  smoke paths modifies tire force or race timing.
 - Every runtime-safe handling, steering, tire/drift, suspension, airborne, and
   smoke threshold is sourced from one normalized tuning object. Runtime-safe
   chassis damping/contact values use that same source. Drawer changes apply
@@ -157,15 +171,20 @@ The accepted system is covered by:
   cleanup, animation-frame cancellation, and idempotent teardown;
 - `tests/kart-tuning.spec.ts` for complete default bounds, finite-value
   handling, clamping, and related-threshold ordering;
+- `tests/kart-drift-smoke.spec.ts` for rear-slip drift levels, release
+  hysteresis, straight-line braking gates, and supported rear-only countdown
+  burnout intent;
 - `tests/home.spec.ts` for finite wheel support, visible clearance, springy ramp
   landing, full-speed signed airborne pitch and assist telemetry, static equilibrium, acceleration, configured top
   speed, braking, reverse, forward and reverse steering, longitudinal and
   lateral load transfer, grip saturation and recovery, wheel-specific ledge
   support, tipping, airborne rotation, landing, invalid-state recovery,
   production tuning hotkey behavior, tooltip accessibility, and key
-  completeness, live gravity and camera-envelope propagation, complete default
-  reset, modal isolation, responsive containment, editor transitions, loading
-  failure/cancellation, and interpolated presentation/camera-target coherence;
+  completeness, live gravity and camera-envelope propagation, straight-line
+  braking smoke without drift, stationary countdown burnout smoke, complete
+  default reset, modal isolation, responsive containment, editor transitions,
+  loading failure/cancellation, and interpolated presentation/camera-target
+  coherence;
 - `pnpm lint`, `pnpm typecheck`, and `pnpm build` for repository-wide static and
   production-build verification; and
 - the desktop and mobile Playwright projects for supported-browser runtime,
