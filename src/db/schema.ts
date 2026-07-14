@@ -300,6 +300,10 @@ export const gameplayRuns = pgTable(
       sql`${table.failureCode} is null or char_length(${table.failureCode}) between 1 and 64`,
     ),
     check(
+      "gameplay_runs_failure_code_allowlist",
+      sql`${table.failureCode} is null or ${table.failureCode} in ('physics_load_failed', 'scene_initialization_failed', 'webgl_context_lost', 'webgl_context_restore_failed')`,
+    ),
+    check(
       "gameplay_runs_terminal_pair",
       sql`(${table.endedAt} is null and ${table.outcome} is null) or (${table.endedAt} is not null and ${table.outcome} is not null)`,
     ),

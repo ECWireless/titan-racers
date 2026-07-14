@@ -1,0 +1,1 @@
+ALTER TABLE "gameplay_runs" ADD CONSTRAINT "gameplay_runs_failure_code_allowlist" CHECK ("gameplay_runs"."failure_code" is null or "gameplay_runs"."failure_code" in ('physics_load_failed', 'scene_initialization_failed', 'webgl_context_lost', 'webgl_context_restore_failed'));

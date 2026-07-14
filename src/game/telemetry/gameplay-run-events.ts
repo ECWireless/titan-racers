@@ -4,7 +4,7 @@ export type GameplayInputFamily = "gamepad" | "keyboard" | "touch";
 
 const runIdSchema = z.uuidv4();
 const inputFamilySchema = z.enum(["keyboard", "touch", "gamepad"]);
-const failureCodeSchema = z.enum([
+export const gameplayRunFailureCodeSchema = z.enum([
   "physics_load_failed",
   "scene_initialization_failed",
   "webgl_context_lost",
@@ -64,7 +64,7 @@ const exitedRunSchema = z.strictObject({
 
 const failedRunSchema = z.strictObject({
   ...eventBase,
-  failureCode: failureCodeSchema,
+  failureCode: gameplayRunFailureCodeSchema,
   inputFamilies: inputFamiliesSchema,
   outcome: z.enum(["load_failed", "runtime_failed"]),
   recoveryCount: z.number().int().nonnegative().max(10_000),
@@ -81,7 +81,9 @@ export const gameplayRunEventSchema = z.union([
 ]);
 
 export type GameplayRunEvent = z.infer<typeof gameplayRunEventSchema>;
-export type GameplayRunFailureCode = z.infer<typeof failureCodeSchema>;
+export type GameplayRunFailureCode = z.infer<
+  typeof gameplayRunFailureCodeSchema
+>;
 
 export type GameplayTelemetrySink = (
   event: GameplayRunEvent,

@@ -6,6 +6,7 @@ import {
   aggregateGameplayDashboard,
   type GameplayDashboardRange,
 } from "@/game/telemetry/gameplay-dashboard";
+import { gameplayRunFailureCodeSchema } from "@/game/telemetry/gameplay-run-events";
 
 function rangeStart(range: GameplayDashboardRange, now: Date) {
   if (range === "all") {
@@ -41,5 +42,14 @@ export async function loadGameplayDashboard(
     ? await query.where(gte(gameplayRuns.startedAt, since))
     : await query;
 
-  return aggregateGameplayDashboard(runs, range, now);
+  return aggregateGameplayDashboard(
+    runs.map((run) => ({
+      ...run,
+      failureCode: gameplayRunFailureCodeSchema
+        .nullable()
+        .parse(run.failureCode),
+    })),
+    range,
+    now,
+  );
 }

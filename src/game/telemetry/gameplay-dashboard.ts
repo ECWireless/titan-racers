@@ -1,6 +1,10 @@
 import { z } from "zod";
 
-import type { GameplayInputFamily } from "./gameplay-run-events";
+import {
+  gameplayRunFailureCodeSchema,
+  type GameplayInputFamily,
+  type GameplayRunFailureCode,
+} from "./gameplay-run-events";
 
 type GameplayRunOutcome =
   | "completed"
@@ -18,7 +22,7 @@ export type GameplayDashboardRun = {
   completedRaceTimeMs: number | null;
   deploymentVersion: string;
   endedAt: Date | null;
-  failureCode: string | null;
+  failureCode: GameplayRunFailureCode | null;
   inputFamilies: GameplayInputFamily[];
   loadedAt: Date | null;
   outcome: GameplayRunOutcome | null;
@@ -60,7 +64,7 @@ export const gameplayDashboardSchema = z.strictObject({
     z.strictObject({
       count: countSchema,
       deploymentVersion: z.string(),
-      failureCode: z.string(),
+      failureCode: gameplayRunFailureCodeSchema,
       lastOccurredAt: z.string().datetime(),
       stage: z.enum(["loading", "ready", "racing"]),
     }),
@@ -163,7 +167,7 @@ export function aggregateGameplayDashboard(
     {
       count: number;
       deploymentVersion: string;
-      failureCode: string;
+      failureCode: GameplayRunFailureCode;
       lastOccurredAt: Date;
       stage: "loading" | "racing" | "ready";
     }

@@ -28,7 +28,7 @@ identity.
   same-origin guest writer.
 - `src/server/gameplay-telemetry-repository.ts` owns idempotent server-timestamped
   Postgres transitions and server-derived deployment attribution.
-- `src/db/schema.ts` and `drizzle/0004_*` through `0008_*` own the typed run
+- `src/db/schema.ts` and `drizzle/0004_*` through `0009_*` own the typed run
   table, enum values, lifecycle and attribution constraints, triggers, and
   timestamp index.
 - `src/game/telemetry/gameplay-dashboard.ts` owns pure aggregate semantics and
@@ -79,9 +79,9 @@ identity.
   transform, per-frame sample, or replayable activity timeline.
 - Gameplay does not wait for or surface telemetry transport; unavailable
   telemetry cannot prevent loading, racing, restart, finish, or exit.
-- The dashboard API returns funnel conversions, terminal-racing recovery
-  samples, grouped bounded failures, and other aggregates—not run IDs or
-  account IDs.
+- The dashboard API validates and returns funnel conversions, terminal-racing
+  recovery samples, grouped allowlisted failures, and other aggregates—not run
+  IDs, account IDs, or free-form failure text.
 - Vercel receives automatic anonymous page views only; the first-party gameplay
   funnel is not duplicated as custom provider events.
 - Automated browser runs disable real ingestion unless a focused test fixture

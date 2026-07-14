@@ -1,5 +1,7 @@
 import {
+  gameplayDashboardSchema,
   gameplayDashboardRangeSchema,
+  type GameplayDashboardRange,
 } from "@/game/telemetry/gameplay-dashboard";
 import {
   authorizationErrorResponse,
@@ -9,7 +11,7 @@ import { loadGameplayDashboard } from "@/server/gameplay-dashboard-repository";
 
 type DashboardDependencies = {
   authorize?: typeof authorizeRole;
-  load?: typeof loadGameplayDashboard;
+  load?: (range: GameplayDashboardRange) => Promise<unknown>;
 };
 
 export async function getTelemetryDashboard(
@@ -30,7 +32,17 @@ export async function getTelemetryDashboard(
     return Response.json({ error: "Invalid telemetry range." }, { status: 400 });
   }
 
-  return Response.json(await load(parsedRange.data));
+  const dashboard = gameplayDashboardSchema.safeParse(
+    await load(parsedRange.data),
+  );
+  if (!dashboard.success) {
+    return Response.json(
+      { error: "Telemetry dashboard data is invalid." },
+      { status: 500 },
+    );
+  }
+
+  return Response.json(dashboard.data);
 }
 
 export async function GET(request: Request) {

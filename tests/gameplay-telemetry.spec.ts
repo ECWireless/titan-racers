@@ -9,6 +9,7 @@ import { db } from "../src/db/client";
 import { gameplayRuns, users } from "../src/db/schema";
 import {
   aggregateGameplayDashboard,
+  gameplayDashboardSchema,
   type GameplayDashboardRun,
 } from "../src/game/telemetry/gameplay-dashboard";
 import {
@@ -283,6 +284,28 @@ test.describe("gameplay telemetry routes", () => {
         })
       ).status,
     ).toBe(200);
+
+    const invalidDashboard = {
+      ...aggregateGameplayDashboard([], "30d"),
+      failureGroups: [
+        {
+          count: 1,
+          deploymentVersion: "deployment-a",
+          failureCode: "raw exception text",
+          lastOccurredAt: "2026-07-14T12:00:00.000Z",
+          stage: "loading",
+        },
+      ],
+    };
+    const invalidResponse = await getTelemetryDashboard(request, {
+      authorize: async () => ({ authorized: true, userId: randomUUID() }),
+      load: async () => invalidDashboard,
+    });
+    expect(invalidResponse.status).toBe(500);
+    expect(await invalidResponse.text()).not.toContain("raw exception text");
+    expect(gameplayDashboardSchema.safeParse(invalidDashboard).success).toBe(
+      false,
+    );
   });
 });
 
@@ -713,6 +736,32 @@ test.describe("gameplay telemetry Postgres integration", () => {
         .where(eq(gameplayRuns.id, invalidAuthenticatedRunId));
       await db.delete(users).where(eq(users.id, userId));
     }
+  });
+
+  test("rejects non-allowlisted failure codes at the database boundary", async () => {
+    const runId = randomUUID();
+    let insertError: unknown;
+
+    try {
+      await db.insert(gameplayRuns).values({
+        courseId: "rough-course",
+        deploymentVersion: "test",
+        endedAt: new Date("2026-07-14T10:01:00.000Z"),
+        failureCode: "raw exception text",
+        id: runId,
+        inputFamilies: [],
+        outcome: "load_failed",
+        startedAt: new Date("2026-07-14T10:00:00.000Z"),
+      });
+    } catch (error) {
+      insertError = error;
+    }
+
+    expect(insertError).toBeInstanceOf(Error);
+    expect((insertError as Error & { cause?: Error }).cause?.message).toMatch(
+      /gameplay_runs_failure_code_allowlist/,
+    );
+    await db.delete(gameplayRuns).where(eq(gameplayRuns.id, runId));
   });
 });
 
