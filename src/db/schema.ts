@@ -11,6 +11,7 @@ import {
   text,
   timestamp,
   uniqueIndex,
+  uuid,
 } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 
@@ -115,6 +116,24 @@ export const applicationRole = pgEnum("application_role", [
   "admin",
 ]);
 
+export const gameplayInputFamily = pgEnum("gameplay_input_family", [
+  "keyboard",
+  "touch",
+  "gamepad",
+]);
+
+export const gameplayRunOutcome = pgEnum("gameplay_run_outcome", [
+  "completed",
+  "exited",
+  "load_failed",
+  "runtime_failed",
+]);
+
+export const gameplayRunAttribution = pgEnum("gameplay_run_attribution", [
+  "guest",
+  "authenticated",
+]);
+
 export const userRoles = pgTable(
   "user_roles",
   {
@@ -215,6 +234,105 @@ export const coursePublications = pgTable(
   ],
 );
 
+export const gameplayRuns = pgTable(
+  "gameplay_runs",
+  {
+    id: uuid("id").primaryKey(),
+    attribution: gameplayRunAttribution("attribution")
+      .default("guest")
+      .notNull(),
+    userId: text("user_id").references(() => users.id, {
+      onDelete: "set null",
+    }),
+    courseId: text("course_id").notNull(),
+    deploymentVersion: text("deployment_version").notNull(),
+    startedAt: timestamp("started_at", { mode: "date", withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    loadedAt: timestamp("loaded_at", { mode: "date", withTimezone: true }),
+    runtimeLoadTimeMs: integer("runtime_load_time_ms"),
+    racingStartedAt: timestamp("racing_started_at", {
+      mode: "date",
+      withTimezone: true,
+    }),
+    endedAt: timestamp("ended_at", { mode: "date", withTimezone: true }),
+    outcome: gameplayRunOutcome("outcome"),
+    completedRaceTimeMs: integer("completed_race_time_ms"),
+    inputFamilies: gameplayInputFamily("input_families").array().notNull(),
+    recoveryCount: integer("recovery_count").default(0).notNull(),
+    failureCode: text("failure_code"),
+    updatedAt: timestamp("updated_at", { mode: "date", withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => [
+    index("gameplay_runs_started_at_idx").on(table.startedAt),
+    check(
+      "gameplay_runs_guest_has_no_user",
+      sql`${table.attribution} <> 'guest' or ${table.userId} is null`,
+    ),
+    check(
+      "gameplay_runs_course_id_length",
+      sql`char_length(${table.courseId}) between 1 and 80`,
+    ),
+    check(
+      "gameplay_runs_known_course",
+      sql`${table.courseId} = 'rough-course'`,
+    ),
+    check(
+      "gameplay_runs_deployment_version_length",
+      sql`char_length(${table.deploymentVersion}) between 1 and 120`,
+    ),
+    check(
+      "gameplay_runs_recovery_count_nonnegative",
+      sql`${table.recoveryCount} >= 0`,
+    ),
+    check(
+      "gameplay_runs_completed_race_time_nonnegative",
+      sql`${table.completedRaceTimeMs} is null or ${table.completedRaceTimeMs} >= 0`,
+    ),
+    check(
+      "gameplay_runs_runtime_load_time_nonnegative",
+      sql`${table.runtimeLoadTimeMs} is null or ${table.runtimeLoadTimeMs} >= 0`,
+    ),
+    check(
+      "gameplay_runs_failure_code_length",
+      sql`${table.failureCode} is null or char_length(${table.failureCode}) between 1 and 64`,
+    ),
+    check(
+      "gameplay_runs_terminal_pair",
+      sql`(${table.endedAt} is null and ${table.outcome} is null) or (${table.endedAt} is not null and ${table.outcome} is not null)`,
+    ),
+    check(
+      "gameplay_runs_outcome_payload",
+      sql`
+        (${table.outcome} is null and ${table.completedRaceTimeMs} is null and ${table.failureCode} is null)
+        or (${table.outcome} = 'completed' and ${table.completedRaceTimeMs} is not null and ${table.failureCode} is null)
+        or (${table.outcome} = 'exited' and ${table.completedRaceTimeMs} is null and ${table.failureCode} is null)
+        or (${table.outcome} in ('load_failed', 'runtime_failed') and ${table.completedRaceTimeMs} is null and ${table.failureCode} is not null)
+      `,
+    ),
+    check(
+      "gameplay_runs_milestone_order",
+      sql`
+        (${table.loadedAt} is null or ${table.loadedAt} >= ${table.startedAt})
+        and (${table.racingStartedAt} is null or (${table.loadedAt} is not null and ${table.racingStartedAt} >= ${table.loadedAt}))
+        and (${table.endedAt} is null or ${table.endedAt} >= ${table.startedAt})
+      `,
+    ),
+    check(
+      "gameplay_runs_terminal_stage",
+      sql`
+        ${table.outcome} is null
+        or ${table.outcome} = 'exited'
+        or (${table.outcome} = 'completed' and ${table.racingStartedAt} is not null and ${table.endedAt} >= ${table.racingStartedAt})
+        or (${table.outcome} = 'load_failed' and ${table.loadedAt} is null and ${table.racingStartedAt} is null)
+        or (${table.outcome} = 'runtime_failed' and ${table.loadedAt} is not null and ${table.endedAt} >= ${table.loadedAt})
+      `,
+    ),
+  ],
+);
+
 export const authSchema = {
   users,
   sessions,
@@ -223,3 +341,9 @@ export const authSchema = {
 };
 
 export type ApplicationRole = (typeof applicationRole.enumValues)[number];
+export type GameplayInputFamily =
+  (typeof gameplayInputFamily.enumValues)[number];
+export type GameplayRunOutcome =
+  (typeof gameplayRunOutcome.enumValues)[number];
+export type GameplayRunAttribution =
+  (typeof gameplayRunAttribution.enumValues)[number];

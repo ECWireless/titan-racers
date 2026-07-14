@@ -71,6 +71,10 @@ import {
   type RaceTransform,
 } from "@/game/race/race-session";
 import { attachSceneTestAdapter } from "@/game/testing/scene-test-adapter";
+import {
+  GameplayRunTelemetry,
+  httpGameplayTelemetrySink,
+} from "@/game/telemetry/gameplay-run-events";
 
 const KART_ROOT_HEIGHT = 0.43;
 const KART_MASS = 120;
@@ -317,6 +321,10 @@ export function SoloTimeTrialCanvas({
   const touchSteeringElementRef = useRef<HTMLDivElement | null>(null);
   const touchSteeringKnobRef = useRef<HTMLSpanElement | null>(null);
   const touchSteeringPointerRef = useRef<number | null>(null);
+  const gameplayTelemetryStartedRef = useRef(false);
+  const [gameplayTelemetry] = useState(
+    () => new GameplayRunTelemetry(httpGameplayTelemetrySink),
+  );
   const [driveCursorHidden, setDriveCursorHidden] = useState(false);
   const [gamePaused, setGamePaused] = useState(false);
   const [racePresentation, setRacePresentation] =
@@ -334,13 +342,20 @@ export function SoloTimeTrialCanvas({
   useControllerMenuNavigation({
     containerRef: finishMenuRef,
     enabled: racePresentation.state === "finished",
-    onBack: onExit,
+    onBack: exitRace,
   });
   useControllerMenuNavigation({
     containerRef: statusMenuRef,
     enabled: sceneStatus !== "ready",
-    onBack: onExit,
+    onBack: exitRace,
   });
+
+  useEffect(() => {
+    if (!gameplayTelemetryStartedRef.current) {
+      gameplayTelemetryStartedRef.current = true;
+      gameplayTelemetry.start(COURSE_DOCUMENT.courseId);
+    }
+  }, [COURSE_DOCUMENT.courseId, gameplayTelemetry]);
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -424,6 +439,7 @@ export function SoloTimeTrialCanvas({
     const raceSession = new RaceSession(
       createRaceSessionConfig(COURSE_DOCUMENT),
     );
+    let raceStartReported = false;
     let lastRaceProgressionResult: RaceProgressionResult = { kind: "none" };
     let lastRaceAnnouncementResult: RaceProgressionResult = { kind: "none" };
     let lastRacePresentation = createRacePresentationSnapshot(
@@ -1074,6 +1090,8 @@ export function SoloTimeTrialCanvas({
         return false;
       }
 
+      gameplayTelemetry.recordRecovery();
+
       lastRaceAnnouncementResult = { kind: "none" };
 
       const candidates = sessionSnapshot.recoveryCandidates;
@@ -1335,7 +1353,9 @@ export function SoloTimeTrialCanvas({
     }
 
     const getGamepads = () => navigator.getGamepads?.() ?? [];
-    inputManager = new PlayerInputManager(window, getGamepads);
+    inputManager = new PlayerInputManager(window, getGamepads, (family) =>
+      gameplayTelemetry.recordInputFamily(family),
+    );
     inputManager.attach();
     runtime.addCleanup(() => inputManager.detach());
     const clearTouchPresentation = () => {
@@ -1368,6 +1388,9 @@ export function SoloTimeTrialCanvas({
           return false;
         }
 
+        gameplayTelemetry.start(COURSE_DOCUMENT.courseId);
+        gameplayTelemetry.markRuntimeLoaded();
+        raceStartReported = false;
         lastRaceProgressionResult = { kind: "none" };
         lastRaceAnnouncementResult = { kind: "none" };
         resetKart();
@@ -1749,6 +1772,10 @@ export function SoloTimeTrialCanvas({
         sample.actions.pauseRequested &&
         raceSession.snapshot.state !== "finished";
       raceSession.advanceTime(dt);
+      if (!raceStartReported && raceSession.snapshot.state === "racing") {
+        raceStartReported = true;
+        gameplayTelemetry.markRaceStarted();
+      }
 
       if (pauseAfterFixedStep) {
         inputManager.setEnabled(false);
@@ -1792,6 +1819,9 @@ export function SoloTimeTrialCanvas({
           lastRaceAnnouncementResult = progressionResult;
         }
         if (lastRaceProgressionResult.kind === "finished") {
+          gameplayTelemetry.complete(
+            Math.round(raceSession.snapshot.elapsedRaceMicroseconds / 1_000),
+          );
           inputManager.setEnabled(false);
           clearTouchPresentation();
           setDriveCursorHidden(false);
@@ -1871,6 +1901,7 @@ export function SoloTimeTrialCanvas({
       runtime.start();
       activeCanvas.dataset.sceneReady = "true";
       setSceneStatus("ready");
+      gameplayTelemetry.markRuntimeLoaded();
       setDriveCursorHidden(true);
       runtime.addCleanup(() => {
         delete activeCanvas.dataset.sceneReady;
@@ -1891,6 +1922,12 @@ export function SoloTimeTrialCanvas({
 
       if (!cancelled) {
         console.error("Unable to initialize the PlayCanvas scene", error);
+        gameplayTelemetry.fail(
+          "load_failed",
+          failedRuntime
+            ? "scene_initialization_failed"
+            : "physics_load_failed",
+        );
         setSceneStatus("failed");
       }
     });
@@ -1900,7 +1937,7 @@ export function SoloTimeTrialCanvas({
       sceneApiRef.current = null;
       activeRuntime?.destroy();
     };
-  }, [COURSE_DOCUMENT, START_POSITION, START_ROTATION]);
+  }, [COURSE_DOCUMENT, START_POSITION, START_ROTATION, gameplayTelemetry]);
 
   function pauseRace() {
     sceneApiRef.current?.setPaused(true);
@@ -1913,6 +1950,11 @@ export function SoloTimeTrialCanvas({
     );
     setGamePaused(true);
     setDriveCursorHidden(false);
+  }
+
+  function exitRace() {
+    gameplayTelemetry.exit();
+    onExit();
   }
 
   function pressTouchControl(
@@ -2251,7 +2293,7 @@ export function SoloTimeTrialCanvas({
                   <button
                     type="button"
                     className="titan-button titan-button-secondary"
-                    onClick={onExit}
+                    onClick={exitRace}
                   >
                     Exit
                   </button>
@@ -2311,7 +2353,7 @@ export function SoloTimeTrialCanvas({
                   <button
                     type="button"
                     className="titan-button titan-button-secondary"
-                    onClick={onExit}
+                    onClick={exitRace}
                   >
                     Exit
                   </button>
@@ -2471,7 +2513,7 @@ export function SoloTimeTrialCanvas({
                 data-controller-default={
                   sceneStatus === "initializing" ? "true" : undefined
                 }
-                onClick={onExit}
+                onClick={exitRace}
               >
                 Exit
               </button>

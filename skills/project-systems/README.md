@@ -26,6 +26,9 @@ The source code and authoritative project documents remain the final authority f
 
 ## Current Children
 
+- [Gameplay telemetry](gameplay-telemetry/README.md): anonymous run summaries,
+  guarded milestone ingestion, protected operational aggregates, automatic
+  Vercel page views, and the admin telemetry dashboard.
 - [Race presentation](race-presentation/README.md): authoritative snapshot
   projection, countdown, lap/time HUD, recovery announcement, finish results, and
   keyboard/controller replay flow.

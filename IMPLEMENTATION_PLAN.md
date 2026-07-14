@@ -669,12 +669,30 @@ document the verified shipped systems after each slice lands.
 
 #### PR 5: Telemetry And Runtime Resilience
 
-- [ ] provider-neutral analytics event contract,
-- [ ] privacy-conscious Postgres gameplay telemetry using anonymous guest
-      sessions and summarized events rather than per-frame data,
-- [ ] Vercel Web Analytics for page, performance, and supported funnel events,
+Complete telemetry and runtime resilience through two separately reviewed
+PR-sized slices. Keep collection deliberately small: one summarized gameplay-run
+record, a protected operational dashboard, anonymous page analytics, and no raw
+input, movement, per-frame, hardware-identity, or player-journey capture.
+
+##### PR 5A: Gameplay Telemetry And Admin Dashboard
+
+- [x] provider-neutral, versioned gameplay-run milestone contract,
+- [x] privacy-conscious Postgres gameplay-run summaries using opaque run IDs,
+      nullable future server-owned account attribution, and no per-frame data,
+- [x] protected read-only admin dashboard for attempts, load/start/finish
+      conversion, race timing, input-family use, recovery use, unfinished runs,
+      and grouped failures,
+- [x] Vercel Web Analytics for anonymous page views without custom gameplay
+      funnel duplication,
+- [x] focused database, authorization, privacy, browser, and dashboard QA plus
+      the PR-level independent-review gate.
+
+##### PR 5B: Runtime Resilience And Phase 2 Closeout
+
 - [ ] focus loss, visibility change, resize, input cancellation, lower frame
       rate, loading, and WebGL/context failure behavior,
+- [ ] summarized runtime-health reporting through the PR 5A gameplay-run
+      contract and dashboard,
 - [ ] integrated Phase 2 verification and independent review.
 
 Phase 2 remains limited to one rough kart and a rough test loop. Kart uploads,

@@ -29,6 +29,41 @@
       "when": 1783899152967,
       "tag": "0003_course-publications",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1783989694646,
+      "tag": "0004_gameplay-telemetry",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1783992233815,
+      "tag": "0005_runtime-load-duration",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1783992486557,
+      "tag": "0006_gameplay-terminal-immutability",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1783994423914,
+      "tag": "0007_gameplay-review-guards",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1783994831378,
+      "tag": "0008_gameplay-attribution-insert",
+      "breakpoints": true
     }
   ]
 }

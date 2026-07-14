@@ -23,6 +23,10 @@ Prefer primary documentation and direct runtime evidence. Link back to relevant 
 
 ## Current Children
 
+- [`browser-postgres-telemetry/`](browser-postgres-telemetry/README.md): the
+  candidate mapping from run milestones to best-effort browser delivery,
+  guarded Next.js ingestion, summarized Postgres rows, protected aggregates,
+  and anonymous Vercel page analytics.
 - [`browser-race-presentation/`](browser-race-presentation/README.md): the
   candidate mapping from authoritative race snapshots to bounded React updates,
   semantic HUD/dialog presentation, safe-area layout, and controller focus.
