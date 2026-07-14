@@ -1374,11 +1374,11 @@ export function SoloTimeTrialCanvas({
     };
 
     const setScenePaused = (paused: boolean) => {
-      inputManager.setEnabled(false);
       const changed = paused ? raceSession.pause() : raceSession.resume();
       if (!changed) {
         return false;
       }
+      inputManager.setEnabled(false);
       previousRacePosition.copy(kart.getPosition());
       runtime.setPaused(paused);
       if (!paused) {
