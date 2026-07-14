@@ -2,11 +2,10 @@
 
 ## Status
 
-**Maturity:** Candidate. PR 3B implementation, clean-database migration rehearsal,
-focused auth/persistence integration tests, static checks, production build, and
-the complete gameplay regression coverage pass as of 2026-07-12. Promote this
-node to validated after the required independent reviews and feature-lead
-acceptance.
+**Maturity:** Validated. PR 3B implementation, clean-database migration
+rehearsal, focused auth/persistence integration tests, static checks,
+production build, complete gameplay regression coverage, independent review,
+and feature-lead acceptance are complete.
 
 ## Purpose And Scope
 

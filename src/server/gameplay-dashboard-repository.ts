@@ -24,9 +24,11 @@ export async function loadGameplayDashboard(
   const since = rangeStart(range, now);
   const query = db
     .select({
+      automaticPauseCount: gameplayRuns.automaticPauseCount,
       attribution: gameplayRuns.attribution,
       completedRaceTimeMs: gameplayRuns.completedRaceTimeMs,
       deploymentVersion: gameplayRuns.deploymentVersion,
+      discardedTimeMs: gameplayRuns.discardedTimeMs,
       endedAt: gameplayRuns.endedAt,
       failureCode: gameplayRuns.failureCode,
       inputFamilies: gameplayRuns.inputFamilies,

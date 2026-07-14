@@ -21,6 +21,7 @@ export class PlayCanvasRuntime {
   private readonly fixedStepListeners = new Set<
     (stepSeconds: number) => void
   >();
+  private readonly frameEndListeners = new Set<(frame: FixedStepFrame) => void>();
   private readonly discardedTimeListeners = new Set<
     (discardedSeconds: number) => void
   >();
@@ -39,6 +40,7 @@ export class PlayCanvasRuntime {
   private lastFrameTimestamp: number | null = null;
   private paused = false;
   private pauseAfterCurrentStep = false;
+  private renderingSuspended = false;
   private started = false;
 
   constructor(
@@ -73,6 +75,11 @@ export class PlayCanvasRuntime {
     this.addCleanup(() => this.discardedTimeListeners.delete(listener));
   }
 
+  onFrameEnd(listener: (frame: FixedStepFrame) => void) {
+    this.frameEndListeners.add(listener);
+    this.addCleanup(() => this.frameEndListeners.delete(listener));
+  }
+
   onRender(listener: (frame: FixedStepFrame) => void) {
     this.renderListeners.add(listener);
     this.addCleanup(() => this.renderListeners.delete(listener));
@@ -102,6 +109,29 @@ export class PlayCanvasRuntime {
     this.pauseAfterCurrentStep = true;
   }
 
+  resizeCanvas() {
+    if (!this.destroyed) {
+      this.app.resizeCanvas();
+    }
+  }
+
+  setRenderingSuspended(suspended: boolean) {
+    this.renderingSuspended = suspended;
+    this.clock.reset();
+    this.lastFrameTimestamp = null;
+  }
+
+  restoreRendering() {
+    if (this.destroyed) {
+      throw new Error("Cannot restore a destroyed PlayCanvas runtime");
+    }
+    this.app.resizeCanvas();
+    this.renderingSuspended = false;
+    this.clock.reset();
+    this.lastFrameTimestamp = null;
+    this.app.render();
+  }
+
   stepFixed(steps = 1) {
     if (!this.started || this.destroyed) {
       throw new Error("PlayCanvas runtime must be running before manual steps");
@@ -127,6 +157,7 @@ export class PlayCanvasRuntime {
       steps,
     } satisfies FixedStepFrame;
 
+    this.frameEndListeners.forEach((listener) => listener(frame));
     this.renderListeners.forEach((listener) => listener(frame));
     this.app.render();
   }
@@ -214,7 +245,9 @@ export class PlayCanvasRuntime {
     this.lastFrameTimestamp = timestamp;
 
     if (this.paused) {
-      this.app.render();
+      if (!this.renderingSuspended) {
+        this.app.render();
+      }
       this.animationFrameId = this.requestAnimationFrame(this.runFrame);
       return;
     }
@@ -243,8 +276,12 @@ export class PlayCanvasRuntime {
       );
     }
 
-    this.renderListeners.forEach((listener) => listener(frame));
-    this.app.render();
+    this.frameEndListeners.forEach((listener) => listener(frame));
+
+    if (!this.renderingSuspended) {
+      this.renderListeners.forEach((listener) => listener(frame));
+      this.app.render();
+    }
     this.animationFrameId = this.requestAnimationFrame(this.runFrame);
   };
 

@@ -189,8 +189,8 @@ Clearing input is a safety operation. Clear every adapter and queued edge when:
 - the scene detaches or is destroyed.
 
 Clearing must yield an immediately neutral snapshot and must not manufacture
-reset or pause edges. PR 4A owns input release for these events; PR 5 owns the
-broader runtime and race-state policy for focus and visibility changes.
+reset or pause edges. The input system owns release for these events; the
+runtime-resilience system owns the broader focus and visibility policy.
 
 ## Failure Modes
 
@@ -285,5 +285,5 @@ game art or assets are copied.
 - PR 4A does not add remapping, rebinding persistence, controller glyphs,
   vibration, motion controls, nonstandard controller profiles, or controller
   navigation for the protected course-authoring tool.
-- Race-state gating and recovery policy belong to PR 4B; PR 4A supplies the
-  normalized reset and pause requests they will consume.
+- Race-state gating and recovery policy are implemented by the validated race
+  progression system, which consumes normalized reset and pause requests.

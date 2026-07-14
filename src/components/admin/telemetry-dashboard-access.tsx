@@ -249,8 +249,9 @@ function formatDuration(milliseconds: number | null) {
   if (milliseconds < 10_000) {
     return `${(milliseconds / 1_000).toFixed(1)}s`;
   }
-  const minutes = Math.floor(milliseconds / 60_000);
-  const seconds = Math.round((milliseconds % 60_000) / 1_000);
+  const totalSeconds = Math.round(milliseconds / 1_000);
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
   return minutes > 0 ? `${minutes}m ${seconds}s` : `${seconds}s`;
 }
 
@@ -411,6 +412,17 @@ function TelemetryDashboard({
                 ["Multiple recoveries", dashboard.recoveries.multiple],
               ]} />
               <p className="text-xs leading-relaxed text-titan-muted">Terminal racing runs only ({dashboard.recoveries.sampleSize.toLocaleString()} runs).</p>
+            </section>
+
+            <section className="grid gap-5 border border-titan-ice/15 p-5 sm:p-6" aria-labelledby="runtime-health-title">
+              <h2 className="text-lg font-black uppercase" id="runtime-health-title">Runtime health</h2>
+              <MetricRows rows={[
+                ["Runs safety-paused", dashboard.runtimeHealth.runsWithAutomaticPauses],
+                ["Runs with discarded time", dashboard.runtimeHealth.runsWithDiscardedTime],
+              ]} />
+              <p className="text-xs leading-relaxed text-titan-muted">
+                Median discarded time among affected runs: {dashboard.runtimeHealth.medianDiscardedTimeMs === null ? "—" : formatDuration(dashboard.runtimeHealth.medianDiscardedTimeMs)}.
+              </p>
             </section>
           </div>
         )}

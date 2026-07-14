@@ -39,9 +39,11 @@ function run(
   overrides: Partial<GameplayDashboardRun> = {},
 ): GameplayDashboardRun {
   return {
+    automaticPauseCount: 0,
     attribution: "guest",
     completedRaceTimeMs: null,
     deploymentVersion: "deployment-a",
+    discardedTimeMs: 0,
     endedAt: null,
     failureCode: null,
     inputFamilies: [],
@@ -121,14 +123,34 @@ test.describe("gameplay telemetry contract", () => {
         type: "run_ended",
       }),
     ).toThrow();
+    expect(
+      gameplayRunEventSchema.parse({
+        automaticPauseCount: 2,
+        discardedTimeMs: 1_250,
+        runId,
+        schemaVersion: 1,
+        type: "runtime_health",
+      }),
+    ).toMatchObject({ automaticPauseCount: 2, discardedTimeMs: 1_250 });
+    expect(() =>
+      gameplayRunEventSchema.parse({
+        automaticPauseCount: 1,
+        discardedTimeMs: -1,
+        runId,
+        schemaVersion: 1,
+        type: "runtime_health",
+      }),
+    ).toThrow();
   });
 
   test("reports one ordered summary per run and ignores work after terminal state", async () => {
     const events: GameplayRunEvent[] = [];
+    const keepalive: boolean[] = [];
     const telemetry = new GameplayRunTelemetry(
-      async (event) => {
+      async (event, options) => {
         await Promise.resolve();
         events.push(event);
+        keepalive.push(options.keepalive);
       },
       () => "11111111-1111-4111-8111-111111111111",
       (() => {
@@ -143,24 +165,31 @@ test.describe("gameplay telemetry contract", () => {
     telemetry.recordInputFamily("keyboard");
     telemetry.recordInputFamily("gamepad");
     telemetry.recordRecovery();
+    telemetry.recordAutomaticPause();
+    telemetry.recordDiscardedTime(0.456);
+    telemetry.flushRuntimeHealth();
     telemetry.markRaceStarted();
     telemetry.complete(92_345);
     telemetry.exit();
-    await expect.poll(() => events.length).toBe(4);
+    await expect.poll(() => events.length).toBe(5);
 
     expect(events.map(({ type }) => type)).toEqual([
       "run_started",
       "runtime_loaded",
+      "runtime_health",
       "race_started",
       "run_ended",
     ]);
     expect(events.at(-1)).toMatchObject({
+      automaticPauseCount: 1,
       completedRaceTimeMs: 92_345,
+      discardedTimeMs: 456,
       inputFamilies: ["gamepad", "keyboard"],
       outcome: "completed",
       recoveryCount: 1,
     });
     expect(events[1]).toMatchObject({ elapsedMs: 2_000 });
+    expect(keepalive).toEqual([false, false, true, false, true]);
   });
 
   test("never exposes sink failure to gameplay callers", async () => {
@@ -176,6 +205,39 @@ test.describe("gameplay telemetry contract", () => {
       telemetry.markRuntimeLoaded();
       telemetry.exit();
     }).not.toThrow();
+  });
+
+  test("starts a hidden-page health flush without waiting for a slow milestone", async () => {
+    const received: GameplayRunEvent[] = [];
+    let releaseRuntimeLoaded: () => void = () => undefined;
+    const runtimeLoadedBlocked = new Promise<void>((resolve) => {
+      releaseRuntimeLoaded = resolve;
+    });
+    const telemetry = new GameplayRunTelemetry(
+      async (event) => {
+        received.push(event);
+        if (event.type === "runtime_loaded") {
+          await runtimeLoadedBlocked;
+        }
+      },
+      () => "11111111-1111-4111-8111-111111111111",
+    );
+
+    telemetry.start("rough-course");
+    await expect.poll(() => received.map((event) => event.type)).toEqual([
+      "run_started",
+    ]);
+    telemetry.markRuntimeLoaded();
+    await expect.poll(() => received.map((event) => event.type)).toContain(
+      "runtime_loaded",
+    );
+    telemetry.recordAutomaticPause();
+    telemetry.flushRuntimeHealth();
+
+    await expect.poll(() => received.map((event) => event.type)).toContain(
+      "runtime_health",
+    );
+    releaseRuntimeLoaded();
   });
 });
 
@@ -314,7 +376,9 @@ test("aggregates useful dashboard questions without exposing run identity", () =
   const dashboard = aggregateGameplayDashboard(
     [
       run("2026-07-13T10:00:00.000Z", {
+        automaticPauseCount: 1,
         completedRaceTimeMs: 100_000,
+        discardedTimeMs: 500,
         endedAt: new Date("2026-07-13T10:02:00.000Z"),
         inputFamilies: ["keyboard"],
         loadedAt: new Date("2026-07-13T10:00:02.000Z"),
@@ -325,6 +389,7 @@ test("aggregates useful dashboard questions without exposing run identity", () =
       run("2026-07-13T11:00:00.000Z", {
         attribution: "authenticated",
         completedRaceTimeMs: 120_000,
+        discardedTimeMs: 1_500,
         endedAt: new Date("2026-07-13T11:03:00.000Z"),
         inputFamilies: ["touch", "gamepad"],
         loadedAt: new Date("2026-07-13T11:00:04.000Z"),
@@ -379,6 +444,11 @@ test("aggregates useful dashboard questions without exposing run identity", () =
     one: 0,
     sampleSize: 2,
     zero: 1,
+  });
+  expect(dashboard.runtimeHealth).toEqual({
+    medianDiscardedTimeMs: 1_000,
+    runsWithAutomaticPauses: 1,
+    runsWithDiscardedTime: 2,
   });
   expect(dashboard.attribution).toEqual({ anonymous: 5, authenticated: 1 });
   expect(dashboard.funnel).toEqual({
@@ -451,7 +521,29 @@ test.describe("gameplay telemetry Postgres integration", () => {
       );
       await recordGameplayRunEvent(
         {
+          automaticPauseCount: 2,
+          discardedTimeMs: 1_200,
+          runId,
+          schemaVersion: 1,
+          type: "runtime_health",
+        },
+        new Date("2026-07-14T10:00:06.000Z"),
+      );
+      await recordGameplayRunEvent(
+        {
+          automaticPauseCount: 1,
+          discardedTimeMs: 500,
+          runId,
+          schemaVersion: 1,
+          type: "runtime_health",
+        },
+        new Date("2026-07-14T10:00:07.000Z"),
+      );
+      await recordGameplayRunEvent(
+        {
+          automaticPauseCount: 3,
           completedRaceTimeMs: 95_432,
+          discardedTimeMs: 1_500,
           inputFamilies: ["keyboard", "gamepad"],
           outcome: "completed",
           recoveryCount: 1,
@@ -480,10 +572,12 @@ test.describe("gameplay telemetry Postgres integration", () => {
         .from(gameplayRuns)
         .where(eq(gameplayRuns.id, runId));
       expect(stored).toMatchObject({
+        automaticPauseCount: 3,
         attribution: "guest",
         completedRaceTimeMs: 95_432,
         courseId: "rough-course",
         deploymentVersion: "server-owned-test-deployment",
+        discardedTimeMs: 1_500,
         inputFamilies: ["keyboard", "gamepad"],
         outcome: "completed",
         recoveryCount: 1,
@@ -501,7 +595,7 @@ test.describe("gameplay telemetry Postgres integration", () => {
       try {
         await db
           .update(gameplayRuns)
-          .set({ recoveryCount: 2 })
+          .set({ automaticPauseCount: 4, discardedTimeMs: 2_000 })
           .where(eq(gameplayRuns.id, runId));
       } catch (error) {
         immutableTerminalError = error;
@@ -766,6 +860,61 @@ test.describe("gameplay telemetry Postgres integration", () => {
 });
 
 test.describe("gameplay telemetry browser integration", () => {
+  test("flushes one coarse health summary when visibility safety-pauses a run", async ({
+    page,
+  }) => {
+    const events: GameplayRunEvent[] = [];
+    await page.addInitScript(() => {
+      const testWindow = window as typeof window & {
+        __TITAN_RACERS_TELEMETRY_TEST__?: boolean;
+        __TR_DOCUMENT_HIDDEN__?: boolean;
+      };
+      testWindow.__TITAN_RACERS_TELEMETRY_TEST__ = true;
+      testWindow.__TR_DOCUMENT_HIDDEN__ = false;
+      Object.defineProperty(document, "hidden", {
+        configurable: true,
+        get: () => testWindow.__TR_DOCUMENT_HIDDEN__ ?? false,
+      });
+    });
+    await page.route("**/api/telemetry/gameplay-runs", async (route) => {
+      events.push(gameplayRunEventSchema.parse(route.request().postDataJSON()));
+      await route.fulfill({ status: 202 });
+    });
+
+    await page.goto("/");
+    await page.getByRole("button", { name: "Solo Time Trial" }).click();
+    const canvas = page.getByTestId("solo-time-trial-canvas");
+    await expect(canvas).toHaveAttribute("data-scene-ready", "true", {
+      timeout: 15_000,
+    });
+    await page.evaluate(() => {
+      const testWindow = window as typeof window & {
+        __TR_DOCUMENT_HIDDEN__?: boolean;
+      };
+      testWindow.__TR_DOCUMENT_HIDDEN__ = true;
+      document.dispatchEvent(new Event("visibilitychange"));
+    });
+
+    const pauseDialog = page.getByRole("dialog", { name: "Paused" });
+    await expect(pauseDialog).toBeVisible();
+    await expect
+      .poll(() => events.find((event) => event.type === "runtime_health"))
+      .toMatchObject({
+        automaticPauseCount: 1,
+        discardedTimeMs: expect.any(Number),
+      });
+
+    await page.evaluate(() => {
+      const testWindow = window as typeof window & {
+        __TR_DOCUMENT_HIDDEN__?: boolean;
+      };
+      testWindow.__TR_DOCUMENT_HIDDEN__ = false;
+      document.dispatchEvent(new Event("visibilitychange"));
+    });
+    await pauseDialog.getByRole("button", { name: "Resume" }).click();
+    await expect(pauseDialog).not.toBeVisible();
+  });
+
   test("reports ordered run milestones without making racing depend on ingestion", async ({
     page,
   }) => {
@@ -842,7 +991,9 @@ test.describe("gameplay telemetry browser integration", () => {
     const dashboard = aggregateGameplayDashboard(
       [
         run("2026-07-14T10:00:00.000Z", {
+          automaticPauseCount: 1,
           completedRaceTimeMs: 95_000,
+          discardedTimeMs: 119_600,
           endedAt: new Date("2026-07-14T10:02:00.000Z"),
           inputFamilies: ["keyboard"],
           loadedAt: new Date("2026-07-14T10:00:02.000Z"),
@@ -872,6 +1023,13 @@ test.describe("gameplay telemetry browser integration", () => {
     );
     await expect(page.getByRole("heading", { name: "Daily runs" })).toBeVisible();
     await expect(page.getByRole("heading", { name: "Run funnel" })).toBeVisible();
+    await expect(
+      page.getByRole("heading", { name: "Runtime health" }),
+    ).toBeVisible();
+    await expect(page.getByText("Runs safety-paused")).toBeVisible();
+    await expect(
+      page.getByText("Median discarded time among affected runs: 2m 0s."),
+    ).toBeVisible();
     await expect(page.getByText("Loaded", { exact: true })).toBeVisible();
     await expect(page.getByText("100% from prior stage")).toHaveCount(2);
     await expect(page.getByRole("heading", { name: "Controls used" })).toBeVisible();

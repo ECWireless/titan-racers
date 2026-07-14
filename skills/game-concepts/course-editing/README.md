@@ -1,9 +1,8 @@
 # Course Editing
 
-**Maturity:** Candidate. The feature lead accepted this engine-independent
-standard for PR 3A on 2026-07-11. Promote it to validated only after the course
-document, runtime migration, deterministic serialization, and regression gates
-pass and the resulting authoring contract is accepted.
+**Maturity:** Validated. The feature lead accepted this engine-independent
+standard and the shipped course document, runtime migration, deterministic
+serialization, persistence, and protected authoring workflow in Phase 2.
 
 ## Purpose And Scope
 
@@ -259,13 +258,14 @@ while its stable ID remains unchanged.
 ## Known Limits
 
 - Version one supports only box and cylinder primitives.
-- Checkpoints are authored but remain behaviorally inactive until the rough
-  race-loop work.
-- Database revisions and protected APIs are implemented by the candidate
+- Authored checkpoints drive the validated rough-course race progression and
+  recovery systems.
+- Database revisions and protected APIs are implemented by the validated
   [`identity-course-persistence`](../../project-systems/identity-course-persistence/README.md)
   system.
 - Protected save/reload, command history, publication, and replacement of the
-  development-only editor are implemented by PR 3C.
-- Basic environment-light controls belong to PR 3C; arbitrary placeable lights
+  development-only editor are implemented by the validated
+  [`course-editor`](../../project-systems/course-editor/README.md) system.
+- Basic environment-light controls are implemented; arbitrary placeable lights
   and advanced rendering effects remain deferred.
 - Final Agricultural Zone meshes and art authoring remain later-phase work.

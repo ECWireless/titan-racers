@@ -1,9 +1,8 @@
 # Browser And Postgres Gameplay Telemetry
 
-**Maturity:** Validated. This PR 5A mapping was researched against current
-browser lifecycle guidance, PostgreSQL aggregate capabilities, Next.js 16, and
-Vercel Web Analytics, then accepted through implementation, focused verification,
-independent review, and feature-lead QA on 2026-07-14.
+**Maturity:** Validated. This PR 5A mapping and PR 5B's two bounded health totals
+were accepted through implementation, focused browser and real-Postgres
+verification, independent review, and feature-lead QA on 2026-07-14.
 
 ## Purpose And Scope
 
@@ -22,8 +21,8 @@ still tolerate it never arriving.
 
 Do not add `unload` or unconditional `beforeunload` analytics handlers. They are
 unreliable on mobile and can interfere with the back/forward cache. PR 5A records
-explicit in-app exits; PR 5B may flush a current summary when the document
-becomes hidden as part of its broader visibility policy.
+explicit in-app exits; PR 5B flushes the two bounded runtime-health totals when
+the document becomes hidden as part of its broader visibility policy.
 
 Keep the client reporter provider-neutral: gameplay emits versioned semantic
 milestones to a small sink interface. The initial first-party HTTP sink is one

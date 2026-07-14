@@ -1,8 +1,7 @@
 # PlayCanvas Course Editing
 
-**Maturity:** Candidate. The feature lead accepted this PlayCanvas 2.20.6
-mapping for PR 3A on 2026-07-11. Promote it to validated only after the course
-runtime migration and browser regression gates pass.
+**Maturity:** Validated. The PlayCanvas 2.20.6 course mapping, runtime migration,
+and browser regression gates passed for PR 3A on 2026-07-11.
 
 ## Purpose And Scope
 

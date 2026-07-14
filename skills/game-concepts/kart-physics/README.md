@@ -1,8 +1,8 @@
 # Kart Physics
 
-**Maturity:** Candidate. The feature lead accepted this engine-independent
-standard on 2026-07-10. Promote it to validated only after Titan Racers has an
-accepted implementation and repeatable verification evidence.
+**Maturity:** Validated. The feature lead accepted this engine-independent
+standard and its implemented fixed-step kart system on 2026-07-10 after
+repeatable automated and hands-on verification.
 
 ## Purpose and Scope
 

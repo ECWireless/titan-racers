@@ -2,10 +2,9 @@
 
 ## Status
 
-**Maturity:** Candidate. PR 3A implementation and automated desktop/mobile,
-static, production-build, physics, collision, camera, and editor regression
-gates pass as of 2026-07-12. Promote this node to validated after the required
-independent reviews and feature-lead acceptance.
+**Maturity:** Validated. PR 3A implementation, automated desktop/mobile, static,
+production-build, physics, collision, camera, and editor regression gates,
+independent review, and feature-lead acceptance are complete.
 
 ## Purpose And Scope
 
@@ -146,10 +145,10 @@ in-memory normalization; canonical serialization and new saves use version two.
   IDs in the protected editor.
 - Box and cylinder are the only approved primitives. Ramp and later palette
   entries are presets over those primitives rather than new shape kinds.
-- The six checkpoint placements drive the accepted rough-loop progression and
-  recovery behavior; final checkpoint and race HUD presentation remains PR 4C.
+- The six checkpoint placements drive the accepted rough-loop progression,
+  recovery behavior, and shipped race presentation.
 - Postgres revisions, Better Auth, application roles, and protected course APIs
-  are implemented by the candidate identity-and-course-persistence system.
+  are implemented by the validated identity-and-course-persistence system.
 - Add-object presets, full selection, collision visualization, undo/redo,
   reset-to-loaded-revision, save/reload, publication, and backup download are
   implemented by the protected course editor.

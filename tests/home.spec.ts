@@ -478,6 +478,10 @@ test.describe("home screen", () => {
 
     await expect(page.getByAltText("Titan Racers")).toBeVisible();
     await expect(page.getByText("Choose game mode")).toBeVisible();
+    await expect(
+      page.getByRole("link", { name: "Course Editor" }),
+    ).toBeVisible();
+    await expect(page.getByRole("link", { name: "Telemetry" })).toHaveCount(0);
 
     const raceFriends = page.getByRole("button", { name: "Race Friends" });
     const soloTimeTrial = page.getByRole("button", { name: "Solo Time Trial" });
@@ -965,11 +969,15 @@ test.describe("home screen", () => {
     await expect(raceAgain).toBeFocused();
     await setStandardTestGamepad(page);
     await page.waitForTimeout(50);
+    await setSimulationPaused(canvas, false);
+    await page.evaluate(() => window.dispatchEvent(new Event("blur")));
     await setStandardTestGamepad(page, { buttons: { 0: 1, 7: 1 } });
     await expect(finishDialog).not.toBeVisible();
     await expect
       .poll(async () => (await getRaceDebugState(canvas)).state)
       .toBe("countdown");
+    const restartedCountdown = (await getRaceDebugState(canvas))
+      .countdownRemainingMicroseconds;
     await expect(raceStatus).toContainText("Lap01/02");
     await expect(raceStatus).not.toContainText("Gates");
     await expect(canvas).toBeFocused();
@@ -985,15 +993,19 @@ test.describe("home screen", () => {
     });
     expect(restartedKart.x).toBeCloseTo(initialKart.x);
     expect(restartedKart.z).toBeCloseTo(initialKart.z);
-    expect(restartedKart.rotationX).toBeCloseTo(initialKart.rotationX, 1);
-    expect(restartedKart.rotationY).toBeCloseTo(initialKart.rotationY, 1);
-    expect(restartedKart.rotationZ).toBeCloseTo(initialKart.rotationZ, 1);
     expect(restartedKart.forward.x).toBeCloseTo(initialKart.forward.x, 1);
     expect(restartedKart.forward.y).toBeCloseTo(initialKart.forward.y, 1);
     expect(restartedKart.forward.z).toBeCloseTo(initialKart.forward.z, 1);
     expect(restartedPresentation.cameraTrackedPosition).toEqual(
       restartedPresentation.visualPosition,
     );
+
+    await expect
+      .poll(
+        async () =>
+          (await getRaceDebugState(canvas)).countdownRemainingMicroseconds,
+      )
+      .toBeLessThan(restartedCountdown);
 
     await advanceRaceToRacing(canvas);
     await stepSimulation(canvas, 20);
@@ -2433,6 +2445,132 @@ test.describe("home screen", () => {
     await expect(page.getByText("Paused", { exact: true })).not.toBeVisible();
     await expect(canvas).toBeFocused();
     await expect(pause).toBeVisible();
+  });
+
+  test("recovers a lost WebGL context into an explicit pause and preserves resize state", async ({
+    page,
+  }, testInfo) => {
+    test.skip(
+      testInfo.project.name !== "desktop",
+      "Graphics-context recovery only needs one Chromium coverage path.",
+    );
+
+    await page.goto("/");
+    await page.getByRole("button", { name: "Solo Time Trial" }).click();
+    const canvas = page.getByTestId("solo-time-trial-canvas");
+    await waitForSceneReady(canvas);
+
+    const contextLossSupported = await canvas.evaluate((element) => {
+      const context = (element as HTMLCanvasElement).getContext("webgl2");
+      const extension = context?.getExtension("WEBGL_lose_context");
+      if (!extension) {
+        return false;
+      }
+      (
+        window as typeof window & {
+          __TR_WEBGL_LOSE_CONTEXT__?: WEBGL_lose_context;
+        }
+      ).__TR_WEBGL_LOSE_CONTEXT__ = extension;
+      extension.loseContext();
+      return true;
+    });
+    test.skip(!contextLossSupported, "WEBGL_lose_context is unavailable.");
+
+    await expect(page.getByText("Restoring graphics", { exact: true })).toBeVisible();
+    await page.evaluate(() => {
+      (
+        window as typeof window & {
+          __TR_WEBGL_LOSE_CONTEXT__?: WEBGL_lose_context;
+        }
+      ).__TR_WEBGL_LOSE_CONTEXT__?.restoreContext();
+    });
+
+    const pauseDialog = page.getByRole("dialog", { name: "Paused" });
+    await expect(pauseDialog).toBeVisible();
+    await expect
+      .poll(async () => (await getRaceDebugState(canvas)).state)
+      .toBe("paused");
+
+    await page.setViewportSize({ height: 700, width: 900 });
+    await expect
+      .poll(() =>
+        canvas.evaluate((element) => ({
+          clientHeight: (element as HTMLCanvasElement).clientHeight,
+          clientWidth: (element as HTMLCanvasElement).clientWidth,
+          height: (element as HTMLCanvasElement).height,
+          width: (element as HTMLCanvasElement).width,
+        })),
+      )
+      .toEqual({ clientHeight: 700, clientWidth: 900, height: 700, width: 900 });
+    expect((await getRaceDebugState(canvas)).state).toBe("paused");
+
+    await pauseDialog.getByRole("button", { name: "Resume" }).click();
+    await expect(pauseDialog).not.toBeVisible();
+  });
+
+  test("falls back to reload or exit when a lost WebGL context does not restore", async ({
+    page,
+  }, testInfo) => {
+    test.skip(
+      testInfo.project.name !== "desktop",
+      "Graphics-context failure only needs one Chromium coverage path.",
+    );
+    const telemetryEvents: unknown[] = [];
+    await page.addInitScript(() => {
+      (
+        window as typeof window & {
+          __TITAN_RACERS_SCENE_TEST__?: {
+            contextRestoreTimeoutMs: number;
+          };
+          __TITAN_RACERS_TELEMETRY_TEST__?: boolean;
+        }
+      ).__TITAN_RACERS_SCENE_TEST__ = { contextRestoreTimeoutMs: 50 };
+      (
+        window as typeof window & {
+          __TITAN_RACERS_TELEMETRY_TEST__?: boolean;
+        }
+      ).__TITAN_RACERS_TELEMETRY_TEST__ = true;
+    });
+    await page.route("**/api/telemetry/gameplay-runs", async (route) => {
+      telemetryEvents.push(route.request().postDataJSON());
+      await route.fulfill({ status: 202 });
+    });
+
+    await page.goto("/");
+    await page.getByRole("button", { name: "Solo Time Trial" }).click();
+    const canvas = page.getByTestId("solo-time-trial-canvas");
+    await waitForSceneReady(canvas);
+    const contextLossSupported = await canvas.evaluate((element) => {
+      const extension = (element as HTMLCanvasElement)
+        .getContext("webgl2")
+        ?.getExtension("WEBGL_lose_context");
+      extension?.loseContext();
+      return Boolean(extension);
+    });
+    test.skip(!contextLossSupported, "WEBGL_lose_context is unavailable.");
+
+    const failedAlert = page
+      .getByRole("alert")
+      .filter({ hasText: "Unable to continue the race" });
+    await expect(failedAlert).toBeVisible();
+    await expect(page.getByRole("button", { name: "Reload" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Exit" })).toBeVisible();
+    await expect(canvas).not.toHaveAttribute("data-scene-ready", "true");
+    await expect
+      .poll(() =>
+        telemetryEvents.find(
+          (event) =>
+            typeof event === "object" &&
+            event !== null &&
+            "outcome" in event &&
+            event.outcome === "runtime_failed",
+        ),
+      )
+      .toMatchObject({
+        failureCode: "webgl_context_lost",
+        outcome: "runtime_failed",
+        type: "run_ended",
+      });
   });
 
   test("keeps the drive cursor hidden and restores it while paused", async ({

@@ -1,9 +1,8 @@
 # Race Lifecycle And Progression
 
-**Maturity:** Candidate. The feature lead accepted this engine-independent
-standard for PR 4B on 2026-07-13. Promote it to validated only after the
-versioned course contract, lifecycle, timing, progression, recovery, runtime
-verification, independent review, and feature-lead QA pass.
+**Maturity:** Validated. The versioned course contract, lifecycle, timing,
+progression, recovery, runtime verification, independent review, and
+feature-lead QA passed for PR 4B on 2026-07-13.
 
 ## Purpose And Scope
 
@@ -308,10 +307,8 @@ changes the runtime authority defined here.
 
 ## Known Limits
 
-- PR 4B establishes lifecycle behavior and rough-course integration, not the
-  final HUD or full cross-device loop acceptance owned by PR 4C.
 - The initial countdown, lap count, and stabilization durations remain tuning
-  candidates until rough-loop QA.
+  parameters; their current values are the accepted Phase 2 rough-loop baseline.
 - Version-two generated recovery defaults require per-course runtime evidence;
   general recovery-pose authoring may need additional Phase 6 controls before
   unrestricted community publishing.

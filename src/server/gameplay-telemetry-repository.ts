@@ -1,4 +1,4 @@
-import { and, eq, isNotNull, isNull, lte } from "drizzle-orm";
+import { and, eq, isNotNull, isNull, lte, sql } from "drizzle-orm";
 
 import { db } from "@/db/client";
 import { gameplayRuns } from "@/db/schema";
@@ -69,6 +69,26 @@ export async function recordGameplayRunEvent(
     return updated.length > 0 ? "updated" : "ignored";
   }
 
+  if (event.type === "runtime_health") {
+    const updated = await db
+      .update(gameplayRuns)
+      .set({
+        automaticPauseCount: sql`greatest(${gameplayRuns.automaticPauseCount}, ${event.automaticPauseCount})`,
+        discardedTimeMs: sql`greatest(${gameplayRuns.discardedTimeMs}, ${event.discardedTimeMs})`,
+        updatedAt: receivedAt,
+      })
+      .where(
+        and(
+          eq(gameplayRuns.id, event.runId),
+          isNull(gameplayRuns.outcome),
+          lte(gameplayRuns.startedAt, receivedAt),
+        ),
+      )
+      .returning({ id: gameplayRuns.id });
+
+    return updated.length > 0 ? "updated" : "ignored";
+  }
+
   const prerequisites = [
     eq(gameplayRuns.id, event.runId),
     isNull(gameplayRuns.outcome),
@@ -96,6 +116,8 @@ export async function recordGameplayRunEvent(
     .set({
       completedRaceTimeMs:
         event.outcome === "completed" ? event.completedRaceTimeMs : null,
+      automaticPauseCount: sql`greatest(${gameplayRuns.automaticPauseCount}, ${event.automaticPauseCount ?? 0})`,
+      discardedTimeMs: sql`greatest(${gameplayRuns.discardedTimeMs}, ${event.discardedTimeMs ?? 0})`,
       endedAt: receivedAt,
       failureCode:
         event.outcome === "load_failed" || event.outcome === "runtime_failed"

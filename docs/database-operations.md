@@ -45,6 +45,14 @@ per-frame movement, IP addresses, user agents, or arbitrary metadata. The
 protected dashboard reads aggregates only; ordinary operators should not query
 individual run IDs or add ad hoc identifying fields.
 
+PR 5B adds two bounded nonnegative totals to that same row:
+`automatic_pause_count` and `discarded_time_ms`. Hidden-document and terminal
+updates only increase those totals, and the terminal immutability trigger covers
+both columns. They answer whether active runs needed browser-lifecycle safety
+pauses and whether the fixed-step overload guard discarded active simulation
+time. Do not derive or add frame timelines, viewport dimensions, device or GPU
+details, exception text, or stack traces.
+
 ## Google OAuth
 
 Create a Google OAuth web client and configure these redirect URIs:

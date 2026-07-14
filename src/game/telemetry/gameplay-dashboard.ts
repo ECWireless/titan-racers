@@ -18,9 +18,11 @@ export type GameplayDashboardRange = z.infer<
 >;
 
 export type GameplayDashboardRun = {
+  automaticPauseCount: number;
   attribution: "authenticated" | "guest";
   completedRaceTimeMs: number | null;
   deploymentVersion: string;
+  discardedTimeMs: number;
   endedAt: Date | null;
   failureCode: GameplayRunFailureCode | null;
   inputFamilies: GameplayInputFamily[];
@@ -89,6 +91,11 @@ export const gameplayDashboardSchema = z.strictObject({
     one: countSchema,
     sampleSize: countSchema,
     zero: countSchema,
+  }),
+  runtimeHealth: z.strictObject({
+    runsWithAutomaticPauses: countSchema,
+    runsWithDiscardedTime: countSchema,
+    medianDiscardedTimeMs: z.number().int().nonnegative().nullable(),
   }),
   summary: z.strictObject({
     attempts: countSchema,
@@ -254,6 +261,18 @@ export function aggregateGameplayDashboard(
       one: terminalRacingRuns.filter((run) => run.recoveryCount === 1).length,
       sampleSize: terminalRacingRuns.length,
       zero: terminalRacingRuns.filter((run) => run.recoveryCount === 0).length,
+    },
+    runtimeHealth: {
+      runsWithAutomaticPauses: runs.filter(
+        (run) => run.automaticPauseCount > 0,
+      ).length,
+      runsWithDiscardedTime: runs.filter((run) => run.discardedTimeMs > 0)
+        .length,
+      medianDiscardedTimeMs: median(
+        runs.flatMap((run) =>
+          run.discardedTimeMs > 0 ? [run.discardedTimeMs] : [],
+        ),
+      ),
     },
     summary: {
       attempts: runs.length,

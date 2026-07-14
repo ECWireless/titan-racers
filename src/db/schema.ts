@@ -260,6 +260,8 @@ export const gameplayRuns = pgTable(
     completedRaceTimeMs: integer("completed_race_time_ms"),
     inputFamilies: gameplayInputFamily("input_families").array().notNull(),
     recoveryCount: integer("recovery_count").default(0).notNull(),
+    automaticPauseCount: integer("automatic_pause_count").default(0).notNull(),
+    discardedTimeMs: integer("discarded_time_ms").default(0).notNull(),
     failureCode: text("failure_code"),
     updatedAt: timestamp("updated_at", { mode: "date", withTimezone: true })
       .defaultNow()
@@ -286,6 +288,14 @@ export const gameplayRuns = pgTable(
     check(
       "gameplay_runs_recovery_count_nonnegative",
       sql`${table.recoveryCount} >= 0`,
+    ),
+    check(
+      "gameplay_runs_automatic_pause_count_bounded",
+      sql`${table.automaticPauseCount} between 0 and 10000`,
+    ),
+    check(
+      "gameplay_runs_discarded_time_ms_bounded",
+      sql`${table.discardedTimeMs} between 0 and 86400000`,
     ),
     check(
       "gameplay_runs_completed_race_time_nonnegative",
