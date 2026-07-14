@@ -4,15 +4,18 @@ import * as pc from "playcanvas";
 import {
   type KeyboardEvent as ReactKeyboardEvent,
   type PointerEvent as ReactPointerEvent,
+  useCallback,
   useEffect,
   useMemo,
   useRef,
   useState,
 } from "react";
 
+import { KartTuningDrawer } from "@/components/kart-tuning-drawer";
 import type {
   DrivingInput,
-  KartMovementTuning,
+  KartTuning,
+  KartTuningKey,
   CourseTestObstacleId,
   Position3,
 } from "@/game/contracts";
@@ -32,6 +35,7 @@ import {
   ROUGH_COURSE_DOCUMENT,
 } from "@/game/course/course-document";
 import { PlayerInputManager } from "@/game/input/player-input-manager";
+import { isEditableKeyboardTarget } from "@/game/input/keyboard-input";
 import { useControllerMenuNavigation } from "@/game/input/use-controller-menu-navigation";
 import {
   normalizeTouchSteering,
@@ -42,6 +46,10 @@ import {
   type DynamicWheel,
 } from "@/game/kart/dynamic-kart-controller";
 import { KartDriftSmoke } from "@/game/kart/kart-drift-smoke";
+import {
+  DEFAULT_KART_TUNING,
+  normalizeKartTuning,
+} from "@/game/kart/kart-tuning";
 import {
   KART_SUSPENSION_MAX_COMPRESSION_Y,
   KART_SUSPENSION_REST_TRAVEL,
@@ -105,13 +113,6 @@ const KART_GEOMETRY_OFFSET = {
 } as const;
 const KART_CHASSIS_DIMENSIONS = { x: 1.25, y: 0.55, z: 1.85 } as const;
 const KART_INERTIA = calculateBoxInertia(KART_MASS, KART_CHASSIS_DIMENSIONS);
-const KART_MAX_FORWARD_SPEED = 17;
-const KART_MAX_REVERSE_SPEED = 3.4;
-const KART_ACCELERATION = 9.5;
-const KART_BRAKE_FORCE = 14;
-const KART_DRAG = 4.2;
-const KART_TURN_RATE = 80;
-const KART_GRAVITY = 18;
 const KART_RESET_FALL_Y = -10;
 const KART_COLLISION_RADIUS = 0.95;
 const KART_CCD_CONFIGURATION = {
@@ -124,16 +125,6 @@ const NEUTRAL_DRIVING_INPUT: DrivingInput = {
   reset: false,
   steer: 0,
   throttle: 0,
-};
-
-const DEFAULT_KART_MOVEMENT_TUNING = {
-  acceleration: KART_ACCELERATION,
-  brakeForce: KART_BRAKE_FORCE,
-  drag: KART_DRAG,
-  gravity: KART_GRAVITY,
-  maxForwardSpeed: KART_MAX_FORWARD_SPEED,
-  maxReverseSpeed: KART_MAX_REVERSE_SPEED,
-  turnRate: KART_TURN_RATE,
 };
 
 function createMaterial(color: pc.Color) {
@@ -198,10 +189,12 @@ type SoloTimeTrialCanvasProps = {
   onExit: () => void;
 };
 type SoloSceneControls = {
+  clearInput: () => void;
   pressTouchPedal: (pointerId: number, action: TouchPedalAction) => void;
   releaseTouch: (pointerId: number) => void;
   requestTouchReset: () => void;
   restartRace: () => boolean;
+  setKartTuning: (tuning: Partial<KartTuning>) => void;
   setTouchSteering: (pointerId: number, value: number) => void;
   setPaused: (paused: boolean) => void;
 };
@@ -331,6 +324,11 @@ export function SoloTimeTrialCanvas({
   );
   const [driveCursorHidden, setDriveCursorHidden] = useState(false);
   const [gamePaused, setGamePaused] = useState(false);
+  const [kartTuningOpen, setKartTuningOpen] = useState(false);
+  const [kartTuning, setKartTuning] = useState<KartTuning>(() => ({
+    ...DEFAULT_KART_TUNING,
+  }));
+  const kartTuningRef = useRef(kartTuning);
   const [racePresentation, setRacePresentation] =
     useState<RacePresentationSnapshot>(createLoadingRacePresentationSnapshot);
   const [sceneStatus, setSceneStatus] = useState<
@@ -435,8 +433,9 @@ export function SoloTimeTrialCanvas({
       throw new Error("PlayCanvas rigid-body system is unavailable");
     }
     const activeRigidBodySystem = rigidBodySystem;
+    let activeKartTuning = normalizeKartTuning(kartTuningRef.current);
 
-    rigidBodySystem.gravity.set(0, -KART_GRAVITY, 0);
+    rigidBodySystem.gravity.set(0, -activeKartTuning.gravity, 0);
     activeCanvas.focus();
 
     if (sceneTestControl?.forceRaceSessionFailure) {
@@ -887,13 +886,13 @@ export function SoloTimeTrialCanvas({
     });
 
     kart.addComponent("rigidbody", {
-      angularDamping: 0.08,
-      friction: 0.12,
+      angularDamping: activeKartTuning.angularDamping,
+      friction: activeKartTuning.chassisFriction,
       group: PHYSICS_GROUP.kart,
-      linearDamping: 0.015,
+      linearDamping: activeKartTuning.linearDamping,
       mask: PHYSICS_MASK.kart,
       mass: KART_MASS,
-      restitution: 0.04,
+      restitution: activeKartTuning.chassisRestitution,
       type: pc.BODYTYPE_DYNAMIC,
     });
     setExplicitRigidBodyInertia(kart, KART_MASS, KART_INERTIA);
@@ -968,15 +967,16 @@ export function SoloTimeTrialCanvas({
             }
           : null;
       },
+      Math.max(
+        activeKartTuning.maxForwardSpeed,
+        activeKartTuning.maxReverseSpeed,
+      ),
     );
 
     const lightingEntities = buildCourseLighting(app, {
       document: COURSE_DOCUMENT,
     });
 
-    let activeMovementTuning: KartMovementTuning = {
-      ...DEFAULT_KART_MOVEMENT_TUNING,
-    };
     let driftSmoke: KartDriftSmoke | null = null;
     let inputManager: PlayerInputManager | null = null;
 
@@ -1192,11 +1192,11 @@ export function SoloTimeTrialCanvas({
       mass: KART_MASS,
       onFallReset: requestRaceRecovery,
       pitchInertia: KART_INERTIA.x,
-      tuning: activeMovementTuning,
+      tuning: activeKartTuning,
       wheels: dynamicWheels,
     });
     runtime.addCleanup(() => kartController.destroy());
-    driftSmoke = new KartDriftSmoke(dynamicWheels);
+    driftSmoke = new KartDriftSmoke(dynamicWheels, activeKartTuning);
     const activeDriftSmoke = driftSmoke;
     runtime.addCleanup(() => activeDriftSmoke.destroy());
     const collisionObserver = new KartCollisionObserver(
@@ -1375,15 +1375,28 @@ export function SoloTimeTrialCanvas({
       });
     }
 
-    function setSceneMovementTuning(
-      nextMovementTuning: Partial<KartMovementTuning>,
-    ) {
-      activeMovementTuning = {
-        ...activeMovementTuning,
-        ...nextMovementTuning,
-      };
-      kartController.setTuning(activeMovementTuning);
-      activeCanvas.focus();
+    function setSceneKartTuning(nextTuning: Partial<KartTuning>) {
+      activeKartTuning = normalizeKartTuning({
+        ...activeKartTuning,
+        ...nextTuning,
+      });
+      kartTuningRef.current = activeKartTuning;
+      setKartTuning({ ...activeKartTuning });
+      kartController.setTuning(activeKartTuning);
+      activeRigidBodySystem.gravity.set(0, -activeKartTuning.gravity, 0);
+      chaseCamera.setMaximumSpeed(
+        Math.max(
+          activeKartTuning.maxForwardSpeed,
+          activeKartTuning.maxReverseSpeed,
+        ),
+      );
+      if (kart.rigidbody) {
+        kart.rigidbody.angularDamping = activeKartTuning.angularDamping;
+        kart.rigidbody.friction = activeKartTuning.chassisFriction;
+        kart.rigidbody.linearDamping = activeKartTuning.linearDamping;
+        kart.rigidbody.restitution = activeKartTuning.chassisRestitution;
+      }
+      driftSmoke?.setTuning(activeKartTuning);
     }
 
     const getGamepads = () => navigator.getGamepads?.() ?? [];
@@ -1426,6 +1439,7 @@ export function SoloTimeTrialCanvas({
         return false;
       }
       gameplayTelemetry.recordAutomaticPause();
+      setKartTuningOpen(false);
       setGamePaused(true);
       setDriveCursorHidden(false);
       publishRacePresentation();
@@ -1496,6 +1510,7 @@ export function SoloTimeTrialCanvas({
     });
 
     sceneApiRef.current = {
+      clearInput: () => inputManager.clear(),
       pressTouchPedal: (pointerId, action) =>
         inputManager.pressTouchPedal(pointerId, action),
       releaseTouch: (pointerId) => inputManager.releaseTouch(pointerId),
@@ -1518,6 +1533,7 @@ export function SoloTimeTrialCanvas({
         publishRacePresentation();
         return true;
       },
+      setKartTuning: (nextTuning) => setSceneKartTuning(nextTuning),
       setTouchSteering: (pointerId, value) =>
         inputManager.setTouchSteering(pointerId, value),
       setPaused: (paused) => {
@@ -1643,7 +1659,7 @@ export function SoloTimeTrialCanvas({
         ),
         maximumSlipAngle: toFixedStep(maximumSlipAngle),
         maximumTireForceUtilization: toFixedStep(maximumTireForceUtilization),
-        maxForwardSpeed: toFixedStep(activeMovementTuning.maxForwardSpeed),
+        maxForwardSpeed: toFixedStep(activeKartTuning.maxForwardSpeed),
         rotationX: toFixedStep(kartRotation.x),
         rotationY: toFixedStep(kartRotation.y),
         rotationZ: toFixedStep(kartRotation.z),
@@ -1656,6 +1672,7 @@ export function SoloTimeTrialCanvas({
         saturatedTireCount: kartController.state.wheelTelemetry.filter(
           (wheel) => wheel.tireForceUtilization >= 0.995,
         ).length,
+        tuning: { ...activeKartTuning },
         up: {
           x: toFixedStep(kart.up.x),
           y: toFixedStep(kart.up.y),
@@ -1872,7 +1889,7 @@ export function SoloTimeTrialCanvas({
           resetKart,
           setCourseObjectDebugTransform,
           setKartDebugPose,
-          setKartMovementTuning: setSceneMovementTuning,
+          setKartMovementTuning: setSceneKartTuning,
           setRaceDebugMovement,
           setSimulationPaused: (paused) => runtime.setPaused(paused),
           setStartPosition: setSceneStartPosition,
@@ -1947,6 +1964,7 @@ export function SoloTimeTrialCanvas({
           raceFinishedThisFrame = true;
           inputManager.setEnabled(false);
           clearTouchPresentation();
+          setKartTuningOpen(false);
           setDriveCursorHidden(false);
         }
       }
@@ -1957,6 +1975,7 @@ export function SoloTimeTrialCanvas({
         pauseAfterFixedStep = false;
         if (paused) {
           runtime.requestPauseAtFixedStepBoundary();
+          setKartTuningOpen(false);
           setGamePaused(true);
           setDriveCursorHidden(false);
         }
@@ -2087,6 +2106,70 @@ export function SoloTimeTrialCanvas({
     };
   }, [COURSE_DOCUMENT, START_POSITION, START_ROTATION, gameplayTelemetry]);
 
+  function updateKartTuning(key: KartTuningKey, value: number) {
+    const nextTuning = normalizeKartTuning({
+      ...kartTuningRef.current,
+      [key]: value,
+    });
+    kartTuningRef.current = nextTuning;
+    setKartTuning(nextTuning);
+    sceneApiRef.current?.setKartTuning(nextTuning);
+  }
+
+  const updateKartTuningOpen = useCallback((open: boolean) => {
+    setKartTuningOpen(open);
+    if (!open) {
+      requestAnimationFrame(() => canvasRef.current?.focus());
+      return;
+    }
+    sceneApiRef.current?.clearInput();
+    touchSteeringPointerRef.current = null;
+    clearTouchPedalPresentation(touchPedalElementsRef.current);
+    setTouchSteeringPresentation(
+      touchSteeringElementRef.current,
+      touchSteeringKnobRef.current,
+      0,
+    );
+  }, []);
+
+  useEffect(() => {
+    const toggleKartTuning = (event: KeyboardEvent) => {
+      if (
+        event.code !== "KeyT" ||
+        event.repeat ||
+        event.altKey ||
+        event.ctrlKey ||
+        event.metaKey ||
+        event.shiftKey ||
+        isEditableKeyboardTarget(event.target) ||
+        gamePaused ||
+        racePresentation.state === "finished" ||
+        sceneStatus !== "ready"
+      ) {
+        return;
+      }
+
+      event.preventDefault();
+      updateKartTuningOpen(!kartTuningOpen);
+    };
+
+    window.addEventListener("keydown", toggleKartTuning);
+    return () => window.removeEventListener("keydown", toggleKartTuning);
+  }, [
+    gamePaused,
+    kartTuningOpen,
+    racePresentation.state,
+    sceneStatus,
+    updateKartTuningOpen,
+  ]);
+
+  function resetKartTuning() {
+    const defaults = { ...DEFAULT_KART_TUNING };
+    kartTuningRef.current = defaults;
+    setKartTuning(defaults);
+    sceneApiRef.current?.setKartTuning(defaults);
+  }
+
   function pauseRace() {
     sceneApiRef.current?.setPaused(true);
     touchSteeringPointerRef.current = null;
@@ -2096,6 +2179,7 @@ export function SoloTimeTrialCanvas({
       touchSteeringKnobRef.current,
       0,
     );
+    setKartTuningOpen(false);
     setGamePaused(true);
     setDriveCursorHidden(false);
   }
@@ -2309,6 +2393,13 @@ export function SoloTimeTrialCanvas({
   return (
     <main className="fixed inset-0 z-50 bg-black">
       <canvas
+        aria-keyshortcuts={
+          !gamePaused &&
+          racePresentation.state !== "finished" &&
+          sceneStatus === "ready"
+            ? "T"
+            : undefined
+        }
         ref={canvasRef}
         id="application"
         data-testid="solo-time-trial-canvas"
@@ -2355,6 +2446,16 @@ export function SoloTimeTrialCanvas({
       />
       {sceneStatus === "ready" ? (
         <>
+          {kartTuningOpen &&
+          !gamePaused &&
+          racePresentation.state !== "finished" ? (
+            <KartTuningDrawer
+              onChange={updateKartTuning}
+              onClose={() => updateKartTuningOpen(false)}
+              onReset={resetKartTuning}
+              tuning={kartTuning}
+            />
+          ) : null}
           {racePresentation.state !== "finished" ? (
             <section
               aria-label="Race status"
@@ -2533,11 +2634,12 @@ export function SoloTimeTrialCanvas({
               >
                 <PauseIcon />
               </button>
-              <div
-                aria-label="Touch driving controls"
-                className="race-touch-controls absolute inset-x-0 bottom-0 z-20 justify-between px-[max(1rem,env(safe-area-inset-left))] pb-[max(1rem,env(safe-area-inset-bottom))] pr-[max(1rem,env(safe-area-inset-right))]"
-                role="group"
-              >
+              {!kartTuningOpen ? (
+                <div
+                  aria-label="Touch driving controls"
+                  className="race-touch-controls absolute inset-x-0 bottom-0 z-20 justify-between px-[max(1rem,env(safe-area-inset-left))] pb-[max(1rem,env(safe-area-inset-bottom))] pr-[max(1rem,env(safe-area-inset-right))]"
+                  role="group"
+                >
                 <div
                   aria-label="Steering"
                   aria-orientation="horizontal"
@@ -2624,9 +2726,10 @@ export function SoloTimeTrialCanvas({
                     </button>
                   ))}
                 </div>
-              </div>
+                </div>
+              ) : null}
               <div className="pointer-events-none absolute bottom-4 right-4 z-10 hidden font-mono text-[0.68rem] font-bold uppercase tracking-[0.14em] text-titan-ice/55 lg:block">
-                Esc · Pause
+                T · Tuning&nbsp;&nbsp; Esc · Pause
               </div>
             </>
           ) : null}

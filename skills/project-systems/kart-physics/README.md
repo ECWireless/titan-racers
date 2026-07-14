@@ -29,6 +29,8 @@ mastery remain separate systems and PR-sized units.
   physics telemetry.
 - `src/game/kart/kart-tire-model.ts` owns continuous slip angle, peak-to-sliding
   grip, and hard-braking combined-slip force shaping.
+- `src/game/kart/kart-tuning.ts` owns the complete authored runtime-safe tuning
+  baseline, public numeric bounds, and cross-field normalization.
 - `src/game/kart/kart-drift-smoke.ts` owns rear-wheel smoke driven only by that
   rear wheel's supported speed and measured slip, with start/stop hysteresis.
 - `src/game/kart/kart-steering.ts` owns the engine-independent speed-sensitive
@@ -38,7 +40,10 @@ mastery remain separate systems and PR-sized units.
   root at their combined center of mass, applies mass properties, connects input
   and tuning, snapshots authoritative poses, interpolates the offset
   presentation-only kart visual, drives the chase camera from that visual, and
-  coordinates reset and editor transitions.
+  coordinates reset, runtime tuning, and editor transitions.
+- `src/components/kart-tuning-drawer.tsx` exposes the production, non-modal,
+  session-only tuning surface with exact grouped numeric controls, accessible
+  contextual explanations, and a complete default reset.
 - `src/game/course/build-rough-course.ts` creates static rigid bodies and marks
   surfaces that may support the kart with the `drivable-surface` tag.
 - `src/game/testing/scene-test-adapter.ts` exposes deliberate non-production
@@ -90,8 +95,35 @@ mastery remain separate systems and PR-sized units.
 - Suspension force is non-negative and bounded. Tire force scales with normal
   load and shares a combined grip limit across longitudinal and lateral demand.
 - Braking stops forward motion before reverse drive engages.
+- Authored forward and reverse top speeds both default to 17 m/s; brake input
+  still stops forward motion before applying reverse drive.
 - Shift or standard gamepad west-face input requests rear-wheel handbraking;
   drift remains a continuous tire-slip result rather than an input mode.
+- Every runtime-safe handling, steering, tire/drift, suspension, airborne, and
+  smoke threshold is sourced from one normalized tuning object. Runtime-safe
+  chassis damping/contact values use that same source. Drawer changes apply
+  immediately, including gravity and native rigid-body properties in the
+  physics world. The chase-camera speed envelope follows the larger of the
+  current forward and reverse limits. Tuning never persists beyond the race
+  session.
+- Reset All Defaults restores the complete authored tuning object. Structural
+  mass properties, center of mass, inertia, wheel/suspension geometry,
+  collision/CCD configuration, and particle allocation remain rebuild-time
+  configuration rather than live controls.
+- During the temporary handling-polish workflow, an unmodified `T` key opens or
+  closes the drawer only while an active race owns keyboard input. No visible
+  opener is rendered, editable fields suppress the shortcut, and closing
+  returns focus to the race canvas. This intentionally leaves touch-only mobile
+  sessions without tuning access.
+- Opening the drawer clears retained driving input. On coarse-pointer layouts
+  it temporarily removes the underlying touch-driving group so tuning fields
+  and the fixed reset action cannot overlap live steering or pedals. Pause and
+  finish dialogs remove the tuning surface from interaction until racing
+  resumes.
+- Obscure controls expose concise explanations on pointer hover, keyboard
+  focus, or tap. Escape dismisses help without pausing the race, the visible
+  explanation remains hoverable, and each numeric input retains an accessible
+  description even while the visual tooltip is closed.
 - Steering authority falls progressively from 18 degrees at rest to 6 degrees
   at the configured forward-speed limit, while the default steering response
   approaches that bounded target at 80 degrees per second. Reverse steering
@@ -123,13 +155,17 @@ The accepted system is covered by:
 - `tests/playcanvas-runtime.spec.ts` for engine startup, default-tick
   cancellation, callback/update/render ordering, exact manual steps, listener
   cleanup, animation-frame cancellation, and idempotent teardown;
+- `tests/kart-tuning.spec.ts` for complete default bounds, finite-value
+  handling, clamping, and related-threshold ordering;
 - `tests/home.spec.ts` for finite wheel support, visible clearance, springy ramp
   landing, full-speed signed airborne pitch and assist telemetry, static equilibrium, acceleration, configured top
   speed, braking, reverse, forward and reverse steering, longitudinal and
   lateral load transfer, grip saturation and recovery, wheel-specific ledge
-  support, tipping, airborne rotation, landing, invalid-state recovery, tuning,
-  editor transitions, loading failure/cancellation, and interpolated
-  presentation/camera-target coherence;
+  support, tipping, airborne rotation, landing, invalid-state recovery,
+  production tuning hotkey behavior, tooltip accessibility, and key
+  completeness, live gravity and camera-envelope propagation, complete default
+  reset, modal isolation, responsive containment, editor transitions, loading
+  failure/cancellation, and interpolated presentation/camera-target coherence;
 - `pnpm lint`, `pnpm typecheck`, and `pnpm build` for repository-wide static and
   production-build verification; and
 - the desktop and mobile Playwright projects for supported-browser runtime,

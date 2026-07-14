@@ -1,8 +1,4 @@
-import type {
-  KartMovementTuning,
-  CourseTestObstacleId,
-  Position3,
-} from "../contracts";
+import type { CourseTestObstacleId, KartTuning, Position3 } from "../contracts";
 import type { ChaseCameraDiagnostics } from "../camera/chase-camera";
 import type {
   RaceProgressionResult,
@@ -75,6 +71,7 @@ export type KartDebugState = {
   supportEntityNames: string[];
   supportedWheelNames: string[];
   saturatedTireCount: number;
+  tuning: KartTuning;
   up: Position3;
   verticalVelocity: number;
   wheelHubYs: Record<string, number>;
@@ -139,7 +136,7 @@ export type SceneTestApi = {
     transform: { position?: Position3; rotation?: Position3 },
   ) => void;
   setKartDebugPose: (pose: KartDebugPose) => void;
-  setKartMovementTuning: (tuning: Partial<KartMovementTuning>) => void;
+  setKartMovementTuning: (tuning: Partial<KartTuning>) => void;
   setRaceDebugMovement: (
     previousPosition: Position3,
     currentPosition: Position3,
@@ -297,7 +294,7 @@ export function attachSceneTestAdapter(
     ],
     [
       "setKartMovementTuning",
-      ((event: CustomEvent<{ tuning: Partial<KartMovementTuning> }>) => {
+      ((event: CustomEvent<{ tuning: Partial<KartTuning> }>) => {
         api.setKartMovementTuning(event.detail.tuning);
       }) as EventListener,
     ],

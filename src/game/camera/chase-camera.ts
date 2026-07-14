@@ -20,7 +20,7 @@ const MOBILE_SETTINGS = {
   maximumLookAhead: 5,
 };
 
-const MAXIMUM_SPEED = 17;
+const DEFAULT_MAXIMUM_SPEED = 17;
 const MOTION_HEADING_WEIGHT = 0.48;
 const MOTION_HEADING_MINIMUM_SPEED = 1.2;
 const SLIP_MINIMUM_SPEED = 2;
@@ -76,6 +76,7 @@ export type ChaseCameraDiagnostics = {
   fov: number;
   impactOffset: Position3;
   lookTarget: Position3;
+  maximumSpeed: number;
   obstructed: boolean;
   obstructionDistance: number | null;
   planarSpeed: number;
@@ -180,7 +181,12 @@ export class ChaseCamera {
     private readonly camera: pc.Entity,
     private readonly canvas: HTMLCanvasElement,
     private readonly queryObstruction: ObstructionQuery = () => null,
+    private maximumSpeed = DEFAULT_MAXIMUM_SPEED,
   ) {}
+
+  setMaximumSpeed(maximumSpeed: number) {
+    this.maximumSpeed = Math.max(maximumSpeed, Number.EPSILON);
+  }
 
   snap(snapshot: ChaseCameraSnapshot) {
     const settings = this.getSettings();
@@ -233,9 +239,7 @@ export class ChaseCamera {
       this.smoothedPosition,
       this.correctedPosition,
       smoothFactor(
-        this.obstructed
-          ? OBSTRUCTED_POSITION_SHARPNESS
-          : POSITION_SHARPNESS,
+        this.obstructed ? OBSTRUCTED_POSITION_SHARPNESS : POSITION_SHARPNESS,
         frameSeconds,
       ),
     );
@@ -264,6 +268,7 @@ export class ChaseCamera {
       fov: this.smoothedFov,
       impactOffset: copyPosition(this.impactOffset),
       lookTarget: copyPosition(this.smoothedLookTarget),
+      maximumSpeed: this.maximumSpeed,
       obstructed: this.obstructed,
       obstructionDistance: this.obstructionDistance,
       planarSpeed: this.planarSpeed,
@@ -292,20 +297,13 @@ export class ChaseCamera {
     const forwardSpeed = this.smoothedVelocity.dot(this.kartForward);
     this.chaseHeading.copy(this.kartForward);
 
-    if (
-      this.planarSpeed >= MOTION_HEADING_MINIMUM_SPEED &&
-      forwardSpeed > 0
-    ) {
+    if (this.planarSpeed >= MOTION_HEADING_MINIMUM_SPEED && forwardSpeed > 0) {
       this.velocityHeading
         .set(this.smoothedVelocity.x, 0, this.smoothedVelocity.z)
         .normalize();
       const motionWeight =
         MOTION_HEADING_WEIGHT *
-        clamp(
-          (this.planarSpeed - MOTION_HEADING_MINIMUM_SPEED) / 6,
-          0,
-          1,
-        );
+        clamp((this.planarSpeed - MOTION_HEADING_MINIMUM_SPEED) / 6, 0, 1);
       this.chaseHeading
         .lerp(this.kartForward, this.velocityHeading, motionWeight)
         .normalize();
@@ -319,7 +317,7 @@ export class ChaseCamera {
     );
     const slipOffset =
       (this.signedSlipDegrees / MAXIMUM_SLIP_DEGREES) * MAXIMUM_SLIP_OFFSET;
-    const speedRatio = clamp(this.planarSpeed / MAXIMUM_SPEED, 0, 1);
+    const speedRatio = clamp(this.planarSpeed / this.maximumSpeed, 0, 1);
     const lookAhead = lerp(
       settings.lookAhead,
       settings.maximumLookAhead,
@@ -418,7 +416,7 @@ export class ChaseCamera {
     return lerp(
       settings.fov,
       settings.maximumFov,
-      clamp(this.planarSpeed / MAXIMUM_SPEED, 0, 1),
+      clamp(this.planarSpeed / this.maximumSpeed, 0, 1),
     );
   }
 

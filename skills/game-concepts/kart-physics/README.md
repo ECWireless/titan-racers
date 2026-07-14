@@ -262,6 +262,26 @@ Keep tuning parameters in coherent groups with metres, kilograms, seconds,
 newtons, and radians where applicable. Compute sensible starting values from
 mass, gravity, geometry, and static wheel load when possible.
 
+A live tuning surface should consume the same typed defaults and validation as
+the simulation rather than maintaining a second UI-only copy. Expose exact
+numeric controls for runtime-safe behavior parameters, apply changes without a
+scene rebuild, and provide one unambiguous reset to the authored defaults.
+Give unfamiliar physics terms concise contextual explanations that work with
+pointer hover, keyboard focus, and touch without relying on browser `title`
+text. Help content should be dismissible, hoverable, persistent while engaged,
+and programmatically associated with its numeric control.
+Reject non-finite values, bound dangerous extremes, and preserve required
+ordering between related thresholds such as peak/sliding slip, assist
+start/full angles, and smoke start/stop hysteresis. Keep structural parameters
+that require rebuilding collision shapes, mass properties, wheel geometry, or
+particle resources out of a live drawer.
+
+Session tuning should remain ephemeral unless persistence is a separately
+approved product capability. Closing the surface must retain the current
+session values; resetting or beginning a new session must recover the authored
+baseline without browser storage, account data, telemetry, or hidden profile
+state.
+
 Development telemetry should expose:
 
 - fixed-step count and dropped catch-up time,

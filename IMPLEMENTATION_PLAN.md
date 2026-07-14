@@ -76,7 +76,7 @@ discovery, private multiplayer, and controller support are all working.
 - Complex damage beyond the focused first-pass joint-breakage mechanic.
 - Fuel or battery simulation.
 - Advanced tire physics.
-- Deep tuning UI.
+- Persisted per-kart tuning profiles or a deep tuning workflow.
 - Overly punishing collisions.
 
 ## App And Technical Direction

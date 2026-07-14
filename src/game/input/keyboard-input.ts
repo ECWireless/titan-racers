@@ -37,6 +37,21 @@ const DRIVING_KEYS = new Set([
   "ShiftRight",
 ]);
 
+export function isEditableKeyboardTarget(target: EventTarget | null) {
+  if (!target || typeof target !== "object") {
+    return false;
+  }
+  const element = target as {
+    isContentEditable?: boolean;
+    tagName?: string;
+  };
+
+  return (
+    element.isContentEditable === true ||
+    ["INPUT", "SELECT", "TEXTAREA"].includes(element.tagName ?? "")
+  );
+}
+
 export class KeyboardInput implements PlayerInputSource {
   readonly pressedKeys = new Set<string>();
   private pauseRequested = false;
@@ -92,7 +107,10 @@ export class KeyboardInput implements PlayerInputSource {
   }
 
   private readonly onKeyDown = (event: KeyboardEvent) => {
-    if (!HANDLED_KEYS.has(event.code)) {
+    if (
+      !HANDLED_KEYS.has(event.code) ||
+      isEditableKeyboardTarget(event.target)
+    ) {
       return;
     }
 
@@ -123,7 +141,9 @@ export class KeyboardInput implements PlayerInputSource {
       return;
     }
 
-    event.preventDefault();
+    if (!isEditableKeyboardTarget(event.target)) {
+      event.preventDefault();
+    }
     if (DRIVING_KEYS.has(event.code)) {
       this.pressedKeys.delete(event.code);
     }

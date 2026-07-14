@@ -27,13 +27,23 @@ class KeyboardTarget {
     this.listeners.get(type)?.delete(listener);
   }
 
-  dispatch(type: string, code: string, repeat = false) {
+  dispatch(
+    type: string,
+    code: string,
+    repeat = false,
+    target?: { isContentEditable?: boolean; tagName?: string },
+  ) {
+    let prevented = false;
     const event = {
       code,
-      preventDefault: () => undefined,
+      preventDefault: () => {
+        prevented = true;
+      },
       repeat,
+      target,
     } as KeyboardEvent;
     this.listeners.get(type)?.forEach((listener) => listener(event as Event));
+    return prevented;
   }
 }
 
@@ -52,8 +62,9 @@ function standardGamepad({
 } = {}): Gamepad {
   return {
     axes,
-    buttons: Array.from({ length: 17 }, (_, buttonIndex) =>
-      buttons[buttonIndex] ?? gamepadButton(),
+    buttons: Array.from(
+      { length: 17 },
+      (_, buttonIndex) => buttons[buttonIndex] ?? gamepadButton(),
     ),
     connected: true,
     hapticActuators: [],
@@ -102,7 +113,7 @@ test.describe("player input", () => {
     let activityCount = 0;
     const keyboard = new KeyboardInput(
       target as unknown as Window,
-      () => activityCount += 1,
+      () => (activityCount += 1),
     );
     keyboard.attach();
 
@@ -135,9 +146,32 @@ test.describe("player input", () => {
     keyboard.detach();
   });
 
+  test("leaves native editing keys to focused form controls", () => {
+    const target = new KeyboardTarget();
+    const keyboard = new KeyboardInput(target as unknown as Window);
+    keyboard.attach();
+
+    expect(
+      target.dispatch("keydown", "ArrowUp", false, { tagName: "INPUT" }),
+    ).toBe(false);
+    expect(
+      target.dispatch("keydown", "Escape", false, { tagName: "INPUT" }),
+    ).toBe(false);
+    expect(keyboard.sample()).toEqual({
+      accelerate: 0,
+      brakeReverse: 0,
+      handbrake: 0,
+      pauseRequested: false,
+      resetRequested: false,
+      steer: 0,
+    });
+
+    keyboard.detach();
+  });
+
   test("touch retains analog steering and pedal pointers independently", () => {
     let activityCount = 0;
-    const touch = new TouchInput(() => activityCount += 1);
+    const touch = new TouchInput(() => (activityCount += 1));
 
     touch.setSteering(1, -0.54);
     touch.pressPedal(2, "accelerate");
@@ -171,7 +205,7 @@ test.describe("player input", () => {
     let activityCount = 0;
     const input = new GamepadInput(
       () => [current],
-      () => activityCount += 1,
+      () => (activityCount += 1),
     );
 
     expect(input.sample().steer).toBe(0);
@@ -367,7 +401,7 @@ test.describe("player input", () => {
     let activityCount = 0;
     const input = new GamepadInput(
       () => [current],
-      () => activityCount += 1,
+      () => (activityCount += 1),
     );
 
     for (let axis = 0.16; axis <= 0.3; axis += 0.01) {
@@ -407,10 +441,9 @@ test.describe("player input", () => {
   test("changes continuous ownership only after intentional device activity", () => {
     const target = new KeyboardTarget();
     let current = standardGamepad({ axes: [0.1, 0, 0, 0] });
-    const manager = new PlayerInputManager(
-      target as unknown as Window,
-      () => [current],
-    );
+    const manager = new PlayerInputManager(target as unknown as Window, () => [
+      current,
+    ]);
     manager.attach();
 
     target.dispatch("keydown", "KeyW");

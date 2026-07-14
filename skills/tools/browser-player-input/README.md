@@ -44,7 +44,13 @@ the resulting driving intent to kart gameplay.
 - Bind `ShiftLeft` and `ShiftRight` to the continuous handbrake action.
 - Bind `KeyR` to reset and `Escape` to pause without accepting repeated keydown
   events as new action edges.
+- During handling polish, bind an unmodified `KeyT` outside the gameplay input
+  adapter to toggle the session-only tuning surface. Ignore it for editable
+  targets, modified key combinations, pause, finish, and repeated keydown.
 - Call `preventDefault()` only for handled input while gameplay owns it.
+- When a native input, select, textarea, or editable element has focus, leave
+  handled keys to that control and do not manufacture driving, reset, or pause
+  intent. A keyup may still clear previously retained driving state.
 - Clear the adapter on blur, hidden visibility, pause, and detach.
 
 The adapter should expose state reads and edge consumption without importing

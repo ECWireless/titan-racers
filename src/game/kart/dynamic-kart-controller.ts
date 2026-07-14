@@ -4,7 +4,7 @@ import type {
   DrivingInput,
   KartController,
   KartControllerState,
-  KartMovementTuning,
+  KartTuning,
 } from "../contracts";
 import {
   KART_SUSPENSION_MAX_COMPRESSION_Y,
@@ -27,22 +27,6 @@ import {
   requireAmmoDynamicsWorld,
 } from "../runtime/ammo-wheel-sweep";
 
-const SUSPENSION_SPRING_RATE = 9_500;
-const SUSPENSION_DAMPER_RATE = 540;
-const SUSPENSION_BUMP_START = 0.17;
-const SUSPENSION_BUMP_RATE = 62_000;
-const MAX_SUSPENSION_LOAD = 2_500;
-const LATERAL_STIFFNESS = 560;
-const LOW_SPEED_STIFFNESS = 780;
-const HANDBRAKE_FORCE_MULTIPLIER = 0.45;
-const REVERSE_FORCE_MULTIPLIER = 0.72;
-const VELOCITY_EPSILON = 0.04;
-const RESTING_ANGULAR_SETTLE_RATE = 12;
-const AIRBORNE_PITCH_TARGET = 6 * pc.math.DEG_TO_RAD;
-const AIRBORNE_PITCH_SPRING_RATE = 12;
-const AIRBORNE_PITCH_DAMPING_RATE = 7;
-const AIRBORNE_MAX_PITCH_ACCELERATION = 10;
-
 export type DynamicWheel = {
   driven: boolean;
   localPosition: pc.Vec3;
@@ -58,7 +42,7 @@ type DynamicKartControllerOptions = {
   mass: number;
   onFallReset: () => void;
   pitchInertia: number;
-  tuning: KartMovementTuning;
+  tuning: KartTuning;
   wheels: readonly DynamicWheel[];
 };
 
@@ -125,7 +109,7 @@ export class DynamicKartController implements KartController {
       angle: 0,
       appliedTorque: 0,
       rate: 0,
-      target: AIRBORNE_PITCH_TARGET,
+      target: 0,
     },
     maximumSteerAngle: 0,
     speed: 0,
@@ -137,13 +121,15 @@ export class DynamicKartController implements KartController {
     wheelTelemetry: [],
   };
 
-  private tuning: KartMovementTuning;
+  private tuning: KartTuning;
   private readonly drivenWheelCount: number;
   private readonly wheelSweep: AmmoWheelSweep;
   private destroyed = false;
 
   constructor(private readonly options: DynamicKartControllerOptions) {
     this.tuning = { ...options.tuning };
+    this.state.airbornePitch.target =
+      this.tuning.airbornePitchTargetDegrees * pc.math.DEG_TO_RAD;
     this.drivenWheelCount = options.wheels.filter(
       (wheel) => wheel.driven,
     ).length;
@@ -180,7 +166,7 @@ export class DynamicKartController implements KartController {
       angle: 0,
       appliedTorque: 0,
       rate: 0,
-      target: AIRBORNE_PITCH_TARGET,
+      target: this.tuning.airbornePitchTargetDegrees * pc.math.DEG_TO_RAD,
     };
     this.state.supportCount = 0;
     this.state.supportEntityNames = [];
@@ -190,11 +176,12 @@ export class DynamicKartController implements KartController {
     this.state.maximumSteerAngle = getMaximumSteerAngle(
       0,
       this.tuning.maxForwardSpeed,
+      this.tuning,
     );
     this.setSteerAngle(0);
   }
 
-  setTuning(tuning: KartMovementTuning) {
+  setTuning(tuning: KartTuning) {
     this.tuning = { ...tuning };
   }
 
@@ -221,6 +208,7 @@ export class DynamicKartController implements KartController {
     const maximumSteerAngle = getMaximumSteerAngle(
       chassisForwardSpeed,
       this.tuning.maxForwardSpeed,
+      this.tuning,
     );
     this.state.maximumSteerAngle = maximumSteerAngle;
 
@@ -313,13 +301,16 @@ export class DynamicKartController implements KartController {
       );
       const pointVelocity = linearVelocity.clone().add(angularPointVelocity);
       const separationSpeed = pointVelocity.dot(contactNormal);
-      const bumpCompression = Math.max(compression - SUSPENSION_BUMP_START, 0);
-      const suspensionLoad = clamp(
-        compression * SUSPENSION_SPRING_RATE -
-          separationSpeed * SUSPENSION_DAMPER_RATE +
-          bumpCompression ** 2 * SUSPENSION_BUMP_RATE,
+      const bumpCompression = Math.max(
+        compression - this.tuning.suspensionBumpStart,
         0,
-        MAX_SUSPENSION_LOAD,
+      );
+      const suspensionLoad = clamp(
+        compression * this.tuning.suspensionSpringRate -
+          separationSpeed * this.tuning.suspensionDamperRate +
+          bumpCompression ** 2 * this.tuning.suspensionBumpRate,
+        0,
+        this.tuning.maximumSuspensionLoad,
       );
 
       if (suspensionLoad <= 0) {
@@ -349,19 +340,29 @@ export class DynamicKartController implements KartController {
 
       telemetry.longitudinalSpeed = longitudinalSpeed;
       telemetry.lateralSpeed = lateralSpeed;
-      const slipAngle = getTireSlipAngle(longitudinalSpeed, lateralSpeed);
+      const slipAngle = getTireSlipAngle(
+        longitudinalSpeed,
+        lateralSpeed,
+        this.tuning,
+      );
       const brakingForwardMotion =
-        input.brake > 0 && chassisForwardSpeed > VELOCITY_EPSILON;
+        input.brake > 0 &&
+        chassisForwardSpeed > this.tuning.brakeReverseStopSpeed;
       const handbrakingMotion =
-        input.handbrake > 0 && Math.abs(chassisForwardSpeed) > VELOCITY_EPSILON;
+        input.handbrake > 0 &&
+        Math.abs(chassisForwardSpeed) > this.tuning.brakeReverseStopSpeed;
       const brakingDemand = Math.max(
         brakingForwardMotion ? input.brake : 0,
         wheel.driven && handbrakingMotion ? input.handbrake : 0,
       );
       const gripCoefficient =
         brakingDemand > 0
-          ? getCombinedSlipGripCoefficient(slipAngle, brakingDemand)
-          : getTireGripCoefficient(slipAngle);
+          ? getCombinedSlipGripCoefficient(
+              slipAngle,
+              brakingDemand,
+              this.tuning,
+            )
+          : getTireGripCoefficient(slipAngle, this.tuning);
       const maximumTireForce = suspensionLoad * gripCoefficient;
       telemetry.slipAngle = slipAngle;
       telemetry.gripCoefficient = gripCoefficient;
@@ -369,11 +370,12 @@ export class DynamicKartController implements KartController {
 
       if (
         brakingForwardMotion &&
-        Math.abs(longitudinalSpeed) > VELOCITY_EPSILON
+        Math.abs(longitudinalSpeed) > this.tuning.brakeReverseStopSpeed
       ) {
         const brakingForceScale = getCombinedSlipBrakeForceScale(
           slipAngle,
           input.brake,
+          this.tuning,
         );
         longitudinalForce +=
           -Math.sign(longitudinalSpeed) *
@@ -387,17 +389,18 @@ export class DynamicKartController implements KartController {
       if (
         handbrakingMotion &&
         wheel.driven &&
-        Math.abs(longitudinalSpeed) > VELOCITY_EPSILON
+        Math.abs(longitudinalSpeed) > this.tuning.brakeReverseStopSpeed
       ) {
         const brakingForceScale = getCombinedSlipBrakeForceScale(
           slipAngle,
           input.handbrake,
+          this.tuning,
         );
         longitudinalForce +=
           -Math.sign(longitudinalSpeed) *
           ((this.options.mass *
             this.tuning.brakeForce *
-            HANDBRAKE_FORCE_MULTIPLIER *
+            this.tuning.handbrakeForceMultiplier *
             input.handbrake *
             brakingForceScale) /
             this.drivenWheelCount);
@@ -421,7 +424,7 @@ export class DynamicKartController implements KartController {
             this.options.mass *
             this.tuning.acceleration *
             remainingSpeedRatio *
-            (isReverse ? REVERSE_FORCE_MULTIPLIER : 1)) /
+            (isReverse ? this.tuning.reverseForceMultiplier : 1)) /
           this.drivenWheelCount;
       }
 
@@ -433,11 +436,16 @@ export class DynamicKartController implements KartController {
       }
 
       const lateralStiffness =
-        Math.abs(lateralSpeed) < 0.35 ? LOW_SPEED_STIFFNESS : LATERAL_STIFFNESS;
+        Math.abs(lateralSpeed) < this.tuning.lowSpeedLateralStiffnessThreshold
+          ? this.tuning.lowSpeedLateralStiffness
+          : this.tuning.lateralStiffness;
       const lateralForce =
         -lateralSpeed *
         lateralStiffness *
-        getCombinedSlipLateralStiffnessScale(wheel.driven ? brakingDemand : 0);
+        getCombinedSlipLateralStiffnessScale(
+          wheel.driven ? brakingDemand : 0,
+          this.tuning,
+        );
       const longitudinalTireForce = wheelForward
         .clone()
         .mulScalar(longitudinalForce);
@@ -468,7 +476,7 @@ export class DynamicKartController implements KartController {
       const horizontalApplicationOffset = relativePoint
         .clone()
         .sub(verticalApplicationOffset)
-        .mulScalar(getBrakingYawLeverScale(yawLeverBrakingDemand));
+        .mulScalar(getBrakingYawLeverScale(yawLeverBrakingDemand, this.tuning));
       const lateralApplicationPoint = verticalApplicationOffset.add(
         horizontalApplicationOffset,
       );
@@ -480,7 +488,7 @@ export class DynamicKartController implements KartController {
       angle: Math.asin(clamp(bodyForward.y, -1, 1)),
       appliedTorque: 0,
       rate: 0,
-      target: AIRBORNE_PITCH_TARGET,
+      target: this.tuning.airbornePitchTargetDegrees * pc.math.DEG_TO_RAD,
     };
 
     if (supportCount === 0) {
@@ -490,11 +498,14 @@ export class DynamicKartController implements KartController {
       const bodyRight = kart.right.clone().normalize();
       const pitchAngle = Math.asin(clamp(bodyForward.y, -1, 1));
       const pitchSpeed = angularVelocity.dot(bodyRight);
+      const airbornePitchTarget =
+        this.tuning.airbornePitchTargetDegrees * pc.math.DEG_TO_RAD;
       const pitchAcceleration = clamp(
-        (AIRBORNE_PITCH_TARGET - pitchAngle) * AIRBORNE_PITCH_SPRING_RATE -
-          pitchSpeed * AIRBORNE_PITCH_DAMPING_RATE,
-        -AIRBORNE_MAX_PITCH_ACCELERATION,
-        AIRBORNE_MAX_PITCH_ACCELERATION,
+        (airbornePitchTarget - pitchAngle) *
+          this.tuning.airbornePitchSpringRate -
+          pitchSpeed * this.tuning.airbornePitchDampingRate,
+        -this.tuning.airborneMaximumPitchAcceleration,
+        this.tuning.airborneMaximumPitchAcceleration,
       );
       const appliedTorque = pitchAcceleration * this.options.pitchInertia;
 
@@ -504,7 +515,7 @@ export class DynamicKartController implements KartController {
         angle: pitchAngle,
         appliedTorque,
         rate: pitchSpeed,
-        target: AIRBORNE_PITCH_TARGET,
+        target: airbornePitchTarget,
       };
     }
 
@@ -527,16 +538,17 @@ export class DynamicKartController implements KartController {
       input.handbrake === 0 &&
       input.steer === 0 &&
       input.throttle === 0 &&
-      linearVelocity.length() < 0.3 &&
-      Math.abs(linearVelocity.y) < 0.2 &&
-      angularVelocity.length() < 1;
+      linearVelocity.length() < this.tuning.restingSettleMaximumLinearSpeed &&
+      Math.abs(linearVelocity.y) <
+        this.tuning.restingSettleMaximumVerticalSpeed &&
+      angularVelocity.length() < this.tuning.restingSettleMaximumAngularSpeed;
 
     if (isRestingWithoutInput) {
       // Finite wheel sweeps can alternate between coplanar course primitives at
       // rest. Settle only that low-energy grounded regime; any input, impact,
       // vertical motion, or larger rotation releases this policy immediately.
       rigidBody.angularVelocity = angularVelocity.mulScalar(
-        Math.max(1 - RESTING_ANGULAR_SETTLE_RATE * deltaSeconds, 0),
+        Math.max(1 - this.tuning.restingAngularSettleRate * deltaSeconds, 0),
       );
     }
   }

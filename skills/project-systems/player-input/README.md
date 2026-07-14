@@ -36,7 +36,8 @@ remain owned by the kart-physics system.
   values, the device/source types, and the explicit sign conversion into the
   accepted kart-controller steering convention.
 - `src/game/input/keyboard-input.ts` owns WASD/arrow driving state, either Shift
-  key as the held handbrake, and one-shot R reset and Escape pause edges.
+  key as the held handbrake, one-shot R reset and Escape pause edges, and the
+  editable-control guard that leaves native form-key behavior untouched.
 - `src/game/input/touch-input.ts` owns a continuous pointer-specific steering
   value with a rescaled `0.08` dead zone and touch-only `1.75` response exponent,
   independent pedal-pointer state, and reset request state.
@@ -167,6 +168,13 @@ until disconnect. Nonstandard mappings remain neutral and non-fatal.
   devices are never added together.
 - Reset and pause edges are consumed once and ignore keyboard repeat or held
   controller buttons.
+- A focused input, select, textarea, or editable element owns its native keys;
+  tuning-field arrows, `T`, and Escape never leak into driving, tuning-toggle,
+  or pause intent.
+- An unmodified, non-repeating `T` temporarily toggles the production tuning
+  surface only during an active race. Modified shortcuts are left to the
+  browser or operating system, and the shortcut is absent while pause or finish
+  UI owns interaction.
 - Focus/visibility loss, pause, controller disconnect, pointer cancellation,
   reset, and teardown yield neutral retained input without manufacturing
   actions. A cleared controller must return fully neutral before it can re-arm.

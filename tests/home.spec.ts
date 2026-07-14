@@ -1,6 +1,8 @@
 import { expect, type Locator, type Page, test } from "@playwright/test";
 
+import type { KartTuning } from "../src/game/contracts";
 import { ROUGH_COURSE_DOCUMENT } from "../src/game/course/course-document";
+import { DEFAULT_KART_TUNING } from "../src/game/kart/kart-tuning";
 import type {
   KartDebugState,
   RaceDebugState,
@@ -138,6 +140,7 @@ async function getCameraDebugState(canvas: Locator) {
         fov: number;
         impactOffset: { x: number; y: number; z: number };
         lookTarget: { x: number; y: number; z: number };
+        maximumSpeed: number;
         obstructed: boolean;
         obstructionDistance: number | null;
         planarSpeed: number;
@@ -298,15 +301,7 @@ async function setKartDebugPose(
 
 async function setKartMovementTuning(
   canvas: Locator,
-  tuning: Partial<{
-    acceleration: number;
-    brakeForce: number;
-    drag: number;
-    gravity: number;
-    maxForwardSpeed: number;
-    maxReverseSpeed: number;
-    turnRate: number;
-  }>,
+  tuning: Partial<KartTuning>,
 ) {
   await waitForSceneReady(canvas);
   await canvas.evaluate((element, requestedTuning) => {
@@ -1501,6 +1496,47 @@ test.describe("home screen", () => {
     expect(state.speed).toBeLessThanOrEqual(state.maxForwardSpeed + 0.1);
   });
 
+  test("approaches the configured reverse speed without exceeding it", async ({
+    page,
+  }) => {
+    await page.goto("/");
+
+    await page.getByRole("button", { name: "Solo Time Trial" }).click();
+
+    const canvas = page.getByTestId("solo-time-trial-canvas");
+    await advanceRaceToRacing(canvas);
+    await setKartDebugPose(canvas, {
+      position: { x: -43, y: 0.43, z: -12 },
+      rotation: { x: 0, y: 90, z: 0 },
+    });
+    await stepSimulation(canvas, 5);
+    await canvas.click();
+    await page.keyboard.down("ArrowDown");
+
+    try {
+      await stepSimulation(canvas, 420);
+      const state = await getKartDebugState(canvas);
+
+      expect(state.supportCount).toBe(4);
+      expect(state.tuning.maxReverseSpeed).toBe(17);
+      expect(-state.speed).toBeGreaterThan(state.tuning.maxReverseSpeed * 0.9);
+      expect(-state.speed).toBeLessThanOrEqual(
+        state.tuning.maxReverseSpeed + 0.1,
+      );
+
+      await setSimulationPaused(canvas, false);
+      await expect
+        .poll(async () => (await getCameraDebugState(canvas)).planarSpeed, {
+          timeout: 1_000,
+        })
+        .toBeGreaterThan(14);
+      expect((await getCameraDebugState(canvas)).maximumSpeed).toBe(17);
+    } finally {
+      await page.keyboard.up("ArrowDown");
+      await setSimulationPaused(canvas, true);
+    }
+  });
+
   test("steers while driving in reverse", async ({ page }) => {
     await page.goto("/");
 
@@ -1800,6 +1836,193 @@ test.describe("home screen", () => {
     await expect
       .poll(async () => (await getKartDebugState(canvas)).maxForwardSpeed)
       .toBe(17);
+  });
+
+  test("edits and resets the production kart tuning drawer", async ({
+    page,
+  }, testInfo) => {
+    testInfo.setTimeout(60_000);
+    await page.goto("/");
+    await page.getByRole("button", { name: "Solo Time Trial" }).click();
+
+    const canvas = page.getByTestId("solo-time-trial-canvas");
+    const touchControls = page.getByRole("group", {
+      name: "Touch driving controls",
+    });
+    if (testInfo.project.name === "mobile") {
+      await expect(touchControls).toBeVisible();
+    }
+    await expect(page.getByRole("button", { name: "Kart tuning" })).toHaveCount(
+      0,
+    );
+    await expect(canvas).toHaveAttribute("aria-keyshortcuts", "T");
+    const tuningHint = page.getByText(/T · Tuning/);
+    if (testInfo.project.name === "desktop") {
+      await expect(tuningHint).toBeVisible();
+    } else {
+      await expect(tuningHint).toBeHidden();
+    }
+    await waitForSceneReady(canvas);
+    await canvas.focus();
+    await page.keyboard.press("t");
+
+    const drawer = page.getByRole("region", { name: "Kart tuning" });
+    const close = page.getByRole("button", { name: "Close" });
+    await expect(drawer).toBeVisible();
+    await expect(close).toBeFocused();
+    for (const key of Object.keys(DEFAULT_KART_TUNING) as Array<
+      keyof KartTuning
+    >) {
+      await expect(page.getByTestId(`kart-tuning-${key}`)).toHaveCount(1);
+    }
+    await expect(drawer.locator('button[aria-label^="Explain "]')).toHaveCount(
+      46,
+    );
+    if (testInfo.project.name === "mobile") {
+      await expect(touchControls).toBeHidden();
+    }
+    const brakeDemandHelp = page.getByRole("button", {
+      name: "Explain Brake demand onset",
+    });
+    await brakeDemandHelp.focus();
+    const tooltip = page.getByRole("tooltip");
+    await expect(tooltip).toContainText("combined-slip reductions begin");
+    const tooltipBounds = await tooltip.boundingBox();
+    const resetBounds = await page
+      .getByRole("button", { name: "Reset all defaults" })
+      .boundingBox();
+    expect(tooltipBounds).not.toBeNull();
+    expect(resetBounds).not.toBeNull();
+    expect(
+      (tooltipBounds?.y ?? 0) + (tooltipBounds?.height ?? 0),
+    ).toBeLessThanOrEqual(resetBounds?.y ?? 0);
+    if (testInfo.project.name === "desktop") {
+      await page.mouse.move(0, 0);
+      await expect(tooltip).toBeVisible();
+    }
+    await page.keyboard.press("Escape");
+    await expect(page.getByRole("tooltip")).toHaveCount(0);
+    await expect(drawer).toBeVisible();
+    await expect(page.getByRole("dialog", { name: "Paused" })).toHaveCount(0);
+    if (testInfo.project.name === "desktop") {
+      await canvas.focus();
+      await brakeDemandHelp.hover();
+      await expect(tooltip).toBeVisible();
+      await page.keyboard.press("Escape");
+    } else {
+      await brakeDemandHelp.tap();
+      await expect(tooltip).toBeVisible();
+      await page.keyboard.press("Escape");
+    }
+    await expect(page.getByRole("tooltip")).toHaveCount(0);
+    await expect(page.getByRole("dialog", { name: "Paused" })).toHaveCount(0);
+    const bounds = await drawer.boundingBox();
+    const viewport = page.viewportSize();
+    expect(bounds).not.toBeNull();
+    expect(viewport).not.toBeNull();
+    expect(bounds?.x ?? -1).toBeGreaterThanOrEqual(0);
+    expect(bounds?.y ?? -1).toBeGreaterThanOrEqual(0);
+    expect((bounds?.x ?? 0) + (bounds?.width ?? 0)).toBeLessThanOrEqual(
+      viewport?.width ?? 0,
+    );
+    expect((bounds?.y ?? 0) + (bounds?.height ?? 0)).toBeLessThanOrEqual(
+      viewport?.height ?? 0,
+    );
+
+    const maxSpeed = page.getByTestId("kart-tuning-maxForwardSpeed");
+    const reverseSpeed = page.getByTestId("kart-tuning-maxReverseSpeed");
+    const gravity = page.getByTestId("kart-tuning-gravity");
+    const angularDamping = page.getByTestId("kart-tuning-angularDamping");
+    const yawReduction = page.getByTestId(
+      "kart-tuning-maximumBrakingYawLeverReduction",
+    );
+    await expect(maxSpeed).toHaveValue("17");
+    await expect(reverseSpeed).toHaveValue("17");
+    await maxSpeed.fill("11");
+    await reverseSpeed.fill("9");
+    await maxSpeed.focus();
+    await page.keyboard.press("t");
+    await expect(drawer).toBeVisible();
+    await drawer.locator("summary").filter({ hasText: "Chassis body" }).click();
+    await angularDamping.fill("0.2");
+    await yawReduction.fill("0.5");
+    await expect
+      .poll(
+        async () => (await getKartDebugState(canvas)).tuning.maxForwardSpeed,
+      )
+      .toBe(11);
+    await expect
+      .poll(async () => (await getCameraDebugState(canvas)).maximumSpeed)
+      .toBe(11);
+    await expect
+      .poll(
+        async () =>
+          (await getKartDebugState(canvas)).tuning
+            .maximumBrakingYawLeverReduction,
+      )
+      .toBe(0.5);
+    await expect
+      .poll(async () => (await getKartDebugState(canvas)).tuning.angularDamping)
+      .toBe(0.2);
+
+    await setSimulationPaused(canvas, true);
+    await gravity.fill("0");
+    await setKartDebugPose(canvas, {
+      linearVelocity: { x: 0, y: 0, z: 0 },
+      position: { x: 0, y: 4, z: -12 },
+      rotation: { x: 0, y: 90, z: 0 },
+    });
+    await stepSimulation(canvas, 10);
+    expect(Math.abs((await getKartDebugState(canvas)).verticalVelocity)).toBe(
+      0,
+    );
+
+    await page.getByRole("button", { name: "Reset all defaults" }).click();
+    await expect(maxSpeed).toHaveValue("17");
+    await expect(reverseSpeed).toHaveValue("17");
+    await expect(gravity).toHaveValue("18");
+    await expect(angularDamping).toHaveValue("0.08");
+    await expect(yawReduction).toHaveValue("0.9");
+    await expect
+      .poll(async () => (await getKartDebugState(canvas)).tuning)
+      .toEqual(DEFAULT_KART_TUNING);
+
+    await setKartDebugPose(canvas, {
+      linearVelocity: { x: 0, y: 0, z: 0 },
+      position: { x: 0, y: 4, z: -12 },
+      rotation: { x: 0, y: 90, z: 0 },
+    });
+    await stepSimulation(canvas, 10);
+    expect((await getKartDebugState(canvas)).verticalVelocity).toBeLessThan(-1);
+
+    await close.click();
+    await expect(drawer).toHaveCount(0);
+    await expect(canvas).toBeFocused();
+    await expect(page.getByRole("button", { name: "Kart tuning" })).toHaveCount(
+      0,
+    );
+    if (testInfo.project.name === "mobile") {
+      await expect(touchControls).toBeVisible();
+    }
+
+    await setSimulationPaused(canvas, false);
+    await page.keyboard.press("t");
+    await expect(drawer).toBeVisible();
+    await page.keyboard.press("t");
+    await expect(drawer).toHaveCount(0);
+    await expect(canvas).toBeFocused();
+    await page.keyboard.press("t");
+    await expect(drawer).toBeVisible();
+    await page.keyboard.press("Escape");
+    await expect(page.getByRole("dialog", { name: "Paused" })).toBeVisible();
+    await expect(drawer).toHaveCount(0);
+    await expect(canvas).not.toHaveAttribute("aria-keyshortcuts");
+    await page.getByRole("button", { name: "Resume" }).click();
+    await expect(drawer).toHaveCount(0);
+    await expect(canvas).toHaveAttribute("aria-keyshortcuts", "T");
+    if (testInfo.project.name === "mobile") {
+      await expect(touchControls).toBeVisible();
+    }
   });
 
   test("resets an upside-down kart with orientation and momentum cleared", async ({

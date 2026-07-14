@@ -1,15 +1,15 @@
 import * as pc from "playcanvas";
 
+import type { KartTuning } from "../contracts";
 import type { DynamicWheelTelemetry } from "./dynamic-kart-controller";
+import { DEFAULT_KART_TUNING } from "./kart-tuning";
 
-const DRIFT_SMOKE_START_SPEED = 6;
-const DRIFT_SMOKE_STOP_SPEED = 4.5;
-const DRIFT_SMOKE_START_SLIP_ANGLE = 4 * (Math.PI / 180);
-const DRIFT_SMOKE_STOP_SLIP_ANGLE = 3 * (Math.PI / 180);
-const HEAVY_DRIFT_SMOKE_START_SLIP_ANGLE = 10.5 * (Math.PI / 180);
-const HEAVY_DRIFT_SMOKE_STOP_SLIP_ANGLE = 8.5 * (Math.PI / 180);
 const DRIFT_SMOKE_PARTICLE_LIFETIME = 0.72;
 const DRIFT_SMOKE_PARTICLE_COUNT = 8;
+
+function degreesToRadians(degrees: number) {
+  return degrees * (Math.PI / 180);
+}
 
 type DriftSmokeWheelSample = Pick<
   DynamicWheelTelemetry,
@@ -32,17 +32,20 @@ type DriftSmokeEmitter = {
 export function getDriftSmokeLevel(
   wheel: DriftSmokeWheelSample,
   previousLevel = 0,
+  tuning: KartTuning = DEFAULT_KART_TUNING,
 ) {
   if (!wheel.name.startsWith("rear") || !wheel.supported) {
     return 0;
   }
 
   const minimumSpeed =
-    previousLevel > 0 ? DRIFT_SMOKE_STOP_SPEED : DRIFT_SMOKE_START_SPEED;
+    previousLevel > 0
+      ? tuning.driftSmokeStopSpeed
+      : tuning.driftSmokeStartSpeed;
   const minimumSlipAngle =
     previousLevel > 0
-      ? DRIFT_SMOKE_STOP_SLIP_ANGLE
-      : DRIFT_SMOKE_START_SLIP_ANGLE;
+      ? degreesToRadians(tuning.driftSmokeStopSlipAngleDegrees)
+      : degreesToRadians(tuning.driftSmokeStartSlipAngleDegrees);
   const slipAngle = Math.abs(wheel.slipAngle);
 
   if (
@@ -54,8 +57,8 @@ export function getDriftSmokeLevel(
 
   const heavySlipAngle =
     previousLevel >= 2
-      ? HEAVY_DRIFT_SMOKE_STOP_SLIP_ANGLE
-      : HEAVY_DRIFT_SMOKE_START_SLIP_ANGLE;
+      ? degreesToRadians(tuning.heavyDriftSmokeStopSlipAngleDegrees)
+      : degreesToRadians(tuning.heavyDriftSmokeStartSlipAngleDegrees);
 
   return slipAngle >= heavySlipAngle ? 2 : 1;
 }
@@ -63,8 +66,9 @@ export function getDriftSmokeLevel(
 export function shouldEmitDriftSmoke(
   wheel: DriftSmokeWheelSample,
   wasActive = false,
+  tuning: KartTuning = DEFAULT_KART_TUNING,
 ) {
-  return getDriftSmokeLevel(wheel, wasActive ? 1 : 0) > 0;
+  return getDriftSmokeLevel(wheel, wasActive ? 1 : 0, tuning) > 0;
 }
 
 function createSmokeEmitter(
@@ -152,8 +156,13 @@ function createSmokeEmitter(
 
 export class KartDriftSmoke {
   private readonly emitters: DriftSmokeEmitter[];
+  private tuning: KartTuning;
 
-  constructor(wheels: readonly DriftSmokeWheelMount[]) {
+  constructor(
+    wheels: readonly DriftSmokeWheelMount[],
+    tuning: KartTuning = DEFAULT_KART_TUNING,
+  ) {
+    this.tuning = { ...tuning };
     this.emitters = wheels
       .filter((wheel) => wheel.name.startsWith("rear"))
       .flatMap((wheel) => [
@@ -203,6 +212,10 @@ export class KartDriftSmoke {
     });
   }
 
+  setTuning(tuning: KartTuning) {
+    this.tuning = { ...tuning };
+  }
+
   update(wheelTelemetry: readonly DriftSmokeWheelSample[]) {
     const telemetryByName = new Map(
       wheelTelemetry.map((wheel) => [wheel.name, wheel]),
@@ -212,7 +225,11 @@ export class KartDriftSmoke {
     const nextLevels = new Map(
       [...telemetryByName].map(([wheelName, telemetry]) => [
         wheelName,
-        getDriftSmokeLevel(telemetry, currentLevels[wheelName] ?? 0),
+        getDriftSmokeLevel(
+          telemetry,
+          currentLevels[wheelName] ?? 0,
+          this.tuning,
+        ),
       ]),
     );
 

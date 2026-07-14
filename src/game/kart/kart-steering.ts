@@ -1,5 +1,5 @@
-const MAX_STEER_ANGLE = 18;
-const MIN_HIGH_SPEED_STEER_ANGLE = 6;
+import type { KartTuning } from "../contracts";
+import { DEFAULT_KART_TUNING } from "./kart-tuning";
 
 function clamp(value: number, min: number, max: number) {
   return Math.min(Math.max(value, min), max);
@@ -8,15 +8,12 @@ function clamp(value: number, min: number, max: number) {
 export function getMaximumSteerAngle(
   forwardSpeed: number,
   maximumForwardSpeed: number,
+  tuning: KartTuning = DEFAULT_KART_TUNING,
 ) {
-  const speedRatio = clamp(
-    Math.abs(forwardSpeed) / maximumForwardSpeed,
-    0,
-    1,
-  );
+  const speedRatio = clamp(Math.abs(forwardSpeed) / maximumForwardSpeed, 0, 1);
 
   return (
-    MAX_STEER_ANGLE -
-    (MAX_STEER_ANGLE - MIN_HIGH_SPEED_STEER_ANGLE) * speedRatio
+    tuning.maximumSteerAngle -
+    (tuning.maximumSteerAngle - tuning.minimumHighSpeedSteerAngle) * speedRatio
   );
 }
