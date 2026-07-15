@@ -136,6 +136,13 @@ const TUNING_GROUPS: TuningGroup[] = [
         label: "Low-speed reference",
         unit: "m/s",
       },
+      {
+        description:
+          "Scales the rear tires' available force relative to the front tires. Values above one bias ordinary cornering toward stable understeer; lower values make rear breakaway easier.",
+        key: "rearGripMultiplier",
+        label: "Rear grip balance",
+        unit: "ratio",
+      },
     ],
   },
   {

@@ -90,6 +90,7 @@ export type KartTuning = {
   restingSettleMaximumLinearSpeed: number;
   restingSettleMaximumVerticalSpeed: number;
   restingAngularSettleRate: number;
+  rearGripMultiplier: number;
   reverseForceMultiplier: number;
   slidingGripCoefficient: number;
   slidingSlipAngleDegrees: number;

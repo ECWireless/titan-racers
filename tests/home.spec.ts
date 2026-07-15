@@ -1387,6 +1387,83 @@ test.describe("home screen", () => {
     );
   });
 
+  test("holds a stable moderate-speed powered turn without brake input", async ({
+    page,
+  }) => {
+    await page.goto("/");
+    await page.getByRole("button", { name: "Solo Time Trial" }).click();
+
+    const canvas = page.getByTestId("solo-time-trial-canvas");
+    await advanceRaceToRacing(canvas);
+    await setSimulationPaused(canvas, true);
+    const baseline = await getKartDebugState(canvas);
+    await setKartDebugPose(canvas, {
+      angularVelocity: { x: 0, y: 0, z: 0 },
+      linearVelocity: {
+        x: baseline.forward.x * 11,
+        y: 0,
+        z: baseline.forward.z * 11,
+      },
+      position: { x: 0, y: 0.43, z: -12 },
+      rotation: {
+        x: baseline.rotationX,
+        y: baseline.rotationY,
+        z: baseline.rotationZ,
+      },
+    });
+    await canvas.click();
+    await page.keyboard.down("ArrowUp");
+    await page.keyboard.down("ArrowLeft");
+
+    let samples: KartDebugState[] = [];
+    try {
+      samples = await stepSimulationWithKartSamples(canvas, 150);
+    } finally {
+      await page.keyboard.up("ArrowLeft");
+      await page.keyboard.up("ArrowUp");
+    }
+
+    let maximumChassisSlip = 0;
+    let maximumRearSlip = 0;
+    let minimumSupportCount = 4;
+    for (const state of samples) {
+      const right = {
+        x: state.forward.y * state.up.z - state.forward.z * state.up.y,
+        y: state.forward.z * state.up.x - state.forward.x * state.up.z,
+        z: state.forward.x * state.up.y - state.forward.y * state.up.x,
+      };
+      const longitudinalSpeed =
+        state.linearVelocity.x * state.forward.x +
+        state.linearVelocity.y * state.forward.y +
+        state.linearVelocity.z * state.forward.z;
+      const lateralSpeed =
+        state.linearVelocity.x * right.x +
+        state.linearVelocity.y * right.y +
+        state.linearVelocity.z * right.z;
+      maximumChassisSlip = Math.max(
+        maximumChassisSlip,
+        Math.atan2(Math.abs(lateralSpeed), Math.max(longitudinalSpeed, 0.1)),
+      );
+      maximumRearSlip = Math.max(
+        maximumRearSlip,
+        state.wheelSlipAngles["rear-left"] ?? 0,
+        state.wheelSlipAngles["rear-right"] ?? 0,
+      );
+      minimumSupportCount = Math.min(minimumSupportCount, state.supportCount);
+    }
+
+    const finalState = samples.at(-1);
+    const evidence = JSON.stringify({
+      finalSpeed: finalState?.speed,
+      maximumChassisSlip,
+      maximumRearSlip,
+      minimumSupportCount,
+    });
+    expect(maximumChassisSlip, evidence).toBeLessThan(12 * (Math.PI / 180));
+    expect(finalState?.speed, evidence).toBeGreaterThan(2);
+    expect(minimumSupportCount, evidence).toBeGreaterThanOrEqual(3);
+  });
+
   test("brakes before engaging reverse", async ({ page }) => {
     await page.goto("/");
 
@@ -1952,7 +2029,7 @@ test.describe("home screen", () => {
       await expect(page.getByTestId(`kart-tuning-${key}`)).toHaveCount(1);
     }
     await expect(drawer.locator('button[aria-label^="Explain "]')).toHaveCount(
-      56,
+      57,
     );
     if (testInfo.project.name === "mobile") {
       await expect(touchControls).toBeHidden();

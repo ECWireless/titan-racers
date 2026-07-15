@@ -109,6 +109,13 @@ The model may be simpler than a road-car tire simulation, but grip breakaway
 and recovery should be progressive. It must not provide full lateral grip at
 zero load or add independent unlimited forces for every control axis.
 
+Ordinary moderate-speed cornering should bias toward mild understeer;
+deliberate excess speed, steering, braking, or throttle may still produce
+continuous tire slip. Prefer an explicit front/rear grip balance when the rear
+axle reaches breakaway too early: a modest increase in rear available force can
+make rear saturation progressive without adding yaw feedback, locking heading,
+or suppressing the shared combined-slip model.
+
 Use separate designer-facing behavior for:
 
 - drive response and approach to top speed,
@@ -391,6 +398,8 @@ Those systems may build on this standard without being folded into it.
   and simplified systems with designer-facing parameters](https://media.gdcvault.com/gdc2016/Presentations/Donnelly_Patrick_Supercharged%20Vehicle%20Physics.pdf)
 - [Rocket League Crash Course: player-controlled orientation and recovery onto
   the wheels](https://www.epicgames.com/help/c-202300000001622/c-202300000001682/rocket-league-a202300000010022)
+- [MIT OpenCourseWare road-vehicle traction exercise: axle load, available
+  traction, and understeer/oversteer balance](https://ocw.mit.edu/courses/16-682-technology-in-transportation-spring-2011/a224aa6d65b2788481794038389a69bf_MIT16_682S11_soln2.pdf)
 
 ## Open Questions
 

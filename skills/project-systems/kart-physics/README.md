@@ -121,9 +121,9 @@ mastery remain separate systems and PR-sized units.
   chassis damping/contact values use that same source. Drawer changes apply
   immediately, including gravity and native rigid-body properties in the
   physics world. The chase-camera speed envelope follows the larger of the
-  current forward and reverse limits. Manual-righting torque, angled boost,
-  lift, and eligibility threshold use the same normalized source. Tuning never
-  persists beyond the race session.
+  current forward and reverse limits. The rear grip balance and manual-righting
+  torque, angled boost, lift, and eligibility threshold use the same normalized
+  source. Tuning never persists beyond the race session.
 - Reset All Defaults restores the complete authored tuning object. Structural
   mass properties, center of mass, inertia, wheel/suspension geometry,
   collision/CCD configuration, and particle allocation remain rebuild-time
@@ -146,6 +146,9 @@ mastery remain separate systems and PR-sized units.
   at the configured forward-speed limit, while the default steering response
   approaches that bounded target at 80 degrees per second. Reverse steering
   consumes the same speed-magnitude curve.
+- The rear tire-force envelope defaults to 1.15 times the front envelope. This
+  produces mild understeer in a sustained moderate-speed powered turn without
+  changing wheel slip, load, contact points, or combined-slip braking behavior.
 - Partial support applies forces at the remaining wheel locations and never
   invokes an upright lock.
 - Airborne motion preserves gravity, linear momentum, yaw/roll angular motion,
@@ -193,9 +196,10 @@ The accepted system is covered by:
   selection, the exactly inverted fallback, and angled-contact torque scaling;
 - `tests/home.spec.ts` for finite wheel support, visible clearance, springy ramp
   landing, full-speed signed airborne pitch and assist telemetry, static equilibrium, acceleration, configured top
-  speed, braking, reverse, forward and reverse steering, high-speed natural and
-  brake-induced drift, longitudinal and lateral load transfer, grip saturation
-  and recovery, wheel-specific ledge
+  speed, braking, reverse, forward and reverse steering, stable sustained
+  moderate-speed powered cornering, high-speed natural and brake-induced drift,
+  longitudinal and lateral load transfer, grip saturation and recovery,
+  wheel-specific ledge
   support, tipping, airborne rotation, landing, invalid-state recovery,
   production tuning hotkey behavior, tooltip accessibility, and key
   completeness, live gravity and camera-envelope propagation, straight-line

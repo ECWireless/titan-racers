@@ -168,6 +168,14 @@ genuinely instantaneous events such as an explicit gameplay kick or a later
 damage response. Do not write the dynamic entity's transform during ordinary
 driving.
 
+For front/rear handling balance, apply a designer-facing axle multiplier to the
+load-scaled grip envelope before clamping the combined longitudinal and lateral
+tire force. Keep suspension load, point velocity, slip angle, and force
+application physical; do not emulate stability by writing yaw velocity or
+injecting a counter-torque. Leave the combined-slip braking reductions active
+within the adjusted envelope so brake and handbrake demand can still produce
+rear breakaway.
+
 For a bounded passive airborne pitch policy, derive signed pitch from
 `entity.forward.y`, project `rigidbody.angularVelocity` onto `entity.right`, and
 calculate a critically damped proportional-derivative acceleration toward the
