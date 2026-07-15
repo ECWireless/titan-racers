@@ -3,7 +3,10 @@
 import { useEffect, useRef, useState } from "react";
 
 import type { CourseDocument } from "@/game/course/course-document";
-import type { CourseEditorSelection } from "@/game/editor/course-editor-document";
+import type {
+  CourseEditorSelection,
+  CourseEditorSelections,
+} from "@/game/editor/course-editor-document";
 import {
   CourseEditorScene,
   type CourseEditorTool,
@@ -14,8 +17,11 @@ type CourseEditorCanvasProps = {
   document: CourseDocument;
   frameRequest: number;
   onDocumentChange: (label: string, document: CourseDocument) => void;
-  onSelectionChange: (selection: CourseEditorSelection) => void;
-  selection: CourseEditorSelection;
+  onSelectionChange: (
+    selection: CourseEditorSelection,
+    additive: boolean,
+  ) => void;
+  selections: CourseEditorSelections;
   snapEnabled: boolean;
   tool: CourseEditorTool;
 };
@@ -26,7 +32,7 @@ export function CourseEditorCanvas({
   frameRequest,
   onDocumentChange,
   onSelectionChange,
-  selection,
+  selections,
   snapEnabled,
   tool,
 }: CourseEditorCanvasProps) {
@@ -46,11 +52,11 @@ export function CourseEditorCanvas({
     let active = true;
     let scene: CourseEditorScene | null = null;
     try {
-      scene = new CourseEditorScene(canvas, document, selection, {
+      scene = new CourseEditorScene(canvas, document, selections, {
         onDocumentChange: (label, nextDocument) =>
           callbacksRef.current.onDocumentChange(label, nextDocument),
-        onSelectionChange: (nextSelection) =>
-          callbacksRef.current.onSelectionChange(nextSelection),
+        onSelectionChange: (nextSelection, additive) =>
+          callbacksRef.current.onSelectionChange(nextSelection, additive),
       });
       sceneRef.current = scene;
       queueMicrotask(() => active && setStatus("ready"));
@@ -162,13 +168,13 @@ export function CourseEditorCanvas({
     sceneRef.current?.setOptions({
       onDocumentChange: (label, nextDocument) =>
         callbacksRef.current.onDocumentChange(label, nextDocument),
-      onSelectionChange: (nextSelection) =>
-        callbacksRef.current.onSelectionChange(nextSelection),
+      onSelectionChange: (nextSelection, additive) =>
+        callbacksRef.current.onSelectionChange(nextSelection, additive),
     });
   }, [onDocumentChange, onSelectionChange]);
 
   useEffect(() => sceneRef.current?.setDocument(document), [document]);
-  useEffect(() => sceneRef.current?.setSelection(selection), [selection]);
+  useEffect(() => sceneRef.current?.setSelections(selections), [selections]);
   useEffect(() => sceneRef.current?.setSnapEnabled(snapEnabled), [snapEnabled]);
   useEffect(() => sceneRef.current?.setTool(tool), [tool]);
   useEffect(() => {
@@ -215,7 +221,9 @@ export function CourseEditorCanvas({
         className="block h-full w-full touch-none cursor-default outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-titan-hazard"
         data-colliders-visible={collisionVisible ? "true" : "false"}
         data-scene-ready={status === "ready" ? "true" : "false"}
-        data-selected-id={selection.id}
+        data-selected-count={selections.length}
+        data-selected-id={selections[0].id}
+        data-selected-ids={selections.map(({ id }) => id).join(",")}
         data-snap-enabled={snapEnabled ? "true" : "false"}
         data-tool={tool}
         data-testid="course-editor-canvas"

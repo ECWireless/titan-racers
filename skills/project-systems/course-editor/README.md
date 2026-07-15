@@ -101,6 +101,13 @@ owns only Resume and Exit.
 - Mobile authors can select from the viewport or outline, orbit with one pointer,
   pan/pinch with two pointers, and use inspector nudges instead of precision
   reliance on 3D handles. Multi-touch gestures cannot fall through to selection.
+- Editable objects support one stable-ID selection set across the viewport and
+  Course outline. Desktop Shift-click and the mobile Add to selection mode
+  toggle object membership; mobile Done preserves the completed group. Each
+  selected object has an outline, Frame selection and the translation gizmo use
+  the group centroid, and gizmo or Inspector translation preserves relative
+  spacing as one snapped, undoable document command. Start, checkpoints,
+  rotation, scaling, renaming, and deletion remain single-selection operations.
 - Replacing a redo branch invalidates an unreachable clean index.
 - Marking a successful draft save clean also advances the revert baseline to
   that saved document. Loading the latest draft and reverting changes clear

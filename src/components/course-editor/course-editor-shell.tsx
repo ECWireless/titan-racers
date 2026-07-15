@@ -17,17 +17,21 @@ import {
   COURSE_EDITOR_CHECKPOINT_LIMIT,
   COURSE_EDITOR_OBJECT_LIMIT,
   type CourseEditorSelection,
+  type CourseEditorSelections,
   type CourseObjectPreset,
   addCourseCheckpoint,
   addCourseObjectPreset,
   collectCourseDocumentIds,
   deleteCourseSelection,
   getSelectionGeometry,
+  nudgeObjectSelections,
   nudgeSelection,
+  reconcileCourseEditorSelections,
   renameCourseObject,
   scaleSelectionAxis,
   setFillLightEnabled,
   updateAmbientLighting,
+  updateCourseEditorSelections,
   updateDirectionalLight,
 } from "@/game/editor/course-editor-document";
 import type { CourseEditorTool } from "@/game/editor/course-editor-scene";
@@ -74,6 +78,16 @@ const DEFAULT_EDITOR_SECTIONS: Record<EditorSection, boolean> = {
 };
 const EDITOR_SECTIONS_STORAGE_KEY = "titan-racers.course-editor.sections.v1";
 
+function selectionIncludes(
+  selections: CourseEditorSelections,
+  candidate: CourseEditorSelection,
+) {
+  return selections.some(
+    (selection) =>
+      selection.kind === candidate.kind && selection.id === candidate.id,
+  );
+}
+
 export function CourseEditorShell({
   onSignOut,
   revision,
@@ -101,10 +115,11 @@ export function CourseEditorShell({
     useState<RecoveryAction | null>(null);
   const [historyVersion, setHistoryVersion] = useState(0);
   const [frameRequest, setFrameRequest] = useState(0);
-  const [selection, setSelection] = useState<CourseEditorSelection>({
-    id: revision.document.start.id,
-    kind: "start",
-  });
+  const [selections, setSelections] = useState<CourseEditorSelections>([
+    { id: revision.document.start.id, kind: "start" },
+  ]);
+  const [additiveSelectionEnabled, setAdditiveSelectionEnabled] =
+    useState(false);
   const [tool, setTool] = useState<CourseEditorTool>("translate");
   const [snapEnabled, setSnapEnabled] = useState(true);
   const [collisionVisible, setCollisionVisible] = useState(false);
@@ -120,14 +135,51 @@ export function CourseEditorShell({
   const closePanelButtonRef = useRef<HTMLButtonElement>(null);
   const coursePanelButtonRef = useRef<HTMLButtonElement>(null);
   const inspectorPanelButtonRef = useRef<HTMLButtonElement>(null);
+  const selection = selections[0];
+  const multipleObjectsSelected = selections.length > 1;
   const selectedGeometry = getSelectionGeometry(document, selection);
+  const selectedGroupPosition = multipleObjectsSelected
+    ? selections.reduce(
+        (position, currentSelection) => {
+          const geometry = getSelectionGeometry(document, currentSelection);
+          return geometry
+            ? {
+                x: position.x + geometry.position.x / selections.length,
+                y: position.y + geometry.position.y / selections.length,
+                z: position.z + geometry.position.z / selections.length,
+              }
+            : position;
+        },
+        { x: 0, y: 0, z: 0 },
+      )
+    : null;
   const selectedObject =
-    selection.kind === "object"
+    !multipleObjectsSelected && selection.kind === "object"
       ? document.objects.find(({ id }) => id === selection.id)
       : undefined;
   const courseModalOpen = mobilePanel === "course";
   const recoveryDialogOpen = recoveryAction !== null;
   const isDirty = history.isDirty;
+
+  function selectCourseItem(
+    candidate: CourseEditorSelection,
+    additive = false,
+  ) {
+    const additiveSelection = additive || additiveSelectionEnabled;
+    if (additiveSelection && candidate.kind === "object") {
+      setTool("translate");
+    }
+    setSelections((current) =>
+      updateCourseEditorSelections(
+        current,
+        candidate,
+        additiveSelection,
+      ),
+    );
+    if (candidate.kind !== "object") {
+      setAdditiveSelectionEnabled(false);
+    }
+  }
 
   useEffect(() => {
     if (mobilePanel) {
@@ -140,6 +192,7 @@ export function CourseEditorShell({
     const closePanelAtDesktop = (event: MediaQueryListEvent) => {
       if (event.matches) {
         setMobilePanel(null);
+        setAdditiveSelectionEnabled(false);
       }
     };
 
@@ -264,7 +317,16 @@ export function CourseEditorShell({
     if (operationPendingRef.current) {
       return;
     }
-    setDocument(history.undo());
+    const nextDocument = history.undo();
+    const nextSelections = reconcileCourseEditorSelections(
+      nextDocument,
+      selections,
+    );
+    setDocument(nextDocument);
+    setSelections(nextSelections);
+    if (nextSelections[0].kind !== "object") {
+      setAdditiveSelectionEnabled(false);
+    }
     setHistoryVersion((version) => version + 1);
   }
 
@@ -272,7 +334,16 @@ export function CourseEditorShell({
     if (operationPendingRef.current) {
       return;
     }
-    setDocument(history.redo());
+    const nextDocument = history.redo();
+    const nextSelections = reconcileCourseEditorSelections(
+      nextDocument,
+      selections,
+    );
+    setDocument(nextDocument);
+    setSelections(nextSelections);
+    if (nextSelections[0].kind !== "object") {
+      setAdditiveSelectionEnabled(false);
+    }
     setHistoryVersion((version) => version + 1);
   }
 
@@ -291,7 +362,8 @@ export function CourseEditorShell({
     }
     if (nextObject) {
       issuedIdsRef.current.add(nextObject.id);
-      setSelection({ id: nextObject.id, kind: "object" });
+      setSelections([{ id: nextObject.id, kind: "object" }]);
+      setAdditiveSelectionEnabled(false);
       closePanelToViewport();
     }
   }
@@ -307,7 +379,8 @@ export function CourseEditorShell({
     }
     if (checkpoint) {
       issuedIdsRef.current.add(checkpoint.id);
-      setSelection({ id: checkpoint.id, kind: "checkpoint" });
+      setSelections([{ id: checkpoint.id, kind: "checkpoint" }]);
+      setAdditiveSelectionEnabled(false);
       closePanelToViewport();
     }
   }
@@ -321,7 +394,8 @@ export function CourseEditorShell({
     if (!commitDocument(`Delete ${selection.id}`, nextDocument)) {
       return;
     }
-    setSelection({ id: nextDocument.start.id, kind: "start" });
+    setSelections([{ id: nextDocument.start.id, kind: "start" }]);
+    setAdditiveSelectionEnabled(false);
     closePanelToViewport();
   }
 
@@ -330,6 +404,16 @@ export function CourseEditorShell({
     axis: "x" | "y" | "z",
     delta: number,
   ) {
+    if (multipleObjectsSelected) {
+      if (field !== "position") {
+        return;
+      }
+      commitDocument(
+        `Move ${selections.length} objects`,
+        nudgeObjectSelections(document, selections, axis, delta),
+      );
+      return;
+    }
     commitDocument(
       `${field === "position" ? "Move" : "Rotate"} ${selection.id}`,
       nudgeSelection(document, selection, field, axis, delta),
@@ -462,7 +546,10 @@ export function CourseEditorShell({
       issuedIdsRef.current = collectCourseDocumentIds(latestRevision.document);
       lastFillLightRef.current =
         latestRevision.document.lighting.directionalLights[1];
-      setSelection({ id: latestRevision.document.start.id, kind: "start" });
+      setSelections([
+        { id: latestRevision.document.start.id, kind: "start" },
+      ]);
+      setAdditiveSelectionEnabled(false);
       setHistoryVersion((version) => version + 1);
       setDraftAction({ status: "idle" });
     } catch {
@@ -483,7 +570,8 @@ export function CourseEditorShell({
     setActionsOpen(false);
     const reverted = history.resetToLoaded();
     setDocument(reverted);
-    setSelection({ id: reverted.start.id, kind: "start" });
+    setSelections([{ id: reverted.start.id, kind: "start" }]);
+    setAdditiveSelectionEnabled(false);
     setHistoryVersion((version) => version + 1);
     setDraftAction({ status: "idle" });
   }
@@ -700,8 +788,9 @@ export function CourseEditorShell({
   }
 
   const canDelete =
-    selection.kind === "object" ||
-    (selection.kind === "checkpoint" && document.checkpoints.length > 1);
+    !multipleObjectsSelected &&
+    (selection.kind === "object" ||
+      (selection.kind === "checkpoint" && document.checkpoints.length > 1));
   void historyVersion;
 
   useEffect(() => {
@@ -747,12 +836,17 @@ export function CourseEditorShell({
       if (unmodifiedShortcut && event.key === "1") {
         setTool("translate");
         return;
-      } else if (unmodifiedShortcut && event.key === "2") {
+      } else if (
+        unmodifiedShortcut &&
+        event.key === "2" &&
+        !multipleObjectsSelected
+      ) {
         setTool("rotate");
         return;
       } else if (
         unmodifiedShortcut &&
         event.key === "3" &&
+        !multipleObjectsSelected &&
         selection.kind !== "start"
       ) {
         setTool("scale");
@@ -783,8 +877,10 @@ export function CourseEditorShell({
     document,
     history,
     mobilePanel,
+    multipleObjectsSelected,
     recoveryDialogOpen,
     selection,
+    selections,
   ]);
 
   return (
@@ -961,13 +1057,18 @@ export function CourseEditorShell({
         inert={courseModalOpen || recoveryDialogOpen || operationPending}
       >
         <EditorToolbar
+          additiveSelectionEnabled={additiveSelectionEnabled}
           collisionVisible={collisionVisible}
           cameraHelpOpen={cameraHelpOpen}
+          multipleObjectsSelected={multipleObjectsSelected}
           selection={selection}
           snapEnabled={snapEnabled}
           tool={tool}
           onCollisionToggle={() => setCollisionVisible((visible) => !visible)}
           onCameraHelpToggle={() => setCameraHelpOpen((open) => !open)}
+          onAdditiveSelectionToggle={() =>
+            setAdditiveSelectionEnabled((enabled) => !enabled)
+          }
           onFrame={() => setFrameRequest((request) => request + 1)}
           onSnapToggle={() => setSnapEnabled((enabled) => !enabled)}
           onToolChange={setTool}
@@ -989,7 +1090,7 @@ export function CourseEditorShell({
         >
           <CoursePanel
             document={document}
-            selection={selection}
+            selections={selections}
             onAddCheckpoint={addCheckpoint}
             onAddPreset={addPreset}
             onAmbientChange={commitAmbientLighting}
@@ -998,7 +1099,7 @@ export function CourseEditorShell({
             onLightingReset={resetLighting}
             onSectionToggle={toggleSection}
             sectionOpen={sectionOpen}
-            onSelect={setSelection}
+            onSelect={selectCourseItem}
           />
         </EditorPanel>
 
@@ -1010,11 +1111,11 @@ export function CourseEditorShell({
             collisionVisible={collisionVisible}
             document={document}
             frameRequest={frameRequest}
-            selection={selection}
+            selections={selections}
             snapEnabled={snapEnabled}
             tool={tool}
             onDocumentChange={commitDocument}
-            onSelectionChange={setSelection}
+            onSelectionChange={selectCourseItem}
           />
 
           {cameraHelpOpen ? (
@@ -1089,6 +1190,8 @@ export function CourseEditorShell({
             objectName={selectedObject?.label ?? selectedObject?.id ?? null}
             scaleShape={selectedObject?.visual.shape ?? "box"}
             selection={selection}
+            selectionCount={selections.length}
+            groupPosition={selectedGroupPosition}
             sectionOpen={sectionOpen}
             onDelete={deleteSelection}
             onNudge={nudge}
@@ -1115,7 +1218,9 @@ export function CourseEditorShell({
                   Inspector
                 </h2>
                 <p className="mt-0.5 max-w-[15rem] truncate text-[0.6rem] uppercase tracking-[0.1em] text-titan-muted">
-                  Editing {selectedObject?.label ?? selection.id}
+                  Editing {multipleObjectsSelected
+                    ? `${selections.length} objects`
+                    : selectedObject?.label ?? selection.id}
                 </p>
               </div>
               <button
@@ -1135,6 +1240,8 @@ export function CourseEditorShell({
                 objectName={selectedObject?.label ?? selectedObject?.id ?? null}
                 scaleShape={selectedObject?.visual.shape ?? "box"}
                 selection={selection}
+                selectionCount={selections.length}
+                groupPosition={selectedGroupPosition}
                 sectionOpen={sectionOpen}
                 onDelete={deleteSelection}
                 onNudge={nudge}
@@ -1182,7 +1289,7 @@ export function CourseEditorShell({
             <div className="min-h-0 min-w-0 flex-1 overscroll-contain overflow-y-auto overflow-x-hidden p-4">
               <CoursePanel
                 document={document}
-                selection={selection}
+                selections={selections}
                 onAddCheckpoint={addCheckpoint}
                 onAddPreset={addPreset}
                 onAmbientChange={commitAmbientLighting}
@@ -1191,9 +1298,11 @@ export function CourseEditorShell({
                 onLightingReset={resetLighting}
                 onSectionToggle={toggleSection}
                 sectionOpen={sectionOpen}
-                onSelect={(nextSelection) => {
-                  setSelection(nextSelection);
-                  closePanelToViewport();
+                onSelect={(nextSelection, additive) => {
+                  selectCourseItem(nextSelection, additive);
+                  if (!(additive || additiveSelectionEnabled)) {
+                    closePanelToViewport();
+                  }
                 }}
               />
             </div>
@@ -1467,8 +1576,11 @@ function RecoveryDialog({
 }
 
 function EditorToolbar({
+  additiveSelectionEnabled,
   cameraHelpOpen,
   collisionVisible,
+  multipleObjectsSelected,
+  onAdditiveSelectionToggle,
   onCameraHelpToggle,
   onCollisionToggle,
   onFrame,
@@ -1478,8 +1590,11 @@ function EditorToolbar({
   snapEnabled,
   tool,
 }: {
+  additiveSelectionEnabled: boolean;
   cameraHelpOpen: boolean;
   collisionVisible: boolean;
+  multipleObjectsSelected: boolean;
+  onAdditiveSelectionToggle: () => void;
   onCameraHelpToggle: () => void;
   onCollisionToggle: () => void;
   onFrame: () => void;
@@ -1494,7 +1609,10 @@ function EditorToolbar({
       {(["translate", "rotate", "scale"] as const).map((candidate) => (
         <ToolbarIconButton
           active={tool === candidate}
-          disabled={candidate === "scale" && selection.kind === "start"}
+          disabled={
+            (multipleObjectsSelected && candidate !== "translate") ||
+            (candidate === "scale" && selection.kind === "start")
+          }
           key={candidate}
           label={
             candidate === "translate"
@@ -1502,7 +1620,9 @@ function EditorToolbar({
               : candidate.charAt(0).toUpperCase() + candidate.slice(1)
           }
           tooltip={
-            candidate === "translate"
+            multipleObjectsSelected && candidate !== "translate"
+              ? `${candidate === "rotate" ? "Rotation" : "Scaling"} is unavailable for grouped objects`
+              : candidate === "translate"
               ? "Move selection (1)"
               : candidate === "rotate"
                 ? "Rotate selection (2)"
@@ -1515,6 +1635,28 @@ function EditorToolbar({
           <ToolbarIcon name={candidate} />
         </ToolbarIconButton>
       ))}
+      <span className="h-7 w-px shrink-0 bg-titan-ice/15 lg:hidden" />
+      <span className="lg:hidden">
+        <ToolbarIconButton
+          active={additiveSelectionEnabled}
+          disabled={selection.kind !== "object"}
+          label={
+            additiveSelectionEnabled
+              ? "Done adding to selection"
+              : "Add to selection"
+          }
+          tooltip={
+            selection.kind !== "object"
+              ? "Select an editable object before building a group"
+              : additiveSelectionEnabled
+                ? `${multipleObjectsSelected ? "Group selected" : "Select more objects"}; tap Done when finished`
+                : "Keep the current object selected and tap more objects to build a group"
+          }
+          onClick={onAdditiveSelectionToggle}
+        >
+          <ToolbarIcon name="multiSelect" />
+        </ToolbarIconButton>
+      </span>
       <span className="h-7 w-px shrink-0 bg-titan-ice/15" />
       <ToolbarIconButton
         active={snapEnabled}
@@ -1659,6 +1801,7 @@ function ToolbarIcon({
     | "collision"
     | "frame"
     | "help"
+    | "multiSelect"
     | "publish"
     | "save"
     | "snap";
@@ -1699,6 +1842,15 @@ function ToolbarIcon({
     return (
       <svg {...common}>
         <path d="M6 4v9a6 6 0 0 0 12 0V4M6 8h4M14 8h4" />
+      </svg>
+    );
+  }
+  if (name === "multiSelect") {
+    return (
+      <svg {...common}>
+        <rect height="8" width="8" x="3" y="3" />
+        <rect height="8" width="8" x="13" y="13" />
+        <path d="M17 3v6M14 6h6" />
       </svg>
     );
   }
@@ -1814,7 +1966,7 @@ function CoursePanel({
   onSectionToggle,
   sectionOpen,
   onSelect,
-  selection,
+  selections,
 }: {
   document: CourseDocument;
   onAddCheckpoint: () => void;
@@ -1830,8 +1982,8 @@ function CoursePanel({
   onLightingReset: () => void;
   onSectionToggle: (section: EditorSection) => void;
   sectionOpen: Record<EditorSection, boolean>;
-  onSelect: (selection: CourseEditorSelection) => void;
-  selection: CourseEditorSelection;
+  onSelect: (selection: CourseEditorSelection, additive?: boolean) => void;
+  selections: CourseEditorSelections;
 }) {
   const objectLimitReached =
     document.objects.length >= COURSE_EDITOR_OBJECT_LIMIT;
@@ -1919,27 +2071,42 @@ function CoursePanel({
         onToggle={() => onSectionToggle("course-outline")}
       >
         <SelectionRow
-          active={selection.kind === "start"}
+          active={selectionIncludes(selections, {
+            id: document.start.id,
+            kind: "start",
+          })}
           label="Start"
           meta="Spawn"
-          onClick={() => onSelect({ id: document.start.id, kind: "start" })}
+          onClick={(event) =>
+            onSelect(
+              { id: document.start.id, kind: "start" },
+              event.shiftKey,
+            )
+          }
         />
         {document.checkpoints.map((checkpoint) => (
           <SelectionRow
-            active={
-              selection.kind === "checkpoint" && selection.id === checkpoint.id
-            }
+            active={selectionIncludes(selections, {
+              id: checkpoint.id,
+              kind: "checkpoint",
+            })}
             key={checkpoint.id}
             label={`Checkpoint ${checkpoint.order}`}
             meta={checkpoint.id}
-            onClick={() =>
-              onSelect({ id: checkpoint.id, kind: "checkpoint" })
+            onClick={(event) =>
+              onSelect(
+                { id: checkpoint.id, kind: "checkpoint" },
+                event.shiftKey,
+              )
             }
           />
         ))}
         {document.objects.map((object) => (
           <SelectionRow
-            active={selection.kind === "object" && selection.id === object.id}
+            active={selectionIncludes(selections, {
+              id: object.id,
+              kind: "object",
+            })}
             disabled={!object.editable}
             key={object.id}
             label={object.label ?? object.id}
@@ -1950,7 +2117,12 @@ function CoursePanel({
                   : object.category
                 : "Locked"
             }
-            onClick={() => onSelect({ id: object.id, kind: "object" })}
+            onClick={(event) =>
+              onSelect(
+                { id: object.id, kind: "object" },
+                event.shiftKey,
+              )
+            }
           />
         ))}
       </CollapsibleSection>
@@ -2192,7 +2364,7 @@ function SelectionRow({
   disabled?: boolean;
   label: string;
   meta: string;
-  onClick: () => void;
+  onClick: (event: React.MouseEvent<HTMLButtonElement>) => void;
 }) {
   return (
     <button
@@ -2217,6 +2389,7 @@ function SelectionRow({
 function Inspector({
   canDelete,
   geometry,
+  groupPosition,
   objectName,
   onDelete,
   onNudge,
@@ -2226,9 +2399,11 @@ function Inspector({
   scaleShape,
   sectionOpen,
   selection,
+  selectionCount,
 }: {
   canDelete: boolean;
   geometry: ReturnType<typeof getSelectionGeometry>;
+  groupPosition: { x: number; y: number; z: number } | null;
   objectName: string | null;
   onDelete: () => void;
   onNudge: (
@@ -2242,7 +2417,46 @@ function Inspector({
   scaleShape: "box" | "cylinder";
   sectionOpen: Record<EditorSection, boolean>;
   selection: CourseEditorSelection;
+  selectionCount: number;
 }) {
+  if (selectionCount > 1) {
+    return (
+      <div className="grid gap-4 text-xs">
+        <CollapsibleSection
+          open={sectionOpen["inspector-identity"]}
+          title="Selection"
+          onToggle={() => onSectionToggle("inspector-identity")}
+        >
+          <div className="grid gap-1">
+            <p
+              className="text-sm font-bold text-titan-ice"
+              data-testid="editor-selection"
+            >
+              {selectionCount} objects selected
+            </p>
+            <p className="text-titan-muted">
+              Move together while preserving their spacing.
+            </p>
+          </div>
+        </CollapsibleSection>
+        {groupPosition ? (
+          <CollapsibleSection
+            open={sectionOpen["inspector-position"]}
+            title="Group position"
+            onToggle={() => onSectionToggle("inspector-position")}
+          >
+            <NudgeGroup
+              label="Group position"
+              step={0.25}
+              values={groupPosition}
+              onNudge={(axis, delta) => onNudge("position", axis, delta)}
+            />
+          </CollapsibleSection>
+        ) : null}
+      </div>
+    );
+  }
+
   if (!geometry) {
     return <p className="text-xs text-titan-muted">Selection unavailable.</p>;
   }

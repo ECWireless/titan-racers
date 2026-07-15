@@ -716,7 +716,7 @@ to the next item until the feature lead has accepted the current behavior.
       steering and forward/brake-reverse intent,
 - [x] distinguish physical in-place manual righting from automatic off-course
       checkpoint recovery, and
-- [ ] add Shift-modified multi-object editor selection and group translation.
+- [x] add Shift-modified multi-object editor selection and group translation.
 
 ### Phase 3: Kart Design And Upload System
 

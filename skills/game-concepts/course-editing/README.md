@@ -227,6 +227,16 @@ wheel zoom on pointer devices. Once a second touch joins a gesture, every
 participating pointer is ineligible for tap selection through release or
 cancellation.
 
+Multi-object editing is an explicit object-only selection state. Pointer users
+toggle membership with Shift-click; touch users enter a visible additive
+selection mode after choosing the first object, then tap Done without losing
+the group. Do not overload long-press, one-finger orbit, or two-finger camera
+gestures. Every selected object receives its own outline, while one translation
+control at the group centroid applies a shared snapped delta so relative spacing
+is preserved. Group translation and position nudges enter history as one
+coherent command. Rotation, scaling, renaming, and deletion remain
+single-selection operations until their group semantics are designed.
+
 Snapping must be visible and reversible rather than an implicit transform rule.
 The editor defaults gizmo transforms to bounded increments and exposes the
 current snap state in the toolbar. Box and checkpoint scaling is per-axis so the

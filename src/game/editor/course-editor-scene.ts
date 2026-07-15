@@ -12,7 +12,9 @@ import type {
 import {
   type CourseEditorGeometry,
   type CourseEditorSelection,
+  type CourseEditorSelections,
   getSelectionGeometry,
+  updateObjectSelectionPositions,
   updateSelectionGeometry,
 } from "./course-editor-document";
 
@@ -20,7 +22,10 @@ export type CourseEditorTool = "translate" | "rotate" | "scale";
 
 type CourseEditorSceneOptions = {
   onDocumentChange: (label: string, document: CourseDocument) => void;
-  onSelectionChange: (selection: CourseEditorSelection) => void;
+  onSelectionChange: (
+    selection: CourseEditorSelection,
+    additive: boolean,
+  ) => void;
 };
 
 type PointerState = {
@@ -90,19 +95,19 @@ export class CourseEditorScene {
   private lastTouchMidpoint: { x: number; y: number } | null = null;
   private options: CourseEditorSceneOptions;
   private pointerCleanup: (() => void) | null = null;
-  private selection: CourseEditorSelection;
-  private selectionEntity: pc.Entity | null = null;
+  private selections: CourseEditorSelections;
+  private selectionEntities: pc.Entity[] = [];
   private tool: CourseEditorTool = "translate";
 
   constructor(
     canvas: HTMLCanvasElement,
     document: CourseDocument,
-    selection: CourseEditorSelection,
+    selections: CourseEditorSelections,
     options: CourseEditorSceneOptions,
   ) {
     this.canvas = canvas;
     this.currentDocument = document;
-    this.selection = selection;
+    this.selections = selections;
     this.options = options;
     this.app = new pc.Application(canvas, {
       graphicsDeviceOptions: { alpha: false, antialias: true },
@@ -184,15 +189,20 @@ export class CourseEditorScene {
   }
 
   frameSelection() {
-    const geometry = getSelectionGeometry(this.currentDocument, this.selection);
-    if (!geometry) {
+    const geometries = this.selections
+      .map((selection) => getSelectionGeometry(this.currentDocument, selection))
+      .filter((geometry): geometry is CourseEditorGeometry => Boolean(geometry));
+    if (geometries.length === 0) {
       return;
     }
 
     this.editorCamera.pivot.set(
-      geometry.position.x,
-      geometry.position.y,
-      geometry.position.z,
+      geometries.reduce((sum, geometry) => sum + geometry.position.x, 0) /
+        geometries.length,
+      geometries.reduce((sum, geometry) => sum + geometry.position.y, 0) /
+        geometries.length,
+      geometries.reduce((sum, geometry) => sum + geometry.position.z, 0) /
+        geometries.length,
     );
     this.updateCamera();
   }
@@ -271,15 +281,12 @@ export class CourseEditorScene {
     this.options = options;
   }
 
-  setSelection(selection: CourseEditorSelection) {
-    if (
-      this.selection.kind === selection.kind &&
-      this.selection.id === selection.id
-    ) {
+  setSelections(selections: CourseEditorSelections) {
+    if (sameSelections(this.selections, selections)) {
       return;
     }
 
-    this.selection = selection;
+    this.selections = selections;
     this.refreshSelectionPresentation();
   }
 
@@ -399,7 +406,11 @@ export class CourseEditorScene {
         !pointer.moved &&
         (pointer.pointerType === "touch" || pointer.button === 0)
       ) {
-        this.pickSelection(pointer.currentX, pointer.currentY);
+        this.pickSelection(
+          pointer.currentX,
+          pointer.currentY,
+          pointer.pointerType === "mouse" && event.shiftKey,
+        );
       }
     };
     const onPointerUp = (event: PointerEvent) => finishPointer(event, true);
@@ -434,24 +445,53 @@ export class CourseEditorScene {
   private commitRuntimeTransform() {
     const before = this.activeTransformDocument;
     this.activeTransformDocument = null;
+    if (!before) {
+      return;
+    }
+
+    if (this.selections.length > 1) {
+      const updates = this.selections.flatMap((selection) => {
+        const entity = this.entityForSelection(selection);
+        if (!entity || selection.kind !== "object") {
+          return [];
+        }
+        const position = entity.getPosition();
+        return [
+          {
+            id: selection.id,
+            position: { x: position.x, y: position.y, z: position.z },
+          },
+        ];
+      });
+      const next = updateObjectSelectionPositions(before, updates);
+      if (JSON.stringify(before) !== JSON.stringify(next)) {
+        this.options.onDocumentChange(
+          `Move ${this.selections.length} objects`,
+          next,
+        );
+      }
+      return;
+    }
+
     const entity = this.entityForSelection();
-    if (!before || !entity) {
+    if (!entity) {
       return;
     }
 
     const position = entity.getPosition();
     const rotation = entity.getEulerAngles();
     const scale = entity.getLocalScale();
+    const selection = this.primarySelection;
     const geometry: CourseEditorGeometry = {
       position: { x: position.x, y: position.y, z: position.z },
       rotation: { x: rotation.x, y: rotation.y, z: rotation.z },
-      ...(this.selection.kind === "start"
+      ...(selection.kind === "start"
         ? {}
         : { scale: { x: scale.x, y: scale.y, z: scale.z } }),
     };
-    const next = updateSelectionGeometry(before, this.selection, geometry);
+    const next = updateSelectionGeometry(before, selection, geometry);
     if (JSON.stringify(before) !== JSON.stringify(next)) {
-      this.options.onDocumentChange(`Transform ${this.selection.id}`, next);
+      this.options.onDocumentChange(`Transform ${selection.id}`, next);
     }
   }
 
@@ -579,8 +619,12 @@ export class CourseEditorScene {
     });
   }
 
-  private entityForSelection() {
-    return this.documentEntities.get(selectionKey(this.selection)) ?? null;
+  private get primarySelection() {
+    return this.selections[0];
+  }
+
+  private entityForSelection(selection = this.primarySelection) {
+    return this.documentEntities.get(selectionKey(selection)) ?? null;
   }
 
   private frameDocumentStart() {
@@ -603,7 +647,7 @@ export class CourseEditorScene {
     this.updateCamera();
   }
 
-  private pickSelection(x: number, y: number) {
+  private pickSelection(x: number, y: number, additive: boolean) {
     const cameraComponent = this.camera.camera;
     if (!cameraComponent) {
       return;
@@ -620,9 +664,7 @@ export class CourseEditorScene {
       while (node) {
         const selection = this.selectionByNode.get(node);
         if (selection) {
-          this.selection = selection;
-          this.options.onSelectionChange(selection);
-          this.refreshSelectionPresentation();
+          this.options.onSelectionChange(selection, additive);
           return;
         }
         node = node.parent;
@@ -659,8 +701,12 @@ export class CourseEditorScene {
     }
 
     if (!this.entityForSelection()) {
-      this.selection = { id: this.currentDocument.start.id, kind: "start" };
-      this.options.onSelectionChange(this.selection);
+      const fallback = {
+        id: this.currentDocument.start.id,
+        kind: "start",
+      } as const;
+      this.selections = [fallback];
+      this.options.onSelectionChange(fallback, false);
     }
     this.refreshSelectionPresentation();
   }
@@ -669,25 +715,31 @@ export class CourseEditorScene {
     this.translateGizmo.detach();
     this.rotateGizmo.detach();
     this.scaleGizmo.detach();
-    const entity = this.entityForSelection();
-    if (!entity) {
+    const entities = this.selections
+      .map((selection) => this.entityForSelection(selection))
+      .filter((entity): entity is pc.Entity => Boolean(entity));
+    if (entities.length !== this.selections.length) {
       return;
     }
 
     if (this.tool === "translate") {
-      this.translateGizmo.attach([entity]);
+      this.translateGizmo.attach(entities);
+    } else if (this.selections.length > 1) {
+      return;
     } else if (this.tool === "rotate") {
-      this.rotateGizmo.attach([entity]);
-    } else if (this.selection.kind !== "start") {
+      this.rotateGizmo.attach(entities);
+    } else if (this.primarySelection.kind !== "start") {
       this.configureScaleGizmo();
-      this.scaleGizmo.attach([entity]);
+      this.scaleGizmo.attach(entities);
     }
   }
 
   private configureScaleGizmo() {
     const selectedObject =
-      this.selection.kind === "object"
-        ? this.currentDocument.objects.find(({ id }) => id === this.selection.id)
+      this.primarySelection.kind === "object"
+        ? this.currentDocument.objects.find(
+            ({ id }) => id === this.primarySelection.id,
+          )
         : null;
     const cylinderAxis =
       selectedObject?.collision?.shape === "cylinder"
@@ -707,40 +759,41 @@ export class CourseEditorScene {
   }
 
   private refreshSelectionPresentation() {
-    this.selectionEntity?.destroy();
-    this.selectionEntity = null;
-    const entity = this.entityForSelection();
-    const geometry = getSelectionGeometry(this.currentDocument, this.selection);
-    if (!entity || !geometry) {
-      this.refreshGizmo();
-      return;
-    }
+    this.selectionEntities.forEach((entity) => entity.destroy());
+    this.selectionEntities = [];
+    this.selections.forEach((selection) => {
+      const entity = this.entityForSelection(selection);
+      const geometry = getSelectionGeometry(this.currentDocument, selection);
+      if (!entity || !geometry) {
+        return;
+      }
 
-    const sourceShape =
-      this.selection.kind === "object"
-        ? this.currentDocument.objects.find(({ id }) => id === this.selection.id)
-            ?.visual.shape ?? "box"
-        : "box";
-    const scale = geometry.scale ?? { x: 1.9, y: 0.22, z: 2.7 };
-    const outline = createVisualEntity(
-      sourceShape,
-      "course-editor-selection",
-      { x: scale.x * 1.04, y: scale.y * 1.04, z: scale.z * 1.04 },
-      this.selectionMaterial,
-      true,
-    );
-    outline.setPosition(
-      geometry.position.x,
-      geometry.position.y,
-      geometry.position.z,
-    );
-    outline.setEulerAngles(
-      geometry.rotation.x,
-      geometry.rotation.y,
-      geometry.rotation.z,
-    );
-    this.app.root.addChild(outline);
-    this.selectionEntity = outline;
+      const sourceShape =
+        selection.kind === "object"
+          ? this.currentDocument.objects.find(({ id }) => id === selection.id)
+              ?.visual.shape ?? "box"
+          : "box";
+      const scale = geometry.scale ?? { x: 1.9, y: 0.22, z: 2.7 };
+      const outline = createVisualEntity(
+        sourceShape,
+        `course-editor-selection-${selection.id}`,
+        { x: scale.x * 1.04, y: scale.y * 1.04, z: scale.z * 1.04 },
+        this.selectionMaterial,
+        true,
+      );
+      outline.setPosition(
+        geometry.position.x,
+        geometry.position.y,
+        geometry.position.z,
+      );
+      outline.setEulerAngles(
+        geometry.rotation.x,
+        geometry.rotation.y,
+        geometry.rotation.z,
+      );
+      this.app.root.addChild(outline);
+      this.selectionEntities.push(outline);
+    });
     this.refreshGizmo();
   }
 
@@ -910,6 +963,19 @@ function createVisualEntity(
 
 function selectionKey(selection: CourseEditorSelection) {
   return `${selection.kind}:${selection.id}`;
+}
+
+function sameSelections(
+  left: CourseEditorSelections,
+  right: CourseEditorSelections,
+) {
+  return (
+    left.length === right.length &&
+    left.every(
+      (selection, index) =>
+        selection.kind === right[index].kind && selection.id === right[index].id,
+    )
+  );
 }
 
 function clamp(value: number, min: number, max: number) {
