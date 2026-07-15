@@ -10,6 +10,7 @@ import {
   toDrivingInput,
 } from "../src/game/input/player-input";
 import {
+  getTouchBrakeSteerHandbrake,
   normalizeTouchJoystick,
   TouchInput,
 } from "../src/game/input/touch-input";
@@ -219,6 +220,60 @@ test.describe("player input", () => {
       handbrake: 0,
       steer: 0,
     });
+  });
+
+  test("touch progressively rear-biases the brake pedal only while accelerating through a strong turn", () => {
+    const touch = new TouchInput();
+
+    touch.setJoystick(1, 0, 1);
+    expect(touch.getContinuousInput()).toMatchObject({
+      brakeReverse: 1,
+      handbrake: 0,
+      steer: 0,
+    });
+
+    touch.setJoystick(1, 1, 0);
+    expect(touch.getContinuousInput()).toMatchObject({
+      brakeReverse: 0,
+      handbrake: 0,
+      steer: 1,
+    });
+
+    touch.setJoystick(1, 0.8, -0.6);
+    expect(touch.getContinuousInput().handbrake).toBe(0);
+
+    touch.pressPedal(2, "brakeReverse");
+    expect(touch.getContinuousInput()).toMatchObject({
+      accelerate: 0.6,
+      handbrake: 1,
+      steer: 0.8,
+    });
+    expect(touch.getContinuousInput().brakeReverse).toBeCloseTo(0.2, 6);
+
+    touch.setJoystick(1, 0.6, -0.8);
+    expect(touch.getContinuousInput()).toMatchObject({
+      accelerate: 0.8,
+      steer: 0.6,
+    });
+    expect(touch.getContinuousInput().handbrake).toBeCloseTo(0.648, 6);
+    expect(touch.getContinuousInput().brakeReverse).toBeCloseTo(0.4816, 6);
+
+    touch.setJoystick(1, -1, 0);
+    expect(touch.getContinuousInput()).toMatchObject({
+      brakeReverse: 1,
+      handbrake: 0,
+      steer: -1,
+    });
+
+    touch.release(2);
+    touch.setJoystick(1, -0.8, 0.6);
+    expect(touch.getContinuousInput()).toMatchObject({
+      brakeReverse: 0.6,
+      handbrake: 0,
+      steer: -0.8,
+    });
+
+    expect(getTouchBrakeSteerHandbrake(1, true, Number.NaN)).toBe(0);
   });
 
   test("polls a standard gamepad, ignores drift, and edge-detects actions", () => {

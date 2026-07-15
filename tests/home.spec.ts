@@ -1895,6 +1895,104 @@ test.describe("home screen", () => {
     expect((await getKartDebugState(canvas)).driftSmokeWheelNames).toEqual([]);
   });
 
+  test("derives mobile rear braking continuously from forward brake and steer", async ({
+    page,
+  }, testInfo) => {
+    test.skip(testInfo.project.name !== "mobile", "Touch controls only.");
+
+    await page.goto("/");
+    await page.getByRole("button", { name: "Solo Time Trial" }).click();
+
+    const canvas = page.getByTestId("solo-time-trial-canvas");
+    await advanceRaceToRacing(canvas);
+    await setSimulationPaused(canvas, true);
+    const baseline = await getKartDebugState(canvas);
+    await setKartDebugPose(canvas, {
+      linearVelocity: {
+        x: baseline.forward.x * 14,
+        y: 0,
+        z: baseline.forward.z * 14,
+      },
+      position: { x: 0, y: 0.43, z: -12 },
+      rotation: {
+        x: baseline.rotationX,
+        y: baseline.rotationY,
+        z: baseline.rotationZ,
+      },
+    });
+
+    const joystick = page.getByRole("group", { name: "Drive joystick" });
+    const brake = page.getByRole("button", { name: "Brake / Reverse" });
+    const bounds = await joystick.boundingBox();
+    expect(bounds).not.toBeNull();
+    const centerX = (bounds?.x ?? 0) + (bounds?.width ?? 0) * 0.5;
+    const centerY = (bounds?.y ?? 0) + (bounds?.height ?? 0) * 0.5;
+    const travel = (bounds?.width ?? 0) * 0.3;
+
+    await brake.dispatchEvent("pointerdown", {
+      buttons: 1,
+      pointerId: 40,
+      pointerType: "touch",
+    });
+    await joystick.dispatchEvent("pointerdown", {
+      buttons: 1,
+      clientX: centerX + travel * 0.8,
+      clientY: centerY - travel * 0.6,
+      pointerId: 41,
+      pointerType: "touch",
+    });
+    const states = await stepSimulationWithKartSamples(canvas, 24);
+    await joystick.dispatchEvent("pointerup", {
+      pointerId: 41,
+      pointerType: "touch",
+    });
+    await brake.dispatchEvent("pointerup", {
+      pointerId: 40,
+      pointerType: "touch",
+    });
+
+    const maximumSlip = Math.max(
+      ...states.map((state) => state.maximumSlipAngle),
+    );
+    const maximumChassisLateralSpeed = Math.max(
+      ...states.map((state) => {
+        const right = {
+          x: state.forward.y * state.up.z - state.forward.z * state.up.y,
+          y: state.forward.z * state.up.x - state.forward.x * state.up.z,
+          z: state.forward.x * state.up.y - state.forward.y * state.up.x,
+        };
+        return Math.abs(
+          state.linearVelocity.x * right.x +
+            state.linearVelocity.y * right.y +
+            state.linearVelocity.z * right.z,
+        );
+      }),
+    );
+    const smokeWheelNames = new Set(
+      states.flatMap((state) => state.driftSmokeWheelNames),
+    );
+    const finalState = states.at(-1);
+    const retainedPlanarSpeed = Math.hypot(
+      finalState?.linearVelocity.x ?? 0,
+      finalState?.linearVelocity.z ?? 0,
+    );
+    const evidence = JSON.stringify({
+      maximumChassisLateralSpeed,
+      maximumSlip,
+      retainedPlanarSpeed,
+      smokeWheelNames: [...smokeWheelNames],
+    });
+
+    expect(maximumSlip, evidence).toBeGreaterThan(0.085);
+    expect(maximumChassisLateralSpeed, evidence).toBeGreaterThan(1);
+    expect(retainedPlanarSpeed, evidence).toBeGreaterThan(8.5);
+    expect(smokeWheelNames.size, evidence).toBeGreaterThan(0);
+    expect(
+      [...smokeWheelNames].every((wheelName) => wheelName.startsWith("rear")),
+      evidence,
+    ).toBe(true);
+  });
+
   test("applies movement tuning through the scene test adapter", async ({
     page,
   }) => {
@@ -3573,6 +3671,38 @@ test.describe("home screen", () => {
       .toBeLessThan(-0.5);
     await joystick.dispatchEvent("pointercancel", {
       pointerId: 14,
+      pointerType: "touch",
+    });
+
+    await reset.click();
+    await expect
+      .poll(async () => {
+        const state = await getKartDebugState(canvas);
+        return Math.hypot(state.x - start.x, state.z - start.z);
+      })
+      .toBeLessThan(0.1);
+
+    await joystick.dispatchEvent("pointerdown", {
+      buttons: 1,
+      clientX: joystickCenterX + joystickTravel * 0.8,
+      clientY: joystickCenterY + joystickTravel * 0.6,
+      pointerId: 15,
+      pointerType: "touch",
+    });
+    await expect(joystick).toHaveAttribute("data-steer", "0.8");
+    await expect(joystick).toHaveAttribute("data-throttle", "-0.6");
+    await expect
+      .poll(async () => {
+        const state = await getKartDebugState(canvas);
+        return (
+          state.linearVelocity.x * state.forward.x +
+          state.linearVelocity.y * state.forward.y +
+          state.linearVelocity.z * state.forward.z
+        );
+      })
+      .toBeLessThan(-0.5);
+    await joystick.dispatchEvent("pointercancel", {
+      pointerId: 15,
       pointerType: "touch",
     });
 

@@ -40,6 +40,7 @@ remain owned by the kart-physics system.
   editable-control guard that leaves native form-key behavior untouched.
 - `src/game/input/touch-input.ts` owns a continuous pointer-specific steering
   value with a rescaled `0.08` dead zone and touch-only `1.75` response exponent,
+  a smooth forward-brake-and-steer mapping into normalized rear-handbrake intent,
   independent pedal-pointer state, and reset request state.
 - `src/game/input/gamepad-input.ts` polls browser snapshots, accepts only the
   standard mapping, applies the `0.15` candidate steering dead zone, maps the
@@ -83,9 +84,10 @@ remain owned by the kart-physics system.
 
 1. Keyboard events update held keys and queue reset/pause edges. The touch drive
    joystick maps a circular two-axis pointer displacement continuously into
-   steering plus forward/reverse intent while touch pedal events update
-   pointer-specific digital alternatives. The gamepad adapter polls the latest
-   browser snapshots during sampling.
+   steering plus forward/reverse intent. While forward intent is active, the
+   brake/reverse pedal progressively biases from service braking toward rear
+   handbraking as lateral steering increases, without setting a drift state.
+   The gamepad adapter polls the latest browser snapshots during sampling.
 2. A digital press or meaningful post-dead-zone analog change marks that device
    family intentionally active. Connection and resting-stick noise do not.
 3. Immediately before a fixed physics step, the manager samples all adapters.
@@ -124,6 +126,14 @@ magnitude to the `1.75` power while preserving vector direction. This touch-only
 curve reduces gain near center while preserving full authority at the rim. The
 portrait pad is `8.5rem` square and compact-landscape pad is `6.75rem`, increasing
 input travel by roughly 17% over the accepted steering-only baseline.
+Joystick-down remains ordinary service brake/reverse intent at every steering
+angle. While forward intent is active and the brake/reverse pedal is held,
+rear-handbrake intent follows a smoothstep ramp once shaped lateral steering
+crosses `0.45`, reaching full lateral authority at `0.7`; forward authority is
+normalized to reach full at `0.6`. A strong forward turn plus brake pedal can
+therefore retain a bounded `0.2` service-brake floor while requesting the same
+continuous handbrake action as Shift, without switching grip, adding yaw,
+declaring a drift, or compromising diagonal reverse.
 The knob follows the clamped physical pointer position and recenters on release.
 The labelled two-axis group provides instructions and four-arrow keyboard
 operation. Pedals retain native button semantics, `aria-pressed`, and Space or
@@ -200,7 +210,7 @@ until disconnect. Nonstandard mappings remain neutral and non-fatal.
 - `pnpm typecheck` and `pnpm lint` pass.
 - `pnpm build` passes; Turbopack requires the established unsandboxed build
   allowance because its CSS worker binds an internal port.
-- `tests/player-input.spec.ts`: fifteen focused normalization, adapter, edge,
+- `tests/player-input.spec.ts`: focused normalization, adapter, edge,
   controller-selection, arbitration, menu arming, hysteresis, repeat, and
   disconnect/re-arm cases pass.
 - Focused desktop Chromium controller scenarios pass together: continuous
@@ -212,12 +222,12 @@ until disconnect. Nonstandard mappings remain neutral and non-fatal.
   Exit, failed-state Back, and neutral setup across those transitions.
 - Focused `tests/home.spec.ts` mobile two-axis joystick/pedal and desktop
   continuous-controller scenarios pass, including partial forward/steering,
-  full forward, reverse, captured drag, circular clamping, pointer
+  full forward, straight and diagonal reverse, progressive forward brake/steer
+  rear bias, rear-only slip/smoke, captured drag, circular clamping, pointer
   cancellation/capture loss, recentering, and neutral re-arming.
-- The complete `pnpm test:e2e` desktop/mobile matrix passes 250 cases and skips
-  52 by project/environment design. This includes every new input adapter,
-  touch-driving, controller gameplay, controller-menu, and retained gameplay
-  regression case.
+- The complete `pnpm test:e2e` desktop/mobile matrix includes every new input
+  adapter, touch-driving, controller gameplay, controller-menu, and retained
+  gameplay regression case.
 - Mutable guest publication data is isolated from the collision and ramp
   diagnostics that assert exact bundled-course geometry. The ramp diagnostic
   retains its original physics threshold with a 60-second diagnostic budget;

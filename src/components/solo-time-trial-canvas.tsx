@@ -2901,7 +2901,9 @@ export function SoloTimeTrialCanvas({
                     id="touch-joystick-instructions"
                   >
                     Drag up to accelerate, down to brake or reverse, and left
-                    or right to steer. Arrow keys provide the same controls.
+                    or right to steer. While moving forward, hold Brake / Reverse
+                    and steer strongly to progressively rear-brake for a drift.
+                    Arrow keys provide the same basic joystick controls.
                   </span>
                   <span aria-hidden="true" className="race-touch-joystick-directions">
                     <span className="race-touch-joystick-up">↑</span>
