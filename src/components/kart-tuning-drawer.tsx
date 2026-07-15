@@ -313,6 +313,34 @@ const TUNING_GROUPS: TuningGroup[] = [
       },
       {
         description:
+          "Instantaneous roll impulse used by manual recovery when the kart is upside down over a driving surface. Higher values flip more aggressively.",
+        key: "manualRightingTorqueImpulse",
+        label: "Righting roll impulse",
+        unit: "N·m·s",
+      },
+      {
+        description:
+          "Extra roll torque added only as an upside-down kart leans toward the righting threshold, where multiple chassis contacts need more leverage. A flat roof receives no boost.",
+        key: "manualRightingAngledTorqueBoost",
+        label: "Angled righting boost",
+        unit: "ratio",
+      },
+      {
+        description:
+          "Small upward impulse paired with manual righting so the chassis edge can clear the surface while it rolls.",
+        key: "manualRightingLiftImpulse",
+        label: "Righting lift impulse",
+        unit: "N·s",
+      },
+      {
+        description:
+          "Minimum tilt from upright required before a recovery request flips in place instead of returning to the checkpoint.",
+        key: "manualRightingMinimumInversionDegrees",
+        label: "Righting tilt threshold",
+        unit: "deg",
+      },
+      {
+        description:
           "How quickly small remaining chassis rotation is damped while all wheels are grounded and there is no input.",
         key: "restingAngularSettleRate",
         label: "Rest settling",

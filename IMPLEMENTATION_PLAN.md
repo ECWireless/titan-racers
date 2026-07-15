@@ -707,14 +707,14 @@ to the next item until the feature lead has accepted the current behavior.
 
 - [x] greatly reduce ordinary steering sharpness while preserving useful
       low-speed maneuvering,
-- [ ] make progressive drift available through the physical tire model at all
+- [x] make progressive drift available through the physical tire model at all
       times, with braking and a rear-biased handbrake making initiation common
       without enabling a scripted drift mode,
-- [ ] increase reverse top speed while keeping forward and reverse behavior
+- [x] increase reverse top speed while keeping forward and reverse behavior
       separately tunable,
-- [ ] replace mobile's horizontal steering-only pad with proportional two-axis
+- [x] replace mobile's horizontal steering-only pad with proportional two-axis
       steering and forward/brake-reverse intent,
-- [ ] distinguish physical in-place manual righting from automatic off-course
+- [x] distinguish physical in-place manual righting from automatic off-course
       checkpoint recovery, and
 - [ ] add Shift-modified multi-object editor selection and group translation.
 

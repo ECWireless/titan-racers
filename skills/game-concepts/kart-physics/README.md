@@ -231,6 +231,22 @@ documented stuck or invalid-state threshold. A deliberate player reset may act
 immediately, but its destination, orientation, and velocity-clearing behavior
 must be explicit and verified.
 
+Distinguish checkpoint recovery from manual self-righting. When an inverted
+kart is resting on or immediately above a valid driving surface, a deliberate
+recovery request should apply a short, bounded physical roll-and-lift impulse
+at the current location. It must not teleport the chassis, write an upright
+orientation, discard yaw or momentum, enter a checkpoint-recovery lifecycle,
+or become a general airborne-control system. Require clear inversion and nearby
+support, rate-limit repeated impulses, and let rigid-body contacts complete the
+roll. If those conditions are absent, the established checkpoint-recovery
+policy remains authoritative.
+
+The same semantic request may come from keyboard, controller, an explicit touch
+control, or a deliberate low-movement tap that actually hits the inverted kart
+on coarse-pointer devices. Gesture recognition and scene picking must only
+request the action; the fixed-step physics boundary decides whether righting is
+currently valid and applies it once.
+
 ### Fixed-step simulation
 
 Advance gameplay physics with a fixed timestep, initially targeting 60 Hz.
@@ -373,6 +389,8 @@ Those systems may build on this standard without being folded into it.
   and camera](https://www.gdcvault.com/play/1025295/Vehicle-Feel-Masterclass-Balancing-Arcade)
 - [Activision, Supercharged Vehicle Physics in Skylanders: combining physical
   and simplified systems with designer-facing parameters](https://media.gdcvault.com/gdc2016/Presentations/Donnelly_Patrick_Supercharged%20Vehicle%20Physics.pdf)
+- [Rocket League Crash Course: player-controlled orientation and recovery onto
+  the wheels](https://www.epicgames.com/help/c-202300000001622/c-202300000001682/rocket-league-a202300000010022)
 
 ## Open Questions
 

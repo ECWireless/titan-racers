@@ -212,6 +212,23 @@ For a gameplay reset, use the rigid-body teleport API, explicitly clear linear
 and angular velocity, clear controller integrators and low-speed state, and
 activate the body.
 
+Manual self-righting is not a gameplay reset. Keep it on the public PlayCanvas
+rigid-body API: verify a nearby `drivable-surface` with the established filtered
+raycast, calculate the shortest stable world-space roll axis toward upright,
+then use `applyTorqueImpulse` plus a small bounded upward `applyImpulse` at the
+fixed-step boundary. Preserve the current transform and velocities, activate
+the body, and use a time-bounded re-arm guard so repeated action edges cannot
+stack into an unintended launch. At the exactly inverted singularity, use a
+stable chassis-forward roll axis rather than producing a zero or non-finite
+cross product.
+
+A coarse-pointer kart tap first converts CSS coordinates into render-target
+coordinates, projects a near-to-far camera ray with `screenToWorld`, and accepts
+only a filtered hit on the kart rigid-body root. Keep pointer duration and
+movement thresholds in the browser adapter. The accepted hit queues the same
+semantic manual-recovery edge as keyboard, controller, and the explicit touch
+button; it never applies physics from a DOM event.
+
 Do not move an active dynamic body with ordinary entity transform setters. When
 the editor manipulates the kart, pause or remove its physics participation,
 edit the authoritative pose, and resume with an explicit synchronized reset.
@@ -272,6 +289,7 @@ changes. Behavior-level kart acceptance remains owned by the game-concept node.
 - [PlayCanvas compound shapes](https://developer.playcanvas.com/user-manual/physics/compound-shapes/)
 - [PlayCanvas rigid-body system API](https://api.playcanvas.com/engine/classes/RigidBodyComponentSystem.html)
 - [PlayCanvas forces and impulses](https://developer.playcanvas.com/user-manual/physics/forces-and-impulses/)
+- [PlayCanvas `RigidBodyComponent` API](https://api.playcanvas.com/engine/classes/RigidBodyComponent.html)
 - [PlayCanvas direct Ammo integration and CCD](https://developer.playcanvas.com/user-manual/physics/calling-ammo/)
 - [Ammo.js build referenced by PlayCanvas](https://github.com/kripken/ammo.js/commit/dcab07bf0e7f2b4b64c01dc45da846344c8f50be)
 - [Bullet Physics user manual](https://github.com/bulletphysics/bullet3/blob/master/docs/Bullet_User_Manual.pdf)

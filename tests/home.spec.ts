@@ -1952,7 +1952,7 @@ test.describe("home screen", () => {
       await expect(page.getByTestId(`kart-tuning-${key}`)).toHaveCount(1);
     }
     await expect(drawer.locator('button[aria-label^="Explain "]')).toHaveCount(
-      52,
+      56,
     );
     if (testInfo.project.name === "mobile") {
       await expect(touchControls).toBeHidden();
@@ -2166,6 +2166,186 @@ test.describe("home screen", () => {
     expect(Math.abs(resetState.rotationZ)).toBeLessThan(0.05);
     expect(Math.abs(resetState.verticalVelocity)).toBeLessThan(0.05);
     expect(resetState.angularSpeed).toBeLessThan(0.05);
+  });
+
+  test("physically rights an upside-down kart in place across supported input", async ({
+    page,
+  }, testInfo) => {
+    testInfo.setTimeout(60_000);
+    await page.goto("/");
+    await page.getByRole("button", { name: "Solo Time Trial" }).click();
+
+    const canvas = page.getByTestId("solo-time-trial-canvas");
+    await advanceRaceToRacing(canvas);
+    await setSimulationPaused(canvas, true);
+    await setKartDebugPose(canvas, {
+      angularVelocity: { x: 0, y: 0, z: 0 },
+      linearVelocity: { x: 0.8, y: 0, z: 0 },
+      position: { x: 4, y: 0.46, z: 0 },
+      rotation: { x: 0, y: 90, z: 180 },
+    });
+    await stepSimulation(canvas, 5);
+
+    const inverted = await getKartDebugState(canvas);
+    expect(inverted.up.y).toBeLessThan(-0.8);
+    expect(inverted.manualRightingCount).toBe(0);
+    expect(await getRaceDebugState(canvas)).toMatchObject({ state: "racing" });
+
+    if (testInfo.project.name === "mobile") {
+      const kartPoint = await getKartScreenPoint(canvas);
+      const canvasBounds = await canvas.boundingBox();
+      expect(kartPoint).not.toBeNull();
+      expect(canvasBounds).not.toBeNull();
+      const clientX = (canvasBounds?.x ?? 0) + (kartPoint?.x ?? 0);
+      const clientY = (canvasBounds?.y ?? 0) + (kartPoint?.y ?? 0);
+
+      await canvas.dispatchEvent("pointerdown", {
+        button: 0,
+        clientX: (canvasBounds?.x ?? 0) + 2,
+        clientY: (canvasBounds?.y ?? 0) + 2,
+        isPrimary: false,
+        pointerId: 30,
+        pointerType: "touch",
+      });
+      await canvas.dispatchEvent("pointerup", {
+        button: 0,
+        clientX: (canvasBounds?.x ?? 0) + 2,
+        clientY: (canvasBounds?.y ?? 0) + 2,
+        isPrimary: false,
+        pointerId: 30,
+        pointerType: "touch",
+      });
+      await stepSimulation(canvas);
+      expect((await getKartDebugState(canvas)).manualRightingCount).toBe(0);
+
+      await canvas.dispatchEvent("pointerdown", {
+        button: 0,
+        clientX,
+        clientY,
+        isPrimary: true,
+        pointerId: 31,
+        pointerType: "touch",
+      });
+      await canvas.dispatchEvent("pointermove", {
+        button: 0,
+        clientX: clientX + 20,
+        clientY,
+        isPrimary: true,
+        pointerId: 31,
+        pointerType: "touch",
+      });
+      await canvas.dispatchEvent("pointerup", {
+        button: 0,
+        clientX: clientX + 20,
+        clientY,
+        isPrimary: true,
+        pointerId: 31,
+        pointerType: "touch",
+      });
+      await stepSimulation(canvas);
+      expect((await getKartDebugState(canvas)).manualRightingCount).toBe(0);
+
+      await canvas.dispatchEvent("pointerdown", {
+        button: 0,
+        clientX,
+        clientY,
+        isPrimary: false,
+        pointerId: 32,
+        pointerType: "touch",
+      });
+      await canvas.dispatchEvent("pointerup", {
+        button: 0,
+        clientX,
+        clientY,
+        isPrimary: false,
+        pointerId: 32,
+        pointerType: "touch",
+      });
+    } else {
+      await canvas.focus();
+      await page.keyboard.press("r");
+    }
+
+    await stepSimulation(canvas);
+    const impulseState = await getKartDebugState(canvas);
+    expect(impulseState.manualRightingCount).toBe(1);
+    expect(impulseState.manualRightingCooldownSeconds).toBeGreaterThan(0);
+    expect(impulseState.angularSpeed).toBeGreaterThan(0.2);
+    expect(impulseState.up.y).toBeLessThan(0);
+    expect(impulseState.x).toBeCloseTo(inverted.x, 0);
+    expect(impulseState.z).toBeCloseTo(inverted.z, 0);
+    expect(await getRaceDebugState(canvas)).toMatchObject({ state: "racing" });
+
+    if (testInfo.project.name === "desktop") {
+      await page.keyboard.press("r");
+      await stepSimulation(canvas);
+      expect((await getKartDebugState(canvas)).manualRightingCount).toBe(1);
+      expect(await getRaceDebugState(canvas)).toMatchObject({ state: "racing" });
+    }
+
+    const rightingSamples = await stepSimulationWithKartSamples(canvas, 180);
+    const upright = rightingSamples.find(
+      (sample) => sample.up.y > 0.7 && sample.supportCount > 0,
+    );
+    expect(upright).toBeDefined();
+    expect(Math.abs((upright?.x ?? 0) - inverted.x)).toBeLessThan(2);
+    expect(Math.abs((upright?.z ?? 0) - inverted.z)).toBeLessThan(2);
+    expect(await getRaceDebugState(canvas)).toMatchObject({ state: "racing" });
+
+    if (testInfo.project.name === "desktop") {
+      await setKartDebugPose(canvas, {
+        angularVelocity: { x: 0, y: 0, z: 0 },
+        linearVelocity: { x: 0, y: 0, z: 0 },
+        position: { x: 4, y: 0.43, z: 0 },
+        rotation: { x: 0, y: 90, z: 0 },
+      });
+      await stepSimulation(canvas, 2);
+      await page.keyboard.press("r");
+      await stepSimulation(canvas);
+      expect((await getKartDebugState(canvas)).manualRightingCount).toBe(1);
+      expect(await getRaceDebugState(canvas)).toMatchObject({
+        state: "recovering",
+      });
+    }
+  });
+
+  test("physically rights an angled upside-down kart from two-point support", async ({
+    page,
+  }, testInfo) => {
+    test.skip(
+      testInfo.project.name !== "desktop",
+      "The deterministic physics edge case only needs one Chromium path.",
+    );
+
+    await page.goto("/");
+    await page.getByRole("button", { name: "Solo Time Trial" }).click();
+
+    const canvas = page.getByTestId("solo-time-trial-canvas");
+    await advanceRaceToRacing(canvas);
+    await setSimulationPaused(canvas, true);
+    await setKartDebugPose(canvas, {
+      angularVelocity: { x: 0, y: 0, z: 0 },
+      linearVelocity: { x: 0, y: 0, z: 0 },
+      position: { x: 4, y: 1.2, z: 0 },
+      rotation: { x: 0, y: 0, z: 125 },
+    });
+    await stepSimulation(canvas, 120);
+
+    const inverted = await getKartDebugState(canvas);
+    expect(inverted.up.y).toBeLessThan(-0.5);
+    await canvas.focus();
+    await page.keyboard.press("r");
+    await stepSimulation(canvas);
+    expect((await getKartDebugState(canvas)).manualRightingCount).toBe(1);
+
+    const samples = await stepSimulationWithKartSamples(canvas, 180);
+    const upright = samples.find(
+      (sample) => sample.up.y > 0.7 && sample.supportCount > 0,
+    );
+    expect(upright).toBeDefined();
+    expect(Math.abs((upright?.x ?? 0) - inverted.x)).toBeLessThan(2);
+    expect(Math.abs((upright?.z ?? 0) - inverted.z)).toBeLessThan(2);
+    expect(await getRaceDebugState(canvas)).toMatchObject({ state: "racing" });
   });
 
   test("tips from partial wheel support at the platform edge", async ({
