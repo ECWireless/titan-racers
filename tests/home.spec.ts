@@ -3556,6 +3556,10 @@ test.describe("home screen", () => {
     const brake = page.getByRole("button", { name: "Brake / Reverse" });
     const reset = page.getByRole("button", { name: "Reset kart" });
 
+    await expect(joystick).toHaveAccessibleDescription(
+      /Touch gesture only:.*progressively request rear braking.*Tire grip determines whether the kart slides.*Arrow keys provide the basic joystick directions only\./,
+    );
+
     for (const control of [accelerate, joystick, brake, reset]) {
       await expect(control).toBeVisible();
       const bounds = await control.boundingBox();

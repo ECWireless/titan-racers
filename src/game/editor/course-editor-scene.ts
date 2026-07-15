@@ -17,6 +17,7 @@ import {
   updateObjectSelectionPositions,
   updateSelectionGeometry,
 } from "./course-editor-document";
+import { collectObjectPositionUpdates } from "./course-editor-runtime-transform";
 
 export type CourseEditorTool = "translate" | "rotate" | "scale";
 
@@ -450,19 +451,14 @@ export class CourseEditorScene {
     }
 
     if (this.selections.length > 1) {
-      const updates = this.selections.flatMap((selection) => {
-        const entity = this.entityForSelection(selection);
-        if (!entity || selection.kind !== "object") {
-          return [];
-        }
-        const position = entity.getPosition();
-        return [
-          {
-            id: selection.id,
-            position: { x: position.x, y: position.y, z: position.z },
-          },
-        ];
-      });
+      const updates = collectObjectPositionUpdates(
+        this.selections,
+        (selection) => this.entityForSelection(selection),
+      );
+      if (!updates) {
+        this.rebuildDocument();
+        return;
+      }
       const next = updateObjectSelectionPositions(before, updates);
       if (JSON.stringify(before) !== JSON.stringify(next)) {
         this.options.onDocumentChange(
