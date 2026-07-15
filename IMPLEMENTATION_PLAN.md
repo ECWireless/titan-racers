@@ -714,9 +714,11 @@ to the next item until the feature lead has accepted the current behavior.
       separately tunable,
 - [x] replace mobile's horizontal steering-only pad with proportional two-axis
       steering and forward/brake-reverse intent,
+- [x] give touch players continuous rear-handbrake intent from forward motion,
+      strong steering, and the brake pedal without adding a drift mode,
 - [x] distinguish physical in-place manual righting from automatic off-course
       checkpoint recovery, and
-- [ ] add Shift-modified multi-object editor selection and group translation.
+- [x] add Shift-modified multi-object editor selection and group translation.
 
 ### Phase 3: Kart Design And Upload System
 

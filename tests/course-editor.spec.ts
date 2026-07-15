@@ -1331,6 +1331,189 @@ test.describe("protected course editor access", () => {
     await expect(canvas).toHaveAttribute("data-selected-id", "start-position");
   });
 
+  test("builds and trims an object group with desktop Shift-click or mobile additive mode", async ({
+    page,
+  }, testInfo) => {
+    await page.route(courseApiPattern, async (route) => {
+      await route.fulfill({
+        body: JSON.stringify({
+          authorUserId: "admin-test-user",
+          courseId: ROUGH_COURSE_DOCUMENT.courseId,
+          createdAt: new Date("2026-07-12T00:00:00.000Z").toISOString(),
+          document: ROUGH_COURSE_DOCUMENT,
+          revision: 3,
+          schemaVersion: ROUGH_COURSE_DOCUMENT.schemaVersion,
+        }),
+        contentType: "application/json",
+        status: 200,
+      });
+    });
+
+    await page.goto("/editor");
+    const canvas = page.getByTestId("course-editor-canvas");
+    await waitForEditorScene(canvas);
+
+    if (testInfo.project.name === "desktop") {
+      await page
+        .getByRole("button", { name: /obstacle-barrel-a/ })
+        .click();
+      await page
+        .getByRole("button", { name: /obstacle-barrel-b/ })
+        .click({ modifiers: ["Shift"] });
+    } else {
+      await page.getByRole("button", { name: "Course", exact: true }).click();
+      const course = page.getByRole("dialog", { name: "Course" });
+      await course
+        .getByRole("button", { name: /obstacle-barrel-a/ })
+        .click();
+      await page.getByRole("button", { name: "Add to selection" }).click();
+      await page.getByRole("button", { name: "Course", exact: true }).click();
+      await course
+        .getByRole("button", { name: /obstacle-barrel-b/ })
+        .click();
+      await course.getByRole("button", { name: "Close panel" }).click();
+      await page
+        .getByRole("button", { name: "Done adding to selection" })
+        .click();
+    }
+
+    await expect(canvas).toHaveAttribute("data-selected-count", "2");
+    await expect(canvas).toHaveAttribute(
+      "data-selected-ids",
+      "obstacle-barrel-a,obstacle-barrel-b",
+    );
+    await expect(
+      page.getByRole("button", { name: "Rotate", exact: true }),
+    ).toHaveAttribute("aria-disabled", "true");
+    await expect(
+      page.getByRole("button", { name: "Scale", exact: true }),
+    ).toHaveAttribute("aria-disabled", "true");
+
+    if (testInfo.project.name === "mobile") {
+      await page.getByRole("button", { name: "Inspector" }).click();
+    }
+    const inspector = page.getByRole("complementary", { name: "Inspector" });
+    await expect(inspector.getByTestId("editor-selection")).toHaveText(
+      "2 objects selected",
+    );
+    const groupX = inspector.getByTestId("group position-x-value");
+    await expect(groupX).toHaveText("17.55");
+    if (testInfo.project.name === "desktop") {
+      await page.getByRole("button", { name: "Frame selection" }).click();
+      const points = await getCourseEditorTranslateGizmoPoints(canvas, "x");
+      const box = await canvas.boundingBox();
+      expect(points?.head).not.toBeNull();
+      expect(points?.origin).not.toBeNull();
+      expect(box).not.toBeNull();
+      const xDelta = points!.head!.x - points!.origin!.x;
+      const yDelta = points!.head!.y - points!.origin!.y;
+      const length = Math.hypot(xDelta, yDelta);
+      const startX = box!.x + points!.head!.x;
+      const startY = box!.y + points!.head!.y;
+      await page.mouse.move(startX, startY);
+      await page.mouse.down();
+      await page.mouse.move(
+        startX + (xDelta / length) * 45,
+        startY + (yDelta / length) * 45,
+        { steps: 8 },
+      );
+      await page.mouse.up();
+      await expect(groupX).not.toHaveText("17.55");
+      await page.getByRole("button", { name: "Undo" }).click();
+      await expect(groupX).toHaveText("17.55");
+    }
+    await inspector
+      .getByRole("button", { name: "Group position x increase" })
+      .click();
+    await expect(groupX).toHaveText("17.80");
+    await page.getByRole("button", { name: "Undo" }).click();
+    await expect(groupX).toHaveText("17.55");
+
+    if (testInfo.project.name === "desktop") {
+      await page
+        .getByRole("button", { name: /obstacle-barrel-b/ })
+        .click({ modifiers: ["Shift"] });
+    } else {
+      await page.getByRole("button", { name: "Add to selection" }).click();
+      await page.getByRole("button", { name: "Course", exact: true }).click();
+      const course = page.getByRole("dialog", { name: "Course" });
+      await course
+        .getByRole("button", { name: /obstacle-barrel-b/ })
+        .click();
+    }
+    await expect(canvas).toHaveAttribute("data-selected-count", "1");
+    await expect(canvas).toHaveAttribute(
+      "data-selected-id",
+      "obstacle-barrel-a",
+    );
+    if (testInfo.project.name === "mobile") {
+      await page
+        .getByRole("dialog", { name: "Course" })
+        .getByRole("button", { name: "Close panel" })
+        .click();
+      await page.setViewportSize({ width: 1200, height: 800 });
+      await page
+        .getByRole("button", { name: /obstacle-barrel-b/ })
+        .click();
+      await expect(canvas).toHaveAttribute("data-selected-count", "1");
+      await expect(canvas).toHaveAttribute(
+        "data-selected-id",
+        "obstacle-barrel-b",
+      );
+    }
+  });
+
+  test("removes stale secondary selections when undo removes an added object", async ({
+    page,
+  }, testInfo) => {
+    test.skip(
+      testInfo.project.name !== "desktop",
+      "Selection reconciliation is shared; the desktop outline gives the shortest exact regression.",
+    );
+    await page.route(courseApiPattern, async (route) => {
+      await route.fulfill({
+        body: JSON.stringify({
+          authorUserId: "admin-test-user",
+          courseId: ROUGH_COURSE_DOCUMENT.courseId,
+          createdAt: new Date("2026-07-12T00:00:00.000Z").toISOString(),
+          document: ROUGH_COURSE_DOCUMENT,
+          revision: 3,
+          schemaVersion: ROUGH_COURSE_DOCUMENT.schemaVersion,
+        }),
+        contentType: "application/json",
+        status: 200,
+      });
+    });
+
+    await page.goto("/editor");
+    const canvas = page.getByTestId("course-editor-canvas");
+    await waitForEditorScene(canvas);
+    await page.getByRole("button", { name: "block" }).click();
+    await page
+      .getByRole("button", { name: /obstacle-barrel-a/ })
+      .click();
+    await page
+      .getByRole("button", { name: /block-1/ })
+      .click({ modifiers: ["Shift"] });
+    await expect(canvas).toHaveAttribute(
+      "data-selected-ids",
+      "obstacle-barrel-a,block-1",
+    );
+
+    await page.getByRole("button", { name: "Undo" }).click();
+    await expect(canvas).toHaveAttribute("data-selected-count", "1");
+    await expect(canvas).toHaveAttribute(
+      "data-selected-id",
+      "obstacle-barrel-a",
+    );
+    await expect(page.getByTestId("editor-selection")).toHaveText(
+      "obstacle-barrel-a",
+    );
+    await expect(page.getByRole("button", { name: /block-1/ })).toHaveCount(0);
+    const points = await getCourseEditorTranslateGizmoPoints(canvas, "x");
+    expect(points?.head).not.toBeNull();
+  });
+
   test("commits PlayCanvas translate and per-axis scale gizmo drags as undoable edits", async ({
     page,
   }, testInfo) => {

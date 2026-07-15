@@ -8,6 +8,10 @@ export type TouchPedalAction = "accelerate" | "brakeReverse";
 
 export const TOUCH_JOYSTICK_DEAD_ZONE = 0.08;
 export const TOUCH_JOYSTICK_RESPONSE_EXPONENT = 1.75;
+export const TOUCH_HANDBRAKE_STEER_START = 0.45;
+export const TOUCH_HANDBRAKE_STEER_FULL = 0.7;
+export const TOUCH_HANDBRAKE_ACCELERATE_FULL = 0.6;
+export const TOUCH_HANDBRAKE_SERVICE_BRAKE_FLOOR = 0.2;
 
 export type TouchJoystickValue = {
   x: number;
@@ -41,6 +45,38 @@ export function normalizeTouchJoystick(
     x: directionX * shapedMagnitude,
     y: directionY * shapedMagnitude,
   };
+}
+
+export function getTouchBrakeSteerHandbrake(
+  accelerate: number,
+  brakePedalHeld: boolean,
+  steer: number,
+): number {
+  const accelerateIntent = Number.isFinite(accelerate)
+    ? Math.max(accelerate, 0)
+    : 0;
+  const steerMagnitude = Number.isFinite(steer) ? Math.abs(steer) : 0;
+  if (
+    !brakePedalHeld ||
+    accelerateIntent === 0 ||
+    steerMagnitude <= TOUCH_HANDBRAKE_STEER_START
+  ) {
+    return 0;
+  }
+
+  const steerProgress = Math.min(
+    (steerMagnitude - TOUCH_HANDBRAKE_STEER_START) /
+      (TOUCH_HANDBRAKE_STEER_FULL - TOUCH_HANDBRAKE_STEER_START),
+    1,
+  );
+  const smoothSteerProgress =
+    steerProgress * steerProgress * (3 - 2 * steerProgress);
+  const accelerateProgress = Math.min(
+    accelerateIntent / TOUCH_HANDBRAKE_ACCELERATE_FULL,
+    1,
+  );
+
+  return accelerateProgress * smoothSteerProgress;
 }
 
 export class TouchInput implements PlayerInputSource {
@@ -93,16 +129,25 @@ export class TouchInput implements PlayerInputSource {
     const actions = new Set(this.pedalPointers.values());
     const joystickX = this.joystickPointer?.x ?? 0;
     const joystickY = this.joystickPointer?.y ?? 0;
+    const accelerate = Math.max(
+      Number(actions.has("accelerate")),
+      Math.max(-joystickY, 0),
+    );
+    const brakePedalHeld = actions.has("brakeReverse");
+    const handbrake = getTouchBrakeSteerHandbrake(
+      accelerate,
+      brakePedalHeld,
+      joystickX,
+    );
     return {
-      accelerate: Math.max(
-        Number(actions.has("accelerate")),
-        Math.max(-joystickY, 0),
-      ),
+      accelerate,
       brakeReverse: Math.max(
-        Number(actions.has("brakeReverse")),
+        Number(brakePedalHeld) *
+          (1 -
+            handbrake * (1 - TOUCH_HANDBRAKE_SERVICE_BRAKE_FLOOR)),
         Math.max(joystickY, 0),
       ),
-      handbrake: 0,
+      handbrake,
       steer: joystickX,
     };
   }

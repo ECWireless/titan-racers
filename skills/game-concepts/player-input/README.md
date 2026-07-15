@@ -123,8 +123,13 @@ concurrently.
   accessible alternatives. Track each active pointer by ID so the joystick and
   a pedal can be held at the same time and one pointer release cannot cancel
   another control.
-- This slice exposes no separate touch handbrake; the continuous brake/reverse
-  control can still produce tire slip through the shared physics model.
+- This slice exposes no separate touch handbrake control. While forward intent
+  is active, holding the brake/reverse pedal and crossing a strong lateral
+  joystick threshold progressively biases that pedal from service braking
+  toward the normalized rear handbrake action. Straight braking and diagonal
+  reverse remain service brake/reverse intent, steering alone never requests
+  rear braking, and the shared tire model remains solely responsible for
+  whether speed, load, and slip produce a drift.
 - Treat pointer up, pointer cancel, lost capture, pause, and teardown as release.
 - Apply direct-manipulation suppression only to the control regions that need
   it; do not disable ordinary browser gestures across unrelated UI.

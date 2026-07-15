@@ -196,6 +196,15 @@ their mouse equivalents without consuming persistent toolbar width. Two-touch
 gestures consume both participating pointers, and cancellation never falls
 through to picking.
 
+Object multi-selection keeps stable document IDs in React state and attaches
+their disposable projection entities to the maintained `TranslateGizmo` as one
+node array. PlayCanvas positions that gizmo at the nodes' world-space centroid
+and applies one translation delta to every node. Transform completion reads all
+selected runtime positions once, validates one updated portable document, and
+creates one history command. The same document helper applies Inspector group
+nudges in a single validation pass. Start and checkpoint selection always
+replace the group; rotate, scale, rename, and delete stay single-selection only.
+
 ## Verification
 
 1. Every seed object produces the expected entity name, transform, material,

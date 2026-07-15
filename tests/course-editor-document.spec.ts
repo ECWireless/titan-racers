@@ -8,13 +8,17 @@ import {
   collectCourseDocumentIds,
   deleteCourseSelection,
   getSelectionGeometry,
+  nudgeObjectSelections,
   nudgeSelection,
+  reconcileCourseEditorSelections,
   renameCourseObject,
   scaleSelectionAxis,
   scaleSelectionUniformly,
   setFillLightEnabled,
   updateAmbientLighting,
+  updateCourseEditorSelections,
   updateDirectionalLight,
+  updateObjectSelectionPositions,
   updateSelectionGeometry,
 } from "../src/game/editor/course-editor-document";
 
@@ -57,6 +61,72 @@ test.describe("course editor document commands", () => {
       editable: true,
       visual: { shape: "cylinder" },
     });
+  });
+
+  test("builds an object-only additive selection without allowing an empty set", () => {
+    const start = { id: "start-position", kind: "start" } as const;
+    const block = { id: "block-1", kind: "object" } as const;
+    const barrel = { id: "barrel-1", kind: "object" } as const;
+
+    const firstObject = updateCourseEditorSelections([start], block, true);
+    expect(firstObject).toEqual([block]);
+
+    const group = updateCourseEditorSelections(firstObject, barrel, true);
+    expect(group).toEqual([block, barrel]);
+    expect(updateCourseEditorSelections(group, block, true)).toEqual([barrel]);
+    expect(updateCourseEditorSelections([barrel], barrel, true)).toEqual([
+      barrel,
+    ]);
+    expect(updateCourseEditorSelections(group, start, true)).toEqual([start]);
+  });
+
+  test("moves selected objects by one shared delta without changing their spacing", () => {
+    let document = addCourseObjectPreset(
+      structuredClone(ROUGH_COURSE_DOCUMENT),
+      "block",
+    );
+    document = addCourseObjectPreset(document, "barrel");
+    const selections = [
+      { id: "block-1", kind: "object" },
+      { id: "barrel-1", kind: "object" },
+    ] as const;
+
+    const nudged = nudgeObjectSelections(document, selections, "x", 0.25);
+    expect(nudged.objects.slice(-2).map(({ transform }) => transform.position.x)).toEqual([
+      0.25,
+      0.25,
+    ]);
+
+    const moved = updateObjectSelectionPositions(nudged, [
+      { id: "block-1", position: { x: 1.13, y: 0.5, z: 2 } },
+      { id: "barrel-1", position: { x: 4.38, y: 0.7, z: 2 } },
+    ]);
+    expect(moved.objects.slice(-2).map(({ transform }) => transform.position)).toEqual([
+      { x: 1.13, y: 0.5, z: 2 },
+      { x: 4.38, y: 0.7, z: 2 },
+    ]);
+    expect(moved.objects.slice(-2).map(({ transform }) => transform.rotation)).toEqual(
+      document.objects.slice(-2).map(({ transform }) => transform.rotation),
+    );
+  });
+
+  test("reconciles removed group members and rejects stale group updates", () => {
+    const document = structuredClone(ROUGH_COURSE_DOCUMENT);
+    const existing = { id: "obstacle-barrel-a", kind: "object" } as const;
+    const missing = { id: "removed-object", kind: "object" } as const;
+
+    expect(
+      reconcileCourseEditorSelections(document, [existing, missing]),
+    ).toEqual([existing]);
+    expect(nudgeObjectSelections(document, [existing, missing], "x", 0.25)).toBe(
+      document,
+    );
+    expect(
+      updateObjectSelectionPositions(document, [
+        { id: existing.id, position: { x: 1, y: 1, z: 1 } },
+        { id: missing.id, position: { x: 2, y: 2, z: 2 } },
+      ]),
+    ).toBe(document);
   });
 
   test("keeps checkpoint creation bounded at the document limit", () => {

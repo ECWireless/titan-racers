@@ -2901,7 +2901,11 @@ export function SoloTimeTrialCanvas({
                     id="touch-joystick-instructions"
                   >
                     Drag up to accelerate, down to brake or reverse, and left
-                    or right to steer. Arrow keys provide the same controls.
+                    or right to steer. Touch gesture only: while moving forward,
+                    hold Brake / Reverse and steer strongly to progressively
+                    request rear braking. Tire grip determines whether the kart
+                    slides. Arrow keys provide the basic joystick directions
+                    only.
                   </span>
                   <span aria-hidden="true" className="race-touch-joystick-directions">
                     <span className="race-touch-joystick-up">↑</span>

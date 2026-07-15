@@ -23,6 +23,62 @@ export type CourseEditorSelection =
   | { id: string; kind: "object" }
   | { id: string; kind: "start" };
 
+export type CourseEditorSelections = readonly [
+  CourseEditorSelection,
+  ...CourseEditorSelection[],
+];
+
+export function updateCourseEditorSelections(
+  current: CourseEditorSelections,
+  candidate: CourseEditorSelection,
+  additive: boolean,
+): CourseEditorSelections {
+  if (!additive || candidate.kind !== "object") {
+    return [candidate];
+  }
+
+  const existingIndex = current.findIndex(
+    (selection) =>
+      selection.kind === candidate.kind && selection.id === candidate.id,
+  );
+  if (existingIndex === -1) {
+    const objectSelections = current.filter(
+      (selection): selection is Extract<CourseEditorSelection, { kind: "object" }> =>
+        selection.kind === "object",
+    );
+    return objectSelections.length > 0
+      ? [objectSelections[0], ...objectSelections.slice(1), candidate]
+      : [candidate];
+  }
+
+  if (current.length === 1) {
+    return current;
+  }
+
+  const remaining = current.filter((_, index) => index !== existingIndex);
+  return [remaining[0], ...remaining.slice(1)];
+}
+
+export function reconcileCourseEditorSelections(
+  document: CourseDocument,
+  selections: CourseEditorSelections,
+): CourseEditorSelections {
+  const retained = selections.filter((selection) => {
+    if (selection.kind === "start") {
+      return selection.id === document.start.id;
+    }
+    if (selection.kind === "checkpoint") {
+      return document.checkpoints.some(({ id }) => id === selection.id);
+    }
+    return document.objects.some(
+      ({ editable, id }) => editable && id === selection.id,
+    );
+  });
+  return retained.length > 0
+    ? [retained[0], ...retained.slice(1)]
+    : [{ id: document.start.id, kind: "start" }];
+}
+
 export type CourseEditorGeometry = {
   position: { x: number; y: number; z: number };
   rotation: { x: number; y: number; z: number };
@@ -429,6 +485,97 @@ export function nudgeSelection(
       ...geometry[field],
       [axis]: roundEditorValue(geometry[field][axis] + delta),
     },
+  });
+}
+
+export function nudgeObjectSelections(
+  document: CourseDocument,
+  selections: CourseEditorSelections,
+  axis: "x" | "y" | "z",
+  delta: number,
+) {
+  const selectedIds = new Set(
+    selections
+      .filter(
+        (selection): selection is Extract<
+          CourseEditorSelection,
+          { kind: "object" }
+        > => selection.kind === "object",
+      )
+      .map(({ id }) => id),
+  );
+  if (selectedIds.size !== selections.length) {
+    return document;
+  }
+  const matchedObjects = document.objects.filter(({ editable, id }) =>
+    Boolean(editable && selectedIds.has(id)),
+  );
+  if (matchedObjects.length !== selectedIds.size) {
+    return document;
+  }
+
+  return parseCourseDocument({
+    ...document,
+    objects: document.objects.map((object) =>
+      selectedIds.has(object.id)
+        ? {
+            ...object,
+            transform: {
+              ...object.transform,
+              position: {
+                ...object.transform.position,
+                [axis]: roundEditorValue(
+                  object.transform.position[axis] + delta,
+                ),
+              },
+            },
+          }
+        : object,
+    ),
+  });
+}
+
+export function updateObjectSelectionPositions(
+  document: CourseDocument,
+  updates: readonly {
+    id: string;
+    position: { x: number; y: number; z: number };
+  }[],
+) {
+  const positionsById = new Map(
+    updates.map(({ id, position }) => [id, position] as const),
+  );
+  if (positionsById.size === 0) {
+    return document;
+  }
+  const editableIds = new Set(
+    document.objects
+      .filter(({ editable }) => editable)
+      .map(({ id }) => id),
+  );
+  if (
+    positionsById.size !== updates.length ||
+    [...positionsById.keys()].some((id) => !editableIds.has(id))
+  ) {
+    return document;
+  }
+
+  return parseCourseDocument({
+    ...document,
+    objects: document.objects.map((object) => {
+      const position = positionsById.get(object.id);
+      return position
+        ? {
+            ...object,
+            transform: {
+              ...object.transform,
+              position: mapVectorByAxis(position, (_, value) =>
+                roundEditorValue(value),
+              ),
+            },
+          }
+        : object;
+    }),
   });
 }
 
