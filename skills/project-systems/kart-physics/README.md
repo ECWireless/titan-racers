@@ -39,6 +39,9 @@ mastery remain separate systems and PR-sized units.
   hysteresis.
 - `src/game/kart/kart-steering.ts` owns the engine-independent speed-sensitive
   maximum steering-angle curve.
+- `src/game/kart/kart-righting.ts` owns the engine-independent inverted-pose
+  eligibility, shortest righting axis, singularity fallback, and angled-contact
+  torque scaling used by manual recovery.
 - `src/components/solo-time-trial-canvas.tsx` constructs the compound chassis,
   models a 70 kg lower body plus a 50 kg rear cockpit mass, places the physics
   root at their combined center of mass, applies mass properties, connects input
@@ -118,8 +121,9 @@ mastery remain separate systems and PR-sized units.
   chassis damping/contact values use that same source. Drawer changes apply
   immediately, including gravity and native rigid-body properties in the
   physics world. The chase-camera speed envelope follows the larger of the
-  current forward and reverse limits. Tuning never persists beyond the race
-  session.
+  current forward and reverse limits. The rear grip balance and manual-righting
+  torque, angled boost, lift, and eligibility threshold use the same normalized
+  source. Tuning never persists beyond the race session.
 - Reset All Defaults restores the complete authored tuning object. Structural
   mass properties, center of mass, inertia, wheel/suspension geometry,
   collision/CCD configuration, and particle allocation remain rebuild-time
@@ -142,6 +146,9 @@ mastery remain separate systems and PR-sized units.
   at the configured forward-speed limit, while the default steering response
   approaches that bounded target at 80 degrees per second. Reverse steering
   consumes the same speed-magnitude curve.
+- The rear tire-force envelope defaults to 1.15 times the front envelope. This
+  produces mild understeer in a sustained moderate-speed powered turn without
+  changing wheel slip, load, contact points, or combined-slip braking behavior.
 - Partial support applies forces at the remaining wheel locations and never
   invokes an upright lock.
 - Airborne motion preserves gravity, linear momentum, yaw/roll angular motion,
@@ -151,8 +158,19 @@ mastery remain separate systems and PR-sized units.
 - Pitch observability reports active state, signed angle, local rate,
   six-degree target, and applied torque; grounded samples must report the policy
   inactive.
-- Reset teleports to the accepted start pose, clears linear and angular
-  velocity and controller state, and reactivates the rigid body.
+- Automatic below-course recovery and ordinary upright reset requests use the
+  race session's accepted checkpoint recovery, clear momentum, and enter its
+  recovery lifecycle.
+- A manual recovery request while the kart is at least 120 degrees inverted
+  and immediately above a drivable surface instead applies bounded roll and
+  lift impulses at the current transform. Steeper eligible poses receive a
+  continuous torque boost; no transform, velocity, camera, or race-state reset
+  occurs. A 450 ms cooldown absorbs repeated eligible requests.
+- Keyboard `R`, standard-controller south-face input, the touch recovery
+  control, and a bounded direct touch tap on the inverted kart all request the
+  same physical righting policy. A kart tap is manual-righting-only: taps on
+  empty space, drags, long presses, and upright karts do not trigger checkpoint
+  recovery. A non-primary touch can tap while another finger drives.
 - Editor manipulation changes the kart to kinematic participation before
   transform edits and reapplies dynamic mass properties when gameplay resumes.
 - Ammo objects never escape the low-level adapter, gameplay state, telemetry,
@@ -174,16 +192,22 @@ The accepted system is covered by:
 - `tests/kart-drift-smoke.spec.ts` for rear-slip drift levels, release
   hysteresis, straight-line braking gates, and supported rear-only countdown
   burnout intent;
+- `tests/kart-righting.spec.ts` for inversion eligibility, shortest-axis
+  selection, the exactly inverted fallback, and angled-contact torque scaling;
 - `tests/home.spec.ts` for finite wheel support, visible clearance, springy ramp
   landing, full-speed signed airborne pitch and assist telemetry, static equilibrium, acceleration, configured top
-  speed, braking, reverse, forward and reverse steering, longitudinal and
-  lateral load transfer, grip saturation and recovery, wheel-specific ledge
+  speed, braking, reverse, forward and reverse steering, stable sustained
+  moderate-speed powered cornering, high-speed natural and brake-induced drift,
+  longitudinal and lateral load transfer, grip saturation and recovery,
+  wheel-specific ledge
   support, tipping, airborne rotation, landing, invalid-state recovery,
   production tuning hotkey behavior, tooltip accessibility, and key
   completeness, live gravity and camera-envelope propagation, straight-line
   braking smoke without drift, stationary countdown burnout smoke, complete
   default reset, modal isolation, responsive containment, editor transitions,
-  loading failure/cancellation, and interpolated presentation/camera-target
+  loading failure/cancellation, physical flat-roof and angled-roof manual
+  righting, touch tap/drag/raycast discrimination, unchanged automatic and
+  upright checkpoint recovery, and interpolated presentation/camera-target
   coherence;
 - `pnpm lint`, `pnpm typecheck`, and `pnpm build` for repository-wide static and
   production-build verification; and
@@ -202,13 +226,14 @@ ledge behavior, airborne motion, landing, and reset feel.
   response to velocity, orientation, slip, impacts, and airborne state belongs
   to chase-camera mastery.
 - Surface grip is currently uniform rather than authored per material.
-- There is no automatic stuck-timer recovery. The current automatic path covers
-  an invalid fall threshold, while deliberate resets are immediate.
+- There is no automatic stuck-timer recovery. The automatic path covers an
+  invalid fall threshold; supported inverted karts require an explicit manual
+  recovery request.
 - Player air control, anti-roll, and yaw stabilization are not present. The sole
   airborne assist is the accepted passive pitch-stability torque; any expansion
   requires separately accepted policy and observability.
-- Mobile viewport rendering and synthetic physics scenarios are covered, but a
-  playable touch-driving path does not exist yet. Touch playability is deferred
-  to PR 4, representative device performance acceptance to the public-demo
-  polish phase, and narrow-screen editor object picking to protected course
-  tooling.
+- Mobile uses one proportional two-axis joystick for steering and signed
+  forward/brake-reverse intent, plus touch recovery and kart-tap righting.
+  Representative device performance acceptance remains deferred to the
+  public-demo polish phase, and narrow-screen editor object picking remains
+  protected course tooling.

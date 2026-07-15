@@ -47,6 +47,10 @@ import {
 } from "@/game/kart/dynamic-kart-controller";
 import { KartDriftSmoke } from "@/game/kart/kart-drift-smoke";
 import {
+  getManualRightingAxis,
+  getManualRightingTorqueScale,
+} from "@/game/kart/kart-righting";
+import {
   DEFAULT_KART_TUNING,
   normalizeKartTuning,
 } from "@/game/kart/kart-tuning";
@@ -114,6 +118,10 @@ const KART_GEOMETRY_OFFSET = {
 const KART_CHASSIS_DIMENSIONS = { x: 1.25, y: 0.55, z: 1.85 } as const;
 const KART_INERTIA = calculateBoxInertia(KART_MASS, KART_CHASSIS_DIMENSIONS);
 const KART_RESET_FALL_Y = -10;
+const MANUAL_RIGHTING_COOLDOWN_SECONDS = 0.45;
+const MANUAL_RIGHTING_SUPPORT_PROBE_DISTANCE = 1.1;
+const KART_TAP_MAX_DURATION_MS = 300;
+const KART_TAP_MAX_MOVEMENT_PX = 12;
 const KART_COLLISION_RADIUS = 0.95;
 const KART_CCD_CONFIGURATION = {
   motionThreshold: 0.12,
@@ -192,11 +200,18 @@ type SoloSceneControls = {
   clearInput: () => void;
   pressTouchPedal: (pointerId: number, action: TouchPedalAction) => void;
   releaseTouch: (pointerId: number) => void;
+  requestKartTapRighting: (clientX: number, clientY: number) => boolean;
   requestTouchReset: () => void;
   restartRace: () => boolean;
   setKartTuning: (tuning: Partial<KartTuning>) => void;
   setTouchJoystick: (pointerId: number, x: number, y: number) => void;
   setPaused: (paused: boolean) => void;
+};
+type KartTapCandidate = {
+  pointerId: number;
+  startedAt: number;
+  startX: number;
+  startY: number;
 };
 
 const TOUCH_KEYBOARD_POINTER_IDS: Record<TouchPedalAction, number> = {
@@ -316,6 +331,7 @@ export function SoloTimeTrialCanvas({
   const touchJoystickElementRef = useRef<HTMLDivElement | null>(null);
   const touchJoystickKnobRef = useRef<HTMLSpanElement | null>(null);
   const touchJoystickPointerRef = useRef<number | null>(null);
+  const kartTapCandidateRef = useRef<KartTapCandidate | null>(null);
   const gameplayTelemetryStartedRef = useRef(false);
   const [gameplayTelemetry] = useState(
     () => new GameplayRunTelemetry(httpGameplayTelemetrySink),
@@ -970,6 +986,9 @@ export function SoloTimeTrialCanvas({
         activeKartTuning.maxReverseSpeed,
       ),
     );
+    let kartTapRightingRequested = false;
+    let manualRightingCooldownSeconds = 0;
+    let manualRightingCount = 0;
 
     const lightingEntities = buildCourseLighting(app, {
       document: COURSE_DOCUMENT,
@@ -1094,6 +1113,61 @@ export function SoloTimeTrialCanvas({
       } satisfies RaceTransform;
     }
 
+    function hasManualRightingSupport() {
+      const position = kart.getPosition();
+      const rayStart = position.clone().add(new pc.Vec3(0, 0.2, 0));
+      const rayEnd = position
+        .clone()
+        .add(new pc.Vec3(0, -MANUAL_RIGHTING_SUPPORT_PROBE_DISTANCE, 0));
+      const hit = activeRigidBodySystem.raycastFirst(rayStart, rayEnd, {
+        filterCollisionGroup: PHYSICS_GROUP.kart,
+        filterCollisionMask: PHYSICS_MASK.kart,
+        filterCallback: (entity: pc.Entity) =>
+          entity !== kart && entity.tags.has("drivable-surface"),
+      });
+
+      return hit !== null;
+    }
+
+    function requestManualKartRighting() {
+      const rigidBody = kart.rigidbody;
+      if (!rigidBody) {
+        return false;
+      }
+      const axis = getManualRightingAxis(
+        kart.up,
+        kart.forward,
+        activeKartTuning.manualRightingMinimumInversionDegrees,
+      );
+      if (!axis || !hasManualRightingSupport()) {
+        return false;
+      }
+      if (manualRightingCooldownSeconds > 0) {
+        return true;
+      }
+
+      const torqueScale =
+        getManualRightingTorqueScale(
+          kart.up,
+          activeKartTuning.manualRightingMinimumInversionDegrees,
+          activeKartTuning.manualRightingAngledTorqueBoost,
+        ) ?? 1;
+      const torqueImpulse =
+        activeKartTuning.manualRightingTorqueImpulse * torqueScale;
+
+      rigidBody.applyTorqueImpulse(
+        axis.x * torqueImpulse,
+        axis.y * torqueImpulse,
+        axis.z * torqueImpulse,
+      );
+      rigidBody.applyImpulse(0, activeKartTuning.manualRightingLiftImpulse, 0);
+      rigidBody.activate();
+      manualRightingCooldownSeconds = MANUAL_RIGHTING_COOLDOWN_SECONDS;
+      manualRightingCount += 1;
+      gameplayTelemetry.recordRecovery();
+      return true;
+    }
+
     function requestRaceRecovery() {
       const sessionSnapshot = raceSession.snapshot;
       const requestedTransform = raceSession.requestRecovery();
@@ -1154,6 +1228,50 @@ export function SoloTimeTrialCanvas({
       clearTouchPresentation();
       chaseCamera.snap(getChaseCameraSnapshot(dynamicWheels.length));
       activeCanvas.focus();
+      return true;
+    }
+
+    function requestPlayerRecovery() {
+      if (raceSession.acceptsDriving && requestManualKartRighting()) {
+        return true;
+      }
+
+      return requestRaceRecovery();
+    }
+
+    function requestKartTapRighting(clientX: number, clientY: number) {
+      if (!camera.camera || !raceSession.acceptsDriving) {
+        return false;
+      }
+      const rect = activeCanvas.getBoundingClientRect();
+      if (rect.width <= 0 || rect.height <= 0) {
+        return false;
+      }
+      const screenX =
+        (clientX - rect.left) * (activeCanvas.width / rect.width);
+      const screenY =
+        (clientY - rect.top) * (activeCanvas.height / rect.height);
+      const rayStart = camera.camera.screenToWorld(
+        screenX,
+        screenY,
+        camera.camera.nearClip,
+      );
+      const rayEnd = camera.camera.screenToWorld(
+        screenX,
+        screenY,
+        camera.camera.farClip,
+      );
+      const hit = activeRigidBodySystem.raycastFirst(rayStart, rayEnd, {
+        filterCollisionGroup: PHYSICS_GROUP.drivableSurface,
+        filterCollisionMask: PHYSICS_GROUP.kart,
+        filterCallback: (entity: pc.Entity) =>
+          entity === kart || entity.isDescendantOf(kart),
+      });
+
+      if (!hit) {
+        return false;
+      }
+      kartTapRightingRequested = true;
       return true;
     }
 
@@ -1513,6 +1631,7 @@ export function SoloTimeTrialCanvas({
       pressTouchPedal: (pointerId, action) =>
         inputManager.pressTouchPedal(pointerId, action),
       releaseTouch: (pointerId) => inputManager.releaseTouch(pointerId),
+      requestKartTapRighting,
       requestTouchReset: () => inputManager.requestTouchReset(),
       restartRace: () => {
         if (!raceSession.restart()) {
@@ -1659,6 +1778,10 @@ export function SoloTimeTrialCanvas({
         maximumSlipAngle: toFixedStep(maximumSlipAngle),
         maximumTireForceUtilization: toFixedStep(maximumTireForceUtilization),
         maxForwardSpeed: toFixedStep(activeKartTuning.maxForwardSpeed),
+        manualRightingCooldownSeconds: toFixedStep(
+          manualRightingCooldownSeconds,
+        ),
+        manualRightingCount,
         rotationX: toFixedStep(kartRotation.x),
         rotationY: toFixedStep(kartRotation.y),
         rotationZ: toFixedStep(kartRotation.z),
@@ -1909,6 +2032,10 @@ export function SoloTimeTrialCanvas({
 
     runtime.onFixedStep((dt) => {
       collisionObserver.beginStep();
+      manualRightingCooldownSeconds = Math.max(
+        0,
+        manualRightingCooldownSeconds - dt,
+      );
 
       const sample = inputManager.sampleDrivingInput();
       latestRequestedDrivingInput = sample.driving;
@@ -1926,8 +2053,13 @@ export function SoloTimeTrialCanvas({
         clearTouchPresentation();
       }
 
+      if (kartTapRightingRequested) {
+        kartTapRightingRequested = false;
+        requestManualKartRighting();
+      }
+
       if (sample.actions.resetRequested) {
-        requestRaceRecovery();
+        requestPlayerRecovery();
       }
 
       latestDrivingInput =
@@ -2386,6 +2518,77 @@ export function SoloTimeTrialCanvas({
     );
   }
 
+  function beginKartTap(event: ReactPointerEvent<HTMLCanvasElement>) {
+    if (event.pointerType !== "touch" || event.button !== 0) {
+      return;
+    }
+
+    kartTapCandidateRef.current = {
+      pointerId: event.pointerId,
+      startedAt: event.timeStamp,
+      startX: event.clientX,
+      startY: event.clientY,
+    };
+    try {
+      event.currentTarget.setPointerCapture(event.pointerId);
+    } catch {
+      // Synthetic pointer fixtures can still exercise the bounded tap path.
+    }
+  }
+
+  function moveRacePointer(event: ReactPointerEvent<HTMLCanvasElement>) {
+    if (
+      !gamePaused &&
+      racePresentation.state !== "finished" &&
+      sceneStatus === "ready"
+    ) {
+      setDriveCursorHidden(true);
+    }
+
+    const candidate = kartTapCandidateRef.current;
+    if (
+      candidate?.pointerId === event.pointerId &&
+      Math.hypot(
+        event.clientX - candidate.startX,
+        event.clientY - candidate.startY,
+      ) > KART_TAP_MAX_MOVEMENT_PX
+    ) {
+      kartTapCandidateRef.current = null;
+    }
+  }
+
+  function cancelKartTap(event: ReactPointerEvent<HTMLCanvasElement>) {
+    if (kartTapCandidateRef.current?.pointerId === event.pointerId) {
+      kartTapCandidateRef.current = null;
+    }
+  }
+
+  function finishKartTap(event: ReactPointerEvent<HTMLCanvasElement>) {
+    const candidate = kartTapCandidateRef.current;
+    if (candidate?.pointerId !== event.pointerId) {
+      return;
+    }
+    kartTapCandidateRef.current = null;
+    const duration = event.timeStamp - candidate.startedAt;
+    const movement = Math.hypot(
+      event.clientX - candidate.startX,
+      event.clientY - candidate.startY,
+    );
+
+    if (
+      duration < 0 ||
+      duration > KART_TAP_MAX_DURATION_MS ||
+      movement > KART_TAP_MAX_MOVEMENT_PX
+    ) {
+      return;
+    }
+
+    sceneApiRef.current?.requestKartTapRighting(
+      event.clientX,
+      event.clientY,
+    );
+  }
+
   function resumeRace() {
     sceneApiRef.current?.setPaused(false);
     setGamePaused(false);
@@ -2446,7 +2649,7 @@ export function SoloTimeTrialCanvas({
           sceneStatus !== "ready"
         }
         tabIndex={0}
-        className={`block h-[100dvh] w-[100dvw] ${
+        className={`block h-[100dvh] w-[100dvw] touch-manipulation ${
           driveCursorHidden &&
           !gamePaused &&
           racePresentation.state !== "finished" &&
@@ -2455,6 +2658,9 @@ export function SoloTimeTrialCanvas({
             : "cursor-default"
         }`}
         onBlur={() => setDriveCursorHidden(false)}
+        onLostPointerCapture={cancelKartTap}
+        onPointerCancel={cancelKartTap}
+        onPointerDown={beginKartTap}
         onFocus={() => {
           setDriveCursorHidden(
             !gamePaused &&
@@ -2470,15 +2676,8 @@ export function SoloTimeTrialCanvas({
           );
         }}
         onPointerLeave={() => setDriveCursorHidden(false)}
-        onPointerMove={() => {
-          if (
-            !gamePaused &&
-            racePresentation.state !== "finished" &&
-            sceneStatus === "ready"
-          ) {
-            setDriveCursorHidden(true);
-          }
-        }}
+        onPointerMove={moveRacePointer}
+        onPointerUp={finishKartTap}
       />
       {sceneStatus === "ready" ? (
         <>

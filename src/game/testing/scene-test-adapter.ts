@@ -62,6 +62,8 @@ export type KartDebugState = {
   maximumSteerAngle: number;
   maximumTireForceUtilization: number;
   maxForwardSpeed: number;
+  manualRightingCooldownSeconds: number;
+  manualRightingCount: number;
   rotationX: number;
   rotationY: number;
   rotationZ: number;

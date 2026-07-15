@@ -363,9 +363,11 @@ export class DynamicKartController implements KartController {
               this.tuning,
             )
           : getTireGripCoefficient(slipAngle, this.tuning);
-      const maximumTireForce = suspensionLoad * gripCoefficient;
+      const effectiveGripCoefficient =
+        gripCoefficient * (wheel.steered ? 1 : this.tuning.rearGripMultiplier);
+      const maximumTireForce = suspensionLoad * effectiveGripCoefficient;
       telemetry.slipAngle = slipAngle;
-      telemetry.gripCoefficient = gripCoefficient;
+      telemetry.gripCoefficient = effectiveGripCoefficient;
       let longitudinalForce = 0;
 
       if (

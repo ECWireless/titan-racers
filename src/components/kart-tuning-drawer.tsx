@@ -136,6 +136,13 @@ const TUNING_GROUPS: TuningGroup[] = [
         label: "Low-speed reference",
         unit: "m/s",
       },
+      {
+        description:
+          "Scales the rear tires' available force relative to the front tires. Values above one bias ordinary cornering toward stable understeer; lower values make rear breakaway easier.",
+        key: "rearGripMultiplier",
+        label: "Rear grip balance",
+        unit: "ratio",
+      },
     ],
   },
   {
@@ -310,6 +317,34 @@ const TUNING_GROUPS: TuningGroup[] = [
         key: "airborneMaximumPitchAcceleration",
         label: "Maximum pitch accel",
         unit: "rad/s²",
+      },
+      {
+        description:
+          "Instantaneous roll impulse used by manual recovery when the kart is upside down over a driving surface. Higher values flip more aggressively.",
+        key: "manualRightingTorqueImpulse",
+        label: "Righting roll impulse",
+        unit: "N·m·s",
+      },
+      {
+        description:
+          "Extra roll torque added only as an upside-down kart leans toward the righting threshold, where multiple chassis contacts need more leverage. A flat roof receives no boost.",
+        key: "manualRightingAngledTorqueBoost",
+        label: "Angled righting boost",
+        unit: "ratio",
+      },
+      {
+        description:
+          "Small upward impulse paired with manual righting so the chassis edge can clear the surface while it rolls.",
+        key: "manualRightingLiftImpulse",
+        label: "Righting lift impulse",
+        unit: "N·s",
+      },
+      {
+        description:
+          "Minimum tilt from upright required before a recovery request flips in place instead of returning to the checkpoint.",
+        key: "manualRightingMinimumInversionDegrees",
+        label: "Righting tilt threshold",
+        unit: "deg",
       },
       {
         description:

@@ -71,6 +71,10 @@ export type KartTuning = {
   lowSpeedLateralStiffness: number;
   lowSpeedLateralStiffnessThreshold: number;
   lowSpeedReference: number;
+  manualRightingAngledTorqueBoost: number;
+  manualRightingLiftImpulse: number;
+  manualRightingMinimumInversionDegrees: number;
+  manualRightingTorqueImpulse: number;
   maxForwardSpeed: number;
   maxReverseSpeed: number;
   maximumBrakingForceReduction: number;
@@ -86,6 +90,7 @@ export type KartTuning = {
   restingSettleMaximumLinearSpeed: number;
   restingSettleMaximumVerticalSpeed: number;
   restingAngularSettleRate: number;
+  rearGripMultiplier: number;
   reverseForceMultiplier: number;
   slidingGripCoefficient: number;
   slidingSlipAngleDegrees: number;
