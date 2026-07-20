@@ -1,4 +1,4 @@
-import * as pc from "playcanvas";
+import type * as pc from "playcanvas";
 
 import type { Position3 } from "../contracts";
 
@@ -51,22 +51,20 @@ export function isDrivableSurfaceTopContact(
     return false;
   }
 
-  const entityLocalPoint = worldPoint
-    .clone()
-    .sub(entity.getPosition());
-  entity
-    .getRotation()
-    .clone()
-    .invert()
-    .transformVector(entityLocalPoint, entityLocalPoint);
-  entityLocalPoint.sub(
-    new pc.Vec3(
-      shape.linearOffset.x,
-      shape.linearOffset.y,
-      shape.linearOffset.z,
-    ),
-  );
-  new pc.Quat()
+  const entityPosition = entity.getPosition();
+  const entityLocalPoint = worldPoint.clone();
+  entityLocalPoint.x -= entityPosition.x;
+  entityLocalPoint.y -= entityPosition.y;
+  entityLocalPoint.z -= entityPosition.z;
+
+  const inverseRotation = entity.getRotation().clone().invert();
+  inverseRotation.transformVector(entityLocalPoint, entityLocalPoint);
+
+  entityLocalPoint.x -= shape.linearOffset.x;
+  entityLocalPoint.y -= shape.linearOffset.y;
+  entityLocalPoint.z -= shape.linearOffset.z;
+
+  inverseRotation
     .setFromEulerAngles(
       shape.angularOffset.x,
       shape.angularOffset.y,
