@@ -6,15 +6,17 @@ Build a browser-playable Titan Racers demo that proves the core fantasy:
 
 > Race tiny buildable karts through forbidden service routes inside humanity's last Titan colony.
 
-The demo is complete only when solo racing, uploaded/published kart designs,
-ghosts, leaderboard-ready results, immediate community-course publishing and
-discovery, private multiplayer, and controller support are all working.
+The demo is complete only when solo racing, assembled/published kart designs,
+ghosts, leaderboard-ready results, community kart assembly, immediate
+community-course publishing and discovery, private multiplayer, and controller
+support are all working.
 
 ## Alignment Summary
 
 - Start with racing feel. The first playable center is a fun two-lap RC-style race in the Agricultural Zone.
 - Private multiplayer is required for Demo v1 completion, but solo driving comes first so the handling can be tuned.
-- Creator upload is required for the demo, launch-gated to the admin account first.
+- Start with admin-authored default karts assembled from predefined components;
+  open the same bounded assembly workflow to players in Phase 6.
 - Use "assembler" as a player capability, not a separate creator role.
 - Kart cards should be practical and machine-focused, not lore-heavy.
 - Use the existing Titan Racers site aesthetic and typography before inventing a new system.
@@ -40,7 +42,7 @@ discovery, private multiplayer, and controller support are all working.
 - Public community-course discovery with reversible player thumbs-ups, admin
   featuring, and safety unpublishing.
 - Two-lap solo time trial.
-- Three playable published kart designs from the upload/publish pipeline.
+- Three playable published kart designs from the assembly/publish pipeline.
 - Kart selection with:
   - name,
   - assembler credit,
@@ -58,12 +60,12 @@ discovery, private multiplayer, and controller support are all working.
 - Login-gated solo leaderboard submission.
 - Private 2-4 player multiplayer rooms.
 - Join-by-link guest multiplayer.
-- Admin-gated kart upload/register/edit/publish workflow.
+- Admin-gated kart assemble/edit/publish workflow.
 - Basic analytics for learning whether the demo is fun.
 
 ### Explicitly Not Required For Demo v1
 
-- Public kart uploads.
+- Model, texture, or custom component uploads.
 - Full creator marketplace.
 - Patenting or licensing.
 - On-chain gameplay.
@@ -73,7 +75,7 @@ discovery, private multiplayer, and controller support are all working.
 - Robust anti-cheat.
 - Full production-quality art.
 - Real-world kit export pipeline.
-- Complex damage beyond the focused first-pass joint-breakage mechanic.
+- Component engineering, progression, upgrades, or part-tier unlocks.
 - Fuel or battery simulation.
 - Advanced tire physics.
 - Persisted per-kart tuning profiles or a deep tuning workflow.
@@ -88,7 +90,7 @@ Use a Next/React-style app shell unless the scaffold phase reveals a strong reas
 - mode selection,
 - kart selection,
 - auth UI,
-- admin/assembler upload surfaces,
+- admin and community kart-assembly surfaces,
 - results,
 - leaderboard,
 - community-course authoring, discovery, ranking, and curation,
@@ -119,12 +121,9 @@ Use Postgres for relational data:
 
 - users,
 - player profiles,
-- assembler approval,
 - kart drafts,
-- published kart designs,
-- model asset metadata,
+- immutable kart revisions and publications,
 - derived stats,
-- stat overrides,
 - race sessions,
 - race results,
 - leaderboard entries,
@@ -141,7 +140,9 @@ service; exact framework should be chosen during implementation.
 
 ### Asset Storage
 
-Store uploaded models and larger generated assets in S3-compatible object storage. The storage adapter should keep S3, DigitalOcean Spaces, Cloudflare R2, or similar services interchangeable.
+Store larger future assets in S3-compatible object storage when a later accepted
+feature requires them. Phase 3 uses source-controlled primitive components and
+does not add a model-upload or object-storage dependency.
 
 Postgres stores object keys, URLs, ownership, status, and metadata.
 
@@ -154,7 +155,7 @@ Login is required for:
 - persistent racer identity,
 - leaderboard submission,
 - community-course authoring, publishing, and thumbs-ups,
-- assembly upload access,
+- protected kart assembly access,
 - admin controls,
 
 Use Better Auth with Postgres-backed sessions. Begin with one conventional social
@@ -188,7 +189,7 @@ Use a simple player-centered model.
 - Can join private rooms.
 - Can see local race results.
 - Cannot submit to global leaderboard.
-- Cannot upload kart designs.
+- Cannot author persistent kart designs.
 
 ### Player
 
@@ -199,57 +200,59 @@ Use a simple player-centered model.
 - Can immediately publish validated revisions of their own courses.
 - Can unpublish their own courses.
 - Can give or remove one thumbs-up per published community course.
-
-### Assembly-Enabled Player
-
-- A normal player account with temporary allowlisted assembly permissions.
-- "Assembler" is a voluntary player activity and social/meta identity, not a separate product role.
-- Can create and edit their own kart drafts.
-- Can upload/register 3D models.
-- Can edit metadata and proposed stats.
-- Cannot publish to public roster at launch unless admin also grants that capability later.
+- Can assemble, save, and publish their own validated karts from the predefined
+  component catalog once Phase 6 opens community kart assembly.
 
 ### Admin
 
 - Trusted launch operator account with a Postgres-backed admin role.
 - Multiple admins are allowed.
-- Can manage temporary assembly access approval.
 - Can access protected course/editor tooling.
 - Can edit track layout and test-scene objects.
 - Can feature or unfeature published community courses.
 - Can safety-unpublish broken, malicious, or inappropriate community courses
   without deleting their revision history.
-- Can upload/edit kart designs.
-- Can review derived stats.
-- Can override stats.
+- Can safety-unpublish broken, malicious, or inappropriate community karts
+  without deleting their revision history.
+- Can assemble and edit kart designs.
+- Can inspect derived physical profiles, but cannot override them.
 - Can publish/unpublish roster entries.
 
-## Kart Upload And Design System
+## Kart Assembly And Design System
 
 The demo should prove that karts are machines, not skins.
 
 Minimum workflow:
 
-1. Admin uploads or registers a 3D kart model.
-2. System stores model asset metadata.
-3. System reads rough model dimensions where practical.
-4. System derives starter stats.
-5. Admin can edit metadata.
-6. Admin can manually override stats.
-7. Admin publishes/unpublishes the kart.
-8. Published karts appear in player-facing kart selection.
+1. Admin starts from a complete default kart recipe.
+2. Admin swaps and places predefined primitive components in bounded frame slots.
+3. System validates the authored construction.
+4. System deterministically derives the physical profile and player-facing stats.
+5. Admin edits practical metadata and inspects, but cannot edit, derived values.
+6. Admin publishes/unpublishes an immutable kart revision.
+7. Published karts appear in player-facing kart selection.
 
-Future assembly-enabled players should use the same draft pipeline, gated by temporary permission until assembly is ready to release to everyone.
+Required component categories are frame, body, motor, battery, wheel set,
+suspension, and bumper set. Every category has at least one default component;
+categories gain a second choice where it creates useful assembly variation.
+Motors and batteries may begin with one choice.
 
-First-pass stat derivation should stay approximate and overrideable. Useful heuristics include:
+The source-controlled component catalog owns primitive presentation recipes,
+mass contributions, attachment compatibility, collision contributions, and
+bounded physical inputs. Builders assemble karts; they do not engineer new
+components or author raw physics values.
 
-- bounding box size for approximate body size,
-- rough volume for approximate weight,
-- heavier builds trading acceleration for stability,
-- larger wheels helping obstacle handling with possible turning tradeoffs,
-- wider wheelbase increasing stability but reducing tight turning,
-- lower body height improving stability,
-- longer body improving straight-line stability but reducing cornering.
+Kart behavior follows one directional pipeline:
+
+1. authored construction,
+2. derived physical profile,
+3. environment and contact interaction,
+4. shared gameplay policy,
+5. runtime solver, and
+6. presentation.
+
+Do not add stat overrides. If handling is wrong, fix the construction, component
+inputs, derivation formulas, shared policy, or runtime solver.
 
 ## Kart Roster
 
@@ -423,6 +426,8 @@ Track at minimum:
 - login started,
 - login completed,
 - leaderboard submitted,
+- community kart published,
+- community kart selected,
 - community course published,
 - community course selected,
 - community course thumbs-up added or removed,
@@ -440,6 +445,8 @@ Key metrics:
 - multiplayer room join success,
 - share click rate,
 - login conversion after race,
+- community kart publish success,
+- community kart play rate,
 - community course publish success,
 - community course play rate,
 - community course thumbs-up rate.
@@ -695,7 +702,7 @@ input, movement, per-frame, hardware-identity, or player-journey capture.
       contract and dashboard,
 - [x] integrated Phase 2 verification and independent review.
 
-Phase 2 remains limited to one rough kart and a rough test loop. Kart uploads,
+Phase 2 remains limited to one rough kart and a rough test loop. Kart assembly,
 Agricultural Zone visual production, ghosts, leaderboard submission, and
 multiplayer remain in their later phases.
 
@@ -720,21 +727,104 @@ to the next item until the feature lead has accepted the current behavior.
       checkpoint recovery, and
 - [x] add Shift-modified multi-object editor selection and group translation.
 
-### Phase 3: Kart Design And Upload System
+### Phase 3: Kart Assembly, Damage, And Roster
 
 Goal: prove karts are machines, not skins.
 
-Includes:
+Deliver Phase 3 through the following sequential PR-sized units. Begin with the
+Balanced Kart as the reference construction used throughout PRs 3B-3F, then add
+the other roster entries only after the complete pipeline is accepted.
 
-- [ ] admin-gated upload/register flow,
-- [ ] model asset storage integration,
-- [ ] rough model dimension reading where practical,
-- [ ] starter stat derivation,
-- [ ] manual stat overrides,
-- [ ] a minimal authored breakable-joint metadata contract for the three demo
-      karts, without a general-purpose rigging or damage-authoring system,
-- [ ] publish/unpublish,
-- [ ] three playable uploaded/published karts.
+#### PR 3A: Kart Physics, Collision, And Editing Prerequisites
+
+The prerequisites already accepted through Phase 2 are:
+
+- [x] fixed-step dynamic rigid-body kart physics,
+- [x] wheel support, suspension, tire forces, steering, braking, and recovery,
+- [x] coherent compound collision behavior and copied impact observations,
+- [x] course-editor-style primitive selection, transform, history, and
+      responsive authoring patterns,
+- [x] Postgres-backed admin authorization, immutable revision, optimistic
+      concurrency, and publication patterns suitable for reuse.
+
+#### PR 3B: Kart Assembly Data Foundation
+
+- [x] define a versioned, validated, portable kart-construction document,
+- [x] define the source-controlled primitive component catalog with frame,
+      body, motor, battery, wheel-set, suspension, and bumper-set categories,
+- [x] require at least one component in every required category and encode
+      frame-owned compatible attachment slots with bounded transforms,
+- [x] derive mass, center of mass, inertia, wheel geometry, suspension inputs,
+      collision geometry, drive inputs, and player-facing stat bars through a
+      deterministic, versioned formula pipeline,
+- [x] reject stat overrides in documents, APIs, persistence, and runtime data,
+- [x] author the complete Balanced Kart reference recipe and deterministic
+      serialization fixtures,
+- [x] stop before PlayCanvas runtime construction, persistence, or editor UI.
+
+#### PR 3C: Runtime Kart Assembly
+
+- [ ] construct the Balanced Kart's primitive presentation, collision body,
+      wheel support, suspension, and controller inputs from its validated
+      construction and derived physical profile,
+- [ ] extract the hard-coded rough kart from the race canvas behind the shared
+      construction-to-runtime boundary,
+- [ ] preserve the accepted baseline handling, collisions, camera, recovery,
+      input, race, telemetry, and resilience behavior,
+- [ ] keep environment/contact interaction, gameplay policy, and the runtime
+      solver shared rather than embedding per-kart behavior exceptions,
+- [ ] stop before persistence, admin authoring UI, or damage.
+
+#### PR 3D: Kart Persistence And Admin Assembly Editor
+
+- [ ] store stable kart identities, immutable construction revisions, author
+      attribution, schema and derivation versions, and append-only publications
+      in Postgres,
+- [ ] add admin-authorized, optimistic-concurrency-safe draft and publication
+      APIs with server-side validation,
+- [ ] add a protected responsive primitive assembly editor that reuses the
+      accepted course-editor interaction patterns where appropriate,
+- [ ] support component swapping, bounded slot placement, selection, inspector
+      nudges, undo/redo, revert, dirty-state protection, save, and publish,
+- [ ] show validation and the derived physical profile as read-only output,
+- [ ] load, edit, save, publish, and unpublish the Balanced Kart without model
+      uploads, raw component engineering, or editable derived stats.
+
+#### PR 3E: Kart Damage Mechanics
+
+- [ ] define versioned component attachment, joint durability, damage state,
+      and breakage contracts derived from the authored assembly,
+- [ ] derive impact severity from the involved mass, relative/contact velocity,
+      angle, impulse or accepted proxy, and contact point,
+- [ ] accumulate joint damage from sufficiently severe wall, obstacle, fall,
+      and landing impacts while ignoring resting and trivial contacts,
+- [ ] detach broken components as bounded physical debris and prevent repeated
+      damage events from one sustained contact,
+- [ ] make gameplay consequences follow the changed physical construction and
+      remaining contacts rather than opaque stat penalties or overrides,
+- [ ] provide readable damage and breakage presentation without making ordinary
+      collisions excessively punishing,
+- [ ] preserve damage through manual in-place righting, repair and reassemble
+      on checkpoint recovery, and begin every new race from the published
+      undamaged construction,
+- [ ] verify deterministic severity bands, joint accumulation, breakage,
+      debris lifecycle, recovery, and mobile performance,
+- [ ] stop before multiplayer synchronization of damage state or events.
+
+#### PR 3F: Three-Kart Roster And Selection
+
+- [ ] author Speed and Handling kart recipes alongside the accepted Balanced
+      Kart using only predefined components and derived profiles,
+- [ ] publish all three immutable kart revisions,
+- [ ] add player-facing selection with name, assembler credit, visual identity,
+      stat bars, and a short practical descriptor,
+- [ ] make all three karts playable through the shared runtime and damage
+      systems across keyboard, touch, and gamepad,
+- [ ] verify that their visual and handling differences are explainable through
+      construction and derivation rather than overrides or bespoke solver rules,
+- [ ] complete PR-level verification for every slice and a proportional final
+      Phase 3 integration review across assembly, persistence, editor, roster,
+      gameplay, and damage.
 
 ### Phase 4: Agricultural Zone Track
 
@@ -773,16 +863,32 @@ Keep Phase 5 wallet scope to authentication and account linking. Embedded
 wallets, token balances, gameplay transaction signing, and other on-chain
 behavior require a separately accepted future scope.
 
-### Phase 6: Community Courses
+### Phase 6: Community Kart Assembly And Courses
 
-Goal: let players publish, discover, race, and curate community-made courses
-without a pre-publication approval queue.
+Goal: let players assemble and publish community karts, and publish, discover,
+race, and curate community-made courses without custom asset uploads or a
+pre-publication approval queue.
 
-Deliver community courses through three independently reviewable PR-sized
-units. Reuse the validated portable course-document and immutable-revision
-foundation; do not create a second course format or a separate editor.
+#### PR 6A: Community Kart Assembly
 
-#### PR 6A: Player Course Ownership And Publishing
+- [ ] extend the protected kart editor into a role-aware player authoring
+      experience without exposing admin-only controls,
+- [ ] let logged-in players create, load, edit, and save only their own kart
+      drafts using the predefined component catalog,
+- [ ] let owners publish validated immutable kart revisions and unpublish their
+      own karts while preserving revision history and attribution,
+- [ ] let guests browse, select, and race currently published community karts,
+- [ ] enforce ownership, validation, bounded text, publish-rate limits, and
+      admin safety-unpublishing at server and data boundaries,
+- [ ] keep custom model, texture, and component uploads plus component
+      engineering outside Demo v1.
+
+Deliver community courses through the following three independently reviewable
+PR-sized units. Reuse the validated portable course-document and
+immutable-revision foundation; do not create a second course format or a
+separate editor.
+
+#### PR 6B: Player Course Ownership And Publishing
 
 - [ ] extend the protected editor into a role-aware player authoring experience
       without exposing admin-only controls,
@@ -796,7 +902,7 @@ foundation; do not create a second course format or a separate editor.
       server and data boundaries,
 - [ ] keep guests out of persistent authoring and publishing.
 
-#### PR 6B: Public Course Discovery And Play
+#### PR 6C: Public Course Discovery And Play
 
 - [ ] add a public catalog that clearly distinguishes the official Agricultural
       Zone Service Circuit from community courses,
@@ -809,7 +915,7 @@ foundation; do not create a second course format or a separate editor.
 - [ ] stop before custom course assets, collaborative editing, comments, or
       community-course-specific ghosts and leaderboards.
 
-#### PR 6C: Community Ranking, Featuring, And Safety Controls
+#### PR 6D: Community Ranking, Featuring, And Safety Controls
 
 - [ ] let each logged-in player add or remove one thumbs-up per published
       community course,
@@ -822,9 +928,9 @@ foundation; do not create a second course format or a separate editor.
       catalog behavior, and narrow-screen authoring and discovery.
 
 After Phase 6 is implemented and verified, run the final proportional
-integration review across player authoring, immediate publication, discovery,
-ranking, featuring, safety unpublishing, and revision-aware racing before
-merging the final phase work into `main`.
+integration review across kart and course authoring, immediate publication,
+discovery, ranking, featuring, safety unpublishing, and revision-aware racing
+before merging the final phase work into `main`.
 
 ### Phase 7: Private Multiplayer
 
@@ -842,13 +948,11 @@ Includes:
 - [ ] synced results,
 - [ ] replay same room.
 - [ ] timeout rule so the race ends when all active players finish or shortly after the first finisher.
-- [ ] synchronized kart-joint damage and breakage from crashes using the
-      authored joint metadata established for the three demo karts,
-- [ ] impact severity derived from the involved karts' mass, relative velocity,
-      and angle of attack,
-- [ ] joint damage and breakage from sufficiently severe wall impacts or falls,
-- [ ] a forgiving first-pass breakage model that creates dramatic race moments
-      without expanding into a complex damage simulation.
+- [ ] synchronize the accepted Phase 3 kart damage state, joint accumulation,
+      breakage events, and detached-component presentation,
+- [ ] derive kart-to-kart impact severity from both published constructions and
+      authoritative relative contact motion without creating a second damage
+      model.
 
 ### Phase 8: Public Demo Polish
 
@@ -865,7 +969,31 @@ Includes:
 - [ ] UI clarity,
 - [ ] final visual pass against the Titan Racers site.
 
-When the final phase is complete and the demo is accepted, remove this implementation plan from the repo. The shipped app, README, and durable docs should become the source of truth.
+When Phase 8 is complete and the demo is accepted, move any still-approved
+post-demo roadmap into durable project docs and remove this implementation plan
+from the repo. The shipped app, README, and durable docs should become the
+source of truth.
+
+## Post-Demo Roadmap
+
+### Phase 9: Component Engineering
+
+Goal: let authorized creators design new components without weakening the
+bounded kart-construction, derivation, validation, or runtime contracts.
+
+Includes:
+
+- [ ] component authoring and revision workflow,
+- [ ] category-specific geometry, attachment, compatibility, mass, durability,
+      collision, and physical-input validation,
+- [ ] protected review and publication controls,
+- [ ] migration and compatibility behavior for karts using older component
+      revisions,
+- [ ] no progression, upgrades, inventory, economy, or tier unlocks unless a
+      later separately approved phase introduces them.
+
+Progression, upgrades, inventories, and part-tier unlocks remain later
+post-demo work after Component Engineering is validated.
 
 ## Verification Plan
 
@@ -889,14 +1017,25 @@ Multiplayer verification should include:
 - results resolve without hanging,
 - same room can replay.
 
-Admin/upload verification should include:
+Admin kart-assembly verification should include:
 
 - unauthorized users blocked,
-- admin can upload/register model,
-- draft can be edited,
-- stats can be overridden,
+- admin can assemble a complete kart from predefined components,
+- draft can be edited without exposing derived-value controls,
+- invalid construction cannot be saved or published,
+- derived profiles are deterministic and read-only,
 - published kart appears in public selection,
-- unpublished kart disappears from public selection.
+- unpublished kart disappears from public selection,
+- damaging impacts accumulate joint damage and can detach components,
+- manual righting preserves damage while checkpoint recovery repairs the kart.
+
+Community-kart verification should include:
+
+- player can create, save, publish, revise, and unpublish only their own kart,
+- construction remains limited to the predefined component catalog,
+- guest can browse, select, and race a published community kart,
+- admin can safety-unpublish a kart without deleting its revision history,
+- unauthorized cross-owner and admin-only mutations are blocked.
 
 Community-course verification should include:
 
@@ -917,8 +1056,10 @@ Before coding the scaffold:
 
 > Make the plan the first approved commit. Then build a Next/React demo app
 > around a tiny engine spike, move quickly into fun RC-style driving with early
-> gamepad support, add the real admin-gated kart upload/publish pipeline, turn
+> gamepad support, add the admin-gated component assembly, derived-physics,
+> damage, and kart publication pipeline, turn
 > the rough loop into the Agricultural Zone, complete ghosts and
-> leaderboard-ready results, open the bounded course editor to immediate
+> leaderboard-ready results, open bounded kart and course creation to immediate
 > player publishing and community discovery, then finish private multiplayer
-> and final demo polish.
+> and final demo polish. Keep component engineering and progression after the
+> accepted demo.

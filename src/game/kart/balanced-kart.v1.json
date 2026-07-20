@@ -1,0 +1,142 @@
+{
+  "appearance": {
+    "accentColor": "#ffd43b",
+    "primaryColor": "#f23012",
+    "secondaryColor": "#183247"
+  },
+  "assemblerCredit": "Titan Racers",
+  "components": [
+    {
+      "componentId": "standard-frame",
+      "componentRevision": 1,
+      "instanceId": "balanced-frame",
+      "slotId": "root",
+      "transformAdjustment": {
+        "position": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      }
+    },
+    {
+      "componentId": "balanced-body",
+      "componentRevision": 1,
+      "instanceId": "balanced-body",
+      "slotId": "body-mount",
+      "transformAdjustment": {
+        "position": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      }
+    },
+    {
+      "componentId": "standard-motor",
+      "componentRevision": 1,
+      "instanceId": "balanced-motor",
+      "slotId": "motor-mount",
+      "transformAdjustment": {
+        "position": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      }
+    },
+    {
+      "componentId": "standard-battery",
+      "componentRevision": 1,
+      "instanceId": "balanced-battery",
+      "slotId": "battery-mount",
+      "transformAdjustment": {
+        "position": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      }
+    },
+    {
+      "componentId": "road-wheel-set",
+      "componentRevision": 1,
+      "instanceId": "balanced-wheels",
+      "slotId": "wheel-mounts",
+      "transformAdjustment": {
+        "position": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      }
+    },
+    {
+      "componentId": "balanced-suspension",
+      "componentRevision": 1,
+      "instanceId": "balanced-suspension",
+      "slotId": "suspension-mounts",
+      "transformAdjustment": {
+        "position": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      }
+    },
+    {
+      "componentId": "standard-bumper-set",
+      "componentRevision": 1,
+      "instanceId": "balanced-bumpers",
+      "slotId": "bumper-mounts",
+      "transformAdjustment": {
+        "position": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      }
+    }
+  ],
+  "derivationVersion": 1,
+  "descriptor": "Stable all-round construction",
+  "kartId": "balanced-kart",
+  "name": "Balanced Kart",
+  "schemaVersion": 1,
+  "units": "meters-kilograms-seconds"
+}

@@ -1,0 +1,596 @@
+{
+  "catalogVersion": 1,
+  "components": [
+    {
+      "collisionPrimitives": [
+        {
+          "halfExtents": { "x": 0.58, "y": 0.14, "z": 0.55 },
+          "id": "frame-body-collision",
+          "shape": "box",
+          "transform": {
+            "position": { "x": 0, "y": -0.08, "z": 0 },
+            "rotation": { "x": 0, "y": 0, "z": 0 }
+          }
+        }
+      ],
+      "componentId": "standard-frame",
+      "label": "Standard frame",
+      "massElements": [
+        {
+          "center": {
+            "x": 0.37739136506316945,
+            "y": 0.0831118090562597,
+            "z": 0.7262766197068555
+          },
+          "dimensions": { "x": 0.2, "y": 0.02, "z": 0.1 },
+          "id": "frame-ballast-positive-positive-positive",
+          "massKg": 8.920636601189871
+        },
+        {
+          "center": {
+            "x": 0.37739136506316945,
+            "y": 0.0831118090562597,
+            "z": -0.5779671714269486
+          },
+          "dimensions": { "x": 0.2, "y": 0.02, "z": 0.1 },
+          "id": "frame-ballast-positive-positive-negative",
+          "massKg": 4.69922815032397
+        },
+        {
+          "center": {
+            "x": 0.37739136506316945,
+            "y": -0.1546380356622862,
+            "z": 0.7262766197068555
+          },
+          "dimensions": { "x": 0.2, "y": 0.02, "z": 0.1 },
+          "id": "frame-ballast-positive-negative-positive",
+          "massKg": 9.0911066142084
+        },
+        {
+          "center": {
+            "x": 0.37739136506316945,
+            "y": -0.1546380356622862,
+            "z": -0.5779671714269486
+          },
+          "dimensions": { "x": 0.2, "y": 0.02, "z": 0.1 },
+          "id": "frame-ballast-positive-negative-negative",
+          "massKg": 4.789028634277762
+        },
+        {
+          "center": {
+            "x": -0.37739136506316945,
+            "y": 0.0831118090562597,
+            "z": 0.7262766197068555
+          },
+          "dimensions": { "x": 0.2, "y": 0.02, "z": 0.1 },
+          "id": "frame-ballast-negative-positive-positive",
+          "massKg": 8.920636601189871
+        },
+        {
+          "center": {
+            "x": -0.37739136506316945,
+            "y": 0.0831118090562597,
+            "z": -0.5779671714269486
+          },
+          "dimensions": { "x": 0.2, "y": 0.02, "z": 0.1 },
+          "id": "frame-ballast-negative-positive-negative",
+          "massKg": 4.69922815032397
+        },
+        {
+          "center": {
+            "x": -0.37739136506316945,
+            "y": -0.1546380356622862,
+            "z": 0.7262766197068555
+          },
+          "dimensions": { "x": 0.2, "y": 0.02, "z": 0.1 },
+          "id": "frame-ballast-negative-negative-positive",
+          "massKg": 9.0911066142084
+        },
+        {
+          "center": {
+            "x": -0.37739136506316945,
+            "y": -0.1546380356622862,
+            "z": -0.5779671714269486
+          },
+          "dimensions": { "x": 0.2, "y": 0.02, "z": 0.1 },
+          "id": "frame-ballast-negative-negative-negative",
+          "massKg": 4.789028634277762
+        }
+      ],
+      "properties": {
+        "kind": "frame",
+        "maximumSteerAngleDegrees": 18,
+        "minimumHighSpeedSteerAngleDegrees": 6,
+        "slots": [
+          {
+            "acceptsCategory": "body",
+            "bounds": {
+              "maximum": {
+                "position": { "x": 0, "y": 0.08, "z": 0.12 },
+                "rotation": { "x": 0, "y": 10, "z": 0 }
+              },
+              "minimum": {
+                "position": { "x": 0, "y": -0.08, "z": -0.12 },
+                "rotation": { "x": 0, "y": -10, "z": 0 }
+              }
+            },
+            "defaultTransform": {
+              "position": { "x": 0, "y": 0.24, "z": 0.48 },
+              "rotation": { "x": 0, "y": 0, "z": 0 }
+            },
+            "slotId": "body-mount"
+          },
+          {
+            "acceptsCategory": "motor",
+            "bounds": {
+              "maximum": {
+                "position": { "x": 0, "y": 0.04, "z": 0.16 },
+                "rotation": { "x": 0, "y": 0, "z": 0 }
+              },
+              "minimum": {
+                "position": { "x": 0, "y": -0.04, "z": -0.16 },
+                "rotation": { "x": 0, "y": 0, "z": 0 }
+              }
+            },
+            "defaultTransform": {
+              "position": { "x": 0, "y": -0.06, "z": 0.45 },
+              "rotation": { "x": 0, "y": 0, "z": 0 }
+            },
+            "slotId": "motor-mount"
+          },
+          {
+            "acceptsCategory": "battery",
+            "bounds": {
+              "maximum": {
+                "position": { "x": 0.12, "y": 0.04, "z": 0.25 },
+                "rotation": { "x": 0, "y": 0, "z": 0 }
+              },
+              "minimum": {
+                "position": { "x": -0.12, "y": -0.04, "z": -0.25 },
+                "rotation": { "x": 0, "y": 0, "z": 0 }
+              }
+            },
+            "defaultTransform": {
+              "position": { "x": 0, "y": -0.07, "z": -0.35 },
+              "rotation": { "x": 0, "y": 0, "z": 0 }
+            },
+            "slotId": "battery-mount"
+          },
+          {
+            "acceptsCategory": "wheel-set",
+            "bounds": {
+              "maximum": {
+                "position": { "x": 0, "y": 0, "z": 0 },
+                "rotation": { "x": 0, "y": 0, "z": 0 }
+              },
+              "minimum": {
+                "position": { "x": 0, "y": 0, "z": 0 },
+                "rotation": { "x": 0, "y": 0, "z": 0 }
+              }
+            },
+            "defaultTransform": {
+              "position": { "x": 0, "y": 0, "z": 0 },
+              "rotation": { "x": 0, "y": 0, "z": 0 }
+            },
+            "slotId": "wheel-mounts"
+          },
+          {
+            "acceptsCategory": "suspension",
+            "bounds": {
+              "maximum": {
+                "position": { "x": 0, "y": 0, "z": 0 },
+                "rotation": { "x": 0, "y": 0, "z": 0 }
+              },
+              "minimum": {
+                "position": { "x": 0, "y": 0, "z": 0 },
+                "rotation": { "x": 0, "y": 0, "z": 0 }
+              }
+            },
+            "defaultTransform": {
+              "position": { "x": 0, "y": 0, "z": 0 },
+              "rotation": { "x": 0, "y": 0, "z": 0 }
+            },
+            "slotId": "suspension-mounts"
+          },
+          {
+            "acceptsCategory": "bumper-set",
+            "bounds": {
+              "maximum": {
+                "position": { "x": 0, "y": 0, "z": 0 },
+                "rotation": { "x": 0, "y": 10, "z": 0 }
+              },
+              "minimum": {
+                "position": { "x": 0, "y": 0, "z": 0 },
+                "rotation": { "x": 0, "y": -10, "z": 0 }
+              }
+            },
+            "defaultTransform": {
+              "position": { "x": 0, "y": 0, "z": 0 },
+              "rotation": { "x": 0, "y": 0, "z": 0 }
+            },
+            "slotId": "bumper-mounts"
+          }
+        ],
+        "wheelMounts": [
+          {
+            "axle": "front",
+            "id": "front-left",
+            "position": { "x": -0.78, "y": -0.17, "z": -0.58 },
+            "side": "left"
+          },
+          {
+            "axle": "front",
+            "id": "front-right",
+            "position": { "x": 0.78, "y": -0.17, "z": -0.58 },
+            "side": "right"
+          },
+          {
+            "axle": "rear",
+            "id": "rear-left",
+            "position": { "x": -0.78, "y": -0.17, "z": 0.62 },
+            "side": "left"
+          },
+          {
+            "axle": "rear",
+            "id": "rear-right",
+            "position": { "x": 0.78, "y": -0.17, "z": 0.62 },
+            "side": "right"
+          }
+        ]
+      },
+      "revision": 1,
+      "visualPrimitives": [
+        {
+          "dimensions": { "x": 1.22, "y": 0.28, "z": 1.72 },
+          "id": "frame-body",
+          "material": "frame",
+          "shape": "box",
+          "transform": {
+            "position": { "x": 0, "y": -0.03, "z": 0 },
+            "rotation": { "x": 0, "y": 0, "z": 0 }
+          }
+        }
+      ]
+    },
+    {
+      "collisionPrimitives": [
+        {
+          "halfExtents": { "x": 0.36, "y": 0.21, "z": 0.39 },
+          "id": "body-collision",
+          "shape": "box",
+          "transform": {
+            "position": { "x": 0, "y": 0, "z": 0 },
+            "rotation": { "x": 0, "y": 0, "z": 0 }
+          }
+        }
+      ],
+      "componentId": "balanced-body",
+      "label": "Balanced body",
+      "massElements": [
+        {
+          "center": {
+            "x": 0,
+            "y": -0.002087929540191797,
+            "z": -0.2315298162386973
+          },
+          "dimensions": { "x": 0.72, "y": 0.42, "z": 0.78 },
+          "id": "body-mass",
+          "massKg": 20
+        }
+      ],
+      "properties": { "kind": "body" },
+      "revision": 1,
+      "visualPrimitives": [
+        {
+          "dimensions": { "x": 0.72, "y": 0.42, "z": 0.78 },
+          "id": "body-shell",
+          "material": "body-primary",
+          "shape": "box",
+          "transform": {
+            "position": { "x": 0, "y": 0, "z": 0 },
+            "rotation": { "x": 0, "y": 0, "z": 0 }
+          }
+        }
+      ]
+    },
+    {
+      "collisionPrimitives": [],
+      "componentId": "standard-motor",
+      "label": "Standard motor",
+      "massElements": [
+        {
+          "center": {
+            "x": 0,
+            "y": -0.03147601720042031,
+            "z": 0.11648933574479004
+          },
+          "dimensions": { "x": 0.34, "y": 0.24, "z": 0.38 },
+          "id": "motor-mass",
+          "massKg": 14
+        }
+      ],
+      "properties": {
+        "driveForceNewtons": 1140,
+        "kind": "motor",
+        "maximumWheelAngularSpeed": 58.62068965517241,
+        "reverseSpeedRatio": 1
+      },
+      "revision": 1,
+      "visualPrimitives": [
+        {
+          "dimensions": { "x": 0.34, "y": 0.24, "z": 0.38 },
+          "id": "motor-block",
+          "material": "motor",
+          "shape": "box",
+          "transform": {
+            "position": { "x": 0, "y": 0, "z": 0 },
+            "rotation": { "x": 0, "y": 0, "z": 0 }
+          }
+        }
+      ]
+    },
+    {
+      "collisionPrimitives": [],
+      "componentId": "standard-battery",
+      "label": "Standard battery",
+      "massElements": [
+        {
+          "center": {
+            "x": 0,
+            "y": 0.06334841118690432,
+            "z": 0.04795089227458988
+          },
+          "dimensions": { "x": 0.48, "y": 0.2, "z": 0.52 },
+          "id": "battery-mass",
+          "massKg": 15
+        }
+      ],
+      "properties": {
+        "kind": "battery",
+        "maximumDriveForceNewtons": 1140
+      },
+      "revision": 1,
+      "visualPrimitives": [
+        {
+          "dimensions": { "x": 0.48, "y": 0.2, "z": 0.52 },
+          "id": "battery-pack",
+          "material": "battery",
+          "shape": "box",
+          "transform": {
+            "position": { "x": 0, "y": 0, "z": 0 },
+            "rotation": { "x": 0, "y": 0, "z": 0 }
+          }
+        }
+      ]
+    },
+    {
+      "collisionPrimitives": [],
+      "componentId": "road-wheel-set",
+      "label": "Road wheel set",
+      "massElements": [
+        {
+          "center": { "x": 0, "y": 0, "z": 0 },
+          "dimensions": { "x": 0.3, "y": 0.58, "z": 0.58 },
+          "id": "front-left-wheel-mass",
+          "massKg": 2,
+          "wheelMount": { "axle": "front", "side": "left" }
+        },
+        {
+          "center": { "x": 0, "y": 0, "z": 0 },
+          "dimensions": { "x": 0.3, "y": 0.58, "z": 0.58 },
+          "id": "front-right-wheel-mass",
+          "massKg": 2,
+          "wheelMount": { "axle": "front", "side": "right" }
+        },
+        {
+          "center": { "x": 0, "y": 0, "z": 0 },
+          "dimensions": { "x": 0.3, "y": 0.58, "z": 0.58 },
+          "id": "rear-left-wheel-mass",
+          "massKg": 2,
+          "wheelMount": { "axle": "rear", "side": "left" }
+        },
+        {
+          "center": { "x": 0, "y": 0, "z": 0 },
+          "dimensions": { "x": 0.3, "y": 0.58, "z": 0.58 },
+          "id": "rear-right-wheel-mass",
+          "massKg": 2,
+          "wheelMount": { "axle": "rear", "side": "right" }
+        }
+      ],
+      "properties": {
+        "kind": "wheel-set",
+        "peakGripCoefficient": 1.42,
+        "radius": 0.29,
+        "rearGripMultiplier": 1.15,
+        "serviceBrakeForceNewtons": 1680,
+        "slidingGripCoefficient": 0.98,
+        "width": 0.3
+      },
+      "revision": 1,
+      "visualPrimitives": [
+        {
+          "dimensions": { "x": 0.58, "y": 0.3, "z": 0.58 },
+          "id": "front-left-tire",
+          "material": "tire",
+          "shape": "cylinder",
+          "transform": {
+            "position": { "x": 0, "y": 0, "z": 0 },
+            "rotation": { "x": 0, "y": 0, "z": 90 }
+          },
+          "wheelMount": { "axle": "front", "side": "left" }
+        },
+        {
+          "dimensions": { "x": 0.58, "y": 0.3, "z": 0.58 },
+          "id": "front-right-tire",
+          "material": "tire",
+          "shape": "cylinder",
+          "transform": {
+            "position": { "x": 0, "y": 0, "z": 0 },
+            "rotation": { "x": 0, "y": 0, "z": 90 }
+          },
+          "wheelMount": { "axle": "front", "side": "right" }
+        },
+        {
+          "dimensions": { "x": 0.58, "y": 0.3, "z": 0.58 },
+          "id": "rear-left-tire",
+          "material": "tire",
+          "shape": "cylinder",
+          "transform": {
+            "position": { "x": 0, "y": 0, "z": 0 },
+            "rotation": { "x": 0, "y": 0, "z": 90 }
+          },
+          "wheelMount": { "axle": "rear", "side": "left" }
+        },
+        {
+          "dimensions": { "x": 0.58, "y": 0.3, "z": 0.58 },
+          "id": "rear-right-tire",
+          "material": "tire",
+          "shape": "cylinder",
+          "transform": {
+            "position": { "x": 0, "y": 0, "z": 0 },
+            "rotation": { "x": 0, "y": 0, "z": 90 }
+          },
+          "wheelMount": { "axle": "rear", "side": "right" }
+        }
+      ]
+    },
+    {
+      "collisionPrimitives": [],
+      "componentId": "balanced-suspension",
+      "label": "Balanced suspension",
+      "massElements": [
+        {
+          "center": {
+            "x": 0,
+            "y": -0.06979056685762543,
+            "z": 0.05505363127019683
+          },
+          "dimensions": { "x": 1.4, "y": 0.12, "z": 1.1 },
+          "id": "suspension-mass",
+          "massKg": 5
+        }
+      ],
+      "properties": {
+        "bumpRate": 62000,
+        "bumpStart": 0.17,
+        "damperRate": 540,
+        "kind": "suspension",
+        "maximumCompressionY": 0.06,
+        "maximumLoad": 2500,
+        "restTravel": 0.23,
+        "springRate": 9500,
+        "travel": 0.42
+      },
+      "revision": 1,
+      "visualPrimitives": [
+        {
+          "dimensions": { "x": 1.4, "y": 0.08, "z": 0.08 },
+          "id": "suspension-crossbar",
+          "material": "suspension",
+          "shape": "box",
+          "transform": {
+            "position": { "x": 0, "y": -0.08, "z": 0.02 },
+            "rotation": { "x": 0, "y": 0, "z": 0 }
+          }
+        }
+      ]
+    },
+    {
+      "collisionPrimitives": [
+        {
+          "axis": 0,
+          "height": 1.52,
+          "id": "front-bumper-collision",
+          "radius": 0.18,
+          "shape": "capsule",
+          "transform": {
+            "position": { "x": 0, "y": -0.08, "z": -0.68 },
+            "rotation": { "x": 0, "y": 0, "z": 0 }
+          }
+        },
+        {
+          "axis": 0,
+          "height": 1.52,
+          "id": "rear-bumper-collision",
+          "radius": 0.18,
+          "shape": "capsule",
+          "transform": {
+            "position": { "x": 0, "y": -0.08, "z": 0.68 },
+            "rotation": { "x": 0, "y": 0, "z": 0 }
+          }
+        },
+        {
+          "axis": 2,
+          "height": 1.55,
+          "id": "left-guard-collision",
+          "radius": 0.16,
+          "shape": "capsule",
+          "transform": {
+            "position": { "x": -0.75, "y": -0.07, "z": 0 },
+            "rotation": { "x": 0, "y": 0, "z": 0 }
+          }
+        },
+        {
+          "axis": 2,
+          "height": 1.55,
+          "id": "right-guard-collision",
+          "radius": 0.16,
+          "shape": "capsule",
+          "transform": {
+            "position": { "x": 0.75, "y": -0.07, "z": 0 },
+            "rotation": { "x": 0, "y": 0, "z": 0 }
+          }
+        }
+      ],
+      "componentId": "standard-bumper-set",
+      "label": "Standard bumper set",
+      "massElements": [
+        {
+          "center": {
+            "x": 0,
+            "y": -0.08,
+            "z": -0.68
+          },
+          "dimensions": { "x": 1.52, "y": 0.18, "z": 0.18 },
+          "id": "front-bumper-mass",
+          "massKg": 1.5
+        },
+        {
+          "center": {
+            "x": 0,
+            "y": -0.08,
+            "z": 0.68
+          },
+          "dimensions": { "x": 1.52, "y": 0.18, "z": 0.18 },
+          "id": "rear-bumper-mass",
+          "massKg": 1.5
+        }
+      ],
+      "properties": { "kind": "bumper-set" },
+      "revision": 1,
+      "visualPrimitives": [
+        {
+          "dimensions": { "x": 1.52, "y": 0.12, "z": 0.12 },
+          "id": "front-bumper",
+          "material": "bumper",
+          "shape": "box",
+          "transform": {
+            "position": { "x": 0, "y": -0.08, "z": -0.68 },
+            "rotation": { "x": 0, "y": 0, "z": 0 }
+          }
+        },
+        {
+          "dimensions": { "x": 1.52, "y": 0.12, "z": 0.12 },
+          "id": "rear-bumper",
+          "material": "bumper",
+          "shape": "box",
+          "transform": {
+            "position": { "x": 0, "y": -0.08, "z": 0.68 },
+            "rotation": { "x": 0, "y": 0, "z": 0 }
+          }
+        }
+      ]
+    }
+  ],
+  "units": "meters-kilograms-seconds"
+}

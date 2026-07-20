@@ -28,6 +28,9 @@ A game-concept node should normally cover:
 
 ## Current Children
 
+- [`kart-assembly/`](kart-assembly/README.md): the candidate standard for
+  bounded component assembly, deterministic physical-profile derivation, and
+  construction-owned handling differences without stat overrides.
 - [`runtime-resilience/`](runtime-resilience/README.md): the accepted
   engine-independent standard for safe lifecycle interruption, bounded
   fixed-step degradation, resize recovery, loading exits, and graphics-context
