@@ -1,8 +1,8 @@
 # Database And Authentication Operations
 
 PR 3B uses Drizzle-managed Postgres migrations, Better Auth sessions, Google
-OAuth identities, database-backed application roles, and immutable course
-revisions. This document owns the operational workflow; it must not contain
+OAuth identities, database-backed application roles, and immutable course and
+kart revisions. This document owns the operational workflow; it must not contain
 real credentials, personal email addresses, or production connection strings.
 
 ## Local Postgres
@@ -34,6 +34,14 @@ database-level immutable trigger and a composite reference to an existing saved
 course revision. Apply and rehearse that migration through the same reviewed
 workflow; do not manually update publication history or simulate publishing by
 changing draft rows.
+
+Kart persistence adds player-owned `karts`, immutable `kart_revisions`, and
+append-only `kart_publication_events`. The application derives and hashes the
+physical snapshot before inserting a revision; operators must not manually edit
+source documents, resolved evidence, hashes, or publication history. Rehearse
+the complete migration chain against a fresh local database because the kart
+publication foreign key depends on the composite revision key created in the
+same migration.
 
 PR 5A adds the typed `gameplay_runs` summary table through the same migration
 workflow. Guest rows are anonymous and carry permanent guest attribution
@@ -101,9 +109,9 @@ endpoint.
 
 ## Identity Anonymization
 
-Course revision attribution retains the opaque canonical application user ID,
-but it must not make profile PII or provider credentials undeletable. From a
-trusted machine, anonymize an account with:
+Course and kart revision attribution retain the opaque canonical application
+user ID, but it must not make profile PII or provider credentials undeletable.
+From a trusted machine, anonymize an account with:
 
 ```bash
 corepack pnpm db:anonymize-user --email account@example.com

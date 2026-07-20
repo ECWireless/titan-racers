@@ -1,3 +1,6 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+
 import { expect, test } from "@playwright/test";
 
 import {
@@ -16,6 +19,33 @@ import {
   getApprovedSurfaceMaterial,
   getApprovedTireCompound,
 } from "../src/game/kart/kart-material-registry";
+import { deriveKartSnapshot } from "../src/game/kart/kart-derivation";
+import { createValidKartAssembly } from "./support/kart-assembly";
+
+function readRepositoryFile(path: string) {
+  return readFileSync(join(process.cwd(), path), "utf8");
+}
+
+function exportedTypeNames(path: string) {
+  return [...readRepositoryFile(path).matchAll(/^export type (\w+)/gm)].map(
+    ([, name]) => name,
+  );
+}
+
+function exportedConstantNames(path: string) {
+  return [...readRepositoryFile(path).matchAll(/^export const (\w+)/gm)].map(
+    ([, name]) => name,
+  );
+}
+
+function leafFieldPaths(value: object, prefix: string): string[] {
+  return Object.entries(value).flatMap(([key, nestedValue]) => {
+    const path = `${prefix}.${key}`;
+    return nestedValue !== null && typeof nestedValue === "object"
+      ? leafFieldPaths(nestedValue, path)
+      : [path];
+  });
+}
 
 test("provides at least one component option in every required category", () => {
   for (const category of kartComponentCategorySchema.options) {
@@ -112,4 +142,69 @@ test("deep-freezes registry identities and physical values", () => {
     (component.construction[0].material as { id: string }).id = "changed";
   }).toThrow(TypeError);
   expect(component.mass).toBe(originalMass);
+});
+
+test("keeps registries and public kart-system types discoverable in documentation", () => {
+  const catalogDocumentation = readRepositoryFile(
+    "docs/kart-system/components-and-materials.md",
+  );
+  const documentedRegistryEntries = [
+    ...APPROVED_KART_COMPONENTS,
+    ...APPROVED_CONSTRUCTION_MATERIALS,
+    ...APPROVED_TIRE_COMPOUNDS,
+    ...APPROVED_SURFACE_MATERIALS,
+  ];
+  for (const definition of documentedRegistryEntries) {
+    expect(catalogDocumentation).toContain(
+      `${definition.id}@${definition.version}`,
+    );
+  }
+  for (const interaction of APPROVED_TIRE_SURFACE_INTERACTIONS) {
+    expect(catalogDocumentation).toContain(
+      `${interaction.tireCompound.id}@${interaction.tireCompound.version} × ${interaction.surfaceMaterial.id}@${interaction.surfaceMaterial.version} / derivation ${interaction.derivationVersion}`,
+    );
+  }
+
+  const derivedDocumentation = readRepositoryFile(
+    "docs/kart-system/derivation-formulas.md",
+  );
+  for (const name of [
+    ...exportedTypeNames("src/game/kart/kart-physical-profile.ts"),
+    ...exportedTypeNames("src/game/kart/kart-derivation.ts"),
+  ]) {
+    expect(derivedDocumentation).toContain(name);
+  }
+  const resolvedSnapshot = deriveKartSnapshot(createValidKartAssembly());
+  for (const path of [
+    ...leafFieldPaths(resolvedSnapshot.physicalProfile, "physicalProfile"),
+    ...leafFieldPaths(resolvedSnapshot.playerStats, "playerStats"),
+  ]) {
+    expect(derivedDocumentation).toContain(path);
+  }
+
+  const runtimeDocumentation = readRepositoryFile(
+    "docs/kart-system/runtime-solver.md",
+  );
+  for (const name of exportedTypeNames(
+    "src/game/kart/dynamic-kart-controller.ts",
+  )) {
+    expect(runtimeDocumentation).toContain(name);
+  }
+
+  const presentationDocumentation = readRepositoryFile(
+    "docs/kart-system/presentation.md",
+  );
+  for (const name of exportedTypeNames("src/game/kart/kart-drift-smoke.ts")) {
+    expect(presentationDocumentation).toContain(name);
+  }
+
+  const environmentDocumentation = readRepositoryFile(
+    "docs/kart-system/environment.md",
+  );
+  for (const name of [
+    ...exportedTypeNames("src/game/physics/world-environment.ts"),
+    ...exportedConstantNames("src/game/physics/world-environment.ts"),
+  ]) {
+    expect(environmentDocumentation).toContain(name);
+  }
 });

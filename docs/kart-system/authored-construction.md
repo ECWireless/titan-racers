@@ -22,11 +22,12 @@ first component catalog and fixtures. Those values are design targets, not
 overrides: every published kart's actual dimensions and mass derive from its
 validated construction.
 
-The current reference fixture now preserves the rough prototype's validated
+The transitional reference fixture preserves the rough prototype's validated
 proportions at 0.25 linear scale: `0.4625 m` long and `1.875 kg`. Its upper
-housing is structure/electronics bodywork, not a cockpit. Phase 3B replaces the
-centralized fixture with versioned builder-authored construction while keeping
-this reference as a deterministic regression example.
+housing is structure/electronics bodywork, not a cockpit. Phase 3B adds the
+versioned assembly and derivation contracts while retaining this deterministic
+regression example. PR 3C will author and publish the Balanced Kart through the
+new editor before replacing the transitional runtime kart.
 
 The fixture places `105/120` of its mass in the low body and `15/120` in the
 upper housing. The low body is centered; the upper housing has a modest rear
@@ -50,29 +51,57 @@ and no tire-force cap, expected acceleration ranks handling, balanced, then
 speed. Controlled fixtures may reveal a derivation, construction, or solver
 problem; they may not justify hand-editing the resolved results.
 
-## Source Of Truth
+## Document Contract
 
-The versioned kart-assembly document and approved component registry are Phase
-3B deliverables and do not exist yet. Until then,
-`src/game/kart/kart-reference-construction.ts` is the centralized construction
-fixture and the transitional default `KartPhysicalProfile` is its capability
-fixture. Neither is a builder-facing schema.
+`kart-assembly-document.ts` owns the portable versioned document. It contains:
+
+- kart identity, name, practical descriptor, and visual colors;
+- stable primitive and component instance IDs;
+- immutable `{ id, version }` references to approved definitions;
+- transforms, primitive construction, collision roles, and materials;
+- structural attachments and functional port connections;
+- mirroring references; and
+- suspension mounting geometry where required.
+
+The document does not contain ownership, permissions, draft revision numbers,
+publication state, author identity, timestamps, derived statistics, or resolved
+physics. Those server-owned facts live in persistence records.
+
+## Validation Boundary
+
+`kart-assembly-validation.ts` validates the whole assembly before derivation or
+save. It requires exactly one battery, controller, motor, steering module,
+braking system, and transmission, plus four compatible suspensions and four
+compatible wheel/tire assemblies. The current solver requires one suspension
+definition and one wheel/tire definition across all four stations.
+
+Validation also enforces a connected structural tree, compatible materials,
+valid mirrors, complete functional wiring, two steered front stations, two
+driven and handbraked rear stations, four service-braked and suspended stations,
+coherent axles, and usable suspension leverage and rest length. Failures report
+stable codes and document paths.
+
+After semantic validation, `kart-derivation.ts` checks resolved mass and
+dimensions plus wheel/chassis collision overlap. These checks depend on derived
+geometry, so they do not belong to the portable document validator.
 
 ## Units
 
-Transforms use metres and degrees. Component construction will use SI units
+Transforms use metres and degrees. Component construction uses SI units
 and explicit material/component identifiers. Bounds and allowed axes belong to
 the component definition, not to arbitrary player-entered statistics.
 
 ## Versioning
 
-Published assembly revisions and referenced component versions are immutable.
-A builder change creates a new assembly revision. Derivation changes do not
-mutate an existing published revision; they produce a new resolved revision or
-explicit re-publication path while historical runs retain their exact inputs.
+Saved assembly revisions and referenced component versions are immutable. A
+builder change creates a new revision. Derivation changes never rewrite stored
+evidence; historical snapshot parsers remain pinned to their original version.
 
 ## Owning Contracts
 
-- Future: versioned kart-assembly document and approved-component registry.
-- Current fixture: `src/game/kart/kart-reference-construction.ts`.
+- Portable document: `src/game/kart/kart-assembly-document.ts`.
+- Semantic validation: `src/game/kart/kart-assembly-validation.ts`.
+- Approved definitions: `src/game/kart/kart-component-registry.ts` and
+  `src/game/kart/kart-material-registry.ts`.
+- Transitional runtime fixture: `src/game/kart/kart-reference-construction.ts`.
 - Resolved output: `src/game/kart/kart-physical-profile.ts`.

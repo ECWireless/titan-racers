@@ -6,22 +6,24 @@ units, versioning, and allowed dependency direction.
 
 ## Canonical Handling Architecture
 
-Four inputs are authoritative:
+Kart behavior follows one direction through six layers:
 
 1. **Authored construction** records approved component versions, placement,
    attachment, mirroring, and bounded instance configuration.
-2. **Versioned derived kart physics** deterministically resolves construction
+2. **Derived physical profile** deterministically resolves construction
    into mass properties, physical geometry, and a `KartPhysicalProfile` of
    force/capability outputs.
-3. **World/environment** supplies gravity, contacted surface construction, and
-   other race-world facts that do not belong to a kart.
+3. **Environment and contact interaction** supplies gravity, contacted surface
+   construction, and other race-world facts that do not belong to a kart.
 4. **Shared gameplay policy** bounds requests and owns narrowly justified
    recovery or stability behavior that must be identical for every kart in a
    race ruleset.
+5. **Runtime solver** resolves contacts, loads, forces, velocities, and poses.
+6. **Presentation** observes runtime results without feeding values back into
+   handling.
 
-The runtime physics solver is an executor, not a fifth tuning source. Its
-contacts, loads, forces, velocities, and poses are ephemeral. Presentation is a
-downstream observer and cannot change handling.
+The runtime physics solver is an executor, not a tuning source. Its state is
+ephemeral, and presentation cannot change handling.
 
 ```text
 assembly + component registry ----versioned derivation----> resolved kart physics
@@ -35,24 +37,25 @@ runtime telemetry ---------------------------------------> presentation
 - [Builder components and materials](./components-and-materials.md)
 - [World and environment](./environment.md)
 - [Derivation formulas](./derivation-formulas.md)
+- [Persistence and publication](./persistence-and-publication.md)
 - [Runtime solver](./runtime-solver.md)
 - [Shared gameplay policy](./gameplay-policy.md)
 - [Presentation](./presentation.md)
 
 ## Versioning And Reproducibility
 
-A published kart assembly revision is immutable. A resolved physical snapshot
-records its derivation version and may be persisted for auditing and race
-reproducibility, but remains non-editable derived evidence. A competitive run
-must ultimately identify its course revision, kart revision, derivation
-version and resolved-profile hash, environment version, runtime-solver version,
-and gameplay-policy version. Presentation versions are separate because purely
-visual changes do not alter competitive physics.
+A saved kart assembly revision is immutable. Its resolved physical snapshot and
+canonical SHA-256 hash are persisted as non-editable evidence. Publication is
+an independent append-only history, so publishing or unpublishing never rewrites
+an authored revision. A competitive run must ultimately identify its course
+revision, kart revision, derivation version and resolved-profile hash,
+environment version, runtime-solver version, and gameplay-policy version.
+Presentation versions are separate because purely visual changes do not alter
+competitive physics.
 
-Unpublished development values may be re-resolved live through
-`kart-development-values.ts`. That flat diagnostic adapter is not a persisted
-kart format and must never be passed to runtime subsystems as a universal
-tuning object.
+The transitional `kart-development-values.ts` adapter is not a persisted kart
+format. It remains only for the pre-editor runtime and must not become an
+override path around authored construction.
 
 ## Unit Standard
 

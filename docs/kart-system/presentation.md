@@ -15,6 +15,10 @@ Current presentation types include:
 - collision and drift feedback; and
 - HUD/debug telemetry rendering.
 
+The kart smoke module exposes `KartTireSmokePolicy` for shared visual policy and
+`TireSmokeIntent` for the countdown-only presentation request. Neither type is
+part of construction, derivation, or runtime force calculation.
+
 `src/game/kart/kart-drift-smoke.ts` owns smoke policy. Measured final lateral
 tire force multiplied by lateral contact speed produces scrub power in watts;
 shared presentation thresholds convert it to continuous density. The scrub

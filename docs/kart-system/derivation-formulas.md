@@ -7,14 +7,14 @@ Derivation converts immutable authored construction into a resolved
 running scene, and contain no override path. Persisted resolved snapshots are
 non-editable evidence, never substitute authored inputs.
 
-`src/game/kart/kart-physical-profile.ts` defines the current nested output
-contract. `src/game/kart/kart-development-values.ts` maps the temporary flat
-diagnostic surface into that contract while Phase 3B construction inputs remain
-undefined.
+`kart-derivation.ts` owns the versioned resolver and resolved-snapshot schema.
+`kart-physical-profile.ts` defines the nested capability output consumed by the
+current runtime. `kart-development-values.ts` remains a temporary adapter for
+the pre-editor runtime, not an input to persisted derivation.
 
 ## Exact Construction-To-Output Map
 
-Phase 3B's resolved kart snapshot must include mass properties, geometry, and
+The resolved kart snapshot includes mass properties, geometry, and
 the ten scalar fields in the current `KartPhysicalProfile`. The following map
 is exhaustive for those per-kart outputs; none may accept a stat override.
 
@@ -23,19 +23,48 @@ is exhaustive for those per-kart outputs; none may accept a stat override.
 | Total mass | Every primitive's dimensions and material density; every sealed component's physical mass; component transforms do not change mass | Sum all primitive and component masses. Cosmetic structure and trim still contribute mass when made from physical material; paint may use an explicitly negligible coating model. |
 | Center of mass | Each item's mass, local mass center, rotation, and assembly transform | Transform every local mass center into assembly space, sum `mass × position`, and divide by total mass. |
 | Inertia tensor | Each item's mass, shape/dimensions, local mass center, orientation, and assembly position | Derive local shape inertia, rotate it into assembly axes, then add the parallel-axis contribution. Preserve the full tensor when products of inertia are non-zero. |
-| Collision compound and smallest relevant cross-section | Collidable primitives, protective components, attachment transforms, and collision material | Union validated physical collision shapes. Render-only details add no collision. The narrowest solver-relevant section derives CCD radius and threshold through shared ratios. |
+| Collision compound and smallest relevant cross-section | Authored primitives marked `collision: "solid"`, their shapes, dimensions, axes, and transforms | Copy the validated solid primitive shapes into a compound in stable ID order. Components and non-colliding primitives add no collision. The smallest box dimension or cylinder diameter/height becomes the cross-section evidence consumed by shared CCD policy. |
 | Wheel stations and roles | Suspension/wheel attachment points, mirroring, steering linkage connections, transmission outputs, and brake connections | Resolve station positions plus `steered`, `driven`, service-braked, and handbraked roles. Reject missing, duplicate, floating, or incompatible stations. |
 | Wheelbase, track width, wheel radius, and wheel width | Resolved wheel centers and selected wheel/tire geometry | Measure axle-center separation and left/right station separation; take radius/width from the installed assemblies. Width is physical mass/inertia/clearance geometry even though Demo v1 does not grant a direct wider-tire grip multiplier. |
-| Aerodynamic `dragArea` (`CdA`) | Exposed primitive silhouettes, shape coefficients, transforms, and airflow gaps | Compute projected frontal union area and the versioned effective shape coefficient. Occluded overlap is not double-counted; a gap reduces drag only when the occupancy/airflow model actually leaves it open. |
-| Service-brake maximum force | Combined brake component torque capability, service-braked wheel roles, efficiencies, and wheel radii | Sum each connected wheel's permitted service-brake torque × efficiency ÷ its radius. Runtime tire contact may apply less. |
-| Handbrake maximum force | Combined brake component rear-handbrake torque, handbraked rear roles, efficiencies, and wheel radii | Sum each connected rear wheel's permitted handbrake torque × efficiency ÷ its radius. It never becomes an all-wheel service-brake alias. |
+| Aerodynamic `dragArea` (`CdA`) | Assembly-space axis-aligned bounds of every primitive and component mass element | Compute the union of the bounds' frontal X/Y rectangles so overlap is not double-counted, then multiply by the shared v1 shape coefficient `0.9`. This is a bounded approximation, not a mesh airflow solver. |
+| Service-brake maximum force | Sealed brake system's total service-brake torque and the installed shared wheel radius | `total service-brake torque ÷ wheel radius`. Runtime distributes the bounded total by supported-wheel load and tire contact may apply less. |
+| Handbrake maximum force | Sealed brake system's total rear-handbrake torque and the installed shared wheel radius | `total handbrake torque ÷ wheel radius`. Runtime retains a fixed rear-only split; it never becomes an all-wheel service-brake alias. |
 | Drivetrain maximum drive force | Battery voltage/current limits; controller current limit; motor speed constant, winding resistance, safe current, and torque constant; transmission motor-rotations-per-wheel-rotation `G` and efficiency; driven wheel radii | Derive permitted near-stall motor torque, multiply by `G` and efficiency, then divide by driven-wheel radius. This is total unconstrained capability; the current fixed-split drivetrain requests an equal share at each driven station, and runtime grip may cap each share. |
 | Drivetrain no-load speed | Battery effective voltage; motor speed constant; `G`; driven wheel radii | `(motor no-load angular speed ÷ G) × driven-wheel radius`. This boundary is not an authored top-speed stat. |
-| Maximum center steering angle | Steering-module travel/torque, linkage geometry, steering-arm locations, wheel and chassis clearance envelopes | Solve the largest collision-free center command the linkage can physically reach. Runtime Ackermann then gives separate inner/outer wheel angles, while shared speed/grip/rollover policy may request less. |
+| Maximum center steering angle | Steering-servo maximum travel, solid-primitive chassis bounds, and steered-wheel centers, radii, and widths | Step from zero through servo travel in `0.01°` increments and retain the shared angle whose rotated wheel envelope still clears the chassis's maximum absolute X extent. Runtime Ackermann then gives separate inner/outer wheel angles, while shared grip/rollover policy may request less. |
 | Suspension spring rate | Suspension-unit spring rate and installation motion ratio `R = spring travel ÷ wheel travel` | Effective wheel rate is `spring rate × R²`. |
 | Suspension damper rate | Suspension-unit damping coefficient and `R` | Effective wheel damping is `damper coefficient × R²`. |
 | Suspension bump start | Unit bump-stop onset measured in spring travel and `R` | Wheel-space onset is `unit bump onset ÷ R`. |
 | Suspension quadratic bump rate | Unit quadratic bump coefficient and `R` | Effective wheel-space coefficient is `unit coefficient × R³`. |
+
+The exact runtime capability field paths are:
+
+- `physicalProfile.aerodynamics.dragArea`;
+- `physicalProfile.brakes.maximumHandbrakeForce`;
+- `physicalProfile.brakes.maximumServiceBrakeForce`;
+- `physicalProfile.drivetrain.maximumDriveForce`;
+- `physicalProfile.drivetrain.noLoadSpeed`;
+- `physicalProfile.steering.maximumCenterAngle`;
+- `physicalProfile.suspension.bumpRate`;
+- `physicalProfile.suspension.bumpStart`;
+- `physicalProfile.suspension.damperRate`; and
+- `physicalProfile.suspension.springRate`.
+
+## Player-Facing Scores
+
+Scores summarize derived evidence for selection UI; builders cannot edit them.
+For each v1 score, normalize `(value - lower) ÷ (upper - lower)`, clamp to
+`0…1`, map to `1…100`, and round to the nearest integer.
+
+| Field | Derived value | V1 lower/upper bounds |
+| --- | --- | --- |
+| `playerStats.acceleration` | `maximumDriveForce ÷ totalMass` | `5…22 m/s²` |
+| `playerStats.handling` | `tan(maximumCenterAngle × π ÷ 180) ÷ wheelbase` | `0.6…2.4 1/m` |
+| `playerStats.speed` | drivetrain `noLoadSpeed` | `7…23 m/s` |
+| `playerStats.stability` | `trackWidth ÷ (2 × max(0.01 m, centerOfMassHeightAboveContactPlane))` | `1.4…2.8` |
+
+These ranges are versioned mappings, not desired-stat targets or overrides. A
+construction outside a range clamps at the corresponding display endpoint.
 
 The tire/surface interaction's five values are deliberately absent from the
 per-kart table. Peak coefficient, peak-slip angle, sliding coefficient,
@@ -43,6 +72,21 @@ sliding-slip angle, and rolling coefficient resolve at each contact from the
 installed tire construction × contacted surface material. Air density and
 gravity come from the environment. Current load, motor speed/back-EMF, slip,
 force utilization, and top speed are runtime results.
+
+## Discoverable Derived Types
+
+- `KartPhysicalProfile` groups all runtime-consumed per-kart capabilities.
+- `KartAerodynamicsProfile` owns `dragArea`.
+- `KartBrakesProfile` owns maximum service-brake and handbrake force.
+- `KartDrivetrainProfile` owns maximum drive force and no-load speed.
+- `KartSteeringProfile` owns maximum center steering angle.
+- `KartSuspensionProfile` owns effective spring, damper, bump-start, and
+  quadratic bump rates.
+
+`ResolvedKartSnapshot` adds geometry, wheel stations, mass properties,
+player-facing scores, registry references, and tire/surface evidence around
+that physical profile. Each `ResolvedKartWheelStation` records its derived role,
+geometry, axle direction, and suspension evidence.
 
 ## Runtime Formula Families
 
@@ -107,4 +151,5 @@ geometry, and unsupported component combinations before publication.
 A derivation version identifies formula semantics. Changing a formula creates a
 new version and new resolved snapshot. Published revisions do not silently
 change meaning. Historical races retain their original snapshot/hash and
-derivation version.
+derivation version. Snapshot parsers dispatch by persisted snapshot and
+derivation versions; the v1 parser is permanently pinned to the v1 contract.
