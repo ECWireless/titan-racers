@@ -2,12 +2,15 @@
 
 import { useEffect, useRef, useState } from "react";
 
-import type { KartTuning, KartTuningKey } from "@/game/contracts";
-import { KART_TUNING_BOUNDS } from "@/game/kart/kart-tuning";
+import {
+  KART_DEVELOPMENT_VALUE_METADATA,
+  type KartDevelopmentValueKey,
+  type KartDevelopmentValues,
+} from "@/game/kart/kart-development-values";
 
 type TuningField = {
   description?: string;
-  key: KartTuningKey;
+  key: KartDevelopmentValueKey;
   label: string;
   unit: string;
 };
@@ -23,31 +26,47 @@ const TUNING_GROUPS: TuningGroup[] = [
     defaultOpen: true,
     label: "Movement",
     fields: [
-      { key: "maxForwardSpeed", label: "Forward speed", unit: "m/s" },
-      { key: "maxReverseSpeed", label: "Reverse speed", unit: "m/s" },
-      { key: "acceleration", label: "Acceleration", unit: "m/s²" },
-      { key: "brakeForce", label: "Brake force", unit: "m/s²" },
       {
         description:
-          "Speed below which brake input stops slowing forward motion and can begin applying reverse drive.",
-        key: "brakeReverseStopSpeed",
-        label: "Brake/reverse stop",
+          "Theoretical no-load road speed derived from motor speed, gearing, and driven-wheel radius. Drag and rolling resistance make actual top speed lower.",
+        key: "maxForwardSpeed",
+        label: "No-load speed",
         unit: "m/s",
       },
       {
         description:
-          "Passive slowdown while neither throttle nor brakes are applied. Higher values make the kart coast for less time.",
-        key: "drag",
-        label: "Rolling drag",
-        unit: "rate",
+          "Maximum total force the motor can request across the driven wheels at low speed. Actual acceleration emerges from applied force, kart mass, and available tire grip.",
+        key: "maximumDriveForce",
+        label: "Maximum drive force",
+        unit: "N",
       },
-      { key: "gravity", label: "Gravity", unit: "m/s²" },
       {
         description:
-          "Scales the drive force used in reverse. A value of 1 gives reverse the same acceleration force as forward drive.",
-        key: "reverseForceMultiplier",
-        label: "Reverse force",
+          "Maximum total service-brake force before tire grip limits it. Actual deceleration emerges from applied force and kart mass.",
+        key: "maximumBrakingForce",
+        label: "Maximum braking force",
+        unit: "N",
+      },
+      {
+        description:
+          "Derived tire-and-surface resistance coefficient. Rolling force scales with supported load, so mass-proportional force produces mass-independent deceleration.",
+        key: "rollingResistanceCoefficient",
+        label: "Rolling resistance",
         unit: "ratio",
+      },
+      {
+        description:
+          "Effective CdA derived from the construction's projected silhouette, overlap, gaps, and shape coefficients. Air density comes separately from the environment.",
+        key: "aerodynamicDragArea",
+        label: "Aerodynamic drag area",
+        unit: "m²",
+      },
+      {
+        description:
+          "World acceleration due to gravity. Earth-standard 9.81 m/s² is environment data, never a kart-authored stat.",
+        key: "gravity",
+        label: "Gravity",
+        unit: "m/s²",
       },
     ],
   },
@@ -56,23 +75,9 @@ const TUNING_GROUPS: TuningGroup[] = [
     fields: [
       {
         description:
-          "How quickly the front wheels move toward the requested steering angle. Higher values feel more immediate.",
-        key: "turnRate",
-        label: "Steering response",
-        unit: "deg/s",
-      },
-      {
-        description:
-          "Largest front-wheel steering angle available near a stop. Higher values produce tighter low-speed turns.",
-        key: "maximumSteerAngle",
-        label: "Low-speed angle",
-        unit: "deg",
-      },
-      {
-        description:
-          "Steering angle retained at the configured top speed. Lower values make high-speed turns gentler.",
-        key: "minimumHighSpeedSteerAngle",
-        label: "High-speed angle",
+          "Largest center-equivalent steering request near a stop. Ackermann geometry derives the sharper inside and gentler outside front-wheel angles.",
+        key: "maximumCenterSteerAngle",
+        label: "Center steering lock",
         unit: "deg",
       },
     ],
@@ -82,14 +87,14 @@ const TUNING_GROUPS: TuningGroup[] = [
     fields: [
       {
         description:
-          "Maximum tire force relative to suspension load before the tire begins sliding. Higher values provide more cornering grip.",
+          "Current tire-and-surface peak force relative to suspension load. The installed tire and contacted material jointly resolve it for each wheel.",
         key: "peakGripCoefficient",
         label: "Peak grip",
         unit: "ratio",
       },
       {
         description:
-          "Tire force retained in a fully developed slide. Lower values create looser, longer drifts.",
+          "Current tire-and-surface force retained in a fully developed slide. Lower values create looser, longer drifts.",
         key: "slidingGripCoefficient",
         label: "Sliding grip",
         unit: "ratio",
@@ -108,41 +113,6 @@ const TUNING_GROUPS: TuningGroup[] = [
         label: "Sliding slip",
         unit: "deg",
       },
-      {
-        description:
-          "How strongly lateral wheel velocity generates a correcting tire force. Higher values resist sideways motion more aggressively.",
-        key: "lateralStiffness",
-        label: "Lateral stiffness",
-        unit: "N·s/m",
-      },
-      {
-        description:
-          "Extra lateral correction used near a stop to keep the kart stable when slip-angle measurements are least reliable.",
-        key: "lowSpeedLateralStiffness",
-        label: "Low-speed stiffness",
-        unit: "N·s/m",
-      },
-      {
-        description:
-          "Lateral speed below which the low-speed stiffness value is used instead of normal lateral stiffness.",
-        key: "lowSpeedLateralStiffnessThreshold",
-        label: "Low-speed crossover",
-        unit: "m/s",
-      },
-      {
-        description:
-          "Minimum forward-speed reference used when calculating slip angle. Higher values suppress abrupt slip readings near a stop.",
-        key: "lowSpeedReference",
-        label: "Low-speed reference",
-        unit: "m/s",
-      },
-      {
-        description:
-          "Scales the rear tires' available force relative to the front tires. Values above one bias ordinary cornering toward stable understeer; lower values make rear breakaway easier.",
-        key: "rearGripMultiplier",
-        label: "Rear grip balance",
-        unit: "ratio",
-      },
     ],
   },
   {
@@ -151,66 +121,10 @@ const TUNING_GROUPS: TuningGroup[] = [
     fields: [
       {
         description:
-          "Scales service-brake force on the driven rear wheels when the handbrake is held.",
-        key: "handbrakeForceMultiplier",
+          "Maximum total handbrake force distributed across the driven rear wheels before tire grip limits it.",
+        key: "maximumHandbrakeForce",
         label: "Handbrake force",
-        unit: "ratio",
-      },
-      {
-        description:
-          "Slip angle where sufficiently hard braking begins reducing available tire grip to encourage a slide.",
-        key: "brakingSlideStartAngleDegrees",
-        label: "Slide onset",
-        unit: "deg",
-      },
-      {
-        description:
-          "Brake or handbrake input level where combined-slip reductions begin. A lower value makes partial braking influence drift sooner.",
-        key: "brakingSlideStartDemand",
-        label: "Brake demand onset",
-        unit: "ratio",
-      },
-      {
-        description:
-          "Maximum fraction of sliding grip removed by hard braking at high slip. A value of 0.16 removes up to 16 percent.",
-        key: "maximumBrakingSlideGripReduction",
-        label: "Sliding grip reduction",
-        unit: "ratio",
-      },
-      {
-        description:
-          "Maximum fraction of lateral correction removed during hard braking. Higher values let sideways velocity persist longer.",
-        key: "maximumBrakingLateralStiffnessReduction",
-        label: "Lateral reduction",
-        unit: "ratio",
-      },
-      {
-        description:
-          "Slip angle where hard-braking force begins tapering so the kart can continue sliding instead of stopping abruptly.",
-        key: "brakingAssistStartAngleDegrees",
-        label: "Brake assist onset",
-        unit: "deg",
-      },
-      {
-        description:
-          "Slip angle where the configured hard-braking force reduction becomes fully active.",
-        key: "brakingAssistFullAngleDegrees",
-        label: "Full brake assist",
-        unit: "deg",
-      },
-      {
-        description:
-          "Maximum fraction of braking force removed at high slip. Higher values preserve more speed through a hard drift.",
-        key: "maximumBrakingForceReduction",
-        label: "Brake force reduction",
-        unit: "ratio",
-      },
-      {
-        description:
-          "Moves lateral tire force closer to the chassis center during hard braking. Higher values reduce how strongly a slide rotates the kart.",
-        key: "maximumBrakingYawLeverReduction",
-        label: "Yaw lever reduction",
-        unit: "ratio",
+        unit: "N",
       },
     ],
   },
@@ -245,260 +159,30 @@ const TUNING_GROUPS: TuningGroup[] = [
         label: "Bump rate",
         unit: "N/m²",
       },
-      {
-        description:
-          "Upper limit on the force a single wheel suspension can apply to the chassis.",
-        key: "maximumSuspensionLoad",
-        label: "Maximum load",
-        unit: "N",
-      },
-    ],
-  },
-  {
-    label: "Chassis body",
-    fields: [
-      {
-        description:
-          "Physics-engine resistance applied to all chassis translation. Higher values bleed speed continuously.",
-        key: "linearDamping",
-        label: "Linear damping",
-        unit: "ratio",
-      },
-      {
-        description:
-          "Physics-engine resistance applied to chassis rotation. Higher values settle spins and rolls faster.",
-        key: "angularDamping",
-        label: "Angular damping",
-        unit: "ratio",
-      },
-      {
-        description:
-          "Contact friction used when the chassis body itself touches the course or an obstacle; this is separate from tire grip.",
-        key: "chassisFriction",
-        label: "Body friction",
-        unit: "ratio",
-      },
-      {
-        description:
-          "How bouncy direct chassis collisions are. Zero absorbs the normal bounce; higher values return more impact speed.",
-        key: "chassisRestitution",
-        label: "Body restitution",
-        unit: "ratio",
-      },
-    ],
-  },
-  {
-    label: "Airborne and settling",
-    fields: [
-      {
-        description:
-          "Desired nose-up angle while every wheel is airborne. Negative values target a nose-down attitude.",
-        key: "airbornePitchTargetDegrees",
-        label: "Pitch target",
-        unit: "deg",
-      },
-      {
-        description:
-          "Strength of the airborne torque pulling the kart toward its pitch target.",
-        key: "airbornePitchSpringRate",
-        label: "Pitch spring",
-        unit: "rate",
-      },
-      {
-        description:
-          "Resistance to airborne pitch rotation. Higher values reduce overshoot around the target angle.",
-        key: "airbornePitchDampingRate",
-        label: "Pitch damping",
-        unit: "rate",
-      },
-      {
-        description:
-          "Safety clamp on the angular acceleration produced by airborne pitch assistance.",
-        key: "airborneMaximumPitchAcceleration",
-        label: "Maximum pitch accel",
-        unit: "rad/s²",
-      },
-      {
-        description:
-          "Instantaneous roll impulse used by manual recovery when the kart is upside down over a driving surface. Higher values flip more aggressively.",
-        key: "manualRightingTorqueImpulse",
-        label: "Righting roll impulse",
-        unit: "N·m·s",
-      },
-      {
-        description:
-          "Extra roll torque added only as an upside-down kart leans toward the righting threshold, where multiple chassis contacts need more leverage. A flat roof receives no boost.",
-        key: "manualRightingAngledTorqueBoost",
-        label: "Angled righting boost",
-        unit: "ratio",
-      },
-      {
-        description:
-          "Small upward impulse paired with manual righting so the chassis edge can clear the surface while it rolls.",
-        key: "manualRightingLiftImpulse",
-        label: "Righting lift impulse",
-        unit: "N·s",
-      },
-      {
-        description:
-          "Minimum tilt from upright required before a recovery request flips in place instead of returning to the checkpoint.",
-        key: "manualRightingMinimumInversionDegrees",
-        label: "Righting tilt threshold",
-        unit: "deg",
-      },
-      {
-        description:
-          "How quickly small remaining chassis rotation is damped while all wheels are grounded and there is no input.",
-        key: "restingAngularSettleRate",
-        label: "Rest settling",
-        unit: "rate",
-      },
-      {
-        description:
-          "Maximum total chassis speed at which the grounded rest-settling assist may activate.",
-        key: "restingSettleMaximumLinearSpeed",
-        label: "Settle linear limit",
-        unit: "m/s",
-      },
-      {
-        description:
-          "Maximum vertical speed allowed before rest-settling disengages so impacts and suspension movement remain physical.",
-        key: "restingSettleMaximumVerticalSpeed",
-        label: "Settle vertical limit",
-        unit: "m/s",
-      },
-      {
-        description:
-          "Maximum rotational speed at which rest-settling may activate. Faster impacts and spins bypass the assist.",
-        key: "restingSettleMaximumAngularSpeed",
-        label: "Settle angular limit",
-        unit: "rad/s",
-      },
-    ],
-  },
-  {
-    label: "Tire smoke",
-    fields: [
-      {
-        description:
-          "Minimum supported-wheel speed required to begin emitting drift or hard-braking smoke.",
-        key: "driftSmokeStartSpeed",
-        label: "Start speed",
-        unit: "m/s",
-      },
-      {
-        description:
-          "Lower speed threshold used to stop existing smoke. Keeping it below start speed prevents rapid flicker.",
-        key: "driftSmokeStopSpeed",
-        label: "Stop speed",
-        unit: "m/s",
-      },
-      {
-        description:
-          "Rear-wheel slip angle required to begin emitting light drift smoke.",
-        key: "driftSmokeStartSlipAngleDegrees",
-        label: "Start slip",
-        unit: "deg",
-      },
-      {
-        description:
-          "Lower slip threshold used to stop existing smoke, providing hysteresis so the effect does not flicker.",
-        key: "driftSmokeStopSlipAngleDegrees",
-        label: "Stop slip",
-        unit: "deg",
-      },
-      {
-        description:
-          "Rear-wheel slip angle where smoke increases to its heavier emission level.",
-        key: "heavyDriftSmokeStartSlipAngleDegrees",
-        label: "Heavy start",
-        unit: "deg",
-      },
-      {
-        description:
-          "Lower slip threshold where heavy smoke returns to the light level instead of switching rapidly between them.",
-        key: "heavyDriftSmokeStopSlipAngleDegrees",
-        label: "Heavy stop",
-        unit: "deg",
-      },
-      {
-        description:
-          "Service-brake input required before a supported tire under substantial load can begin emitting straight-line braking smoke.",
-        key: "brakingSmokeStartDemand",
-        label: "Brake start demand",
-        unit: "ratio",
-      },
-      {
-        description:
-          "Lower service-brake input where active straight-line braking smoke stops, preventing rapid flicker around the start value.",
-        key: "brakingSmokeStopDemand",
-        label: "Brake stop demand",
-        unit: "ratio",
-      },
-      {
-        description:
-          "Fraction of the available tire-force envelope that must be requested before hard braking can begin emitting smoke.",
-        key: "brakingSmokeStartTireForceUtilization",
-        label: "Brake start load",
-        unit: "ratio",
-      },
-      {
-        description:
-          "Lower tire-force utilization where active braking smoke stops as the tire load recovers.",
-        key: "brakingSmokeStopTireForceUtilization",
-        label: "Brake stop load",
-        unit: "ratio",
-      },
-      {
-        description:
-          "Forward-throttle input required to begin rear-wheel burnout smoke while the starting countdown holds the kart stationary.",
-        key: "countdownSmokeStartThrottle",
-        label: "Countdown start",
-        unit: "ratio",
-      },
-      {
-        description:
-          "Lower throttle threshold used to stop an active countdown burnout without flickering around the start value.",
-        key: "countdownSmokeStopThrottle",
-        label: "Countdown stop",
-        unit: "ratio",
-      },
     ],
   },
 ];
 
-type KartTuningDrawerProps = {
-  onChange: (key: KartTuningKey, value: number) => void;
+type KartDynamicsDrawerProps = {
   onClose: () => void;
-  onReset: () => void;
-  tuning: KartTuning;
+  values: KartDevelopmentValues;
 };
 
 function TuningFieldControl({
   field,
-  onChange,
-  tuning,
+  values,
 }: {
   field: TuningField;
-  onChange: KartTuningDrawerProps["onChange"];
-  tuning: KartTuning;
+  values: KartDevelopmentValues;
 }) {
   const [helpOpen, setHelpOpen] = useState(false);
-  const tuningValue = tuning[field.key];
-  const [draftValue, setDraftValue] = useState(() => String(tuningValue));
+  const tuningValue = values[field.key];
   const helpButtonRef = useRef<HTMLButtonElement>(null);
   const fieldRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
-  const bounds = KART_TUNING_BOUNDS[field.key];
-  const descriptionId = `kart-tuning-description-${field.key}`;
-  const inputId = `kart-tuning-input-${field.key}`;
-  const tooltipId = `kart-tuning-tooltip-${field.key}`;
-
-  useEffect(() => {
-    if (document.activeElement !== inputRef.current) {
-      setDraftValue(String(tuningValue));
-    }
-  }, [tuningValue]);
+  const metadata = KART_DEVELOPMENT_VALUE_METADATA[field.key];
+  const descriptionId = `kart-dynamics-description-${field.key}`;
+  const outputId = `kart-dynamics-output-${field.key}`;
+  const tooltipId = `kart-dynamics-tooltip-${field.key}`;
 
   useEffect(() => {
     if (!helpOpen) {
@@ -527,16 +211,11 @@ function TuningFieldControl({
     <div
       className="grid min-w-0 content-start gap-1 text-[0.61rem] font-bold uppercase tracking-[0.08em] text-titan-muted"
       ref={fieldRef}
-      onPointerLeave={() => {
-        if (document.activeElement !== helpButtonRef.current) {
-          setHelpOpen(false);
-        }
-      }}
     >
       <div className="flex min-w-0 items-end justify-between gap-2">
-        <label className="min-w-0" htmlFor={inputId}>
+        <span className="min-w-0" id={`${outputId}-label`}>
           {field.label}
-        </label>
+        </span>
         <span className="flex shrink-0 items-center gap-1.5">
           <span className="text-[0.55rem] normal-case tracking-normal text-titan-ice/40">
             {field.unit}
@@ -551,13 +230,26 @@ function TuningFieldControl({
               onBlur={() => setHelpOpen(false)}
               onClick={() => setHelpOpen(true)}
               onFocus={() => setHelpOpen(true)}
-              onPointerEnter={() => setHelpOpen(true)}
+              onKeyDown={(event) => {
+                if (event.key !== "Escape") {
+                  return;
+                }
+                event.preventDefault();
+                event.stopPropagation();
+                setHelpOpen(false);
+              }}
             >
               ?
             </button>
           ) : null}
         </span>
       </div>
+      <span
+        className="text-[0.52rem] normal-case tracking-normal text-titan-ice/40"
+        data-testid={`kart-tuning-owner-${field.key}`}
+      >
+        {metadata.owner} · {metadata.classification}
+      </span>
       {field.description ? (
         <>
           <span className="sr-only" id={descriptionId}>
@@ -574,38 +266,25 @@ function TuningFieldControl({
           ) : null}
         </>
       ) : null}
-      <input
+      <output
         aria-describedby={field.description ? descriptionId : undefined}
-        className="h-9 w-full min-w-0 border border-titan-ice/20 bg-titan-black px-2 text-sm font-bold tabular-nums text-titan-ice outline-none focus:border-titan-hazard focus:ring-1 focus:ring-titan-hazard"
+        aria-labelledby={`${outputId}-label`}
+        className="flex h-9 w-full min-w-0 items-center border border-titan-ice/12 bg-titan-black/55 px-2 text-sm font-bold tabular-nums text-titan-ice/86"
         data-testid={`kart-tuning-${field.key}`}
-        id={inputId}
-        inputMode="decimal"
-        max={bounds.maximum}
-        min={bounds.minimum}
-        step={bounds.step}
-        type="number"
-        ref={inputRef}
-        value={draftValue}
-        onBlur={() => setDraftValue(String(tuning[field.key]))}
-        onChange={(event) => {
-          setDraftValue(event.currentTarget.value);
-          if (Number.isFinite(event.currentTarget.valueAsNumber)) {
-            onChange(field.key, event.currentTarget.valueAsNumber);
-          }
-        }}
-      />
+        id={outputId}
+      >
+        {String(tuningValue)}
+      </output>
     </div>
   );
 }
 
 function TuningGroupFields({
   group,
-  onChange,
-  tuning,
+  values,
 }: {
   group: TuningGroup;
-  onChange: KartTuningDrawerProps["onChange"];
-  tuning: KartTuning;
+  values: KartDevelopmentValues;
 }) {
   const [open, setOpen] = useState(group.defaultOpen ?? false);
 
@@ -623,8 +302,7 @@ function TuningGroupFields({
           <TuningFieldControl
             field={field}
             key={field.key}
-            onChange={onChange}
-            tuning={tuning}
+            values={values}
           />
         ))}
       </div>
@@ -632,12 +310,10 @@ function TuningGroupFields({
   );
 }
 
-export function KartTuningDrawer({
-  onChange,
+export function KartDynamicsDrawer({
   onClose,
-  onReset,
-  tuning,
-}: KartTuningDrawerProps) {
+  values,
+}: KartDynamicsDrawerProps) {
   const closeButtonRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
@@ -656,10 +332,10 @@ export function KartTuningDrawer({
             className="text-xs font-black uppercase tracking-[0.16em] text-titan-hazard"
             id="kart-tuning-title"
           >
-            Kart tuning
+            Kart dynamics inspector
           </h2>
           <p className="text-[0.65rem] leading-4 text-titan-ice/55">
-            Live for this race session · T closes
+            Read-only resolved values · T closes
           </p>
         </div>
         <button
@@ -674,24 +350,18 @@ export function KartTuningDrawer({
       </div>
 
       <div className="grid min-h-0 flex-1 content-start gap-2 overflow-y-auto p-3">
+        <p className="border border-titan-ice/15 bg-titan-ice/[0.035] p-2 text-[0.63rem] leading-4 text-titan-ice/60">
+          Values resolve from kart construction, the environment, contact
+          interactions, and the active race ruleset. They cannot be overridden
+          here.
+        </p>
         {TUNING_GROUPS.map((group) => (
           <TuningGroupFields
             group={group}
             key={group.label}
-            onChange={onChange}
-            tuning={tuning}
+            values={values}
           />
         ))}
-      </div>
-
-      <div className="border-t border-titan-ice/15 p-3">
-        <button
-          className="w-full border border-titan-orange bg-titan-orange px-3 py-2 text-[0.68rem] font-black uppercase tracking-[0.12em] text-titan-black hover:bg-titan-hazard focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-titan-hazard"
-          type="button"
-          onClick={onReset}
-        >
-          Reset all defaults
-        </button>
       </div>
     </section>
   );

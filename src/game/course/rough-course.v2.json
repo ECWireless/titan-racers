@@ -471,7 +471,7 @@
         "offset": {
           "position": {
             "x": 0,
-            "y": -0.12,
+            "y": -0.09,
             "z": 0
           },
           "rotation": {
@@ -489,7 +489,7 @@
       "transform": {
         "position": {
           "x": 0,
-          "y": 0.08,
+          "y": 0.05,
           "z": 8
         },
         "rotation": {
@@ -502,7 +502,7 @@
         "material": "ground",
         "scale": {
           "x": 40,
-          "y": 0.08,
+          "y": 0.002,
           "z": 8
         },
         "shape": "box"
@@ -518,7 +518,7 @@
         "offset": {
           "position": {
             "x": 0,
-            "y": -0.12,
+            "y": -0.09,
             "z": 0
           },
           "rotation": {
@@ -537,7 +537,7 @@
       "transform": {
         "position": {
           "x": -20,
-          "y": 0.08,
+          "y": 0.05,
           "z": 8
         },
         "rotation": {
@@ -550,7 +550,7 @@
         "material": "ground",
         "scale": {
           "x": 8,
-          "y": 0.08,
+          "y": 0.002,
           "z": 8
         },
         "shape": "cylinder"
@@ -566,7 +566,7 @@
         "offset": {
           "position": {
             "x": 0,
-            "y": -0.12,
+            "y": -0.09,
             "z": 0
           },
           "rotation": {
@@ -585,7 +585,7 @@
       "transform": {
         "position": {
           "x": 20,
-          "y": 0.08,
+          "y": 0.05,
           "z": 8
         },
         "rotation": {
@@ -598,7 +598,7 @@
         "material": "ground",
         "scale": {
           "x": 8,
-          "y": 0.08,
+          "y": 0.002,
           "z": 8
         },
         "shape": "cylinder"
@@ -613,7 +613,7 @@
       "transform": {
         "position": {
           "x": 0,
-          "y": 0.14,
+          "y": 0.05,
           "z": 0
         },
         "rotation": {
@@ -626,7 +626,7 @@
         "material": "line",
         "scale": {
           "x": 0.18,
-          "y": 0.08,
+          "y": 0.002,
           "z": 8.4
         },
         "shape": "box"

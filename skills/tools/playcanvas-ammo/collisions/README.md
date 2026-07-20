@@ -29,7 +29,7 @@ implementation has been accepted.
 
 - PlayCanvas Engine is pinned exactly to `2.20.6`.
 - Physics uses the repository-owned Ammo glue, WebAssembly, and fallback files.
-- The runtime owns a 60 Hz outer fixed step with one PlayCanvas/Ammo step per
+- The runtime owns a 120 Hz outer fixed step with one PlayCanvas/Ammo step per
   outer step.
 - The kart is one dynamic compound rigid body with all six degrees of freedom.
 - Course surfaces and obstacles are static rigid bodies.
@@ -58,7 +58,7 @@ Compare collision envelopes in controlled scenarios before selecting one:
 
 The accepted envelope must preserve chassis width, length, ground clearance,
 center-of-mass relationship, ramp behavior, and useful off-center impact lever
-arms. Visual cockpit or wheel details do not automatically earn physical
+arms. Visual upper-housing or wheel details do not automatically earn physical
 shapes. Avoid multiple exposed compound children that create conflicting
 contact normals where one continuous outer surface is intended.
 
@@ -108,10 +108,11 @@ than visual materials.
 For this Ammo/Bullet baseline, the default material combiner multiplies the two
 bodies' friction values and multiplies their restitution values. PlayCanvas's
 2.20.6 API documentation explicitly records the restitution multiplication.
-The current kart friction of `0.12` against static-course friction of `0.7`
-therefore produces approximately `0.084` combined chassis-contact friction.
-The current kart restitution of `0.04` against course restitution of `0`
-produces zero combined restitution.
+The default kart construction friction of `0.12` against static-course
+friction of `0.7` therefore produces approximately `0.084` combined
+chassis-contact friction. Its construction restitution of `0.04` against
+course restitution of `0` produces zero combined restitution. These kart-body
+values are construction inputs rather than live handling overrides.
 
 Treat those results as a baseline, not as accepted collision tuning. Tune both
 bodies deliberately. Keep chassis-contact friction low enough for readable
@@ -200,9 +201,14 @@ Derive final settings from measurements:
 6. choose a swept-sphere radius smaller than the relevant body cross-section,
    then test missed hits and premature contacts.
 
-The current `17 m/s` target travels about `0.283 m` in one 60 Hz step. This is a
-measurement anchor, not a hard-coded CCD policy. Test through at least
+The current `17 m/s` target travels about `0.142 m` in one 120 Hz step. This is a
+measurement anchor, not a hard-coded CCD policy. The accepted default envelope
+identifies a `0.32 m` smallest relevant protective cross-section. Shared policy
+uses half of that measurement for the `0.16 m` swept-sphere radius and 75% of
+that radius for the `0.12 m` activation threshold. Test through at least
 `20.4 m/s`, which adds the accepted 20% safety margin above default top speed.
+Future buildable envelopes must supply their measured cross-section and repeat
+the CCD verification matrix; neither ratio is player-authored tuning.
 
 Bullet's swept-sphere path primarily protects translational motion. Do not
 assume it covers every fast rotational corner. Keep honest collider thickness
@@ -269,7 +275,7 @@ The mapping is not validated until focused tests demonstrate:
 9. CCD-disabled and CCD-enabled matrices expose no accepted false contacts,
    sticking, unstable rebound, or excessive cost.
 10. Controlled scenarios remain equivalent under synthetic 30, 60, and 120 Hz
-    render schedules while physics remains fixed at 60 Hz.
+    render schedules while physics remains fixed at 120 Hz.
 11. Production builds make no third-party physics or asset requests.
 12. Teardown removes every contact listener and leaves no animation frame,
     PlayCanvas application, Ammo allocation, or retained entity reference.
@@ -288,9 +294,9 @@ values.
 - The public component API has no CCD or collision-margin properties.
 - The vendored Ammo binding has CCD setters but not CCD getters.
 - Body-level material values apply to the complete compound kart.
-- The accepted kart envelope and final friction, restitution, CCD threshold,
-  swept-sphere radius, scenario tolerances, and performance budget still require
-  implementation measurements.
+- Per-part compound-child contact materials remain unavailable through this
+  stable public engine boundary; the default kart therefore uses one explicit
+  whole-body construction material.
 - No collision assist is justified until unassisted hands-on and automated
   evidence demonstrates a specific remaining failure.
 

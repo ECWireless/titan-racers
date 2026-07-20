@@ -2,6 +2,7 @@ import * as pc from "playcanvas";
 
 import type { CourseTestObstacleId } from "../contracts";
 import { PHYSICS_GROUP, PHYSICS_MASK } from "../physics/collision-groups";
+import { registerDrivableSurfaceSupportShape } from "../physics/drivable-surface-support";
 import type {
   CourseDocument,
   CourseObject,
@@ -191,6 +192,14 @@ function configureCourseEntity(
     const linearOffset = toVec3(collision.offset.position);
 
     entity.tags.add(physics.tag);
+
+    if (collision.role === "drivable-surface") {
+      registerDrivableSurfaceSupportShape(entity, {
+        ...collision,
+        angularOffset: collision.offset.rotation,
+        linearOffset: collision.offset.position,
+      });
+    }
 
     if (collision.shape === "box") {
       entity.addComponent("collision", {

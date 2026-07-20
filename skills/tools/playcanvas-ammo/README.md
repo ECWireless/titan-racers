@@ -72,7 +72,7 @@ Titan Racers therefore owns the outer simulation accumulator:
 1. Accumulate clamped browser-frame time.
 2. Before each whole simulation step, sample the current input and run every
    registered pre-physics callback.
-3. Call `app.update(1 / 60)`, which advances the PlayCanvas systems and one
+3. Call `app.update(1 / 120)`, which advances the PlayCanvas systems and one
    Ammo/Bullet step.
 4. Run registered post-physics callbacks and capture the resulting state.
 5. Stop after the configured catch-up limit, initially four steps, and record
@@ -80,7 +80,7 @@ Titan Racers therefore owns the outer simulation accumulator:
 6. Render once per browser frame and pass the accumulator fraction to
    presentation interpolation.
 
-Configure the PlayCanvas rigid-body system with the same `1 / 60` fixed
+Configure the PlayCanvas rigid-body system with the same `1 / 120` fixed
 timestep and one internal substep. The outer loop, rather than nested Bullet
 substepping, is authoritative for normal operation.
 
@@ -152,6 +152,13 @@ cross product of angular velocity and the world-space center-to-wheel offset.
 Project chassis directions and point velocity into the contact plane before
 calculating longitudinal and lateral response.
 
+Keep authored wheel centers, radius, width, driven role, and steered role in
+ordinary validated data before constructing PlayCanvas entities or Ammo sweep
+shapes. Use those same values for support queries, visual wheels, steering
+directions, drivetrain allocation, suspension presentation, and collision
+protection so geometry cannot disagree across systems. Do not infer additional
+grip from sweep width; the tire-force envelope remains load and compound based.
+
 Ray queries are the candidate baseline. A sweep or shape query may replace them
 only if measured ramp, edge, or high-speed behavior demonstrates a material
 benefit that justifies the additional Ammo boundary.
@@ -168,22 +175,106 @@ genuinely instantaneous events such as an explicit gameplay kick or a later
 damage response. Do not write the dynamic entity's transform during ordinary
 driving.
 
-For front/rear handling balance, apply a designer-facing axle multiplier to the
-load-scaled grip envelope before clamping the combined longitudinal and lateral
-tire force. Keep suspension load, point velocity, slip angle, and force
-application physical; do not emulate stability by writing yaw velocity or
-injecting a counter-torque. Leave the combined-slip braking reductions active
-within the adjusted envelope so brake and handbrake demand can still produce
-rear breakaway.
+Submit authored motor capability to the rigid body as total driven-wheel force
+in newtons, divided across supported driven wheels before the shared tire-force
+clamp. Do not multiply that force by rigid-body mass to preserve a target
+acceleration: Ammo already derives linear acceleration from applied force and
+mass. Keep speed falloff and the shared brake-to-reverse transition policy in
+ordinary TypeScript so their causal relationship remains testable without
+Ammo. A reversible motor with unchanged gearing uses the same force and
+no-load speed magnitudes in either direction; the controller changes only the
+sign after forward motion falls inside the named near-zero threshold.
 
-For a bounded passive airborne pitch policy, derive signed pitch from
-`entity.forward.y`, project `rigidbody.angularVelocity` onto `entity.right`, and
-calculate a critically damped proportional-derivative acceleration toward the
-accepted small nose-up target. Clamp that acceleration, multiply by the local
-X-axis pitch inertia, and submit the result through
-`RigidBodyComponent.applyTorque` before the fixed world step. Gate the torque
-on zero supported wheels and apply it only along the local pitch axis so yaw,
-roll, linear momentum, and solver collision response remain untouched.
+Submit service-brake capability as a total force in newtons. Proportion its
+current request across supported braked wheels by measured normal load before
+the shared tire-force clamp. Do not
+multiply a target deceleration by rigid-body mass. Keep analog demand, future
+brake-torque-to-wheel-radius derivation, and any accepted brake distribution
+policy in engine-independent TypeScript; Ammo should receive only the resolved
+per-wheel forces and derive deceleration from mass.
+
+Submit the handbrake through the same path as an independent total actuator
+force distributed only across the configured rear handbraked wheels. Do not
+derive it as a percentage of service-brake force; future torque-to-radius
+derivation belongs to the respective brake hardware before this adapter.
+
+Divide total motor demand equally across all configured driven wheels. Resolve
+support, suspension load, and each wheel's force limit before applying its
+fixed share. Cap that share at the wheel limit and discard any unused amount;
+the Demo v1 drivetrain does not transfer it to another wheel. Submit the
+resulting longitudinal force through the ordinary per-wheel combined
+tire-force clamp so drive cannot bypass lateral demand or manufacture traction.
+
+Apply rolling resistance through the ordinary per-wheel longitudinal force
+path using the measured suspension load. Apply aerodynamic resistance as a
+chassis force opposite planar velocity, independent of throttle and wheel
+support, with magnitude proportional to speed squared. Keep air density and
+the near-zero rolling regularization as shared TypeScript policy. Do not also
+enable per-kart PlayCanvas linear damping: it overlaps the explicit forces and
+hides their physical ownership. Any engine-level damping retained solely for
+solver stability must be a fixed, documented adapter policy rather than kart
+authored data.
+
+For the demo's front/rear handling balance, apply the shared rear-axle safety
+ratio to the load-scaled grip envelope before clamping the combined longitudinal
+and lateral tire force. Keep suspension load, point velocity, slip angle, and
+force application physical; do not emulate stability by writing yaw velocity
+or injecting a counter-torque. Brake and handbrake requests still share the
+adjusted combined-force envelope and can produce rear breakaway. Do not shrink
+the grip coefficient from brake input without observed wheel slip, and do not
+expose this recovery policy through per-kart tuning.
+
+Request ordinary lateral tire force as signed slip angle times load-aware
+cornering stiffness in N/rad, then clamp the combined vector to the load-scaled
+grip envelope. Derive stiffness per contact as resolved peak grip coefficient
+times current suspension load divided by peak-slip angle. Do not multiply
+cornering stiffness by raw lateral velocity: that
+silently makes an equal slip angle request more force at higher speed. Near
+zero rolling speed, where slip angle is poorly conditioned, blend to the shared
+bounded lateral-velocity settling policy before applying the same tire envelope.
+
+Apply both longitudinal and lateral tire forces at the resolved wheel contact
+point. Never shorten the lateral-force lever toward the center of mass under
+braking; that suppresses physical yaw torque and disguises a tire-force or
+balance problem. Likewise, do not delete rear cornering stiffness under hard
+braking; rear-only handbrake force already produces physical axle imbalance
+through the combined tire envelope.
+
+Resolve the maximum requested wheel angle in engine-independent code from
+nominal center-of-mass height, track width, wheelbase, peak grip, gravity,
+current signed speed magnitude, mechanical steering lock, and the shared
+steering-request margin. Pass the resulting angle into the per-wheel steering
+geometry; do not use Ammo damping, yaw writes, or an authored high-speed angle
+to manufacture stability. Surface-specific loss of grip remains a tire-force
+outcome rather than dynamically shrinking steering authority.
+
+Approach the requested angle at `current permitted angle / shared response
+duration` per second. Keep that normalized duration in controller policy, not
+kart tuning, until a physical steering actuator is modeled. The rigid body then
+derives chassis yaw response from the resulting per-wheel tire forces and yaw
+leverage; wheel-angle response must never write yaw velocity directly.
+
+Before each steered-wheel support sweep and tire-force calculation, convert the
+center-equivalent request into that wheel's Ackermann angle using wheelbase and
+its lateral offset from the steered-axle centerline. Use the same resolved angle
+for the visual wheel pivot, swept support shape, longitudinal/lateral contact
+axes, and diagnostics. Identical front-wheel angles are not an acceptable
+shortcut because they imply conflicting turn centers and create avoidable tire
+scrub.
+
+Expose both the center-request geometric radius and the solver-observed chassis
+radius in developer diagnostics. Derive the latter from forward speed divided
+by angular velocity projected onto the kart's local up axis. These are
+observations only: do not use either readout to overwrite rigid-body yaw or
+velocity.
+
+When every wheel is unsupported, submit no suspension, tire, or
+attitude-seeking controller force. Let Ammo preserve the launch velocity and
+angular velocity under gravity, shared low numerical damping, aerodynamic
+forces if modeled, and ordinary collision response. Tune an unacceptable ramp
+launch through authored construction—such as spring rate, support geometry,
+mass distribution, and inertia—and verify the support-to-airborne transition
+with telemetry rather than aiming the body at a target angle.
 
 The controller should use PlayCanvas vectors at the adapter boundary but keep
 its tuning, telemetry, and accepted state contracts as ordinary TypeScript
@@ -258,7 +349,7 @@ The tool mapping is not validated until focused tests demonstrate:
 
 1. Ammo loads from repository-owned paths in development and production builds.
 2. The application does not construct physics components before Ammo is ready.
-3. The outer loop produces the expected number of 60 Hz steps for synthetic
+3. The outer loop produces the expected number of 120 Hz steps for synthetic
    30, 60, and 120 Hz frame sequences.
 4. A long frame executes no more than the catch-up limit and reports dropped
    time.
@@ -282,7 +373,8 @@ changes. Behavior-level kart acceptance remains owned by the game-concept node.
 - The owned outer loop is a deliberate deviation from PlayCanvas' default
   application tick and therefore needs exact-version pinning and regression
   tests.
-- Browser rendering above 60 Hz requires presentation interpolation to avoid
+- Render cadence remains decoupled from 120 Hz physics; presentation
+  interpolation avoids
   repeated visible physics poses.
 - Ray support can miss narrow or abrupt geometry that a wheel-volume sweep
   would catch; measure before expanding the Ammo boundary.

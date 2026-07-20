@@ -58,7 +58,7 @@ remain owned by the kart-physics system.
 - `src/game/input/player-input-manager.ts` owns device-family arbitration,
   action-edge aggregation, and conversion to existing kart driving intent.
 - `src/components/solo-time-trial-canvas.tsx` attaches the manager, samples once
-  before each 60 Hz physics step, applies reset/pause requests, clears input at
+  before each 120 Hz physics step, applies reset/pause requests, clears input at
   lifecycle boundaries, renders touch controls without using React state as
   physics input, and scopes controller navigation to loading/error, pause, and
   finish overlays.
@@ -132,8 +132,11 @@ rear-handbrake intent follows a smoothstep ramp once shaped lateral steering
 crosses `0.45`, reaching full lateral authority at `0.7`; forward authority is
 normalized to reach full at `0.6`. A strong forward turn plus brake pedal can
 therefore retain a bounded `0.2` service-brake floor while requesting the same
-continuous handbrake action as Shift, without switching grip, adding yaw,
-declaring a drift, or compromising diagonal reverse.
+continuous handbrake action as Shift. As that deliberate handbrake intent rises,
+the touch adapter smoothly restores the steering authority lost to the circular
+two-axis gesture; tire forces still decide whether the kart actually slides.
+The adapter does not switch grip, add yaw, declare a drift, or compromise
+diagonal reverse.
 The knob follows the clamped physical pointer position and recenters on release.
 The labelled two-axis group provides instructions and four-arrow keyboard
 operation. Pedals retain native button semantics, `aria-pressed`, and Space or
@@ -178,18 +181,18 @@ until disconnect. Nonstandard mappings remain neutral and non-fatal.
 - Gameplay consumes plain normalized values and action edges, never DOM,
   React, PlayCanvas input wrappers, or browser `Gamepad` objects.
 - Sampling happens before kart update and Ammo world advance at the existing
-  60 Hz fixed-step boundary.
+  120 Hz fixed-step boundary.
 - One device family owns the complete continuous vector; values from multiple
   devices are never added together.
 - Reset and pause edges are consumed once and ignore keyboard repeat or held
   controller buttons.
 - A focused input, select, textarea, or editable element owns its native keys;
-  tuning-field arrows, `T`, and Escape never leak into driving, tuning-toggle,
-  or pause intent.
-- An unmodified, non-repeating `T` temporarily toggles the production tuning
-  surface only during an active race. Modified shortcuts are left to the
-  browser or operating system, and the shortcut is absent while pause or finish
-  UI owns interaction.
+  development-field arrows, `T`, and Escape never leak into driving,
+  dynamics-toggle, or pause intent.
+- An unmodified, non-repeating `T` temporarily toggles the production dynamics
+  development surface only during an active race. Modified shortcuts are left
+  to the browser or operating system, and the shortcut is absent while pause or
+  finish UI owns interaction.
 - Focus/visibility loss, pause, controller disconnect, pointer cancellation,
   reset, and teardown yield neutral retained input without manufacturing
   actions. A cleared controller must return fully neutral before it can re-arm.

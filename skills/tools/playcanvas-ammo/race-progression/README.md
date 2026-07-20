@@ -42,7 +42,7 @@ Use the owned outer loop and its existing order:
 3. neutralize driving unless the resulting state accepts it;
 4. apply an accepted recovery teleport before world advance;
 5. update the kart controller with the accepted driving vector;
-6. call `app.update(1 / 60)` exactly once;
+6. call `app.update(1 / 120)` exactly once;
 7. capture the resulting authoritative kart pose;
 8. run directed-gate progression after physics; and
 9. update presentation/camera telemetry without feeding it back into gameplay.

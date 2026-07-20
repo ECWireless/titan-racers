@@ -61,7 +61,7 @@ Own and reuse, rather than allocate per fixed step:
 Destroy every owned shape, transform, vector, quaternion, and callback exactly
 once during controller/runtime teardown. If callback reuse cannot be proven
 safe against the vendored binding, use a small fixed pool created at
-initialization rather than allocating four callbacks on every 60 Hz step.
+initialization rather than allocating four callbacks on every 120 Hz step.
 
 Copy hit fraction, point, normal, and entity identity before the next sweep.
 Never retain wrapped Ammo pointers from the callback.
@@ -99,8 +99,10 @@ maps onto travel between those poses. Compute:
 - contact-point velocity from chassis linear and angular velocity.
 
 Use the copied hit point and normal for suspension and tire-force application
-through PlayCanvas's public `RigidBodyComponent.applyForce`. Keep the existing
-load budget and combined tire-force limit until measurements justify retuning.
+through PlayCanvas's public `RigidBodyComponent.applyForce`. Keep the combined
+tire-force limit, but do not clip a physically calculated suspension load with
+an independently authored per-wheel ceiling. Finite compression travel bounds
+spring and bump force; damping remains proportional to measured contact speed.
 
 A convex sweep may begin overlapped at maximum compression. Test and handle the
 callback's initial-overlap result deliberately; do not reinterpret a zero hit
@@ -119,12 +121,18 @@ The current nominal values are a baseline, not an accepted target. Tune:
 - static compression and ride height;
 - spring rate or equivalent ride frequency;
 - damping ratio;
-- progressive bump-stop start, stiffness, and cap; and
+- progressive bump-stop start and stiffness within finite travel; and
 - optional maximum suspension expansion speed.
 
 Run static equilibrium before ramp tuning. A lower damper can make the landing
 more playful, but the accepted result still needs one primary rebound and no
 more than one smaller settling motion for an ordinary jump.
+
+The accepted miniature RC baseline uses an 812.5 N/m effective wheel spring
+rate, the Froude-scaled equivalent of the former 13,000 N/m fixture. The 120 Hz
+solver preserves approximately the former integration samples per suspension
+event. Validate the complete support interval, not merely the force in the
+final supported step.
 
 ## Wheel and Suspension Presentation
 
@@ -216,7 +224,7 @@ The mapping is not validated until tests demonstrate:
 8. Small- and large-ramp landings meet the accepted travel, rebound, settling,
    bump-stop, and clearance behavior.
 9. Presentation interpolation keeps hubs and suspension connected at 30, 60,
-   and 120 Hz render cadences while physics stays at 60 Hz.
+   and 120 Hz render cadences while physics stays at 120 Hz.
 10. Reset, editor transitions, initialization cancellation, failure, and
     teardown leave no stale sweep state or Ammo allocation.
 11. Lateral proxies prevent deep visible wheel penetration without unacceptable

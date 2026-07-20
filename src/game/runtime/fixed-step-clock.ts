@@ -12,8 +12,11 @@ export type FixedStepClockOptions = {
   maxFrameSeconds?: number;
 };
 
-const DEFAULT_FIXED_STEP_SECONDS = 1 / 60;
-const DEFAULT_MAX_CATCH_UP_STEPS = 4;
+// The 1:4 linear RC reference has characteristic Froude-scaled motion times
+// half as long as the former full-size fixture. Doubling the solver rate keeps
+// approximately the same integration samples per suspension/rotation event.
+export const DEFAULT_FIXED_STEP_SECONDS = 1 / 120;
+const DEFAULT_MAX_CATCH_UP_STEPS = 8;
 const DEFAULT_MAX_FRAME_SECONDS = 0.1;
 const STEP_EPSILON = 1e-9;
 

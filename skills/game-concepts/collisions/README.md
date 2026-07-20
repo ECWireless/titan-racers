@@ -120,6 +120,15 @@ jitter or repeatedly bounce. Contact friction should permit a readable slide
 along walls and obstacles; it must not substitute for the grounded tire model
 or make a shallow glancing impact stick.
 
+For buildable karts, physical construction material may contribute body-contact
+friction and restitution, while paint and other cosmetic choices must not.
+Final contact response belongs to the material pair, so resolve kart and course
+material contributions through one documented solver or project combining
+rule. Do not expose raw per-kart friction, restitution, or bounciness overrides.
+If the engine supports only one contact material across a compound body, treat
+that whole-body material as an explicit temporary construction limitation
+rather than claiming per-part material response.
+
 Do not immediately overwrite the solver result. Evaluate the unassisted
 response first, including its interaction with tire forces on the next fixed
 step. Tire response must not erase the collision impulse or repeatedly drive a
@@ -164,6 +173,12 @@ create ghost collisions, while sweep-based approaches can simplify or omit
 rotation and add cost. Continuous collision detection must not introduce
 sticking, premature impacts, lost time, unstable restitution, or unacceptable
 mobile overhead.
+
+For buildable karts, derive the swept volume from bounded collision-envelope
+geometry. Keep the activation relationship in shared solver policy and the
+per-step activation decision in runtime state. Neither value is a creator
+tuning control, and materially different construction envelopes must repeat
+the missed-hit and premature-contact matrix.
 
 ### Arcade assists
 

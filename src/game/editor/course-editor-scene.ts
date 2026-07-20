@@ -9,6 +9,7 @@ import type {
   CourseDocument,
   CourseVisualMaterial,
 } from "../course/course-document";
+import { getCourseVisualDepthBias } from "../course/course-visual-policy";
 import {
   type CourseEditorGeometry,
   type CourseEditorSelection,
@@ -889,8 +890,20 @@ export class CourseEditorScene {
 function createCourseMaterials() {
   return {
     asphalt: createMaterial(new pc.Color(0.08, 0.08, 0.09)),
-    ground: createMaterial(new pc.Color(0.08, 0.36, 0.26)),
-    line: createMaterial(new pc.Color(0.95, 0.92, 0.86)),
+    ground: createMaterial(
+      new pc.Color(0.08, 0.36, 0.26),
+      1,
+      false,
+      0,
+      getCourseVisualDepthBias("ground"),
+    ),
+    line: createMaterial(
+      new pc.Color(0.95, 0.92, 0.86),
+      1,
+      false,
+      0,
+      getCourseVisualDepthBias("line"),
+    ),
     obstacleBarrel: createMaterial(new pc.Color(0.96, 0.45, 0.12)),
     obstacleBlock: createMaterial(new pc.Color(0.82, 0.78, 0.68)),
     ramp: createMaterial(new pc.Color(0.35, 0.39, 0.42)),
@@ -902,11 +915,14 @@ function createMaterial(
   opacity = 1,
   wireframe = false,
   emissiveStrength = wireframe ? 0.3 : 0,
+  depthBias = 0,
 ) {
   const material = new pc.StandardMaterial();
+  material.depthBias = depthBias;
   material.diffuse = color;
   material.emissive = color.clone().mulScalar(emissiveStrength);
   material.opacity = opacity;
+  material.slopeDepthBias = depthBias;
   if (opacity < 1) {
     material.blendType = pc.BLEND_NORMAL;
     material.depthWrite = false;
