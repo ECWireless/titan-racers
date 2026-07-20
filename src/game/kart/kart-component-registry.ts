@@ -116,8 +116,8 @@ const steeringSchema = componentBaseSchema.extend({
 
 const brakesSchema = componentBaseSchema.extend({
   brakes: z.strictObject({
-    handbrakeTorque: z.number().finite().positive(),
-    serviceBrakeTorque: z.number().finite().positive(),
+    totalHandbrakeTorque: z.number().finite().positive(),
+    totalServiceBrakeTorque: z.number().finite().positive(),
   }),
   category: z.literal("brakes"),
 });
@@ -135,6 +135,7 @@ const suspensionSchema = componentBaseSchema.extend({
   suspension: z.strictObject({
     bumpStart: z.number().finite().positive(),
     damperRate: z.number().finite().positive(),
+    extendedLength: z.number().finite().positive(),
     maximumStroke: z.number().finite().positive(),
     quadraticBumpRate: z.number().finite().positive(),
     springRate: z.number().finite().positive(),
@@ -341,7 +342,10 @@ export const APPROVED_KART_COMPONENTS = deepFreeze(
         mirrorable: false,
         rotationAxes: ["x", "y", "z"],
       },
-      brakes: { handbrakeTorque: 0.685, serviceBrakeTorque: 1.55 },
+      brakes: {
+        totalHandbrakeTorque: 0.685125,
+        totalServiceBrakeTorque: 1.5225,
+      },
       category: "brakes",
       construction: [box(aluminum, { x: 0.052, y: 0.018, z: 0.04 })],
       id: "brakes.combined-standard",
@@ -400,7 +404,10 @@ export const APPROVED_KART_COMPONENTS = deepFreeze(
       ],
       summary: "A tall reduction for higher theoretical road speed.",
       tradeoff: "Higher no-load speed with less wheel force than the short transmission.",
-      transmission: { efficiency: 0.82, motorRotationsPerWheelRotation: 4 },
+      transmission: {
+        efficiency: 0.8114144775599887,
+        motorRotationsPerWheelRotation: 4,
+      },
       version: 1,
     },
     {
@@ -441,7 +448,7 @@ export const APPROVED_KART_COMPONENTS = deepFreeze(
         rotationAxes: ["x", "y", "z"],
       },
       category: "suspension",
-      construction: [cylinder(steel, 0.007, 0.055, "y")],
+      construction: [cylinder(steel, 0.007, 0.12, "y")],
       id: "suspension.firm-short",
       label: "Firm short-travel suspension",
       mass: 0.045,
@@ -464,6 +471,7 @@ export const APPROVED_KART_COMPONENTS = deepFreeze(
       suspension: {
         bumpStart: 0.027,
         damperRate: 10,
+        extendedLength: 0.115,
         maximumStroke: 0.035,
         quadraticBumpRate: 18_000,
         springRate: 1_600,
@@ -478,7 +486,7 @@ export const APPROVED_KART_COMPONENTS = deepFreeze(
         rotationAxes: ["x", "y", "z"],
       },
       category: "suspension",
-      construction: [cylinder(aluminum, 0.008, 0.072, "y")],
+      construction: [cylinder(aluminum, 0.008, 0.145, "y")],
       id: "suspension.compliant-long",
       label: "Compliant long-travel suspension",
       mass: 0.052,
@@ -501,6 +509,7 @@ export const APPROVED_KART_COMPONENTS = deepFreeze(
       suspension: {
         bumpStart: 0.04,
         damperRate: 7,
+        extendedLength: 0.14,
         maximumStroke: 0.052,
         quadraticBumpRate: 12_000,
         springRate: 900,

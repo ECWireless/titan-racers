@@ -150,6 +150,12 @@ const surfaceMaterialByKey = new Map(
     definition,
   ]),
 );
+const tireSurfaceInteractionByKey = new Map(
+  APPROVED_TIRE_SURFACE_INTERACTIONS.map((definition) => [
+    `${registryKey(definition.tireCompound)}:${registryKey(definition.surfaceMaterial)}@${definition.derivationVersion}`,
+    definition,
+  ]),
+);
 
 export function getApprovedConstructionMaterial(
   reference: { id: string; version: number },
@@ -167,4 +173,13 @@ export function getApprovedSurfaceMaterial(
   reference: { id: string; version: number },
 ): DeepReadonly<SurfaceMaterialDefinition> | undefined {
   return surfaceMaterialByKey.get(registryKey(reference));
+}
+
+export function getApprovedTireSurfaceInteraction(input: {
+  derivationVersion: number;
+  surfaceMaterial: { id: string; version: number };
+  tireCompound: { id: string; version: number };
+}): DeepReadonly<TireSurfaceInteractionDefinition> | undefined {
+  const key = `${registryKey(input.tireCompound)}:${registryKey(input.surfaceMaterial)}@${input.derivationVersion}`;
+  return tireSurfaceInteractionByKey.get(key);
 }
