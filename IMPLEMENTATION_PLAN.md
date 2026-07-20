@@ -983,6 +983,9 @@ tool-specific, and implemented knowledge through the repository Skills Tree.
       behavior, and practical player-facing stats without editable raw tuning,
 - [ ] provide controlled test fixtures and complete-race launch from the draft,
 - [ ] support draft save, immutable revision creation, publish, and unpublish,
+- [ ] create and publish the Balanced Kart through the real admin pipeline,
+      then replace the transitional reference fixture as the default runtime
+      kart before expanding the roster,
 - [ ] verify keyboard, narrow touch, accessible controls, cancellation, and
       editor/runtime cleanup.
 
@@ -991,7 +994,8 @@ tool-specific, and implemented knowledge through the repository Skills Tree.
 - [ ] construct kart visuals, compound collision geometry, wheels, mass
       properties, and the simplified handling profile from validated immutable
       revisions,
-- [ ] create balanced, speed, and handling karts through the real admin pipeline
+- [ ] retain the Balanced Kart authored through the real admin pipeline in PR
+      3C, then create speed and handling karts through that same pipeline
       without special-case tuning or manual overrides,
 - [ ] show name, assembler credit, visual identity, derived stat bars, and a
       short practical descriptor in public kart selection,
