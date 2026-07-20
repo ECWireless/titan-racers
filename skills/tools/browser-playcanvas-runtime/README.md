@@ -26,7 +26,7 @@ the existing run-summary transport.
 ## Fixed-Step And Resize Mapping
 
 The existing `FixedStepClock` accepts at most 100 ms of one animation frame and
-runs at most four 60 Hz steps. It reports the remainder as discarded active
+runs at most eight 120 Hz steps. It reports the remainder as discarded active
 time. Preserve that cap, add discarded time to authoritative race timing, and
 accumulate only a bounded rounded per-run total for health reporting.
 

@@ -57,7 +57,7 @@ or the final Agricultural Zone course.
    gates as plain data; no rigid-body trigger entity is created.
 3. The session moves from `loading` to `ready` and immediately begins
    `countdown`. Countdown time does not count toward the competitive result.
-4. Before each 60 Hz physics step, input is sampled and race time advances.
+4. Before each 120 Hz physics step, input is sampled and race time advances.
    Driving is accepted only while the lifecycle is `racing`.
 5. After Ammo advances, the session tests the authoritative previous-to-current
    kart-root segment against only the expected directed gate, while still

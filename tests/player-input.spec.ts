@@ -246,17 +246,17 @@ test.describe("player input", () => {
     expect(touch.getContinuousInput()).toMatchObject({
       accelerate: 0.6,
       handbrake: 1,
-      steer: 0.8,
+      steer: 1,
     });
     expect(touch.getContinuousInput().brakeReverse).toBeCloseTo(0.2, 6);
 
     touch.setJoystick(1, 0.6, -0.8);
     expect(touch.getContinuousInput()).toMatchObject({
       accelerate: 0.8,
-      steer: 0.6,
     });
     expect(touch.getContinuousInput().handbrake).toBeCloseTo(0.648, 6);
     expect(touch.getContinuousInput().brakeReverse).toBeCloseTo(0.4816, 6);
+    expect(touch.getContinuousInput().steer).toBeCloseTo(0.8592, 6);
 
     touch.setJoystick(1, -1, 0);
     expect(touch.getContinuousInput()).toMatchObject({

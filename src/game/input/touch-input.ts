@@ -139,6 +139,14 @@ export class TouchInput implements PlayerInputSource {
       brakePedalHeld,
       joystickX,
     );
+    // A circular two-axis gesture cannot combine the full forward and lateral
+    // components available from separate keyboard controls. As deliberate
+    // handbrake intent rises, restore that missing steering authority smoothly
+    // so the touch gesture can request the same physical maneuver.
+    const handbrakeSteer =
+      joystickX === 0
+        ? 0
+        : joystickX + (Math.sign(joystickX) - joystickX) * handbrake;
     return {
       accelerate,
       brakeReverse: Math.max(
@@ -148,7 +156,7 @@ export class TouchInput implements PlayerInputSource {
         Math.max(joystickY, 0),
       ),
       handbrake,
-      steer: joystickX,
+      steer: handbrakeSteer,
     };
   }
 

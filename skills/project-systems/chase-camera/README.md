@@ -71,6 +71,10 @@ recovery policy, editor camera controls, or race progression.
 - At low speed or in reverse, framing is orientation-led. Reverse velocity is
   never interpreted as approximately 180 degrees of signed slip, preventing
   lateral side-to-side sign flips.
+- During unobstructed reverse travel, longitudinal smoothing cannot reduce the
+  trailing distance below the construction-scaled chase distance. This keeps
+  the kart in front of the camera without flipping the view; a real obstruction
+  remains authoritative and may shorten the frame.
 - Signed slip activates only above a reliable speed and only while velocity has
   a forward component. Its angle and lateral offset are capped.
 - Desktop FOV ranges from 45 to 51 degrees; narrow-mobile FOV ranges from 58 to

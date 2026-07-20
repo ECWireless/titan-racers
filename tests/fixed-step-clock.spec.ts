@@ -3,7 +3,7 @@ import { expect, test } from "@playwright/test";
 import { FixedStepClock } from "../src/game/runtime/fixed-step-clock";
 
 test.describe("fixed-step clock", () => {
-  test("produces the same 60 simulation steps at common render cadences", () => {
+  test("produces the same 120 simulation steps at common render cadences", () => {
     for (const renderRate of [30, 60, 120]) {
       const clock = new FixedStepClock();
       let steps = 0;
@@ -14,7 +14,7 @@ test.describe("fixed-step clock", () => {
         });
       }
 
-      expect(steps).toBe(60);
+      expect(steps).toBe(120);
     }
   });
 
@@ -45,7 +45,7 @@ test.describe("fixed-step clock", () => {
       steps += 1;
     });
 
-    expect(steps).toBe(4);
+    expect(steps).toBe(8);
     expect(frame.droppedFrameSeconds).toBeGreaterThan(1.9);
     expect(frame.droppedSeconds).toBeGreaterThan(1.9);
     expect(frame.accumulatorFraction).toBeLessThan(1);

@@ -24,7 +24,7 @@ device wrappers:
 - the existing race shell already owns keyboard listeners outside PlayCanvas;
 - touch controls are accessible React DOM elements layered over the canvas;
 - the Gamepad API must be polled for current state;
-- the repository owns the animation-frame and 60 Hz fixed-step order; and
+- the repository owns the animation-frame and 120 Hz fixed-step order; and
 - device adapters must be unit-testable without constructing a PlayCanvas
   application.
 
@@ -45,8 +45,9 @@ the resulting driving intent to kart gameplay.
 - Bind `KeyR` to reset and `Escape` to pause without accepting repeated keydown
   events as new action edges.
 - During handling polish, bind an unmodified `KeyT` outside the gameplay input
-  adapter to toggle the session-only tuning surface. Ignore it for editable
-  targets, modified key combinations, pause, finish, and repeated keydown.
+  adapter to toggle the read-only Kart Dynamics Inspector. Ignore it for
+  editable targets, modified key combinations, pause, finish, and repeated
+  keydown.
 - Call `preventDefault()` only for handled input while gameplay owns it.
 - When a native input, select, textarea, or editable element has focus, leave
   handled keys to that control and do not manufacture driving, reset, or pause

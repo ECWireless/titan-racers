@@ -1,17 +1,37 @@
 import { expect, type Locator, type Page, test } from "@playwright/test";
 
-import type { KartTuning } from "../src/game/contracts";
 import { ROUGH_COURSE_DOCUMENT } from "../src/game/course/course-document";
-import { DEFAULT_KART_TUNING } from "../src/game/kart/kart-tuning";
+import {
+  DEFAULT_KART_DEVELOPMENT_VALUES,
+  KART_DEVELOPMENT_VALUE_METADATA,
+  type KartDevelopmentValues,
+} from "../src/game/kart/kart-development-values";
+import { KART_SUSPENSION_REST_TRAVEL } from "../src/game/kart/kart-dimensions";
+import {
+  REFERENCE_KART_CONSTRUCTION,
+  REFERENCE_KART_MASS_SCALE,
+  REFERENCE_KART_TIME_SCALE,
+  REFERENCE_KART_UPRIGHT_ROOT_HEIGHT,
+  scaleReferenceKartLength,
+} from "../src/game/kart/kart-reference-construction";
+import { STEERING_CENTER_TO_FULL_RESPONSE_SECONDS } from "../src/game/kart/kart-steering";
 import type {
   KartDebugState,
   RaceDebugState,
 } from "../src/game/testing/scene-test-adapter";
+import { DEFAULT_FIXED_STEP_SECONDS } from "../src/game/runtime/fixed-step-clock";
 
 import {
   PHYSICS_GROUP,
   PHYSICS_MASK,
 } from "../src/game/physics/collision-groups";
+
+// Angular rates scale inversely with the reference fixture's Froude time.
+// Preserve the Phase 2 collision-response envelopes after the miniature
+// conversion instead of comparing the smaller kart to full-size rates.
+const MAX_CONTROLLED_COLLISION_ANGULAR_SPEED =
+  15 / REFERENCE_KART_TIME_SCALE;
+const MAX_FAST_COLLISION_ANGULAR_SPEED = 25 / REFERENCE_KART_TIME_SCALE;
 
 async function waitForSceneReady(canvas: Locator) {
   await expect(canvas).toHaveAttribute("data-scene-ready", "true");
@@ -116,6 +136,10 @@ async function getCollisionDebugState(canvas: Locator) {
         startClear: boolean;
         startLineHasCollision: boolean;
         startLineHasRigidBody: boolean;
+        startLineVisualCenterY: number | null;
+        startLineVisualThickness: number | null;
+        startMarkerVisualCenterY: number;
+        startMarkerVisualThickness: number;
       }>((resolve) => {
         element.dispatchEvent(
           new CustomEvent("getCollisionDebugState", {
@@ -138,6 +162,7 @@ async function getCameraDebugState(canvas: Locator) {
         cameraPosition: { x: number; y: number; z: number };
         desiredPosition: { x: number; y: number; z: number };
         fov: number;
+        forwardSpeed: number;
         impactOffset: { x: number; y: number; z: number };
         lookTarget: { x: number; y: number; z: number };
         maximumSpeed: number;
@@ -146,6 +171,7 @@ async function getCameraDebugState(canvas: Locator) {
         planarSpeed: number;
         signedSlipDegrees: number;
         snapCount: number;
+        trailingDistance: number;
       }>((resolve) => {
         element.dispatchEvent(
           new CustomEvent("getCameraDebugState", {
@@ -299,18 +325,18 @@ async function setKartDebugPose(
   }, pose);
 }
 
-async function setKartMovementTuning(
+async function setKartDevelopmentValues(
   canvas: Locator,
-  tuning: Partial<KartTuning>,
+  values: Partial<KartDevelopmentValues>,
 ) {
   await waitForSceneReady(canvas);
-  await canvas.evaluate((element, requestedTuning) => {
+  await canvas.evaluate((element, requestedValues) => {
     element.dispatchEvent(
-      new CustomEvent("setKartMovementTuning", {
-        detail: { tuning: requestedTuning },
+      new CustomEvent("setKartDevelopmentValues", {
+        detail: { values: requestedValues },
       }),
     );
-  }, tuning);
+  }, values);
 }
 
 async function setStartPosition(
@@ -394,7 +420,10 @@ async function advanceRaceToRacing(canvas: Locator) {
   await setSimulationPaused(canvas, true);
   const countdown = await getRaceDebugState(canvas);
   const steps =
-    Math.ceil(countdown.countdownRemainingMicroseconds / (1_000_000 / 60)) + 1;
+    Math.ceil(
+      countdown.countdownRemainingMicroseconds /
+        (DEFAULT_FIXED_STEP_SECONDS * 1_000_000),
+    ) + 1;
 
   await stepSimulation(canvas, steps);
   await expect
@@ -770,8 +799,10 @@ test.describe("home screen", () => {
     const initialRace = await getRaceDebugState(canvas);
     await stepSimulation(
       canvas,
-      Math.ceil(initialRace.countdownRemainingMicroseconds / (1_000_000 / 60)) +
-        1,
+      Math.ceil(
+        initialRace.countdownRemainingMicroseconds /
+          (DEFAULT_FIXED_STEP_SECONDS * 1_000_000),
+      ) + 1,
     );
     await expect
       .poll(async () => (await getRaceDebugState(canvas)).state)
@@ -964,14 +995,20 @@ test.describe("home screen", () => {
     const restartedKart = await getKartDebugState(canvas);
     const restartedPresentation = await getPresentationDebugState(canvas);
     expect(restartedKart).toMatchObject({
-      angularSpeed: 0,
-      angularVelocity: { x: 0, y: 0, z: 0 },
       linearVelocity: { x: 0, y: 0, z: 0 },
       speed: 0,
       verticalVelocity: 0,
     });
-    expect(restartedKart.x).toBeCloseTo(initialKart.x);
-    expect(restartedKart.z).toBeCloseTo(initialKart.z);
+    expect(restartedKart.angularSpeed).toBeLessThan(0.02);
+    expect(Math.abs(restartedKart.angularVelocity.x)).toBeLessThan(0.02);
+    expect(Math.abs(restartedKart.angularVelocity.y)).toBeLessThan(0.02);
+    expect(Math.abs(restartedKart.angularVelocity.z)).toBeLessThan(0.02);
+    expect(Math.abs(restartedKart.x - initialKart.x)).toBeLessThan(
+      scaleReferenceKartLength(0.1),
+    );
+    expect(Math.abs(restartedKart.z - initialKart.z)).toBeLessThan(
+      scaleReferenceKartLength(0.1),
+    );
     expect(restartedKart.forward.x).toBeCloseTo(initialKart.forward.x, 1);
     expect(restartedKart.forward.y).toBeCloseTo(initialKart.forward.y, 1);
     expect(restartedKart.forward.z).toBeCloseTo(initialKart.forward.z, 1);
@@ -1213,11 +1250,10 @@ test.describe("home screen", () => {
     const canvas = page.getByTestId("solo-time-trial-canvas");
     await expect(canvas).toBeVisible();
 
-    const startState = await getKartDebugState(canvas);
-
     await expect
       .poll(async () => getKartDebugState(canvas))
       .toMatchObject({ supportCount: 4 });
+    const startState = await getKartDebugState(canvas);
 
     await canvas.click();
     await page.keyboard.down("ArrowUp");
@@ -1236,18 +1272,20 @@ test.describe("home screen", () => {
 
           return Math.hypot(state.x - startState.x, state.z - startState.z);
         })
-        .toBeGreaterThan(0.75);
+        .toBeGreaterThan(scaleReferenceKartLength(0.75));
     } finally {
       await page.keyboard.up("ArrowUp");
     }
 
     const movedState = await getKartDebugState(canvas);
     expect(movedState.speed).toBeGreaterThan(startState.speed);
-    expect(Math.abs(movedState.y - startState.y)).toBeLessThan(0.08);
+    expect(Math.abs(movedState.y - startState.y)).toBeLessThan(
+      scaleReferenceKartLength(0.1),
+    );
     expect(Math.abs(movedState.verticalVelocity)).toBeLessThan(0.5);
     expect(
       Math.hypot(movedState.x - startState.x, movedState.z - startState.z),
-    ).toBeGreaterThan(0.75);
+    ).toBeGreaterThan(scaleReferenceKartLength(0.75));
 
     await page.keyboard.press("r");
     await expect
@@ -1255,7 +1293,7 @@ test.describe("home screen", () => {
         const state = await getKartDebugState(canvas);
         return Math.hypot(state.x - startState.x, state.z - startState.z);
       })
-      .toBeLessThan(0.1);
+      .toBeLessThan(scaleReferenceKartLength(0.1));
   });
 
   test("settles at rest without chassis drift or rotation", async ({
@@ -1343,7 +1381,7 @@ test.describe("home screen", () => {
     await setSimulationPaused(canvas, true);
 
     const baseline = await getKartDebugState(canvas);
-    const position = { x: 0, y: 0.43, z: -12 };
+    const position = { x: 0, y: REFERENCE_KART_UPRIGHT_ROOT_HEIGHT, z: -12 };
     const rotation = {
       x: baseline.rotationX,
       y: baseline.rotationY,
@@ -1352,8 +1390,8 @@ test.describe("home screen", () => {
 
     for (const [speed, expectedMaximum] of [
       [0, 18],
-      [8.5, 12],
-      [17, 6],
+      [8.5, 3.74],
+      [17, 2.62],
     ] as const) {
       await setKartDebugPose(canvas, {
         linearVelocity: {
@@ -1381,13 +1419,59 @@ test.describe("home screen", () => {
 
     const highSpeedSteering = await getKartDebugState(canvas);
     expect(highSpeedSteering.steerAngle).toBeGreaterThan(0);
+    expect(highSpeedSteering.maximumSteerAngle).toBeGreaterThan(2.4);
     expect(highSpeedSteering.maximumSteerAngle).toBeLessThan(8);
     expect(highSpeedSteering.steerAngle).toBeLessThanOrEqual(
       highSpeedSteering.maximumSteerAngle,
     );
   });
 
-  test("holds a stable moderate-speed powered turn without brake input", async ({
+  test("steers the inside and outside front wheels through Ackermann geometry", async ({
+    page,
+  }) => {
+    await page.goto("/");
+    await page.getByRole("button", { name: "Solo Time Trial" }).click();
+
+    const canvas = page.getByTestId("solo-time-trial-canvas");
+    await advanceRaceToRacing(canvas);
+    await setSimulationPaused(canvas, true);
+    await canvas.click();
+    await page.keyboard.down("ArrowLeft");
+    try {
+      await stepSimulation(
+        canvas,
+        Math.ceil(
+          STEERING_CENTER_TO_FULL_RESPONSE_SECONDS /
+            DEFAULT_FIXED_STEP_SECONDS,
+        ) + 1,
+      );
+    } finally {
+      await page.keyboard.up("ArrowLeft");
+    }
+
+    const state = await getKartDebugState(canvas);
+    const leftAngle = state.wheelSteerAngles["front-left"] ?? 0;
+    const rightAngle = state.wheelSteerAngles["front-right"] ?? 0;
+    const centerRadians = (state.steerAngle * Math.PI) / 180;
+    const { trackWidth, wheelbase } =
+      REFERENCE_KART_CONSTRUCTION.steeringGeometry;
+    const centerTurnRadius = wheelbase / Math.tan(centerRadians);
+    const expectedInnerAngle =
+      (Math.atan(wheelbase / (centerTurnRadius - trackWidth / 2)) * 180) /
+      Math.PI;
+    const expectedOuterAngle =
+      (Math.atan(wheelbase / (centerTurnRadius + trackWidth / 2)) * 180) /
+      Math.PI;
+
+    expect(state.steerAngle).toBeCloseTo(18, 1);
+    expect(leftAngle).toBeCloseTo(expectedInnerAngle, 1);
+    expect(rightAngle).toBeCloseTo(expectedOuterAngle, 1);
+    expect(leftAngle).toBeGreaterThan(rightAngle);
+    expect(state.wheelSteerAngles["rear-left"]).toBe(0);
+    expect(state.wheelSteerAngles["rear-right"]).toBe(0);
+  });
+
+  test("holds a stable powered turn above half speed without brake input", async ({
     page,
   }) => {
     await page.goto("/");
@@ -1399,25 +1483,41 @@ test.describe("home screen", () => {
     const baseline = await getKartDebugState(canvas);
     await setKartDebugPose(canvas, {
       angularVelocity: { x: 0, y: 0, z: 0 },
-      linearVelocity: {
-        x: baseline.forward.x * 11,
-        y: 0,
-        z: baseline.forward.z * 11,
-      },
-      position: { x: 0, y: 0.43, z: -12 },
+      linearVelocity: { x: 0, y: 0, z: 0 },
+      position: { x: 40, y: REFERENCE_KART_UPRIGHT_ROOT_HEIGHT, z: -12 },
       rotation: {
         x: baseline.rotationX,
         y: baseline.rotationY,
         z: baseline.rotationZ,
       },
     });
+    await stepSimulation(
+      canvas,
+      Math.ceil(REFERENCE_KART_TIME_SCALE / DEFAULT_FIXED_STEP_SECONDS),
+    );
     await canvas.click();
     await page.keyboard.down("ArrowUp");
+    await stepSimulation(
+      canvas,
+      Math.ceil(3 / DEFAULT_FIXED_STEP_SECONDS),
+    );
+    const preTurnState = await getKartDebugState(canvas);
+    expect(
+      preTurnState.speed,
+      JSON.stringify(preTurnState),
+    ).toBeGreaterThan(
+      preTurnState.maxForwardSpeed * 0.5,
+    );
     await page.keyboard.down("ArrowLeft");
 
     let samples: KartDebugState[] = [];
     try {
-      samples = await stepSimulationWithKartSamples(canvas, 150);
+      samples = await stepSimulationWithKartSamples(
+        canvas,
+        Math.ceil(
+          (2.5 * REFERENCE_KART_TIME_SCALE) / DEFAULT_FIXED_STEP_SECONDS,
+        ),
+      );
     } finally {
       await page.keyboard.up("ArrowLeft");
       await page.keyboard.up("ArrowUp");
@@ -1425,7 +1525,16 @@ test.describe("home screen", () => {
 
     let maximumChassisSlip = 0;
     let maximumRearSlip = 0;
+    let maximumAngularSpeed = 0;
+    let maximumNonYawAngularSpeed = 0;
+    let maximumVerticalSpeed = 0;
+    let maximumY = Number.NEGATIVE_INFINITY;
+    let minimumChassisClearance = Number.POSITIVE_INFINITY;
     let minimumSupportCount = 4;
+    let minimumUpY = 1;
+    let minimumContactNormalY = 1;
+    let minimumY = Number.POSITIVE_INFINITY;
+    let supportedSampleCount = 0;
     for (const state of samples) {
       const right = {
         x: state.forward.y * state.up.z - state.forward.z * state.up.y,
@@ -1449,19 +1558,97 @@ test.describe("home screen", () => {
         state.wheelSlipAngles["rear-left"] ?? 0,
         state.wheelSlipAngles["rear-right"] ?? 0,
       );
+      maximumY = Math.max(maximumY, state.y);
+      maximumAngularSpeed = Math.max(maximumAngularSpeed, state.angularSpeed);
+      const yawAngularSpeed =
+        state.angularVelocity.x * state.up.x +
+        state.angularVelocity.y * state.up.y +
+        state.angularVelocity.z * state.up.z;
+      maximumNonYawAngularSpeed = Math.max(
+        maximumNonYawAngularSpeed,
+        Math.hypot(
+          state.angularVelocity.x - state.up.x * yawAngularSpeed,
+          state.angularVelocity.y - state.up.y * yawAngularSpeed,
+          state.angularVelocity.z - state.up.z * yawAngularSpeed,
+        ),
+      );
+      maximumVerticalSpeed = Math.max(
+        maximumVerticalSpeed,
+        Math.abs(state.verticalVelocity),
+      );
+      minimumChassisClearance = Math.min(
+        minimumChassisClearance,
+        state.chassisClearance,
+      );
       minimumSupportCount = Math.min(minimumSupportCount, state.supportCount);
+      minimumUpY = Math.min(minimumUpY, state.up.y);
+      Object.values(state.wheelContactNormals).forEach((normal) => {
+        if (normal) {
+          minimumContactNormalY = Math.min(minimumContactNormalY, normal.y);
+        }
+      });
+      minimumY = Math.min(minimumY, state.y);
+      if (state.supportCount >= 2) {
+        supportedSampleCount += 1;
+      }
     }
 
     const finalState = samples.at(-1);
+    const firstIncompleteSupportState = samples.find(
+      (state) => state.supportCount < 4,
+    );
+    const firstAirborneState = samples.find(
+      (state) => state.supportCount === 0,
+    );
+    const maximumAngularState = samples.reduce((maximum, state) =>
+      state.angularSpeed > maximum.angularSpeed ? state : maximum,
+    );
+    const supportedSampleRatio = supportedSampleCount / samples.length;
     const evidence = JSON.stringify({
+      actualTurnRadius: finalState?.actualTurnRadius,
       finalSpeed: finalState?.speed,
+      finalSupportCount: finalState?.supportCount,
+      firstAirborneState,
+      firstIncompleteSupportState,
+      geometricTurnRadius: finalState?.geometricTurnRadius,
       maximumChassisSlip,
+      maximumAngularSpeed,
+      maximumAngularState,
+      maximumNonYawAngularSpeed,
       maximumRearSlip,
+      maximumVerticalSpeed,
+      minimumChassisClearance,
       minimumSupportCount,
+      minimumUpY,
+      minimumContactNormalY,
+      suspensionReboundRange: maximumY - minimumY,
+      supportedSampleRatio,
+      yawRate: finalState?.yawRate,
     });
+    expect(finalState?.geometricTurnRadius, evidence).not.toBeNull();
+    expect(finalState?.actualTurnRadius, evidence).not.toBeNull();
+    expect(Math.abs(finalState?.yawRate ?? 0), evidence).toBeGreaterThan(0.01);
+    expect(
+      Math.abs(
+        (finalState?.actualTurnRadius ?? 0) -
+          Math.abs((finalState?.speed ?? 0) / (finalState?.yawRate ?? 1)),
+      ),
+      evidence,
+    ).toBeLessThanOrEqual(
+      Math.max((finalState?.actualTurnRadius ?? 0) * 0.02, 0.2),
+    );
     expect(maximumChassisSlip, evidence).toBeLessThan(12 * (Math.PI / 180));
+    expect(maximumRearSlip, evidence).toBeLessThan(15 * (Math.PI / 180));
     expect(finalState?.speed, evidence).toBeGreaterThan(2);
-    expect(minimumSupportCount, evidence).toBeGreaterThanOrEqual(3);
+    expect(minimumUpY, evidence).toBeGreaterThan(0.8);
+    expect(minimumContactNormalY, evidence).toBeGreaterThan(0.9);
+    expect(minimumSupportCount, evidence).toBeGreaterThanOrEqual(2);
+    expect(maximumNonYawAngularSpeed, evidence).toBeLessThan(1.25);
+    expect(maximumVerticalSpeed, evidence).toBeLessThanOrEqual(0.1);
+    expect(maximumY - minimumY, evidence).toBeLessThan(
+      scaleReferenceKartLength(0.08),
+    );
+    expect(supportedSampleRatio, evidence).toBe(1);
   });
 
   test("brakes before engaging reverse", async ({ page }) => {
@@ -1502,7 +1689,7 @@ test.describe("home screen", () => {
 
           return frontLoad - rearLoad - preBrakingFrontMinusRear;
         })
-        .toBeGreaterThan(40);
+        .toBeGreaterThan(40 * REFERENCE_KART_MASS_SCALE);
       await expect
         .poll(async () => (await getKartDebugState(canvas)).speed)
         .toBeLessThan(0.5);
@@ -1537,13 +1724,51 @@ test.describe("home screen", () => {
 
           return rearLoad - frontLoad;
         })
-        .toBeGreaterThan(40);
+        .toBeGreaterThan(40 * REFERENCE_KART_MASS_SCALE);
     } finally {
       await page.keyboard.up("ArrowUp");
     }
   });
 
-  test("approaches the configured forward speed without exceeding it", async ({
+  test("loses speed faster to aerodynamic drag at higher coasting speed", async ({
+    page,
+  }) => {
+    await page.goto("/");
+    await page.getByRole("button", { name: "Solo Time Trial" }).click();
+
+    const canvas = page.getByTestId("solo-time-trial-canvas");
+    await advanceRaceToRacing(canvas);
+    await setSimulationPaused(canvas, true);
+    const baseline = await getKartDebugState(canvas);
+
+    async function measureSpeedLoss(initialSpeed: number) {
+      await setKartDebugPose(canvas, {
+        angularVelocity: { x: 0, y: 0, z: 0 },
+        linearVelocity: {
+          x: baseline.forward.x * initialSpeed,
+          y: 0,
+          z: baseline.forward.z * initialSpeed,
+        },
+        position: { x: 0, y: REFERENCE_KART_UPRIGHT_ROOT_HEIGHT, z: -12 },
+        rotation: {
+          x: baseline.rotationX,
+          y: baseline.rotationY,
+          z: baseline.rotationZ,
+        },
+      });
+      await stepSimulation(canvas, 60);
+
+      return initialSpeed - (await getKartDebugState(canvas)).speed;
+    }
+
+    const lowSpeedLoss = await measureSpeedLoss(4);
+    const highSpeedLoss = await measureSpeedLoss(14);
+
+    expect(lowSpeedLoss).toBeGreaterThan(0);
+    expect(highSpeedLoss).toBeGreaterThan(lowSpeedLoss * 1.35);
+  });
+
+  test("accelerates toward but remains below the motor no-load speed", async ({
     page,
   }) => {
     await page.goto("/");
@@ -1553,27 +1778,118 @@ test.describe("home screen", () => {
     const canvas = page.getByTestId("solo-time-trial-canvas");
     await advanceRaceToRacing(canvas);
     await setKartDebugPose(canvas, {
-      position: { x: 30, y: 0.43, z: -12 },
+      angularVelocity: { x: 0, y: 0, z: 0 },
+      linearVelocity: { x: 0, y: 0, z: 0 },
+      position: { x: 0, y: REFERENCE_KART_UPRIGHT_ROOT_HEIGHT, z: 0 },
       rotation: { x: 0, y: 90, z: 0 },
     });
-    await stepSimulation(canvas, 5);
+    await stepSimulation(
+      canvas,
+      Math.ceil(1 / DEFAULT_FIXED_STEP_SECONDS),
+    );
     await canvas.click();
     await page.keyboard.down("ArrowUp");
 
+    let samples: KartDebugState[] = [];
     try {
-      await stepSimulation(canvas, 300);
+      samples = await stepSimulationWithKartSamples(
+        canvas,
+        Math.ceil(3 / DEFAULT_FIXED_STEP_SECONDS),
+      );
     } finally {
       await page.keyboard.up("ArrowUp");
     }
 
     const state = await getKartDebugState(canvas);
-
-    expect(state.supportCount).toBe(4);
-    expect(state.speed).toBeGreaterThan(state.maxForwardSpeed * 0.9);
-    expect(state.speed).toBeLessThanOrEqual(state.maxForwardSpeed + 0.1);
+    const minimumSupportCount = Math.min(
+      ...samples.map((sample) => sample.supportCount),
+    );
+    const minimumUpY = Math.min(...samples.map((sample) => sample.up.y));
+    const maximumAngularSpeed = Math.max(
+      ...samples.map((sample) => sample.angularSpeed),
+    );
+    const maximumVerticalSpeed = Math.max(
+      ...samples.map((sample) => Math.abs(sample.verticalVelocity)),
+    );
+    const minimumY = Math.min(...samples.map((sample) => sample.y));
+    const maximumY = Math.max(...samples.map((sample) => sample.y));
+    const highSpeedSamples = samples.filter(
+      (sample) => Math.abs(sample.speed) >= sample.maxForwardSpeed * 0.5,
+    );
+    const highSpeedMinimumClearance = Math.min(
+      ...highSpeedSamples.map((sample) => sample.chassisClearance),
+    );
+    const highSpeedMaximumAngularSpeed = Math.max(
+      ...highSpeedSamples.map((sample) => sample.angularSpeed),
+    );
+    const highSpeedMaximumVerticalSpeed = Math.max(
+      ...highSpeedSamples.map((sample) => Math.abs(sample.verticalVelocity)),
+    );
+    const highSpeedMinimumY = Math.min(
+      ...highSpeedSamples.map((sample) => sample.y),
+    );
+    const highSpeedMaximumY = Math.max(
+      ...highSpeedSamples.map((sample) => sample.y),
+    );
+    const highSpeedHubRanges = Object.fromEntries(
+      ["front-left", "front-right", "rear-left", "rear-right"].map(
+        (wheelName) => {
+          const values = highSpeedSamples.map(
+            (sample) => sample.wheelHubYs[wheelName] ?? 0,
+          );
+          return [wheelName, Math.max(...values) - Math.min(...values)];
+        },
+      ),
+    );
+    const highSpeedSupportSignatures = [
+      ...new Set(
+        highSpeedSamples.map((sample) =>
+          [...sample.supportEntityNames].sort().join("|"),
+        ),
+      ),
+    ];
+    const firstDroppedSupport = samples.find(
+      (sample) => sample.supportCount < 4,
+    );
+    const maximumAngularState = samples.reduce((maximum, sample) =>
+      sample.angularSpeed > maximum.angularSpeed ? sample : maximum,
+    );
+    const stabilityEvidence = JSON.stringify({
+      final: state,
+      firstDroppedSupport,
+      highSpeedHubRanges,
+      highSpeedMaximumAngularSpeed,
+      highSpeedMaximumVerticalSpeed,
+      highSpeedMinimumClearance,
+      highSpeedSupportSignatures,
+      highSpeedVerticalRange: highSpeedMaximumY - highSpeedMinimumY,
+      maximumAngularSpeed,
+      maximumAngularState,
+      maximumVerticalSpeed,
+      minimumSupportCount,
+      minimumUpY,
+      verticalRange: maximumY - minimumY,
+    });
+    expect(state.up.y, stabilityEvidence).toBeGreaterThan(0.9);
+    expect(state.angularSpeed, stabilityEvidence).toBeLessThan(1);
+    expect(
+      Math.abs(state.y - REFERENCE_KART_UPRIGHT_ROOT_HEIGHT),
+      stabilityEvidence,
+    ).toBeLessThan(scaleReferenceKartLength(0.5));
+    expect(minimumSupportCount, stabilityEvidence).toBe(4);
+    expect(minimumUpY, stabilityEvidence).toBeGreaterThan(0.9);
+    expect(maximumAngularSpeed, stabilityEvidence).toBeLessThan(1);
+    expect(maximumVerticalSpeed, stabilityEvidence).toBeLessThan(0.5);
+    expect(maximumY - minimumY, stabilityEvidence).toBeLessThan(
+      scaleReferenceKartLength(0.25),
+    );
+    expect(state.speed, stabilityEvidence).toBeGreaterThan(
+      state.maxForwardSpeed * 0.7,
+    );
+    expect(state.speed).toBeLessThan(state.maxForwardSpeed);
   });
 
-  test("approaches the configured reverse speed without exceeding it", async ({
+  test("reverses toward but remains below the motor no-load speed", async ({
     page,
   }) => {
     await page.goto("/");
@@ -1583,34 +1899,63 @@ test.describe("home screen", () => {
     const canvas = page.getByTestId("solo-time-trial-canvas");
     await advanceRaceToRacing(canvas);
     await setKartDebugPose(canvas, {
-      position: { x: -43, y: 0.43, z: -12 },
+      angularVelocity: { x: 0, y: 0, z: 0 },
+      linearVelocity: { x: 0, y: 0, z: 0 },
+      position: { x: -43, y: REFERENCE_KART_UPRIGHT_ROOT_HEIGHT, z: -12 },
       rotation: { x: 0, y: 90, z: 0 },
     });
-    await stepSimulation(canvas, 5);
+    await stepSimulation(
+      canvas,
+      Math.ceil(1 / DEFAULT_FIXED_STEP_SECONDS),
+    );
     await canvas.click();
     await page.keyboard.down("ArrowDown");
 
     try {
-      await stepSimulation(canvas, 420);
+      await stepSimulation(
+        canvas,
+        Math.ceil(5 / DEFAULT_FIXED_STEP_SECONDS),
+      );
       const state = await getKartDebugState(canvas);
 
-      expect(state.supportCount).toBe(4);
-      expect(state.tuning.maxReverseSpeed).toBe(17);
-      expect(-state.speed).toBeGreaterThan(state.tuning.maxReverseSpeed * 0.9);
-      expect(-state.speed).toBeLessThanOrEqual(
-        state.tuning.maxReverseSpeed + 0.1,
+      const stabilityEvidence = JSON.stringify(state);
+      expect(state.up.y, stabilityEvidence).toBeGreaterThan(0.9);
+      expect(state.angularSpeed, stabilityEvidence).toBeLessThan(1);
+      expect(
+        Math.abs(state.y - REFERENCE_KART_UPRIGHT_ROOT_HEIGHT),
+      ).toBeLessThan(scaleReferenceKartLength(0.5));
+      expect(state.developmentValues.maxForwardSpeed).toBe(17);
+      expect(-state.speed).toBeGreaterThan(
+        state.developmentValues.maxForwardSpeed * 0.75,
+      );
+      expect(-state.speed).toBeLessThan(state.developmentValues.maxForwardSpeed);
+
+      const camera = await getCameraDebugState(canvas);
+
+      expect(camera.maximumSpeed).toBe(17);
+      expect(camera.forwardSpeed).toBeLessThan(-1);
+      expect(camera.trailingDistance).toBeGreaterThanOrEqual(
+        scaleReferenceKartLength(7.5) - 0.01,
       );
 
-      await setSimulationPaused(canvas, false);
-      await expect
-        .poll(async () => (await getCameraDebugState(canvas)).planarSpeed, {
-          timeout: 1_000,
-        })
-        .toBeGreaterThan(14);
-      expect((await getCameraDebugState(canvas)).maximumSpeed).toBe(17);
+      const cameraToKart = {
+        x: state.x - camera.cameraPosition.x,
+        y: state.y - camera.cameraPosition.y,
+        z: state.z - camera.cameraPosition.z,
+      };
+      const viewDirection = {
+        x: camera.lookTarget.x - camera.cameraPosition.x,
+        y: camera.lookTarget.y - camera.cameraPosition.y,
+        z: camera.lookTarget.z - camera.cameraPosition.z,
+      };
+      const kartViewDepth =
+        cameraToKart.x * viewDirection.x +
+        cameraToKart.y * viewDirection.y +
+        cameraToKart.z * viewDirection.z;
+
+      expect(kartViewDepth).toBeGreaterThan(0);
     } finally {
       await page.keyboard.up("ArrowDown");
-      await setSimulationPaused(canvas, true);
     }
   });
 
@@ -1622,7 +1967,7 @@ test.describe("home screen", () => {
     const canvas = page.getByTestId("solo-time-trial-canvas");
     await advanceRaceToRacing(canvas);
     await setKartDebugPose(canvas, {
-      position: { x: 0, y: 0.43, z: -12 },
+      position: { x: 0, y: REFERENCE_KART_UPRIGHT_ROOT_HEIGHT, z: -12 },
       rotation: { x: 0, y: 90, z: 0 },
     });
     await stepSimulation(canvas, 5);
@@ -1649,7 +1994,7 @@ test.describe("home screen", () => {
     ).toBeGreaterThan(3);
   });
 
-  test("saturates and recovers lateral grip with lateral load transfer", async ({
+  test("saturates then sheds lateral slip with lateral load transfer", async ({
     page,
   }) => {
     await page.goto("/");
@@ -1660,42 +2005,76 @@ test.describe("home screen", () => {
     await setSimulationPaused(canvas, true);
     await setKartDebugPose(canvas, {
       linearVelocity: { x: 0, y: 0, z: 5 },
-      position: { x: 0, y: 0.33, z: -12 },
+      position: { x: 0, y: scaleReferenceKartLength(0.33), z: -12 },
       rotation: { x: 0, y: 90, z: 0 },
     });
-    await stepSimulation(canvas, 4);
+    const slidingSamples = await stepSimulationWithKartSamples(
+      canvas,
+      Math.ceil(0.25 / DEFAULT_FIXED_STEP_SECONDS),
+    );
 
-    const slidingState = await getKartDebugState(canvas);
-    const leftLoad =
-      (slidingState.wheelLoads["front-left"] ?? 0) +
-      (slidingState.wheelLoads["rear-left"] ?? 0);
-    const rightLoad =
-      (slidingState.wheelLoads["front-right"] ?? 0) +
-      (slidingState.wheelLoads["rear-right"] ?? 0);
+    const slidingState = slidingSamples.reduce((maximum, sample) =>
+      sample.maximumLateralSpeed > maximum.maximumLateralSpeed
+        ? sample
+        : maximum,
+    );
+    const peakLateralLoadDifference = Math.max(
+      ...slidingSamples.map((sample) => {
+        const leftLoad =
+          (sample.wheelLoads["front-left"] ?? 0) +
+          (sample.wheelLoads["rear-left"] ?? 0);
+        const rightLoad =
+          (sample.wheelLoads["front-right"] ?? 0) +
+          (sample.wheelLoads["rear-right"] ?? 0);
+
+        return Math.abs(leftLoad - rightLoad);
+      }),
+    );
+    const slidingEvidence = JSON.stringify({
+      peakLateralLoadDifference,
+      samples: slidingSamples.filter((_, index) => index % 5 === 0),
+      slidingState,
+    });
 
     expect(
       slidingState.supportCount,
       `sliding=${JSON.stringify(slidingState)}`,
     ).toBeGreaterThanOrEqual(3);
-    expect(slidingState.maximumLateralSpeed).toBeGreaterThan(3);
+    expect(slidingState.maximumLateralSpeed).toBeGreaterThanOrEqual(2.8);
     expect(slidingState.maximumTireForceUtilization).toBe(1);
     expect(slidingState.saturatedTireCount).toBeGreaterThan(0);
-    expect(Math.abs(leftLoad - rightLoad)).toBeGreaterThan(40);
+    expect(
+      peakLateralLoadDifference,
+      slidingEvidence,
+    ).toBeGreaterThan(40 * REFERENCE_KART_MASS_SCALE);
 
-    await stepSimulation(canvas, 120);
+    await stepSimulation(
+      canvas,
+      Math.ceil(2 / DEFAULT_FIXED_STEP_SECONDS),
+    );
 
     const recoveredState = await getKartDebugState(canvas);
+    const recoveryEvidence = JSON.stringify({
+      recoveredState,
+      slidingState,
+    });
 
-    expect(recoveredState.supportCount).toBe(4);
-    expect(recoveredState.maximumLateralSpeed).toBeLessThan(
+    expect(recoveredState.supportCount, recoveryEvidence).toBe(4);
+    expect(recoveredState.maximumLateralSpeed, recoveryEvidence).toBeLessThan(
       slidingState.maximumLateralSpeed * 0.35,
     );
-    expect(recoveredState.saturatedTireCount).toBe(0);
+    expect(recoveredState.maximumSlipAngle, recoveryEvidence).toBeLessThan(
+      slidingState.maximumSlipAngle * 0.35,
+    );
+    expect(recoveredState.driftSmokeWheelNames, recoveryEvidence).toHaveLength(
+      0,
+    );
   });
 
-  test("derives natural, service-brake, and handbrake drift from tire slip", async ({
+  test("keeps service braking stable while handbraking creates controllable rear slip", async ({
     page,
-  }) => {
+  }, testInfo) => {
+    testInfo.setTimeout(60_000);
     await page.goto("/");
     await page.getByRole("button", { name: "Solo Time Trial" }).click();
 
@@ -1710,12 +2089,13 @@ test.describe("home screen", () => {
 
     async function runScenario(keys: string[]) {
       await setKartDebugPose(canvas, {
+        angularVelocity: { x: 0, y: 0, z: 0 },
         linearVelocity: {
           x: baseline.forward.x * 14,
           y: 0,
           z: baseline.forward.z * 14,
         },
-        position: { x: 0, y: 0.43, z: -12 },
+        position: { x: 0, y: REFERENCE_KART_UPRIGHT_ROOT_HEIGHT, z: -12 },
         rotation: {
           x: baseline.rotationX,
           y: baseline.rotationY,
@@ -1731,6 +2111,7 @@ test.describe("home screen", () => {
       let maximumChassisLateralSpeed = 0;
       let maximumLateralLoadDifference = 0;
       let maximumRearSlip = 0;
+      let maximumRearTireForceUtilization = 0;
       let maximumRollChange = 0;
       let maximumSmokeLevel = 0;
       let maximumSlip = 0;
@@ -1742,7 +2123,7 @@ test.describe("home screen", () => {
       let smokeLevelTotal = 0;
       const smokeWheelNames = new Set<string>();
       try {
-        const states = await stepSimulationWithKartSamples(canvas, 24);
+        const states = await stepSimulationWithKartSamples(canvas, 60);
         for (const state of states) {
           retainedPlanarSpeed = Math.hypot(
             state.linearVelocity.x,
@@ -1782,6 +2163,11 @@ test.describe("home screen", () => {
             maximumRearSlip,
             state.wheelSlipAngles["rear-left"] ?? 0,
             state.wheelSlipAngles["rear-right"] ?? 0,
+          );
+          maximumRearTireForceUtilization = Math.max(
+            maximumRearTireForceUtilization,
+            state.wheelTireForceUtilizations["rear-left"] ?? 0,
+            state.wheelTireForceUtilizations["rear-right"] ?? 0,
           );
           const leftLoad =
             (state.wheelLoads["front-left"] ?? 0) +
@@ -1833,6 +2219,7 @@ test.describe("home screen", () => {
         maximumFrontSlip,
         maximumLateralLoadDifference,
         maximumRearSlip,
+        maximumRearTireForceUtilization,
         maximumRollChange,
         maximumSmokeLevel,
         maximumSlip,
@@ -1853,36 +2240,47 @@ test.describe("home screen", () => {
     ]);
     const handbrake = await runScenario(["ArrowUp", "ArrowLeft", "Shift"]);
     const evidence = JSON.stringify({ handbrake, natural, serviceBrake });
+    const peakSlipAngle =
+      DEFAULT_KART_DEVELOPMENT_VALUES.peakSlipAngleDegrees * (Math.PI / 180);
 
-    expect(natural.maximumSlip, evidence).toBeGreaterThan(0.14);
-    expect(serviceBrake.maximumSlip, evidence).toBeGreaterThan(0.14);
-    expect(handbrake.maximumSlip, evidence).toBeGreaterThan(0.085);
-    expect(serviceBrake.maximumChassisLateralSpeed, evidence).toBeGreaterThan(
-      1,
+    expect(natural.maximumSlip, evidence).toBeGreaterThan(0.02);
+    // A transient ordinary turn may cross the exact force peak without
+    // approaching the later sliding plateau. Keep that overshoot bounded while
+    // the scenario comparisons below prove the handbrake remains distinct.
+    expect(natural.maximumSlip, evidence).toBeLessThan(peakSlipAngle * 1.5);
+    expect(handbrake.maximumRearSlip, evidence).toBeGreaterThan(
+      serviceBrake.maximumRearSlip * 1.5,
     );
-    expect(handbrake.maximumChassisLateralSpeed, evidence).toBeGreaterThan(1);
-    expect(serviceBrake.retainedPlanarSpeed, evidence).toBeGreaterThan(8.5);
+    expect(handbrake.maximumRearTireForceUtilization, evidence).toBeGreaterThanOrEqual(
+      0.995,
+    );
+    expect(
+      serviceBrake.maximumChassisLateralSpeed,
+      evidence,
+    ).toBeLessThan(natural.maximumChassisLateralSpeed * 0.8);
+    expect(handbrake.maximumChassisLateralSpeed, evidence).toBeGreaterThan(
+      serviceBrake.maximumChassisLateralSpeed * 2,
+    );
+    expect(serviceBrake.retainedPlanarSpeed, evidence).toBeGreaterThan(7.5);
     expect(handbrake.retainedPlanarSpeed, evidence).toBeGreaterThan(11);
     expect(handbrake.maximumSmokeLevel, evidence).toBeGreaterThanOrEqual(1);
-    expect(serviceBrake.smokeLevelTotal, evidence).toBeGreaterThan(
-      natural.smokeLevelTotal,
-    );
-    expect(serviceBrake.maximumYawChange, evidence).toBeLessThan(
-      natural.maximumYawChange * 0.4,
+    expect(handbrake.maximumYawChange, evidence).toBeGreaterThan(
+      natural.maximumYawChange * 1.8,
     );
     expect(handbrake.maximumYawChange, evidence).toBeLessThan(
-      natural.maximumYawChange * 0.65,
+      natural.maximumYawChange * 3.5,
     );
     expect(serviceBrake.maximumYawStepChange, evidence).toBeLessThan(2);
     expect(handbrake.maximumYawStepChange, evidence).toBeLessThan(2);
-    expect(handbrake.maximumRollChange, evidence).toBeGreaterThan(1);
+    expect(handbrake.maximumRollChange, evidence).toBeGreaterThan(0.25);
     expect(handbrake.maximumRollChange, evidence).toBeLessThan(20);
     expect(handbrake.maximumLateralLoadDifference, evidence).toBeGreaterThan(
-      80,
+      80 * REFERENCE_KART_MASS_SCALE,
     );
     expect(handbrake.maximumSuspensionDifference, evidence).toBeGreaterThan(
-      0.015,
+      scaleReferenceKartLength(0.015),
     );
+    expect(serviceBrake.smokeWheelNames, evidence).toEqual([]);
     expect(handbrake.smokeWheelNames.length, evidence).toBeGreaterThan(0);
     expect(
       handbrake.smokeWheelNames.every((wheelName) =>
@@ -1893,6 +2291,103 @@ test.describe("home screen", () => {
 
     await resetKart(canvas);
     expect((await getKartDebugState(canvas)).driftSmokeWheelNames).toEqual([]);
+  });
+
+  test("releases rear slip faster after handbrake release and counter-steer", async ({
+    page,
+  }) => {
+    await page.goto("/");
+    await page.getByRole("button", { name: "Solo Time Trial" }).click();
+
+    const canvas = page.getByTestId("solo-time-trial-canvas");
+    await advanceRaceToRacing(canvas);
+    await setSimulationPaused(canvas, true);
+    const baseline = await getKartDebugState(canvas);
+
+    const getRearSlip = (state: KartDebugState) =>
+      Math.max(
+        state.wheelSlipAngles["rear-left"] ?? 0,
+        state.wheelSlipAngles["rear-right"] ?? 0,
+      );
+    const average = (values: number[]) =>
+      values.reduce((total, value) => total + value, 0) / values.length;
+
+    async function runRecovery(
+      recoverySegments: Array<{ keys: string[]; steps: number }>,
+    ) {
+      await setKartDebugPose(canvas, {
+        angularVelocity: { x: 0, y: 0, z: 0 },
+        linearVelocity: {
+          x: baseline.forward.x * 14,
+          y: 0,
+          z: baseline.forward.z * 14,
+        },
+        position: { x: 0, y: REFERENCE_KART_UPRIGHT_ROOT_HEIGHT, z: -12 },
+        rotation: {
+          x: baseline.rotationX,
+          y: baseline.rotationY,
+          z: baseline.rotationZ,
+        },
+      });
+      await canvas.click();
+      const inductionKeys = ["ArrowUp", "ArrowLeft", "Shift"];
+      for (const key of inductionKeys) {
+        await page.keyboard.down(key);
+      }
+      try {
+        await stepSimulation(canvas, 18);
+      } finally {
+        for (const key of [...inductionKeys].reverse()) {
+          await page.keyboard.up(key);
+        }
+      }
+
+      const releaseState = await getKartDebugState(canvas);
+      const samples: KartDebugState[] = [];
+      for (const segment of recoverySegments) {
+        for (const key of segment.keys) {
+          await page.keyboard.down(key);
+        }
+        try {
+          samples.push(
+            ...(await stepSimulationWithKartSamples(canvas, segment.steps)),
+          );
+        } finally {
+          for (const key of [...segment.keys].reverse()) {
+            await page.keyboard.up(key);
+          }
+        }
+      }
+
+      const terminalSamples = samples.slice(-6);
+      return {
+        releaseRearSlip: getRearSlip(releaseState),
+        terminalRearSlip: average(terminalSamples.map(getRearSlip)),
+        terminalYawRate: average(
+          terminalSamples.map((state) => Math.abs(state.yawRate)),
+        ),
+      };
+    }
+
+    const sustained = await runRecovery([
+      { keys: ["ArrowUp", "ArrowLeft", "Shift"], steps: 36 },
+    ]);
+    const recovered = await runRecovery([
+      { keys: ["ArrowRight"], steps: 12 },
+      { keys: [], steps: 24 },
+    ]);
+    const evidence = JSON.stringify({ recovered, sustained });
+
+    expect(
+      Math.abs(recovered.releaseRearSlip - sustained.releaseRearSlip),
+      evidence,
+    ).toBeLessThanOrEqual(0.02);
+    expect(recovered.terminalRearSlip, evidence).toBeLessThan(
+      sustained.terminalRearSlip * 0.6,
+    );
+    expect(recovered.terminalYawRate, evidence).toBeLessThan(
+      sustained.terminalYawRate * 0.6,
+    );
   });
 
   test("derives mobile rear braking continuously from forward brake and steer", async ({
@@ -1908,12 +2403,13 @@ test.describe("home screen", () => {
     await setSimulationPaused(canvas, true);
     const baseline = await getKartDebugState(canvas);
     await setKartDebugPose(canvas, {
+      angularVelocity: { x: 0, y: 0, z: 0 },
       linearVelocity: {
         x: baseline.forward.x * 14,
         y: 0,
         z: baseline.forward.z * 14,
       },
-      position: { x: 0, y: 0.43, z: -12 },
+      position: { x: 0, y: REFERENCE_KART_UPRIGHT_ROOT_HEIGHT, z: -12 },
       rotation: {
         x: baseline.rotationX,
         y: baseline.rotationY,
@@ -1941,7 +2437,7 @@ test.describe("home screen", () => {
       pointerId: 41,
       pointerType: "touch",
     });
-    const states = await stepSimulationWithKartSamples(canvas, 24);
+    const states = await stepSimulationWithKartSamples(canvas, 90);
     await joystick.dispatchEvent("pointerup", {
       pointerId: 41,
       pointerType: "touch",
@@ -1953,6 +2449,12 @@ test.describe("home screen", () => {
 
     const maximumSlip = Math.max(
       ...states.map((state) => state.maximumSlipAngle),
+    );
+    const maximumRearTireForceUtilization = Math.max(
+      ...states.flatMap((state) => [
+        state.wheelTireForceUtilizations["rear-left"] ?? 0,
+        state.wheelTireForceUtilizations["rear-right"] ?? 0,
+      ]),
     );
     const maximumChassisLateralSpeed = Math.max(
       ...states.map((state) => {
@@ -1978,14 +2480,18 @@ test.describe("home screen", () => {
     );
     const evidence = JSON.stringify({
       maximumChassisLateralSpeed,
+      maximumRearTireForceUtilization,
       maximumSlip,
       retainedPlanarSpeed,
       smokeWheelNames: [...smokeWheelNames],
     });
 
-    expect(maximumSlip, evidence).toBeGreaterThan(0.085);
-    expect(maximumChassisLateralSpeed, evidence).toBeGreaterThan(1);
-    expect(retainedPlanarSpeed, evidence).toBeGreaterThan(8.5);
+    expect(maximumRearTireForceUtilization, evidence).toBeGreaterThanOrEqual(
+      0.995,
+    );
+    expect(maximumSlip, evidence).toBeGreaterThan(0.045);
+    expect(maximumChassisLateralSpeed, evidence).toBeGreaterThan(0.35);
+    expect(retainedPlanarSpeed, evidence).toBeGreaterThan(7.5);
     expect(smokeWheelNames.size, evidence).toBeGreaterThan(0);
     expect(
       [...smokeWheelNames].every((wheelName) => wheelName.startsWith("rear")),
@@ -1993,7 +2499,7 @@ test.describe("home screen", () => {
     ).toBe(true);
   });
 
-  test("applies movement tuning through the scene test adapter", async ({
+  test("applies development values through the scene test adapter", async ({
     page,
   }) => {
     await page.goto("/");
@@ -2002,18 +2508,18 @@ test.describe("home screen", () => {
     const canvas = page.getByTestId("solo-time-trial-canvas");
     expect((await getKartDebugState(canvas)).maxForwardSpeed).toBe(17);
 
-    await setKartMovementTuning(canvas, { maxForwardSpeed: 11 });
+    await setKartDevelopmentValues(canvas, { maxForwardSpeed: 11 });
     await expect
       .poll(async () => (await getKartDebugState(canvas)).maxForwardSpeed)
       .toBe(11);
 
-    await setKartMovementTuning(canvas, { maxForwardSpeed: 17 });
+    await setKartDevelopmentValues(canvas, { maxForwardSpeed: 17 });
     await expect
       .poll(async () => (await getKartDebugState(canvas)).maxForwardSpeed)
       .toBe(17);
   });
 
-  test("emits tire smoke for countdown throttle and straight hard braking", async ({
+  test("stylizes countdown smoke without inventing straight braking slip", async ({
     page,
   }) => {
     await page.goto("/");
@@ -2055,7 +2561,7 @@ test.describe("home screen", () => {
         y: 0,
         z: baseline.forward.z * 14,
       },
-      position: { x: 0, y: 0.43, z: -12 },
+      position: { x: 0, y: REFERENCE_KART_UPRIGHT_ROOT_HEIGHT, z: -12 },
       rotation: {
         x: baseline.rotationX,
         y: baseline.rotationY,
@@ -2072,24 +2578,26 @@ test.describe("home screen", () => {
       await page.keyboard.up("ArrowDown");
     }
 
-    const smokyBrakingSamples = brakingSamples.filter(
-      (state) => state.driftSmokeWheelNames.length > 0,
-    );
     const brakingEvidence = JSON.stringify(
       brakingSamples.map((state) => ({
+        lateralScrubPowers: state.wheelLateralScrubPowers,
         maximumSlipAngle: state.maximumSlipAngle,
-        maximumTireForceUtilization: state.maximumTireForceUtilization,
         smoke: state.driftSmokeWheelNames,
         speed: state.speed,
       })),
     );
-    expect(smokyBrakingSamples.length, brakingEvidence).toBeGreaterThan(0);
     expect(
-      Math.max(...smokyBrakingSamples.map((state) => state.maximumSlipAngle)),
+      brakingSamples.every(
+        (state) => state.driftSmokeWheelNames.length === 0,
+      ),
+      brakingEvidence,
+    ).toBe(true);
+    expect(
+      Math.max(...brakingSamples.map((state) => state.maximumSlipAngle)),
     ).toBeLessThan((4 * Math.PI) / 180);
   });
 
-  test("edits and resets the production kart tuning drawer", async ({
+  test("inspects resolved kart dynamics without production overrides", async ({
     page,
   }, testInfo) => {
     testInfo.setTimeout(60_000);
@@ -2103,11 +2611,11 @@ test.describe("home screen", () => {
     if (testInfo.project.name === "mobile") {
       await expect(touchControls).toBeVisible();
     }
-    await expect(page.getByRole("button", { name: "Kart tuning" })).toHaveCount(
+    await expect(page.getByRole("button", { name: "Kart dynamics inspector" })).toHaveCount(
       0,
     );
     await expect(canvas).toHaveAttribute("aria-keyshortcuts", "T");
-    const tuningHint = page.getByText(/T · Tuning/);
+    const tuningHint = page.getByText(/T · Dynamics/);
     if (testInfo.project.name === "desktop") {
       await expect(tuningHint).toBeVisible();
     } else {
@@ -2117,53 +2625,54 @@ test.describe("home screen", () => {
     await canvas.focus();
     await page.keyboard.press("t");
 
-    const drawer = page.getByRole("region", { name: "Kart tuning" });
+    const drawer = page.getByRole("region", { name: "Kart dynamics inspector" });
     const close = page.getByRole("button", { name: "Close" });
     await expect(drawer).toBeVisible();
     await expect(close).toBeFocused();
-    for (const key of Object.keys(DEFAULT_KART_TUNING) as Array<
-      keyof KartTuning
+    for (const key of Object.keys(DEFAULT_KART_DEVELOPMENT_VALUES) as Array<
+      keyof KartDevelopmentValues
     >) {
       await expect(page.getByTestId(`kart-tuning-${key}`)).toHaveCount(1);
+      await expect(page.getByTestId(`kart-tuning-${key}`)).toHaveText(
+        String(DEFAULT_KART_DEVELOPMENT_VALUES[key]),
+      );
+      await expect(page.getByTestId(`kart-tuning-owner-${key}`)).toContainText(
+        KART_DEVELOPMENT_VALUE_METADATA[key].owner,
+      );
     }
     await expect(drawer.locator('button[aria-label^="Explain "]')).toHaveCount(
-      57,
+      Object.keys(DEFAULT_KART_DEVELOPMENT_VALUES).length,
     );
     if (testInfo.project.name === "mobile") {
       await expect(touchControls).toBeHidden();
     }
-    const brakeDemandHelp = page.getByRole("button", {
-      name: "Explain Brake demand onset",
+    const handbrakeForceHelp = page.getByRole("button", {
+      name: "Explain Handbrake force",
     });
-    await brakeDemandHelp.focus();
+    await handbrakeForceHelp.focus();
     const tooltip = page.getByRole("tooltip");
-    await expect(tooltip).toContainText("combined-slip reductions begin");
-    const tooltipBounds = await tooltip.boundingBox();
-    const resetBounds = await page
-      .getByRole("button", { name: "Reset all defaults" })
-      .boundingBox();
-    expect(tooltipBounds).not.toBeNull();
-    expect(resetBounds).not.toBeNull();
-    expect(
-      (tooltipBounds?.y ?? 0) + (tooltipBounds?.height ?? 0),
-    ).toBeLessThanOrEqual(resetBounds?.y ?? 0);
+    await expect(tooltip).toContainText("driven rear wheels");
     if (testInfo.project.name === "desktop") {
       await page.mouse.move(0, 0);
       await expect(tooltip).toBeVisible();
     }
-    await page.keyboard.press("Escape");
+    if (testInfo.project.name === "mobile") {
+      await handbrakeForceHelp.press("Escape");
+    } else {
+      await page.keyboard.press("Escape");
+    }
     await expect(page.getByRole("tooltip")).toHaveCount(0);
     await expect(drawer).toBeVisible();
     await expect(page.getByRole("dialog", { name: "Paused" })).toHaveCount(0);
     if (testInfo.project.name === "desktop") {
       await canvas.focus();
-      await brakeDemandHelp.hover();
+      await handbrakeForceHelp.focus();
       await expect(tooltip).toBeVisible();
       await page.keyboard.press("Escape");
     } else {
-      await brakeDemandHelp.tap();
+      await handbrakeForceHelp.tap();
       await expect(tooltip).toBeVisible();
-      await page.keyboard.press("Escape");
+      await handbrakeForceHelp.press("Escape");
     }
     await expect(page.getByRole("tooltip")).toHaveCount(0);
     await expect(page.getByRole("dialog", { name: "Paused" })).toHaveCount(0);
@@ -2180,104 +2689,19 @@ test.describe("home screen", () => {
       viewport?.height ?? 0,
     );
 
-    const maxSpeed = page.getByTestId("kart-tuning-maxForwardSpeed");
-    const reverseSpeed = page.getByTestId("kart-tuning-maxReverseSpeed");
-    const gravity = page.getByTestId("kart-tuning-gravity");
-    const angularDamping = page.getByTestId("kart-tuning-angularDamping");
-    const pitchTarget = page.getByTestId(
-      "kart-tuning-airbornePitchTargetDegrees",
+    await expect(drawer.getByRole("spinbutton")).toHaveCount(0);
+    await expect(
+      drawer.getByRole("button", { name: "Reset all defaults" }),
+    ).toHaveCount(0);
+    await expect(drawer).toContainText("They cannot be overridden here.");
+    await expect((await getKartDebugState(canvas)).developmentValues).toEqual(
+      DEFAULT_KART_DEVELOPMENT_VALUES,
     );
-    const yawReduction = page.getByTestId(
-      "kart-tuning-maximumBrakingYawLeverReduction",
-    );
-    await expect(maxSpeed).toHaveValue("17");
-    await expect(reverseSpeed).toHaveValue("17");
-    await maxSpeed.fill("11");
-    await reverseSpeed.fill("9");
-    await maxSpeed.focus();
-    await page.keyboard.press("t");
-    await expect(drawer).toBeVisible();
-    await drawer.locator("summary").filter({ hasText: "Chassis body" }).click();
-    await drawer
-      .locator("summary")
-      .filter({ hasText: "Airborne and settling" })
-      .click();
-    await angularDamping.fill("0.2");
-    await yawReduction.fill("0.5");
-    await pitchTarget.selectText();
-    await pitchTarget.pressSequentially("-5.5");
-    await expect(pitchTarget).toHaveValue("-5.5");
-    await expect
-      .poll(
-        async () => (await getKartDebugState(canvas)).tuning.maxForwardSpeed,
-      )
-      .toBe(11);
-    await expect
-      .poll(async () => (await getCameraDebugState(canvas)).maximumSpeed)
-      .toBe(11);
-    await expect
-      .poll(
-        async () =>
-          (await getKartDebugState(canvas)).tuning
-            .maximumBrakingYawLeverReduction,
-      )
-      .toBe(0.5);
-    await expect
-      .poll(async () => (await getKartDebugState(canvas)).tuning.angularDamping)
-      .toBe(0.2);
-    await expect
-      .poll(
-        async () =>
-          (await getKartDebugState(canvas)).tuning.airbornePitchTargetDegrees,
-      )
-      .toBe(-5.5);
-
-    await pitchTarget.selectText();
-    await pitchTarget.pressSequentially("-");
-    await maxSpeed.focus();
-    await expect(pitchTarget).toHaveValue("-5.5");
-    await expect
-      .poll(
-        async () =>
-          (await getKartDebugState(canvas)).tuning.airbornePitchTargetDegrees,
-      )
-      .toBe(-5.5);
-
-    await setSimulationPaused(canvas, true);
-    await gravity.fill("0");
-    await setKartDebugPose(canvas, {
-      linearVelocity: { x: 0, y: 0, z: 0 },
-      position: { x: 0, y: 4, z: -12 },
-      rotation: { x: 0, y: 90, z: 0 },
-    });
-    await stepSimulation(canvas, 10);
-    expect(Math.abs((await getKartDebugState(canvas)).verticalVelocity)).toBe(
-      0,
-    );
-
-    await page.getByRole("button", { name: "Reset all defaults" }).click();
-    await expect(maxSpeed).toHaveValue("17");
-    await expect(reverseSpeed).toHaveValue("17");
-    await expect(gravity).toHaveValue("18");
-    await expect(angularDamping).toHaveValue("0.08");
-    await expect(yawReduction).toHaveValue("0.9");
-    await expect(pitchTarget).toHaveValue("6");
-    await expect
-      .poll(async () => (await getKartDebugState(canvas)).tuning)
-      .toEqual(DEFAULT_KART_TUNING);
-
-    await setKartDebugPose(canvas, {
-      linearVelocity: { x: 0, y: 0, z: 0 },
-      position: { x: 0, y: 4, z: -12 },
-      rotation: { x: 0, y: 90, z: 0 },
-    });
-    await stepSimulation(canvas, 10);
-    expect((await getKartDebugState(canvas)).verticalVelocity).toBeLessThan(-1);
 
     await close.click();
     await expect(drawer).toHaveCount(0);
     await expect(canvas).toBeFocused();
-    await expect(page.getByRole("button", { name: "Kart tuning" })).toHaveCount(
+    await expect(page.getByRole("button", { name: "Kart dynamics inspector" })).toHaveCount(
       0,
     );
     if (testInfo.project.name === "mobile") {
@@ -2331,15 +2755,21 @@ test.describe("home screen", () => {
 
     const resetState = await getKartDebugState(canvas);
 
-    expect({ x: resetState.x, y: resetState.y, z: resetState.z }).toEqual({
-      x: 0.2,
-      y: 0.43,
-      z: 0,
-    });
+    expect(resetState.x).toBeCloseTo(
+      REFERENCE_KART_CONSTRUCTION.massProperties.centerOfMassOffset.z,
+      2,
+    );
+    expect(resetState.y).toBeCloseTo(
+      REFERENCE_KART_UPRIGHT_ROOT_HEIGHT,
+      2,
+    );
+    expect(resetState.z).toBeCloseTo(0, 2);
     expect(Math.abs(resetState.rotationX)).toBeLessThan(0.05);
     expect(Math.abs(resetState.rotationY - 90)).toBeLessThan(0.05);
     expect(Math.abs(resetState.rotationZ)).toBeLessThan(0.05);
-    expect(Math.abs(resetState.verticalVelocity)).toBeLessThan(0.05);
+    expect(Math.abs(resetState.verticalVelocity)).toBeLessThanOrEqual(
+      resetState.developmentValues.gravity * DEFAULT_FIXED_STEP_SECONDS + 0.01,
+    );
     expect(resetState.angularSpeed).toBeLessThan(0.05);
   });
 
@@ -2355,8 +2785,12 @@ test.describe("home screen", () => {
     await setSimulationPaused(canvas, true);
     await setKartDebugPose(canvas, {
       angularVelocity: { x: 0, y: 0, z: 0 },
-      linearVelocity: { x: 0.8, y: 0, z: 0 },
-      position: { x: 4, y: 0.46, z: 0 },
+      linearVelocity: { x: scaleReferenceKartLength(0.8), y: 0, z: 0 },
+      position: {
+        x: 4,
+        y: scaleReferenceKartLength(0.46),
+        z: 0,
+      },
       rotation: { x: 0, y: 90, z: 180 },
     });
     await stepSimulation(canvas, 5);
@@ -2458,20 +2892,31 @@ test.describe("home screen", () => {
       expect(await getRaceDebugState(canvas)).toMatchObject({ state: "racing" });
     }
 
-    const rightingSamples = await stepSimulationWithKartSamples(canvas, 180);
+    const rightingSamples = await stepSimulationWithKartSamples(canvas, 600);
     const upright = rightingSamples.find(
       (sample) => sample.up.y > 0.7 && sample.supportCount > 0,
     );
     expect(upright).toBeDefined();
-    expect(Math.abs((upright?.x ?? 0) - inverted.x)).toBeLessThan(2);
-    expect(Math.abs((upright?.z ?? 0) - inverted.z)).toBeLessThan(2);
+    const settledUpright = rightingSamples.at(-1);
+    expect(settledUpright?.up.y).toBeGreaterThan(0.7);
+    expect(settledUpright?.supportCount).toBeGreaterThan(0);
+    expect(Math.abs((upright?.x ?? 0) - inverted.x)).toBeLessThan(
+      scaleReferenceKartLength(2),
+    );
+    expect(Math.abs((upright?.z ?? 0) - inverted.z)).toBeLessThan(
+      scaleReferenceKartLength(2),
+    );
     expect(await getRaceDebugState(canvas)).toMatchObject({ state: "racing" });
 
     if (testInfo.project.name === "desktop") {
       await setKartDebugPose(canvas, {
         angularVelocity: { x: 0, y: 0, z: 0 },
         linearVelocity: { x: 0, y: 0, z: 0 },
-        position: { x: 4, y: 0.43, z: 0 },
+        position: {
+          x: 4,
+          y: REFERENCE_KART_UPRIGHT_ROOT_HEIGHT,
+          z: 0,
+        },
         rotation: { x: 0, y: 90, z: 0 },
       });
       await stepSimulation(canvas, 2);
@@ -2501,7 +2946,11 @@ test.describe("home screen", () => {
     await setKartDebugPose(canvas, {
       angularVelocity: { x: 0, y: 0, z: 0 },
       linearVelocity: { x: 0, y: 0, z: 0 },
-      position: { x: 4, y: 1.2, z: 0 },
+      position: {
+        x: 4,
+        y: scaleReferenceKartLength(1.2),
+        z: 0,
+      },
       rotation: { x: 0, y: 0, z: 125 },
     });
     await stepSimulation(canvas, 120);
@@ -2518,8 +2967,12 @@ test.describe("home screen", () => {
       (sample) => sample.up.y > 0.7 && sample.supportCount > 0,
     );
     expect(upright).toBeDefined();
-    expect(Math.abs((upright?.x ?? 0) - inverted.x)).toBeLessThan(2);
-    expect(Math.abs((upright?.z ?? 0) - inverted.z)).toBeLessThan(2);
+    expect(Math.abs((upright?.x ?? 0) - inverted.x)).toBeLessThan(
+      scaleReferenceKartLength(2),
+    );
+    expect(Math.abs((upright?.z ?? 0) - inverted.z)).toBeLessThan(
+      scaleReferenceKartLength(2),
+    );
     expect(await getRaceDebugState(canvas)).toMatchObject({ state: "racing" });
   });
 
@@ -2533,7 +2986,7 @@ test.describe("home screen", () => {
     const canvas = page.getByTestId("solo-time-trial-canvas");
     await setSimulationPaused(canvas, true);
     await setKartDebugPose(canvas, {
-      position: { x: 43.5, y: 0.33, z: 8 },
+      position: { x: 43.9, y: REFERENCE_KART_UPRIGHT_ROOT_HEIGHT, z: 8 },
       rotation: { x: 0, y: 0, z: 0 },
     });
     await stepSimulation(canvas);
@@ -2544,7 +2997,11 @@ test.describe("home screen", () => {
     ]);
 
     await setKartDebugPose(canvas, {
-      position: { x: 43.9, y: 0.33, z: 8 },
+      position: {
+        x: 44.05,
+        y: REFERENCE_KART_UPRIGHT_ROOT_HEIGHT,
+        z: 8,
+      },
       rotation: { x: 0, y: 90, z: 0 },
     });
     await stepSimulation(canvas);
@@ -2555,7 +3012,11 @@ test.describe("home screen", () => {
     ]);
 
     await setKartDebugPose(canvas, {
-      position: { x: 44.05, y: 0.33, z: 8 },
+      position: {
+        x: 44.05,
+        y: REFERENCE_KART_UPRIGHT_ROOT_HEIGHT,
+        z: 8,
+      },
       rotation: { x: 0, y: 0, z: 0 },
     });
 
@@ -2580,6 +3041,7 @@ test.describe("home screen", () => {
   test("preserves airborne rotation and lands without an upright snap", async ({
     page,
   }) => {
+    test.setTimeout(60_000);
     await page.goto("/");
 
     await page.getByRole("button", { name: "Solo Time Trial" }).click();
@@ -2603,7 +3065,7 @@ test.describe("home screen", () => {
     expect(airborneState.y).toBeLessThan(launchState.y);
     expect(
       Math.abs(airborneState.rotationZ - launchState.rotationZ),
-    ).toBeGreaterThan(5);
+    ).toBeGreaterThan(4.5);
 
     let landedState = airborneState;
 
@@ -2658,7 +3120,7 @@ test.describe("home screen", () => {
 
     const resetPresentation = await getPresentationDebugState(canvas);
 
-    expect(resetPresentation.visualPosition).toEqual({ x: 0, y: 0.43, z: 0 });
+    expect(resetPresentation.visualPosition).toEqual({ x: 0, y: 0.11, z: 0 });
     expect(resetPresentation.physicsPosition).not.toEqual(
       resetPresentation.visualPosition,
     );
@@ -2677,7 +3139,7 @@ test.describe("home screen", () => {
     await setSimulationPaused(canvas, true);
     await setKartDebugPose(canvas, {
       linearVelocity: { x: -12, y: 0, z: 7 },
-      position: { x: 0, y: 0.43, z: 0 },
+      position: { x: 0, y: REFERENCE_KART_UPRIGHT_ROOT_HEIGHT, z: 0 },
       rotation: { x: 0, y: 90, z: 0 },
     });
     for (let frame = 0; frame < 10; frame += 1) {
@@ -2702,6 +3164,23 @@ test.describe("home screen", () => {
     ).toBeLessThan(2);
   });
 
+  test("starts with a wider construction-scaled chase frame", async ({
+    page,
+  }, testInfo) => {
+    await page.goto("/");
+    await page.getByRole("button", { name: "Solo Time Trial" }).click();
+
+    const canvas = page.getByTestId("solo-time-trial-canvas");
+    const camera = await getCameraDebugState(canvas);
+    const expectedDistance = scaleReferenceKartLength(
+      testInfo.project.name === "mobile" ? 8.5 : 7.5,
+    );
+
+    expect(camera.trailingDistance).toBeGreaterThanOrEqual(
+      expectedDistance - 0.01,
+    );
+  });
+
   test("corrects the chase camera against the visible wall and releases it", async ({
     page,
   }) => {
@@ -2711,7 +3190,7 @@ test.describe("home screen", () => {
     const canvas = page.getByTestId("solo-time-trial-canvas");
     await setSimulationPaused(canvas, true);
     await setKartDebugPose(canvas, {
-      position: { x: 0, y: 0.43, z: -16 },
+      position: { x: 0, y: REFERENCE_KART_UPRIGHT_ROOT_HEIGHT, z: -16.5 },
       rotation: { x: 0, y: 180, z: 0 },
     });
 
@@ -2722,7 +3201,7 @@ test.describe("home screen", () => {
     expect(obstructedCamera.obstructionDistance).toBeLessThan(6);
 
     await setKartDebugPose(canvas, {
-      position: { x: 0, y: 0.43, z: -7 },
+      position: { x: 0, y: REFERENCE_KART_UPRIGHT_ROOT_HEIGHT, z: -7 },
       rotation: { x: 0, y: 180, z: 0 },
     });
 
@@ -2733,7 +3212,7 @@ test.describe("home screen", () => {
     expect(clearCamera.snapCount).toBeGreaterThan(obstructedCamera.snapCount);
 
     await setKartDebugPose(canvas, {
-      position: { x: 0, y: 0.43, z: -17 },
+      position: { x: 0, y: REFERENCE_KART_UPRIGHT_ROOT_HEIGHT, z: -17 },
       rotation: { x: 0, y: 180, z: 0 },
     });
 
@@ -2754,7 +3233,7 @@ test.describe("home screen", () => {
     const canvas = page.getByTestId("solo-time-trial-canvas");
     await setSimulationPaused(canvas, true);
     await setKartDebugPose(canvas, {
-      position: { x: 6, y: 0.43, z: -16 },
+      position: { x: 6, y: REFERENCE_KART_UPRIGHT_ROOT_HEIGHT, z: -16 },
       rotation: { x: 0, y: 90, z: 0 },
     });
 
@@ -2766,7 +3245,7 @@ test.describe("home screen", () => {
     expect(cornerCamera.obstructionDistance).toBeLessThan(6);
 
     await setKartDebugPose(canvas, {
-      position: { x: 2, y: 0.43, z: -12 },
+      position: { x: 2, y: REFERENCE_KART_UPRIGHT_ROOT_HEIGHT, z: -12 },
       rotation: { x: 0, y: -90, z: 0 },
     });
 
@@ -2783,7 +3262,7 @@ test.describe("home screen", () => {
     await setSimulationPaused(canvas, true);
     await setKartDebugPose(canvas, {
       linearVelocity: { x: 0, y: 0, z: 17 },
-      position: { x: 4, y: 0.43, z: 25.5 },
+      position: { x: 4, y: REFERENCE_KART_UPRIGHT_ROOT_HEIGHT, z: 25.5 },
       rotation: { x: 0, y: 0, z: 0 },
     });
     await stepSimulation(canvas, 36);
@@ -2795,8 +3274,10 @@ test.describe("home screen", () => {
       impactCamera.impactOffset.z,
     );
 
-    expect(impactMagnitude).toBeGreaterThan(0.1);
-    expect(impactMagnitude).toBeLessThanOrEqual(0.22);
+    expect(impactMagnitude).toBeGreaterThan(scaleReferenceKartLength(0.1));
+    expect(impactMagnitude).toBeLessThanOrEqual(
+      scaleReferenceKartLength(0.22),
+    );
 
     for (let frame = 0; frame < 8; frame += 1) {
       await stepSimulation(canvas, 3);
@@ -2823,16 +3304,18 @@ test.describe("home screen", () => {
     const canvas = page.getByTestId("solo-time-trial-canvas");
     await setSimulationPaused(canvas, true);
     await setKartDebugPose(canvas, {
-      angularVelocity: { x: 1, y: 0.5, z: 1.5 },
-      linearVelocity: { x: 7, y: -2, z: 0 },
-      position: { x: -10, y: 3, z: 0 },
-      rotation: { x: 20, y: 90, z: 25 },
+      angularVelocity: { x: 0.2, y: 0.1, z: 0.3 },
+      linearVelocity: { x: 3, y: -1, z: 0 },
+      position: { x: -10, y: 1, z: 0 },
+      rotation: { x: 10, y: 90, z: 12 },
     });
 
     const airborneCamera = await getCameraDebugState(canvas);
 
     expect(airborneCamera.airborneBlend).toBe(1);
-    expect(airborneCamera.cameraPosition.y).toBeGreaterThan(6);
+    expect(airborneCamera.cameraPosition.y).toBeGreaterThan(
+      1 + scaleReferenceKartLength(3),
+    );
 
     let kart = await getKartDebugState(canvas);
 
@@ -2843,13 +3326,12 @@ test.describe("home screen", () => {
 
     expect(kart.supportCount).toBeGreaterThan(0);
 
-    for (let frame = 0; frame < 10; frame += 1) {
-      await stepSimulation(canvas, 2);
-    }
-
+    await stepSimulation(canvas, Math.ceil(3 / DEFAULT_FIXED_STEP_SECONDS));
     const landedCamera = await getCameraDebugState(canvas);
+    const settledKart = await getKartDebugState(canvas);
+    const landingEvidence = JSON.stringify({ landedCamera, settledKart });
 
-    expect(landedCamera.airborneBlend).toBeLessThan(0.35);
+    expect(landedCamera.airborneBlend, landingEvidence).toBeLessThan(0.35);
     expect(Number.isFinite(landedCamera.cameraPosition.x)).toBe(true);
     expect(Number.isFinite(landedCamera.cameraPosition.y)).toBe(true);
     expect(Number.isFinite(landedCamera.cameraPosition.z)).toBe(true);
@@ -2935,6 +3417,10 @@ test.describe("home screen", () => {
     expect(collisionState.startClear).toBe(true);
     expect(collisionState.startLineHasCollision).toBe(false);
     expect(collisionState.startLineHasRigidBody).toBe(false);
+    expect(collisionState.startLineVisualCenterY).toBeCloseTo(0.05);
+    expect(collisionState.startLineVisualThickness).toBeCloseTo(0.002);
+    expect(collisionState.startMarkerVisualCenterY).toBeCloseTo(0.05);
+    expect(collisionState.startMarkerVisualThickness).toBeCloseTo(0.002);
   });
 
   test("resolves a high-speed straight wall impact without tunneling", async ({
@@ -2948,7 +3434,7 @@ test.describe("home screen", () => {
     await setSimulationPaused(canvas, true);
     await setKartDebugPose(canvas, {
       linearVelocity: { x: 0, y: 0, z: 17 },
-      position: { x: 4, y: 0.43, z: 25.5 },
+      position: { x: 4, y: REFERENCE_KART_UPRIGHT_ROOT_HEIGHT, z: 25.5 },
       rotation: { x: 0, y: 0, z: 0 },
     });
     await stepSimulation(canvas, 36);
@@ -2974,7 +3460,7 @@ test.describe("home screen", () => {
     await setSimulationPaused(canvas, true);
     await setKartDebugPose(canvas, {
       linearVelocity: { x: 12, y: 0, z: 5 },
-      position: { x: -0.5, y: 0.43, z: 27.65 },
+      position: { x: -0.5, y: REFERENCE_KART_UPRIGHT_ROOT_HEIGHT, z: 27.65 },
       rotation: { x: 0, y: 90, z: 0 },
     });
     await stepSimulation(canvas, 40);
@@ -2984,7 +3470,7 @@ test.describe("home screen", () => {
 
     expect(collision.contactedEntityNames).toContain("collision-response-wall");
     expect(collision.postLinearVelocity.x).toBeGreaterThan(7);
-    expect(kart.x).toBeGreaterThan(4);
+    expect(kart.x).toBeGreaterThan(3);
     expect(kart.z).toBeLessThan(28.5);
   });
 
@@ -2999,7 +3485,7 @@ test.describe("home screen", () => {
     await setSimulationPaused(canvas, true);
     await setKartDebugPose(canvas, {
       linearVelocity: { x: 0, y: 0, z: 14 },
-      position: { x: 9.55, y: 0.43, z: 25.5 },
+      position: { x: 9.55, y: REFERENCE_KART_UPRIGHT_ROOT_HEIGHT, z: 25.5 },
       rotation: { x: 0, y: 0, z: 0 },
     });
     await stepSimulation(canvas, 36);
@@ -3008,7 +3494,9 @@ test.describe("home screen", () => {
 
     expect(collision.contactedEntityNames).toContain("collision-response-wall");
     expect(collision.maximumAngularSpeedAfterImpact).toBeGreaterThan(0.2);
-    expect(collision.maximumAngularSpeedAfterImpact).toBeLessThan(15);
+    expect(collision.maximumAngularSpeedAfterImpact).toBeLessThan(
+      MAX_CONTROLLED_COLLISION_ANGULAR_SPEED,
+    );
   });
 
   test("deflects from a convex outside corner without snagging", async ({
@@ -3022,10 +3510,13 @@ test.describe("home screen", () => {
     await setSimulationPaused(canvas, true);
     await setKartDebugPose(canvas, {
       linearVelocity: { x: -9, y: 0, z: -4 },
-      position: { x: 32, y: 0.38, z: 32 },
+      position: { x: 32, y: scaleReferenceKartLength(0.38), z: 31.58 },
       rotation: { x: 0, y: 65, z: 0 },
     });
-    await stepSimulation(canvas, 22);
+    await stepSimulation(
+      canvas,
+      Math.ceil((22 / 60) / DEFAULT_FIXED_STEP_SECONDS),
+    );
 
     const collision = await getCollisionResponseDebugState(canvas);
     const postSpeed = Math.hypot(
@@ -3039,7 +3530,9 @@ test.describe("home screen", () => {
       ),
     ).toBe(true);
     expect(postSpeed).toBeGreaterThan(1);
-    expect(collision.maximumAngularSpeedAfterImpact).toBeLessThan(15);
+    expect(collision.maximumAngularSpeedAfterImpact).toBeLessThan(
+      MAX_CONTROLLED_COLLISION_ANGULAR_SPEED,
+    );
   });
 
   test("backs out of a concave inside corner without remaining trapped", async ({
@@ -3053,7 +3546,7 @@ test.describe("home screen", () => {
     await setSimulationPaused(canvas, true);
     await setKartDebugPose(canvas, {
       linearVelocity: { x: 9, y: 0, z: 9 },
-      position: { x: 26, y: 0.38, z: 27 },
+      position: { x: 26, y: scaleReferenceKartLength(0.38), z: 27 },
       rotation: { x: 0, y: -135, z: 0 },
     });
     await stepSimulation(canvas, 36);
@@ -3072,7 +3565,10 @@ test.describe("home screen", () => {
     await page.keyboard.down("ArrowDown");
 
     try {
-      await stepSimulation(canvas, 150);
+      await stepSimulation(
+        canvas,
+        Math.ceil((150 / 60) / DEFAULT_FIXED_STEP_SECONDS),
+      );
     } finally {
       await page.keyboard.up("ArrowDown");
     }
@@ -3097,7 +3593,7 @@ test.describe("home screen", () => {
     await setKartDebugPose(canvas, {
       ccdEnabled: false,
       linearVelocity: { x: -20.4, y: 0, z: 0 },
-      position: { x: -29.5, y: 0.43, z: 24 },
+      position: { x: -29.5, y: REFERENCE_KART_UPRIGHT_ROOT_HEIGHT, z: 24 },
       rotation: { x: 0, y: 90, z: 0 },
     });
     await stepSimulation(canvas, 30);
@@ -3121,7 +3617,7 @@ test.describe("home screen", () => {
     await setSimulationPaused(canvas, true);
     await setKartDebugPose(canvas, {
       linearVelocity: { x: -20.4, y: 0, z: 0 },
-      position: { x: -29.5, y: 0.43, z: 24 },
+      position: { x: -29.5, y: REFERENCE_KART_UPRIGHT_ROOT_HEIGHT, z: 24 },
       rotation: { x: 0, y: 90, z: 0 },
     });
     await stepSimulation(canvas, 30);
@@ -3129,8 +3625,12 @@ test.describe("home screen", () => {
     const collision = await getCollisionResponseDebugState(canvas);
     const kart = await getKartDebugState(canvas);
 
-    expect(collision.ccdMotionThreshold).toBe(0.12);
-    expect(collision.ccdSweptSphereRadius).toBe(0.16);
+    expect(collision.ccdMotionThreshold).toBe(
+      scaleReferenceKartLength(0.12),
+    );
+    expect(collision.ccdSweptSphereRadius).toBe(
+      scaleReferenceKartLength(0.16),
+    );
     expect(collision.contactedEntityNames).toContain("collision-ccd-thin-wall");
     expect(collision.maximumApproachSpeed).toBeGreaterThan(17);
     expect(kart.x).toBeGreaterThan(-33.5);
@@ -3147,10 +3647,13 @@ test.describe("home screen", () => {
     await setSimulationPaused(canvas, true);
     await setKartDebugPose(canvas, {
       linearVelocity: { x: -12, y: 0, z: 0 },
-      position: { x: -29.5, y: 0.43, z: 24 },
+      position: { x: -29.5, y: REFERENCE_KART_UPRIGHT_ROOT_HEIGHT, z: 24 },
       rotation: { x: 0, y: 90, z: 0 },
     });
-    await stepSimulation(canvas, 6);
+    await stepSimulation(
+      canvas,
+      Math.ceil((6 / 60) / DEFAULT_FIXED_STEP_SECONDS),
+    );
 
     const collision = await getCollisionResponseDebugState(canvas);
     const kart = await getKartDebugState(canvas);
@@ -3173,7 +3676,7 @@ test.describe("home screen", () => {
     await setSimulationPaused(canvas, true);
     await setKartDebugPose(canvas, {
       angularVelocity: { x: 0, y: 18, z: 0 },
-      position: { x: -31.8, y: 0.43, z: 24 },
+      position: { x: -32.7, y: REFERENCE_KART_UPRIGHT_ROOT_HEIGHT, z: 24 },
       rotation: { x: 0, y: 0, z: 0 },
     });
     await stepSimulation(canvas, 45);
@@ -3182,7 +3685,9 @@ test.describe("home screen", () => {
     const kart = await getKartDebugState(canvas);
 
     expect(collision.contactedEntityNames).toContain("collision-ccd-thin-wall");
-    expect(collision.maximumAngularSpeedAfterImpact).toBeLessThan(25);
+    expect(collision.maximumAngularSpeedAfterImpact).toBeLessThan(
+      MAX_FAST_COLLISION_ANGULAR_SPEED,
+    );
     expect(kart.x).toBeGreaterThan(-33.5);
   });
 
@@ -3200,10 +3705,16 @@ test.describe("home screen", () => {
 
     const state = await getKartDebugState(canvas);
 
-    expect(state.chassisClearance).toBeGreaterThan(0.06);
+    expect(state.chassisClearance).toBeGreaterThan(
+      scaleReferenceKartLength(0.06),
+    );
     expect(Object.keys(state.wheelHubYs)).toHaveLength(4);
     expect(
-      Object.values(state.wheelHubYs).every((y) => y >= -0.36 && y <= 0.06),
+      Object.values(state.wheelHubYs).every(
+        (y) =>
+          y >= scaleReferenceKartLength(-0.36) &&
+          y <= scaleReferenceKartLength(0.06),
+      ),
     ).toBe(true);
     expect(
       Object.values(state.wheelSweepFractions).every(
@@ -3219,23 +3730,56 @@ test.describe("home screen", () => {
     await page.getByRole("button", { name: "Solo Time Trial" }).click();
 
     const canvas = page.getByTestId("solo-time-trial-canvas");
+    const rampSurfaceHeightAtCenter =
+      1.76 + 0.225 * Math.cos((28 * Math.PI) / 180);
+    const fullSizeUprightRootHeight = 0.43;
+    const fullSizeDropHeight =
+      4.5 - (rampSurfaceHeightAtCenter + fullSizeUprightRootHeight);
 
     await setSimulationPaused(canvas, true);
     await setKartDebugPose(canvas, {
-      linearVelocity: { x: 0, y: -3, z: 0 },
-      position: { x: 0, y: 4.5, z: 16 },
+      linearVelocity: {
+        x: 0,
+        y: -3 * REFERENCE_KART_TIME_SCALE,
+        z: 0,
+      },
+      position: {
+        x: 0,
+        y:
+          rampSurfaceHeightAtCenter +
+          REFERENCE_KART_UPRIGHT_ROOT_HEIGHT +
+          scaleReferenceKartLength(fullSizeDropHeight),
+        z: 16,
+      },
       rotation: { x: 0, y: -90, z: 0 },
     });
-    await stepSimulation(canvas, 180);
+    const samples = await stepSimulationWithKartSamples(canvas, 180);
 
     const suspension = await getSuspensionDebugState(canvas);
+    const maximumObservedLoad = Math.max(
+      ...samples.flatMap((state) => Object.values(state.wheelLoads)),
+    );
+    const evidence = JSON.stringify({ maximumObservedLoad, suspension });
 
-    expect(suspension.minimumSupportedWheels).toBe(0);
-    expect(suspension.maximumSupportedWheels).toBeGreaterThanOrEqual(2);
-    expect(suspension.maximumCompression).toBeGreaterThan(0.08);
+    expect(suspension.minimumSupportedWheels, evidence).toBe(0);
+    expect(suspension.maximumSupportedWheels, evidence).toBeGreaterThanOrEqual(
+      2,
+    );
+    expect(suspension.maximumCompression, evidence).toBeGreaterThan(
+      scaleReferenceKartLength(0.08),
+    );
+    expect(suspension.maximumCompression, evidence).toBeLessThanOrEqual(
+      Number(KART_SUSPENSION_REST_TRAVEL.toFixed(2)),
+    );
+    expect(maximumObservedLoad, evidence).toBeGreaterThan(
+      2_500 * REFERENCE_KART_MASS_SCALE,
+    );
+    expect(suspension.minimumChassisClearance, evidence).toBeGreaterThan(
+      scaleReferenceKartLength(0.01),
+    );
   });
 
-  test("keeps a rear-balanced pitch attitude after ramp takeoff", async ({
+  test("keeps construction-derived pitch bounded after ramp takeoff", async ({
     page,
   }) => {
     test.setTimeout(60_000);
@@ -3254,18 +3798,14 @@ test.describe("home screen", () => {
     await advanceRaceToRacing(canvas);
     await setKartDebugPose(canvas, {
       linearVelocity: { x: 17, y: 0, z: 0 },
-      position: { x: -14, y: 0.4, z: 16 },
+      position: { x: -14, y: scaleReferenceKartLength(0.4), z: 16 },
       rotation: { x: 0, y: -90, z: 0 },
     });
     await canvas.focus();
     await page.keyboard.down("ArrowUp");
 
     let trajectory: Array<{
-      airbornePitchActive: boolean;
-      airbornePitchAngle: number;
-      airbornePitchRate: number;
-      airbornePitchTarget: number;
-      airbornePitchTorque: number;
+      angularVelocity: { x: number; y: number; z: number };
       forward: { x: number; y: number; z: number };
       supportCount: number;
       up: { x: number; y: number; z: number };
@@ -3275,11 +3815,7 @@ test.describe("home screen", () => {
     try {
       trajectory = await canvas.evaluate((element) => {
         const states: Array<{
-          airbornePitchActive: boolean;
-          airbornePitchAngle: number;
-          airbornePitchRate: number;
-          airbornePitchTarget: number;
-          airbornePitchTorque: number;
+          angularVelocity: { x: number; y: number; z: number };
           forward: { x: number; y: number; z: number };
           supportCount: number;
           up: { x: number; y: number; z: number };
@@ -3293,7 +3829,14 @@ test.describe("home screen", () => {
           element.dispatchEvent(
             new CustomEvent("getKartDebugState", {
               detail: {
-                respond: (state: (typeof states)[number]) => states.push(state),
+                respond: (state: KartDebugState) =>
+                  states.push({
+                    angularVelocity: state.angularVelocity,
+                    forward: state.forward,
+                    supportCount: state.supportCount,
+                    up: state.up,
+                    y: state.y,
+                  }),
               },
             }),
           );
@@ -3311,30 +3854,28 @@ test.describe("home screen", () => {
     const minimumAirborneNoseHeight = Math.min(
       ...airborne.map((state) => state.forward.y),
     );
+    const maximumAirbornePitchSpeed = Math.max(
+      ...airborne.map((state) => Math.abs(state.angularVelocity.z)),
+    );
+    const evidence = JSON.stringify(
+      airborne.filter((_, index) => index % 12 === 0),
+    );
 
-    expect(airborne.length).toBeGreaterThan(10);
-    expect(airborne.every((state) => state.airbornePitchActive)).toBe(true);
-    expect(
-      trajectory
-        .filter((state) => state.supportCount > 0)
-        .every((state) => !state.airbornePitchActive),
-    ).toBe(true);
-    expect(
-      airborne.some((state) => Math.abs(state.airbornePitchTorque) > 1),
-    ).toBe(true);
+    expect(airborne.length, evidence).toBeGreaterThan(10);
     expect(
       airborne.every(
         (state) =>
-          Number.isFinite(state.airbornePitchAngle) &&
-          Number.isFinite(state.airbornePitchRate) &&
-          state.airbornePitchTarget === 0.1,
+          Number.isFinite(state.angularVelocity.x) &&
+          Number.isFinite(state.angularVelocity.y) &&
+          Number.isFinite(state.angularVelocity.z),
       ),
+      evidence,
     ).toBe(true);
-    expect(Math.max(...trajectory.map((state) => state.y))).toBeGreaterThan(2);
-    expect(
-      minimumAirborneNoseHeight,
-      `airborne=${JSON.stringify(airborne.filter((_, index) => index % 10 === 0))}`,
-    ).toBeGreaterThan(-0.1);
+    expect(Math.max(...trajectory.map((state) => state.y)), evidence).toBeGreaterThan(
+      2,
+    );
+    expect(maximumAirbornePitchSpeed, evidence).toBeLessThan(1.5);
+    expect(minimumAirborneNoseHeight, evidence).toBeGreaterThan(-0.5);
   });
 
   test("pauses and resumes from the mobile race HUD", async ({

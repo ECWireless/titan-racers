@@ -11,15 +11,18 @@ import {
   useState,
 } from "react";
 
-import { KartTuningDrawer } from "@/components/kart-tuning-drawer";
+import { KartDynamicsDrawer } from "@/components/kart-tuning-drawer";
 import type {
-  DrivingInput,
-  KartTuning,
-  KartTuningKey,
   CourseTestObstacleId,
+  DrivingInput,
   Position3,
 } from "@/game/contracts";
 import { KartCollisionObserver } from "@/game/collision/kart-collision-observer";
+import {
+  DEFAULT_KART_COLLISION_CONSTRUCTION,
+  deriveKartCcdConfiguration,
+  KART_COLLISION_SOLVER_POLICY,
+} from "@/game/collision/kart-collision-model";
 import {
   calculateImpactStrength,
   ChaseCamera,
@@ -34,6 +37,7 @@ import {
   getCourseStartTransform,
   ROUGH_COURSE_DOCUMENT,
 } from "@/game/course/course-document";
+import { getCourseVisualDepthBias } from "@/game/course/course-visual-policy";
 import { PlayerInputManager } from "@/game/input/player-input-manager";
 import { isEditableKeyboardTarget } from "@/game/input/keyboard-input";
 import { useControllerMenuNavigation } from "@/game/input/use-controller-menu-navigation";
@@ -45,21 +49,37 @@ import {
   DynamicKartController,
   type DynamicWheel,
 } from "@/game/kart/dynamic-kart-controller";
-import { KartDriftSmoke } from "@/game/kart/kart-drift-smoke";
+import {
+  getLateralScrubPower,
+  KartDriftSmoke,
+} from "@/game/kart/kart-drift-smoke";
 import {
   getManualRightingAxis,
+  getManualRightingCaptureLocalTorqueImpulse,
+  getManualRightingGeometry,
+  getManualRightingLiftImpulse,
+  getManualRightingTorqueImpulse,
   getManualRightingTorqueScale,
+  KART_MANUAL_RIGHTING_POLICY,
 } from "@/game/kart/kart-righting";
 import {
-  DEFAULT_KART_TUNING,
-  normalizeKartTuning,
-} from "@/game/kart/kart-tuning";
+  DEFAULT_KART_DEVELOPMENT_VALUES,
+  KART_DEVELOPMENT_VALUE_METADATA,
+  normalizeKartDevelopmentValues,
+  resolveKartDevelopmentValues,
+  type KartDevelopmentValues,
+} from "@/game/kart/kart-development-values";
 import {
   KART_SUSPENSION_MAX_COMPRESSION_Y,
   KART_SUSPENSION_REST_TRAVEL,
   KART_WHEEL_RADIUS,
   KART_WHEEL_WIDTH,
 } from "@/game/kart/kart-dimensions";
+import {
+  REFERENCE_KART_CONSTRUCTION,
+  scaleReferenceKartLength,
+  type KartReferenceVector,
+} from "@/game/kart/kart-reference-construction";
 import { PHYSICS_GROUP, PHYSICS_MASK } from "@/game/physics/collision-groups";
 import {
   createPlayCanvasRuntime,
@@ -90,43 +110,34 @@ import {
   type GameplayRunFailureCode,
 } from "@/game/telemetry/gameplay-run-events";
 
-const KART_ROOT_HEIGHT = 0.43;
-const KART_MASS = 120;
-const KART_BODY_MASS = 70;
-const KART_COCKPIT_MASS = KART_MASS - KART_BODY_MASS;
-const KART_BODY_MASS_CENTER = { x: 0, y: -0.18, z: 0 } as const;
-const KART_COCKPIT_POSITION = { x: 0, y: 0.24, z: 0.48 } as const;
-const KART_CENTER_OF_MASS_OFFSET = {
-  x:
-    (KART_BODY_MASS * KART_BODY_MASS_CENTER.x +
-      KART_COCKPIT_MASS * KART_COCKPIT_POSITION.x) /
-    KART_MASS,
-  y:
-    (KART_BODY_MASS * KART_BODY_MASS_CENTER.y +
-      KART_COCKPIT_MASS * KART_COCKPIT_POSITION.y) /
-    KART_MASS,
-  z:
-    (KART_BODY_MASS * KART_BODY_MASS_CENTER.z +
-      KART_COCKPIT_MASS * KART_COCKPIT_POSITION.z) /
-    KART_MASS,
-} as const;
+const KART_ROOT_HEIGHT = REFERENCE_KART_CONSTRUCTION.rootHeight;
+const KART_MASS =
+  REFERENCE_KART_CONSTRUCTION.massProperties.totalMass;
+const KART_UPPER_HOUSING_POSITION =
+  REFERENCE_KART_CONSTRUCTION.upperHousingPosition;
+const KART_CENTER_OF_MASS_OFFSET =
+  REFERENCE_KART_CONSTRUCTION.massProperties.centerOfMassOffset;
 const KART_GEOMETRY_OFFSET = {
   x: -KART_CENTER_OF_MASS_OFFSET.x,
   y: -KART_CENTER_OF_MASS_OFFSET.y,
   z: -KART_CENTER_OF_MASS_OFFSET.z,
 } as const;
-const KART_CHASSIS_DIMENSIONS = { x: 1.25, y: 0.55, z: 1.85 } as const;
+const KART_CHASSIS_DIMENSIONS =
+  REFERENCE_KART_CONSTRUCTION.chassisDimensions;
 const KART_INERTIA = calculateBoxInertia(KART_MASS, KART_CHASSIS_DIMENSIONS);
 const KART_RESET_FALL_Y = -10;
-const MANUAL_RIGHTING_COOLDOWN_SECONDS = 0.45;
-const MANUAL_RIGHTING_SUPPORT_PROBE_DISTANCE = 1.1;
 const KART_TAP_MAX_DURATION_MS = 300;
 const KART_TAP_MAX_MOVEMENT_PX = 12;
-const KART_COLLISION_RADIUS = 0.95;
-const KART_CCD_CONFIGURATION = {
-  motionThreshold: 0.12,
-  sweptSphereRadius: 0.16,
-} as const;
+const START_MARKER_VISUAL_CENTER_HEIGHT = 0.05;
+const START_MARKER_VISUAL_THICKNESS = 0.002;
+const KART_COLLISION_RADIUS =
+  REFERENCE_KART_CONSTRUCTION.collision.broadphaseRadius;
+const KART_CCD_CONFIGURATION = deriveKartCcdConfiguration(
+  DEFAULT_KART_COLLISION_CONSTRUCTION.envelope,
+);
+const KART_MANUAL_RIGHTING_GEOMETRY = getManualRightingGeometry(
+  KART_CHASSIS_DIMENSIONS.z,
+);
 const NEUTRAL_DRIVING_INPUT: DrivingInput = {
   brake: 0,
   handbrake: 0,
@@ -135,12 +146,18 @@ const NEUTRAL_DRIVING_INPUT: DrivingInput = {
   throttle: 0,
 };
 
-function createMaterial(color: pc.Color) {
+function createMaterial(color: pc.Color, depthBias = 0) {
   const material = new pc.StandardMaterial();
+  material.depthBias = depthBias;
   material.diffuse = color;
+  material.slopeDepthBias = depthBias;
   material.update();
 
   return material;
+}
+
+function toPcVector(vector: KartReferenceVector) {
+  return new pc.Vec3(vector.x, vector.y, vector.z);
 }
 
 function toFixedStep(value: number) {
@@ -203,7 +220,9 @@ type SoloSceneControls = {
   requestKartTapRighting: (clientX: number, clientY: number) => boolean;
   requestTouchReset: () => void;
   restartRace: () => boolean;
-  setKartTuning: (tuning: Partial<KartTuning>) => void;
+  setKartDevelopmentValues: (
+    values: Partial<KartDevelopmentValues>,
+  ) => void;
   setTouchJoystick: (pointerId: number, x: number, y: number) => void;
   setPaused: (paused: boolean) => void;
 };
@@ -338,11 +357,12 @@ export function SoloTimeTrialCanvas({
   );
   const [driveCursorHidden, setDriveCursorHidden] = useState(false);
   const [gamePaused, setGamePaused] = useState(false);
-  const [kartTuningOpen, setKartTuningOpen] = useState(false);
-  const [kartTuning, setKartTuning] = useState<KartTuning>(() => ({
-    ...DEFAULT_KART_TUNING,
-  }));
-  const kartTuningRef = useRef(kartTuning);
+  const [kartDynamicsOpen, setKartDynamicsOpen] = useState(false);
+  const [kartDevelopmentValues, setKartDevelopmentValues] =
+    useState<KartDevelopmentValues>(() => ({
+      ...DEFAULT_KART_DEVELOPMENT_VALUES,
+    }));
+  const kartDevelopmentValuesRef = useRef(kartDevelopmentValues);
   const [racePresentation, setRacePresentation] =
     useState<RacePresentationSnapshot>(createLoadingRacePresentationSnapshot);
   const [sceneStatus, setSceneStatus] = useState<
@@ -447,9 +467,14 @@ export function SoloTimeTrialCanvas({
       throw new Error("PlayCanvas rigid-body system is unavailable");
     }
     const activeRigidBodySystem = rigidBodySystem;
-    let activeKartTuning = normalizeKartTuning(kartTuningRef.current);
+    let activeDevelopmentValues = normalizeKartDevelopmentValues(
+      kartDevelopmentValuesRef.current,
+    );
+    let activeDynamics = resolveKartDevelopmentValues(
+      activeDevelopmentValues,
+    );
 
-    rigidBodySystem.gravity.set(0, -activeKartTuning.gravity, 0);
+    rigidBodySystem.gravity.set(0, -activeDynamics.environment.gravity, 0);
     activeCanvas.focus();
 
     if (sceneTestControl?.forceRaceSessionFailure) {
@@ -484,7 +509,9 @@ export function SoloTimeTrialCanvas({
     }
 
     const kartMaterial = createMaterial(new pc.Color(0.95, 0.18, 0.08));
-    const cockpitMaterial = createMaterial(new pc.Color(0.05, 0.08, 0.11));
+    const upperHousingMaterial = createMaterial(
+      new pc.Color(0.05, 0.08, 0.11),
+    );
     const wheelMaterial = createMaterial(new pc.Color(0.02, 0.025, 0.03));
     const wheelHubMaterial = createMaterial(new pc.Color(0.8, 0.82, 0.78));
     const suspensionArmMaterial = createMaterial(
@@ -494,9 +521,15 @@ export function SoloTimeTrialCanvas({
       new pc.Color(1, 0.67, 0.12),
     );
     const asphaltMaterial = createMaterial(new pc.Color(0.08, 0.08, 0.09));
-    const lineMaterial = createMaterial(new pc.Color(0.95, 0.92, 0.86));
+    const lineMaterial = createMaterial(
+      new pc.Color(0.95, 0.92, 0.86),
+      getCourseVisualDepthBias("line"),
+    );
     const markerMaterial = createMaterial(new pc.Color(1, 0.85, 0.15));
-    const groundMaterial = createMaterial(new pc.Color(0.08, 0.36, 0.26));
+    const groundMaterial = createMaterial(
+      new pc.Color(0.08, 0.36, 0.26),
+      getCourseVisualDepthBias("ground"),
+    );
     const obstacleBlockMaterial = createMaterial(
       new pc.Color(0.82, 0.78, 0.68),
     );
@@ -696,10 +729,10 @@ export function SoloTimeTrialCanvas({
       "start-position",
       new pc.Vec3(
         START_POSITION.x,
-        START_POSITION.y + 0.14,
+        START_POSITION.y + START_MARKER_VISUAL_CENTER_HEIGHT,
         START_POSITION.z,
       ),
-      new pc.Vec3(2.2, 0.04, 1.6),
+      new pc.Vec3(2.2, START_MARKER_VISUAL_THICKNESS, 1.6),
       markerMaterial,
       START_ROTATION.y,
     );
@@ -733,70 +766,80 @@ export function SoloTimeTrialCanvas({
     createChildBox(
       kartVisual,
       "kart-body",
-      new pc.Vec3(0, -0.03, 0),
-      new pc.Vec3(1.22, 0.28, 1.72),
+      toPcVector(REFERENCE_KART_CONSTRUCTION.visual.bodyPosition),
+      toPcVector(REFERENCE_KART_CONSTRUCTION.visual.bodyScale),
       kartMaterial,
     );
     createChildBox(
       kartVisual,
-      "kart-cockpit",
-      new pc.Vec3(
-        KART_COCKPIT_POSITION.x,
-        KART_COCKPIT_POSITION.y,
-        KART_COCKPIT_POSITION.z,
-      ),
-      new pc.Vec3(0.72, 0.42, 0.78),
-      cockpitMaterial,
+      "kart-upper-housing",
+      toPcVector(KART_UPPER_HOUSING_POSITION),
+      toPcVector(REFERENCE_KART_CONSTRUCTION.visual.upperHousingScale),
+      upperHousingMaterial,
     );
     createChildCollisionBox(
       kart,
       "kart-body-collision",
-      offsetKartGeometry(new pc.Vec3(0, -0.08, 0)),
-      new pc.Vec3(0.58, 0.14, 0.55),
+      offsetKartGeometry(
+        toPcVector(REFERENCE_KART_CONSTRUCTION.collision.bodyPosition),
+      ),
+      toPcVector(REFERENCE_KART_CONSTRUCTION.collision.bodyHalfExtents),
     );
     createChildCollisionCapsule(
       kart,
       "kart-front-bumper-collision",
-      offsetKartGeometry(new pc.Vec3(0, -0.08, -0.68)),
+      offsetKartGeometry(
+        toPcVector(
+          REFERENCE_KART_CONSTRUCTION.collision.bumper.positions.front,
+        ),
+      ),
       0,
-      1.52,
-      0.18,
+      REFERENCE_KART_CONSTRUCTION.collision.bumper.height,
+      REFERENCE_KART_CONSTRUCTION.collision.bumper.radius,
     );
     createChildCollisionCapsule(
       kart,
       "kart-rear-bumper-collision",
-      offsetKartGeometry(new pc.Vec3(0, -0.08, 0.68)),
+      offsetKartGeometry(
+        toPcVector(
+          REFERENCE_KART_CONSTRUCTION.collision.bumper.positions.rear,
+        ),
+      ),
       0,
-      1.52,
-      0.18,
+      REFERENCE_KART_CONSTRUCTION.collision.bumper.height,
+      REFERENCE_KART_CONSTRUCTION.collision.bumper.radius,
     );
     createChildCollisionCapsule(
       kart,
       "kart-left-wheel-guard-collision",
-      offsetKartGeometry(new pc.Vec3(-0.75, -0.07, 0)),
+      offsetKartGeometry(
+        toPcVector(
+          REFERENCE_KART_CONSTRUCTION.collision.wheelGuard.positions.left,
+        ),
+      ),
       2,
-      1.55,
-      0.16,
+      REFERENCE_KART_CONSTRUCTION.collision.wheelGuard.height,
+      REFERENCE_KART_CONSTRUCTION.collision.wheelGuard.radius,
     );
     createChildCollisionCapsule(
       kart,
       "kart-right-wheel-guard-collision",
-      offsetKartGeometry(new pc.Vec3(0.75, -0.07, 0)),
+      offsetKartGeometry(
+        toPcVector(
+          REFERENCE_KART_CONSTRUCTION.collision.wheelGuard.positions.right,
+        ),
+      ),
       2,
-      1.55,
-      0.16,
+      REFERENCE_KART_CONSTRUCTION.collision.wheelGuard.height,
+      REFERENCE_KART_CONSTRUCTION.collision.wheelGuard.radius,
     );
     createChildCollisionBox(
       kart,
-      "kart-cockpit-collision",
-      offsetKartGeometry(
-        new pc.Vec3(
-          KART_COCKPIT_POSITION.x,
-          KART_COCKPIT_POSITION.y,
-          KART_COCKPIT_POSITION.z,
-        ),
+      "kart-upper-housing-collision",
+      offsetKartGeometry(toPcVector(KART_UPPER_HOUSING_POSITION)),
+      toPcVector(
+        REFERENCE_KART_CONSTRUCTION.collision.upperHousingHalfExtents,
       ),
-      new pc.Vec3(0.36, 0.21, 0.39),
     );
 
     const dynamicWheels: DynamicWheel[] = [];
@@ -818,14 +861,8 @@ export function SoloTimeTrialCanvas({
     const initialHubY =
       KART_SUSPENSION_MAX_COMPRESSION_Y - KART_SUSPENSION_REST_TRAVEL;
 
-    (
-      [
-        ["front-left", -0.78, -0.58],
-        ["front-right", 0.78, -0.58],
-        ["rear-left", -0.78, 0.62],
-        ["rear-right", 0.78, 0.62],
-      ] satisfies [string, number, number][]
-    ).forEach(([name, x, z]) => {
+    REFERENCE_KART_CONSTRUCTION.wheelStations.forEach((station) => {
+      const { driven, name, steered, x, z } = station;
       const wheelPivot = new pc.Entity(`kart-wheel-pivot-${name}`);
       const visualLocalPosition = new pc.Vec3(x, initialHubY, z);
       const localPosition = offsetKartGeometry(visualLocalPosition.clone());
@@ -849,17 +886,22 @@ export function SoloTimeTrialCanvas({
         wheelPivot,
         `kart-wheel-hub-${name}`,
         new pc.Vec3(0, 0, 0),
-        new pc.Vec3(0.24, KART_WHEEL_WIDTH + 0.025, 0.24),
+        new pc.Vec3(
+          REFERENCE_KART_CONSTRUCTION.visual.wheelHubDiameter,
+          KART_WHEEL_WIDTH +
+            REFERENCE_KART_CONSTRUCTION.visual.wheelHubWidthAllowance,
+          REFERENCE_KART_CONSTRUCTION.visual.wheelHubDiameter,
+        ),
         wheelHubMaterial,
         new pc.Vec3(0, 0, 90),
       );
 
       dynamicWheels.push({
-        driven: name.startsWith("rear"),
+        driven,
         localPosition,
         name,
         pivot: wheelPivot,
-        steered: name.startsWith("front"),
+        steered,
       });
 
       const side = Math.sign(x);
@@ -867,27 +909,39 @@ export function SoloTimeTrialCanvas({
         kartVisual,
         `${name}-lower-arm-forward`,
         suspensionArmMaterial,
-        0.035,
+        REFERENCE_KART_CONSTRUCTION.suspension.armRadius,
       );
       const armRear = createSuspensionBar(
         kartVisual,
         `${name}-lower-arm-rear`,
         suspensionArmMaterial,
-        0.035,
+        REFERENCE_KART_CONSTRUCTION.suspension.armRadius,
       );
       const shock = createSuspensionBar(
         kartVisual,
         `${name}-shock`,
         suspensionShockMaterial,
-        0.045,
+        REFERENCE_KART_CONSTRUCTION.suspension.shockRadius,
       );
 
       wheelPresentations.push({
         armForward,
         armRear,
-        chassisForwardAnchor: new pc.Vec3(side * 0.61, -0.07, z - 0.2),
-        chassisRearAnchor: new pc.Vec3(side * 0.61, -0.07, z + 0.2),
-        chassisShockAnchor: new pc.Vec3(side * 0.61, 0.02, z),
+        chassisForwardAnchor: new pc.Vec3(
+          side * scaleReferenceKartLength(0.61),
+          scaleReferenceKartLength(-0.07),
+          z - scaleReferenceKartLength(0.2),
+        ),
+        chassisRearAnchor: new pc.Vec3(
+          side * scaleReferenceKartLength(0.61),
+          scaleReferenceKartLength(-0.07),
+          z + scaleReferenceKartLength(0.2),
+        ),
+        chassisShockAnchor: new pc.Vec3(
+          side * scaleReferenceKartLength(0.61),
+          scaleReferenceKartLength(0.02),
+          z,
+        ),
         currentHubY: initialHubY,
         hubX: x,
         hubZ: z,
@@ -900,13 +954,15 @@ export function SoloTimeTrialCanvas({
     });
 
     kart.addComponent("rigidbody", {
-      angularDamping: activeKartTuning.angularDamping,
-      friction: activeKartTuning.chassisFriction,
+      angularDamping: KART_COLLISION_SOLVER_POLICY.angularDamping,
+      friction:
+        DEFAULT_KART_COLLISION_CONSTRUCTION.bodyContactMaterial.friction,
       group: PHYSICS_GROUP.kart,
-      linearDamping: activeKartTuning.linearDamping,
+      linearDamping: 0,
       mask: PHYSICS_MASK.kart,
       mass: KART_MASS,
-      restitution: activeKartTuning.chassisRestitution,
+      restitution:
+        DEFAULT_KART_COLLISION_CONSTRUCTION.bodyContactMaterial.restitution,
       type: pc.BODYTYPE_DYNAMIC,
     });
     setExplicitRigidBodyInertia(kart, KART_MASS, KART_INERTIA);
@@ -981,14 +1037,14 @@ export function SoloTimeTrialCanvas({
             }
           : null;
       },
-      Math.max(
-        activeKartTuning.maxForwardSpeed,
-        activeKartTuning.maxReverseSpeed,
-      ),
+      activeDynamics.kart.drivetrain.noLoadSpeed,
     );
     let kartTapRightingRequested = false;
+    let manualRightingCapturePending = false;
     let manualRightingCooldownSeconds = 0;
     let manualRightingCount = 0;
+    let manualRightingSettling = false;
+    let manualRightingSettlingRemainingSeconds = 0;
 
     const lightingEntities = buildCourseLighting(app, {
       document: COURSE_DOCUMENT,
@@ -1072,6 +1128,9 @@ export function SoloTimeTrialCanvas({
         kart.rigidbody.activate();
       }
       kartController.reset();
+      manualRightingCapturePending = false;
+      manualRightingSettling = false;
+      manualRightingSettlingRemainingSeconds = 0;
       driftSmoke?.stop();
       snapKartPresentationState();
       previousRacePosition.copy(kart.getPosition());
@@ -1115,10 +1174,24 @@ export function SoloTimeTrialCanvas({
 
     function hasManualRightingSupport() {
       const position = kart.getPosition();
-      const rayStart = position.clone().add(new pc.Vec3(0, 0.2, 0));
+      const rayStart = position
+        .clone()
+        .add(
+          new pc.Vec3(
+            0,
+            KART_MANUAL_RIGHTING_GEOMETRY.supportProbeStart,
+            0,
+          ),
+        );
       const rayEnd = position
         .clone()
-        .add(new pc.Vec3(0, -MANUAL_RIGHTING_SUPPORT_PROBE_DISTANCE, 0));
+        .add(
+          new pc.Vec3(
+            0,
+            -KART_MANUAL_RIGHTING_GEOMETRY.supportProbeDistance,
+            0,
+          ),
+        );
       const hit = activeRigidBodySystem.raycastFirst(rayStart, rayEnd, {
         filterCollisionGroup: PHYSICS_GROUP.kart,
         filterCollisionMask: PHYSICS_MASK.kart,
@@ -1134,11 +1207,7 @@ export function SoloTimeTrialCanvas({
       if (!rigidBody) {
         return false;
       }
-      const axis = getManualRightingAxis(
-        kart.up,
-        kart.forward,
-        activeKartTuning.manualRightingMinimumInversionDegrees,
-      );
+      const axis = getManualRightingAxis(kart.up, kart.forward);
       if (!axis || !hasManualRightingSupport()) {
         return false;
       }
@@ -1147,25 +1216,116 @@ export function SoloTimeTrialCanvas({
       }
 
       const torqueScale =
-        getManualRightingTorqueScale(
-          kart.up,
-          activeKartTuning.manualRightingMinimumInversionDegrees,
-          activeKartTuning.manualRightingAngledTorqueBoost,
-        ) ?? 1;
-      const torqueImpulse =
-        activeKartTuning.manualRightingTorqueImpulse * torqueScale;
+        getManualRightingTorqueScale(kart.up) ?? 1;
+      const localAxis = kart
+        .getRotation()
+        .clone()
+        .invert()
+        .transformVector(new pc.Vec3(axis.x, axis.y, axis.z));
+      const torqueImpulse = getManualRightingTorqueImpulse(
+        KART_INERTIA,
+        localAxis,
+        activeDynamics.environment.gravity,
+        KART_MANUAL_RIGHTING_GEOMETRY.liftClearanceHeight,
+        torqueScale,
+      );
 
       rigidBody.applyTorqueImpulse(
         axis.x * torqueImpulse,
         axis.y * torqueImpulse,
         axis.z * torqueImpulse,
       );
-      rigidBody.applyImpulse(0, activeKartTuning.manualRightingLiftImpulse, 0);
+      rigidBody.applyImpulse(
+        0,
+        getManualRightingLiftImpulse(
+          KART_MASS,
+          activeDynamics.environment.gravity,
+          KART_MANUAL_RIGHTING_GEOMETRY.liftClearanceHeight,
+        ),
+        0,
+      );
       rigidBody.activate();
-      manualRightingCooldownSeconds = MANUAL_RIGHTING_COOLDOWN_SECONDS;
+      manualRightingCapturePending = true;
+      manualRightingSettling = false;
+      manualRightingSettlingRemainingSeconds =
+        KART_MANUAL_RIGHTING_POLICY.uprightSettlingMaximumSeconds;
+      manualRightingCooldownSeconds =
+        KART_MANUAL_RIGHTING_POLICY.cooldownSeconds;
       manualRightingCount += 1;
       gameplayTelemetry.recordRecovery();
       return true;
+    }
+
+    function captureManualRightingAtUprightApex() {
+      const rigidBody = kart.rigidbody;
+      if (
+        !rigidBody ||
+        !manualRightingCapturePending ||
+        manualRightingSettlingRemainingSeconds <= 0
+      ) {
+        return;
+      }
+
+      const angularVelocity = rigidBody.angularVelocity.clone();
+      const upwardAlignmentRate = new pc.Vec3()
+        .cross(angularVelocity, kart.up)
+        .dot(pc.Vec3.UP);
+      if (!manualRightingSettling) {
+        if (
+          kart.up.y < KART_MANUAL_RIGHTING_POLICY.captureMinimumUpY ||
+          upwardAlignmentRate > 0
+        ) {
+          return;
+        }
+        manualRightingSettling = true;
+      }
+
+      const rotation = kart.getRotation();
+      const inverseRotation = rotation.clone().invert();
+      const localAngularVelocity = inverseRotation.transformVector(
+        angularVelocity,
+      );
+      const alignmentAxis = new pc.Vec3().cross(kart.up, pc.Vec3.UP);
+      const alignmentSin = Math.min(1, alignmentAxis.length());
+      const alignmentAngle = Math.acos(
+        Math.min(1, Math.max(-1, kart.up.y)),
+      );
+      const targetAngularVelocity =
+        alignmentSin > 1e-6
+          ? alignmentAxis
+              .normalize()
+              .mulScalar(
+                alignmentAngle /
+                  KART_MANUAL_RIGHTING_POLICY.uprightSettlingSeconds,
+              )
+          : new pc.Vec3();
+      const targetLocalAngularVelocity = inverseRotation.transformVector(
+        targetAngularVelocity,
+      );
+      const localTorqueImpulse =
+        getManualRightingCaptureLocalTorqueImpulse(
+          KART_INERTIA,
+          localAngularVelocity,
+          targetLocalAngularVelocity,
+        );
+      const worldTorqueImpulse = rotation.transformVector(
+        new pc.Vec3(
+          localTorqueImpulse.x,
+          localTorqueImpulse.y,
+          localTorqueImpulse.z,
+        ),
+      );
+
+      rigidBody.applyTorqueImpulse(worldTorqueImpulse);
+      rigidBody.activate();
+      if (
+        kartController.state.supportCount === dynamicWheels.length &&
+        kart.up.y > 0.9
+      ) {
+        manualRightingCapturePending = false;
+        manualRightingSettling = false;
+        manualRightingSettlingRemainingSeconds = 0;
+      }
     }
 
     function requestRaceRecovery() {
@@ -1218,6 +1378,9 @@ export function SoloTimeTrialCanvas({
         kart.rigidbody.activate();
       }
       kartController.reset();
+      manualRightingCapturePending = false;
+      manualRightingSettling = false;
+      manualRightingSettlingRemainingSeconds = 0;
       driftSmoke?.stop();
       resetSuspensionMetrics();
       resetCollisionMetrics();
@@ -1285,7 +1448,7 @@ export function SoloTimeTrialCanvas({
       );
       startMarker.setPosition(
         currentStartPosition.x,
-        currentStartPosition.y + 0.14,
+        currentStartPosition.y + START_MARKER_VISUAL_CENTER_HEIGHT,
         currentStartPosition.z,
       );
     }
@@ -1303,16 +1466,19 @@ export function SoloTimeTrialCanvas({
 
     const kartController = new DynamicKartController({
       app,
+      environment: activeDynamics.environment,
       fallResetY: KART_RESET_FALL_Y,
       kart,
+      localInertia: KART_INERTIA,
       mass: KART_MASS,
       onFallReset: requestRaceRecovery,
-      pitchInertia: KART_INERTIA.x,
-      tuning: activeKartTuning,
+      physicalProfile: activeDynamics.kart,
+      steeringGeometry: REFERENCE_KART_CONSTRUCTION.steeringGeometry,
+      tireSurfaceInteraction: activeDynamics.tireSurfaceInteraction,
       wheels: dynamicWheels,
     });
     runtime.addCleanup(() => kartController.destroy());
-    driftSmoke = new KartDriftSmoke(dynamicWheels, activeKartTuning);
+    driftSmoke = new KartDriftSmoke(dynamicWheels);
     const activeDriftSmoke = driftSmoke;
     runtime.addCleanup(() => activeDriftSmoke.destroy());
     const collisionObserver = new KartCollisionObserver(
@@ -1474,45 +1640,46 @@ export function SoloTimeTrialCanvas({
           wheel.armForward,
           wheel.chassisForwardAnchor,
           armHub,
-          0.035,
+          REFERENCE_KART_CONSTRUCTION.suspension.armRadius,
         );
         placeSuspensionBar(
           wheel.armRear,
           wheel.chassisRearAnchor,
           armHub,
-          0.035,
+          REFERENCE_KART_CONSTRUCTION.suspension.armRadius,
         );
         placeSuspensionBar(
           wheel.shock,
           wheel.chassisShockAnchor,
           armHub,
-          0.045,
+          REFERENCE_KART_CONSTRUCTION.suspension.shockRadius,
         );
       });
     }
 
-    function setSceneKartTuning(nextTuning: Partial<KartTuning>) {
-      activeKartTuning = normalizeKartTuning({
-        ...activeKartTuning,
-        ...nextTuning,
+    function setSceneKartDevelopmentValues(
+      nextValues: Partial<KartDevelopmentValues>,
+    ) {
+      activeDevelopmentValues = normalizeKartDevelopmentValues({
+        ...activeDevelopmentValues,
+        ...nextValues,
       });
-      kartTuningRef.current = activeKartTuning;
-      setKartTuning({ ...activeKartTuning });
-      kartController.setTuning(activeKartTuning);
-      activeRigidBodySystem.gravity.set(0, -activeKartTuning.gravity, 0);
-      chaseCamera.setMaximumSpeed(
-        Math.max(
-          activeKartTuning.maxForwardSpeed,
-          activeKartTuning.maxReverseSpeed,
-        ),
+      activeDynamics = resolveKartDevelopmentValues(activeDevelopmentValues);
+      kartDevelopmentValuesRef.current = activeDevelopmentValues;
+      setKartDevelopmentValues({ ...activeDevelopmentValues });
+      kartController.setPhysicalProfile(activeDynamics.kart);
+      kartController.setEnvironment(activeDynamics.environment);
+      kartController.setTireSurfaceInteraction(
+        activeDynamics.tireSurfaceInteraction,
       );
-      if (kart.rigidbody) {
-        kart.rigidbody.angularDamping = activeKartTuning.angularDamping;
-        kart.rigidbody.friction = activeKartTuning.chassisFriction;
-        kart.rigidbody.linearDamping = activeKartTuning.linearDamping;
-        kart.rigidbody.restitution = activeKartTuning.chassisRestitution;
-      }
-      driftSmoke?.setTuning(activeKartTuning);
+      activeRigidBodySystem.gravity.set(
+        0,
+        -activeDynamics.environment.gravity,
+        0,
+      );
+      chaseCamera.setMaximumSpeed(
+        activeDynamics.kart.drivetrain.noLoadSpeed,
+      );
     }
 
     const getGamepads = () => navigator.getGamepads?.() ?? [];
@@ -1556,7 +1723,7 @@ export function SoloTimeTrialCanvas({
         return false;
       }
       gameplayTelemetry.recordAutomaticPause();
-      setKartTuningOpen(false);
+      setKartDynamicsOpen(false);
       setGamePaused(true);
       setDriveCursorHidden(false);
       publishRacePresentation();
@@ -1651,7 +1818,8 @@ export function SoloTimeTrialCanvas({
         publishRacePresentation();
         return true;
       },
-      setKartTuning: (nextTuning) => setSceneKartTuning(nextTuning),
+      setKartDevelopmentValues: (nextValues) =>
+        setSceneKartDevelopmentValues(nextValues),
       setTouchJoystick: (pointerId, x, y) =>
         inputManager.setTouchJoystick(pointerId, x, y),
       setPaused: (paused) => {
@@ -1709,6 +1877,11 @@ export function SoloTimeTrialCanvas({
         startClear: !collidesWithObstacle(currentStartPosition),
         startLineHasCollision: Boolean(startFinishLine?.collision),
         startLineHasRigidBody: Boolean(startFinishLine?.rigidbody),
+        startLineVisualCenterY: startFinishLine?.getPosition().y ?? null,
+        startLineVisualThickness:
+          startFinishLine?.getLocalScale().y ?? null,
+        startMarkerVisualCenterY: startMarker.getPosition().y,
+        startMarkerVisualThickness: startMarker.getLocalScale().y,
       };
     };
 
@@ -1739,32 +1912,32 @@ export function SoloTimeTrialCanvas({
       );
 
       return {
-        airbornePitchActive: kartController.state.airbornePitch.active,
-        airbornePitchAngle: toFixedStep(
-          kartController.state.airbornePitch.angle,
-        ),
-        airbornePitchRate: toFixedStep(
-          kartController.state.airbornePitch.rate,
-        ),
-        airbornePitchTarget: toFixedStep(
-          kartController.state.airbornePitch.target,
-        ),
-        airbornePitchTorque: toFixedStep(
-          kartController.state.airbornePitch.appliedTorque,
-        ),
+        actualTurnRadius:
+          kartController.state.actualTurnRadius === null
+            ? null
+            : toFixedStep(kartController.state.actualTurnRadius),
         angularSpeed: toFixedStep(angularSpeed),
         angularVelocity: {
           x: toFixedStep(angularVelocity.x),
           y: toFixedStep(angularVelocity.y),
           z: toFixedStep(angularVelocity.z),
         },
-        chassisClearance: toFixedStep(kartVisual.getPosition().y - 0.26),
+        chassisClearance: Number(
+          (
+            kartVisual.getPosition().y -
+            REFERENCE_KART_CONSTRUCTION.visual.clearanceDatumHeight
+          ).toFixed(4),
+        ),
         driftSmokeLevels: driftSmoke?.levelsByWheel ?? {},
         forward: {
           x: toFixedStep(kart.forward.x),
           y: toFixedStep(kart.forward.y),
           z: toFixedStep(kart.forward.z),
         },
+        geometricTurnRadius:
+          kartController.state.geometricTurnRadius === null
+            ? null
+            : toFixedStep(kartController.state.geometricTurnRadius),
         isOverGround: supportCount !== 0,
         linearVelocity: {
           x: toFixedStep(linearVelocity.x),
@@ -1777,7 +1950,9 @@ export function SoloTimeTrialCanvas({
         ),
         maximumSlipAngle: toFixedStep(maximumSlipAngle),
         maximumTireForceUtilization: toFixedStep(maximumTireForceUtilization),
-        maxForwardSpeed: toFixedStep(activeKartTuning.maxForwardSpeed),
+        maxForwardSpeed: toFixedStep(
+          activeDynamics.kart.drivetrain.noLoadSpeed,
+        ),
         manualRightingCooldownSeconds: toFixedStep(
           manualRightingCooldownSeconds,
         ),
@@ -1794,7 +1969,8 @@ export function SoloTimeTrialCanvas({
         saturatedTireCount: kartController.state.wheelTelemetry.filter(
           (wheel) => wheel.tireForceUtilization >= 0.995,
         ).length,
-        tuning: { ...activeKartTuning },
+        developmentValueMetadata: KART_DEVELOPMENT_VALUE_METADATA,
+        developmentValues: { ...activeDevelopmentValues },
         up: {
           x: toFixedStep(kart.up.x),
           y: toFixedStep(kart.up.y),
@@ -1807,10 +1983,40 @@ export function SoloTimeTrialCanvas({
             toFixedStep(wheel.hubLocalY),
           ]),
         ),
+        wheelContactNormals: Object.fromEntries(
+          kartController.state.wheelTelemetry.map((wheel) => [
+            wheel.name,
+            wheel.contactNormal
+              ? {
+                  x: toFixedStep(wheel.contactNormal.x),
+                  y: toFixedStep(wheel.contactNormal.y),
+                  z: toFixedStep(wheel.contactNormal.z),
+                }
+              : null,
+          ]),
+        ),
+        wheelLateralForces: Object.fromEntries(
+          kartController.state.wheelTelemetry.map((wheel) => [
+            wheel.name,
+            toFixedStep(wheel.appliedLateralTireForce),
+          ]),
+        ),
+        wheelLateralScrubPowers: Object.fromEntries(
+          kartController.state.wheelTelemetry.map((wheel) => [
+            wheel.name,
+            toFixedStep(getLateralScrubPower(wheel)),
+          ]),
+        ),
         wheelSlipAngles: Object.fromEntries(
           kartController.state.wheelTelemetry.map((wheel) => [
             wheel.name,
             toFixedStep(wheel.slipAngle),
+          ]),
+        ),
+        wheelSteerAngles: Object.fromEntries(
+          kartController.state.wheelTelemetry.map((wheel) => [
+            wheel.name,
+            toFixedStep(wheel.steerAngle),
           ]),
         ),
         wheelLoads: Object.fromEntries(
@@ -1827,6 +2033,13 @@ export function SoloTimeTrialCanvas({
               : toFixedStep(wheel.sweepFraction),
           ]),
         ),
+        wheelTireForceUtilizations: Object.fromEntries(
+          kartController.state.wheelTelemetry.map((wheel) => [
+            wheel.name,
+            toFixedStep(wheel.tireForceUtilization),
+          ]),
+        ),
+        yawRate: toFixedStep(kartController.state.yawRate),
         x: toFixedStep(kartPosition.x),
         y: toFixedStep(kartPosition.y),
         z: toFixedStep(kartPosition.z),
@@ -1895,7 +2108,7 @@ export function SoloTimeTrialCanvas({
       minimumChassisClearance: Number.isFinite(
         suspensionMetrics.minimumChassisClearance,
       )
-        ? toFixedStep(suspensionMetrics.minimumChassisClearance)
+        ? Number(suspensionMetrics.minimumChassisClearance.toFixed(4))
         : 0,
       minimumSupportedWheels: suspensionMetrics.minimumSupportedWheels,
     });
@@ -1916,6 +2129,9 @@ export function SoloTimeTrialCanvas({
         ),
       );
       kartController.reset();
+      manualRightingCapturePending = false;
+      manualRightingSettling = false;
+      manualRightingSettlingRemainingSeconds = 0;
       driftSmoke?.stop();
       resetSuspensionMetrics();
       resetCollisionMetrics();
@@ -1949,7 +2165,10 @@ export function SoloTimeTrialCanvas({
       previousRacePosition.copy(kart.getPosition());
       chaseCamera.snap(
         getChaseCameraSnapshot(
-          pose.position.y > KART_ROOT_HEIGHT + 0.5 ? 0 : dynamicWheels.length,
+          pose.position.y >
+          KART_ROOT_HEIGHT + scaleReferenceKartLength(0.5)
+            ? 0
+            : dynamicWheels.length,
         ),
       );
     };
@@ -2011,7 +2230,7 @@ export function SoloTimeTrialCanvas({
           resetKart,
           setCourseObjectDebugTransform,
           setKartDebugPose,
-          setKartMovementTuning: setSceneKartTuning,
+          setKartDevelopmentValues: setSceneKartDevelopmentValues,
           setRaceDebugMovement,
           setSimulationPaused: (paused) => runtime.setPaused(paused),
           setStartPosition: setSceneStartPosition,
@@ -2036,6 +2255,14 @@ export function SoloTimeTrialCanvas({
         0,
         manualRightingCooldownSeconds - dt,
       );
+      manualRightingSettlingRemainingSeconds = Math.max(
+        0,
+        manualRightingSettlingRemainingSeconds - dt,
+      );
+      if (manualRightingSettlingRemainingSeconds === 0) {
+        manualRightingCapturePending = false;
+        manualRightingSettling = false;
+      }
 
       const sample = inputManager.sampleDrivingInput();
       latestRequestedDrivingInput = sample.driving;
@@ -2075,6 +2302,7 @@ export function SoloTimeTrialCanvas({
       captureCameraImpact();
 
       kartController.postUpdate(latestDrivingInput, dt);
+      captureManualRightingAtUprightApex();
 
       const currentRacePosition = kart.getPosition();
       if (raceSession.acceptsDriving) {
@@ -2098,7 +2326,7 @@ export function SoloTimeTrialCanvas({
           raceFinishedThisFrame = true;
           inputManager.setEnabled(false);
           clearTouchPresentation();
-          setKartTuningOpen(false);
+          setKartDynamicsOpen(false);
           setDriveCursorHidden(false);
         }
       }
@@ -2109,7 +2337,7 @@ export function SoloTimeTrialCanvas({
         pauseAfterFixedStep = false;
         if (paused) {
           runtime.requestPauseAtFixedStepBoundary();
-          setKartTuningOpen(false);
+          setKartDynamicsOpen(false);
           setGamePaused(true);
           setDriveCursorHidden(false);
         }
@@ -2117,7 +2345,6 @@ export function SoloTimeTrialCanvas({
 
       const raceState = raceSession.snapshot.state;
       driftSmoke?.update(kartController.state.wheelTelemetry, {
-        brake: raceState === "racing" ? latestDrivingInput.brake : 0,
         countdownThrottle:
           raceState === "countdown"
             ? Math.max(latestRequestedDrivingInput.throttle, 0)
@@ -2191,7 +2418,8 @@ export function SoloTimeTrialCanvas({
       );
       suspensionMetrics.minimumChassisClearance = Math.min(
         suspensionMetrics.minimumChassisClearance,
-        kartVisual.getPosition().y - 0.26,
+        kartVisual.getPosition().y -
+          REFERENCE_KART_CONSTRUCTION.visual.clearanceDatumHeight,
       );
     });
 
@@ -2245,18 +2473,8 @@ export function SoloTimeTrialCanvas({
     };
   }, [COURSE_DOCUMENT, START_POSITION, START_ROTATION, gameplayTelemetry]);
 
-  function updateKartTuning(key: KartTuningKey, value: number) {
-    const nextTuning = normalizeKartTuning({
-      ...kartTuningRef.current,
-      [key]: value,
-    });
-    kartTuningRef.current = nextTuning;
-    setKartTuning(nextTuning);
-    sceneApiRef.current?.setKartTuning(nextTuning);
-  }
-
-  const updateKartTuningOpen = useCallback((open: boolean) => {
-    setKartTuningOpen(open);
+  const updateKartDynamicsOpen = useCallback((open: boolean) => {
+    setKartDynamicsOpen(open);
     if (!open) {
       requestAnimationFrame(() => canvasRef.current?.focus());
       return;
@@ -2273,7 +2491,7 @@ export function SoloTimeTrialCanvas({
   }, []);
 
   useEffect(() => {
-    const toggleKartTuning = (event: KeyboardEvent) => {
+    const toggleKartDynamics = (event: KeyboardEvent) => {
       if (
         event.code !== "KeyT" ||
         event.repeat ||
@@ -2290,25 +2508,18 @@ export function SoloTimeTrialCanvas({
       }
 
       event.preventDefault();
-      updateKartTuningOpen(!kartTuningOpen);
+      updateKartDynamicsOpen(!kartDynamicsOpen);
     };
 
-    window.addEventListener("keydown", toggleKartTuning);
-    return () => window.removeEventListener("keydown", toggleKartTuning);
+    window.addEventListener("keydown", toggleKartDynamics);
+    return () => window.removeEventListener("keydown", toggleKartDynamics);
   }, [
     gamePaused,
-    kartTuningOpen,
+    kartDynamicsOpen,
     racePresentation.state,
     sceneStatus,
-    updateKartTuningOpen,
+    updateKartDynamicsOpen,
   ]);
-
-  function resetKartTuning() {
-    const defaults = { ...DEFAULT_KART_TUNING };
-    kartTuningRef.current = defaults;
-    setKartTuning(defaults);
-    sceneApiRef.current?.setKartTuning(defaults);
-  }
 
   function pauseRace() {
     sceneApiRef.current?.setPaused(true);
@@ -2320,7 +2531,7 @@ export function SoloTimeTrialCanvas({
       0,
       0,
     );
-    setKartTuningOpen(false);
+    setKartDynamicsOpen(false);
     setGamePaused(true);
     setDriveCursorHidden(false);
   }
@@ -2681,14 +2892,12 @@ export function SoloTimeTrialCanvas({
       />
       {sceneStatus === "ready" ? (
         <>
-          {kartTuningOpen &&
+          {kartDynamicsOpen &&
           !gamePaused &&
           racePresentation.state !== "finished" ? (
-            <KartTuningDrawer
-              onChange={updateKartTuning}
-              onClose={() => updateKartTuningOpen(false)}
-              onReset={resetKartTuning}
-              tuning={kartTuning}
+            <KartDynamicsDrawer
+              onClose={() => updateKartDynamicsOpen(false)}
+              values={kartDevelopmentValues}
             />
           ) : null}
           {racePresentation.state !== "finished" ? (
@@ -2869,7 +3078,7 @@ export function SoloTimeTrialCanvas({
               >
                 <PauseIcon />
               </button>
-              {!kartTuningOpen ? (
+              {!kartDynamicsOpen ? (
                 <div
                   aria-label="Touch driving controls"
                   className="race-touch-controls absolute inset-x-0 bottom-0 z-20 justify-between px-[max(1rem,env(safe-area-inset-left))] pb-[max(1rem,env(safe-area-inset-bottom))] pr-[max(1rem,env(safe-area-inset-right))]"
@@ -2976,7 +3185,7 @@ export function SoloTimeTrialCanvas({
                 </div>
               ) : null}
               <div className="pointer-events-none absolute bottom-4 right-4 z-10 hidden font-mono text-[0.68rem] font-bold uppercase tracking-[0.14em] text-titan-ice/55 lg:block">
-                T · Tuning&nbsp;&nbsp; Esc · Pause
+                T · Dynamics&nbsp;&nbsp; Esc · Pause
               </div>
             </>
           ) : null}

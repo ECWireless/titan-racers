@@ -1,4 +1,8 @@
-import type { CourseTestObstacleId, KartTuning, Position3 } from "../contracts";
+import type { CourseTestObstacleId, Position3 } from "../contracts";
+import type {
+  KartDevelopmentValueMetadata,
+  KartDevelopmentValues,
+} from "../kart/kart-development-values";
 import type { ChaseCameraDiagnostics } from "../camera/chase-camera";
 import type {
   RaceProgressionResult,
@@ -39,22 +43,23 @@ export type CollisionDebugState = {
   startClear: boolean;
   startLineHasCollision: boolean;
   startLineHasRigidBody: boolean;
+  startLineVisualCenterY: number | null;
+  startLineVisualThickness: number | null;
+  startMarkerVisualCenterY: number;
+  startMarkerVisualThickness: number;
 };
 
 export type CameraDebugState = ChaseCameraDiagnostics;
 
 export type KartDebugState = {
+  actualTurnRadius: number | null;
   angularVelocity: Position3;
-  airbornePitchActive: boolean;
-  airbornePitchAngle: number;
-  airbornePitchRate: number;
-  airbornePitchTarget: number;
-  airbornePitchTorque: number;
   angularSpeed: number;
   chassisClearance: number;
   driftSmokeLevels: Record<string, number>;
   driftSmokeWheelNames: string[];
   forward: Position3;
+  geometricTurnRadius: number | null;
   isOverGround: boolean;
   linearVelocity: Position3;
   maximumLateralSpeed: number;
@@ -73,16 +78,26 @@ export type KartDebugState = {
   supportEntityNames: string[];
   supportedWheelNames: string[];
   saturatedTireCount: number;
-  tuning: KartTuning;
+  developmentValueMetadata: Record<
+    keyof KartDevelopmentValues,
+    KartDevelopmentValueMetadata
+  >;
+  developmentValues: KartDevelopmentValues;
   up: Position3;
   verticalVelocity: number;
   wheelHubYs: Record<string, number>;
+  wheelContactNormals: Record<string, Position3 | null>;
+  wheelLateralForces: Record<string, number>;
+  wheelLateralScrubPowers: Record<string, number>;
   wheelLoads: Record<string, number>;
   wheelSlipAngles: Record<string, number>;
+  wheelSteerAngles: Record<string, number>;
   wheelSweepFractions: Record<string, number | null>;
+  wheelTireForceUtilizations: Record<string, number>;
   x: number;
   y: number;
   z: number;
+  yawRate: number;
 };
 
 export type KartDebugPose = {
@@ -138,7 +153,9 @@ export type SceneTestApi = {
     transform: { position?: Position3; rotation?: Position3 },
   ) => void;
   setKartDebugPose: (pose: KartDebugPose) => void;
-  setKartMovementTuning: (tuning: Partial<KartTuning>) => void;
+  setKartDevelopmentValues: (
+    values: Partial<KartDevelopmentValues>,
+  ) => void;
   setRaceDebugMovement: (
     previousPosition: Position3,
     currentPosition: Position3,
@@ -295,9 +312,9 @@ export function attachSceneTestAdapter(
       }) as EventListener,
     ],
     [
-      "setKartMovementTuning",
-      ((event: CustomEvent<{ tuning: Partial<KartTuning> }>) => {
-        api.setKartMovementTuning(event.detail.tuning);
+      "setKartDevelopmentValues",
+      ((event: CustomEvent<{ values: Partial<KartDevelopmentValues> }>) => {
+        api.setKartDevelopmentValues(event.detail.values);
       }) as EventListener,
     ],
     [

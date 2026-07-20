@@ -42,7 +42,8 @@ coarse run-health totals.
    leaves the pause dialog visible until the player resumes explicitly.
 3. Resize and orientation events call PlayCanvas canvas reconciliation without
    rebuilding the scene or race session.
-4. Long active frames execute at most four 60 Hz steps and accept at most 100 ms.
+4. Long active frames execute at most eight 120 Hz steps and accept at most
+   100 ms before excess whole steps are discarded.
    Discarded time advances authoritative race timing and contributes only to the
    bounded per-run aggregate.
 5. WebGL loss clears input, pauses gameplay, suspends rendering, and shows a

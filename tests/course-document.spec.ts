@@ -199,6 +199,42 @@ test("keeps the expanded ground approximately 1.5 times its original area", () =
   expect(expandedArea / originalArea).toBeCloseTo(1.5, 1);
 });
 
+test("keeps inset grass presentation thin without moving its collision top", () => {
+  for (const id of [
+    "course-inner-straight",
+    "course-left-cutout",
+    "course-right-cutout",
+  ]) {
+    const object = findObject(id);
+    const collision = object?.collision;
+
+    expect(object?.visual.scale.y).toBe(0.002);
+    expect(
+      (object?.transform.position.y ?? 0) +
+        (object?.visual.scale.y ?? 0) * 0.5,
+    ).toBeCloseTo(0.051);
+    expect(collision).not.toBeNull();
+
+    const collisionHalfHeight =
+      collision?.shape === "box"
+        ? collision.halfExtents.y
+        : (collision?.height ?? 0) * 0.5;
+    expect(
+      (object?.transform.position.y ?? 0) +
+        (collision?.offset.position.y ?? 0) +
+        collisionHalfHeight,
+    ).toBeCloseTo(0);
+  }
+});
+
+test("keeps the visual-only start line at surface height", () => {
+  const startLine = findObject("start-finish-line");
+
+  expect(startLine?.collision).toBeNull();
+  expect(startLine?.transform.position.y).toBe(0.05);
+  expect(startLine?.visual.scale.y).toBe(0.002);
+});
+
 test("serializes the seed deterministically and round trips without changes", () => {
   const serialized = serializeCourseDocument(ROUGH_COURSE_DOCUMENT);
   const source = readFileSync(

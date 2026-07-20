@@ -1,31 +1,33 @@
 import * as pc from "playcanvas";
 
 import type { Position3 } from "../contracts";
+import { scaleReferenceKartLength } from "../kart/kart-reference-construction";
 
 const DESKTOP_SETTINGS = {
-  distance: 6,
+  distance: scaleReferenceKartLength(7.5),
   fov: 45,
-  height: 3,
-  lookAhead: 2,
+  height: scaleReferenceKartLength(3),
+  lookAhead: scaleReferenceKartLength(2),
   maximumFov: 51,
-  maximumLookAhead: 4.2,
+  maximumLookAhead: scaleReferenceKartLength(4.2),
 };
 
 const MOBILE_SETTINGS = {
-  distance: 8.5,
+  distance: scaleReferenceKartLength(8.5),
   fov: 58,
-  height: 4.2,
-  lookAhead: 2.8,
+  height: scaleReferenceKartLength(4.2),
+  lookAhead: scaleReferenceKartLength(2.8),
   maximumFov: 63,
-  maximumLookAhead: 5,
+  maximumLookAhead: scaleReferenceKartLength(5),
 };
 
 const DEFAULT_MAXIMUM_SPEED = 17;
 const MOTION_HEADING_WEIGHT = 0.48;
 const MOTION_HEADING_MINIMUM_SPEED = 1.2;
+const REVERSE_FRAMING_MINIMUM_SPEED = 0.5;
 const SLIP_MINIMUM_SPEED = 2;
 const MAXIMUM_SLIP_DEGREES = 42;
-const MAXIMUM_SLIP_OFFSET = 0.8;
+const MAXIMUM_SLIP_OFFSET = scaleReferenceKartLength(0.8);
 const POSITION_SHARPNESS = 5.5;
 const OBSTRUCTED_POSITION_SHARPNESS = 24;
 const LOOK_SHARPNESS = 8;
@@ -33,11 +35,11 @@ const VELOCITY_SHARPNESS = 5;
 const FOV_SHARPNESS = 4;
 const AIRBORNE_SHARPNESS = 7;
 const AIRBORNE_VERTICAL_LAG = 0.65;
-const CAMERA_PIVOT_HEIGHT = 0.65;
-const OBSTRUCTION_MARGIN = 0.28;
+const CAMERA_PIVOT_HEIGHT = scaleReferenceKartLength(0.65);
+const OBSTRUCTION_MARGIN = scaleReferenceKartLength(0.28);
 const IMPACT_MINIMUM_APPROACH_SPEED = 3.5;
 const IMPACT_MAXIMUM_APPROACH_SPEED = 13;
-const IMPACT_MAXIMUM_OFFSET = 0.22;
+const IMPACT_MAXIMUM_OFFSET = scaleReferenceKartLength(0.22);
 const IMPACT_DECAY_SHARPNESS = 9;
 const IMPACT_COOLDOWN_SECONDS = 0.16;
 
@@ -74,6 +76,7 @@ export type ChaseCameraDiagnostics = {
   cameraPosition: Position3;
   desiredPosition: Position3;
   fov: number;
+  forwardSpeed: number;
   impactOffset: Position3;
   lookTarget: Position3;
   maximumSpeed: number;
@@ -82,6 +85,7 @@ export type ChaseCameraDiagnostics = {
   planarSpeed: number;
   signedSlipDegrees: number;
   snapCount: number;
+  trailingDistance: number;
 };
 
 type ObstructionQuery = (
@@ -173,6 +177,7 @@ export class ChaseCamera {
   private impactCooldown = 0;
   private snapCount = 0;
   private planarSpeed = 0;
+  private forwardSpeed = 0;
   private signedSlipDegrees = 0;
   private obstructed = false;
   private obstructionDistance: number | null = null;
@@ -203,6 +208,7 @@ export class ChaseCamera {
     this.smoothedLookTarget.copy(this.desiredLookTarget);
     this.smoothedFov = this.getDesiredFov(settings);
     this.snapCount += 1;
+    this.enforceReverseFraming(settings);
     this.applyCameraTransform();
   }
 
@@ -253,6 +259,7 @@ export class ChaseCamera {
       this.getDesiredFov(settings),
       smoothFactor(FOV_SHARPNESS, frameSeconds),
     );
+    this.enforceReverseFraming(settings);
     this.applyCameraTransform();
   }
 
@@ -266,6 +273,7 @@ export class ChaseCamera {
       cameraPosition: copyPosition(this.smoothedPosition),
       desiredPosition: copyPosition(this.desiredPosition),
       fov: this.smoothedFov,
+      forwardSpeed: this.forwardSpeed,
       impactOffset: copyPosition(this.impactOffset),
       lookTarget: copyPosition(this.smoothedLookTarget),
       maximumSpeed: this.maximumSpeed,
@@ -274,6 +282,7 @@ export class ChaseCamera {
       planarSpeed: this.planarSpeed,
       signedSlipDegrees: this.signedSlipDegrees,
       snapCount: this.snapCount,
+      trailingDistance: this.calculateTrailingDistance(),
     };
   }
 
@@ -294,10 +303,13 @@ export class ChaseCamera {
       this.smoothedVelocity.x,
       this.smoothedVelocity.z,
     );
-    const forwardSpeed = this.smoothedVelocity.dot(this.kartForward);
+    this.forwardSpeed = this.smoothedVelocity.dot(this.kartForward);
     this.chaseHeading.copy(this.kartForward);
 
-    if (this.planarSpeed >= MOTION_HEADING_MINIMUM_SPEED && forwardSpeed > 0) {
+    if (
+      this.planarSpeed >= MOTION_HEADING_MINIMUM_SPEED &&
+      this.forwardSpeed > 0
+    ) {
       this.velocityHeading
         .set(this.smoothedVelocity.x, 0, this.smoothedVelocity.z)
         .normalize();
@@ -374,6 +386,36 @@ export class ChaseCamera {
       .copy(this.cameraPivot)
       .add(this.desiredDirection.mulScalar(correctedDistance));
     this.obstructionDistance = correctedDistance;
+  }
+
+  private calculateTrailingDistance() {
+    return (
+      (this.trackedPosition.x - this.smoothedPosition.x) *
+        this.chaseHeading.x +
+      (this.trackedPosition.z - this.smoothedPosition.z) *
+        this.chaseHeading.z
+    );
+  }
+
+  private enforceReverseFraming(settings: CameraSettings) {
+    // Forward smoothing leaves the camera farther behind. In reverse it creates
+    // the opposite error: at speed, the kart can catch and cross the camera
+    // plane. Correct only that unsafe longitudinal lag so reverse remains
+    // orientation-led. A real obstruction remains authoritative.
+    if (
+      this.obstructed ||
+      this.forwardSpeed >= -REVERSE_FRAMING_MINIMUM_SPEED
+    ) {
+      return;
+    }
+
+    const correction = settings.distance - this.calculateTrailingDistance();
+
+    if (correction > 0) {
+      this.smoothedPosition.sub(
+        this.scaledHeading.copy(this.chaseHeading).mulScalar(correction),
+      );
+    }
   }
 
   private consumeImpact(impact: ChaseCameraImpact | null) {

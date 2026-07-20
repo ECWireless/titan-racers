@@ -2,6 +2,15 @@ import { expect, test } from "@playwright/test";
 import type * as pc from "playcanvas";
 
 import { PlayCanvasRuntime } from "../src/game/runtime/playcanvas-application";
+import { DEFAULT_FIXED_STEP_SECONDS } from "../src/game/runtime/fixed-step-clock";
+
+function fixedStepEvents(count: number, includePostStep = false) {
+  return Array.from({ length: count }, () => [
+    "fixed-listener",
+    "update",
+    ...(includePostStep ? ["post-fixed-listener"] : []),
+  ]).flat();
+}
 
 function createRuntimeHarness() {
   const events: string[] = [];
@@ -69,7 +78,7 @@ test("advances one whole-world update per outer fixed step before rendering", ()
   runtime.start();
 
   expect(events).toEqual(["start", "cancel-default-tick"]);
-  expect(rigidbody.fixedTimeStep).toBeCloseTo(1 / 60);
+  expect(rigidbody.fixedTimeStep).toBeCloseTo(DEFAULT_FIXED_STEP_SECONDS);
   expect(rigidbody.maxSubSteps).toBe(1);
 
   runNextFrame(0);
@@ -77,10 +86,7 @@ test("advances one whole-world update per outer fixed step before rendering", ()
   runNextFrame(1000 / 30);
 
   expect(events).toEqual([
-    "fixed-listener",
-    "update",
-    "fixed-listener",
-    "update",
+    ...fixedStepEvents(4),
     "render-listener",
     "render",
   ]);
@@ -143,18 +149,7 @@ test("reports discarded active time after fixed steps and before rendering", () 
   runNextFrame(500);
 
   expect(events).toEqual([
-    "fixed-listener",
-    "update",
-    "post-fixed-listener",
-    "fixed-listener",
-    "update",
-    "post-fixed-listener",
-    "fixed-listener",
-    "update",
-    "post-fixed-listener",
-    "fixed-listener",
-    "update",
-    "post-fixed-listener",
+    ...fixedStepEvents(8, true),
     "discarded-0.433",
     "frame-end",
     "render-listener",

@@ -1,36 +1,50 @@
 import * as pc from "playcanvas";
 
-import type { KartTuning } from "../contracts";
 import type { DynamicWheelTelemetry } from "./dynamic-kart-controller";
-import { DEFAULT_KART_TUNING } from "./kart-tuning";
+import {
+  REFERENCE_KART_MASS_SCALE,
+  scaleReferenceKartLength,
+} from "./kart-reference-construction";
 
 const DRIFT_SMOKE_PARTICLE_LIFETIME = 0.72;
 const DRIFT_SMOKE_PARTICLE_COUNT = 8;
-const DRIFT_SMOKE_LOCAL_Y = -0.18;
-const DRIFT_SMOKE_LOCAL_Z = 0.08;
-const COUNTDOWN_SMOKE_LOCAL_Y = 0.45;
-const COUNTDOWN_SMOKE_LOCAL_Z = 0.35;
+const DRIFT_SMOKE_LOCAL_Y = scaleReferenceKartLength(-0.18);
+const DRIFT_SMOKE_LOCAL_Z = scaleReferenceKartLength(0.08);
+const COUNTDOWN_SMOKE_LOCAL_Y = scaleReferenceKartLength(0.45);
+const COUNTDOWN_SMOKE_LOCAL_Z = scaleReferenceKartLength(0.35);
 
-function degreesToRadians(degrees: number) {
-  return degrees * (Math.PI / 180);
-}
+/** Shared presentation policy. These values do not alter tire forces or grip. */
+export const KART_TIRE_SMOKE_POLICY = Object.freeze({
+  countdownThrottleOnset: 0.35,
+  heavyAlpha: 0.2,
+  heavyTailAlpha: 0.13,
+  lateralScrubPowerFullWatts: 770 * REFERENCE_KART_MASS_SCALE,
+  lateralScrubPowerOnsetWatts: 165 * REFERENCE_KART_MASS_SCALE,
+  lightAlpha: 0.24,
+  lightTailAlpha: 0.15,
+  releaseThresholdRatio: 0.75,
+  // Smoke is a stylized screen-readable cue, not miniature solid geometry.
+  // Its positions use construction scale, while particle size shrinks less
+  // aggressively so the plume remains legible behind the RC kart.
+  visualLinearScale: 0.5,
+});
+
+export type KartTireSmokePolicy = typeof KART_TIRE_SMOKE_POLICY;
 
 type TireSmokeWheelSample = Pick<
   DynamicWheelTelemetry,
-  | "longitudinalSpeed"
+  | "appliedLateralTireForce"
+  | "driven"
+  | "lateralSpeed"
   | "name"
-  | "slipAngle"
   | "supported"
-  | "tireForceUtilization"
 >;
 
 export type TireSmokeIntent = {
-  brake: number;
   countdownThrottle: number;
 };
 
 const NEUTRAL_TIRE_SMOKE_INTENT: TireSmokeIntent = {
-  brake: 0,
   countdownThrottle: 0,
 };
 
@@ -47,99 +61,79 @@ type DriftSmokeEmitter = {
   wheelName: string;
 };
 
+function clamp(value: number, minimum: number, maximum: number) {
+  return Math.min(Math.max(value, minimum), maximum);
+}
+
+function smoothstep(value: number) {
+  const clamped = clamp(value, 0, 1);
+  return clamped * clamped * (3 - 2 * clamped);
+}
+
+export function getLateralScrubPower(wheel: TireSmokeWheelSample) {
+  return (
+    Math.abs(wheel.appliedLateralTireForce) * Math.abs(wheel.lateralSpeed)
+  );
+}
+
 export function getDriftSmokeLevel(
   wheel: TireSmokeWheelSample,
   previousLevel = 0,
-  tuning: KartTuning = DEFAULT_KART_TUNING,
+  policy: KartTireSmokePolicy = KART_TIRE_SMOKE_POLICY,
 ) {
   if (!wheel.name.startsWith("rear") || !wheel.supported) {
     return 0;
   }
 
-  const minimumSpeed =
+  const releaseThreshold =
+    policy.lateralScrubPowerOnsetWatts * policy.releaseThresholdRatio;
+  const activationThreshold =
     previousLevel > 0
-      ? tuning.driftSmokeStopSpeed
-      : tuning.driftSmokeStartSpeed;
-  const minimumSlipAngle =
-    previousLevel > 0
-      ? degreesToRadians(tuning.driftSmokeStopSlipAngleDegrees)
-      : degreesToRadians(tuning.driftSmokeStartSlipAngleDegrees);
-  const slipAngle = Math.abs(wheel.slipAngle);
+      ? releaseThreshold
+      : policy.lateralScrubPowerOnsetWatts;
+  const scrubPower = getLateralScrubPower(wheel);
 
-  if (
-    Math.abs(wheel.longitudinalSpeed) < minimumSpeed ||
-    slipAngle < minimumSlipAngle
-  ) {
+  if (scrubPower < activationThreshold) {
     return 0;
   }
 
-  const heavySlipAngle =
-    previousLevel >= 2
-      ? degreesToRadians(tuning.heavyDriftSmokeStopSlipAngleDegrees)
-      : degreesToRadians(tuning.heavyDriftSmokeStartSlipAngleDegrees);
+  const densityProgress =
+    (scrubPower - releaseThreshold) /
+    (policy.lateralScrubPowerFullWatts - releaseThreshold);
 
-  return slipAngle >= heavySlipAngle ? 2 : 1;
-}
-
-export function getBrakingSmokeLevel(
-  wheel: TireSmokeWheelSample,
-  brakeDemand: number,
-  wasActive = false,
-  tuning: KartTuning = DEFAULT_KART_TUNING,
-) {
-  if (!wheel.supported) {
-    return 0;
-  }
-
-  const minimumSpeed = wasActive
-    ? tuning.driftSmokeStopSpeed
-    : tuning.driftSmokeStartSpeed;
-  const minimumDemand = wasActive
-    ? tuning.brakingSmokeStopDemand
-    : tuning.brakingSmokeStartDemand;
-  const minimumUtilization = wasActive
-    ? tuning.brakingSmokeStopTireForceUtilization
-    : tuning.brakingSmokeStartTireForceUtilization;
-
-  return brakeDemand > 0 &&
-    wheel.longitudinalSpeed >= minimumSpeed &&
-    brakeDemand >= minimumDemand &&
-    wheel.tireForceUtilization >= minimumUtilization
-    ? 1
-    : 0;
+  return 2 * smoothstep(densityProgress);
 }
 
 export function getCountdownSmokeLevel(
   wheel: TireSmokeWheelSample,
   throttleDemand: number,
   wasActive = false,
-  tuning: KartTuning = DEFAULT_KART_TUNING,
+  policy: KartTireSmokePolicy = KART_TIRE_SMOKE_POLICY,
 ) {
-  if (!wheel.name.startsWith("rear") || !wheel.supported) {
+  if (!wheel.name.startsWith("rear") || !wheel.driven || !wheel.supported) {
     return 0;
   }
 
   const minimumThrottle = wasActive
-    ? tuning.countdownSmokeStopThrottle
-    : tuning.countdownSmokeStartThrottle;
+    ? policy.countdownThrottleOnset * policy.releaseThresholdRatio
+    : policy.countdownThrottleOnset;
 
-  return throttleDemand > 0 && throttleDemand >= minimumThrottle ? 2 : 0;
+  return throttleDemand >= minimumThrottle ? 2 : 0;
 }
 
 export function getTireSmokeLevel(
   wheel: TireSmokeWheelSample,
   intent: TireSmokeIntent = NEUTRAL_TIRE_SMOKE_INTENT,
   previousLevel = 0,
-  tuning: KartTuning = DEFAULT_KART_TUNING,
+  policy: KartTireSmokePolicy = KART_TIRE_SMOKE_POLICY,
 ) {
   return Math.max(
-    getDriftSmokeLevel(wheel, previousLevel, tuning),
-    getBrakingSmokeLevel(wheel, intent.brake, previousLevel > 0, tuning),
+    getDriftSmokeLevel(wheel, previousLevel, policy),
     getCountdownSmokeLevel(
       wheel,
       intent.countdownThrottle,
       previousLevel > 0,
-      tuning,
+      policy,
     ),
   );
 }
@@ -147,9 +141,9 @@ export function getTireSmokeLevel(
 export function shouldEmitDriftSmoke(
   wheel: TireSmokeWheelSample,
   wasActive = false,
-  tuning: KartTuning = DEFAULT_KART_TUNING,
+  policy: KartTireSmokePolicy = KART_TIRE_SMOKE_POLICY,
 ) {
-  return getDriftSmokeLevel(wheel, wasActive ? 1 : 0, tuning) > 0;
+  return getDriftSmokeLevel(wheel, wasActive ? 1 : 0, policy) > 0;
 }
 
 function createSmokeEmitter(
@@ -165,9 +159,13 @@ function createSmokeEmitter(
     0,
     0,
     0.12,
-    level === 1 ? 0.11 : 0.09,
+    level === 1
+      ? KART_TIRE_SMOKE_POLICY.lightAlpha
+      : KART_TIRE_SMOKE_POLICY.heavyAlpha,
     0.58,
-    level === 1 ? 0.07 : 0.06,
+    level === 1
+      ? KART_TIRE_SMOKE_POLICY.lightTailAlpha
+      : KART_TIRE_SMOKE_POLICY.heavyTailAlpha,
     1,
     0,
   ]);
@@ -182,21 +180,29 @@ function createSmokeEmitter(
 
   const scaleGraph = new pc.Curve([
     0,
-    0.12,
+    0.12 * KART_TIRE_SMOKE_POLICY.visualLinearScale,
     0.35,
-    0.26,
+    0.26 * KART_TIRE_SMOKE_POLICY.visualLinearScale,
     1,
-    level === 1 ? 0.48 : 0.55,
+    (level === 1 ? 0.48 : 0.55) *
+      KART_TIRE_SMOKE_POLICY.visualLinearScale,
   ]);
   scaleGraph.type = pc.CURVE_SMOOTHSTEP;
 
   const velocityGraph = new pc.CurveSet([
     [0, 0, 1, 0],
-    [0, 0.1, 1, 0.34],
+    [
+      0,
+      scaleReferenceKartLength(0.1),
+      1,
+      scaleReferenceKartLength(0.34),
+    ],
     [0, 0, 1, 0],
   ]);
   velocityGraph.type = pc.CURVE_SMOOTHSTEP;
 
+  const rateAtFullIntensity = level === 1 ? 0.09 : 0.075;
+  const rate2AtFullIntensity = level === 1 ? 0.13 : 0.105;
   entity.addComponent("particlesystem", {
     alphaGraph,
     autoPlay: false,
@@ -204,16 +210,16 @@ function createSmokeEmitter(
     colorGraph,
     depthSoftening: 0,
     depthWrite: false,
-    emitterRadius: 0.035,
+    emitterRadius: scaleReferenceKartLength(0.035),
     emitterShape: pc.EMITTERSHAPE_SPHERE,
-    initialVelocity: 0.11,
+    initialVelocity: scaleReferenceKartLength(0.11),
     lifetime: DRIFT_SMOKE_PARTICLE_LIFETIME,
     lighting: false,
     localSpace: false,
     loop: true,
     numParticles: DRIFT_SMOKE_PARTICLE_COUNT,
-    rate: level === 1 ? 0.09 : 0.075,
-    rate2: level === 1 ? 0.13 : 0.105,
+    rate: rateAtFullIntensity,
+    rate2: rate2AtFullIntensity,
     scaleGraph,
     sort: pc.PARTICLESORT_NONE,
     velocityGraph,
@@ -235,16 +241,44 @@ function createSmokeEmitter(
   };
 }
 
+function getEmitterIntensity(level: number, layer: 1 | 2) {
+  return layer === 1 ? clamp(level, 0, 1) : clamp(level - 1, 0, 1);
+}
+
+function setEmitterIntensity(emitter: DriftSmokeEmitter, intensity: number) {
+  const shouldEmit = intensity > 0;
+
+  if (shouldEmit) {
+    // ParticleSystemComponent rate/intensity setters rebuild and reset the
+    // emitter. Updating either every fixed step prevents particles from ever
+    // aging into view. Keep the authored full-density rate stable and vary the
+    // renderer's color multiplier instead, which preserves continuous visual
+    // intensity without restarting simulation.
+    emitter.component.emitter?.material?.setParameter(
+      "colorMult",
+      intensity,
+    );
+  }
+
+  if (shouldEmit === emitter.active) {
+    return;
+  }
+
+  if (shouldEmit) {
+    emitter.component.play();
+  } else {
+    // Stopping emission leaves already-emitted particles to fade naturally.
+    emitter.component.stop();
+  }
+  emitter.active = shouldEmit;
+}
+
 export class KartDriftSmoke {
   private readonly emitters: DriftSmokeEmitter[];
+  private readonly currentLevels = new Map<string, number>();
   private countdownLifted = false;
-  private tuning: KartTuning;
 
-  constructor(
-    wheels: readonly DriftSmokeWheelMount[],
-    tuning: KartTuning = DEFAULT_KART_TUNING,
-  ) {
-    this.tuning = { ...tuning };
+  constructor(wheels: readonly DriftSmokeWheelMount[]) {
     this.emitters = wheels.flatMap((wheel) => [
       createSmokeEmitter(wheel, 1),
       createSmokeEmitter(wheel, 2),
@@ -252,48 +286,26 @@ export class KartDriftSmoke {
   }
 
   get activeWheelNames() {
-    return [
-      ...new Set(
-        this.emitters
-          .filter((emitter) => emitter.active)
-          .map((emitter) => emitter.wheelName),
-      ),
-    ];
+    return [...this.currentLevels]
+      .filter(([, level]) => level > 0)
+      .map(([wheelName]) => wheelName);
   }
 
   get levelsByWheel() {
     return Object.fromEntries(
-      this.activeWheelNames.map((wheelName) => [
-        wheelName,
-        Math.max(
-          0,
-          ...this.emitters
-            .filter(
-              (emitter) => emitter.active && emitter.wheelName === wheelName,
-            )
-            .map((emitter) => emitter.level),
-        ),
-      ]),
+      [...this.currentLevels].filter(([, level]) => level > 0),
     );
   }
 
   destroy() {
     this.emitters.forEach((emitter) => emitter.entity.destroy());
     this.emitters.length = 0;
+    this.currentLevels.clear();
   }
 
   stop() {
-    this.emitters.forEach((emitter) => {
-      if (!emitter.active) {
-        return;
-      }
-      emitter.component.stop();
-      emitter.active = false;
-    });
-  }
-
-  setTuning(tuning: KartTuning) {
-    this.tuning = { ...tuning };
+    this.emitters.forEach((emitter) => setEmitterIntensity(emitter, 0));
+    this.currentLevels.clear();
   }
 
   update(
@@ -315,34 +327,31 @@ export class KartDriftSmoke {
     const telemetryByName = new Map(
       wheelTelemetry.map((wheel) => [wheel.name, wheel]),
     );
-
-    const currentLevels = this.levelsByWheel;
     const nextLevels = new Map(
       [...telemetryByName].map(([wheelName, telemetry]) => [
         wheelName,
         getTireSmokeLevel(
           telemetry,
           intent,
-          currentLevels[wheelName] ?? 0,
-          this.tuning,
+          this.currentLevels.get(wheelName) ?? 0,
         ),
       ]),
     );
 
-    this.emitters.forEach((emitter) => {
-      const shouldEmit =
-        emitter.level <= (nextLevels.get(emitter.wheelName) ?? 0);
-
-      if (shouldEmit === emitter.active) {
-        return;
+    this.currentLevels.clear();
+    nextLevels.forEach((level, wheelName) => {
+      if (level > 0) {
+        this.currentLevels.set(wheelName, level);
       }
-
-      if (shouldEmit) {
-        emitter.component.play();
-      } else {
-        emitter.component.stop();
-      }
-      emitter.active = shouldEmit;
     });
+    this.emitters.forEach((emitter) =>
+      setEmitterIntensity(
+        emitter,
+        getEmitterIntensity(
+          nextLevels.get(emitter.wheelName) ?? 0,
+          emitter.level,
+        ),
+      ),
+    );
   }
 }

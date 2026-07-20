@@ -4,6 +4,20 @@ type RightingVector = {
   z: number;
 };
 
+export const KART_MANUAL_RIGHTING_POLICY = Object.freeze({
+  angledTorqueBoost: 2.4,
+  captureMinimumUpY: 0.7,
+  contactTorqueAllowance: 1.15,
+  cooldownSeconds: 0.45,
+  liftClearanceToKartLengthRatio: 0.32 / 1.85,
+  minimumInversionDegrees: 120,
+  supportProbeDistanceToKartLengthRatio: 1.1 / 1.85,
+  supportProbeStartToKartLengthRatio: 0.2 / 1.85,
+  uprightSettlingMaximumSeconds: 3.5,
+  uprightSettlingSeconds: 0.18,
+  targetRotationDegrees: 180,
+});
+
 const AXIS_EPSILON = 1e-6;
 const SHORTEST_AXIS_MINIMUM_LENGTH = 0.05;
 
@@ -42,7 +56,8 @@ function getShortestRollAxis(up: RightingVector) {
 export function getManualRightingAxis(
   up: RightingVector,
   forward: RightingVector,
-  minimumInversionDegrees: number,
+  minimumInversionDegrees: number =
+    KART_MANUAL_RIGHTING_POLICY.minimumInversionDegrees,
 ): RightingVector | null {
   if (
     !isFiniteVector(up) ||
@@ -79,8 +94,9 @@ export function getManualRightingAxis(
 
 export function getManualRightingTorqueScale(
   up: RightingVector,
-  minimumInversionDegrees: number,
-  maximumAngledBoost: number,
+  minimumInversionDegrees: number =
+    KART_MANUAL_RIGHTING_POLICY.minimumInversionDegrees,
+  maximumAngledBoost: number = KART_MANUAL_RIGHTING_POLICY.angledTorqueBoost,
 ): number | null {
   if (
     !isFiniteVector(up) ||
@@ -110,4 +126,136 @@ export function getManualRightingTorqueScale(
     Math.min(1, (normalizedUpY + 1) / assistRange),
   );
   return 1 + maximumAngledBoost * angledRatio;
+}
+
+export function getAxisMomentOfInertia(
+  localInertia: RightingVector,
+  localAxis: RightingVector,
+) {
+  if (!isFiniteVector(localInertia) || !isFiniteVector(localAxis)) {
+    return 0;
+  }
+
+  const axisLength = Math.hypot(localAxis.x, localAxis.y, localAxis.z);
+  if (
+    axisLength <= AXIS_EPSILON ||
+    localInertia.x <= 0 ||
+    localInertia.y <= 0 ||
+    localInertia.z <= 0
+  ) {
+    return 0;
+  }
+
+  const axisX = localAxis.x / axisLength;
+  const axisY = localAxis.y / axisLength;
+  const axisZ = localAxis.z / axisLength;
+
+  return (
+    localInertia.x * axisX ** 2 +
+    localInertia.y * axisY ** 2 +
+    localInertia.z * axisZ ** 2
+  );
+}
+
+export function getManualRightingCaptureLocalTorqueImpulse(
+  localInertia: RightingVector,
+  localAngularVelocity: RightingVector,
+  targetLocalAngularVelocity: RightingVector = { x: 0, y: 0, z: 0 },
+): RightingVector {
+  if (
+    !isFiniteVector(localInertia) ||
+    !isFiniteVector(localAngularVelocity) ||
+    !isFiniteVector(targetLocalAngularVelocity) ||
+    localInertia.x <= 0 ||
+    localInertia.y <= 0 ||
+    localInertia.z <= 0
+  ) {
+    return { x: 0, y: 0, z: 0 };
+  }
+
+  return {
+    x:
+      localInertia.x *
+      (targetLocalAngularVelocity.x - localAngularVelocity.x),
+    y:
+      localInertia.y *
+      (targetLocalAngularVelocity.y - localAngularVelocity.y),
+    z:
+      localInertia.z *
+      (targetLocalAngularVelocity.z - localAngularVelocity.z),
+  };
+}
+
+export function getManualRightingTorqueImpulse(
+  localInertia: RightingVector,
+  localAxis: RightingVector,
+  gravity: number,
+  liftClearanceHeight: number,
+  torqueScale = 1,
+) {
+  if (
+    !Number.isFinite(gravity) ||
+    gravity <= 0 ||
+    !Number.isFinite(liftClearanceHeight) ||
+    liftClearanceHeight <= 0 ||
+    !Number.isFinite(torqueScale) ||
+    torqueScale <= 0
+  ) {
+    return 0;
+  }
+
+  const liftSpeed = Math.sqrt(
+    2 * gravity * liftClearanceHeight,
+  );
+  const airborneSeconds = (2 * liftSpeed) / gravity;
+  const targetAngularSpeed =
+    (KART_MANUAL_RIGHTING_POLICY.targetRotationDegrees * (Math.PI / 180)) /
+    airborneSeconds;
+
+  return (
+    getAxisMomentOfInertia(localInertia, localAxis) *
+    targetAngularSpeed *
+    KART_MANUAL_RIGHTING_POLICY.contactTorqueAllowance *
+    torqueScale
+  );
+}
+
+export function getManualRightingLiftImpulse(
+  mass: number,
+  gravity: number,
+  liftClearanceHeight: number,
+) {
+  if (
+    !Number.isFinite(mass) ||
+    !Number.isFinite(gravity) ||
+    !Number.isFinite(liftClearanceHeight) ||
+    mass <= 0 ||
+    gravity <= 0 ||
+    liftClearanceHeight <= 0
+  ) {
+    return 0;
+  }
+
+  const liftSpeed = Math.sqrt(
+    2 * gravity * liftClearanceHeight,
+  );
+
+  return mass * liftSpeed;
+}
+
+export function getManualRightingGeometry(kartLength: number) {
+  const boundedLength =
+    Number.isFinite(kartLength) && kartLength > 0 ? kartLength : 0;
+
+  return {
+    liftClearanceHeight:
+      boundedLength *
+      KART_MANUAL_RIGHTING_POLICY.liftClearanceToKartLengthRatio,
+    supportProbeDistance:
+      boundedLength *
+      KART_MANUAL_RIGHTING_POLICY.supportProbeDistanceToKartLengthRatio,
+    supportProbeStart:
+      boundedLength *
+      KART_MANUAL_RIGHTING_POLICY.supportProbeStartToKartLengthRatio,
+  };
 }

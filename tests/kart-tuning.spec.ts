@@ -1,98 +1,81 @@
 import { expect, test } from "@playwright/test";
 
 import {
-  DEFAULT_KART_TUNING,
-  KART_TUNING_BOUNDS,
-  normalizeKartTuning,
-} from "../src/game/kart/kart-tuning";
+  DEFAULT_KART_DEVELOPMENT_VALUES,
+  KART_DEVELOPMENT_VALUE_BOUNDS,
+  KART_DEVELOPMENT_VALUE_METADATA,
+  normalizeKartDevelopmentValues,
+  resolveKartDevelopmentValues,
+} from "../src/game/kart/kart-development-values";
 
-test.describe("kart tuning", () => {
-  test("keeps every authored default inside its public tuning bounds", () => {
-    expect(DEFAULT_KART_TUNING.maxReverseSpeed).toBe(17);
-    Object.entries(DEFAULT_KART_TUNING).forEach(([key, value]) => {
-      const bounds = KART_TUNING_BOUNDS[key as keyof typeof KART_TUNING_BOUNDS];
+test.describe("kart development values", () => {
+  test("keeps every diagnostic default inside its development bounds", () => {
+    expect(DEFAULT_KART_DEVELOPMENT_VALUES.maxForwardSpeed).toBe(17);
+    Object.entries(DEFAULT_KART_DEVELOPMENT_VALUES).forEach(([key, value]) => {
+      const bounds =
+        KART_DEVELOPMENT_VALUE_BOUNDS[
+          key as keyof typeof KART_DEVELOPMENT_VALUE_BOUNDS
+        ];
       expect(value, key).toBeGreaterThanOrEqual(bounds.minimum);
       expect(value, key).toBeLessThanOrEqual(bounds.maximum);
     });
-    expect(normalizeKartTuning(DEFAULT_KART_TUNING)).toEqual(
-      DEFAULT_KART_TUNING,
+    expect(
+      normalizeKartDevelopmentValues(DEFAULT_KART_DEVELOPMENT_VALUES),
+    ).toEqual(
+      DEFAULT_KART_DEVELOPMENT_VALUES,
     );
   });
 
   test("rejects non-finite values and clamps unsafe values", () => {
-    const tuning = normalizeKartTuning({
-      acceleration: Number.NaN,
+    const values = normalizeKartDevelopmentValues({
       maxForwardSpeed: 500,
-      maximumBrakingForceReduction: -1,
+      maximumDriveForce: Number.NaN,
+      maximumHandbrakeForce: -1,
     });
 
-    expect(tuning.acceleration).toBe(DEFAULT_KART_TUNING.acceleration);
-    expect(tuning.maxForwardSpeed).toBe(
-      KART_TUNING_BOUNDS.maxForwardSpeed.maximum,
+    expect(values.maximumDriveForce).toBe(
+      DEFAULT_KART_DEVELOPMENT_VALUES.maximumDriveForce,
     );
-    expect(tuning.maximumBrakingForceReduction).toBe(0);
+    expect(values.maxForwardSpeed).toBe(
+      KART_DEVELOPMENT_VALUE_BOUNDS.maxForwardSpeed.maximum,
+    );
+    expect(values.maximumHandbrakeForce).toBe(0);
   });
 
   test("preserves required ordering between related thresholds", () => {
-    const tuning = normalizeKartTuning({
-      brakingAssistFullAngleDegrees: 2,
-      brakingAssistStartAngleDegrees: 8,
-      brakingSmokeStartDemand: 0.4,
-      brakingSmokeStartTireForceUtilization: 0.3,
-      brakingSmokeStopDemand: 0.8,
-      brakingSmokeStopTireForceUtilization: 0.9,
-      brakingSlideStartAngleDegrees: 30,
-      countdownSmokeStartThrottle: 0.3,
-      countdownSmokeStopThrottle: 0.8,
-      driftSmokeStartSlipAngleDegrees: 9,
-      driftSmokeStartSpeed: 4,
-      driftSmokeStopSlipAngleDegrees: 12,
-      driftSmokeStopSpeed: 8,
-      heavyDriftSmokeStartSlipAngleDegrees: 5,
-      heavyDriftSmokeStopSlipAngleDegrees: 30,
-      maximumSteerAngle: 8,
-      minimumHighSpeedSteerAngle: 20,
+    const values = normalizeKartDevelopmentValues({
+      maximumCenterSteerAngle: 8,
       peakGripCoefficient: 1,
       peakSlipAngleDegrees: 15,
       slidingGripCoefficient: 2,
       slidingSlipAngleDegrees: 10,
     });
 
-    expect(tuning.minimumHighSpeedSteerAngle).toBeLessThanOrEqual(
-      tuning.maximumSteerAngle,
+    expect(values.slidingGripCoefficient).toBeLessThanOrEqual(
+      values.peakGripCoefficient,
     );
-    expect(tuning.slidingGripCoefficient).toBeLessThanOrEqual(
-      tuning.peakGripCoefficient,
+    expect(values.slidingSlipAngleDegrees).toBeGreaterThan(
+      values.peakSlipAngleDegrees,
     );
-    expect(tuning.slidingSlipAngleDegrees).toBeGreaterThan(
-      tuning.peakSlipAngleDegrees,
+  });
+
+  test("maps every flat diagnostic value to an explicit runtime owner", () => {
+    expect(Object.keys(KART_DEVELOPMENT_VALUE_METADATA)).toEqual(
+      Object.keys(DEFAULT_KART_DEVELOPMENT_VALUES),
     );
-    expect(tuning.brakingSlideStartAngleDegrees).toBeLessThan(
-      tuning.slidingSlipAngleDegrees,
+    expect(KART_DEVELOPMENT_VALUE_METADATA.gravity).toEqual({
+      classification: "environment",
+      owner: "world-environment",
+    });
+
+    const resolved = resolveKartDevelopmentValues(
+      DEFAULT_KART_DEVELOPMENT_VALUES,
     );
-    expect(tuning.brakingAssistFullAngleDegrees).toBeGreaterThan(
-      tuning.brakingAssistStartAngleDegrees,
-    );
-    expect(tuning.brakingSmokeStopDemand).toBeLessThanOrEqual(
-      tuning.brakingSmokeStartDemand,
-    );
-    expect(tuning.brakingSmokeStopTireForceUtilization).toBeLessThanOrEqual(
-      tuning.brakingSmokeStartTireForceUtilization,
-    );
-    expect(tuning.countdownSmokeStopThrottle).toBeLessThanOrEqual(
-      tuning.countdownSmokeStartThrottle,
-    );
-    expect(tuning.driftSmokeStopSpeed).toBeLessThanOrEqual(
-      tuning.driftSmokeStartSpeed,
-    );
-    expect(tuning.driftSmokeStopSlipAngleDegrees).toBeLessThanOrEqual(
-      tuning.driftSmokeStartSlipAngleDegrees,
-    );
-    expect(tuning.heavyDriftSmokeStartSlipAngleDegrees).toBeGreaterThan(
-      tuning.driftSmokeStartSlipAngleDegrees,
-    );
-    expect(tuning.heavyDriftSmokeStopSlipAngleDegrees).toBeLessThanOrEqual(
-      tuning.heavyDriftSmokeStartSlipAngleDegrees,
-    );
+    expect(resolved.environment.airDensity).toBe(1.225);
+    expect(resolved.environment.gravity).toBe(9.81);
+    expect(resolved.kart.drivetrain).toEqual({
+      maximumDriveForce: DEFAULT_KART_DEVELOPMENT_VALUES.maximumDriveForce,
+      noLoadSpeed: DEFAULT_KART_DEVELOPMENT_VALUES.maxForwardSpeed,
+    });
   });
 });

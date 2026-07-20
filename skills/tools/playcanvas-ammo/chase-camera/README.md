@@ -24,7 +24,7 @@ implementation has passed player-facing validation.
 ## Supported Baseline
 
 - PlayCanvas Engine is pinned exactly to `2.20.6`.
-- Physics uses the repository-owned Ammo build and a 60 Hz fixed simulation.
+- Physics uses the repository-owned Ammo build and a 120 Hz fixed simulation.
 - Rendering interpolates authoritative kart snapshots at browser cadence.
 - The existing collision observer exposes copied per-step contact, approach
   speed, impulse, normal, and pre/post velocity data.
@@ -87,7 +87,10 @@ Implement explicit regimes:
 3. During braking through zero and reverse, retain a coherent orientation-led
    shot rather than treating the negative velocity vector as a request for an
    immediate orbit.
-4. During high slip or spin, clamp angular heading response and reduce unstable
+4. During unobstructed reverse travel, correct unsafe longitudinal smoothing
+   lag so the kart cannot cross behind the camera. Preserve obstruction
+   correction as the authority when geometry genuinely limits chase distance.
+5. During high slip or spin, clamp angular heading response and reduce unstable
    prediction rather than normalizing a near-zero or rapidly changing vector.
 
 Compute signed slip from XZ forward and XZ velocity with `atan2(crossY, dot)`
@@ -99,6 +102,13 @@ target. Keep vertical position/aim response separately tunable. Set FOV through
 `CameraComponent.fov` from a smoothed, clamped planar-speed mapping. Preserve
 the current desktop/narrow-mobile base settings until hands-on comparison
 justifies replacements.
+
+Scale spatial framing values from the reference kart length: chase distance,
+height, pivot height, look-ahead distance, obstruction margins, impact offsets,
+and lateral slip offsets. Keep dimensionless responses, angles, time constants,
+speed thresholds, and FOV values in their native units. A kart-scale migration
+must update both the ordinary and maximum look-ahead bounds; leaving either at
+the old world scale can push the kart out of narrow-mobile framing.
 
 ## Airborne Mapping
 
