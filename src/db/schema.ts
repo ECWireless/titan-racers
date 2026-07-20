@@ -134,6 +134,11 @@ export const gameplayRunAttribution = pgEnum("gameplay_run_attribution", [
   "authenticated",
 ]);
 
+export const kartPublicationAction = pgEnum("kart_publication_action", [
+  "publish",
+  "unpublish",
+]);
+
 export const userRoles = pgTable(
   "user_roles",
   {
@@ -230,6 +235,100 @@ export const coursePublications = pgTable(
     check(
       "course_publications_revision_positive",
       sql`${table.revision} > 0`,
+    ),
+  ],
+);
+
+export const karts = pgTable(
+  "karts",
+  {
+    id: text("id").primaryKey(),
+    currentRevision: integer("current_revision").notNull(),
+    ownerUserId: text("owner_user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "restrict" }),
+    createdByUserId: text("created_by_user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "restrict" }),
+    createdAt: timestamp("created_at", { mode: "date", withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => [
+    index("karts_owner_user_id_idx").on(table.ownerUserId),
+    check("karts_current_revision_positive", sql`${table.currentRevision} > 0`),
+  ],
+);
+
+export const kartRevisions = pgTable(
+  "kart_revisions",
+  {
+    id: uuid("id").primaryKey(),
+    kartId: text("kart_id")
+      .notNull()
+      .references(() => karts.id, { onDelete: "restrict" }),
+    revision: integer("revision").notNull(),
+    schemaVersion: integer("schema_version").notNull(),
+    derivationVersion: integer("derivation_version").notNull(),
+    document: jsonb("document").notNull(),
+    resolvedSnapshot: jsonb("resolved_snapshot").notNull(),
+    resolvedSnapshotHash: text("resolved_snapshot_hash").notNull(),
+    authorUserId: text("author_user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "restrict" }),
+    createdAt: timestamp("created_at", { mode: "date", withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => [
+    uniqueIndex("kart_revisions_kart_revision_uidx").on(
+      table.kartId,
+      table.revision,
+    ),
+    index("kart_revisions_author_user_id_idx").on(table.authorUserId),
+    check("kart_revisions_revision_positive", sql`${table.revision} > 0`),
+    check(
+      "kart_revisions_schema_version_positive",
+      sql`${table.schemaVersion} > 0`,
+    ),
+    check(
+      "kart_revisions_derivation_version_positive",
+      sql`${table.derivationVersion} > 0`,
+    ),
+    check(
+      "kart_revisions_snapshot_hash_format",
+      sql`${table.resolvedSnapshotHash} ~ '^[0-9a-f]{64}$'`,
+    ),
+  ],
+);
+
+export const kartPublicationEvents = pgTable(
+  "kart_publication_events",
+  {
+    id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+    kartId: text("kart_id")
+      .notNull()
+      .references(() => karts.id, { onDelete: "restrict" }),
+    action: kartPublicationAction("action").notNull(),
+    revision: integer("revision"),
+    actorUserId: text("actor_user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "restrict" }),
+    createdAt: timestamp("created_at", { mode: "date", withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => [
+    foreignKey({
+      columns: [table.kartId, table.revision],
+      foreignColumns: [kartRevisions.kartId, kartRevisions.revision],
+      name: "kart_publication_events_kart_revision_fk",
+    }).onDelete("restrict"),
+    index("kart_publication_events_kart_id_id_idx").on(table.kartId, table.id),
+    index("kart_publication_events_actor_user_id_idx").on(table.actorUserId),
+    check(
+      "kart_publication_events_action_revision",
+      sql`(${table.action} = 'publish' and ${table.revision} is not null and ${table.revision} > 0) or (${table.action} = 'unpublish' and ${table.revision} is null)`,
     ),
   ],
 );
@@ -361,3 +460,5 @@ export type GameplayRunOutcome =
   (typeof gameplayRunOutcome.enumValues)[number];
 export type GameplayRunAttribution =
   (typeof gameplayRunAttribution.enumValues)[number];
+export type KartPublicationAction =
+  (typeof kartPublicationAction.enumValues)[number];

@@ -78,6 +78,13 @@
       "when": 1783999280877,
       "tag": "0010_runtime-health-summary",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1784585143038,
+      "tag": "0011_kart_persistence",
+      "breakpoints": true
     }
   ]
 }

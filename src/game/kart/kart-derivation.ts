@@ -1,4 +1,11 @@
-import type { KartAssemblyDocument } from "./kart-assembly-document";
+import { z } from "zod";
+
+import {
+  type KartAssemblyDocument,
+  kartDefinitionReferenceSchema,
+  kartStableIdSchema,
+  kartTransformSchema,
+} from "./kart-assembly-document";
 import {
   KartAssemblyValidationError,
   parseValidatedKartAssembly,
@@ -112,6 +119,136 @@ export type ResolvedKartSnapshot = {
     slidingSlipAngleDegrees: number;
   };
 };
+
+const finiteNumberSchema = z.number().finite();
+const resolvedVectorSchema = z.strictObject({
+  x: finiteNumberSchema,
+  y: finiteNumberSchema,
+  z: finiteNumberSchema,
+});
+const resolvedSuspensionSchema = z.strictObject({
+  armPivot: resolvedVectorSchema,
+  bumpStartWheelCompression: finiteNumberSchema,
+  chassisAnchor: resolvedVectorSchema,
+  hubAnchor: resolvedVectorSchema,
+  maximumWheelTravel: finiteNumberSchema,
+  motionRatio: finiteNumberSchema,
+  restWheelCompression: finiteNumberSchema,
+  springArmAnchor: resolvedVectorSchema,
+});
+const resolvedWheelStationSchema = z.strictObject({
+  axleDirection: resolvedVectorSchema,
+  driven: z.boolean(),
+  handbraked: z.boolean(),
+  id: kartStableIdSchema,
+  position: resolvedVectorSchema,
+  radius: finiteNumberSchema,
+  serviceBraked: z.boolean(),
+  steered: z.boolean(),
+  suspension: resolvedSuspensionSchema,
+  width: finiteNumberSchema,
+});
+const resolvedCollisionPrimitiveSchema = z.discriminatedUnion("shape", [
+  z.strictObject({
+    id: kartStableIdSchema,
+    shape: z.literal("box"),
+    size: resolvedVectorSchema,
+    transform: kartTransformSchema,
+  }),
+  z.strictObject({
+    axis: z.enum(["x", "y", "z"]),
+    height: finiteNumberSchema,
+    id: kartStableIdSchema,
+    radius: finiteNumberSchema,
+    shape: z.literal("cylinder"),
+    transform: kartTransformSchema,
+  }),
+]);
+
+export const resolvedKartSnapshotV1Schema: z.ZodType<ResolvedKartSnapshot> =
+  z.strictObject({
+    derivationVersion: z.literal(1),
+    geometry: z.strictObject({
+      collisionCompound: z.array(resolvedCollisionPrimitiveSchema).min(1).max(64),
+      dimensions: resolvedVectorSchema,
+      smallestRelevantCrossSection: finiteNumberSchema,
+      trackWidth: finiteNumberSchema,
+      wheelbase: finiteNumberSchema,
+      wheelStations: z.array(resolvedWheelStationSchema).length(4),
+    }),
+    kartId: kartStableIdSchema,
+    massProperties: z.strictObject({
+      centerOfMass: resolvedVectorSchema,
+      inertiaTensor: z.strictObject({
+        xx: finiteNumberSchema,
+        xy: finiteNumberSchema,
+        xz: finiteNumberSchema,
+        yx: finiteNumberSchema,
+        yy: finiteNumberSchema,
+        yz: finiteNumberSchema,
+        zx: finiteNumberSchema,
+        zy: finiteNumberSchema,
+        zz: finiteNumberSchema,
+      }),
+      totalMass: finiteNumberSchema,
+    }),
+    physicalProfile: z.strictObject({
+      aerodynamics: z.strictObject({ dragArea: finiteNumberSchema }),
+      brakes: z.strictObject({
+        maximumHandbrakeForce: finiteNumberSchema,
+        maximumServiceBrakeForce: finiteNumberSchema,
+      }),
+      drivetrain: z.strictObject({
+        maximumDriveForce: finiteNumberSchema,
+        noLoadSpeed: finiteNumberSchema,
+      }),
+      steering: z.strictObject({ maximumCenterAngle: finiteNumberSchema }),
+      suspension: z.strictObject({
+        bumpRate: finiteNumberSchema,
+        bumpStart: finiteNumberSchema,
+        damperRate: finiteNumberSchema,
+        springRate: finiteNumberSchema,
+      }),
+    }),
+    playerStats: z.strictObject({
+      acceleration: finiteNumberSchema,
+      handling: finiteNumberSchema,
+      speed: finiteNumberSchema,
+      stability: finiteNumberSchema,
+    }),
+    registryReferences: z.strictObject({
+      components: z.array(kartDefinitionReferenceSchema).min(1).max(32),
+      materials: z.array(kartDefinitionReferenceSchema).min(1).max(64),
+      surfaceMaterial: kartDefinitionReferenceSchema,
+      tireCompound: kartDefinitionReferenceSchema,
+      tireSurfaceInteractionDerivationVersion: z.number().int().positive(),
+    }),
+    snapshotVersion: z.literal(1),
+    tireSurfaceInteraction: z.strictObject({
+      peakGripCoefficient: finiteNumberSchema,
+      peakSlipAngleDegrees: finiteNumberSchema,
+      rollingResistanceCoefficient: finiteNumberSchema,
+      slidingGripCoefficient: finiteNumberSchema,
+      slidingSlipAngleDegrees: finiteNumberSchema,
+    }),
+  });
+
+export function parseResolvedKartSnapshot(input: unknown) {
+  const version = z
+    .object({
+      derivationVersion: z.number().int().positive(),
+      snapshotVersion: z.number().int().positive(),
+    })
+    .parse(input);
+
+  if (version.snapshotVersion === 1 && version.derivationVersion === 1) {
+    return resolvedKartSnapshotV1Schema.parse(input);
+  }
+
+  throw new Error(
+    `Unsupported resolved kart snapshot version ${version.snapshotVersion} with derivation version ${version.derivationVersion}.`,
+  );
+}
 
 function cleanNumber(value: number) {
   const cleaned = Math.round(value * 1e12) / 1e12;
