@@ -961,10 +961,10 @@ tool-specific, and implemented knowledge through the repository Skills Tree.
 
 #### PR 3.2: Kart Document, Derivation, And Persistence
 
-- [ ] define a versioned, validated kart-assembly document contract separate
+- [x] define a versioned, validated kart-assembly document contract separate
       from the course document and from any future component-engineering
       document,
-- [ ] define a versioned approved-component registry and ship the accepted PR 3.1
+- [x] define a versioned approved-component registry and ship the accepted PR 3.1
       component-count manifest before the kart assembly editor is considered
       complete: at least one freely available sealed default in every required
       functional category, including one battery and one motor, and a second
@@ -974,35 +974,33 @@ tool-specific, and implemented knowledge through the repository Skills Tree.
       attributes, and derivation, while kart documents reference immutable
       component/version IDs, transforms, attachment points, and allowed
       instance configuration,
-- [ ] populate the nested builder-facing component and material catalog from
+- [x] populate the nested builder-facing component and material catalog from
       the accepted typed registries, documenting every available part's stable
       ID, construction bounds, physical attributes, and derived outputs
       without creating a second editable source of numerical truth,
-- [ ] keep documentation and typed registries synchronized through a
+- [x] keep documentation and typed registries synchronized through a
       completeness check so every builder-visible component, material,
       environment entry, derived output, runtime solver type, and presentation
       type has one discoverable human-readable reference,
-- [ ] define bounded visual primitives and functional machine parts without
+- [x] define bounded visual primitives and functional machine parts without
       accepting external models or custom assets,
-- [ ] provide a functional suspension-unit primitive at wheel-station scale,
-      with procedurally rendered coilover elements, bounded anchors and stroke,
-      matched damping, bump-stop construction, motion-ratio derivation, and
-      mirrored/focused editor controls instead of miniature mechanical CAD or
-      direct spring/damper statistics; the required kart builder places an
-      approved suspension component and does not engineer its internal spring,
-      damper, or bump stop,
-- [ ] give approved functional components stable IDs without adding progression
+- [x] define a functional suspension-unit component contract at wheel-station
+      scale, with bounded anchors and stroke, matched damping, bump-stop
+      construction, and motion-ratio derivation; the required kart builder
+      places an approved suspension component and does not engineer its
+      internal spring, damper, or bump stop,
+- [x] give approved functional components stable IDs without adding progression
       or entitlement requirements to the assembly catalog,
-- [ ] validate part counts, transforms, dimensions, wheel layout, complexity,
+- [x] validate part counts, transforms, dimensions, wheel layout, complexity,
       and required functional structure,
-- [ ] implement the accepted deterministic part-to-physics and player-stat
+- [x] implement the accepted deterministic part-to-physics and player-stat
       derivation contract with no override path,
-- [ ] persist player-owned kart heads, immutable revisions, derivation versions,
+- [x] persist player-owned kart heads, immutable revisions, derivation versions,
       resolved snapshots, and append-only official publication history,
-- [ ] protect initial create, save, publish, and unpublish APIs with authoritative
+- [x] protect initial create, save, publish, and unpublish APIs with authoritative
       admin authorization while retaining the ownership model required by
       Community Karts,
-- [ ] stop before breakable-joint metadata, damage behavior, or external asset
+- [x] stop before breakable-joint metadata, damage behavior, or external asset
       storage.
 
 #### PR 3.3: Admin Kart Builder
@@ -1014,6 +1012,9 @@ tool-specific, and implemented knowledge through the repository Skills Tree.
 - [ ] support freeform placement, attachment, mirroring, and live validation of
       approved component instances plus the accepted bounded structural/visual
       primitives, without exposing component-internal physical statistics,
+- [ ] procedurally render approved suspension units as recognizable coilover
+      elements and provide mirrored, focused editor controls instead of
+      miniature mechanical CAD or direct spring/damper statistics,
 - [ ] show dimensions, mass properties, wheel geometry, derived runtime
       behavior, and practical player-facing stats without editable raw tuning,
 - [ ] provide controlled test fixtures and complete-race launch from the draft,
