@@ -103,7 +103,7 @@ off/low/medium/high shadow-quality preset. Colors and intensities are bounded,
 and the light count is deliberately capped to keep authoring predictable and
 runtime cost reviewable.
 
-PR 3C exposes these values as basic environment controls with reset-to-loaded
+PR 2.3.3 exposes these values as basic environment controls with reset-to-loaded
 behavior. Arbitrary point/spot light placement, skyboxes, fog, post-processing,
 and renderer-specific shadow tuning remain outside this standard.
 
@@ -180,8 +180,8 @@ framework: <https://doc.qt.io/qt-6/qundostack.html>.
 - **Recovery baseline** restores the source-controlled seed only through a
   separately labelled destructive action.
 
-PR 3A implements the document and deterministic serialization, not the command
-stack UI. PR 3C implements history, private draft persistence, visible recovery,
+PR 2.3.1 implements the document and deterministic serialization, not the command
+stack UI. PR 2.3.3 implements history, private draft persistence, visible recovery,
 and the explicit preview/publish boundary.
 
 Publishing one course does not choose which course the game launches. Runtime

@@ -44,6 +44,17 @@ These values may be exposed through telemetry but are recalculated after load,
 reset, contact change, or each fixed step. They must not be copied into an
 assembly as authored values.
 
+## Discoverable Runtime Types
+
+- `DynamicWheel` describes one configured wheel station consumed by the
+  controller.
+- `DynamicKartControllerState` exposes current aggregate steering, support, and
+  motion observations.
+- `DynamicWheelTelemetry` exposes current contact, suspension, slip, force, and
+  utilization observations per wheel.
+
+All three are runtime contracts, not portable kart-document fields.
+
 ## Source Of Truth
 
 - `src/game/kart/dynamic-kart-controller.ts` coordinates wheel-level force

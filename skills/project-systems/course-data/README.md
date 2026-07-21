@@ -2,7 +2,7 @@
 
 ## Status
 
-**Maturity:** Validated. PR 3A implementation, automated desktop/mobile, static,
+**Maturity:** Validated. PR 2.3.1 implementation, automated desktop/mobile, static,
 production-build, physics, collision, camera, and editor regression gates,
 independent review, and feature-lead acceptance are complete.
 

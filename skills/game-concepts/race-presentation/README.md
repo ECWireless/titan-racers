@@ -1,6 +1,6 @@
 # Race Presentation
 
-**Maturity:** Validated. PR 4C implementation, feature-lead presentation/feel
+**Maturity:** Validated. PR 2.4.3 implementation, feature-lead presentation/feel
 acceptance, complete automated regression, and fresh-context independent review
 are complete as of 2026-07-13.
 
@@ -112,7 +112,7 @@ wall-clock reads.
 
 ## Known Limits
 
-- PR 4C does not add configurable HUD scale, contrast themes, audio cues,
+- PR 2.4.3 does not add configurable HUD scale, contrast themes, audio cues,
   screen-reader narration settings, split comparison, minimaps, or wayfinding.
 - The rough course has no final art, so later environments require renewed
   contrast and obstruction inspection.

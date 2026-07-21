@@ -1,7 +1,7 @@
 # PlayCanvas Course Editing
 
 **Maturity:** Validated. The PlayCanvas 2.20.6 course mapping, runtime migration,
-and browser regression gates passed for PR 3A on 2026-07-11.
+and browser regression gates passed for PR 2.3.1 on 2026-07-11.
 
 ## Purpose And Scope
 
@@ -67,7 +67,7 @@ existing obstacle tag, solid group/mask, friction, and zero-restitution static
 policy.
 
 Objects without collision data receive no collision or rigid-body component.
-Checkpoint volumes are document data in PR 3A and do not become triggers until
+Checkpoint volumes are document data in PR 2.3.1 and do not become triggers until
 race progression owns their lifecycle.
 
 Keep diagnostic availability explicit. Standard objects build in ordinary play;
@@ -89,7 +89,7 @@ No partial best-effort course is permitted.
 
 ## Collision Visualization Mapping
 
-PR 3C should visualize the document's authoritative collision union rather than
+PR 2.3.3 should visualize the document's authoritative collision union rather than
 querying or copying Ammo shapes. Boxes can be rendered from half-extents and
 local offsets; cylinders from radius, height, axis, and offsets. Use dedicated
 debug materials or PlayCanvas immediate lines without physics participation.
@@ -104,7 +104,7 @@ object itself.
 
 ## Open-Source Editor Reference
 
-PR 3C research reviewed the MIT-licensed PlayCanvas Editor frontend as a
+PR 2.3.3 research reviewed the MIT-licensed PlayCanvas Editor frontend as a
 reference implementation. Reuse the pinned Engine's maintained APIs directly
 instead of copying the complete Editor architecture:
 
@@ -223,6 +223,6 @@ replace the group; rotate, scale, rename, and delete stay single-selection only.
 
 - Box and cylinder are the only approved version-one primitives.
 - The runtime continues to use the existing model-component primitives during
-  PR 3A; adopting render components is a separate migration.
+  PR 2.3.1; adopting render components is a separate migration.
 - Checkpoint authoring visuals remain editor-only until race progression owns
   runtime trigger lifecycle.

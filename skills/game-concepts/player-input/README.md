@@ -2,7 +2,7 @@
 
 **Maturity:** Validated. This standard was researched, implemented, reviewed,
 and accepted through keyboard, touch, and physical standard-controller QA for
-PR 4A on 2026-07-13.
+PR 2.4.1 on 2026-07-13.
 
 ## Purpose And Scope
 
@@ -144,7 +144,7 @@ concurrently.
 
 ### Controller
 
-- PR 4A supports controllers exposing the browser's `standard` mapping. Unknown
+- PR 2.4.1 supports controllers exposing the browser's `standard` mapping. Unknown
   mappings remain non-fatal and visibly unsupported rather than relying on
   device-name parsing.
 - Poll the current controller snapshot at the gameplay sampling boundary;
@@ -296,7 +296,7 @@ game art or assets are copied.
 - The custom two-axis joystick retains labelled group semantics, instructions,
   arrow-key operation, and separate native pedal alternatives, but still
   requires representative touch assistive-technology testing.
-- PR 4A does not add remapping, rebinding persistence, controller glyphs,
+- PR 2.4.1 does not add remapping, rebinding persistence, controller glyphs,
   vibration, motion controls, nonstandard controller profiles, or controller
   navigation for the protected course-authoring tool.
 - Race-state gating and recovery policy are implemented by the validated race

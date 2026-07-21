@@ -1,6 +1,6 @@
 # Browser Race Presentation
 
-**Maturity:** Validated. The PR 4C mapping, feature-lead presentation/feel
+**Maturity:** Validated. The PR 2.4.3 mapping, feature-lead presentation/feel
 acceptance, complete automated regression, and fresh-context independent review
 are complete as of 2026-07-13.
 

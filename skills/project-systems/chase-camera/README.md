@@ -137,7 +137,7 @@ The accepted 2026-07-11 evidence is:
 - Camera tuning is one kart/profile baseline. Per-kart or per-track authored
   camera profiles remain unneeded until later roster and track work proves a
   real requirement.
-- Touch driving is PR 4 scope. Current mobile acceptance covers viewport
+- Touch driving is PR 2.4.1 scope. Current mobile acceptance covers viewport
   framing and controlled browser scenarios.
 - Player camera orbit, look-back, replay, ghost, spectator, multiplayer, and
   split-screen cameras remain later scope.

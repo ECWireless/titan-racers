@@ -1,3 +1,5 @@
+import { getApprovedTireSurfaceInteraction } from "./kart-material-registry";
+
 export type TireSurfaceInteractionProfile = {
   peakGripCoefficient: number;
   peakSlipAngleDegrees: number;
@@ -6,13 +8,22 @@ export type TireSurfaceInteractionProfile = {
   slidingSlipAngleDegrees: number;
 };
 
-// Transitional rough-course contact fixture. Phase 3B replaces this single
-// interaction with a versioned tire-component x surface-material registry.
+const defaultInteraction = getApprovedTireSurfaceInteraction({
+  derivationVersion: 1,
+  surfaceMaterial: { id: "surface.standard-course", version: 1 },
+  tireCompound: { id: "tire-compound.standard-rubber", version: 1 },
+});
+
+if (!defaultInteraction) {
+  throw new Error("The default tire and surface interaction is unavailable.");
+}
+
 export const DEFAULT_TIRE_SURFACE_INTERACTION: TireSurfaceInteractionProfile =
   Object.freeze({
-    peakGripCoefficient: 1.42,
-    peakSlipAngleDegrees: 5,
-    rollingResistanceCoefficient: 0.025,
-    slidingGripCoefficient: 0.98,
-    slidingSlipAngleDegrees: 18,
+    peakGripCoefficient: defaultInteraction.peakGripCoefficient,
+    peakSlipAngleDegrees: defaultInteraction.peakSlipAngleDegrees,
+    rollingResistanceCoefficient:
+      defaultInteraction.rollingResistanceCoefficient,
+    slidingGripCoefficient: defaultInteraction.slidingGripCoefficient,
+    slidingSlipAngleDegrees: defaultInteraction.slidingSlipAngleDegrees,
   });

@@ -327,7 +327,7 @@ Collision Mastery does not require:
 - Which simple compound collision envelope gives the current kart the best
   balance of silhouette accuracy, ground clearance, ramp behavior, and smooth
   wall contact?
-- Which course primitives, bevels, or authored seams are required for the PR 2B
+- Which course primitives, bevels, or authored seams are required for the PR 2.2.2
   collision test course?
 - How does the selected Ammo build combine friction and restitution for the
   kart's compound children and static course shapes?

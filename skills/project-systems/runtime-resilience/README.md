@@ -2,7 +2,7 @@
 
 ## Status
 
-**Maturity:** Validated. PR 5B passed focused runtime, browser, real-Postgres,
+**Maturity:** Validated. PR 2.5.2 passed focused runtime, browser, real-Postgres,
 static, production-build, feature-lead QA, and independent-review gates on
 2026-07-14.
 
@@ -76,7 +76,7 @@ coarse run-health totals.
 - The complete matrix passed 329 tests and intentionally skipped 71
   project/environment-specific cases. Post-review focused telemetry/database
   verification passed 15 tests, and Home/WebGL/resize verification passed three.
-- Typecheck, lint, migration history, production build, privacy review, PR 5B
+- Typecheck, lint, migration history, production build, privacy review, PR 2.5.2
   technical review, and feature-lead QA passed.
 
 ## Known Limits
