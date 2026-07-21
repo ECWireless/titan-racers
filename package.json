@@ -16,7 +16,8 @@
     "db:migrate:production": "tsx scripts/migrate-production.ts",
     "db:bootstrap-admin": "tsx scripts/bootstrap-admin.ts",
     "db:anonymize-user": "tsx scripts/anonymize-user.ts",
-    "db:reset-sandbox-course": "tsx scripts/reset-sandbox-course.ts"
+    "db:reset-sandbox-course": "tsx scripts/reset-sandbox-course.ts",
+    "docs:generate-kart-catalog": "tsx scripts/generate-kart-catalog.ts"
   },
   "dependencies": {
     "@better-auth/drizzle-adapter": "^1.6.23",

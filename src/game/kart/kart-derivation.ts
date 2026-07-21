@@ -23,15 +23,13 @@ import {
   type KartVector,
 } from "./kart-construction-geometry";
 import type { KartPhysicalProfile } from "./kart-physical-profile";
-import {
-  getApprovedTireSurfaceInteraction,
-  type TireSurfaceInteractionDefinition,
-} from "./kart-material-registry";
+import { getAckermannWheelSteerAngle } from "./kart-steering";
 import { deepFreeze, type DeepReadonly } from "./immutable-registry";
 
-export const KART_DERIVATION_VERSION = 1;
-export const RESOLVED_KART_SNAPSHOT_VERSION = 1;
+export const KART_DERIVATION_VERSION = 2;
+export const RESOLVED_KART_SNAPSHOT_VERSION = 2;
 const DRAG_SHAPE_COEFFICIENT = 0.9;
+const MINIMUM_USABLE_STEERING_ANGLE_DEGREES = 1;
 
 export type ResolvedKartWheelStation = {
   axleDirection: KartVector;
@@ -56,7 +54,7 @@ export type ResolvedKartWheelStation = {
 };
 
 export type ResolvedKartSnapshot = {
-  derivationVersion: number;
+  derivationVersion: typeof KART_DERIVATION_VERSION;
   geometry: {
     collisionCompound: Array<
       | {
@@ -106,11 +104,21 @@ export type ResolvedKartSnapshot = {
   registryReferences: {
     components: Array<{ id: string; version: number }>;
     materials: Array<{ id: string; version: number }>;
-    surfaceMaterial: { id: string; version: number };
     tireCompound: { id: string; version: number };
+  };
+  snapshotVersion: typeof RESOLVED_KART_SNAPSHOT_VERSION;
+};
+
+export type ResolvedKartSnapshotV1 = Omit<
+  ResolvedKartSnapshot,
+  "derivationVersion" | "registryReferences" | "snapshotVersion"
+> & {
+  derivationVersion: 1;
+  registryReferences: ResolvedKartSnapshot["registryReferences"] & {
+    surfaceMaterial: { id: string; version: number };
     tireSurfaceInteractionDerivationVersion: number;
   };
-  snapshotVersion: number;
+  snapshotVersion: 1;
   tireSurfaceInteraction: {
     peakGripCoefficient: number;
     peakSlipAngleDegrees: number;
@@ -119,6 +127,10 @@ export type ResolvedKartSnapshot = {
     slidingSlipAngleDegrees: number;
   };
 };
+
+export type PersistedResolvedKartSnapshot =
+  | ResolvedKartSnapshotV1
+  | ResolvedKartSnapshot;
 
 const finiteNumberSchema = z.number().finite();
 const resolvedVectorSchema = z.strictObject({
@@ -165,9 +177,8 @@ const resolvedCollisionPrimitiveSchema = z.discriminatedUnion("shape", [
   }),
 ]);
 
-export const resolvedKartSnapshotV1Schema: z.ZodType<ResolvedKartSnapshot> =
-  z.strictObject({
-    derivationVersion: z.literal(1),
+const resolvedKartSnapshotV2ObjectSchema = z.strictObject({
+    derivationVersion: z.literal(2),
     geometry: z.strictObject({
       collisionCompound: z.array(resolvedCollisionPrimitiveSchema).min(1).max(64),
       dimensions: resolvedVectorSchema,
@@ -219,6 +230,20 @@ export const resolvedKartSnapshotV1Schema: z.ZodType<ResolvedKartSnapshot> =
     registryReferences: z.strictObject({
       components: z.array(kartDefinitionReferenceSchema).min(1).max(32),
       materials: z.array(kartDefinitionReferenceSchema).min(1).max(64),
+      tireCompound: kartDefinitionReferenceSchema,
+    }),
+    snapshotVersion: z.literal(2),
+  });
+
+export const resolvedKartSnapshotV2Schema: z.ZodType<ResolvedKartSnapshot> =
+  resolvedKartSnapshotV2ObjectSchema;
+
+export const resolvedKartSnapshotV1Schema: z.ZodType<ResolvedKartSnapshotV1> =
+  resolvedKartSnapshotV2ObjectSchema.extend({
+    derivationVersion: z.literal(1),
+    registryReferences: z.strictObject({
+      components: z.array(kartDefinitionReferenceSchema).min(1).max(32),
+      materials: z.array(kartDefinitionReferenceSchema).min(1).max(64),
       surfaceMaterial: kartDefinitionReferenceSchema,
       tireCompound: kartDefinitionReferenceSchema,
       tireSurfaceInteractionDerivationVersion: z.number().int().positive(),
@@ -233,7 +258,9 @@ export const resolvedKartSnapshotV1Schema: z.ZodType<ResolvedKartSnapshot> =
     }),
   });
 
-export function parseResolvedKartSnapshot(input: unknown) {
+export function parseResolvedKartSnapshot(
+  input: unknown,
+): PersistedResolvedKartSnapshot {
   const version = z
     .object({
       derivationVersion: z.number().int().positive(),
@@ -243,6 +270,9 @@ export function parseResolvedKartSnapshot(input: unknown) {
 
   if (version.snapshotVersion === 1 && version.derivationVersion === 1) {
     return resolvedKartSnapshotV1Schema.parse(input);
+  }
+  if (version.snapshotVersion === 2 && version.derivationVersion === 2) {
+    return resolvedKartSnapshotV2Schema.parse(input);
   }
 
   throw new Error(
@@ -273,10 +303,10 @@ function canonicalize(value: unknown): unknown {
   return value;
 }
 
-function cleanSnapshot(
-  snapshot: DeepReadonly<ResolvedKartSnapshot>,
-): ResolvedKartSnapshot {
-  return canonicalize(snapshot) as ResolvedKartSnapshot;
+function cleanSnapshot<Snapshot extends PersistedResolvedKartSnapshot>(
+  snapshot: DeepReadonly<Snapshot>,
+): Snapshot {
+  return canonicalize(snapshot) as Snapshot;
 }
 
 function categoryComponent<
@@ -422,32 +452,92 @@ function deriveMotionRatio(assembly: ValidatedKartAssembly) {
   );
 }
 
+export function wheelOverlapsCollisionBoundsAtAngle(
+  wheel: ResolvedKartWheelStation,
+  angleDegrees: number,
+  bounds: KartBounds,
+) {
+  if (
+    wheel.position.y + wheel.radius <= bounds.minimum.y ||
+    wheel.position.y - wheel.radius >= bounds.maximum.y
+  ) {
+    return false;
+  }
+  const angle = (angleDegrees * Math.PI) / 180;
+  const axle = { x: Math.cos(angle), z: -Math.sin(angle) };
+  const rolling = { x: Math.sin(angle), z: Math.cos(angle) };
+  const boundsCenter = {
+    x: (bounds.minimum.x + bounds.maximum.x) / 2,
+    z: (bounds.minimum.z + bounds.maximum.z) / 2,
+  };
+  const boundsHalf = {
+    x: (bounds.maximum.x - bounds.minimum.x) / 2,
+    z: (bounds.maximum.z - bounds.minimum.z) / 2,
+  };
+  const centerOffset = {
+    x: wheel.position.x - boundsCenter.x,
+    z: wheel.position.z - boundsCenter.z,
+  };
+  const separatedOnAxis = (axis: { x: number; z: number }) => {
+    const centerDistance = Math.abs(
+      centerOffset.x * axis.x + centerOffset.z * axis.z,
+    );
+    const wheelProjection =
+      (wheel.width / 2) * Math.abs(axle.x * axis.x + axle.z * axis.z) +
+      wheel.radius * Math.abs(rolling.x * axis.x + rolling.z * axis.z);
+    const boundsProjection =
+      boundsHalf.x * Math.abs(axis.x) + boundsHalf.z * Math.abs(axis.z);
+    return centerDistance >= wheelProjection + boundsProjection - 1e-9;
+  };
+  return ![
+    { x: 1, z: 0 },
+    { x: 0, z: 1 },
+    axle,
+    rolling,
+  ].some(separatedOnAxis);
+}
+
 function deriveSteeringLimit(input: {
-  chassisBounds: KartBounds;
+  collisionElements: KartMassElement[];
   maximumTravelDegrees: number;
   steeredWheels: ResolvedKartWheelStation[];
+  trackWidth: number;
+  wheelbase: number;
 }) {
-  let sharedLimit = input.maximumTravelDegrees;
-  const maximumChassisHalfWidth = Math.max(
-    Math.abs(input.chassisBounds.minimum.x),
-    Math.abs(input.chassisBounds.maximum.x),
+  const steeringCenterX = average(
+    input.steeredWheels.map(({ position }) => position.x),
   );
-  for (const wheel of input.steeredWheels) {
-    const clearance = Math.abs(wheel.position.x) - maximumChassisHalfWidth;
-    let wheelLimit = 0;
-    for (
-      let angle = 0;
-      angle <= input.maximumTravelDegrees + 1e-9;
-      angle += 0.01
-    ) {
-      const radians = (angle * Math.PI) / 180;
-      const inwardExtent =
-        (wheel.width / 2) * Math.cos(radians) +
-        wheel.radius * Math.sin(radians);
-      if (inwardExtent > clearance) break;
-      wheelLimit = angle;
-    }
-    sharedLimit = Math.min(sharedLimit, wheelLimit);
+  let sharedLimit = 0;
+  for (
+    let centerAngle = 0;
+    centerAngle <= input.maximumTravelDegrees + 1e-9;
+    centerAngle += 0.01
+  ) {
+    const collides = input.steeredWheels.some((wheel) =>
+      [-centerAngle, centerAngle].some((signedCenterAngle) => {
+        const wheelAngle = getAckermannWheelSteerAngle(
+          signedCenterAngle,
+          wheel.position.x - steeringCenterX,
+          {
+            centerOfMassHeight: 0,
+            trackWidth: input.trackWidth,
+            wheelbase: input.wheelbase,
+          },
+        );
+        if (
+          Math.abs(signedCenterAngle) > 1e-9 &&
+          (wheelAngle === 0 ||
+            Math.sign(wheelAngle) !== Math.sign(signedCenterAngle))
+        ) {
+          return true;
+        }
+        return input.collisionElements.some(({ bounds }) =>
+          wheelOverlapsCollisionBoundsAtAngle(wheel, wheelAngle, bounds),
+        );
+      }),
+    );
+    if (collides) break;
+    sharedLimit = centerAngle;
   }
   return sharedLimit;
 }
@@ -472,6 +562,7 @@ function assertDerivedBounds(input: {
   collisionElements: KartMassElement[];
   dimensions: KartVector;
   massElements: KartMassElement[];
+  maximumCenterAngle: number;
   totalMass: number;
   wheelStations: ResolvedKartWheelStation[];
 }) {
@@ -480,6 +571,13 @@ function assertDerivedBounds(input: {
     issues.push({
       code: "derived-mass-out-of-bounds",
       message: "Derived kart mass must be between 0.5 kg and 5 kg.",
+      path: ["primitiveInstances"],
+    });
+  }
+  if (input.maximumCenterAngle < MINIMUM_USABLE_STEERING_ANGLE_DEGREES) {
+    issues.push({
+      code: "insufficient-steering-clearance",
+      message: `Derived steering clearance must permit at least ${MINIMUM_USABLE_STEERING_ANGLE_DEGREES} degree of center travel in both directions.`,
       path: ["primitiveInstances"],
     });
   }
@@ -520,18 +618,6 @@ function assertDerivedBounds(input: {
   if (issues.length > 0) throw new KartAssemblyValidationError(issues);
 }
 
-function interactionProfile(
-  interaction: DeepReadonly<TireSurfaceInteractionDefinition>,
-) {
-  return {
-    peakGripCoefficient: interaction.peakGripCoefficient,
-    peakSlipAngleDegrees: interaction.peakSlipAngleDegrees,
-    rollingResistanceCoefficient: interaction.rollingResistanceCoefficient,
-    slidingGripCoefficient: interaction.slidingGripCoefficient,
-    slidingSlipAngleDegrees: interaction.slidingSlipAngleDegrees,
-  };
-}
-
 export function deriveKartSnapshot(input: unknown): DeepReadonly<ResolvedKartSnapshot> {
   const assembly = parseValidatedKartAssembly(input);
   const massElements = [
@@ -557,9 +643,6 @@ export function deriveKartSnapshot(input: unknown): DeepReadonly<ResolvedKartSna
   const collisionIds = new Set(collisionPrimitives.map(({ id }) => id));
   const collisionElements = massElements.filter(({ instanceId }) =>
     collisionIds.has(instanceId),
-  );
-  const collisionBounds = combineBounds(
-    collisionElements.map(({ bounds: elementBounds }) => elementBounds),
   );
   const massProperties = deriveMassProperties(massElements);
   const wheelStations = deriveWheelStations(assembly);
@@ -612,9 +695,11 @@ export function deriveKartSnapshot(input: unknown): DeepReadonly<ResolvedKartSna
     wheel.wheelTire.radius;
   const motionRatio = deriveMotionRatio(assembly);
   const maximumCenterAngle = deriveSteeringLimit({
-    chassisBounds: collisionBounds,
+    collisionElements,
     maximumTravelDegrees: steering.steering.maximumTravelDegrees,
     steeredWheels,
+    trackWidth,
+    wheelbase,
   });
   const dragArea =
     projectedRectangleUnionArea(
@@ -637,19 +722,11 @@ export function deriveKartSnapshot(input: unknown): DeepReadonly<ResolvedKartSna
       springRate: suspension.suspension.springRate * motionRatio ** 2,
     },
   };
-  const tireSurfaceInteraction = getApprovedTireSurfaceInteraction({
-    derivationVersion: 1,
-    surfaceMaterial: { id: "surface.standard-course", version: 1 },
-    tireCompound: wheel.wheelTire.tireCompound,
-  });
-  if (!tireSurfaceInteraction) {
-    throw new Error("Validated tire and surface interaction is unavailable.");
-  }
-
   assertDerivedBounds({
     collisionElements,
     dimensions,
     massElements,
+    maximumCenterAngle,
     totalMass: massProperties.totalMass,
     wheelStations,
   });
@@ -740,13 +817,9 @@ export function deriveKartSnapshot(input: unknown): DeepReadonly<ResolvedKartSna
     registryReferences: {
       components: componentReferences,
       materials: materialReferences,
-      surfaceMaterial: tireSurfaceInteraction.surfaceMaterial,
-      tireCompound: tireSurfaceInteraction.tireCompound,
-      tireSurfaceInteractionDerivationVersion:
-        tireSurfaceInteraction.derivationVersion,
+      tireCompound: wheel.wheelTire.tireCompound,
     },
     snapshotVersion: RESOLVED_KART_SNAPSHOT_VERSION,
-    tireSurfaceInteraction: interactionProfile(tireSurfaceInteraction),
   };
   return deepFreeze(cleanSnapshot(snapshot));
 }
@@ -756,13 +829,13 @@ function registryReferenceKey(reference: { id: string; version: number }) {
 }
 
 export function serializeResolvedKartSnapshot(
-  input: DeepReadonly<ResolvedKartSnapshot>,
+  input: DeepReadonly<PersistedResolvedKartSnapshot>,
 ) {
   return `${JSON.stringify(cleanSnapshot(input), null, 2)}\n`;
 }
 
 export async function hashResolvedKartSnapshot(
-  input: DeepReadonly<ResolvedKartSnapshot>,
+  input: DeepReadonly<PersistedResolvedKartSnapshot>,
 ) {
   const bytes = new TextEncoder().encode(serializeResolvedKartSnapshot(input));
   const digest = await globalThis.crypto.subtle.digest("SHA-256", bytes);

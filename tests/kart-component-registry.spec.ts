@@ -20,6 +20,7 @@ import {
   getApprovedTireCompound,
 } from "../src/game/kart/kart-material-registry";
 import { deriveKartSnapshot } from "../src/game/kart/kart-derivation";
+import { renderKartCatalogReference } from "../src/game/kart/kart-catalog-documentation";
 import { createValidKartAssembly } from "./support/kart-assembly";
 
 function readRepositoryFile(path: string) {
@@ -207,4 +208,10 @@ test("keeps registries and public kart-system types discoverable in documentatio
   ]) {
     expect(environmentDocumentation).toContain(name);
   }
+});
+
+test("keeps the exact generated catalog synchronized with every registry field", () => {
+  expect(readRepositoryFile("docs/kart-system/generated-catalog.md")).toBe(
+    renderKartCatalogReference(),
+  );
 });

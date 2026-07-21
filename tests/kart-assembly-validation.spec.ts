@@ -77,6 +77,21 @@ test("rejects structural anchors that do not meet in assembly space", () => {
   }
 });
 
+test("rejects coincident structural anchors outside both part envelopes", () => {
+  const document = createValidKartAssembly();
+  const attachment = document.structuralAttachments[0];
+  attachment.parent.anchor.x += 1.5;
+  attachment.child.anchor.x += 1.5;
+  const result = validateKartAssembly(document);
+
+  expect(result.success).toBe(false);
+  if (!result.success) {
+    expect(result.issues).toContainEqual(
+      expect.objectContaining({ code: "attachment-anchor-outside-envelope" }),
+    );
+  }
+});
+
 test("rejects incomplete wheel service connections", () => {
   const document = createValidKartAssembly();
   document.connections = document.connections.filter(
@@ -136,6 +151,24 @@ test("rejects suspension leverage outside the supported geometry", () => {
       expect.objectContaining({
         code: "invalid-suspension-motion-ratio",
       }),
+    );
+  }
+});
+
+test("rejects suspension anchors outside the installed component envelope", () => {
+  const document = createValidKartAssembly();
+  const suspension = document.componentInstances.find(
+    ({ id }) => id === "suspension-front-left",
+  )!;
+  for (const anchor of Object.values(suspension.suspensionMount!)) {
+    anchor.y += 1.5;
+  }
+  const result = validateKartAssembly(document);
+
+  expect(result.success).toBe(false);
+  if (!result.success) {
+    expect(result.issues).toContainEqual(
+      expect.objectContaining({ code: "suspension-anchor-outside-envelope" }),
     );
   }
 });

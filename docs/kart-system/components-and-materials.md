@@ -40,7 +40,10 @@ Every builder-visible component entry documents:
 ## Initial Component Options
 
 Exact construction, dimensions, mass, ports, bounds, and capability fields live
-in the [typed component registry](../../src/game/kart/kart-component-registry.ts).
+in the [typed component registry](../../src/game/kart/kart-component-registry.ts)
+and its [generated human-readable reference](./generated-catalog.md). The
+generated reference includes every nested registry field and is checked byte
+for byte in tests; it is not an independently editable numerical source.
 
 | Definition | Human-readable construction and tradeoff |
 | --- | --- |
@@ -63,7 +66,8 @@ physical tradeoff.
 ## Materials And Contact Definitions
 
 Exact densities and contact coefficients live in the
-[typed material registry](../../src/game/kart/kart-material-registry.ts).
+[typed material registry](../../src/game/kart/kart-material-registry.ts) and the
+[generated human-readable reference](./generated-catalog.md).
 
 | Definition | Human-readable role |
 | --- | --- |

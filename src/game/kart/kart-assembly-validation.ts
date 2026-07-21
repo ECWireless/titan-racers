@@ -13,9 +13,15 @@ import {
 import { getApprovedConstructionMaterial } from "./kart-material-registry";
 import {
   addVector,
+  buildComponentMassElements,
+  buildPrimitiveMassElement,
+  combineBounds,
   rotationMatrix,
   transformVector,
+  type KartBounds,
 } from "./kart-construction-geometry";
+
+const MAXIMUM_ATTACHMENT_REACH_METERS = 0.075;
 
 export type KartAssemblyValidationIssue = {
   code: string;
@@ -67,6 +73,56 @@ function distance(
   right: { x: number; y: number; z: number },
 ) {
   return Math.hypot(left.x - right.x, left.y - right.y, left.z - right.z);
+}
+
+function expandedBounds(bounds: KartBounds): KartBounds {
+  return {
+    maximum: {
+      x: bounds.maximum.x + MAXIMUM_ATTACHMENT_REACH_METERS,
+      y: bounds.maximum.y + MAXIMUM_ATTACHMENT_REACH_METERS,
+      z: bounds.maximum.z + MAXIMUM_ATTACHMENT_REACH_METERS,
+    },
+    minimum: {
+      x: bounds.minimum.x - MAXIMUM_ATTACHMENT_REACH_METERS,
+      y: bounds.minimum.y - MAXIMUM_ATTACHMENT_REACH_METERS,
+      z: bounds.minimum.z - MAXIMUM_ATTACHMENT_REACH_METERS,
+    },
+  };
+}
+
+function pointWithinBounds(
+  point: { x: number; y: number; z: number },
+  bounds: KartBounds,
+) {
+  return (
+    point.x >= bounds.minimum.x &&
+    point.x <= bounds.maximum.x &&
+    point.y >= bounds.minimum.y &&
+    point.y <= bounds.maximum.y &&
+    point.z >= bounds.minimum.z &&
+    point.z <= bounds.maximum.z
+  );
+}
+
+function attachmentEnvelope(
+  instance:
+    | KartAssemblyDocument["componentInstances"][number]
+    | KartAssemblyDocument["primitiveInstances"][number],
+  components: ValidatedKartAssembly["components"],
+) {
+  if (instance.kind === "primitive") {
+    if (!getApprovedConstructionMaterial(instance.material)) return null;
+    return expandedBounds(buildPrimitiveMassElement(instance).bounds);
+  }
+  const component = components.get(instance.id);
+  if (!component) return null;
+  return expandedBounds(
+    combineBounds(
+      buildComponentMassElements(instance, component.definition).map(
+        ({ bounds }) => bounds,
+      ),
+    ),
+  );
 }
 
 function addSchemaIssues(error: z.ZodError): KartAssemblyValidationIssue[] {
@@ -318,6 +374,7 @@ function validateMaterials(
 
 function validateStructuralAttachments(
   document: KartAssemblyDocument,
+  components: ValidatedKartAssembly["components"],
   issues: KartAssemblyValidationIssue[],
 ) {
   const instances = new Map(
@@ -362,18 +419,29 @@ function validateStructuralAttachments(
             anchor,
           ),
         );
-      if (
-        distance(
-          worldAnchor(parent, attachment.parent.anchor),
-          worldAnchor(child, attachment.child.anchor),
-        ) > 1e-6
-      ) {
+      const parentAnchor = worldAnchor(parent, attachment.parent.anchor);
+      const childAnchor = worldAnchor(child, attachment.child.anchor);
+      if (distance(parentAnchor, childAnchor) > 1e-6) {
         issue(
           issues,
           "separated-structural-attachment",
           "Structural attachment anchors must meet in assembly space.",
           path,
         );
+      }
+      for (const [endpointName, instance, anchor] of [
+        ["parent", parent, parentAnchor],
+        ["child", child, childAnchor],
+      ] as const) {
+        const envelope = attachmentEnvelope(instance, components);
+        if (envelope && !pointWithinBounds(anchor, envelope)) {
+          issue(
+            issues,
+            "attachment-anchor-outside-envelope",
+            `Structural attachment anchors must remain within ${MAXIMUM_ATTACHMENT_REACH_METERS} m of the instance construction envelope.`,
+            [...path, endpointName, "anchor"],
+          );
+        }
       }
     }
     const previousParent = parentByChild.get(attachment.child.instanceId);
@@ -842,6 +910,32 @@ function validateFunctionalConnections(
     }
     const mount = suspension.instance.suspensionMount;
     if (!mount) continue;
+    const suspensionEnvelope = attachmentEnvelope(
+      suspension.instance,
+      components,
+    );
+    if (suspensionEnvelope) {
+      for (const anchorName of [
+        "armPivot",
+        "chassisAnchor",
+        "hubAnchor",
+        "springArmAnchor",
+      ] as const) {
+        if (!pointWithinBounds(mount[anchorName], suspensionEnvelope)) {
+          issue(
+            issues,
+            "suspension-anchor-outside-envelope",
+            `Suspension mounting anchors must remain within ${MAXIMUM_ATTACHMENT_REACH_METERS} m of the installed component construction envelope.`,
+            [
+              "componentInstances",
+              suspension.index,
+              "suspensionMount",
+              anchorName,
+            ],
+          );
+        }
+      }
+    }
     if (distance(mount.hubAnchor, wheel.instance.transform.position) > 0.005) {
       issue(
         issues,
@@ -907,7 +1001,7 @@ export function validateKartAssembly(input: unknown): KartAssemblyValidationResu
   const components = resolveComponents(document, issues);
   validateComponentCounts(document, components, issues);
   validateMaterials(document, issues);
-  validateStructuralAttachments(document, issues);
+  validateStructuralAttachments(document, components, issues);
   validateMirrors(document, components, issues);
   validateFunctionalConnections(document, components, issues);
 

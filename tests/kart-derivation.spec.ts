@@ -5,9 +5,14 @@ import {
   deriveKartSnapshot,
   hashResolvedKartSnapshot,
   KART_DERIVATION_VERSION,
+  parseResolvedKartSnapshot,
   type ResolvedKartSnapshot,
+  type ResolvedKartSnapshotV1,
   serializeResolvedKartSnapshot,
+  wheelOverlapsCollisionBoundsAtAngle,
 } from "../src/game/kart/kart-derivation";
+import { buildPrimitiveMassElement } from "../src/game/kart/kart-construction-geometry";
+import { getAckermannWheelSteerAngle } from "../src/game/kart/kart-steering";
 import {
   createPredictedKartAssemblies,
   createValidKartAssembly,
@@ -221,18 +226,50 @@ test("keeps stability invariant when the assembly datum is translated", () => {
   expect(moved.playerStats.stability).toBe(original.playerStats.stability);
 });
 
-test("resolves all five tire and surface interaction values", () => {
+test("records tire construction without persisting contacted-surface values", () => {
   const snapshot = deriveKartSnapshot(createValidKartAssembly());
 
-  expect(snapshot.tireSurfaceInteraction).toEqual({
-    peakGripCoefficient: 1.42,
-    peakSlipAngleDegrees: 5,
-    rollingResistanceCoefficient: 0.025,
-    slidingGripCoefficient: 0.98,
-    slidingSlipAngleDegrees: 18,
+  expect(snapshot.registryReferences.tireCompound).toEqual({
+    id: "tire-compound.standard-rubber",
+    version: 1,
   });
-  expect(snapshot.registryReferences.tireSurfaceInteractionDerivationVersion).toBe(
-    1,
+  expect(snapshot.registryReferences).not.toHaveProperty("surfaceMaterial");
+  expect(snapshot).not.toHaveProperty("tireSurfaceInteraction");
+});
+
+test("retains version-one evidence and its audit hash", async () => {
+  const current = structuredClone(
+    deriveKartSnapshot(createValidKartAssembly()),
+  ) as unknown as ResolvedKartSnapshot;
+  const legacy: ResolvedKartSnapshotV1 = {
+    ...current,
+    derivationVersion: 1,
+    registryReferences: {
+      components: current.registryReferences.components.map(({ id, version }) => ({
+        id,
+        version,
+      })),
+      materials: current.registryReferences.materials.map(({ id, version }) => ({
+        id,
+        version,
+      })),
+      surfaceMaterial: { id: "surface.standard-course", version: 1 },
+      tireCompound: { ...current.registryReferences.tireCompound },
+      tireSurfaceInteractionDerivationVersion: 1,
+    },
+    snapshotVersion: 1,
+    tireSurfaceInteraction: {
+      peakGripCoefficient: 1.42,
+      peakSlipAngleDegrees: 5,
+      rollingResistanceCoefficient: 0.025,
+      slidingGripCoefficient: 0.98,
+      slidingSlipAngleDegrees: 18,
+    },
+  };
+
+  expect(parseResolvedKartSnapshot(legacy)).toEqual(legacy);
+  await expect(hashResolvedKartSnapshot(legacy)).resolves.toMatch(
+    /^[0-9a-f]{64}$/,
   );
 });
 
@@ -248,6 +285,120 @@ test("rejects derived wheel and chassis collision overlap", () => {
     expect(error).toBeInstanceOf(KartAssemblyValidationError);
     expect((error as KartAssemblyValidationError).issues).toContainEqual(
       expect.objectContaining({ code: "wheel-collision-overlap" }),
+    );
+  }
+});
+
+test("uses collision geometry local to the swept front-wheel envelope", () => {
+  const shortWideBody = deriveKartSnapshot(
+    createValidKartAssembly({ bodySize: { x: 0.38, y: 0.03, z: 0.18 } }),
+  );
+
+  expect(shortWideBody.physicalProfile.steering.maximumCenterAngle).toBeGreaterThan(
+    1,
+  );
+});
+
+test("keeps runtime Ackermann wheel angles clear at derived steering lock", () => {
+  const document = createValidKartAssembly();
+  const snapshot = deriveKartSnapshot(document);
+  const steeredWheels = snapshot.geometry.wheelStations.filter(
+    ({ steered }) => steered,
+  );
+  const steeringCenterX =
+    steeredWheels.reduce((sum, wheel) => sum + wheel.position.x, 0) /
+    steeredWheels.length;
+  const collisionBounds = document.primitiveInstances
+    .filter(({ collision }) => collision === "solid")
+    .map((primitive) => buildPrimitiveMassElement(primitive).bounds);
+  const maximumCenterAngle =
+    snapshot.physicalProfile.steering.maximumCenterAngle;
+  const actualAngles: number[] = [];
+
+  for (const signedCenterAngle of [
+    -maximumCenterAngle,
+    maximumCenterAngle,
+  ]) {
+    for (const wheel of steeredWheels) {
+      const wheelAngle = getAckermannWheelSteerAngle(
+        signedCenterAngle,
+        wheel.position.x - steeringCenterX,
+        {
+          centerOfMassHeight: 0,
+          trackWidth: snapshot.geometry.trackWidth,
+          wheelbase: snapshot.geometry.wheelbase,
+        },
+      );
+      actualAngles.push(Math.abs(wheelAngle));
+      for (const bounds of collisionBounds) {
+        expect(
+          wheelOverlapsCollisionBoundsAtAngle(wheel, wheelAngle, bounds),
+        ).toBe(false);
+      }
+    }
+  }
+  expect(Math.max(...actualAngles)).toBeGreaterThan(maximumCenterAngle);
+});
+
+test("bounds extreme Ackermann geometry before an inside wheel becomes invalid", () => {
+  const document = createValidKartAssembly({
+    bodySize: { x: 0.41, y: 0.03, z: 0.1 },
+    trackWidth: 0.6,
+    wheelbase: 0.15,
+  });
+  const snapshot = deriveKartSnapshot(document);
+  const steeredWheels = snapshot.geometry.wheelStations.filter(
+    ({ steered }) => steered,
+  );
+  const steeringCenterX =
+    steeredWheels.reduce((sum, wheel) => sum + wheel.position.x, 0) /
+    steeredWheels.length;
+  const collisionBounds = document.primitiveInstances
+    .filter(({ collision }) => collision === "solid")
+    .map((primitive) => buildPrimitiveMassElement(primitive).bounds);
+  const maximumCenterAngle =
+    snapshot.physicalProfile.steering.maximumCenterAngle;
+
+  for (const signedCenterAngle of [
+    -maximumCenterAngle,
+    maximumCenterAngle,
+  ]) {
+    for (const wheel of steeredWheels) {
+      const wheelAngle = getAckermannWheelSteerAngle(
+        signedCenterAngle,
+        wheel.position.x - steeringCenterX,
+        {
+          centerOfMassHeight: 0,
+          trackWidth: snapshot.geometry.trackWidth,
+          wheelbase: snapshot.geometry.wheelbase,
+        },
+      );
+      expect(Number.isFinite(wheelAngle)).toBe(true);
+      expect(Math.abs(wheelAngle)).toBeGreaterThan(0);
+      expect(Math.sign(wheelAngle)).toBe(Math.sign(signedCenterAngle));
+      for (const bounds of collisionBounds) {
+        expect(
+          wheelOverlapsCollisionBoundsAtAngle(wheel, wheelAngle, bounds),
+        ).toBe(false);
+      }
+    }
+  }
+});
+
+test("rejects construction without minimum usable steering clearance", () => {
+  const steeringBlocked = createValidKartAssembly({
+    bodySize: { x: 0.36, y: 0.03, z: 0.4 },
+  });
+
+  expect(() => deriveKartSnapshot(steeringBlocked)).toThrow(
+    KartAssemblyValidationError,
+  );
+  try {
+    deriveKartSnapshot(steeringBlocked);
+  } catch (error) {
+    expect(error).toBeInstanceOf(KartAssemblyValidationError);
+    expect((error as KartAssemblyValidationError).issues).toContainEqual(
+      expect.objectContaining({ code: "insufficient-steering-clearance" }),
     );
   }
 });

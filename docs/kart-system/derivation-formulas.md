@@ -31,7 +31,7 @@ is exhaustive for those per-kart outputs; none may accept a stat override.
 | Handbrake maximum force | Sealed brake system's total rear-handbrake torque and the installed shared wheel radius | `total handbrake torque ÷ wheel radius`. Runtime retains a fixed rear-only split; it never becomes an all-wheel service-brake alias. |
 | Drivetrain maximum drive force | Battery voltage/current limits; controller current limit; motor speed constant, winding resistance, safe current, and torque constant; transmission motor-rotations-per-wheel-rotation `G` and efficiency; driven wheel radii | Derive permitted near-stall motor torque, multiply by `G` and efficiency, then divide by driven-wheel radius. This is total unconstrained capability; the current fixed-split drivetrain requests an equal share at each driven station, and runtime grip may cap each share. |
 | Drivetrain no-load speed | Battery effective voltage; motor speed constant; `G`; driven wheel radii | `(motor no-load angular speed ÷ G) × driven-wheel radius`. This boundary is not an authored top-speed stat. |
-| Maximum center steering angle | Steering-servo maximum travel, solid-primitive chassis bounds, and steered-wheel centers, radii, and widths | Step from zero through servo travel in `0.01°` increments and retain the shared angle whose rotated wheel envelope still clears the chassis's maximum absolute X extent. Runtime Ackermann then gives separate inner/outer wheel angles, while shared grip/rollover policy may request less. |
+| Maximum center steering angle | Steering-servo maximum travel, each solid primitive's local bounds, wheelbase, track width, and steered-wheel centers, radii, and widths | Sweep the center request in both directions through servo travel in `0.01°` increments, convert each candidate to the same Ackermann inner/outer angles used at runtime, and stop before any inside-wheel path reaches the Ackermann singularity. Test each 2D oriented wheel envelope against collision elements whose vertical bounds overlap it. Retain the shared collision-free center angle and reject construction that cannot provide at least `1°`. Shared grip/rollover policy may request less at runtime. |
 | Suspension spring rate | Suspension-unit spring rate and installation motion ratio `R = spring travel ÷ wheel travel` | Effective wheel rate is `spring rate × R²`. |
 | Suspension damper rate | Suspension-unit damping coefficient and `R` | Effective wheel damping is `damper coefficient × R²`. |
 | Suspension bump start | Unit bump-stop onset measured in spring travel and `R` | Wheel-space onset is `unit bump onset ÷ R`. |
@@ -84,9 +84,15 @@ force utilization, and top speed are runtime results.
   quadratic bump rates.
 
 `ResolvedKartSnapshot` adds geometry, wheel stations, mass properties,
-player-facing scores, registry references, and tire/surface evidence around
-that physical profile. Each `ResolvedKartWheelStation` records its derived role,
-geometry, axle direction, and suspension evidence.
+player-facing scores, registry references, and installed tire-construction
+evidence around that physical profile. Contacted surface and tire/surface
+interaction values remain environment/runtime inputs. Each
+`ResolvedKartWheelStation` records its derived role, geometry, axle direction,
+and suspension evidence.
+
+`PersistedResolvedKartSnapshot` accepts the current snapshot or a historical
+`ResolvedKartSnapshotV1`. Version-one evidence can therefore retain its
+original hash for audit while new derivation emits only the current contract.
 
 ## Runtime Formula Families
 
@@ -152,4 +158,6 @@ A derivation version identifies formula semantics. Changing a formula creates a
 new version and new resolved snapshot. Published revisions do not silently
 change meaning. Historical races retain their original snapshot/hash and
 derivation version. Snapshot parsers dispatch by persisted snapshot and
-derivation versions; the v1 parser is permanently pinned to the v1 contract.
+derivation versions; the v1 parser is permanently pinned to the v1 contract,
+while v2 owns the current contact-free evidence and Ackermann-aware steering
+clearance rules.

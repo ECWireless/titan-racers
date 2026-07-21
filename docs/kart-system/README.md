@@ -35,6 +35,7 @@ runtime telemetry ---------------------------------------> presentation
 
 - [Authored construction](./authored-construction.md)
 - [Builder components and materials](./components-and-materials.md)
+- [Generated exact catalog reference](./generated-catalog.md)
 - [World and environment](./environment.md)
 - [Derivation formulas](./derivation-formulas.md)
 - [Persistence and publication](./persistence-and-publication.md)

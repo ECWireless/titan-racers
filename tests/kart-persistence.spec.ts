@@ -23,6 +23,9 @@ import {
 import {
   deriveKartSnapshot,
   hashResolvedKartSnapshot,
+  parseResolvedKartSnapshot,
+  type ResolvedKartSnapshot,
+  type ResolvedKartSnapshotV1,
 } from "../src/game/kart/kart-derivation";
 import {
   KartConflictError,
@@ -47,6 +50,29 @@ const requiredIntegrationVariables = [
 const TEST_ORIGIN = "http://127.0.0.1:3873";
 const CONFIGURED_ORIGIN =
   process.env.NEXT_PUBLIC_APP_URL ?? process.env.BETTER_AUTH_URL ?? TEST_ORIGIN;
+
+function createLegacyResolvedSnapshot(document: ReturnType<typeof createValidKartAssembly>) {
+  const current = structuredClone(
+    deriveKartSnapshot(document),
+  ) as unknown as ResolvedKartSnapshot;
+  return {
+    ...current,
+    derivationVersion: 1,
+    registryReferences: {
+      ...current.registryReferences,
+      surfaceMaterial: { id: "surface.standard-course", version: 1 },
+      tireSurfaceInteractionDerivationVersion: 1,
+    },
+    snapshotVersion: 1,
+    tireSurfaceInteraction: {
+      peakGripCoefficient: 1.42,
+      peakSlipAngleDegrees: 5,
+      rollingResistanceCoefficient: 0.025,
+      slidingGripCoefficient: 0.98,
+      slidingSlipAngleDegrees: 18,
+    },
+  } satisfies ResolvedKartSnapshotV1;
+}
 
 test.describe("kart persistence and authorization", () => {
   test.describe.configure({ mode: "serial" });
@@ -90,7 +116,7 @@ test.describe("kart persistence and authorization", () => {
     });
     expect(first).toMatchObject({
       authorUserId: ownerUserId,
-      derivationVersion: 1,
+      derivationVersion: 2,
       kartId,
       ownerUserId,
       revision: 1,
@@ -162,7 +188,7 @@ test.describe("kart persistence and authorization", () => {
     const malformedDocument = createValidKartAssembly({ kartId: malformedKartId });
     const malformedSnapshot = {
       ...deriveKartSnapshot(malformedDocument),
-      snapshotVersion: 2,
+      snapshotVersion: 99,
     };
     const mismatchedDocument = createValidKartAssembly({ kartId: mismatchedKartId });
     const mismatchedSnapshot = deriveKartSnapshot(mismatchedDocument);
@@ -183,7 +209,7 @@ test.describe("kart persistence and authorization", () => {
     await db.insert(kartRevisions).values([
       {
         authorUserId: userId,
-        derivationVersion: 1,
+        derivationVersion: 2,
         document: malformedDocument,
         id: randomUUID(),
         kartId: malformedKartId,
@@ -194,7 +220,7 @@ test.describe("kart persistence and authorization", () => {
       },
       {
         authorUserId: userId,
-        derivationVersion: 1,
+        derivationVersion: 2,
         document: mismatchedDocument,
         id: randomUUID(),
         kartId: mismatchedKartId,
@@ -464,5 +490,56 @@ test.describe("kart persistence and authorization", () => {
     expect(
       (immutableEventError as Error & { cause?: Error }).cause?.message,
     ).toMatch(/kart publication events are immutable/);
+  });
+
+  test("publishes intact version-one evidence with a verifiable hash", async () => {
+    const userId = randomUUID();
+    const kartId = `legacy-publication-${randomUUID()}`;
+    const document = createValidKartAssembly({ kartId });
+    const resolvedSnapshot = createLegacyResolvedSnapshot(document);
+    const resolvedSnapshotHash = await hashResolvedKartSnapshot(resolvedSnapshot);
+    await db.insert(users).values({
+      email: `${userId}@example.invalid`,
+      emailVerified: true,
+      id: userId,
+      name: "Legacy Kart Publisher",
+    });
+    await db.insert(karts).values({
+      createdByUserId: userId,
+      currentRevision: 1,
+      id: kartId,
+      ownerUserId: userId,
+    });
+    await db.insert(kartRevisions).values({
+      authorUserId: userId,
+      derivationVersion: 1,
+      document,
+      id: randomUUID(),
+      kartId,
+      resolvedSnapshot,
+      resolvedSnapshotHash,
+      revision: 1,
+      schemaVersion: document.schemaVersion,
+    });
+    await db.insert(kartPublicationEvents).values({
+      action: "publish",
+      actorUserId: userId,
+      kartId,
+      revision: 1,
+    });
+
+    const response = await getPublishedKart(
+      new Request(`${TEST_ORIGIN}/api/karts/${kartId}/published`),
+      { params: Promise.resolve({ kartId }) },
+    );
+    expect(response.status).toBe(200);
+    const payload = await response.json();
+    expect(parseResolvedKartSnapshot(payload.resolvedSnapshot)).toEqual(
+      resolvedSnapshot,
+    );
+    expect(payload.resolvedSnapshotHash).toBe(resolvedSnapshotHash);
+    await expect(
+      hashResolvedKartSnapshot(payload.resolvedSnapshot),
+    ).resolves.toBe(payload.resolvedSnapshotHash);
   });
 });

@@ -18,8 +18,9 @@ import {
   deriveKartSnapshot,
   hashResolvedKartSnapshot,
   parseResolvedKartSnapshot,
-  type ResolvedKartSnapshot,
+  type PersistedResolvedKartSnapshot,
 } from "@/game/kart/kart-derivation";
+import type { DeepReadonly } from "@/game/kart/immutable-registry";
 
 export class KartConflictError extends Error {
   constructor() {
@@ -49,7 +50,7 @@ export type PersistedKartRevision = {
   document: KartAssemblyDocument;
   kartId: string;
   ownerUserId: string;
-  resolvedSnapshot: ResolvedKartSnapshot;
+  resolvedSnapshot: DeepReadonly<PersistedResolvedKartSnapshot>;
   resolvedSnapshotHash: string;
   revision: number;
   schemaVersion: number;
@@ -197,7 +198,7 @@ export async function saveKartRevision(input: {
       ...revision,
       document,
       ownerUserId,
-      resolvedSnapshot: resolvedSnapshot as ResolvedKartSnapshot,
+      resolvedSnapshot,
     };
   });
 }

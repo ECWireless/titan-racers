@@ -81,6 +81,11 @@ driven and handbraked rear stations, four service-braked and suspended stations,
 coherent axles, and usable suspension leverage and rest length. Failures report
 stable codes and document paths.
 
+Structural and suspension anchors must also stay within the installed
+construction's world-space bounds plus the shared `0.075 m` mounting allowance.
+This permits bounded brackets and suspension arms without accepting graph-only
+connections at arbitrary remote points.
+
 After semantic validation, `kart-derivation.ts` checks resolved mass and
 dimensions plus wheel/chassis collision overlap. These checks depend on derived
 geometry, so they do not belong to the portable document validator.
