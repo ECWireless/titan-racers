@@ -2,7 +2,7 @@
 
 **Maturity:** Validated. This mapping was researched against current browser
 standards and PlayCanvas Engine `2.20.6`, implemented, reviewed, and accepted
-through automated plus representative-device QA for PR 4A on 2026-07-13.
+through automated plus representative-device QA for PR 2.4.1 on 2026-07-13.
 
 ## Purpose And Scope
 
@@ -18,7 +18,7 @@ layout; verified implementation truth belongs under
 
 ## Tool Boundary
 
-Use browser input APIs directly for PR 4A rather than enabling PlayCanvas input
+Use browser input APIs directly for PR 2.4.1 rather than enabling PlayCanvas input
 device wrappers:
 
 - the existing race shell already owns keyboard listeners outside PlayCanvas;
@@ -207,7 +207,7 @@ listener and clears all retained device and pointer state.
 ## Known Limits
 
 - Browser and operating-system controller mappings can vary despite the
-  standard layout. PR 4A deliberately rejects nonstandard mappings instead of
+  standard layout. PR 2.4.1 deliberately rejects nonstandard mappings instead of
   guessing.
 - Gamepad access may be affected by browser security, user activation, and
   permissions policy. Guest play must remain functional with keyboard and
@@ -222,5 +222,5 @@ listener and clears all retained device and pointer state.
   [`runtime-resilience`](../../project-systems/runtime-resilience/README.md) and
   [`gameplay-telemetry`](../../project-systems/gameplay-telemetry/README.md)
   systems.
-- PR 4A menu navigation covers guest-play mode selection and race overlays, not
+- PR 2.4.1 menu navigation covers guest-play mode selection and race overlays, not
   the protected course editor or a general spatial-navigation engine.

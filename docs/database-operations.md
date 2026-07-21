@@ -1,9 +1,10 @@
 # Database And Authentication Operations
 
-PR 3B uses Drizzle-managed Postgres migrations, Better Auth sessions, Google
-OAuth identities, database-backed application roles, and immutable course and
-kart revisions. This document owns the operational workflow; it must not contain
-real credentials, personal email addresses, or production connection strings.
+PR 2.3.2 uses Drizzle-managed Postgres migrations, Better Auth sessions, Google
+OAuth identities, database-backed application roles, and immutable course
+revisions. PR 3.2 adds immutable kart revisions through the same foundation.
+This document owns the operational workflow; it must not contain real
+credentials, personal email addresses, or production connection strings.
 
 ## Local Postgres
 
@@ -35,7 +36,7 @@ course revision. Apply and rehearse that migration through the same reviewed
 workflow; do not manually update publication history or simulate publishing by
 changing draft rows.
 
-Kart persistence adds player-owned `karts`, immutable `kart_revisions`, and
+PR 3.2 kart persistence adds player-owned `karts`, immutable `kart_revisions`, and
 append-only `kart_publication_events`. The application derives and hashes the
 physical snapshot before inserting a revision; operators must not manually edit
 source documents, resolved evidence, hashes, or publication history. Rehearse
@@ -43,7 +44,7 @@ the complete migration chain against a fresh local database because the kart
 publication foreign key depends on the composite revision key created in the
 same migration.
 
-PR 5A adds the typed `gameplay_runs` summary table through the same migration
+PR 2.5.1 adds the typed `gameplay_runs` summary table through the same migration
 workflow. Guest rows are anonymous and carry permanent guest attribution
 separately from the nullable account foreign key. Database constraints and
 triggers enforce known courses, valid lifecycle order, immutable attribution,
@@ -53,7 +54,7 @@ per-frame movement, IP addresses, user agents, or arbitrary metadata. The
 protected dashboard reads aggregates only; ordinary operators should not query
 individual run IDs or add ad hoc identifying fields.
 
-PR 5B adds two bounded nonnegative totals to that same row:
+PR 2.5.2 adds two bounded nonnegative totals to that same row:
 `automatic_pause_count` and `discarded_time_ms`. Hidden-document and terminal
 updates only increase those totals, and the terminal immutability trigger covers
 both columns. They answer whether active runs needed browser-lifecycle safety
@@ -78,7 +79,8 @@ stored. Account linking is also disabled until the explicitly deferred account-
 linking phase. Only the original linked Google provider subject can resolve an
 existing canonical application user.
 
-PR 3B deliberately adds no login UI. For operational verification before PR 3C,
+PR 2.3.2 deliberately adds no login UI. For operational verification before
+PR 2.3.3,
 run this from the browser console on the same app origin so the OAuth state
 cookie remains in that browser:
 

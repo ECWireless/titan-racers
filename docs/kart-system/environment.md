@@ -36,6 +36,6 @@ weather or lighting changes do not become physics environment changes.
 ## Catalog
 
 `kart-material-registry.ts` owns the versioned tire compounds, surface
-materials, and tire/surface interactions. Phase 3B includes standard rubber on
+materials, and tire/surface interactions. PR 3.2 includes standard rubber on
 the standard course surface. The five contact values are resolved evidence,
 not editable kart statistics.

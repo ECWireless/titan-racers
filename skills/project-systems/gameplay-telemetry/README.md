@@ -2,7 +2,7 @@
 
 ## Status
 
-**Maturity:** Validated. PR 5A established the system, and PR 5B's bounded
+**Maturity:** Validated. PR 2.5.1 established the system, and PR 2.5.2's bounded
 automatic-pause and discarded-time extension passed focused browser,
 real-Postgres, privacy/security, technical, and feature-lead acceptance on
 2026-07-14.

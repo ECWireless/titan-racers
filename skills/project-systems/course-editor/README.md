@@ -2,7 +2,7 @@
 
 ## Status
 
-**Maturity:** Validated. PR 3C implementation, feature-lead QA, independent
+**Maturity:** Validated. PR 2.3.3 implementation, feature-lead QA, independent
 slice review, and Phase 2 regression coverage are complete as of 2026-07-14.
 
 ## Purpose And Scope

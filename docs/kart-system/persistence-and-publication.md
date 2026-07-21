@@ -3,7 +3,7 @@
 ## Responsibility
 
 Postgres stores ownership and history outside the portable assembly document.
-All Phase 3B create, save, publish, and unpublish mutations require a
+All PR 3.2 create, save, publish, and unpublish mutations require a
 server-verified `admin` role. The `assembler` role grants no access in this
 phase. Mutation routes also require JSON and an allowed same-origin request.
 
@@ -51,5 +51,5 @@ parseable and verifiable against its stored audit hash.
   environment-owned contact values; historical v1 evidence remains intact for
   hash verification.
 
-PR 3C will add the admin assembly editor and use these contracts to author and
+PR 3.3 will add the admin assembly editor and use these contracts to author and
 publish the Balanced Kart before replacing the transitional runtime kart.

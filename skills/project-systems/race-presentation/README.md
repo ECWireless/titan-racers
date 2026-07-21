@@ -2,7 +2,7 @@
 
 ## Status
 
-**Maturity:** Validated. PR 4C implementation, feature-lead presentation/feel
+**Maturity:** Validated. PR 2.4.3 implementation, feature-lead presentation/feel
 acceptance, complete automated regression, and fresh-context independent review
 are complete as of 2026-07-13.
 
@@ -65,7 +65,7 @@ ghosts, telemetry, multiplayer, or final Agricultural Zone presentation.
   input from the finished race.
 - Bundled-coordinate browser fixtures cannot consume mutable publication data;
   publication behavior is covered through explicit route overrides.
-- No race progress or result is persisted in PR 4C.
+- No race progress or result is persisted in PR 2.4.3.
 
 ## Verification Evidence
 

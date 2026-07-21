@@ -2,7 +2,7 @@
 
 **Maturity:** Validated. The PlayCanvas 2.20.6 and browser-runtime mapping passed
 the course-version, fixed-step, directed-gate, recovery, browser,
-independent-review, and feature-lead acceptance gates for PR 4B on 2026-07-13.
+independent-review, and feature-lead acceptance gates for PR 2.4.2 on 2026-07-13.
 
 ## Purpose And Scope
 
@@ -149,7 +149,7 @@ gate-face direction; scaling changes the face bounds without changing its local
 axis or sign. Recovery rotation remains independent. New checkpoints derive
 bounded direction and recovery defaults from their neighbors. Start movement
 carries the start gate; start gate sizing and separate direction/recovery
-controls may remain non-visible in PR 4B so long as the canonical data is
+controls may remain non-visible in PR 2.4.2 so long as the canonical data is
 preserved and testable.
 
 ## Recovery Mapping
@@ -171,7 +171,7 @@ is requested:
 7. clear normalized input and touch presentation; and
 8. snap kart interpolation and chase-camera state to the teleported pose.
 
-PR 4B does not add a direct Ammo overlap/contact-test boundary. Rough-course
+PR 2.4.2 does not add a direct Ammo overlap/contact-test boundary. Rough-course
 recovery clearance is established by authored placements, filtered support
 evidence, collision observation, and browser QA. If future unrestricted course
 publishing requires automatic shape-clearance validation, research it as a
@@ -195,7 +195,7 @@ non-production verification infrastructure and must not become runtime authority
 
 ## Persistence Boundary
 
-Do not add race tables or network writes in PR 4B. Lifecycle, pose history,
+Do not add race tables or network writes in PR 2.4.2. Lifecycle, pose history,
 checkpoint progress, timing, and recovery anchors live with the scene. Course
 documents and publications keep their existing persistence behavior. Later
 telemetry receives summarized events; Phase 5 owns durable results, ghosts, and
@@ -238,7 +238,7 @@ leaderboard submissions.
 
 - Support raycasts are zero-width and prove ground support, not full chassis
   clearance.
-- PR 4B deliberately avoids physics trigger entities and new direct-Ammo query
+- PR 2.4.2 deliberately avoids physics trigger entities and new direct-Ammo query
   allocation for race progression.
 - Generated v1 recovery defaults are compatibility data, not a substitute for
   course-specific recovery QA.

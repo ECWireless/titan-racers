@@ -190,6 +190,6 @@ and bounded response during a fast rotational wall contact.
   linear speed envelopes require new controlled tests and retuning.
 - Kart-to-kart collision policy, damage, detachable parts, physical wheel
   bodies, per-child kart material response, general per-surface material
-  authoring, and chase-camera impact response remain outside PR 2B.
+  authoring, and chase-camera impact response remain outside PR 2.2.2.
 - Mobile browser physics scenarios are covered, but playable touch controls and
   representative-device performance acceptance remain later-phase work.

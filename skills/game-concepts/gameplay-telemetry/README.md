@@ -1,6 +1,6 @@
 # Gameplay Telemetry
 
-**Maturity:** Validated. PR 5A established the run-summary system; PR 5B added
+**Maturity:** Validated. PR 2.5.1 established the run-summary system; PR 2.5.2 added
 only the accepted safety-pause and discarded-time totals. Database inspection,
 desktop/mobile coverage, privacy/security and technical review, and feature-lead
 QA were accepted on 2026-07-14.
@@ -69,7 +69,7 @@ an expected measurement limitation rather than proof of a crash.
 
 Useful initial summary fields are course, deployment version, milestone times,
 terminal outcome, completed race duration, supported input-family set, and
-recovery count. PR 5B adds only automatic safety-pause count and aggregate
+recovery count. PR 2.5.2 adds only automatic safety-pause count and aggregate
 discarded active-simulation time; each drives an agreed dashboard question and
 neither creates a per-frame timeline.
 

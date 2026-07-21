@@ -2,7 +2,7 @@
 
 ## Status
 
-**Maturity:** Validated. PR 3B implementation, clean-database migration
+**Maturity:** Validated. PR 2.3.2 implementation, clean-database migration
 rehearsal, focused auth/persistence integration tests, static checks,
 production build, complete gameplay regression coverage, independent review,
 and feature-lead acceptance are complete.
@@ -141,7 +141,7 @@ login and authoring experience belongs to the completed protected
 ## Known Limits And Deferred Work
 
 - The visible login/access experience and protected course editor are owned by
-  the completed PR 3C course-editor system.
+  the completed PR 2.3.3 course-editor system.
 - Player-facing EOA/SIWE login, explicit account linking UI, and embedded wallets
   remain deferred.
 - Automated Neon preview branches and production deployment migrations are not

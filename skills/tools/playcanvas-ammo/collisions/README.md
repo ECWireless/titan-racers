@@ -82,7 +82,7 @@ Build focused fixtures for:
 - a ramp with aligned base and crest transitions; and
 - the thinnest barrier required by the supported speed envelope.
 
-Do not introduce mesh collision for the PR 2B test course. If later authored
+Do not introduce mesh collision for the PR 2.2.2 test course. If later authored
 track geometry genuinely requires a triangle mesh, investigate mesh cooking,
 triangle quality, internal-edge contact-normal adjustment, and mobile cost as a
 separate measured extension.

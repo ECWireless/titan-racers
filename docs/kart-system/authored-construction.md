@@ -24,9 +24,9 @@ validated construction.
 
 The transitional reference fixture preserves the rough prototype's validated
 proportions at 0.25 linear scale: `0.4625 m` long and `1.875 kg`. Its upper
-housing is structure/electronics bodywork, not a cockpit. Phase 3B adds the
+housing is structure/electronics bodywork, not a cockpit. PR 3.2 adds the
 versioned assembly and derivation contracts while retaining this deterministic
-regression example. PR 3C will author and publish the Balanced Kart through the
+regression example. PR 3.3 will author and publish the Balanced Kart through the
 new editor before replacing the transitional runtime kart.
 
 The fixture places `105/120` of its mass in the low body and `15/120` in the

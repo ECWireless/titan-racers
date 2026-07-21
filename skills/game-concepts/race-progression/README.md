@@ -2,7 +2,7 @@
 
 **Maturity:** Validated. The versioned course contract, lifecycle, timing,
 progression, recovery, runtime verification, independent review, and
-feature-lead QA passed for PR 4B on 2026-07-13.
+feature-lead QA passed for PR 2.4.2 on 2026-07-13.
 
 ## Purpose And Scope
 
@@ -110,7 +110,7 @@ If the runtime caps catch-up work and discards active elapsed time, charge that
 discarded duration to the competitive timeline before exposing the next
 progression result. A stall must never improve a race time. Later leaderboard
 eligibility may reject excessively degraded runs, but eligibility policy is not
-part of PR 4B.
+part of PR 2.4.2.
 
 The rough-loop configuration uses a three-second countdown, two laps, and a
 half-second recovery stabilization window. Keep these values in race
@@ -245,7 +245,7 @@ pre-recovery momentum.
 
 ## Persistence Boundary
 
-PR 4B race state is memory-local and ends with the scene. Do not write
+PR 2.4.2 race state is memory-local and ends with the scene. Do not write
 lifecycle transitions, fixed steps, checkpoint progress, timing counters, or
 recovery snapshots to Postgres. Later telemetry may store summarized events,
 and Phase 5 may persist final race results and leaderboard eligibility; neither

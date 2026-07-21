@@ -54,7 +54,7 @@ export const DEFAULT_KART_PHYSICAL_PROFILE: KartPhysicalProfile = {
   },
   suspension: {
     // These preserve the rough fixture's static sag and approximate damping
-    // ratio under geometric/Froude scaling. Phase 3B derives the same outputs
+    // ratio under geometric/Froude scaling. PR 3.2 derives the same outputs
     // from suspension construction and mounting motion ratio.
     bumpRate: 62_000 * REFERENCE_KART_LINEAR_SCALE,
     bumpStart: 0.17 * REFERENCE_KART_LINEAR_SCALE,

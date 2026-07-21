@@ -4,9 +4,9 @@ export type KartReferenceVector = Readonly<{
   z: number;
 }>;
 
-// The Phase 2 rough kart used full-size placeholder dimensions. Phase 3A keeps
+// The Phase 2 rough kart used full-size placeholder dimensions. PR 3.1 keeps
 // its validated proportions while converting the fixture to the accepted
-// miniature RC reference: about 0.46 m long and 1.875 kg. Phase 3B replaces
+// miniature RC reference: about 0.46 m long and 1.875 kg. PR 3.3 replaces
 // this fixture with versioned authored construction and deterministic
 // derivation.
 export const REFERENCE_KART_LINEAR_SCALE = 0.25;

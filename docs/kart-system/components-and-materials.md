@@ -2,7 +2,7 @@
 
 ## Status
 
-The Phase 3B catalog is implemented as deeply immutable typed registries. This
+The PR 3.2 catalog is implemented as deeply immutable typed registries. This
 document explains its shape and choices; registry code remains the only
 numerical source of truth. Every entry is freely available and complete
 assembly components do not carry progression unlock tiers.

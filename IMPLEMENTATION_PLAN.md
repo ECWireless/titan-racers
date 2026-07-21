@@ -503,7 +503,26 @@ Key metrics:
 
 ## Implementation Phases
 
+### PR Numbering Convention
+
+PR identifiers are phase-scoped and use numeric segments:
+
+- a PR directly under a phase is `PR <phase>.<PR>`, such as `PR 3.2` for the
+  second PR in Phase 3;
+- when a phase needs an intermediate grouping, call it a **stage** and use
+  `PR <phase>.<stage>.<PR>`, such as `PR 2.3.2` for the second PR in Phase 2,
+  Stage 3; and
+- omit the stage segment when it adds no useful grouping. Do not use legacy
+  concatenated letter labels such as `PR 3B`; separate numeric ordinals with
+  periods.
+
+Stages group related sequential PRs; they are not publication boundaries by
+themselves. Once assigned, a PR identifier remains stable even if later work is
+inserted or deferred.
+
 ### Phase 0: Plan And Repo Foundation
+
+#### PR 0.1: Plan And App Foundation
 
 - [x] Review plan with project owner.
 - [x] Create the first approved plan commit.
@@ -513,6 +532,8 @@ Key metrics:
 - [x] Copy only needed site assets into this repo.
 
 ### Phase 1: Tiny Engine Spike
+
+#### PR 1.1: Engine Selection Spike
 
 - [x] Test the preferred game runtime.
 - [x] Confirm canvas integration in the app shell.
@@ -524,10 +545,11 @@ Key metrics:
 
 Goal: make testing fun quickly.
 
-Deliver Phase 2 through five narrow PRs. Each task inside a bundled PR keeps its
-own focused implementation session, acceptance gate, verification evidence, and
-conventional commit. Do not move to the next task until the current behavior is
-accepted, even when both tasks share a PR.
+Deliver Phase 2 through fifteen narrow PRs. After the direct foundation PR,
+group related sequential PRs into five stages. Each PR keeps its own focused
+implementation session, acceptance gate, verification evidence, and
+conventional commit. Do not move to the next PR until the current behavior is
+accepted.
 
 For each substantial game system, use the repository Skills Tree as a required
 knowledge-first workflow before implementation:
@@ -553,7 +575,7 @@ write a project-system node speculatively before its implementation has been
 validated, and do not present exploratory research as an accepted gold
 standard.
 
-#### PR 1: Gameplay Architecture
+#### PR 2.1: Gameplay Architecture
 
 Establish only the minimum durable seams needed to replace spike behavior
 safely. Preserve the accepted visible behavior while separating:
@@ -566,9 +588,14 @@ safely. Preserve the accepted visible behavior while separating:
 - [x] editor UI state from engine operations,
 - [x] deliberate development and test adapters from production behavior.
 
-#### PR 2A: Kart Physics
+#### Stage 2.2: Driving Simulation
 
-Treat these as separate tuning and acceptance tasks within one integrated PR:
+Deliver driving simulation through three separately reviewed PRs: kart physics,
+collision mastery, and chase-camera mastery.
+
+##### PR 2.2.1: Kart Physics
+
+Treat these as separate tuning and acceptance tasks within PR 2.2.1:
 
 - [x] fixed-step simulation and dynamic rigid-body kart physics,
 - [x] grounded traction, braking, reverse, steering, lateral grip, and weight
@@ -579,27 +606,27 @@ The kart-physics unit is a standalone PR boundary so the accepted fixed-step,
 rigid-body, support, tire-force, and recovery behavior can be reviewed without
 mixing it with the equally substantial collision and camera systems.
 
-#### PR 2B: Collision Mastery
+##### PR 2.2.2: Collision Mastery
 
 - [x] collision behavior for barriers, corners, obstacles, ramps, glancing
       impacts, snagging, bounce, spin, and tunneling,
 
-#### PR 2C: Chase-Camera Mastery
+##### PR 2.2.3: Chase-Camera Mastery
 
 - [x] chase-camera behavior driven by actual kart motion, orientation, slip,
       impacts, and airborne state.
 
-After PR 2C is implemented and verified, run the final proportional integration
-review for the complete driving-simulation phase before merging its final work
-into `main`.
+After PR 2.2.3 is implemented and verified, run the final proportional
+integration review for the complete driving-simulation stage before merging its
+final work into `main`.
 
-#### PR 3: Protected Course Tooling
+#### Stage 2.3: Protected Course Tooling
 
 Split protected course tooling into three independently reviewable PR-sized
-units. Keep PRs 3A and 3B product-UI-neutral; PR 3C is the first new visible
-course-authoring experience.
+units. Keep PRs 2.3.1 and 2.3.2 product-UI-neutral; PR 2.3.3 is the first new
+visible course-authoring experience.
 
-##### PR 3A: Course Data Foundation
+##### PR 2.3.1: Course Data Foundation
 
 - [x] research and approve the engine-independent course-editing standard and
       its PlayCanvas mapping,
@@ -622,7 +649,7 @@ course-authoring experience.
 - [x] stop before durable database persistence, authentication, authorization,
       or new editor UI.
 
-##### PR 3B: Identity, Authorization, And Course Persistence
+##### PR 2.3.2: Identity, Authorization, And Course Persistence
 
 - [x] add the local Postgres and hosted Neon persistence foundation with
       version-controlled migrations,
@@ -640,7 +667,7 @@ course-authoring experience.
 - [x] stop before player-facing EOA login, embedded wallets, or the visible
       course editor.
 
-##### PR 3C: Protected Course Editor
+##### PR 2.3.3: Protected Course Editor
 
 - [x] replace the development-only Lite Editor with a protected admin course
       editor and login/access experience,
@@ -679,14 +706,14 @@ revision. Author the official Agricultural Zone under the separate stable course
 ID `agricultural-zone`; publishing and guest runtime selection must never
 conflate the sandbox head with the official live track.
 
-#### PR 4: Rough Race Loop
+#### Stage 2.4: Rough Race Loop
 
 Complete the rough race loop through three separately reviewed PR-sized slices.
 Research significant game concepts through the Skills Tree before implementation,
 map the accepted standards to the current browser and PlayCanvas tooling, and
 document the verified shipped systems after each slice lands.
 
-##### PR 4A: Unified Player Input
+##### PR 2.4.1: Unified Player Input
 
 - [x] define one normalized action contract for steering, throttle,
       brake/reverse, reset, and pause,
@@ -700,7 +727,7 @@ document the verified shipped systems after each slice lands.
       guest-play mode selection and race overlays without requiring a mouse,
 - [x] stop before countdowns, checkpoints, laps, or race timing.
 
-##### PR 4B: Race Lifecycle And Progression
+##### PR 2.4.2: Race Lifecycle And Progression
 
 - [x] add explicit loading, ready, countdown, racing, paused, recovering, and
       finished states,
@@ -711,7 +738,7 @@ document the verified shipped systems after each slice lands.
 - [x] stop before the final integrated HUD and full cross-device loop
       acceptance.
 
-##### PR 4C: Integrated Rough Race Loop
+##### PR 2.4.3: Integrated Rough Race Loop
 
 - [x] connect unified input to the complete race lifecycle,
 - [x] add countdown, player-relevant route feedback, lap, timer, recovery, and
@@ -722,16 +749,16 @@ document the verified shipped systems after each slice lands.
       controller driving coverage, deterministic traversal, and feature-lead
       cross-device feel QA,
 - [x] run PR-level verification and independent review plus a proportional
-      integration review across the complete PR 4 race-loop work.
+      integration review across the complete Stage 2.4 race-loop work.
 
-#### PR 5: Telemetry And Runtime Resilience
+#### Stage 2.5: Telemetry And Runtime Resilience
 
 Complete telemetry and runtime resilience through two separately reviewed
 PR-sized slices. Keep collection deliberately small: one summarized gameplay-run
 record, a protected operational dashboard, anonymous page analytics, and no raw
 input, movement, per-frame, hardware-identity, or player-journey capture.
 
-##### PR 5A: Gameplay Telemetry And Admin Dashboard
+##### PR 2.5.1: Gameplay Telemetry And Admin Dashboard
 
 - [x] provider-neutral, versioned gameplay-run milestone contract,
 - [x] privacy-conscious Postgres gameplay-run summaries using opaque run IDs,
@@ -744,11 +771,11 @@ input, movement, per-frame, hardware-identity, or player-journey capture.
 - [x] focused database, authorization, privacy, browser, and dashboard QA plus
       the PR-level independent-review gate.
 
-##### PR 5B: Runtime Resilience And Phase 2 Closeout
+##### PR 2.5.2: Runtime Resilience And Phase 2 Closeout
 
 - [x] focus loss, visibility change, resize, input cancellation, lower frame
       rate, loading, and WebGL/context failure behavior,
-- [x] summarized runtime-health reporting through the PR 5A gameplay-run
+- [x] summarized runtime-health reporting through the PR 2.5.1 gameplay-run
       contract and dashboard,
 - [x] integrated Phase 2 verification and independent review.
 
@@ -756,11 +783,13 @@ Phase 2 remains limited to one rough kart and a rough test loop. Primitive kart
 authoring, Agricultural Zone visual production, ghosts, leaderboard submission,
 and multiplayer remain in their later phases.
 
-#### Phase 2 Feedback Polish
+#### Stage 2.6: Feedback Polish
 
 Complete the accepted Phase 2 feedback polish before beginning Phase 3. Keep
-each sub-item as a separately QA-accepted conventional commit, and do not move
-to the next item until the feature lead has accepted the current behavior.
+each PR separately QA-accepted, and do not move to the next PR until the feature
+lead has accepted the current behavior.
+
+##### PR 2.6.1: Handling And Mobile Drive Polish
 
 - [x] greatly reduce ordinary steering sharpness while preserving useful
       low-speed maneuvering,
@@ -772,10 +801,16 @@ to the next item until the feature lead has accepted the current behavior.
       and no-load speed used forward,
 - [x] replace mobile's horizontal steering-only pad with proportional two-axis
       steering and forward/brake-reverse intent,
+
+##### PR 2.6.2: Physical Manual Righting
+
+- [x] distinguish physical in-place manual righting from automatic off-course
+      checkpoint recovery.
+
+##### PR 2.6.3: Editor Multi-Selection And Mobile Drift Brake
+
 - [x] give touch players continuous rear-handbrake intent from forward motion,
       strong steering, and the brake pedal without adding a drift mode,
-- [x] distinguish physical in-place manual righting from automatic off-course
-      checkpoint recovery, and
 - [x] add Shift-modified multi-object editor selection and group translation.
 
 ### Phase 3: Kart Dynamics And Admin Kart Builder
@@ -787,9 +822,9 @@ Do not begin the persisted kart format or editor until the tuning-mastery gate
 is accepted. Deliver Phase 3 through four independently reviewable PR-sized
 units.
 
-#### PR 3A: Kart Dynamics Mastery And Derivation Contract
+#### PR 3.1: Kart Dynamics Mastery And Derivation Contract
 
-Phase 3A began with a `KartTuning` contract containing 62 numeric parameters.
+PR 3.1 began with a `KartTuning` contract containing 62 numeric parameters.
 Treat that as an audit input, not a target designer-facing API; the in-progress
 surface is now 16 after the completed chassis-contact module, removal of four
 target-seeking airborne-pitch controls, and replacement of twelve per-kart
@@ -871,7 +906,7 @@ Cover, in order:
       previous 18 m/s² handling value with Earth-standard 9.81 m/s²; tire
       stiffness now derives from contact load so the environment change does
       not require a compensating kart override,
-- [x] formalize one canonical four-layer handling architecture before the 3A
+- [x] formalize one canonical four-layer handling architecture before the PR 3.1
       gate closes: future authored construction inputs, versioned derived kart
       physics, world/environment values, and shared gameplay policy, with
       ephemeral runtime state owned by the physics solver rather than treated
@@ -883,7 +918,7 @@ Cover, in order:
       builder components and materials, world/environment values, derivation
       formulas, runtime solver types, shared policy, and presentation types;
       every section must identify its source of truth, units, versioning rules,
-      and owning code contract, while catalogs not defined until 3B are clearly
+      and owning code contract, while catalogs not defined until PR 3.2 are clearly
       marked as future rather than filled with speculative entries; the index
       now begins at `docs/kart-system/README.md`,
 - [x] split the transitional monolithic `KartTuning` contract along those
@@ -924,12 +959,12 @@ shared policy cannot vary accidentally by kart, and the simplified model passes
 controlled fixtures plus a complete race. Record accepted engine-independent,
 tool-specific, and implemented knowledge through the repository Skills Tree.
 
-#### PR 3B: Kart Document, Derivation, And Persistence
+#### PR 3.2: Kart Document, Derivation, And Persistence
 
 - [ ] define a versioned, validated kart-assembly document contract separate
       from the course document and from any future component-engineering
       document,
-- [ ] define a versioned approved-component registry and ship the accepted 3A
+- [ ] define a versioned approved-component registry and ship the accepted PR 3.1
       component-count manifest before the kart assembly editor is considered
       complete: at least one freely available sealed default in every required
       functional category, including one battery and one motor, and a second
@@ -970,7 +1005,7 @@ tool-specific, and implemented knowledge through the repository Skills Tree.
 - [ ] stop before breakable-joint metadata, damage behavior, or external asset
       storage.
 
-#### PR 3C: Admin Kart Builder
+#### PR 3.3: Admin Kart Builder
 
 - [ ] build a protected kart assembly editor that reuses generalized selection,
       gizmo, snapping, history, responsive inspector, and camera capabilities
@@ -989,13 +1024,13 @@ tool-specific, and implemented knowledge through the repository Skills Tree.
 - [ ] verify keyboard, narrow touch, accessible controls, cancellation, and
       editor/runtime cleanup.
 
-#### PR 3D: Official Kart Roster And Runtime Integration
+#### PR 3.4: Official Kart Roster And Runtime Integration
 
 - [ ] construct kart visuals, compound collision geometry, wheels, mass
       properties, and the simplified handling profile from validated immutable
       revisions,
-- [ ] retain the Balanced Kart authored through the real admin pipeline in PR
-      3C, then create speed and handling karts through that same pipeline
+- [ ] retain the Balanced Kart authored through the real admin pipeline in
+      PR 3.3, then create speed and handling karts through that same pipeline
       without special-case tuning or manual overrides,
 - [ ] show name, assembler credit, visual identity, derived stat bars, and a
       short practical descriptor in public kart selection,
@@ -1009,7 +1044,7 @@ tool-specific, and implemented knowledge through the repository Skills Tree.
 #### Deferred component-engineering phase boundary
 
 Component engineering is not part of Phase 3 and must be planned as a later
-phase rather than added opportunistically after PR 3D. That phase must debrief
+phase rather than added opportunistically after PR 3.4. That phase must debrief
 component-definition ownership, authorization, internal primitive/material
 bounds, derivation versioning, publication, and compatibility with existing
 kart revisions. Progression unlocks component-engineering parts, not complete
@@ -1078,7 +1113,7 @@ grant creators numerical stat or joint-strength overrides. Community karts begin
 as casual-race entries and do not enter the Demo v1 solo leaderboard until the
 derived balance contract receives separate competitive validation.
 
-#### PR 6A: Player Kart Ownership And Publishing
+#### PR 6.1: Player Kart Ownership And Publishing
 
 - [ ] extend the protected kart editor into a role-aware player authoring
       experience without exposing official-roster or admin controls,
@@ -1093,7 +1128,7 @@ derived balance contract receives separate competitive validation.
       catalog, and publish-rate limits at server and data boundaries,
 - [ ] keep guests out of persistent authoring and publishing.
 
-#### PR 6B: Community Kart Discovery, Play, And Safety
+#### PR 6.2: Community Kart Discovery, Play, And Safety
 
 - [ ] add a public catalog that clearly distinguishes official and community
       karts,
@@ -1109,7 +1144,7 @@ derived balance contract receives separate competitive validation.
 - [ ] stop before external assets, marketplace behavior, collaborative editing,
       comments, or community-kart leaderboard eligibility.
 
-#### PR 6C: Structural Joints And Forgiving Breakage
+#### PR 6.3: Structural Joints And Forgiving Breakage
 
 - [ ] research and approve the engine-independent structural-damage standard and
       its PlayCanvas/Ammo mapping before implementation,
@@ -1143,7 +1178,7 @@ Deliver community courses through three independently reviewable PR-sized
 units. Reuse the validated portable course-document and immutable-revision
 foundation; do not create a second course format or a separate editor.
 
-#### PR 7A: Player Course Ownership And Publishing
+#### PR 7.1: Player Course Ownership And Publishing
 
 - [ ] extend the protected editor into a role-aware player authoring experience
       without exposing admin-only controls,
@@ -1157,7 +1192,7 @@ foundation; do not create a second course format or a separate editor.
       server and data boundaries,
 - [ ] keep guests out of persistent authoring and publishing.
 
-#### PR 7B: Public Course Discovery And Play
+#### PR 7.2: Public Course Discovery And Play
 
 - [ ] add a public catalog that clearly distinguishes the official Agricultural
       Zone Service Circuit from community courses,
@@ -1170,7 +1205,7 @@ foundation; do not create a second course format or a separate editor.
 - [ ] stop before custom course assets, collaborative editing, comments, or
       community-course-specific ghosts and leaderboards.
 
-#### PR 7C: Community Ranking, Featuring, And Safety Controls
+#### PR 7.3: Community Ranking, Featuring, And Safety Controls
 
 - [ ] let each logged-in player add or remove one thumbs-up per published
       community course,
@@ -1192,7 +1227,7 @@ merging the final phase work into `main`.
 Goal: make the demo social while treating networked kart contact as an explicit
 authoritative gameplay system.
 
-#### PR 8A: Private Rooms And Race Lifecycle
+#### PR 8.1: Private Rooms And Race Lifecycle
 
 - [ ] private room creation and join by link,
 - [ ] 2-4 players with guest joining,
@@ -1203,7 +1238,7 @@ authoritative gameplay system.
 - [ ] timeout so the race ends when all active players finish or shortly after
       the first finisher.
 
-#### PR 8B: Multiplayer Motion And Resilience
+#### PR 8.2: Multiplayer Motion And Resilience
 
 - [ ] define server authority, input/state cadence, prediction, interpolation,
       reconciliation, and bounded correction behavior,
@@ -1214,7 +1249,7 @@ authoritative gameplay system.
 - [ ] preserve keyboard, touch, gamepad, reset, pause, and runtime-resilience
       behavior in multiplayer.
 
-#### PR 8C: Multiplayer Collisions And Damage Synchronization
+#### PR 8.3: Multiplayer Collisions And Damage Synchronization
 
 - [ ] establish one authoritative kart-to-kart collision outcome so two clients
       cannot apply the same contact twice,

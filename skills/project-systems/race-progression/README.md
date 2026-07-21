@@ -2,7 +2,7 @@
 
 ## Status
 
-**Maturity:** Validated. PR 4B implementation, feature-lead desktop/mobile QA,
+**Maturity:** Validated. PR 2.4.2 implementation, feature-lead desktop/mobile QA,
 the canonical desktop/mobile browser matrix, focused deterministic tests,
 static checks, schema checks, the production build, and required independent
 review pass as of 2026-07-13.
@@ -100,7 +100,7 @@ or the final Agricultural Zone course.
 - Race snapshots and test diagnostics are defensive plain-data copies. Runtime
   PlayCanvas, Ammo, and mutable internal objects never cross the public or test
   contract.
-- Race progress and per-frame kart paths are not persisted. PR 4B adds no
+- Race progress and per-frame kart paths are not persisted. PR 2.4.2 adds no
   analytics, telemetry, external requests, secrets, or player identifiers.
 
 ## Verification

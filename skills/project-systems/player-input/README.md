@@ -2,7 +2,7 @@
 
 ## Status
 
-**Maturity:** Validated. PR 4A implementation, static checks, production build,
+**Maturity:** Validated. PR 2.4.1 implementation, static checks, production build,
 adapter/browser tests, responsive visual inspection, required independent
 review, and feature-lead keyboard/touch/physical-controller acceptance pass as
 of 2026-07-13.
@@ -150,7 +150,7 @@ state and presentation.
 
 ## Controller Contract
 
-PR 4A supports one active browser controller with `mapping === "standard"`:
+PR 2.4.1 supports one active browser controller with `mapping === "standard"`:
 
 - axis 0: steering, with a rescaled `0.15` axial dead zone;
 - buttons 14/15: digital steering fallback;
@@ -259,7 +259,7 @@ until disconnect. Nonstandard mappings remain neutral and non-fatal.
   controller gameplay and menu acceptance pass. Additional controller models,
   operating systems, wireless transports, latency, and dead-zone feel remain
   unverified.
-- PR 4A intentionally omits remapping, binding persistence, controller glyphs,
+- PR 2.4.1 intentionally omits remapping, binding persistence, controller glyphs,
   vibration, motion control, nonstandard mappings, and multi-controller
   reassignment while an active controller remains connected.
 - Controller menu navigation is deliberately limited to guest mode selection
