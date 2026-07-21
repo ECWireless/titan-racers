@@ -254,9 +254,13 @@ test.describe("kart persistence and authorization", () => {
       requestDocument: unknown = document,
       origin = CONFIGURED_ORIGIN,
       contentType = "application/json",
+      expectedRevision: number | null = null,
     ) =>
       new Request(`${TEST_ORIGIN}/api/admin/karts/${kartId}`, {
-        body: JSON.stringify({ document: requestDocument, expectedRevision: null }),
+        body: JSON.stringify({
+          document: requestDocument,
+          expectedRevision,
+        }),
         headers: new Headers([
           ...headers.entries(),
           ["content-type", contentType],
@@ -299,6 +303,14 @@ test.describe("kart persistence and authorization", () => {
         .status,
     ).toBe(403);
     expect((await putPersistedKart(makeRequest(document, CONFIGURED_ORIGIN, "text/plain"), context)).status).toBe(415);
+    expect(
+      (
+        await putPersistedKart(
+          makeRequest(document, CONFIGURED_ORIGIN, "application/json", 0),
+          context,
+        )
+      ).status,
+    ).toBe(400);
 
     const invalidDocument = structuredClone(document);
     invalidDocument.connections = [];

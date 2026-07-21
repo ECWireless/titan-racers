@@ -19,7 +19,7 @@ import { protectedJsonMutationError } from "@/server/request-guards";
 
 const saveRequestSchema = z.strictObject({
   document: z.unknown(),
-  expectedRevision: z.number().int().nonnegative().nullable(),
+  expectedRevision: z.number().int().positive().nullable(),
 });
 
 type RouteContext = { params: Promise<{ kartId: string }> };
