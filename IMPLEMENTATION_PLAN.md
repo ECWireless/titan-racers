@@ -343,6 +343,10 @@ Route beats:
 5. Maintenance ramp/drop.
 6. Return lane through floor-marked service infrastructure.
 
+Phase 4 should also add an Agricultural Zone soundscape and readable racing
+SFX for road contact, impacts, machinery, irrigation, and habitat ambience
+without coupling presentation audio to kart physics.
+
 The art goal is strong scale language over polish: oversized crop trays, pipes, vents, doors, maintenance rails, ramps, catwalks, and glimpses of the larger O'Neill Cylinder beyond the route.
 
 Race length target: two laps should usually land around 90 seconds to 2.5 minutes total.
@@ -1070,7 +1074,9 @@ Includes:
 - [ ] oversized habitat infrastructure,
 - [ ] irrigation tunnel,
 - [ ] glass canopy / hero vista,
-- [ ] hints of Cylinder curvature or larger habitat beyond the route.
+- [ ] hints of Cylinder curvature or larger habitat beyond the route,
+- [ ] Agricultural Zone ambience and readable road-contact, impact, machinery,
+      irrigation, and habitat SFX.
 
 ### Phase 5: Solo, Ghosts, Results, Leaderboard
 
