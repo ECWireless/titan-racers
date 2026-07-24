@@ -37,7 +37,10 @@ import {
   getCourseStartTransform,
   ROUGH_COURSE_DOCUMENT,
 } from "@/game/course/course-document";
-import { getCourseVisualDepthBias } from "@/game/course/course-visual-policy";
+import {
+  COURSE_ASPHALT_COLOR,
+  getCourseVisualDepthBias,
+} from "@/game/course/course-visual-policy";
 import { PlayerInputManager } from "@/game/input/player-input-manager";
 import { isEditableKeyboardTarget } from "@/game/input/keyboard-input";
 import { useControllerMenuNavigation } from "@/game/input/use-controller-menu-navigation";
@@ -520,7 +523,9 @@ export function SoloTimeTrialCanvas({
     const suspensionShockMaterial = createMaterial(
       new pc.Color(1, 0.67, 0.12),
     );
-    const asphaltMaterial = createMaterial(new pc.Color(0.08, 0.08, 0.09));
+    const asphaltMaterial = createMaterial(
+      new pc.Color(...COURSE_ASPHALT_COLOR),
+    );
     const lineMaterial = createMaterial(
       new pc.Color(0.95, 0.92, 0.86),
       getCourseVisualDepthBias("line"),

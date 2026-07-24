@@ -9,7 +9,10 @@ import type {
   CourseDocument,
   CourseVisualMaterial,
 } from "../course/course-document";
-import { getCourseVisualDepthBias } from "../course/course-visual-policy";
+import {
+  COURSE_ASPHALT_COLOR,
+  getCourseVisualDepthBias,
+} from "../course/course-visual-policy";
 import {
   type CourseEditorGeometry,
   type CourseEditorSelection,
@@ -889,7 +892,7 @@ export class CourseEditorScene {
 
 function createCourseMaterials() {
   return {
-    asphalt: createMaterial(new pc.Color(0.08, 0.08, 0.09)),
+    asphalt: createMaterial(new pc.Color(...COURSE_ASPHALT_COLOR)),
     ground: createMaterial(
       new pc.Color(0.08, 0.36, 0.26),
       1,
