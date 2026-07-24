@@ -11,7 +11,9 @@ import type {
 } from "../course/course-document";
 import {
   COURSE_ASPHALT_COLOR,
+  COURSE_EDITOR_CAMERA_NEAR_CLIP,
   getCourseVisualDepthBias,
+  isCourseEditorBaseGround,
 } from "../course/course-visual-policy";
 import {
   type CourseEditorGeometry,
@@ -52,6 +54,13 @@ type PointerState = {
   startY: number;
 };
 
+type CourseEditorMaterials = Record<
+  CourseVisualMaterial,
+  pc.StandardMaterial
+> & {
+  baseGround: pc.StandardMaterial;
+};
+
 const POINTER_MOVE_THRESHOLD = 5;
 
 export class CourseEditorScene {
@@ -68,10 +77,7 @@ export class CourseEditorScene {
     0.16,
   );
   private readonly gizmoLayer: pc.Layer;
-  private readonly materials: Record<
-    CourseVisualMaterial,
-    pc.StandardMaterial
-  >;
+  private readonly materials: CourseEditorMaterials;
   private readonly picker: pc.Picker;
   private readonly pointers = new Map<number, PointerState>();
   private readonly resizeObserver: ResizeObserver;
@@ -130,7 +136,7 @@ export class CourseEditorScene {
     this.camera.addComponent("camera", {
       clearColor: new pc.Color(0.025, 0.03, 0.035),
       farClip: 500,
-      nearClip: 0.1,
+      nearClip: COURSE_EDITOR_CAMERA_NEAR_CLIP,
     });
     this.app.root.addChild(this.camera);
 
@@ -656,7 +662,15 @@ export class CourseEditorScene {
 
     const { courseEntities } = buildRoughCourse(this.app, {
       createEntity: (projection, material) =>
-        createProjectionEntity(projection, material),
+        createProjectionEntity(
+          projection,
+          isCourseEditorBaseGround(
+            projection.visual.material,
+            projection.id,
+          )
+            ? this.materials.baseGround
+            : material,
+        ),
       document: this.currentDocument,
       materials: this.materials,
     });
@@ -858,6 +872,7 @@ export class CourseEditorScene {
 function createCourseMaterials() {
   return {
     asphalt: createMaterial(new pc.Color(...COURSE_ASPHALT_COLOR)),
+    baseGround: createMaterial(new pc.Color(0.08, 0.36, 0.26)),
     ground: createMaterial(
       new pc.Color(0.08, 0.36, 0.26),
       1,
@@ -875,7 +890,7 @@ function createCourseMaterials() {
     obstacleBarrel: createMaterial(new pc.Color(0.96, 0.45, 0.12)),
     obstacleBlock: createMaterial(new pc.Color(0.82, 0.78, 0.68)),
     ramp: createMaterial(new pc.Color(0.35, 0.39, 0.42)),
-  } satisfies Record<CourseVisualMaterial, pc.StandardMaterial>;
+  } satisfies CourseEditorMaterials;
 }
 
 function createMaterial(
