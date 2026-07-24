@@ -66,6 +66,42 @@ If the agent wants to choose a framework, dependency, service, or major pattern,
 - Use feature branches for phase work.
 - Use conventional commit messages.
 
+## Sequential Commit Gates
+
+When the feature lead approves a multi-commit strategy, treat every planned
+commit as a separate implementation boundary:
+
+1. Implement only the current commit's agreed scope. Do not pre-implement work
+   assigned to a later commit.
+2. Run the proportional verification for the current commit.
+3. Freeze implementation edits and review the exact diff from the preceding
+   commit. Include correctness, regression, maintainability, accessibility,
+   privacy, and security concerns as applicable. Use a fresh-context,
+   read-only independent reviewer for code-bearing commits; size docs-only
+   review proportionally.
+4. Resolve findings, rerun affected verification, and obtain focused re-review
+   for material fixes.
+5. When the commit has a user-visible or interactable QA surface, provide a
+   focused preview and manual QA checklist, then wait for the feature lead's QA
+   result. Do not stage, commit, or begin the next commit while manual QA is
+   pending. When no meaningful manual QA is possible, state that explicitly.
+6. Present the commit scope, verification evidence, review disposition, and
+   manual-QA disposition to the feature lead. Do not stage or commit without
+   the required explicit approval.
+7. Stage only the reviewed diff, inspect the staged diff, and create the
+   approved conventional commit.
+8. Begin the next planned commit only after the current commit has landed.
+
+Per-commit gates do not replace the completed PR-sized independent-review gate
+or the final phase integration gate.
+
+If implementation accidentally spans several planned commits, preserve the
+work but do not describe it as sequentially reviewed. Reconstruct each
+candidate commit against its intended preceding commit in an isolated
+validation tree or equivalent patch series, then verify, review, complete any
+applicable feature-lead manual QA, approve, and commit each candidate in order.
+Do not discard valid work merely to recreate the sequence.
+
 ## Review And Closeout
 
 Before asking for review or opening a PR:
