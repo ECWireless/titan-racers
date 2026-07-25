@@ -155,6 +155,7 @@ export function KartEditorShell({
     courseDocument: CourseDocument;
     kartDocument: KartAssemblyDocument;
     kartRevision: number;
+    kartSnapshot: PersistedKartRevision["resolvedSnapshot"];
   } | null>(null);
   const [testPending, setTestPending] = useState(false);
   const operationPendingRef = useRef(false);
@@ -598,6 +599,7 @@ export function KartEditorShell({
         courseDocument,
         kartDocument: currentRevision.document,
         kartRevision: currentRevision.revision,
+        kartSnapshot: currentRevision.resolvedSnapshot,
       });
     } catch (error) {
       testModeTriggerRef.current = false;
@@ -937,6 +939,7 @@ export function KartEditorShell({
       <SoloTimeTrialCanvas
         courseDocument={testSession.courseDocument}
         kartDocument={testSession.kartDocument}
+        kartSnapshot={testSession.kartSnapshot}
         recordTelemetry={false}
         sessionLabel={`Saved r${testSession.kartRevision} on sandbox course · ${testSession.kartDocument.name}`}
         onExit={() => setTestSession(null)}

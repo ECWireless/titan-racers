@@ -5,7 +5,10 @@ import { createBalancedKartDocument } from "../src/game/kart/balanced-kart-docum
 import { KART_EDITOR_TRANSLATE_SNAP } from "../src/game/editor/kart-editor-scene";
 import type { KartAssemblyDocument } from "../src/game/kart/kart-assembly-document";
 import { getApprovedKartComponent } from "../src/game/kart/kart-component-registry";
-import { deriveKartSnapshot } from "../src/game/kart/kart-derivation";
+import {
+  deriveKartSnapshot,
+  type ResolvedKartSnapshot,
+} from "../src/game/kart/kart-derivation";
 import { hasRuntimeCompatibleInertia } from "../src/game/kart/kart-runtime-compatibility";
 import type { KartPublicationEvent } from "../src/game/kart/kart-publication";
 
@@ -111,6 +114,22 @@ async function getKartEditorInstanceVisualColor(
         );
       }),
     instanceId,
+  );
+}
+
+async function getKartRuntimePhysics(canvas: Locator) {
+  return canvas.evaluate(
+    (element) =>
+      new Promise<{
+        developmentValues: { maximumDriveForce: number };
+        maxForwardSpeed: number;
+      }>((resolve) => {
+        element.dispatchEvent(
+          new CustomEvent("getKartDebugState", {
+            detail: { respond: resolve },
+          }),
+        );
+      }),
   );
 }
 
@@ -798,6 +817,16 @@ test.describe("protected kart builder access", () => {
         instance.visualColor = "#ee5533";
       }
     });
+    const savedRevision = createPersistedBalancedRevision(
+      authoredDraft,
+      createKartPublication(1),
+      2,
+    );
+    const savedSnapshot = structuredClone(
+      savedRevision.resolvedSnapshot,
+    ) as unknown as ResolvedKartSnapshot;
+    savedSnapshot.physicalProfile.drivetrain.maximumDriveForce = 12.345;
+    savedSnapshot.physicalProfile.drivetrain.noLoadSpeed = 9.876;
     const sandboxCourse = await usePublishedSandboxCourse(page);
     await usePublishedKart(page, publishedKart, 1);
     await page.route("**/api/telemetry/gameplay-runs", async (route) => {
@@ -807,11 +836,7 @@ test.describe("protected kart builder access", () => {
     await page.route(kartApiPattern, async (route) => {
       await route.fulfill({
         body: JSON.stringify(
-          createPersistedBalancedRevision(
-            authoredDraft,
-            createKartPublication(1),
-            2,
-          ),
+          { ...savedRevision, resolvedSnapshot: savedSnapshot },
         ),
         contentType: "application/json",
         status: 200,
@@ -850,6 +875,9 @@ test.describe("protected kart builder access", () => {
     );
     await expect(canvas).toHaveAttribute("data-kart-wheel-color", "#2244ff");
     await expect(canvas).toHaveAttribute("data-collision-fixtures", "false");
+    const runtimePhysics = await getKartRuntimePhysics(canvas);
+    expect(runtimePhysics.developmentValues.maximumDriveForce).toBe(12.345);
+    expect(runtimePhysics.maxForwardSpeed).toBe(9.88);
     const visualColors = await getKartVisualColors(canvas);
     expectMaterialColor(visualColors.bodywork, "#1188cc");
     expectMaterialColor(visualColors.component, "#cc7722");
