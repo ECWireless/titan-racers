@@ -56,7 +56,6 @@ import {
   type PersistedKartRevision,
   kartPublicationEventSchema,
   persistedKartRevisionSchema,
-  publishedKartRuntimeSchema,
 } from "@/game/kart/kart-publication";
 import { serializeKartAssemblyDocument } from "@/game/kart/kart-assembly-document";
 import { isEditableKeyboardTarget } from "@/game/input/keyboard-input";
@@ -208,6 +207,9 @@ export function KartEditorShell({
   const runtimeTestCompatible =
     derivation.snapshot !== null &&
     hasRuntimeCompatibleInertia(derivation.snapshot);
+  const savedRuntimeTestCompatible = hasRuntimeCompatibleInertia(
+    currentRevision.resolvedSnapshot,
+  );
   const selectedDefinition =
     selectedInstance?.kind === "component"
       ? getApprovedKartComponent(selectedInstance.definition)
@@ -579,33 +581,23 @@ export function KartEditorShell({
     testModeTriggerRef.current = true;
     setTestPending(true);
     try {
-      const [kartResponse, courseDocument] = await Promise.all([
-        fetch(`/api/karts/${currentRevision.kartId}/published`, {
+      const courseDocument = await fetch(
+        `/api/courses/${CURRENT_GUEST_COURSE_ID}/published`,
+        {
           cache: "no-store",
           signal: AbortSignal.timeout(3_000),
-        }),
-        fetch(`/api/courses/${CURRENT_GUEST_COURSE_ID}/published`, {
-          cache: "no-store",
-          signal: AbortSignal.timeout(3_000),
-        })
-          .then(async (response) =>
-            response.ok
-              ? publishedCourseRuntimeSchema.parse(await response.json())
-                  .document
-              : ROUGH_COURSE_DOCUMENT,
-          )
-          .catch(() => ROUGH_COURSE_DOCUMENT),
-      ]);
-      if (!kartResponse.ok) {
-        throw new Error("The published kart could not be loaded.");
-      }
-      const publishedKart = publishedKartRuntimeSchema.parse(
-        await kartResponse.json(),
-      );
+        },
+      )
+        .then(async (response) =>
+          response.ok
+            ? publishedCourseRuntimeSchema.parse(await response.json()).document
+            : ROUGH_COURSE_DOCUMENT,
+        )
+        .catch(() => ROUGH_COURSE_DOCUMENT);
       setTestSession({
         courseDocument,
-        kartDocument: publishedKart.document,
-        kartRevision: publishedKart.revision,
+        kartDocument: currentRevision.document,
+        kartRevision: currentRevision.revision,
       });
     } catch (error) {
       testModeTriggerRef.current = false;
@@ -946,7 +938,7 @@ export function KartEditorShell({
         courseDocument={testSession.courseDocument}
         kartDocument={testSession.kartDocument}
         recordTelemetry={false}
-        sessionLabel={`Published r${testSession.kartRevision} on sandbox course · ${testSession.kartDocument.name}`}
+        sessionLabel={`Saved r${testSession.kartRevision} on sandbox course · ${testSession.kartDocument.name}`}
         onExit={() => setTestSession(null)}
       />
     );
@@ -1457,15 +1449,17 @@ export function KartEditorShell({
             <button
               aria-busy={testPending}
               className="titan-button titan-button-primary !min-h-11 !py-2"
-              disabled={testPending || !published}
+              disabled={testPending || !savedRuntimeTestCompatible}
               ref={testButtonRef}
               type="button"
               onClick={startSandboxTest}
             >
-              {testPending ? "Loading sandbox…" : "Test published kart"}
+              {testPending ? "Loading sandbox…" : "Test saved kart"}
             </button>
             <p className="text-xs leading-relaxed text-titan-muted">
-              Drive the published kart on the current sandbox course.
+              {savedRuntimeTestCompatible
+                ? `Drive saved revision ${currentRevision.revision} on the current sandbox course. Unsaved changes are not included.`
+                : `Saved revision ${currentRevision.revision} cannot be tested until PR 3.4 adds principal-axis integration.`}
             </p>
           </div>
           <div className="absolute bottom-3 left-3 right-3 z-20 grid grid-cols-2 gap-2 lg:hidden">
@@ -1783,8 +1777,8 @@ export function KartEditorShell({
                     role="alert"
                   >
                     This asymmetric mass layout can be saved as a private draft,
-                    but it cannot be published or tested until PR 3.4 adds
-                    principal-axis integration.
+                    but it cannot be published until PR 3.4 adds principal-axis
+                    integration. Testing still uses the last saved revision.
                   </p>
                 ) : null}
               </div>
@@ -1794,7 +1788,8 @@ export function KartEditorShell({
                   className="border border-titan-rust/50 bg-titan-rust/10 p-3 text-sm text-titan-ice"
                   role="alert"
                 >
-                  Invalid construction cannot be saved, published, or tested.
+                  Invalid construction cannot be saved or published. Testing
+                  continues to use the last saved revision.
                 </p>
                 <ol className="grid gap-2 text-xs">
                   {derivation.issues.slice(0, 10).map((issue, index) => (

@@ -177,7 +177,7 @@ test.describe("protected kart builder access", () => {
     ).toHaveCount(0);
   });
 
-  test("loads the validated assembly and published-kart test control", async ({
+  test("loads the validated assembly and saved-kart test control", async ({
     page,
   }, testInfo) => {
     let telemetryRequestCount = 0;
@@ -220,10 +220,12 @@ test.describe("protected kart builder access", () => {
     ).toBeVisible();
     await page.getByRole("button", { name: "Close camera controls" }).click();
     await expect(
-      page.getByRole("button", { name: "Test published kart" }),
+      page.getByRole("button", { name: "Test saved kart" }),
     ).toBeEnabled();
     await expect(
-      page.getByText("Drive the published kart on the current sandbox course."),
+      page.getByText(
+        "Drive saved revision 1 on the current sandbox course. Unsaved changes are not included.",
+      ),
     ).toBeVisible();
     const viewport = page.getByLabel("Kart assembly viewport");
     await expect(viewport).toHaveAttribute("data-editor-status", "ready");
@@ -328,7 +330,7 @@ test.describe("protected kart builder access", () => {
     }
 
     if (testInfo.project.name === "desktop") {
-      await page.getByRole("button", { name: "Test published kart" }).click();
+      await page.getByRole("button", { name: "Test saved kart" }).click();
       await expect(page.getByLabel("Kart assembly viewport")).toHaveCount(0);
       await expect(page.getByTestId("solo-time-trial-canvas")).toHaveAttribute(
         "data-scene-ready",
@@ -339,7 +341,7 @@ test.describe("protected kart builder access", () => {
         sandboxCourse.name,
       );
       await expect(
-        page.getByText("Published r1 on sandbox course · Balanced Kart"),
+        page.getByText("Saved r1 on sandbox course · Balanced Kart"),
       ).toBeVisible();
       await page.keyboard.press("Delete");
       await page.waitForTimeout(100);
@@ -349,10 +351,10 @@ test.describe("protected kart builder access", () => {
       await expect(page.getByTestId("solo-time-trial-canvas")).toHaveCount(0);
       await expect(viewport).toHaveAttribute("data-editor-status", "ready");
       await expect(
-        page.getByRole("button", { name: "Test published kart" }),
+        page.getByRole("button", { name: "Test saved kart" }),
       ).toBeEnabled();
       await expect(
-        page.getByRole("button", { name: "Test published kart" }),
+        page.getByRole("button", { name: "Test saved kart" }),
       ).toBeFocused();
 
       await expect(page.getByLabel("Description")).toBeVisible();
@@ -754,18 +756,31 @@ test.describe("protected kart builder access", () => {
     }
   });
 
-  test("launches the exact published kart on the current sandbox course", async ({
+  test("launches the exact saved kart on the current sandbox course", async ({
     page,
   }, testInfo) => {
     test.skip(
       testInfo.project.name !== "desktop",
-      "Published runtime coverage only needs to run once.",
+      "Saved runtime coverage only needs to run once.",
     );
     let telemetryRequestCount = 0;
     const authoredDraft = createBalancedKartDocument();
     authoredDraft.name = "Unpublished Blue Draft";
     authoredDraft.visualIdentity.primaryColor = "#0000ff";
     authoredDraft.visualIdentity.accentColor = "#ffffff";
+    authoredDraft.primitiveInstances.forEach((instance) => {
+      if (instance.role === "bodywork") instance.visualColor = "#1188cc";
+    });
+    authoredDraft.componentInstances.forEach((instance) => {
+      const definition = getApprovedKartComponent(instance.definition);
+      if (definition?.category === "suspension") {
+        instance.visualColor = "#aa44dd";
+      } else if (definition?.category === "wheel-tire") {
+        instance.visualColor = "#2244ff";
+      } else {
+        instance.visualColor = "#cc7722";
+      }
+    });
     const publishedKart = createBalancedKartDocument();
     publishedKart.name = "Published Neon Kart";
     publishedKart.visualIdentity.primaryColor = "#00ff00";
@@ -804,7 +819,7 @@ test.describe("protected kart builder access", () => {
     });
 
     await page.goto("/admin/karts/balanced-kart");
-    await page.getByRole("button", { name: "Test published kart" }).click();
+    await page.getByRole("button", { name: "Test saved kart" }).click();
     const canvas = page.getByTestId("solo-time-trial-canvas");
     await expect(canvas).toHaveAttribute("data-scene-ready", "true");
     await expect(canvas).toHaveAttribute(
@@ -813,43 +828,43 @@ test.describe("protected kart builder access", () => {
     );
     await expect(canvas).toHaveAttribute(
       "data-kart-document-name",
-      "Published Neon Kart",
+      "Unpublished Blue Draft",
     );
-    await expect(canvas).toHaveAttribute("data-kart-primary-color", "#00ff00");
-    await expect(canvas).toHaveAttribute("data-kart-accent-color", "#ff00ff");
+    await expect(canvas).toHaveAttribute("data-kart-primary-color", "#0000ff");
+    await expect(canvas).toHaveAttribute("data-kart-accent-color", "#ffffff");
     await expect(canvas).toHaveAttribute(
       "data-kart-component-color",
-      "#ee5533",
+      "#cc7722",
     );
     await expect(canvas).toHaveAttribute(
       "data-kart-component-count",
-      String(publishedKart.componentInstances.length),
+      String(authoredDraft.componentInstances.length),
     );
     await expect(canvas).toHaveAttribute(
       "data-kart-primitive-count",
-      String(publishedKart.primitiveInstances.length),
+      String(authoredDraft.primitiveInstances.length),
     );
     await expect(canvas).toHaveAttribute(
       "data-kart-suspension-color",
-      "#dd22ee",
+      "#aa44dd",
     );
-    await expect(canvas).toHaveAttribute("data-kart-wheel-color", "#3366ff");
+    await expect(canvas).toHaveAttribute("data-kart-wheel-color", "#2244ff");
     await expect(canvas).toHaveAttribute("data-collision-fixtures", "false");
     const visualColors = await getKartVisualColors(canvas);
-    expectMaterialColor(visualColors.bodywork, "#22dd88");
-    expectMaterialColor(visualColors.component, "#ee5533");
-    expectMaterialColor(visualColors.suspension, "#dd22ee");
+    expectMaterialColor(visualColors.bodywork, "#1188cc");
+    expectMaterialColor(visualColors.component, "#cc7722");
+    expectMaterialColor(visualColors.suspension, "#aa44dd");
     expect(visualColors.suspensionCastsShadows).toBe(false);
     expect(visualColors.suspensionDamperDiameter).toBeCloseTo(0.018, 5);
     expect(visualColors.suspensionReceivesShadows).toBe(false);
-    expectMaterialColor(visualColors.suspensionCoil, "#dd22ee");
+    expectMaterialColor(visualColors.suspensionCoil, "#aa44dd");
     expect(visualColors.suspensionCoilCastsShadows).toBe(false);
     expect(visualColors.suspensionCoilReceivesShadows).toBe(false);
     expect(visualColors.suspensionCoilSegmentCount).toBe(32);
     expect(visualColors.suspensionCoilWireDiameter).toBeCloseTo(0.005, 5);
-    expectMaterialColor(visualColors.wheel, "#3366ff");
+    expectMaterialColor(visualColors.wheel, "#2244ff");
     const wheelStation =
-      deriveKartSnapshot(publishedKart).geometry.wheelStations[0];
+      deriveKartSnapshot(authoredDraft).geometry.wheelStations[0];
     expect(wheelStation).toBeDefined();
     expect(visualColors.suspensionCoilEnd).not.toBeNull();
     expect(visualColors.wheelHubPosition).not.toBeNull();
@@ -872,20 +887,20 @@ test.describe("protected kart builder access", () => {
       5,
     );
     await expect(canvas).toHaveAccessibleName(
-      "Solo Time Trial race: Published r1 on sandbox course · Published Neon Kart",
+      "Solo Time Trial race: Saved r2 on sandbox course · Unpublished Blue Draft",
     );
     await expect(
-      page.getByText("Published r1 on sandbox course · Published Neon Kart"),
+      page.getByText("Saved r2 on sandbox course · Unpublished Blue Draft"),
     ).toBeVisible();
     await page.keyboard.press("Escape");
     await page.getByRole("button", { name: "Exit", exact: true }).click();
     await expect(
-      page.getByRole("button", { name: "Test published kart" }),
+      page.getByRole("button", { name: "Test saved kart" }),
     ).toBeFocused();
     expect(telemetryRequestCount).toBe(0);
   });
 
-  test("persists an authored instance color through editor and runtime rendering", async ({
+  test("persists an authored instance color through saved runtime rendering", async ({
     page,
   }, testInfo) => {
     test.skip(
@@ -896,7 +911,7 @@ test.describe("protected kart builder access", () => {
     const savedState: { document: KartAssemblyDocument | null } = {
       document: null,
     };
-    let publishedDocument = createBalancedKartDocument();
+    const initialDocument = createBalancedKartDocument();
     await usePublishedSandboxCourse(page);
     await page.route(kartApiPattern, async (route) => {
       if (route.request().method() === "PUT") {
@@ -906,11 +921,7 @@ test.describe("protected kart builder access", () => {
         savedState.document = body.document;
         await route.fulfill({
           body: JSON.stringify(
-            createPersistedBalancedRevision(
-              body.document,
-              createKartPublication(1),
-              2,
-            ),
+            createPersistedBalancedRevision(body.document, null, 2),
           ),
           contentType: "application/json",
           status: 200,
@@ -919,38 +930,8 @@ test.describe("protected kart builder access", () => {
       }
       await route.fulfill({
         body: JSON.stringify(
-          createPersistedBalancedRevision(
-            publishedDocument,
-            createKartPublication(1),
-          ),
+          createPersistedBalancedRevision(initialDocument),
         ),
-        contentType: "application/json",
-        status: 200,
-      });
-    });
-    await page.route(`${kartApiPattern}/publication`, async (route) => {
-      const body = route.request().postDataJSON() as { revision: number };
-      if (!savedState.document) throw new Error("Color draft was not saved.");
-      publishedDocument = savedState.document;
-      await route.fulfill({
-        body: JSON.stringify(createKartPublication(body.revision)),
-        contentType: "application/json",
-        status: 200,
-      });
-    });
-    await page.route(publishedKartApiPattern, async (route) => {
-      const resolvedSnapshot = deriveKartSnapshot(publishedDocument);
-      await route.fulfill({
-        body: JSON.stringify({
-          derivationVersion: resolvedSnapshot.derivationVersion,
-          document: publishedDocument,
-          kartId: publishedDocument.kartId,
-          publishedAt: "2026-07-24T00:00:00.000Z",
-          resolvedSnapshot,
-          resolvedSnapshotHash: "0".repeat(64),
-          revision: 2,
-          schemaVersion: publishedDocument.schemaVersion,
-        }),
         contentType: "application/json",
         status: 200,
       });
@@ -977,9 +958,11 @@ test.describe("protected kart builder access", () => {
         ({ id }) => id === "battery-main",
       )?.visualColor,
     ).toBe(authoredColor);
-    await page.getByRole("button", { name: "Publish saved draft" }).click();
-    await expect(page.getByText("Revision 2 published.")).toBeVisible();
-    await page.getByRole("button", { name: "Test published kart" }).click();
+    await colorInput.fill("#22cc88");
+    await expect(
+      page.getByTestId("kart-editor-header").getByText("Unsaved changes"),
+    ).toBeVisible();
+    await page.getByRole("button", { name: "Test saved kart" }).click();
     const runtimeCanvas = page.getByTestId("solo-time-trial-canvas");
     await expect(runtimeCanvas).toHaveAttribute("data-scene-ready", "true");
     expectMaterialColor(
@@ -1048,8 +1031,8 @@ test.describe("protected kart builder access", () => {
 
     await page.goto("/admin/karts/balanced-kart");
     await expect(
-      page.getByRole("button", { name: "Test published kart" }),
-    ).toBeDisabled();
+      page.getByRole("button", { name: "Test saved kart" }),
+    ).toBeEnabled();
     const name = page.getByLabel("Name");
     await name.fill("Balanced Kart QA");
     await name.blur();
@@ -1075,7 +1058,7 @@ test.describe("protected kart builder access", () => {
     await expect(page.getByText("Revision 2 published.")).toBeVisible();
     await expect(page.getByText("Published r2")).toBeVisible();
     await expect(
-      page.getByRole("button", { name: "Test published kart" }),
+      page.getByRole("button", { name: "Test saved kart" }),
     ).toBeEnabled();
 
     await page.getByLabel("Description").fill("Unsaved local descriptor");
@@ -1093,8 +1076,8 @@ test.describe("protected kart builder access", () => {
     await expect(page.getByText("Kart unpublished.")).toBeVisible();
     await expect(page.getByText("Published none")).toBeVisible();
     await expect(
-      page.getByRole("button", { name: "Test published kart" }),
-    ).toBeDisabled();
+      page.getByRole("button", { name: "Test saved kart" }),
+    ).toBeEnabled();
   });
 
   test("saves a valid asymmetric draft but keeps publication gated", async ({
@@ -1146,6 +1129,14 @@ test.describe("protected kart builder access", () => {
     });
 
     await page.goto("/admin/karts/balanced-kart");
+    await expect(
+      page.getByRole("button", { name: "Test saved kart" }),
+    ).toBeDisabled();
+    await expect(
+      page.getByText(
+        "Saved revision 1 cannot be tested until PR 3.4 adds principal-axis integration.",
+      ),
+    ).toBeVisible();
     await page.getByLabel("Name").fill("Asymmetric private draft");
     await page.getByLabel("Name").blur();
     await expect(
@@ -1156,6 +1147,66 @@ test.describe("protected kart builder access", () => {
     ).toBeDisabled();
     await page.getByRole("button", { name: "Save draft" }).click();
     await expect(page.getByText("Draft revision 2 saved.")).toBeVisible();
+    await expect(
+      page.getByRole("button", { name: "Test saved kart" }),
+    ).toBeDisabled();
+    await expect(
+      page.getByText(
+        "Saved revision 2 cannot be tested until PR 3.4 adds principal-axis integration.",
+      ),
+    ).toBeVisible();
+  });
+
+  test("keeps a compatible saved kart testable while unsaved edits are incompatible", async ({
+    page,
+  }, testInfo) => {
+    test.skip(
+      testInfo.project.name !== "desktop",
+      "Saved-versus-unsaved compatibility coverage only needs to run once.",
+    );
+    const savedDocument = createBalancedKartDocument();
+    await usePublishedSandboxCourse(page);
+    await page.route(kartApiPattern, async (route) => {
+      await route.fulfill({
+        body: JSON.stringify(createPersistedBalancedRevision(savedDocument)),
+        contentType: "application/json",
+        status: 200,
+      });
+    });
+
+    await page.goto("/admin/karts/balanced-kart");
+    await page
+      .getByLabel("Kart and assembly")
+      .getByRole("button", { name: /upper-housing/ })
+      .click();
+    await page
+      .getByRole("group", { name: "Position (m)" })
+      .getByLabel("x")
+      .fill("0.01");
+    await expect(
+      page.getByText("Assembly is valid and deterministically derived."),
+    ).toBeVisible();
+    await expect(
+      page.getByText(
+        /This asymmetric mass layout can be saved as a private draft, but it cannot be published/,
+      ),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("button", { name: "Test saved kart" }),
+    ).toBeEnabled();
+    await expect(
+      page.getByText(
+        "Drive saved revision 1 on the current sandbox course. Unsaved changes are not included.",
+      ),
+    ).toBeVisible();
+
+    await page.getByRole("button", { name: "Test saved kart" }).click();
+    const canvas = page.getByTestId("solo-time-trial-canvas");
+    await expect(canvas).toHaveAttribute("data-scene-ready", "true");
+    await expect(canvas).toHaveAttribute(
+      "data-kart-document-name",
+      savedDocument.name,
+    );
   });
 
   test("preserves issued IDs after loading the latest draft", async ({
