@@ -83,6 +83,7 @@ async function getKartVisualColors(canvas: Locator) {
         suspensionCoilReceivesShadows: boolean | null;
         suspensionCoilSegmentCount: number;
         suspensionCoilWireDiameter: number | null;
+        suspensionDamperDiameter: number | null;
         suspensionReceivesShadows: boolean | null;
         wheel: MaterialColor;
         wheelHubPosition: MaterialColor;
@@ -839,6 +840,7 @@ test.describe("protected kart builder access", () => {
     expectMaterialColor(visualColors.component, "#ee5533");
     expectMaterialColor(visualColors.suspension, "#dd22ee");
     expect(visualColors.suspensionCastsShadows).toBe(false);
+    expect(visualColors.suspensionDamperDiameter).toBeCloseTo(0.018, 5);
     expect(visualColors.suspensionReceivesShadows).toBe(false);
     expectMaterialColor(visualColors.suspensionCoil, "#dd22ee");
     expect(visualColors.suspensionCoilCastsShadows).toBe(false);

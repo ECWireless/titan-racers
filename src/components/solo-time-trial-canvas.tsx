@@ -115,6 +115,7 @@ const KART_SUSPENSION_COIL_RADIUS = 0.014;
 const KART_SUSPENSION_COIL_SEGMENTS = 32;
 const KART_SUSPENSION_COIL_TURNS = 8;
 const KART_SUSPENSION_COIL_WIRE_RADIUS = 0.0025;
+const KART_SUSPENSION_DAMPER_RADIUS = 0.009;
 const KART_RESET_FALL_Y = -10;
 const KART_TAP_MAX_DURATION_MS = 300;
 const KART_TAP_MAX_MOVEMENT_PX = 12;
@@ -1126,7 +1127,7 @@ export function SoloTimeTrialCanvas({
           kartVisual,
           `${name}-shock`,
           suspensionMaterial,
-          0.007,
+          KART_SUSPENSION_DAMPER_RADIUS,
           false,
         );
         const coil = createSuspensionCoil(
@@ -1852,7 +1853,7 @@ export function SoloTimeTrialCanvas({
             wheel.shock,
             wheel.chassisShockAnchor,
             springArm,
-            0.007,
+            KART_SUSPENSION_DAMPER_RADIUS,
           );
           placeSuspensionCoil(wheel.coil, wheel.chassisShockAnchor, springArm);
         });
@@ -2463,6 +2464,8 @@ export function SoloTimeTrialCanvas({
           suspension: getFirstMeshDiffuse(wheelPresentation?.shock),
           suspensionCastsShadows:
             wheelPresentation?.shock.model?.castShadows ?? null,
+          suspensionDamperDiameter:
+            wheelPresentation?.shock.getLocalScale().x ?? null,
           suspensionReceivesShadows:
             wheelPresentation?.shock.model?.receiveShadows ?? null,
           suspensionCoil: getFirstMeshDiffuse(wheelPresentation?.coil[0]),
