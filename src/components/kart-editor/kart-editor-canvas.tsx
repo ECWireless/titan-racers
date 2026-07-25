@@ -136,6 +136,34 @@ export function KartEditorCanvas({
     if (frameRequest > 0) sceneRef.current?.frameSelection();
   }, [frameRequest]);
 
+  useEffect(() => {
+    if (process.env.NODE_ENV === "production") return;
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const onVisualColorRequest = (event: Event) => {
+      const detail = (
+        event as CustomEvent<{
+          instanceId: string;
+          respond: (
+            color: { x: number; y: number; z: number } | null,
+          ) => void;
+        }>
+      ).detail;
+      detail.respond(
+        sceneRef.current?.getInstanceVisualColor(detail.instanceId) ?? null,
+      );
+    };
+    canvas.addEventListener(
+      "getKartEditorInstanceVisualColor",
+      onVisualColorRequest,
+    );
+    return () =>
+      canvas.removeEventListener(
+        "getKartEditorInstanceVisualColor",
+        onVisualColorRequest,
+      );
+  }, []);
+
   return (
     <div className="relative min-h-0 flex-1 overflow-hidden bg-[#070706]">
       <canvas

@@ -62,9 +62,6 @@ export function shouldTrackKartEditorPointerDown({
 export class KartEditorScene {
   private readonly app: pc.Application;
   private readonly camera: pc.Entity;
-  private readonly componentMaterial = createMaterial(
-    new pc.Color(0.28, 0.34, 0.39),
-  );
   private readonly documentRoot: pc.Entity;
   private readonly editorCamera = new EditorOrbitCamera({
     distance: 1.25,
@@ -81,22 +78,18 @@ export class KartEditorScene {
   private readonly scaleGizmo: pc.ScaleGizmo;
   private readonly selectionByNode =
     new EditorSelectionRegistry<KartEditorSelection>();
-  private readonly suspensionMaterial = createMaterial(
-    new pc.Color(1, 0.62, 0.08),
-  );
   private readonly translateGizmo: pc.TranslateGizmo;
   private activeTransformDocument: KartAssemblyDocument | null = null;
   private canvas: HTMLCanvasElement;
   private currentDocument: KartAssemblyDocument;
   private instanceEntities = new Map<string, pc.Entity>();
+  private instanceMaterials: pc.StandardMaterial[] = [];
   private interactionEnabled = true;
   private lastTouchDistance: number | null = null;
   private lastTouchMidpoint: { x: number; y: number } | null = null;
   private options: KartEditorSceneOptions;
   private pointerCleanup: (() => void) | null = null;
   private previewedInstanceIds = new Set<string>();
-  private primaryMaterial: pc.StandardMaterial;
-  private accentMaterial: pc.StandardMaterial;
   private selection: KartEditorSelection | null;
   private tool: EditorTransformTool = "translate";
   private transformPreviewState: "attachable" | "invalid" | "valid" | null =
@@ -112,12 +105,6 @@ export class KartEditorScene {
     this.currentDocument = document;
     this.selection = selection;
     this.options = options;
-    this.primaryMaterial = createMaterial(
-      colorFromHex(document.visualIdentity.primaryColor),
-    );
-    this.accentMaterial = createMaterial(
-      colorFromHex(document.visualIdentity.accentColor),
-    );
     this.app = new pc.Application(canvas, {
       graphicsDeviceOptions: { alpha: false, antialias: true },
     });
@@ -185,10 +172,7 @@ export class KartEditorScene {
     this.rotateGizmo.destroy();
     this.scaleGizmo.destroy();
     this.picker.destroy();
-    this.primaryMaterial.destroy();
-    this.accentMaterial.destroy();
-    this.componentMaterial.destroy();
-    this.suspensionMaterial.destroy();
+    this.destroyInstanceMaterials();
     this.app.destroy();
   }
 
@@ -202,17 +186,26 @@ export class KartEditorScene {
     this.options.onCameraChange(toVector(this.editorCamera.pivot));
   }
 
+  getInstanceVisualColor(instanceId: string) {
+    const root = this.instanceEntities.get(instanceId);
+    if (!root) return null;
+    let color: { x: number; y: number; z: number } | null = null;
+    root.forEach((node) => {
+      if (color || !(node instanceof pc.Entity)) return;
+      const material = node.model?.meshInstances?.[0]?.material;
+      if (!(material instanceof pc.StandardMaterial)) return;
+      color = {
+        x: material.diffuse.r,
+        y: material.diffuse.g,
+        z: material.diffuse.b,
+      };
+    });
+    return color;
+  }
+
   setDocument(document: KartAssemblyDocument) {
     if (document === this.currentDocument) return;
     this.currentDocument = document;
-    this.primaryMaterial.destroy();
-    this.accentMaterial.destroy();
-    this.primaryMaterial = createMaterial(
-      colorFromHex(document.visualIdentity.primaryColor),
-    );
-    this.accentMaterial = createMaterial(
-      colorFromHex(document.visualIdentity.accentColor),
-    );
     this.rebuildDocument();
   }
 
@@ -534,21 +527,17 @@ export class KartEditorScene {
     this.selectionByNode.clear();
     this.instanceEntities.clear();
     [...this.documentRoot.children].forEach((child) => child.destroy());
+    this.destroyInstanceMaterials();
 
     for (const primitive of this.currentDocument.primitiveInstances) {
-      const root = createPrimitiveEntity(
-        primitive,
-        primitive.role === "bodywork"
-          ? this.primaryMaterial
-          : primitive.role === "trim"
-            ? this.accentMaterial
-            : this.componentMaterial,
-      );
+      const material = this.createInstanceMaterial(primitive.visualColor);
+      const root = createPrimitiveEntity(primitive, material);
       this.documentRoot.addChild(root);
       this.rememberSelection(root, { id: primitive.id, kind: "primitive" });
     }
 
     for (const instance of this.currentDocument.componentInstances) {
+      const material = this.createInstanceMaterial(instance.visualColor);
       const root = new pc.Entity(instance.id);
       root.setPosition(
         instance.transform.position.x,
@@ -566,9 +555,7 @@ export class KartEditorScene {
           const visual = createConstructionEntity(
             `${instance.id}-construction-${index}`,
             construction,
-            definition.category === "wheel-tire"
-              ? this.primaryMaterial
-              : this.componentMaterial,
+            material,
           );
           root.addChild(visual);
         });
@@ -580,7 +567,7 @@ export class KartEditorScene {
         const coilover = createCoilover(
           instance.id,
           instance.suspensionMount,
-          this.suspensionMaterial,
+          material,
         );
         this.documentRoot.addChild(coilover);
         this.rememberSelection(
@@ -596,6 +583,17 @@ export class KartEditorScene {
       this.options.onDocumentBoundsChange(toVector(documentCenter));
     }
     this.refreshSelection();
+  }
+
+  private createInstanceMaterial(visualColor: string) {
+    const material = createMaterial(colorFromHex(visualColor));
+    this.instanceMaterials.push(material);
+    return material;
+  }
+
+  private destroyInstanceMaterials() {
+    this.instanceMaterials.forEach((material) => material.destroy());
+    this.instanceMaterials = [];
   }
 
   private rememberSelection(

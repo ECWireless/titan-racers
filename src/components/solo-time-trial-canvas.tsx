@@ -111,8 +111,6 @@ import {
 } from "@/game/telemetry/gameplay-run-events";
 
 const DEFAULT_BALANCED_KART_DOCUMENT = createBalancedKartDocument();
-const KART_APPROVED_COMPONENT_COLOR = "#475763";
-const KART_SUSPENSION_COLOR = "#ff9e14";
 const KART_SUSPENSION_COIL_RADIUS = 0.014;
 const KART_SUSPENSION_COIL_SEGMENTS = 32;
 const KART_SUSPENSION_COIL_TURNS = 8;
@@ -569,26 +567,17 @@ export function SoloTimeTrialCanvas({
         setRacePresentation(nextPresentation);
       }
 
-      const primaryMaterial = createMaterial(
-        colorFromHex(kartRuntime.document.visualIdentity.primaryColor),
+      const kartVisualMaterials = new Map<string, pc.StandardMaterial>();
+      const getKartVisualMaterial = (visualColor: string) => {
+        const existing = kartVisualMaterials.get(visualColor);
+        if (existing) return existing;
+        const material = createMaterial(colorFromHex(visualColor));
+        kartVisualMaterials.set(visualColor, material);
+        return material;
+      };
+      runtime.addCleanup(() =>
+        kartVisualMaterials.forEach((material) => material.destroy()),
       );
-      const accentMaterial = createMaterial(
-        colorFromHex(kartRuntime.document.visualIdentity.accentColor),
-      );
-      const componentMaterial = createMaterial(
-        colorFromHex(KART_APPROVED_COMPONENT_COLOR),
-      );
-      const suspensionMaterial = createMaterial(
-        colorFromHex(KART_SUSPENSION_COLOR),
-      );
-      const suspensionShockMaterial = suspensionMaterial;
-      const wheelMaterial = primaryMaterial;
-      const wheelHubMaterial = componentMaterial;
-      const suspensionArmMaterial = componentMaterial;
-      accentMaterial.diffuse = colorFromHex(
-        kartRuntime.document.visualIdentity.accentColor,
-      );
-      accentMaterial.update();
       const asphaltMaterial = createMaterial(
         new pc.Color(...COURSE_ASPHALT_COLOR),
       );
@@ -915,12 +904,7 @@ export function SoloTimeTrialCanvas({
       kartRuntime.document.primitiveInstances.forEach((primitive) => {
         const position = toPcVector(primitive.transform.position);
         const rotation = toPcVector(primitive.transform.rotationDegrees);
-        const material =
-          primitive.role === "bodywork"
-            ? primaryMaterial
-            : primitive.role === "trim"
-              ? accentMaterial
-              : componentMaterial;
+        const material = getKartVisualMaterial(primitive.visualColor);
 
         if (primitive.shape === "box") {
           createChildBox(
@@ -965,7 +949,7 @@ export function SoloTimeTrialCanvas({
         );
         kartVisual.addChild(instanceRoot);
         definition.construction.forEach((part, index) => {
-          const material = componentMaterial;
+          const material = getKartVisualMaterial(instance.visualColor);
           if (part.shape === "box") {
             createChildBox(
               instanceRoot,
@@ -1051,6 +1035,41 @@ export function SoloTimeTrialCanvas({
       KART_SNAPSHOT.geometry.wheelStations.forEach((station) => {
         const { driven, steered } = station;
         const name = station.id.replace(/^wheel-/, "");
+        const wheelInstance = kartRuntime.document.componentInstances.find(
+          (instance) => instance.id === station.id,
+        );
+        const suspensionInstance = kartRuntime.document.connections
+          .filter(
+            (connection) =>
+              (connection.from.instanceId === station.id &&
+                connection.from.portId === "hub-mount") ||
+              (connection.to.instanceId === station.id &&
+                connection.to.portId === "hub-mount"),
+          )
+          .map((connection) =>
+            connection.from.instanceId === station.id
+              ? connection.to.instanceId
+              : connection.from.instanceId,
+          )
+          .map((instanceId) =>
+            kartRuntime.document.componentInstances.find(
+              (instance) => instance.id === instanceId,
+            ),
+          )
+          .find((instance) => {
+            const definition = instance
+              ? getApprovedKartComponent(instance.definition)
+              : null;
+            return definition?.category === "suspension";
+          });
+        const wheelMaterial = getKartVisualMaterial(
+          wheelInstance?.visualColor ??
+            kartRuntime.document.visualIdentity.primaryColor,
+        );
+        const suspensionMaterial = getKartVisualMaterial(
+          suspensionInstance?.visualColor ??
+            kartRuntime.document.visualIdentity.accentColor,
+        );
         const { x, z } = station.position;
         const wheelPivot = new pc.Entity(`kart-wheel-pivot-${name}`);
         const visualLocalPosition = toPcVector(station.position);
@@ -1075,7 +1094,7 @@ export function SoloTimeTrialCanvas({
           `kart-wheel-hub-${name}`,
           new pc.Vec3(0, 0, 0),
           new pc.Vec3(station.radius, station.width + 0.006, station.radius),
-          wheelHubMaterial,
+          wheelMaterial,
           new pc.Vec3(0, 0, 90),
         );
 
@@ -1094,19 +1113,19 @@ export function SoloTimeTrialCanvas({
         const armForward = createSuspensionBar(
           kartVisual,
           `${name}-lower-arm-forward`,
-          suspensionArmMaterial,
+          suspensionMaterial,
           0.005,
         );
         const armRear = createSuspensionBar(
           kartVisual,
           `${name}-lower-arm-rear`,
-          suspensionArmMaterial,
+          suspensionMaterial,
           0.005,
         );
         const shock = createSuspensionBar(
           kartVisual,
           `${name}-shock`,
-          suspensionShockMaterial,
+          suspensionMaterial,
           0.007,
           false,
         );
@@ -3111,6 +3130,28 @@ export function SoloTimeTrialCanvas({
     }
   }
 
+  const componentVisualColor =
+    kartDocument.componentInstances.find((instance) => {
+      const definition = getApprovedKartComponent(instance.definition);
+      return (
+        definition &&
+        definition.category !== "suspension" &&
+        definition.category !== "wheel-tire"
+      );
+    })?.visualColor ?? "";
+  const suspensionVisualColor =
+    kartDocument.componentInstances.find(
+      (instance) =>
+        getApprovedKartComponent(instance.definition)?.category ===
+        "suspension",
+    )?.visualColor ?? "";
+  const wheelVisualColor =
+    kartDocument.componentInstances.find(
+      (instance) =>
+        getApprovedKartComponent(instance.definition)?.category ===
+        "wheel-tire",
+    )?.visualColor ?? "";
+
   return (
     <main className="fixed inset-0 z-50 bg-black">
       <canvas
@@ -3127,13 +3168,13 @@ export function SoloTimeTrialCanvas({
         data-course-document-id={COURSE_DOCUMENT.courseId}
         data-course-document-name={COURSE_DOCUMENT.name}
         data-kart-accent-color={kartDocument.visualIdentity.accentColor}
-        data-kart-component-color={KART_APPROVED_COMPONENT_COLOR}
+        data-kart-component-color={componentVisualColor}
         data-kart-component-count={kartDocument.componentInstances.length}
         data-kart-document-name={kartDocument.name}
         data-kart-primary-color={kartDocument.visualIdentity.primaryColor}
         data-kart-primitive-count={kartDocument.primitiveInstances.length}
-        data-kart-suspension-color={KART_SUSPENSION_COLOR}
-        data-kart-wheel-color={kartDocument.visualIdentity.primaryColor}
+        data-kart-suspension-color={suspensionVisualColor}
+        data-kart-wheel-color={wheelVisualColor}
         data-testid="solo-time-trial-canvas"
         aria-label={
           sessionLabel

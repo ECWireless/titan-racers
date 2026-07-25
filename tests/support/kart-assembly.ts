@@ -1,4 +1,8 @@
-import type { KartAssemblyDocument } from "../../src/game/kart/kart-assembly-document";
+import {
+  defaultKartComponentVisualColor,
+  defaultKartPrimitiveVisualColor,
+  type KartAssemblyDocument,
+} from "../../src/game/kart/kart-assembly-document";
 
 type FixtureOptions = {
   bodyMaterial?: "material.engineering-polymer" | "material.structural-aluminum";
@@ -13,6 +17,10 @@ type FixtureOptions = {
 };
 
 const zeroRotation = { x: 0, y: 0, z: 0 };
+const visualIdentity = {
+  accentColor: "#f4b942",
+  primaryColor: "#203040",
+} as const;
 const definition = (id: string) => ({ id, version: 1 });
 const transform = (x: number, y: number, z: number) => ({
   position: { x, y, z },
@@ -52,6 +60,10 @@ export function createValidKartAssembly(
     mirrorOf,
     suspensionMount,
     transform: transform(x, y, z),
+    visualColor: defaultKartComponentVisualColor(
+      definitionId,
+      visualIdentity,
+    ),
   });
 
   const suspensionInstance = (
@@ -275,6 +287,10 @@ export function createValidKartAssembly(
         shape: "box",
         size: bodySize,
         transform: transform(0, chassisY, 0),
+        visualColor: defaultKartPrimitiveVisualColor(
+          "structure",
+          visualIdentity,
+        ),
       },
       {
         collision: "solid",
@@ -287,12 +303,16 @@ export function createValidKartAssembly(
         shape: "box",
         size: { x: bodySize.x * 0.68, y: 0.075, z: bodySize.z * 0.45 },
         transform: transform(0, chassisY + 0.0525, 0.025),
+        visualColor: defaultKartPrimitiveVisualColor(
+          "bodywork",
+          visualIdentity,
+        ),
       },
     ],
-    schemaVersion: 1,
+    schemaVersion: 2,
     structuralAttachments,
     units: { angle: "degrees", length: "meters" },
-    visualIdentity: { accentColor: "#f4b942", primaryColor: "#203040" },
+    visualIdentity,
   };
 }
 

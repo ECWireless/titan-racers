@@ -3,7 +3,11 @@ import type {
   KartAssemblyDocument,
   KartAssemblyPrimitiveInstance,
 } from "../kart/kart-assembly-document";
-import { parseKartAssemblyDocument } from "../kart/kart-assembly-document";
+import {
+  defaultKartComponentVisualColor,
+  defaultKartPrimitiveVisualColor,
+  parseKartAssemblyDocument,
+} from "../kart/kart-assembly-document";
 import {
   addVector,
   buildComponentMassElements,
@@ -223,6 +227,23 @@ export function updateKartIdentity(
   >,
 ) {
   return parseKartAssemblyDocument({ ...document, ...values });
+}
+
+export function updateKartInstanceVisualColor(
+  document: KartAssemblyDocument,
+  selection: KartEditorSelection,
+  visualColor: string,
+) {
+  const key =
+    selection.kind === "component"
+      ? "componentInstances"
+      : "primitiveInstances";
+  return parseKartAssemblyDocument({
+    ...document,
+    [key]: document[key].map((instance) =>
+      instance.id === selection.id ? { ...instance, visualColor } : instance,
+    ),
+  });
 }
 
 function applyInstanceTransform(
@@ -472,6 +493,14 @@ export function addKartPrimitive(
       },
       rotationDegrees: { ...ZERO_ROTATION },
     },
+    visualColor: defaultKartPrimitiveVisualColor(
+      preset === "box-body"
+        ? "bodywork"
+        : preset === "cylinder-guard"
+          ? "guard"
+          : "structure",
+      document.visualIdentity,
+    ),
   };
   const primitive: KartAssemblyPrimitiveInstance =
     preset === "cylinder-guard"
@@ -521,6 +550,10 @@ export function addKartComponent(
       position,
       rotationDegrees: { ...ZERO_ROTATION },
     },
+    visualColor: defaultKartComponentVisualColor(
+      definition.id,
+      document.visualIdentity,
+    ),
   };
   if (definition.category === "suspension") {
     instance.suspensionMount = resolveApprovedSuspensionMount(

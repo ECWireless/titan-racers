@@ -11,6 +11,7 @@ import {
 } from "@/db/schema";
 import {
   type KartAssemblyDocument,
+  kartAssemblyDocumentVersionSchema,
   parseKartAssemblyDocument,
 } from "@/game/kart/kart-assembly-document";
 import { parseValidatedKartAssembly } from "@/game/kart/kart-assembly-validation";
@@ -101,12 +102,13 @@ async function parseRevisionRow(
     resolvedSnapshot: unknown;
   },
 ): Promise<PersistedKartRevision> {
-  const document = parseKartAssemblyDocument(row.document);
+  const storedDocument = kartAssemblyDocumentVersionSchema.parse(row.document);
+  const document = parseKartAssemblyDocument(storedDocument);
   const resolvedSnapshot = parseResolvedKartSnapshot(row.resolvedSnapshot);
 
   if (
     row.kartId !== document.kartId ||
-    row.schemaVersion !== document.schemaVersion ||
+    row.schemaVersion !== storedDocument.schemaVersion ||
     resolvedSnapshot.kartId !== document.kartId ||
     resolvedSnapshot.derivationVersion !== row.derivationVersion
   ) {
@@ -116,7 +118,12 @@ async function parseRevisionRow(
     throw new Error("Persisted kart derivation evidence hash does not match.");
   }
 
-  return { ...row, document, resolvedSnapshot };
+  return {
+    ...row,
+    document,
+    resolvedSnapshot,
+    schemaVersion: document.schemaVersion,
+  };
 }
 
 export async function loadLatestKartRevision(

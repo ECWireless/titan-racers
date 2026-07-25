@@ -28,6 +28,7 @@ import {
   type ResolvedKartSnapshotV1,
 } from "../src/game/kart/kart-derivation";
 import { createBalancedKartDocument } from "../src/game/kart/balanced-kart-document";
+import { kartAssemblyDocumentV1Schema } from "../src/game/kart/kart-assembly-document";
 import { hasRuntimeCompatibleInertia } from "../src/game/kart/kart-runtime-compatibility";
 import {
   KartConflictError,
@@ -76,6 +77,27 @@ function createLegacyResolvedSnapshot(document: ReturnType<typeof createValidKar
   } satisfies ResolvedKartSnapshotV1;
 }
 
+function createLegacyKartAssemblyDocument(
+  document: ReturnType<typeof createValidKartAssembly>,
+) {
+  return kartAssemblyDocumentV1Schema.parse({
+    ...document,
+    componentInstances: document.componentInstances.map(
+      ({ visualColor, ...instance }) => {
+        void visualColor;
+        return instance;
+      },
+    ),
+    primitiveInstances: document.primitiveInstances.map(
+      ({ visualColor, ...instance }) => {
+        void visualColor;
+        return instance;
+      },
+    ),
+    schemaVersion: 1,
+  });
+}
+
 test.describe("kart persistence and authorization", () => {
   test.describe.configure({ mode: "serial" });
 
@@ -122,7 +144,7 @@ test.describe("kart persistence and authorization", () => {
       kartId,
       ownerUserId,
       revision: 1,
-      schemaVersion: 1,
+      schemaVersion: 2,
     });
     expect(first.resolvedSnapshotHash).toMatch(/^[0-9a-f]{64}$/);
     await expect(hashResolvedKartSnapshot(first.resolvedSnapshot)).resolves.toBe(
@@ -218,7 +240,7 @@ test.describe("kart persistence and authorization", () => {
         resolvedSnapshot: malformedSnapshot,
         resolvedSnapshotHash: "0".repeat(64),
         revision: 1,
-        schemaVersion: 1,
+        schemaVersion: 2,
       },
       {
         authorUserId: userId,
@@ -229,7 +251,7 @@ test.describe("kart persistence and authorization", () => {
         resolvedSnapshot: mismatchedSnapshot,
         resolvedSnapshotHash: "0".repeat(64),
         revision: 1,
-        schemaVersion: 1,
+        schemaVersion: 2,
       },
     ]);
 
@@ -542,11 +564,12 @@ test.describe("kart persistence and authorization", () => {
     ).toMatch(/kart publication events are immutable/);
   });
 
-  test("publishes intact version-one evidence with a verifiable hash", async () => {
+  test("migrates a version-one document while preserving verifiable evidence", async () => {
     const userId = randomUUID();
     const kartId = `legacy-publication-${randomUUID()}`;
-    const document = createValidKartAssembly({ kartId });
-    const resolvedSnapshot = createLegacyResolvedSnapshot(document);
+    const currentDocument = createValidKartAssembly({ kartId });
+    const document = createLegacyKartAssemblyDocument(currentDocument);
+    const resolvedSnapshot = createLegacyResolvedSnapshot(currentDocument);
     const resolvedSnapshotHash = await hashResolvedKartSnapshot(resolvedSnapshot);
     await db.insert(users).values({
       email: `${userId}@example.invalid`,
@@ -569,7 +592,7 @@ test.describe("kart persistence and authorization", () => {
       resolvedSnapshot,
       resolvedSnapshotHash,
       revision: 1,
-      schemaVersion: document.schemaVersion,
+      schemaVersion: 1,
     });
     await db.insert(kartPublicationEvents).values({
       action: "publish",
@@ -578,12 +601,37 @@ test.describe("kart persistence and authorization", () => {
       revision: 1,
     });
 
+    const latestRevision = await loadLatestKartRevision(kartId);
+    expect(latestRevision?.schemaVersion).toBe(2);
+    expect(latestRevision?.document.schemaVersion).toBe(2);
+    expect(
+      latestRevision?.document.componentInstances.find(
+        ({ id }) => id === "wheel-front-left",
+      )?.visualColor,
+    ).toBe("#203040");
+    expect(
+      latestRevision?.document.componentInstances.find(
+        ({ id }) => id === "suspension-front-left",
+      )?.visualColor,
+    ).toBe("#ff9e14");
+    expect(
+      latestRevision?.document.primitiveInstances.find(
+        ({ id }) => id === "upper-housing",
+      )?.visualColor,
+    ).toBe("#203040");
     const response = await getPublishedKart(
       new Request(`${TEST_ORIGIN}/api/karts/${kartId}/published`),
       { params: Promise.resolve({ kartId }) },
     );
     expect(response.status).toBe(200);
     const payload = await response.json();
+    expect(payload.schemaVersion).toBe(2);
+    expect(payload.document.schemaVersion).toBe(2);
+    expect(
+      payload.document.componentInstances.find(
+        ({ id }: { id: string }) => id === "battery-main",
+      ).visualColor,
+    ).toBe("#475763");
     expect(parseResolvedKartSnapshot(payload.resolvedSnapshot)).toEqual(
       resolvedSnapshot,
     );

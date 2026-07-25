@@ -1,4 +1,6 @@
 import {
+  defaultKartComponentVisualColor,
+  defaultKartPrimitiveVisualColor,
   parseKartAssemblyDocument,
   type KartAssemblyDocument,
 } from "./kart-assembly-document";
@@ -13,6 +15,10 @@ const WHEELBASE = 0.3;
 const WHEEL_RADIUS = 0.058;
 const SUSPENSION_CHASSIS_Y = 0.16;
 const MOTION_RATIO = Math.sqrt(812.5 / 1_600);
+const BALANCED_KART_VISUAL_IDENTITY = {
+  accentColor: "#f4b942",
+  primaryColor: "#203040",
+} as const;
 
 const definition = (id: string) => ({ id, version: 1 });
 const transform = (x: number, y: number, z: number) => ({
@@ -38,6 +44,10 @@ function component(
     mirrorOf,
     suspensionMount,
     transform: transform(x, y, z),
+    visualColor: defaultKartComponentVisualColor(
+      definitionId,
+      BALANCED_KART_VISUAL_IDENTITY,
+    ),
   };
 }
 
@@ -366,6 +376,10 @@ export function createBalancedKartDocument(
         shape: "box",
         size: BODY_SIZE,
         transform: transform(0, chassisY, 0),
+        visualColor: defaultKartPrimitiveVisualColor(
+          "structure",
+          BALANCED_KART_VISUAL_IDENTITY,
+        ),
       },
       {
         axis: "x",
@@ -380,6 +394,10 @@ export function createBalancedKartDocument(
         role: "guard",
         shape: "cylinder",
         transform: transform(0, bumperY, -0.17),
+        visualColor: defaultKartPrimitiveVisualColor(
+          "guard",
+          BALANCED_KART_VISUAL_IDENTITY,
+        ),
       },
       {
         axis: "x",
@@ -394,6 +412,10 @@ export function createBalancedKartDocument(
         role: "guard",
         shape: "cylinder",
         transform: transform(0, bumperY, 0.17),
+        visualColor: defaultKartPrimitiveVisualColor(
+          "guard",
+          BALANCED_KART_VISUAL_IDENTITY,
+        ),
       },
       {
         collision: "solid",
@@ -406,11 +428,15 @@ export function createBalancedKartDocument(
         shape: "box",
         size: UPPER_HOUSING_SIZE,
         transform: transform(0, chassisY + 0.0525, 0),
+        visualColor: defaultKartPrimitiveVisualColor(
+          "bodywork",
+          BALANCED_KART_VISUAL_IDENTITY,
+        ),
       },
     ],
-    schemaVersion: 1,
+    schemaVersion: 2,
     structuralAttachments,
     units: { angle: "degrees", length: "meters" },
-    visualIdentity: { accentColor: "#f4b942", primaryColor: "#203040" },
+    visualIdentity: BALANCED_KART_VISUAL_IDENTITY,
   });
 }

@@ -29,6 +29,7 @@ import {
   reconcileKartEditorSelection,
   replaceKartComponentDefinition,
   updateKartIdentity,
+  updateKartInstanceVisualColor,
   updateKartInstanceTransformAndAttachment,
   updateKartPrimitiveGeometry,
 } from "@/game/editor/kart-editor-document";
@@ -1340,36 +1341,6 @@ export function KartEditorShell({
                 }
               />
             </label>
-            <div className="grid grid-cols-2 gap-2">
-              {(["primaryColor", "accentColor"] as const).map((field) => (
-                <label className="grid gap-1 text-xs" key={field}>
-                  <span className="font-mono font-bold uppercase tracking-[0.1em] text-titan-muted">
-                    {field === "primaryColor" ? "Primary" : "Accent"}
-                  </span>
-                  <input
-                    aria-label={
-                      field === "primaryColor"
-                        ? "Primary kart color"
-                        : "Accent kart color"
-                    }
-                    className="h-11 w-full cursor-pointer border border-titan-ice/20 bg-transparent"
-                    type="color"
-                    value={document.visualIdentity[field]}
-                    onChange={(event) =>
-                      commitDocument(
-                        "Edit visual identity",
-                        updateKartIdentity(document, {
-                          visualIdentity: {
-                            ...document.visualIdentity,
-                            [field]: event.target.value,
-                          },
-                        }),
-                      )
-                    }
-                  />
-                </label>
-              ))}
-            </div>
           </EditorSection>
 
           <EditorSection title="Add construction">
@@ -1625,6 +1596,31 @@ export function KartEditorShell({
                 ) : selectedInstance.kind === "primitive" ? (
                   <PrimitivePhysicalAttributes instance={selectedInstance} />
                 ) : null}
+                <label className="grid gap-1 text-xs">
+                  <span className="font-mono font-bold uppercase tracking-[0.1em] text-titan-muted">
+                    Color
+                  </span>
+                  <input
+                    aria-label={
+                      selectedInstance.kind === "component"
+                        ? "Selected component color"
+                        : "Selected primitive color"
+                    }
+                    className="h-11 w-full cursor-pointer border border-titan-ice/20 bg-transparent"
+                    type="color"
+                    value={selectedInstance.visualColor}
+                    onChange={(event) =>
+                      commitDocument(
+                        `Change ${selectedInstance.id} color`,
+                        updateKartInstanceVisualColor(
+                          document,
+                          selection,
+                          event.target.value,
+                        ),
+                      )
+                    }
+                  />
+                </label>
                 {selectedAttachmentNeedsRefresh ? (
                   <div
                     className="grid gap-2 border border-titan-hazard/50 bg-titan-hazard/10 p-3 text-sm text-titan-ice"
