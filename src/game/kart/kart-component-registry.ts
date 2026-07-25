@@ -437,6 +437,41 @@ export const APPROVED_KART_COMPONENTS = deepFreeze(
         rotationAxes: ["x", "y", "z"],
       },
       category: "transmission",
+      construction: [box(aluminum, { x: 0.06, y: 0.03, z: 0.055 })],
+      id: "transmission.balanced-5to1",
+      label: "Balanced 5:1 transmission",
+      mass: 0.12,
+      massCenter: { x: 0, y: 0, z: 0 },
+      ports: [
+        {
+          direction: "input",
+          id: "shaft-input",
+          interface: "motor-shaft",
+          multiple: false,
+        },
+        {
+          direction: "output",
+          id: "drive-output",
+          interface: "wheel-drive",
+          multiple: true,
+        },
+      ],
+      summary: "A moderate reduction balancing launch force and road speed.",
+      tradeoff:
+        "Less road speed than the tall transmission and less wheel force than the short transmission.",
+      transmission: {
+        efficiency: 0.8,
+        motorRotationsPerWheelRotation: 5,
+      },
+      version: 1,
+    },
+    {
+      assembly: {
+        maximumInstances: 1,
+        mirrorable: false,
+        rotationAxes: ["x", "y", "z"],
+      },
+      category: "transmission",
       construction: [box(steel, { x: 0.064, y: 0.034, z: 0.06 })],
       id: "transmission.short-8to1",
       label: "Short 8:1 transmission",

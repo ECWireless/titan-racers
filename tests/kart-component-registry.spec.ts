@@ -55,10 +55,10 @@ test("provides at least one component option in every required category", () => 
     );
   }
 
-  expect(APPROVED_KART_COMPONENTS).toHaveLength(11);
+  expect(APPROVED_KART_COMPONENTS).toHaveLength(12);
 });
 
-test("limits second component options to accepted physical tradeoffs", () => {
+test("limits additional component options to accepted physical tradeoffs", () => {
   const counts = Object.fromEntries(
     kartComponentCategorySchema.options.map((category) => [
       category,
@@ -73,7 +73,7 @@ test("limits second component options to accepted physical tradeoffs", () => {
     "receiver-speed-controller": 1,
     steering: 1,
     suspension: 2,
-    transmission: 2,
+    transmission: 3,
     "wheel-tire": 2,
   });
 });

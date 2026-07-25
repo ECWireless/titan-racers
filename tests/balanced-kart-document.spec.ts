@@ -29,7 +29,7 @@ test("ships a fresh valid Balanced Kart assembly template", () => {
     "suspension-front-right": "suspension.firm-short",
     "suspension-rear-left": "suspension.firm-short",
     "suspension-rear-right": "suspension.firm-short",
-    "transmission-main": "transmission.tall-4to1",
+    "transmission-main": "transmission.balanced-5to1",
     "wheel-front-left": "wheel-tire.small-standard",
     "wheel-front-right": "wheel-tire.small-standard",
     "wheel-rear-left": "wheel-tire.small-standard",
@@ -98,12 +98,30 @@ test("ships a fresh valid Balanced Kart assembly template", () => {
       )?.parent.instanceId,
     ).toBe(suspension.id);
   }
-  expect(snapshot.massProperties.totalMass).toBeGreaterThan(0);
+  expect(snapshot.massProperties.totalMass).toBeCloseTo(1.8242717435, 8);
   expect(snapshot.geometry.wheelStations).toHaveLength(4);
-  expect(snapshot.playerStats.acceleration).toBeGreaterThanOrEqual(1);
-  expect(snapshot.playerStats.handling).toBeGreaterThanOrEqual(1);
-  expect(snapshot.playerStats.speed).toBeGreaterThanOrEqual(1);
-  expect(snapshot.playerStats.stability).toBeGreaterThanOrEqual(1);
+  expect(snapshot.playerStats).toEqual({
+    acceleration: 42,
+    handling: 57,
+    speed: 41,
+    stability: 42,
+  });
+  expect(
+    Math.max(...Object.values(snapshot.playerStats)) -
+      Math.min(...Object.values(snapshot.playerStats)),
+  ).toBeLessThanOrEqual(20);
+  expect(
+    Object.fromEntries(
+      first.primitiveInstances.map(({ id, material }) => [id, material.id]),
+    ),
+  ).toMatchObject({
+    "front-bumper": "material.engineering-polymer",
+    "rear-bumper": "material.engineering-polymer",
+  });
+  expect(
+    first.primitiveInstances.find(({ id }) => id === "upper-housing")
+      ?.construction,
+  ).toEqual({ mode: "shell", thickness: 0.0005 });
 });
 
 test("can initialize a distinct protected draft ID without changing construction", () => {
