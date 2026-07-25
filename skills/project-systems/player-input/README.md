@@ -130,8 +130,8 @@ input travel by roughly 17% over the accepted steering-only baseline.
 Joystick-down remains ordinary service brake/reverse intent at every steering
 angle. While forward intent is active and the brake/reverse pedal is held,
 rear-handbrake intent follows a smoothstep ramp once shaped lateral steering
-crosses `0.45`, reaching full lateral authority at `0.7`; forward authority is
-normalized to reach full at `0.6`. A strong forward turn plus brake pedal can
+crosses `0.3`, reaching full lateral authority at `0.7`; forward authority is
+normalized to reach full at `0.5`. A forward turn plus brake pedal can
 therefore retain a bounded `0.2` service-brake floor while requesting the same
 continuous handbrake action as Shift. As that deliberate handbrake intent rises,
 the touch adapter smoothly restores the steering authority lost to the circular

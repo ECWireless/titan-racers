@@ -257,7 +257,7 @@ test.describe("player input", () => {
     });
   });
 
-  test("touch progressively rear-biases the brake pedal only while accelerating through a strong turn", () => {
+  test("touch progressively rear-biases the brake pedal from light through strong turns", () => {
     const touch = new TouchInput();
 
     touch.setJoystick(1, 0, 1);
@@ -285,13 +285,23 @@ test.describe("player input", () => {
     });
     expect(touch.getContinuousInput().brakeReverse).toBeCloseTo(0.2, 6);
 
+    touch.setJoystick(1, 0.5, -Math.sqrt(0.75));
+    expect(touch.getContinuousInput().handbrake).toBeCloseTo(0.5, 6);
+    expect(touch.getContinuousInput().brakeReverse).toBeCloseTo(0.6, 6);
+
     touch.setJoystick(1, 0.6, -0.8);
     expect(touch.getContinuousInput()).toMatchObject({
       accelerate: 0.8,
     });
-    expect(touch.getContinuousInput().handbrake).toBeCloseTo(0.648, 6);
-    expect(touch.getContinuousInput().brakeReverse).toBeCloseTo(0.4816, 6);
-    expect(touch.getContinuousInput().steer).toBeCloseTo(0.8592, 6);
+    expect(touch.getContinuousInput().handbrake).toBeCloseTo(27 / 32, 6);
+    expect(touch.getContinuousInput().brakeReverse).toBeCloseTo(
+      1 - (27 / 32) * 0.8,
+      6,
+    );
+    expect(touch.getContinuousInput().steer).toBeCloseTo(
+      0.6 + (27 / 32) * 0.4,
+      6,
+    );
 
     touch.setJoystick(1, -1, 0);
     expect(touch.getContinuousInput()).toMatchObject({

@@ -124,12 +124,14 @@ concurrently.
   a pedal can be held at the same time and one pointer release cannot cancel
   another control.
 - This slice exposes no separate touch handbrake control. While forward intent
-  is active, holding the brake/reverse pedal and crossing a strong lateral
-  joystick threshold progressively biases that pedal from service braking
-  toward the normalized rear handbrake action. Straight braking and diagonal
-  reverse remain service brake/reverse intent, steering alone never requests
-  rear braking, and the shared tire model remains solely responsible for
-  whether speed, load, and slip produce a drift.
+  is active, holding the brake/reverse pedal and crossing a light-corner
+  lateral joystick threshold progressively biases that pedal from service
+  braking toward the normalized rear handbrake action. Straight braking and
+  diagonal reverse remain service brake/reverse intent, steering alone never
+  requests rear braking, and the shared tire model remains solely responsible
+  for whether speed, load, and slip produce a drift. Begin the accepted blend
+  at `0.3` shaped steering, reach full lateral authority at `0.7`, and treat
+  `0.5` forward authority as sufficient for a full handbrake request.
 - Treat pointer up, pointer cancel, lost capture, pause, and teardown as release.
 - Apply direct-manipulation suppression only to the control regions that need
   it; do not disable ordinary browser gestures across unrelated UI.
