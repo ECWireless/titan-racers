@@ -16,7 +16,7 @@ The initial catalog contains:
 - one motor;
 - one steering module;
 - one combined braking system with service-brake and rear-handbrake behavior;
-- two transmissions with distinct reduction tradeoffs;
+- three transmissions with distinct reduction tradeoffs;
 - two suspension units with distinct compliance/travel tradeoffs; and
 - two wheel/tire assemblies with distinct radius, mass, and inertia tradeoffs.
 
@@ -53,6 +53,7 @@ for byte in tests; it is not an independently editable numerical source.
 | `steering.servo-standard@1` — Standard steering servo | Supplies bounded travel and torque; installed wheel/chassis clearance determines final steering lock. |
 | `brakes.combined-standard@1` — Standard combined brakes | One sealed system with four-wheel service braking and a separate rear handbrake. |
 | `transmission.tall-4to1@1` — Tall 4:1 transmission | Favors theoretical speed over unconstrained launch force. |
+| `transmission.balanced-5to1@1` — Balanced 5:1 transmission | Moderates both launch force and theoretical speed for the Balanced Kart baseline. |
 | `transmission.short-8to1@1` — Short 8:1 transmission | Favors unconstrained launch force over theoretical speed. |
 | `suspension.firm-short@1` — Firm short-travel suspension | Compact, firmer construction for a calmer, lower-travel assembly. |
 | `suspension.compliant-long@1` — Compliant long-travel suspension | More travel and compliance at the cost of a larger installation envelope. |

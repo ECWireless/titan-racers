@@ -11,6 +11,7 @@ import {
 } from "@/db/schema";
 import {
   type KartAssemblyDocument,
+  kartAssemblyDocumentVersionSchema,
   parseKartAssemblyDocument,
 } from "@/game/kart/kart-assembly-document";
 import { parseValidatedKartAssembly } from "@/game/kart/kart-assembly-validation";
@@ -21,6 +22,7 @@ import {
   type PersistedResolvedKartSnapshot,
 } from "@/game/kart/kart-derivation";
 import type { DeepReadonly } from "@/game/kart/immutable-registry";
+import { hasRuntimeCompatibleInertia } from "@/game/kart/kart-runtime-compatibility";
 
 export class KartConflictError extends Error {
   constructor() {
@@ -40,6 +42,15 @@ export class KartPublicationTargetError extends Error {
   constructor() {
     super("The requested kart, saved revision, or publication does not exist.");
     this.name = "KartPublicationTargetError";
+  }
+}
+
+export class KartPublicationCompatibilityError extends Error {
+  constructor() {
+    super(
+      "The saved kart revision is not compatible with the current runtime.",
+    );
+    this.name = "KartPublicationCompatibilityError";
   }
 }
 
@@ -91,12 +102,13 @@ async function parseRevisionRow(
     resolvedSnapshot: unknown;
   },
 ): Promise<PersistedKartRevision> {
-  const document = parseKartAssemblyDocument(row.document);
+  const storedDocument = kartAssemblyDocumentVersionSchema.parse(row.document);
+  const document = parseKartAssemblyDocument(storedDocument);
   const resolvedSnapshot = parseResolvedKartSnapshot(row.resolvedSnapshot);
 
   if (
     row.kartId !== document.kartId ||
-    row.schemaVersion !== document.schemaVersion ||
+    row.schemaVersion !== storedDocument.schemaVersion ||
     resolvedSnapshot.kartId !== document.kartId ||
     resolvedSnapshot.derivationVersion !== row.derivationVersion
   ) {
@@ -106,7 +118,12 @@ async function parseRevisionRow(
     throw new Error("Persisted kart derivation evidence hash does not match.");
   }
 
-  return { ...row, document, resolvedSnapshot };
+  return {
+    ...row,
+    document,
+    resolvedSnapshot,
+    schemaVersion: document.schemaVersion,
+  };
 }
 
 export async function loadLatestKartRevision(
@@ -333,7 +350,10 @@ export async function publishKartRevision(input: {
     }
 
     const [revision] = await transaction
-      .select({ revision: kartRevisions.revision })
+      .select({
+        resolvedSnapshot: kartRevisions.resolvedSnapshot,
+        revision: kartRevisions.revision,
+      })
       .from(kartRevisions)
       .where(
         and(
@@ -343,6 +363,13 @@ export async function publishKartRevision(input: {
       )
       .limit(1);
     if (!revision) throw new KartPublicationTargetError();
+    if (
+      !hasRuntimeCompatibleInertia(
+        parseResolvedKartSnapshot(revision.resolvedSnapshot),
+      )
+    ) {
+      throw new KartPublicationCompatibilityError();
+    }
 
     if (latest?.action === "publish" && latest.revision === input.revision) {
       return latest;

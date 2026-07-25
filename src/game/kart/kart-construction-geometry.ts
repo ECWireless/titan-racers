@@ -1,5 +1,6 @@
 import type { KartAssemblyDocument } from "./kart-assembly-document";
 import type { ApprovedComponentDefinition } from "./kart-component-registry";
+import type { DeepReadonly } from "./immutable-registry";
 import { getApprovedConstructionMaterial } from "./kart-material-registry";
 
 export type KartVector = { x: number; y: number; z: number };
@@ -143,10 +144,7 @@ function diagonalMatrix(x: number, y: number, z: number): KartMatrix3 {
   return [x, 0, 0, 0, y, 0, 0, 0, z];
 }
 
-function subtractMatrix(
-  left: KartMatrix3,
-  right: KartMatrix3,
-): KartMatrix3 {
+function subtractMatrix(left: KartMatrix3, right: KartMatrix3): KartMatrix3 {
   return left.map((value, index) => value - right[index]) as KartMatrix3;
 }
 
@@ -176,8 +174,7 @@ function solidMassProperties(
 
   const mass = Math.PI * shape.radius ** 2 * shape.height * density;
   const axial = 0.5 * mass * shape.radius ** 2;
-  const radial =
-    (mass * (3 * shape.radius ** 2 + shape.height ** 2)) / 12;
+  const radial = (mass * (3 * shape.radius ** 2 + shape.height ** 2)) / 12;
   const values =
     shape.axis === "x"
       ? [axial, radial, radial]
@@ -287,7 +284,8 @@ export function buildPrimitiveMassElement(
   primitive: KartAssemblyDocument["primitiveInstances"][number],
 ): KartMassElement {
   const material = getApprovedConstructionMaterial(primitive.material);
-  if (!material) throw new Error("Validated primitive material is unavailable.");
+  if (!material)
+    throw new Error("Validated primitive material is unavailable.");
   const shape: Shape =
     primitive.shape === "box"
       ? { shape: "box", size: primitive.size }
@@ -317,11 +315,12 @@ export function buildPrimitiveMassElement(
 
 export function buildComponentMassElements(
   instance: KartAssemblyDocument["componentInstances"][number],
-  definition: Readonly<ApprovedComponentDefinition>,
+  definition: DeepReadonly<ApprovedComponentDefinition>,
 ): KartMassElement[] {
   const raw = definition.construction.map((construction) => {
     const material = getApprovedConstructionMaterial(construction.material);
-    if (!material) throw new Error("Validated component material is unavailable.");
+    if (!material)
+      throw new Error("Validated component material is unavailable.");
     const shape: Shape =
       construction.shape === "box"
         ? { shape: "box", size: construction.size }
@@ -363,7 +362,9 @@ export function buildComponentMassElements(
       instance.transform.position,
       transformVector(instanceRotation, localCenter),
     );
-    const localRotation = rotationMatrix(construction.transform.rotationDegrees);
+    const localRotation = rotationMatrix(
+      construction.transform.rotationDegrees,
+    );
     const rotation = multiplyMatrix(instanceRotation, localRotation);
     return {
       bounds: rotatedBounds(center, rotation, shape),
@@ -388,37 +389,43 @@ export function deriveMassProperties(elements: readonly KartMassElement[]) {
     ),
     1 / totalMass,
   );
-  const inertia = elements.reduce<KartMatrix3>((sum, element) => {
-    const offset = subtractVector(element.center, centerOfMass);
-    const parallelAxis: KartMatrix3 = [
-      element.mass * (offset.y ** 2 + offset.z ** 2),
-      -element.mass * offset.x * offset.y,
-      -element.mass * offset.x * offset.z,
-      -element.mass * offset.y * offset.x,
-      element.mass * (offset.x ** 2 + offset.z ** 2),
-      -element.mass * offset.y * offset.z,
-      -element.mass * offset.z * offset.x,
-      -element.mass * offset.z * offset.y,
-      element.mass * (offset.x ** 2 + offset.y ** 2),
-    ];
-    return addMatrix(sum, addMatrix(element.inertiaAtCenter, parallelAxis));
-  }, scaleMatrix(identityMatrix, 0));
+  const inertia = elements.reduce<KartMatrix3>(
+    (sum, element) => {
+      const offset = subtractVector(element.center, centerOfMass);
+      const parallelAxis: KartMatrix3 = [
+        element.mass * (offset.y ** 2 + offset.z ** 2),
+        -element.mass * offset.x * offset.y,
+        -element.mass * offset.x * offset.z,
+        -element.mass * offset.y * offset.x,
+        element.mass * (offset.x ** 2 + offset.z ** 2),
+        -element.mass * offset.y * offset.z,
+        -element.mass * offset.z * offset.x,
+        -element.mass * offset.z * offset.y,
+        element.mass * (offset.x ** 2 + offset.y ** 2),
+      ];
+      return addMatrix(sum, addMatrix(element.inertiaAtCenter, parallelAxis));
+    },
+    scaleMatrix(identityMatrix, 0),
+  );
 
   return { centerOfMass, inertia, totalMass };
 }
 
 export function projectedRectangleUnionArea(bounds: readonly KartBounds[]) {
-  const xCoordinates = [...new Set(bounds.flatMap(({ maximum, minimum }) => [
-    minimum.x,
-    maximum.x,
-  ]))].sort((left, right) => left - right);
+  const xCoordinates = [
+    ...new Set(
+      bounds.flatMap(({ maximum, minimum }) => [minimum.x, maximum.x]),
+    ),
+  ].sort((left, right) => left - right);
   let area = 0;
   for (let index = 0; index < xCoordinates.length - 1; index += 1) {
     const x0 = xCoordinates[index];
     const x1 = xCoordinates[index + 1];
     const middle = (x0 + x1) / 2;
     const intervals = bounds
-      .filter(({ maximum, minimum }) => minimum.x <= middle && maximum.x >= middle)
+      .filter(
+        ({ maximum, minimum }) => minimum.x <= middle && maximum.x >= middle,
+      )
       .map(({ maximum, minimum }) => [minimum.y, maximum.y] as const)
       .sort((left, right) => left[0] - right[0]);
     let coveredY = 0;

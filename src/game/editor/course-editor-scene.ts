@@ -9,7 +9,12 @@ import type {
   CourseDocument,
   CourseVisualMaterial,
 } from "../course/course-document";
-import { getCourseVisualDepthBias } from "../course/course-visual-policy";
+import {
+  COURSE_ASPHALT_COLOR,
+  COURSE_EDITOR_CAMERA_NEAR_CLIP,
+  getCourseVisualDepthBias,
+  isCourseEditorBaseGround,
+} from "../course/course-visual-policy";
 import {
   type CourseEditorGeometry,
   type CourseEditorSelection,
@@ -19,8 +24,14 @@ import {
   updateSelectionGeometry,
 } from "./course-editor-document";
 import { collectObjectPositionUpdates } from "./course-editor-runtime-transform";
+import {
+  createEditorTransformGizmos,
+  EditorOrbitCamera,
+  EditorSelectionRegistry,
+  type EditorTransformTool,
+} from "./editor-viewport";
 
-export type CourseEditorTool = "translate" | "rotate" | "scale";
+export type CourseEditorTool = EditorTransformTool;
 
 type CourseEditorSceneOptions = {
   onDocumentChange: (label: string, document: CourseDocument) => void;
@@ -43,8 +54,13 @@ type PointerState = {
   startY: number;
 };
 
-const CAMERA_MIN_DISTANCE = 8;
-const CAMERA_MAX_DISTANCE = 90;
+type CourseEditorMaterials = Record<
+  CourseVisualMaterial,
+  pc.StandardMaterial
+> & {
+  baseGround: pc.StandardMaterial;
+};
+
 const POINTER_MOVE_THRESHOLD = 5;
 
 export class CourseEditorScene {
@@ -61,10 +77,7 @@ export class CourseEditorScene {
     0.16,
   );
   private readonly gizmoLayer: pc.Layer;
-  private readonly materials: Record<
-    CourseVisualMaterial,
-    pc.StandardMaterial
-  >;
+  private readonly materials: CourseEditorMaterials;
   private readonly picker: pc.Picker;
   private readonly pointers = new Map<number, PointerState>();
   private readonly resizeObserver: ResizeObserver;
@@ -79,7 +92,8 @@ export class CourseEditorScene {
     new pc.Color(1, 0.78, 0.18),
     0.45,
   );
-  private readonly selectionByNode = new Map<pc.GraphNode, CourseEditorSelection>();
+  private readonly selectionByNode =
+    new EditorSelectionRegistry<CourseEditorSelection>();
   private readonly translateGizmo: pc.TranslateGizmo;
   private activeDocumentRoot: pc.Entity | null = null;
   private activeTransformDocument: CourseDocument | null = null;
@@ -87,12 +101,13 @@ export class CourseEditorScene {
   private collisionVisible = false;
   private currentDocument: CourseDocument;
   private documentEntities = new Map<string, pc.Entity>();
-  private editorCamera = {
+  private readonly editorCamera = new EditorOrbitCamera({
     distance: 34,
+    maximumDistance: 90,
+    minimumDistance: 8,
     pitch: 62,
-    pivot: new pc.Vec3(),
     yaw: 42,
-  };
+  });
   private lastTouchDistance: number | null = null;
   private lastTouchMidpoint: { x: number; y: number } | null = null;
   private options: CourseEditorSceneOptions;
@@ -121,7 +136,7 @@ export class CourseEditorScene {
     this.camera.addComponent("camera", {
       clearColor: new pc.Color(0.025, 0.03, 0.035),
       farClip: 500,
-      nearClip: 0.1,
+      nearClip: COURSE_EDITOR_CAMERA_NEAR_CLIP,
     });
     this.app.root.addChild(this.camera);
 
@@ -132,37 +147,21 @@ export class CourseEditorScene {
       throw new Error("Course editor camera is unavailable.");
     }
 
-    this.translateGizmo = new pc.TranslateGizmo(
+    const gizmos = createEditorTransformGizmos(
       cameraComponent,
       this.gizmoLayer,
-    );
-    this.rotateGizmo = new pc.RotateGizmo(cameraComponent, this.gizmoLayer);
-    this.scaleGizmo = new pc.ScaleGizmo(cameraComponent, this.gizmoLayer);
-    (["xy", "xz", "yz"] as const).forEach((axis) =>
-      this.scaleGizmo.enableShape(axis, false),
-    );
-    this.scaleGizmo.axisCenterSize = 0.24;
-    this.scaleGizmo.axisLineTolerance = 0.12;
-    this.translateGizmo.snapIncrement = 0.25;
-    this.rotateGizmo.snapIncrement = 5;
-    this.scaleGizmo.snapIncrement = 0.1;
-    this.collisionMaterial.depthTest = false;
-    this.collisionMaterial.update();
-
-    [this.translateGizmo, this.rotateGizmo, this.scaleGizmo].forEach(
-      (gizmo) => {
-        gizmo.size = 1.15;
-        gizmo.mouseButtons[0] = true;
-        gizmo.mouseButtons[1] = false;
-        gizmo.mouseButtons[2] = false;
-        gizmo.on(pc.TransformGizmo.EVENT_TRANSFORMSTART, () => {
+      {
+        onTransformEnd: () => this.commitRuntimeTransform(),
+        onTransformStart: () => {
           this.activeTransformDocument = this.currentDocument;
-        });
-        gizmo.on(pc.TransformGizmo.EVENT_TRANSFORMEND, () => {
-          this.commitRuntimeTransform();
-        });
+        },
       },
     );
+    this.translateGizmo = gizmos.translate;
+    this.rotateGizmo = gizmos.rotate;
+    this.scaleGizmo = gizmos.scale;
+    this.collisionMaterial.depthTest = false;
+    this.collisionMaterial.update();
 
     this.picker = new pc.Picker(this.app, 1, 1);
     this.resizeObserver = new ResizeObserver(() => this.resize());
@@ -379,12 +378,7 @@ export class CourseEditorScene {
         (pointer.button === 1 || (pointer.button === 0 && event.shiftKey));
 
       if (orbit) {
-        this.editorCamera.yaw -= xDelta * 0.28;
-        this.editorCamera.pitch = clamp(
-          this.editorCamera.pitch + yDelta * 0.28,
-          22,
-          86,
-        );
+        this.editorCamera.orbit(-xDelta * 0.28, yDelta * 0.28);
         this.updateCamera();
       } else if (pan) {
         this.panCamera(xDelta, yDelta);
@@ -419,11 +413,7 @@ export class CourseEditorScene {
     const onPointerCancel = (event: PointerEvent) => finishPointer(event, false);
     const onWheel = (event: WheelEvent) => {
       event.preventDefault();
-      this.editorCamera.distance = clamp(
-        this.editorCamera.distance + event.deltaY * 0.025,
-        CAMERA_MIN_DISTANCE,
-        CAMERA_MAX_DISTANCE,
-      );
+      this.editorCamera.zoom(event.deltaY * 0.025);
       this.updateCamera();
     };
 
@@ -634,13 +624,7 @@ export class CourseEditorScene {
   }
 
   private panCamera(xDelta: number, yDelta: number) {
-    const yaw = (this.editorCamera.yaw * Math.PI) / 180;
-    const forward = new pc.Vec3(Math.sin(yaw), 0, Math.cos(yaw));
-    const right = new pc.Vec3(forward.z, 0, -forward.x);
-    const scale = this.editorCamera.distance * 0.0018;
-    this.editorCamera.pivot
-      .add(right.mulScalar(-xDelta * scale))
-      .add(forward.mulScalar(-yDelta * scale));
+    this.editorCamera.pan(xDelta, yDelta);
     this.updateCamera();
   }
 
@@ -678,7 +662,15 @@ export class CourseEditorScene {
 
     const { courseEntities } = buildRoughCourse(this.app, {
       createEntity: (projection, material) =>
-        createProjectionEntity(projection, material),
+        createProjectionEntity(
+          projection,
+          isCourseEditorBaseGround(
+            projection.visual.material,
+            projection.id,
+          )
+            ? this.materials.baseGround
+            : material,
+        ),
       document: this.currentDocument,
       materials: this.materials,
     });
@@ -833,15 +825,7 @@ export class CourseEditorScene {
   }
 
   private updateCamera() {
-    const yaw = (this.editorCamera.yaw * Math.PI) / 180;
-    const pitch = (this.editorCamera.pitch * Math.PI) / 180;
-    const horizontal = Math.cos(pitch) * this.editorCamera.distance;
-    this.camera.setPosition(
-      this.editorCamera.pivot.x + Math.sin(yaw) * horizontal,
-      this.editorCamera.pivot.y + Math.sin(pitch) * this.editorCamera.distance,
-      this.editorCamera.pivot.z + Math.cos(yaw) * horizontal,
-    );
-    this.camera.lookAt(this.editorCamera.pivot);
+    this.editorCamera.apply(this.camera);
   }
 
   private updateTwoFingerGesture(touches: PointerState[]) {
@@ -855,10 +839,8 @@ export class CourseEditorScene {
     };
 
     if (this.lastTouchDistance !== null) {
-      this.editorCamera.distance = clamp(
-        this.editorCamera.distance - (distance - this.lastTouchDistance) * 0.08,
-        CAMERA_MIN_DISTANCE,
-        CAMERA_MAX_DISTANCE,
+      this.editorCamera.zoom(
+        -(distance - this.lastTouchDistance) * 0.08,
       );
     }
     if (this.lastTouchMidpoint) {
@@ -889,7 +871,8 @@ export class CourseEditorScene {
 
 function createCourseMaterials() {
   return {
-    asphalt: createMaterial(new pc.Color(0.08, 0.08, 0.09)),
+    asphalt: createMaterial(new pc.Color(...COURSE_ASPHALT_COLOR)),
+    baseGround: createMaterial(new pc.Color(0.08, 0.36, 0.26)),
     ground: createMaterial(
       new pc.Color(0.08, 0.36, 0.26),
       1,
@@ -907,7 +890,7 @@ function createCourseMaterials() {
     obstacleBarrel: createMaterial(new pc.Color(0.96, 0.45, 0.12)),
     obstacleBlock: createMaterial(new pc.Color(0.82, 0.78, 0.68)),
     ramp: createMaterial(new pc.Color(0.35, 0.39, 0.42)),
-  } satisfies Record<CourseVisualMaterial, pc.StandardMaterial>;
+  } satisfies CourseEditorMaterials;
 }
 
 function createMaterial(
@@ -988,8 +971,4 @@ function sameSelections(
         selection.kind === right[index].kind && selection.id === right[index].id,
     )
   );
-}
-
-function clamp(value: number, min: number, max: number) {
-  return Math.min(Math.max(value, min), max);
 }

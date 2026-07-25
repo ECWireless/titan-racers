@@ -20,9 +20,7 @@ export const kartComponentCategorySchema = z.enum([
   "wheel-tire",
 ]);
 
-export type KartComponentCategory = z.infer<
-  typeof kartComponentCategorySchema
->;
+export type KartComponentCategory = z.infer<typeof kartComponentCategorySchema>;
 
 const componentPortSchema = z.strictObject({
   direction: z.enum(["input", "output", "bidirectional"]),
@@ -64,11 +62,19 @@ const componentBaseSchema = z.strictObject({
   assembly: z.strictObject({
     maximumInstances: z.number().int().positive().max(8),
     mirrorable: z.boolean(),
-    rotationAxes: z.array(z.enum(["x", "y", "z"])).min(1).max(3),
+    rotationAxes: z
+      .array(z.enum(["x", "y", "z"]))
+      .min(1)
+      .max(3),
   }),
   category: kartComponentCategorySchema,
   construction: z
-    .array(z.discriminatedUnion("shape", [internalBoxSchema, internalCylinderSchema]))
+    .array(
+      z.discriminatedUnion("shape", [
+        internalBoxSchema,
+        internalCylinderSchema,
+      ]),
+    )
     .min(1)
     .max(16),
   id: kartStableIdSchema,
@@ -136,6 +142,12 @@ const suspensionSchema = componentBaseSchema.extend({
     bumpStart: z.number().finite().positive(),
     damperRate: z.number().finite().positive(),
     extendedLength: z.number().finite().positive(),
+    mounting: z.strictObject({
+      armPivot: kartVectorSchema,
+      chassisAnchor: kartVectorSchema,
+      hubAnchor: kartVectorSchema,
+      springArmAnchor: kartVectorSchema,
+    }),
     maximumStroke: z.number().finite().positive(),
     quadraticBumpRate: z.number().finite().positive(),
     springRate: z.number().finite().positive(),
@@ -224,7 +236,8 @@ export const APPROVED_KART_COMPONENTS = deepFreeze(
         },
       ],
       summary: "A sealed two-cell battery sized for the initial kart roster.",
-      tradeoff: "The shared baseline supply keeps performance differences in gearing and construction.",
+      tradeoff:
+        "The shared baseline supply keeps performance differences in gearing and construction.",
       version: 1,
     },
     {
@@ -267,7 +280,8 @@ export const APPROVED_KART_COMPONENTS = deepFreeze(
         },
       ],
       summary: "A sealed radio receiver and electronic speed controller.",
-      tradeoff: "One shared controller makes motor and construction choices legible.",
+      tradeoff:
+        "One shared controller makes motor and construction choices legible.",
       version: 1,
     },
     {
@@ -302,7 +316,8 @@ export const APPROVED_KART_COMPONENTS = deepFreeze(
         },
       ],
       summary: "The sealed baseline motor used by all three official builds.",
-      tradeoff: "Gearing, wheel size, and mass determine how its fixed capability feels.",
+      tradeoff:
+        "Gearing, wheel size, and mass determine how its fixed capability feels.",
       version: 1,
     },
     {
@@ -332,8 +347,10 @@ export const APPROVED_KART_COMPONENTS = deepFreeze(
         },
       ],
       steering: { maximumTorque: 1.8, maximumTravelDegrees: 30 },
-      summary: "A sealed servo with enough travel for the supported steering geometry.",
-      tradeoff: "Final steering lock still derives from linkage and wheel clearance.",
+      summary:
+        "A sealed servo with enough travel for the supported steering geometry.",
+      tradeoff:
+        "Final steering lock still derives from linkage and wheel clearance.",
       version: 1,
     },
     {
@@ -372,8 +389,10 @@ export const APPROVED_KART_COMPONENTS = deepFreeze(
           multiple: true,
         },
       ],
-      summary: "One sealed system for four-wheel service braking and rear handbraking.",
-      tradeoff: "Wheel radius changes the ground force produced by its fixed torque.",
+      summary:
+        "One sealed system for four-wheel service braking and rear handbraking.",
+      tradeoff:
+        "Wheel radius changes the ground force produced by its fixed torque.",
       version: 1,
     },
     {
@@ -403,10 +422,46 @@ export const APPROVED_KART_COMPONENTS = deepFreeze(
         },
       ],
       summary: "A tall reduction for higher theoretical road speed.",
-      tradeoff: "Higher no-load speed with less wheel force than the short transmission.",
+      tradeoff:
+        "Higher no-load speed with less wheel force than the short transmission.",
       transmission: {
         efficiency: 0.8114144775599887,
         motorRotationsPerWheelRotation: 4,
+      },
+      version: 1,
+    },
+    {
+      assembly: {
+        maximumInstances: 1,
+        mirrorable: false,
+        rotationAxes: ["x", "y", "z"],
+      },
+      category: "transmission",
+      construction: [box(aluminum, { x: 0.06, y: 0.03, z: 0.055 })],
+      id: "transmission.balanced-5to1",
+      label: "Balanced 5:1 transmission",
+      mass: 0.12,
+      massCenter: { x: 0, y: 0, z: 0 },
+      ports: [
+        {
+          direction: "input",
+          id: "shaft-input",
+          interface: "motor-shaft",
+          multiple: false,
+        },
+        {
+          direction: "output",
+          id: "drive-output",
+          interface: "wheel-drive",
+          multiple: true,
+        },
+      ],
+      summary: "A moderate reduction balancing launch force and road speed.",
+      tradeoff:
+        "Less road speed than the tall transmission and less wheel force than the short transmission.",
+      transmission: {
+        efficiency: 0.8,
+        motorRotationsPerWheelRotation: 5,
       },
       version: 1,
     },
@@ -436,8 +491,10 @@ export const APPROVED_KART_COMPONENTS = deepFreeze(
           multiple: true,
         },
       ],
-      summary: "A short reduction for strong launch force and lower road speed.",
-      tradeoff: "More wheel force with lower no-load speed and slightly more mass.",
+      summary:
+        "A short reduction for strong launch force and lower road speed.",
+      tradeoff:
+        "More wheel force with lower no-load speed and slightly more mass.",
       transmission: { efficiency: 0.78, motorRotationsPerWheelRotation: 8 },
       version: 1,
     },
@@ -470,8 +527,22 @@ export const APPROVED_KART_COMPONENTS = deepFreeze(
       summary: "A compact coilover with firm response and short travel.",
       suspension: {
         bumpStart: 0.027,
-        damperRate: 10,
+        damperRate: 33.23076923076923,
         extendedLength: 0.115,
+        mounting: {
+          armPivot: {
+            x: 0.08 * Math.sqrt(812.5 / 1_600),
+            y: -0.051,
+            z: 0,
+          },
+          chassisAnchor: { x: 0, y: 0.051, z: 0 },
+          hubAnchor: {
+            x: -0.08 * (1 - Math.sqrt(812.5 / 1_600)),
+            y: -0.051,
+            z: 0,
+          },
+          springArmAnchor: { x: 0, y: -0.051, z: 0 },
+        },
         maximumStroke: 0.035,
         quadraticBumpRate: 18_000,
         springRate: 1_600,
@@ -510,11 +581,26 @@ export const APPROVED_KART_COMPONENTS = deepFreeze(
         bumpStart: 0.04,
         damperRate: 7,
         extendedLength: 0.14,
+        mounting: {
+          armPivot: {
+            x: 0.08 * Math.sqrt(812.5 / 1_600),
+            y: -0.051,
+            z: 0,
+          },
+          chassisAnchor: { x: 0, y: 0.051, z: 0 },
+          hubAnchor: {
+            x: -0.08 * (1 - Math.sqrt(812.5 / 1_600)),
+            y: -0.051,
+            z: 0,
+          },
+          springArmAnchor: { x: 0, y: -0.051, z: 0 },
+        },
         maximumStroke: 0.052,
         quadraticBumpRate: 12_000,
         springRate: 900,
       },
-      tradeoff: "More bump compliance with softer platform response and slightly more mass.",
+      tradeoff:
+        "More bump compliance with softer platform response and slightly more mass.",
       version: 1,
     },
     {
@@ -562,7 +648,8 @@ export const APPROVED_KART_COMPONENTS = deepFreeze(
         },
       ],
       summary: "A compact, low-inertia wheel using the standard tire compound.",
-      tradeoff: "More ground force and quicker response with lower obstacle clearance.",
+      tradeoff:
+        "More ground force and quicker response with lower obstacle clearance.",
       version: 1,
       wheelTire: {
         radius: 0.058,
@@ -615,7 +702,8 @@ export const APPROVED_KART_COMPONENTS = deepFreeze(
         },
       ],
       summary: "A larger wheel with more clearance and rotational inertia.",
-      tradeoff: "Higher road speed and clearance with less ground force and slower response.",
+      tradeoff:
+        "Higher road speed and clearance with less ground force and slower response.",
       version: 1,
       wheelTire: {
         radius: 0.0725,

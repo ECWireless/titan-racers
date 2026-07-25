@@ -19,6 +19,7 @@ function createDocument() {
           position: { x: 0, y: 0.03, z: 0.04 },
           rotationDegrees: { x: 0, y: 0, z: 0 },
         },
+        visualColor: "#475763",
       },
     ],
     connections: [],
@@ -40,9 +41,10 @@ function createDocument() {
           position: { x: 0, y: 0, z: 0 },
           rotationDegrees: { x: 0, y: 0, z: 0 },
         },
+        visualColor: "#475763",
       },
     ],
-    schemaVersion: 1 as const,
+    schemaVersion: 2 as const,
     structuralAttachments: [
       {
         child: {
@@ -64,12 +66,40 @@ function createDocument() {
 test("parses a bounded versioned kart assembly document", () => {
   const document = parseKartAssemblyDocument(createDocument());
 
-  expect(document.schemaVersion).toBe(1);
+  expect(document.schemaVersion).toBe(2);
   expect(document.units).toEqual({ angle: "degrees", length: "meters" });
   expect(document.componentInstances[0].definition).toEqual({
     id: "battery.lipo-standard",
     version: 1,
   });
+});
+
+test("migrates legacy global colors to explicit instance colors", () => {
+  const current = createDocument();
+  const legacy = {
+    ...current,
+    componentInstances: current.componentInstances.map(
+      ({ visualColor, ...instance }) => {
+        void visualColor;
+        return instance;
+      },
+    ),
+    primitiveInstances: current.primitiveInstances.map(
+      ({ visualColor, ...instance }) => {
+        void visualColor;
+        return instance;
+      },
+    ),
+    schemaVersion: 1 as const,
+    visualIdentity: { accentColor: "#abcdef", primaryColor: "#123456" },
+  };
+  legacy.componentInstances[0].definition.id = "wheel-tire.small-standard";
+
+  const migrated = parseKartAssemblyDocument(legacy);
+
+  expect(migrated.schemaVersion).toBe(2);
+  expect(migrated.componentInstances[0].visualColor).toBe("#123456");
+  expect(migrated.primitiveInstances[0].visualColor).toBe("#475763");
 });
 
 test("serializes kart documents canonically without database or derived state", () => {

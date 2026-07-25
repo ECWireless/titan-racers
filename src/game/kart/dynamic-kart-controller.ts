@@ -8,13 +8,6 @@ import type {
 import type { WorldEnvironment } from "../physics/world-environment";
 import { isDrivableSurfaceTopContact } from "../physics/drivable-surface-support";
 import {
-  KART_SUSPENSION_MAX_COMPRESSION_Y,
-  KART_SUSPENSION_REST_TRAVEL,
-  KART_SUSPENSION_TRAVEL,
-  KART_WHEEL_RADIUS,
-  KART_WHEEL_WIDTH,
-} from "./kart-dimensions";
-import {
   allocateDriveForce,
   getRequestedDriveForce,
 } from "./kart-drive-model";
@@ -63,9 +56,13 @@ import {
 export type DynamicWheel = {
   driven: boolean;
   localPosition: pc.Vec3;
+  maximumSuspensionTravel: number;
   name: string;
   pivot: pc.Entity;
+  radius: number;
+  restSuspensionCompression: number;
   steered: boolean;
+  width: number;
 };
 
 type DynamicKartControllerOptions = {
@@ -169,7 +166,7 @@ export class DynamicKartController implements KartController {
   private tireSurfaceInteraction: TireSurfaceInteractionProfile;
   private readonly drivenWheelCount: number;
   private readonly steeringCenterX: number;
-  private readonly wheelSweep: AmmoWheelSweep;
+  private readonly wheelSweeps = new Map<string, AmmoWheelSweep>();
   private destroyed = false;
 
   constructor(private readonly options: DynamicKartControllerOptions) {
@@ -193,11 +190,17 @@ export class DynamicKartController implements KartController {
       throw new Error("Dynamic kart requires at least one steered wheel");
     }
 
-    this.wheelSweep = new AmmoWheelSweep(
-      requireAmmoDynamicsWorld(options.app),
-      KART_WHEEL_RADIUS,
-      KART_WHEEL_WIDTH * 0.5,
-    );
+    const dynamicsWorld = requireAmmoDynamicsWorld(options.app);
+    for (const wheel of options.wheels) {
+      this.wheelSweeps.set(
+        wheel.name,
+        new AmmoWheelSweep(
+          dynamicsWorld,
+          wheel.radius,
+          wheel.width * 0.5,
+        ),
+      );
+    }
   }
 
   destroy() {
@@ -206,7 +209,8 @@ export class DynamicKartController implements KartController {
     }
 
     this.destroyed = true;
-    this.wheelSweep.destroy();
+    this.wheelSweeps.forEach((sweep) => sweep.destroy());
+    this.wheelSweeps.clear();
   }
 
   reset() {
@@ -317,7 +321,8 @@ export class DynamicKartController implements KartController {
         appliedTireForce: 0,
         driven: wheel.driven,
         gripCoefficient: 0,
-        hubLocalY: KART_SUSPENSION_MAX_COMPRESSION_Y - KART_SUSPENSION_TRAVEL,
+        hubLocalY:
+          wheel.localPosition.y - wheel.restSuspensionCompression,
         contactNormal: null,
         lateralSpeed: 0,
         longitudinalSpeed: 0,
@@ -325,7 +330,7 @@ export class DynamicKartController implements KartController {
         surfaceName: null,
         suspensionCompression: 0,
         suspensionLoad: 0,
-        suspensionTravel: KART_SUSPENSION_TRAVEL,
+        suspensionTravel: wheel.maximumSuspensionTravel,
         slipAngle: 0,
         steerAngle: 0,
         supported: false,
@@ -336,11 +341,13 @@ export class DynamicKartController implements KartController {
       wheelTelemetry.push(telemetry);
       const maximumCompressionPosition = wheel.localPosition.clone();
       maximumCompressionPosition.y =
-        wheel.localPosition.y + KART_SUSPENSION_REST_TRAVEL;
+        wheel.localPosition.y +
+        (wheel.maximumSuspensionTravel -
+          wheel.restSuspensionCompression);
       const queryStart = worldTransform.transformPoint(
         maximumCompressionPosition,
       );
-      const queryTravel = KART_SUSPENSION_TRAVEL;
+      const queryTravel = wheel.maximumSuspensionTravel;
       const queryEnd = queryStart
         .clone()
         .add(suspensionDirection.clone().mulScalar(queryTravel));
@@ -350,7 +357,11 @@ export class DynamicKartController implements KartController {
         kart.getRotation(),
         new pc.Quat().setFromEulerAngles(0, steerAngle, 0),
       );
-      const hit = this.wheelSweep.sweep(queryStart, queryEnd, sweepRotation);
+      const wheelSweep = this.wheelSweeps.get(wheel.name);
+      if (!wheelSweep) {
+        throw new Error(`Missing wheel sweep for "${wheel.name}"`);
+      }
+      const hit = wheelSweep.sweep(queryStart, queryEnd, sweepRotation);
 
       if (!hit) {
         continue;
@@ -359,15 +370,15 @@ export class DynamicKartController implements KartController {
       const suspensionTravel = clamp(
         hit.fraction * queryTravel,
         0,
-        KART_SUSPENSION_TRAVEL,
+        wheel.maximumSuspensionTravel,
       );
       const compression = Math.max(
-        KART_SUSPENSION_REST_TRAVEL - suspensionTravel,
+        wheel.maximumSuspensionTravel - suspensionTravel,
         0,
       );
       telemetry.surfaceName = hit.entity.name;
       telemetry.hubLocalY =
-        KART_SUSPENSION_MAX_COMPRESSION_Y - suspensionTravel;
+        maximumCompressionPosition.y - suspensionTravel;
       telemetry.suspensionCompression = compression;
       telemetry.suspensionTravel = suspensionTravel;
       telemetry.sweepFraction = hit.fraction;
@@ -409,7 +420,7 @@ export class DynamicKartController implements KartController {
       );
       const stableContactPoint = wheelCenter
         .clone()
-        .sub(contactNormal.clone().mulScalar(KART_WHEEL_RADIUS));
+        .sub(contactNormal.clone().mulScalar(wheel.radius));
       const relativePoint = stableContactPoint.sub(bodyPosition);
       const angularPointVelocity = new pc.Vec3().cross(
         angularVelocity,

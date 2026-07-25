@@ -343,6 +343,10 @@ Route beats:
 5. Maintenance ramp/drop.
 6. Return lane through floor-marked service infrastructure.
 
+Phase 4 should also add an Agricultural Zone soundscape and readable racing
+SFX for road contact, impacts, machinery, irrigation, and habitat ambience
+without coupling presentation audio to kart physics.
+
 The art goal is strong scale language over polish: oversized crop trays, pipes, vents, doors, maintenance rails, ramps, catwalks, and glimpses of the larger O'Neill Cylinder beyond the route.
 
 Race length target: two laps should usually land around 90 seconds to 2.5 minutes total.
@@ -1005,27 +1009,44 @@ tool-specific, and implemented knowledge through the repository Skills Tree.
 
 #### PR 3.3: Admin Kart Builder
 
-- [ ] build a protected kart assembly editor that reuses generalized selection,
+- [x] build a protected kart assembly editor that reuses generalized selection,
       gizmo, snapping, history, responsive inspector, and camera capabilities
       without coupling kart documents to course semantics or requiring
       component engineering,
-- [ ] support freeform placement, attachment, mirroring, and live validation of
+- [x] support freeform placement, attachment, mirroring, and live validation of
       approved component instances plus the accepted bounded structural/visual
       primitives, without exposing component-internal physical statistics,
-- [ ] procedurally render approved suspension units as recognizable coilover
+- [x] procedurally render approved suspension units as recognizable coilover
       elements and provide mirrored, focused editor controls instead of
       miniature mechanical CAD or direct spring/damper statistics,
-- [ ] show dimensions, mass properties, wheel geometry, derived runtime
+- [x] show dimensions, mass properties, wheel geometry, derived runtime
       behavior, and practical player-facing stats without editable raw tuning,
-- [ ] provide controlled test fixtures and complete-race launch from the draft,
-- [ ] support draft save, immutable revision creation, publish, and unpublish,
-- [ ] create and publish the Balanced Kart through the real admin pipeline,
+- [x] launch the latest saved compatible kart revision on the current sandbox
+      course, with a bundled course fallback when publication is unavailable,
+- [x] support draft save, immutable revision creation, publish, and unpublish,
+- [x] create and publish the Balanced Kart through the real admin pipeline,
       then replace the transitional reference fixture as the default runtime
       kart before expanding the roster,
-- [ ] verify keyboard, narrow touch, accessible controls, cancellation, and
+- [x] verify keyboard, narrow touch, accessible controls, cancellation, and
       editor/runtime cleanup.
 
-#### PR 3.4: Official Kart Roster And Runtime Integration
+#### PR 3.4: Best-Effort Editor Controller Input
+
+- [ ] extend the shared input layer with editor-specific controller actions
+      without coupling course or kart documents to a particular device,
+- [ ] support best-effort controller navigation across the course and kart
+      editor toolbars, outliners, inspectors, dialogs, and primary actions,
+- [ ] provide discoverable controller controls for camera orbit, pan, zoom,
+      selection, framing, and practical gizmo manipulation in both editor
+      viewports,
+- [ ] preserve keyboard, pointer, and touch behavior while handling controller
+      connection, disconnection, dead zones, held-input clearing, cancellation,
+      and focus handoff safely,
+- [ ] add deterministic adapter coverage and proportional desktop/controller QA,
+      accepting that precise freeform authoring may still require pointer or
+      touch input rather than claiming complete device parity.
+
+#### PR 3.5: Official Kart Roster And Runtime Integration
 
 - [ ] construct kart visuals, compound collision geometry, wheels, mass
       properties, and the simplified handling profile from validated immutable
@@ -1045,7 +1066,7 @@ tool-specific, and implemented knowledge through the repository Skills Tree.
 #### Deferred component-engineering phase boundary
 
 Component engineering is not part of Phase 3 and must be planned as a later
-phase rather than added opportunistically after PR 3.4. That phase must debrief
+phase rather than added opportunistically after PR 3.5. That phase must debrief
 component-definition ownership, authorization, internal primitive/material
 bounds, derivation versioning, publication, and compatibility with existing
 kart revisions. Progression unlocks component-engineering parts, not complete
@@ -1070,7 +1091,9 @@ Includes:
 - [ ] oversized habitat infrastructure,
 - [ ] irrigation tunnel,
 - [ ] glass canopy / hero vista,
-- [ ] hints of Cylinder curvature or larger habitat beyond the route.
+- [ ] hints of Cylinder curvature or larger habitat beyond the route,
+- [ ] Agricultural Zone ambience and readable road-contact, impact, machinery,
+      irrigation, and habitat SFX.
 
 ### Phase 5: Solo, Ghosts, Results, Leaderboard
 
