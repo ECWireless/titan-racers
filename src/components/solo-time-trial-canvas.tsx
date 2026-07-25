@@ -318,7 +318,7 @@ export function SoloTimeTrialCanvas({
     const snapshot = kartSnapshot ?? deriveKartSnapshot(kartDocument);
     if (!hasRuntimeCompatibleInertia(snapshot)) {
       throw new Error(
-        "This kart requires principal-axis runtime integration scheduled for PR 3.4.",
+        "This kart requires principal-axis runtime integration scheduled for PR 3.5.",
       );
     }
     const contactPlaneY =

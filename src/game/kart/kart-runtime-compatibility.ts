@@ -4,7 +4,7 @@ export const KART_RUNTIME_INERTIA_COUPLING_TOLERANCE = 1e-9;
 
 /**
  * PR 3.3 can apply Bullet's diagonal local-inertia vector only when the
- * authored document axes are already principal axes. PR 3.4 owns principal-axis
+ * authored document axes are already principal axes. PR 3.5 owns principal-axis
  * diagonalization and the matching compound/controller transform.
  */
 export function hasRuntimeCompatibleInertia(

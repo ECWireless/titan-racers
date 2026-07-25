@@ -1462,7 +1462,7 @@ export function KartEditorShell({
             <p className="text-xs leading-relaxed text-titan-muted">
               {savedRuntimeTestCompatible
                 ? `Drive saved revision ${currentRevision.revision} on the current sandbox course. Unsaved changes are not included.`
-                : `Saved revision ${currentRevision.revision} cannot be tested until PR 3.4 adds principal-axis integration.`}
+                : `Saved revision ${currentRevision.revision} cannot be tested until PR 3.5 adds principal-axis integration.`}
             </p>
           </div>
           <div className="absolute bottom-3 left-3 right-3 z-20 grid grid-cols-2 gap-2 lg:hidden">
@@ -1780,7 +1780,7 @@ export function KartEditorShell({
                     role="alert"
                   >
                     This asymmetric mass layout can be saved as a private draft,
-                    but it cannot be published until PR 3.4 adds principal-axis
+                    but it cannot be published until PR 3.5 adds principal-axis
                     integration. Testing still uses the last saved revision.
                   </p>
                 ) : null}

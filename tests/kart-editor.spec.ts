@@ -1279,7 +1279,7 @@ test.describe("protected kart builder access", () => {
     ).toBeDisabled();
     await expect(
       page.getByText(
-        "Saved revision 1 cannot be tested until PR 3.4 adds principal-axis integration.",
+        "Saved revision 1 cannot be tested until PR 3.5 adds principal-axis integration.",
       ),
     ).toBeVisible();
     await page.getByLabel("Name").fill("Asymmetric private draft");
@@ -1297,7 +1297,7 @@ test.describe("protected kart builder access", () => {
     ).toBeDisabled();
     await expect(
       page.getByText(
-        "Saved revision 2 cannot be tested until PR 3.4 adds principal-axis integration.",
+        "Saved revision 2 cannot be tested until PR 3.5 adds principal-axis integration.",
       ),
     ).toBeVisible();
   });

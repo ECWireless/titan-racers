@@ -1029,7 +1029,23 @@ tool-specific, and implemented knowledge through the repository Skills Tree.
 - [x] verify keyboard, narrow touch, accessible controls, cancellation, and
       editor/runtime cleanup.
 
-#### PR 3.4: Official Kart Roster And Runtime Integration
+#### PR 3.4: Best-Effort Editor Controller Input
+
+- [ ] extend the shared input layer with editor-specific controller actions
+      without coupling course or kart documents to a particular device,
+- [ ] support best-effort controller navigation across the course and kart
+      editor toolbars, outliners, inspectors, dialogs, and primary actions,
+- [ ] provide discoverable controller controls for camera orbit, pan, zoom,
+      selection, framing, and practical gizmo manipulation in both editor
+      viewports,
+- [ ] preserve keyboard, pointer, and touch behavior while handling controller
+      connection, disconnection, dead zones, held-input clearing, cancellation,
+      and focus handoff safely,
+- [ ] add deterministic adapter coverage and proportional desktop/controller QA,
+      accepting that precise freeform authoring may still require pointer or
+      touch input rather than claiming complete device parity.
+
+#### PR 3.5: Official Kart Roster And Runtime Integration
 
 - [ ] construct kart visuals, compound collision geometry, wheels, mass
       properties, and the simplified handling profile from validated immutable
@@ -1049,7 +1065,7 @@ tool-specific, and implemented knowledge through the repository Skills Tree.
 #### Deferred component-engineering phase boundary
 
 Component engineering is not part of Phase 3 and must be planned as a later
-phase rather than added opportunistically after PR 3.4. That phase must debrief
+phase rather than added opportunistically after PR 3.5. That phase must debrief
 component-definition ownership, authorization, internal primitive/material
 bounds, derivation versioning, publication, and compatibility with existing
 kart revisions. Progression unlocks component-engineering parts, not complete
