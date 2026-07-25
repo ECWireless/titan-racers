@@ -43,6 +43,16 @@ body {
   font-family: Arial, Helvetica, sans-serif;
 }
 
+[data-controller-navigation="true"]:not(
+    [data-controller-pointer-active="true"]
+  ),
+[data-controller-navigation="true"]:not(
+    [data-controller-pointer-active="true"]
+  )
+  * {
+  cursor: none !important;
+}
+
 ::selection {
   background: var(--titan-orange);
   color: var(--titan-black);
@@ -192,6 +202,16 @@ button[aria-disabled="true"] {
 .editor-list-button:focus-visible {
   outline: 2px solid var(--titan-hazard);
   outline-offset: 2px;
+}
+
+[data-controller-navigation="true"]
+  :is(button, a, input, select, textarea, [tabindex]):focus {
+  outline: 3px solid var(--titan-hazard);
+  outline-offset: 3px;
+}
+
+[data-controller-engaged="true"] {
+  box-shadow: inset 0 0 0 3px rgb(255 122 24 / 70%);
 }
 
 .editor-list-button:disabled {

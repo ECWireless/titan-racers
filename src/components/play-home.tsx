@@ -55,7 +55,7 @@ async function loadPublishedKart() {
 }
 
 export function PlayHome() {
-  const modeMenuRef = useRef<HTMLDivElement | null>(null);
+  const homeMenuRef = useRef<HTMLElement | null>(null);
   const [mode, setMode] = useState<"home" | "solo">("home");
   const [toast, setToast] = useState<string | null>(null);
   const [soloPending, setSoloPending] = useState(false);
@@ -70,8 +70,9 @@ export function PlayHome() {
   >(undefined);
 
   useControllerMenuNavigation({
-    containerRef: modeMenuRef,
+    containerRef: homeMenuRef,
     enabled: mode === "home",
+    navigationMode: "spatial",
   });
 
   function showComingSoon() {
@@ -115,7 +116,10 @@ export function PlayHome() {
   }
 
   return (
-    <section className="relative z-10 mx-auto flex min-h-screen w-full max-w-7xl flex-col px-5 py-6 sm:px-8 lg:px-12">
+    <section
+      ref={homeMenuRef}
+      className="relative z-10 mx-auto flex min-h-screen w-full max-w-7xl flex-col px-5 py-6 sm:px-8 lg:px-12"
+    >
       <header className="flex items-center justify-between gap-6">
         <Image
           src="/titan-racers-logo.png"
@@ -146,10 +150,13 @@ export function PlayHome() {
           <p className="mb-4 font-mono text-xs font-bold uppercase tracking-[0.22em] text-titan-hazard">
             Choose game mode
           </p>
-          <div className="grid gap-4" ref={modeMenuRef}>
+          <div className="grid gap-4">
             {actions.map((action) => (
               <button
                 key={action.label}
+                data-controller-default={
+                  action.label === "Race Friends" ? "true" : undefined
+                }
                 disabled={action.label === "Solo Time Trial" && soloPending}
                 className={
                   action.variant === "primary"

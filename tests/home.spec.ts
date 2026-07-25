@@ -142,6 +142,16 @@ async function installStandardGamepadFixture(page: Page) {
   });
 }
 
+async function disconnectStandardTestGamepad(page: Page) {
+  await page.evaluate(() => {
+    const testWindow = window as typeof window & {
+      __TR_GAMEPADS__?: Gamepad[];
+    };
+    testWindow.__TR_GAMEPADS__ = [];
+    window.dispatchEvent(new Event("gamepaddisconnected"));
+  });
+}
+
 async function getKartScreenPoint(canvas: Locator) {
   await waitForSceneReady(canvas);
   return canvas.evaluate(
@@ -4667,6 +4677,85 @@ test.describe("home screen", () => {
       testWindow.__TR_GAMEPADS__ = [{ ...gamepad, buttons } as Gamepad];
     });
     await expect(pauseDialog).toBeVisible();
+  });
+
+  test("opens protected editors from the home screen with a controller", async ({
+    page,
+  }, testInfo) => {
+    test.skip(
+      testInfo.project.name === "mobile",
+      "Controller desktop fixture.",
+    );
+
+    await installStandardGamepadFixture(page);
+    await page.goto("/");
+    const home = page.locator('[data-controller-menu-ready="true"]');
+    await expect(home).toHaveCount(1);
+    await setStandardTestGamepad(page);
+    await page.waitForTimeout(50);
+    await setStandardTestGamepad(page, { buttons: { 12: 1 } });
+    const courseEditor = page.getByRole("link", { name: "Course Editor" });
+    const kartBuilder = page.getByRole("link", { name: "Kart Builder" });
+    await expect(kartBuilder).toBeFocused();
+    await setStandardTestGamepad(page);
+    await page.waitForTimeout(50);
+    await setStandardTestGamepad(page, { buttons: { 15: 1 } });
+    await expect(courseEditor).toBeFocused();
+    await setStandardTestGamepad(page);
+    await page.waitForTimeout(50);
+    await setStandardTestGamepad(page, { buttons: { 14: 1 } });
+    await expect(kartBuilder).toBeFocused();
+    await setStandardTestGamepad(page);
+    await page.waitForTimeout(50);
+    await setStandardTestGamepad(page, { buttons: { 15: 1 } });
+    await expect(courseEditor).toBeFocused();
+    await setStandardTestGamepad(page);
+    await page.waitForTimeout(50);
+    await expect(home).toHaveAttribute("data-controller-navigation", "true");
+    await expect(courseEditor).toHaveCSS("cursor", "none");
+
+    await page.mouse.move(4, 4);
+    await expect(home).toHaveAttribute(
+      "data-controller-pointer-active",
+      "true",
+    );
+    await expect(home).not.toHaveAttribute(
+      "data-controller-pointer-active",
+      "true",
+      { timeout: 2_000 },
+    );
+
+    await page.evaluate(() => window.dispatchEvent(new Event("blur")));
+    await expect(home).not.toHaveAttribute(
+      "data-controller-navigation",
+      "true",
+    );
+    await setStandardTestGamepad(page);
+    await page.waitForTimeout(50);
+    await setStandardTestGamepad(page, { buttons: { 13: 1 } });
+    await expect(
+      page.getByRole("button", { name: "Race Friends" }),
+    ).toBeFocused();
+    await setStandardTestGamepad(page);
+    await page.waitForTimeout(50);
+    await disconnectStandardTestGamepad(page);
+    await expect(home).not.toHaveAttribute(
+      "data-controller-navigation",
+      "true",
+    );
+
+    await setStandardTestGamepad(page);
+    await page.waitForTimeout(50);
+    await setStandardTestGamepad(page, { buttons: { 12: 1 } });
+    await expect(kartBuilder).toBeFocused();
+    await setStandardTestGamepad(page);
+    await page.waitForTimeout(50);
+    await setStandardTestGamepad(page, { buttons: { 15: 1 } });
+    await expect(courseEditor).toBeFocused();
+    await setStandardTestGamepad(page);
+    await page.waitForTimeout(50);
+    await setStandardTestGamepad(page, { buttons: { 0: 1 } });
+    await expect(page).toHaveURL(/\/editor$/);
   });
 
   test("navigates guest menus end-to-end with a standard controller snapshot", async ({

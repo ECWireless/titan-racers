@@ -21,8 +21,13 @@ import {
   createEditorTransformGizmos,
   EditorOrbitCamera,
   EditorSelectionRegistry,
+  resolveScreenRelativeEditorTranslation,
   type EditorTransformTool,
 } from "./editor-viewport";
+import type {
+  EditorControllerCameraInput,
+  EditorControllerDirection,
+} from "./editor-controller-viewport";
 
 type KartEditorSceneOptions = {
   attachmentParentId: string;
@@ -188,6 +193,16 @@ export class KartEditorScene {
     this.options.onCameraChange(toVector(this.editorCamera.pivot));
   }
 
+  applyControllerCamera(
+    input: EditorControllerCameraInput,
+    deltaSeconds: number,
+  ) {
+    if (this.editorCamera.applyControllerInput(input, deltaSeconds, 0.004)) {
+      this.editorCamera.apply(this.camera);
+      this.options.onCameraChange(toVector(this.editorCamera.pivot));
+    }
+  }
+
   getInstanceVisualColor(instanceId: string) {
     const root = this.instanceEntities.get(instanceId);
     if (!root) return null;
@@ -276,6 +291,22 @@ export class KartEditorScene {
   setTool(tool: EditorTransformTool) {
     this.tool = tool;
     this.refreshGizmo();
+  }
+
+  selectAtCenter() {
+    const rect = this.canvas.getBoundingClientRect();
+    this.pickSelection(rect.width / 2, rect.height / 2);
+  }
+
+  resolveControllerTranslation(direction: EditorControllerDirection) {
+    const cameraComponent = this.camera.camera;
+    return cameraComponent
+      ? resolveScreenRelativeEditorTranslation(
+          cameraComponent,
+          this.editorCamera.pivot,
+          direction,
+        )
+      : null;
   }
 
   private attachPointerControls() {

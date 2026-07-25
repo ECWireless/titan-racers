@@ -1,5 +1,13 @@
 import * as pc from "playcanvas";
 
+import type {
+  EditorControllerAxisProjections,
+  EditorControllerCameraInput,
+  EditorControllerDirection,
+  EditorControllerTranslationStep,
+} from "./editor-controller-viewport";
+import { resolveEditorTranslationFromScreenProjections } from "./editor-controller-viewport";
+
 export type EditorTransformTool = "translate" | "rotate" | "scale";
 
 export const EDITOR_TRANSLATE_SNAP = 0.25;
@@ -46,6 +54,36 @@ export class EditorOrbitCamera {
     camera.lookAt(this.pivot);
   }
 
+  applyControllerInput(
+    input: EditorControllerCameraInput,
+    deltaSeconds: number,
+    panScaleFactor: number,
+  ) {
+    const boundedDelta = Math.min(0.05, Math.max(0, deltaSeconds));
+    const cameraPixelsPerSecond = 280;
+    const orbitDegreesPerSecond = 95;
+    const hasInput =
+      Math.abs(input.orbitX) > 0 ||
+      Math.abs(input.orbitY) > 0 ||
+      Math.abs(input.panX) > 0 ||
+      Math.abs(input.panY) > 0 ||
+      Math.abs(input.zoom) > 0;
+    if (!hasInput || boundedDelta === 0) {
+      return false;
+    }
+    this.orbit(
+      -input.orbitX * orbitDegreesPerSecond * boundedDelta,
+      input.orbitY * orbitDegreesPerSecond * boundedDelta,
+    );
+    this.pan(
+      -input.panX * cameraPixelsPerSecond * boundedDelta,
+      -input.panY * cameraPixelsPerSecond * boundedDelta,
+      panScaleFactor,
+    );
+    this.zoom(-input.zoom * this.distance * 1.4 * boundedDelta);
+    return true;
+  }
+
   orbit(yawDelta: number, pitchDelta: number) {
     this.yaw += yawDelta;
     this.pitch = clamp(
@@ -72,6 +110,33 @@ export class EditorOrbitCamera {
       this.maximumDistance,
     );
   }
+}
+
+export function resolveScreenRelativeEditorTranslation(
+  camera: pc.CameraComponent,
+  origin: pc.Vec3,
+  direction: EditorControllerDirection,
+): EditorControllerTranslationStep | null {
+  const originScreen = camera.worldToScreen(origin);
+  const axes = [
+    { axis: "x" as const, vector: new pc.Vec3(1, 0, 0) },
+    { axis: "y" as const, vector: new pc.Vec3(0, 1, 0) },
+    { axis: "z" as const, vector: new pc.Vec3(0, 0, 1) },
+  ];
+  const projections = {} as EditorControllerAxisProjections;
+
+  for (const { axis, vector } of axes) {
+    const axisScreen = camera.worldToScreen(origin.clone().add(vector));
+    projections[axis] = {
+      x: axisScreen.x - originScreen.x,
+      y: axisScreen.y - originScreen.y,
+    };
+  }
+
+  return resolveEditorTranslationFromScreenProjections(
+    projections,
+    direction,
+  );
 }
 
 export function createEditorTransformGizmos(

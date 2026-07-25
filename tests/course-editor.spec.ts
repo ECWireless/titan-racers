@@ -2,6 +2,12 @@ import { expect, type Locator, test } from "@playwright/test";
 
 import { ROUGH_COURSE_DOCUMENT } from "../src/game/course/course-document";
 import { COURSE_EDITOR_CHECKPOINT_LIMIT } from "../src/game/editor/course-editor-document";
+import {
+  disconnectStandardTestGamepad,
+  installStandardGamepadFixture,
+  pressStandardGamepadButton,
+  setStandardTestGamepad,
+} from "./helpers/standard-gamepad";
 
 const courseApiPattern = "**/api/admin/courses/rough-course";
 const coursePublicationApiPattern =
@@ -1772,5 +1778,152 @@ test.describe("protected course editor access", () => {
     await expect(page.getByTestId("course-editor-shell")).toHaveCount(0);
     expect(signOutHeaders["content-type"]).toContain("application/json");
     expect(signOutPayload).toEqual({});
+  });
+
+  test("supports best-effort standard-controller editing and safe dialog cancellation", async ({
+    page,
+  }, testInfo) => {
+    test.skip(
+      testInfo.project.name !== "desktop",
+      "Controller editor coverage only needs to run once.",
+    );
+    await installStandardGamepadFixture(page);
+    await page.route(courseApiPattern, async (route) => {
+      await route.fulfill({
+        body: JSON.stringify({
+          authorUserId: "admin-test-user",
+          courseId: ROUGH_COURSE_DOCUMENT.courseId,
+          createdAt: "2026-07-25T00:00:00.000Z",
+          document: ROUGH_COURSE_DOCUMENT,
+          publication: null,
+          revision: 3,
+          schemaVersion: ROUGH_COURSE_DOCUMENT.schemaVersion,
+        }),
+        contentType: "application/json",
+        status: 200,
+      });
+    });
+
+    await page.goto("/editor");
+    const shell = page.getByTestId("course-editor-shell");
+    const canvas = page.getByTestId("course-editor-canvas");
+    await waitForEditorScene(canvas);
+    await page
+      .getByLabel("Course")
+      .getByRole("button", { name: "block" })
+      .click();
+    await page.getByRole("button", { name: "Frame selection" }).click();
+    await setStandardTestGamepad(page);
+    await expect(page.getByTestId("course-controller-status")).toBeVisible();
+    await expect(page.getByTestId("course-controller-axis")).toHaveAttribute(
+      "data-axis",
+      "x",
+    );
+    await page.evaluate(() => {
+      const testWindow = window as typeof window & {
+        __TR_EDITOR_SCROLL_COUNT__?: number;
+      };
+      testWindow.__TR_EDITOR_SCROLL_COUNT__ = 0;
+      HTMLElement.prototype.scrollIntoView = () => {
+        testWindow.__TR_EDITOR_SCROLL_COUNT__ =
+          (testWindow.__TR_EDITOR_SCROLL_COUNT__ ?? 0) + 1;
+      };
+    });
+    await page.getByRole("button", { name: "Exit course editor" }).focus();
+    await pressStandardGamepadButton(page, 15);
+    expect(
+      await page.evaluate(() => document.activeElement?.getAttribute("aria-label")),
+    ).not.toBe("Exit course editor");
+    expect(
+      await page.evaluate(() =>
+        document.activeElement?.getAttribute("aria-disabled"),
+      ),
+    ).not.toBe("true");
+    await expect(shell).toHaveAttribute("data-controller-navigation", "true");
+    await page.evaluate(() => window.dispatchEvent(new Event("blur")));
+    await expect(shell).not.toHaveAttribute(
+      "data-controller-navigation",
+      "true",
+    );
+    await setStandardTestGamepad(page);
+    await page.waitForTimeout(50);
+    expect(
+      await page.evaluate(
+        () =>
+          (
+            window as typeof window & {
+              __TR_EDITOR_SCROLL_COUNT__?: number;
+            }
+          ).__TR_EDITOR_SCROLL_COUNT__,
+      ),
+    ).toBeGreaterThan(0);
+
+    await canvas.focus();
+    await pressStandardGamepadButton(page, 0);
+    await expect(canvas).toHaveAttribute("data-controller-engaged", "true");
+    await expect(page.getByTestId("course-controller-reticle")).toBeVisible();
+    await pressStandardGamepadButton(page, 0);
+    await expect(canvas).toHaveAttribute("data-selected-id", "block-1");
+    await page.keyboard.press("Tab");
+    await expect(canvas).not.toHaveAttribute("data-controller-engaged", "true");
+    await expect(page.getByTestId("course-controller-reticle")).toHaveCount(0);
+    await canvas.focus();
+    await setStandardTestGamepad(page);
+    await page.waitForTimeout(50);
+    await pressStandardGamepadButton(page, 0);
+    await expect(canvas).toHaveAttribute("data-controller-engaged", "true");
+
+    const cameraRevision = await canvas.getAttribute("data-camera-revision");
+    await setStandardTestGamepad(page, { axes: [0, 0, 0.85, 0] });
+    await expect(canvas).not.toHaveAttribute(
+      "data-camera-revision",
+      cameraRevision ?? "",
+    );
+    await setStandardTestGamepad(page);
+    await page.waitForTimeout(50);
+
+    await pressStandardGamepadButton(page, 12);
+    await expect(shell.getByText("Unsaved changes")).toBeVisible();
+    await expect(page.getByTestId("course-controller-axis")).toHaveAttribute(
+      "data-axis",
+      "y",
+    );
+    await pressStandardGamepadButton(page, 2);
+    await expect(page.getByTestId("course-controller-axis")).toHaveAttribute(
+      "data-axis",
+      "z",
+    );
+
+    await pressStandardGamepadButton(page, 9);
+    await expect(
+      page.getByRole("heading", { name: "Camera controls" }),
+    ).toBeVisible();
+    await expect(canvas).not.toHaveAttribute("data-controller-engaged", "true");
+    await expect(page.getByTestId("course-controller-reticle")).toHaveCount(0);
+    await expect(page.getByText(/A engage\/select/)).toBeVisible();
+    await setStandardTestGamepad(page);
+    await page.waitForTimeout(50);
+    await pressStandardGamepadButton(page, 1);
+    await expect(
+      page.getByRole("heading", { name: "Camera controls" }),
+    ).toHaveCount(0);
+
+    await page.getByRole("button", { name: "Exit course editor" }).click();
+    await expect(
+      page.getByRole("heading", { name: "Discard unsaved changes?" }),
+    ).toBeVisible();
+    await setStandardTestGamepad(page);
+    await page.waitForTimeout(50);
+    await pressStandardGamepadButton(page, 1);
+    await expect(
+      page.getByRole("heading", { name: "Discard unsaved changes?" }),
+    ).toHaveCount(0);
+    await expect(shell).toBeVisible();
+    await disconnectStandardTestGamepad(page);
+    await expect(page.getByTestId("course-controller-status")).toHaveCount(0);
+    await expect(shell).not.toHaveAttribute(
+      "data-controller-navigation",
+      "true",
+    );
   });
 });

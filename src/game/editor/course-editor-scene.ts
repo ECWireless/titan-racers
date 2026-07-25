@@ -28,12 +28,18 @@ import {
   createEditorTransformGizmos,
   EditorOrbitCamera,
   EditorSelectionRegistry,
+  resolveScreenRelativeEditorTranslation,
   type EditorTransformTool,
 } from "./editor-viewport";
+import type {
+  EditorControllerCameraInput,
+  EditorControllerDirection,
+} from "./editor-controller-viewport";
 
 export type CourseEditorTool = EditorTransformTool;
 
 type CourseEditorSceneOptions = {
+  onCameraChange: () => void;
   onDocumentChange: (label: string, document: CourseDocument) => void;
   onSelectionChange: (
     selection: CourseEditorSelection,
@@ -208,6 +214,17 @@ export class CourseEditorScene {
     this.updateCamera();
   }
 
+  applyControllerCamera(
+    input: EditorControllerCameraInput,
+    deltaSeconds: number,
+  ) {
+    if (
+      this.editorCamera.applyControllerInput(input, deltaSeconds, 0.0018)
+    ) {
+      this.updateCamera();
+    }
+  }
+
   getSelectionCanvasPoint(selection: CourseEditorSelection) {
     const entity = this.documentEntities.get(selectionKey(selection));
     const cameraComponent = this.camera.camera;
@@ -299,6 +316,22 @@ export class CourseEditorScene {
 
   getSelectionMappingCount() {
     return this.selectionByNode.size;
+  }
+
+  selectAtCenter() {
+    const rect = this.canvas.getBoundingClientRect();
+    this.pickSelection(rect.width / 2, rect.height / 2, false);
+  }
+
+  resolveControllerTranslation(direction: EditorControllerDirection) {
+    const cameraComponent = this.camera.camera;
+    return cameraComponent
+      ? resolveScreenRelativeEditorTranslation(
+          cameraComponent,
+          this.editorCamera.pivot,
+          direction,
+        )
+      : null;
   }
 
   setTool(tool: CourseEditorTool) {
@@ -826,6 +859,7 @@ export class CourseEditorScene {
 
   private updateCamera() {
     this.editorCamera.apply(this.camera);
+    this.options.onCameraChange();
   }
 
   private updateTwoFingerGesture(touches: PointerState[]) {

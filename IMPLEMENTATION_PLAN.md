@@ -1032,17 +1032,17 @@ tool-specific, and implemented knowledge through the repository Skills Tree.
 
 #### PR 3.4: Best-Effort Editor Controller Input
 
-- [ ] extend the shared input layer with editor-specific controller actions
+- [x] extend the shared input layer with editor-specific controller actions
       without coupling course or kart documents to a particular device,
-- [ ] support best-effort controller navigation across the course and kart
+- [x] support best-effort controller navigation across the course and kart
       editor toolbars, outliners, inspectors, dialogs, and primary actions,
-- [ ] provide discoverable controller controls for camera orbit, pan, zoom,
+- [x] provide discoverable controller controls for camera orbit, pan, zoom,
       selection, framing, and practical gizmo manipulation in both editor
       viewports,
-- [ ] preserve keyboard, pointer, and touch behavior while handling controller
+- [x] preserve keyboard, pointer, and touch behavior while handling controller
       connection, disconnection, dead zones, held-input clearing, cancellation,
       and focus handoff safely,
-- [ ] add deterministic adapter coverage and proportional desktop/controller QA,
+- [x] add deterministic adapter coverage and proportional desktop/controller QA,
       accepting that precise freeform authoring may still require pointer or
       touch input rather than claiming complete device parity.
 

@@ -37,5 +37,9 @@ Prefer primary documentation and direct runtime evidence. Link back to relevant 
   mapping from normalized player actions to browser Keyboard Events, Pointer
   Events, Gamepad API polling, React touch controls, and the repository-owned
   fixed-step PlayCanvas runtime.
+- [`browser-editor-controller-input/`](browser-editor-controller-input/README.md):
+  the validated browser and PlayCanvas mapping for spatial DOM focus, viewport
+  engagement, standard-gamepad polling, and controller-driven editor camera and
+  snapped authoring actions.
 - [`playcanvas-ammo/`](playcanvas-ammo/README.md): the accepted mapping from
   Titan Racers' fixed-step kart-physics standard to PlayCanvas and Ammo/Bullet.

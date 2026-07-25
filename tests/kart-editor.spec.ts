@@ -11,6 +11,12 @@ import {
 } from "../src/game/kart/kart-derivation";
 import { hasRuntimeCompatibleInertia } from "../src/game/kart/kart-runtime-compatibility";
 import type { KartPublicationEvent } from "../src/game/kart/kart-publication";
+import {
+  disconnectStandardTestGamepad,
+  installStandardGamepadFixture,
+  pressStandardGamepadButton,
+  setStandardTestGamepad,
+} from "./helpers/standard-gamepad";
 
 const kartApiPattern = "**/api/admin/karts/balanced-kart";
 const publishedKartApiPattern = "**/api/karts/balanced-kart/published";
@@ -1182,8 +1188,8 @@ test.describe("protected kart builder access", () => {
     await name.fill("Balanced Kart QA");
     await name.blur();
 
-    page.once("dialog", (dialog) => void dialog.dismiss());
     await page.getByRole("button", { name: "Exit" }).click();
+    await page.getByRole("button", { name: "Keep editing" }).click();
     await expect(page).toHaveURL(/\/admin\/karts\/balanced-kart$/);
 
     await page.getByRole("button", { name: "Kart actions" }).click();
@@ -1211,13 +1217,13 @@ test.describe("protected kart builder access", () => {
     await page.getByRole("button", { name: "Kart actions" }).click();
     await expect(page.getByRole("button", { name: "Unpublish" })).toBeEnabled();
 
-    page.once("dialog", (dialog) => void dialog.dismiss());
     await page.getByRole("button", { name: "Unpublish" }).click();
+    await page.getByRole("button", { name: "Keep published" }).click();
     await expect(page.getByText("Published r2")).toBeVisible();
 
     await page.getByRole("button", { name: "Kart actions" }).click();
-    page.once("dialog", (dialog) => void dialog.accept());
     await page.getByRole("button", { name: "Unpublish" }).click();
+    await page.getByRole("button", { name: "Unpublish kart" }).click();
     await expect(page.getByText("Kart unpublished.")).toBeVisible();
     await expect(page.getByText("Published none")).toBeVisible();
     await expect(
@@ -1372,9 +1378,12 @@ test.describe("protected kart builder access", () => {
     await page.goto("/admin/karts/balanced-kart");
     await page.getByRole("button", { name: "+ Guard tube" }).click();
     await page.getByRole("button", { name: "Delete primitive" }).click();
-    page.once("dialog", (dialog) => void dialog.accept());
     await page.getByRole("button", { name: "Kart actions" }).click();
     await page.getByRole("button", { name: "Load latest draft" }).click();
+    await page
+      .getByRole("dialog")
+      .getByRole("button", { name: "Load latest draft" })
+      .click();
     await page.getByRole("button", { name: "+ Guard tube" }).click();
     await expect(
       page
@@ -1413,8 +1422,11 @@ test.describe("protected kart builder access", () => {
     await page.goto("/admin/karts/balanced-kart");
     await page.getByLabel("Name").fill("Unsaved local kart");
     await page.getByLabel("Name").blur();
-    page.once("dialog", (dialog) => void dialog.accept());
     await page.getByRole("button", { name: "Sign out" }).click();
+    await page
+      .getByRole("dialog")
+      .getByRole("button", { name: "Sign out" })
+      .click();
     await expect(page.getByLabel("Kart assembly viewport")).toHaveAttribute(
       "aria-disabled",
       "true",
@@ -1455,5 +1467,155 @@ test.describe("protected kart builder access", () => {
     await expect(
       page.getByRole("button", { name: "Save draft" }),
     ).toBeDisabled();
+  });
+
+  test("supports controller viewport movement, snapped transforms, and modal cancellation", async ({
+    page,
+  }, testInfo) => {
+    test.skip(
+      testInfo.project.name !== "desktop",
+      "Controller editor coverage only needs to run once.",
+    );
+    const initialDocument = createBalancedKartDocument();
+    await installStandardGamepadFixture(page);
+    await page.route(kartApiPattern, async (route) => {
+      await route.fulfill({
+        body: JSON.stringify(
+          createPersistedBalancedRevision(initialDocument),
+        ),
+        contentType: "application/json",
+        status: 200,
+      });
+    });
+
+    await page.goto("/admin/karts/balanced-kart");
+    const canvas = page.getByLabel("Kart assembly viewport");
+    await expect(canvas).toHaveAttribute("data-editor-status", "ready");
+    await page
+      .getByLabel("Kart and assembly")
+      .getByRole("button", { name: /upper-housing/ })
+      .click();
+    await page.getByRole("button", { name: "Frame selection" }).click();
+    const positionInputs = page
+      .getByRole("group", { name: "Position (m)" })
+      .locator("input");
+    const initialPosition = await positionInputs.evaluateAll((inputs) =>
+      inputs.map((input) => Number((input as HTMLInputElement).value)),
+    );
+    await page
+      .getByLabel("Kart and assembly")
+      .getByRole("button", { name: /wheel-front-left/ })
+      .click();
+
+    await setStandardTestGamepad(page);
+    await expect(page.getByTestId("kart-controller-status")).toBeVisible();
+    await expect(page.getByTestId("kart-controller-axis")).toHaveAttribute(
+      "data-axis",
+      "x",
+    );
+    await page.getByRole("button", { name: "Exit kart editor" }).focus();
+    await pressStandardGamepadButton(page, 15);
+    expect(
+      await page.evaluate(() => document.activeElement?.getAttribute("aria-label")),
+    ).not.toBe("Exit kart editor");
+    expect(
+      await page.evaluate(() =>
+        document.activeElement?.getAttribute("aria-disabled"),
+      ),
+    ).not.toBe("true");
+    await expect(page.locator("main")).toHaveAttribute(
+      "data-controller-navigation",
+      "true",
+    );
+    await canvas.focus();
+    await pressStandardGamepadButton(page, 0);
+    await expect(canvas).toHaveAttribute("data-controller-engaged", "true");
+    await expect(page.getByTestId("kart-controller-reticle")).toBeVisible();
+    await pressStandardGamepadButton(page, 0);
+    await expect(canvas).toHaveAttribute("data-selection-id", "upper-housing");
+
+    const cameraRevision = await canvas.getAttribute("data-camera-revision");
+    const cameraPivotBeforePan = JSON.parse(
+      (await canvas.getAttribute("data-camera-pivot")) ?? "[0,0,0]",
+    ) as number[];
+    await setStandardTestGamepad(page, { axes: [0, -0.85, 0, 0] });
+    await expect(canvas).not.toHaveAttribute(
+      "data-camera-revision",
+      cameraRevision ?? "",
+    );
+    await setStandardTestGamepad(page);
+    await page.waitForTimeout(50);
+    const cameraPivotAfterPan = JSON.parse(
+      (await canvas.getAttribute("data-camera-pivot")) ?? "[0,0,0]",
+    ) as number[];
+    expect(cameraPivotAfterPan[2]).toBeLessThan(cameraPivotBeforePan[2]);
+
+    await pressStandardGamepadButton(page, 12);
+    await expect(page.getByTestId("kart-controller-axis")).toHaveAttribute(
+      "data-axis",
+      "y",
+    );
+    await expect
+      .poll(async () => {
+        const position = await positionInputs.evaluateAll((inputs) =>
+          inputs.map((input) => Number((input as HTMLInputElement).value)),
+        );
+        return position.some(
+          (value, index) =>
+            Math.abs(
+              Math.abs(value - initialPosition[index]) -
+                KART_EDITOR_TRANSLATE_SNAP,
+            ) < 1e-9,
+        );
+      })
+      .toBe(true);
+    await pressStandardGamepadButton(page, 5);
+    await expect(page.getByRole("button", { name: "Rotate" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+    await pressStandardGamepadButton(page, 4);
+    await expect(
+      page.getByRole("button", { name: "Move" }),
+    ).toHaveAttribute("aria-pressed", "true");
+    await pressStandardGamepadButton(page, 5);
+    await pressStandardGamepadButton(page, 2);
+    await expect(page.getByTestId("kart-controller-axis")).toHaveAttribute(
+      "data-axis",
+      "z",
+    );
+    await expect(page.getByTestId("kart-controller-status")).toContainText(
+      /rotate Z/i,
+    );
+
+    await pressStandardGamepadButton(page, 1);
+    await expect(canvas).toHaveAttribute("data-controller-engaged", "false");
+    await page.getByRole("button", { name: "Exit kart editor" }).click();
+    await expect(
+      page.getByRole("heading", { name: "Discard unsaved changes?" }),
+    ).toBeVisible();
+    await setStandardTestGamepad(page);
+    await page.waitForTimeout(50);
+    await pressStandardGamepadButton(page, 1);
+    await expect(
+      page.getByRole("heading", { name: "Discard unsaved changes?" }),
+    ).toHaveCount(0);
+    await expect(canvas).toBeVisible();
+    await expect(
+      page.getByRole("button", { name: "Exit kart editor" }),
+    ).toBeFocused();
+    await page.getByRole("button", { name: "Exit kart editor" }).click();
+    await expect(
+      page.getByRole("heading", { name: "Discard unsaved changes?" }),
+    ).toBeVisible();
+    await page.keyboard.press("Escape");
+    await expect(
+      page.getByRole("heading", { name: "Discard unsaved changes?" }),
+    ).toHaveCount(0);
+    await expect(
+      page.getByRole("button", { name: "Exit kart editor" }),
+    ).toBeFocused();
+    await disconnectStandardTestGamepad(page);
+    await expect(page.getByTestId("kart-controller-status")).toHaveCount(0);
   });
 });

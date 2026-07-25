@@ -46,6 +46,9 @@ A game-concept node should normally cover:
   standard for normalized driving actions, concurrent keyboard, touch, and
   controller support, device arbitration, cancellation, and accessible control
   presentation.
+- [`editor-controller-input/`](editor-controller-input/README.md): the validated
+  best-effort standard for controller navigation, viewport engagement, camera
+  control, selection, and snapped authoring across bounded 3D editors.
 - [`course-editing/`](course-editing/README.md): the accepted document-centered
   standard for versioned course data, stable identities, primitive authoring,
   checkpoint ordering, validation, deterministic export, and edit history.
