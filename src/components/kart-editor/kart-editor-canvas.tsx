@@ -157,11 +157,61 @@ export function KartEditorCanvas({
       "getKartEditorInstanceVisualColor",
       onVisualColorRequest,
     );
-    return () =>
+    const onVisualStateRequest = (event: Event) => {
+      const detail = (
+        event as CustomEvent<{
+          instanceId: string;
+          respond: (state: {
+            coiloverEmissive: number[] | null;
+            coiloverParentName: string | null;
+          }) => void;
+        }>
+      ).detail;
+      detail.respond(
+        sceneRef.current?.getInstanceVisualDebugState(detail.instanceId) ?? {
+          coiloverEmissive: null,
+          coiloverParentName: null,
+        },
+      );
+    };
+    canvas.addEventListener(
+      "getKartEditorInstanceVisualState",
+      onVisualStateRequest,
+    );
+    const onTranslateGizmoPointsRequest = (event: Event) => {
+      const detail = (
+        event as CustomEvent<{
+          axis: "x" | "y" | "z";
+          respond: (
+            points: {
+              head: { x: number; y: number } | null;
+              origin: { x: number; y: number } | null;
+            } | null,
+          ) => void;
+        }>
+      ).detail;
+      detail.respond(
+        sceneRef.current?.getTranslateGizmoCanvasPoints(detail.axis) ?? null,
+      );
+    };
+    canvas.addEventListener(
+      "getKartEditorTranslateGizmoPoints",
+      onTranslateGizmoPointsRequest,
+    );
+    return () => {
       canvas.removeEventListener(
         "getKartEditorInstanceVisualColor",
         onVisualColorRequest,
       );
+      canvas.removeEventListener(
+        "getKartEditorInstanceVisualState",
+        onVisualStateRequest,
+      );
+      canvas.removeEventListener(
+        "getKartEditorTranslateGizmoPoints",
+        onTranslateGizmoPointsRequest,
+      );
+    };
   }, []);
 
   return (

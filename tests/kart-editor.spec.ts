@@ -117,6 +117,46 @@ async function getKartEditorInstanceVisualColor(
   );
 }
 
+async function getKartEditorInstanceVisualState(
+  canvas: Locator,
+  instanceId: string,
+) {
+  return canvas.evaluate(
+    (element, requestedInstanceId) =>
+      new Promise<{
+        coiloverEmissive: number[] | null;
+        coiloverParentName: string | null;
+      }>((resolve) => {
+        element.dispatchEvent(
+          new CustomEvent("getKartEditorInstanceVisualState", {
+            detail: { instanceId: requestedInstanceId, respond: resolve },
+          }),
+        );
+      }),
+    instanceId,
+  );
+}
+
+async function getKartEditorTranslateGizmoPoints(
+  canvas: Locator,
+  axis: "x" | "y" | "z",
+) {
+  return canvas.evaluate(
+    (element, requestedAxis) =>
+      new Promise<{
+        head: { x: number; y: number } | null;
+        origin: { x: number; y: number } | null;
+      } | null>((resolve) => {
+        element.dispatchEvent(
+          new CustomEvent("getKartEditorTranslateGizmoPoints", {
+            detail: { axis: requestedAxis, respond: resolve },
+          }),
+        );
+      }),
+    axis,
+  );
+}
+
 async function getKartRuntimePhysics(canvas: Locator) {
   return canvas.evaluate(
     (element) =>
@@ -772,6 +812,83 @@ test.describe("protected kart builder access", () => {
       documentBoundsCenter.forEach((coordinate, axis) => {
         expect(kartPivot[axis]).toBeCloseTo(coordinate, 5);
       });
+    }
+  });
+
+  test("moves and highlights procedural coilovers with their suspension roots", async ({
+    page,
+  }, testInfo) => {
+    test.skip(
+      testInfo.project.name !== "desktop",
+      "Procedural hierarchy coverage only needs to run once.",
+    );
+    await page.route(kartApiPattern, async (route) => {
+      await route.fulfill({
+        body: JSON.stringify(createPersistedBalancedRevision()),
+        contentType: "application/json",
+        status: 200,
+      });
+    });
+
+    await page.goto("/admin/karts/balanced-kart");
+    const viewport = page.getByLabel("Kart assembly viewport");
+    await expect(viewport).toHaveAttribute("data-editor-status", "ready");
+    await page
+      .getByLabel("Kart and assembly")
+      .getByRole("button", { name: /suspension-front-left/ })
+      .click();
+
+    const selected = await getKartEditorInstanceVisualState(
+      viewport,
+      "suspension-front-left",
+    );
+    expect(selected.coiloverParentName).toBe("suspension-front-left");
+    expect(selected.coiloverEmissive).toEqual([0.08, 0.65, 0.9]);
+    const mirror = await getKartEditorInstanceVisualState(
+      viewport,
+      "suspension-front-right",
+    );
+    expect(mirror.coiloverParentName).toBe("suspension-front-right");
+    expect(mirror.coiloverEmissive).toEqual([1, 0.36, 0.04]);
+
+    const points = await getKartEditorTranslateGizmoPoints(viewport, "x");
+    const box = await viewport.boundingBox();
+    expect(points?.head).not.toBeNull();
+    expect(points?.origin).not.toBeNull();
+    expect(box).not.toBeNull();
+    const xDelta = points!.head!.x - points!.origin!.x;
+    const yDelta = points!.head!.y - points!.origin!.y;
+    const length = Math.hypot(xDelta, yDelta);
+    const startX = box!.x + points!.head!.x;
+    const startY = box!.y + points!.head!.y;
+    await page.mouse.move(startX, startY);
+    await page.mouse.down();
+    try {
+      await expect(viewport).toHaveAttribute(
+        "data-transform-validity",
+        "valid",
+      );
+      const heldSelection = await getKartEditorInstanceVisualState(
+        viewport,
+        "suspension-front-left",
+      );
+      expect(heldSelection.coiloverEmissive).toEqual([0.08, 0.65, 0.9]);
+      await page.mouse.move(
+        startX + (xDelta / length) * 45,
+        startY + (yDelta / length) * 45,
+        { steps: 8 },
+      );
+      await expect(viewport).toHaveAttribute(
+        "data-transform-validity",
+        "invalid",
+      );
+      const invalid = await getKartEditorInstanceVisualState(
+        viewport,
+        "suspension-front-left",
+      );
+      expect(invalid.coiloverEmissive).toEqual([0.95, 0.03, 0.02]);
+    } finally {
+      await page.mouse.up();
     }
   });
 

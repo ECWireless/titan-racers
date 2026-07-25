@@ -8,6 +8,7 @@ import {
   type ApprovedComponentDefinition,
   getApprovedKartComponent,
 } from "../kart/kart-component-registry";
+import { validateKartAssembly } from "../kart/kart-assembly-validation";
 import {
   canAttachKartInstanceAtCurrentPosition,
   type KartEditorSelection,
@@ -83,6 +84,7 @@ export class KartEditorScene {
   private canvas: HTMLCanvasElement;
   private currentDocument: KartAssemblyDocument;
   private instanceEntities = new Map<string, pc.Entity>();
+  private instanceMaterialById = new Map<string, pc.StandardMaterial>();
   private instanceMaterials: pc.StandardMaterial[] = [];
   private interactionEnabled = true;
   private lastTouchDistance: number | null = null;
@@ -201,6 +203,36 @@ export class KartEditorScene {
       };
     });
     return color;
+  }
+
+  getInstanceVisualDebugState(instanceId: string) {
+    const root = this.instanceEntities.get(instanceId);
+    const coilover = root?.findByName(`${instanceId}-coilover`) as
+      | pc.Entity
+      | null
+      | undefined;
+    const damper = coilover?.findByName(`${instanceId}-damper`) as
+      | pc.Entity
+      | null
+      | undefined;
+    const material = damper?.model?.meshInstances?.[0]
+      ?.material as pc.StandardMaterial | undefined;
+    const emissive = material?.emissive;
+    return {
+      coiloverEmissive: emissive
+        ? [emissive.r, emissive.g, emissive.b]
+        : null,
+      coiloverParentName: coilover?.parent?.name ?? null,
+    };
+  }
+
+  getTranslateGizmoCanvasPoints(axis: "x" | "y" | "z") {
+    const head = this.translateGizmo.root.findByName(`head:${axis}`);
+    if (!head) return null;
+    return {
+      head: this.worldToCanvasPoint(head.getPosition()),
+      origin: this.worldToCanvasPoint(this.translateGizmo.root.getPosition()),
+    };
   }
 
   setDocument(document: KartAssemblyDocument) {
@@ -473,7 +505,9 @@ export class KartEditorScene {
       ({ child }) => child.instanceId === this.selection?.id,
     );
     const state = attached
-      ? "valid"
+      ? validateKartAssembly(next).success
+        ? "valid"
+        : "invalid"
       : this.selection &&
           this.options.attachmentParentId &&
           canAttachKartInstanceAtCurrentPosition(
@@ -526,18 +560,25 @@ export class KartEditorScene {
     this.scaleGizmo.detach();
     this.selectionByNode.clear();
     this.instanceEntities.clear();
+    this.instanceMaterialById.clear();
     [...this.documentRoot.children].forEach((child) => child.destroy());
     this.destroyInstanceMaterials();
 
     for (const primitive of this.currentDocument.primitiveInstances) {
-      const material = this.createInstanceMaterial(primitive.visualColor);
+      const material = this.createInstanceMaterial(
+        primitive.id,
+        primitive.visualColor,
+      );
       const root = createPrimitiveEntity(primitive, material);
       this.documentRoot.addChild(root);
       this.rememberSelection(root, { id: primitive.id, kind: "primitive" });
     }
 
     for (const instance of this.currentDocument.componentInstances) {
-      const material = this.createInstanceMaterial(instance.visualColor);
+      const material = this.createInstanceMaterial(
+        instance.id,
+        instance.visualColor,
+      );
       const root = new pc.Entity(instance.id);
       root.setPosition(
         instance.transform.position.x,
@@ -560,22 +601,17 @@ export class KartEditorScene {
           root.addChild(visual);
         });
       }
-      this.documentRoot.addChild(root);
-      this.rememberSelection(root, { id: instance.id, kind: "component" });
-
       if (definition?.category === "suspension" && instance.suspensionMount) {
         const coilover = createCoilover(
           instance.id,
           instance.suspensionMount,
+          instance.transform,
           material,
         );
-        this.documentRoot.addChild(coilover);
-        this.rememberSelection(
-          coilover,
-          { id: instance.id, kind: "component" },
-          false,
-        );
+        root.addChild(coilover);
       }
+      this.documentRoot.addChild(root);
+      this.rememberSelection(root, { id: instance.id, kind: "component" });
     }
 
     const documentCenter = getRenderedBoundsCenter(this.documentRoot);
@@ -585,23 +621,21 @@ export class KartEditorScene {
     this.refreshSelection();
   }
 
-  private createInstanceMaterial(visualColor: string) {
+  private createInstanceMaterial(instanceId: string, visualColor: string) {
     const material = createMaterial(colorFromHex(visualColor));
+    this.instanceMaterialById.set(instanceId, material);
     this.instanceMaterials.push(material);
     return material;
   }
 
   private destroyInstanceMaterials() {
     this.instanceMaterials.forEach((material) => material.destroy());
+    this.instanceMaterialById.clear();
     this.instanceMaterials = [];
   }
 
-  private rememberSelection(
-    root: pc.Entity,
-    selection: KartEditorSelection,
-    primary = true,
-  ) {
-    if (primary) this.instanceEntities.set(selection.id, root);
+  private rememberSelection(root: pc.Entity, selection: KartEditorSelection) {
+    this.instanceEntities.set(selection.id, root);
     root.forEach((node) => this.selectionByNode.set(node, selection));
   }
 
@@ -620,20 +654,25 @@ export class KartEditorScene {
         : [],
     );
     for (const [id, root] of this.instanceEntities) {
+      const material = this.instanceMaterialById.get(id);
+      const emissive =
+        id === selectedId && selectionState === "invalid"
+          ? [0.95, 0.03, 0.02]
+          : id === selectedId && selectionState === "attachable"
+            ? [0.95, 0.55, 0.03]
+            : id === selectedId
+              ? [0.08, 0.65, 0.9]
+              : mirrorCounterpartIds.has(id)
+                ? [1, 0.36, 0.04]
+                : [0, 0, 0];
+      if (material) {
+        material.emissive.set(emissive[0], emissive[1], emissive[2]);
+        material.update();
+      }
       root.forEach((node) => {
         if (!(node instanceof pc.Entity)) return;
         node.model?.meshInstances?.forEach((mesh) => {
-          if (id === selectedId && selectionState === "invalid") {
-            mesh.setParameter("material_emissive", [0.95, 0.03, 0.02]);
-          } else if (id === selectedId && selectionState === "attachable") {
-            mesh.setParameter("material_emissive", [0.95, 0.55, 0.03]);
-          } else if (id === selectedId) {
-            mesh.setParameter("material_emissive", [0.08, 0.65, 0.9]);
-          } else if (mirrorCounterpartIds.has(id)) {
-            mesh.setParameter("material_emissive", [1, 0.36, 0.04]);
-          } else {
-            mesh.deleteParameter("material_emissive");
-          }
+          mesh.deleteParameter("material_emissive");
         });
       });
     }
@@ -712,6 +751,17 @@ export class KartEditorScene {
     this.lastTouchDistance = distance;
     this.lastTouchMidpoint = midpoint;
     this.editorCamera.apply(this.camera);
+  }
+
+  private worldToCanvasPoint(position: pc.Vec3) {
+    const cameraComponent = this.camera.camera;
+    if (!cameraComponent) return null;
+    const screen = cameraComponent.worldToScreen(position);
+    const rect = this.canvas.getBoundingClientRect();
+    return {
+      x: screen.x / (this.canvas.width / rect.width),
+      y: screen.y / (this.canvas.height / rect.height),
+    };
   }
 }
 
@@ -814,14 +864,34 @@ function createCoilover(
   mount: NonNullable<
     KartAssemblyDocument["componentInstances"][number]["suspensionMount"]
   >,
+  transform: KartAssemblyDocument["componentInstances"][number]["transform"],
   material: pc.StandardMaterial,
 ) {
   const root = new pc.Entity(`${id}-coilover`);
+  const inverseRotation = new pc.Quat()
+    .setFromEulerAngles(
+      transform.rotationDegrees.x,
+      transform.rotationDegrees.y,
+      transform.rotationDegrees.z,
+    )
+    .invert();
+  const toLocalPoint = (point: { x: number; y: number; z: number }) =>
+    inverseRotation.transformVector(
+      new pc.Vec3(
+        point.x - transform.position.x,
+        point.y - transform.position.y,
+        point.z - transform.position.z,
+      ),
+    );
+  const chassisAnchor = toLocalPoint(mount.chassisAnchor);
+  const springArmAnchor = toLocalPoint(mount.springArmAnchor);
+  const armPivot = toLocalPoint(mount.armPivot);
+  const hubAnchor = toLocalPoint(mount.hubAnchor);
   root.addChild(
     createBarBetween(
       `${id}-damper`,
-      mount.chassisAnchor,
-      mount.springArmAnchor,
+      chassisAnchor,
+      springArmAnchor,
       0.009,
       material,
     ),
@@ -829,8 +899,8 @@ function createCoilover(
   root.addChild(
     createBarBetween(
       `${id}-arm`,
-      mount.armPivot,
-      mount.hubAnchor,
+      armPivot,
+      hubAnchor,
       0.004,
       material,
     ),
@@ -838,16 +908,8 @@ function createCoilover(
 
   const turns = 8;
   const segments = 32;
-  const start = new pc.Vec3(
-    mount.chassisAnchor.x,
-    mount.chassisAnchor.y,
-    mount.chassisAnchor.z,
-  );
-  const end = new pc.Vec3(
-    mount.springArmAnchor.x,
-    mount.springArmAnchor.y,
-    mount.springArmAnchor.z,
-  );
+  const start = chassisAnchor;
+  const end = springArmAnchor;
   const axis = new pc.Vec3().sub2(end, start);
   const length = Math.max(axis.length(), 0.001);
   axis.normalize();

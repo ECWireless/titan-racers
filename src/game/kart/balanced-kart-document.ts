@@ -13,7 +13,8 @@ const UPPER_HOUSING_SIZE = { x: 0.18, y: 0.105, z: 0.195 } as const;
 const TRACK_WIDTH = 0.39;
 const WHEELBASE = 0.3;
 const WHEEL_RADIUS = 0.058;
-const SUSPENSION_CHASSIS_Y = 0.16;
+const SUSPENSION_COMPONENT_CENTER_Y = 0.109;
+const SUSPENSION_REST_SHOCK_LENGTH = 0.102;
 const MOTION_RATIO = Math.sqrt(812.5 / 1_600);
 const BALANCED_KART_VISUAL_IDENTITY = {
   accentColor: "#f4b942",
@@ -55,22 +56,36 @@ function createSuspensionInstance(
   id: string,
   side: "left" | "right",
   axleZ: number,
+  chassisTopY: number,
   mirrorOf: string | null,
 ) {
   const sign = side === "left" ? -1 : 1;
   const hubX = sign * (TRACK_WIDTH / 2);
   const armPivotX = sign * (TRACK_WIDTH / 2 - 0.08);
   const springX = armPivotX + (hubX - armPivotX) * MOTION_RATIO;
+  const chassisAnchorZ = Math.sign(axleZ) * (BODY_SIZE.z / 2);
+  const chassisAnchorX =
+    springX -
+    sign *
+      Math.sqrt(
+        SUSPENSION_REST_SHOCK_LENGTH ** 2 -
+          (chassisTopY - WHEEL_RADIUS) ** 2 -
+          (chassisAnchorZ - axleZ) ** 2,
+      );
   return component(
     id,
     "suspension.firm-short",
     springX,
-    (WHEEL_RADIUS + SUSPENSION_CHASSIS_Y) / 2,
+    SUSPENSION_COMPONENT_CENTER_Y,
     axleZ,
     mirrorOf,
     {
       armPivot: { x: armPivotX, y: WHEEL_RADIUS, z: axleZ },
-      chassisAnchor: { x: springX, y: SUSPENSION_CHASSIS_Y, z: axleZ },
+      chassisAnchor: {
+        x: chassisAnchorX,
+        y: chassisTopY,
+        z: chassisAnchorZ,
+      },
       hubAnchor: { x: hubX, y: WHEEL_RADIUS, z: axleZ },
       springArmAnchor: { x: springX, y: WHEEL_RADIUS, z: axleZ },
     },
@@ -103,6 +118,7 @@ export function createBalancedKartDocument(
   const rearZ = WHEELBASE / 2;
   const wheelX = TRACK_WIDTH / 2;
   const chassisY = WHEEL_RADIUS + 0.025;
+  const chassisTopY = chassisY + BODY_SIZE.y / 2;
   const bumperY = chassisY + 0.047;
 
   const componentInstances: KartAssemblyDocument["componentInstances"] = [
@@ -136,18 +152,32 @@ export function createBalancedKartDocument(
       chassisY + 0.025,
       0,
     ),
-    createSuspensionInstance("suspension-front-left", "left", frontZ, null),
+    createSuspensionInstance(
+      "suspension-front-left",
+      "left",
+      frontZ,
+      chassisTopY,
+      null,
+    ),
     createSuspensionInstance(
       "suspension-front-right",
       "right",
       frontZ,
+      chassisTopY,
       "suspension-front-left",
     ),
-    createSuspensionInstance("suspension-rear-left", "left", rearZ, null),
+    createSuspensionInstance(
+      "suspension-rear-left",
+      "left",
+      rearZ,
+      chassisTopY,
+      null,
+    ),
     createSuspensionInstance(
       "suspension-rear-right",
       "right",
       rearZ,
+      chassisTopY,
       "suspension-rear-left",
     ),
     component(
@@ -323,16 +353,25 @@ export function createBalancedKartDocument(
         primitivePositions[childId] ??
         allInstances.get(childId)!.transform.position;
       const authoredAnchors = primitiveAttachmentAnchors[childId];
+      const suspensionAnchor =
+        allInstances.get(childId)?.suspensionMount?.chassisAnchor ?? null;
       return {
         child: {
-          anchor: authoredAnchors?.child ?? { x: 0, y: 0, z: 0 },
+          anchor:
+            authoredAnchors?.child ??
+            (suspensionAnchor
+              ? relativePosition(suspensionAnchor, childPosition)
+              : { x: 0, y: 0, z: 0 }),
           instanceId: childId,
         },
         id: `mount-${childId}`,
         parent: {
           anchor:
             authoredAnchors?.parent ??
-            relativePosition(childPosition, chassisPosition),
+            relativePosition(
+              suspensionAnchor ?? childPosition,
+              chassisPosition,
+            ),
           instanceId: "chassis-plate",
         },
       };

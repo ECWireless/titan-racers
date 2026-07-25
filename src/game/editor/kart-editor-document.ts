@@ -712,6 +712,14 @@ export function attachKartInstance(
   if (!parentBounds || !childBounds) {
     throw new Error("Attachment construction geometry is unavailable.");
   }
+  const childDefinition =
+    child.kind === "component"
+      ? getApprovedKartComponent(child.definition)
+      : null;
+  const suspensionChassisAnchor =
+    child.kind === "component" && childDefinition?.category === "suspension"
+      ? child.suspensionMount?.chassisAnchor
+      : null;
   const axisGap = (
     leftMinimum: number,
     leftMaximum: number,
@@ -723,32 +731,52 @@ export function attachKartInstance(
       : rightMaximum < leftMinimum
         ? leftMinimum - rightMaximum
         : 0;
-  const surfaceGap = Math.hypot(
-    axisGap(
-      parentBounds.minimum.x,
-      parentBounds.maximum.x,
-      childBounds.minimum.x,
-      childBounds.maximum.x,
-    ),
-    axisGap(
-      parentBounds.minimum.y,
-      parentBounds.maximum.y,
-      childBounds.minimum.y,
-      childBounds.maximum.y,
-    ),
-    axisGap(
-      parentBounds.minimum.z,
-      parentBounds.maximum.z,
-      childBounds.minimum.z,
-      childBounds.maximum.z,
-    ),
-  );
+  const pointAxisGap = (minimum: number, maximum: number, value: number) =>
+    value < minimum ? minimum - value : value > maximum ? value - maximum : 0;
+  const surfaceGap = suspensionChassisAnchor
+    ? Math.hypot(
+        pointAxisGap(
+          parentBounds.minimum.x,
+          parentBounds.maximum.x,
+          suspensionChassisAnchor.x,
+        ),
+        pointAxisGap(
+          parentBounds.minimum.y,
+          parentBounds.maximum.y,
+          suspensionChassisAnchor.y,
+        ),
+        pointAxisGap(
+          parentBounds.minimum.z,
+          parentBounds.maximum.z,
+          suspensionChassisAnchor.z,
+        ),
+      )
+    : Math.hypot(
+        axisGap(
+          parentBounds.minimum.x,
+          parentBounds.maximum.x,
+          childBounds.minimum.x,
+          childBounds.maximum.x,
+        ),
+        axisGap(
+          parentBounds.minimum.y,
+          parentBounds.maximum.y,
+          childBounds.minimum.y,
+          childBounds.maximum.y,
+        ),
+        axisGap(
+          parentBounds.minimum.z,
+          parentBounds.maximum.z,
+          childBounds.minimum.z,
+          childBounds.maximum.z,
+        ),
+      );
   if (surfaceGap > KART_EDITOR_ATTACHMENT_TOLERANCE_METERS + 1e-9) {
     throw new Error(
       `Move the component within ${KART_EDITOR_ATTACHMENT_TOLERANCE_METERS} m of the target parent before attaching.`,
     );
   }
-  const worldAnchor = {
+  const worldAnchor = suspensionChassisAnchor ?? {
     x: childAttachmentAxis(
       parentBounds.minimum.x,
       parentBounds.maximum.x,

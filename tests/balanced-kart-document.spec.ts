@@ -41,6 +41,12 @@ test("ships a fresh valid Balanced Kart assembly template", () => {
   const frontLeft = components.get("wheel-front-left")!;
   const frontRight = components.get("wheel-front-right")!;
   const rearLeft = components.get("wheel-rear-left")!;
+  const chassis = first.primitiveInstances.find(
+    ({ id }) => id === "chassis-plate",
+  )!;
+  if (chassis.shape !== "box") {
+    throw new Error("Balanced Kart chassis must be a box.");
+  }
   expect(frontRight.transform.position.x - frontLeft.transform.position.x).toBe(
     0.39,
   );
@@ -92,6 +98,43 @@ test("ships a fresh valid Balanced Kart assembly template", () => {
     expect(suspension.suspensionMount?.hubAnchor).toEqual(
       wheel.transform.position,
     );
+    const chassisAnchor = suspension.suspensionMount?.chassisAnchor;
+    expect(chassisAnchor).toBeDefined();
+    expect(chassisAnchor?.y).toBeCloseTo(
+      chassis.transform.position.y + chassis.size.y / 2,
+    );
+    expect(Math.abs(chassisAnchor?.x ?? Infinity)).toBeLessThanOrEqual(
+      chassis.size.x / 2,
+    );
+    expect(Math.abs(chassisAnchor?.z ?? Infinity)).toBeLessThanOrEqual(
+      chassis.size.z / 2,
+    );
+    expect(
+      Math.hypot(
+        (chassisAnchor?.x ?? Infinity) -
+          (suspension.suspensionMount?.springArmAnchor.x ?? -Infinity),
+        (chassisAnchor?.y ?? Infinity) -
+          (suspension.suspensionMount?.springArmAnchor.y ?? -Infinity),
+        (chassisAnchor?.z ?? Infinity) -
+          (suspension.suspensionMount?.springArmAnchor.z ?? -Infinity),
+      ),
+    ).toBeCloseTo(0.102);
+    const suspensionAttachment = first.structuralAttachments.find(
+      ({ child }) => child.instanceId === suspension.id,
+    );
+    expect(suspensionAttachment?.parent.instanceId).toBe(chassis.id);
+    expect(
+      chassis.transform.position.x +
+        (suspensionAttachment?.parent.anchor.x ?? Infinity),
+    ).toBeCloseTo(chassisAnchor?.x ?? -Infinity);
+    expect(
+      chassis.transform.position.y +
+        (suspensionAttachment?.parent.anchor.y ?? Infinity),
+    ).toBeCloseTo(chassisAnchor?.y ?? -Infinity);
+    expect(
+      chassis.transform.position.z +
+        (suspensionAttachment?.parent.anchor.z ?? Infinity),
+    ).toBeCloseTo(chassisAnchor?.z ?? -Infinity);
     expect(
       first.structuralAttachments.find(
         ({ child }) => child.instanceId === wheel.id,

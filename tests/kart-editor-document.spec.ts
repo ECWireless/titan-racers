@@ -114,6 +114,69 @@ test("rejects descendant and mirrored-counterpart structural parents", () => {
   ).toThrow(/Mirrored counterparts/);
 });
 
+test("reattaches suspension from its visible chassis anchor", () => {
+  const document = createBalancedKartDocument();
+  const selection = {
+    id: "suspension-front-left",
+    kind: "component",
+  } as const;
+  const suspension = document.componentInstances.find(
+    ({ id }) => id === selection.id,
+  )!;
+  const retainedIds = collectKartDocumentIds(document);
+
+  expect(
+    canAttachKartInstanceAtCurrentPosition(
+      document,
+      selection,
+      "chassis-plate",
+      retainedIds,
+    ),
+  ).toBe(true);
+  const smallMove = updateKartInstanceTransformAndAttachment(
+    document,
+    selection,
+    {
+      ...suspension.transform,
+      position: {
+        ...suspension.transform.position,
+        z: suspension.transform.position.z + 0.02,
+      },
+    },
+    "chassis-plate",
+    retainedIds,
+    true,
+  );
+  const retainedAttachment = smallMove.structuralAttachments.find(
+    ({ child }) => child.instanceId === selection.id,
+  );
+  expect(retainedAttachment?.parent.instanceId).toBe("chassis-plate");
+  expect(validateKartAssembly(smallMove).success).toBe(true);
+
+  const movedSuspension = smallMove.componentInstances.find(
+    ({ id }) => id === selection.id,
+  )!;
+  const farMove = updateKartInstanceTransformAndAttachment(
+    smallMove,
+    selection,
+    {
+      ...movedSuspension.transform,
+      position: {
+        ...movedSuspension.transform.position,
+        y: movedSuspension.transform.position.y + 0.02,
+      },
+    },
+    "chassis-plate",
+    retainedIds,
+    true,
+  );
+  expect(
+    farMove.structuralAttachments.find(
+      ({ child }) => child.instanceId === selection.id,
+    ),
+  ).toBeUndefined();
+});
+
 test("suppresses mirror alignment for legacy nested counterparts", () => {
   const document = structuredClone(createBalancedKartDocument());
   const selection = {
@@ -443,7 +506,7 @@ test("moves suspension mounting geometry with transformed mirrored components", 
       right.suspensionMount![point].y,
     );
     expect(rotatedRight.suspensionMount![point].z).toBeCloseTo(
-      right.suspensionMount![point].z,
+      right.transform.position.z * 2 - right.suspensionMount![point].z,
     );
   }
 });
