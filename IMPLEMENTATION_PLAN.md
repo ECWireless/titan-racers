@@ -1009,24 +1009,24 @@ tool-specific, and implemented knowledge through the repository Skills Tree.
 
 #### PR 3.3: Admin Kart Builder
 
-- [ ] build a protected kart assembly editor that reuses generalized selection,
+- [x] build a protected kart assembly editor that reuses generalized selection,
       gizmo, snapping, history, responsive inspector, and camera capabilities
       without coupling kart documents to course semantics or requiring
       component engineering,
-- [ ] support freeform placement, attachment, mirroring, and live validation of
+- [x] support freeform placement, attachment, mirroring, and live validation of
       approved component instances plus the accepted bounded structural/visual
       primitives, without exposing component-internal physical statistics,
-- [ ] procedurally render approved suspension units as recognizable coilover
+- [x] procedurally render approved suspension units as recognizable coilover
       elements and provide mirrored, focused editor controls instead of
       miniature mechanical CAD or direct spring/damper statistics,
-- [ ] show dimensions, mass properties, wheel geometry, derived runtime
+- [x] show dimensions, mass properties, wheel geometry, derived runtime
       behavior, and practical player-facing stats without editable raw tuning,
-- [ ] provide controlled test fixtures and complete-race launch from the draft,
-- [ ] support draft save, immutable revision creation, publish, and unpublish,
-- [ ] create and publish the Balanced Kart through the real admin pipeline,
+- [x] provide controlled test fixtures and complete-race launch from the draft,
+- [x] support draft save, immutable revision creation, publish, and unpublish,
+- [x] create and publish the Balanced Kart through the real admin pipeline,
       then replace the transitional reference fixture as the default runtime
       kart before expanding the roster,
-- [ ] verify keyboard, narrow touch, accessible controls, cancellation, and
+- [x] verify keyboard, narrow touch, accessible controls, cancellation, and
       editor/runtime cleanup.
 
 #### PR 3.4: Official Kart Roster And Runtime Integration

@@ -75,7 +75,11 @@ import {
 import type { KartAssemblyDocument } from "@/game/kart/kart-assembly-document";
 import { createBalancedKartDocument } from "@/game/kart/balanced-kart-document";
 import { getApprovedKartComponent } from "@/game/kart/kart-component-registry";
-import { deriveKartSnapshot } from "@/game/kart/kart-derivation";
+import {
+  deriveKartSnapshot,
+  type PersistedResolvedKartSnapshot,
+  type ResolvedKartWheelStation,
+} from "@/game/kart/kart-derivation";
 import { hasRuntimeCompatibleInertia } from "@/game/kart/kart-runtime-compatibility";
 import {
   scaleReferenceKartLength,
@@ -195,6 +199,7 @@ type SoloTimeTrialCanvasProps = {
   courseDocument?: CourseDocument;
   includeCollisionFixtures?: boolean;
   kartDocument?: KartAssemblyDocument;
+  kartSnapshot?: PersistedResolvedKartSnapshot;
   onExit: () => void;
   recordTelemetry?: boolean;
   sessionLabel?: string;
@@ -303,20 +308,24 @@ export function SoloTimeTrialCanvas({
   courseDocument = ROUGH_COURSE_DOCUMENT,
   includeCollisionFixtures = false,
   kartDocument = DEFAULT_BALANCED_KART_DOCUMENT,
+  kartSnapshot,
   onExit,
   recordTelemetry = true,
   sessionLabel,
 }: SoloTimeTrialCanvasProps) {
   const COURSE_DOCUMENT = courseDocument;
   const kartRuntime = useMemo(() => {
-    const snapshot = deriveKartSnapshot(kartDocument);
+    const snapshot = kartSnapshot ?? deriveKartSnapshot(kartDocument);
     if (!hasRuntimeCompatibleInertia(snapshot)) {
       throw new Error(
         "This kart requires principal-axis runtime integration scheduled for PR 3.4.",
       );
     }
     const contactPlaneY =
-      snapshot.geometry.wheelStations.reduce(
+      (
+        snapshot.geometry
+          .wheelStations as readonly ResolvedKartWheelStation[]
+      ).reduce(
         (sum, wheel) => sum + wheel.position.y - wheel.radius,
         0,
       ) / snapshot.geometry.wheelStations.length;
@@ -363,7 +372,7 @@ export function SoloTimeTrialCanvas({
         wheelbase: snapshot.geometry.wheelbase,
       },
     };
-  }, [kartDocument]);
+  }, [kartDocument, kartSnapshot]);
   const {
     ccdConfiguration: KART_CCD_CONFIGURATION,
     centerOfMass: KART_CENTER_OF_MASS_OFFSET,
@@ -1028,10 +1037,11 @@ export function SoloTimeTrialCanvas({
         wheelName: string;
       }> = [];
       const initialHubY =
-        KART_SNAPSHOT.geometry.wheelStations.reduce(
-          (sum, station) => sum + station.position.y,
-          0,
-        ) / KART_SNAPSHOT.geometry.wheelStations.length;
+        (
+          KART_SNAPSHOT.geometry
+            .wheelStations as readonly ResolvedKartWheelStation[]
+        ).reduce((sum, station) => sum + station.position.y, 0) /
+        KART_SNAPSHOT.geometry.wheelStations.length;
 
       KART_SNAPSHOT.geometry.wheelStations.forEach((station) => {
         const { driven, steered } = station;

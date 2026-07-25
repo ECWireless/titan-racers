@@ -11,6 +11,9 @@ import {
 import { CURRENT_GUEST_COURSE_ID } from "@/game/course/course-ids";
 import { publishedCourseRuntimeSchema } from "@/game/course/course-publication";
 import { useControllerMenuNavigation } from "@/game/input/use-controller-menu-navigation";
+import type { KartAssemblyDocument } from "@/game/kart/kart-assembly-document";
+import { BALANCED_KART_ID } from "@/game/kart/balanced-kart-document";
+import { publishedKartRuntimeSchema } from "@/game/kart/kart-publication";
 
 import { SoloTimeTrialCanvas } from "./solo-time-trial-canvas";
 
@@ -25,6 +28,27 @@ const actions = [
   },
 ] as const;
 
+async function loadPublishedCourse() {
+  const response = await fetch(
+    `/api/courses/${CURRENT_GUEST_COURSE_ID}/published`,
+    {
+      cache: "no-store",
+      signal: AbortSignal.timeout(3_000),
+    },
+  );
+  if (!response.ok) throw new Error("Published course unavailable.");
+  return publishedCourseRuntimeSchema.parse(await response.json()).document;
+}
+
+async function loadPublishedKart() {
+  const response = await fetch(`/api/karts/${BALANCED_KART_ID}/published`, {
+    cache: "no-store",
+    signal: AbortSignal.timeout(3_000),
+  });
+  if (!response.ok) throw new Error("Published kart unavailable.");
+  return publishedKartRuntimeSchema.parse(await response.json());
+}
+
 export function PlayHome() {
   const modeMenuRef = useRef<HTMLDivElement | null>(null);
   const [mode, setMode] = useState<"home" | "solo">("home");
@@ -33,6 +57,12 @@ export function PlayHome() {
   const [courseDocument, setCourseDocument] = useState<CourseDocument>(
     ROUGH_COURSE_DOCUMENT,
   );
+  const [kartDocument, setKartDocument] = useState<
+    KartAssemblyDocument | undefined
+  >(undefined);
+  const [kartSnapshot, setKartSnapshot] = useState<
+    Awaited<ReturnType<typeof loadPublishedKart>>["resolvedSnapshot"] | undefined
+  >(undefined);
 
   useControllerMenuNavigation({
     containerRef: modeMenuRef,
@@ -45,35 +75,35 @@ export function PlayHome() {
 
   async function startSoloTimeTrial() {
     setSoloPending(true);
-    let nextCourseDocument = ROUGH_COURSE_DOCUMENT;
-    try {
-      const response = await fetch(
-        `/api/courses/${CURRENT_GUEST_COURSE_ID}/published`,
-        {
-        cache: "no-store",
-        signal: AbortSignal.timeout(3_000),
-        },
-      );
-      if (response.ok) {
-        const publication = publishedCourseRuntimeSchema.parse(
-          await response.json(),
-        );
-        nextCourseDocument = publication.document;
-      }
-    } catch {
-      // The validated bundled sandbox keeps guest play available during an
-      // unavailable database or malformed publication response.
-    } finally {
-      setCourseDocument(nextCourseDocument);
-      setSoloPending(false);
-      setMode("solo");
-    }
+    const [courseResult, kartResult] = await Promise.allSettled([
+      loadPublishedCourse(),
+      loadPublishedKart(),
+    ]);
+    setCourseDocument(
+      courseResult.status === "fulfilled"
+        ? courseResult.value
+        : ROUGH_COURSE_DOCUMENT,
+    );
+    setKartDocument(
+      kartResult.status === "fulfilled"
+        ? kartResult.value.document
+        : undefined,
+    );
+    setKartSnapshot(
+      kartResult.status === "fulfilled"
+        ? kartResult.value.resolvedSnapshot
+        : undefined,
+    );
+    setSoloPending(false);
+    setMode("solo");
   }
 
   if (mode === "solo") {
     return (
       <SoloTimeTrialCanvas
         courseDocument={courseDocument}
+        kartDocument={kartDocument}
+        kartSnapshot={kartSnapshot}
         onExit={() => setMode("home")}
       />
     );
@@ -129,7 +159,7 @@ export function PlayHome() {
                 }
               >
                 {action.label === "Solo Time Trial" && soloPending
-                  ? "Preparing Course…"
+                  ? "Preparing Race…"
                   : action.label}
               </button>
             ))}
