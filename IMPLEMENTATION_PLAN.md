@@ -1021,7 +1021,8 @@ tool-specific, and implemented knowledge through the repository Skills Tree.
       miniature mechanical CAD or direct spring/damper statistics,
 - [x] show dimensions, mass properties, wheel geometry, derived runtime
       behavior, and practical player-facing stats without editable raw tuning,
-- [x] provide controlled test fixtures and complete-race launch from the draft,
+- [x] launch the latest saved compatible kart revision on the current sandbox
+      course, with a bundled course fallback when publication is unavailable,
 - [x] support draft save, immutable revision creation, publish, and unpublish,
 - [x] create and publish the Balanced Kart through the real admin pipeline,
       then replace the transitional reference fixture as the default runtime

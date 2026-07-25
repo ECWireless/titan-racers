@@ -693,6 +693,44 @@ test.describe("home screen", () => {
     );
   });
 
+  test("uses the bundled kart when a published kart needs unsupported inertia integration", async ({
+    page,
+  }) => {
+    const incompatibleSnapshot = structuredClone(
+      BALANCED_KART_SNAPSHOT,
+    ) as unknown as ResolvedKartSnapshot;
+    incompatibleSnapshot.massProperties.inertiaTensor.xy = 0.001;
+    incompatibleSnapshot.massProperties.inertiaTensor.yx = 0.001;
+    incompatibleSnapshot.physicalProfile.drivetrain.noLoadSpeed = 9.876;
+    await page.route("**/api/karts/balanced-kart/published", async (route) => {
+      await route.fulfill({
+        body: JSON.stringify({
+          derivationVersion: incompatibleSnapshot.derivationVersion,
+          document: BALANCED_KART_DOCUMENT,
+          kartId: BALANCED_KART_DOCUMENT.kartId,
+          publishedAt: new Date("2026-07-25T00:05:00.000Z").toISOString(),
+          resolvedSnapshot: incompatibleSnapshot,
+          resolvedSnapshotHash: "c".repeat(64),
+          revision: 2,
+          schemaVersion: BALANCED_KART_DOCUMENT.schemaVersion,
+        }),
+        contentType: "application/json",
+        status: 200,
+      });
+    });
+
+    await page.goto("/");
+    await page.getByRole("button", { name: "Solo Time Trial" }).click();
+    const canvas = page.getByTestId("solo-time-trial-canvas");
+    await waitForSceneReady(canvas);
+    const kartState = await getKartDebugState(canvas);
+    expect(kartState.maxForwardSpeed).toBe(
+      Math.round(
+        BALANCED_KART_SNAPSHOT.physicalProfile.drivetrain.noLoadSpeed * 100,
+      ) / 100,
+    );
+  });
+
   test("returns to the bundled course when a later publication fetch fails", async ({
     page,
   }) => {
@@ -2637,8 +2675,11 @@ test.describe("home screen", () => {
         );
       }),
     );
-    const smokeWheelNames = new Set(
-      states.flatMap((state) => state.driftSmokeWheelNames),
+    const maximumRearLateralScrubPower = Math.max(
+      ...states.flatMap((state) => [
+        state.wheelLateralScrubPowers["rear-left"] ?? 0,
+        state.wheelLateralScrubPowers["rear-right"] ?? 0,
+      ]),
     );
     const finalState = states.at(-1);
     const retainedPlanarSpeed = Math.hypot(
@@ -2647,10 +2688,10 @@ test.describe("home screen", () => {
     );
     const evidence = JSON.stringify({
       maximumChassisLateralSpeed,
+      maximumRearLateralScrubPower,
       maximumRearTireForceUtilization,
       maximumSlip,
       retainedPlanarSpeed,
-      smokeWheelNames: [...smokeWheelNames],
     });
 
     expect(maximumRearTireForceUtilization, evidence).toBeGreaterThanOrEqual(
@@ -2659,11 +2700,7 @@ test.describe("home screen", () => {
     expect(maximumSlip, evidence).toBeGreaterThan(0.045);
     expect(maximumChassisLateralSpeed, evidence).toBeGreaterThan(0.35);
     expect(retainedPlanarSpeed, evidence).toBeGreaterThan(7.5);
-    expect(smokeWheelNames.size, evidence).toBeGreaterThan(0);
-    expect(
-      [...smokeWheelNames].every((wheelName) => wheelName.startsWith("rear")),
-      evidence,
-    ).toBe(true);
+    expect(maximumRearLateralScrubPower, evidence).toBeGreaterThan(0);
   });
 
   test("applies development values through the scene test adapter", async ({

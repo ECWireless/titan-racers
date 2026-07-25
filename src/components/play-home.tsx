@@ -14,6 +14,7 @@ import { useControllerMenuNavigation } from "@/game/input/use-controller-menu-na
 import type { KartAssemblyDocument } from "@/game/kart/kart-assembly-document";
 import { BALANCED_KART_ID } from "@/game/kart/balanced-kart-document";
 import { publishedKartRuntimeSchema } from "@/game/kart/kart-publication";
+import { hasRuntimeCompatibleInertia } from "@/game/kart/kart-runtime-compatibility";
 
 import { SoloTimeTrialCanvas } from "./solo-time-trial-canvas";
 
@@ -46,7 +47,11 @@ async function loadPublishedKart() {
     signal: AbortSignal.timeout(3_000),
   });
   if (!response.ok) throw new Error("Published kart unavailable.");
-  return publishedKartRuntimeSchema.parse(await response.json());
+  const publication = publishedKartRuntimeSchema.parse(await response.json());
+  if (!hasRuntimeCompatibleInertia(publication.resolvedSnapshot)) {
+    throw new Error("Published kart is not compatible with this runtime.");
+  }
+  return publication;
 }
 
 export function PlayHome() {
