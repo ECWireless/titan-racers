@@ -32,6 +32,12 @@ import {
   updateKartInstanceTransformAndAttachment,
   updateKartPrimitiveGeometry,
 } from "@/game/editor/kart-editor-document";
+import {
+  ROUGH_COURSE_DOCUMENT,
+  type CourseDocument,
+} from "@/game/course/course-document";
+import { CURRENT_GUEST_COURSE_ID } from "@/game/course/course-ids";
+import { publishedCourseRuntimeSchema } from "@/game/course/course-publication";
 import type { KartAssemblyDocument } from "@/game/kart/kart-assembly-document";
 import {
   KartAssemblyValidationError,
@@ -49,10 +55,12 @@ import {
   type PersistedKartRevision,
   kartPublicationEventSchema,
   persistedKartRevisionSchema,
+  publishedKartRuntimeSchema,
 } from "@/game/kart/kart-publication";
 import { serializeKartAssemblyDocument } from "@/game/kart/kart-assembly-document";
 import { isEditableKeyboardTarget } from "@/game/input/keyboard-input";
 
+import { SoloTimeTrialCanvas } from "../solo-time-trial-canvas";
 import {
   EditorToolbarIcon,
   type EditorToolbarIconName,
@@ -143,7 +151,15 @@ export function KartEditorShell({
   const [operation, setOperation] = useState<OperationState>({
     status: "idle",
   });
+  const [testSession, setTestSession] = useState<{
+    courseDocument: CourseDocument;
+    kartDocument: KartAssemblyDocument;
+    kartRevision: number;
+  } | null>(null);
+  const [testPending, setTestPending] = useState(false);
   const operationPendingRef = useRef(false);
+  const testButtonRef = useRef<HTMLButtonElement>(null);
+  const testModeTriggerRef = useRef(false);
   const actionsButtonRef = useRef<HTMLButtonElement>(null);
   const actionsContainerRef = useRef<HTMLDivElement>(null);
   const outlinePanelButtonRef = useRef<HTMLButtonElement>(null);
@@ -151,6 +167,15 @@ export function KartEditorShell({
   const inspectorPanelButtonRef = useRef<HTMLButtonElement>(null);
   const inspectorPanelRef = useRef<HTMLElement>(null);
   const issuedIdsRef = useRef(collectKartDocumentIds(revision.document));
+
+  useEffect(() => {
+    if (testSession || !testModeTriggerRef.current) return;
+    const frame = requestAnimationFrame(() => {
+      testButtonRef.current?.focus();
+      testModeTriggerRef.current = false;
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [testSession]);
 
   const validation = useMemo(() => validateKartAssembly(document), [document]);
   const derivation = useMemo(() => {
@@ -383,11 +408,11 @@ export function KartEditorShell({
   }, [history, historyVersion]);
 
   useEffect(() => {
+    if (testSession || signOutPending) return;
     const onKeyDown = (event: KeyboardEvent) => {
       if (
         isEditableKeyboardTarget(event.target) ||
-        operationPendingRef.current ||
-        signOutPending
+        operationPendingRef.current
       ) {
         return;
       }
@@ -547,6 +572,46 @@ export function KartEditorShell({
           : "The edit could not be applied.",
       status: "error",
     });
+  }
+
+  async function startSandboxTest() {
+    testModeTriggerRef.current = true;
+    setTestPending(true);
+    try {
+      const [kartResponse, courseDocument] = await Promise.all([
+        fetch(`/api/karts/${currentRevision.kartId}/published`, {
+          cache: "no-store",
+          signal: AbortSignal.timeout(3_000),
+        }),
+        fetch(`/api/courses/${CURRENT_GUEST_COURSE_ID}/published`, {
+          cache: "no-store",
+          signal: AbortSignal.timeout(3_000),
+        })
+          .then(async (response) =>
+            response.ok
+              ? publishedCourseRuntimeSchema.parse(await response.json())
+                  .document
+              : ROUGH_COURSE_DOCUMENT,
+          )
+          .catch(() => ROUGH_COURSE_DOCUMENT),
+      ]);
+      if (!kartResponse.ok) {
+        throw new Error("The published kart could not be loaded.");
+      }
+      const publishedKart = publishedKartRuntimeSchema.parse(
+        await kartResponse.json(),
+      );
+      setTestSession({
+        courseDocument,
+        kartDocument: publishedKart.document,
+        kartRevision: publishedKart.revision,
+      });
+    } catch (error) {
+      testModeTriggerRef.current = false;
+      showCommandError(error);
+    } finally {
+      setTestPending(false);
+    }
   }
 
   function syncIdentityDraft(nextDocument: KartAssemblyDocument) {
@@ -872,6 +937,18 @@ export function KartEditorShell({
     } catch (error) {
       showCommandError(error);
     }
+  }
+
+  if (testSession) {
+    return (
+      <SoloTimeTrialCanvas
+        courseDocument={testSession.courseDocument}
+        kartDocument={testSession.kartDocument}
+        recordTelemetry={false}
+        sessionLabel={`Published r${testSession.kartRevision} on sandbox course · ${testSession.kartDocument.name}`}
+        onExit={() => setTestSession(null)}
+      />
+    );
   }
 
   return (
@@ -1405,6 +1482,21 @@ export function KartEditorShell({
               </div>
             </section>
           ) : null}
+          <div className="grid gap-1 border-t border-titan-ice/15 bg-[#0b0d0e] p-3">
+            <button
+              aria-busy={testPending}
+              className="titan-button titan-button-primary !min-h-11 !py-2"
+              disabled={testPending || !published}
+              ref={testButtonRef}
+              type="button"
+              onClick={startSandboxTest}
+            >
+              {testPending ? "Loading sandbox…" : "Test published kart"}
+            </button>
+            <p className="text-xs leading-relaxed text-titan-muted">
+              Drive the published kart on the current sandbox course.
+            </p>
+          </div>
           <div className="absolute bottom-3 left-3 right-3 z-20 grid grid-cols-2 gap-2 lg:hidden">
             <button
               aria-controls="kart-outline-panel"
@@ -1695,8 +1787,8 @@ export function KartEditorShell({
                     role="alert"
                   >
                     This asymmetric mass layout can be saved as a private draft,
-                    but it cannot be published until PR 3.4 adds principal-axis
-                    integration.
+                    but it cannot be published or tested until PR 3.4 adds
+                    principal-axis integration.
                   </p>
                 ) : null}
               </div>
@@ -1706,7 +1798,7 @@ export function KartEditorShell({
                   className="border border-titan-rust/50 bg-titan-rust/10 p-3 text-sm text-titan-ice"
                   role="alert"
                 >
-                  Invalid construction cannot be saved or published.
+                  Invalid construction cannot be saved, published, or tested.
                 </p>
                 <ol className="grid gap-2 text-xs">
                   {derivation.issues.slice(0, 10).map((issue, index) => (

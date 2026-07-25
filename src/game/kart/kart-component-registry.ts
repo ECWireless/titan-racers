@@ -492,7 +492,7 @@ export const APPROVED_KART_COMPONENTS = deepFreeze(
       summary: "A compact coilover with firm response and short travel.",
       suspension: {
         bumpStart: 0.027,
-        damperRate: 10,
+        damperRate: 33.23076923076923,
         extendedLength: 0.115,
         mounting: {
           armPivot: {

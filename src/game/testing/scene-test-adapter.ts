@@ -108,6 +108,22 @@ export type KartDebugPose = {
   rotation: Position3;
 };
 
+export type KartVisualDebugState = {
+  bodywork: Position3 | null;
+  component: Position3 | null;
+  suspension: Position3 | null;
+  suspensionCastsShadows: boolean | null;
+  suspensionCoil: Position3 | null;
+  suspensionCoilCastsShadows: boolean | null;
+  suspensionCoilEnd: Position3 | null;
+  suspensionCoilReceivesShadows: boolean | null;
+  suspensionCoilSegmentCount: number;
+  suspensionCoilWireDiameter: number | null;
+  suspensionReceivesShadows: boolean | null;
+  wheel: Position3 | null;
+  wheelHubPosition: Position3 | null;
+};
+
 export type PresentationDebugState = {
   cameraTrackedPosition: Position3;
   physicsPosition: Position3;
@@ -143,6 +159,7 @@ export type SceneTestApi = {
   getCollisionResponseDebugState: () => CollisionResponseDebugState;
   getKartDebugState: () => KartDebugState;
   getKartScreenPoint: () => CanvasPoint;
+  getKartVisualDebugState: () => KartVisualDebugState;
   getPresentationDebugState: () => PresentationDebugState;
   getRaceDebugState: () => RaceDebugState;
   getSuspensionDebugState: () => SuspensionDebugState;
@@ -153,9 +170,7 @@ export type SceneTestApi = {
     transform: { position?: Position3; rotation?: Position3 },
   ) => void;
   setKartDebugPose: (pose: KartDebugPose) => void;
-  setKartDevelopmentValues: (
-    values: Partial<KartDevelopmentValues>,
-  ) => void;
+  setKartDevelopmentValues: (values: Partial<KartDevelopmentValues>) => void;
   setRaceDebugMovement: (
     previousPosition: Position3,
     currentPosition: Position3,
@@ -220,6 +235,16 @@ export function attachSceneTestAdapter(
         }>,
       ) => {
         event.detail.respond(api.getKartScreenPoint());
+      }) as EventListener,
+    ],
+    [
+      "getKartVisualDebugState",
+      ((
+        event: CustomEvent<{
+          respond: (state: KartVisualDebugState) => void;
+        }>,
+      ) => {
+        event.detail.respond(api.getKartVisualDebugState());
       }) as EventListener,
     ],
     [

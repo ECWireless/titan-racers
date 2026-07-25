@@ -81,6 +81,24 @@ export const DEFAULT_KART_DEVELOPMENT_VALUES: KartDevelopmentValues = {
   suspensionSpringRate: DEFAULT_KART_PHYSICAL_PROFILE.suspension.springRate,
 };
 
+export function createKartDevelopmentValues(
+  profile: KartPhysicalProfile,
+): KartDevelopmentValues {
+  return {
+    ...DEFAULT_KART_DEVELOPMENT_VALUES,
+    aerodynamicDragArea: profile.aerodynamics.dragArea,
+    maxForwardSpeed: profile.drivetrain.noLoadSpeed,
+    maximumBrakingForce: profile.brakes.maximumServiceBrakeForce,
+    maximumCenterSteerAngle: profile.steering.maximumCenterAngle,
+    maximumDriveForce: profile.drivetrain.maximumDriveForce,
+    maximumHandbrakeForce: profile.brakes.maximumHandbrakeForce,
+    suspensionBumpRate: profile.suspension.bumpRate,
+    suspensionBumpStart: profile.suspension.bumpStart,
+    suspensionDamperRate: profile.suspension.damperRate,
+    suspensionSpringRate: profile.suspension.springRate,
+  };
+}
+
 export const KART_DEVELOPMENT_VALUE_METADATA: Record<
   KartDevelopmentValueKey,
   KartDevelopmentValueMetadata
