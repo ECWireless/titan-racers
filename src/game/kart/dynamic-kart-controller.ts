@@ -357,9 +357,11 @@ export class DynamicKartController implements KartController {
         kart.getRotation(),
         new pc.Quat().setFromEulerAngles(0, steerAngle, 0),
       );
-      const hit = this.wheelSweeps
-        .get(wheel.name)
-        ?.sweep(queryStart, queryEnd, sweepRotation);
+      const wheelSweep = this.wheelSweeps.get(wheel.name);
+      if (!wheelSweep) {
+        throw new Error(`Missing wheel sweep for "${wheel.name}"`);
+      }
+      const hit = wheelSweep.sweep(queryStart, queryEnd, sweepRotation);
 
       if (!hit) {
         continue;
