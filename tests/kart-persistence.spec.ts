@@ -27,6 +27,8 @@ import {
   type ResolvedKartSnapshot,
   type ResolvedKartSnapshotV1,
 } from "../src/game/kart/kart-derivation";
+import { createBalancedKartDocument } from "../src/game/kart/balanced-kart-document";
+import { hasRuntimeCompatibleInertia } from "../src/game/kart/kart-runtime-compatibility";
 import {
   KartConflictError,
   KartPublicationConflictError,
@@ -351,7 +353,7 @@ test.describe("kart persistence and authorization", () => {
     );
     await db.insert(userRoles).values({ role: "admin", userId: savedUser.id });
     const kartId = `publication-${randomUUID()}`;
-    const firstDocument = createValidKartAssembly({ kartId });
+    const firstDocument = createBalancedKartDocument(kartId);
     await saveKartRevision({
       authorUserId: savedUser.id,
       document: firstDocument,
@@ -362,6 +364,27 @@ test.describe("kart persistence and authorization", () => {
       authorUserId: savedUser.id,
       document: { ...structuredClone(firstDocument), name: "Second Draft" },
       expectedRevision: 1,
+      ownerUserId: savedUser.id,
+    });
+    const incompatibleDocument = structuredClone(firstDocument);
+    const upperHousing = incompatibleDocument.primitiveInstances.find(
+      ({ id }) => id === "upper-housing",
+    );
+    const upperHousingMount = incompatibleDocument.structuralAttachments.find(
+      ({ child }) => child.instanceId === "upper-housing",
+    );
+    if (!upperHousing || !upperHousingMount) {
+      throw new Error("Kart publication fixture is missing its upper housing.");
+    }
+    upperHousing.transform.position.x += 0.01;
+    upperHousingMount.parent.anchor.x += 0.01;
+    expect(
+      hasRuntimeCompatibleInertia(deriveKartSnapshot(incompatibleDocument)),
+    ).toBe(false);
+    await saveKartRevision({
+      authorUserId: savedUser.id,
+      document: incompatibleDocument,
+      expectedRevision: 2,
       ownerUserId: savedUser.id,
     });
 
@@ -430,6 +453,21 @@ test.describe("kart persistence and authorization", () => {
         )
       ).status,
     ).toBe(415);
+    await expect(
+      db
+        .select()
+        .from(kartPublicationEvents)
+        .where(eq(kartPublicationEvents.kartId, kartId)),
+    ).resolves.toEqual([]);
+
+    const incompatibleResponse = await postKartPublication(
+      request({ ...publishPayload, revision: 3 }),
+      context,
+    );
+    expect(incompatibleResponse.status).toBe(422);
+    await expect(incompatibleResponse.json()).resolves.toEqual({
+      error: "The saved kart revision is not compatible with the current runtime.",
+    });
     await expect(
       db
         .select()

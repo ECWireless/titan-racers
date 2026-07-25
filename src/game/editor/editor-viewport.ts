@@ -79,6 +79,7 @@ export function createEditorTransformGizmos(
   layer: pc.Layer,
   options: {
     onTransformEnd: () => void;
+    onTransformMove?: () => void;
     onTransformStart: () => void;
   },
 ) {
@@ -100,6 +101,9 @@ export function createEditorTransformGizmos(
     gizmo.mouseButtons[1] = false;
     gizmo.mouseButtons[2] = false;
     gizmo.on(pc.TransformGizmo.EVENT_TRANSFORMSTART, options.onTransformStart);
+    if (options.onTransformMove) {
+      gizmo.on(pc.TransformGizmo.EVENT_TRANSFORMMOVE, options.onTransformMove);
+    }
     gizmo.on(pc.TransformGizmo.EVENT_TRANSFORMEND, options.onTransformEnd);
   });
 

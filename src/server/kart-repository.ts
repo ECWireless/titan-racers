@@ -21,6 +21,7 @@ import {
   type PersistedResolvedKartSnapshot,
 } from "@/game/kart/kart-derivation";
 import type { DeepReadonly } from "@/game/kart/immutable-registry";
+import { hasRuntimeCompatibleInertia } from "@/game/kart/kart-runtime-compatibility";
 
 export class KartConflictError extends Error {
   constructor() {
@@ -40,6 +41,15 @@ export class KartPublicationTargetError extends Error {
   constructor() {
     super("The requested kart, saved revision, or publication does not exist.");
     this.name = "KartPublicationTargetError";
+  }
+}
+
+export class KartPublicationCompatibilityError extends Error {
+  constructor() {
+    super(
+      "The saved kart revision is not compatible with the current runtime.",
+    );
+    this.name = "KartPublicationCompatibilityError";
   }
 }
 
@@ -333,7 +343,10 @@ export async function publishKartRevision(input: {
     }
 
     const [revision] = await transaction
-      .select({ revision: kartRevisions.revision })
+      .select({
+        resolvedSnapshot: kartRevisions.resolvedSnapshot,
+        revision: kartRevisions.revision,
+      })
       .from(kartRevisions)
       .where(
         and(
@@ -343,6 +356,13 @@ export async function publishKartRevision(input: {
       )
       .limit(1);
     if (!revision) throw new KartPublicationTargetError();
+    if (
+      !hasRuntimeCompatibleInertia(
+        parseResolvedKartSnapshot(revision.resolvedSnapshot),
+      )
+    ) {
+      throw new KartPublicationCompatibilityError();
+    }
 
     if (latest?.action === "publish" && latest.revision === input.revision) {
       return latest;

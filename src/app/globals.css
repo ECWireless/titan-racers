@@ -53,6 +53,11 @@ button {
   cursor: pointer;
 }
 
+button:disabled,
+button[aria-disabled="true"] {
+  cursor: not-allowed;
+}
+
 .titan-button {
   display: inline-flex;
   min-height: 3.25rem;
@@ -73,7 +78,7 @@ button {
     transform 180ms ease;
 }
 
-.titan-button:hover {
+.titan-button:hover:not(:disabled) {
   transform: translateY(-1px);
 }
 
@@ -121,7 +126,7 @@ button {
   font-size: 1rem;
 }
 
-.editor-tool-button:hover:not(:disabled) {
+.editor-tool-button:hover:not(:disabled):not([aria-disabled="true"]) {
   border-color: var(--titan-hazard);
   color: var(--titan-hazard);
 }
@@ -132,7 +137,8 @@ button {
   outline-offset: 2px;
 }
 
-.editor-tool-button:disabled {
+.editor-tool-button:disabled,
+.editor-tool-button[aria-disabled="true"] {
   cursor: not-allowed;
   opacity: 0.3;
 }
@@ -150,15 +156,56 @@ button {
   backdrop-filter: blur(8px);
 }
 
+.editor-input {
+  width: 100%;
+  min-height: 2.75rem;
+  border: 1px solid rgb(247 242 232 / 20%);
+  background: rgb(7 7 6 / 72%);
+  padding: 0.55rem 0.65rem;
+  color: var(--titan-ice);
+}
+
+.editor-input:focus-visible {
+  outline: 2px solid var(--titan-hazard);
+  outline-offset: 2px;
+}
+
+.editor-list-button {
+  min-height: 2.75rem;
+  border: 1px solid rgb(247 242 232 / 18%);
+  background: rgb(7 7 6 / 46%);
+  padding: 0.55rem 0.7rem;
+  text-align: left;
+  color: rgb(247 242 232 / 82%);
+  transition:
+    border-color 120ms ease,
+    color 120ms ease,
+    background-color 120ms ease;
+}
+
+.editor-list-button:hover:not(:disabled) {
+  border-color: var(--titan-hazard);
+  background: rgb(247 185 66 / 6%);
+  color: var(--titan-hazard);
+}
+
+.editor-list-button:focus-visible {
+  outline: 2px solid var(--titan-hazard);
+  outline-offset: 2px;
+}
+
+.editor-list-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.38;
+}
+
 .race-status-hud {
   display: flex;
   justify-content: center;
   max-width: 100%;
   margin-inline: auto;
-  padding:
-    max(0.75rem, env(safe-area-inset-top))
-    max(0.75rem, env(safe-area-inset-right))
-    0
+  padding: max(0.75rem, env(safe-area-inset-top))
+    max(0.75rem, env(safe-area-inset-right)) 0
     max(0.75rem, env(safe-area-inset-left));
   filter: drop-shadow(0 7px 16px rgb(0 0 0 / 54%));
 }
@@ -178,7 +225,14 @@ button {
   box-shadow:
     inset 0 1px 0 rgb(247 242 232 / 10%),
     inset 0 -1px 0 rgb(0 0 0 / 45%);
-  clip-path: polygon(0.65rem 0, 100% 0, 100% calc(100% - 0.65rem), calc(100% - 0.65rem) 100%, 0 100%, 0 0.65rem);
+  clip-path: polygon(
+    0.65rem 0,
+    100% 0,
+    100% calc(100% - 0.65rem),
+    calc(100% - 0.65rem) 100%,
+    0 100%,
+    0 0.65rem
+  );
   backdrop-filter: blur(8px);
 }
 
@@ -198,7 +252,12 @@ button {
   bottom: 0.42rem;
   width: 2.2rem;
   height: 2px;
-  background: linear-gradient(90deg, transparent, var(--titan-rust) 28%, var(--titan-orange));
+  background: linear-gradient(
+    90deg,
+    transparent,
+    var(--titan-rust) 28%,
+    var(--titan-orange)
+  );
   content: "";
   opacity: 0.85;
   transform: skewX(-32deg);
@@ -251,7 +310,12 @@ button {
 .race-status-divider {
   align-self: center;
   height: 2.35rem;
-  background: linear-gradient(180deg, transparent, rgb(247 242 232 / 25%), transparent);
+  background: linear-gradient(
+    180deg,
+    transparent,
+    rgb(247 242 232 / 25%),
+    transparent
+  );
 }
 
 .race-status-time time {
@@ -269,7 +333,12 @@ button {
   max-width: 92vw;
   padding: 0.15em 0.35em 0.12em;
   border-block: 1px solid rgb(255 189 89 / 35%);
-  background: linear-gradient(90deg, transparent, rgb(7 7 6 / 24%) 18% 82%, transparent);
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgb(7 7 6 / 24%) 18% 82%,
+    transparent
+  );
   color: rgb(247 242 232 / 98%);
   font-size: clamp(2.5rem, 14vw, 7.5rem);
   letter-spacing: -0.05em;
@@ -286,11 +355,13 @@ button {
 }
 
 .race-lifecycle-cue-go {
-  animation: race-lifecycle-cue-reveal 1100ms cubic-bezier(0.2, 0.78, 0.24, 1) both;
+  animation: race-lifecycle-cue-reveal 1100ms cubic-bezier(0.2, 0.78, 0.24, 1)
+    both;
 }
 
 .race-lifecycle-cue-lap {
-  animation: race-lifecycle-cue-reveal 1200ms cubic-bezier(0.2, 0.78, 0.24, 1) both;
+  animation: race-lifecycle-cue-reveal 1200ms cubic-bezier(0.2, 0.78, 0.24, 1)
+    both;
 }
 
 @keyframes race-lifecycle-cue-reveal {

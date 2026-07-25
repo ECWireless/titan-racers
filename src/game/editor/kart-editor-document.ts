@@ -6,10 +6,16 @@ import type {
 import { parseKartAssemblyDocument } from "../kart/kart-assembly-document";
 import {
   addVector,
+  buildComponentMassElements,
+  buildPrimitiveMassElement,
+  combineBounds,
+  multiplyMatrix,
   rotationMatrix,
   subtractVector,
   transformVector,
   transposeMatrix,
+  type KartBounds,
+  type KartMatrix3,
   type KartVector,
 } from "../kart/kart-construction-geometry";
 import {
@@ -17,6 +23,7 @@ import {
   getApprovedKartComponent,
   type KartComponentCategory,
 } from "../kart/kart-component-registry";
+import { resolveApprovedSuspensionMount } from "../kart/kart-suspension-mounting";
 
 export type KartEditorSelection = {
   id: string;
@@ -27,6 +34,7 @@ export type KartPrimitivePreset =
   "box-structure" | "box-body" | "cylinder-guard";
 
 const ZERO_ROTATION = { x: 0, y: 0, z: 0 } as const;
+export const KART_EDITOR_ATTACHMENT_TOLERANCE_METERS = 0.01;
 
 function copyDocument(document: KartAssemblyDocument): KartAssemblyDocument {
   return structuredClone(document);
@@ -44,6 +52,133 @@ function uniqueId(
     if (!issued.has(candidate)) return candidate;
   }
   throw new Error("No available stable ID remains for this item.");
+}
+
+function collectStructuralDescendants(
+  document: KartAssemblyDocument,
+  instanceId: string,
+) {
+  const descendants = new Set<string>();
+  const pending = [instanceId];
+  while (pending.length > 0) {
+    const parentId = pending.pop()!;
+    for (const attachment of document.structuralAttachments) {
+      if (attachment.parent.instanceId !== parentId) continue;
+      const childId = attachment.child.instanceId;
+      if (descendants.has(childId)) continue;
+      descendants.add(childId);
+      pending.push(childId);
+    }
+  }
+  descendants.delete(instanceId);
+  return descendants;
+}
+
+function areStructurallyNested(
+  document: KartAssemblyDocument,
+  firstId: string,
+  secondId: string,
+) {
+  return (
+    collectStructuralDescendants(document, firstId).has(secondId) ||
+    collectStructuralDescendants(document, secondId).has(firstId)
+  );
+}
+
+export function getKartMirrorCounterpartIds(
+  document: KartAssemblyDocument,
+  selection: KartEditorSelection,
+) {
+  const instance = getKartEditorInstance(document, selection);
+  if (!instance) return [];
+  const collection =
+    instance.kind === "component"
+      ? document.componentInstances
+      : document.primitiveInstances;
+  const originalId = instance.mirrorOf ?? instance.id;
+  return collection
+    .filter(
+      (candidate) =>
+        candidate.id !== instance.id &&
+        (candidate.id === originalId || candidate.mirrorOf === originalId),
+    )
+    .map(({ id }) => id);
+}
+
+export function canAlignKartMirrorPair(
+  document: KartAssemblyDocument,
+  selection: KartEditorSelection,
+) {
+  const instance = getKartEditorInstance(document, selection);
+  if (!instance) return false;
+  const counterpartIds = getKartMirrorCounterpartIds(document, selection);
+  return (
+    counterpartIds.length > 0 &&
+    counterpartIds.every(
+      (counterpartId) =>
+        !areStructurallyNested(document, instance.id, counterpartId),
+    )
+  );
+}
+
+function attachmentRejectionReason(
+  document: KartAssemblyDocument,
+  childSelection: KartEditorSelection,
+  parentId: string,
+) {
+  const child = getKartEditorInstance(document, childSelection);
+  const parent = [
+    ...document.componentInstances,
+    ...document.primitiveInstances,
+  ].find(({ id }) => id === parentId);
+  if (!child || !parent || child.id === parent?.id) {
+    return "Choose a different existing parent instance.";
+  }
+  if (collectStructuralDescendants(document, child.id).has(parent.id)) {
+    return "A part cannot be attached beneath one of its descendants.";
+  }
+
+  const parentByChild = new Map(
+    document.structuralAttachments
+      .filter(({ child: endpoint }) => endpoint.instanceId !== child.id)
+      .map((attachment) => [
+        attachment.child.instanceId,
+        attachment.parent.instanceId,
+      ]),
+  );
+  parentByChild.set(child.id, parent.id);
+  const isAncestor = (ancestorId: string, descendantId: string) => {
+    const visited = new Set<string>();
+    let currentId: string | undefined = descendantId;
+    while (currentId && parentByChild.has(currentId)) {
+      if (visited.has(currentId)) return true;
+      visited.add(currentId);
+      currentId = parentByChild.get(currentId);
+      if (currentId === ancestorId) return true;
+    }
+    return false;
+  };
+  for (const instance of [
+    ...document.componentInstances,
+    ...document.primitiveInstances,
+  ]) {
+    if (
+      instance.mirrorOf &&
+      (isAncestor(instance.id, instance.mirrorOf) ||
+        isAncestor(instance.mirrorOf, instance.id))
+    ) {
+      return "Mirrored counterparts cannot be nested in the same structural branch.";
+    }
+  }
+  return null;
+}
+
+export function canAttachKartInstanceTo(
+  document: KartAssemblyDocument,
+  childSelection: KartEditorSelection,
+  parentId: string,
+) {
+  return attachmentRejectionReason(document, childSelection, parentId) === null;
 }
 
 export function collectKartDocumentIds(
@@ -119,6 +254,73 @@ function applyInstanceTransform(
   instance.transform = transform;
 }
 
+function rotationDegreesFromMatrix(matrix: KartMatrix3): KartVector {
+  const y = Math.asin(Math.max(-1, Math.min(1, matrix[2])));
+  const nearGimbalLock = Math.abs(matrix[2]) >= 0.9999999;
+  const x = nearGimbalLock
+    ? Math.atan2(matrix[7], matrix[4])
+    : Math.atan2(-matrix[5], matrix[8]);
+  const z = nearGimbalLock ? 0 : Math.atan2(-matrix[1], matrix[0]);
+  const toDegrees = 180 / Math.PI;
+  return { x: x * toDegrees, y: y * toDegrees, z: z * toDegrees };
+}
+
+function applyTransformWithDescendants(
+  document: KartAssemblyDocument,
+  instance: KartAssemblyComponentInstance | KartAssemblyPrimitiveInstance,
+  transform: KartAssemblyComponentInstance["transform"],
+  movedIds: Set<string>,
+) {
+  if (movedIds.has(instance.id)) return;
+  const previousTransform = structuredClone(instance.transform);
+  applyInstanceTransform(instance, transform);
+  movedIds.add(instance.id);
+
+  const previousRotation = rotationMatrix(previousTransform.rotationDegrees);
+  const nextRotation = rotationMatrix(transform.rotationDegrees);
+  const rotationDelta = multiplyMatrix(
+    nextRotation,
+    transposeMatrix(previousRotation),
+  );
+  const instances = new Map(
+    [...document.componentInstances, ...document.primitiveInstances].map(
+      (candidate) => [candidate.id, candidate],
+    ),
+  );
+
+  for (const attachment of document.structuralAttachments) {
+    if (attachment.parent.instanceId !== instance.id) continue;
+    const child = instances.get(attachment.child.instanceId);
+    if (!child || movedIds.has(child.id)) continue;
+    const previousChildTransform = structuredClone(child.transform);
+    const childLocalPosition = transformVector(
+      transposeMatrix(previousRotation),
+      subtractVector(
+        previousChildTransform.position,
+        previousTransform.position,
+      ),
+    );
+    const nextChildTransform = {
+      position: addVector(
+        transformVector(nextRotation, childLocalPosition),
+        transform.position,
+      ),
+      rotationDegrees: rotationDegreesFromMatrix(
+        multiplyMatrix(
+          rotationDelta,
+          rotationMatrix(previousChildTransform.rotationDegrees),
+        ),
+      ),
+    };
+    applyTransformWithDescendants(
+      document,
+      child,
+      nextChildTransform,
+      movedIds,
+    );
+  }
+}
+
 export function updateKartInstanceTransform(
   document: KartAssemblyDocument,
   selection: KartEditorSelection,
@@ -134,28 +336,37 @@ export function updateKartInstanceTransform(
       : next.primitiveInstances;
   const instance = collection.find(({ id }) => id === selection.id);
   if (!instance) return document;
-  applyInstanceTransform(instance, transform);
+  const originalId = instance.mirrorOf ?? instance.id;
+  const movedIds = new Set<string>();
+  applyTransformWithDescendants(next, instance, transform, movedIds);
 
   if (mirrorPair) {
-    const originalId = instance.mirrorOf ?? instance.id;
     const counterpart = collection.find(
       (candidate) =>
         candidate.id !== instance.id &&
         (candidate.id === originalId || candidate.mirrorOf === originalId),
     );
-    if (counterpart) {
-      applyInstanceTransform(counterpart, {
-        position: {
-          x: -transform.position.x,
-          y: transform.position.y,
-          z: transform.position.z,
+    if (
+      counterpart &&
+      !areStructurallyNested(next, instance.id, counterpart.id)
+    ) {
+      applyTransformWithDescendants(
+        next,
+        counterpart,
+        {
+          position: {
+            x: -transform.position.x,
+            y: transform.position.y,
+            z: transform.position.z,
+          },
+          rotationDegrees: {
+            x: transform.rotationDegrees.x,
+            y: -transform.rotationDegrees.y,
+            z: -transform.rotationDegrees.z,
+          },
         },
-        rotationDegrees: {
-          x: transform.rotationDegrees.x,
-          y: -transform.rotationDegrees.y,
-          z: -transform.rotationDegrees.z,
-        },
-      });
+        movedIds,
+      );
     }
   }
 
@@ -249,7 +460,16 @@ export function addKartPrimitive(
           ? ("guard" as const)
           : ("structure" as const),
     transform: {
-      position: { x: 0, y: 0.15, z: 0 },
+      position: {
+        x: 0,
+        y:
+          preset === "box-body"
+            ? 0.148
+            : preset === "cylinder-guard"
+              ? 0.13
+              : 0.128,
+        z: 0,
+      },
       rotationDegrees: { ...ZERO_ROTATION },
     },
   };
@@ -291,26 +511,23 @@ export function addKartComponent(
   }
   const id = uniqueId(document, category, retainedIds);
   const position = { x: 0, y: 0.15, z: 0 };
-  const suspensionMount =
-    category === "suspension"
-      ? {
-          armPivot: { x: -0.04, y: 0.06, z: 0 },
-          chassisAnchor: { x: 0, y: 0.18, z: 0 },
-          hubAnchor: { x: -0.1, y: 0.06, z: 0 },
-          springArmAnchor: { x: -0.02, y: 0.06, z: 0 },
-        }
-      : null;
   const instance: KartAssemblyComponentInstance = {
     definition: { id: definition.id, version: definition.version },
     id,
     kind: "component",
     mirrorOf: null,
-    suspensionMount,
+    suspensionMount: null,
     transform: {
       position,
       rotationDegrees: { ...ZERO_ROTATION },
     },
   };
+  if (definition.category === "suspension") {
+    instance.suspensionMount = resolveApprovedSuspensionMount(
+      instance,
+      definition,
+    );
+  }
   const next = parseKartAssemblyDocument({
     ...document,
     componentInstances: [...document.componentInstances, instance],
@@ -342,6 +559,12 @@ export function replaceKartComponentDefinition(
       candidate.id === originalId || candidate.mirrorOf === originalId,
   )) {
     member.definition = { id: definition.id, version: definition.version };
+    if (definition.category === "suspension") {
+      member.suspensionMount = resolveApprovedSuspensionMount(
+        member,
+        definition,
+      );
+    }
   }
   return parseKartAssemblyDocument(next);
 }
@@ -413,18 +636,114 @@ export function attachKartInstance(
     ...document.componentInstances,
     ...document.primitiveInstances,
   ].find(({ id }) => id === parentId);
-  if (!child || !parent || child.id === parent.id) {
-    throw new Error("Choose a different existing parent instance.");
+  const rejectionReason = attachmentRejectionReason(
+    document,
+    childSelection,
+    parentId,
+  );
+  if (rejectionReason) throw new Error(rejectionReason);
+  if (!child || !parent) throw new Error("Choose an existing parent instance.");
+  const constructionBounds = (
+    instance: typeof child | typeof parent,
+  ): KartBounds | null => {
+    try {
+      if (instance.kind === "primitive") {
+        return buildPrimitiveMassElement(instance).bounds;
+      }
+      const definition = getApprovedKartComponent(instance.definition);
+      if (!definition) return null;
+      return combineBounds(
+        buildComponentMassElements(instance, definition).map(
+          ({ bounds }) => bounds,
+        ),
+      );
+    } catch {
+      return null;
+    }
+  };
+  const childAttachmentAxis = (
+    parentMinimum: number,
+    parentMaximum: number,
+    childMinimum: number,
+    childMaximum: number,
+  ) => {
+    const overlapMinimum = Math.max(parentMinimum, childMinimum);
+    const overlapMaximum = Math.min(parentMaximum, childMaximum);
+    if (overlapMinimum <= overlapMaximum) {
+      return (overlapMinimum + overlapMaximum) / 2;
+    }
+    return parentMaximum < childMinimum ? childMinimum : childMaximum;
+  };
+  const parentBounds = constructionBounds(parent);
+  const childBounds = constructionBounds(child);
+  if (!parentBounds || !childBounds) {
+    throw new Error("Attachment construction geometry is unavailable.");
   }
-  const worldDelta = subtractVector(
-    child.transform.position,
-    parent.transform.position,
+  const axisGap = (
+    leftMinimum: number,
+    leftMaximum: number,
+    rightMinimum: number,
+    rightMaximum: number,
+  ) =>
+    leftMaximum < rightMinimum
+      ? rightMinimum - leftMaximum
+      : rightMaximum < leftMinimum
+        ? leftMinimum - rightMaximum
+        : 0;
+  const surfaceGap = Math.hypot(
+    axisGap(
+      parentBounds.minimum.x,
+      parentBounds.maximum.x,
+      childBounds.minimum.x,
+      childBounds.maximum.x,
+    ),
+    axisGap(
+      parentBounds.minimum.y,
+      parentBounds.maximum.y,
+      childBounds.minimum.y,
+      childBounds.maximum.y,
+    ),
+    axisGap(
+      parentBounds.minimum.z,
+      parentBounds.maximum.z,
+      childBounds.minimum.z,
+      childBounds.maximum.z,
+    ),
   );
-  const parentAnchor = transformVector(
-    transposeMatrix(rotationMatrix(parent.transform.rotationDegrees)),
-    worldDelta,
-  );
-  const attachmentId = uniqueId(document, `mount-${child.id}`, retainedIds);
+  if (surfaceGap > KART_EDITOR_ATTACHMENT_TOLERANCE_METERS + 1e-9) {
+    throw new Error(
+      `Move the component within ${KART_EDITOR_ATTACHMENT_TOLERANCE_METERS} m of the target parent before attaching.`,
+    );
+  }
+  const worldAnchor = {
+    x: childAttachmentAxis(
+      parentBounds.minimum.x,
+      parentBounds.maximum.x,
+      childBounds.minimum.x,
+      childBounds.maximum.x,
+    ),
+    y: childAttachmentAxis(
+      parentBounds.minimum.y,
+      parentBounds.maximum.y,
+      childBounds.minimum.y,
+      childBounds.maximum.y,
+    ),
+    z: childAttachmentAxis(
+      parentBounds.minimum.z,
+      parentBounds.maximum.z,
+      childBounds.minimum.z,
+      childBounds.maximum.z,
+    ),
+  };
+  const localAnchor = (instance: typeof child | typeof parent) =>
+    transformVector(
+      transposeMatrix(rotationMatrix(instance.transform.rotationDegrees)),
+      subtractVector(worldAnchor, instance.transform.position),
+    );
+  const attachmentId =
+    document.structuralAttachments.find(
+      ({ child: endpoint }) => endpoint.instanceId === child.id,
+    )?.id ?? uniqueId(document, `mount-${child.id}`, retainedIds);
   return parseKartAssemblyDocument({
     ...document,
     structuralAttachments: [
@@ -433,14 +752,110 @@ export function attachKartInstance(
       ),
       {
         child: {
-          anchor: { x: 0, y: 0, z: 0 },
+          anchor: localAnchor(child),
           instanceId: child.id,
         },
         id: attachmentId,
-        parent: { anchor: parentAnchor, instanceId: parent.id },
+        parent: { anchor: localAnchor(parent), instanceId: parent.id },
       },
     ],
   });
+}
+
+export function detachKartInstance(
+  document: KartAssemblyDocument,
+  selection: KartEditorSelection,
+) {
+  return parseKartAssemblyDocument({
+    ...document,
+    structuralAttachments: document.structuralAttachments.filter(
+      ({ child }) => child.instanceId !== selection.id,
+    ),
+  });
+}
+
+function reconcileExistingKartInstanceAttachments(
+  document: KartAssemblyDocument,
+  targets: Array<{ parentId: string; selection: KartEditorSelection }>,
+  retainedIds: ReadonlySet<string>,
+) {
+  let candidate = document;
+  for (const target of targets) {
+    if (!target.parentId) {
+      candidate = detachKartInstance(candidate, target.selection);
+      continue;
+    }
+    try {
+      candidate = attachKartInstance(
+        candidate,
+        target.selection,
+        target.parentId,
+        retainedIds,
+      );
+    } catch {
+      candidate = detachKartInstance(candidate, target.selection);
+    }
+  }
+
+  return candidate;
+}
+
+export function canAttachKartInstanceAtCurrentPosition(
+  document: KartAssemblyDocument,
+  selection: KartEditorSelection,
+  parentId: string,
+  retainedIds: ReadonlySet<string>,
+) {
+  if (!parentId) return false;
+  try {
+    attachKartInstance(document, selection, parentId, retainedIds);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export function updateKartInstanceTransformAndAttachment(
+  document: KartAssemblyDocument,
+  selection: KartEditorSelection,
+  transform: KartAssemblyComponentInstance["transform"],
+  _targetParentId: string,
+  retainedIds: ReadonlySet<string>,
+  mirrorPair = false,
+) {
+  const next = updateKartInstanceTransform(
+    document,
+    selection,
+    transform,
+    mirrorPair,
+  );
+  const targets: Array<{ parentId: string; selection: KartEditorSelection }> =
+    [];
+  const selectedAttachment = document.structuralAttachments.find(
+    ({ child }) => child.instanceId === selection.id,
+  );
+  if (selectedAttachment) {
+    targets.push({
+      parentId: selectedAttachment.parent.instanceId,
+      selection,
+    });
+  }
+  if (mirrorPair) {
+    for (const counterpartId of getKartMirrorCounterpartIds(
+      document,
+      selection,
+    )) {
+      const counterpartAttachment = document.structuralAttachments.find(
+        ({ child }) => child.instanceId === counterpartId,
+      );
+      if (!counterpartAttachment) continue;
+      targets.push({
+        parentId: counterpartAttachment.parent.instanceId,
+        selection: { id: counterpartId, kind: selection.kind },
+      });
+    }
+  }
+  return reconcileExistingKartInstanceAttachments(next, targets, retainedIds);
 }
 
 export function updateSuspensionMountPoint(

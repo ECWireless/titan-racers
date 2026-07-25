@@ -9,9 +9,11 @@ import {
   getApprovedKartComponent,
 } from "../kart/kart-component-registry";
 import {
+  canAttachKartInstanceAtCurrentPosition,
   type KartEditorSelection,
   getKartEditorInstance,
-  updateKartInstanceTransform,
+  getKartMirrorCounterpartIds,
+  updateKartInstanceTransformAndAttachment,
   updateKartPrimitiveGeometry,
 } from "./kart-editor-document";
 import {
@@ -22,10 +24,17 @@ import {
 } from "./editor-viewport";
 
 type KartEditorSceneOptions = {
+  attachmentParentId: string;
   mirrorPair: boolean;
-  onCameraChange: () => void;
+  onCameraChange: (pivot: { x: number; y: number; z: number }) => void;
   onDocumentChange: (label: string, document: KartAssemblyDocument) => void;
-  onSelectionChange: (selection: KartEditorSelection) => void;
+  onDocumentBoundsChange: (center: { x: number; y: number; z: number }) => void;
+  onSelectionChange: (selection: KartEditorSelection | null) => void;
+  onTransformStateChange: (
+    state: "attachable" | "invalid" | "valid" | null,
+  ) => void;
+  retainedIds: ReadonlySet<string>;
+  selectionState: "attachable" | "invalid" | "valid";
 };
 
 type PointerState = {
@@ -42,6 +51,7 @@ type PointerState = {
 };
 
 const POINTER_MOVE_THRESHOLD = 5;
+export const KART_EDITOR_TRANSLATE_SNAP = 0.005;
 
 export function shouldTrackKartEditorPointerDown({
   defaultPrevented,
@@ -79,14 +89,18 @@ export class KartEditorScene {
   private canvas: HTMLCanvasElement;
   private currentDocument: KartAssemblyDocument;
   private instanceEntities = new Map<string, pc.Entity>();
+  private interactionEnabled = true;
   private lastTouchDistance: number | null = null;
   private lastTouchMidpoint: { x: number; y: number } | null = null;
   private options: KartEditorSceneOptions;
   private pointerCleanup: (() => void) | null = null;
+  private previewedInstanceIds = new Set<string>();
   private primaryMaterial: pc.StandardMaterial;
   private accentMaterial: pc.StandardMaterial;
   private selection: KartEditorSelection | null;
   private tool: EditorTransformTool = "translate";
+  private transformPreviewState: "attachable" | "invalid" | "valid" | null =
+    null;
 
   constructor(
     canvas: HTMLCanvasElement,
@@ -142,12 +156,15 @@ export class KartEditorScene {
       this.gizmoLayer,
       {
         onTransformEnd: () => this.commitRuntimeTransform(),
+        onTransformMove: () => this.previewRuntimeTransform(),
         onTransformStart: () => {
           this.activeTransformDocument = this.currentDocument;
+          this.previewRuntimeTransform();
         },
       },
     );
     this.translateGizmo = gizmos.translate;
+    this.translateGizmo.snapIncrement = KART_EDITOR_TRANSLATE_SNAP;
     this.rotateGizmo = gizmos.rotate;
     this.scaleGizmo = gizmos.scale;
     this.picker = new pc.Picker(this.app, 1, 1);
@@ -178,13 +195,11 @@ export class KartEditorScene {
   frameSelection() {
     const entity = this.selection
       ? this.instanceEntities.get(this.selection.id)
-      : null;
-    if (entity) {
-      this.editorCamera.pivot.copy(entity.getPosition());
-    } else {
-      this.editorCamera.pivot.set(0, 0.11, 0);
-    }
+      : this.documentRoot;
+    const center = entity ? getRenderedBoundsCenter(entity) : null;
+    this.editorCamera.pivot.copy(center ?? new pc.Vec3(0, 0.11, 0));
     this.editorCamera.apply(this.camera);
+    this.options.onCameraChange(toVector(this.editorCamera.pivot));
   }
 
   setDocument(document: KartAssemblyDocument) {
@@ -201,11 +216,28 @@ export class KartEditorScene {
     this.rebuildDocument();
   }
 
+  setInteractionEnabled(enabled: boolean) {
+    if (enabled === this.interactionEnabled) return;
+    this.interactionEnabled = enabled;
+    this.activeTransformDocument = null;
+    this.pointers.clear();
+    this.canvas.style.cursor = "";
+    if (enabled) {
+      this.refreshGizmo();
+      return;
+    }
+    this.rebuildDocument();
+  }
+
   setOptions(options: KartEditorSceneOptions) {
+    const selectionStateChanged =
+      options.selectionState !== this.options.selectionState;
     this.options = options;
+    if (selectionStateChanged) this.refreshSelectionHighlight();
   }
 
   setSelection(selection: KartEditorSelection | null) {
+    this.clearTransformPreview(true);
     this.selection = selection;
     this.refreshSelection();
   }
@@ -224,7 +256,10 @@ export class KartEditorScene {
   private attachPointerControls() {
     const onContextMenu = (event: MouseEvent) => event.preventDefault();
     const onPointerDown = (event: PointerEvent) => {
-      if (!shouldTrackKartEditorPointerDown(event)) {
+      if (
+        !this.interactionEnabled ||
+        !shouldTrackKartEditorPointerDown(event)
+      ) {
         return;
       }
       const state: PointerState = {
@@ -256,6 +291,7 @@ export class KartEditorScene {
       }
     };
     const onPointerMove = (event: PointerEvent) => {
+      if (!this.interactionEnabled) return;
       const pointer = this.pointers.get(event.pointerId);
       if (!pointer) return;
       pointer.previousX = pointer.currentX;
@@ -288,11 +324,11 @@ export class KartEditorScene {
       if (orbit) {
         this.editorCamera.orbit(-xDelta * 0.28, yDelta * 0.28);
         this.editorCamera.apply(this.camera);
-        this.options.onCameraChange();
+        this.options.onCameraChange(toVector(this.editorCamera.pivot));
       } else if (pan) {
         this.editorCamera.pan(xDelta, yDelta, 0.004);
         this.editorCamera.apply(this.camera);
-        this.options.onCameraChange();
+        this.options.onCameraChange(toVector(this.editorCamera.pivot));
       }
     };
     const finishPointer = (event: PointerEvent, allowPick: boolean) => {
@@ -317,10 +353,11 @@ export class KartEditorScene {
     const onPointerCancel = (event: PointerEvent) =>
       finishPointer(event, false);
     const onWheel = (event: WheelEvent) => {
+      if (!this.interactionEnabled) return;
       event.preventDefault();
       this.editorCamera.zoom(event.deltaY * 0.0015);
       this.editorCamera.apply(this.camera);
-      this.options.onCameraChange();
+      this.options.onCameraChange(toVector(this.editorCamera.pivot));
     };
 
     this.canvas.addEventListener("contextmenu", onContextMenu);
@@ -344,28 +381,10 @@ export class KartEditorScene {
   private commitRuntimeTransform() {
     const baseline = this.activeTransformDocument;
     this.activeTransformDocument = null;
-    if (!baseline || !this.selection) return;
-    const entity = this.instanceEntities.get(this.selection.id);
-    if (!entity) return;
-
-    let next = updateKartInstanceTransform(
-      baseline,
-      this.selection,
-      {
-        position: toVector(entity.getPosition()),
-        rotationDegrees: toVector(entity.getEulerAngles()),
-      },
-      this.options.mirrorPair,
-    );
-    if (this.tool === "scale" && this.selection.kind === "primitive") {
-      const scale = entity.getLocalScale();
-      next = updatePrimitiveSize(
-        next,
-        this.selection.id,
-        scale,
-        this.options.mirrorPair,
-      );
-    }
+    if (!this.interactionEnabled || !baseline || !this.selection) return;
+    const next = this.buildRuntimeTransformDocument(baseline);
+    if (!next) return;
+    this.clearTransformPreview(false);
     this.options.onDocumentChange(
       this.tool === "translate"
         ? "Move instance"
@@ -374,6 +393,119 @@ export class KartEditorScene {
           : "Resize primitive",
       next,
     );
+  }
+
+  private buildRuntimeTransformDocument(baseline: KartAssemblyDocument) {
+    if (!this.selection) return null;
+    const entity = this.instanceEntities.get(this.selection.id);
+    if (!entity) return null;
+    let next = updateKartInstanceTransformAndAttachment(
+      baseline,
+      this.selection,
+      {
+        position: toVector(entity.getPosition()),
+        rotationDegrees: toVector(entity.getEulerAngles()),
+      },
+      this.options.attachmentParentId,
+      this.options.retainedIds,
+      this.options.mirrorPair,
+    );
+    if (this.tool === "scale" && this.selection.kind === "primitive") {
+      next = updatePrimitiveSize(
+        next,
+        this.selection.id,
+        entity.getLocalScale(),
+        this.options.mirrorPair,
+      );
+    }
+    return next;
+  }
+
+  private applyPreviewDocument(document: KartAssemblyDocument) {
+    for (const instance of [
+      ...document.primitiveInstances,
+      ...document.componentInstances,
+    ]) {
+      if (instance.id === this.selection?.id) continue;
+      const entity = this.instanceEntities.get(instance.id);
+      if (!entity) continue;
+      entity.setPosition(
+        instance.transform.position.x,
+        instance.transform.position.y,
+        instance.transform.position.z,
+      );
+      entity.setEulerAngles(
+        instance.transform.rotationDegrees.x,
+        instance.transform.rotationDegrees.y,
+        instance.transform.rotationDegrees.z,
+      );
+      if (instance.kind === "primitive" && instance.shape === "box") {
+        entity.setLocalScale(instance.size.x, instance.size.y, instance.size.z);
+      }
+      this.previewedInstanceIds.add(instance.id);
+    }
+  }
+
+  private restorePreviewedInstances() {
+    for (const id of this.previewedInstanceIds) {
+      const instance = [
+        ...this.currentDocument.primitiveInstances,
+        ...this.currentDocument.componentInstances,
+      ].find((candidate) => candidate.id === id);
+      const entity = this.instanceEntities.get(id);
+      if (!instance || !entity) continue;
+      entity.setPosition(
+        instance.transform.position.x,
+        instance.transform.position.y,
+        instance.transform.position.z,
+      );
+      entity.setEulerAngles(
+        instance.transform.rotationDegrees.x,
+        instance.transform.rotationDegrees.y,
+        instance.transform.rotationDegrees.z,
+      );
+      if (instance.kind === "primitive" && instance.shape === "box") {
+        entity.setLocalScale(instance.size.x, instance.size.y, instance.size.z);
+      }
+    }
+    this.previewedInstanceIds.clear();
+  }
+
+  private previewRuntimeTransform() {
+    const baseline = this.activeTransformDocument;
+    if (!this.interactionEnabled || !baseline) return;
+    const next = this.buildRuntimeTransformDocument(baseline);
+    if (!next) return;
+    const attached = next.structuralAttachments.some(
+      ({ child }) => child.instanceId === this.selection?.id,
+    );
+    const state = attached
+      ? "valid"
+      : this.selection &&
+          this.options.attachmentParentId &&
+          canAttachKartInstanceAtCurrentPosition(
+            next,
+            this.selection,
+            this.options.attachmentParentId,
+            this.options.retainedIds,
+          )
+        ? "attachable"
+        : this.options.attachmentParentId === "" &&
+            this.options.selectionState === "valid"
+          ? "valid"
+          : "invalid";
+    this.applyPreviewDocument(next);
+    this.transformPreviewState = state;
+    this.options.onTransformStateChange(state);
+    this.refreshSelectionHighlight();
+  }
+
+  private clearTransformPreview(restoreInstances = true) {
+    if (restoreInstances) this.restorePreviewedInstances();
+    else this.previewedInstanceIds.clear();
+    this.transformPreviewState = null;
+    this.options.onTransformStateChange(null);
+    this.refreshSelectionHighlight();
   }
 
   private pickSelection(x: number, y: number) {
@@ -392,6 +524,7 @@ export class KartEditorScene {
         node = node.parent;
       }
     }
+    this.options.onSelectionChange(null);
   }
 
   private rebuildDocument() {
@@ -458,6 +591,10 @@ export class KartEditorScene {
       }
     }
 
+    const documentCenter = getRenderedBoundsCenter(this.documentRoot);
+    if (documentCenter) {
+      this.options.onDocumentBoundsChange(toVector(documentCenter));
+    }
     this.refreshSelection();
   }
 
@@ -471,27 +608,44 @@ export class KartEditorScene {
   }
 
   private refreshSelection() {
+    this.refreshSelectionHighlight();
+    this.refreshGizmo();
+  }
+
+  private refreshSelectionHighlight() {
     const selectedId = this.selection?.id;
+    const selectionState =
+      this.transformPreviewState ?? this.options.selectionState;
+    const mirrorCounterpartIds = new Set(
+      this.selection
+        ? getKartMirrorCounterpartIds(this.currentDocument, this.selection)
+        : [],
+    );
     for (const [id, root] of this.instanceEntities) {
       root.forEach((node) => {
         if (!(node instanceof pc.Entity)) return;
         node.model?.meshInstances?.forEach((mesh) => {
-          if (id === selectedId) {
+          if (id === selectedId && selectionState === "invalid") {
+            mesh.setParameter("material_emissive", [0.95, 0.03, 0.02]);
+          } else if (id === selectedId && selectionState === "attachable") {
+            mesh.setParameter("material_emissive", [0.95, 0.55, 0.03]);
+          } else if (id === selectedId) {
             mesh.setParameter("material_emissive", [0.08, 0.65, 0.9]);
+          } else if (mirrorCounterpartIds.has(id)) {
+            mesh.setParameter("material_emissive", [1, 0.36, 0.04]);
           } else {
             mesh.deleteParameter("material_emissive");
           }
         });
       });
     }
-    this.refreshGizmo();
   }
 
   private refreshGizmo() {
     this.translateGizmo.detach();
     this.rotateGizmo.detach();
     this.scaleGizmo.detach();
-    if (!this.selection) return;
+    if (!this.interactionEnabled || !this.selection) return;
     const entity = this.instanceEntities.get(this.selection.id);
     if (!entity) return;
     const instance = getKartEditorInstance(
@@ -561,6 +715,29 @@ export class KartEditorScene {
     this.lastTouchMidpoint = midpoint;
     this.editorCamera.apply(this.camera);
   }
+}
+
+function getRenderedBoundsCenter(root: pc.Entity) {
+  const minimum = new pc.Vec3(
+    Number.POSITIVE_INFINITY,
+    Number.POSITIVE_INFINITY,
+    Number.POSITIVE_INFINITY,
+  );
+  const maximum = new pc.Vec3(
+    Number.NEGATIVE_INFINITY,
+    Number.NEGATIVE_INFINITY,
+    Number.NEGATIVE_INFINITY,
+  );
+  let found = false;
+  root.forEach((node) => {
+    if (!(node instanceof pc.Entity)) return;
+    node.model?.meshInstances?.forEach(({ aabb }) => {
+      found = true;
+      minimum.min(aabb.getMin());
+      maximum.max(aabb.getMax());
+    });
+  });
+  return found ? minimum.add(maximum).mulScalar(0.5) : null;
 }
 
 function createPrimitiveEntity(

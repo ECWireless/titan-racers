@@ -693,6 +693,28 @@ A compact coilover with firm response and short travel.
     "bumpStart": 0.027,
     "damperRate": 10,
     "extendedLength": 0.115,
+    "mounting": {
+      "armPivot": {
+        "x": 0.057008771254956896,
+        "y": -0.051,
+        "z": 0
+      },
+      "chassisAnchor": {
+        "x": 0,
+        "y": 0.051,
+        "z": 0
+      },
+      "hubAnchor": {
+        "x": -0.022991228745043106,
+        "y": -0.051,
+        "z": 0
+      },
+      "springArmAnchor": {
+        "x": 0,
+        "y": -0.051,
+        "z": 0
+      }
+    },
     "maximumStroke": 0.035,
     "quadraticBumpRate": 18000,
     "springRate": 1600
@@ -779,6 +801,28 @@ A longer coilover that gives the wheel more compliant travel.
     "bumpStart": 0.04,
     "damperRate": 7,
     "extendedLength": 0.14,
+    "mounting": {
+      "armPivot": {
+        "x": 0.057008771254956896,
+        "y": -0.051,
+        "z": 0
+      },
+      "chassisAnchor": {
+        "x": 0,
+        "y": 0.051,
+        "z": 0
+      },
+      "hubAnchor": {
+        "x": -0.022991228745043106,
+        "y": -0.051,
+        "z": 0
+      },
+      "springArmAnchor": {
+        "x": 0,
+        "y": -0.051,
+        "z": 0
+      }
+    },
     "maximumStroke": 0.052,
     "quadraticBumpRate": 12000,
     "springRate": 900

@@ -3,18 +3,23 @@ import { expect, test } from "@playwright/test";
 import {
   addKartPrimitive,
   attachKartInstance,
+  canAlignKartMirrorPair,
+  canAttachKartInstanceAtCurrentPosition,
+  canAttachKartInstanceTo,
   collectKartDocumentIds,
   deleteKartInstance,
+  getKartMirrorCounterpartIds,
   mirrorKartInstance,
   nudgeKartInstance,
   replaceKartComponentDefinition,
   updateKartIdentity,
   updateKartInstanceTransform,
+  updateKartInstanceTransformAndAttachment,
   updateKartPrimitiveGeometry,
-  updateSuspensionMountPoint,
 } from "../src/game/editor/kart-editor-document";
 import { shouldTrackKartEditorPointerDown } from "../src/game/editor/kart-editor-scene";
 import { createBalancedKartDocument } from "../src/game/kart/balanced-kart-document";
+import { validateKartAssembly } from "../src/game/kart/kart-assembly-validation";
 import { deriveKartSnapshot } from "../src/game/kart/kart-derivation";
 
 test("edits identity and transforms through schema-valid document commands", () => {
@@ -62,6 +67,12 @@ test("adds, attaches, mirrors, and deletes bounded primitives", () => {
       ({ id }) => id === mirrored.selection.id,
     )?.mirrorOf,
   ).toBe(added.selection.id);
+  expect(
+    getKartMirrorCounterpartIds(mirrored.document, added.selection),
+  ).toEqual([mirrored.selection.id]);
+  expect(
+    getKartMirrorCounterpartIds(mirrored.document, mirrored.selection),
+  ).toEqual([added.selection.id]);
 
   const deleted = deleteKartInstance(mirrored.document, added.selection);
   expect(
@@ -69,6 +80,245 @@ test("adds, attaches, mirrors, and deletes bounded primitives", () => {
       ({ id }) => id === added.selection.id || id === mirrored.selection.id,
     ),
   ).toBe(false);
+});
+
+test("rejects descendant and mirrored-counterpart structural parents", () => {
+  const document = createBalancedKartDocument();
+  const suspension = {
+    id: "suspension-front-left",
+    kind: "component",
+  } as const;
+
+  expect(
+    canAttachKartInstanceTo(document, suspension, "wheel-front-left"),
+  ).toBe(false);
+  expect(() =>
+    attachKartInstance(
+      document,
+      suspension,
+      "wheel-front-left",
+      collectKartDocumentIds(document),
+    ),
+  ).toThrow(/descendants/);
+
+  expect(
+    canAttachKartInstanceTo(document, suspension, "suspension-front-right"),
+  ).toBe(false);
+  expect(() =>
+    attachKartInstance(
+      document,
+      suspension,
+      "suspension-front-right",
+      collectKartDocumentIds(document),
+    ),
+  ).toThrow(/Mirrored counterparts/);
+});
+
+test("suppresses mirror alignment for legacy nested counterparts", () => {
+  const document = structuredClone(createBalancedKartDocument());
+  const selection = {
+    id: "suspension-front-left",
+    kind: "component",
+  } as const;
+  const attachment = document.structuralAttachments.find(
+    ({ child }) => child.instanceId === selection.id,
+  )!;
+  attachment.parent.instanceId = "suspension-front-right";
+  const selected = document.componentInstances.find(
+    ({ id }) => id === selection.id,
+  )!;
+  const counterpartBefore = structuredClone(
+    document.componentInstances.find(
+      ({ id }) => id === "suspension-front-right",
+    )!,
+  );
+
+  expect(canAlignKartMirrorPair(document, selection)).toBe(false);
+  const moved = updateKartInstanceTransform(
+    document,
+    selection,
+    {
+      ...selected.transform,
+      position: {
+        ...selected.transform.position,
+        y: selected.transform.position.y + 0.005,
+      },
+    },
+    true,
+  );
+  expect(
+    moved.componentInstances.find(({ id }) => id === counterpartBefore.id)
+      ?.transform,
+  ).toEqual(counterpartBefore.transform);
+});
+
+test("preserves valid attachments, detaches invalid moves, and requires explicit reattachment", () => {
+  const document = createBalancedKartDocument();
+  const selection = { id: "motor-main", kind: "component" } as const;
+  const motor = document.componentInstances.find(
+    ({ id }) => id === selection.id,
+  )!;
+  const originalAttachment = document.structuralAttachments.find(
+    ({ child }) => child.instanceId === selection.id,
+  )!;
+  const retainedIds = collectKartDocumentIds(document);
+  const validMove = updateKartInstanceTransformAndAttachment(
+    document,
+    selection,
+    {
+      ...motor.transform,
+      position: { ...motor.transform.position, x: 0.005 },
+    },
+    "chassis-plate",
+    retainedIds,
+  );
+  const validAttachment = validMove.structuralAttachments.find(
+    ({ child }) => child.instanceId === selection.id,
+  );
+  expect(validAttachment?.id).toBe(originalAttachment.id);
+  expect(validAttachment?.parent.instanceId).toBe("chassis-plate");
+  expect(validateKartAssembly(validMove).success).toBe(true);
+
+  const invalidMove = updateKartInstanceTransformAndAttachment(
+    validMove,
+    selection,
+    {
+      ...motor.transform,
+      position: { ...motor.transform.position, x: 1 },
+    },
+    "chassis-plate",
+    retainedIds,
+  );
+  expect(
+    invalidMove.structuralAttachments.some(
+      ({ child }) => child.instanceId === selection.id,
+    ),
+  ).toBe(false);
+  expect(validateKartAssembly(invalidMove).success).toBe(false);
+
+  const returnedToChassis = updateKartInstanceTransformAndAttachment(
+    invalidMove,
+    selection,
+    {
+      ...motor.transform,
+      position: { ...motor.transform.position, x: 0.005 },
+    },
+    "chassis-plate",
+    retainedIds,
+  );
+  expect(
+    returnedToChassis.structuralAttachments.some(
+      ({ child }) => child.instanceId === selection.id,
+    ),
+  ).toBe(false);
+  expect(
+    canAttachKartInstanceAtCurrentPosition(
+      returnedToChassis,
+      selection,
+      "chassis-plate",
+      retainedIds,
+    ),
+  ).toBe(true);
+
+  const battery = document.componentInstances.find(
+    ({ id }) => id === "battery-main",
+  )!;
+  const retargeted = updateKartInstanceTransformAndAttachment(
+    invalidMove,
+    selection,
+    {
+      ...motor.transform,
+      position: battery.transform.position,
+    },
+    battery.id,
+    retainedIds,
+  );
+  expect(
+    retargeted.structuralAttachments.find(
+      ({ child }) => child.instanceId === selection.id,
+    ),
+  ).toBeUndefined();
+  expect(
+    canAttachKartInstanceAtCurrentPosition(
+      retargeted,
+      selection,
+      battery.id,
+      retainedIds,
+    ),
+  ).toBe(true);
+  const attachedToBattery = attachKartInstance(
+    retargeted,
+    selection,
+    battery.id,
+    retainedIds,
+  );
+  expect(
+    attachedToBattery.structuralAttachments.find(
+      ({ child }) => child.instanceId === selection.id,
+    )?.parent.instanceId,
+  ).toBe(battery.id);
+  expect(validateKartAssembly(attachedToBattery).success).toBe(true);
+});
+
+test("attaches touching construction surfaces when their centers are out of range", () => {
+  const document = createBalancedKartDocument();
+  const selection = { id: "upper-housing", kind: "primitive" } as const;
+  const bodywork = document.primitiveInstances.find(
+    ({ id }) => id === selection.id,
+  )!;
+  const bumper = document.primitiveInstances.find(
+    ({ id }) => id === "rear-bumper",
+  )!;
+  if (bodywork.shape !== "box" || bumper.shape !== "cylinder") {
+    throw new Error("Balanced Kart construction geometry is unavailable.");
+  }
+  const moved = updateKartInstanceTransformAndAttachment(
+    document,
+    selection,
+    {
+      ...bodywork.transform,
+      position: {
+        x: bumper.transform.position.x,
+        y: bumper.transform.position.y,
+        z: bumper.transform.position.z + bumper.radius + bodywork.size.z / 2,
+      },
+    },
+    bumper.id,
+    collectKartDocumentIds(document),
+  );
+  const attachment = moved.structuralAttachments.find(
+    ({ child }) => child.instanceId === selection.id,
+  );
+
+  expect(attachment).toBeUndefined();
+  expect(
+    canAttachKartInstanceAtCurrentPosition(
+      moved,
+      selection,
+      "chassis-plate",
+      collectKartDocumentIds(document),
+    ),
+  ).toBe(false);
+  expect(
+    canAttachKartInstanceAtCurrentPosition(
+      moved,
+      selection,
+      bumper.id,
+      collectKartDocumentIds(document),
+    ),
+  ).toBe(true);
+  const attached = attachKartInstance(
+    moved,
+    selection,
+    bumper.id,
+    collectKartDocumentIds(document),
+  );
+  const bumperAttachment = attached.structuralAttachments.find(
+    ({ child }) => child.instanceId === selection.id,
+  );
+  expect(bumperAttachment?.child.anchor.z).toBeCloseTo(-bodywork.size.z / 2);
+  expect(bumperAttachment?.parent.anchor.z).toBeCloseTo(bumper.radius);
+  expect(validateKartAssembly(attached).success).toBe(true);
 });
 
 test("retains issued IDs after deletion instead of reusing logical identity", () => {
@@ -198,6 +448,89 @@ test("moves suspension mounting geometry with transformed mirrored components", 
   }
 });
 
+test("moves attached descendants with their structural parent", () => {
+  const original = createBalancedKartDocument();
+  const suspension = original.componentInstances.find(
+    ({ id }) => id === "suspension-front-left",
+  )!;
+  const wheelBefore = original.componentInstances.find(
+    ({ id }) => id === "wheel-front-left",
+  )!;
+  const moved = updateKartInstanceTransform(
+    original,
+    { id: suspension.id, kind: "component" },
+    {
+      ...suspension.transform,
+      position: {
+        ...suspension.transform.position,
+        y: suspension.transform.position.y + 0.005,
+      },
+    },
+  );
+  const wheelAfter = moved.componentInstances.find(
+    ({ id }) => id === wheelBefore.id,
+  )!;
+
+  expect(wheelAfter.transform.position.y).toBeCloseTo(
+    wheelBefore.transform.position.y + 0.005,
+  );
+
+  const validation = validateKartAssembly(moved);
+  expect(validation.success).toBe(false);
+  if (validation.success) return;
+  const suspensionAttachmentIndex = moved.structuralAttachments.findIndex(
+    ({ child }) => child.instanceId === suspension.id,
+  );
+  const wheelAttachmentIndex = moved.structuralAttachments.findIndex(
+    ({ child }) => child.instanceId === wheelBefore.id,
+  );
+  expect(validation.issues).toContainEqual(
+    expect.objectContaining({
+      code: "separated-structural-attachment",
+      path: ["structuralAttachments", suspensionAttachmentIndex],
+    }),
+  );
+  expect(validation.issues).not.toContainEqual(
+    expect.objectContaining({
+      code: "separated-structural-attachment",
+      path: ["structuralAttachments", wheelAttachmentIndex],
+    }),
+  );
+});
+
+test("rotates a complete attached subtree without separating descendants", () => {
+  const original = createBalancedKartDocument();
+  const chassis = original.primitiveInstances.find(
+    ({ id }) => id === "chassis-plate",
+  )!;
+  const frontBumperBefore = original.primitiveInstances.find(
+    ({ id }) => id === "front-bumper",
+  )!;
+  const rotated = updateKartInstanceTransform(
+    original,
+    { id: chassis.id, kind: "primitive" },
+    {
+      ...chassis.transform,
+      rotationDegrees: { x: 0, y: 12, z: 0 },
+    },
+  );
+  const frontBumperAfter = rotated.primitiveInstances.find(
+    ({ id }) => id === frontBumperBefore.id,
+  )!;
+
+  expect(frontBumperAfter.transform.position).not.toEqual(
+    frontBumperBefore.transform.position,
+  );
+  expect(frontBumperAfter.transform.rotationDegrees.y).toBeCloseTo(12);
+  const validation = validateKartAssembly(rotated);
+  if (validation.success) return;
+  expect(
+    validation.issues.filter(
+      ({ code }) => code === "separated-structural-attachment",
+    ),
+  ).toEqual([]);
+});
+
 test("resizes both halves of a mirrored primitive from either selection", () => {
   const original = createBalancedKartDocument();
   const initialIds = collectKartDocumentIds(original);
@@ -242,22 +575,33 @@ test("does not start camera gestures from gizmo-consumed pointer downs", () => {
   );
 });
 
-test("keeps focused suspension edits mirrored and derivable", () => {
+test("applies approved suspension mounting defaults to a mirrored pair", () => {
   const original = createBalancedKartDocument();
   const left = original.componentInstances.find(
     ({ id }) => id === "suspension-front-left",
   )!;
-  const next = updateSuspensionMountPoint(original, left.id, "chassisAnchor", {
-    ...left.suspensionMount!.chassisAnchor,
-    y: left.suspensionMount!.chassisAnchor.y - 0.005,
-  });
+  const changedFront = replaceKartComponentDefinition(
+    original,
+    left.id,
+    "suspension.compliant-long",
+  );
+  const next = replaceKartComponentDefinition(
+    changedFront,
+    "suspension-rear-left",
+    "suspension.compliant-long",
+  );
+  const changedLeft = next.componentInstances.find(({ id }) => id === left.id)!;
   const right = next.componentInstances.find(
     ({ id }) => id === "suspension-front-right",
   )!;
 
-  expect(right.suspensionMount?.chassisAnchor.x).toBeCloseTo(
-    -next.componentInstances.find(({ id }) => id === left.id)!.suspensionMount!
-      .chassisAnchor.x,
+  expect(changedLeft.definition.id).toBe("suspension.compliant-long");
+  expect(right.definition.id).toBe("suspension.compliant-long");
+  expect(changedLeft.suspensionMount?.armPivot.x).toBeCloseTo(
+    changedLeft.transform.position.x + 0.08 * Math.sqrt(812.5 / 1_600),
+  );
+  expect(right.suspensionMount?.armPivot.x).toBeCloseTo(
+    right.transform.position.x - 0.08 * Math.sqrt(812.5 / 1_600),
   );
   expect(() => deriveKartSnapshot(next)).not.toThrow();
 });

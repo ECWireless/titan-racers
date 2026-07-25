@@ -93,6 +93,12 @@ export function PlayHome() {
         <nav aria-label="Protected tools" className="flex flex-wrap justify-end gap-2">
           <Link
             className="border border-titan-ice/20 bg-titan-black/36 px-3 py-2 font-mono text-[0.68rem] font-bold uppercase tracking-[0.14em] text-titan-ice/72 backdrop-blur transition hover:border-titan-hazard hover:text-titan-hazard focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-titan-hazard"
+            href="/admin/karts/balanced-kart"
+          >
+            Kart Builder
+          </Link>
+          <Link
+            className="border border-titan-ice/20 bg-titan-black/36 px-3 py-2 font-mono text-[0.68rem] font-bold uppercase tracking-[0.14em] text-titan-ice/72 backdrop-blur transition hover:border-titan-hazard hover:text-titan-hazard focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-titan-hazard"
             href="/editor"
           >
             Course Editor
