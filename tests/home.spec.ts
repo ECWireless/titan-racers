@@ -626,10 +626,32 @@ test.describe("home screen", () => {
 
     await expect(page.getByAltText("Titan Racers")).toBeVisible();
     await expect(page.getByText("Choose game mode")).toBeVisible();
+    const utilityMenu = page.getByRole("button", {
+      name: "Open utility menu",
+    });
+    await expect(utilityMenu).toBeVisible();
+    await expect(utilityMenu).toHaveAttribute("aria-expanded", "false");
+    await expect(
+      page.getByRole("link", { name: "Course Editor" }),
+    ).toHaveCount(0);
+    await utilityMenu.click();
+    await expect(
+      page.getByRole("button", { name: "Close utility menu" }),
+    ).toHaveAttribute("aria-expanded", "true");
     await expect(
       page.getByRole("link", { name: "Course Editor" }),
     ).toBeVisible();
+    await expect(page.getByRole("link", { name: "Kart Builder" })).toBeVisible();
+    await expect(page.getByRole("link", { name: "Profile" })).toBeVisible();
     await expect(page.getByRole("link", { name: "Telemetry" })).toHaveCount(0);
+    expect(
+      await page.evaluate(() => document.documentElement.scrollWidth),
+    ).toBeLessThanOrEqual(page.viewportSize()?.width ?? 0);
+    await page.keyboard.press("Escape");
+    await expect(utilityMenu).toBeFocused();
+    await expect(
+      page.getByRole("link", { name: "Course Editor" }),
+    ).toHaveCount(0);
 
     const raceFriends = page.getByRole("button", { name: "Race Friends" });
     const soloTimeTrial = page.getByRole("button", { name: "Solo Time Trial" });
@@ -1281,7 +1303,9 @@ test.describe("home screen", () => {
       .poll(async () => (await getRaceDebugState(canvas)).state)
       .toBe("racing");
     const raceStatus = page.getByRole("region", { name: "Race status" });
-    const raceAnnouncement = page.getByRole("status");
+    const raceAnnouncement = page.locator(
+      "p[role='status'][aria-live='polite']",
+    );
     const lifecycleCue = page.locator(".race-lifecycle-cue span");
     await expect(raceStatus).toContainText("Lap01/02");
     await expect(raceStatus).toContainText("Race time0:00.0");
@@ -4964,20 +4988,40 @@ test.describe("home screen", () => {
     await setStandardTestGamepad(page);
     await page.waitForTimeout(50);
     await setStandardTestGamepad(page, { buttons: { 12: 1 } });
+    const menuButton = page.getByRole("button", { name: "Open utility menu" });
+    await expect(menuButton).toBeFocused();
+    await setStandardTestGamepad(page);
+    await page.waitForTimeout(50);
+    await setStandardTestGamepad(page, { buttons: { 0: 1 } });
+    await expect(
+      page.getByRole("button", { name: "Close utility menu" }),
+    ).toBeFocused();
+    await setStandardTestGamepad(page);
+    await page.waitForTimeout(50);
+    await setStandardTestGamepad(page, { buttons: { 1: 1 } });
+    await expect(
+      page.getByRole("button", { name: "Open utility menu" }),
+    ).toBeFocused();
+    await expect(
+      page.getByRole("link", { name: "Course Editor" }),
+    ).toHaveCount(0);
+    await setStandardTestGamepad(page);
+    await page.waitForTimeout(50);
+    await setStandardTestGamepad(page, { buttons: { 0: 1 } });
     const courseEditor = page.getByRole("link", { name: "Course Editor" });
     const kartBuilder = page.getByRole("link", { name: "Kart Builder" });
+    const profile = page.getByRole("link", { name: "Profile" });
+    await setStandardTestGamepad(page);
+    await page.waitForTimeout(50);
+    await setStandardTestGamepad(page, { buttons: { 13: 1 } });
+    await expect(profile).toBeFocused();
+    await setStandardTestGamepad(page);
+    await page.waitForTimeout(50);
+    await setStandardTestGamepad(page, { buttons: { 13: 1 } });
     await expect(kartBuilder).toBeFocused();
     await setStandardTestGamepad(page);
     await page.waitForTimeout(50);
-    await setStandardTestGamepad(page, { buttons: { 15: 1 } });
-    await expect(courseEditor).toBeFocused();
-    await setStandardTestGamepad(page);
-    await page.waitForTimeout(50);
-    await setStandardTestGamepad(page, { buttons: { 14: 1 } });
-    await expect(kartBuilder).toBeFocused();
-    await setStandardTestGamepad(page);
-    await page.waitForTimeout(50);
-    await setStandardTestGamepad(page, { buttons: { 15: 1 } });
+    await setStandardTestGamepad(page, { buttons: { 13: 1 } });
     await expect(courseEditor).toBeFocused();
     await setStandardTestGamepad(page);
     await page.waitForTimeout(50);
@@ -5002,10 +5046,9 @@ test.describe("home screen", () => {
     );
     await setStandardTestGamepad(page);
     await page.waitForTimeout(50);
-    await setStandardTestGamepad(page, { buttons: { 13: 1 } });
-    await expect(
-      page.getByRole("button", { name: "Race Friends" }),
-    ).toBeFocused();
+    await setStandardTestGamepad(page, { buttons: { 12: 1 } });
+    await expect(kartBuilder).toBeFocused();
+    await expect(home).toHaveAttribute("data-controller-navigation", "true");
     await setStandardTestGamepad(page);
     await page.waitForTimeout(50);
     await disconnectStandardTestGamepad(page);
@@ -5013,14 +5056,9 @@ test.describe("home screen", () => {
       "data-controller-navigation",
       "true",
     );
-
     await setStandardTestGamepad(page);
     await page.waitForTimeout(50);
-    await setStandardTestGamepad(page, { buttons: { 12: 1 } });
-    await expect(kartBuilder).toBeFocused();
-    await setStandardTestGamepad(page);
-    await page.waitForTimeout(50);
-    await setStandardTestGamepad(page, { buttons: { 15: 1 } });
+    await setStandardTestGamepad(page, { buttons: { 13: 1 } });
     await expect(courseEditor).toBeFocused();
     await setStandardTestGamepad(page);
     await page.waitForTimeout(50);
@@ -5039,17 +5077,11 @@ test.describe("home screen", () => {
     await installStandardGamepadFixture(page);
     await page.goto("/");
     const home = page.locator('[data-controller-menu-ready="true"]');
+    await expect(home).toHaveCount(1);
+    await page.getByRole("button", { name: "Open utility menu" }).click();
     const courseEditor = page.getByRole("link", { name: "Course Editor" });
     const kartBuilder = page.getByRole("link", { name: "Kart Builder" });
-    await expect(home).toHaveCount(1);
-    await setStandardTestGamepad(page);
-    await page.waitForTimeout(50);
-    await setStandardTestGamepad(page, { buttons: { 12: 1 } });
-    await expect(kartBuilder).toBeFocused();
-    await setStandardTestGamepad(page);
-    await page.waitForTimeout(50);
-    await setStandardTestGamepad(page, { buttons: { 15: 1 } });
-    await expect(courseEditor).toBeFocused();
+    await courseEditor.focus();
     await setStandardTestGamepad(page);
     await page.waitForTimeout(50);
 
@@ -5064,7 +5096,7 @@ test.describe("home screen", () => {
         touched: boolean;
         value: number;
       }>;
-      buttons[14] = { pressed: true, touched: true, value: 1 };
+      buttons[12] = { pressed: true, touched: true, value: 1 };
       testWindow.__TR_GAMEPADS__ = [{ ...gamepad, buttons } as Gamepad];
       element.dispatchEvent(
         new PointerEvent("pointerdown", {
@@ -5083,7 +5115,7 @@ test.describe("home screen", () => {
 
     await setStandardTestGamepad(page);
     await page.waitForTimeout(50);
-    await setStandardTestGamepad(page, { buttons: { 14: 1 } });
+    await setStandardTestGamepad(page, { buttons: { 12: 1 } });
     await expect(kartBuilder).toBeFocused();
   });
 

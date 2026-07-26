@@ -46,6 +46,7 @@ export async function anonymizeUserByEmail(rawEmail: string) {
         emailVerified: false,
         image: null,
         name: "Deleted racer",
+        username: null,
       })
       .where(eq(users.id, user.id));
 

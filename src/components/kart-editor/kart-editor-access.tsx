@@ -14,6 +14,7 @@ import {
   OFFICIAL_KART_IDS,
   type OfficialKartId,
 } from "@/game/kart/official-kart-roster";
+import { racerOnboardingPath } from "@/lib/racer-username";
 
 import { KartEditorShell } from "./kart-editor-shell";
 
@@ -21,6 +22,7 @@ type AccessState =
   | { status: "loading" }
   | { message: string; status: "error" }
   | { status: "unauthenticated" }
+  | { status: "onboarding-required" }
   | { status: "forbidden" }
   | { status: "not-found" }
   | { revision: PersistedKartRevision; status: "ready" };
@@ -32,6 +34,7 @@ async function resolveAccessState(kartId: string): Promise<AccessState> {
       credentials: "include",
     });
     if (response.status === 401) return { status: "unauthenticated" };
+    if (response.status === 428) return { status: "onboarding-required" };
     if (response.status === 403) return { status: "forbidden" };
     if (response.status === 404) return { status: "not-found" };
     if (!response.ok) {
@@ -106,6 +109,9 @@ export function KartEditorAccess({ kartId }: { kartId: string }) {
       const response = await fetch("/api/auth/sign-in/social", {
         body: JSON.stringify({
           callbackURL: `/admin/karts/${kartId}`,
+          newUserCallbackURL: racerOnboardingPath(
+            `/admin/karts/${kartId}`,
+          ),
           provider: "google",
         }),
         credentials: "include",
@@ -211,6 +217,13 @@ export function KartEditorAccess({ kartId }: { kartId: string }) {
             >
               {signInPending ? "Connecting…" : "Continue with Google"}
             </button>
+          ) : accessState.status === "onboarding-required" ? (
+            <Link
+              className="titan-button titan-button-primary"
+              href={racerOnboardingPath(`/admin/karts/${kartId}`)}
+            >
+              Complete account
+            </Link>
           ) : accessState.status === "not-found" ? (
             <button
               className="titan-button titan-button-primary"
@@ -279,6 +292,13 @@ function AccessMessage({ accessState }: { accessState: AccessState }) {
       >
         This account does not have kart-builder access. Choose another Google
         account to continue.
+      </p>
+    );
+  }
+  if (accessState.status === "onboarding-required") {
+    return (
+      <p className="border border-titan-hazard/35 bg-titan-hazard/[0.06] px-4 py-3 text-sm text-titan-ice/78">
+        Choose your permanent racer username before opening protected tools.
       </p>
     );
   }

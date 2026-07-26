@@ -9,11 +9,13 @@ import {
   type GameplayDashboard,
   type GameplayDashboardRange,
 } from "@/game/telemetry/gameplay-dashboard";
+import { racerOnboardingPath } from "@/lib/racer-username";
 
 type AccessState =
   | { status: "loading" }
   | { message: string; status: "error" }
   | { status: "unauthenticated" }
+  | { status: "onboarding-required" }
   | { status: "forbidden" }
   | { dashboard: GameplayDashboard; status: "ready" };
 
@@ -34,6 +36,9 @@ async function resolveAccessState(
 
     if (response.status === 401) {
       return { status: "unauthenticated" };
+    }
+    if (response.status === 428) {
+      return { status: "onboarding-required" };
     }
     if (response.status === 403) {
       return { status: "forbidden" };
@@ -101,6 +106,7 @@ export function TelemetryDashboardAccess() {
       const response = await fetch("/api/auth/sign-in/social", {
         body: JSON.stringify({
           callbackURL: "/admin/telemetry",
+          newUserCallbackURL: racerOnboardingPath("/admin/telemetry"),
           provider: "google",
         }),
         credentials: "include",
@@ -183,6 +189,8 @@ function ProtectedTelemetryAccess({
       ? "Checking telemetry access..."
       : accessState.status === "unauthenticated"
         ? "Sign in with an approved admin account to continue."
+        : accessState.status === "onboarding-required"
+          ? "Choose your permanent racer username before opening protected tools."
         : accessState.status === "forbidden"
           ? "This account does not have telemetry access."
           : accessState.message;
@@ -215,6 +223,13 @@ function ProtectedTelemetryAccess({
             >
               {signInPending ? "Connecting..." : "Continue with Google"}
             </button>
+          ) : accessState.status === "onboarding-required" ? (
+            <Link
+              className="titan-button titan-button-primary"
+              href={racerOnboardingPath("/admin/telemetry")}
+            >
+              Complete account
+            </Link>
           ) : accessState.status === "forbidden" ? (
             <button
               className="titan-button titan-button-primary"

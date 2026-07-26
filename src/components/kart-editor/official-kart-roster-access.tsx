@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 
 import { useControllerMenuNavigation } from "@/game/input/use-controller-menu-navigation";
+import { racerOnboardingPath } from "@/lib/racer-username";
 
 export type OfficialKartRosterCard = {
   kartId: string;
@@ -23,12 +24,19 @@ export type OfficialKartRosterCard = {
   };
 };
 
-type DraftAction = "checking" | "continue" | "create" | "open" | "sign-in";
+type DraftAction =
+  | "checking"
+  | "continue"
+  | "create"
+  | "onboard"
+  | "open"
+  | "sign-in";
 
 const draftActionLabels = {
   checking: "Checking…",
   continue: "Continue",
   create: "Create",
+  onboard: "Complete account",
   open: "Open builder",
   "sign-in": "Sign in",
 } as const satisfies Record<DraftAction, string>;
@@ -71,6 +79,8 @@ export function OfficialKartRosterAccess({
               ? "continue"
               : response.status === 404
                 ? "create"
+                : response.status === 428
+                  ? "onboard"
                 : response.status === 401 || response.status === 403
                   ? "sign-in"
                   : "open";
@@ -186,7 +196,11 @@ export function OfficialKartRosterAccess({
                 data-controller-default={
                   kart.kartId === "balanced-kart" ? "true" : undefined
                 }
-                href={`/admin/karts/${kart.kartId}`}
+                href={
+                  draftActions[kart.kartId] === "onboard"
+                    ? racerOnboardingPath(`/admin/karts/${kart.kartId}`)
+                    : `/admin/karts/${kart.kartId}`
+                }
               >
                 {draftActionLabels[draftActions[kart.kartId] ?? "open"]}
               </Link>

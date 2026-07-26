@@ -5,12 +5,14 @@ import { type ApplicationRole, userRoles } from "@/db/schema";
 import { auth } from "@/lib/auth";
 import { assertSessionEnvironment } from "@/lib/server-environment";
 
-type SessionIdentity = { user: { id: string } } | null;
+type SessionIdentity = {
+  user: { id: string; username?: string | null };
+} | null;
 type SessionResolver = (headers: Headers) => Promise<SessionIdentity>;
 
 export type AuthorizationResult =
   | { authorized: true; userId: string }
-  | { authorized: false; status: 401 | 403 | 503 };
+  | { authorized: false; status: 401 | 403 | 428 | 503 };
 
 const resolveSession: SessionResolver = (headers) =>
   auth.api.getSession({ headers });
@@ -31,6 +33,9 @@ export async function authorizeRole(
   if (!session) {
     return { authorized: false, status: 401 };
   }
+  if (!session.user.username) {
+    return { authorized: false, status: 428 };
+  }
 
   const roles = await db
     .select({ role: userRoles.role })
@@ -44,12 +49,14 @@ export async function authorizeRole(
   return { authorized: true, userId: session.user.id };
 }
 
-export function authorizationErrorResponse(status: 401 | 403 | 503) {
+export function authorizationErrorResponse(status: 401 | 403 | 428 | 503) {
   const message =
     status === 401
       ? "Authentication required."
       : status === 403
         ? "Required role missing."
+        : status === 428
+          ? "Racer account setup required."
         : "Authentication is not configured.";
 
   return Response.json({ error: message }, { status });

@@ -11,7 +11,14 @@ import {
   GET as getCoursePublication,
   POST as postCoursePublication,
 } from "../src/app/api/admin/courses/[courseId]/publication/route";
+import {
+  GET as getAuth,
+} from "../src/app/api/auth/[...all]/route";
 import { GET as getPublishedCourse } from "../src/app/api/courses/[courseId]/published/route";
+import {
+  GET as getProfile,
+  PUT as putProfile,
+} from "../src/app/api/profile/route";
 import { db } from "../src/db/client";
 import {
   accounts,
@@ -224,6 +231,7 @@ test.describe("course persistence and authorization", () => {
       emailVerified: true,
       id: userId,
       name: "Authorization Test",
+      username: `auth_${userId.slice(0, 8)}`,
     });
     await expect(
       db
@@ -233,7 +241,9 @@ test.describe("course persistence and authorization", () => {
     ).resolves.toEqual([{ role: "player" }]);
 
     const request = new Request("http://localhost/api/admin/courses/test");
-    const resolveUser = async () => ({ user: { id: userId } });
+    const resolveUser = async () => ({
+      user: { id: userId, username: `auth_${userId.slice(0, 8)}` },
+    });
 
     await expect(authorizeRole(request, "admin", async () => null)).resolves.toEqual({
       authorized: false,
@@ -249,6 +259,15 @@ test.describe("course persistence and authorization", () => {
     await expect(authorizeRole(request, "admin", resolveUser)).resolves.toEqual({
       authorized: true,
       userId,
+    });
+
+    await expect(
+      authorizeRole(request, "admin", async () => ({
+        user: { id: userId, username: null },
+      })),
+    ).resolves.toEqual({
+      authorized: false,
+      status: 428,
     });
   });
 
@@ -632,6 +651,197 @@ test.describe("course persistence and authorization", () => {
     expect(authorizationUrl.searchParams.has("client_secret")).toBe(false);
   });
 
+  test("claims a globally unique immutable username through the profile API", async () => {
+    const authContext = await testAuth.$context;
+    const suffix = randomUUID().replaceAll("-", "").slice(0, 8);
+    const seed = `elliott_${suffix}`;
+    const claimedUsername = `nova_${suffix}`;
+    const savedUser = { id: randomUUID() };
+    await db.insert(users).values({
+      email: `${randomUUID()}@example.invalid`,
+      emailVerified: true,
+      id: savedUser.id,
+      name: seed,
+    });
+    const { headers } = await authContext.test.login({ userId: savedUser.id });
+    const makeProfileRequest = (init?: RequestInit) =>
+      new Request(`${CONFIGURED_ORIGIN}/api/profile`, {
+        ...init,
+        headers: new Headers([
+          ...headers.entries(),
+          ...(init?.headers
+            ? new Headers(init.headers).entries()
+            : []),
+        ]),
+      });
+
+    const initialResponse = await getProfile(makeProfileRequest());
+    expect(initialResponse.status).toBe(200);
+    await expect(initialResponse.json()).resolves.toEqual({
+      status: "incomplete",
+      suggestedUsername: seed,
+    });
+
+    const claimResponse = await putProfile(
+      makeProfileRequest({
+        body: JSON.stringify({ username: claimedUsername.toUpperCase() }),
+        headers: {
+          "content-type": "application/json",
+          origin: CONFIGURED_ORIGIN,
+        },
+        method: "PUT",
+      }),
+    );
+    expect(claimResponse.status).toBe(200);
+    await expect(claimResponse.json()).resolves.toEqual({
+      status: "complete",
+      username: claimedUsername,
+    });
+
+    await expect(
+      db
+        .select({ name: users.name, username: users.username })
+        .from(users)
+        .where(eq(users.id, savedUser.id)),
+    ).resolves.toEqual([
+      { name: claimedUsername, username: claimedUsername },
+    ]);
+    await expect(
+      db
+        .update(users)
+        .set({ username: `other_${suffix}` })
+        .where(eq(users.id, savedUser.id)),
+    ).rejects.toMatchObject({
+      cause: {
+        message: expect.stringMatching(/racer username is immutable/),
+      },
+    });
+    await expect(
+      db
+        .update(users)
+        .set({
+          anonymizedAt: new Date(),
+          username: `other_${suffix}`,
+        })
+        .where(eq(users.id, savedUser.id)),
+    ).rejects.toMatchObject({
+      cause: {
+        message: expect.stringMatching(
+          /anonymized racer accounts cannot have usernames/,
+        ),
+      },
+    });
+
+    const sessionResponse = await getAuth(
+      new Request(`${CONFIGURED_ORIGIN}/api/auth/get-session`, {
+        headers,
+      }),
+    );
+    expect(sessionResponse.status).toBe(200);
+    await expect(sessionResponse.json()).resolves.toMatchObject({
+      user: {
+        id: savedUser.id,
+        name: claimedUsername,
+        username: claimedUsername,
+      },
+    });
+
+    const secondClaimResponse = await putProfile(
+      makeProfileRequest({
+        body: JSON.stringify({ username: `other_${suffix}` }),
+        headers: {
+          "content-type": "application/json",
+          origin: CONFIGURED_ORIGIN,
+        },
+        method: "PUT",
+      }),
+    );
+    expect(secondClaimResponse.status).toBe(409);
+    await expect(secondClaimResponse.json()).resolves.toMatchObject({
+      code: "USERNAME_ALREADY_CLAIMED",
+    });
+
+    const secondUser = { id: randomUUID() };
+    await db.insert(users).values({
+      email: `${randomUUID()}@example.invalid`,
+      emailVerified: true,
+      id: secondUser.id,
+      name: `duplicate_${suffix}`,
+    });
+    const secondLogin = await authContext.test.login({
+      userId: secondUser.id,
+    });
+    const duplicateResponse = await putProfile(
+      new Request(`${CONFIGURED_ORIGIN}/api/profile`, {
+        body: JSON.stringify({ username: claimedUsername }),
+        headers: {
+          "content-type": "application/json",
+          origin: CONFIGURED_ORIGIN,
+          ...Object.fromEntries(secondLogin.headers.entries()),
+        },
+        method: "PUT",
+      }),
+    );
+    expect(duplicateResponse.status).toBe(409);
+    await expect(duplicateResponse.json()).resolves.toMatchObject({
+      code: "USERNAME_TAKEN",
+    });
+    await expect(
+      db
+        .update(users)
+        .set({ username: "official_support" })
+        .where(eq(users.id, secondUser.id)),
+    ).rejects.toMatchObject({
+      cause: {
+        constraint: "users_username_reserved",
+      },
+    });
+
+    const invalidResponse = await putProfile(
+      makeProfileRequest({
+        body: JSON.stringify({ username: "ab" }),
+        headers: {
+          "content-type": "application/json",
+          origin: CONFIGURED_ORIGIN,
+        },
+        method: "PUT",
+      }),
+    );
+    expect(invalidResponse.status).toBe(400);
+    await expect(invalidResponse.json()).resolves.toMatchObject({
+      code: "INVALID_USERNAME",
+    });
+
+    const unauthenticatedResponse = await getProfile(
+      new Request(`${CONFIGURED_ORIGIN}/api/profile`),
+    );
+    expect(unauthenticatedResponse.status).toBe(401);
+
+    const crossOriginResponse = await putProfile(
+      makeProfileRequest({
+        body: JSON.stringify({ username: claimedUsername }),
+        headers: {
+          "content-type": "application/json",
+          origin: "https://evil.example",
+        },
+        method: "PUT",
+      }),
+    );
+    expect(crossOriginResponse.status).toBe(403);
+
+    const wrongMediaTypeResponse = await putProfile(
+      makeProfileRequest({
+        body: JSON.stringify({ username: claimedUsername }),
+        headers: {
+          "content-type": "text/plain",
+          origin: CONFIGURED_ORIGIN,
+        },
+        method: "PUT",
+      }),
+    );
+    expect(wrongMediaTypeResponse.status).toBe(415);
+  });
+
   test("disables account linking and never retains Google token material", async () => {
     expect(auth.options.account?.accountLinking).toMatchObject({
       disableImplicitLinking: true,
@@ -689,6 +899,7 @@ test.describe("course persistence and authorization", () => {
       id: userId,
       image: "https://example.invalid/private-avatar.png",
       name: "Personal Name",
+      username: `anonymize_${userId.slice(0, 8)}`,
     });
     await db.insert(userRoles).values({ role: "admin", userId });
     await db.insert(sessions).values({
@@ -725,8 +936,33 @@ test.describe("course persistence and authorization", () => {
       emailVerified: false,
       image: null,
       name: "Deleted racer",
+      username: null,
     });
     expect(anonymizedUser.anonymizedAt).toBeInstanceOf(Date);
+    await expect(
+      db
+        .update(users)
+        .set({ username: `restored_${userId.slice(0, 8)}` })
+        .where(eq(users.id, userId)),
+    ).rejects.toMatchObject({
+      cause: {
+        message: expect.stringMatching(
+          /anonymized racer accounts cannot claim usernames/,
+        ),
+      },
+    });
+    await expect(
+      db
+        .update(users)
+        .set({ anonymizedAt: null })
+        .where(eq(users.id, userId)),
+    ).rejects.toMatchObject({
+      cause: {
+        message: expect.stringMatching(
+          /anonymized racer accounts cannot be reactivated/,
+        ),
+      },
+    });
 
     await expect(
       db.select().from(accounts).where(sql`${accounts.userId} = ${userId}`),

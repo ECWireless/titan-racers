@@ -504,14 +504,31 @@ test.describe("kart persistence and authorization", () => {
     expect(publishedPayload).not.toHaveProperty("ownerUserId");
     expect(publishedPayload).not.toHaveProperty("actorUserId");
     await expect(loadPublishedKartRevision(kartId)).resolves.toMatchObject({
-      authorName: "Kart Publisher",
+      authorUsername: expect.stringMatching(/^test_/),
     });
-    await db
-      .update(users)
-      .set({ name: "" })
-      .where(eq(users.id, savedUser.id));
-    await expect(loadPublishedKartRevision(kartId)).resolves.toMatchObject({
-      authorName: "",
+
+    const incompleteAuthorId = randomUUID();
+    const fallbackKartId = `unclaimed-author-${randomUUID()}`;
+    await db.insert(users).values({
+      email: `${incompleteAuthorId}@example.invalid`,
+      emailVerified: true,
+      id: incompleteAuthorId,
+      name: "unclaimed_author",
+    });
+    await saveKartRevision({
+      authorUserId: incompleteAuthorId,
+      document: createBalancedKartDocument(fallbackKartId),
+      expectedRevision: null,
+      ownerUserId: savedUser.id,
+    });
+    await publishKartRevision({
+      actorUserId: savedUser.id,
+      expectedPublicationEventId: null,
+      kartId: fallbackKartId,
+      revision: 1,
+    });
+    await expect(loadPublishedKartRevision(fallbackKartId)).resolves.toMatchObject({
+      authorUsername: null,
     });
 
     const competing = await Promise.allSettled([

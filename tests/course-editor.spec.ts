@@ -141,6 +141,30 @@ test.describe("protected course editor access", () => {
     await expect(page.getByTestId("course-editor-shell")).toHaveCount(0);
   });
 
+  test("routes signed-in racers through username onboarding", async ({
+    page,
+  }) => {
+    await page.route(courseApiPattern, async (route) => {
+      await route.fulfill({
+        body: JSON.stringify({ error: "Racer account setup required." }),
+        contentType: "application/json",
+        status: 428,
+      });
+    });
+
+    await page.goto("/editor");
+
+    await expect(
+      page.getByText(
+        "Choose your permanent racer username before opening protected tools.",
+      ),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("link", { name: "Complete account" }),
+    ).toHaveAttribute("href", "/onboarding?returnTo=%2Feditor");
+    await expect(page.getByTestId("course-editor-shell")).toHaveCount(0);
+  });
+
   test("rejects schema-valid revisions above the editor object budget", async ({
     page,
   }) => {

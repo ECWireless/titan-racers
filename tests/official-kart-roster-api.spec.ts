@@ -24,11 +24,11 @@ async function createPublishedRevision(
   document:
     | ReturnType<typeof createBalancedKartDocument>
     | ReturnType<typeof createHandlingKartDocument>,
-  authorName: string,
+  authorUsername: string | null,
 ): Promise<PersistedPublishedKartRevision> {
   const resolvedSnapshot = deriveKartSnapshot(document);
   return {
-    authorName,
+    authorUsername,
     authorUserId: "private-author-id",
     createdAt: new Date("2026-07-26T12:00:00.000Z"),
     derivationVersion: resolvedSnapshot.derivationVersion,
@@ -53,11 +53,11 @@ async function createPublishedRevision(
 test("exposes only published official revisions in stable roster order", async () => {
   const balanced = await createPublishedRevision(
     createBalancedKartDocument(),
-    "  Kart Assembler  ",
+    "kart_assembler",
   );
   const handling = await createPublishedRevision(
     createHandlingKartDocument(),
-    "H".repeat(100),
+    "handling_assembler",
   );
   const publications = new Map<OfficialKartId, PersistedPublishedKartRevision>([
     [balanced.kartId as OfficialKartId, balanced],
@@ -77,8 +77,8 @@ test("exposes only published official revisions in stable roster order", async (
     "handling-kart",
   ]);
   expect(roster.karts.map(({ assemblerCredit }) => assemblerCredit)).toEqual([
-    "Kart Assembler",
-    "H".repeat(80),
+    "@kart_assembler",
+    "@handling_assembler",
   ]);
   expect(roster.karts[0].runtime.publishedAt).toBe(
     "2026-07-26T12:30:00.000Z",
@@ -88,7 +88,7 @@ test("exposes only published official revisions in stable roster order", async (
   expect(JSON.stringify(roster)).not.toContain("private-actor-id");
 
   const blankCreditRoster = await loadOfficialKartRoster(async (kartId) =>
-    kartId === "balanced-kart" ? { ...balanced, authorName: "   " } : null,
+    kartId === "balanced-kart" ? { ...balanced, authorUsername: null } : null,
   );
   expect(blankCreditRoster.source).toBe("published");
   if (blankCreditRoster.source !== "published") {

@@ -25,6 +25,7 @@ test("routes the Kart Builder button through the official admin roster", async (
   await useOfficialDraftStatuses(page);
   await page.goto("/");
 
+  await page.getByRole("button", { name: "Open utility menu" }).click();
   const kartBuilder = page.getByRole("link", { name: "Kart Builder" });
   await expect(kartBuilder).toHaveAttribute("href", "/admin/karts");
   await kartBuilder.click();
@@ -70,8 +71,13 @@ test("navigates into and back from the official roster with a controller", async
   await setStandardTestGamepad(page);
   await page.waitForTimeout(50);
 
-  const kartBuilder = page.getByRole("link", { name: "Kart Builder" });
+  const utilityMenu = page.getByRole("button", { name: "Open utility menu" });
   await pressStandardGamepadButton(page, 12);
+  await expect(utilityMenu).toBeFocused();
+  await pressStandardGamepadButton(page, 0);
+  const kartBuilder = page.getByRole("link", { name: "Kart Builder" });
+  await pressStandardGamepadButton(page, 13);
+  await pressStandardGamepadButton(page, 13);
   await expect(kartBuilder).toBeFocused();
   await pressStandardGamepadButton(page, 0);
   await expect(page).toHaveURL(/\/admin\/karts$/);
@@ -87,6 +93,10 @@ test("navigates into and back from the official roster with a controller", async
   await page.waitForTimeout(50);
 
   await pressStandardGamepadButton(page, 12);
+  await expect(utilityMenu).toBeFocused();
+  await pressStandardGamepadButton(page, 0);
+  await pressStandardGamepadButton(page, 13);
+  await pressStandardGamepadButton(page, 13);
   await expect(kartBuilder).toBeFocused();
   await pressStandardGamepadButton(page, 0);
   await expect(page).toHaveURL(/\/admin\/karts$/);
@@ -144,20 +154,26 @@ test("resolves draft actions independently across auth and network failures", as
   ).toBeVisible();
 });
 
-test("maps forbidden and server-error draft checks safely", async ({ page }) => {
+test("maps onboarding, forbidden, and missing draft checks safely", async ({
+  page,
+}) => {
   await page.route("**/api/admin/karts/*", async (route) => {
     const kartId = new URL(route.request().url()).pathname.split("/").at(-1);
     await route.fulfill({
       body: "{}",
       status:
-        kartId === "balanced-kart" ? 403 : kartId === "speed-kart" ? 503 : 404,
+        kartId === "balanced-kart" ? 428 : kartId === "speed-kart" ? 403 : 404,
     });
   });
 
   await page.goto("/admin/karts");
   const actionFor = (name: string) =>
     page.getByRole("article").filter({ hasText: name }).getByRole("link");
-  await expect(actionFor("Balanced Kart")).toHaveText("Sign in");
-  await expect(actionFor("Speed Kart")).toHaveText("Open builder");
+  await expect(actionFor("Balanced Kart")).toHaveText("Complete account");
+  await expect(actionFor("Balanced Kart")).toHaveAttribute(
+    "href",
+    "/onboarding?returnTo=%2Fadmin%2Fkarts%2Fbalanced-kart",
+  );
+  await expect(actionFor("Speed Kart")).toHaveText("Sign in");
   await expect(actionFor("Handling Kart")).toHaveText("Create");
 });

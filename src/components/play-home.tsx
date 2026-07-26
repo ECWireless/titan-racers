@@ -68,7 +68,10 @@ function playableOfficialKarts(
 
 export function PlayHome() {
   const homeMenuRef = useRef<HTMLElement | null>(null);
+  const utilityMenuRef = useRef<HTMLDivElement | null>(null);
+  const utilityMenuButtonRef = useRef<HTMLButtonElement | null>(null);
   const [mode, setMode] = useState<"home" | "solo">("home");
+  const [utilityMenuOpen, setUtilityMenuOpen] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
   const [soloPending, setSoloPending] = useState(false);
   const [rosterPending, setRosterPending] = useState(true);
@@ -88,6 +91,12 @@ export function PlayHome() {
     containerRef: homeMenuRef,
     enabled: mode === "home",
     navigationMode: "spatial",
+    onBack: utilityMenuOpen
+      ? () => {
+          setUtilityMenuOpen(false);
+          utilityMenuButtonRef.current?.focus();
+        }
+      : undefined,
   });
 
   useEffect(() => {
@@ -117,6 +126,31 @@ export function PlayHome() {
     };
   }, []);
 
+  useEffect(() => {
+    if (!utilityMenuOpen) return;
+
+    const closeFromOutside = (event: PointerEvent) => {
+      if (
+        event.target instanceof Node &&
+        !utilityMenuRef.current?.contains(event.target)
+      ) {
+        setUtilityMenuOpen(false);
+      }
+    };
+    const closeFromEscape = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      setUtilityMenuOpen(false);
+      utilityMenuButtonRef.current?.focus();
+    };
+
+    document.addEventListener("pointerdown", closeFromOutside);
+    document.addEventListener("keydown", closeFromEscape);
+    return () => {
+      document.removeEventListener("pointerdown", closeFromOutside);
+      document.removeEventListener("keydown", closeFromEscape);
+    };
+  }, [utilityMenuOpen]);
+
   function showComingSoon() {
     setToast("coming soon");
   }
@@ -127,6 +161,7 @@ export function PlayHome() {
     );
     if (!selectedKart) return;
 
+    setUtilityMenuOpen(false);
     setSoloPending(true);
     let nextCourse = ROUGH_COURSE_DOCUMENT;
     try {
@@ -157,7 +192,7 @@ export function PlayHome() {
       ref={homeMenuRef}
       className="relative z-10 mx-auto flex min-h-screen w-full max-w-7xl flex-col px-5 py-6 sm:px-8 lg:px-12"
     >
-      <header className="flex items-center justify-between gap-6">
+      <header className="relative flex items-center justify-between gap-6">
         <Image
           src="/titan-racers-logo.png"
           alt="Titan Racers"
@@ -166,23 +201,45 @@ export function PlayHome() {
           priority
           className="h-11 w-auto sm:h-14"
         />
-        <nav
-          aria-label="Protected tools"
-          className="flex flex-wrap justify-end gap-2"
-        >
-          <Link
-            className="border border-titan-ice/20 bg-titan-black/36 px-3 py-2 font-mono text-[0.68rem] font-bold uppercase tracking-[0.14em] text-titan-ice/72 backdrop-blur transition hover:border-titan-hazard hover:text-titan-hazard focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-titan-hazard"
-            href="/admin/karts"
+        <div className="relative" ref={utilityMenuRef}>
+          <button
+            aria-controls="home-utility-menu"
+            aria-expanded={utilityMenuOpen}
+            aria-label={
+              utilityMenuOpen ? "Close utility menu" : "Open utility menu"
+            }
+            className="grid size-12 place-content-center gap-1.5 border border-titan-ice/28 bg-titan-black/72 text-titan-ice shadow-[0_12px_32px_rgb(0_0_0/0.4)] backdrop-blur transition hover:border-titan-hazard hover:text-titan-hazard focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-titan-hazard"
+            ref={utilityMenuButtonRef}
+            type="button"
+            onClick={() => setUtilityMenuOpen((open) => !open)}
           >
-            Kart Builder
-          </Link>
-          <Link
-            className="border border-titan-ice/20 bg-titan-black/36 px-3 py-2 font-mono text-[0.68rem] font-bold uppercase tracking-[0.14em] text-titan-ice/72 backdrop-blur transition hover:border-titan-hazard hover:text-titan-hazard focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-titan-hazard"
-            href="/editor"
-          >
-            Course Editor
-          </Link>
-        </nav>
+            <span className="h-0.5 w-6 bg-current" />
+            <span className="h-0.5 w-6 bg-current" />
+            <span className="h-0.5 w-6 bg-current" />
+          </button>
+          {utilityMenuOpen ? (
+            <nav
+              aria-label="Account and protected tools"
+              className="absolute right-0 top-[calc(100%+0.6rem)] z-40 grid w-56 border border-titan-ice/24 bg-titan-black/96 p-2 shadow-[0_24px_60px_rgb(0_0_0/0.68)] backdrop-blur"
+              id="home-utility-menu"
+            >
+              {[
+                ["Profile", "/profile"],
+                ["Kart Builder", "/admin/karts"],
+                ["Course Editor", "/editor"],
+              ].map(([label, href]) => (
+                <Link
+                  className="border border-transparent px-4 py-3 font-mono text-xs font-bold uppercase tracking-[0.14em] text-titan-ice/78 transition hover:border-titan-ice/20 hover:bg-titan-ice/[0.06] hover:text-titan-hazard focus-visible:border-titan-hazard focus-visible:bg-titan-hazard/[0.08] focus-visible:text-titan-hazard focus-visible:outline-none"
+                  href={href}
+                  key={href}
+                  onClick={() => setUtilityMenuOpen(false)}
+                >
+                  {label}
+                </Link>
+              ))}
+            </nav>
+          ) : null}
+        </div>
       </header>
 
       <div className="grid flex-1 content-center gap-8 py-10 lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-center">

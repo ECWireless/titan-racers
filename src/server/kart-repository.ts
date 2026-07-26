@@ -68,7 +68,7 @@ export type PersistedKartPublicationEvent = {
 };
 
 export type PersistedPublishedKartRevision = PersistedKartRevision & {
-  authorName: string;
+  authorUsername: string | null;
   publication: PersistedKartPublicationEvent & {
     action: "publish";
     revision: number;
@@ -239,7 +239,7 @@ export async function loadPublishedKartRevision(
     .select({
       action: kartPublicationEvents.action,
       actorUserId: kartPublicationEvents.actorUserId,
-      authorName: users.name,
+      authorUsername: users.username,
       authorUserId: kartRevisions.authorUserId,
       createdAt: kartRevisions.createdAt,
       derivationVersion: kartRevisions.derivationVersion,
@@ -270,7 +270,6 @@ export async function loadPublishedKartRevision(
     !row ||
     row.action !== "publish" ||
     !row.revision ||
-    row.authorName === null ||
     !row.authorUserId ||
     !row.createdAt ||
     !row.derivationVersion ||
@@ -297,7 +296,7 @@ export async function loadPublishedKartRevision(
 
   return {
     ...revision,
-    authorName: row.authorName,
+    authorUsername: row.authorUsername,
     publication: {
       action: "publish",
       actorUserId: row.actorUserId,

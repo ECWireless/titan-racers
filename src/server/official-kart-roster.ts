@@ -15,10 +15,10 @@ export type OfficialKartPublicationLoader = (
   kartId: OfficialKartId,
 ) => Promise<PersistedPublishedKartRevision | null>;
 
-function publicAssemblerCredit(authorName: string) {
-  const trimmed = authorName.trim();
+function publicAssemblerCredit(authorUsername: string | null) {
+  const trimmed = authorUsername?.trim();
   return trimmed
-    ? trimmed.slice(0, 80)
+    ? `@${trimmed}`.slice(0, 80)
     : OFFICIAL_KART_FALLBACK_ASSEMBLER_CREDIT;
 }
 
@@ -37,7 +37,7 @@ export async function loadOfficialKartRoster(
           ): revision is PersistedPublishedKartRevision => revision !== null,
         )
         .map((revision) => ({
-          assemblerCredit: publicAssemblerCredit(revision.authorName),
+          assemblerCredit: publicAssemblerCredit(revision.authorUsername),
           runtime: {
             derivationVersion: revision.derivationVersion,
             document: revision.document,
