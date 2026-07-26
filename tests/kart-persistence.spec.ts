@@ -29,7 +29,6 @@ import {
 } from "../src/game/kart/kart-derivation";
 import { createBalancedKartDocument } from "../src/game/kart/balanced-kart-document";
 import { kartAssemblyDocumentV1Schema } from "../src/game/kart/kart-assembly-document";
-import { hasRuntimeCompatibleInertia } from "../src/game/kart/kart-runtime-compatibility";
 import {
   KartConflictError,
   KartPublicationConflictError,
@@ -388,11 +387,11 @@ test.describe("kart persistence and authorization", () => {
       expectedRevision: 1,
       ownerUserId: savedUser.id,
     });
-    const incompatibleDocument = structuredClone(firstDocument);
-    const upperHousing = incompatibleDocument.primitiveInstances.find(
+    const asymmetricDocument = structuredClone(firstDocument);
+    const upperHousing = asymmetricDocument.primitiveInstances.find(
       ({ id }) => id === "upper-housing",
     );
-    const upperHousingMount = incompatibleDocument.structuralAttachments.find(
+    const upperHousingMount = asymmetricDocument.structuralAttachments.find(
       ({ child }) => child.instanceId === "upper-housing",
     );
     if (!upperHousing || !upperHousingMount) {
@@ -401,11 +400,11 @@ test.describe("kart persistence and authorization", () => {
     upperHousing.transform.position.x += 0.01;
     upperHousingMount.parent.anchor.x += 0.01;
     expect(
-      hasRuntimeCompatibleInertia(deriveKartSnapshot(incompatibleDocument)),
-    ).toBe(false);
+      deriveKartSnapshot(asymmetricDocument).massProperties.inertiaTensor.xy,
+    ).not.toBe(0);
     await saveKartRevision({
       authorUserId: savedUser.id,
-      document: incompatibleDocument,
+      document: asymmetricDocument,
       expectedRevision: 2,
       ownerUserId: savedUser.id,
     });
@@ -482,23 +481,8 @@ test.describe("kart persistence and authorization", () => {
         .where(eq(kartPublicationEvents.kartId, kartId)),
     ).resolves.toEqual([]);
 
-    const incompatibleResponse = await postKartPublication(
-      request({ ...publishPayload, revision: 3 }),
-      context,
-    );
-    expect(incompatibleResponse.status).toBe(422);
-    await expect(incompatibleResponse.json()).resolves.toEqual({
-      error: "The saved kart revision is not compatible with the current runtime.",
-    });
-    await expect(
-      db
-        .select()
-        .from(kartPublicationEvents)
-        .where(eq(kartPublicationEvents.kartId, kartId)),
-    ).resolves.toEqual([]);
-
     const firstResponse = await postKartPublication(
-      request(publishPayload),
+      request({ ...publishPayload, revision: 3 }),
       context,
     );
     expect(firstResponse.status).toBe(201);
@@ -512,9 +496,9 @@ test.describe("kart persistence and authorization", () => {
     expect(publishedResponse.headers.get("cache-control")).toBe("no-store");
     const publishedPayload = await publishedResponse.json();
     expect(publishedPayload).toMatchObject({
-      document: { name: firstDocument.name },
+      document: { name: asymmetricDocument.name },
       kartId,
-      revision: 1,
+      revision: 3,
     });
     expect(publishedPayload).not.toHaveProperty("authorUserId");
     expect(publishedPayload).not.toHaveProperty("ownerUserId");

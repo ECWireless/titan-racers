@@ -1,3 +1,8 @@
+import {
+  multiplyKartInertiaTensor,
+  type KartInertiaTensor,
+} from "./kart-principal-axes";
+
 export type GroundedRollDampingVector = {
   x: number;
   y: number;
@@ -19,18 +24,24 @@ function isFiniteVector(vector: GroundedRollDampingVector) {
   );
 }
 
+function isFinitePositiveInertia(tensor: KartInertiaTensor) {
+  return (
+    Object.values(tensor).every(Number.isFinite) &&
+    tensor.xx > 0 &&
+    tensor.yy > 0 &&
+    tensor.zz > 0
+  );
+}
+
 export function getGroundedRollDampingLocalTorqueImpulse(
   localAngularVelocity: GroundedRollDampingVector,
-  localInertia: GroundedRollDampingVector,
+  localInertia: KartInertiaTensor,
   supportedWheelCount: number,
   deltaSeconds: number,
 ): GroundedRollDampingVector {
   if (
     !isFiniteVector(localAngularVelocity) ||
-    !isFiniteVector(localInertia) ||
-    localInertia.x <= 0 ||
-    localInertia.y <= 0 ||
-    localInertia.z <= 0 ||
+    !isFinitePositiveInertia(localInertia) ||
     !Number.isFinite(supportedWheelCount) ||
     supportedWheelCount <
       KART_GROUNDED_ROLL_DAMPING_POLICY.minimumSupportedWheels ||
@@ -46,11 +57,11 @@ export function getGroundedRollDampingLocalTorqueImpulse(
     1,
   );
 
-  return {
+  return multiplyKartInertiaTensor(localInertia, {
     x: 0,
     y: 0,
-    z: -localInertia.z * localAngularVelocity.z * settleRatio,
-  };
+    z: -localAngularVelocity.z * settleRatio,
+  });
 }
 
 export function getFlatGroundedHeaveDampingImpulse(

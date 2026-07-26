@@ -37,6 +37,12 @@ is exhaustive for those per-kart outputs; none may accept a stat override.
 | Suspension bump start | Unit bump-stop onset measured in spring travel and `R` | Wheel-space onset is `unit bump onset ÷ R`. |
 | Suspension quadratic bump rate | Unit quadratic bump coefficient and `R` | Effective wheel-space coefficient is `unit coefficient × R³`. |
 
+The inertia tensor remains expressed in assembly coordinates in every resolved
+snapshot. Runtime principal-axis diagonalization does not alter derivation
+evidence or require a derivation-version change: it is the solver's
+deterministic conversion from the preserved full tensor to Ammo's local
+diagonal inertia plus an assembly-frame offset.
+
 The exact runtime capability field paths are:
 
 - `physicalProfile.aerodynamics.dragArea`;

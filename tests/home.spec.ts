@@ -703,26 +703,42 @@ test.describe("home screen", () => {
     );
   });
 
-  test("uses the bundled kart when a published kart needs unsupported inertia integration", async ({
+  test("uses a published kart with coupled inertia", async ({
     page,
-  }) => {
-    const incompatibleSnapshot = structuredClone(
-      BALANCED_KART_SNAPSHOT,
+  }, testInfo) => {
+    testInfo.setTimeout(60_000);
+    const coupledDocument = createBalancedKartDocument();
+    coupledDocument.name = "Coupled Inertia Kart";
+    const upperHousing = coupledDocument.primitiveInstances.find(
+      ({ id }) => id === "upper-housing",
+    );
+    const upperHousingMount = coupledDocument.structuralAttachments.find(
+      ({ child }) => child.instanceId === "upper-housing",
+    );
+    if (!upperHousing || !upperHousingMount) {
+      throw new Error("Balanced kart fixture is missing its upper housing.");
+    }
+    upperHousing.transform.position.x += 0.05;
+    upperHousing.transform.position.z += 0.03;
+    upperHousingMount.parent.anchor.x += 0.05;
+    upperHousingMount.parent.anchor.z += 0.03;
+    const coupledSnapshot = structuredClone(
+      deriveKartSnapshot(coupledDocument),
     ) as unknown as ResolvedKartSnapshot;
-    incompatibleSnapshot.massProperties.inertiaTensor.xy = 0.001;
-    incompatibleSnapshot.massProperties.inertiaTensor.yx = 0.001;
-    incompatibleSnapshot.physicalProfile.drivetrain.noLoadSpeed = 9.876;
+    expect(coupledSnapshot.massProperties.inertiaTensor.xy).not.toBe(0);
+    expect(coupledSnapshot.massProperties.inertiaTensor.xz).not.toBe(0);
+    coupledSnapshot.physicalProfile.drivetrain.noLoadSpeed = 9.876;
     await page.route("**/api/karts/balanced-kart/published", async (route) => {
       await route.fulfill({
         body: JSON.stringify({
-          derivationVersion: incompatibleSnapshot.derivationVersion,
-          document: BALANCED_KART_DOCUMENT,
-          kartId: BALANCED_KART_DOCUMENT.kartId,
+          derivationVersion: coupledSnapshot.derivationVersion,
+          document: coupledDocument,
+          kartId: coupledDocument.kartId,
           publishedAt: new Date("2026-07-25T00:05:00.000Z").toISOString(),
-          resolvedSnapshot: incompatibleSnapshot,
+          resolvedSnapshot: coupledSnapshot,
           resolvedSnapshotHash: "c".repeat(64),
           revision: 2,
-          schemaVersion: BALANCED_KART_DOCUMENT.schemaVersion,
+          schemaVersion: coupledDocument.schemaVersion,
         }),
         contentType: "application/json",
         status: 200,
@@ -733,12 +749,74 @@ test.describe("home screen", () => {
     await page.getByRole("button", { name: "Solo Time Trial" }).click();
     const canvas = page.getByTestId("solo-time-trial-canvas");
     await waitForSceneReady(canvas);
-    const kartState = await getKartDebugState(canvas);
-    expect(kartState.maxForwardSpeed).toBe(
-      Math.round(
-        BALANCED_KART_SNAPSHOT.physicalProfile.drivetrain.noLoadSpeed * 100,
-      ) / 100,
+    await expect(canvas).toHaveAttribute(
+      "data-kart-document-name",
+      coupledDocument.name,
     );
+    await expect
+      .poll(async () => getKartDebugState(canvas))
+      .toMatchObject({ supportCount: 4 });
+    const kartState = await getKartDebugState(canvas);
+    expect(kartState.maxForwardSpeed).toBe(9.88);
+    expect(kartState.up.y).toBeCloseTo(1, 4);
+    expect(Math.hypot(kartState.forward.x, kartState.forward.z)).toBeCloseTo(
+      1,
+      4,
+    );
+    expect(
+      Object.values(kartState.wheelSweepFractions).every(
+        (fraction) => fraction !== null,
+      ),
+    ).toBe(true);
+
+    await advanceRaceToRacing(canvas);
+    const drivingStart = await getKartDebugState(canvas);
+    await canvas.focus();
+    await page.keyboard.down("ArrowUp");
+    await page.keyboard.down("ArrowLeft");
+    try {
+      await stepSimulation(canvas, 60);
+    } finally {
+      await page.keyboard.up("ArrowLeft");
+      await page.keyboard.up("ArrowUp");
+    }
+    const drivenState = await getKartDebugState(canvas);
+    expect(drivenState.steerAngle).toBeGreaterThan(0);
+    expect(
+      Math.hypot(
+        drivenState.x - drivingStart.x,
+        drivenState.z - drivingStart.z,
+      ),
+    ).toBeGreaterThan(0.01);
+    const drivenPresentation = await getPresentationDebugState(canvas);
+    expect(drivenPresentation.cameraTrackedPosition).toEqual(
+      drivenPresentation.visualPosition,
+    );
+
+    await setKartDebugPose(canvas, {
+      angularVelocity: { x: 0, y: 0, z: 0 },
+      linearVelocity: { x: 0, y: 0, z: 0 },
+      position: {
+        x: 4,
+        y: scaleReferenceKartLength(0.46),
+        z: 0,
+      },
+      rotation: { x: 0, y: 90, z: 180 },
+    });
+    await stepSimulation(canvas, 5);
+    const inverted = await getKartDebugState(canvas);
+    expect(inverted.up.y).toBeLessThan(-0.8);
+    await canvas.focus();
+    await page.keyboard.press("r");
+    await stepSimulation(canvas);
+    expect((await getKartDebugState(canvas)).manualRightingCount).toBe(1);
+
+    const rightingSamples = await stepSimulationWithKartSamples(canvas, 600);
+    expect(
+      rightingSamples.some(
+        (sample) => sample.up.y > 0.7 && sample.supportCount > 0,
+      ),
+    ).toBe(true);
   });
 
   test("returns to the bundled course when a later publication fetch fails", async ({
@@ -3954,11 +4032,22 @@ test.describe("home screen", () => {
     );
     expect(Object.keys(state.wheelHubYs)).toHaveLength(4);
     expect(
-      Object.values(state.wheelHubYs).every(
-        (y) =>
-          y >= scaleReferenceKartLength(-0.36) &&
-          y <= scaleReferenceKartLength(0.06),
+      BALANCED_KART_SNAPSHOT.geometry.wheelStations.every(
+        (station) => {
+          const y = state.wheelHubYs[station.id.replace(/^wheel-/, "")];
+          return (
+            y !== undefined &&
+            y >=
+              station.position.y -
+                station.suspension.restWheelCompression &&
+            y <=
+              station.position.y +
+                station.suspension.maximumWheelTravel -
+                station.suspension.restWheelCompression
+          );
+        },
       ),
+      JSON.stringify(state.wheelHubYs),
     ).toBe(true);
     expect(
       Object.values(state.wheelSweepFractions).every(

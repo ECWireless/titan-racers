@@ -9,7 +9,6 @@ import {
   deriveKartSnapshot,
   type ResolvedKartSnapshot,
 } from "../src/game/kart/kart-derivation";
-import { hasRuntimeCompatibleInertia } from "../src/game/kart/kart-runtime-compatibility";
 import type { KartPublicationEvent } from "../src/game/kart/kart-publication";
 import {
   disconnectStandardTestGamepad,
@@ -1231,12 +1230,12 @@ test.describe("protected kart builder access", () => {
     ).toBeEnabled();
   });
 
-  test("saves a valid asymmetric draft but keeps publication gated", async ({
+  test("supports testing and publishing a valid asymmetric draft", async ({
     page,
   }, testInfo) => {
     test.skip(
       testInfo.project.name !== "desktop",
-      "Draft compatibility coverage only needs to run once.",
+      "Asymmetric runtime coverage only needs to run once.",
     );
     const document = structuredClone(
       createBalancedKartDocument(),
@@ -1253,9 +1252,10 @@ test.describe("protected kart builder access", () => {
       throw new Error("Balanced upper-housing mount is missing.");
     }
     upperHousingMount.parent.anchor.x += 0.01;
-    expect(hasRuntimeCompatibleInertia(deriveKartSnapshot(document))).toBe(
-      false,
+    expect(deriveKartSnapshot(document).massProperties.inertiaTensor.xy).not.toBe(
+      0,
     );
+    await usePublishedSandboxCourse(page);
 
     await page.route(kartApiPattern, async (route) => {
       if (route.request().method() === "PUT") {
@@ -1282,12 +1282,10 @@ test.describe("protected kart builder access", () => {
     await page.goto("/admin/karts/balanced-kart");
     await expect(
       page.getByRole("button", { name: "Test saved kart" }),
-    ).toBeDisabled();
+    ).toBeEnabled();
     await expect(
-      page.getByText(
-        "Saved revision 1 cannot be tested until PR 3.5 adds principal-axis integration.",
-      ),
-    ).toBeVisible();
+      page.getByRole("button", { name: "Publish saved draft" }),
+    ).toBeEnabled();
     await page.getByLabel("Name").fill("Asymmetric private draft");
     await page.getByLabel("Name").blur();
     await expect(
@@ -1300,20 +1298,18 @@ test.describe("protected kart builder access", () => {
     await expect(page.getByText("Draft revision 2 saved.")).toBeVisible();
     await expect(
       page.getByRole("button", { name: "Test saved kart" }),
-    ).toBeDisabled();
+    ).toBeEnabled();
     await expect(
-      page.getByText(
-        "Saved revision 2 cannot be tested until PR 3.5 adds principal-axis integration.",
-      ),
-    ).toBeVisible();
+      page.getByRole("button", { name: "Publish saved draft" }),
+    ).toBeEnabled();
   });
 
-  test("keeps a compatible saved kart testable while unsaved edits are incompatible", async ({
+  test("keeps the saved kart testable while asymmetric edits are unsaved", async ({
     page,
   }, testInfo) => {
     test.skip(
       testInfo.project.name !== "desktop",
-      "Saved-versus-unsaved compatibility coverage only needs to run once.",
+      "Saved-versus-unsaved runtime coverage only needs to run once.",
     );
     const savedDocument = createBalancedKartDocument();
     await usePublishedSandboxCourse(page);
@@ -1338,10 +1334,8 @@ test.describe("protected kart builder access", () => {
       page.getByText("Assembly is valid and deterministically derived."),
     ).toBeVisible();
     await expect(
-      page.getByText(
-        /This asymmetric mass layout can be saved as a private draft, but it cannot be published/,
-      ),
-    ).toBeVisible();
+      page.getByText(/cannot be published until PR 3.5/),
+    ).toHaveCount(0);
     await expect(
       page.getByRole("button", { name: "Test saved kart" }),
     ).toBeEnabled();

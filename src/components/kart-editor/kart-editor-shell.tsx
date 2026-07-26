@@ -56,7 +56,6 @@ import {
 import { deriveKartSnapshot } from "@/game/kart/kart-derivation";
 import { buildPrimitiveMassElement } from "@/game/kart/kart-construction-geometry";
 import { getApprovedConstructionMaterial } from "@/game/kart/kart-material-registry";
-import { hasRuntimeCompatibleInertia } from "@/game/kart/kart-runtime-compatibility";
 import {
   type PersistedKartRevision,
   kartPublicationEventSchema,
@@ -225,12 +224,6 @@ export function KartEditorShell({
     }
   }, [document, validation]);
   const selectedInstance = getKartEditorInstance(document, selection);
-  const runtimeTestCompatible =
-    derivation.snapshot !== null &&
-    hasRuntimeCompatibleInertia(derivation.snapshot);
-  const savedRuntimeTestCompatible = hasRuntimeCompatibleInertia(
-    currentRevision.resolvedSnapshot,
-  );
   const selectedDefinition =
     selectedInstance?.kind === "component"
       ? getApprovedKartComponent(selectedInstance.definition)
@@ -760,7 +753,6 @@ export function KartEditorShell({
       operationPendingRef.current ||
       signOutPending ||
       (action === "publish" && history.isDirty) ||
-      (action === "publish" && !runtimeTestCompatible) ||
       (action === "publish" && published?.revision === currentRevision.revision)
     ) {
       return;
@@ -1183,7 +1175,6 @@ export function KartEditorShell({
             disabled={
               history.isDirty ||
               workspaceLocked ||
-              !runtimeTestCompatible ||
               published?.revision === currentRevision.revision
             }
             title={
@@ -1191,9 +1182,7 @@ export function KartEditorShell({
                 ? `Publishing draft r${currentRevision.revision}…`
                 : history.isDirty
                   ? "Save the draft before publishing"
-                  : !runtimeTestCompatible
-                    ? "This draft is not compatible with the current race runtime"
-                    : published?.revision === currentRevision.revision
+                  : published?.revision === currentRevision.revision
                       ? `Draft r${currentRevision.revision} is published`
                       : `Publish draft r${currentRevision.revision}`
             }
@@ -1260,7 +1249,6 @@ export function KartEditorShell({
                 <KartAction
                   disabled={
                     history.isDirty ||
-                    !runtimeTestCompatible ||
                     published?.revision === currentRevision.revision
                   }
                   label="Publish saved draft"
@@ -1647,7 +1635,7 @@ export function KartEditorShell({
             <button
               aria-busy={testPending}
               className="titan-button titan-button-primary !min-h-11 !py-2"
-              disabled={testPending || !savedRuntimeTestCompatible}
+              disabled={testPending}
               ref={testButtonRef}
               type="button"
               onClick={startSandboxTest}
@@ -1655,9 +1643,8 @@ export function KartEditorShell({
               {testPending ? "Loading sandbox…" : "Test saved kart"}
             </button>
             <p className="text-xs leading-relaxed text-titan-muted">
-              {savedRuntimeTestCompatible
-                ? `Drive saved revision ${currentRevision.revision} on the current sandbox course. Unsaved changes are not included.`
-                : `Saved revision ${currentRevision.revision} cannot be tested until PR 3.5 adds principal-axis integration.`}
+              Drive saved revision {currentRevision.revision} on the current
+              sandbox course. Unsaved changes are not included.
             </p>
           </div>
           <div className="absolute bottom-3 left-3 right-3 z-20 grid grid-cols-2 gap-2 lg:hidden">
@@ -1972,16 +1959,6 @@ export function KartEditorShell({
                 >
                   Assembly is valid and deterministically derived.
                 </p>
-                {!runtimeTestCompatible ? (
-                  <p
-                    className="border border-titan-hazard/40 bg-titan-hazard/10 p-3 text-sm text-titan-ice"
-                    role="alert"
-                  >
-                    This asymmetric mass layout can be saved as a private draft,
-                    but it cannot be published until PR 3.5 adds principal-axis
-                    integration. Testing still uses the last saved revision.
-                  </p>
-                ) : null}
               </div>
             ) : (
               <>
