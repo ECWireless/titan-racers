@@ -35,6 +35,15 @@ const VELOCITY_SHARPNESS = 5;
 const FOV_SHARPNESS = 4;
 const AIRBORNE_SHARPNESS = 7;
 const AIRBORNE_VERTICAL_LAG = 0.65;
+const STABILIZATION_ANGULAR_SPEED_START = 2.5;
+const STABILIZATION_ANGULAR_SPEED_FULL = 7;
+const STABILIZATION_UPRIGHT_START = 0.7;
+const STABILIZATION_UPRIGHT_FULL = 0.1;
+const STABILIZATION_ENGAGE_SHARPNESS = 10;
+const STABILIZATION_RELEASE_SHARPNESS = 2.4;
+const NORMAL_HEADING_SLEW_RADIANS_PER_SECOND = (450 * Math.PI) / 180;
+const STABILIZED_HEADING_SLEW_RADIANS_PER_SECOND = (25 * Math.PI) / 180;
+const STABILIZED_LOOK_AHEAD_RATIO = 0.35;
 const CAMERA_PIVOT_HEIGHT = scaleReferenceKartLength(0.65);
 const OBSTRUCTION_MARGIN = scaleReferenceKartLength(0.28);
 const IMPACT_MINIMUM_APPROACH_SPEED = 3.5;
@@ -59,6 +68,7 @@ export type ChaseCameraImpact = {
 };
 
 export type ChaseCameraSnapshot = {
+  angularVelocity: pc.Vec3;
   impact: ChaseCameraImpact | null;
   linearVelocity: pc.Vec3;
   position: pc.Vec3;
@@ -73,7 +83,9 @@ export type ChaseCameraObstruction = {
 
 export type ChaseCameraDiagnostics = {
   airborneBlend: number;
+  angularSpeed: number;
   cameraPosition: Position3;
+  chaseHeading: Position3;
   desiredPosition: Position3;
   fov: number;
   forwardSpeed: number;
@@ -85,7 +97,9 @@ export type ChaseCameraDiagnostics = {
   planarSpeed: number;
   signedSlipDegrees: number;
   snapCount: number;
+  stabilizationBlend: number;
   trailingDistance: number;
+  uprightness: number;
 };
 
 type ObstructionQuery = (
@@ -103,6 +117,59 @@ function clamp(value: number, minimum: number, maximum: number) {
 
 function lerp(start: number, end: number, amount: number) {
   return start + (end - start) * amount;
+}
+
+export function calculateCameraStabilizationTarget(
+  uprightness: number,
+  angularSpeed: number,
+) {
+  const tiltInstability = clamp(
+    (STABILIZATION_UPRIGHT_START - uprightness) /
+      (STABILIZATION_UPRIGHT_START - STABILIZATION_UPRIGHT_FULL),
+    0,
+    1,
+  );
+  const spinInstability = clamp(
+    (angularSpeed - STABILIZATION_ANGULAR_SPEED_START) /
+      (STABILIZATION_ANGULAR_SPEED_FULL -
+        STABILIZATION_ANGULAR_SPEED_START),
+    0,
+    1,
+  );
+
+  return Math.max(tiltInstability, spinInstability);
+}
+
+export function calculatePlanarHeadingStep(
+  current: Position3,
+  target: Position3,
+  maximumRadians: number,
+) {
+  const currentYaw = Math.atan2(current.x, -current.z);
+  const targetYaw = Math.atan2(target.x, -target.z);
+  const delta = Math.atan2(
+    Math.sin(targetYaw - currentYaw),
+    Math.cos(targetYaw - currentYaw),
+  );
+
+  return clamp(delta, -Math.max(maximumRadians, 0), Math.max(maximumRadians, 0));
+}
+
+export function smoothCameraStabilizationBlend(
+  current: number,
+  target: number,
+  deltaSeconds: number,
+) {
+  return lerp(
+    current,
+    target,
+    smoothFactor(
+      target > current
+        ? STABILIZATION_ENGAGE_SHARPNESS
+        : STABILIZATION_RELEASE_SHARPNESS,
+      deltaSeconds,
+    ),
+  );
 }
 
 export function calculateSignedSlipDegrees(
@@ -159,7 +226,10 @@ export class ChaseCamera {
   private readonly desiredPosition = new pc.Vec3();
   private readonly desiredLookTarget = new pc.Vec3();
   private readonly kartForward = new pc.Vec3();
+  private readonly kartUp = new pc.Vec3();
   private readonly chaseHeading = new pc.Vec3();
+  private readonly desiredChaseHeading = new pc.Vec3();
+  private readonly stabilizedHeading = new pc.Vec3();
   private readonly velocityHeading = new pc.Vec3();
   private readonly kartRight = new pc.Vec3();
   private readonly cameraPivot = new pc.Vec3();
@@ -181,6 +251,9 @@ export class ChaseCamera {
   private signedSlipDegrees = 0;
   private obstructed = false;
   private obstructionDistance: number | null = null;
+  private stabilizationBlend = 0;
+  private angularSpeed = 0;
+  private uprightness = 1;
 
   constructor(
     private readonly camera: pc.Entity,
@@ -202,7 +275,13 @@ export class ChaseCamera {
     this.desiredImpactOffset.set(0, 0, 0);
     this.impactCooldown = 0;
     this.lastImpactId = snapshot.impact?.id ?? -1;
-    this.updateDesiredState(snapshot, settings);
+    this.updateMotionState(snapshot);
+    this.stabilizationBlend = calculateCameraStabilizationTarget(
+      this.uprightness,
+      this.angularSpeed,
+    );
+    this.initializeChaseHeading();
+    this.updateDesiredState(snapshot, settings, 0);
     this.resolveObstruction();
     this.smoothedPosition.copy(this.correctedPosition);
     this.smoothedLookTarget.copy(this.desiredLookTarget);
@@ -226,9 +305,19 @@ export class ChaseCamera {
       snapshot.supportCount === 0 ? 1 : 0,
       smoothFactor(AIRBORNE_SHARPNESS, frameSeconds),
     );
+    this.updateMotionState(snapshot);
+    const stabilizationTarget = calculateCameraStabilizationTarget(
+      this.uprightness,
+      this.angularSpeed,
+    );
+    this.stabilizationBlend = smoothCameraStabilizationBlend(
+      this.stabilizationBlend,
+      stabilizationTarget,
+      frameSeconds,
+    );
     this.impactCooldown = Math.max(this.impactCooldown - frameSeconds, 0);
     this.consumeImpact(snapshot.impact);
-    this.updateDesiredState(snapshot, settings);
+    this.updateDesiredState(snapshot, settings, frameSeconds);
     this.resolveObstruction();
 
     this.impactOffset.lerp(
@@ -270,7 +359,9 @@ export class ChaseCamera {
   getDiagnostics(): ChaseCameraDiagnostics {
     return {
       airborneBlend: this.airborneBlend,
+      angularSpeed: this.angularSpeed,
       cameraPosition: copyPosition(this.smoothedPosition),
+      chaseHeading: copyPosition(this.chaseHeading),
       desiredPosition: copyPosition(this.desiredPosition),
       fov: this.smoothedFov,
       forwardSpeed: this.forwardSpeed,
@@ -282,20 +373,20 @@ export class ChaseCamera {
       planarSpeed: this.planarSpeed,
       signedSlipDegrees: this.signedSlipDegrees,
       snapCount: this.snapCount,
+      stabilizationBlend: this.stabilizationBlend,
       trailingDistance: this.calculateTrailingDistance(),
+      uprightness: this.uprightness,
     };
   }
 
-  private updateDesiredState(
-    snapshot: ChaseCameraSnapshot,
-    settings: CameraSettings,
-  ) {
-    this.trackedPosition.copy(snapshot.position);
+  private updateMotionState(snapshot: ChaseCameraSnapshot) {
     snapshot.rotation.transformVector(pc.Vec3.FORWARD, this.kartForward);
+    snapshot.rotation.transformVector(pc.Vec3.UP, this.kartUp);
+    this.uprightness = clamp(this.kartUp.y, -1, 1);
+    this.angularSpeed = snapshot.angularVelocity.length();
+
     this.kartForward.y = 0;
-    if (this.kartForward.lengthSq() <= Number.EPSILON) {
-      this.kartForward.set(0, 0, -1);
-    } else {
+    if (this.kartForward.lengthSq() > Number.EPSILON) {
       this.kartForward.normalize();
     }
 
@@ -303,38 +394,97 @@ export class ChaseCamera {
       this.smoothedVelocity.x,
       this.smoothedVelocity.z,
     );
-    this.forwardSpeed = this.smoothedVelocity.dot(this.kartForward);
-    this.chaseHeading.copy(this.kartForward);
-
-    if (
-      this.planarSpeed >= MOTION_HEADING_MINIMUM_SPEED &&
-      this.forwardSpeed > 0
-    ) {
+    if (this.planarSpeed >= MOTION_HEADING_MINIMUM_SPEED) {
       this.velocityHeading
         .set(this.smoothedVelocity.x, 0, this.smoothedVelocity.z)
         .normalize();
+    }
+  }
+
+  private initializeChaseHeading() {
+    if (this.kartForward.lengthSq() > Number.EPSILON) {
+      this.chaseHeading.copy(this.kartForward);
+    } else if (this.planarSpeed >= MOTION_HEADING_MINIMUM_SPEED) {
+      this.chaseHeading.copy(this.velocityHeading);
+    } else {
+      this.chaseHeading.set(0, 0, -1);
+    }
+
+    this.updateDesiredHeading();
+    this.chaseHeading.copy(this.desiredChaseHeading);
+  }
+
+  private updateDesiredHeading() {
+    if (this.kartForward.lengthSq() <= Number.EPSILON) {
+      this.kartForward.copy(this.chaseHeading);
+    }
+    const orientationForwardSpeed =
+      this.smoothedVelocity.dot(this.kartForward);
+    this.desiredChaseHeading.copy(this.kartForward);
+
+    if (
+      this.planarSpeed >= MOTION_HEADING_MINIMUM_SPEED &&
+      orientationForwardSpeed > 0
+    ) {
       const motionWeight =
         MOTION_HEADING_WEIGHT *
         clamp((this.planarSpeed - MOTION_HEADING_MINIMUM_SPEED) / 6, 0, 1);
-      this.chaseHeading
+      this.desiredChaseHeading
         .lerp(this.kartForward, this.velocityHeading, motionWeight)
         .normalize();
     }
 
-    this.kartRight.cross(pc.Vec3.UP, this.kartForward).normalize();
+    this.stabilizedHeading.copy(
+      this.planarSpeed >= MOTION_HEADING_MINIMUM_SPEED &&
+        this.smoothedVelocity.dot(this.chaseHeading) > 0
+        ? this.velocityHeading
+        : this.chaseHeading,
+    );
+    blendPlanarHeadings(
+      this.desiredChaseHeading,
+      this.stabilizedHeading,
+      this.stabilizationBlend,
+      this.desiredChaseHeading,
+    );
+  }
+
+  private updateDesiredState(
+    snapshot: ChaseCameraSnapshot,
+    settings: CameraSettings,
+    frameSeconds: number,
+  ) {
+    this.trackedPosition.copy(snapshot.position);
+    this.updateDesiredHeading();
+    const maximumHeadingStep =
+      lerp(
+        NORMAL_HEADING_SLEW_RADIANS_PER_SECOND,
+        STABILIZED_HEADING_SLEW_RADIANS_PER_SECOND,
+        this.stabilizationBlend,
+      ) * frameSeconds;
+    const headingStep = calculatePlanarHeadingStep(
+      this.chaseHeading,
+      this.desiredChaseHeading,
+      maximumHeadingStep,
+    );
+    const nextYaw = Math.atan2(this.chaseHeading.x, -this.chaseHeading.z) +
+      headingStep;
+    this.chaseHeading.set(Math.sin(nextYaw), 0, -Math.cos(nextYaw));
+    this.forwardSpeed = this.smoothedVelocity.dot(this.chaseHeading);
+
+    this.kartRight.cross(pc.Vec3.UP, this.chaseHeading).normalize();
     this.signedSlipDegrees = clamp(
       calculateSignedSlipDegrees(this.kartForward, this.smoothedVelocity),
       -MAXIMUM_SLIP_DEGREES,
       MAXIMUM_SLIP_DEGREES,
     );
     const slipOffset =
-      (this.signedSlipDegrees / MAXIMUM_SLIP_DEGREES) * MAXIMUM_SLIP_OFFSET;
+      (this.signedSlipDegrees / MAXIMUM_SLIP_DEGREES) *
+      MAXIMUM_SLIP_OFFSET *
+      (1 - this.stabilizationBlend);
     const speedRatio = clamp(this.planarSpeed / this.maximumSpeed, 0, 1);
-    const lookAhead = lerp(
-      settings.lookAhead,
-      settings.maximumLookAhead,
-      speedRatio,
-    );
+    const lookAhead =
+      lerp(settings.lookAhead, settings.maximumLookAhead, speedRatio) *
+      lerp(1, STABILIZED_LOOK_AHEAD_RATIO, this.stabilizationBlend);
 
     this.desiredPosition
       .copy(snapshot.position)
@@ -471,4 +621,17 @@ export class ChaseCamera {
 
 function copyPosition(vector: pc.Vec3): Position3 {
   return { x: vector.x, y: vector.y, z: vector.z };
+}
+
+function blendPlanarHeadings(
+  start: pc.Vec3,
+  end: pc.Vec3,
+  amount: number,
+  result: pc.Vec3,
+) {
+  const startYaw = Math.atan2(start.x, -start.z);
+  const delta = calculatePlanarHeadingStep(start, end, Math.PI);
+  const yaw = startYaw + delta * clamp(amount, 0, 1);
+
+  result.set(Math.sin(yaw), 0, -Math.cos(yaw));
 }

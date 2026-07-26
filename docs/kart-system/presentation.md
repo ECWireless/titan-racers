@@ -38,3 +38,8 @@ visual intensity. Purely visual changes use a presentation version and do not
 invalidate competitive results. If a purported presentation change alters
 physics or player-control semantics, it must instead be classified and
 versioned in the appropriate solver or gameplay-policy layer.
+
+The chase camera also observes chassis angular speed and world-up alignment to
+stabilize framing during violent spin or tumble. Those signals only adjust
+camera heading, prediction, and composition; they never alter the chassis pose,
+rigid-body velocity, or recovery policy.

@@ -228,7 +228,9 @@ async function getCameraDebugState(canvas: Locator) {
     (element) =>
       new Promise<{
         airborneBlend: number;
+        angularSpeed: number;
         cameraPosition: { x: number; y: number; z: number };
+        chaseHeading: { x: number; y: number; z: number };
         desiredPosition: { x: number; y: number; z: number };
         fov: number;
         forwardSpeed: number;
@@ -240,7 +242,9 @@ async function getCameraDebugState(canvas: Locator) {
         planarSpeed: number;
         signedSlipDegrees: number;
         snapCount: number;
+        stabilizationBlend: number;
         trailingDistance: number;
+        uprightness: number;
       }>((resolve) => {
         element.dispatchEvent(
           new CustomEvent("getCameraDebugState", {
@@ -392,6 +396,21 @@ async function setKartDebugPose(
       }),
     );
   }, pose);
+}
+
+async function setKartDebugAngularVelocity(
+  canvas: Locator,
+  angularVelocity: { x: number; y: number; z: number },
+) {
+  await waitForSceneReady(canvas);
+
+  await canvas.evaluate((element, requestedAngularVelocity) => {
+    element.dispatchEvent(
+      new CustomEvent("setKartDebugAngularVelocity", {
+        detail: { angularVelocity: requestedAngularVelocity },
+      }),
+    );
+  }, angularVelocity);
 }
 
 async function setKartDevelopmentValues(
@@ -3690,6 +3709,31 @@ test.describe("home screen", () => {
     );
   });
 
+  test("snaps to a proportionally stabilized chase heading", async ({
+    page,
+  }) => {
+    await page.goto("/");
+    await page.getByRole("button", { name: "Solo Time Trial" }).click();
+
+    const canvas = page.getByTestId("solo-time-trial-canvas");
+    await setSimulationPaused(canvas, true);
+    await setKartDebugPose(canvas, {
+      angularVelocity: { x: 0, y: 3.625, z: 0 },
+      linearVelocity: { x: 4, y: 0, z: -4 },
+      position: { x: 0, y: 20, z: 8 },
+      rotation: { x: 0, y: 0, z: 0 },
+    });
+
+    const camera = await getCameraDebugState(canvas);
+    const headingDegrees =
+      (Math.atan2(camera.chaseHeading.x, -camera.chaseHeading.z) * 180) /
+      Math.PI;
+
+    expect(camera.stabilizationBlend).toBeCloseTo(0.25);
+    expect(headingDegrees).toBeGreaterThan(17);
+    expect(headingDegrees).toBeLessThan(30);
+  });
+
   test("corrects the chase camera against the visible wall and releases it", async ({
     page,
   }) => {
@@ -3842,6 +3886,85 @@ test.describe("home screen", () => {
     expect(Number.isFinite(landedCamera.cameraPosition.x)).toBe(true);
     expect(Number.isFinite(landedCamera.cameraPosition.y)).toBe(true);
     expect(Number.isFinite(landedCamera.cameraPosition.z)).toBe(true);
+  });
+
+  test("untethers chase heading while the kart spins violently", async ({
+    page,
+  }) => {
+    test.setTimeout(60_000);
+    await page.goto("/");
+    await page.getByRole("button", { name: "Solo Time Trial" }).click();
+
+    const canvas = page.getByTestId("solo-time-trial-canvas");
+    await setSimulationPaused(canvas, true);
+    await setKartDebugPose(canvas, {
+      angularVelocity: { x: 0, y: 12, z: 0 },
+      linearVelocity: { x: 0, y: 0, z: 5 },
+      position: { x: 0, y: 20, z: 8 },
+      rotation: { x: 0, y: 0, z: 0 },
+    });
+
+    const initialCamera = await getCameraDebugState(canvas);
+    const initialKart = await getKartDebugState(canvas);
+
+    await stepSimulation(canvas, 12);
+
+    const spinningCamera = await getCameraDebugState(canvas);
+    const spinningKart = await getKartDebugState(canvas);
+    const kartForwardSimilarity =
+      initialKart.forward.x * spinningKart.forward.x +
+      initialKart.forward.z * spinningKart.forward.z;
+    const cameraHeadingSimilarity =
+      initialCamera.chaseHeading.x * spinningCamera.chaseHeading.x +
+      initialCamera.chaseHeading.z * spinningCamera.chaseHeading.z;
+
+    expect(spinningCamera.angularSpeed).toBeGreaterThan(7);
+    expect(spinningCamera.stabilizationBlend).toBeGreaterThan(0.95);
+    expect(kartForwardSimilarity).toBeLessThan(0.7);
+    expect(cameraHeadingSimilarity).toBeGreaterThan(0.99);
+    expect(spinningCamera.forwardSpeed).toBeLessThan(-1);
+    expect(spinningCamera.trailingDistance).toBeGreaterThanOrEqual(
+      initialCamera.trailingDistance - 0.01,
+    );
+    expect(Number.isFinite(spinningCamera.cameraPosition.x)).toBe(true);
+    expect(Number.isFinite(spinningCamera.cameraPosition.y)).toBe(true);
+    expect(Number.isFinite(spinningCamera.cameraPosition.z)).toBe(true);
+
+    await setKartDebugAngularVelocity(canvas, { x: 0, y: 0, z: 0 });
+    const recoveryHeadings = [spinningCamera.chaseHeading];
+
+    for (let batch = 0; batch < 30; batch += 1) {
+      await stepSimulation(canvas, 6);
+      recoveryHeadings.push((await getCameraDebugState(canvas)).chaseHeading);
+    }
+
+    const recoveredCamera = await getCameraDebugState(canvas);
+    const recoveredKart = await getKartDebugState(canvas);
+    const maximumRecoveryHeadingStep = Math.max(
+      ...recoveryHeadings.slice(1).map((heading, index) => {
+        const previous = recoveryHeadings[index];
+        const previousYaw = Math.atan2(previous.x, -previous.z);
+        const currentYaw = Math.atan2(heading.x, -heading.z);
+
+        return Math.abs(
+          Math.atan2(
+            Math.sin(currentYaw - previousYaw),
+            Math.cos(currentYaw - previousYaw),
+          ),
+        );
+      }),
+    );
+    const recoveredHeadingAlignment =
+      recoveredCamera.chaseHeading.x * recoveredKart.forward.x +
+      recoveredCamera.chaseHeading.z * recoveredKart.forward.z;
+
+    expect(recoveredCamera.stabilizationBlend).toBeLessThan(0.05);
+    expect(maximumRecoveryHeadingStep).toBeLessThan((30 * Math.PI) / 180);
+    expect(recoveredHeadingAlignment).toBeGreaterThan(0.95);
+    expect(recoveredCamera.forwardSpeed).toBeLessThan(-1);
+    expect(recoveredCamera.trailingDistance).toBeGreaterThanOrEqual(
+      initialCamera.trailingDistance - 0.01,
+    );
   });
 
   test("applies the authored start through the scene test adapter", async ({

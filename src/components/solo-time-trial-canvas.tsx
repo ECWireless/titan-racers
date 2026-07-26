@@ -1823,6 +1823,7 @@ export function SoloTimeTrialCanvas({
       let cameraImpactId = 0;
       let latestCameraImpact: ChaseCameraImpact | null = null;
       const chaseCameraSnapshot: ChaseCameraSnapshot = {
+        angularVelocity: new pc.Vec3(),
         impact: null,
         linearVelocity: new pc.Vec3(),
         position: new pc.Vec3(),
@@ -1896,6 +1897,9 @@ export function SoloTimeTrialCanvas({
         supportCount = kartController.state.supportCount,
       ): ChaseCameraSnapshot {
         chaseCameraSnapshot.impact = latestCameraImpact;
+        chaseCameraSnapshot.angularVelocity.copy(
+          kart.rigidbody?.angularVelocity ?? pc.Vec3.ZERO,
+        );
         chaseCameraSnapshot.linearVelocity.copy(
           kart.rigidbody?.linearVelocity ?? pc.Vec3.ZERO,
         );
@@ -2504,6 +2508,16 @@ export function SoloTimeTrialCanvas({
         );
       };
 
+      const setKartDebugAngularVelocity = (angularVelocity: Position3) => {
+        if (kart.rigidbody) {
+          kart.rigidbody.angularVelocity = new pc.Vec3(
+            angularVelocity.x,
+            angularVelocity.y,
+            angularVelocity.z,
+          );
+        }
+      };
+
       const setRaceDebugMovement = (
         previousPosition: Position3,
         currentPosition: Position3,
@@ -2645,6 +2659,7 @@ export function SoloTimeTrialCanvas({
             requestRaceRecovery,
             resetKart,
             setCourseObjectDebugTransform,
+            setKartDebugAngularVelocity,
             setKartDebugPose,
             setKartDevelopmentValues: setSceneKartDevelopmentValues,
             setRaceDebugMovement,

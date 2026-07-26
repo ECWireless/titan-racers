@@ -171,6 +171,7 @@ export type SceneTestApi = {
     transform: { position?: Position3; rotation?: Position3 },
   ) => void;
   setKartDebugPose: (pose: KartDebugPose) => void;
+  setKartDebugAngularVelocity: (angularVelocity: Position3) => void;
   setKartDevelopmentValues: (values: Partial<KartDevelopmentValues>) => void;
   setRaceDebugMovement: (
     previousPosition: Position3,
@@ -329,6 +330,12 @@ export function attachSceneTestAdapter(
         event.detail.respond(
           api.stepSimulationWithKartSamples(event.detail.steps),
         );
+      }) as EventListener,
+    ],
+    [
+      "setKartDebugAngularVelocity",
+      ((event: CustomEvent<{ angularVelocity: Position3 }>) => {
+        api.setKartDebugAngularVelocity(event.detail.angularVelocity);
       }) as EventListener,
     ],
     [
