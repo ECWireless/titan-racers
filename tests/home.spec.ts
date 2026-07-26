@@ -5131,6 +5131,9 @@ test.describe("home screen", () => {
     await setStandardTestGamepad(page);
     await page.waitForTimeout(50);
     await setStandardTestGamepad(page, { buttons: { 0: 1 } });
+    await expect(
+      page.getByRole("button", { name: "Close utility menu" }),
+    ).toBeFocused();
     const courseEditor = page.getByRole("link", { name: "Course Editor" });
     const kartBuilder = page.getByRole("link", { name: "Kart Builder" });
     const profile = page.getByRole("link", { name: "Profile" });
