@@ -8,6 +8,7 @@ import {
   kartRevisions,
   karts,
   type KartPublicationAction,
+  users,
 } from "@/db/schema";
 import {
   type KartAssemblyDocument,
@@ -67,6 +68,7 @@ export type PersistedKartPublicationEvent = {
 };
 
 export type PersistedPublishedKartRevision = PersistedKartRevision & {
+  authorName: string;
   publication: PersistedKartPublicationEvent & {
     action: "publish";
     revision: number;
@@ -237,6 +239,7 @@ export async function loadPublishedKartRevision(
     .select({
       action: kartPublicationEvents.action,
       actorUserId: kartPublicationEvents.actorUserId,
+      authorName: users.name,
       authorUserId: kartRevisions.authorUserId,
       createdAt: kartRevisions.createdAt,
       derivationVersion: kartRevisions.derivationVersion,
@@ -259,6 +262,7 @@ export async function loadPublishedKartRevision(
       ),
     )
     .innerJoin(karts, eq(karts.id, kartPublicationEvents.kartId))
+    .leftJoin(users, eq(users.id, kartRevisions.authorUserId))
     .where(eq(kartPublicationEvents.kartId, kartId))
     .orderBy(desc(kartPublicationEvents.id))
     .limit(1);
@@ -266,6 +270,7 @@ export async function loadPublishedKartRevision(
     !row ||
     row.action !== "publish" ||
     !row.revision ||
+    row.authorName === null ||
     !row.authorUserId ||
     !row.createdAt ||
     !row.derivationVersion ||
@@ -292,6 +297,7 @@ export async function loadPublishedKartRevision(
 
   return {
     ...revision,
+    authorName: row.authorName,
     publication: {
       action: "publish",
       actorUserId: row.actorUserId,

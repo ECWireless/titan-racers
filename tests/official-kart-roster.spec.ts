@@ -11,6 +11,7 @@ import {
 import { validateKartAssembly } from "../src/game/kart/kart-assembly-validation";
 import { deriveKartSnapshot } from "../src/game/kart/kart-derivation";
 import {
+  createOfficialKartDocument,
   createOfficialKartRosterDocuments,
   OFFICIAL_KART_IDS,
   type OfficialKartId,
@@ -206,5 +207,17 @@ test("supports protected draft IDs without changing official construction", () =
     const official = createDocument();
     expect(draft.kartId).toBe(`${officialId}.draft`);
     expect({ ...draft, kartId: officialId }).toEqual(official);
+  }
+});
+
+test("selects the matching starting assembly for every official ID", () => {
+  for (const kartId of OFFICIAL_KART_IDS) {
+    const document = createOfficialKartDocument(kartId);
+    expect(document.kartId).toBe(kartId);
+    expect(document).toEqual(
+      createOfficialKartRosterDocuments().find(
+        (candidate) => candidate.kartId === kartId,
+      ),
+    );
   }
 });

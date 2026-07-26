@@ -2,6 +2,7 @@ import { expect, test, type Locator, type Page } from "@playwright/test";
 
 import { ROUGH_COURSE_DOCUMENT } from "../src/game/course/course-document";
 import { createBalancedKartDocument } from "../src/game/kart/balanced-kart-document";
+import { createSpeedKartDocument } from "../src/game/kart/speed-kart-document";
 import { KART_EDITOR_TRANSLATE_SNAP } from "../src/game/editor/kart-editor-scene";
 import type { KartAssemblyDocument } from "../src/game/kart/kart-assembly-document";
 import { getApprovedKartComponent } from "../src/game/kart/kart-component-registry";
@@ -239,6 +240,47 @@ test.describe("protected kart builder access", () => {
     await expect(
       page.getByRole("heading", { name: "Balanced Kart" }),
     ).toHaveCount(0);
+  });
+
+  test("initializes an official ID from its matching roster assembly", async ({
+    page,
+  }, testInfo) => {
+    test.skip(
+      testInfo.project.name !== "desktop",
+      "Official draft initialization only needs to run once.",
+    );
+    const speedDocument = createSpeedKartDocument();
+    let requestCount = 0;
+    await page.route("**/api/admin/karts/speed-kart", async (route) => {
+      requestCount += 1;
+      if (route.request().method() === "GET") {
+        await route.fulfill({
+          body: JSON.stringify({ error: "Kart not found." }),
+          contentType: "application/json",
+          status: 404,
+        });
+        return;
+      }
+      expect(route.request().postDataJSON()).toEqual({
+        document: speedDocument,
+        expectedRevision: null,
+      });
+      await route.fulfill({
+        body: JSON.stringify(
+          createPersistedBalancedRevision(speedDocument, null),
+        ),
+        contentType: "application/json",
+        status: 201,
+      });
+    });
+
+    await page.goto("/admin/karts/speed-kart");
+    await page.getByRole("button", { name: "Create Speed Kart draft" }).click();
+
+    await expect(
+      page.getByRole("heading", { name: "Speed Kart" }),
+    ).toBeVisible();
+    expect(requestCount).toBe(2);
   });
 
   test("loads the validated assembly and saved-kart test control", async ({

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { z } from "zod";
 
 import { createBalancedKartDocument } from "@/game/kart/balanced-kart-document";
@@ -9,6 +9,11 @@ import {
   type PersistedKartRevision,
   persistedKartRevisionSchema,
 } from "@/game/kart/kart-publication";
+import {
+  createOfficialKartDocument,
+  OFFICIAL_KART_IDS,
+  type OfficialKartId,
+} from "@/game/kart/official-kart-roster";
 
 import { KartEditorShell } from "./kart-editor-shell";
 
@@ -51,6 +56,14 @@ async function resolveAccessState(kartId: string): Promise<AccessState> {
 }
 
 export function KartEditorAccess({ kartId }: { kartId: string }) {
+  const startingDocument = useMemo(() => {
+    const officialKartId = OFFICIAL_KART_IDS.find(
+      (candidate): candidate is OfficialKartId => candidate === kartId,
+    );
+    return officialKartId
+      ? createOfficialKartDocument(officialKartId)
+      : createBalancedKartDocument(kartId);
+  }, [kartId]);
   const [accessState, setAccessState] = useState<AccessState>({
     status: "loading",
   });
@@ -113,12 +126,12 @@ export function KartEditorAccess({ kartId }: { kartId: string }) {
     }
   }
 
-  async function initializeBalancedKart() {
+  async function initializeKart() {
     setInitializationPending(true);
     try {
       const response = await fetch(`/api/admin/karts/${kartId}`, {
         body: JSON.stringify({
-          document: createBalancedKartDocument(kartId),
+          document: startingDocument,
           expectedRevision: null,
         }),
         credentials: "include",
@@ -136,7 +149,7 @@ export function KartEditorAccess({ kartId }: { kartId: string }) {
       });
     } catch {
       setAccessState({
-        message: "The Balanced Kart starting draft could not be initialized.",
+        message: `The ${startingDocument.name} starting draft could not be initialized.`,
         status: "error",
       });
     } finally {
@@ -203,11 +216,11 @@ export function KartEditorAccess({ kartId }: { kartId: string }) {
               className="titan-button titan-button-primary"
               disabled={initializationPending}
               type="button"
-              onClick={() => void initializeBalancedKart()}
+              onClick={() => void initializeKart()}
             >
               {initializationPending
                 ? "Initializing…"
-                : "Create Balanced Kart draft"}
+                : `Create ${startingDocument.name} draft`}
             </button>
           ) : accessState.status === "forbidden" ? (
             <button
@@ -272,8 +285,8 @@ function AccessMessage({ accessState }: { accessState: AccessState }) {
   if (accessState.status === "not-found") {
     return (
       <p className="border border-titan-hazard/35 bg-titan-hazard/[0.06] px-4 py-3 text-sm text-titan-ice/78">
-        No draft exists for this kart ID. Create a validated Balanced Kart
-        starting assembly to begin authoring.
+        No draft exists for this kart ID. Create its validated starting
+        assembly to begin authoring.
       </p>
     );
   }

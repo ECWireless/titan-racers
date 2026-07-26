@@ -503,6 +503,16 @@ test.describe("kart persistence and authorization", () => {
     expect(publishedPayload).not.toHaveProperty("authorUserId");
     expect(publishedPayload).not.toHaveProperty("ownerUserId");
     expect(publishedPayload).not.toHaveProperty("actorUserId");
+    await expect(loadPublishedKartRevision(kartId)).resolves.toMatchObject({
+      authorName: "Kart Publisher",
+    });
+    await db
+      .update(users)
+      .set({ name: "" })
+      .where(eq(users.id, savedUser.id));
+    await expect(loadPublishedKartRevision(kartId)).resolves.toMatchObject({
+      authorName: "",
+    });
 
     const competing = await Promise.allSettled([
       publishKartRevision({
