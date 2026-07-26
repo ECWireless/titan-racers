@@ -4,10 +4,10 @@ import { ROUGH_COURSE_DOCUMENT } from "../src/game/course/course-document";
 import { deriveKartCcdConfiguration } from "../src/game/collision/kart-collision-model";
 import {
   createKartDevelopmentValues,
-  KART_DEVELOPMENT_VALUE_METADATA,
   type KartDevelopmentValues,
 } from "../src/game/kart/kart-development-values";
 import { createBalancedKartDocument } from "../src/game/kart/balanced-kart-document";
+import { createSpeedKartDocument } from "../src/game/kart/speed-kart-document";
 import {
   deriveKartSnapshot,
   type ResolvedKartSnapshot,
@@ -42,6 +42,8 @@ const MAX_CONTROLLED_COLLISION_ANGULAR_SPEED = 15 / REFERENCE_KART_TIME_SCALE;
 const MAX_FAST_COLLISION_ANGULAR_SPEED = 25 / REFERENCE_KART_TIME_SCALE;
 const BALANCED_KART_DOCUMENT = createBalancedKartDocument();
 const BALANCED_KART_SNAPSHOT = deriveKartSnapshot(BALANCED_KART_DOCUMENT);
+const SPEED_KART_DOCUMENT = createSpeedKartDocument();
+const SPEED_KART_SNAPSHOT = deriveKartSnapshot(SPEED_KART_DOCUMENT);
 const BALANCED_KART_DEVELOPMENT_VALUES = createKartDevelopmentValues(
   BALANCED_KART_SNAPSHOT.physicalProfile,
 );
@@ -542,17 +544,65 @@ async function useBundledRoughCourse(page: Page) {
 }
 
 async function useBundledBalancedKart(page: Page) {
-  await page.route("**/api/karts/balanced-kart/published", async (route) => {
+  await page.route("**/api/karts/official", async (route) => {
     await route.fulfill({
       body: JSON.stringify({
-        derivationVersion: BALANCED_KART_SNAPSHOT.derivationVersion,
-        document: BALANCED_KART_DOCUMENT,
-        kartId: BALANCED_KART_DOCUMENT.kartId,
-        publishedAt: new Date("2026-07-25T00:05:00.000Z").toISOString(),
-        resolvedSnapshot: BALANCED_KART_SNAPSHOT,
-        resolvedSnapshotHash: "a".repeat(64),
-        revision: 1,
-        schemaVersion: BALANCED_KART_DOCUMENT.schemaVersion,
+        karts: [
+          {
+            assemblerCredit: "Titan Racers",
+            runtime: {
+              derivationVersion: BALANCED_KART_SNAPSHOT.derivationVersion,
+              document: BALANCED_KART_DOCUMENT,
+              kartId: BALANCED_KART_DOCUMENT.kartId,
+              publishedAt: new Date("2026-07-25T00:05:00.000Z").toISOString(),
+              resolvedSnapshot: BALANCED_KART_SNAPSHOT,
+              resolvedSnapshotHash: "a".repeat(64),
+              revision: 1,
+              schemaVersion: BALANCED_KART_DOCUMENT.schemaVersion,
+            },
+          },
+        ],
+        source: "published",
+      }),
+      contentType: "application/json",
+      status: 200,
+    });
+  });
+}
+
+async function usePublishedBalancedAndSpeedKarts(page: Page) {
+  await page.route("**/api/karts/official", async (route) => {
+    await route.fulfill({
+      body: JSON.stringify({
+        karts: [
+          {
+            assemblerCredit: "Balanced Assembler",
+            runtime: {
+              derivationVersion: BALANCED_KART_SNAPSHOT.derivationVersion,
+              document: BALANCED_KART_DOCUMENT,
+              kartId: BALANCED_KART_DOCUMENT.kartId,
+              publishedAt: "2026-07-25T00:05:00.000Z",
+              resolvedSnapshot: BALANCED_KART_SNAPSHOT,
+              resolvedSnapshotHash: "d".repeat(64),
+              revision: 2,
+              schemaVersion: BALANCED_KART_DOCUMENT.schemaVersion,
+            },
+          },
+          {
+            assemblerCredit: "Speed Assembler",
+            runtime: {
+              derivationVersion: SPEED_KART_SNAPSHOT.derivationVersion,
+              document: SPEED_KART_DOCUMENT,
+              kartId: SPEED_KART_DOCUMENT.kartId,
+              publishedAt: "2026-07-25T00:10:00.000Z",
+              resolvedSnapshot: SPEED_KART_SNAPSHOT,
+              resolvedSnapshotHash: "e".repeat(64),
+              revision: 3,
+              schemaVersion: SPEED_KART_DOCUMENT.schemaVersion,
+            },
+          },
+        ],
+        source: "published",
       }),
       contentType: "application/json",
       status: 200,
@@ -591,6 +641,105 @@ test.describe("home screen", () => {
     await expect(page.getByRole("status")).toHaveText("coming soon");
   });
 
+  test("selects and races only currently published official karts", async ({
+    page,
+  }) => {
+    await usePublishedBalancedAndSpeedKarts(page);
+
+    await page.goto("/");
+    const selection = page.getByRole("group", {
+      name: "Official kart selection",
+    });
+    const balanced = selection
+      .getByRole("button")
+      .filter({ hasText: "Balanced Kart" });
+    const speed = selection
+      .getByRole("button")
+      .filter({ hasText: "Speed Kart" });
+
+    await expect(balanced).toContainText("Assembled by Balanced Assembler");
+    await expect(speed).toContainText("Assembled by Speed Assembler");
+    await expect(selection).not.toContainText("Handling Kart");
+    await expect(balanced).toHaveAttribute("aria-pressed", "true");
+    await speed.click();
+    await expect(speed).toHaveAttribute("aria-pressed", "true");
+
+    await page.getByRole("button", { name: "Solo Time Trial" }).click();
+    await expect(page.getByTestId("solo-time-trial-canvas")).toHaveAttribute(
+      "data-kart-document-name",
+      "Speed Kart",
+    );
+  });
+
+  test("selects and races a published kart with a controller", async ({
+    page,
+  }, testInfo) => {
+    test.skip(
+      testInfo.project.name === "mobile",
+      "Controller desktop fixture.",
+    );
+
+    await installStandardGamepadFixture(page);
+    await usePublishedBalancedAndSpeedKarts(page);
+    await page.goto("/");
+
+    const selection = page.getByRole("group", {
+      name: "Official kart selection",
+    });
+    const speed = selection
+      .getByRole("button")
+      .filter({ hasText: "Speed Kart" });
+    await expect(speed).toBeVisible();
+
+    await setStandardTestGamepad(page);
+    await page.waitForTimeout(50);
+    await setStandardTestGamepad(page, { buttons: { 14: 1 } });
+    await expect(speed).toBeFocused();
+    await setStandardTestGamepad(page);
+    await page.waitForTimeout(50);
+    await setStandardTestGamepad(page, { buttons: { 0: 1 } });
+    await expect(speed).toHaveAttribute("aria-pressed", "true");
+
+    await setStandardTestGamepad(page);
+    await page.waitForTimeout(50);
+    await setStandardTestGamepad(page, { buttons: { 15: 1 } });
+    const soloTimeTrial = page.getByRole("button", {
+      name: "Solo Time Trial",
+    });
+    await expect(soloTimeTrial).toBeFocused();
+    await setStandardTestGamepad(page);
+    await page.waitForTimeout(50);
+    await setStandardTestGamepad(page, { buttons: { 0: 1 } });
+
+    await expect(page.getByTestId("solo-time-trial-canvas")).toHaveAttribute(
+      "data-kart-document-name",
+      "Speed Kart",
+    );
+  });
+
+  test("does not restore intentionally unpublished official karts", async ({
+    page,
+  }) => {
+    await page.route("**/api/karts/official", async (route) => {
+      await route.fulfill({
+        body: JSON.stringify({ karts: [], source: "published" }),
+        contentType: "application/json",
+        status: 200,
+      });
+    });
+
+    await page.goto("/");
+    await expect(
+      page.getByText("No official karts are currently published."),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("button", { name: "Solo Time Trial" }),
+    ).toBeDisabled();
+    await expect(
+      page.getByRole("group", { name: "Official kart selection" }),
+    ).toHaveCount(0);
+  });
+
   test("opens the full-screen solo time trial canvas", async ({ page }) => {
     await page.goto("/");
 
@@ -607,6 +756,39 @@ test.describe("home screen", () => {
     expect(viewport).not.toBeNull();
     expect(Math.round(box?.width ?? 0)).toBe(viewport?.width);
     expect(Math.round(box?.height ?? 0)).toBe(viewport?.height);
+  });
+
+  test("shows locale-aware speed in the race HUD", async ({
+    page,
+  }, testInfo) => {
+    test.skip(
+      testInfo.project.name !== "desktop",
+      "The browser speed readout only needs one rendered locale fixture.",
+    );
+    await page.goto("/");
+    await page.getByRole("button", { name: "Solo Time Trial" }).click();
+    const canvas = page.getByTestId("solo-time-trial-canvas");
+    await setSimulationPaused(canvas, true);
+    const kart = await getKartDebugState(canvas);
+    await setKartDebugPose(canvas, {
+      linearVelocity: {
+        x: kart.forward.x * 10,
+        y: 0,
+        z: kart.forward.z * 10,
+      },
+      position: { x: kart.x, y: kart.y, z: kart.z },
+      rotation: {
+        x: kart.rotationX,
+        y: kart.rotationY,
+        z: kart.rotationZ,
+      },
+    });
+    await stepSimulation(canvas);
+
+    await expect(page.getByTestId("race-speed")).toHaveText("22mph");
+    await expect(
+      page.getByLabel("Speed 22 mph", { exact: true }),
+    ).toBeVisible();
   });
 
   test("constructs guest racing from the published course revision", async ({
@@ -648,17 +830,27 @@ test.describe("home screen", () => {
     publishedDocument.componentInstances[0].visualColor = "#c83b32";
     publishedSnapshot.physicalProfile.drivetrain.maximumDriveForce = 12.345;
     publishedSnapshot.physicalProfile.drivetrain.noLoadSpeed = 9.876;
-    await page.route("**/api/karts/balanced-kart/published", async (route) => {
+    await page.route("**/api/karts/official", async (route) => {
       await route.fulfill({
         body: JSON.stringify({
-          derivationVersion: publishedSnapshot.derivationVersion,
-          document: publishedDocument,
-          kartId: publishedDocument.kartId,
-          publishedAt: new Date("2026-07-25T00:05:00.000Z").toISOString(),
-          resolvedSnapshot: publishedSnapshot,
-          resolvedSnapshotHash: "b".repeat(64),
-          revision: 4,
-          schemaVersion: publishedDocument.schemaVersion,
+          karts: [
+            {
+              assemblerCredit: "Published Assembler",
+              runtime: {
+                derivationVersion: publishedSnapshot.derivationVersion,
+                document: publishedDocument,
+                kartId: publishedDocument.kartId,
+                publishedAt: new Date(
+                  "2026-07-25T00:05:00.000Z",
+                ).toISOString(),
+                resolvedSnapshot: publishedSnapshot,
+                resolvedSnapshotHash: "b".repeat(64),
+                revision: 4,
+                schemaVersion: publishedDocument.schemaVersion,
+              },
+            },
+          ],
+          source: "published",
         }),
         contentType: "application/json",
         status: 200,
@@ -679,14 +871,14 @@ test.describe("home screen", () => {
     expect(kartState.maxForwardSpeed).toBe(9.88);
   });
 
-  test("uses the bundled kart when no published kart is available", async ({
+  test("uses the bundled roster when the official roster is unavailable", async ({
     page,
   }) => {
-    await page.route("**/api/karts/balanced-kart/published", async (route) => {
+    await page.route("**/api/karts/official", async (route) => {
       await route.fulfill({
-        body: JSON.stringify({ error: "Published kart not found." }),
+        body: JSON.stringify({ error: "Official kart roster unavailable." }),
         contentType: "application/json",
-        status: 404,
+        status: 503,
       });
     });
 
@@ -728,17 +920,27 @@ test.describe("home screen", () => {
     expect(coupledSnapshot.massProperties.inertiaTensor.xy).not.toBe(0);
     expect(coupledSnapshot.massProperties.inertiaTensor.xz).not.toBe(0);
     coupledSnapshot.physicalProfile.drivetrain.noLoadSpeed = 9.876;
-    await page.route("**/api/karts/balanced-kart/published", async (route) => {
+    await page.route("**/api/karts/official", async (route) => {
       await route.fulfill({
         body: JSON.stringify({
-          derivationVersion: coupledSnapshot.derivationVersion,
-          document: coupledDocument,
-          kartId: coupledDocument.kartId,
-          publishedAt: new Date("2026-07-25T00:05:00.000Z").toISOString(),
-          resolvedSnapshot: coupledSnapshot,
-          resolvedSnapshotHash: "c".repeat(64),
-          revision: 2,
-          schemaVersion: coupledDocument.schemaVersion,
+          karts: [
+            {
+              assemblerCredit: "Coupled Assembler",
+              runtime: {
+                derivationVersion: coupledSnapshot.derivationVersion,
+                document: coupledDocument,
+                kartId: coupledDocument.kartId,
+                publishedAt: new Date(
+                  "2026-07-25T00:05:00.000Z",
+                ).toISOString(),
+                resolvedSnapshot: coupledSnapshot,
+                resolvedSnapshotHash: "c".repeat(64),
+                revision: 2,
+                schemaVersion: coupledDocument.schemaVersion,
+              },
+            },
+          ],
+          source: "published",
         }),
         contentType: "application/json",
         status: 200,
@@ -2890,7 +3092,7 @@ test.describe("home screen", () => {
     ).toBeLessThan((4 * Math.PI) / 180);
   });
 
-  test("inspects resolved kart dynamics without production overrides", async ({
+  test("shows derived construction, runtime behavior, and practical stats while testing", async ({
     page,
   }, testInfo) => {
     testInfo.setTimeout(60_000);
@@ -2905,10 +3107,10 @@ test.describe("home screen", () => {
       await expect(touchControls).toBeVisible();
     }
     await expect(
-      page.getByRole("button", { name: "Kart dynamics inspector" }),
+      page.getByRole("button", { name: "Kart stats" }),
     ).toHaveCount(0);
     await expect(canvas).toHaveAttribute("aria-keyshortcuts", "T");
-    const tuningHint = page.getByText(/T · Dynamics/);
+    const tuningHint = page.getByText(/T · Stats/);
     if (testInfo.project.name === "desktop") {
       await expect(tuningHint).toBeVisible();
     } else {
@@ -2919,57 +3121,41 @@ test.describe("home screen", () => {
     await page.keyboard.press("t");
 
     const drawer = page.getByRole("region", {
-      name: "Kart dynamics inspector",
+      name: "Kart stats",
     });
     const close = page.getByRole("button", { name: "Close" });
     await expect(drawer).toBeVisible();
     await expect(close).toBeFocused();
-    for (const key of Object.keys(BALANCED_KART_DEVELOPMENT_VALUES) as Array<
-      keyof KartDevelopmentValues
-    >) {
-      await expect(page.getByTestId(`kart-tuning-${key}`)).toHaveCount(1);
-      await expect(page.getByTestId(`kart-tuning-${key}`)).toHaveText(
-        String(BALANCED_KART_DEVELOPMENT_VALUES[key]),
-      );
-      await expect(page.getByTestId(`kart-tuning-owner-${key}`)).toContainText(
-        KART_DEVELOPMENT_VALUE_METADATA[key].owner,
-      );
+    await expect(
+      drawer.getByRole("button", { name: /Derived construction/ }),
+    ).toBeVisible();
+    await expect(
+      drawer.getByRole("button", { name: /Derived runtime behavior/ }),
+    ).toBeVisible();
+    await expect(
+      drawer.getByRole("button", { name: /Practical stats/ }),
+    ).toBeVisible();
+    await expect(drawer).toContainText(
+      `${BALANCED_KART_SNAPSHOT.massProperties.totalMass.toFixed(3)} kg`,
+    );
+    await expect(drawer).toContainText(
+      `${BALANCED_KART_SNAPSHOT.physicalProfile.drivetrain.maximumDriveForce.toFixed(2)} N`,
+    );
+    for (const [label, value] of Object.entries(
+      BALANCED_KART_SNAPSHOT.playerStats,
+    )) {
+      const stat = drawer.getByText(label, { exact: true }).locator("..");
+      await expect(stat).toBeVisible();
+      await expect(stat.getByText(`${value}/100`, { exact: true })).toBeVisible();
     }
+    await expect(drawer).not.toContainText("Movement");
+    await expect(drawer).not.toContainText("They cannot be overridden here.");
     await expect(drawer.locator('button[aria-label^="Explain "]')).toHaveCount(
-      Object.keys(BALANCED_KART_DEVELOPMENT_VALUES).length,
+      0,
     );
     if (testInfo.project.name === "mobile") {
       await expect(touchControls).toBeHidden();
     }
-    const handbrakeForceHelp = page.getByRole("button", {
-      name: "Explain Handbrake force",
-    });
-    await handbrakeForceHelp.focus();
-    const tooltip = page.getByRole("tooltip");
-    await expect(tooltip).toContainText("driven rear wheels");
-    if (testInfo.project.name === "desktop") {
-      await page.mouse.move(0, 0);
-      await expect(tooltip).toBeVisible();
-    }
-    if (testInfo.project.name === "mobile") {
-      await handbrakeForceHelp.press("Escape");
-    } else {
-      await page.keyboard.press("Escape");
-    }
-    await expect(page.getByRole("tooltip")).toHaveCount(0);
-    await expect(drawer).toBeVisible();
-    await expect(page.getByRole("dialog", { name: "Paused" })).toHaveCount(0);
-    if (testInfo.project.name === "desktop") {
-      await canvas.focus();
-      await handbrakeForceHelp.focus();
-      await expect(tooltip).toBeVisible();
-      await page.keyboard.press("Escape");
-    } else {
-      await handbrakeForceHelp.tap();
-      await expect(tooltip).toBeVisible();
-      await handbrakeForceHelp.press("Escape");
-    }
-    await expect(page.getByRole("tooltip")).toHaveCount(0);
     await expect(page.getByRole("dialog", { name: "Paused" })).toHaveCount(0);
     const bounds = await drawer.boundingBox();
     const viewport = page.viewportSize();
@@ -2984,11 +3170,6 @@ test.describe("home screen", () => {
       viewport?.height ?? 0,
     );
 
-    await expect(drawer.getByRole("spinbutton")).toHaveCount(0);
-    await expect(
-      drawer.getByRole("button", { name: "Reset all defaults" }),
-    ).toHaveCount(0);
-    await expect(drawer).toContainText("They cannot be overridden here.");
     await expect((await getKartDebugState(canvas)).developmentValues).toEqual(
       BALANCED_KART_DEVELOPMENT_VALUES,
     );
@@ -2997,7 +3178,7 @@ test.describe("home screen", () => {
     await expect(drawer).toHaveCount(0);
     await expect(canvas).toBeFocused();
     await expect(
-      page.getByRole("button", { name: "Kart dynamics inspector" }),
+      page.getByRole("button", { name: "Kart stats" }),
     ).toHaveCount(0);
     if (testInfo.project.name === "mobile") {
       await expect(touchControls).toBeVisible();

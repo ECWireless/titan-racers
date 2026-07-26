@@ -12,7 +12,10 @@ import {
   kartAssemblyDocumentSchema,
   type KartAssemblyDocument,
 } from "./kart-assembly-document";
-import { resolvedKartSnapshotV2Schema } from "./kart-derivation";
+import {
+  deriveKartSnapshot,
+  resolvedKartSnapshotV2Schema,
+} from "./kart-derivation";
 import { publishedKartRuntimeSchema } from "./kart-publication";
 import {
   createSpeedKartDocument,
@@ -110,4 +113,16 @@ export function createOfficialKartDocument(
  */
 export function createOfficialKartRosterDocuments(): KartAssemblyDocument[] {
   return OFFICIAL_KART_IDS.map(createOfficialKartDocument);
+}
+
+export function createBundledOfficialKartRoster(): OfficialKartRoster {
+  return officialKartRosterSchema.parse({
+    karts: createOfficialKartRosterDocuments().map((document) => ({
+      assemblerCredit: OFFICIAL_KART_FALLBACK_ASSEMBLER_CREDIT,
+      document,
+      kartId: document.kartId,
+      resolvedSnapshot: deriveKartSnapshot(document),
+    })),
+    source: "bundled-fallback",
+  });
 }

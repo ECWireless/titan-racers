@@ -17,6 +17,43 @@ export type RacePresentationSnapshot = {
 const MICROSECONDS_PER_SECOND = 1_000_000;
 const GO_CUE_MICROSECONDS = 1_200_000;
 const LAP_CUE_MICROSECONDS = 1_300_000;
+const METERS_PER_SECOND_TO_KILOMETERS_PER_HOUR = 3.6;
+const METERS_PER_SECOND_TO_MILES_PER_HOUR = 2.236_936_292_054_4;
+const MILES_PER_HOUR_REGIONS = new Set(["GB", "US"]);
+
+export type RaceSpeedUnit = "km/h" | "mph";
+
+export function resolveRaceSpeedUnit(
+  locales: readonly string[],
+): RaceSpeedUnit {
+  for (const locale of locales) {
+    try {
+      const region = new Intl.Locale(locale).maximize().region;
+      if (region) {
+        return MILES_PER_HOUR_REGIONS.has(region) ? "mph" : "km/h";
+      }
+    } catch {
+      // Ignore malformed preferences and continue to the next locale.
+    }
+  }
+
+  return "km/h";
+}
+
+export function formatRaceSpeed(
+  metersPerSecond: number,
+  unit: RaceSpeedUnit,
+) {
+  const safeSpeed = Number.isFinite(metersPerSecond)
+    ? Math.abs(metersPerSecond)
+    : 0;
+  const conversion =
+    unit === "mph"
+      ? METERS_PER_SECOND_TO_MILES_PER_HOUR
+      : METERS_PER_SECOND_TO_KILOMETERS_PER_HOUR;
+
+  return Math.round(safeSpeed * conversion);
+}
 
 export function createLoadingRacePresentationSnapshot(): RacePresentationSnapshot {
   return {

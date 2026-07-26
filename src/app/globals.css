@@ -221,6 +221,8 @@ button[aria-disabled="true"] {
 
 .race-status-hud {
   display: flex;
+  flex-direction: column;
+  align-items: center;
   justify-content: center;
   max-width: 100%;
   margin-inline: auto;
@@ -346,6 +348,46 @@ button[aria-disabled="true"] {
   font-variant-numeric: tabular-nums;
   letter-spacing: 0.06em;
   line-height: 1;
+}
+
+.race-status-speed {
+  display: flex;
+  min-width: 7rem;
+  align-items: baseline;
+  justify-content: center;
+  gap: 0.55rem;
+  margin-top: -1px;
+  border: 1px solid rgb(255 189 89 / 36%);
+  border-top-color: rgb(247 242 232 / 10%);
+  padding: 0.3rem 0.65rem 0.34rem;
+  background: linear-gradient(180deg, rgb(20 18 15 / 90%), rgb(7 7 6 / 82%));
+  clip-path: polygon(0 0, 100% 0, calc(100% - 0.45rem) 100%, 0.45rem 100%);
+  backdrop-filter: blur(8px);
+}
+
+.race-status-speed > span {
+  color: var(--titan-hazard);
+  font-size: 0.5rem;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.race-status-speed output {
+  color: rgb(247 242 232 / 98%);
+  font-size: 1rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+
+.race-status-speed small {
+  margin-left: 0.3rem;
+  color: rgb(247 242 232 / 56%);
+  font-size: 0.52rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
 }
 
 .race-lifecycle-cue span {

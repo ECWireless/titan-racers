@@ -71,6 +71,8 @@ import {
   EditorToolbarIcon,
   type EditorToolbarIconName,
 } from "../editor/editor-toolbar-icon";
+import { EditorSection } from "../editor/editor-section";
+import { KartDerivedEvidence } from "../kart-derived-evidence";
 import { KartEditorCanvas } from "./kart-editor-canvas";
 
 type OperationState =
@@ -1988,7 +1990,7 @@ export function KartEditorShell({
           </EditorSection>
 
           {derivation.snapshot ? (
-            <DerivedEvidence snapshot={derivation.snapshot} />
+            <KartDerivedEvidence snapshot={derivation.snapshot} />
           ) : null}
         </aside>
       </fieldset>
@@ -2160,50 +2162,6 @@ function InspectorIconButton({
         {tooltip}
       </span>
     </span>
-  );
-}
-
-function EditorSection({
-  children,
-  title,
-}: {
-  children: React.ReactNode;
-  title: string;
-}) {
-  const contentId = useId();
-  const [expanded, setExpanded] = useState(true);
-  return (
-    <section className="grid gap-3">
-      <h2 className="border-b border-titan-ice/15">
-        <button
-          aria-controls={contentId}
-          aria-expanded={expanded}
-          className="flex w-full items-center justify-between gap-3 pb-2 text-left font-mono text-xs font-black uppercase tracking-[0.16em] text-titan-hazard hover:text-titan-ice focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-titan-hazard"
-          title={`${expanded ? "Collapse" : "Expand"} ${title}`}
-          type="button"
-          onClick={() => setExpanded((current) => !current)}
-        >
-          <span>{title}</span>
-          <svg
-            aria-hidden="true"
-            className={`h-4 w-4 shrink-0 transition-transform ${
-              expanded ? "rotate-180" : ""
-            }`}
-            fill="none"
-            stroke="currentColor"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth="1.8"
-            viewBox="0 0 24 24"
-          >
-            <path d="m7 9 5 5 5-5" />
-          </svg>
-        </button>
-      </h2>
-      <div className="grid gap-3" hidden={!expanded} id={contentId}>
-        {children}
-      </div>
-    </section>
   );
 }
 
@@ -2546,78 +2504,6 @@ function ComponentPhysicalAttributes({
   );
 }
 
-function DerivedEvidence({
-  snapshot,
-}: {
-  snapshot: ReturnType<typeof deriveKartSnapshot>;
-}) {
-  const inertia = snapshot.massProperties.inertiaTensor;
-  return (
-    <>
-      <EditorSection title="Derived construction">
-        <Readout
-          label="Dimensions"
-          value={`${formatMeters(snapshot.geometry.dimensions.x)} × ${formatMeters(snapshot.geometry.dimensions.y)} × ${formatMeters(snapshot.geometry.dimensions.z)}`}
-        />
-        <Readout
-          label="Mass"
-          value={`${snapshot.massProperties.totalMass.toFixed(3)} kg`}
-        />
-        <Readout
-          label="Center of mass"
-          value={`${formatMeters(snapshot.massProperties.centerOfMass.x)}, ${formatMeters(snapshot.massProperties.centerOfMass.y)}, ${formatMeters(snapshot.massProperties.centerOfMass.z)}`}
-        />
-        <Readout
-          label="Inertia diagonal"
-          value={`${inertia.xx.toFixed(4)}, ${inertia.yy.toFixed(4)}, ${inertia.zz.toFixed(4)} kg·m²`}
-        />
-        <Readout
-          label="Wheelbase / track"
-          value={`${formatMeters(snapshot.geometry.wheelbase)} / ${formatMeters(snapshot.geometry.trackWidth)}`}
-        />
-      </EditorSection>
-      <EditorSection title="Derived runtime behavior">
-        <Readout
-          label="Drive force"
-          value={`${snapshot.physicalProfile.drivetrain.maximumDriveForce.toFixed(2)} N`}
-        />
-        <Readout
-          label="No-load speed"
-          value={`${snapshot.physicalProfile.drivetrain.noLoadSpeed.toFixed(2)} m/s`}
-        />
-        <Readout
-          label="Steering lock"
-          value={`${snapshot.physicalProfile.steering.maximumCenterAngle.toFixed(2)}°`}
-        />
-        <Readout
-          label="Spring / damper"
-          value={`${snapshot.physicalProfile.suspension.springRate.toFixed(1)} N/m · ${snapshot.physicalProfile.suspension.damperRate.toFixed(2)} N·s/m`}
-        />
-      </EditorSection>
-      <EditorSection title="Practical stats">
-        <p className="text-xs leading-relaxed text-titan-muted">
-          Normalized comparisons derived from acceleration, steering curvature,
-          no-load road speed, and static stability.
-        </p>
-        {Object.entries(snapshot.playerStats).map(([label, value]) => (
-          <div className="grid gap-1" key={label}>
-            <div className="flex justify-between text-xs">
-              <span className="font-bold capitalize">{label}</span>
-              <span className="font-mono">{value}/100</span>
-            </div>
-            <div className="h-2 border border-titan-ice/15 bg-titan-black">
-              <div
-                className="h-full bg-titan-hazard"
-                style={{ width: `${value}%` }}
-              />
-            </div>
-          </div>
-        ))}
-      </EditorSection>
-    </>
-  );
-}
-
 function Readout({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex items-start justify-between gap-3 text-xs">
@@ -2645,10 +2531,6 @@ function formatIssuePath(path: (string | number)[], fallback: string) {
 
 function roundForInput(value: number) {
   return Number(value.toFixed(5));
-}
-
-function formatMeters(value: number) {
-  return `${value.toFixed(3)} m`;
 }
 
 function formatMillimeters(value: number) {

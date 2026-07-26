@@ -1,6 +1,5 @@
-import { deriveKartSnapshot } from "@/game/kart/kart-derivation";
 import {
-  createOfficialKartRosterDocuments,
+  createBundledOfficialKartRoster,
   OFFICIAL_KART_FALLBACK_ASSEMBLER_CREDIT,
   OFFICIAL_KART_IDS,
   officialKartRosterSchema,
@@ -21,18 +20,6 @@ function publicAssemblerCredit(authorName: string) {
   return trimmed
     ? trimmed.slice(0, 80)
     : OFFICIAL_KART_FALLBACK_ASSEMBLER_CREDIT;
-}
-
-function createBundledFallbackRoster(): OfficialKartRoster {
-  return officialKartRosterSchema.parse({
-    karts: createOfficialKartRosterDocuments().map((document) => ({
-      assemblerCredit: OFFICIAL_KART_FALLBACK_ASSEMBLER_CREDIT,
-      document,
-      kartId: document.kartId,
-      resolvedSnapshot: deriveKartSnapshot(document),
-    })),
-    source: "bundled-fallback",
-  });
 }
 
 export async function loadOfficialKartRoster(
@@ -65,6 +52,6 @@ export async function loadOfficialKartRoster(
       source: "published",
     });
   } catch {
-    return createBundledFallbackRoster();
+    return createBundledOfficialKartRoster();
   }
 }

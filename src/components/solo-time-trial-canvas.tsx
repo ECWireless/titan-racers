@@ -9,9 +9,10 @@ import {
   useMemo,
   useRef,
   useState,
+  useSyncExternalStore,
 } from "react";
 
-import { KartDynamicsDrawer } from "@/components/kart-tuning-drawer";
+import { KartStatsDrawer } from "@/components/kart-tuning-drawer";
 import type {
   CourseTestObstacleId,
   DrivingInput,
@@ -102,8 +103,11 @@ import { createRaceSessionConfig } from "@/game/race/playcanvas-race-course";
 import {
   createLoadingRacePresentationSnapshot,
   createRacePresentationSnapshot,
+  formatRaceSpeed,
   racePresentationSnapshotsEqual,
+  resolveRaceSpeedUnit,
   type RacePresentationSnapshot,
+  type RaceSpeedUnit,
 } from "@/game/race/race-presentation";
 import {
   RaceSession,
@@ -128,6 +132,18 @@ const KART_TAP_MAX_DURATION_MS = 300;
 const KART_TAP_MAX_MOVEMENT_PX = 12;
 const START_MARKER_VISUAL_CENTER_HEIGHT = 0.05;
 const START_MARKER_VISUAL_THICKNESS = 0.002;
+
+function subscribeToRaceSpeedUnit() {
+  return () => {};
+}
+
+function getBrowserRaceSpeedUnit() {
+  return resolveRaceSpeedUnit(navigator.languages);
+}
+
+function getServerRaceSpeedUnit(): RaceSpeedUnit {
+  return "km/h";
+}
 const NEUTRAL_DRIVING_INPUT: DrivingInput = {
   brake: 0,
   handbrake: 0,
@@ -469,6 +485,14 @@ export function SoloTimeTrialCanvas({
   const [driveCursorHidden, setDriveCursorHidden] = useState(false);
   const [gamePaused, setGamePaused] = useState(false);
   const [kartDynamicsOpen, setKartDynamicsOpen] = useState(false);
+  const [raceSpeed, setRaceSpeed] = useState(0);
+  const raceSpeedUnit = useSyncExternalStore(
+    subscribeToRaceSpeedUnit,
+    getBrowserRaceSpeedUnit,
+    getServerRaceSpeedUnit,
+  );
+  const raceSpeedUnitRef = useRef<RaceSpeedUnit>("km/h");
+  const displayedRaceSpeedRef = useRef(0);
   const [kartDevelopmentValues, setKartDevelopmentValues] =
     useState<KartDevelopmentValues>(() => ({
       ...INITIAL_KART_DEVELOPMENT_VALUES,
@@ -505,6 +529,11 @@ export function SoloTimeTrialCanvas({
       gameplayTelemetry.start(COURSE_DOCUMENT.courseId);
     }
   }, [COURSE_DOCUMENT.courseId, gameplayTelemetry]);
+
+  useEffect(() => {
+    raceSpeedUnitRef.current = raceSpeedUnit;
+    displayedRaceSpeedRef.current = -1;
+  }, [raceSpeedUnit]);
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -2786,6 +2815,14 @@ export function SoloTimeTrialCanvas({
         renderWheelPresentation(accumulatorFraction);
 
         chaseCamera.update(frameSeconds, getChaseCameraSnapshot());
+        const nextDisplayedSpeed = formatRaceSpeed(
+          kartController.state.speed,
+          raceSpeedUnitRef.current,
+        );
+        if (nextDisplayedSpeed !== displayedRaceSpeedRef.current) {
+          displayedRaceSpeedRef.current = nextDisplayedSpeed;
+          setRaceSpeed(nextDisplayedSpeed);
+        }
         latestCameraImpact = null;
         publishRacePresentation();
       });
@@ -3342,9 +3379,9 @@ export function SoloTimeTrialCanvas({
           {kartDynamicsOpen &&
           !gamePaused &&
           racePresentation.state !== "finished" ? (
-            <KartDynamicsDrawer
+            <KartStatsDrawer
               onClose={() => updateKartDynamicsOpen(false)}
-              values={kartDevelopmentValues}
+              snapshot={KART_SNAPSHOT}
             />
           ) : null}
           {racePresentation.state !== "finished" ? (
@@ -3374,6 +3411,16 @@ export function SoloTimeTrialCanvas({
                     {racePresentation.elapsedTime}
                   </time>
                 </div>
+              </div>
+              <div
+                aria-label={`Speed ${raceSpeed} ${raceSpeedUnit}`}
+                className="race-status-speed"
+              >
+                <span>Speed</span>
+                <output data-testid="race-speed">
+                  {raceSpeed}
+                  <small>{raceSpeedUnit}</small>
+                </output>
               </div>
             </section>
           ) : null}
@@ -3632,7 +3679,7 @@ export function SoloTimeTrialCanvas({
                 </div>
               ) : null}
               <div className="pointer-events-none absolute bottom-4 right-4 z-10 hidden font-mono text-[0.68rem] font-bold uppercase tracking-[0.14em] text-titan-ice/55 lg:block">
-                T · Dynamics&nbsp;&nbsp; Esc · Pause
+                T · Stats&nbsp;&nbsp; Esc · Pause
               </div>
             </>
           ) : null}
