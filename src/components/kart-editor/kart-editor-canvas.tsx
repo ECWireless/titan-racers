@@ -1,6 +1,12 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import {
+  forwardRef,
+  useEffect,
+  useImperativeHandle,
+  useRef,
+  useState,
+} from "react";
 
 import {
   getKartMirrorCounterpartIds,
@@ -8,6 +14,7 @@ import {
 } from "@/game/editor/kart-editor-document";
 import { KartEditorScene } from "@/game/editor/kart-editor-scene";
 import type { EditorTransformTool } from "@/game/editor/editor-viewport";
+import type { EditorControllerViewportHandle } from "@/game/editor/editor-controller-viewport";
 import type { KartAssemblyDocument } from "@/game/kart/kart-assembly-document";
 
 type KartEditorCanvasProps = {
@@ -25,20 +32,26 @@ type KartEditorCanvasProps = {
   tool: EditorTransformTool;
 };
 
-export function KartEditorCanvas({
-  attachmentParentId,
-  disabled,
-  document,
-  frameRequest,
-  mirrorPair,
-  onDocumentChange,
-  onSelectionChange,
-  retainedIds,
-  selection,
-  selectionState,
-  snapEnabled,
-  tool,
-}: KartEditorCanvasProps) {
+export const KartEditorCanvas = forwardRef<
+  EditorControllerViewportHandle,
+  KartEditorCanvasProps
+>(function KartEditorCanvas(
+  {
+    attachmentParentId,
+    disabled,
+    document,
+    frameRequest,
+    mirrorPair,
+    onDocumentChange,
+    onSelectionChange,
+    retainedIds,
+    selection,
+    selectionState,
+    snapEnabled,
+    tool,
+  },
+  ref,
+) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const callbacksRef = useRef({ onDocumentChange, onSelectionChange });
   const sceneRef = useRef<KartEditorScene | null>(null);
@@ -214,6 +227,19 @@ export function KartEditorCanvas({
     };
   }, []);
 
+  useImperativeHandle(
+    ref,
+    () => ({
+      applyControllerCamera: (input, deltaSeconds) =>
+        sceneRef.current?.applyControllerCamera(input, deltaSeconds),
+      getElement: () => canvasRef.current,
+      resolveTranslationStep: (direction) =>
+        sceneRef.current?.resolveControllerTranslation(direction) ?? null,
+      selectAtCenter: () => sceneRef.current?.selectAtCenter(),
+    }),
+    [],
+  );
+
   return (
     <div className="relative min-h-0 flex-1 overflow-hidden bg-[#070706]">
       <canvas
@@ -222,7 +248,9 @@ export function KartEditorCanvas({
         className="h-full min-h-[18rem] w-full touch-none outline-none"
         data-camera-pivot={cameraPivot}
         data-camera-revision={cameraRevision}
+        data-controller-default="true"
         data-document-bounds-center={documentBoundsCenter}
+        data-editor-controller-viewport="true"
         data-editor-status={status}
         data-mirror-counterpart-ids={mirrorCounterpartIds.join(" ")}
         data-selection-id={selection?.id ?? ""}
@@ -243,4 +271,4 @@ export function KartEditorCanvas({
       ) : null}
     </div>
   );
-}
+});

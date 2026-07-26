@@ -53,8 +53,9 @@ remain owned by the kart-physics system.
   confirm/back/menu edge detection independently of gameplay sampling.
 - `src/game/input/use-controller-menu-navigation.ts` polls menu input with
   `requestAnimationFrame`, maps it to DOM focus and native activation, provides
-  linear wrapping and explicit controller-focus presentation, and clears on
-  blur, hidden visibility, disable, and unmount.
+  linear wrapping or opt-in spatial navigation plus controller-focus
+  presentation, and clears input and presentation on blur, hidden visibility,
+  controller disconnect, disable, and unmount.
 - `src/game/input/player-input-manager.ts` owns device-family arbitration,
   action-edge aggregation, and conversion to existing kart driving intent.
 - `src/components/solo-time-trial-canvas.tsx` attaches the manager, samples once
@@ -62,9 +63,9 @@ remain owned by the kart-physics system.
   lifecycle boundaries, renders touch controls without using React state as
   physics input, and scopes controller navigation to loading/error, pause, and
   finish overlays.
-- `src/components/play-home.tsx` scopes controller focus and activation to the
-  guest mode-selection actions without extending navigation into the protected
-  course editor.
+- `src/components/play-home.tsx` scopes spatial controller focus and activation
+  across the guest mode-selection actions and the protected course and kart
+  editor links.
 - `src/app/globals.css` owns the low-obstruction racing HUD, coarse-pointer
   visibility, safe touch target sizing, steering/pedal engagement feedback,
   direct-manipulation suppression, compact landscape sizing, and a guaranteed
@@ -129,8 +130,8 @@ input travel by roughly 17% over the accepted steering-only baseline.
 Joystick-down remains ordinary service brake/reverse intent at every steering
 angle. While forward intent is active and the brake/reverse pedal is held,
 rear-handbrake intent follows a smoothstep ramp once shaped lateral steering
-crosses `0.45`, reaching full lateral authority at `0.7`; forward authority is
-normalized to reach full at `0.6`. A strong forward turn plus brake pedal can
+crosses `0.3`, reaching full lateral authority at `0.7`; forward authority is
+normalized to reach full at `0.5`. A forward turn plus brake pedal can
 therefore retain a bounded `0.2` service-brake floor while requesting the same
 continuous handbrake action as Shift. As that deliberate handbrake intent rises,
 the touch adapter smoothly restores the steering authority lost to the circular

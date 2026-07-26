@@ -8,6 +8,12 @@ import {
   type CourseDocument,
   serializeCourseDocument,
 } from "@/game/course/course-document";
+import type { EditorControllerViewportHandle } from "@/game/editor/editor-controller-viewport";
+import {
+  EDITOR_ROTATE_SNAP,
+  EDITOR_TRANSLATE_SNAP,
+} from "@/game/editor/editor-viewport";
+import { EditorControllerAxisIndicator } from "@/components/editor-controller-axis-indicator";
 import {
   type CoursePublicationSummary,
   persistedCoursePublicationSchema,
@@ -36,6 +42,7 @@ import {
 } from "@/game/editor/course-editor-document";
 import type { CourseEditorTool } from "@/game/editor/course-editor-scene";
 import { CommandHistory } from "@/game/editor/command-history";
+import { useEditorController } from "@/game/input/use-editor-controller";
 
 import { EditorToolbarIcon } from "../editor/editor-toolbar-icon";
 import {
@@ -126,6 +133,10 @@ export function CourseEditorShell({
   const [collisionVisible, setCollisionVisible] = useState(false);
   const [cameraHelpOpen, setCameraHelpOpen] = useState(false);
   const [mobilePanel, setMobilePanel] = useState<MobilePanel>(null);
+  const [controllerAxis, setControllerAxis] = useState<"x" | "y" | "z">("x");
+  const shellRef = useRef<HTMLElement>(null);
+  const viewportControllerRef =
+    useRef<EditorControllerViewportHandle>(null);
   const issuedIdsRef = useRef(collectCourseDocumentIds(revision.document));
   const operationPendingRef = useRef(false);
   const actionsButtonRef = useRef<HTMLButtonElement>(null);
@@ -794,6 +805,73 @@ export function CourseEditorShell({
       (selection.kind === "checkpoint" && document.checkpoints.length > 1));
   void historyVersion;
 
+  const { controllerConnected, viewportEngaged } = useEditorController({
+    contextKey: [
+      actionsOpen ? "actions" : "",
+      cameraHelpOpen ? "help" : "",
+      mobilePanel ?? "",
+      recoveryAction ?? "",
+    ].join(":"),
+    disabled: operationPending || signOutPending,
+    onAxisCycle: (direction) => {
+      const axes = ["x", "y", "z"] as const;
+      setControllerAxis((axis) => {
+        const index = axes.indexOf(axis);
+        return axes[(index + direction + axes.length) % axes.length];
+      });
+    },
+    onBack: () => {
+      if (actionsOpen) {
+        setActionsOpen(false);
+        actionsButtonRef.current?.focus();
+        return true;
+      }
+      if (cameraHelpOpen) {
+        setCameraHelpOpen(false);
+        return true;
+      }
+      if (mobilePanel) {
+        closeMobilePanel();
+        return true;
+      }
+      return false;
+    },
+    onFrame: () => setFrameRequest((request) => request + 1),
+    onHelp: () => setCameraHelpOpen((open) => !open),
+    onToolCycle: (direction) => {
+      const tools: CourseEditorTool[] = multipleObjectsSelected
+        ? ["translate"]
+        : selection.kind === "start"
+          ? ["translate", "rotate"]
+          : ["translate", "rotate", "scale"];
+      setTool((current) => {
+        const index = Math.max(0, tools.indexOf(current));
+        return tools[(index + direction + tools.length) % tools.length];
+      });
+    },
+    onTransformDirection: (direction) => {
+      if (tool === "translate") {
+        const step =
+          viewportControllerRef.current?.resolveTranslationStep(direction);
+        if (!step) return;
+        setControllerAxis(step.axis);
+        nudge("position", step.axis, step.sign * EDITOR_TRANSLATE_SNAP);
+      } else if (tool === "rotate" && !multipleObjectsSelected) {
+        const sign = direction === "right" || direction === "up" ? 1 : -1;
+        nudge("rotation", controllerAxis, sign * EDITOR_ROTATE_SNAP);
+      } else if (
+        tool === "scale" &&
+        !multipleObjectsSelected &&
+        selection.kind !== "start"
+      ) {
+        const grow = direction === "right" || direction === "up";
+        scaleAxis(controllerAxis, grow ? 1.1 : 1 / 1.1);
+      }
+    },
+    shellRef,
+    viewportRef: viewportControllerRef,
+  });
+
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       const target = event.target;
@@ -888,9 +966,11 @@ export function CourseEditorShell({
     <main
       className="grid h-[100dvh] min-h-0 w-full min-w-0 max-w-full grid-rows-[auto_auto_minmax(0,1fr)] overflow-hidden bg-titan-black font-mono text-titan-ice"
       data-testid="course-editor-shell"
+      ref={shellRef}
     >
       <header
         className="relative z-50 flex min-h-14 items-center gap-1 border-b border-titan-ice/15 bg-titan-panel px-2 py-2 sm:gap-2 sm:px-4"
+        data-editor-controller-region="header"
         inert={courseModalOpen || recoveryDialogOpen}
       >
         <button
@@ -1054,6 +1134,7 @@ export function CourseEditorShell({
 
       <div
         className="min-w-0 max-w-full overflow-hidden"
+        data-editor-controller-region="toolbar"
         data-testid="editor-toolbar-shell"
         inert={courseModalOpen || recoveryDialogOpen || operationPending}
       >
@@ -1061,6 +1142,8 @@ export function CourseEditorShell({
           additiveSelectionEnabled={additiveSelectionEnabled}
           collisionVisible={collisionVisible}
           cameraHelpOpen={cameraHelpOpen}
+          controllerAxis={controllerAxis}
+          controllerConnected={controllerConnected}
           multipleObjectsSelected={multipleObjectsSelected}
           selection={selection}
           snapEnabled={snapEnabled}
@@ -1086,6 +1169,7 @@ export function CourseEditorShell({
       >
         <EditorPanel
           className="hidden border-r lg:flex"
+          controllerRegion="course"
           inert={courseModalOpen}
           title="Course"
         >
@@ -1106,6 +1190,7 @@ export function CourseEditorShell({
 
         <section
           className="relative min-h-0 min-w-0 flex-1 overflow-hidden"
+          data-editor-controller-region="viewport"
           inert={courseModalOpen}
         >
           <CourseEditorCanvas
@@ -1117,7 +1202,26 @@ export function CourseEditorShell({
             tool={tool}
             onDocumentChange={commitDocument}
             onSelectionChange={selectCourseItem}
+            ref={viewportControllerRef}
           />
+
+          {controllerConnected ? (
+            <div
+              className="pointer-events-none absolute bottom-16 left-1/2 z-10 -translate-x-1/2 border border-titan-blue/45 bg-titan-black/88 px-3 py-2 text-center text-[0.6rem] font-bold uppercase tracking-[0.1em] text-titan-ice/82 shadow-[0_10px_35px_rgb(0_0_0/0.45)] lg:bottom-3"
+              data-testid="course-controller-status"
+            >
+              {viewportEngaged
+                ? `Controller viewport · ${tool} ${controllerAxis.toUpperCase()} · B exits`
+                : "Controller ready · focus viewport and press A"}
+            </div>
+          ) : null}
+          {viewportEngaged ? (
+            <div
+              aria-hidden="true"
+              className="pointer-events-none absolute left-1/2 top-1/2 z-10 h-5 w-5 -translate-x-1/2 -translate-y-1/2 before:absolute before:left-1/2 before:top-0 before:h-full before:w-px before:-translate-x-1/2 before:bg-titan-hazard/80 after:absolute after:left-0 after:top-1/2 after:h-px after:w-full after:-translate-y-1/2 after:bg-titan-hazard/80"
+              data-testid="course-controller-reticle"
+            />
+          ) : null}
 
           {cameraHelpOpen ? (
             <section
@@ -1132,6 +1236,8 @@ export function CourseEditorShell({
                 <button
                   aria-label="Close camera controls"
                   className="grid h-8 w-8 place-items-center border border-titan-ice/20 text-titan-ice/78 hover:border-titan-hazard hover:text-titan-hazard"
+                  data-controller-default="true"
+                  data-editor-controller-back="true"
                   type="button"
                   onClick={() => setCameraHelpOpen(false)}
                 >
@@ -1143,7 +1249,16 @@ export function CourseEditorShell({
                 <span>1 finger orbit · 2 finger pan · pinch zoom</span>
                 <span className="font-bold uppercase text-titan-muted">Mouse</span>
                 <span>Right-drag orbit · Shift-drag pan · wheel zoom</span>
+                <span className="font-bold uppercase text-titan-muted">Pad</span>
+                <span>
+                  A engage/select · sticks pan/orbit · triggers zoom · LB/RB
+                  tool · X axis · Y frame · D-pad transform · B exit
+                </span>
               </div>
+              <p className="text-titan-muted">
+                Controller input is best-effort for spatial editing; use pointer
+                or numeric fields for precise freeform changes.
+              </p>
             </section>
           ) : null}
 
@@ -1182,6 +1297,7 @@ export function CourseEditorShell({
 
         <EditorPanel
           className="hidden border-l lg:flex"
+          controllerRegion="inspector"
           inert={courseModalOpen}
           title="Inspector"
         >
@@ -1212,6 +1328,7 @@ export function CourseEditorShell({
                 closeMobilePanel();
               }
             }}
+            data-editor-controller-region="inspector"
           >
             <div className="flex min-h-12 shrink-0 items-center justify-between border-b border-titan-ice/15 px-4 py-2">
               <div>
@@ -1227,6 +1344,8 @@ export function CourseEditorShell({
               <button
                 aria-label="Close panel"
                 className="editor-tool-button"
+                data-controller-default="true"
+                data-editor-controller-back="true"
                 ref={closePanelButtonRef}
                 type="button"
                 onClick={closeMobilePanel}
@@ -1268,6 +1387,7 @@ export function CourseEditorShell({
               className="fixed inset-x-0 bottom-0 z-30 mx-auto flex max-h-[82dvh] min-h-0 w-full min-w-0 max-w-xl flex-col overflow-hidden border-t border-titan-ice/24 bg-titan-panel shadow-[0_-20px_80px_rgb(0_0_0/0.72)] sm:bottom-4 sm:border lg:hidden"
               role="dialog"
               tabIndex={-1}
+              data-editor-controller-region="course-dialog"
               onKeyDown={handleMobilePanelKeyDown}
             >
             <div className="flex min-h-14 shrink-0 items-center justify-between border-b border-titan-ice/15 px-4 py-2">
@@ -1280,6 +1400,8 @@ export function CourseEditorShell({
               <button
                 aria-label="Close panel"
                 className="editor-tool-button"
+                data-controller-default="true"
+                data-editor-controller-back="true"
                 ref={closePanelButtonRef}
                 type="button"
                 onClick={closeMobilePanel}
@@ -1560,7 +1682,14 @@ function RecoveryDialog({
           </p>
         </div>
         <div className="flex flex-wrap justify-end gap-2">
-          <button className="min-h-10 border border-titan-ice/22 px-3 font-mono text-[0.65rem] font-bold uppercase tracking-[0.08em] text-titan-ice/78 hover:border-titan-hazard hover:text-titan-hazard" ref={cancelButtonRef} type="button" onClick={onCancel}>
+          <button
+            className="min-h-10 border border-titan-ice/22 px-3 font-mono text-[0.65rem] font-bold uppercase tracking-[0.08em] text-titan-ice/78 hover:border-titan-hazard hover:text-titan-hazard"
+            data-controller-default="true"
+            data-editor-controller-back="true"
+            ref={cancelButtonRef}
+            type="button"
+            onClick={onCancel}
+          >
             Keep editing
           </button>
           <button
@@ -1580,6 +1709,8 @@ function EditorToolbar({
   additiveSelectionEnabled,
   cameraHelpOpen,
   collisionVisible,
+  controllerAxis,
+  controllerConnected,
   multipleObjectsSelected,
   onAdditiveSelectionToggle,
   onCameraHelpToggle,
@@ -1594,6 +1725,8 @@ function EditorToolbar({
   additiveSelectionEnabled: boolean;
   cameraHelpOpen: boolean;
   collisionVisible: boolean;
+  controllerAxis: "x" | "y" | "z";
+  controllerConnected: boolean;
   multipleObjectsSelected: boolean;
   onAdditiveSelectionToggle: () => void;
   onCameraHelpToggle: () => void;
@@ -1636,6 +1769,12 @@ function EditorToolbar({
           <EditorToolbarIcon name={candidate} />
         </ToolbarIconButton>
       ))}
+      {controllerConnected ? (
+        <EditorControllerAxisIndicator
+          axis={controllerAxis}
+          testId="course-controller-axis"
+        />
+      ) : null}
       <span className="h-7 w-px shrink-0 bg-titan-ice/15 lg:hidden" />
       <span className="lg:hidden">
         <ToolbarIconButton
@@ -1797,11 +1936,13 @@ function ToolbarIconButton({
 function EditorPanel({
   children,
   className,
+  controllerRegion,
   inert,
   title,
 }: {
   children: React.ReactNode;
   className: string;
+  controllerRegion: string;
   inert: boolean;
   title: string;
 }) {
@@ -1809,6 +1950,7 @@ function EditorPanel({
     <aside
       aria-label={title}
       className={`${className} min-h-0 flex-col border-titan-ice/15 bg-titan-panel`}
+      data-editor-controller-region={controllerRegion}
       inert={inert}
     >
       <h2 className="border-b border-titan-ice/15 px-4 py-3 text-xs font-bold uppercase tracking-[0.18em] text-titan-hazard">

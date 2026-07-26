@@ -1,7 +1,19 @@
 import { expect, test } from "@playwright/test";
 
+import {
+  resolveEditorTranslationFromScreenProjections,
+  type EditorControllerAxisProjections,
+} from "../src/game/editor/editor-controller-viewport";
 import { GamepadInput } from "../src/game/input/gamepad-input";
 import { GamepadMenuInput } from "../src/game/input/gamepad-menu-input";
+import {
+  applyEditorStickDeadZone,
+  EditorGamepadInput,
+} from "../src/game/input/editor-gamepad-input";
+import {
+  findSpatialNavigationCandidate,
+  type SpatialCandidate,
+} from "../src/game/input/editor-spatial-navigation";
 import { KeyboardInput } from "../src/game/input/keyboard-input";
 import { PlayerInputManager } from "../src/game/input/player-input-manager";
 import {
@@ -75,6 +87,29 @@ function standardGamepad({
     timestamp: 0,
     vibrationActuator: null,
   } as unknown as Gamepad;
+}
+
+function projectedEditorAxes(
+  yawDegrees: number,
+  pitchDegrees: number,
+): EditorControllerAxisProjections {
+  const yaw = (yawDegrees * Math.PI) / 180;
+  const pitch = (pitchDegrees * Math.PI) / 180;
+  const right = {
+    x: Math.cos(yaw),
+    y: 0,
+    z: -Math.sin(yaw),
+  };
+  const up = {
+    x: -Math.sin(yaw) * Math.sin(pitch),
+    y: Math.cos(pitch),
+    z: -Math.cos(yaw) * Math.sin(pitch),
+  };
+  return {
+    x: { x: right.x, y: -up.x },
+    y: { x: right.y, y: -up.y },
+    z: { x: right.z, y: -up.z },
+  };
 }
 
 test.describe("player input", () => {
@@ -222,7 +257,7 @@ test.describe("player input", () => {
     });
   });
 
-  test("touch progressively rear-biases the brake pedal only while accelerating through a strong turn", () => {
+  test("touch progressively rear-biases the brake pedal from light through strong turns", () => {
     const touch = new TouchInput();
 
     touch.setJoystick(1, 0, 1);
@@ -250,13 +285,23 @@ test.describe("player input", () => {
     });
     expect(touch.getContinuousInput().brakeReverse).toBeCloseTo(0.2, 6);
 
+    touch.setJoystick(1, 0.5, -Math.sqrt(0.75));
+    expect(touch.getContinuousInput().handbrake).toBeCloseTo(0.5, 6);
+    expect(touch.getContinuousInput().brakeReverse).toBeCloseTo(0.6, 6);
+
     touch.setJoystick(1, 0.6, -0.8);
     expect(touch.getContinuousInput()).toMatchObject({
       accelerate: 0.8,
     });
-    expect(touch.getContinuousInput().handbrake).toBeCloseTo(0.648, 6);
-    expect(touch.getContinuousInput().brakeReverse).toBeCloseTo(0.4816, 6);
-    expect(touch.getContinuousInput().steer).toBeCloseTo(0.8592, 6);
+    expect(touch.getContinuousInput().handbrake).toBeCloseTo(27 / 32, 6);
+    expect(touch.getContinuousInput().brakeReverse).toBeCloseTo(
+      1 - (27 / 32) * 0.8,
+      6,
+    );
+    expect(touch.getContinuousInput().steer).toBeCloseTo(
+      0.6 + (27 / 32) * 0.4,
+      6,
+    );
 
     touch.setJoystick(1, -1, 0);
     expect(touch.getContinuousInput()).toMatchObject({
@@ -547,5 +592,314 @@ test.describe("player input", () => {
       steer: 0,
     });
     manager.detach();
+  });
+});
+
+test.describe("editor controller input", () => {
+  test("resolves every transform direction against representative camera projections", () => {
+    const cases = [
+      {
+        projections: projectedEditorAxes(25, 30),
+        expected: {
+          down: { axis: "y", sign: -1 },
+          left: { axis: "x", sign: -1 },
+          right: { axis: "x", sign: 1 },
+          up: { axis: "y", sign: 1 },
+        },
+      },
+      {
+        projections: projectedEditorAxes(70, 60),
+        expected: {
+          down: { axis: "y", sign: -1 },
+          left: { axis: "z", sign: 1 },
+          right: { axis: "z", sign: -1 },
+          up: { axis: "y", sign: 1 },
+        },
+      },
+    ] as const;
+
+    for (const { expected, projections } of cases) {
+      for (const direction of ["down", "left", "right", "up"] as const) {
+        expect(
+          resolveEditorTranslationFromScreenProjections(
+            projections,
+            direction,
+          ),
+        ).toEqual(expected[direction]);
+      }
+    }
+  });
+
+  test("applies a radial dead zone without distorting stick direction", () => {
+    expect(applyEditorStickDeadZone(0.1, 0.1)).toEqual({ x: 0, y: 0 });
+    const diagonal = applyEditorStickDeadZone(0.6, -0.6);
+    expect(diagonal.x).toBeCloseTo(-diagonal.y, 6);
+    expect(Math.hypot(diagonal.x, diagonal.y)).toBeCloseTo(
+      (Math.hypot(0.6, 0.6) - 0.2) / 0.8,
+      6,
+    );
+  });
+
+  test("maps UI navigation with delayed repeat and edge-triggered actions", () => {
+    let current = standardGamepad();
+    const input = new EditorGamepadInput(() => [current]);
+
+    expect(input.sample(0).connected).toBe(true);
+    current = standardGamepad({ axes: [0.8, 0, 0, 0] });
+    expect(input.sample(10).move).toBe("right");
+    expect(input.sample(200).move).toBeNull();
+    expect(input.sample(361).move).toBe("right");
+
+    current = standardGamepad();
+    input.sample(400);
+    current = standardGamepad({
+      buttons: {
+        0: gamepadButton(1),
+        1: gamepadButton(1),
+        9: gamepadButton(1),
+      },
+    });
+    expect(input.sample(410)).toMatchObject({
+      backRequested: true,
+      confirmRequested: true,
+      helpRequested: true,
+    });
+    expect(input.sample(420)).toMatchObject({
+      backRequested: false,
+      confirmRequested: false,
+      helpRequested: false,
+    });
+  });
+
+  test("maps engaged viewport camera, tools, axes, and transform directions", () => {
+    let current = standardGamepad();
+    const input = new EditorGamepadInput(() => [current]);
+    input.setContext("viewport");
+    input.sample(0);
+
+    current = standardGamepad({
+      axes: [0.6, -0.6, -0.8, 0.4],
+      buttons: {
+        0: gamepadButton(1),
+        1: gamepadButton(1),
+        2: gamepadButton(1),
+        3: gamepadButton(1),
+        5: gamepadButton(1),
+        7: gamepadButton(0.75),
+        9: gamepadButton(1),
+        12: gamepadButton(1),
+      },
+    });
+    const actions = input.sample(10);
+    expect(actions).toMatchObject({
+      axisCycle: 1,
+      backRequested: true,
+      confirmRequested: true,
+      frameRequested: true,
+      helpRequested: true,
+      toolCycle: 1,
+      transformDirection: "up",
+      zoom: 0.75,
+    });
+    expect(actions.panX).toBeGreaterThan(0);
+    expect(actions.panY).toBeLessThan(0);
+    expect(actions.orbitX).toBeLessThan(0);
+    expect(actions.orbitY).toBeGreaterThan(0);
+  });
+
+  test("cycles tools in both directions and repeats every D-pad direction", () => {
+    let current = standardGamepad();
+    const input = new EditorGamepadInput(() => [current]);
+    input.setContext("viewport");
+    input.sample(0);
+
+    current = standardGamepad({ buttons: { 4: gamepadButton(1) } });
+    expect(input.sample(10).toolCycle).toBe(-1);
+    expect(input.sample(20).toolCycle).toBe(0);
+    current = standardGamepad();
+    input.sample(30);
+    current = standardGamepad({ buttons: { 15: gamepadButton(1) } });
+    expect(input.sample(40).transformDirection).toBe("right");
+    expect(input.sample(200).transformDirection).toBeNull();
+    expect(input.sample(391).transformDirection).toBe("right");
+    current = standardGamepad();
+    input.sample(400);
+    current = standardGamepad({ buttons: { 13: gamepadButton(1) } });
+    expect(input.sample(410).transformDirection).toBe("down");
+    current = standardGamepad();
+    input.sample(420);
+    current = standardGamepad({ buttons: { 14: gamepadButton(1) } });
+    expect(input.sample(430).transformDirection).toBe("left");
+    current = standardGamepad();
+    input.sample(440);
+    current = standardGamepad({ buttons: { 12: gamepadButton(1) } });
+    expect(input.sample(450).transformDirection).toBe("up");
+  });
+
+  test("requires neutral input after a context reset and clears disconnects", () => {
+    let current: Gamepad | null = standardGamepad();
+    const input = new EditorGamepadInput(() => (current ? [current] : []));
+    input.sample(0);
+    current = standardGamepad({ buttons: { 0: gamepadButton(1) } });
+    expect(input.sample(10).confirmRequested).toBe(true);
+
+    input.setContext("viewport");
+    expect(input.sample(20).confirmRequested).toBe(false);
+    current = standardGamepad();
+    expect(input.sample(30).confirmRequested).toBe(false);
+    current = standardGamepad({ buttons: { 0: gamepadButton(1) } });
+    expect(input.sample(40).confirmRequested).toBe(true);
+
+    current = null;
+    expect(input.sample(50)).toMatchObject({
+      connected: false,
+      confirmRequested: false,
+      panX: 0,
+    });
+  });
+
+  test("retains one active index and neutrally re-arms after its slot disconnects", () => {
+    let gamepads: Array<Gamepad | null> = [
+      standardGamepad({ index: 0 }),
+      standardGamepad({ index: 1 }),
+    ];
+    const input = new EditorGamepadInput(() => gamepads);
+    input.sample(0);
+
+    gamepads = [
+      standardGamepad({
+        buttons: { 0: gamepadButton(1) },
+        index: 0,
+      }),
+      standardGamepad({ index: 1 }),
+    ];
+    expect(input.sample(10).confirmRequested).toBe(true);
+
+    gamepads = [
+      standardGamepad({ index: 0 }),
+      standardGamepad({
+        buttons: { 0: gamepadButton(1) },
+        index: 1,
+      }),
+    ];
+    expect(input.sample(20).confirmRequested).toBe(false);
+
+    gamepads = [
+      null,
+      standardGamepad({
+        buttons: { 0: gamepadButton(1) },
+        index: 1,
+      }),
+    ];
+    expect(input.sample(30).confirmRequested).toBe(false);
+    expect(input.sample(40).confirmRequested).toBe(false);
+
+    gamepads = [null, standardGamepad({ index: 1 })];
+    expect(input.sample(50).confirmRequested).toBe(false);
+    gamepads = [
+      null,
+      standardGamepad({
+        buttons: { 0: gamepadButton(1) },
+        index: 1,
+      }),
+    ];
+    expect(input.sample(60).confirmRequested).toBe(true);
+  });
+
+  test("prefers directional candidates in the current region without wrapping", () => {
+    const candidate = (
+      value: string,
+      left: number,
+      top: number,
+      region: string,
+      order: number,
+    ): SpatialCandidate<string> => ({
+      order,
+      rect: { bottom: top + 10, left, right: left + 10, top },
+      region,
+      value,
+    });
+    const origin = candidate("origin", 0, 0, "toolbar", 0);
+    const crossRegion = candidate("viewport", 12, 0, "viewport", 1);
+    const local = candidate("tool", 30, 0, "toolbar", 2);
+
+    expect(
+      findSpatialNavigationCandidate(
+        origin,
+        [origin, crossRegion, local],
+        "right",
+      )?.value,
+    ).toBe("tool");
+    expect(
+      findSpatialNavigationCandidate(
+        origin,
+        [origin, crossRegion],
+        "right",
+      )?.value,
+    ).toBe("viewport");
+    expect(
+      findSpatialNavigationCandidate(
+        origin,
+        [origin, crossRegion, local],
+        "left",
+      ),
+    ).toBeNull();
+  });
+
+  test("orders spatial candidates by alignment, distance, eligibility, and stable order", () => {
+    const candidate = (
+      value: string,
+      left: number,
+      top: number,
+      order: number,
+      eligible = true,
+    ): SpatialCandidate<string> => ({
+      eligible,
+      order,
+      rect: { bottom: top + 10, left, right: left + 10, top },
+      region: "editor",
+      value,
+    });
+    const origin = candidate("origin", 0, 0, 0);
+    const aligned = candidate("aligned", 30, 0, 1);
+    const diagonal = candidate("diagonal", 12, 20, 2);
+    expect(
+      findSpatialNavigationCandidate(
+        origin,
+        [origin, diagonal, aligned],
+        "right",
+      )?.value,
+    ).toBe("aligned");
+
+    const near = candidate("near", 12, 0, 3);
+    expect(
+      findSpatialNavigationCandidate(
+        origin,
+        [origin, aligned, near],
+        "right",
+      )?.value,
+    ).toBe("near");
+
+    const hidden = candidate("hidden", 11, 0, 0, false);
+    const inert = candidate("inert", 11, 0, 1, false);
+    const disabled = candidate("disabled", 11, 0, 2, false);
+    const availableLater = candidate("available", 20, 0, 3);
+    expect(
+      findSpatialNavigationCandidate(
+        origin,
+        [origin, hidden, inert, disabled, availableLater],
+        "right",
+      )?.value,
+    ).toBe("available");
+
+    const laterOrder = candidate("later", 12, 0, 5);
+    const earlierOrder = candidate("earlier", 12, 0, 2);
+    expect(
+      findSpatialNavigationCandidate(
+        origin,
+        [origin, laterOrder, earlierOrder],
+        "right",
+      )?.value,
+    ).toBe("earlier");
   });
 });

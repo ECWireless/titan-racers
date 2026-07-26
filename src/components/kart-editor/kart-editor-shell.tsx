@@ -11,7 +11,12 @@ import {
 } from "react";
 
 import { CommandHistory } from "@/game/editor/command-history";
-import type { EditorTransformTool } from "@/game/editor/editor-viewport";
+import type { EditorControllerViewportHandle } from "@/game/editor/editor-controller-viewport";
+import { EditorControllerAxisIndicator } from "@/components/editor-controller-axis-indicator";
+import {
+  EDITOR_ROTATE_SNAP,
+  type EditorTransformTool,
+} from "@/game/editor/editor-viewport";
 import {
   type KartEditorSelection,
   type KartPrimitivePreset,
@@ -59,6 +64,8 @@ import {
 } from "@/game/kart/kart-publication";
 import { serializeKartAssemblyDocument } from "@/game/kart/kart-assembly-document";
 import { isEditableKeyboardTarget } from "@/game/input/keyboard-input";
+import { useEditorController } from "@/game/input/use-editor-controller";
+import { KART_EDITOR_TRANSLATE_SNAP } from "@/game/editor/kart-editor-scene";
 
 import { SoloTimeTrialCanvas } from "../solo-time-trial-canvas";
 import {
@@ -72,6 +79,12 @@ type OperationState =
   | { message: string; status: "error" }
   | { message: string; status: "success" }
   | { status: "saving" | "publishing" | "unpublishing" | "loading" };
+type KartConfirmationAction =
+  | "exit"
+  | "latest"
+  | "revert"
+  | "sign-out"
+  | "unpublish";
 
 const primitivePresets: Array<{
   id: KartPrimitivePreset;
@@ -144,6 +157,7 @@ export function KartEditorShell({
   const [frameRequest, setFrameRequest] = useState(0);
   const [actionsOpen, setActionsOpen] = useState(false);
   const [cameraHelpOpen, setCameraHelpOpen] = useState(false);
+  const [controllerAxis, setControllerAxis] = useState<"x" | "y" | "z">("x");
   const [attachmentParentId, setAttachmentParentId] = useState("");
   const [mobilePanel, setMobilePanel] = useState<
     "outline" | "inspector" | null
@@ -151,6 +165,8 @@ export function KartEditorShell({
   const [operation, setOperation] = useState<OperationState>({
     status: "idle",
   });
+  const [confirmationAction, setConfirmationAction] =
+    useState<KartConfirmationAction | null>(null);
   const [testSession, setTestSession] = useState<{
     courseDocument: CourseDocument;
     kartDocument: KartAssemblyDocument;
@@ -168,6 +184,10 @@ export function KartEditorShell({
   const inspectorPanelButtonRef = useRef<HTMLButtonElement>(null);
   const inspectorPanelRef = useRef<HTMLElement>(null);
   const issuedIdsRef = useRef(collectKartDocumentIds(revision.document));
+  const confirmationFocusRef = useRef<HTMLElement | null>(null);
+  const shellRef = useRef<HTMLElement>(null);
+  const viewportControllerRef =
+    useRef<EditorControllerViewportHandle>(null);
 
   useEffect(() => {
     if (testSession || !testModeTriggerRef.current) return;
@@ -416,7 +436,8 @@ export function KartEditorShell({
     const onKeyDown = (event: KeyboardEvent) => {
       if (
         isEditableKeyboardTarget(event.target) ||
-        operationPendingRef.current
+        operationPendingRef.current ||
+        confirmationAction
       ) {
         return;
       }
@@ -689,15 +710,15 @@ export function KartEditorShell({
     }
   }
 
-  async function loadLatestDraft() {
+  async function loadLatestDraft(confirmed = false) {
     if (
       operationPendingRef.current ||
-      signOutPending ||
-      (history.isDirty &&
-        !window.confirm(
-          "Discard local changes and load the latest saved draft?",
-        ))
+      signOutPending
     ) {
+      return;
+    }
+    if (history.isDirty && !confirmed) {
+      openConfirmation("latest");
       return;
     }
     setActionsOpen(false);
@@ -801,24 +822,19 @@ export function KartEditorShell({
     }
   }
 
-  function requestUnpublish() {
-    if (
-      !published ||
-      !window.confirm(
-        `Unpublish ${document.name} revision ${published.revision}? It will no longer be available to players.`,
-      )
-    ) {
+  function requestUnpublish(confirmed = false) {
+    if (!published) return;
+    if (!confirmed) {
+      openConfirmation("unpublish");
       return;
     }
     void changePublication("unpublish");
   }
 
-  function revertDraft() {
+  function revertDraft(confirmed = false) {
     if (operationPendingRef.current || signOutPending) return;
-    if (
-      history.isDirty &&
-      !window.confirm("Revert every local change to the last saved draft?")
-    ) {
+    if (history.isDirty && !confirmed) {
+      openConfirmation("revert");
       return;
     }
     const reverted = history.resetToLoaded();
@@ -842,26 +858,62 @@ export function KartEditorShell({
     URL.revokeObjectURL(url);
   }
 
-  function requestExit() {
+  function requestExit(confirmed = false) {
     if (operationPendingRef.current || signOutPending) return;
-    if (
-      history.isDirty &&
-      !window.confirm("Leave the kart builder and discard local changes?")
-    ) {
+    if (history.isDirty && !confirmed) {
+      openConfirmation("exit");
       return;
     }
     router.push("/");
   }
 
-  function requestSignOut() {
+  function requestSignOut(confirmed = false) {
     if (operationPendingRef.current) return;
-    if (
-      history.isDirty &&
-      !window.confirm("Sign out and discard local kart changes?")
-    ) {
+    if (history.isDirty && !confirmed) {
+      openConfirmation("sign-out");
       return;
     }
     onSignOut();
+  }
+
+  function openConfirmation(action: KartConfirmationAction) {
+    const activeElement = window.document.activeElement;
+    confirmationFocusRef.current =
+      activeElement instanceof HTMLElement ? activeElement : null;
+    setConfirmationAction(action);
+  }
+
+  function cancelConfirmation() {
+    setConfirmationAction(null);
+    const invokingElement = confirmationFocusRef.current;
+    confirmationFocusRef.current = null;
+    requestAnimationFrame(() => {
+      if (invokingElement?.isConnected) {
+        invokingElement.focus();
+        return;
+      }
+      actionsButtonRef.current?.focus();
+      if (window.document.activeElement === window.document.body) {
+        viewportControllerRef.current?.getElement()?.focus();
+      }
+    });
+  }
+
+  function confirmAction() {
+    const action = confirmationAction;
+    setConfirmationAction(null);
+    confirmationFocusRef.current = null;
+    if (action === "latest") {
+      void loadLatestDraft(true);
+    } else if (action === "revert") {
+      revertDraft(true);
+    } else if (action === "unpublish") {
+      requestUnpublish(true);
+    } else if (action === "exit") {
+      requestExit(true);
+    } else if (action === "sign-out") {
+      requestSignOut(true);
+    }
   }
 
   function openMobilePanel(panel: "outline" | "inspector") {
@@ -934,6 +986,102 @@ export function KartEditorShell({
     }
   }
 
+  const { controllerConnected, viewportEngaged } = useEditorController({
+    contextKey: [
+      actionsOpen ? "actions" : "",
+      cameraHelpOpen ? "help" : "",
+      confirmationAction ?? "",
+      mobilePanel ?? "",
+    ].join(":"),
+    disabled: workspaceLocked,
+    onAxisCycle: (direction) => {
+      const axes = ["x", "y", "z"] as const;
+      setControllerAxis((axis) => {
+        const index = axes.indexOf(axis);
+        return axes[(index + direction + axes.length) % axes.length];
+      });
+    },
+    onBack: () => {
+      if (actionsOpen) {
+        setActionsOpen(false);
+        actionsButtonRef.current?.focus();
+        return true;
+      }
+      if (cameraHelpOpen) {
+        setCameraHelpOpen(false);
+        return true;
+      }
+      if (mobilePanel) {
+        closeMobilePanel();
+        return true;
+      }
+      return false;
+    },
+    onFrame: () => setFrameRequest((request) => request + 1),
+    onHelp: () => setCameraHelpOpen((open) => !open),
+    onToolCycle: (direction) => {
+      const tools: EditorTransformTool[] = scaleAvailable
+        ? ["translate", "rotate", "scale"]
+        : ["translate", "rotate"];
+      setTool((current) => {
+        const index = Math.max(0, tools.indexOf(current));
+        return tools[(index + direction + tools.length) % tools.length];
+      });
+    },
+    onTransformDirection: (direction) => {
+      if (!selection || !selectedInstance) return;
+      if (tool === "translate") {
+        const step =
+          viewportControllerRef.current?.resolveTranslationStep(direction);
+        if (!step) return;
+        setControllerAxis(step.axis);
+        updateSelectedTransform(
+          "position",
+          step.axis,
+          selectedInstance.transform.position[step.axis] +
+            step.sign * KART_EDITOR_TRANSLATE_SNAP,
+        );
+      } else if (tool === "rotate") {
+        const sign = direction === "right" || direction === "up" ? 1 : -1;
+        updateSelectedTransform(
+          "rotationDegrees",
+          controllerAxis,
+          selectedInstance.transform.rotationDegrees[controllerAxis] +
+            sign * EDITOR_ROTATE_SNAP,
+        );
+      } else if (
+        tool === "scale" &&
+        selectedInstance.kind === "primitive" &&
+        selectedInstance.shape === "box"
+      ) {
+        const grow = direction === "right" || direction === "up";
+        try {
+          commitDocument(
+            `Scale ${selection.id}`,
+            updateKartPrimitiveGeometry(
+              document,
+              selection.id,
+              {
+                shape: "box",
+                size: {
+                  ...selectedInstance.size,
+                  [controllerAxis]:
+                    selectedInstance.size[controllerAxis] *
+                    (grow ? 1.1 : 1 / 1.1),
+                },
+              },
+              mirrorPair,
+            ),
+          );
+        } catch (error) {
+          showCommandError(error);
+        }
+      }
+    },
+    shellRef,
+    viewportRef: viewportControllerRef,
+  });
+
   if (testSession) {
     return (
       <SoloTimeTrialCanvas
@@ -948,18 +1096,22 @@ export function KartEditorShell({
   }
 
   return (
-    <main className="flex h-dvh min-h-0 flex-col overflow-hidden bg-titan-black text-titan-ice">
+    <main
+      className="flex h-dvh min-h-0 flex-col overflow-hidden bg-titan-black text-titan-ice"
+      ref={shellRef}
+    >
       <header
         className="relative z-50 flex min-h-14 shrink-0 items-center gap-1 border-b border-titan-ice/15 bg-titan-panel px-2 py-2 sm:gap-2 sm:px-4"
+        data-editor-controller-region="header"
         data-testid="kart-editor-header"
-        inert={mobilePanel !== null}
+        inert={mobilePanel !== null || confirmationAction !== null}
       >
         <button
           aria-label="Exit kart editor"
           className="mr-1 shrink-0 border border-titan-ice/20 px-2 py-2 font-mono text-[0.68rem] font-bold uppercase tracking-[0.12em] text-titan-ice/74 hover:border-titan-hazard hover:text-titan-hazard focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-titan-hazard sm:px-3"
           disabled={workspaceLocked}
           type="button"
-          onClick={requestExit}
+          onClick={() => requestExit()}
         >
           <span aria-hidden="true" className="sm:hidden">
             ←
@@ -1133,7 +1285,7 @@ export function KartEditorShell({
           className="hidden border border-titan-ice/20 px-3 py-2 font-mono text-[0.65rem] font-bold uppercase tracking-[0.12em] text-titan-ice/72 hover:border-titan-hazard hover:text-titan-hazard focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-titan-hazard sm:inline-flex"
           disabled={signOutPending || operationPending}
           type="button"
-          onClick={requestSignOut}
+          onClick={() => requestSignOut()}
         >
           {signOutPending ? "Signing out…" : "Sign out"}
         </button>
@@ -1169,8 +1321,9 @@ export function KartEditorShell({
 
       <div
         className="flex min-h-12 shrink-0 items-center gap-2 overflow-x-auto border-b border-titan-ice/15 bg-titan-black px-3 py-2"
+        data-editor-controller-region="toolbar"
         data-testid="kart-editor-toolbar"
-        inert={mobilePanel !== null}
+        inert={mobilePanel !== null || confirmationAction !== null}
       >
         {(["translate", "rotate", "scale"] as const).map((candidate, index) => (
           <button
@@ -1212,6 +1365,12 @@ export function KartEditorShell({
             <EditorToolbarIcon name={candidate} />
           </button>
         ))}
+        {controllerConnected ? (
+          <EditorControllerAxisIndicator
+            axis={controllerAxis}
+            testId="kart-controller-axis"
+          />
+        ) : null}
         {scaleUnavailableReason ? (
           <span className="sr-only" id="kart-scale-unavailable-reason">
             {scaleUnavailableReason}
@@ -1269,6 +1428,7 @@ export function KartEditorShell({
       <fieldset
         className="relative grid min-h-0 flex-1 grid-cols-1 grid-rows-1 overflow-hidden lg:grid-cols-[18rem_minmax(0,1fr)_23rem]"
         disabled={workspaceLocked}
+        inert={confirmationAction !== null}
       >
         {mobilePanel ? (
           <button
@@ -1284,6 +1444,7 @@ export function KartEditorShell({
           className={`fixed inset-x-0 bottom-0 z-[70] max-h-[72dvh] content-start gap-5 overflow-y-auto border-t border-titan-ice/25 bg-[#0c0f11] p-4 shadow-[0_-18px_60px_rgb(0_0_0/0.55)] ${
             mobilePanel === "outline" ? "grid" : "hidden"
           } lg:static lg:order-1 lg:z-auto lg:grid lg:min-h-0 lg:max-h-none lg:border-r lg:border-t-0 lg:shadow-none`}
+          data-editor-controller-region="outline"
           id="kart-outline-panel"
           ref={outlinePanelRef}
           role={mobilePanel === "outline" ? "dialog" : undefined}
@@ -1292,6 +1453,8 @@ export function KartEditorShell({
         >
           <button
             className="editor-list-button lg:hidden"
+            data-controller-default="true"
+            data-editor-controller-back="true"
             type="button"
             onClick={closeMobilePanel}
           >
@@ -1400,6 +1563,7 @@ export function KartEditorShell({
 
         <section
           className="relative order-1 flex min-h-0 min-w-0 flex-col bg-[#070706] lg:order-2"
+          data-editor-controller-region="viewport"
           data-testid="kart-editor-viewport-region"
           inert={mobilePanel !== null}
         >
@@ -1416,7 +1580,25 @@ export function KartEditorShell({
             selectionState={selectionStructureState}
             snapEnabled={snapEnabled}
             tool={tool}
+            ref={viewportControllerRef}
           />
+          {controllerConnected ? (
+            <div
+              className="pointer-events-none absolute bottom-40 left-1/2 z-10 -translate-x-1/2 border border-titan-blue/45 bg-titan-black/88 px-3 py-2 text-center font-mono text-[0.6rem] font-bold uppercase tracking-[0.1em] text-titan-ice/82 shadow-[0_10px_35px_rgb(0_0_0/0.45)]"
+              data-testid="kart-controller-status"
+            >
+              {viewportEngaged
+                ? `Controller viewport · ${tool} ${controllerAxis.toUpperCase()} · B exits`
+                : "Controller ready · focus viewport and press A"}
+            </div>
+          ) : null}
+          {viewportEngaged ? (
+            <div
+              aria-hidden="true"
+              className="pointer-events-none absolute left-1/2 top-[calc(50%-4rem)] z-10 h-5 w-5 -translate-x-1/2 -translate-y-1/2 before:absolute before:left-1/2 before:top-0 before:h-full before:w-px before:-translate-x-1/2 before:bg-titan-hazard/80 after:absolute after:left-0 after:top-1/2 after:h-px after:w-full after:-translate-y-1/2 after:bg-titan-hazard/80"
+              data-testid="kart-controller-reticle"
+            />
+          ) : null}
           {cameraHelpOpen ? (
             <section
               aria-label="Camera controls"
@@ -1430,6 +1612,8 @@ export function KartEditorShell({
                 <button
                   aria-label="Close camera controls"
                   className="grid h-8 w-8 place-items-center border border-titan-ice/20 text-titan-ice/78 hover:border-titan-hazard hover:text-titan-hazard"
+                  data-controller-default="true"
+                  data-editor-controller-back="true"
                   type="button"
                   onClick={() => setCameraHelpOpen(false)}
                 >
@@ -1445,7 +1629,18 @@ export function KartEditorShell({
                   Mouse
                 </span>
                 <span>Right-drag orbit · Shift-drag pan · wheel zoom</span>
+                <span className="font-bold uppercase text-titan-muted">
+                  Pad
+                </span>
+                <span>
+                  A engage/select · sticks pan/orbit · triggers zoom · LB/RB
+                  tool · X axis · Y frame · D-pad transform · B exit
+                </span>
               </div>
+              <p className="text-titan-muted">
+                Controller input is best-effort for spatial editing; use pointer
+                or numeric fields for precise freeform changes.
+              </p>
             </section>
           ) : null}
           <div className="grid gap-1 border-t border-titan-ice/15 bg-[#0b0d0e] p-3">
@@ -1495,6 +1690,7 @@ export function KartEditorShell({
           className={`fixed inset-x-0 bottom-0 z-[70] max-h-[72dvh] content-start gap-5 overflow-y-auto border-t border-titan-ice/25 bg-[#0c0f11] p-4 shadow-[0_-18px_60px_rgb(0_0_0/0.55)] ${
             mobilePanel === "inspector" ? "grid" : "hidden"
           } lg:static lg:order-3 lg:z-auto lg:grid lg:min-h-0 lg:max-h-none lg:border-l lg:border-t-0 lg:shadow-none`}
+          data-editor-controller-region="inspector"
           id="kart-inspector-panel"
           ref={inspectorPanelRef}
           role={mobilePanel === "inspector" ? "dialog" : undefined}
@@ -1503,6 +1699,8 @@ export function KartEditorShell({
         >
           <button
             className="editor-list-button lg:hidden"
+            data-controller-default="true"
+            data-editor-controller-back="true"
             type="button"
             onClick={closeMobilePanel}
           >
@@ -1817,7 +2015,127 @@ export function KartEditorShell({
           ) : null}
         </aside>
       </fieldset>
+      {confirmationAction ? (
+        <KartConfirmationDialog
+          action={confirmationAction}
+          documentName={document.name}
+          publishedRevision={published?.revision ?? null}
+          onCancel={cancelConfirmation}
+          onConfirm={confirmAction}
+        />
+      ) : null}
     </main>
+  );
+}
+
+function KartConfirmationDialog({
+  action,
+  documentName,
+  onCancel,
+  onConfirm,
+  publishedRevision,
+}: {
+  action: KartConfirmationAction;
+  documentName: string;
+  onCancel: () => void;
+  onConfirm: () => void;
+  publishedRevision: number | null;
+}) {
+  const cancelButtonRef = useRef<HTMLButtonElement>(null);
+  const actionLabel =
+    action === "latest"
+      ? "Load latest draft"
+      : action === "revert"
+        ? "Revert changes"
+        : action === "unpublish"
+          ? "Unpublish kart"
+          : action === "exit"
+            ? "Exit editor"
+            : "Sign out";
+  const title =
+    action === "unpublish"
+      ? "Unpublish kart?"
+      : "Discard unsaved changes?";
+  const description =
+    action === "latest"
+      ? "Loading the latest saved draft replaces your local unsaved work. Download a backup first if you may need it."
+      : action === "revert"
+        ? "Reverting restores the last loaded or saved draft and removes your local unsaved work."
+        : action === "unpublish"
+          ? `${documentName} revision ${publishedRevision ?? ""} will no longer be available to players.`
+          : action === "exit"
+            ? "Exiting now removes your local unsaved work. Save a draft or keep editing if you may need it."
+            : "Signing out now removes your local unsaved work. Save a draft or keep editing if you may need it.";
+
+  useEffect(() => {
+    cancelButtonRef.current?.focus();
+  }, []);
+
+  return (
+    <div
+      className="fixed inset-0 z-[80] grid place-items-center bg-titan-black/74 p-4"
+      onKeyDown={(event) => {
+        if (event.key === "Escape") {
+          event.preventDefault();
+          onCancel();
+          return;
+        }
+        if (event.key !== "Tab") return;
+        const buttons = Array.from(
+          event.currentTarget.querySelectorAll<HTMLButtonElement>(
+            "button:not(:disabled)",
+          ),
+        );
+        const first = buttons[0];
+        const last = buttons.at(-1);
+        if (event.shiftKey && document.activeElement === first) {
+          event.preventDefault();
+          last?.focus();
+        } else if (!event.shiftKey && document.activeElement === last) {
+          event.preventDefault();
+          first?.focus();
+        }
+      }}
+    >
+      <section
+        aria-labelledby="kart-confirmation-title"
+        aria-modal="true"
+        className="grid w-full max-w-md gap-5 border border-titan-ice/24 bg-titan-panel p-5 shadow-[0_24px_90px_rgb(0_0_0/0.8)]"
+        data-editor-controller-region="confirmation-dialog"
+        role="dialog"
+      >
+        <div>
+          <h2
+            className="font-mono text-sm font-bold uppercase tracking-[0.12em] text-titan-hazard"
+            id="kart-confirmation-title"
+          >
+            {title}
+          </h2>
+          <p className="mt-2 text-sm leading-relaxed text-titan-ice/76">
+            {description}
+          </p>
+        </div>
+        <div className="flex flex-wrap justify-end gap-2">
+          <button
+            className="min-h-10 border border-titan-ice/22 px-3 font-mono text-[0.65rem] font-bold uppercase tracking-[0.08em] text-titan-ice/78 hover:border-titan-hazard hover:text-titan-hazard"
+            data-controller-default="true"
+            data-editor-controller-back="true"
+            ref={cancelButtonRef}
+            type="button"
+            onClick={onCancel}
+          >
+            {action === "unpublish" ? "Keep published" : "Keep editing"}
+          </button>
+          <button
+            className="min-h-10 border border-titan-rust/65 bg-titan-rust/8 px-3 font-mono text-[0.65rem] font-bold uppercase tracking-[0.08em] text-titan-rust"
+            type="button"
+            onClick={onConfirm}
+          >
+            {actionLabel}
+          </button>
+        </div>
+      </section>
+    </div>
   );
 }
 

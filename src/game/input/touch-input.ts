@@ -8,9 +8,9 @@ export type TouchPedalAction = "accelerate" | "brakeReverse";
 
 export const TOUCH_JOYSTICK_DEAD_ZONE = 0.08;
 export const TOUCH_JOYSTICK_RESPONSE_EXPONENT = 1.75;
-export const TOUCH_HANDBRAKE_STEER_START = 0.45;
+export const TOUCH_HANDBRAKE_STEER_START = 0.3;
 export const TOUCH_HANDBRAKE_STEER_FULL = 0.7;
-export const TOUCH_HANDBRAKE_ACCELERATE_FULL = 0.6;
+export const TOUCH_HANDBRAKE_ACCELERATE_FULL = 0.5;
 export const TOUCH_HANDBRAKE_SERVICE_BRAKE_FLOOR = 0.2;
 
 export type TouchJoystickValue = {

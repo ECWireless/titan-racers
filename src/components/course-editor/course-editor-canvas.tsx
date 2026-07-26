@@ -1,6 +1,12 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import {
+  forwardRef,
+  useEffect,
+  useImperativeHandle,
+  useRef,
+  useState,
+} from "react";
 
 import type { CourseDocument } from "@/game/course/course-document";
 import type {
@@ -11,6 +17,7 @@ import {
   CourseEditorScene,
   type CourseEditorTool,
 } from "@/game/editor/course-editor-scene";
+import type { EditorControllerViewportHandle } from "@/game/editor/editor-controller-viewport";
 
 type CourseEditorCanvasProps = {
   collisionVisible: boolean;
@@ -26,19 +33,26 @@ type CourseEditorCanvasProps = {
   tool: CourseEditorTool;
 };
 
-export function CourseEditorCanvas({
-  collisionVisible,
-  document,
-  frameRequest,
-  onDocumentChange,
-  onSelectionChange,
-  selections,
-  snapEnabled,
-  tool,
-}: CourseEditorCanvasProps) {
+export const CourseEditorCanvas = forwardRef<
+  EditorControllerViewportHandle,
+  CourseEditorCanvasProps
+>(function CourseEditorCanvas(
+  {
+    collisionVisible,
+    document,
+    frameRequest,
+    onDocumentChange,
+    onSelectionChange,
+    selections,
+    snapEnabled,
+    tool,
+  },
+  ref,
+) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const callbacksRef = useRef({ onDocumentChange, onSelectionChange });
   const sceneRef = useRef<CourseEditorScene | null>(null);
+  const [cameraRevision, setCameraRevision] = useState(0);
   const [status, setStatus] = useState<"loading" | "ready" | "error">(
     "loading",
   );
@@ -53,6 +67,8 @@ export function CourseEditorCanvas({
     let scene: CourseEditorScene | null = null;
     try {
       scene = new CourseEditorScene(canvas, document, selections, {
+        onCameraChange: () =>
+          setCameraRevision((revision) => revision + 1),
         onDocumentChange: (label, nextDocument) =>
           callbacksRef.current.onDocumentChange(label, nextDocument),
         onSelectionChange: (nextSelection, additive) =>
@@ -166,12 +182,27 @@ export function CourseEditorCanvas({
 
   useEffect(() => {
     sceneRef.current?.setOptions({
+      onCameraChange: () =>
+        setCameraRevision((revision) => revision + 1),
       onDocumentChange: (label, nextDocument) =>
         callbacksRef.current.onDocumentChange(label, nextDocument),
       onSelectionChange: (nextSelection, additive) =>
         callbacksRef.current.onSelectionChange(nextSelection, additive),
     });
   }, [onDocumentChange, onSelectionChange]);
+
+  useImperativeHandle(
+    ref,
+    () => ({
+      applyControllerCamera: (input, deltaSeconds) =>
+        sceneRef.current?.applyControllerCamera(input, deltaSeconds),
+      getElement: () => canvasRef.current,
+      resolveTranslationStep: (direction) =>
+        sceneRef.current?.resolveControllerTranslation(direction) ?? null,
+      selectAtCenter: () => sceneRef.current?.selectAtCenter(),
+    }),
+    [],
+  );
 
   useEffect(() => sceneRef.current?.setDocument(document), [document]);
   useEffect(() => sceneRef.current?.setSelections(selections), [selections]);
@@ -219,7 +250,10 @@ export function CourseEditorCanvas({
       <canvas
         aria-label="Course editor 3D viewport"
         className="block h-full w-full touch-none cursor-default outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-titan-hazard"
+        data-camera-revision={cameraRevision}
         data-colliders-visible={collisionVisible ? "true" : "false"}
+        data-controller-default="true"
+        data-editor-controller-viewport="true"
         data-scene-ready={status === "ready" ? "true" : "false"}
         data-selected-count={selections.length}
         data-selected-id={selections[0].id}
@@ -242,4 +276,4 @@ export function CourseEditorCanvas({
       ) : null}
     </div>
   );
-}
+});

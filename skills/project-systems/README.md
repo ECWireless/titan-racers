@@ -41,6 +41,10 @@ The source code and authoritative project documents remain the final authority f
 - [Player input](player-input/README.md): normalized fixed-step driving actions,
   keyboard, multi-touch, and standard-gamepad adapters, intentional-activity
   arbitration, cancellation, accessible touch controls, reset, and pause.
+- [Editor controller input](editor-controller-input/README.md): best-effort
+  standard-controller navigation, viewport engagement, camera control,
+  screen-relative snapped transforms, focus lifecycle, and accessible feedback
+  across the home screen and protected editors.
 - [Protected course editor](course-editor/README.md): protected revision loading,
   responsive document authoring, PlayCanvas picking and gizmos, mobile precision
   controls, collision diagnostics, private drafts, and live publication.
