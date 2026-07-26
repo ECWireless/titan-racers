@@ -203,7 +203,11 @@ export function useControllerMenuNavigation({
       }
       clearPointerIdleTimer();
     };
-    const onPointerDown = () => clearControllerPresentation();
+    const clearControllerState = () => {
+      clear();
+      clearControllerPresentation();
+    };
+    const onPointerDown = () => clearControllerState();
     const onPointerMove = () => {
       const container = containerRef.current;
       if (!container || container.dataset.controllerNavigation !== "true") {
@@ -215,10 +219,6 @@ export function useControllerMenuNavigation({
         delete container.dataset.controllerPointerActive;
         pointerIdleTimer = 0;
       }, 1_000);
-    };
-    const clearControllerState = () => {
-      clear();
-      clearControllerPresentation();
     };
     const onVisibilityChange = () => {
       if (document.hidden) {
