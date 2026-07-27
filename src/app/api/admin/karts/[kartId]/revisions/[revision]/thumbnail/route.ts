@@ -19,6 +19,7 @@ import { protectedJsonMutationError } from "@/server/request-guards";
 type RouteContext = {
   params: Promise<{ kartId: string; revision: string }>;
 };
+const NO_STORE_HEADERS = { "cache-control": "no-store" };
 
 export async function GET(request: Request, context: RouteContext) {
   const authorization = await authorizeRole(request, "admin");
@@ -32,7 +33,10 @@ export async function GET(request: Request, context: RouteContext) {
     target.revision,
   );
   if (!thumbnail) {
-    return Response.json({ error: "Kart thumbnail not found." }, { status: 404 });
+    return Response.json(
+      { error: "Kart thumbnail not found." },
+      { headers: NO_STORE_HEADERS, status: 404 },
+    );
   }
   return kartThumbnailResponse(thumbnail);
 }
@@ -60,7 +64,7 @@ export async function PUT(request: Request, context: RouteContext) {
         imageSha256: thumbnail.imageSha256,
         renderVersion: thumbnail.renderVersion,
       },
-      { status: 201 },
+      { headers: NO_STORE_HEADERS, status: 201 },
     );
   } catch (error) {
     if (
@@ -69,14 +73,20 @@ export async function PUT(request: Request, context: RouteContext) {
     ) {
       return Response.json(
         { error: "Invalid kart thumbnail request." },
-        { status: 400 },
+        { headers: NO_STORE_HEADERS, status: 400 },
       );
     }
     if (error instanceof KartThumbnailConflictError) {
-      return Response.json({ error: error.message }, { status: 409 });
+      return Response.json(
+        { error: error.message },
+        { headers: NO_STORE_HEADERS, status: 409 },
+      );
     }
     if (error instanceof KartThumbnailTargetError) {
-      return Response.json({ error: error.message }, { status: 404 });
+      return Response.json(
+        { error: error.message },
+        { headers: NO_STORE_HEADERS, status: 404 },
+      );
     }
     throw error;
   }
@@ -92,7 +102,7 @@ async function parseTarget(context: RouteContext) {
   ) {
     return Response.json(
       { error: "Invalid kart thumbnail target." },
-      { status: 400 },
+      { headers: NO_STORE_HEADERS, status: 400 },
     );
   }
   return { kartId, revision };

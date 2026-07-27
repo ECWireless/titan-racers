@@ -746,56 +746,100 @@ test.describe("kart persistence and authorization", () => {
         },
       );
 
-    expect(
-      (await putAdminKartThumbnail(request({}), context)).status,
-    ).toBe(401);
+    const unauthorizedUpload = await putAdminKartThumbnail(
+      request({}),
+      context,
+    );
+    expect(unauthorizedUpload.status).toBe(401);
+    expect(unauthorizedUpload.headers.get("cache-control")).toBe("no-store");
+
+    const missingThumbnail = await getAdminKartThumbnail(
+      new Request(
+        `${TEST_ORIGIN}/api/admin/karts/${kartId}/revisions/1/thumbnail`,
+        { headers },
+      ),
+      context,
+    );
+    expect(missingThumbnail.status).toBe(404);
+    expect(missingThumbnail.headers.get("cache-control")).toBe("no-store");
+
+    const invalidTarget = await getAdminKartThumbnail(
+      new Request(
+        `${TEST_ORIGIN}/api/admin/karts/${kartId}/revisions/invalid/thumbnail`,
+        { headers },
+      ),
+      {
+        params: Promise.resolve({ kartId, revision: "invalid" }),
+      },
+    );
+    expect(invalidTarget.status).toBe(400);
+    expect(invalidTarget.headers.get("cache-control")).toBe("no-store");
     const foreignOriginHeaders = new Headers([
       ...headers.entries(),
       ["content-type", "application/json"],
       ["origin", "https://malicious.example"],
     ]);
-    expect(
-      (
-        await putAdminKartThumbnail(
-          new Request(
-            `${TEST_ORIGIN}/api/admin/karts/${kartId}/revisions/1/thumbnail`,
-            { body, headers: foreignOriginHeaders, method: "PUT" },
-          ),
-          context,
-        )
-      ).status,
-    ).toBe(403);
-    expect(
-      (
-        await putAdminKartThumbnail(
-          request(headers, body, "text/plain"),
-          context,
-        )
-      ).status,
-    ).toBe(415);
-    expect(
-      (
-        await putAdminKartThumbnail(
-          request(
-            headers,
-            JSON.stringify({
-              contentType: "image/png",
-              data: createTestPng({
-                height: 180,
-                marker: 8,
-                width: 320,
-              }).toString("base64"),
-              renderVersion: 1,
-            }),
-          ),
-          context,
-        )
-      ).status,
-    ).toBe(400);
-
-    expect((await putAdminKartThumbnail(request(headers), context)).status).toBe(
-      201,
+    const foreignOriginUpload = await putAdminKartThumbnail(
+      new Request(
+        `${TEST_ORIGIN}/api/admin/karts/${kartId}/revisions/1/thumbnail`,
+        { body, headers: foreignOriginHeaders, method: "PUT" },
+      ),
+      context,
     );
+    expect(foreignOriginUpload.status).toBe(403);
+    expect(foreignOriginUpload.headers.get("cache-control")).toBe("no-store");
+
+    const unsupportedMediaUpload = await putAdminKartThumbnail(
+      request(headers, body, "text/plain"),
+      context,
+    );
+    expect(unsupportedMediaUpload.status).toBe(415);
+    expect(unsupportedMediaUpload.headers.get("cache-control")).toBe(
+      "no-store",
+    );
+    const invalidUpload = await putAdminKartThumbnail(
+      request(
+        headers,
+        JSON.stringify({
+          contentType: "image/png",
+          data: createTestPng({
+            height: 180,
+            marker: 8,
+            width: 320,
+          }).toString("base64"),
+          renderVersion: 1,
+        }),
+      ),
+      context,
+    );
+    expect(invalidUpload.status).toBe(400);
+    expect(invalidUpload.headers.get("cache-control")).toBe("no-store");
+
+    const missingRevisionUpload = await putAdminKartThumbnail(
+      request(headers),
+      {
+        params: Promise.resolve({ kartId, revision: "2" }),
+      },
+    );
+    expect(missingRevisionUpload.status).toBe(404);
+    expect(missingRevisionUpload.headers.get("cache-control")).toBe("no-store");
+
+    const created = await putAdminKartThumbnail(request(headers), context);
+    expect(created.status).toBe(201);
+    expect(created.headers.get("cache-control")).toBe("no-store");
+    const conflict = await putAdminKartThumbnail(
+      request(
+        headers,
+        JSON.stringify({
+          contentType: "image/png",
+          data: createTestPng({ marker: 9 }).toString("base64"),
+          renderVersion: 1,
+        }),
+      ),
+      context,
+    );
+    expect(conflict.status).toBe(409);
+    expect(conflict.headers.get("cache-control")).toBe("no-store");
     const loaded = await getAdminKartThumbnail(
       new Request(
         `${TEST_ORIGIN}/api/admin/karts/${kartId}/revisions/1/thumbnail`,
@@ -804,17 +848,16 @@ test.describe("kart persistence and authorization", () => {
       context,
     );
     expect(loaded.status).toBe(200);
+    expect(loaded.headers.get("cache-control")).toBe("no-store");
     expect(Buffer.from(await loaded.arrayBuffer())).toEqual(imageData);
-    expect(
-      (
-        await getAdminKartThumbnail(
-          new Request(
-            `${TEST_ORIGIN}/api/admin/karts/${kartId}/revisions/1/thumbnail`,
-          ),
-          context,
-        )
-      ).status,
-    ).toBe(401);
+    const unauthorizedLoad = await getAdminKartThumbnail(
+      new Request(
+        `${TEST_ORIGIN}/api/admin/karts/${kartId}/revisions/1/thumbnail`,
+      ),
+      context,
+    );
+    expect(unauthorizedLoad.status).toBe(401);
+    expect(unauthorizedLoad.headers.get("cache-control")).toBe("no-store");
   });
 
   test("migrates a version-one document while preserving verifiable evidence", async () => {

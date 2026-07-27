@@ -13,11 +13,21 @@ import {
   RACER_USERNAME_RESERVED,
   safeRacerReturnTo,
 } from "../src/lib/racer-username";
+import { authorizationErrorResponse } from "../src/server/authorization";
 
 test("requires explicit Google account selection", () => {
   expect(auth.options.socialProviders?.google).toMatchObject({
     prompt: "select_account",
   });
+});
+
+test("prevents caching transient authorization failures", () => {
+  for (const status of [401, 403, 428, 503] as const) {
+    const response = authorizationErrorResponse(status);
+
+    expect(response.status).toBe(status);
+    expect(response.headers.get("cache-control")).toBe("no-store");
+  }
 });
 
 test("normalizes editable username seeds to lowercase ASCII", () => {

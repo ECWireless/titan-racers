@@ -9,6 +9,7 @@ type SessionIdentity = {
   user: { id: string; username?: string | null };
 } | null;
 type SessionResolver = (headers: Headers) => Promise<SessionIdentity>;
+const NO_STORE_HEADERS = { "cache-control": "no-store" };
 
 export type AuthorizationResult =
   | { authorized: true; userId: string }
@@ -59,5 +60,8 @@ export function authorizationErrorResponse(status: 401 | 403 | 428 | 503) {
           ? "Racer account setup required."
         : "Authentication is not configured.";
 
-  return Response.json({ error: message }, { status });
+  return Response.json(
+    { error: message },
+    { headers: NO_STORE_HEADERS, status },
+  );
 }
