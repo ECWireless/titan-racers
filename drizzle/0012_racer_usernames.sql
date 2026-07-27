@@ -1,6 +1,9 @@
 ALTER TABLE "users" ADD COLUMN "username" text;--> statement-breakpoint
 UPDATE "users"
-SET "name" = 'racer',
+SET "name" = coalesce(
+      substring(btrim("name") from '^[^[:space:]]+'),
+      'racer'
+    ),
     "image" = null
 WHERE "anonymized_at" IS NULL;--> statement-breakpoint
 CREATE UNIQUE INDEX "users_username_uidx" ON "users" USING btree ("username");--> statement-breakpoint

@@ -1,3 +1,6 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+
 import { expect, test } from "@playwright/test";
 
 import { auth } from "../src/lib/auth";
@@ -77,6 +80,20 @@ test("uses only the Google given name as the provisional private seed", () => {
     image: undefined,
     name: "elliott",
   });
+});
+
+test("minimizes legacy names to private first-name seeds and clears avatars", () => {
+  const migration = readFileSync(
+    join(process.cwd(), "drizzle/0012_racer_usernames.sql"),
+    "utf8",
+  );
+
+  expect(migration).toContain(`SET "name" = coalesce(
+      substring(btrim("name") from '^[^[:space:]]+'),
+      'racer'
+    ),
+    "image" = null`);
+  expect(migration).not.toContain(`SET "name" = 'racer'`);
 });
 
 test("defensively scrubs provider names before user creation", async () => {
