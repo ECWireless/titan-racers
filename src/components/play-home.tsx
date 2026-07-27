@@ -13,18 +13,21 @@ import { publishedCourseRuntimeSchema } from "@/game/course/course-publication";
 import { useControllerMenuNavigation } from "@/game/input/use-controller-menu-navigation";
 import type { KartAssemblyDocument } from "@/game/kart/kart-assembly-document";
 import type { PersistedResolvedKartSnapshot } from "@/game/kart/kart-derivation";
+import { pauseKartThumbnailRendering } from "@/game/kart/kart-thumbnail-renderer";
 import {
   createBundledOfficialKartRoster,
   officialKartRosterSchema,
   type OfficialKartRoster,
 } from "@/game/kart/official-kart-roster";
 
+import { KartThumbnail } from "./kart-thumbnail";
 import { SoloTimeTrialCanvas } from "./solo-time-trial-canvas";
 
 type PlayableOfficialKart = {
   assemblerCredit: string;
   document: KartAssemblyDocument;
   resolvedSnapshot: PersistedResolvedKartSnapshot;
+  thumbnailSource: string | null;
 };
 
 async function loadPublishedCourse() {
@@ -57,11 +60,15 @@ function playableOfficialKarts(
           assemblerCredit: entry.assemblerCredit,
           document: entry.runtime.document,
           resolvedSnapshot: entry.runtime.resolvedSnapshot,
+          thumbnailSource: entry.runtime.thumbnailAvailable
+            ? `/api/karts/${entry.runtime.kartId}/thumbnail?revision=${entry.runtime.revision}`
+            : null,
         }
       : {
           assemblerCredit: entry.assemblerCredit,
           document: entry.document,
           resolvedSnapshot: entry.resolvedSnapshot,
+          thumbnailSource: null,
         },
   );
 }
@@ -70,6 +77,7 @@ export function PlayHome() {
   const homeMenuRef = useRef<HTMLElement | null>(null);
   const utilityMenuRef = useRef<HTMLDivElement | null>(null);
   const utilityMenuButtonRef = useRef<HTMLButtonElement | null>(null);
+  const resumeThumbnailRenderingRef = useRef<(() => void) | null>(null);
   const [mode, setMode] = useState<"home" | "solo">("home");
   const [utilityMenuOpen, setUtilityMenuOpen] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
@@ -151,6 +159,14 @@ export function PlayHome() {
     };
   }, [utilityMenuOpen]);
 
+  useEffect(
+    () => () => {
+      resumeThumbnailRenderingRef.current?.();
+      resumeThumbnailRenderingRef.current = null;
+    },
+    [],
+  );
+
   function showComingSoon() {
     setToast("coming soon");
   }
@@ -163,12 +179,16 @@ export function PlayHome() {
 
     setUtilityMenuOpen(false);
     setSoloPending(true);
-    let nextCourse = ROUGH_COURSE_DOCUMENT;
-    try {
-      nextCourse = await loadPublishedCourse();
-    } catch {
-      // The bundled course preserves frictionless guest play.
-    }
+    const nextCoursePromise = loadPublishedCourse().catch(
+      () => ROUGH_COURSE_DOCUMENT,
+    );
+    const thumbnailPause = pauseKartThumbnailRendering();
+    resumeThumbnailRenderingRef.current = thumbnailPause.release;
+    const [, nextCourse] = await Promise.all([
+      thumbnailPause.ready,
+      nextCoursePromise,
+    ]);
+    if (resumeThumbnailRenderingRef.current !== thumbnailPause.release) return;
     setCourseDocument(nextCourse);
     setKartDocument(selectedKart.document);
     setKartSnapshot(selectedKart.resolvedSnapshot);
@@ -182,7 +202,11 @@ export function PlayHome() {
         courseDocument={courseDocument}
         kartDocument={kartDocument}
         kartSnapshot={kartSnapshot}
-        onExit={() => setMode("home")}
+        onExit={() => {
+          resumeThumbnailRenderingRef.current?.();
+          resumeThumbnailRenderingRef.current = null;
+          setMode("home");
+        }}
       />
     );
   }
@@ -290,6 +314,11 @@ export function PlayHome() {
                     type="button"
                     onClick={() => setSelectedKartId(kart.document.kartId)}
                   >
+                    <KartThumbnail
+                      document={kart.document}
+                      initialized
+                      source={kart.thumbnailSource}
+                    />
                     <span
                       aria-hidden="true"
                       className="h-2 w-full"

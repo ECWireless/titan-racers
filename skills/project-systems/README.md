@@ -26,6 +26,9 @@ The source code and authoritative project documents remain the final authority f
 
 ## Current Children
 
+- [Kart thumbnails](kart-thumbnails/README.md): exact revision-bound kart
+  previews, deterministic browser capture, immutable persistence, protected
+  draft access, and privacy-minimized public delivery.
 - [Runtime resilience](runtime-resilience/README.md): lifecycle safety pauses,
   fixed-step overload bounds, resize reconciliation, WebGL recovery, and coarse
   run-health summaries.

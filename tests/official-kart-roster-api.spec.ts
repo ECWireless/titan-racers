@@ -47,6 +47,7 @@ async function createPublishedRevision(
     resolvedSnapshotHash: await hashResolvedKartSnapshot(resolvedSnapshot),
     revision: 1,
     schemaVersion: document.schemaVersion,
+    thumbnailAvailable: false,
   };
 }
 

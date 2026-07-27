@@ -74,6 +74,7 @@ import {
 import { EditorSection } from "../editor/editor-section";
 import { KartDerivedEvidence } from "../kart-derived-evidence";
 import { KartEditorCanvas } from "./kart-editor-canvas";
+import { persistKartRevisionThumbnail } from "./persist-kart-thumbnail";
 
 type OperationState =
   | { status: "idle" }
@@ -688,8 +689,9 @@ export function KartEditorShell({
       }
       if (!response.ok) throw new Error("The kart draft could not be saved.");
       const saved = persistedKartRevisionSchema.parse(await response.json());
+      const withThumbnail = await persistKartRevisionThumbnail(saved);
       history.markClean();
-      setCurrentRevision(saved);
+      setCurrentRevision(withThumbnail);
       setHistoryVersion((version) => version + 1);
       setOperation({
         message: `Draft revision ${saved.revision} saved.`,

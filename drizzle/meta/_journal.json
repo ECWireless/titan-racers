@@ -92,6 +92,13 @@
       "when": 1785093468916,
       "tag": "0012_racer_usernames",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1785107563205,
+      "tag": "0013_kart_revision_thumbnails",
+      "breakpoints": true
     }
   ]
 }

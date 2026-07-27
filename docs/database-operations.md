@@ -44,6 +44,15 @@ the complete migration chain against a fresh local database because the kart
 publication foreign key depends on the composite revision key created in the
 same migration.
 
+PR 3.5 adds `kart_revision_thumbnails` as an immutable one-to-one attachment to
+an existing kart revision. Each row contains one bounded PNG, its SHA-256 hash,
+the renderer version, and opaque generator attribution. Public delivery still
+resolves the current publication before loading an image; operators must not
+copy thumbnails between revisions, replace stored bytes, or infer publication
+from the presence of an image. Apply the migration before deploying code that
+captures thumbnails. Existing revisions remain valid and use exact local
+rendering until a later save or an explicit future backfill creates an image.
+
 PR 2.5.1 adds the typed `gameplay_runs` summary table through the same migration
 workflow. Guest rows are anonymous and carry permanent guest attribution
 separately from the nullable account foreign key. Database constraints and

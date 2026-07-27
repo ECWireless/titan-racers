@@ -562,7 +562,10 @@ async function useBundledRoughCourse(page: Page) {
   });
 }
 
-async function useBundledBalancedKart(page: Page) {
+async function useBundledBalancedKart(
+  page: Page,
+  thumbnailAvailable = false,
+) {
   await page.route("**/api/karts/official", async (route) => {
     await route.fulfill({
       body: JSON.stringify({
@@ -578,6 +581,7 @@ async function useBundledBalancedKart(page: Page) {
               resolvedSnapshotHash: "a".repeat(64),
               revision: 1,
               schemaVersion: BALANCED_KART_DOCUMENT.schemaVersion,
+              thumbnailAvailable,
             },
           },
         ],
@@ -590,6 +594,16 @@ async function useBundledBalancedKart(page: Page) {
 }
 
 async function usePublishedBalancedAndSpeedKarts(page: Page) {
+  return routePublishedBalancedAndSpeedKartsWithThumbnails(page, {});
+}
+
+async function routePublishedBalancedAndSpeedKartsWithThumbnails(
+  page: Page,
+  {
+    balanced = false,
+    speed = false,
+  }: { balanced?: boolean; speed?: boolean },
+) {
   await page.route("**/api/karts/official", async (route) => {
     await route.fulfill({
       body: JSON.stringify({
@@ -605,6 +619,7 @@ async function usePublishedBalancedAndSpeedKarts(page: Page) {
               resolvedSnapshotHash: "d".repeat(64),
               revision: 2,
               schemaVersion: BALANCED_KART_DOCUMENT.schemaVersion,
+              thumbnailAvailable: balanced,
             },
           },
           {
@@ -618,6 +633,7 @@ async function usePublishedBalancedAndSpeedKarts(page: Page) {
               resolvedSnapshotHash: "e".repeat(64),
               revision: 3,
               schemaVersion: SPEED_KART_DOCUMENT.schemaVersion,
+              thumbnailAvailable: speed,
             },
           },
         ],
@@ -627,6 +643,34 @@ async function usePublishedBalancedAndSpeedKarts(page: Page) {
       status: 200,
     });
   });
+}
+
+async function delayNextKartThumbnailEncoding(page: Page, delayMs: number) {
+  await page.addInitScript(
+    ({ height, width, waitMs }) => {
+      const originalToBlob = HTMLCanvasElement.prototype.toBlob;
+      let delayed = false;
+      HTMLCanvasElement.prototype.toBlob = function (
+        callback,
+        type,
+        quality,
+      ) {
+        if (!delayed && this.height === height && this.width === width) {
+          delayed = true;
+          setTimeout(() => {
+            Reflect.apply(originalToBlob, this, [callback, type, quality]);
+          }, waitMs);
+          return;
+        }
+        Reflect.apply(originalToBlob, this, [callback, type, quality]);
+      };
+    },
+    {
+      height: 360,
+      waitMs: delayMs,
+      width: 640,
+    },
+  );
 }
 
 test.describe("home screen", () => {
@@ -701,6 +745,12 @@ test.describe("home screen", () => {
     await expect(balanced).toContainText("Assembled by Balanced Assembler");
     await expect(speed).toContainText("Assembled by Speed Assembler");
     await expect(selection).not.toContainText("Handling Kart");
+    await expect(
+      balanced.locator('[data-kart-thumbnail-source="generated"]'),
+    ).toBeVisible();
+    await expect(
+      speed.locator('[data-kart-thumbnail-source="generated"]'),
+    ).toBeVisible();
     await expect(balanced).toHaveAttribute("aria-pressed", "true");
     await speed.click();
     await expect(speed).toHaveAttribute("aria-pressed", "true");
@@ -782,6 +832,11 @@ test.describe("home screen", () => {
   });
 
   test("opens the full-screen solo time trial canvas", async ({ page }) => {
+    const browserErrors: string[] = [];
+    page.on("console", (message) => {
+      if (message.type() === "error") browserErrors.push(message.text());
+    });
+    page.on("pageerror", (error) => browserErrors.push(error.message));
     await page.goto("/");
 
     const soloTimeTrial = page.getByRole("button", { name: "Solo Time Trial" });
@@ -797,6 +852,70 @@ test.describe("home screen", () => {
     expect(viewport).not.toBeNull();
     expect(Math.round(box?.width ?? 0)).toBe(viewport?.width);
     expect(Math.round(box?.height ?? 0)).toBe(viewport?.height);
+    expect(browserErrors).toEqual([]);
+  });
+
+  test("keeps a late thumbnail fallback isolated from race startup", async ({
+    page,
+  }) => {
+    const browserErrors: string[] = [];
+    let requestedRevision: string | null = null;
+    page.on("console", (message) => {
+      if (message.type() === "error") browserErrors.push(message.text());
+    });
+    page.on("pageerror", (error) => browserErrors.push(error.message));
+    await delayNextKartThumbnailEncoding(page, 500);
+    await routePublishedBalancedAndSpeedKartsWithThumbnails(page, {
+      balanced: true,
+    });
+    await page.route(
+      "**/api/karts/balanced-kart/thumbnail?revision=2",
+      async (route) => {
+        requestedRevision = new URL(route.request().url()).searchParams.get(
+          "revision",
+        );
+        await new Promise((resolve) => setTimeout(resolve, 150));
+        await route.abort("failed");
+      },
+    );
+
+    await page.goto("/");
+    await expect(
+      page.locator('[data-kart-thumbnail-source="persisted"]').first(),
+    ).toBeVisible();
+    await expect(
+      page.locator('[data-kart-thumbnail-source="rendering"]').first(),
+    ).toBeVisible();
+    await expect.poll(() => requestedRevision).toBe("2");
+    await page.getByRole("button", { name: "Solo Time Trial" }).click();
+    await expect(page.getByTestId("solo-time-trial-canvas")).toBeVisible();
+    expect(browserErrors.join("\n")).not.toMatch(
+      /syncHierarchy|__destroy__|Unable to render kart thumbnail/,
+    );
+  });
+
+  test("releases a thumbnail pause when home unmounts during queue drain", async ({
+    page,
+  }, testInfo) => {
+    test.skip(
+      testInfo.project.name !== "desktop",
+      "Client-navigation lifecycle coverage only needs one browser fixture.",
+    );
+    await delayNextKartThumbnailEncoding(page, 750);
+    await page.goto("/");
+    await expect(
+      page.locator('[data-kart-thumbnail-source="rendering"]').first(),
+    ).toBeVisible();
+    await page.getByRole("button", { name: "Solo Time Trial" }).click();
+    await page.getByRole("button", { name: "Open utility menu" }).click();
+    await page.getByRole("link", { name: "Profile" }).click();
+    await expect(page).toHaveURL(/\/profile$/);
+
+    await page.goBack();
+    await expect(page).toHaveURL("/");
+    await expect(
+      page.locator('[data-kart-thumbnail-source="generated"]').first(),
+    ).toBeVisible();
   });
 
   test("shows locale-aware speed in the race HUD", async ({

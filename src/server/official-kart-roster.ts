@@ -47,6 +47,7 @@ export async function loadOfficialKartRoster(
             resolvedSnapshotHash: revision.resolvedSnapshotHash,
             revision: revision.revision,
             schemaVersion: revision.schemaVersion,
+            thumbnailAvailable: revision.thumbnailAvailable,
           },
         })),
       source: "published",

@@ -1,17 +1,43 @@
 import { expect, test, type Page } from "@playwright/test";
 
+import { deriveKartSnapshot } from "../src/game/kart/kart-derivation";
+import {
+  createOfficialKartDocument,
+  type OfficialKartId,
+} from "../src/game/kart/official-kart-roster";
 import {
   installStandardGamepadFixture,
   pressStandardGamepadButton,
   setStandardTestGamepad,
 } from "./helpers/standard-gamepad";
 
+function createPersistedRevision(kartId: OfficialKartId) {
+  const document = createOfficialKartDocument(kartId);
+  const resolvedSnapshot = deriveKartSnapshot(document);
+  return {
+    authorUserId: "admin-test-user",
+    createdAt: "2026-07-26T12:00:00.000Z",
+    derivationVersion: resolvedSnapshot.derivationVersion,
+    document,
+    kartId,
+    ownerUserId: "admin-test-user",
+    publication: null,
+    resolvedSnapshot,
+    resolvedSnapshotHash: "0".repeat(64),
+    revision: 1,
+    schemaVersion: document.schemaVersion,
+    thumbnailAvailable: false,
+  };
+}
+
 async function useOfficialDraftStatuses(page: Page) {
   await page.route("**/api/admin/karts/*", async (route) => {
     const kartId = new URL(route.request().url()).pathname.split("/").at(-1);
     await route.fulfill({
       body: JSON.stringify(
-        kartId === "balanced-kart" ? { kartId } : { error: "Kart not found." },
+        kartId === "balanced-kart"
+          ? createPersistedRevision(kartId)
+          : { error: "Kart not found." },
       ),
       contentType: "application/json",
       status: kartId === "balanced-kart" ? 200 : 404,
@@ -48,6 +74,20 @@ test("routes the Kart Builder button through the official admin roster", async (
     await expect(card.getByText("handling", { exact: true })).toBeVisible();
     await expect(card.getByText("speed", { exact: true })).toBeVisible();
     await expect(card.getByText("stability", { exact: true })).toBeVisible();
+  }
+  await expect(
+    page
+      .getByRole("article")
+      .filter({ hasText: "Balanced Kart" })
+      .locator('[data-kart-thumbnail-source="generated"]'),
+  ).toBeVisible();
+  for (const name of ["Speed Kart", "Handling Kart"]) {
+    await expect(
+      page
+        .getByRole("article")
+        .filter({ hasText: name })
+        .locator('[data-kart-thumbnail-source="placeholder"]'),
+    ).toBeVisible();
   }
 
   const documentWidth = await page.evaluate(
@@ -126,7 +166,11 @@ test("resolves draft actions independently across auth and network failures", as
     const kartId = new URL(route.request().url()).pathname.split("/").at(-1);
     if (kartId === "balanced-kart") {
       await balancedGate;
-      await route.fulfill({ body: "{}", status: 200 });
+      await route.fulfill({
+        body: JSON.stringify(createPersistedRevision(kartId)),
+        contentType: "application/json",
+        status: 200,
+      });
     } else if (kartId === "speed-kart") {
       await route.fulfill({ body: "{}", status: 401 });
     } else {

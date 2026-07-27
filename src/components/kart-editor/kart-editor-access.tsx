@@ -17,6 +17,7 @@ import {
 import { racerOnboardingPath } from "@/lib/racer-username";
 
 import { KartEditorShell } from "./kart-editor-shell";
+import { persistKartRevisionThumbnail } from "./persist-kart-thumbnail";
 
 type AccessState =
   | { status: "loading" }
@@ -149,8 +150,9 @@ export function KartEditorAccess({ kartId }: { kartId: string }) {
         return;
       }
       if (!response.ok) throw new Error("The kart could not be initialized.");
+      const revision = persistedKartRevisionSchema.parse(await response.json());
       setAccessState({
-        revision: persistedKartRevisionSchema.parse(await response.json()),
+        revision: await persistKartRevisionThumbnail(revision),
         status: "ready",
       });
     } catch {

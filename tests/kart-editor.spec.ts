@@ -12,6 +12,13 @@ import {
 } from "../src/game/kart/kart-derivation";
 import type { KartPublicationEvent } from "../src/game/kart/kart-publication";
 import {
+  KART_THUMBNAIL_HEIGHT,
+  KART_THUMBNAIL_MAX_BYTES,
+  KART_THUMBNAIL_RENDER_VERSION,
+  KART_THUMBNAIL_WIDTH,
+} from "../src/game/kart/kart-thumbnail-contract";
+import { parseKartThumbnailUpload } from "../src/server/kart-thumbnail";
+import {
   disconnectStandardTestGamepad,
   installStandardGamepadFixture,
   pressStandardGamepadButton,
@@ -1163,6 +1170,61 @@ test.describe("protected kart builder access", () => {
     );
   });
 
+  test("completes a durable save when thumbnail encoding stalls", async ({
+    page,
+  }, testInfo) => {
+    test.skip(
+      testInfo.project.name !== "desktop",
+      "The bounded browser encoder fallback only needs one rendered fixture.",
+    );
+    await page.addInitScript(
+      ({ height, width }) => {
+        const originalToBlob = HTMLCanvasElement.prototype.toBlob;
+        HTMLCanvasElement.prototype.toBlob = function (
+          callback,
+          type,
+          quality,
+        ) {
+          if (this.height === height && this.width === width) return;
+          Reflect.apply(originalToBlob, this, [callback, type, quality]);
+        };
+      },
+      { height: KART_THUMBNAIL_HEIGHT, width: KART_THUMBNAIL_WIDTH },
+    );
+    const initialDocument = createBalancedKartDocument();
+    await page.route(kartApiPattern, async (route) => {
+      if (route.request().method() === "PUT") {
+        const body = route.request().postDataJSON() as {
+          document: KartAssemblyDocument;
+        };
+        await route.fulfill({
+          body: JSON.stringify(
+            createPersistedBalancedRevision(body.document, null, 2),
+          ),
+          contentType: "application/json",
+          status: 200,
+        });
+        return;
+      }
+      await route.fulfill({
+        body: JSON.stringify(createPersistedBalancedRevision(initialDocument)),
+        contentType: "application/json",
+        status: 200,
+      });
+    });
+
+    await page.goto("/admin/karts/balanced-kart");
+    await page.getByLabel("Name").fill("Bounded thumbnail save");
+    await page.getByLabel("Name").blur();
+    await page.getByRole("button", { name: "Save draft" }).click();
+    await expect(page.getByText("Draft revision 2 saved.")).toBeVisible({
+      timeout: 5_000,
+    });
+    await expect(
+      page.getByRole("button", { name: "Test saved kart" }),
+    ).toBeEnabled();
+  });
+
   test("saves, publishes, and unpublishes an authored revision", async ({
     page,
   }, testInfo) => {
@@ -1220,6 +1282,24 @@ test.describe("protected kart builder access", () => {
         status: 200,
       });
     });
+    let thumbnailPayload:
+      | { contentType: string; data: string; renderVersion: number }
+      | undefined;
+    await page.route(
+      `${kartApiPattern}/revisions/2/thumbnail`,
+      async (route) => {
+        thumbnailPayload = route.request().postDataJSON() as typeof thumbnailPayload;
+        await route.fulfill({
+          body: JSON.stringify({
+            createdAt: "2026-07-24T00:00:02.000Z",
+            imageSha256: "f".repeat(64),
+            renderVersion: KART_THUMBNAIL_RENDER_VERSION,
+          }),
+          contentType: "application/json",
+          status: 201,
+        });
+      },
+    );
 
     await page.goto("/admin/karts/balanced-kart");
     await expect(
@@ -1245,6 +1325,18 @@ test.describe("protected kart builder access", () => {
     );
     releaseSave();
     await expect(page.getByText("Draft revision 2 saved.")).toBeVisible();
+    await expect.poll(() => thumbnailPayload).toBeTruthy();
+    const thumbnailImage = Buffer.from(thumbnailPayload!.data, "base64");
+    expect(thumbnailPayload).toMatchObject({
+      contentType: "image/png",
+      renderVersion: KART_THUMBNAIL_RENDER_VERSION,
+    });
+    expect(() => parseKartThumbnailUpload(thumbnailPayload)).not.toThrow();
+    expect(thumbnailImage.length).toBeLessThanOrEqual(
+      KART_THUMBNAIL_MAX_BYTES,
+    );
+    expect(thumbnailImage.readUInt32BE(16)).toBe(KART_THUMBNAIL_WIDTH);
+    expect(thumbnailImage.readUInt32BE(20)).toBe(KART_THUMBNAIL_HEIGHT);
 
     await page.getByRole("button", { name: "Publish saved draft" }).click();
     await expect(page.getByText("Revision 2 published.")).toBeVisible();

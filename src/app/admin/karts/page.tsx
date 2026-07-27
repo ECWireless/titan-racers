@@ -6,6 +6,7 @@ import { deriveKartSnapshot } from "@/game/kart/kart-derivation";
 import { createOfficialKartRosterDocuments } from "@/game/kart/official-kart-roster";
 
 const officialKarts = createOfficialKartRosterDocuments().map((document) => ({
+  document,
   kartId: document.kartId,
   name: document.name,
   practicalDescriptor: document.practicalDescriptor,
