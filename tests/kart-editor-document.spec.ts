@@ -659,7 +659,9 @@ test("applies approved suspension mounting defaults to a mirrored pair", () => {
   )!;
 
   expect(changedLeft.definition.id).toBe("suspension.compliant-long");
+  expect(changedLeft.definition.version).toBe(2);
   expect(right.definition.id).toBe("suspension.compliant-long");
+  expect(right.definition.version).toBe(2);
   expect(changedLeft.suspensionMount?.armPivot.x).toBeCloseTo(
     changedLeft.transform.position.x + 0.08 * Math.sqrt(812.5 / 1_600),
   );

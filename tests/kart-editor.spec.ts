@@ -1,9 +1,10 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
 
 import { ROUGH_COURSE_DOCUMENT } from "../src/game/course/course-document";
+import { replaceKartComponentDefinition } from "../src/game/editor/kart-editor-document";
+import { KART_EDITOR_TRANSLATE_SNAP } from "../src/game/editor/kart-editor-scene";
 import { createBalancedKartDocument } from "../src/game/kart/balanced-kart-document";
 import { createSpeedKartDocument } from "../src/game/kart/speed-kart-document";
-import { KART_EDITOR_TRANSLATE_SNAP } from "../src/game/editor/kart-editor-scene";
 import type { KartAssemblyDocument } from "../src/game/kart/kart-assembly-document";
 import { getApprovedKartComponent } from "../src/game/kart/kart-component-registry";
 import {
@@ -550,7 +551,7 @@ test.describe("protected kart builder access", () => {
         .getByRole("button", { name: "Inspector", exact: true });
       await expect(inspectorSection).toHaveAttribute("aria-expanded", "true");
       await expect(page.getByLabel("Choose variant")).toHaveValue(
-        "motor.brushless-standard",
+        "motor.brushless-standard@1",
       );
       await expect(
         page.getByText("Physical attributes", { exact: true }),
@@ -783,7 +784,7 @@ test.describe("protected kart builder access", () => {
         .getByRole("button", { name: /suspension-front-left/ })
         .click();
       await expect(page.getByLabel("Choose variant")).toHaveValue(
-        "suspension.firm-short",
+        "suspension.firm-short@1",
       );
       await expect(
         page.getByText("Focused suspension mounting", { exact: true }),
@@ -944,6 +945,60 @@ test.describe("protected kart builder access", () => {
     } finally {
       await page.mouse.up();
     }
+  });
+
+  test("preserves historical suspension revisions until the editor explicitly upgrades them", async ({
+    page,
+  }, testInfo) => {
+    test.skip(
+      testInfo.project.name !== "desktop",
+      "Historical component revision coverage only needs to run once.",
+    );
+    let historicalDocument = createBalancedKartDocument();
+    historicalDocument = replaceKartComponentDefinition(
+      historicalDocument,
+      "suspension-front-left",
+      "suspension.compliant-long",
+      1,
+    );
+    historicalDocument = replaceKartComponentDefinition(
+      historicalDocument,
+      "suspension-rear-left",
+      "suspension.compliant-long",
+      1,
+    );
+    await page.route(kartApiPattern, async (route) => {
+      await route.fulfill({
+        body: JSON.stringify(
+          createPersistedBalancedRevision(historicalDocument),
+        ),
+        contentType: "application/json",
+        status: 200,
+      });
+    });
+
+    await page.goto("/admin/karts/balanced-kart");
+    const viewport = page.getByLabel("Kart assembly viewport");
+    await expect(viewport).toHaveAttribute("data-editor-status", "ready");
+    await page
+      .getByLabel("Kart and assembly")
+      .getByRole("button", { name: /suspension-front-left/ })
+      .click();
+
+    const variant = page.getByLabel("Choose variant");
+    await expect(variant).toHaveValue("suspension.compliant-long@1");
+    await expect(
+      variant.locator('option[value="suspension.compliant-long@1"]'),
+    ).toHaveAttribute("disabled", "");
+    await expect(
+      variant.locator('option[value="suspension.compliant-long@2"]'),
+    ).toHaveText(
+      "Compliant long-travel suspension — More bump compliance with controlled rebound and slightly more mass.",
+    );
+
+    await variant.selectOption("suspension.compliant-long@2");
+    await expect(variant).toHaveValue("suspension.compliant-long@2");
+    await expect(page.getByText("Unsaved changes", { exact: true })).toBeVisible();
   });
 
   test("launches the exact saved kart on the current sandbox course", async ({

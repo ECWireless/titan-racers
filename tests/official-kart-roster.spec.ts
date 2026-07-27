@@ -108,11 +108,14 @@ test("constructs each specialization from approved component revisions", () => {
           .map(({ definition }) => definition.id),
       ),
     ).toEqual(new Set([expected.wheel]));
-    expect(
-      document.componentInstances.every(
-        ({ definition }) => definition.version === 1,
-      ),
-    ).toBe(true);
+    for (const instance of document.componentInstances) {
+      expect(instance.definition.version).toBe(
+        document.kartId === HANDLING_KART_ID &&
+          instance.definition.id === "suspension.compliant-long"
+          ? 2
+          : 1,
+      );
+    }
   }
 });
 
@@ -130,7 +133,7 @@ test("derives the intended official kart tradeoffs without stat overrides", () =
     speed: speed.playerStats,
   }).toEqual({
     balanced: { acceleration: 42, handling: 57, speed: 41, stability: 42 },
-    handling: { acceleration: 92, handling: 90, speed: 10, stability: 52 },
+    handling: { acceleration: 92, handling: 81, speed: 10, stability: 52 },
     speed: { acceleration: 13, handling: 1, speed: 88, stability: 20 },
   });
   expect({
@@ -151,7 +154,7 @@ test("derives the intended official kart tradeoffs without stat overrides", () =
     },
   }).toEqual({
     balanced: { trackWidth: 0.39, wheelbase: 0.3, wheelRadius: 0.058 },
-    handling: { trackWidth: 0.42, wheelbase: 0.26, wheelRadius: 0.058 },
+    handling: { trackWidth: 0.42, wheelbase: 0.28, wheelRadius: 0.058 },
     speed: { trackWidth: 0.36, wheelbase: 0.34, wheelRadius: 0.0725 },
   });
   expect(
@@ -190,6 +193,7 @@ test("derives the intended official kart tradeoffs without stat overrides", () =
   expect(handling.playerStats.stability).toBeGreaterThan(
     balanced.playerStats.stability,
   );
+  expect(handling.physicalProfile.suspension.damperRate).toBe(12);
   expect(balanced.playerStats.stability).toBeGreaterThan(
     speed.playerStats.stability,
   );

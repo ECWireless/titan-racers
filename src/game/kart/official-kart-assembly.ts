@@ -9,12 +9,14 @@ import { getApprovedKartComponent } from "./kart-component-registry";
 const ZERO_ROTATION = { x: 0, y: 0, z: 0 } as const;
 
 export type OfficialKartAssemblyConfig = {
+  axleCenterZ?: number;
   bodyMaterial:
     | "material.engineering-polymer"
     | "material.structural-aluminum";
   bodySize: { x: number; y: number; z: number };
   bumperHeight: number;
   bumperZ: number;
+  equipmentCenterZ?: number;
   kartId: string;
   motionRatio: number;
   name: string;
@@ -24,6 +26,7 @@ export type OfficialKartAssemblyConfig = {
   suspensionDefinitionId:
     | "suspension.compliant-long"
     | "suspension.firm-short";
+  suspensionDefinitionVersion?: 1 | 2;
   suspensionRestCompression: number;
   trackWidth: number;
   transmissionDefinitionId:
@@ -41,7 +44,7 @@ export type OfficialKartAssemblyConfig = {
   wheelbase: number;
 };
 
-const definition = (id: string) => ({ id, version: 1 });
+const definition = (id: string, version = 1) => ({ id, version });
 const transform = (x: number, y: number, z: number) => ({
   position: { x, y, z },
   rotationDegrees: { ...ZERO_ROTATION },
@@ -58,9 +61,10 @@ function component(
   z: number,
   mirrorOf: string | null = null,
   suspensionMount: ComponentInstance["suspensionMount"] = null,
+  definitionVersion = 1,
 ): ComponentInstance {
   return {
-    definition: definition(definitionId),
+    definition: definition(definitionId, definitionVersion),
     id,
     kind: "component",
     mirrorOf,
@@ -123,6 +127,7 @@ function createSuspensionInstance(
         z: axleZ,
       },
     },
+    config.suspensionDefinitionVersion,
   );
 }
 
@@ -150,7 +155,10 @@ export function createOfficialKartAssembly(
   kartId = config.kartId,
 ): KartAssemblyDocument {
   const suspensionDefinition = getApprovedKartComponent(
-    definition(config.suspensionDefinitionId),
+    definition(
+      config.suspensionDefinitionId,
+      config.suspensionDefinitionVersion,
+    ),
   );
   const wheelDefinition = getApprovedKartComponent(
     definition(config.wheelDefinitionId),
@@ -165,8 +173,10 @@ export function createOfficialKartAssembly(
     suspensionDefinition.suspension.extendedLength -
     config.suspensionRestCompression;
   const wheelRadius = wheelDefinition.wheelTire.radius;
-  const frontZ = -config.wheelbase / 2;
-  const rearZ = config.wheelbase / 2;
+  const axleCenterZ = config.axleCenterZ ?? 0;
+  const equipmentCenterZ = config.equipmentCenterZ ?? 0;
+  const frontZ = axleCenterZ - config.wheelbase / 2;
+  const rearZ = axleCenterZ + config.wheelbase / 2;
   const wheelX = config.trackWidth / 2;
   const chassisY = wheelRadius + 0.025;
   const chassisTopY = chassisY + config.bodySize.y / 2;
@@ -179,7 +189,7 @@ export function createOfficialKartAssembly(
       "battery.lipo-standard",
       0,
       chassisY + 0.03,
-      0,
+      equipmentCenterZ,
     ),
     component(
       config,
@@ -187,7 +197,7 @@ export function createOfficialKartAssembly(
       "control.receiver-esc-standard",
       0,
       chassisY + 0.035,
-      0,
+      equipmentCenterZ,
     ),
     component(
       config,
@@ -195,7 +205,7 @@ export function createOfficialKartAssembly(
       "motor.brushless-standard",
       0,
       chassisY + 0.03,
-      0,
+      equipmentCenterZ,
     ),
     component(
       config,
@@ -203,7 +213,7 @@ export function createOfficialKartAssembly(
       "steering.servo-standard",
       0,
       chassisY + 0.03,
-      0,
+      equipmentCenterZ,
     ),
     component(
       config,
@@ -211,7 +221,7 @@ export function createOfficialKartAssembly(
       "brakes.combined-standard",
       0,
       chassisY + 0.025,
-      0,
+      equipmentCenterZ,
     ),
     component(
       config,
@@ -219,7 +229,7 @@ export function createOfficialKartAssembly(
       config.transmissionDefinitionId,
       0,
       chassisY + 0.025,
-      0,
+      equipmentCenterZ,
     ),
     createSuspensionInstance(
       config,

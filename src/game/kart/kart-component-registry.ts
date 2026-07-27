@@ -609,6 +609,60 @@ export const APPROVED_KART_COMPONENTS = deepFreeze(
         mirrorable: true,
         rotationAxes: ["x", "y", "z"],
       },
+      category: "suspension",
+      construction: [cylinder(aluminum, 0.008, 0.145, "y")],
+      id: "suspension.compliant-long",
+      label: "Compliant long-travel suspension",
+      mass: 0.052,
+      massCenter: { x: 0, y: 0, z: 0 },
+      ports: [
+        {
+          direction: "bidirectional",
+          id: "chassis-mount",
+          interface: "suspension-chassis",
+          multiple: false,
+        },
+        {
+          direction: "bidirectional",
+          id: "hub-mount",
+          interface: "suspension-hub",
+          multiple: false,
+        },
+      ],
+      summary:
+        "A longer coilover with matched damping for compliant, controlled travel.",
+      suspension: {
+        bumpStart: 0.04,
+        damperRate: 18.75,
+        extendedLength: 0.14,
+        mounting: {
+          armPivot: {
+            x: 0.08 * Math.sqrt(812.5 / 1_600),
+            y: -0.051,
+            z: 0,
+          },
+          chassisAnchor: { x: 0, y: 0.051, z: 0 },
+          hubAnchor: {
+            x: -0.08 * (1 - Math.sqrt(812.5 / 1_600)),
+            y: -0.051,
+            z: 0,
+          },
+          springArmAnchor: { x: 0, y: -0.051, z: 0 },
+        },
+        maximumStroke: 0.052,
+        quadraticBumpRate: 12_000,
+        springRate: 900,
+      },
+      tradeoff:
+        "More bump compliance with controlled rebound and slightly more mass.",
+      version: 2,
+    },
+    {
+      assembly: {
+        maximumInstances: 4,
+        mirrorable: true,
+        rotationAxes: ["x", "y", "z"],
+      },
       category: "wheel-tire",
       construction: [cylinder(polymer, 0.058, 0.04, "x")],
       id: "wheel-tire.small-standard",
@@ -721,12 +775,25 @@ const approvedComponentByKey = new Map(
   ]),
 );
 
+const latestApprovedComponentById = new Map<
+  string,
+  DeepReadonly<ApprovedComponentDefinition>
+>();
+for (const definition of APPROVED_KART_COMPONENTS) {
+  const current = latestApprovedComponentById.get(definition.id);
+  if (!current || definition.version > current.version) {
+    latestApprovedComponentById.set(definition.id, definition);
+  }
+}
+
 export const APPROVED_COMPONENTS_BY_CATEGORY = deepFreeze(
   Object.fromEntries(
     kartComponentCategorySchema.options.map((category) => [
       category,
       APPROVED_KART_COMPONENTS.filter(
-        (definition) => definition.category === category,
+        (definition) =>
+          definition.category === category &&
+          latestApprovedComponentById.get(definition.id) === definition,
       ),
     ]),
   ) as Record<
@@ -740,4 +807,10 @@ export function getApprovedKartComponent(reference: {
   version: number;
 }): DeepReadonly<ApprovedComponentDefinition> | undefined {
   return approvedComponentByKey.get(`${reference.id}@${reference.version}`);
+}
+
+export function getLatestApprovedKartComponent(
+  id: string,
+): DeepReadonly<ApprovedComponentDefinition> | undefined {
+  return latestApprovedComponentById.get(id);
 }

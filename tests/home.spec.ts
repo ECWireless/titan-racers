@@ -7,6 +7,7 @@ import {
   type KartDevelopmentValues,
 } from "../src/game/kart/kart-development-values";
 import { createBalancedKartDocument } from "../src/game/kart/balanced-kart-document";
+import { createHandlingKartDocument } from "../src/game/kart/handling-kart-document";
 import { createSpeedKartDocument } from "../src/game/kart/speed-kart-document";
 import {
   deriveKartSnapshot,
@@ -42,6 +43,16 @@ const MAX_CONTROLLED_COLLISION_ANGULAR_SPEED = 15 / REFERENCE_KART_TIME_SCALE;
 const MAX_FAST_COLLISION_ANGULAR_SPEED = 25 / REFERENCE_KART_TIME_SCALE;
 const BALANCED_KART_DOCUMENT = createBalancedKartDocument();
 const BALANCED_KART_SNAPSHOT = deriveKartSnapshot(BALANCED_KART_DOCUMENT);
+const HANDLING_KART_DOCUMENT = createHandlingKartDocument();
+const HANDLING_KART_SNAPSHOT = deriveKartSnapshot(HANDLING_KART_DOCUMENT);
+const HANDLING_KART_CONTACT_PLANE_Y =
+  HANDLING_KART_SNAPSHOT.geometry.wheelStations.reduce(
+    (sum, wheel) => sum + wheel.position.y - wheel.radius,
+    0,
+  ) / HANDLING_KART_SNAPSHOT.geometry.wheelStations.length;
+const HANDLING_KART_UPRIGHT_ROOT_HEIGHT =
+  HANDLING_KART_SNAPSHOT.massProperties.centerOfMass.y -
+  HANDLING_KART_CONTACT_PLANE_Y;
 const SPEED_KART_DOCUMENT = createSpeedKartDocument();
 const SPEED_KART_SNAPSHOT = deriveKartSnapshot(SPEED_KART_DOCUMENT);
 const BALANCED_KART_DEVELOPMENT_VALUES = createKartDevelopmentValues(
@@ -562,6 +573,36 @@ async function useBundledRoughCourse(page: Page) {
   });
 }
 
+async function useOneSideBumpCourse(page: Page) {
+  const document = structuredClone(ROUGH_COURSE_DOCUMENT);
+  const ramp = document.objects.find(({ id }) => id === "ramp-super-tall");
+  if (!ramp || ramp.collision?.shape !== "box") {
+    throw new Error("The bundled ramp fixture is unavailable.");
+  }
+  ramp.label = "One-side suspension bump";
+  ramp.transform = {
+    position: { x: 0, y: 0, z: -12.21 },
+    rotation: { x: 0, y: 0, z: 3.43 },
+  };
+  ramp.visual.scale = { x: 0.5, y: 0.03, z: 0.16 };
+  ramp.collision.halfExtents = { x: 0.25, y: 0.015, z: 0.08 };
+
+  await page.unroute("**/api/courses/rough-course/published");
+  await page.route("**/api/courses/rough-course/published", async (route) => {
+    await route.fulfill({
+      body: JSON.stringify({
+        courseId: document.courseId,
+        document,
+        publishedAt: new Date("2026-07-25T00:05:00.000Z").toISOString(),
+        revision: 2,
+        schemaVersion: document.schemaVersion,
+      }),
+      contentType: "application/json",
+      status: 200,
+    });
+  });
+}
+
 async function useBundledBalancedKart(
   page: Page,
   thumbnailAvailable = false,
@@ -582,6 +623,35 @@ async function useBundledBalancedKart(
               revision: 1,
               schemaVersion: BALANCED_KART_DOCUMENT.schemaVersion,
               thumbnailAvailable,
+            },
+          },
+        ],
+        source: "published",
+      }),
+      contentType: "application/json",
+      status: 200,
+    });
+  });
+}
+
+async function useBundledHandlingKart(page: Page) {
+  await page.unroute("**/api/karts/official");
+  await page.route("**/api/karts/official", async (route) => {
+    await route.fulfill({
+      body: JSON.stringify({
+        karts: [
+          {
+            assemblerCredit: "Titan Racers",
+            runtime: {
+              derivationVersion: HANDLING_KART_SNAPSHOT.derivationVersion,
+              document: HANDLING_KART_DOCUMENT,
+              kartId: HANDLING_KART_DOCUMENT.kartId,
+              publishedAt: new Date("2026-07-25T00:05:00.000Z").toISOString(),
+              resolvedSnapshot: HANDLING_KART_SNAPSHOT,
+              resolvedSnapshotHash: "f".repeat(64),
+              revision: 1,
+              schemaVersion: HANDLING_KART_DOCUMENT.schemaVersion,
+              thumbnailAvailable: false,
             },
           },
         ],
@@ -1933,6 +2003,208 @@ test.describe("home screen", () => {
         return Math.hypot(state.x - startState.x, state.z - startState.z);
       })
       .toBeLessThan(scaleReferenceKartLength(0.1));
+  });
+
+  test("keeps the Handling Kart drivable through launch", async ({
+    page,
+  }) => {
+    await useBundledHandlingKart(page);
+    await page.goto("/");
+    await page.getByRole("button", { name: "Solo Time Trial" }).click();
+
+    const canvas = page.getByTestId("solo-time-trial-canvas");
+    await advanceRaceToRacing(canvas);
+    await canvas.click();
+    await page.keyboard.down("ArrowUp");
+
+    let samples: KartDebugState[] = [];
+    try {
+      samples = await stepSimulationWithKartSamples(
+        canvas,
+        Math.ceil(2 / DEFAULT_FIXED_STEP_SECONDS),
+      );
+    } finally {
+      await page.keyboard.up("ArrowUp");
+    }
+
+    const minimumUpY = Math.min(...samples.map(({ up }) => up.y));
+    let currentAirborneSteps = 0;
+    let maximumAirborneSteps = 0;
+    for (const { supportCount } of samples) {
+      currentAirborneSteps = supportCount === 0 ? currentAirborneSteps + 1 : 0;
+      maximumAirborneSteps = Math.max(
+        maximumAirborneSteps,
+        currentAirborneSteps,
+      );
+    }
+    const maximumAngularSpeed = Math.max(
+      ...samples.map(({ angularSpeed }) => angularSpeed),
+    );
+    const supportedStepRatio =
+      samples.filter(({ supportCount }) => supportCount >= 2).length /
+      samples.length;
+    const finalState = samples.at(-1);
+    const evidence = JSON.stringify({
+      finalState,
+      maximumAirborneSteps,
+      maximumAngularSpeed,
+      minimumUpY,
+      supportedStepRatio,
+    });
+
+    expect(finalState?.speed, evidence).toBeGreaterThan(1);
+    expect(finalState?.supportCount, evidence).toBeGreaterThanOrEqual(2);
+    expect(minimumUpY, evidence).toBeGreaterThan(0.85);
+    expect(supportedStepRatio, evidence).toBeGreaterThan(0.9);
+    expect(maximumAirborneSteps, evidence).toBeLessThan(
+      Math.ceil(0.1 / DEFAULT_FIXED_STEP_SECONDS),
+    );
+    expect(maximumAngularSpeed, evidence).toBeLessThan(5);
+  });
+
+  test("settles the Handling Kart after a bump-height landing", async ({
+    page,
+  }) => {
+    await useBundledHandlingKart(page);
+    await page.goto("/");
+    await page.getByRole("button", { name: "Solo Time Trial" }).click();
+
+    const canvas = page.getByTestId("solo-time-trial-canvas");
+    await advanceRaceToRacing(canvas);
+    const baseline = await getKartDebugState(canvas);
+    await setKartDebugPose(canvas, {
+      angularVelocity: { x: 0, y: 0, z: 0 },
+      linearVelocity: { x: 0, y: 0, z: 0 },
+      position: {
+        x: 40,
+        y: HANDLING_KART_UPRIGHT_ROOT_HEIGHT + 0.04,
+        z: -12,
+      },
+      rotation: {
+        x: baseline.rotationX,
+        y: baseline.rotationY,
+        z: baseline.rotationZ,
+      },
+    });
+
+    const samples = await stepSimulationWithKartSamples(
+      canvas,
+      Math.ceil(3 / DEFAULT_FIXED_STEP_SECONDS),
+    );
+    const firstTouchdownIndex = samples.findIndex(
+      ({ supportCount }) => supportCount > 0,
+    );
+    const settlingWindow = samples.slice(
+      -Math.ceil(0.5 / DEFAULT_FIXED_STEP_SECONDS),
+    );
+    const finalState = samples.at(-1);
+    const settlingY = settlingWindow.map(({ y }) => y);
+    const settlingYRange = Math.max(...settlingY) - Math.min(...settlingY);
+    const maximumSettlingAngularSpeed = Math.max(
+      ...settlingWindow.map(({ angularSpeed }) => angularSpeed),
+    );
+    const maximumSettlingVerticalSpeed = Math.max(
+      ...settlingWindow.map(({ verticalVelocity }) =>
+        Math.abs(verticalVelocity),
+      ),
+    );
+    const minimumUpY = Math.min(...samples.map(({ up }) => up.y));
+    const evidence = JSON.stringify({
+      finalState,
+      firstTouchdownIndex,
+      maximumSettlingAngularSpeed,
+      maximumSettlingVerticalSpeed,
+      minimumUpY,
+      settlingYRange,
+    });
+
+    expect(firstTouchdownIndex, evidence).toBeGreaterThan(0);
+    expect(finalState?.supportCount, evidence).toBe(4);
+    expect(minimumUpY, evidence).toBeGreaterThan(0.95);
+    expect(settlingYRange, evidence).toBeLessThan(0.01);
+    expect(maximumSettlingVerticalSpeed, evidence).toBeLessThan(0.1);
+    expect(maximumSettlingAngularSpeed, evidence).toBeLessThan(0.2);
+  });
+
+  test("stays controlled while driving the Handling Kart over a one-side bump", async ({
+    page,
+  }) => {
+    await useBundledHandlingKart(page);
+    await useOneSideBumpCourse(page);
+    await page.goto("/");
+    await page.getByRole("button", { name: "Solo Time Trial" }).click();
+
+    const canvas = page.getByTestId("solo-time-trial-canvas");
+    await advanceRaceToRacing(canvas);
+    await setSimulationPaused(canvas, true);
+    await setKartDebugPose(canvas, {
+      angularVelocity: { x: 0, y: 0, z: 0 },
+      linearVelocity: { x: -1.5, y: 0, z: 0 },
+      position: {
+        x: 0.8,
+        y: HANDLING_KART_UPRIGHT_ROOT_HEIGHT,
+        z: -12,
+      },
+      rotation: { x: 0, y: 90, z: 0 },
+    });
+    await canvas.click();
+    await page.keyboard.down("ArrowUp");
+
+    let samples: KartDebugState[] = [];
+    try {
+      samples = await stepSimulationWithKartSamples(
+        canvas,
+        Math.ceil(3 / DEFAULT_FIXED_STEP_SECONDS),
+      );
+    } finally {
+      await page.keyboard.up("ArrowUp");
+    }
+
+    const incompleteSupport = samples.filter(
+      ({ supportCount }) => supportCount < 4,
+    );
+    const maximumPitch = Math.max(
+      ...samples.map(({ forward }) => Math.abs(forward.y)),
+    );
+    const maximumRoll = Math.max(
+      ...samples.map(({ forward, up }) =>
+        Math.abs(forward.z * up.x - forward.x * up.z),
+      ),
+    );
+    const maximumAngularSpeed = Math.max(
+      ...samples.map(({ angularSpeed }) => angularSpeed),
+    );
+    const minimumUpY = Math.min(...samples.map(({ up }) => up.y));
+    const settlingWindow = samples.slice(
+      -Math.ceil(0.5 / DEFAULT_FIXED_STEP_SECONDS),
+    );
+    const maximumSettlingAngularSpeed = Math.max(
+      ...settlingWindow.map(({ angularSpeed }) => angularSpeed),
+    );
+    const settlingY = settlingWindow.map(({ y }) => y);
+    const settlingYRange = Math.max(...settlingY) - Math.min(...settlingY);
+    const finalState = samples.at(-1);
+    const evidence = JSON.stringify({
+      finalState,
+      incompleteSupportSamples: incompleteSupport.length,
+      maximumAngularSpeed,
+      maximumPitch,
+      maximumRoll,
+      maximumSettlingAngularSpeed,
+      minimumUpY,
+      settlingYRange,
+    });
+
+    expect(incompleteSupport.length, evidence).toBeGreaterThan(0);
+    expect(maximumPitch, evidence).toBeGreaterThan(0.01);
+    expect(maximumRoll, evidence).toBeGreaterThan(0.01);
+    expect(minimumUpY, evidence).toBeGreaterThan(0.9);
+    expect(maximumPitch, evidence).toBeLessThan(0.35);
+    expect(maximumRoll, evidence).toBeLessThan(0.35);
+    expect(maximumAngularSpeed, evidence).toBeLessThan(5);
+    expect(finalState?.supportCount, evidence).toBe(4);
+    expect(settlingYRange, evidence).toBeLessThan(0.01);
+    expect(maximumSettlingAngularSpeed, evidence).toBeLessThan(0.2);
   });
 
   test("settles at rest without chassis drift or rotation", async ({

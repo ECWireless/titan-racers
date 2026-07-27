@@ -914,6 +914,114 @@ A longer coilover that gives the wheel more compliant travel.
 }
 ```
 
+### Compliant long-travel suspension — `suspension.compliant-long@2`
+
+A longer coilover with matched damping for compliant, controlled travel.
+
+```json
+{
+  "assembly": {
+    "maximumInstances": 4,
+    "mirrorable": true,
+    "rotationAxes": [
+      "x",
+      "y",
+      "z"
+    ]
+  },
+  "category": "suspension",
+  "construction": [
+    {
+      "axis": "y",
+      "height": 0.145,
+      "material": {
+        "id": "material.structural-aluminum",
+        "version": 1
+      },
+      "radius": 0.008,
+      "shape": "cylinder",
+      "transform": {
+        "position": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "rotationDegrees": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      }
+    }
+  ],
+  "id": "suspension.compliant-long",
+  "label": "Compliant long-travel suspension",
+  "mass": 0.052,
+  "massCenter": {
+    "x": 0,
+    "y": 0,
+    "z": 0
+  },
+  "ports": [
+    {
+      "direction": "bidirectional",
+      "id": "chassis-mount",
+      "interface": "suspension-chassis",
+      "multiple": false,
+      "position": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      }
+    },
+    {
+      "direction": "bidirectional",
+      "id": "hub-mount",
+      "interface": "suspension-hub",
+      "multiple": false,
+      "position": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      }
+    }
+  ],
+  "summary": "A longer coilover with matched damping for compliant, controlled travel.",
+  "tradeoff": "More bump compliance with controlled rebound and slightly more mass.",
+  "version": 2,
+  "suspension": {
+    "bumpStart": 0.04,
+    "damperRate": 18.75,
+    "extendedLength": 0.14,
+    "mounting": {
+      "armPivot": {
+        "x": 0.057008771254956896,
+        "y": -0.051,
+        "z": 0
+      },
+      "chassisAnchor": {
+        "x": 0,
+        "y": 0.051,
+        "z": 0
+      },
+      "hubAnchor": {
+        "x": -0.022991228745043106,
+        "y": -0.051,
+        "z": 0
+      },
+      "springArmAnchor": {
+        "x": 0,
+        "y": -0.051,
+        "z": 0
+      }
+    },
+    "maximumStroke": 0.052,
+    "quadraticBumpRate": 12000,
+    "springRate": 900
+  }
+}
+```
+
 ### Small wheel and tire — `wheel-tire.small-standard@1`
 
 A compact, low-inertia wheel using the standard tire compound.

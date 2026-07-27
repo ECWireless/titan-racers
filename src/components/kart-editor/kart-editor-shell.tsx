@@ -1747,15 +1747,18 @@ export function KartEditorShell({
                       </span>
                       <select
                         className="editor-input"
-                        value={selectedDefinition.id}
+                        value={`${selectedDefinition.id}@${selectedDefinition.version}`}
                         onChange={(event) => {
                           try {
+                            const [definitionId, rawVersion] =
+                              event.target.value.split("@");
                             commitDocument(
                               `Change ${selectedInstance.id} component`,
                               replaceKartComponentDefinition(
                                 document,
                                 selectedInstance.id,
-                                event.target.value,
+                                definitionId,
+                                Number(rawVersion),
                               ),
                             );
                           } catch (error) {
@@ -1763,10 +1766,24 @@ export function KartEditorShell({
                           }
                         }}
                       >
+                        {!APPROVED_COMPONENTS_BY_CATEGORY[
+                          selectedDefinition.category
+                        ].includes(selectedDefinition) ? (
+                          <option
+                            disabled
+                            value={`${selectedDefinition.id}@${selectedDefinition.version}`}
+                          >
+                            {selectedDefinition.label} — historical revision{" "}
+                            {selectedDefinition.version}
+                          </option>
+                        ) : null}
                         {APPROVED_COMPONENTS_BY_CATEGORY[
                           selectedDefinition.category
                         ].map((definition) => (
-                          <option key={definition.id} value={definition.id}>
+                          <option
+                            key={`${definition.id}@${definition.version}`}
+                            value={`${definition.id}@${definition.version}`}
+                          >
                             {definition.label} — {definition.tradeoff}
                           </option>
                         ))}
