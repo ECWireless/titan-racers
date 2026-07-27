@@ -8,6 +8,7 @@ import {
   APPROVED_KART_COMPONENTS,
   approvedComponentDefinitionSchema,
   getApprovedKartComponent,
+  getLatestApprovedKartComponent,
   kartComponentCategorySchema,
 } from "../src/game/kart/kart-component-registry";
 import {
@@ -55,7 +56,7 @@ test("provides at least one component option in every required category", () => 
     );
   }
 
-  expect(APPROVED_KART_COMPONENTS).toHaveLength(12);
+  expect(APPROVED_KART_COMPONENTS).toHaveLength(13);
 });
 
 test("limits additional component options to accepted physical tradeoffs", () => {
@@ -93,6 +94,29 @@ test("uses unique immutable component identities with no progression fields", ()
     expect(definition).not.toHaveProperty("entitlement");
     expect(getApprovedKartComponent(definition)).toBe(definition);
   }
+});
+
+test("retains historical component revisions while authoring the latest one", () => {
+  expect(
+    getApprovedKartComponent({
+      id: "suspension.compliant-long",
+      version: 1,
+    }),
+  ).toMatchObject({
+    category: "suspension",
+    suspension: { damperRate: 7 },
+  });
+  expect(
+    getLatestApprovedKartComponent("suspension.compliant-long"),
+  ).toMatchObject({
+    suspension: { damperRate: 18.75 },
+    version: 2,
+  });
+  expect(
+    APPROVED_COMPONENTS_BY_CATEGORY.suspension.filter(
+      ({ id }) => id === "suspension.compliant-long",
+    ),
+  ).toHaveLength(1);
 });
 
 test("resolves every component-owned material and tire compound reference", () => {

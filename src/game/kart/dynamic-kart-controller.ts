@@ -28,7 +28,6 @@ import {
 import {
   getRestSettlingLocalTorqueImpulse,
   isRestSettlingEligible,
-  type RestSettlingVector,
 } from "./kart-rest-settling";
 import {
   getAckermannWheelSteerAngle,
@@ -47,6 +46,7 @@ import {
   TRAILING_AXLE_GRIP_SAFETY_RATIO,
 } from "./kart-tire-model";
 import type { KartPhysicalProfile } from "./kart-physical-profile";
+import type { KartInertiaTensor } from "./kart-principal-axes";
 import type { TireSurfaceInteractionProfile } from "./tire-surface-interaction";
 import {
   AmmoWheelSweep,
@@ -54,8 +54,10 @@ import {
 } from "../runtime/ammo-wheel-sweep";
 
 export type DynamicWheel = {
+  assemblyPosition: pc.Vec3;
   driven: boolean;
   localPosition: pc.Vec3;
+  localSuspensionDirection: pc.Vec3;
   maximumSuspensionTravel: number;
   name: string;
   pivot: pc.Entity;
@@ -67,10 +69,11 @@ export type DynamicWheel = {
 
 type DynamicKartControllerOptions = {
   app: pc.Application;
+  assemblyFrame: pc.Entity;
   environment: WorldEnvironment;
   fallResetY: number;
   kart: pc.Entity;
-  localInertia: RestSettlingVector;
+  localInertia: KartInertiaTensor;
   mass: number;
   onFallReset: () => void;
   physicalProfile: KartPhysicalProfile;
@@ -106,9 +109,9 @@ export type DynamicKartControllerState = KartControllerState & {
 export type DynamicWheelTelemetry = {
   appliedLateralTireForce: number;
   appliedTireForce: number;
+  assemblyHubY: number;
   driven: boolean;
   gripCoefficient: number;
-  hubLocalY: number;
   contactNormal: pc.Vec3 | null;
   lateralSpeed: number;
   longitudinalSpeed: number;
@@ -179,7 +182,7 @@ export class DynamicKartController implements KartController {
     const steeredWheels = options.wheels.filter((wheel) => wheel.steered);
     this.steeringCenterX =
       steeredWheels.reduce(
-        (total, wheel) => total + wheel.localPosition.x,
+        (total, wheel) => total + wheel.assemblyPosition.x,
         0,
       ) / steeredWheels.length;
 
@@ -264,8 +267,8 @@ export class DynamicKartController implements KartController {
       return;
     }
 
-    const bodyForward = kart.forward.clone().normalize();
-    const bodyUp = kart.up.clone().normalize();
+    const bodyForward = this.options.assemblyFrame.forward.clone().normalize();
+    const bodyUp = this.options.assemblyFrame.up.clone().normalize();
     const suspensionDirection = bodyUp.clone().mulScalar(-1);
     const linearVelocity = rigidBody.linearVelocity.clone();
     const angularVelocity = rigidBody.angularVelocity.clone();
@@ -319,10 +322,10 @@ export class DynamicKartController implements KartController {
       const telemetry: DynamicWheelTelemetry = {
         appliedLateralTireForce: 0,
         appliedTireForce: 0,
+        assemblyHubY:
+          wheel.assemblyPosition.y - wheel.restSuspensionCompression,
         driven: wheel.driven,
         gripCoefficient: 0,
-        hubLocalY:
-          wheel.localPosition.y - wheel.restSuspensionCompression,
         contactNormal: null,
         lateralSpeed: 0,
         longitudinalSpeed: 0,
@@ -339,11 +342,16 @@ export class DynamicKartController implements KartController {
       };
 
       wheelTelemetry.push(telemetry);
-      const maximumCompressionPosition = wheel.localPosition.clone();
-      maximumCompressionPosition.y =
-        wheel.localPosition.y +
-        (wheel.maximumSuspensionTravel -
-          wheel.restSuspensionCompression);
+      const maximumCompressionPosition = wheel.localPosition
+        .clone()
+        .sub(
+          wheel.localSuspensionDirection
+            .clone()
+            .mulScalar(
+              wheel.maximumSuspensionTravel -
+                wheel.restSuspensionCompression,
+            ),
+        );
       const queryStart = worldTransform.transformPoint(
         maximumCompressionPosition,
       );
@@ -354,7 +362,7 @@ export class DynamicKartController implements KartController {
       const steerAngle = this.getWheelSteerAngle(wheel);
       telemetry.steerAngle = steerAngle;
       const sweepRotation = new pc.Quat().mul2(
-        kart.getRotation(),
+        this.options.assemblyFrame.getRotation(),
         new pc.Quat().setFromEulerAngles(0, steerAngle, 0),
       );
       const wheelSweep = this.wheelSweeps.get(wheel.name);
@@ -377,8 +385,10 @@ export class DynamicKartController implements KartController {
         0,
       );
       telemetry.surfaceName = hit.entity.name;
-      telemetry.hubLocalY =
-        maximumCompressionPosition.y - suspensionTravel;
+      telemetry.assemblyHubY =
+        wheel.assemblyPosition.y +
+        compression -
+        wheel.restSuspensionCompression;
       telemetry.suspensionCompression = compression;
       telemetry.suspensionTravel = suspensionTravel;
       telemetry.sweepFraction = hit.fraction;
@@ -638,7 +648,7 @@ export class DynamicKartController implements KartController {
       this.state.supportCount === this.options.wheels.length,
       hasDrivingInput,
     );
-    const rotation = this.options.kart.getRotation();
+    const rotation = this.options.assemblyFrame.getRotation();
     const localAngularVelocity = rotation
       .clone()
       .invert()
@@ -674,7 +684,7 @@ export class DynamicKartController implements KartController {
       this.options.mass,
       this.state.supportCount,
       minimumSupportNormalY,
-      this.options.kart.up.y,
+      this.options.assemblyFrame.up.y,
       deltaSeconds,
     );
     rigidBody.applyImpulse(0, heaveDampingImpulse, 0);
@@ -704,8 +714,8 @@ export class DynamicKartController implements KartController {
 
     const observedLinearVelocity = rigidBody.linearVelocity.clone();
     const observedAngularVelocity = rigidBody.angularVelocity.clone();
-    const bodyForward = this.options.kart.forward.clone().normalize();
-    const bodyUp = this.options.kart.up.clone().normalize();
+    const bodyForward = this.options.assemblyFrame.forward.clone().normalize();
+    const bodyUp = this.options.assemblyFrame.up.clone().normalize();
     this.state.speed = observedLinearVelocity.dot(bodyForward);
     this.state.verticalVelocity = observedLinearVelocity.y;
     this.state.yawRate = observedAngularVelocity.dot(bodyUp);
@@ -757,7 +767,7 @@ export class DynamicKartController implements KartController {
 
     return getAckermannWheelSteerAngle(
       this.state.steerAngle,
-      wheel.localPosition.x - this.steeringCenterX,
+      wheel.assemblyPosition.x - this.steeringCenterX,
       this.options.steeringGeometry,
     );
   }

@@ -6,7 +6,6 @@ import {
   authorizeRole,
 } from "@/server/authorization";
 import {
-  KartPublicationCompatibilityError,
   KartPublicationConflictError,
   KartPublicationTargetError,
   loadLatestKartPublicationEvent,
@@ -87,9 +86,6 @@ export async function POST(request: Request, context: RouteContext) {
           });
     return Response.json(publication, { status: 201 });
   } catch (error) {
-    if (error instanceof KartPublicationCompatibilityError) {
-      return Response.json({ error: error.message }, { status: 422 });
-    }
     if (error instanceof KartPublicationConflictError) {
       return Response.json({ error: error.message }, { status: 409 });
     }

@@ -30,6 +30,7 @@ const persistedKartRevisionBaseSchema = z.strictObject({
   resolvedSnapshotHash: z.string().regex(/^[0-9a-f]{64}$/),
   revision: z.number().int().positive(),
   schemaVersion: z.number().int().positive(),
+  thumbnailAvailable: z.boolean().default(false),
 });
 
 export const persistedKartRevisionSchema =
@@ -60,6 +61,7 @@ export const publishedKartRuntimeSchema = z
     resolvedSnapshotHash: z.string().regex(/^[0-9a-f]{64}$/),
     revision: z.number().int().positive(),
     schemaVersion: z.number().int().positive(),
+    thumbnailAvailable: z.boolean().default(false),
   })
   .superRefine((revision, context) => {
     if (

@@ -1,13 +1,15 @@
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 
-import { and, desc, eq } from "drizzle-orm";
+import { and, desc, eq, sql } from "drizzle-orm";
 
 import { db } from "@/db/client";
 import {
   kartPublicationEvents,
+  kartRevisionThumbnails,
   kartRevisions,
   karts,
   type KartPublicationAction,
+  users,
 } from "@/db/schema";
 import {
   type KartAssemblyDocument,
@@ -22,7 +24,7 @@ import {
   type PersistedResolvedKartSnapshot,
 } from "@/game/kart/kart-derivation";
 import type { DeepReadonly } from "@/game/kart/immutable-registry";
-import { hasRuntimeCompatibleInertia } from "@/game/kart/kart-runtime-compatibility";
+import { validateKartThumbnailImageData } from "@/server/kart-thumbnail";
 
 export class KartConflictError extends Error {
   constructor() {
@@ -45,12 +47,17 @@ export class KartPublicationTargetError extends Error {
   }
 }
 
-export class KartPublicationCompatibilityError extends Error {
+export class KartThumbnailConflictError extends Error {
   constructor() {
-    super(
-      "The saved kart revision is not compatible with the current runtime.",
-    );
-    this.name = "KartPublicationCompatibilityError";
+    super("A different thumbnail already exists for this immutable revision.");
+    this.name = "KartThumbnailConflictError";
+  }
+}
+
+export class KartThumbnailTargetError extends Error {
+  constructor() {
+    super("The requested kart revision does not exist.");
+    this.name = "KartThumbnailTargetError";
   }
 }
 
@@ -65,6 +72,7 @@ export type PersistedKartRevision = {
   resolvedSnapshotHash: string;
   revision: number;
   schemaVersion: number;
+  thumbnailAvailable: boolean;
 };
 
 export type PersistedKartPublicationEvent = {
@@ -77,10 +85,22 @@ export type PersistedKartPublicationEvent = {
 };
 
 export type PersistedPublishedKartRevision = PersistedKartRevision & {
+  authorUsername: string | null;
   publication: PersistedKartPublicationEvent & {
     action: "publish";
     revision: number;
   };
+};
+
+export type PersistedKartRevisionThumbnail = {
+  contentType: "image/png";
+  createdAt: Date;
+  generatedByUserId: string;
+  imageData: Buffer;
+  imageSha256: string;
+  kartId: string;
+  renderVersion: number;
+  revision: number;
 };
 
 const revisionSelection = {
@@ -94,6 +114,7 @@ const revisionSelection = {
   resolvedSnapshotHash: kartRevisions.resolvedSnapshotHash,
   revision: kartRevisions.revision,
   schemaVersion: kartRevisions.schemaVersion,
+  thumbnailAvailable: sql<boolean>`${kartRevisionThumbnails.revisionId} is not null`,
 };
 
 async function parseRevisionRow(
@@ -138,6 +159,10 @@ export async function loadLatestKartRevision(
         eq(kartRevisions.kartId, karts.id),
         eq(kartRevisions.revision, karts.currentRevision),
       ),
+    )
+    .leftJoin(
+      kartRevisionThumbnails,
+      eq(kartRevisionThumbnails.revisionId, kartRevisions.id),
     )
     .where(eq(karts.id, kartId))
     .limit(1);
@@ -216,6 +241,7 @@ export async function saveKartRevision(input: {
       document,
       ownerUserId,
       resolvedSnapshot,
+      thumbnailAvailable: false,
     };
   });
 }
@@ -247,6 +273,7 @@ export async function loadPublishedKartRevision(
     .select({
       action: kartPublicationEvents.action,
       actorUserId: kartPublicationEvents.actorUserId,
+      authorUsername: users.username,
       authorUserId: kartRevisions.authorUserId,
       createdAt: kartRevisions.createdAt,
       derivationVersion: kartRevisions.derivationVersion,
@@ -259,6 +286,7 @@ export async function loadPublishedKartRevision(
       resolvedSnapshotHash: kartRevisions.resolvedSnapshotHash,
       revision: kartPublicationEvents.revision,
       schemaVersion: kartRevisions.schemaVersion,
+      thumbnailAvailable: sql<boolean>`${kartRevisionThumbnails.revisionId} is not null`,
     })
     .from(kartPublicationEvents)
     .leftJoin(
@@ -269,6 +297,11 @@ export async function loadPublishedKartRevision(
       ),
     )
     .innerJoin(karts, eq(karts.id, kartPublicationEvents.kartId))
+    .leftJoin(users, eq(users.id, kartRevisions.authorUserId))
+    .leftJoin(
+      kartRevisionThumbnails,
+      eq(kartRevisionThumbnails.revisionId, kartRevisions.id),
+    )
     .where(eq(kartPublicationEvents.kartId, kartId))
     .orderBy(desc(kartPublicationEvents.id))
     .limit(1);
@@ -298,10 +331,12 @@ export async function loadPublishedKartRevision(
     resolvedSnapshotHash: row.resolvedSnapshotHash,
     revision: row.revision,
     schemaVersion: row.schemaVersion,
+    thumbnailAvailable: row.thumbnailAvailable,
   });
 
   return {
     ...revision,
+    authorUsername: row.authorUsername,
     publication: {
       action: "publish",
       actorUserId: row.actorUserId,
@@ -311,6 +346,122 @@ export async function loadPublishedKartRevision(
       revision: row.revision,
     },
   };
+}
+
+const thumbnailSelection = {
+  contentType: kartRevisionThumbnails.contentType,
+  createdAt: kartRevisionThumbnails.createdAt,
+  generatedByUserId: kartRevisionThumbnails.generatedByUserId,
+  imageData: kartRevisionThumbnails.imageData,
+  imageSha256: kartRevisionThumbnails.imageSha256,
+  kartId: kartRevisions.kartId,
+  renderVersion: kartRevisionThumbnails.renderVersion,
+  revision: kartRevisions.revision,
+};
+
+export async function loadKartRevisionThumbnail(
+  kartId: string,
+  revision: number,
+): Promise<PersistedKartRevisionThumbnail | null> {
+  const [row] = await db
+    .select(thumbnailSelection)
+    .from(kartRevisionThumbnails)
+    .innerJoin(
+      kartRevisions,
+      eq(kartRevisions.id, kartRevisionThumbnails.revisionId),
+    )
+    .where(
+      and(
+        eq(kartRevisions.kartId, kartId),
+        eq(kartRevisions.revision, revision),
+      ),
+    )
+    .limit(1);
+  if (!row) return null;
+  if (row.contentType !== "image/png") {
+    throw new Error("Persisted kart thumbnail content type is invalid.");
+  }
+  return { ...row, contentType: row.contentType };
+}
+
+export async function saveKartRevisionThumbnail(input: {
+  contentType: "image/png";
+  generatedByUserId: string;
+  imageData: Buffer;
+  kartId: string;
+  renderVersion: number;
+  revision: number;
+}): Promise<PersistedKartRevisionThumbnail> {
+  validateKartThumbnailImageData(input.imageData);
+  const imageSha256 = createHash("sha256").update(input.imageData).digest("hex");
+  return db.transaction(async (transaction) => {
+    const [revision] = await transaction
+      .select({ id: kartRevisions.id })
+      .from(kartRevisions)
+      .where(
+        and(
+          eq(kartRevisions.kartId, input.kartId),
+          eq(kartRevisions.revision, input.revision),
+        ),
+      )
+      .limit(1);
+    if (!revision) throw new KartThumbnailTargetError();
+
+    const [inserted] = await transaction
+      .insert(kartRevisionThumbnails)
+      .values({
+        contentType: input.contentType,
+        generatedByUserId: input.generatedByUserId,
+        imageData: input.imageData,
+        imageSha256,
+        renderVersion: input.renderVersion,
+        revisionId: revision.id,
+      })
+      .onConflictDoNothing()
+      .returning({
+        contentType: kartRevisionThumbnails.contentType,
+        createdAt: kartRevisionThumbnails.createdAt,
+        generatedByUserId: kartRevisionThumbnails.generatedByUserId,
+        imageData: kartRevisionThumbnails.imageData,
+        imageSha256: kartRevisionThumbnails.imageSha256,
+        renderVersion: kartRevisionThumbnails.renderVersion,
+      });
+    if (inserted) {
+      return {
+        ...inserted,
+        contentType: "image/png",
+        kartId: input.kartId,
+        revision: input.revision,
+      };
+    }
+
+    const [existing] = await transaction
+      .select({
+        contentType: kartRevisionThumbnails.contentType,
+        createdAt: kartRevisionThumbnails.createdAt,
+        generatedByUserId: kartRevisionThumbnails.generatedByUserId,
+        imageData: kartRevisionThumbnails.imageData,
+        imageSha256: kartRevisionThumbnails.imageSha256,
+        renderVersion: kartRevisionThumbnails.renderVersion,
+      })
+      .from(kartRevisionThumbnails)
+      .where(eq(kartRevisionThumbnails.revisionId, revision.id))
+      .limit(1);
+    if (
+      !existing ||
+      existing.contentType !== input.contentType ||
+      existing.imageSha256 !== imageSha256 ||
+      existing.renderVersion !== input.renderVersion
+    ) {
+      throw new KartThumbnailConflictError();
+    }
+    return {
+      ...existing,
+      contentType: input.contentType,
+      kartId: input.kartId,
+      revision: input.revision,
+    };
+  });
 }
 
 function publicationEventSelection() {
@@ -363,13 +514,7 @@ export async function publishKartRevision(input: {
       )
       .limit(1);
     if (!revision) throw new KartPublicationTargetError();
-    if (
-      !hasRuntimeCompatibleInertia(
-        parseResolvedKartSnapshot(revision.resolvedSnapshot),
-      )
-    ) {
-      throw new KartPublicationCompatibilityError();
-    }
+    parseResolvedKartSnapshot(revision.resolvedSnapshot);
 
     if (latest?.action === "publish" && latest.revision === input.revision) {
       return latest;

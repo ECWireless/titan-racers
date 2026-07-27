@@ -44,6 +44,25 @@ These values may be exposed through telemetry but are recalculated after load,
 reset, contact change, or each fixed step. They must not be copied into an
 assembly as authored values.
 
+## Assembly And Principal-Axis Frames
+
+Resolved snapshots preserve center of mass and the full symmetric inertia
+tensor in authored assembly coordinates. At runtime,
+`kart-principal-axes.ts` deterministically diagonalizes that tensor and returns
+principal moments plus a principal-to-assembly rotation.
+
+Ammo's dynamic body uses the center of mass as its origin, the principal axes
+as its local frame, and the three principal moments as its explicit diagonal
+inertia. Collision primitives and wheel query points are transformed from
+assembly coordinates into that physics-local frame. An assembly-frame child
+applies the inverse rotation so steering, suspension direction, recovery,
+camera, presentation, and diagnostics continue to use the authored kart axes.
+
+The resolved snapshot is not rewritten with runtime axes. Products of inertia
+remain immutable derivation evidence, while the runtime frame conversion is a
+solver concern. Torque policies expressed in assembly coordinates use the full
+tensor before their impulses are rotated into world space.
+
 ## Discoverable Runtime Types
 
 - `DynamicWheel` describes one configured wheel station consumed by the
@@ -59,6 +78,8 @@ All three are runtime contracts, not portable kart-document fields.
 
 - `src/game/kart/dynamic-kart-controller.ts` coordinates wheel-level force
   requests and telemetry.
+- `src/game/kart/kart-principal-axes.ts` owns deterministic inertia
+  diagonalization and full-tensor vector/axis operations.
 - Engine-independent model files under `src/game/kart/` own individual laws.
 - PlayCanvas/Ammo owns rigid-body contact integration.
 - `src/game/runtime/` owns fixed-step timing and scene lifecycle.

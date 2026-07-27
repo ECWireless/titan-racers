@@ -1,3 +1,9 @@
+import {
+  getKartAxisMomentOfInertia,
+  multiplyKartInertiaTensor,
+  type KartInertiaTensor,
+} from "./kart-principal-axes";
+
 type RightingVector = {
   x: number;
   y: number;
@@ -129,71 +135,64 @@ export function getManualRightingTorqueScale(
 }
 
 export function getAxisMomentOfInertia(
-  localInertia: RightingVector,
+  localInertia: KartInertiaTensor,
   localAxis: RightingVector,
 ) {
-  if (!isFiniteVector(localInertia) || !isFiniteVector(localAxis)) {
+  if (
+    !Object.values(localInertia).every(Number.isFinite) ||
+    !isFiniteVector(localAxis)
+  ) {
     return 0;
   }
 
   const axisLength = Math.hypot(localAxis.x, localAxis.y, localAxis.z);
   if (
     axisLength <= AXIS_EPSILON ||
-    localInertia.x <= 0 ||
-    localInertia.y <= 0 ||
-    localInertia.z <= 0
+    localInertia.xx <= 0 ||
+    localInertia.yy <= 0 ||
+    localInertia.zz <= 0
   ) {
     return 0;
   }
 
-  const axisX = localAxis.x / axisLength;
-  const axisY = localAxis.y / axisLength;
-  const axisZ = localAxis.z / axisLength;
-
-  return (
-    localInertia.x * axisX ** 2 +
-    localInertia.y * axisY ** 2 +
-    localInertia.z * axisZ ** 2
-  );
+  return getKartAxisMomentOfInertia(localInertia, localAxis);
 }
 
 export function getManualRightingCaptureLocalTorqueImpulse(
-  localInertia: RightingVector,
+  localInertia: KartInertiaTensor,
   localAngularVelocity: RightingVector,
   targetLocalAngularVelocity: RightingVector = { x: 0, y: 0, z: 0 },
 ): RightingVector {
   if (
-    !isFiniteVector(localInertia) ||
+    !Object.values(localInertia).every(Number.isFinite) ||
     !isFiniteVector(localAngularVelocity) ||
     !isFiniteVector(targetLocalAngularVelocity) ||
-    localInertia.x <= 0 ||
-    localInertia.y <= 0 ||
-    localInertia.z <= 0
+    localInertia.xx <= 0 ||
+    localInertia.yy <= 0 ||
+    localInertia.zz <= 0
   ) {
     return { x: 0, y: 0, z: 0 };
   }
 
-  return {
-    x:
-      localInertia.x *
-      (targetLocalAngularVelocity.x - localAngularVelocity.x),
-    y:
-      localInertia.y *
-      (targetLocalAngularVelocity.y - localAngularVelocity.y),
-    z:
-      localInertia.z *
-      (targetLocalAngularVelocity.z - localAngularVelocity.z),
-  };
+  return multiplyKartInertiaTensor(localInertia, {
+    x: targetLocalAngularVelocity.x - localAngularVelocity.x,
+    y: targetLocalAngularVelocity.y - localAngularVelocity.y,
+    z: targetLocalAngularVelocity.z - localAngularVelocity.z,
+  });
 }
 
-export function getManualRightingTorqueImpulse(
-  localInertia: RightingVector,
+export function getManualRightingLocalTorqueImpulse(
+  localInertia: KartInertiaTensor,
   localAxis: RightingVector,
   gravity: number,
   liftClearanceHeight: number,
   torqueScale = 1,
 ) {
   if (
+    !Object.values(localInertia).every(Number.isFinite) ||
+    localInertia.xx <= 0 ||
+    localInertia.yy <= 0 ||
+    localInertia.zz <= 0 ||
     !Number.isFinite(gravity) ||
     gravity <= 0 ||
     !Number.isFinite(liftClearanceHeight) ||
@@ -201,9 +200,13 @@ export function getManualRightingTorqueImpulse(
     !Number.isFinite(torqueScale) ||
     torqueScale <= 0
   ) {
-    return 0;
+    return { x: 0, y: 0, z: 0 };
   }
 
+  const axisLength = Math.hypot(localAxis.x, localAxis.y, localAxis.z);
+  if (!isFiniteVector(localAxis) || axisLength <= AXIS_EPSILON) {
+    return { x: 0, y: 0, z: 0 };
+  }
   const liftSpeed = Math.sqrt(
     2 * gravity * liftClearanceHeight,
   );
@@ -211,13 +214,16 @@ export function getManualRightingTorqueImpulse(
   const targetAngularSpeed =
     (KART_MANUAL_RIGHTING_POLICY.targetRotationDegrees * (Math.PI / 180)) /
     airborneSeconds;
-
-  return (
-    getAxisMomentOfInertia(localInertia, localAxis) *
+  const angularSpeed =
     targetAngularSpeed *
     KART_MANUAL_RIGHTING_POLICY.contactTorqueAllowance *
-    torqueScale
-  );
+    torqueScale;
+
+  return multiplyKartInertiaTensor(localInertia, {
+    x: (localAxis.x / axisLength) * angularSpeed,
+    y: (localAxis.y / axisLength) * angularSpeed,
+    z: (localAxis.z / axisLength) * angularSpeed,
+  });
 }
 
 export function getManualRightingLiftImpulse(

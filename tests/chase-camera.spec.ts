@@ -1,11 +1,69 @@
 import { expect, test } from "@playwright/test";
 
 import {
+  calculateCameraStabilizationTarget,
   calculateImpactStrength,
+  calculatePlanarHeadingStep,
   calculateSignedSlipDegrees,
   selectStrongerImpact,
+  smoothCameraStabilizationBlend,
   smoothFactor,
 } from "../src/game/camera/chase-camera";
+
+test("engages camera stabilization for violent spin and severe tilt", () => {
+  expect(calculateCameraStabilizationTarget(1, 0)).toBe(0);
+  expect(calculateCameraStabilizationTarget(1, 2.5)).toBe(0);
+  expect(calculateCameraStabilizationTarget(1, 7)).toBe(1);
+  expect(calculateCameraStabilizationTarget(0.7, 0)).toBe(0);
+  expect(calculateCameraStabilizationTarget(0.1, 0)).toBe(1);
+  expect(calculateCameraStabilizationTarget(-1, 0)).toBe(1);
+});
+
+test("caps chase-heading slew across wraparound", () => {
+  const almostLeft = {
+    x: Math.sin((-179 * Math.PI) / 180),
+    y: 0,
+    z: -Math.cos((-179 * Math.PI) / 180),
+  };
+  const almostRight = {
+    x: Math.sin((179 * Math.PI) / 180),
+    y: 0,
+    z: -Math.cos((179 * Math.PI) / 180),
+  };
+
+  expect(
+    calculatePlanarHeadingStep(almostLeft, almostRight, Math.PI),
+  ).toBeCloseTo((-2 * Math.PI) / 180);
+  expect(
+    calculatePlanarHeadingStep(
+      { x: 0, y: 0, z: -1 },
+      { x: 1, y: 0, z: 0 },
+      Math.PI / 12,
+    ),
+  ).toBeCloseTo(Math.PI / 12);
+  expect(
+    calculatePlanarHeadingStep(
+      { x: 0, y: 0, z: -1 },
+      { x: 1, y: 0, z: 0 },
+      -1,
+    ),
+  ).toBe(0);
+});
+
+test("engages stabilization faster than it releases", () => {
+  const engaged = smoothCameraStabilizationBlend(0, 1, 0.1);
+  const released = smoothCameraStabilizationBlend(1, 0, 0.1);
+
+  expect(engaged).toBeGreaterThan(0.6);
+  expect(released).toBeGreaterThan(0.75);
+  expect(
+    smoothCameraStabilizationBlend(
+      smoothCameraStabilizationBlend(0, 1, 1 / 60),
+      1,
+      1 / 60,
+    ),
+  ).toBeCloseTo(smoothCameraStabilizationBlend(0, 1, 1 / 30), 10);
+});
 
 test("calculates signed planar slip only above the reliable speed", () => {
   expect(

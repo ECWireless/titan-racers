@@ -9,10 +9,11 @@ the PlayCanvas working methods in
 [`tools/playcanvas-ammo/chase-camera`](../../tools/playcanvas-ammo/chase-camera/README.md).
 
 The system owns playable chase framing, motion prediction, slip readability,
-reverse stability, speed-sensitive field of view, airborne presentation,
-impact feedback, obstruction correction, explicit camera snapping, and copied
-test diagnostics. It does not own kart physics, collision response, input,
-recovery policy, editor camera controls, or race progression.
+reverse stability, spin/tumble stabilization, speed-sensitive field of view,
+airborne presentation, impact feedback, obstruction correction, explicit
+camera snapping, and copied test diagnostics. It does not own kart physics,
+collision response, input, recovery policy, editor camera controls, or race
+progression.
 
 ## Runtime Ownership
 
@@ -22,9 +23,10 @@ recovery policy, editor camera controls, or race progression.
   state, and diagnostics.
 - `src/components/solo-time-trial-canvas.tsx` constructs the camera and filtered
   PlayCanvas obstruction query, supplies interpolated kart pose plus
-  authoritative velocity/support signals, normalizes copied collision frames
-  into camera impact events, invokes camera snap at discontinuities, and
-  restores kart collision filters after editor body-type changes.
+  authoritative linear/angular velocity and support signals, normalizes copied
+  collision frames into camera impact events, invokes camera snap at
+  discontinuities, and restores kart collision filters after editor body-type
+  changes.
 - `src/game/collision/kart-collision-observer.ts` remains the owner of copied
   contact point, normal, approach speed, impulse, and pre/post velocity data.
 - `src/game/kart/dynamic-kart-controller.ts` remains the owner of supported
@@ -34,8 +36,9 @@ recovery policy, editor camera controls, or race progression.
   maximum-speed lane.
 - `src/game/course/build-rough-course.ts` creates those fixtures as ordinary
   visible static solid obstacles with existing collision groups and materials.
-- `src/game/testing/scene-test-adapter.ts` exposes copied camera diagnostics
-  through the deliberate non-production browser-test boundary.
+- `src/game/testing/scene-test-adapter.ts` exposes copied camera diagnostics and
+  controlled angular-velocity test input through the deliberate non-production
+  browser-test boundary.
 
 ## Data and Update Flow
 
@@ -46,11 +49,12 @@ recovery policy, editor camera controls, or race progression.
 3. Once per render frame, the canvas interpolates the kart presentation pose
    between completed physics snapshots.
 4. The camera receives that interpolated position/rotation together with the
-   latest rigid-body linear velocity, wheel-support count, and retained copied
-   impact event.
-5. The camera smooths velocity, derives planar speed and heading, applies the
-   forward-only slip policy, calculates desired position/aim/FOV, blends
-   airborne height, and consumes each impact identifier no more than once.
+   latest rigid-body linear and angular velocity, wheel-support count, and
+   retained copied impact event.
+5. The camera smooths velocity, derives planar speed and heading, evaluates
+   angular speed and world-up alignment, applies the forward-only slip policy,
+   calculates desired position/aim/FOV, blends airborne height, and consumes
+   each impact identifier no more than once.
 6. A filtered rigid-body raycast runs from a kart-side pivot toward the desired
    camera position. It acts as the kart collision group/mask and accepts only
    obstacle or drivable-surface tags, excluding the kart and helpers.
@@ -82,6 +86,19 @@ recovery policy, editor camera controls, or race progression.
 - Position, look target, velocity, FOV, airborne blend, impact, and obstruction
   use separate delta-time-aware response rates. Render deltas are capped at
   0.1 seconds before camera integration.
+- Ordinary grounded motion below the stabilization thresholds keeps the
+  accepted orientation/motion chase frame. Violent angular speed or severe
+  loss of upright alignment progressively detaches heading from chassis
+  rotation, favors planar travel direction only when it remains forward
+  relative to the retained chase heading, and otherwise holds that heading.
+- Stabilized reverse motion remains orientation-/last-heading-led and retains
+  the normal no-crossing correction; reverse velocity never becomes a request
+  for a 180-degree camera flip.
+- Stabilized heading has an explicit angular slew cap, predictive look-ahead
+  contracts, and lateral slip composition fades. Stabilization engages quickly
+  but releases more slowly, so a tumbling or ground-spinning kart remains
+  visibly physical while the camera avoids continuous orbit and reconnects
+  without a snap.
 - Airborne behavior uses zero wheel support, adds bounded vertical lag, and
   always aims with world up rather than copying chassis pitch or roll.
 - Only contacts above the accepted approach-speed threshold create camera
@@ -106,18 +123,20 @@ recovery policy, editor camera controls, or race progression.
 Focused coverage includes:
 
 - `tests/chase-camera.spec.ts` for reliable-speed signed slip, reverse sign
-  stability, impact severity bounds, and equivalent exponential smoothing;
+  stability, stabilization thresholds/release, wrap-safe heading slew, impact
+  severity bounds, and equivalent exponential smoothing;
 - `tests/course-document.spec.ts` for visible large-wall/L-corner geometry
   beyond the normal loop;
 - `tests/home.spec.ts` for presentation coherence and reset snapping,
   motion-led slip and desktop/mobile FOV, wall obstruction and release, corner
   correction, bounded impact response and decay, airborne-to-landing blend,
-  reverse behavior, elevated/rotated editor release, and the pre-existing
-  collision, ramp, recovery, and maximum-speed integration scenarios;
+  violent-spin heading detachment, reverse behavior, elevated/rotated editor
+  release, and the pre-existing collision, ramp, recovery, and maximum-speed
+  integration scenarios;
 - `pnpm lint`, `pnpm typecheck`, and `pnpm build`; and
 - the complete desktop and mobile Playwright projects.
 
-The accepted 2026-07-11 evidence is:
+The accepted baseline evidence from 2026-07-11 is:
 
 - feature-lead hands-on approval of ordinary driving, turning, slip, speed,
   wall/corner obstruction, impacts, ramp airtime/landing, reset, and the fixed
@@ -126,6 +145,18 @@ The accepted 2026-07-11 evidence is:
   intentional desktop/mobile applicability skips; and
 - desktop Playwright: 63 passed and one intentional mobile-only skip; and
 - mobile Playwright: 57 passed and seven intentional desktop-editor skips.
+
+The accepted 2026-07-26 spin/tumble stabilization evidence is:
+
+- feature-lead hands-on approval of normal driving feel, violent spin/tumble
+  detachment, and smooth camera recovery;
+- seven deterministic chase-camera tests covering thresholds, hysteresis,
+  wrap-safe slew, slip, impacts, and delta-time-aware smoothing;
+- 20 focused desktop/mobile browser scenarios covering the accepted camera
+  baseline plus proportional snap and moving-reverse spin/recovery;
+- passing `pnpm typecheck`, `pnpm lint`, and `pnpm build`; and
+- a clean fresh-context re-review after correcting partial-snap and
+  reverse-spin edge cases found by the initial independent review.
 
 ## Known Limits and Deferred Work
 
@@ -137,6 +168,9 @@ The accepted 2026-07-11 evidence is:
 - Camera tuning is one kart/profile baseline. Per-kart or per-track authored
   camera profiles remain unneeded until later roster and track work proves a
   real requirement.
+- Spin/tumble thresholds and release timing remain one shared comfort baseline;
+  materially different future kart angular envelopes may justify reviewed
+  per-runtime tuning after comparable player QA.
 - Touch driving is PR 2.4.1 scope. Current mobile acceptance covers viewport
   framing and controlled browser scenarios.
 - Player camera orbit, look-back, replay, ghost, spectator, multiplayer, and

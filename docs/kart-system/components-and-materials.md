@@ -56,7 +56,8 @@ for byte in tests; it is not an independently editable numerical source.
 | `transmission.balanced-5to1@1` — Balanced 5:1 transmission | Moderates both launch force and theoretical speed for the Balanced Kart baseline. |
 | `transmission.short-8to1@1` — Short 8:1 transmission | Favors unconstrained launch force over theoretical speed. |
 | `suspension.firm-short@1` — Firm short-travel suspension | Compact, firmer construction for a calmer, lower-travel assembly. |
-| `suspension.compliant-long@1` — Compliant long-travel suspension | More travel and compliance at the cost of a larger installation envelope. |
+| `suspension.compliant-long@1` — Compliant long-travel suspension | Historical lightly damped construction retained for immutable saved revisions. |
+| `suspension.compliant-long@2` — Compliant long-travel suspension | Preserves long compliant travel with matched damping for controlled rebound. |
 | `wheel-tire.small-standard@1` — Small wheel and tire | Improves ground-force leverage and keeps rotating construction compact. |
 | `wheel-tire.large-standard@1` — Large wheel and tire | Raises theoretical speed while adding radius, mass, and inertia. |
 

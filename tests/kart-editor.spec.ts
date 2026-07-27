@@ -1,16 +1,24 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
 
 import { ROUGH_COURSE_DOCUMENT } from "../src/game/course/course-document";
-import { createBalancedKartDocument } from "../src/game/kart/balanced-kart-document";
+import { replaceKartComponentDefinition } from "../src/game/editor/kart-editor-document";
 import { KART_EDITOR_TRANSLATE_SNAP } from "../src/game/editor/kart-editor-scene";
+import { createBalancedKartDocument } from "../src/game/kart/balanced-kart-document";
+import { createSpeedKartDocument } from "../src/game/kart/speed-kart-document";
 import type { KartAssemblyDocument } from "../src/game/kart/kart-assembly-document";
 import { getApprovedKartComponent } from "../src/game/kart/kart-component-registry";
 import {
   deriveKartSnapshot,
   type ResolvedKartSnapshot,
 } from "../src/game/kart/kart-derivation";
-import { hasRuntimeCompatibleInertia } from "../src/game/kart/kart-runtime-compatibility";
 import type { KartPublicationEvent } from "../src/game/kart/kart-publication";
+import {
+  KART_THUMBNAIL_HEIGHT,
+  KART_THUMBNAIL_MAX_BYTES,
+  KART_THUMBNAIL_RENDER_VERSION,
+  KART_THUMBNAIL_WIDTH,
+} from "../src/game/kart/kart-thumbnail-contract";
+import { parseKartThumbnailUpload } from "../src/server/kart-thumbnail";
 import {
   disconnectStandardTestGamepad,
   installStandardGamepadFixture,
@@ -240,6 +248,47 @@ test.describe("protected kart builder access", () => {
     await expect(
       page.getByRole("heading", { name: "Balanced Kart" }),
     ).toHaveCount(0);
+  });
+
+  test("initializes an official ID from its matching roster assembly", async ({
+    page,
+  }, testInfo) => {
+    test.skip(
+      testInfo.project.name !== "desktop",
+      "Official draft initialization only needs to run once.",
+    );
+    const speedDocument = createSpeedKartDocument();
+    let requestCount = 0;
+    await page.route("**/api/admin/karts/speed-kart", async (route) => {
+      requestCount += 1;
+      if (route.request().method() === "GET") {
+        await route.fulfill({
+          body: JSON.stringify({ error: "Kart not found." }),
+          contentType: "application/json",
+          status: 404,
+        });
+        return;
+      }
+      expect(route.request().postDataJSON()).toEqual({
+        document: speedDocument,
+        expectedRevision: null,
+      });
+      await route.fulfill({
+        body: JSON.stringify(
+          createPersistedBalancedRevision(speedDocument, null),
+        ),
+        contentType: "application/json",
+        status: 201,
+      });
+    });
+
+    await page.goto("/admin/karts/speed-kart");
+    await page.getByRole("button", { name: "Create Speed Kart draft" }).click();
+
+    await expect(
+      page.getByRole("heading", { name: "Speed Kart" }),
+    ).toBeVisible();
+    expect(requestCount).toBe(2);
   });
 
   test("loads the validated assembly and saved-kart test control", async ({
@@ -502,7 +551,7 @@ test.describe("protected kart builder access", () => {
         .getByRole("button", { name: "Inspector", exact: true });
       await expect(inspectorSection).toHaveAttribute("aria-expanded", "true");
       await expect(page.getByLabel("Choose variant")).toHaveValue(
-        "motor.brushless-standard",
+        "motor.brushless-standard@1",
       );
       await expect(
         page.getByText("Physical attributes", { exact: true }),
@@ -735,7 +784,7 @@ test.describe("protected kart builder access", () => {
         .getByRole("button", { name: /suspension-front-left/ })
         .click();
       await expect(page.getByLabel("Choose variant")).toHaveValue(
-        "suspension.firm-short",
+        "suspension.firm-short@1",
       );
       await expect(
         page.getByText("Focused suspension mounting", { exact: true }),
@@ -896,6 +945,60 @@ test.describe("protected kart builder access", () => {
     } finally {
       await page.mouse.up();
     }
+  });
+
+  test("preserves historical suspension revisions until the editor explicitly upgrades them", async ({
+    page,
+  }, testInfo) => {
+    test.skip(
+      testInfo.project.name !== "desktop",
+      "Historical component revision coverage only needs to run once.",
+    );
+    let historicalDocument = createBalancedKartDocument();
+    historicalDocument = replaceKartComponentDefinition(
+      historicalDocument,
+      "suspension-front-left",
+      "suspension.compliant-long",
+      1,
+    );
+    historicalDocument = replaceKartComponentDefinition(
+      historicalDocument,
+      "suspension-rear-left",
+      "suspension.compliant-long",
+      1,
+    );
+    await page.route(kartApiPattern, async (route) => {
+      await route.fulfill({
+        body: JSON.stringify(
+          createPersistedBalancedRevision(historicalDocument),
+        ),
+        contentType: "application/json",
+        status: 200,
+      });
+    });
+
+    await page.goto("/admin/karts/balanced-kart");
+    const viewport = page.getByLabel("Kart assembly viewport");
+    await expect(viewport).toHaveAttribute("data-editor-status", "ready");
+    await page
+      .getByLabel("Kart and assembly")
+      .getByRole("button", { name: /suspension-front-left/ })
+      .click();
+
+    const variant = page.getByLabel("Choose variant");
+    await expect(variant).toHaveValue("suspension.compliant-long@1");
+    await expect(
+      variant.locator('option[value="suspension.compliant-long@1"]'),
+    ).toHaveAttribute("disabled", "");
+    await expect(
+      variant.locator('option[value="suspension.compliant-long@2"]'),
+    ).toHaveText(
+      "Compliant long-travel suspension — More bump compliance with controlled rebound and slightly more mass.",
+    );
+
+    await variant.selectOption("suspension.compliant-long@2");
+    await expect(variant).toHaveValue("suspension.compliant-long@2");
+    await expect(page.getByText("Unsaved changes", { exact: true })).toBeVisible();
   });
 
   test("launches the exact saved kart on the current sandbox course", async ({
@@ -1122,6 +1225,61 @@ test.describe("protected kart builder access", () => {
     );
   });
 
+  test("completes a durable save when thumbnail encoding stalls", async ({
+    page,
+  }, testInfo) => {
+    test.skip(
+      testInfo.project.name !== "desktop",
+      "The bounded browser encoder fallback only needs one rendered fixture.",
+    );
+    await page.addInitScript(
+      ({ height, width }) => {
+        const originalToBlob = HTMLCanvasElement.prototype.toBlob;
+        HTMLCanvasElement.prototype.toBlob = function (
+          callback,
+          type,
+          quality,
+        ) {
+          if (this.height === height && this.width === width) return;
+          Reflect.apply(originalToBlob, this, [callback, type, quality]);
+        };
+      },
+      { height: KART_THUMBNAIL_HEIGHT, width: KART_THUMBNAIL_WIDTH },
+    );
+    const initialDocument = createBalancedKartDocument();
+    await page.route(kartApiPattern, async (route) => {
+      if (route.request().method() === "PUT") {
+        const body = route.request().postDataJSON() as {
+          document: KartAssemblyDocument;
+        };
+        await route.fulfill({
+          body: JSON.stringify(
+            createPersistedBalancedRevision(body.document, null, 2),
+          ),
+          contentType: "application/json",
+          status: 200,
+        });
+        return;
+      }
+      await route.fulfill({
+        body: JSON.stringify(createPersistedBalancedRevision(initialDocument)),
+        contentType: "application/json",
+        status: 200,
+      });
+    });
+
+    await page.goto("/admin/karts/balanced-kart");
+    await page.getByLabel("Name").fill("Bounded thumbnail save");
+    await page.getByLabel("Name").blur();
+    await page.getByRole("button", { name: "Save draft" }).click();
+    await expect(page.getByText("Draft revision 2 saved.")).toBeVisible({
+      timeout: 5_000,
+    });
+    await expect(
+      page.getByRole("button", { name: "Test saved kart" }),
+    ).toBeEnabled();
+  });
+
   test("saves, publishes, and unpublishes an authored revision", async ({
     page,
   }, testInfo) => {
@@ -1179,6 +1337,24 @@ test.describe("protected kart builder access", () => {
         status: 200,
       });
     });
+    let thumbnailPayload:
+      | { contentType: string; data: string; renderVersion: number }
+      | undefined;
+    await page.route(
+      `${kartApiPattern}/revisions/2/thumbnail`,
+      async (route) => {
+        thumbnailPayload = route.request().postDataJSON() as typeof thumbnailPayload;
+        await route.fulfill({
+          body: JSON.stringify({
+            createdAt: "2026-07-24T00:00:02.000Z",
+            imageSha256: "f".repeat(64),
+            renderVersion: KART_THUMBNAIL_RENDER_VERSION,
+          }),
+          contentType: "application/json",
+          status: 201,
+        });
+      },
+    );
 
     await page.goto("/admin/karts/balanced-kart");
     await expect(
@@ -1204,6 +1380,18 @@ test.describe("protected kart builder access", () => {
     );
     releaseSave();
     await expect(page.getByText("Draft revision 2 saved.")).toBeVisible();
+    await expect.poll(() => thumbnailPayload).toBeTruthy();
+    const thumbnailImage = Buffer.from(thumbnailPayload!.data, "base64");
+    expect(thumbnailPayload).toMatchObject({
+      contentType: "image/png",
+      renderVersion: KART_THUMBNAIL_RENDER_VERSION,
+    });
+    expect(() => parseKartThumbnailUpload(thumbnailPayload)).not.toThrow();
+    expect(thumbnailImage.length).toBeLessThanOrEqual(
+      KART_THUMBNAIL_MAX_BYTES,
+    );
+    expect(thumbnailImage.readUInt32BE(16)).toBe(KART_THUMBNAIL_WIDTH);
+    expect(thumbnailImage.readUInt32BE(20)).toBe(KART_THUMBNAIL_HEIGHT);
 
     await page.getByRole("button", { name: "Publish saved draft" }).click();
     await expect(page.getByText("Revision 2 published.")).toBeVisible();
@@ -1231,12 +1419,12 @@ test.describe("protected kart builder access", () => {
     ).toBeEnabled();
   });
 
-  test("saves a valid asymmetric draft but keeps publication gated", async ({
+  test("supports testing and publishing a valid asymmetric draft", async ({
     page,
   }, testInfo) => {
     test.skip(
       testInfo.project.name !== "desktop",
-      "Draft compatibility coverage only needs to run once.",
+      "Asymmetric runtime coverage only needs to run once.",
     );
     const document = structuredClone(
       createBalancedKartDocument(),
@@ -1253,9 +1441,10 @@ test.describe("protected kart builder access", () => {
       throw new Error("Balanced upper-housing mount is missing.");
     }
     upperHousingMount.parent.anchor.x += 0.01;
-    expect(hasRuntimeCompatibleInertia(deriveKartSnapshot(document))).toBe(
-      false,
+    expect(deriveKartSnapshot(document).massProperties.inertiaTensor.xy).not.toBe(
+      0,
     );
+    await usePublishedSandboxCourse(page);
 
     await page.route(kartApiPattern, async (route) => {
       if (route.request().method() === "PUT") {
@@ -1282,12 +1471,10 @@ test.describe("protected kart builder access", () => {
     await page.goto("/admin/karts/balanced-kart");
     await expect(
       page.getByRole("button", { name: "Test saved kart" }),
-    ).toBeDisabled();
+    ).toBeEnabled();
     await expect(
-      page.getByText(
-        "Saved revision 1 cannot be tested until PR 3.5 adds principal-axis integration.",
-      ),
-    ).toBeVisible();
+      page.getByRole("button", { name: "Publish saved draft" }),
+    ).toBeEnabled();
     await page.getByLabel("Name").fill("Asymmetric private draft");
     await page.getByLabel("Name").blur();
     await expect(
@@ -1300,20 +1487,18 @@ test.describe("protected kart builder access", () => {
     await expect(page.getByText("Draft revision 2 saved.")).toBeVisible();
     await expect(
       page.getByRole("button", { name: "Test saved kart" }),
-    ).toBeDisabled();
+    ).toBeEnabled();
     await expect(
-      page.getByText(
-        "Saved revision 2 cannot be tested until PR 3.5 adds principal-axis integration.",
-      ),
-    ).toBeVisible();
+      page.getByRole("button", { name: "Publish saved draft" }),
+    ).toBeEnabled();
   });
 
-  test("keeps a compatible saved kart testable while unsaved edits are incompatible", async ({
+  test("keeps the saved kart testable while asymmetric edits are unsaved", async ({
     page,
   }, testInfo) => {
     test.skip(
       testInfo.project.name !== "desktop",
-      "Saved-versus-unsaved compatibility coverage only needs to run once.",
+      "Saved-versus-unsaved runtime coverage only needs to run once.",
     );
     const savedDocument = createBalancedKartDocument();
     await usePublishedSandboxCourse(page);
@@ -1338,10 +1523,8 @@ test.describe("protected kart builder access", () => {
       page.getByText("Assembly is valid and deterministically derived."),
     ).toBeVisible();
     await expect(
-      page.getByText(
-        /This asymmetric mass layout can be saved as a private draft, but it cannot be published/,
-      ),
-    ).toBeVisible();
+      page.getByText(/cannot be published until PR 3.5/),
+    ).toHaveCount(0);
     await expect(
       page.getByRole("button", { name: "Test saved kart" }),
     ).toBeEnabled();

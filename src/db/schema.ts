@@ -1,6 +1,7 @@
 import {
   boolean,
   check,
+  customType,
   foreignKey,
   index,
   integer,
@@ -15,21 +16,45 @@ import {
 } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 
-export const users = pgTable("users", {
-  id: text("id").primaryKey(),
-  name: text("name").notNull(),
-  email: text("email").notNull().unique(),
-  emailVerified: boolean("email_verified").default(false).notNull(),
-  image: text("image"),
-  createdAt: timestamp("created_at", { mode: "date", withTimezone: true })
-    .defaultNow()
-    .notNull(),
-  updatedAt: timestamp("updated_at", { mode: "date", withTimezone: true })
-    .defaultNow()
-    .$onUpdate(() => new Date())
-    .notNull(),
-  anonymizedAt: timestamp("anonymized_at", { mode: "date", withTimezone: true }),
+const bytea = customType<{ data: Buffer; driverData: Buffer }>({
+  dataType() {
+    return "bytea";
+  },
 });
+
+export const users = pgTable(
+  "users",
+  {
+    id: text("id").primaryKey(),
+    name: text("name").notNull(),
+    username: text("username"),
+    email: text("email").notNull().unique(),
+    emailVerified: boolean("email_verified").default(false).notNull(),
+    image: text("image"),
+    createdAt: timestamp("created_at", { mode: "date", withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    updatedAt: timestamp("updated_at", { mode: "date", withTimezone: true })
+      .defaultNow()
+      .$onUpdate(() => new Date())
+      .notNull(),
+    anonymizedAt: timestamp("anonymized_at", {
+      mode: "date",
+      withTimezone: true,
+    }),
+  },
+  (table) => [
+    uniqueIndex("users_username_uidx").on(table.username),
+    check(
+      "users_username_format",
+      sql`${table.username} is null or (${table.username} ~ '^[a-z0-9][a-z0-9_]{1,18}[a-z0-9]$' and ${table.username} !~ '__')`,
+    ),
+    check(
+      "users_username_reserved",
+      sql`${table.username} is null or (replace(${table.username}, '_', '') not in ('admin', 'administrator', 'deleted', 'moderator', 'official', 'racer', 'root', 'staff', 'support', 'system', 'titanracers') and replace(${table.username}, '_', '') not like '%titanracers%' and ${table.username} !~ '(^|_)(admin|administrator|moderator|official|root|staff|support|system|titan)($|_)')`,
+    ),
+  ],
+);
 
 export const sessions = pgTable(
   "sessions",
@@ -298,6 +323,46 @@ export const kartRevisions = pgTable(
     check(
       "kart_revisions_snapshot_hash_format",
       sql`${table.resolvedSnapshotHash} ~ '^[0-9a-f]{64}$'`,
+    ),
+  ],
+);
+
+export const kartRevisionThumbnails = pgTable(
+  "kart_revision_thumbnails",
+  {
+    revisionId: uuid("revision_id")
+      .primaryKey()
+      .references(() => kartRevisions.id, { onDelete: "restrict" }),
+    renderVersion: integer("render_version").notNull(),
+    contentType: text("content_type").notNull(),
+    imageData: bytea("image_data").notNull(),
+    imageSha256: text("image_sha256").notNull(),
+    generatedByUserId: text("generated_by_user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "restrict" }),
+    createdAt: timestamp("created_at", { mode: "date", withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => [
+    index("kart_revision_thumbnails_generated_by_user_id_idx").on(
+      table.generatedByUserId,
+    ),
+    check(
+      "kart_revision_thumbnails_render_version_positive",
+      sql`${table.renderVersion} > 0`,
+    ),
+    check(
+      "kart_revision_thumbnails_content_type",
+      sql`${table.contentType} = 'image/png'`,
+    ),
+    check(
+      "kart_revision_thumbnails_image_size",
+      sql`octet_length(${table.imageData}) between 1 and 524288`,
+    ),
+    check(
+      "kart_revision_thumbnails_hash_format",
+      sql`${table.imageSha256} ~ '^[0-9a-f]{64}$'`,
     ),
   ],
 );

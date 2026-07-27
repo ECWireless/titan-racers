@@ -84,6 +84,10 @@ mastery remain separate systems and PR-sized units.
   It derives local corrective torque impulse from the kart's local inertia
   tensor, giving different assemblies the same proportional settling motion
   without storing settlement values in authored kart data.
+- `src/game/kart/kart-principal-axes.ts` owns deterministic symmetric-tensor
+  diagonalization, principal moments, the principal-to-assembly rotation, and
+  full-tensor vector/axis operations. Ammo consumes the diagonal principal
+  moments while authored kart semantics remain in the assembly frame.
 - `src/game/kart/kart-reference-construction.ts` centrally defines the accepted
   0.0725 m radius by 0.075 m wide wheel sweeps, a 0.30 m wheelbase, a 0.39 m track,
   front-wheel steering, and rear-wheel drive. Support, visual suspension, tire
@@ -114,12 +118,14 @@ mastery remain separate systems and PR-sized units.
   landing window derives target/capture impulses from local inertia and releases
   after the first upright four-wheel contact.
 - `src/components/solo-time-trial-canvas.tsx` constructs the compound chassis,
-  consumes the centralized 1.875 kg, 0.4625 m miniature RC reference with a
-  lower body and upper structural/electronics housing, places the physics root
-  at their combined center of mass, applies mass properties, connects input
-  and resolved owner-specific profiles, snapshots authoritative poses, interpolates the offset
-  presentation-only kart visual, drives the chase camera from that visual, and
-  coordinates reset, resolved diagnostic values, and editor transitions.
+  consumes the resolved assembly snapshot, places the physics root at the
+  derived center of mass, rotates the rigid body into its derived principal
+  axes, transforms collision and wheel queries into that frame, and preserves
+  authored axes through an assembly-frame child. It connects input and resolved
+  owner-specific profiles, snapshots authoritative poses, interpolates the
+  offset presentation-only kart visual, drives the chase camera from that
+  visual, and coordinates reset, resolved diagnostic values, and editor
+  transitions.
 - `src/components/kart-tuning-drawer.tsx` exposes the production, non-modal,
   read-only dynamics inspector with exact grouped resolved values, visible
   owner/classification metadata, and accessible contextual explanations. It
@@ -164,8 +170,9 @@ mastery remain separate systems and PR-sized units.
   rotation event after the 1:4 linear scale change.
 - A frame stall cannot trigger an unbounded catch-up spiral.
 - The reference kart is one dynamic six-degree-of-freedom compound rigid body
-  with an explicit 1.875 kg mass, deliberate local inertia tensor, and a center
-  of mass derived from its lower body and upper-housing construction.
+  with derived mass, center of mass, full assembly-space inertia evidence, and
+  an explicit diagonal inertia in its deterministic principal-axis physics
+  frame.
 - No ordinary driving path writes the authoritative dynamic transform.
 - Each wheel independently gains and loses support; an unsupported wheel
   contributes no suspension or tire force.
@@ -366,9 +373,12 @@ The accepted system is covered by:
   smoke, and supported rear-only countdown burnout intent;
 - `tests/kart-righting.spec.ts` for inversion eligibility, shortest-axis
   selection, the exactly inverted fallback, angled-contact torque scaling, and
-  mass/inertia-equivalent recovery;
+  full-tensor mass/inertia-equivalent recovery;
 - `tests/kart-rest-settling.spec.ts` for bounded rest eligibility and
-  mass/inertia-equivalent corrective angular response;
+  full-tensor mass/inertia-equivalent corrective angular response;
+- `tests/kart-principal-axes.spec.ts` for deterministic diagonalization,
+  tensor reconstruction, arbitrary-axis moments, coupled products of inertia,
+  and invalid tensors;
 - `tests/home.spec.ts` for finite wheel support, visible clearance, springy ramp
   landing, construction-derived full-speed ramp pitch, static equilibrium,
   acceleration, configured top
@@ -403,10 +413,10 @@ ledge behavior, airborne motion, landing, and reset feel.
   response to velocity, orientation, slip, impacts, and airborne state belongs
   to chase-camera mastery.
 - Surface grip is currently uniform rather than authored per material.
-- Mass properties still use an explicit one-box chassis approximation. The
-  primitive kart derivation must combine part mass, center of mass, local shape
-  inertia, and part distance from the combined center rather than treating
-  internal component placement as inertially invisible.
+- Mass properties use the resolved assembly's part masses, centers, rotated
+  local shape inertia, and parallel-axis contributions. Runtime diagonalizes
+  the preserved full tensor; Ammo does not receive a diagonal-only assembly
+  approximation.
 - Wheel dimensions, positions, and driven/steered roles remain rebuild-time
   hard-coded scene data. Primitive kart derivation must make one validated
   wheel contract authoritative for support, visuals, handling, drivetrain, and

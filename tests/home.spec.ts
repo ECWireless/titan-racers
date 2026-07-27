@@ -4,10 +4,11 @@ import { ROUGH_COURSE_DOCUMENT } from "../src/game/course/course-document";
 import { deriveKartCcdConfiguration } from "../src/game/collision/kart-collision-model";
 import {
   createKartDevelopmentValues,
-  KART_DEVELOPMENT_VALUE_METADATA,
   type KartDevelopmentValues,
 } from "../src/game/kart/kart-development-values";
 import { createBalancedKartDocument } from "../src/game/kart/balanced-kart-document";
+import { createHandlingKartDocument } from "../src/game/kart/handling-kart-document";
+import { createSpeedKartDocument } from "../src/game/kart/speed-kart-document";
 import {
   deriveKartSnapshot,
   type ResolvedKartSnapshot,
@@ -42,6 +43,18 @@ const MAX_CONTROLLED_COLLISION_ANGULAR_SPEED = 15 / REFERENCE_KART_TIME_SCALE;
 const MAX_FAST_COLLISION_ANGULAR_SPEED = 25 / REFERENCE_KART_TIME_SCALE;
 const BALANCED_KART_DOCUMENT = createBalancedKartDocument();
 const BALANCED_KART_SNAPSHOT = deriveKartSnapshot(BALANCED_KART_DOCUMENT);
+const HANDLING_KART_DOCUMENT = createHandlingKartDocument();
+const HANDLING_KART_SNAPSHOT = deriveKartSnapshot(HANDLING_KART_DOCUMENT);
+const HANDLING_KART_CONTACT_PLANE_Y =
+  HANDLING_KART_SNAPSHOT.geometry.wheelStations.reduce(
+    (sum, wheel) => sum + wheel.position.y - wheel.radius,
+    0,
+  ) / HANDLING_KART_SNAPSHOT.geometry.wheelStations.length;
+const HANDLING_KART_UPRIGHT_ROOT_HEIGHT =
+  HANDLING_KART_SNAPSHOT.massProperties.centerOfMass.y -
+  HANDLING_KART_CONTACT_PLANE_Y;
+const SPEED_KART_DOCUMENT = createSpeedKartDocument();
+const SPEED_KART_SNAPSHOT = deriveKartSnapshot(SPEED_KART_DOCUMENT);
 const BALANCED_KART_DEVELOPMENT_VALUES = createKartDevelopmentValues(
   BALANCED_KART_SNAPSHOT.physicalProfile,
 );
@@ -226,7 +239,9 @@ async function getCameraDebugState(canvas: Locator) {
     (element) =>
       new Promise<{
         airborneBlend: number;
+        angularSpeed: number;
         cameraPosition: { x: number; y: number; z: number };
+        chaseHeading: { x: number; y: number; z: number };
         desiredPosition: { x: number; y: number; z: number };
         fov: number;
         forwardSpeed: number;
@@ -238,7 +253,9 @@ async function getCameraDebugState(canvas: Locator) {
         planarSpeed: number;
         signedSlipDegrees: number;
         snapCount: number;
+        stabilizationBlend: number;
         trailingDistance: number;
+        uprightness: number;
       }>((resolve) => {
         element.dispatchEvent(
           new CustomEvent("getCameraDebugState", {
@@ -392,6 +409,21 @@ async function setKartDebugPose(
   }, pose);
 }
 
+async function setKartDebugAngularVelocity(
+  canvas: Locator,
+  angularVelocity: { x: number; y: number; z: number },
+) {
+  await waitForSceneReady(canvas);
+
+  await canvas.evaluate((element, requestedAngularVelocity) => {
+    element.dispatchEvent(
+      new CustomEvent("setKartDebugAngularVelocity", {
+        detail: { angularVelocity: requestedAngularVelocity },
+      }),
+    );
+  }, angularVelocity);
+}
+
 async function setKartDevelopmentValues(
   canvas: Locator,
   values: Partial<KartDevelopmentValues>,
@@ -541,23 +573,174 @@ async function useBundledRoughCourse(page: Page) {
   });
 }
 
-async function useBundledBalancedKart(page: Page) {
-  await page.route("**/api/karts/balanced-kart/published", async (route) => {
+async function useOneSideBumpCourse(page: Page) {
+  const document = structuredClone(ROUGH_COURSE_DOCUMENT);
+  const ramp = document.objects.find(({ id }) => id === "ramp-super-tall");
+  if (!ramp || ramp.collision?.shape !== "box") {
+    throw new Error("The bundled ramp fixture is unavailable.");
+  }
+  ramp.label = "One-side suspension bump";
+  ramp.transform = {
+    position: { x: 0, y: 0, z: -12.21 },
+    rotation: { x: 0, y: 0, z: 3.43 },
+  };
+  ramp.visual.scale = { x: 0.5, y: 0.03, z: 0.16 };
+  ramp.collision.halfExtents = { x: 0.25, y: 0.015, z: 0.08 };
+
+  await page.unroute("**/api/courses/rough-course/published");
+  await page.route("**/api/courses/rough-course/published", async (route) => {
     await route.fulfill({
       body: JSON.stringify({
-        derivationVersion: BALANCED_KART_SNAPSHOT.derivationVersion,
-        document: BALANCED_KART_DOCUMENT,
-        kartId: BALANCED_KART_DOCUMENT.kartId,
+        courseId: document.courseId,
+        document,
         publishedAt: new Date("2026-07-25T00:05:00.000Z").toISOString(),
-        resolvedSnapshot: BALANCED_KART_SNAPSHOT,
-        resolvedSnapshotHash: "a".repeat(64),
-        revision: 1,
-        schemaVersion: BALANCED_KART_DOCUMENT.schemaVersion,
+        revision: 2,
+        schemaVersion: document.schemaVersion,
       }),
       contentType: "application/json",
       status: 200,
     });
   });
+}
+
+async function useBundledBalancedKart(
+  page: Page,
+  thumbnailAvailable = false,
+) {
+  await page.route("**/api/karts/official", async (route) => {
+    await route.fulfill({
+      body: JSON.stringify({
+        karts: [
+          {
+            assemblerCredit: "Titan Racers",
+            runtime: {
+              derivationVersion: BALANCED_KART_SNAPSHOT.derivationVersion,
+              document: BALANCED_KART_DOCUMENT,
+              kartId: BALANCED_KART_DOCUMENT.kartId,
+              publishedAt: new Date("2026-07-25T00:05:00.000Z").toISOString(),
+              resolvedSnapshot: BALANCED_KART_SNAPSHOT,
+              resolvedSnapshotHash: "a".repeat(64),
+              revision: 1,
+              schemaVersion: BALANCED_KART_DOCUMENT.schemaVersion,
+              thumbnailAvailable,
+            },
+          },
+        ],
+        source: "published",
+      }),
+      contentType: "application/json",
+      status: 200,
+    });
+  });
+}
+
+async function useBundledHandlingKart(page: Page) {
+  await page.unroute("**/api/karts/official");
+  await page.route("**/api/karts/official", async (route) => {
+    await route.fulfill({
+      body: JSON.stringify({
+        karts: [
+          {
+            assemblerCredit: "Titan Racers",
+            runtime: {
+              derivationVersion: HANDLING_KART_SNAPSHOT.derivationVersion,
+              document: HANDLING_KART_DOCUMENT,
+              kartId: HANDLING_KART_DOCUMENT.kartId,
+              publishedAt: new Date("2026-07-25T00:05:00.000Z").toISOString(),
+              resolvedSnapshot: HANDLING_KART_SNAPSHOT,
+              resolvedSnapshotHash: "f".repeat(64),
+              revision: 1,
+              schemaVersion: HANDLING_KART_DOCUMENT.schemaVersion,
+              thumbnailAvailable: false,
+            },
+          },
+        ],
+        source: "published",
+      }),
+      contentType: "application/json",
+      status: 200,
+    });
+  });
+}
+
+async function usePublishedBalancedAndSpeedKarts(page: Page) {
+  return routePublishedBalancedAndSpeedKartsWithThumbnails(page, {});
+}
+
+async function routePublishedBalancedAndSpeedKartsWithThumbnails(
+  page: Page,
+  {
+    balanced = false,
+    speed = false,
+  }: { balanced?: boolean; speed?: boolean },
+) {
+  await page.route("**/api/karts/official", async (route) => {
+    await route.fulfill({
+      body: JSON.stringify({
+        karts: [
+          {
+            assemblerCredit: "Balanced Assembler",
+            runtime: {
+              derivationVersion: BALANCED_KART_SNAPSHOT.derivationVersion,
+              document: BALANCED_KART_DOCUMENT,
+              kartId: BALANCED_KART_DOCUMENT.kartId,
+              publishedAt: "2026-07-25T00:05:00.000Z",
+              resolvedSnapshot: BALANCED_KART_SNAPSHOT,
+              resolvedSnapshotHash: "d".repeat(64),
+              revision: 2,
+              schemaVersion: BALANCED_KART_DOCUMENT.schemaVersion,
+              thumbnailAvailable: balanced,
+            },
+          },
+          {
+            assemblerCredit: "Speed Assembler",
+            runtime: {
+              derivationVersion: SPEED_KART_SNAPSHOT.derivationVersion,
+              document: SPEED_KART_DOCUMENT,
+              kartId: SPEED_KART_DOCUMENT.kartId,
+              publishedAt: "2026-07-25T00:10:00.000Z",
+              resolvedSnapshot: SPEED_KART_SNAPSHOT,
+              resolvedSnapshotHash: "e".repeat(64),
+              revision: 3,
+              schemaVersion: SPEED_KART_DOCUMENT.schemaVersion,
+              thumbnailAvailable: speed,
+            },
+          },
+        ],
+        source: "published",
+      }),
+      contentType: "application/json",
+      status: 200,
+    });
+  });
+}
+
+async function delayNextKartThumbnailEncoding(page: Page, delayMs: number) {
+  await page.addInitScript(
+    ({ height, width, waitMs }) => {
+      const originalToBlob = HTMLCanvasElement.prototype.toBlob;
+      let delayed = false;
+      HTMLCanvasElement.prototype.toBlob = function (
+        callback,
+        type,
+        quality,
+      ) {
+        if (!delayed && this.height === height && this.width === width) {
+          delayed = true;
+          setTimeout(() => {
+            Reflect.apply(originalToBlob, this, [callback, type, quality]);
+          }, waitMs);
+          return;
+        }
+        Reflect.apply(originalToBlob, this, [callback, type, quality]);
+      };
+    },
+    {
+      height: 360,
+      waitMs: delayMs,
+      width: 640,
+    },
+  );
 }
 
 test.describe("home screen", () => {
@@ -576,10 +759,32 @@ test.describe("home screen", () => {
 
     await expect(page.getByAltText("Titan Racers")).toBeVisible();
     await expect(page.getByText("Choose game mode")).toBeVisible();
+    const utilityMenu = page.getByRole("button", {
+      name: "Open utility menu",
+    });
+    await expect(utilityMenu).toBeVisible();
+    await expect(utilityMenu).toHaveAttribute("aria-expanded", "false");
+    await expect(
+      page.getByRole("link", { name: "Course Editor" }),
+    ).toHaveCount(0);
+    await utilityMenu.click();
+    await expect(
+      page.getByRole("button", { name: "Close utility menu" }),
+    ).toHaveAttribute("aria-expanded", "true");
     await expect(
       page.getByRole("link", { name: "Course Editor" }),
     ).toBeVisible();
+    await expect(page.getByRole("link", { name: "Kart Builder" })).toBeVisible();
+    await expect(page.getByRole("link", { name: "Profile" })).toBeVisible();
     await expect(page.getByRole("link", { name: "Telemetry" })).toHaveCount(0);
+    expect(
+      await page.evaluate(() => document.documentElement.scrollWidth),
+    ).toBeLessThanOrEqual(page.viewportSize()?.width ?? 0);
+    await page.keyboard.press("Escape");
+    await expect(utilityMenu).toBeFocused();
+    await expect(
+      page.getByRole("link", { name: "Course Editor" }),
+    ).toHaveCount(0);
 
     const raceFriends = page.getByRole("button", { name: "Race Friends" });
     const soloTimeTrial = page.getByRole("button", { name: "Solo Time Trial" });
@@ -591,7 +796,117 @@ test.describe("home screen", () => {
     await expect(page.getByRole("status")).toHaveText("coming soon");
   });
 
+  test("selects and races only currently published official karts", async ({
+    page,
+  }) => {
+    await usePublishedBalancedAndSpeedKarts(page);
+
+    await page.goto("/");
+    const selection = page.getByRole("group", {
+      name: "Official kart selection",
+    });
+    const balanced = selection
+      .getByRole("button")
+      .filter({ hasText: "Balanced Kart" });
+    const speed = selection
+      .getByRole("button")
+      .filter({ hasText: "Speed Kart" });
+
+    await expect(balanced).toContainText("Assembled by Balanced Assembler");
+    await expect(speed).toContainText("Assembled by Speed Assembler");
+    await expect(selection).not.toContainText("Handling Kart");
+    await expect(
+      balanced.locator('[data-kart-thumbnail-source="generated"]'),
+    ).toBeVisible();
+    await expect(
+      speed.locator('[data-kart-thumbnail-source="generated"]'),
+    ).toBeVisible();
+    await expect(balanced).toHaveAttribute("aria-pressed", "true");
+    await speed.click();
+    await expect(speed).toHaveAttribute("aria-pressed", "true");
+
+    await page.getByRole("button", { name: "Solo Time Trial" }).click();
+    await expect(page.getByTestId("solo-time-trial-canvas")).toHaveAttribute(
+      "data-kart-document-name",
+      "Speed Kart",
+    );
+  });
+
+  test("selects and races a published kart with a controller", async ({
+    page,
+  }, testInfo) => {
+    test.skip(
+      testInfo.project.name === "mobile",
+      "Controller desktop fixture.",
+    );
+
+    await installStandardGamepadFixture(page);
+    await usePublishedBalancedAndSpeedKarts(page);
+    await page.goto("/");
+
+    const selection = page.getByRole("group", {
+      name: "Official kart selection",
+    });
+    const speed = selection
+      .getByRole("button")
+      .filter({ hasText: "Speed Kart" });
+    await expect(speed).toBeVisible();
+
+    await setStandardTestGamepad(page);
+    await page.waitForTimeout(50);
+    await setStandardTestGamepad(page, { buttons: { 14: 1 } });
+    await expect(speed).toBeFocused();
+    await setStandardTestGamepad(page);
+    await page.waitForTimeout(50);
+    await setStandardTestGamepad(page, { buttons: { 0: 1 } });
+    await expect(speed).toHaveAttribute("aria-pressed", "true");
+
+    await setStandardTestGamepad(page);
+    await page.waitForTimeout(50);
+    await setStandardTestGamepad(page, { buttons: { 15: 1 } });
+    const soloTimeTrial = page.getByRole("button", {
+      name: "Solo Time Trial",
+    });
+    await expect(soloTimeTrial).toBeFocused();
+    await setStandardTestGamepad(page);
+    await page.waitForTimeout(50);
+    await setStandardTestGamepad(page, { buttons: { 0: 1 } });
+
+    await expect(page.getByTestId("solo-time-trial-canvas")).toHaveAttribute(
+      "data-kart-document-name",
+      "Speed Kart",
+    );
+  });
+
+  test("does not restore intentionally unpublished official karts", async ({
+    page,
+  }) => {
+    await page.route("**/api/karts/official", async (route) => {
+      await route.fulfill({
+        body: JSON.stringify({ karts: [], source: "published" }),
+        contentType: "application/json",
+        status: 200,
+      });
+    });
+
+    await page.goto("/");
+    await expect(
+      page.getByText("No official karts are currently published."),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("button", { name: "Solo Time Trial" }),
+    ).toBeDisabled();
+    await expect(
+      page.getByRole("group", { name: "Official kart selection" }),
+    ).toHaveCount(0);
+  });
+
   test("opens the full-screen solo time trial canvas", async ({ page }) => {
+    const browserErrors: string[] = [];
+    page.on("console", (message) => {
+      if (message.type() === "error") browserErrors.push(message.text());
+    });
+    page.on("pageerror", (error) => browserErrors.push(error.message));
     await page.goto("/");
 
     const soloTimeTrial = page.getByRole("button", { name: "Solo Time Trial" });
@@ -607,6 +922,103 @@ test.describe("home screen", () => {
     expect(viewport).not.toBeNull();
     expect(Math.round(box?.width ?? 0)).toBe(viewport?.width);
     expect(Math.round(box?.height ?? 0)).toBe(viewport?.height);
+    expect(browserErrors).toEqual([]);
+  });
+
+  test("keeps a late thumbnail fallback isolated from race startup", async ({
+    page,
+  }) => {
+    const browserErrors: string[] = [];
+    let requestedRevision: string | null = null;
+    page.on("console", (message) => {
+      if (message.type() === "error") browserErrors.push(message.text());
+    });
+    page.on("pageerror", (error) => browserErrors.push(error.message));
+    await delayNextKartThumbnailEncoding(page, 500);
+    await routePublishedBalancedAndSpeedKartsWithThumbnails(page, {
+      balanced: true,
+    });
+    await page.route(
+      "**/api/karts/balanced-kart/thumbnail?revision=2",
+      async (route) => {
+        requestedRevision = new URL(route.request().url()).searchParams.get(
+          "revision",
+        );
+        await new Promise((resolve) => setTimeout(resolve, 150));
+        await route.abort("failed");
+      },
+    );
+
+    await page.goto("/");
+    await expect(
+      page.locator('[data-kart-thumbnail-source="persisted"]').first(),
+    ).toBeVisible();
+    await expect(
+      page.locator('[data-kart-thumbnail-source="rendering"]').first(),
+    ).toBeVisible();
+    await expect.poll(() => requestedRevision).toBe("2");
+    await page.getByRole("button", { name: "Solo Time Trial" }).click();
+    await expect(page.getByTestId("solo-time-trial-canvas")).toBeVisible();
+    expect(browserErrors.join("\n")).not.toMatch(
+      /syncHierarchy|__destroy__|Unable to render kart thumbnail/,
+    );
+  });
+
+  test("releases a thumbnail pause when home unmounts during queue drain", async ({
+    page,
+  }, testInfo) => {
+    test.skip(
+      testInfo.project.name !== "desktop",
+      "Client-navigation lifecycle coverage only needs one browser fixture.",
+    );
+    await delayNextKartThumbnailEncoding(page, 750);
+    await page.goto("/");
+    await expect(
+      page.locator('[data-kart-thumbnail-source="rendering"]').first(),
+    ).toBeVisible();
+    await page.getByRole("button", { name: "Solo Time Trial" }).click();
+    await page.getByRole("button", { name: "Open utility menu" }).click();
+    await page.getByRole("link", { name: "Profile" }).click();
+    await expect(page).toHaveURL(/\/profile$/);
+
+    await page.goBack();
+    await expect(page).toHaveURL("/");
+    await expect(
+      page.locator('[data-kart-thumbnail-source="generated"]').first(),
+    ).toBeVisible();
+  });
+
+  test("shows locale-aware speed in the race HUD", async ({
+    page,
+  }, testInfo) => {
+    test.skip(
+      testInfo.project.name !== "desktop",
+      "The browser speed readout only needs one rendered locale fixture.",
+    );
+    await page.goto("/");
+    await page.getByRole("button", { name: "Solo Time Trial" }).click();
+    const canvas = page.getByTestId("solo-time-trial-canvas");
+    await setSimulationPaused(canvas, true);
+    const kart = await getKartDebugState(canvas);
+    await setKartDebugPose(canvas, {
+      linearVelocity: {
+        x: kart.forward.x * 10,
+        y: 0,
+        z: kart.forward.z * 10,
+      },
+      position: { x: kart.x, y: kart.y, z: kart.z },
+      rotation: {
+        x: kart.rotationX,
+        y: kart.rotationY,
+        z: kart.rotationZ,
+      },
+    });
+    await stepSimulation(canvas);
+
+    await expect(page.getByTestId("race-speed")).toHaveText("22mph");
+    await expect(
+      page.getByLabel("Speed 22 mph", { exact: true }),
+    ).toBeVisible();
   });
 
   test("constructs guest racing from the published course revision", async ({
@@ -648,17 +1060,27 @@ test.describe("home screen", () => {
     publishedDocument.componentInstances[0].visualColor = "#c83b32";
     publishedSnapshot.physicalProfile.drivetrain.maximumDriveForce = 12.345;
     publishedSnapshot.physicalProfile.drivetrain.noLoadSpeed = 9.876;
-    await page.route("**/api/karts/balanced-kart/published", async (route) => {
+    await page.route("**/api/karts/official", async (route) => {
       await route.fulfill({
         body: JSON.stringify({
-          derivationVersion: publishedSnapshot.derivationVersion,
-          document: publishedDocument,
-          kartId: publishedDocument.kartId,
-          publishedAt: new Date("2026-07-25T00:05:00.000Z").toISOString(),
-          resolvedSnapshot: publishedSnapshot,
-          resolvedSnapshotHash: "b".repeat(64),
-          revision: 4,
-          schemaVersion: publishedDocument.schemaVersion,
+          karts: [
+            {
+              assemblerCredit: "Published Assembler",
+              runtime: {
+                derivationVersion: publishedSnapshot.derivationVersion,
+                document: publishedDocument,
+                kartId: publishedDocument.kartId,
+                publishedAt: new Date(
+                  "2026-07-25T00:05:00.000Z",
+                ).toISOString(),
+                resolvedSnapshot: publishedSnapshot,
+                resolvedSnapshotHash: "b".repeat(64),
+                revision: 4,
+                schemaVersion: publishedDocument.schemaVersion,
+              },
+            },
+          ],
+          source: "published",
         }),
         contentType: "application/json",
         status: 200,
@@ -679,14 +1101,14 @@ test.describe("home screen", () => {
     expect(kartState.maxForwardSpeed).toBe(9.88);
   });
 
-  test("uses the bundled kart when no published kart is available", async ({
+  test("uses the bundled roster when the official roster is unavailable", async ({
     page,
   }) => {
-    await page.route("**/api/karts/balanced-kart/published", async (route) => {
+    await page.route("**/api/karts/official", async (route) => {
       await route.fulfill({
-        body: JSON.stringify({ error: "Published kart not found." }),
+        body: JSON.stringify({ error: "Official kart roster unavailable." }),
         contentType: "application/json",
-        status: 404,
+        status: 503,
       });
     });
 
@@ -703,26 +1125,52 @@ test.describe("home screen", () => {
     );
   });
 
-  test("uses the bundled kart when a published kart needs unsupported inertia integration", async ({
+  test("uses a published kart with coupled inertia", async ({
     page,
-  }) => {
-    const incompatibleSnapshot = structuredClone(
-      BALANCED_KART_SNAPSHOT,
+  }, testInfo) => {
+    testInfo.setTimeout(60_000);
+    const coupledDocument = createBalancedKartDocument();
+    coupledDocument.name = "Coupled Inertia Kart";
+    const upperHousing = coupledDocument.primitiveInstances.find(
+      ({ id }) => id === "upper-housing",
+    );
+    const upperHousingMount = coupledDocument.structuralAttachments.find(
+      ({ child }) => child.instanceId === "upper-housing",
+    );
+    if (!upperHousing || !upperHousingMount) {
+      throw new Error("Balanced kart fixture is missing its upper housing.");
+    }
+    upperHousing.transform.position.x += 0.05;
+    upperHousing.transform.position.z += 0.03;
+    upperHousingMount.parent.anchor.x += 0.05;
+    upperHousingMount.parent.anchor.z += 0.03;
+    const coupledSnapshot = structuredClone(
+      deriveKartSnapshot(coupledDocument),
     ) as unknown as ResolvedKartSnapshot;
-    incompatibleSnapshot.massProperties.inertiaTensor.xy = 0.001;
-    incompatibleSnapshot.massProperties.inertiaTensor.yx = 0.001;
-    incompatibleSnapshot.physicalProfile.drivetrain.noLoadSpeed = 9.876;
-    await page.route("**/api/karts/balanced-kart/published", async (route) => {
+    expect(coupledSnapshot.massProperties.inertiaTensor.xy).not.toBe(0);
+    expect(coupledSnapshot.massProperties.inertiaTensor.xz).not.toBe(0);
+    coupledSnapshot.physicalProfile.drivetrain.noLoadSpeed = 9.876;
+    await page.route("**/api/karts/official", async (route) => {
       await route.fulfill({
         body: JSON.stringify({
-          derivationVersion: incompatibleSnapshot.derivationVersion,
-          document: BALANCED_KART_DOCUMENT,
-          kartId: BALANCED_KART_DOCUMENT.kartId,
-          publishedAt: new Date("2026-07-25T00:05:00.000Z").toISOString(),
-          resolvedSnapshot: incompatibleSnapshot,
-          resolvedSnapshotHash: "c".repeat(64),
-          revision: 2,
-          schemaVersion: BALANCED_KART_DOCUMENT.schemaVersion,
+          karts: [
+            {
+              assemblerCredit: "Coupled Assembler",
+              runtime: {
+                derivationVersion: coupledSnapshot.derivationVersion,
+                document: coupledDocument,
+                kartId: coupledDocument.kartId,
+                publishedAt: new Date(
+                  "2026-07-25T00:05:00.000Z",
+                ).toISOString(),
+                resolvedSnapshot: coupledSnapshot,
+                resolvedSnapshotHash: "c".repeat(64),
+                revision: 2,
+                schemaVersion: coupledDocument.schemaVersion,
+              },
+            },
+          ],
+          source: "published",
         }),
         contentType: "application/json",
         status: 200,
@@ -733,12 +1181,74 @@ test.describe("home screen", () => {
     await page.getByRole("button", { name: "Solo Time Trial" }).click();
     const canvas = page.getByTestId("solo-time-trial-canvas");
     await waitForSceneReady(canvas);
-    const kartState = await getKartDebugState(canvas);
-    expect(kartState.maxForwardSpeed).toBe(
-      Math.round(
-        BALANCED_KART_SNAPSHOT.physicalProfile.drivetrain.noLoadSpeed * 100,
-      ) / 100,
+    await expect(canvas).toHaveAttribute(
+      "data-kart-document-name",
+      coupledDocument.name,
     );
+    await expect
+      .poll(async () => getKartDebugState(canvas))
+      .toMatchObject({ supportCount: 4 });
+    const kartState = await getKartDebugState(canvas);
+    expect(kartState.maxForwardSpeed).toBe(9.88);
+    expect(kartState.up.y).toBeCloseTo(1, 4);
+    expect(Math.hypot(kartState.forward.x, kartState.forward.z)).toBeCloseTo(
+      1,
+      4,
+    );
+    expect(
+      Object.values(kartState.wheelSweepFractions).every(
+        (fraction) => fraction !== null,
+      ),
+    ).toBe(true);
+
+    await advanceRaceToRacing(canvas);
+    const drivingStart = await getKartDebugState(canvas);
+    await canvas.focus();
+    await page.keyboard.down("ArrowUp");
+    await page.keyboard.down("ArrowLeft");
+    try {
+      await stepSimulation(canvas, 60);
+    } finally {
+      await page.keyboard.up("ArrowLeft");
+      await page.keyboard.up("ArrowUp");
+    }
+    const drivenState = await getKartDebugState(canvas);
+    expect(drivenState.steerAngle).toBeGreaterThan(0);
+    expect(
+      Math.hypot(
+        drivenState.x - drivingStart.x,
+        drivenState.z - drivingStart.z,
+      ),
+    ).toBeGreaterThan(0.01);
+    const drivenPresentation = await getPresentationDebugState(canvas);
+    expect(drivenPresentation.cameraTrackedPosition).toEqual(
+      drivenPresentation.visualPosition,
+    );
+
+    await setKartDebugPose(canvas, {
+      angularVelocity: { x: 0, y: 0, z: 0 },
+      linearVelocity: { x: 0, y: 0, z: 0 },
+      position: {
+        x: 4,
+        y: scaleReferenceKartLength(0.46),
+        z: 0,
+      },
+      rotation: { x: 0, y: 90, z: 180 },
+    });
+    await stepSimulation(canvas, 5);
+    const inverted = await getKartDebugState(canvas);
+    expect(inverted.up.y).toBeLessThan(-0.8);
+    await canvas.focus();
+    await page.keyboard.press("r");
+    await stepSimulation(canvas);
+    expect((await getKartDebugState(canvas)).manualRightingCount).toBe(1);
+
+    const rightingSamples = await stepSimulationWithKartSamples(canvas, 600);
+    expect(
+      rightingSamples.some(
+        (sample) => sample.up.y > 0.7 && sample.supportCount > 0,
+      ),
+    ).toBe(true);
   });
 
   test("returns to the bundled course when a later publication fetch fails", async ({
@@ -1001,7 +1511,9 @@ test.describe("home screen", () => {
       .poll(async () => (await getRaceDebugState(canvas)).state)
       .toBe("racing");
     const raceStatus = page.getByRole("region", { name: "Race status" });
-    const raceAnnouncement = page.getByRole("status");
+    const raceAnnouncement = page.locator(
+      "p[role='status'][aria-live='polite']",
+    );
     const lifecycleCue = page.locator(".race-lifecycle-cue span");
     await expect(raceStatus).toContainText("Lap01/02");
     await expect(raceStatus).toContainText("Race time0:00.0");
@@ -1491,6 +2003,208 @@ test.describe("home screen", () => {
         return Math.hypot(state.x - startState.x, state.z - startState.z);
       })
       .toBeLessThan(scaleReferenceKartLength(0.1));
+  });
+
+  test("keeps the Handling Kart drivable through launch", async ({
+    page,
+  }) => {
+    await useBundledHandlingKart(page);
+    await page.goto("/");
+    await page.getByRole("button", { name: "Solo Time Trial" }).click();
+
+    const canvas = page.getByTestId("solo-time-trial-canvas");
+    await advanceRaceToRacing(canvas);
+    await canvas.click();
+    await page.keyboard.down("ArrowUp");
+
+    let samples: KartDebugState[] = [];
+    try {
+      samples = await stepSimulationWithKartSamples(
+        canvas,
+        Math.ceil(2 / DEFAULT_FIXED_STEP_SECONDS),
+      );
+    } finally {
+      await page.keyboard.up("ArrowUp");
+    }
+
+    const minimumUpY = Math.min(...samples.map(({ up }) => up.y));
+    let currentAirborneSteps = 0;
+    let maximumAirborneSteps = 0;
+    for (const { supportCount } of samples) {
+      currentAirborneSteps = supportCount === 0 ? currentAirborneSteps + 1 : 0;
+      maximumAirborneSteps = Math.max(
+        maximumAirborneSteps,
+        currentAirborneSteps,
+      );
+    }
+    const maximumAngularSpeed = Math.max(
+      ...samples.map(({ angularSpeed }) => angularSpeed),
+    );
+    const supportedStepRatio =
+      samples.filter(({ supportCount }) => supportCount >= 2).length /
+      samples.length;
+    const finalState = samples.at(-1);
+    const evidence = JSON.stringify({
+      finalState,
+      maximumAirborneSteps,
+      maximumAngularSpeed,
+      minimumUpY,
+      supportedStepRatio,
+    });
+
+    expect(finalState?.speed, evidence).toBeGreaterThan(1);
+    expect(finalState?.supportCount, evidence).toBeGreaterThanOrEqual(2);
+    expect(minimumUpY, evidence).toBeGreaterThan(0.85);
+    expect(supportedStepRatio, evidence).toBeGreaterThan(0.9);
+    expect(maximumAirborneSteps, evidence).toBeLessThan(
+      Math.ceil(0.1 / DEFAULT_FIXED_STEP_SECONDS),
+    );
+    expect(maximumAngularSpeed, evidence).toBeLessThan(5);
+  });
+
+  test("settles the Handling Kart after a bump-height landing", async ({
+    page,
+  }) => {
+    await useBundledHandlingKart(page);
+    await page.goto("/");
+    await page.getByRole("button", { name: "Solo Time Trial" }).click();
+
+    const canvas = page.getByTestId("solo-time-trial-canvas");
+    await advanceRaceToRacing(canvas);
+    const baseline = await getKartDebugState(canvas);
+    await setKartDebugPose(canvas, {
+      angularVelocity: { x: 0, y: 0, z: 0 },
+      linearVelocity: { x: 0, y: 0, z: 0 },
+      position: {
+        x: 40,
+        y: HANDLING_KART_UPRIGHT_ROOT_HEIGHT + 0.04,
+        z: -12,
+      },
+      rotation: {
+        x: baseline.rotationX,
+        y: baseline.rotationY,
+        z: baseline.rotationZ,
+      },
+    });
+
+    const samples = await stepSimulationWithKartSamples(
+      canvas,
+      Math.ceil(3 / DEFAULT_FIXED_STEP_SECONDS),
+    );
+    const firstTouchdownIndex = samples.findIndex(
+      ({ supportCount }) => supportCount > 0,
+    );
+    const settlingWindow = samples.slice(
+      -Math.ceil(0.5 / DEFAULT_FIXED_STEP_SECONDS),
+    );
+    const finalState = samples.at(-1);
+    const settlingY = settlingWindow.map(({ y }) => y);
+    const settlingYRange = Math.max(...settlingY) - Math.min(...settlingY);
+    const maximumSettlingAngularSpeed = Math.max(
+      ...settlingWindow.map(({ angularSpeed }) => angularSpeed),
+    );
+    const maximumSettlingVerticalSpeed = Math.max(
+      ...settlingWindow.map(({ verticalVelocity }) =>
+        Math.abs(verticalVelocity),
+      ),
+    );
+    const minimumUpY = Math.min(...samples.map(({ up }) => up.y));
+    const evidence = JSON.stringify({
+      finalState,
+      firstTouchdownIndex,
+      maximumSettlingAngularSpeed,
+      maximumSettlingVerticalSpeed,
+      minimumUpY,
+      settlingYRange,
+    });
+
+    expect(firstTouchdownIndex, evidence).toBeGreaterThan(0);
+    expect(finalState?.supportCount, evidence).toBe(4);
+    expect(minimumUpY, evidence).toBeGreaterThan(0.95);
+    expect(settlingYRange, evidence).toBeLessThan(0.01);
+    expect(maximumSettlingVerticalSpeed, evidence).toBeLessThan(0.1);
+    expect(maximumSettlingAngularSpeed, evidence).toBeLessThan(0.2);
+  });
+
+  test("stays controlled while driving the Handling Kart over a one-side bump", async ({
+    page,
+  }) => {
+    await useBundledHandlingKart(page);
+    await useOneSideBumpCourse(page);
+    await page.goto("/");
+    await page.getByRole("button", { name: "Solo Time Trial" }).click();
+
+    const canvas = page.getByTestId("solo-time-trial-canvas");
+    await advanceRaceToRacing(canvas);
+    await setSimulationPaused(canvas, true);
+    await setKartDebugPose(canvas, {
+      angularVelocity: { x: 0, y: 0, z: 0 },
+      linearVelocity: { x: -1.5, y: 0, z: 0 },
+      position: {
+        x: 0.8,
+        y: HANDLING_KART_UPRIGHT_ROOT_HEIGHT,
+        z: -12,
+      },
+      rotation: { x: 0, y: 90, z: 0 },
+    });
+    await canvas.click();
+    await page.keyboard.down("ArrowUp");
+
+    let samples: KartDebugState[] = [];
+    try {
+      samples = await stepSimulationWithKartSamples(
+        canvas,
+        Math.ceil(3 / DEFAULT_FIXED_STEP_SECONDS),
+      );
+    } finally {
+      await page.keyboard.up("ArrowUp");
+    }
+
+    const incompleteSupport = samples.filter(
+      ({ supportCount }) => supportCount < 4,
+    );
+    const maximumPitch = Math.max(
+      ...samples.map(({ forward }) => Math.abs(forward.y)),
+    );
+    const maximumRoll = Math.max(
+      ...samples.map(({ forward, up }) =>
+        Math.abs(forward.z * up.x - forward.x * up.z),
+      ),
+    );
+    const maximumAngularSpeed = Math.max(
+      ...samples.map(({ angularSpeed }) => angularSpeed),
+    );
+    const minimumUpY = Math.min(...samples.map(({ up }) => up.y));
+    const settlingWindow = samples.slice(
+      -Math.ceil(0.5 / DEFAULT_FIXED_STEP_SECONDS),
+    );
+    const maximumSettlingAngularSpeed = Math.max(
+      ...settlingWindow.map(({ angularSpeed }) => angularSpeed),
+    );
+    const settlingY = settlingWindow.map(({ y }) => y);
+    const settlingYRange = Math.max(...settlingY) - Math.min(...settlingY);
+    const finalState = samples.at(-1);
+    const evidence = JSON.stringify({
+      finalState,
+      incompleteSupportSamples: incompleteSupport.length,
+      maximumAngularSpeed,
+      maximumPitch,
+      maximumRoll,
+      maximumSettlingAngularSpeed,
+      minimumUpY,
+      settlingYRange,
+    });
+
+    expect(incompleteSupport.length, evidence).toBeGreaterThan(0);
+    expect(maximumPitch, evidence).toBeGreaterThan(0.01);
+    expect(maximumRoll, evidence).toBeGreaterThan(0.01);
+    expect(minimumUpY, evidence).toBeGreaterThan(0.9);
+    expect(maximumPitch, evidence).toBeLessThan(0.35);
+    expect(maximumRoll, evidence).toBeLessThan(0.35);
+    expect(maximumAngularSpeed, evidence).toBeLessThan(5);
+    expect(finalState?.supportCount, evidence).toBe(4);
+    expect(settlingYRange, evidence).toBeLessThan(0.01);
+    expect(maximumSettlingAngularSpeed, evidence).toBeLessThan(0.2);
   });
 
   test("settles at rest without chassis drift or rotation", async ({
@@ -2812,7 +3526,7 @@ test.describe("home screen", () => {
     ).toBeLessThan((4 * Math.PI) / 180);
   });
 
-  test("inspects resolved kart dynamics without production overrides", async ({
+  test("shows derived construction, runtime behavior, and practical stats while testing", async ({
     page,
   }, testInfo) => {
     testInfo.setTimeout(60_000);
@@ -2827,10 +3541,10 @@ test.describe("home screen", () => {
       await expect(touchControls).toBeVisible();
     }
     await expect(
-      page.getByRole("button", { name: "Kart dynamics inspector" }),
+      page.getByRole("button", { name: "Kart stats" }),
     ).toHaveCount(0);
     await expect(canvas).toHaveAttribute("aria-keyshortcuts", "T");
-    const tuningHint = page.getByText(/T · Dynamics/);
+    const tuningHint = page.getByText(/T · Stats/);
     if (testInfo.project.name === "desktop") {
       await expect(tuningHint).toBeVisible();
     } else {
@@ -2841,57 +3555,41 @@ test.describe("home screen", () => {
     await page.keyboard.press("t");
 
     const drawer = page.getByRole("region", {
-      name: "Kart dynamics inspector",
+      name: "Kart stats",
     });
     const close = page.getByRole("button", { name: "Close" });
     await expect(drawer).toBeVisible();
     await expect(close).toBeFocused();
-    for (const key of Object.keys(BALANCED_KART_DEVELOPMENT_VALUES) as Array<
-      keyof KartDevelopmentValues
-    >) {
-      await expect(page.getByTestId(`kart-tuning-${key}`)).toHaveCount(1);
-      await expect(page.getByTestId(`kart-tuning-${key}`)).toHaveText(
-        String(BALANCED_KART_DEVELOPMENT_VALUES[key]),
-      );
-      await expect(page.getByTestId(`kart-tuning-owner-${key}`)).toContainText(
-        KART_DEVELOPMENT_VALUE_METADATA[key].owner,
-      );
+    await expect(
+      drawer.getByRole("button", { name: /Derived construction/ }),
+    ).toBeVisible();
+    await expect(
+      drawer.getByRole("button", { name: /Derived runtime behavior/ }),
+    ).toBeVisible();
+    await expect(
+      drawer.getByRole("button", { name: /Practical stats/ }),
+    ).toBeVisible();
+    await expect(drawer).toContainText(
+      `${BALANCED_KART_SNAPSHOT.massProperties.totalMass.toFixed(3)} kg`,
+    );
+    await expect(drawer).toContainText(
+      `${BALANCED_KART_SNAPSHOT.physicalProfile.drivetrain.maximumDriveForce.toFixed(2)} N`,
+    );
+    for (const [label, value] of Object.entries(
+      BALANCED_KART_SNAPSHOT.playerStats,
+    )) {
+      const stat = drawer.getByText(label, { exact: true }).locator("..");
+      await expect(stat).toBeVisible();
+      await expect(stat.getByText(`${value}/100`, { exact: true })).toBeVisible();
     }
+    await expect(drawer).not.toContainText("Movement");
+    await expect(drawer).not.toContainText("They cannot be overridden here.");
     await expect(drawer.locator('button[aria-label^="Explain "]')).toHaveCount(
-      Object.keys(BALANCED_KART_DEVELOPMENT_VALUES).length,
+      0,
     );
     if (testInfo.project.name === "mobile") {
       await expect(touchControls).toBeHidden();
     }
-    const handbrakeForceHelp = page.getByRole("button", {
-      name: "Explain Handbrake force",
-    });
-    await handbrakeForceHelp.focus();
-    const tooltip = page.getByRole("tooltip");
-    await expect(tooltip).toContainText("driven rear wheels");
-    if (testInfo.project.name === "desktop") {
-      await page.mouse.move(0, 0);
-      await expect(tooltip).toBeVisible();
-    }
-    if (testInfo.project.name === "mobile") {
-      await handbrakeForceHelp.press("Escape");
-    } else {
-      await page.keyboard.press("Escape");
-    }
-    await expect(page.getByRole("tooltip")).toHaveCount(0);
-    await expect(drawer).toBeVisible();
-    await expect(page.getByRole("dialog", { name: "Paused" })).toHaveCount(0);
-    if (testInfo.project.name === "desktop") {
-      await canvas.focus();
-      await handbrakeForceHelp.focus();
-      await expect(tooltip).toBeVisible();
-      await page.keyboard.press("Escape");
-    } else {
-      await handbrakeForceHelp.tap();
-      await expect(tooltip).toBeVisible();
-      await handbrakeForceHelp.press("Escape");
-    }
-    await expect(page.getByRole("tooltip")).toHaveCount(0);
     await expect(page.getByRole("dialog", { name: "Paused" })).toHaveCount(0);
     const bounds = await drawer.boundingBox();
     const viewport = page.viewportSize();
@@ -2906,11 +3604,6 @@ test.describe("home screen", () => {
       viewport?.height ?? 0,
     );
 
-    await expect(drawer.getByRole("spinbutton")).toHaveCount(0);
-    await expect(
-      drawer.getByRole("button", { name: "Reset all defaults" }),
-    ).toHaveCount(0);
-    await expect(drawer).toContainText("They cannot be overridden here.");
     await expect((await getKartDebugState(canvas)).developmentValues).toEqual(
       BALANCED_KART_DEVELOPMENT_VALUES,
     );
@@ -2919,7 +3612,7 @@ test.describe("home screen", () => {
     await expect(drawer).toHaveCount(0);
     await expect(canvas).toBeFocused();
     await expect(
-      page.getByRole("button", { name: "Kart dynamics inspector" }),
+      page.getByRole("button", { name: "Kart stats" }),
     ).toHaveCount(0);
     if (testInfo.project.name === "mobile") {
       await expect(touchControls).toBeVisible();
@@ -3407,6 +4100,31 @@ test.describe("home screen", () => {
     );
   });
 
+  test("snaps to a proportionally stabilized chase heading", async ({
+    page,
+  }) => {
+    await page.goto("/");
+    await page.getByRole("button", { name: "Solo Time Trial" }).click();
+
+    const canvas = page.getByTestId("solo-time-trial-canvas");
+    await setSimulationPaused(canvas, true);
+    await setKartDebugPose(canvas, {
+      angularVelocity: { x: 0, y: 3.625, z: 0 },
+      linearVelocity: { x: 4, y: 0, z: -4 },
+      position: { x: 0, y: 20, z: 8 },
+      rotation: { x: 0, y: 0, z: 0 },
+    });
+
+    const camera = await getCameraDebugState(canvas);
+    const headingDegrees =
+      (Math.atan2(camera.chaseHeading.x, -camera.chaseHeading.z) * 180) /
+      Math.PI;
+
+    expect(camera.stabilizationBlend).toBeCloseTo(0.25);
+    expect(headingDegrees).toBeGreaterThan(17);
+    expect(headingDegrees).toBeLessThan(30);
+  });
+
   test("corrects the chase camera against the visible wall and releases it", async ({
     page,
   }) => {
@@ -3559,6 +4277,85 @@ test.describe("home screen", () => {
     expect(Number.isFinite(landedCamera.cameraPosition.x)).toBe(true);
     expect(Number.isFinite(landedCamera.cameraPosition.y)).toBe(true);
     expect(Number.isFinite(landedCamera.cameraPosition.z)).toBe(true);
+  });
+
+  test("untethers chase heading while the kart spins violently", async ({
+    page,
+  }) => {
+    test.setTimeout(60_000);
+    await page.goto("/");
+    await page.getByRole("button", { name: "Solo Time Trial" }).click();
+
+    const canvas = page.getByTestId("solo-time-trial-canvas");
+    await setSimulationPaused(canvas, true);
+    await setKartDebugPose(canvas, {
+      angularVelocity: { x: 0, y: 12, z: 0 },
+      linearVelocity: { x: 0, y: 0, z: 5 },
+      position: { x: 0, y: 20, z: 8 },
+      rotation: { x: 0, y: 0, z: 0 },
+    });
+
+    const initialCamera = await getCameraDebugState(canvas);
+    const initialKart = await getKartDebugState(canvas);
+
+    await stepSimulation(canvas, 12);
+
+    const spinningCamera = await getCameraDebugState(canvas);
+    const spinningKart = await getKartDebugState(canvas);
+    const kartForwardSimilarity =
+      initialKart.forward.x * spinningKart.forward.x +
+      initialKart.forward.z * spinningKart.forward.z;
+    const cameraHeadingSimilarity =
+      initialCamera.chaseHeading.x * spinningCamera.chaseHeading.x +
+      initialCamera.chaseHeading.z * spinningCamera.chaseHeading.z;
+
+    expect(spinningCamera.angularSpeed).toBeGreaterThan(7);
+    expect(spinningCamera.stabilizationBlend).toBeGreaterThan(0.95);
+    expect(kartForwardSimilarity).toBeLessThan(0.7);
+    expect(cameraHeadingSimilarity).toBeGreaterThan(0.99);
+    expect(spinningCamera.forwardSpeed).toBeLessThan(-1);
+    expect(spinningCamera.trailingDistance).toBeGreaterThanOrEqual(
+      initialCamera.trailingDistance - 0.01,
+    );
+    expect(Number.isFinite(spinningCamera.cameraPosition.x)).toBe(true);
+    expect(Number.isFinite(spinningCamera.cameraPosition.y)).toBe(true);
+    expect(Number.isFinite(spinningCamera.cameraPosition.z)).toBe(true);
+
+    await setKartDebugAngularVelocity(canvas, { x: 0, y: 0, z: 0 });
+    const recoveryHeadings = [spinningCamera.chaseHeading];
+
+    for (let batch = 0; batch < 30; batch += 1) {
+      await stepSimulation(canvas, 6);
+      recoveryHeadings.push((await getCameraDebugState(canvas)).chaseHeading);
+    }
+
+    const recoveredCamera = await getCameraDebugState(canvas);
+    const recoveredKart = await getKartDebugState(canvas);
+    const maximumRecoveryHeadingStep = Math.max(
+      ...recoveryHeadings.slice(1).map((heading, index) => {
+        const previous = recoveryHeadings[index];
+        const previousYaw = Math.atan2(previous.x, -previous.z);
+        const currentYaw = Math.atan2(heading.x, -heading.z);
+
+        return Math.abs(
+          Math.atan2(
+            Math.sin(currentYaw - previousYaw),
+            Math.cos(currentYaw - previousYaw),
+          ),
+        );
+      }),
+    );
+    const recoveredHeadingAlignment =
+      recoveredCamera.chaseHeading.x * recoveredKart.forward.x +
+      recoveredCamera.chaseHeading.z * recoveredKart.forward.z;
+
+    expect(recoveredCamera.stabilizationBlend).toBeLessThan(0.05);
+    expect(maximumRecoveryHeadingStep).toBeLessThan((30 * Math.PI) / 180);
+    expect(recoveredHeadingAlignment).toBeGreaterThan(0.95);
+    expect(recoveredCamera.forwardSpeed).toBeLessThan(-1);
+    expect(recoveredCamera.trailingDistance).toBeGreaterThanOrEqual(
+      initialCamera.trailingDistance - 0.01,
+    );
   });
 
   test("applies the authored start through the scene test adapter", async ({
@@ -3954,11 +4751,22 @@ test.describe("home screen", () => {
     );
     expect(Object.keys(state.wheelHubYs)).toHaveLength(4);
     expect(
-      Object.values(state.wheelHubYs).every(
-        (y) =>
-          y >= scaleReferenceKartLength(-0.36) &&
-          y <= scaleReferenceKartLength(0.06),
+      BALANCED_KART_SNAPSHOT.geometry.wheelStations.every(
+        (station) => {
+          const y = state.wheelHubYs[station.id.replace(/^wheel-/, "")];
+          return (
+            y !== undefined &&
+            y >=
+              station.position.y -
+                station.suspension.restWheelCompression &&
+            y <=
+              station.position.y +
+                station.suspension.maximumWheelTravel -
+                station.suspension.restWheelCompression
+          );
+        },
       ),
+      JSON.stringify(state.wheelHubYs),
     ).toBe(true);
     expect(
       Object.values(state.wheelSweepFractions).every(
@@ -4694,20 +5502,43 @@ test.describe("home screen", () => {
     await setStandardTestGamepad(page);
     await page.waitForTimeout(50);
     await setStandardTestGamepad(page, { buttons: { 12: 1 } });
+    const menuButton = page.getByRole("button", { name: "Open utility menu" });
+    await expect(menuButton).toBeFocused();
+    await setStandardTestGamepad(page);
+    await page.waitForTimeout(50);
+    await setStandardTestGamepad(page, { buttons: { 0: 1 } });
+    await expect(
+      page.getByRole("button", { name: "Close utility menu" }),
+    ).toBeFocused();
+    await setStandardTestGamepad(page);
+    await page.waitForTimeout(50);
+    await setStandardTestGamepad(page, { buttons: { 1: 1 } });
+    await expect(
+      page.getByRole("button", { name: "Open utility menu" }),
+    ).toBeFocused();
+    await expect(
+      page.getByRole("link", { name: "Course Editor" }),
+    ).toHaveCount(0);
+    await setStandardTestGamepad(page);
+    await page.waitForTimeout(50);
+    await setStandardTestGamepad(page, { buttons: { 0: 1 } });
+    await expect(
+      page.getByRole("button", { name: "Close utility menu" }),
+    ).toBeFocused();
     const courseEditor = page.getByRole("link", { name: "Course Editor" });
     const kartBuilder = page.getByRole("link", { name: "Kart Builder" });
+    const profile = page.getByRole("link", { name: "Profile" });
+    await setStandardTestGamepad(page);
+    await page.waitForTimeout(50);
+    await setStandardTestGamepad(page, { buttons: { 13: 1 } });
+    await expect(profile).toBeFocused();
+    await setStandardTestGamepad(page);
+    await page.waitForTimeout(50);
+    await setStandardTestGamepad(page, { buttons: { 13: 1 } });
     await expect(kartBuilder).toBeFocused();
     await setStandardTestGamepad(page);
     await page.waitForTimeout(50);
-    await setStandardTestGamepad(page, { buttons: { 15: 1 } });
-    await expect(courseEditor).toBeFocused();
-    await setStandardTestGamepad(page);
-    await page.waitForTimeout(50);
-    await setStandardTestGamepad(page, { buttons: { 14: 1 } });
-    await expect(kartBuilder).toBeFocused();
-    await setStandardTestGamepad(page);
-    await page.waitForTimeout(50);
-    await setStandardTestGamepad(page, { buttons: { 15: 1 } });
+    await setStandardTestGamepad(page, { buttons: { 13: 1 } });
     await expect(courseEditor).toBeFocused();
     await setStandardTestGamepad(page);
     await page.waitForTimeout(50);
@@ -4732,10 +5563,9 @@ test.describe("home screen", () => {
     );
     await setStandardTestGamepad(page);
     await page.waitForTimeout(50);
-    await setStandardTestGamepad(page, { buttons: { 13: 1 } });
-    await expect(
-      page.getByRole("button", { name: "Race Friends" }),
-    ).toBeFocused();
+    await setStandardTestGamepad(page, { buttons: { 12: 1 } });
+    await expect(kartBuilder).toBeFocused();
+    await expect(home).toHaveAttribute("data-controller-navigation", "true");
     await setStandardTestGamepad(page);
     await page.waitForTimeout(50);
     await disconnectStandardTestGamepad(page);
@@ -4743,14 +5573,9 @@ test.describe("home screen", () => {
       "data-controller-navigation",
       "true",
     );
-
     await setStandardTestGamepad(page);
     await page.waitForTimeout(50);
-    await setStandardTestGamepad(page, { buttons: { 12: 1 } });
-    await expect(kartBuilder).toBeFocused();
-    await setStandardTestGamepad(page);
-    await page.waitForTimeout(50);
-    await setStandardTestGamepad(page, { buttons: { 15: 1 } });
+    await setStandardTestGamepad(page, { buttons: { 13: 1 } });
     await expect(courseEditor).toBeFocused();
     await setStandardTestGamepad(page);
     await page.waitForTimeout(50);
@@ -4769,17 +5594,11 @@ test.describe("home screen", () => {
     await installStandardGamepadFixture(page);
     await page.goto("/");
     const home = page.locator('[data-controller-menu-ready="true"]');
+    await expect(home).toHaveCount(1);
+    await page.getByRole("button", { name: "Open utility menu" }).click();
     const courseEditor = page.getByRole("link", { name: "Course Editor" });
     const kartBuilder = page.getByRole("link", { name: "Kart Builder" });
-    await expect(home).toHaveCount(1);
-    await setStandardTestGamepad(page);
-    await page.waitForTimeout(50);
-    await setStandardTestGamepad(page, { buttons: { 12: 1 } });
-    await expect(kartBuilder).toBeFocused();
-    await setStandardTestGamepad(page);
-    await page.waitForTimeout(50);
-    await setStandardTestGamepad(page, { buttons: { 15: 1 } });
-    await expect(courseEditor).toBeFocused();
+    await courseEditor.focus();
     await setStandardTestGamepad(page);
     await page.waitForTimeout(50);
 
@@ -4794,7 +5613,7 @@ test.describe("home screen", () => {
         touched: boolean;
         value: number;
       }>;
-      buttons[14] = { pressed: true, touched: true, value: 1 };
+      buttons[12] = { pressed: true, touched: true, value: 1 };
       testWindow.__TR_GAMEPADS__ = [{ ...gamepad, buttons } as Gamepad];
       element.dispatchEvent(
         new PointerEvent("pointerdown", {
@@ -4813,7 +5632,7 @@ test.describe("home screen", () => {
 
     await setStandardTestGamepad(page);
     await page.waitForTimeout(50);
-    await setStandardTestGamepad(page, { buttons: { 14: 1 } });
+    await setStandardTestGamepad(page, { buttons: { 12: 1 } });
     await expect(kartBuilder).toBeFocused();
   });
 

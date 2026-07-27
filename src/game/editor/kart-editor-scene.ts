@@ -1,13 +1,11 @@
 import * as pc from "playcanvas";
 
-import type {
-  KartAssemblyDocument,
-  KartAssemblyPrimitiveInstance,
-} from "../kart/kart-assembly-document";
 import {
-  type ApprovedComponentDefinition,
-  getApprovedKartComponent,
-} from "../kart/kart-component-registry";
+  createKartComponentVisualEntity,
+  createKartPrimitiveVisualEntity,
+  getRenderedKartBounds,
+} from "../kart/kart-assembly-visual";
+import type { KartAssemblyDocument } from "../kart/kart-assembly-document";
 import { validateKartAssembly } from "../kart/kart-assembly-validation";
 import {
   canAttachKartInstanceAtCurrentPosition,
@@ -187,7 +185,7 @@ export class KartEditorScene {
     const entity = this.selection
       ? this.instanceEntities.get(this.selection.id)
       : this.documentRoot;
-    const center = entity ? getRenderedBoundsCenter(entity) : null;
+    const center = entity ? getRenderedKartBounds(entity)?.center : null;
     this.editorCamera.pivot.copy(center ?? new pc.Vec3(0, 0.11, 0));
     this.editorCamera.apply(this.camera);
     this.options.onCameraChange(toVector(this.editorCamera.pivot));
@@ -600,7 +598,7 @@ export class KartEditorScene {
         primitive.id,
         primitive.visualColor,
       );
-      const root = createPrimitiveEntity(primitive, material);
+      const root = createKartPrimitiveVisualEntity(primitive, material);
       this.documentRoot.addChild(root);
       this.rememberSelection(root, { id: primitive.id, kind: "primitive" });
     }
@@ -610,42 +608,12 @@ export class KartEditorScene {
         instance.id,
         instance.visualColor,
       );
-      const root = new pc.Entity(instance.id);
-      root.setPosition(
-        instance.transform.position.x,
-        instance.transform.position.y,
-        instance.transform.position.z,
-      );
-      root.setEulerAngles(
-        instance.transform.rotationDegrees.x,
-        instance.transform.rotationDegrees.y,
-        instance.transform.rotationDegrees.z,
-      );
-      const definition = getApprovedKartComponent(instance.definition);
-      if (definition) {
-        definition.construction.forEach((construction, index) => {
-          const visual = createConstructionEntity(
-            `${instance.id}-construction-${index}`,
-            construction,
-            material,
-          );
-          root.addChild(visual);
-        });
-      }
-      if (definition?.category === "suspension" && instance.suspensionMount) {
-        const coilover = createCoilover(
-          instance.id,
-          instance.suspensionMount,
-          instance.transform,
-          material,
-        );
-        root.addChild(coilover);
-      }
+      const root = createKartComponentVisualEntity(instance, material);
       this.documentRoot.addChild(root);
       this.rememberSelection(root, { id: instance.id, kind: "component" });
     }
 
-    const documentCenter = getRenderedBoundsCenter(this.documentRoot);
+    const documentCenter = getRenderedKartBounds(this.documentRoot)?.center;
     if (documentCenter) {
       this.options.onDocumentBoundsChange(toVector(documentCenter));
     }
@@ -796,202 +764,6 @@ export class KartEditorScene {
   }
 }
 
-function getRenderedBoundsCenter(root: pc.Entity) {
-  const minimum = new pc.Vec3(
-    Number.POSITIVE_INFINITY,
-    Number.POSITIVE_INFINITY,
-    Number.POSITIVE_INFINITY,
-  );
-  const maximum = new pc.Vec3(
-    Number.NEGATIVE_INFINITY,
-    Number.NEGATIVE_INFINITY,
-    Number.NEGATIVE_INFINITY,
-  );
-  let found = false;
-  root.forEach((node) => {
-    if (!(node instanceof pc.Entity)) return;
-    node.model?.meshInstances?.forEach(({ aabb }) => {
-      found = true;
-      minimum.min(aabb.getMin());
-      maximum.max(aabb.getMax());
-    });
-  });
-  return found ? minimum.add(maximum).mulScalar(0.5) : null;
-}
-
-function createPrimitiveEntity(
-  primitive: KartAssemblyPrimitiveInstance,
-  material: pc.StandardMaterial,
-) {
-  const root = new pc.Entity(primitive.id);
-  const visual = new pc.Entity(`${primitive.id}-visual`);
-  visual.addComponent("model", { type: primitive.shape });
-  root.setPosition(
-    primitive.transform.position.x,
-    primitive.transform.position.y,
-    primitive.transform.position.z,
-  );
-  root.setEulerAngles(
-    primitive.transform.rotationDegrees.x,
-    primitive.transform.rotationDegrees.y,
-    primitive.transform.rotationDegrees.z,
-  );
-  if (primitive.shape === "box") {
-    root.setLocalScale(primitive.size.x, primitive.size.y, primitive.size.z);
-  } else {
-    visual.setLocalScale(
-      primitive.radius * 2,
-      primitive.height,
-      primitive.radius * 2,
-    );
-    applyCylinderAxis(visual, primitive.axis);
-  }
-  visual.model?.meshInstances?.forEach((mesh) => {
-    mesh.material = material;
-  });
-  root.addChild(visual);
-  return root;
-}
-
-function createConstructionEntity(
-  name: string,
-  construction: ApprovedComponentDefinition["construction"][number],
-  material: pc.StandardMaterial,
-) {
-  const entity = new pc.Entity(name);
-  entity.addComponent("model", { type: construction.shape });
-  entity.setLocalPosition(
-    construction.transform.position.x,
-    construction.transform.position.y,
-    construction.transform.position.z,
-  );
-  entity.setLocalEulerAngles(
-    construction.transform.rotationDegrees.x,
-    construction.transform.rotationDegrees.y,
-    construction.transform.rotationDegrees.z,
-  );
-  if (construction.shape === "box") {
-    entity.setLocalScale(
-      construction.size.x,
-      construction.size.y,
-      construction.size.z,
-    );
-  } else {
-    entity.setLocalScale(
-      construction.radius * 2,
-      construction.height,
-      construction.radius * 2,
-    );
-    applyCylinderAxis(entity, construction.axis);
-  }
-  entity.model?.meshInstances?.forEach((mesh) => {
-    mesh.material = material;
-  });
-  return entity;
-}
-
-function createCoilover(
-  id: string,
-  mount: NonNullable<
-    KartAssemblyDocument["componentInstances"][number]["suspensionMount"]
-  >,
-  transform: KartAssemblyDocument["componentInstances"][number]["transform"],
-  material: pc.StandardMaterial,
-) {
-  const root = new pc.Entity(`${id}-coilover`);
-  const inverseRotation = new pc.Quat()
-    .setFromEulerAngles(
-      transform.rotationDegrees.x,
-      transform.rotationDegrees.y,
-      transform.rotationDegrees.z,
-    )
-    .invert();
-  const toLocalPoint = (point: { x: number; y: number; z: number }) =>
-    inverseRotation.transformVector(
-      new pc.Vec3(
-        point.x - transform.position.x,
-        point.y - transform.position.y,
-        point.z - transform.position.z,
-      ),
-    );
-  const chassisAnchor = toLocalPoint(mount.chassisAnchor);
-  const springArmAnchor = toLocalPoint(mount.springArmAnchor);
-  const armPivot = toLocalPoint(mount.armPivot);
-  const hubAnchor = toLocalPoint(mount.hubAnchor);
-  root.addChild(
-    createBarBetween(
-      `${id}-damper`,
-      chassisAnchor,
-      springArmAnchor,
-      0.009,
-      material,
-    ),
-  );
-  root.addChild(
-    createBarBetween(
-      `${id}-arm`,
-      armPivot,
-      hubAnchor,
-      0.004,
-      material,
-    ),
-  );
-
-  const turns = 8;
-  const segments = 32;
-  const start = chassisAnchor;
-  const end = springArmAnchor;
-  const axis = new pc.Vec3().sub2(end, start);
-  const length = Math.max(axis.length(), 0.001);
-  axis.normalize();
-  const reference = Math.abs(axis.y) < 0.9 ? pc.Vec3.UP : pc.Vec3.RIGHT;
-  const side = new pc.Vec3().cross(axis, reference).normalize();
-  const up = new pc.Vec3().cross(side, axis).normalize();
-  let previous = start.clone();
-  for (let index = 1; index <= segments; index += 1) {
-    const t = index / segments;
-    const angle = t * Math.PI * 2 * turns;
-    const center = start.clone().add(axis.clone().mulScalar(length * t));
-    const point = center
-      .add(side.clone().mulScalar(Math.cos(angle) * 0.014))
-      .add(up.clone().mulScalar(Math.sin(angle) * 0.014));
-    root.addChild(
-      createBarBetween(
-        `${id}-coil-${index}`,
-        toVector(previous),
-        toVector(point),
-        0.0017,
-        material,
-      ),
-    );
-    previous = point;
-  }
-  return root;
-}
-
-function createBarBetween(
-  name: string,
-  start: { x: number; y: number; z: number },
-  end: { x: number; y: number; z: number },
-  radius: number,
-  material: pc.StandardMaterial,
-) {
-  const entity = new pc.Entity(name);
-  entity.addComponent("model", { type: "cylinder" });
-  const startVector = new pc.Vec3(start.x, start.y, start.z);
-  const endVector = new pc.Vec3(end.x, end.y, end.z);
-  const midpoint = startVector.clone().add(endVector).mulScalar(0.5);
-  const length = Math.max(startVector.distance(endVector), 0.0001);
-  entity.setPosition(midpoint);
-  entity.setLocalScale(radius * 2, length, radius * 2);
-  entity.lookAt(endVector);
-  entity.rotateLocal(90, 0, 0);
-  entity.model?.meshInstances?.forEach((mesh) => {
-    mesh.material = material;
-  });
-  return entity;
-}
-
 function updatePrimitiveSize(
   document: KartAssemblyDocument,
   instanceId: string,
@@ -1013,20 +785,10 @@ function updatePrimitiveSize(
   );
 }
 
-function applyCylinderAxis(entity: pc.Entity, axis: "x" | "y" | "z") {
-  if (axis === "x") entity.rotateLocal(0, 0, 90);
-  if (axis === "z") entity.rotateLocal(90, 0, 0);
-}
-
-function createMaterial(
-  color: pc.Color,
-  emissiveStrength = 0,
-  wireframe = false,
-) {
+function createMaterial(color: pc.Color) {
   const material = new pc.StandardMaterial();
   material.diffuse = color;
-  material.emissive = color.clone().mulScalar(emissiveStrength);
-  if (wireframe) material.opacity = 0.55;
+  material.emissive = color.clone().mulScalar(0);
   material.update();
   return material;
 }

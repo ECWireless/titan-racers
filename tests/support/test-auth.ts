@@ -15,5 +15,30 @@ export const testAuth = betterAuth({
     schema: authSchema,
     usePlural: true,
   }),
+  user: {
+    additionalFields: {
+      username: {
+        input: false,
+        required: false,
+        returned: true,
+        type: "string",
+      },
+    },
+  },
+  databaseHooks: {
+    user: {
+      create: {
+        before: async (user) => ({
+          data: {
+            ...user,
+            username: `test_${user.id
+              .toLowerCase()
+              .replaceAll("-", "")
+              .slice(0, 15)}`,
+          },
+        }),
+      },
+    },
+  },
   plugins: [testUtils()],
 });

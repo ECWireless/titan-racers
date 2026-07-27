@@ -1,3 +1,8 @@
+import {
+  multiplyKartInertiaTensor,
+  type KartInertiaTensor,
+} from "./kart-principal-axes";
+
 export type RestSettlingVector = {
   x: number;
   y: number;
@@ -44,17 +49,23 @@ export function isRestSettlingEligible(
   );
 }
 
+function isFinitePositiveInertia(tensor: KartInertiaTensor) {
+  return (
+    Object.values(tensor).every(Number.isFinite) &&
+    tensor.xx > 0 &&
+    tensor.yy > 0 &&
+    tensor.zz > 0
+  );
+}
+
 export function getRestSettlingLocalTorqueImpulse(
   localAngularVelocity: RestSettlingVector,
-  localInertia: RestSettlingVector,
+  localInertia: KartInertiaTensor,
   deltaSeconds: number,
 ): RestSettlingVector {
   if (
     !isFiniteVector(localAngularVelocity) ||
-    !isFiniteVector(localInertia) ||
-    localInertia.x <= 0 ||
-    localInertia.y <= 0 ||
-    localInertia.z <= 0 ||
+    !isFinitePositiveInertia(localInertia) ||
     !Number.isFinite(deltaSeconds) ||
     deltaSeconds <= 0
   ) {
@@ -66,9 +77,9 @@ export function getRestSettlingLocalTorqueImpulse(
     1,
   );
 
-  return {
-    x: -localInertia.x * localAngularVelocity.x * settleRatio,
-    y: -localInertia.y * localAngularVelocity.y * settleRatio,
-    z: -localInertia.z * localAngularVelocity.z * settleRatio,
-  };
+  return multiplyKartInertiaTensor(localInertia, {
+    x: -localAngularVelocity.x * settleRatio,
+    y: -localAngularVelocity.y * settleRatio,
+    z: -localAngularVelocity.z * settleRatio,
+  });
 }

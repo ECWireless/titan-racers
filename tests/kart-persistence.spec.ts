@@ -11,10 +11,16 @@ import {
   GET as getKartPublication,
   POST as postKartPublication,
 } from "../src/app/api/admin/karts/[kartId]/publication/route";
+import {
+  GET as getAdminKartThumbnail,
+  PUT as putAdminKartThumbnail,
+} from "../src/app/api/admin/karts/[kartId]/revisions/[revision]/thumbnail/route";
 import { GET as getPublishedKart } from "../src/app/api/karts/[kartId]/published/route";
+import { GET as getPublishedKartThumbnail } from "../src/app/api/karts/[kartId]/thumbnail/route";
 import { db } from "../src/db/client";
 import {
   kartPublicationEvents,
+  kartRevisionThumbnails,
   kartRevisions,
   karts,
   userRoles,
@@ -29,18 +35,21 @@ import {
 } from "../src/game/kart/kart-derivation";
 import { createBalancedKartDocument } from "../src/game/kart/balanced-kart-document";
 import { kartAssemblyDocumentV1Schema } from "../src/game/kart/kart-assembly-document";
-import { hasRuntimeCompatibleInertia } from "../src/game/kart/kart-runtime-compatibility";
 import {
   KartConflictError,
   KartPublicationConflictError,
+  KartThumbnailConflictError,
+  loadKartRevisionThumbnail,
   loadLatestKartPublicationEvent,
   loadLatestKartRevision,
   loadPublishedKartRevision,
   publishKartRevision,
   saveKartRevision,
+  saveKartRevisionThumbnail,
   unpublishKart,
 } from "../src/server/kart-repository";
 import { createValidKartAssembly } from "./support/kart-assembly";
+import { createTestPng } from "./support/png";
 import { testAuth } from "./support/test-auth";
 
 const requiredIntegrationVariables = [
@@ -261,6 +270,123 @@ test.describe("kart persistence and authorization", () => {
     );
   });
 
+  test("binds immutable thumbnails to saved and published revisions", async () => {
+    const userId = randomUUID();
+    const kartId = `thumbnail-${randomUUID()}`;
+    await db.insert(users).values({
+      email: `${userId}@example.invalid`,
+      emailVerified: true,
+      id: userId,
+      name: "Thumbnail Test",
+    });
+    const firstDocument = createValidKartAssembly({ kartId });
+    const firstRevision = await saveKartRevision({
+      authorUserId: userId,
+      document: firstDocument,
+      expectedRevision: null,
+      ownerUserId: userId,
+    });
+    expect(firstRevision.thumbnailAvailable).toBe(false);
+    const firstImage = createTestPng({ marker: 1 });
+    const firstThumbnail = await saveKartRevisionThumbnail({
+      contentType: "image/png",
+      generatedByUserId: userId,
+      imageData: firstImage,
+      kartId,
+      renderVersion: 1,
+      revision: 1,
+    });
+    expect(firstThumbnail.imageSha256).toMatch(/^[0-9a-f]{64}$/);
+    await expect(
+      saveKartRevisionThumbnail({
+        contentType: "image/png",
+        generatedByUserId: userId,
+        imageData: firstImage,
+        kartId,
+        renderVersion: 1,
+        revision: 1,
+      }),
+    ).resolves.toMatchObject({ imageSha256: firstThumbnail.imageSha256 });
+    await expect(
+      saveKartRevisionThumbnail({
+        contentType: "image/png",
+        generatedByUserId: userId,
+        imageData: createTestPng({ marker: 9 }),
+        kartId,
+        renderVersion: 1,
+        revision: 1,
+      }),
+    ).rejects.toBeInstanceOf(KartThumbnailConflictError);
+
+    const secondDocument = structuredClone(firstDocument);
+    secondDocument.name = "Thumbnail Revision Two";
+    await saveKartRevision({
+      authorUserId: userId,
+      document: secondDocument,
+      expectedRevision: 1,
+      ownerUserId: userId,
+    });
+    const secondImage = createTestPng({ marker: 2 });
+    await saveKartRevisionThumbnail({
+      contentType: "image/png",
+      generatedByUserId: userId,
+      imageData: secondImage,
+      kartId,
+      renderVersion: 1,
+      revision: 2,
+    });
+    await expect(loadLatestKartRevision(kartId)).resolves.toMatchObject({
+      revision: 2,
+      thumbnailAvailable: true,
+    });
+    await expect(loadKartRevisionThumbnail(kartId, 1)).resolves.toMatchObject({
+      imageData: firstImage,
+      revision: 1,
+    });
+
+    const firstPublication = await publishKartRevision({
+      actorUserId: userId,
+      expectedPublicationEventId: null,
+      kartId,
+      revision: 1,
+    });
+    const firstResponse = await getPublishedKartThumbnail(
+      new Request(`${TEST_ORIGIN}/api/karts/${kartId}/thumbnail?revision=1`),
+      { params: Promise.resolve({ kartId }) },
+    );
+    expect(Buffer.from(await firstResponse.arrayBuffer())).toEqual(firstImage);
+
+    await publishKartRevision({
+      actorUserId: userId,
+      expectedPublicationEventId: firstPublication.eventId,
+      kartId,
+      revision: 2,
+    });
+    const staleResponse = await getPublishedKartThumbnail(
+      new Request(`${TEST_ORIGIN}/api/karts/${kartId}/thumbnail?revision=1`),
+      { params: Promise.resolve({ kartId }) },
+    );
+    expect(staleResponse.status).toBe(404);
+    const secondResponse = await getPublishedKartThumbnail(
+      new Request(`${TEST_ORIGIN}/api/karts/${kartId}/thumbnail?revision=2`),
+      { params: Promise.resolve({ kartId }) },
+    );
+    expect(Buffer.from(await secondResponse.arrayBuffer())).toEqual(secondImage);
+
+    let immutableThumbnailError: unknown;
+    try {
+      await db.execute(
+        sql`update ${kartRevisionThumbnails} set "render_version" = 2 where ${kartRevisionThumbnails.imageSha256} = ${firstThumbnail.imageSha256}`,
+      );
+    } catch (error) {
+      immutableThumbnailError = error;
+    }
+    expect(immutableThumbnailError).toBeInstanceOf(Error);
+    expect(
+      (immutableThumbnailError as Error & { cause?: Error }).cause?.message,
+    ).toMatch(/kart revision thumbnails are immutable/);
+  });
+
   test("requires admins and rejects unsafe or invalid saves before mutation", async () => {
     const authContext = await testAuth.$context;
     const savedUser = await authContext.test.saveUser(
@@ -388,11 +514,11 @@ test.describe("kart persistence and authorization", () => {
       expectedRevision: 1,
       ownerUserId: savedUser.id,
     });
-    const incompatibleDocument = structuredClone(firstDocument);
-    const upperHousing = incompatibleDocument.primitiveInstances.find(
+    const asymmetricDocument = structuredClone(firstDocument);
+    const upperHousing = asymmetricDocument.primitiveInstances.find(
       ({ id }) => id === "upper-housing",
     );
-    const upperHousingMount = incompatibleDocument.structuralAttachments.find(
+    const upperHousingMount = asymmetricDocument.structuralAttachments.find(
       ({ child }) => child.instanceId === "upper-housing",
     );
     if (!upperHousing || !upperHousingMount) {
@@ -401,11 +527,11 @@ test.describe("kart persistence and authorization", () => {
     upperHousing.transform.position.x += 0.01;
     upperHousingMount.parent.anchor.x += 0.01;
     expect(
-      hasRuntimeCompatibleInertia(deriveKartSnapshot(incompatibleDocument)),
-    ).toBe(false);
+      deriveKartSnapshot(asymmetricDocument).massProperties.inertiaTensor.xy,
+    ).not.toBe(0);
     await saveKartRevision({
       authorUserId: savedUser.id,
-      document: incompatibleDocument,
+      document: asymmetricDocument,
       expectedRevision: 2,
       ownerUserId: savedUser.id,
     });
@@ -482,23 +608,8 @@ test.describe("kart persistence and authorization", () => {
         .where(eq(kartPublicationEvents.kartId, kartId)),
     ).resolves.toEqual([]);
 
-    const incompatibleResponse = await postKartPublication(
-      request({ ...publishPayload, revision: 3 }),
-      context,
-    );
-    expect(incompatibleResponse.status).toBe(422);
-    await expect(incompatibleResponse.json()).resolves.toEqual({
-      error: "The saved kart revision is not compatible with the current runtime.",
-    });
-    await expect(
-      db
-        .select()
-        .from(kartPublicationEvents)
-        .where(eq(kartPublicationEvents.kartId, kartId)),
-    ).resolves.toEqual([]);
-
     const firstResponse = await postKartPublication(
-      request(publishPayload),
+      request({ ...publishPayload, revision: 3 }),
       context,
     );
     expect(firstResponse.status).toBe(201);
@@ -512,13 +623,40 @@ test.describe("kart persistence and authorization", () => {
     expect(publishedResponse.headers.get("cache-control")).toBe("no-store");
     const publishedPayload = await publishedResponse.json();
     expect(publishedPayload).toMatchObject({
-      document: { name: firstDocument.name },
+      document: { name: asymmetricDocument.name },
       kartId,
-      revision: 1,
+      revision: 3,
     });
     expect(publishedPayload).not.toHaveProperty("authorUserId");
     expect(publishedPayload).not.toHaveProperty("ownerUserId");
     expect(publishedPayload).not.toHaveProperty("actorUserId");
+    await expect(loadPublishedKartRevision(kartId)).resolves.toMatchObject({
+      authorUsername: expect.stringMatching(/^test_/),
+    });
+
+    const incompleteAuthorId = randomUUID();
+    const fallbackKartId = `unclaimed-author-${randomUUID()}`;
+    await db.insert(users).values({
+      email: `${incompleteAuthorId}@example.invalid`,
+      emailVerified: true,
+      id: incompleteAuthorId,
+      name: "unclaimed_author",
+    });
+    await saveKartRevision({
+      authorUserId: incompleteAuthorId,
+      document: createBalancedKartDocument(fallbackKartId),
+      expectedRevision: null,
+      ownerUserId: savedUser.id,
+    });
+    await publishKartRevision({
+      actorUserId: savedUser.id,
+      expectedPublicationEventId: null,
+      kartId: fallbackKartId,
+      revision: 1,
+    });
+    await expect(loadPublishedKartRevision(fallbackKartId)).resolves.toMatchObject({
+      authorUsername: null,
+    });
 
     const competing = await Promise.allSettled([
       publishKartRevision({
@@ -562,6 +700,164 @@ test.describe("kart persistence and authorization", () => {
     expect(
       (immutableEventError as Error & { cause?: Error }).cause?.message,
     ).toMatch(/kart publication events are immutable/);
+  });
+
+  test("protects bounded revision thumbnail upload and retrieval", async () => {
+    const authContext = await testAuth.$context;
+    const savedUser = await authContext.test.saveUser(
+      authContext.test.createUser({
+        email: `${randomUUID()}@example.invalid`,
+        name: "Kart Thumbnail Admin",
+      }),
+    );
+    await db.insert(userRoles).values({ role: "admin", userId: savedUser.id });
+    const { headers } = await authContext.test.login({ userId: savedUser.id });
+    const kartId = `thumbnail-api-${randomUUID()}`;
+    await saveKartRevision({
+      authorUserId: savedUser.id,
+      document: createValidKartAssembly({ kartId }),
+      expectedRevision: null,
+      ownerUserId: savedUser.id,
+    });
+    const context = {
+      params: Promise.resolve({ kartId, revision: "1" }),
+    };
+    const imageData = createTestPng({ marker: 7 });
+    const body = JSON.stringify({
+      contentType: "image/png",
+      data: imageData.toString("base64"),
+      renderVersion: 1,
+    });
+    const request = (
+      requestHeaders: HeadersInit,
+      requestBody = body,
+      contentType = "application/json",
+    ) =>
+      new Request(
+        `${TEST_ORIGIN}/api/admin/karts/${kartId}/revisions/1/thumbnail`,
+        {
+          body: requestBody,
+          headers: new Headers([
+            ...new Headers(requestHeaders).entries(),
+            ["content-type", contentType],
+            ["origin", CONFIGURED_ORIGIN],
+          ]),
+          method: "PUT",
+        },
+      );
+
+    const unauthorizedUpload = await putAdminKartThumbnail(
+      request({}),
+      context,
+    );
+    expect(unauthorizedUpload.status).toBe(401);
+    expect(unauthorizedUpload.headers.get("cache-control")).toBe("no-store");
+
+    const missingThumbnail = await getAdminKartThumbnail(
+      new Request(
+        `${TEST_ORIGIN}/api/admin/karts/${kartId}/revisions/1/thumbnail`,
+        { headers },
+      ),
+      context,
+    );
+    expect(missingThumbnail.status).toBe(404);
+    expect(missingThumbnail.headers.get("cache-control")).toBe("no-store");
+
+    const invalidTarget = await getAdminKartThumbnail(
+      new Request(
+        `${TEST_ORIGIN}/api/admin/karts/${kartId}/revisions/invalid/thumbnail`,
+        { headers },
+      ),
+      {
+        params: Promise.resolve({ kartId, revision: "invalid" }),
+      },
+    );
+    expect(invalidTarget.status).toBe(400);
+    expect(invalidTarget.headers.get("cache-control")).toBe("no-store");
+    const foreignOriginHeaders = new Headers([
+      ...headers.entries(),
+      ["content-type", "application/json"],
+      ["origin", "https://malicious.example"],
+    ]);
+    const foreignOriginUpload = await putAdminKartThumbnail(
+      new Request(
+        `${TEST_ORIGIN}/api/admin/karts/${kartId}/revisions/1/thumbnail`,
+        { body, headers: foreignOriginHeaders, method: "PUT" },
+      ),
+      context,
+    );
+    expect(foreignOriginUpload.status).toBe(403);
+    expect(foreignOriginUpload.headers.get("cache-control")).toBe("no-store");
+
+    const unsupportedMediaUpload = await putAdminKartThumbnail(
+      request(headers, body, "text/plain"),
+      context,
+    );
+    expect(unsupportedMediaUpload.status).toBe(415);
+    expect(unsupportedMediaUpload.headers.get("cache-control")).toBe(
+      "no-store",
+    );
+    const invalidUpload = await putAdminKartThumbnail(
+      request(
+        headers,
+        JSON.stringify({
+          contentType: "image/png",
+          data: createTestPng({
+            height: 180,
+            marker: 8,
+            width: 320,
+          }).toString("base64"),
+          renderVersion: 1,
+        }),
+      ),
+      context,
+    );
+    expect(invalidUpload.status).toBe(400);
+    expect(invalidUpload.headers.get("cache-control")).toBe("no-store");
+
+    const missingRevisionUpload = await putAdminKartThumbnail(
+      request(headers),
+      {
+        params: Promise.resolve({ kartId, revision: "2" }),
+      },
+    );
+    expect(missingRevisionUpload.status).toBe(404);
+    expect(missingRevisionUpload.headers.get("cache-control")).toBe("no-store");
+
+    const created = await putAdminKartThumbnail(request(headers), context);
+    expect(created.status).toBe(201);
+    expect(created.headers.get("cache-control")).toBe("no-store");
+    const conflict = await putAdminKartThumbnail(
+      request(
+        headers,
+        JSON.stringify({
+          contentType: "image/png",
+          data: createTestPng({ marker: 9 }).toString("base64"),
+          renderVersion: 1,
+        }),
+      ),
+      context,
+    );
+    expect(conflict.status).toBe(409);
+    expect(conflict.headers.get("cache-control")).toBe("no-store");
+    const loaded = await getAdminKartThumbnail(
+      new Request(
+        `${TEST_ORIGIN}/api/admin/karts/${kartId}/revisions/1/thumbnail`,
+        { headers },
+      ),
+      context,
+    );
+    expect(loaded.status).toBe(200);
+    expect(loaded.headers.get("cache-control")).toBe("no-store");
+    expect(Buffer.from(await loaded.arrayBuffer())).toEqual(imageData);
+    const unauthorizedLoad = await getAdminKartThumbnail(
+      new Request(
+        `${TEST_ORIGIN}/api/admin/karts/${kartId}/revisions/1/thumbnail`,
+      ),
+      context,
+    );
+    expect(unauthorizedLoad.status).toBe(401);
+    expect(unauthorizedLoad.headers.get("cache-control")).toBe("no-store");
   });
 
   test("migrates a version-one document while preserving verifiable evidence", async () => {

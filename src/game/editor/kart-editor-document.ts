@@ -25,6 +25,7 @@ import {
 import {
   APPROVED_COMPONENTS_BY_CATEGORY,
   getApprovedKartComponent,
+  getLatestApprovedKartComponent,
   type KartComponentCategory,
 } from "../kart/kart-component-registry";
 import { resolveApprovedSuspensionMount } from "../kart/kart-suspension-mounting";
@@ -575,11 +576,18 @@ export function replaceKartComponentDefinition(
   document: KartAssemblyDocument,
   instanceId: string,
   definitionId: string,
+  definitionVersion?: number,
 ) {
   const next = copyDocument(document);
   const instance = next.componentInstances.find(({ id }) => id === instanceId);
   if (!instance) return document;
-  const definition = getApprovedKartComponent({ id: definitionId, version: 1 });
+  const definition =
+    definitionVersion === undefined
+      ? getLatestApprovedKartComponent(definitionId)
+      : getApprovedKartComponent({
+          id: definitionId,
+          version: definitionVersion,
+        });
   const current = getApprovedKartComponent(instance.definition);
   if (!definition || !current || definition.category !== current.category) {
     throw new Error(

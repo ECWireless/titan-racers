@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { z } from "zod";
 
 import { createBalancedKartDocument } from "@/game/kart/balanced-kart-document";
@@ -9,13 +9,21 @@ import {
   type PersistedKartRevision,
   persistedKartRevisionSchema,
 } from "@/game/kart/kart-publication";
+import {
+  createOfficialKartDocument,
+  OFFICIAL_KART_IDS,
+  type OfficialKartId,
+} from "@/game/kart/official-kart-roster";
+import { racerOnboardingPath } from "@/lib/racer-username";
 
 import { KartEditorShell } from "./kart-editor-shell";
+import { persistKartRevisionThumbnail } from "./persist-kart-thumbnail";
 
 type AccessState =
   | { status: "loading" }
   | { message: string; status: "error" }
   | { status: "unauthenticated" }
+  | { status: "onboarding-required" }
   | { status: "forbidden" }
   | { status: "not-found" }
   | { revision: PersistedKartRevision; status: "ready" };
@@ -27,6 +35,7 @@ async function resolveAccessState(kartId: string): Promise<AccessState> {
       credentials: "include",
     });
     if (response.status === 401) return { status: "unauthenticated" };
+    if (response.status === 428) return { status: "onboarding-required" };
     if (response.status === 403) return { status: "forbidden" };
     if (response.status === 404) return { status: "not-found" };
     if (!response.ok) {
@@ -51,6 +60,14 @@ async function resolveAccessState(kartId: string): Promise<AccessState> {
 }
 
 export function KartEditorAccess({ kartId }: { kartId: string }) {
+  const startingDocument = useMemo(() => {
+    const officialKartId = OFFICIAL_KART_IDS.find(
+      (candidate): candidate is OfficialKartId => candidate === kartId,
+    );
+    return officialKartId
+      ? createOfficialKartDocument(officialKartId)
+      : createBalancedKartDocument(kartId);
+  }, [kartId]);
   const [accessState, setAccessState] = useState<AccessState>({
     status: "loading",
   });
@@ -93,6 +110,9 @@ export function KartEditorAccess({ kartId }: { kartId: string }) {
       const response = await fetch("/api/auth/sign-in/social", {
         body: JSON.stringify({
           callbackURL: `/admin/karts/${kartId}`,
+          newUserCallbackURL: racerOnboardingPath(
+            `/admin/karts/${kartId}`,
+          ),
           provider: "google",
         }),
         credentials: "include",
@@ -113,12 +133,12 @@ export function KartEditorAccess({ kartId }: { kartId: string }) {
     }
   }
 
-  async function initializeBalancedKart() {
+  async function initializeKart() {
     setInitializationPending(true);
     try {
       const response = await fetch(`/api/admin/karts/${kartId}`, {
         body: JSON.stringify({
-          document: createBalancedKartDocument(kartId),
+          document: startingDocument,
           expectedRevision: null,
         }),
         credentials: "include",
@@ -130,13 +150,14 @@ export function KartEditorAccess({ kartId }: { kartId: string }) {
         return;
       }
       if (!response.ok) throw new Error("The kart could not be initialized.");
+      const revision = persistedKartRevisionSchema.parse(await response.json());
       setAccessState({
-        revision: persistedKartRevisionSchema.parse(await response.json()),
+        revision: await persistKartRevisionThumbnail(revision),
         status: "ready",
       });
     } catch {
       setAccessState({
-        message: "The Balanced Kart starting draft could not be initialized.",
+        message: `The ${startingDocument.name} starting draft could not be initialized.`,
         status: "error",
       });
     } finally {
@@ -198,16 +219,23 @@ export function KartEditorAccess({ kartId }: { kartId: string }) {
             >
               {signInPending ? "Connecting…" : "Continue with Google"}
             </button>
+          ) : accessState.status === "onboarding-required" ? (
+            <Link
+              className="titan-button titan-button-primary"
+              href={racerOnboardingPath(`/admin/karts/${kartId}`)}
+            >
+              Complete account
+            </Link>
           ) : accessState.status === "not-found" ? (
             <button
               className="titan-button titan-button-primary"
               disabled={initializationPending}
               type="button"
-              onClick={() => void initializeBalancedKart()}
+              onClick={() => void initializeKart()}
             >
               {initializationPending
                 ? "Initializing…"
-                : "Create Balanced Kart draft"}
+                : `Create ${startingDocument.name} draft`}
             </button>
           ) : accessState.status === "forbidden" ? (
             <button
@@ -269,11 +297,18 @@ function AccessMessage({ accessState }: { accessState: AccessState }) {
       </p>
     );
   }
+  if (accessState.status === "onboarding-required") {
+    return (
+      <p className="border border-titan-hazard/35 bg-titan-hazard/[0.06] px-4 py-3 text-sm text-titan-ice/78">
+        Choose your permanent racer username before opening protected tools.
+      </p>
+    );
+  }
   if (accessState.status === "not-found") {
     return (
       <p className="border border-titan-hazard/35 bg-titan-hazard/[0.06] px-4 py-3 text-sm text-titan-ice/78">
-        No draft exists for this kart ID. Create a validated Balanced Kart
-        starting assembly to begin authoring.
+        No draft exists for this kart ID. Create its validated starting
+        assembly to begin authoring.
       </p>
     );
   }

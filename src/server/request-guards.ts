@@ -1,5 +1,10 @@
+const NO_STORE_HEADERS = { "cache-control": "no-store" };
+
 function jsonError(error: string, status: number) {
-  return Response.json({ error }, { status });
+  return Response.json(
+    { error },
+    { headers: NO_STORE_HEADERS, status },
+  );
 }
 
 function allowedMutationOrigins(request: Request) {

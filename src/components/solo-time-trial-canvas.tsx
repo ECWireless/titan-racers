@@ -9,9 +9,10 @@ import {
   useMemo,
   useRef,
   useState,
+  useSyncExternalStore,
 } from "react";
 
-import { KartDynamicsDrawer } from "@/components/kart-tuning-drawer";
+import { KartStatsDrawer } from "@/components/kart-tuning-drawer";
 import type {
   CourseTestObstacleId,
   DrivingInput,
@@ -61,7 +62,7 @@ import {
   getManualRightingCaptureLocalTorqueImpulse,
   getManualRightingGeometry,
   getManualRightingLiftImpulse,
-  getManualRightingTorqueImpulse,
+  getManualRightingLocalTorqueImpulse,
   getManualRightingTorqueScale,
   KART_MANUAL_RIGHTING_POLICY,
 } from "@/game/kart/kart-righting";
@@ -80,7 +81,10 @@ import {
   type PersistedResolvedKartSnapshot,
   type ResolvedKartWheelStation,
 } from "@/game/kart/kart-derivation";
-import { hasRuntimeCompatibleInertia } from "@/game/kart/kart-runtime-compatibility";
+import {
+  deriveKartPrincipalAxes,
+  type KartInertiaTensor,
+} from "@/game/kart/kart-principal-axes";
 import {
   scaleReferenceKartLength,
   type KartReferenceVector,
@@ -99,8 +103,11 @@ import { createRaceSessionConfig } from "@/game/race/playcanvas-race-course";
 import {
   createLoadingRacePresentationSnapshot,
   createRacePresentationSnapshot,
+  formatRaceSpeed,
   racePresentationSnapshotsEqual,
+  resolveRaceSpeedUnit,
   type RacePresentationSnapshot,
+  type RaceSpeedUnit,
 } from "@/game/race/race-presentation";
 import {
   RaceSession,
@@ -125,6 +132,18 @@ const KART_TAP_MAX_DURATION_MS = 300;
 const KART_TAP_MAX_MOVEMENT_PX = 12;
 const START_MARKER_VISUAL_CENTER_HEIGHT = 0.05;
 const START_MARKER_VISUAL_THICKNESS = 0.002;
+
+function subscribeToRaceSpeedUnit() {
+  return () => {};
+}
+
+function getBrowserRaceSpeedUnit() {
+  return resolveRaceSpeedUnit(navigator.languages);
+}
+
+function getServerRaceSpeedUnit(): RaceSpeedUnit {
+  return "km/h";
+}
 const NEUTRAL_DRIVING_INPUT: DrivingInput = {
   brake: 0,
   handbrake: 0,
@@ -157,11 +176,38 @@ function toFixedStep(value: number) {
   return Object.is(roundedValue, -0) ? 0 : roundedValue;
 }
 
-function offsetKartGeometry(
+function getKartPhysicsLocalPosition(
   position: pc.Vec3,
-  geometryOffset: Readonly<KartReferenceVector>,
+  centerOfMass: Readonly<KartReferenceVector>,
+  assemblyToPrincipalRotation: pc.Quat,
 ) {
-  return position.add(toPcVector(geometryOffset));
+  return assemblyToPrincipalRotation.transformVector(
+    position.sub(toPcVector(centerOfMass)),
+  );
+}
+
+function getKartPhysicsLocalRotation(
+  authoredEulerAngles: pc.Vec3,
+  assemblyToPrincipalRotation: pc.Quat,
+) {
+  return new pc.Quat().mul2(
+    assemblyToPrincipalRotation,
+    new pc.Quat().setFromEulerAngles(
+      authoredEulerAngles.x,
+      authoredEulerAngles.y,
+      authoredEulerAngles.z,
+    ),
+  );
+}
+
+function getKartPhysicsRotation(
+  assemblyRotation: pc.Quat,
+  principalToAssemblyRotation: pc.Quat,
+) {
+  return new pc.Quat().mul2(
+    assemblyRotation,
+    principalToAssemblyRotation,
+  );
 }
 
 function getKartRootPosition(
@@ -316,11 +362,17 @@ export function SoloTimeTrialCanvas({
   const COURSE_DOCUMENT = courseDocument;
   const kartRuntime = useMemo(() => {
     const snapshot = kartSnapshot ?? deriveKartSnapshot(kartDocument);
-    if (!hasRuntimeCompatibleInertia(snapshot)) {
-      throw new Error(
-        "This kart requires principal-axis runtime integration scheduled for PR 3.5.",
-      );
-    }
+    const inertiaTensor: KartInertiaTensor =
+      snapshot.massProperties.inertiaTensor;
+    const principalAxes = deriveKartPrincipalAxes(inertiaTensor);
+    const principalToAssemblyRotation = new pc.Quat(
+      principalAxes.principalToAssemblyRotation.x,
+      principalAxes.principalToAssemblyRotation.y,
+      principalAxes.principalToAssemblyRotation.z,
+      principalAxes.principalToAssemblyRotation.w,
+    );
+    const assemblyToPrincipalRotation =
+      principalToAssemblyRotation.clone().invert();
     const contactPlaneY =
       (
         snapshot.geometry
@@ -357,11 +409,14 @@ export function SoloTimeTrialCanvas({
         y: -centerOfMass.y,
         z: -centerOfMass.z,
       },
-      inertia: new pc.Vec3(
-        snapshot.massProperties.inertiaTensor.xx,
-        snapshot.massProperties.inertiaTensor.yy,
-        snapshot.massProperties.inertiaTensor.zz,
+      assemblyToPrincipalRotation,
+      inertiaTensor,
+      principalInertia: new pc.Vec3(
+        principalAxes.principalMoments.x,
+        principalAxes.principalMoments.y,
+        principalAxes.principalMoments.z,
       ),
+      principalToAssemblyRotation,
       manualRightingGeometry: getManualRightingGeometry(dimensions.z),
       mass: snapshot.massProperties.totalMass,
       rootHeight: centerOfMass.y - contactPlaneY,
@@ -375,15 +430,18 @@ export function SoloTimeTrialCanvas({
   }, [kartDocument, kartSnapshot]);
   const {
     ccdConfiguration: KART_CCD_CONFIGURATION,
+    assemblyToPrincipalRotation: KART_ASSEMBLY_TO_PRINCIPAL_ROTATION,
     centerOfMass: KART_CENTER_OF_MASS_OFFSET,
     clearanceDatumHeight: KART_CLEARANCE_DATUM_HEIGHT,
     collisionRadius: KART_COLLISION_RADIUS,
     developmentValues: INITIAL_KART_DEVELOPMENT_VALUES,
     datumHeight: KART_DATUM_HEIGHT,
     geometryOffset: KART_GEOMETRY_OFFSET,
-    inertia: KART_INERTIA,
+    inertiaTensor: KART_INERTIA_TENSOR,
     manualRightingGeometry: KART_MANUAL_RIGHTING_GEOMETRY,
     mass: KART_MASS,
+    principalInertia: KART_PRINCIPAL_INERTIA,
+    principalToAssemblyRotation: KART_PRINCIPAL_TO_ASSEMBLY_ROTATION,
     rootHeight: KART_ROOT_HEIGHT,
     snapshot: KART_SNAPSHOT,
     steeringGeometry: KART_STEERING_GEOMETRY,
@@ -427,6 +485,14 @@ export function SoloTimeTrialCanvas({
   const [driveCursorHidden, setDriveCursorHidden] = useState(false);
   const [gamePaused, setGamePaused] = useState(false);
   const [kartDynamicsOpen, setKartDynamicsOpen] = useState(false);
+  const [raceSpeed, setRaceSpeed] = useState(0);
+  const raceSpeedUnit = useSyncExternalStore(
+    subscribeToRaceSpeedUnit,
+    getBrowserRaceSpeedUnit,
+    getServerRaceSpeedUnit,
+  );
+  const raceSpeedUnitRef = useRef<RaceSpeedUnit>("km/h");
+  const displayedRaceSpeedRef = useRef(0);
   const [kartDevelopmentValues, setKartDevelopmentValues] =
     useState<KartDevelopmentValues>(() => ({
       ...INITIAL_KART_DEVELOPMENT_VALUES,
@@ -463,6 +529,11 @@ export function SoloTimeTrialCanvas({
       gameplayTelemetry.start(COURSE_DOCUMENT.courseId);
     }
   }, [COURSE_DOCUMENT.courseId, gameplayTelemetry]);
+
+  useEffect(() => {
+    raceSpeedUnitRef.current = raceSpeedUnit;
+    displayedRaceSpeedRef.current = -1;
+  }, [raceSpeedUnit]);
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -660,12 +731,12 @@ export function SoloTimeTrialCanvas({
         name: string,
         position: pc.Vec3,
         halfExtents: pc.Vec3,
-        eulerAngles = new pc.Vec3(),
+        rotation = new pc.Quat(),
       ) {
         const entity = new pc.Entity(name);
 
         entity.setLocalPosition(position);
-        entity.setLocalEulerAngles(eulerAngles);
+        entity.setLocalRotation(rotation);
         entity.addComponent("collision", {
           halfExtents,
           type: "box",
@@ -679,7 +750,7 @@ export function SoloTimeTrialCanvas({
         parent: pc.Entity,
         name: string,
         position: pc.Vec3,
-        eulerAngles: pc.Vec3,
+        rotation: pc.Quat,
         axis: number,
         height: number,
         radius: number,
@@ -687,7 +758,7 @@ export function SoloTimeTrialCanvas({
         const entity = new pc.Entity(name);
 
         entity.setLocalPosition(position);
-        entity.setLocalEulerAngles(eulerAngles);
+        entity.setLocalRotation(rotation);
         entity.addComponent("collision", {
           axis,
           height,
@@ -886,10 +957,14 @@ export function SoloTimeTrialCanvas({
       startMarker.setEulerAngles(START_ROTATION);
 
       const kart = new pc.Entity("box-kart");
-      const initialKartRotation = new pc.Quat().setFromEulerAngles(
+      const initialAssemblyRotation = new pc.Quat().setFromEulerAngles(
         START_ROTATION.x,
         START_ROTATION.y,
         START_ROTATION.z,
+      );
+      const initialKartRotation = getKartPhysicsRotation(
+        initialAssemblyRotation,
+        KART_PRINCIPAL_TO_ASSEMBLY_ROTATION,
       );
       kart.setPosition(
         getKartRootPosition(
@@ -898,16 +973,21 @@ export function SoloTimeTrialCanvas({
             START_POSITION.y + KART_DATUM_HEIGHT,
             START_POSITION.z,
           ),
-          initialKartRotation,
+          initialAssemblyRotation,
           KART_CENTER_OF_MASS_OFFSET,
         ),
       );
       kart.setRotation(initialKartRotation);
       kart.addComponent("collision", { type: "compound" });
       app.root.addChild(kart);
+      const kartAssemblyFrame = new pc.Entity("kart-assembly-frame");
+      kartAssemblyFrame.setLocalRotation(
+        KART_ASSEMBLY_TO_PRINCIPAL_ROTATION,
+      );
+      kart.addChild(kartAssemblyFrame);
       const kartVisual = new pc.Entity("kart-visual");
 
-      kart.addChild(kartVisual);
+      kartAssemblyFrame.addChild(kartVisual);
       const currentStartPosition = START_POSITION.clone();
       const currentStartRotation = START_ROTATION.clone();
 
@@ -990,11 +1070,15 @@ export function SoloTimeTrialCanvas({
       });
 
       KART_SNAPSHOT.geometry.collisionCompound.forEach((primitive) => {
-        const position = offsetKartGeometry(
+        const position = getKartPhysicsLocalPosition(
           toPcVector(primitive.transform.position),
-          KART_GEOMETRY_OFFSET,
+          KART_CENTER_OF_MASS_OFFSET,
+          KART_ASSEMBLY_TO_PRINCIPAL_ROTATION,
         );
-        const rotation = toPcVector(primitive.transform.rotationDegrees);
+        const rotation = getKartPhysicsLocalRotation(
+          toPcVector(primitive.transform.rotationDegrees),
+          KART_ASSEMBLY_TO_PRINCIPAL_ROTATION,
+        );
         if (primitive.shape === "box") {
           createChildCollisionBox(
             kart,
@@ -1084,9 +1168,10 @@ export function SoloTimeTrialCanvas({
         const { x, z } = station.position;
         const wheelPivot = new pc.Entity(`kart-wheel-pivot-${name}`);
         const visualLocalPosition = toPcVector(station.position);
-        const localPosition = offsetKartGeometry(
+        const localPosition = getKartPhysicsLocalPosition(
           visualLocalPosition.clone(),
-          KART_GEOMETRY_OFFSET,
+          KART_CENTER_OF_MASS_OFFSET,
+          KART_ASSEMBLY_TO_PRINCIPAL_ROTATION,
         );
 
         wheelPivot.setLocalPosition(visualLocalPosition);
@@ -1110,8 +1195,13 @@ export function SoloTimeTrialCanvas({
         );
 
         dynamicWheels.push({
+          assemblyPosition: visualLocalPosition.clone(),
           driven,
           localPosition,
+          localSuspensionDirection:
+            KART_ASSEMBLY_TO_PRINCIPAL_ROTATION.transformVector(
+              new pc.Vec3(0, -1, 0),
+            ),
           maximumSuspensionTravel: station.suspension.maximumWheelTravel,
           name,
           pivot: wheelPivot,
@@ -1183,7 +1273,7 @@ export function SoloTimeTrialCanvas({
           DEFAULT_KART_COLLISION_CONSTRUCTION.bodyContactMaterial.restitution,
         type: pc.BODYTYPE_DYNAMIC,
       });
-      setExplicitRigidBodyInertia(kart, KART_MASS, KART_INERTIA);
+      setExplicitRigidBodyInertia(kart, KART_MASS, KART_PRINCIPAL_INERTIA);
       configureRigidBodyCcd(kart, KART_CCD_CONFIGURATION);
 
       const kartPresentation = {
@@ -1196,6 +1286,7 @@ export function SoloTimeTrialCanvas({
       const interpolatedKartPosition = new pc.Vec3();
       const interpolatedKartVisualPosition = new pc.Vec3();
       const interpolatedKartRotation = new pc.Quat();
+      const interpolatedKartAssemblyRotation = new pc.Quat();
       const kartGeometryOffset = new pc.Vec3(
         KART_GEOMETRY_OFFSET.x,
         KART_GEOMETRY_OFFSET.y,
@@ -1325,7 +1416,7 @@ export function SoloTimeTrialCanvas({
       }
 
       function resetKart() {
-        const resetRotation = new pc.Quat().setFromEulerAngles(
+        const resetAssemblyRotation = new pc.Quat().setFromEulerAngles(
           currentStartRotation.x,
           currentStartRotation.y,
           currentStartRotation.z,
@@ -1336,11 +1427,17 @@ export function SoloTimeTrialCanvas({
             currentStartPosition.y + KART_DATUM_HEIGHT,
             currentStartPosition.z,
           ),
-          resetRotation,
+          resetAssemblyRotation,
           KART_CENTER_OF_MASS_OFFSET,
         );
 
-        kart.rigidbody?.teleport(resetPosition, resetRotation);
+        kart.rigidbody?.teleport(
+          resetPosition,
+          getKartPhysicsRotation(
+            resetAssemblyRotation,
+            KART_PRINCIPAL_TO_ASSEMBLY_ROTATION,
+          ),
+        );
         if (kart.rigidbody) {
           kart.rigidbody.linearVelocity = new pc.Vec3();
           kart.rigidbody.angularVelocity = new pc.Vec3();
@@ -1422,7 +1519,10 @@ export function SoloTimeTrialCanvas({
         if (!rigidBody) {
           return false;
         }
-        const axis = getManualRightingAxis(kart.up, kart.forward);
+        const axis = getManualRightingAxis(
+          kartAssemblyFrame.up,
+          kartAssemblyFrame.forward,
+        );
         if (!axis || !hasManualRightingSupport()) {
           return false;
         }
@@ -1430,24 +1530,34 @@ export function SoloTimeTrialCanvas({
           return true;
         }
 
-        const torqueScale = getManualRightingTorqueScale(kart.up) ?? 1;
-        const localAxis = kart
+        const torqueScale =
+          getManualRightingTorqueScale(kartAssemblyFrame.up) ?? 1;
+        const localAxis = kartAssemblyFrame
           .getRotation()
           .clone()
           .invert()
           .transformVector(new pc.Vec3(axis.x, axis.y, axis.z));
-        const torqueImpulse = getManualRightingTorqueImpulse(
-          KART_INERTIA,
+        const localTorqueImpulse = getManualRightingLocalTorqueImpulse(
+          KART_INERTIA_TENSOR,
           localAxis,
           activeDynamics.environment.gravity,
           KART_MANUAL_RIGHTING_GEOMETRY.liftClearanceHeight,
           torqueScale,
         );
+        const worldTorqueImpulse = kartAssemblyFrame
+          .getRotation()
+          .transformVector(
+            new pc.Vec3(
+              localTorqueImpulse.x,
+              localTorqueImpulse.y,
+              localTorqueImpulse.z,
+            ),
+          );
 
         rigidBody.applyTorqueImpulse(
-          axis.x * torqueImpulse,
-          axis.y * torqueImpulse,
-          axis.z * torqueImpulse,
+          worldTorqueImpulse.x,
+          worldTorqueImpulse.y,
+          worldTorqueImpulse.z,
         );
         rigidBody.applyImpulse(
           0,
@@ -1482,11 +1592,12 @@ export function SoloTimeTrialCanvas({
 
         const angularVelocity = rigidBody.angularVelocity.clone();
         const upwardAlignmentRate = new pc.Vec3()
-          .cross(angularVelocity, kart.up)
+          .cross(angularVelocity, kartAssemblyFrame.up)
           .dot(pc.Vec3.UP);
         if (!manualRightingSettling) {
           if (
-            kart.up.y < KART_MANUAL_RIGHTING_POLICY.captureMinimumUpY ||
+            kartAssemblyFrame.up.y <
+              KART_MANUAL_RIGHTING_POLICY.captureMinimumUpY ||
             upwardAlignmentRate > 0
           ) {
             return;
@@ -1494,13 +1605,18 @@ export function SoloTimeTrialCanvas({
           manualRightingSettling = true;
         }
 
-        const rotation = kart.getRotation();
+        const rotation = kartAssemblyFrame.getRotation();
         const inverseRotation = rotation.clone().invert();
         const localAngularVelocity =
           inverseRotation.transformVector(angularVelocity);
-        const alignmentAxis = new pc.Vec3().cross(kart.up, pc.Vec3.UP);
+        const alignmentAxis = new pc.Vec3().cross(
+          kartAssemblyFrame.up,
+          pc.Vec3.UP,
+        );
         const alignmentSin = Math.min(1, alignmentAxis.length());
-        const alignmentAngle = Math.acos(Math.min(1, Math.max(-1, kart.up.y)));
+        const alignmentAngle = Math.acos(
+          Math.min(1, Math.max(-1, kartAssemblyFrame.up.y)),
+        );
         const targetAngularVelocity =
           alignmentSin > 1e-6
             ? alignmentAxis
@@ -1514,7 +1630,7 @@ export function SoloTimeTrialCanvas({
           targetAngularVelocity,
         );
         const localTorqueImpulse = getManualRightingCaptureLocalTorqueImpulse(
-          KART_INERTIA,
+          KART_INERTIA_TENSOR,
           localAngularVelocity,
           targetLocalAngularVelocity,
         );
@@ -1530,7 +1646,7 @@ export function SoloTimeTrialCanvas({
         rigidBody.activate();
         if (
           kartController.state.supportCount === dynamicWheels.length &&
-          kart.up.y > 0.9
+          kartAssemblyFrame.up.y > 0.9
         ) {
           manualRightingCapturePending = false;
           manualRightingSettling = false;
@@ -1567,7 +1683,7 @@ export function SoloTimeTrialCanvas({
             .find((transform) => transform !== null) ??
           candidates.at(-1)?.transform ??
           requestedTransform;
-        const resetRotation = new pc.Quat().setFromEulerAngles(
+        const resetAssemblyRotation = new pc.Quat().setFromEulerAngles(
           recoveryTransform.rotation.x,
           recoveryTransform.rotation.y,
           recoveryTransform.rotation.z,
@@ -1578,11 +1694,17 @@ export function SoloTimeTrialCanvas({
             recoveryTransform.position.y + KART_DATUM_HEIGHT,
             recoveryTransform.position.z,
           ),
-          resetRotation,
+          resetAssemblyRotation,
           KART_CENTER_OF_MASS_OFFSET,
         );
 
-        kart.rigidbody?.teleport(resetPosition, resetRotation);
+        kart.rigidbody?.teleport(
+          resetPosition,
+          getKartPhysicsRotation(
+            resetAssemblyRotation,
+            KART_PRINCIPAL_TO_ASSEMBLY_ROTATION,
+          ),
+        );
         if (kart.rigidbody) {
           kart.rigidbody.linearVelocity = new pc.Vec3();
           kart.rigidbody.angularVelocity = new pc.Vec3();
@@ -1677,10 +1799,11 @@ export function SoloTimeTrialCanvas({
 
       const kartController = new DynamicKartController({
         app,
+        assemblyFrame: kartAssemblyFrame,
         environment: activeDynamics.environment,
         fallResetY: KART_RESET_FALL_Y,
         kart,
-        localInertia: KART_INERTIA,
+        localInertia: KART_INERTIA_TENSOR,
         mass: KART_MASS,
         onFallReset: requestRaceRecovery,
         physicalProfile: activeDynamics.kart,
@@ -1700,6 +1823,7 @@ export function SoloTimeTrialCanvas({
       let cameraImpactId = 0;
       let latestCameraImpact: ChaseCameraImpact | null = null;
       const chaseCameraSnapshot: ChaseCameraSnapshot = {
+        angularVelocity: new pc.Vec3(),
         impact: null,
         linearVelocity: new pc.Vec3(),
         position: new pc.Vec3(),
@@ -1773,6 +1897,9 @@ export function SoloTimeTrialCanvas({
         supportCount = kartController.state.supportCount,
       ): ChaseCameraSnapshot {
         chaseCameraSnapshot.impact = latestCameraImpact;
+        chaseCameraSnapshot.angularVelocity.copy(
+          kart.rigidbody?.angularVelocity ?? pc.Vec3.ZERO,
+        );
         chaseCameraSnapshot.linearVelocity.copy(
           kart.rigidbody?.linearVelocity ?? pc.Vec3.ZERO,
         );
@@ -1828,9 +1955,7 @@ export function SoloTimeTrialCanvas({
         wheelPresentations.forEach((wheel) => {
           wheel.previousHubY = wheel.currentHubY;
           wheel.currentHubY =
-            (telemetryByName.get(wheel.wheelName)?.hubLocalY ??
-              initialHubY - KART_CENTER_OF_MASS_OFFSET.y) +
-            KART_CENTER_OF_MASS_OFFSET.y;
+            telemetryByName.get(wheel.wheelName)?.assemblyHubY ?? initialHubY;
         });
       }
 
@@ -2096,7 +2221,7 @@ export function SoloTimeTrialCanvas({
 
       const getKartDebugState = () => {
         const kartPosition = kart.getPosition();
-        const kartRotation = kart.getEulerAngles();
+        const kartRotation = kartAssemblyFrame.getEulerAngles();
         const angularVelocity = kart.rigidbody?.angularVelocity ?? pc.Vec3.ZERO;
         const linearVelocity = kart.rigidbody?.linearVelocity ?? pc.Vec3.ZERO;
         const angularSpeed = angularVelocity.length();
@@ -2138,9 +2263,9 @@ export function SoloTimeTrialCanvas({
           ),
           driftSmokeLevels: driftSmoke?.levelsByWheel ?? {},
           forward: {
-            x: toFixedStep(kart.forward.x),
-            y: toFixedStep(kart.forward.y),
-            z: toFixedStep(kart.forward.z),
+            x: toFixedStep(kartAssemblyFrame.forward.x),
+            y: toFixedStep(kartAssemblyFrame.forward.y),
+            z: toFixedStep(kartAssemblyFrame.forward.z),
           },
           geometricTurnRadius:
             kartController.state.geometricTurnRadius === null
@@ -2180,15 +2305,15 @@ export function SoloTimeTrialCanvas({
           developmentValueMetadata: KART_DEVELOPMENT_VALUE_METADATA,
           developmentValues: { ...activeDevelopmentValues },
           up: {
-            x: toFixedStep(kart.up.x),
-            y: toFixedStep(kart.up.y),
-            z: toFixedStep(kart.up.z),
+            x: toFixedStep(kartAssemblyFrame.up.x),
+            y: toFixedStep(kartAssemblyFrame.up.y),
+            z: toFixedStep(kartAssemblyFrame.up.z),
           },
           verticalVelocity: toFixedStep(kartController.state.verticalVelocity),
           wheelHubYs: Object.fromEntries(
             kartController.state.wheelTelemetry.map((wheel) => [
               wheel.name,
-              toFixedStep(wheel.hubLocalY),
+              toFixedStep(wheel.assemblyHubY),
             ]),
           ),
           wheelContactNormals: Object.fromEntries(
@@ -2330,10 +2455,13 @@ export function SoloTimeTrialCanvas({
       }) => {
         kart.rigidbody?.teleport(
           new pc.Vec3(pose.position.x, pose.position.y, pose.position.z),
-          new pc.Quat().setFromEulerAngles(
-            pose.rotation.x,
-            pose.rotation.y,
-            pose.rotation.z,
+          getKartPhysicsRotation(
+            new pc.Quat().setFromEulerAngles(
+              pose.rotation.x,
+              pose.rotation.y,
+              pose.rotation.z,
+            ),
+            KART_PRINCIPAL_TO_ASSEMBLY_ROTATION,
           ),
         );
         kartController.reset();
@@ -2378,6 +2506,16 @@ export function SoloTimeTrialCanvas({
               : dynamicWheels.length,
           ),
         );
+      };
+
+      const setKartDebugAngularVelocity = (angularVelocity: Position3) => {
+        if (kart.rigidbody) {
+          kart.rigidbody.angularVelocity = new pc.Vec3(
+            angularVelocity.x,
+            angularVelocity.y,
+            angularVelocity.z,
+          );
+        }
       };
 
       const setRaceDebugMovement = (
@@ -2521,6 +2659,7 @@ export function SoloTimeTrialCanvas({
             requestRaceRecovery,
             resetKart,
             setCourseObjectDebugTransform,
+            setKartDebugAngularVelocity,
             setKartDebugPose,
             setKartDevelopmentValues: setSceneKartDevelopmentValues,
             setRaceDebugMovement,
@@ -2677,16 +2816,28 @@ export function SoloTimeTrialCanvas({
           kartPresentation.currentRotation,
           accumulatorFraction,
         );
-        interpolatedKartRotation.transformVector(
+        interpolatedKartAssemblyRotation.mul2(
+          interpolatedKartRotation,
+          KART_ASSEMBLY_TO_PRINCIPAL_ROTATION,
+        );
+        interpolatedKartAssemblyRotation.transformVector(
           kartGeometryOffset,
           interpolatedKartVisualPosition,
         );
         interpolatedKartVisualPosition.add(interpolatedKartPosition);
         kartVisual.setPosition(interpolatedKartVisualPosition);
-        kartVisual.setRotation(interpolatedKartRotation);
+        kartVisual.setRotation(interpolatedKartAssemblyRotation);
         renderWheelPresentation(accumulatorFraction);
 
         chaseCamera.update(frameSeconds, getChaseCameraSnapshot());
+        const nextDisplayedSpeed = formatRaceSpeed(
+          kartController.state.speed,
+          raceSpeedUnitRef.current,
+        );
+        if (nextDisplayedSpeed !== displayedRaceSpeedRef.current) {
+          displayedRaceSpeedRef.current = nextDisplayedSpeed;
+          setRaceSpeed(nextDisplayedSpeed);
+        }
         latestCameraImpact = null;
         publishRacePresentation();
       });
@@ -2766,15 +2917,18 @@ export function SoloTimeTrialCanvas({
     COURSE_DOCUMENT,
     START_POSITION,
     START_ROTATION,
+    KART_ASSEMBLY_TO_PRINCIPAL_ROTATION,
     KART_CCD_CONFIGURATION,
     KART_CENTER_OF_MASS_OFFSET,
     KART_CLEARANCE_DATUM_HEIGHT,
     KART_COLLISION_RADIUS,
     KART_DATUM_HEIGHT,
     KART_GEOMETRY_OFFSET,
-    KART_INERTIA,
+    KART_INERTIA_TENSOR,
     KART_MANUAL_RIGHTING_GEOMETRY,
     KART_MASS,
+    KART_PRINCIPAL_INERTIA,
+    KART_PRINCIPAL_TO_ASSEMBLY_ROTATION,
     KART_ROOT_HEIGHT,
     KART_SNAPSHOT,
     KART_STEERING_GEOMETRY,
@@ -3240,9 +3394,9 @@ export function SoloTimeTrialCanvas({
           {kartDynamicsOpen &&
           !gamePaused &&
           racePresentation.state !== "finished" ? (
-            <KartDynamicsDrawer
+            <KartStatsDrawer
               onClose={() => updateKartDynamicsOpen(false)}
-              values={kartDevelopmentValues}
+              snapshot={KART_SNAPSHOT}
             />
           ) : null}
           {racePresentation.state !== "finished" ? (
@@ -3272,6 +3426,16 @@ export function SoloTimeTrialCanvas({
                     {racePresentation.elapsedTime}
                   </time>
                 </div>
+              </div>
+              <div
+                aria-label={`Speed ${raceSpeed} ${raceSpeedUnit}`}
+                className="race-status-speed"
+              >
+                <span>Speed</span>
+                <output data-testid="race-speed">
+                  {raceSpeed}
+                  <small>{raceSpeedUnit}</small>
+                </output>
               </div>
             </section>
           ) : null}
@@ -3530,7 +3694,7 @@ export function SoloTimeTrialCanvas({
                 </div>
               ) : null}
               <div className="pointer-events-none absolute bottom-4 right-4 z-10 hidden font-mono text-[0.68rem] font-bold uppercase tracking-[0.14em] text-titan-ice/55 lg:block">
-                T · Dynamics&nbsp;&nbsp; Esc · Pause
+                T · Stats&nbsp;&nbsp; Esc · Pause
               </div>
             </>
           ) : null}

@@ -3,8 +3,10 @@ import { expect, test } from "@playwright/test";
 import {
   createLoadingRacePresentationSnapshot,
   createRacePresentationSnapshot,
+  formatRaceSpeed,
   formatRaceTime,
   racePresentationSnapshotsEqual,
+  resolveRaceSpeedUnit,
 } from "../src/game/race/race-presentation";
 import type {
   RaceProgressionResult,
@@ -49,6 +51,20 @@ test.describe("race presentation", () => {
     expect(formatRaceTime(61_999_999)).toBe("1:01.9");
     expect(formatRaceTime(61_999_999, 3)).toBe("1:01.999");
     expect(formatRaceTime(Number.NaN)).toBe("0:00.0");
+  });
+
+  test("formats speed from SI runtime values using locale-derived display units", () => {
+    expect(resolveRaceSpeedUnit(["en-US"])).toBe("mph");
+    expect(resolveRaceSpeedUnit(["cy-GB"])).toBe("mph");
+    expect(resolveRaceSpeedUnit(["en-CA"])).toBe("km/h");
+    expect(resolveRaceSpeedUnit(["fr-FR"])).toBe("km/h");
+    expect(resolveRaceSpeedUnit(["not_a_locale", "de-DE"])).toBe("km/h");
+    expect(resolveRaceSpeedUnit([])).toBe("km/h");
+
+    expect(formatRaceSpeed(10, "mph")).toBe(22);
+    expect(formatRaceSpeed(10, "km/h")).toBe(36);
+    expect(formatRaceSpeed(-10, "mph")).toBe(22);
+    expect(formatRaceSpeed(Number.NaN, "km/h")).toBe(0);
   });
 
   test("creates a non-authoritative loading state without a race session", () => {

@@ -6,17 +6,31 @@ import {
   KART_GROUNDED_ROLL_DAMPING_POLICY,
 } from "../src/game/kart/kart-grounded-roll-damping";
 
+function diagonalTensor(x: number, y: number, z: number) {
+  return {
+    xx: x,
+    xy: 0,
+    xz: 0,
+    yx: 0,
+    yy: y,
+    yz: 0,
+    zx: 0,
+    zy: 0,
+    zz: z,
+  };
+}
+
 test.describe("kart grounded turn damping", () => {
   test("damps only local roll and derives the impulse from roll inertia", () => {
     const lightImpulse = getGroundedRollDampingLocalTorqueImpulse(
       { x: 0.5, y: -0.25, z: 0.8 },
-      { x: 20, y: 30, z: 40 },
+      diagonalTensor(20, 30, 40),
       2,
       1 / 120,
     );
     const heavyImpulse = getGroundedRollDampingLocalTorqueImpulse(
       { x: 0.5, y: -0.25, z: 0.8 },
-      { x: 40, y: 60, z: 80 },
+      diagonalTensor(40, 60, 80),
       2,
       1 / 120,
     );
@@ -36,7 +50,7 @@ test.describe("kart grounded turn damping", () => {
     expect(
       getGroundedRollDampingLocalTorqueImpulse(
         { x: 0, y: 0, z: 1 },
-        { x: 20, y: 30, z: 40 },
+        diagonalTensor(20, 30, 40),
         1,
         1 / 120,
       ),
@@ -46,13 +60,36 @@ test.describe("kart grounded turn damping", () => {
   test("keeps shared roll damping active during supported transients", () => {
     const impulse = getGroundedRollDampingLocalTorqueImpulse(
       { x: 4, y: 6, z: 12 },
-      { x: 20, y: 30, z: 40 },
+      diagonalTensor(20, 30, 40),
       2,
       1 / 120,
     );
 
     expect(impulse.x).toBe(0);
     expect(impulse.y).toBe(0);
+    expect(impulse.z).toBeLessThan(0);
+  });
+
+  test("uses the full tensor for coupled roll angular momentum", () => {
+    const impulse = getGroundedRollDampingLocalTorqueImpulse(
+      { x: 0, y: 0, z: 1 },
+      {
+        xx: 20,
+        xy: 0,
+        xz: 2,
+        yx: 0,
+        yy: 30,
+        yz: -3,
+        zx: 2,
+        zy: -3,
+        zz: 40,
+      },
+      2,
+      1 / 120,
+    );
+
+    expect(impulse.x).toBeLessThan(0);
+    expect(impulse.y).toBeGreaterThan(0);
     expect(impulse.z).toBeLessThan(0);
   });
 
