@@ -61,7 +61,7 @@ test("routes the Kart Builder button through the official admin roster", async (
     page.getByRole("heading", { name: "Official Karts" }),
   ).toBeVisible();
   for (const [name, kartId, action] of [
-    ["Balanced Kart", "balanced-kart", "Continue"],
+    ["Balanced Kart", "balanced-kart", "Edit"],
     ["Speed Kart", "speed-kart", "Create"],
     ["Handling Kart", "handling-kart", "Create"],
   ] as const) {
@@ -194,7 +194,7 @@ test("resolves draft actions independently across auth and network failures", as
 
   releaseBalanced?.();
   await expect(
-    balanced.getByRole("link", { name: "Continue" }),
+    balanced.getByRole("link", { name: "Edit" }),
   ).toBeVisible();
 });
 

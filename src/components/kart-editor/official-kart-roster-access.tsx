@@ -47,7 +47,7 @@ type DraftState = {
 
 const draftActionLabels = {
   checking: "Checking…",
-  continue: "Continue",
+  continue: "Edit",
   create: "Create",
   onboard: "Complete account",
   open: "Open builder",
