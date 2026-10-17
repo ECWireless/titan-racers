@@ -199,20 +199,37 @@ function clamp(value: number, minimum: number, maximum: number) {
 export function normalizeKartDevelopmentValues(
   values: Partial<KartDevelopmentValues>,
 ): KartDevelopmentValues {
-  const next = { ...DEFAULT_KART_DEVELOPMENT_VALUES };
+  return applyKartDevelopmentOverrides(DEFAULT_KART_DEVELOPMENT_VALUES, values);
+}
 
-  (Object.keys(DEFAULT_KART_DEVELOPMENT_VALUES) as KartDevelopmentValueKey[])
-    .forEach((key) => {
-      const requestedValue = values[key];
-      if (
-        typeof requestedValue !== "number" ||
-        !Number.isFinite(requestedValue)
-      ) {
-        return;
-      }
-      const bounds = KART_DEVELOPMENT_VALUE_BOUNDS[key];
-      next[key] = clamp(requestedValue, bounds.minimum, bounds.maximum);
-    });
+/**
+ * Applies session-only development overrides to an exact derived baseline.
+ * Only overridden values are clamped to development bounds, so a kart without
+ * overrides runs with its resolved snapshot values rather than slider limits.
+ */
+export function applyKartDevelopmentOverrides(
+  baseline: KartDevelopmentValues,
+  overrides: Partial<KartDevelopmentValues>,
+): KartDevelopmentValues {
+  const next = { ...baseline };
+  let overridden = false;
+
+  (Object.keys(baseline) as KartDevelopmentValueKey[]).forEach((key) => {
+    const requestedValue = overrides[key];
+    if (
+      typeof requestedValue !== "number" ||
+      !Number.isFinite(requestedValue)
+    ) {
+      return;
+    }
+    const bounds = KART_DEVELOPMENT_VALUE_BOUNDS[key];
+    next[key] = clamp(requestedValue, bounds.minimum, bounds.maximum);
+    overridden = true;
+  });
+
+  if (!overridden) {
+    return next;
+  }
 
   next.slidingGripCoefficient = Math.min(
     next.slidingGripCoefficient,

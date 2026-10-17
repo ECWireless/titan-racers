@@ -54,9 +54,10 @@ environment version, runtime-solver version, and gameplay-policy version.
 Presentation versions are separate because purely visual changes do not alter
 competitive physics.
 
-The transitional `kart-development-values.ts` adapter is not a persisted kart
-format. It remains only for the pre-editor runtime and must not become an
-override path around authored construction.
+The `kart-development-values.ts` adapter is not a persisted kart format or an
+override path around authored construction. Runtime uses a revision's resolved
+snapshot exactly; the adapter only applies session-only overrides from
+non-production test hooks, clamping just the overridden values.
 
 ## Unit Standard
 

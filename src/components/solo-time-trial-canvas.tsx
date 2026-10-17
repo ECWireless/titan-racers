@@ -67,9 +67,9 @@ import {
   KART_MANUAL_RIGHTING_POLICY,
 } from "@/game/kart/kart-righting";
 import {
+  applyKartDevelopmentOverrides,
   createKartDevelopmentValues,
   KART_DEVELOPMENT_VALUE_METADATA,
-  normalizeKartDevelopmentValues,
   resolveKartDevelopmentValues,
   type KartDevelopmentValues,
 } from "@/game/kart/kart-development-values";
@@ -493,11 +493,11 @@ export function SoloTimeTrialCanvas({
   );
   const raceSpeedUnitRef = useRef<RaceSpeedUnit>("km/h");
   const displayedRaceSpeedRef = useRef(0);
-  const [kartDevelopmentValues, setKartDevelopmentValues] =
-    useState<KartDevelopmentValues>(() => ({
-      ...INITIAL_KART_DEVELOPMENT_VALUES,
-    }));
-  const kartDevelopmentValuesRef = useRef(kartDevelopmentValues);
+  // Session-only test overrides survive scene re-initialization; the derived
+  // snapshot remains the exact baseline for every value not overridden.
+  const kartDevelopmentOverridesRef = useRef<Partial<KartDevelopmentValues>>(
+    {},
+  );
   const [racePresentation, setRacePresentation] =
     useState<RacePresentationSnapshot>(createLoadingRacePresentationSnapshot);
   const [sceneStatus, setSceneStatus] = useState<
@@ -607,8 +607,9 @@ export function SoloTimeTrialCanvas({
         throw new Error("PlayCanvas rigid-body system is unavailable");
       }
       const activeRigidBodySystem = rigidBodySystem;
-      let activeDevelopmentValues = normalizeKartDevelopmentValues(
-        kartDevelopmentValuesRef.current,
+      let activeDevelopmentValues = applyKartDevelopmentOverrides(
+        INITIAL_KART_DEVELOPMENT_VALUES,
+        kartDevelopmentOverridesRef.current,
       );
       let activeDynamics = resolveKartDevelopmentValues(
         activeDevelopmentValues,
@@ -1997,13 +1998,15 @@ export function SoloTimeTrialCanvas({
       function setSceneKartDevelopmentValues(
         nextValues: Partial<KartDevelopmentValues>,
       ) {
-        activeDevelopmentValues = normalizeKartDevelopmentValues({
-          ...activeDevelopmentValues,
+        kartDevelopmentOverridesRef.current = {
+          ...kartDevelopmentOverridesRef.current,
           ...nextValues,
-        });
+        };
+        activeDevelopmentValues = applyKartDevelopmentOverrides(
+          INITIAL_KART_DEVELOPMENT_VALUES,
+          kartDevelopmentOverridesRef.current,
+        );
         activeDynamics = resolveKartDevelopmentValues(activeDevelopmentValues);
-        kartDevelopmentValuesRef.current = activeDevelopmentValues;
-        setKartDevelopmentValues({ ...activeDevelopmentValues });
         kartController.setPhysicalProfile(activeDynamics.kart);
         kartController.setEnvironment(activeDynamics.environment);
         kartController.setTireSurfaceInteraction(
@@ -2917,6 +2920,7 @@ export function SoloTimeTrialCanvas({
     COURSE_DOCUMENT,
     START_POSITION,
     START_ROTATION,
+    INITIAL_KART_DEVELOPMENT_VALUES,
     KART_ASSEMBLY_TO_PRINCIPAL_ROTATION,
     KART_CCD_CONFIGURATION,
     KART_CENTER_OF_MASS_OFFSET,

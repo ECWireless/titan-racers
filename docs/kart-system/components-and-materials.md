@@ -96,6 +96,11 @@ Tests completeness-check registry entries and the documented derived, runtime,
 environment, and presentation references. Human documentation may not
 independently define registry numbers.
 
+A published `id@version` is immutable. `tests/kart-registry-immutability.spec.ts`
+pins a content fingerprint for every approved component, material, and
+tire/surface interaction version; change behavior by adding a new version and
+pinning it, never by editing an existing entry.
+
 ## Component Engineering Boundary
 
 Required Phase 3 assembly selects and places approved components. Editing motor

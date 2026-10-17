@@ -823,8 +823,8 @@ Goal: understand and simplify the handling model, then prove through three
 official builds that karts are machines rather than skins.
 
 Do not begin the persisted kart format or editor until the tuning-mastery gate
-is accepted. Deliver Phase 3 through four independently reviewable PR-sized
-units.
+is accepted. Phase 3 was delivered through five independently reviewable
+PR-sized units, PR 3.1 through PR 3.5.
 
 #### PR 3.1: Kart Dynamics Mastery And Derivation Contract
 
@@ -1048,20 +1048,32 @@ tool-specific, and implemented knowledge through the repository Skills Tree.
 
 #### PR 3.5: Official Kart Roster And Runtime Integration
 
-- [ ] construct kart visuals, compound collision geometry, wheels, mass
+- [x] construct kart visuals, compound collision geometry, wheels, mass
       properties, and the simplified handling profile from validated immutable
-      revisions,
-- [ ] retain the Balanced Kart authored through the real admin pipeline in
+      revisions; runtime diagonalizes the assembly-frame inertia tensor into a
+      deterministic principal-axis frame without altering authored data,
+- [x] retain the Balanced Kart authored through the real admin pipeline in
       PR 3.3, then create speed and handling karts through that same pipeline
-      without special-case tuning or manual overrides,
-- [ ] show name, assembler credit, visual identity, derived stat bars, and a
+      without special-case tuning or manual overrides; handling-kart stability
+      came from a new immutable `suspension.compliant-long` v2 component
+      revision rather than a per-kart adjustment,
+- [x] show name, assembler credit, visual identity, derived stat bars, and a
       short practical descriptor in public kart selection,
-- [ ] make published official revisions playable and remove unpublished entries
+- [x] make published official revisions playable and remove unpublished entries
       from ordinary selection,
-- [ ] retain a validated bundled official-roster fallback for frictionless guest
+- [x] retain a validated bundled official-roster fallback for frictionless guest
       play when persistence is unavailable,
-- [ ] run full physics, collision, camera, input, resilience, responsive, and
-      complete-race regression QA.
+- [x] add immutable, revision-bound kart thumbnails rendered from the
+      validated assembly, with bounded PNG storage and public read access only
+      for published revisions,
+- [x] add unique, immutable racer usernames with format and reserved-name
+      constraints, onboarding required before protected authoring or
+      publication, and anonymization-safe behavior so assembler credit shows
+      the username or the official fallback rather than provider identity,
+- [x] stabilize chase-camera framing during violent spins and tumbles,
+- [x] run full physics, collision, camera, input, resilience, responsive, and
+      complete-race regression QA, including feature-lead complete-race
+      driving with the Speed and Handling Karts.
 
 #### Deferred component-engineering phase boundary
 
@@ -1078,6 +1090,41 @@ After Phase 3 is implemented and verified, run the final proportional
 integration review across tuning simplification, deterministic derivation,
 admin authoring, publication, selection, and all three playable official karts
 before merging the final phase work into `main`.
+
+- [x] run the Phase 3 integration review after PR 3.5 merged, using separate
+      technical/gameplay and security/privacy reviewers across
+      `fc7cd44..4bb233b`; no P0 findings, two technical P1 findings fixed
+      below, and no security/privacy P1 findings,
+- [x] stop runtime from clamping resolved kart snapshots to development-slider
+      bounds; bounds now apply only to session-only test overrides,
+- [x] pin the content fingerprint of every approved registry version after
+      `suspension.firm-short@1` damping was found changed in place during
+      PR 3.3, keep its current content canonical because the official karts
+      were authored against it; a one-off check confirmed all five hosted
+      kart revisions still re-derive exactly.
+
+Deferred Phase 3 integration-review findings:
+
+- [ ] fall back to the bundled roster only when persistence is unreachable;
+      omit and log an individual official kart with invalid evidence rather
+      than restoring unpublished karts,
+- [ ] replace locale-dependent `localeCompare` ordering in derivation hashing
+      and wheel ordering with code-point comparison,
+- [ ] document migration `0012`'s one-way name and image rewrite, including a
+      backup step before applying it to a new hosted environment, and define an
+      operator procedure for moderating an immutable username,
+- [ ] before Phase 6 ownership work, distinguish official from community karts
+      with server-owned scope rather than first-saving admin ownership or
+      client-chosen IDs, and verify bundled official documents against their
+      published revisions,
+- [ ] before Phase 6 opens player uploads, add `no-store` to every admin and
+      profile response, cap JSON request bodies, restrict or server-render
+      thumbnail PNG chunks, extend lookalike reserved-username checks, make
+      repeated anonymization idempotent, and parse revision numbers strictly,
+- [ ] resolve the runtime's fixed default tire compound, unify the race and
+      editor kart visual builders, record kart revision identity in gameplay
+      telemetry, recheck the Speed Kart's floor-level handling stat range, and
+      refresh stale kart-system and chassis-contact docs.
 
 ### Phase 4: Agricultural Zone Track
 

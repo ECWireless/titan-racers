@@ -99,7 +99,9 @@ mastery remain separate systems and PR-sized units.
   fixture. `src/game/kart/kart-development-values.ts`
   owns the temporary flat diagnostic adapter, its bounds, normalization,
   explicit ownership metadata, and conversion into those authoritative
-  contracts; runtime systems never consume the flat adapter directly.
+  contracts; runtime systems never consume the flat adapter directly. Races
+  start from the resolved snapshot exactly, and development bounds clamp only
+  values that a non-production test hook overrides.
 - `src/game/kart/kart-drift-smoke.ts` owns supported-wheel tire smoke. Measured
   final lateral tire force times lateral contact speed produces a rear-wheel
   scrub-power presentation signal in watts. Mass-scaled reference thresholds

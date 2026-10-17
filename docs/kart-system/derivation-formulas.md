@@ -9,8 +9,8 @@ non-editable evidence, never substitute authored inputs.
 
 `kart-derivation.ts` owns the versioned resolver and resolved-snapshot schema.
 `kart-physical-profile.ts` defines the nested capability output consumed by the
-current runtime. `kart-development-values.ts` remains a temporary adapter for
-the pre-editor runtime, not an input to persisted derivation.
+current runtime. `kart-development-values.ts` applies session-only test
+overrides to that exact output and is never an input to persisted derivation.
 
 ## Exact Construction-To-Output Map
 
