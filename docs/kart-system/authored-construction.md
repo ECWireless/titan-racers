@@ -22,12 +22,12 @@ first component catalog and fixtures. Those values are design targets, not
 overrides: every published kart's actual dimensions and mass derive from its
 validated construction.
 
-The transitional reference fixture preserves the rough prototype's validated
-proportions at 0.25 linear scale: `0.4625 m` long and `1.875 kg`. Its upper
-housing is structure/electronics bodywork, not a cockpit. PR 3.2 adds the
-versioned assembly and derivation contracts while retaining this deterministic
-regression example. PR 3.3 will author and publish the Balanced Kart through the
-new editor before replacing the transitional runtime kart.
+The reference fixture in `kart-reference-construction.ts` preserves the rough
+prototype's validated proportions at 0.25 linear scale: `0.4625 m` long and
+`1.875 kg`. Its upper housing is structure/electronics bodywork, not a cockpit.
+It is no longer a raced kart: the official karts are authored assembly
+documents. The fixture remains a deterministic regression example and sizes
+shared, kart-independent policy and defaults.
 
 The fixture places `105/120` of its mass in the low body and `15/120` in the
 upper housing. The low body is centered; the upper housing has a modest rear
@@ -36,6 +36,10 @@ upright world height is derived from the chassis datum plus that center-of-mass
 offset rather than copied from a visual transform.
 
 ## Pre-Authoring Official-Kart Predictions
+
+These predictions guided authoring of the three official karts. Their actual
+values come from derivation; see the generated catalog and the official kart
+documents.
 
 The first catalog uses one battery and one motor. Additional component choices
 exist only where the current solver represents their physical tradeoff.
@@ -108,5 +112,8 @@ evidence; historical snapshot parsers remain pinned to their original version.
 - Semantic validation: `src/game/kart/kart-assembly-validation.ts`.
 - Approved definitions: `src/game/kart/kart-component-registry.ts` and
   `src/game/kart/kart-material-registry.ts`.
-- Transitional runtime fixture: `src/game/kart/kart-reference-construction.ts`.
+- Official kart documents: `src/game/kart/official-kart-assembly.ts` and
+  `src/game/kart/{balanced,speed,handling}-kart-document.ts`.
+- Reference fixture (regression example and shared-policy sizing):
+  `src/game/kart/kart-reference-construction.ts`.
 - Resolved output: `src/game/kart/kart-physical-profile.ts`.

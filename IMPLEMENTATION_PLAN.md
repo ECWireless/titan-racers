@@ -181,8 +181,8 @@ phase noted.
       and parse revision numbers strictly.
 - [ ] Use each kart's tire compound at runtime instead of the fixed default,
       share one kart visual builder between race and editor, record kart
-      revision in gameplay telemetry, recheck the Speed Kart's floor-level
-      handling stat, and refresh stale kart-system and chassis-contact docs.
+      revision in gameplay telemetry, and recheck the Speed Kart's floor-level
+      handling stat.
 
 ## Remaining Phases
 
