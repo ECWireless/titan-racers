@@ -1,6 +1,6 @@
 # Session Workflow
 
-This repo is built phase by phase. Each phase, branch, and PR may happen in a new Codex session, so the working context must be rebuilt deliberately before implementation starts.
+This repo is built phase by phase. Each phase, branch, and PR may happen in a new agent session, so the working context must be rebuilt deliberately before implementation starts.
 
 ## Source Of Truth
 
@@ -126,7 +126,7 @@ Before opening, updating, or responding to PR review feedback, read `docs/pr-rev
 
 ## Pre-PR Independent Review
 
-Run an independent review after each PR-sized unit's implementation and verification are complete but before declaring that unit complete, staging it for publication, or preparing/opening its PR. The trigger is PR readiness, not the end of a Codex session: an unfinished unit does not require the gate merely because a session is ending, while multiple completed PRs in one session each require their own gate.
+Run an independent review after each PR-sized unit's implementation and verification are complete but before declaring that unit complete, staging it for publication, or preparing/opening its PR. The trigger is PR readiness, not the end of an agent session: an unfinished unit does not require the gate merely because a session is ending, while multiple completed PRs in one session each require their own gate.
 
 When a phase spans multiple PRs, review each completed PR independently against its intended base and approved scope. After the complete phase has been implemented and verified, run a final proportional integration review before merging the final phase work into `main`. Do not treat earlier per-PR reviews as a substitute for reviewing cross-PR behavior at the completed-phase boundary.
 

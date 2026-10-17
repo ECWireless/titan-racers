@@ -1,12 +1,12 @@
 # Model Effort Workflow
 
-Use this workflow to choose an appropriate Codex model-effort setting for each session and to recognize when the work has changed enough to justify switching settings.
+Use this workflow to choose an appropriate agent model-effort setting for each session and to recognize when the work has changed enough to justify switching settings.
 
 ## Capability Boundary
 
-The agent may assess the work and recommend a model-effort setting, but it must not claim that it changed the active setting unless the current Codex environment provides and successfully uses an explicit control for doing so.
+The agent may assess the work and recommend a model-effort setting, but it must not claim that it changed the active setting unless the current agent environment provides and successfully uses an explicit control for doing so.
 
-When the active setting is not visible to the agent, say that it is unknown rather than guessing. If a different setting would materially improve the work, explain why and ask the feature lead to make the change before continuing. Available effort levels and their behavior may vary by model and Codex surface.
+When the active setting is not visible to the agent, say that it is unknown rather than guessing. If a different setting would materially improve the work, explain why and ask the feature lead to make the change before continuing. Available effort levels and their behavior may vary by model and agent tool.
 
 ## Top-Line Recommendation For Every Task
 
@@ -85,7 +85,7 @@ Reserve for rare work with unusually high ambiguity, consequence, or cost of rew
 - reviewing a security-critical design with multiple trust boundaries,
 - making a foundational decision that will constrain many later phases.
 
-Do not recommend XHigh merely because a task is large. Break large but straightforward work into smaller tasks first. XHigh is model-dependent and may not be available in every Codex environment.
+Do not recommend XHigh merely because a task is large. Break large but straightforward work into smaller tasks first. XHigh is model-dependent and may not be available in every agent environment.
 
 ## When To Reassess
 
@@ -109,6 +109,6 @@ When recommending a switch:
 3. Name the recommended setting.
 4. Give a one-sentence reason tied to risk or complexity.
 5. Wait for the feature lead to change or confirm the setting when the switch is important.
-6. Rebuild session context if changing the setting requires a new Codex session.
+6. Rebuild session context if changing the setting requires a new agent session.
 
 Never use a higher effort setting as a substitute for clarifying the product goal, reducing scope, or creating a testable plan.

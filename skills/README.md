@@ -4,7 +4,7 @@ This directory is a progressively disclosed tree of reusable knowledge for agent
 
 ## Capability Boundary
 
-This is project knowledge, not a collection of installable Codex skills. Files in this tree use `README.md`; do not add `SKILL.md` files unless the repository deliberately adopts an executable Codex skill package in a separately reviewed change.
+This is project knowledge, not a collection of installable agent skills. Files in this tree use `README.md`; do not add `SKILL.md` files unless the repository deliberately adopts an executable agent skill package in a separately reviewed change.
 
 The Skills Tree supplements the repository's source-of-truth documents. It does not redefine product scope, phase boundaries, acceptance criteria, or approved architecture. When guidance here conflicts with `IMPLEMENTATION_PLAN.md` or a narrower authoritative project document, stop and resolve the inconsistency before implementation continues.
 
