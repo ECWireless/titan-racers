@@ -38,12 +38,6 @@ function courseAtCheckpointLimit() {
 }
 
 test.describe("course editor document commands", () => {
-  test.beforeEach(async ({}, testInfo) => {
-    test.skip(
-      testInfo.project.name !== "desktop",
-      "Pure course-document editing coverage only needs to run once.",
-    );
-  });
 
   test("adds bounded presets with stable unique IDs", () => {
     let document = structuredClone(ROUGH_COURSE_DOCUMENT);

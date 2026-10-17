@@ -57,12 +57,6 @@ function cross(session: RaceSession, x: number) {
 }
 
 test.describe("race session", () => {
-  test.beforeEach(async ({}, testInfo) => {
-    test.skip(
-      testInfo.project.name !== "desktop",
-      "Pure lifecycle coverage only needs to run once.",
-    );
-  });
 
   test("moves through loading, ready, countdown, racing, and pause", () => {
     const session = new RaceSession(config());

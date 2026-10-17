@@ -472,11 +472,7 @@ test("aggregates useful dashboard questions without exposing run identity", () =
 test.describe("gameplay telemetry Postgres integration", () => {
   test.describe.configure({ mode: "serial" });
 
-  test.beforeEach(async ({}, testInfo) => {
-    test.skip(
-      testInfo.project.name !== "desktop",
-      "Database integration runs once in the desktop project.",
-    );
+  test.beforeEach(() => {
     test.skip(
       !process.env.DATABASE_URL?.trim(),
       "DATABASE_URL is required for gameplay telemetry integration tests.",

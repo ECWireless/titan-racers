@@ -127,12 +127,9 @@ Focused coverage includes:
   severity bounds, and equivalent exponential smoothing;
 - `tests/course-document.spec.ts` for visible large-wall/L-corner geometry
   beyond the normal loop;
-- `tests/home.spec.ts` for presentation coherence and reset snapping,
-  motion-led slip and desktop/mobile FOV, wall obstruction and release, corner
-  correction, bounded impact response and decay, airborne-to-landing blend,
-  violent-spin heading detachment, reverse behavior, elevated/rotated editor
-  release, and the pre-existing collision, ramp, recovery, and maximum-speed
-  integration scenarios;
+- `tests/home.spec.ts` for wall obstruction and release in the live scene
+  (the other camera scene fixtures were removed on 2026-10-17 in favor of
+  `tests/chase-camera.spec.ts`);
 - `pnpm lint`, `pnpm typecheck`, and `pnpm build`; and
 - the complete desktop and mobile Playwright projects.
 
