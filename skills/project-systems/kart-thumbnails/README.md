@@ -1,10 +1,6 @@
 # Kart Thumbnail System
 
-## Status
-
-**Maturity:** In review. PR 3.5 implementation, migration, focused persistence,
-desktop/mobile roster, editor capture, and race-start regression coverage are
-complete. Feature-lead QA and the final independent review gate remain.
+**Maturity:** Validated (PR 3.5, 2026-07-26).
 
 ## Purpose And Scope
 
@@ -16,8 +12,8 @@ public image.
 
 The system owns capture, validation, immutable storage, protected draft
 delivery, public published delivery, fallback rendering, and card
-presentation. Kart authoring and publication remain owned by the kart editor
-and repository; racing remains owned by the solo runtime.
+presentation. Kart authoring and publication belong to the
+[kart builder](../kart-builder/README.md); racing belongs to the solo runtime.
 
 ## Source Ownership
 

@@ -26,6 +26,9 @@ The source code and authoritative project documents remain the final authority f
 
 ## Current Children
 
+- [Kart builder](kart-builder/README.md): kart document, approved part
+  registry, validation, server-side derivation, immutable revisions and
+  publication, the admin kart editor, racer usernames, and the official roster.
 - [Kart thumbnails](kart-thumbnails/README.md): exact revision-bound kart
   previews, deterministic browser capture, immutable persistence, protected
   draft access, and privacy-minimized public delivery.

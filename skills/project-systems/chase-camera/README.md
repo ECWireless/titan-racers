@@ -25,8 +25,7 @@ progression.
   PlayCanvas obstruction query, supplies interpolated kart pose plus
   authoritative linear/angular velocity and support signals, normalizes copied
   collision frames into camera impact events, invokes camera snap at
-  discontinuities, and restores kart collision filters after editor body-type
-  changes.
+  discontinuities.
 - `src/game/collision/kart-collision-observer.ts` remains the owner of copied
   contact point, normal, approach speed, impulse, and pre/post velocity data.
 - `src/game/kart/dynamic-kart-controller.ts` remains the owner of supported
@@ -110,11 +109,7 @@ progression.
   distance never extends beyond a close hit, and inward correction is faster
   than ordinary/outward position damping.
 - Initial readiness, gameplay reset, invalid recovery, debug teleport, and
-  editor exit snap every retained camera signal immediately.
-- PlayCanvas body-type changes reset rigid-body collision filters. Both editor
-  transitions therefore explicitly restore `PHYSICS_GROUP.kart` and
-  `PHYSICS_MASK.kart`; an elevated rotated kart released from the editor must
-  retain physical floor contact.
+  replay snap every retained camera signal immediately.
 - Camera diagnostics are ordinary copied data and cannot mutate the camera,
   kart, PlayCanvas entities, or Ammo objects.
 
@@ -133,27 +128,8 @@ Focused coverage includes:
 - `pnpm lint`, `pnpm typecheck`, and `pnpm build`; and
 - the complete desktop and mobile Playwright projects.
 
-The accepted baseline evidence from 2026-07-11 is:
-
-- feature-lead hands-on approval of ordinary driving, turning, slip, speed,
-  wall/corner obstruction, impacts, ramp airtime/landing, reset, and the fixed
-  reverse behavior;
-- the canonical single-worker aggregate Playwright gate: 122 passed and eight
-  intentional desktop/mobile applicability skips; and
-- desktop Playwright: 63 passed and one intentional mobile-only skip; and
-- mobile Playwright: 57 passed and seven intentional desktop-editor skips.
-
-The accepted 2026-07-26 spin/tumble stabilization evidence is:
-
-- feature-lead hands-on approval of normal driving feel, violent spin/tumble
-  detachment, and smooth camera recovery;
-- seven deterministic chase-camera tests covering thresholds, hysteresis,
-  wrap-safe slew, slip, impacts, and delta-time-aware smoothing;
-- 20 focused desktop/mobile browser scenarios covering the accepted camera
-  baseline plus proportional snap and moving-reverse spin/recovery;
-- passing `pnpm typecheck`, `pnpm lint`, and `pnpm build`; and
-- a clean fresh-context re-review after correcting partial-snap and
-  reverse-spin edge cases found by the initial independent review.
+Feeling (comfort, slip readability, spin recovery, obstruction) is judged by
+hands-on desktop and narrow-mobile driving.
 
 ## Known Limits and Deferred Work
 
@@ -168,7 +144,5 @@ The accepted 2026-07-26 spin/tumble stabilization evidence is:
 - Spin/tumble thresholds and release timing remain one shared comfort baseline;
   materially different future kart angular envelopes may justify reviewed
   per-runtime tuning after comparable player QA.
-- Touch driving is PR 2.4.1 scope. Current mobile acceptance covers viewport
-  framing and controlled browser scenarios.
 - Player camera orbit, look-back, replay, ghost, spectator, multiplayer, and
   split-screen cameras remain later scope.

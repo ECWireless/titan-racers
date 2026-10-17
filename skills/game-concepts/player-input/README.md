@@ -1,8 +1,6 @@
 # Player Input
 
-**Maturity:** Validated. This standard was researched, implemented, reviewed,
-and accepted through keyboard, touch, and physical standard-controller QA for
-PR 2.4.1 on 2026-07-13.
+**Maturity:** Validated (PR 2.4.1, 2026-07-13).
 
 ## Purpose And Scope
 
@@ -13,10 +11,10 @@ controls, menu navigation, device arbitration, input cancellation, reset, or
 pause input.
 
 It does not own kart force calculations, race lifecycle, checkpoint recovery,
-browser APIs, or a particular engine input class. Tool-specific behavior belongs
-under [`../../tools/`](../../tools/README.md). Verified repository ownership
-belongs under [`../../project-systems/`](../../project-systems/README.md) only
-after implementation and acceptance.
+browser APIs, or a particular engine input class. Browser mapping lives in
+[`tools/browser-player-input`](../../tools/browser-player-input/README.md); the
+shipped system and its tuned values live in
+[`project-systems/player-input`](../../project-systems/player-input/README.md).
 
 ## Standard
 
@@ -123,15 +121,12 @@ concurrently.
   accessible alternatives. Track each active pointer by ID so the joystick and
   a pedal can be held at the same time and one pointer release cannot cancel
   another control.
-- This slice exposes no separate touch handbrake control. While forward intent
-  is active, holding the brake/reverse pedal and crossing a light-corner
-  lateral joystick threshold progressively biases that pedal from service
-  braking toward the normalized rear handbrake action. Straight braking and
-  diagonal reverse remain service brake/reverse intent, steering alone never
-  requests rear braking, and the shared tire model remains solely responsible
-  for whether speed, load, and slip produce a drift. Begin the accepted blend
-  at `0.3` shaped steering, reach full lateral authority at `0.7`, and treat
-  `0.5` forward authority as sufficient for a full handbrake request.
+- Touch has no separate handbrake control. While forward intent is active,
+  holding the brake/reverse pedal while steering past a light-corner threshold
+  progressively biases the pedal toward the normalized rear handbrake action.
+  Straight braking and diagonal reverse stay service brake/reverse, steering
+  alone never requests rear braking, and the shared tire model alone decides
+  whether a drift results.
 - Treat pointer up, pointer cancel, lost capture, pause, and teardown as release.
 - Apply direct-manipulation suppression only to the control regions that need
   it; do not disable ordinary browser gestures across unrelated UI.
@@ -146,7 +141,7 @@ concurrently.
 
 ### Controller
 
-- PR 2.4.1 supports controllers exposing the browser's `standard` mapping. Unknown
+- Support controllers exposing the browser's `standard` mapping. Unknown
   mappings remain non-fatal and visibly unsupported rather than relying on
   device-name parsing.
 - Poll the current controller snapshot at the gameplay sampling boundary;
@@ -156,13 +151,9 @@ concurrently.
   directional-pad left/right as digital steering alternatives, the south face
   button for reset, and the center-right button for pause.
 - Apply a configurable steering dead zone and rescale the remaining magnitude
-  back across the usable range. A candidate starting threshold is `0.15`, to be
-  tuned through representative hardware rather than treated as universal.
+  back across the usable range; tune it on representative hardware.
 - Prefer the first standard-mapped controller that produces intentional input.
-  Retain its browser index until disconnect; multi-controller reassignment is
-  outside this first slice.
-- Do not require vibration, remapping UI, nonstandard layouts, or controller
-  glyph inference in this first slice.
+  Retain its browser index until disconnect.
 
 ## Controller Menu Navigation
 
@@ -258,17 +249,12 @@ runtime-resilience system owns the broader focus and visibility policy.
 
 ## Comparative Touch Layout Research
 
-Established mobile racers do not converge on one control mode: Asphalt exposes
-selectable control schemes, Real Racing has offered tilt, touch-zone, wheel,
-manual-pedal, and flipped layouts, and Beach Buggy Racing supports touch beside
-physical steering and gamepads. The reusable pattern is therefore not one
-copied HUD; it is thumb-edge control grouping, low obstruction, recognizable
-steering/pedal affordances, and configurable input families.
-
-Titan Racers applies that pattern with an original fixed horizontal steering
-pad at lower left, asymmetric pedals at lower right, and compact utilities in
-the top corners. Comparative screenshots inform placement only; no external
-game art or assets are copied.
+Established mobile racers (Asphalt, Real Racing, Beach Buggy Racing) do not
+converge on one control mode. The reusable pattern is thumb-edge control
+grouping, low obstruction, recognizable steering/pedal affordances, and
+configurable input families. Titan Racers applies it with an original two-axis
+drive joystick at lower left, pedals at lower right, and compact utilities in
+the top corners. No external game art is copied.
 
 ## Primary Sources
 
@@ -292,14 +278,8 @@ game art or assets are copied.
 
 ## Known Limits
 
-- The `1.75` touch joystick magnitude response curve and `0.08` radial dead zone
-  are the accepted mobile baseline. Additional device diversity may justify a
-  future settings surface rather than changing the shared baseline implicitly.
-- The custom two-axis joystick retains labelled group semantics, instructions,
-  arrow-key operation, and separate native pedal alternatives, but still
-  requires representative touch assistive-technology testing.
-- PR 2.4.1 does not add remapping, rebinding persistence, controller glyphs,
-  vibration, motion controls, nonstandard controller profiles, or controller
-  navigation for the protected course-authoring tool.
-- Race-state gating and recovery policy are implemented by the validated race
-  progression system, which consumes normalized reset and pause requests.
+- The custom two-axis joystick still needs representative touch
+  assistive-technology testing.
+- Not supported: remapping, binding persistence, controller glyphs, vibration,
+  motion controls, nonstandard controller profiles, and multi-controller
+  reassignment.

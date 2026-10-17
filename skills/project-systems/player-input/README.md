@@ -1,11 +1,6 @@
 # Player Input System
 
-## Status
-
-**Maturity:** Validated. PR 2.4.1 implementation, static checks, production build,
-adapter/browser tests, responsive visual inspection, required independent
-review, and feature-lead keyboard/touch/physical-controller acceptance pass as
-of 2026-07-13.
+**Maturity:** Validated (PR 2.4.1, 2026-07-13).
 
 ## Purpose And Scope
 
@@ -151,7 +146,7 @@ state and presentation.
 
 ## Controller Contract
 
-PR 2.4.1 supports one active browser controller with `mapping === "standard"`:
+One active browser controller with `mapping === "standard"` is supported:
 
 - axis 0: steering, with a rescaled `0.15` axial dead zone;
 - buttons 14/15: digital steering fallback;
@@ -211,67 +206,25 @@ until disconnect. Nonstandard mappings remain neutral and non-fatal.
 
 ## Verification
 
-- `pnpm typecheck` and `pnpm lint` pass.
-- `pnpm build` passes; Turbopack requires the established unsandboxed build
-  allowance because its CSS worker binds an internal port.
-- `tests/player-input.spec.ts`: focused normalization, adapter, edge,
-  controller-selection, arbitration, menu arming, hysteresis, repeat, and
-  disconnect/re-arm cases pass.
-- Focused desktop Chromium controller scenarios pass together: continuous
-  driving/reset/pause and a controller-only path through mode selection, pause
-  focus wrapping, A confirm, B resume, Start pause, and Exit back to the home
-  screen.
-- Four focused controller UI scenarios pass together for visible default pause
-  focus, initializing-state Exit, failed-state Reload, focused failed-state
-  Exit, failed-state Back, and neutral setup across those transitions.
-- Focused `tests/home.spec.ts` mobile two-axis joystick/pedal and desktop
-  continuous-controller scenarios pass, including partial forward/steering,
-  full forward, straight and diagonal reverse, progressive forward brake/steer
-  rear bias, rear-only slip/smoke, captured drag, circular clamping, pointer
-  cancellation/capture loss, recentering, and neutral re-arming.
-- The complete `pnpm test:e2e` desktop/mobile matrix includes every new input
-  adapter, touch-driving, controller gameplay, controller-menu, and retained
-  gameplay regression case.
-- Mutable guest publication data is isolated from the collision and ramp
-  diagnostics that assert exact bundled-course geometry. The ramp diagnostic
-  retains its original physics threshold with a 60-second diagnostic budget;
-  its focused desktop/mobile run and the complete matrix pass.
-- Pixel 7 portrait, compact landscape, and engaged-state browser inspection
-  confirms clear central gameplay view, safe-area placement, separated thumb
-  groups, continuous knob travel, and visible pedal/steering feedback. The
-  Next.js development indicator can overlay the lower-left pad in development
-  only.
-- One fresh-context technical/gameplay/experience reviewer reported two P1
-  lifecycle/arbitration findings and one P2 accessibility finding. Neutral
-  controller re-arming, stable gradual-analog activation baselines, and
-  Space/Enter touch-control semantics resolved them; the same reviewer cleared
-  all three in focused re-review with no remaining actionable issue.
-- A second fresh-context review of the analog redesign found two P2 coverage
-  gaps. Captured drag/cancellation coverage and complete brake-trigger/D-pad
-  mapping assertions resolved them; focused re-review cleared both with no
-  remaining actionable issue.
-- A fresh-context controller-menu review found two P2 presentation/coverage
-  gaps. Guaranteed visible default focus plus controller-driven loading/error
-  cases resolved them; the same reviewer cleared both with no remaining issue.
+- `tests/player-input.spec.ts`: normalization, dead zones, mappings, edges,
+  multi-pointer state, unsupported and idle controllers, arbitration, menu
+  arming, hysteresis, repeat, and disconnect/re-arm.
+- `tests/home.spec.ts`: keyboard, touch joystick/pedal, and synthetic-controller
+  driving and reset; touch cancellation and target size; controller-only menu
+  entry, pause, resume, and exit.
+- `pnpm build` needs the established unsandboxed allowance because Turbopack's
+  CSS worker binds an internal port.
+- Physical-controller QA: a FlyDigi Vader 4 over USB in Chrome on macOS. Other
+  models, operating systems, wireless transports, and latency are unverified.
 
 ## Known Limits
 
-- A FlyDigi Vader 4 over USB in Chrome on macOS completed the representative
-  controller gameplay and menu acceptance pass. Additional controller models,
-  operating systems, wireless transports, latency, and dead-zone feel remain
-  unverified.
-- PR 2.4.1 intentionally omits remapping, binding persistence, controller glyphs,
-  vibration, motion control, nonstandard mappings, and multi-controller
-  reassignment while an active controller remains connected.
-- Controller menu navigation is deliberately limited to guest mode selection
-  and race loading/error/pause/finish overlays. The protected course editor
-  remains a keyboard, pointer, and touch authoring surface in this slice.
-- The `1.75` touch joystick magnitude exponent, `0.08` radial dead zone, and
-  larger travel are the current mobile baseline. Additional representative
-  device QA may justify future control settings; visual opacity and pedal
-  spacing remain tunable presentation values.
-- Touch controls are visible through coarse-pointer/no-hover capability queries;
-  a future settings surface may add a manual visibility preference if hybrid
-  hardware proves it necessary.
-- The runtime-resilience system owns broader focus, visibility, resize,
-  lower-frame-rate, and runtime-failure policy beyond input clearing.
+- Not supported: remapping, binding persistence, glyphs, vibration, motion
+  control, nonstandard mappings, and reassignment while an active controller
+  stays connected.
+- Touch controls appear through coarse-pointer/no-hover queries; hybrid
+  hardware may later justify a manual visibility setting.
+- The joystick curve, dead zone, and travel are the current mobile baseline;
+  more device QA may justify control settings.
+- Broader focus, visibility, resize, and failure policy belongs to
+  [`runtime-resilience`](../runtime-resilience/README.md).

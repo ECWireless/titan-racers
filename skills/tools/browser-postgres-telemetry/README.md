@@ -1,8 +1,6 @@
 # Browser And Postgres Gameplay Telemetry
 
-**Maturity:** Validated. This PR 2.5.1 mapping and PR 2.5.2's two bounded health totals
-were accepted through implementation, focused browser and real-Postgres
-verification, independent review, and feature-lead QA on 2026-07-14.
+**Maturity:** Validated (PRs 2.5.1–2.5.2, 2026-07-14).
 
 ## Purpose And Scope
 
@@ -20,9 +18,9 @@ during exit may use `fetch(..., { keepalive: true })`; the database contract mus
 still tolerate it never arriving.
 
 Do not add `unload` or unconditional `beforeunload` analytics handlers. They are
-unreliable on mobile and can interfere with the back/forward cache. PR 2.5.1 records
-explicit in-app exits; PR 2.5.2 flushes the two bounded runtime-health totals when
-the document becomes hidden as part of its broader visibility policy.
+unreliable on mobile and can interfere with the back/forward cache. Explicit
+in-app exits are recorded, and the two runtime-health totals flush when the
+document becomes hidden.
 
 Keep the client reporter provider-neutral: gameplay emits versioned semantic
 milestones to a small sink interface. The initial first-party HTTP sink is one
@@ -67,9 +65,8 @@ The current public routes contain no player identifier. Do not send gameplay
 custom events: Postgres owns that funnel, and duplicating it adds cost and a
 second privacy surface without helping the approved dashboard.
 
-Speed Insights is not part of PR 2.5.1. On Vercel Pro it currently has a separate
-per-project monthly base fee and event charges; the approved runtime-health
-questions are answered by bounded first-party run summaries instead.
+Speed Insights is not used: it carries separate per-project fees, and the
+runtime-health questions are answered by first-party run summaries.
 
 ## Verification
 

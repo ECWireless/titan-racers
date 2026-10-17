@@ -1,11 +1,6 @@
 # Editor Controller Input System
 
-## Status
-
-**Maturity:** Validated. PR 3.4 implementation, static checks, production
-build, deterministic adapter and spatial-navigation tests, representative
-browser QA, required independent review, and feature-lead physical-controller
-acceptance pass as of 2026-07-25.
+**Maturity:** Validated (PR 3.4, 2026-07-25).
 
 ## Purpose And Scope
 
@@ -94,26 +89,18 @@ authentication, persistence, or PlayCanvas gizmo dragging.
 
 ## Verification
 
-- `pnpm typecheck`, `pnpm lint`, `pnpm build`, and `git diff --check` pass.
 - `tests/player-input.spec.ts` covers mapping, radial dead zones, neutral
   arming, edges, repeat, active-index retention, disconnect, context clearing,
   spatial candidate selection, and representative camera projections.
-- The complete desktop course and kart editor suites pass with 37 tests and 2
-  expected skips.
-- Focused browser cases cover home spatial navigation, cursor handoff,
+- Editor browser specs cover home spatial navigation, cursor handoff,
   viewport engagement, camera movement, center selection, shoulder tool
   cycling, axis feedback, screen-relative snapped edits, modal cancellation,
   blur, disconnect, and neutral re-arming.
-- A fresh-context independent review found and verified fixes for
-  disconnect/blur presentation clearing and deterministic camera-projection
-  coverage, then found no actionable issues in the final spatial-navigation
-  and axis-indicator delta.
-- Feature-lead physical-controller QA accepted both protected editors and the
-  final home, cursor, camera, shoulder, D-pad, and axis-feedback behavior.
+- Physical-controller QA covers ergonomics; synthetic snapshots cannot.
 
 ## Known Limits
 
 - Text entry, color editing, drag-shaped transforms, and precise arbitrary
   placement may still require keyboard, pointer, or touch.
-- Remapping, controller glyph selection, vibration, nonstandard mappings, and
-  simultaneous editor operation by multiple controllers remain outside PR 3.4.
+- Not supported: remapping, glyphs, vibration, nonstandard mappings, and
+  multiple simultaneous controllers.

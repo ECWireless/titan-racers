@@ -1,8 +1,6 @@
 # PlayCanvas And Ammo Race Progression
 
-**Maturity:** Validated. The PlayCanvas 2.20.6 and browser-runtime mapping passed
-the course-version, fixed-step, directed-gate, recovery, browser,
-independent-review, and feature-lead acceptance gates for PR 2.4.2 on 2026-07-13.
+**Maturity:** Validated (PR 2.4.2, 2026-07-13).
 
 ## Purpose And Scope
 
@@ -112,45 +110,12 @@ one fixed step.
 PlayCanvas `Quat.setFromEulerAngles`, `invert`, and `transformVector` may prepare
 plain axes at the adapter boundary. Pure tests should not require PlayCanvas.
 
-## Version-Two Course Mapping
+## Course Data
 
-Keep a strict stored version-one schema and a strict canonical version-two
-schema. `parseCourseDocument` accepts unknown input, validates its declared
-version, and deterministically normalizes supported version one into an owned
-version-two value. It also aligns candidate version-two forward hints to the
-authored gate face in memory, preserving compatibility with already-published
-diagonal values without mutating their stored revisions. New canonical
-serialization and saves use version two.
-
-Version-two additions are:
-
-- `start.gateHalfExtents`;
-- `checkpoints[].forward`; and
-- `checkpoints[].recovery`.
-
-For a version-one checkpoint, use the route tangent between its preceding and
-next anchors to choose and sign the best-aligned rotated gate axis. A valid
-single-checkpoint document uses start-to-checkpoint arrival direction. Derive
-recovery departure yaw from that checkpoint toward the next route anchor, wrapping the
-final checkpoint toward the start. Derive ground-level recovery position from
-the lower face of the checkpoint volume and use reviewed default start-gate
-dimensions. Reject degenerate coincident anchors or a direction that cannot
-identify a gate face rather than inventing one.
-
-Database JSON revisions remain immutable. A loaded v1 row is normalized in
-memory; the next accepted save creates a new v2 revision. Persistence response
-metadata must describe the normalized document consistently without updating
-the historical row in place. Publication and editor tests must prove this
-compatibility path.
-
-Moving a checkpoint through the current editor translates its recovery position
-by the same delta. Detection rotation applies the same transform delta to the
-gate-face direction; scaling changes the face bounds without changing its local
-axis or sign. Recovery rotation remains independent. New checkpoints derive
-bounded direction and recovery defaults from their neighbors. Start movement
-carries the start gate; start gate sizing and separate direction/recovery
-controls may remain non-visible in PR 2.4.2 so long as the canonical data is
-preserved and testable.
+Directed gates and recovery transforms come from the canonical version-two
+course document. Its schema and the in-memory normalization of older stored
+revisions are owned by
+[`project-systems/course-data`](../../../project-systems/course-data/README.md).
 
 ## Recovery Mapping
 
@@ -171,12 +136,10 @@ is requested:
 7. clear normalized input and touch presentation; and
 8. snap kart interpolation and chase-camera state to the teleported pose.
 
-PR 2.4.2 does not add a direct Ammo overlap/contact-test boundary. Rough-course
-recovery clearance is established by authored placements, filtered support
-evidence, collision observation, and browser QA. If future unrestricted course
-publishing requires automatic shape-clearance validation, research it as a
-separate direct-Ammo capability with allocation, filtering, and performance
-evidence.
+There is no direct-Ammo overlap or contact-test boundary. Recovery clearance
+comes from authored placements, filtered support evidence, and QA. If community
+course publishing (Phase 7) needs automatic shape-clearance validation,
+research it as a separate direct-Ammo capability.
 
 Falling below the existing boundary requests lifecycle recovery rather than
 calling teleport independently. Suppress recursive fall requests while already
@@ -189,41 +152,18 @@ overlay projection. Keep the separate controller-menu polling path active while
 the simulation is paused. Opening, resuming, and exiting continue to use real
 DOM focus and the normalized input system's clearing/re-arming guarantees.
 
-The shipped countdown, checkpoint, lap, timer, recovery, and finish HUD projects
+The shipped countdown, lap, timer, recovery, and finish HUD projects
 the authoritative race snapshot through React. The scene test adapter remains
 non-production verification infrastructure and must not become runtime authority.
 
-## Persistence Boundary
-
-Do not add race tables or network writes in PR 2.4.2. Lifecycle, pose history,
-checkpoint progress, timing, and recovery anchors live with the scene. Course
-documents and publications keep their existing persistence behavior. Later
-telemetry receives summarized events; Phase 5 owns durable results, ghosts, and
-leaderboard submissions.
-
 ## Verification
 
-1. Pure tests cover state transitions, pause-resume targets, timing,
-   discarded-time routing, directed-plane crossing, bounds, order, laps, finish,
-   and recovery-anchor selection.
-2. Course tests cover strict v2 validation, normalized forward vectors,
-   recovery transforms, canonical serialization, v1 normalization, degenerate
-   rejection, and stable stored revision compatibility.
-3. Runtime tests lock pre-step, world-step, post-step, discarded-time, pause,
-   and render ordering.
-4. Editor tests prove checkpoint/start moves, scaling, deletion, save, load,
-   publication, and backup preserve canonical v2 meaning.
-5. Browser tests drive or place the kart through valid, skipped, repeated,
-   reverse, finish-line, and two-lap scenarios using the non-production semantic
-   adapter only for deterministic setup and observation.
-6. Recovery tests prove supported start/checkpoint fallback, route orientation,
-   zero velocities, input clearing, camera/presentation snap, stabilization
-   timing, and no teleport-created checkpoint.
-7. Equivalent 30, 60, and 120 Hz frame schedules produce identical progression
-   and fixed-step time. A capped frame stall charges discarded active time.
-8. Existing physics, collision, camera, input, protected editor, publication,
-   desktop/mobile browser, static, and production-build regressions remain
-   green.
+`tests/race-gate.spec.ts`, `tests/race-session.spec.ts`,
+`tests/course-document.spec.ts`, `tests/fixed-step-clock.spec.ts`, and
+`tests/playcanvas-runtime.spec.ts` cover crossings, lifecycle, timing,
+discarded-time routing, course normalization, and step ordering without
+PlayCanvas. Browser coverage drives a two-lap route, reset, and recovery through
+the non-production adapter.
 
 ## Primary Sources
 
@@ -238,9 +178,6 @@ leaderboard submissions.
 
 - Support raycasts are zero-width and prove ground support, not full chassis
   clearance.
-- PR 2.4.2 deliberately avoids physics trigger entities and new direct-Ammo query
-  allocation for race progression.
-- Generated v1 recovery defaults are compatibility data, not a substitute for
-  course-specific recovery QA.
-- Final race presentation, recovery tuning, complete cross-device loop QA,
-  persistent results, and multiplayer authority remain later work.
+- Checkpoints use no physics trigger entities and no new direct-Ammo queries.
+- Generated recovery defaults for older documents are compatibility data, not a
+  substitute for course-specific recovery QA.

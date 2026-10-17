@@ -122,9 +122,11 @@ neon arcade skin. The main multiplayer call to action should read like
   multi-PR phase. `docs/pr-review-workflow.md` covers PR feedback.
 - **PR numbering:** `PR <phase>.<n>`, or `PR <phase>.<stage>.<n>` when a phase
   needs stages. Numbers never change once assigned.
-- **Knowledge first:** for substantial game systems, record the researched
-  standard in `skills/game-concepts/`, the engine mapping in `skills/tools/`,
-  and the shipped system in `skills/project-systems/` after it is accepted.
+- **Knowledge first:** for substantial game systems, record researched
+  standards in `skills/game-concepts/`, engine-specific behavior in
+  `skills/tools/`, and the shipped system in `skills/project-systems/` after it
+  is accepted. Add only the layers that own distinct content
+  (see `skills/README.md`).
 - **Every playable phase is checked with:** keyboard, touch, and gamepad
   playthroughs; at least one complete two-lap race; a result-timing sanity
   check; lint, typecheck, build, and relevant tests; and a visual check against

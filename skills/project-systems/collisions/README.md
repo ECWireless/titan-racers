@@ -25,10 +25,10 @@ multiplayer kart contact policy, or general recovery-system expansion.
 - `src/game/collision/kart-collision-model.ts` owns the default whole-body
   construction material, collision-envelope measurement, shared numerical
   angular damping, and geometry-to-CCD derivation policy.
-- `src/components/solo-time-trial-canvas.tsx` builds the authoritative compound
-  kart envelope, applies derived body material and CCD values, builds visible
-  wheel guards, contact observer, suspension presentation, copied debug
-  summaries, and editor body-recreation path.
+- `src/components/solo-time-trial-canvas.tsx` builds the compound kart body
+  from the snapshot's derived collision primitives, applies body material and
+  derived CCD values, and wires the contact observer, suspension presentation,
+  and copied debug summaries.
 - `src/game/collision/kart-collision-observer.ts` snapshots pre-step kart state,
   copies pooled global contact data, orients normals consistently toward the
   kart, reconstructs pre-solve point approach speed, and aggregates one
@@ -55,15 +55,12 @@ multiplayer kart contact policy, or general recovery-system expansion.
 
 ## Geometry And Material Policy
 
-The reference kart remains one 1.875 kg miniature RC, six-degree-of-freedom
-dynamic compound body. Its
-accepted collision envelope contains:
-
-- a low central chassis box;
-- smooth X-axis capsule bumpers across the front and rear;
-- smooth Z-axis lateral capsules protecting the protruding wheel envelope; and
-- an upper structural/electronics-housing box preserving rollover and
-  elevated-contact behavior.
+Each kart is one six-degree-of-freedom dynamic compound body. Its collision
+compound is the authored parts marked `collision: "solid"` (boxes and
+cylinders), derived into the resolved snapshot by `kart-derivation.ts`. The
+official karts collide with their chassis plate and upper housing; bumpers and
+other parts are visual only. There is no dedicated lateral wheel-guard shape on
+Phase 3 karts.
 
 The visible tires, hubs, A-arms, and shocks are presentation children rather
 than separately simulated rigid bodies. Their vertical motion comes from the
@@ -76,8 +73,8 @@ static primitives. The ramp is one aligned box with no separate base or crest
 lip. The diagnostic straight wall and 0.1 m thin wall are opt-in automated-test
 geometry, so normal play contains no invisible or off-course collision traps.
 
-The default kart construction supplies whole-body friction `0.12` and
-restitution `0.04`. PlayCanvas compound children share one parent rigid-body
+All karts share the default whole-body friction `0.12` and restitution `0.04`
+from `kart-collision-model.ts`. PlayCanvas compound children share one parent rigid-body
 material, so this is an explicit current engine limitation rather than
 per-primitive response. Static drivable surfaces and solid obstacles use zero
 restitution, so Ammo's multiplicative combiner produces zero ordinary rebound.
@@ -86,9 +83,8 @@ stability, while rigid-body linear damping is zero because explicit rolling
 resistance and aerodynamic drag own coasting. None of these values is exposed
 as a raw kart-tuning override. Grounded grip continues to come from the wheel
 controller rather than chassis contact friction. No arcade collision impulse or
-contact-time orientation assist is active. The sibling kart-physics system
-applies a bounded pitch-only torque only after all wheels lose support; it does
-not participate in collision resolution.
+contact-time orientation assist is active, and the kart applies no airborne
+attitude torque.
 
 ## Fixed-Step Data Flow
 
@@ -111,26 +107,15 @@ not participate in collision resolution.
 
 ## Continuous Collision Detection
 
-The default top speed is `17 m/s`, or about `0.142 m` of travel per 120 Hz step.
-The controlled safety case runs at `20.4 m/s`, 20% above that target, against a
-`0.1 m` static barrier.
+Derivation records each kart's smallest relevant collision cross-section (the
+smallest box dimension or cylinder diameter/height among solid parts). Shared
+policy in `kart-collision-model.ts` sets the Ammo swept-sphere radius to half
+that cross-section and the CCD motion threshold to 75% of the radius. Values are
+applied after the Ammo body exists and copied for telemetry.
 
-The dynamic kart defensively derives its Ammo CCD configuration from the
-accepted envelope's `0.32 m` smallest relevant protective cross-section:
-
-- shared policy makes the swept-sphere radius half that cross-section,
-  producing `0.16 m`; and
-- shared policy activates CCD above 75% of that radius, producing a `0.12 m`
-  motion threshold.
-
-The values are applied only after the Ammo body exists, copied for telemetry,
-and reapplied after the editor returns the kart from kinematic manipulation to
-dynamic participation. The controlled `20.4 m/s` case remains blocked even
-with CCD explicitly disabled because the kart envelope and authored barrier are
-large enough for discrete detection. CCD is therefore defense in depth for this
-envelope, not a demonstrated necessity or a replacement for honest colliders.
-The enabled matrix also verifies no premature contact before reaching the wall
-and bounded response during a fast rotational wall contact.
+At 120 Hz a 17 m/s kart moves about 0.142 m per step. The controlled safety case
+drives at 20.4 m/s into a 0.1 m static barrier (`tests/home.spec.ts`). CCD is
+defense in depth, not a replacement for honest collider thickness.
 
 ## Accepted Invariants
 
@@ -144,15 +129,14 @@ and bounded response during a fast rotational wall contact.
 - A glancing outside-corner impact retains useful exit speed, while a kart
   driven into the inside corner contacts both faces and can reverse out under
   ordinary input without remaining snagged.
-- Smooth bumper and wheel-guard capsules prevent exposed compound corners or
-  decorative suspension pieces from hooking barriers.
+- Suspension arms, shocks, hubs, and decorative parts never collide.
 - Ramps support finite wheel volume, coherent launches, partial support,
   springy landings, and visible chassis clearance without false lip colliders.
 - Wheel support cannot hit obstacles, the kart, or helpers; the kart itself
   continues to collide with both support surfaces and solid obstacles.
 - Contact vectors and results never escape PlayCanvas's pooled callback data.
-- CCD configuration survives every supported dynamic-body creation path.
-- The kart remains blocked by the thin-barrier safety fixture at `20.4 m/s`.
+- CCD configuration survives body recreation, and the kart stays blocked by the
+  thin-barrier safety fixture at 20.4 m/s.
 - Runtime teardown removes contact listeners and destroys all owned Ammo sweep
   allocations exactly once.
 
@@ -172,10 +156,6 @@ and bounded response during a fast rotational wall contact.
   2026-10-17 trim and relies on manual driving QA.
 - `pnpm lint`, `pnpm typecheck`, `pnpm build`, and the Playwright desktop and mobile projects provide repository,
   production, and supported-viewport regression coverage.
-- The feature lead accepted the wheel stance, corrected suspension-bar mounts,
-  ride height, lighting, doubled top speed, simplified two-cylinder/one-ramp
-  course, landing response, rear-balanced jump behavior, and general collision
-  feel in the running development build on 2026-07-10 and 2026-07-11.
 
 ## Known Limits And Deferred Work
 
@@ -184,8 +164,7 @@ and bounded response during a fast rotational wall contact.
   general in-game collision visualizer or player-facing telemetry UI.
 - CCD primarily protects fast translation; future materially higher angular or
   linear speed envelopes require new controlled tests and retuning.
-- Kart-to-kart collision policy, damage, detachable parts, physical wheel
-  bodies, per-child kart material response, general per-surface material
-  authoring, and chase-camera impact response remain outside PR 2.2.2.
-- Mobile browser physics scenarios are covered, but playable touch controls and
-  representative-device performance acceptance remain later-phase work.
+- Not implemented: kart-to-kart contact policy (Phase 8), damage and
+  detachable parts (Phase 6), physical wheel bodies, per-child kart materials,
+  and per-surface material authoring.
+- Representative mobile performance acceptance is deferred to Phase 9.

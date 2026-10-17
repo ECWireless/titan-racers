@@ -1,8 +1,6 @@
 # Course Editing
 
-**Maturity:** Validated. The feature lead accepted this engine-independent
-standard and the shipped course document, runtime migration, deterministic
-serialization, persistence, and protected authoring workflow in Phase 2.
+**Maturity:** Validated (Phase 2).
 
 ## Purpose And Scope
 
@@ -12,10 +10,11 @@ checkpoint placement, primitive catalog, editor history, import/export,
 collision visualization, course lighting, or reset semantics.
 
 It does not prescribe an engine API, database, authentication provider, or UI
-component. Tool-specific mapping belongs under
-[`../../tools/`](../../tools/README.md). Actual shipped ownership belongs under
-[`../../project-systems/`](../../project-systems/README.md) only after the
-implementation has been validated.
+component. Engine mapping lives in
+[`tools/playcanvas-ammo/course-editing`](../../tools/playcanvas-ammo/course-editing/README.md);
+the shipped systems are
+[`course-data`](../../project-systems/course-data/README.md) and
+[`course-editor`](../../project-systems/course-editor/README.md).
 
 ## Standard
 
@@ -41,8 +40,7 @@ engine objects or make a second editable copy of course geometry.
 ## Document Model
 
 Every document declares a literal schema version, stable course ID, human name,
-and unit convention. Version one uses metres, Y-up coordinates, and Euler
-rotation values in degrees for authored interchange.
+and unit convention (metres, Y-up, Euler degrees).
 
 The document owns:
 
@@ -50,7 +48,8 @@ The document owns:
 - an explicitly ordered checkpoint sequence with stable IDs and trigger
   dimensions; and
 - course objects with stable IDs, transforms, editor eligibility, availability,
-  visual primitives, semantic materials, and optional collision definitions.
+  visual primitives, semantic materials, and optional collision definitions;
+  and
 - one bounded environment-lighting setup with ambient light and no more than
   two directional lights.
 
@@ -77,17 +76,15 @@ and layer IDs instead of using display order as identity:
 
 ## Primitive Catalog
 
-Version one supports the smallest catalog already proven by the rough course:
-
-- box; and
-- cylinder.
+Keep the catalog to the smallest set already proven in play (currently box and
+cylinder).
 
 Visual geometry and collision geometry are deliberately separate fields. A
 visual primitive owns its display scale and semantic material. An optional
 collision union owns shape-specific physical dimensions, local offset, local
 rotation, and one semantic role: drivable surface or solid obstacle.
 
-Editor placement later uses approved presets such as block, barrier, barrel,
+Editor placement uses approved presets such as block, barrier, barrel,
 ramp, and platform. Presets create ordinary document objects with safe defaults;
 they are not additional persisted engine shape types. A ramp is a rotated box.
 New primitive kinds require focused runtime, collision, visualization, and
@@ -97,14 +94,12 @@ standard until final track and asset workflows establish a real requirement.
 ## Lighting Controls
 
 Course lighting is portable authored data rather than component-local engine
-state. Version one supports ambient color and intensity plus one or two
-directional lights with stable IDs, color, intensity, rotation, and a bounded
+state: ambient color and intensity plus one or two directional lights with stable IDs, color, intensity, rotation, and a bounded
 off/low/medium/high shadow-quality preset. Colors and intensities are bounded,
 and the light count is deliberately capped to keep authoring predictable and
 runtime cost reviewable.
 
-PR 2.3.3 exposes these values as basic environment controls with reset-to-loaded
-behavior. Arbitrary point/spot light placement, skyboxes, fog, post-processing,
+Arbitrary point/spot light placement, skyboxes, fog, post-processing,
 and renderer-specific shadow tuning remain outside this standard.
 
 ## Validation And Import
@@ -136,9 +131,9 @@ array order, two-space JSON indentation, and one trailing newline. Parsing and
 serializing a valid canonical document must preserve its meaning and reproduce
 the canonical text.
 
-A source-controlled seed is the rough-course baseline, test fixture, and
-recovery input. Later persistence stores complete validated documents as
-immutable private draft revisions. A separately tracked published revision
+A source-controlled seed serves as baseline, test fixture, and recovery input.
+Persistence stores complete validated documents as immutable private draft
+revisions. A separately tracked published revision
 identifies the validated saved document available to ordinary guest racing;
 saving a draft must never silently change the live course. Runtime database
 rows, draft/live status, and revision metadata must not leak into the portable
@@ -180,85 +175,41 @@ framework: <https://doc.qt.io/qt-6/qundostack.html>.
 - **Recovery baseline** restores the source-controlled seed only through a
   separately labelled destructive action.
 
-PR 2.3.1 implements the document and deterministic serialization, not the command
-stack UI. PR 2.3.3 implements history, private draft persistence, visible recovery,
-and the explicit preview/publish boundary.
-
 Publishing one course does not choose which course the game launches. Runtime
 selection uses one explicit configured course ID, then loads only that course's
-latest publication. The current demo selects permanent sandbox `rough-course`;
-the future official track retains the separate `agricultural-zone` ID and can
-replace the configured guest selection without merging either history.
+latest publication, so separate courses never merge histories.
 
 ## Protected Editor Experience
 
-The editor UI must remain downstream of authoritative authorization. An
-unauthenticated or unauthorized visitor may see a login or access-status screen,
-but must not receive an editable workspace merely because client state claims an
-admin identity. An authenticated account without editor authority must retain a
-visible sign-out path so the operator can switch accounts. Load the protected
-course revision first, validate the response, and only then create the authoring
-session.
-
-Use a familiar tool layout without reproducing a general-purpose engine editor:
-
-- a compact transform and history toolbar;
-- a course outline for starts, checkpoints, objects, and lights;
-- the course viewport as the primary surface; and
-- a contextual inspector for exact authored values.
-
-Keep the viewport toolbar compact: standard transform, snap, diagnostics,
-framing, and help icons carry accessible names and explanatory hover/focus
-tooltips instead of long operational labels. Diagnostics that substantially
-change viewport readability should default off and remain one action away.
-
-On narrow screens, keep the viewport primary and expose the outline and
-inspector as dismissible panels. Controls must remain reachable without relying
-on hover, and ordinary guest racing must not inherit editor input or layout.
-Direct 3D handles and precise inspector controls are complementary: touch users
-must be able to complete ordinary placement and correction without depending on
-small axis targets. One-finger orbit plus two-finger pan/pinch should coexist
-with tap selection, while every accepted nudge or completed gizmo gesture enters
-history as one coherent document command.
-
-Camera help must name both input families in-product: one-finger orbit,
-two-finger pan, and pinch zoom on touch; right-drag orbit, Shift-drag pan, and
-wheel zoom on pointer devices. Once a second touch joins a gesture, every
-participating pointer is ineligible for tap selection through release or
-cancellation.
-
-Multi-object editing is an explicit object-only selection state. Pointer users
-toggle membership with Shift-click; touch users enter a visible additive
-selection mode after choosing the first object, then tap Done without losing
-the group. Do not overload long-press, one-finger orbit, or two-finger camera
-gestures. Every selected object receives its own outline, while one translation
-control at the group centroid applies a shared snapped delta so relative spacing
-is preserved. Group translation and position nudges enter history as one
-coherent command. Rotation, scaling, renaming, and deletion remain
-single-selection operations until their group semantics are designed.
-
-Snapping must be visible and reversible rather than an implicit transform rule.
-The editor defaults gizmo transforms to bounded increments and exposes the
-current snap state in the toolbar. Box and checkpoint scaling is per-axis so the
-committed document matches the direct-manipulation preview. Cylinder height is
-independent while its two radial axes remain paired because version one owns one
-collision radius rather than an elliptical cylinder. Direct handles and coarse
-inspector controls provide the same constraints. Camera cursor feedback
-distinguishes orbit from pan on pointer devices.
-
-Palette presets instantiate ordinary bounded document objects with unique
-stable IDs near the loaded start area. Course outline selection and viewport
-picking resolve the same authored IDs. Deletion cannot remove the start and must
-retain at least one checkpoint; deleting a checkpoint reestablishes contiguous
-explicit order. An optional human-facing object label may change independently
-while its stable ID remains unchanged.
+- The editor stays downstream of server authorization. An unauthorized visitor
+  sees a login or access-status screen (with sign-out to switch accounts),
+  never an editable workspace based on client state. Load and validate the
+  protected revision before creating the authoring session.
+- Use a familiar but bounded layout: compact transform/history toolbar, course
+  outline, primary viewport, contextual inspector. Icon-only controls carry
+  accessible names and hover/focus tooltips. Readability-heavy diagnostics
+  default off.
+- On narrow screens the viewport stays primary; outline and inspector become
+  dismissible panels and nothing depends on hover. Touch users can finish
+  ordinary placement through inspector controls rather than small 3D handles,
+  and multi-touch camera gestures never fall through to selection. In-product
+  camera help names both touch and pointer controls.
+- Snapping is visible and reversible. Direct handles and inspector controls
+  apply the same per-shape constraints.
+- Multi-selection is an explicit object-only state. Group translation preserves
+  relative spacing as one command; other group operations stay
+  single-selection until designed.
+- Palette presets spawn ordinary bounded objects near the start. Every
+  accepted nudge or completed gesture is one history command. Stable IDs
+  never change when an optional human label does; the start cannot be deleted
+  and at least one checkpoint remains.
 
 ## Validation Evidence
 
 1. Valid seed data parses and canonicalizes deterministically.
 2. Invalid versions, unknown fields, duplicate IDs, invalid dimensions, and bad
    checkpoint order fail with exact paths.
-3. Every retained rough-course visual and collider is constructed from the
+3. Every seed visual and collider is constructed from the
    validated document with unchanged transforms and semantic behavior.
 4. Opt-in collision fixtures remain excluded from ordinary play.
 5. Start/reset, editor manipulation, collision, camera, and driving regressions
@@ -267,15 +218,6 @@ while its stable ID remains unchanged.
 
 ## Known Limits
 
-- Version one supports only box and cylinder primitives.
-- Authored checkpoints drive the validated rough-course race progression and
-  recovery systems.
-- Database revisions and protected APIs are implemented by the validated
-  [`identity-course-persistence`](../../project-systems/identity-course-persistence/README.md)
-  system.
-- Protected save/reload, command history, publication, and replacement of the
-  development-only editor are implemented by the validated
-  [`course-editor`](../../project-systems/course-editor/README.md) system.
-- Basic environment-light controls are implemented; arbitrary placeable lights
-  and advanced rendering effects remain deferred.
-- Final Agricultural Zone meshes and art authoring remain later-phase work.
+- Final track meshes and art authoring are not part of this standard; new
+  primitive kinds need runtime, collision, and round-trip evidence first.
+- Arbitrary placeable lights and advanced rendering effects are deferred.

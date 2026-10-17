@@ -1,8 +1,6 @@
 # Race Presentation
 
-**Maturity:** Validated. PR 2.4.3 implementation, feature-lead presentation/feel
-acceptance, complete automated regression, and fresh-context independent review
-are complete as of 2026-07-13.
+**Maturity:** Validated (PR 2.4.3, 2026-07-13).
 
 ## Purpose And Scope
 
@@ -25,8 +23,8 @@ Display only the persistent information needed while driving:
 - current lap and total laps; and
 - elapsed competitive time.
 
-Ordered gates are invisible route-validation infrastructure in the rough loop,
-not player objectives. Do not expose a gate counter or routine checkpoint
+Ordered gates are invisible route-validation infrastructure, not player
+objectives. Do not expose a gate counter or routine checkpoint
 notifications. If invalid route progression prevents a lap from completing,
 communicate the player-relevant outcome without exposing internal gate IDs.
 
@@ -112,7 +110,7 @@ wall-clock reads.
 
 ## Known Limits
 
-- PR 2.4.3 does not add configurable HUD scale, contrast themes, audio cues,
-  screen-reader narration settings, split comparison, minimaps, or wayfinding.
-- The rough course has no final art, so later environments require renewed
-  contrast and obstruction inspection.
+- Not yet supported: configurable HUD scale, contrast themes, audio cues,
+  narration settings, split comparison, minimaps, or wayfinding.
+- New course environments (such as the Agricultural Zone) need renewed HUD
+  contrast and obstruction checks.

@@ -1,9 +1,6 @@
 # PlayCanvas and Ammo Vehicle Collisions
 
-**Maturity:** Validated. The feature lead accepted this tool mapping on
-2026-07-10, and the selected compound envelope, copied contact observation,
-targeted CCD configuration, filtering, lifecycle, browser, build, and hands-on
-gates now pass in Titan Racers.
+**Maturity:** Validated (accepted 2026-07-10).
 
 ## Purpose and Scope
 
@@ -20,24 +17,8 @@ finite-radius wheel support, visible suspension travel, or the lateral collision
 policy for protruding wheels.
 
 It inherits the runtime, stepping, body, allocation, and teardown rules from
-the parent [`PlayCanvas and Ammo`](../README.md) node. The final Titan Racers
-source ownership and accepted data flow belong under
-[`../../../project-systems/`](../../../project-systems/README.md) only after the
-implementation has been accepted.
-
-## Supported Baseline
-
-- PlayCanvas Engine is pinned exactly to `2.20.6`.
-- Physics uses the repository-owned Ammo glue, WebAssembly, and fallback files.
-- The runtime owns a 120 Hz outer fixed step with one PlayCanvas/Ammo step per
-  outer step.
-- The kart is one dynamic compound rigid body with all six degrees of freedom.
-- Course surfaces and obstacles are static rigid bodies.
-- One PlayCanvas world unit is one metre.
-
-Do not add a collision or physics dependency for this work. A PlayCanvas or
-Ammo upgrade is a separate tool change that requires repeating the parent
-node's runtime verification and this node's collision verification.
+the parent [`PlayCanvas and Ammo`](../README.md) node. The shipped system lives
+in [`project-systems/collisions`](../../../project-systems/collisions/README.md).
 
 ## Collision Shapes
 
@@ -48,19 +29,12 @@ supports box, sphere, capsule, cylinder, cone, mesh, and compound collision
 components. Its capsule implementation supports X, Y, and Z axes through the
 component's `axis` property and the corresponding Ammo capsule shapes.
 
-Compare collision envelopes in controlled scenarios before selecting one:
-
-1. the existing compound boxes as the measured baseline;
-2. a simplified longitudinal capsule plus only the upper shape needed to
-   preserve rollover behavior; and
-3. a central box with overlapping horizontal capsule bumpers that smooth the
-   exposed front and rear corners.
-
-The accepted envelope must preserve chassis width, length, ground clearance,
-center-of-mass relationship, ramp behavior, and useful off-center impact lever
-arms. Visual upper-housing or wheel details do not automatically earn physical
-shapes. Avoid multiple exposed compound children that create conflicting
-contact normals where one continuous outer surface is intended.
+Kart collision shapes come from each kart's authored parts marked solid
+(boxes and cylinders), derived by `kart-derivation.ts`; see the project-system
+node. An envelope must preserve width, length, ground clearance,
+center-of-mass relationship, ramp behavior, and off-center lever arms. Visual details do not automatically earn
+physical shapes, and one continuous outer surface beats several exposed
+children with conflicting normals.
 
 PlayCanvas compound children share the parent rigid body's friction,
 restitution, damping, mass, and CCD state. Per-child material behavior is not a
@@ -69,29 +43,19 @@ stable public component capability in this baseline.
 ### Course geometry
 
 Use static PlayCanvas boxes, cylinders, capsules, or deliberate compounds for
-the rough collision course. Keep visual and physical shapes separate when
+course geometry. Keep visual and physical shapes separate when
 needed. Use authored thickness and clean alignment for barriers, floors, and
 ramps.
 
-Build focused fixtures for:
-
-- a long straight barrier;
-- a convex outside corner;
-- a concave inside corner;
-- box and round obstacles;
-- a ramp with aligned base and crest transitions; and
-- the thinnest barrier required by the supported speed envelope.
-
-Do not introduce mesh collision for the PR 2.2.2 test course. If later authored
-track geometry genuinely requires a triangle mesh, investigate mesh cooking,
-triangle quality, internal-edge contact-normal adjustment, and mobile cost as a
-separate measured extension.
+Mesh collision is not used. If authored track geometry ever genuinely needs a
+triangle mesh, investigate mesh cooking, triangle quality, internal-edge normal
+correction, and mobile cost as a separate measured extension.
 
 ### Collision margins
 
 The vendored Ammo build exposes `getMargin` and `setMargin`, but PlayCanvas
 2.20.6 does not expose collision margin as a stable collision-component
-property. Keep engine defaults initially. Correct shape size, seams, and
+property, so margins use engine defaults. Correct shape size, seams, and
 transitions before reaching through private component shapes to change margins.
 
 Any later direct margin use must stay in the reviewed Ammo adapter, document
@@ -114,13 +78,12 @@ chassis-contact friction. Its construction restitution of `0.04` against
 course restitution of `0` produces zero combined restitution. These kart-body
 values are construction inputs rather than live handling overrides.
 
-Treat those results as a baseline, not as accepted collision tuning. Tune both
-bodies deliberately. Keep chassis-contact friction low enough for readable
+Tune both bodies deliberately. Keep chassis-contact friction low enough for readable
 glancing slides, and keep tire force and surface grip in the wheel controller;
 do not use rigid-body friction to replace the tire model. Use restitution
 sparingly and verify low-speed rest stability and multi-contact behavior.
 
-Custom Bullet material-combiner callbacks are outside the initial scope. The
+Custom Bullet material-combiner callbacks are not used. The
 vendored binding and PlayCanvas lifecycle do not provide a stable project-owned
 boundary for them, and the required behavior should first be attempted with
 body-level values and geometry.
@@ -187,28 +150,20 @@ does not expose matching getters, so the adapter must validate and retain the
 configured values as ordinary TypeScript data for telemetry and tests.
 
 Apply CCD only after the PlayCanvas rigid body exists. Reapply it whenever
-PlayCanvas recreates the body, including when editor manipulation returns the
-kart from kinematic to dynamic participation. Setting the threshold to zero is
+PlayCanvas recreates the body. Setting the threshold to zero is
 the explicit disabled state.
 
-Derive final settings from measurements:
+Derive settings from measurement: top speed and per-step travel, the
+envelope's smallest relevant cross-section, the thinnest required static
+fixture, and tunneling behavior with CCD disabled. Choose a threshold that
+avoids low-speed sweeps and a swept-sphere radius smaller than the
+cross-section, then test missed hits and premature contacts.
 
-1. record the maximum supported linear speed and per-step travel;
-2. record the chosen kart envelope's smallest relevant cross-section;
-3. record the thinnest required static collision fixture;
-4. demonstrate tunneling or its absence with CCD disabled;
-5. choose a motion threshold that avoids unnecessary low-speed sweeps; and
-6. choose a swept-sphere radius smaller than the relevant body cross-section,
-   then test missed hits and premature contacts.
-
-The current `17 m/s` target travels about `0.142 m` in one 120 Hz step. This is a
-measurement anchor, not a hard-coded CCD policy. The accepted default envelope
-identifies a `0.32 m` smallest relevant protective cross-section. Shared policy
-uses half of that measurement for the `0.16 m` swept-sphere radius and 75% of
-that radius for the `0.12 m` activation threshold. Test through at least
-`20.4 m/s`, which adds the accepted 20% safety margin above default top speed.
-Future buildable envelopes must supply their measured cross-section and repeat
-the CCD verification matrix; neither ratio is player-authored tuning.
+A `17 m/s` kart travels about `0.142 m` in one 120 Hz step. Each kart's
+smallest relevant cross-section is derived from its solid parts; shared policy
+sets the swept-sphere radius to half of it and the activation threshold to 75%
+of that radius. Test through at least `20.4 m/s` (20% above top speed).
+Neither ratio is player-authored tuning.
 
 Bullet's swept-sphere path primarily protects translational motion. Do not
 assume it covers every fast rotational corner. Keep honest collider thickness
@@ -217,7 +172,7 @@ sticking, time loss, unstable bounce, false hits, or unacceptable mobile cost.
 
 ## Collision Assists
 
-Start with no collision assist. Correct and tune collision geometry, material
+No collision assist is active. Before adding one, correct and tune collision geometry, material
 response, mass properties, tire-force interaction, and targeted CCD first.
 
 If a repeatable accepted scenario still fails, observe the post-solve contact
@@ -235,8 +190,7 @@ collision response actually needs it.
 ## Debug Rendering and Test Access
 
 The vendored Ammo build includes debug-drawer bindings, but a full Bullet debug
-drawer adds a direct-Ammo lifecycle and rendering boundary. Do not adopt it for
-the initial implementation.
+drawer adds a direct-Ammo lifecycle and rendering boundary, so it is not used.
 
 Prefer project-owned diagnostics built from copied ordinary data:
 
@@ -253,39 +207,15 @@ world or feed presentation state back into collision response.
 
 ## Verification
 
-The mapping is not validated until focused tests demonstrate:
+After collision, envelope, CCD, or engine changes, confirm: normals orient
+correctly with the kart as body A and body B; pooled contact data is copied and
+stable after the callback; multi-point manifolds produce one per-step
+observation; resets and teleports leave CCD and filters configured without
+stale contacts; the thin barrier holds at the safety speed; render cadence does not
+change outcomes; production builds make no third-party requests; and teardown
+removes every listener and allocation.
 
-1. Each candidate kart envelope is measured against the same glancing, corner,
-   ramp, obstacle, and ground-clearance scenarios before one is accepted.
-2. Collision materials produce repeatable effective slide and rebound behavior
-   without replacing wheel grip.
-3. The global contact observer correctly orients normals for the kart as both
-   body A and body B.
-4. Pooled PlayCanvas result data is copied and remains stable after the contact
-   callback returns.
-5. Multi-point manifolds produce one stable per-step collision observation
-   without duplicate gameplay responses.
-6. Pre-solve point approach speed and post-solve linear/angular changes agree
-   qualitatively with contact point, normal, and impulse.
-7. Editor transitions and resets leave collision observation and CCD in the
-   configured state without stale contacts.
-8. The thin-barrier test tunnels under a deliberately unsafe discrete setup and
-   remains blocked by the accepted CCD configuration, or evidence shows that
-   the supported envelope does not need CCD.
-9. CCD-disabled and CCD-enabled matrices expose no accepted false contacts,
-   sticking, unstable rebound, or excessive cost.
-10. Controlled scenarios remain equivalent under synthetic 30, 60, and 120 Hz
-    render schedules while physics remains fixed at 120 Hz.
-11. Production builds make no third-party physics or asset requests.
-12. Teardown removes every contact listener and leaves no animation frame,
-    PlayCanvas application, Ammo allocation, or retained entity reference.
-
-Behavior-level acceptance remains owned by the engine-independent collision
-node. Add exact scenario poses, speeds, incidence angles, tolerances, and mobile
-performance budgets only after runtime measurements establish defensible
-values.
-
-## Known Limitations and Open Questions
+## Known Limitations
 
 - PlayCanvas contact events are post-solve. Exact pre-solve values must be
   reconstructed from the controlled pre-step state rather than read from an
@@ -294,11 +224,8 @@ values.
 - The public component API has no CCD or collision-margin properties.
 - The vendored Ammo binding has CCD setters but not CCD getters.
 - Body-level material values apply to the complete compound kart.
-- Per-part compound-child contact materials remain unavailable through this
-  stable public engine boundary; the default kart therefore uses one explicit
-  whole-body construction material.
-- No collision assist is justified until unassisted hands-on and automated
-  evidence demonstrates a specific remaining failure.
+- Per-part compound-child contact materials are unavailable through the public
+  engine boundary, so the kart uses one whole-body construction material.
 
 ## Sources
 

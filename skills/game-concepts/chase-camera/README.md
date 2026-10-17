@@ -1,9 +1,6 @@
 # Chase Camera
 
-**Maturity:** Validated. The feature lead accepted this engine-independent
-standard and the implemented motion, reverse, slip, impact, airborne,
-obstruction, landing, and reset behavior on 2026-07-11 after automated,
-desktop, narrow-mobile, and hands-on verification.
+**Maturity:** Validated (accepted 2026-07-11).
 
 ## Purpose and Scope
 
@@ -12,11 +9,10 @@ Read it before changing playable camera framing, heading, look-ahead, damping,
 speed response, slip presentation, impact response, airborne behavior,
 obstruction handling, or reset behavior.
 
-It deliberately does not prescribe an engine API. Tool-specific implementation
-guidance belongs under [`../../tools/`](../../tools/README.md), while accepted
-source ownership and data flow belong under
-[`../../project-systems/`](../../project-systems/README.md) only after the
-implementation has been validated.
+Engine mapping lives in
+[`tools/playcanvas-ammo/chase-camera`](../../tools/playcanvas-ammo/chase-camera/README.md);
+the shipped system lives in
+[`project-systems/chase-camera`](../../project-systems/chase-camera/README.md).
 
 ## Standard
 
@@ -48,7 +44,7 @@ In particular:
 - only material impacts create a short directional response;
 - airborne framing keeps a stable horizon and useful landing visibility;
 - nearby walls and corners cannot sit between the camera and kart; and
-- reset, recovery, editor transitions, and controlled test teleports produce an
+- reset, recovery, mode changes, and controlled test teleports produce an
   immediately coherent shot with no smoothing trail from the old pose.
 
 ## Core Principles
@@ -180,7 +176,7 @@ Expose one explicit snap/reset operation that reinitializes every retained
 signal from the new kart state: position, aim, heading, filtered velocity,
 speed/FOV response, slip, airborne transition, obstruction distance, and impact
 offset. Invoke it for gameplay reset, invalid-state recovery, test teleport,
-editor entry/exit, and initial scene readiness.
+mode changes, and initial scene readiness.
 
 Pause and resume must not integrate a large elapsed time. Teardown must release
 listeners and retained entity references.
@@ -204,36 +200,19 @@ Reject implementations that:
 
 ## Validation
 
-The system is not accepted until repeatable automated scenarios and hands-on QA
-cover:
-
-1. Rest, launch, maximum-speed travel, braking, stop, and reverse transitions
-   with no heading flip, FOV pulse, or stale look-ahead.
-2. Straight and turning motion under synthetic 30, 60, and 120 Hz render
-   cadences with equivalent framing and no visible presentation jitter.
-3. Shallow and substantial controlled slip with readable kart attitude,
-   forward exit visibility, and bounded camera offset.
-4. A spin and recovery with no uncontrolled orbit or persistent wrong heading.
-5. Low-energy wall rubs that do not trigger impact response and material direct
-   or off-center impacts that produce one short, capped, directional response.
-6. Ramp approach, launch, apex, descent, landing, and partial-support changes
-   with a stable horizon and readable landing area.
-7. A large wall approached along multiple headings and distances, proving that
-   the kart remains visible and the camera returns smoothly after clearance.
-8. Convex and concave corner approaches, turns, impacts, and reversals, proving
-   that correction neither clips nor becomes trapped on the wrong side.
-9. Desktop and narrow-mobile framing with the kart and useful route visible.
-10. Reset, invalid recovery, editor transitions, and controlled teleports with
-    an immediate coherent camera state.
-11. Camera diagnostics sufficient to explain heading blend, planar speed,
-    signed slip, support state, obstruction distance, impact severity, FOV,
-    and whether a snap occurred.
-12. Feature-lead playthrough approval after a base motion checkpoint and a
-    final slip/impact/airborne/obstruction tuning checkpoint.
+Accept with repeatable automated scenarios and hands-on desktop and
+narrow-mobile QA covering: rest, launch, top speed, braking, and reverse with no
+heading flip or FOV pulse; equivalent framing across 30, 60, and 120 Hz render
+cadence; readable controlled slip; spin recovery without orbiting; no response
+to wall rubs and one capped response to real impacts; a stable horizon through
+ramps and landings; walls and corners that never hide the kart or trap the
+camera; immediate snaps on reset, recovery, mode changes, and teleports;
+and diagnostics that explain heading blend, slip, support, obstruction, impact,
+FOV, and snaps.
 
 ## Non-Goals
 
-Chase-Camera Mastery does not require:
+Out of scope:
 
 - player-controlled camera orbit or look-back input;
 - cinematic replay, spectator, ghost, multiplayer, or split-screen cameras;
@@ -259,15 +238,3 @@ Chase-Camera Mastery does not require:
   2011](https://media.gdcvault.com/GD_Mag_Archives/GDM_September_2011.pdf)
 - [David H. Eberly, Fundamentals of Real-Time Camera Design, GDC
   2005](https://media.gdcvault.com/gdc05/slides/GD_Haigh-Hutchinson_FundamentalsReal-TimeCameraDesign.pdf)
-
-## Open Questions for Implementation
-
-- What orientation/velocity heading blend and minimum reliable speed best fit
-  the accepted kart?
-- What desktop and mobile base distance, height, aim point, and FOV preserve
-  useful course visibility?
-- Which impact severity proxy and cooldown distinguish hard hits from wall rubs?
-- Does one filtered ray pass the large-wall and corner acceptance fixtures, or
-  is a near-plane approximation or direct Ammo convex sweep required?
-- What support-transition timing and vertical damping preserve landing
-  visibility without making the camera floaty?

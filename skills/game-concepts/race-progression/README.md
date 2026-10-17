@@ -1,8 +1,6 @@
 # Race Lifecycle And Progression
 
-**Maturity:** Validated. The versioned course contract, lifecycle, timing,
-progression, recovery, runtime verification, independent review, and
-feature-lead QA passed for PR 2.4.2 on 2026-07-13.
+**Maturity:** Validated (PR 2.4.2, 2026-07-13).
 
 ## Purpose And Scope
 
@@ -15,10 +13,10 @@ results, reset policy, or race-time accounting.
 It does not own device bindings, kart forces, final HUD presentation, database
 results, telemetry persistence, ghosts, leaderboards, multiplayer authority, or
 a particular engine query API. Player input supplies normalized action state
-and reset/pause edges. Tool-specific mapping belongs under
-[`../../tools/`](../../tools/README.md). Verified repository ownership belongs
-under [`../../project-systems/`](../../project-systems/README.md) only after
-implementation and acceptance.
+and reset/pause edges. Engine mapping lives in
+[`tools/playcanvas-ammo/race-progression`](../../tools/playcanvas-ammo/race-progression/README.md);
+the shipped system lives in
+[`project-systems/race-progression`](../../project-systems/race-progression/README.md).
 
 ## Standard
 
@@ -108,12 +106,10 @@ independent from render cadence.
 
 If the runtime caps catch-up work and discards active elapsed time, charge that
 discarded duration to the competitive timeline before exposing the next
-progression result. A stall must never improve a race time. Later leaderboard
-eligibility may reject excessively degraded runs, but eligibility policy is not
-part of PR 2.4.2.
+progression result. A stall must never improve a race time. Leaderboard
+eligibility may later reject excessively degraded runs; that policy is separate.
 
-The rough-loop configuration uses a three-second countdown, two laps, and a
-half-second recovery stabilization window. Keep these values in race
+Keep countdown length, lap count, and recovery stabilization in race
 configuration rather than embedding them in transition logic.
 
 ## Ordered Progression
@@ -141,19 +137,11 @@ records its time, resets the expected target to checkpoint one, and updates the
 recovery anchor to the start pose. Completing the configured final lap instead
 captures the result and transitions atomically to `finished`.
 
-Swept plane-crossing evaluation prevents a fast kart from passing entirely
-through a thin target between fixed poses. The previous point must be behind
-the directed plane, the current point must reach or pass its front, and the
-intersection point must lie inside the oriented checkpoint bounds. Entering
-the box from a side, spawning on the plane, or moving backward does not advance
-progress. Accept no more than one target per fixed step so overlapping or badly
-spaced authored volumes cannot cascade through the route.
-
-The gate plane is a full authored face of the checkpoint volume. The normalized
-`forward` value identifies the best-aligned rotated local axis and chooses which
-side of that face is forward; course normalization snaps it to that exact
-world-space axis. A free diagonal plane through a thin box would leave only a
-narrow valid slice and make legitimate off-center crossings unreliable.
+Swept crossing prevents a fast kart from passing through a thin target between
+fixed poses: the previous point must be behind the directed plane, the current
+point at or past it, and the intersection inside the oriented bounds. The plane
+is a full face of the checkpoint volume, not a free diagonal through it, which
+would leave only a narrow valid slice.
 
 ## Invalid Progression
 
@@ -175,46 +163,27 @@ creating persistent race state.
 
 ## Course Contract
 
-Race progression requires authored meaning that version-one course documents
-do not contain. Version two adds:
+Progression needs authored meaning on the course document:
 
-- bounded start-gate half-extents to the existing start pose;
-- one explicit normalized forward crossing direction on every checkpoint; and
-- one explicit safe recovery transform on every checkpoint.
+- a bounded start/finish gate on the start pose, whose rotation defines valid
+  forward travel; the start pose is also the initial recovery anchor;
+- one explicit forward crossing direction per checkpoint, snapped to a full face
+  of its oriented detection volume; and
+- one explicit safe recovery transform per checkpoint, at ground level and
+  facing the departure direction.
 
-The start pose remains both the initial and pre-checkpoint recovery anchor. Its
-rotation defines valid forward travel through the start/finish gate. Construct
-the gate volume from the same horizontal pose, raised by its vertical
-half-extent so authored start height remains a ground-level kart pose.
+Arrival and departure stay separate because a checkpoint on a corner may be
+crossed facing into the turn but should recover facing out of it. Never infer
+recovery height from the trigger center or reuse the detection rotation without
+an explicit sign. Generated defaults must still pass course-specific support
+and clearance checks before a course is accepted for play.
 
-A checkpoint's existing transform and half-extents define its oriented
-detection volume and full gate face. Its normalized `forward` vector chooses
-the valid arrival side of that face and is canonicalized to the rotated
-world-space normal. Its recovery transform independently defines a safe
-ground-level kart pose and route-aligned upright departure rotation. Arrival
-and departure direction remain separate because a checkpoint placed at a
-corner may be crossed facing into the turn but should recover facing out of it.
-Do not infer recovery height from the trigger center or use the detection box
-rotation without an explicit direction sign.
+Moving a checkpoint translates its recovery pose by the same delta; rotating it
+rotates the gate direction; scaling changes only face bounds. None of these
+silently rewrites recovery rotation.
 
-Keep version-one revisions immutable. A deterministic v1-to-v2 normalization
-path uses the tangent between neighboring route anchors to choose the
-best-aligned checkpoint gate face and sign, derives a recovery departure
-rotation toward the next route anchor, and supplies reviewed gate dimensions and ground-level
-recovery positions for the existing rough-course seed and stored revisions.
-Canonical new saves use version two. Candidate version-two documents are also
-aligned in memory so already-published diagonal directions remain playable
-without rewriting their stored revisions. Any generated recovery default must
-still pass course-specific support and clearance verification before the course
-is accepted for play.
-
-Moving a checkpoint translates its recovery pose by the same delta by default.
-Rotating its detection volume rotates the authored gate-face direction by the
-same transform delta. Scaling changes the face bounds without changing its
-local axis or sign, even when another dimension becomes smaller. Neither
-operation silently rewrites recovery rotation. New checkpoints receive bounded
-direction and recovery defaults; separate direction/recovery authoring and
-tuning may become later controls without changing progression semantics.
+The project's versioned schema and its migration path from older documents live
+in [`project-systems/course-data`](../../project-systems/course-data/README.md).
 
 ## Recovery Model
 
@@ -245,11 +214,11 @@ pre-recovery momentum.
 
 ## Persistence Boundary
 
-PR 2.4.2 race state is memory-local and ends with the scene. Do not write
+Live race state is memory-local and ends with the scene. Do not write
 lifecycle transitions, fixed steps, checkpoint progress, timing counters, or
-recovery snapshots to Postgres. Later telemetry may store summarized events,
-and Phase 5 may persist final race results and leaderboard eligibility; neither
-changes the runtime authority defined here.
+recovery snapshots to Postgres. Telemetry may store summarized
+run outcomes and Phase 5 persists final results; neither changes the runtime
+authority defined here.
 
 ## Failure Modes
 
@@ -274,27 +243,19 @@ changes the runtime authority defined here.
 
 ## Validation
 
-1. Transition-table tests cover every allowed transition and prove undefined
-   transitions leave the complete snapshot unchanged.
-2. Timing tests cover countdown boundaries, active race time, lap splits,
-   pause/resume from every resumable state, recovery penalties, final-time
-   freezing, fractional carry, and discarded-time charging.
-3. Geometry tests cover forward swept plane crossings, thin-volume tunneling,
-   recovery on the plane, reverse and side entry, zero movement, overlaps, and
-   at-most-one acceptance per fixed step.
-4. Progression tests cover correct order, skips, repeats, early finish-line
-   crossings, multiple laps, final finish, and immutable completed results.
-5. Course tests cover strict version-two validation, canonical serialization,
-   stable IDs, gate dimensions, recovery transforms, and deterministic
-   version-one normalization.
-6. Recovery integration proves start and checkpoint anchors, support and
-   clearance fallback, route-aligned upright orientation, zero linear/angular
-   velocity, input clearing, presentation/camera snapping, and no trigger
-   activation from teleport.
-7. Runtime tests repeat equivalent races at common render cadences and during a
-   capped frame stall without granting shorter competitive time.
-8. Existing physics, collisions, camera, course editor, publication, guest
-   access, and keyboard/touch/controller input regressions remain green.
+1. Transition-table tests prove every allowed transition and that undefined
+   transitions leave the snapshot unchanged.
+2. Timing tests cover countdown boundaries, lap splits, pause/resume from every
+   resumable state, recovery time, finish freezing, fractional carry, and
+   discarded-time charging.
+3. Geometry and progression tests cover forward, reverse, side, thin-gate, and
+   zero-length movement; skips, repeats, early finish crossings, multiple laps,
+   and at most one acceptance per step.
+4. Recovery integration proves anchor selection, support fallback, upright
+   orientation, cleared velocity and input, camera snapping, and no
+   teleport-created crossing.
+5. Equivalent races at common render cadences and during a capped stall never
+   grant shorter competitive time.
 
 ## Primary Sources
 
@@ -307,10 +268,7 @@ changes the runtime authority defined here.
 
 ## Known Limits
 
-- The initial countdown, lap count, and stabilization durations remain tuning
-  parameters; their current values are the accepted Phase 2 rough-loop baseline.
-- Version-two generated recovery defaults require per-course runtime evidence;
-  general recovery-pose authoring may need additional Phase 6 controls before
-  unrestricted community publishing.
-- Ghost recording, persistent results, leaderboard eligibility, multiplayer
-  authority, anti-cheat, and race resumption after refresh remain later work.
+- Generated recovery defaults require per-course runtime evidence; community
+  courses (Phase 7) may need recovery-pose authoring controls.
+- Ghosts, persistent results, leaderboard eligibility, multiplayer authority,
+  anti-cheat, and resuming a race after refresh are later work.

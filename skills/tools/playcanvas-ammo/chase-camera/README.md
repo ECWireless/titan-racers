@@ -1,38 +1,20 @@
 # PlayCanvas and Ammo Chase Camera
 
-**Maturity:** Validated. The feature lead accepted this mapping and the
-implemented PlayCanvas camera, copied collision-event input, filtered
-obstruction raycast, wall/corner fixtures, explicit snap lifecycle, and
-editor-transition filter repair on 2026-07-11 after the agreed automated,
-browser, and hands-on gates passed.
+**Maturity:** Validated (accepted 2026-07-11).
 
 ## Purpose and Scope
 
 This node maps the engine-independent
 [`chase-camera`](../../../game-concepts/chase-camera/README.md) standard onto the
 repository's pinned PlayCanvas Engine and vendored Ammo.js/Bullet runtime. Read
-it before implementing playable camera state, motion sampling, collision-driven
+it before changing playable camera state, motion sampling, collision-driven
 camera impulses, obstruction correction, or camera diagnostics.
 
 It inherits runtime, stepping, rigid-body, filtering, allocation, and teardown
 rules from the parent [`PlayCanvas and Ammo`](../README.md) node and contact
-observation rules from [`collisions`](../collisions/README.md). Accepted Titan
-Racers source ownership belongs under
-[`../../../project-systems/`](../../../project-systems/README.md) only after the
-implementation has passed player-facing validation.
-
-## Supported Baseline
-
-- PlayCanvas Engine is pinned exactly to `2.20.6`.
-- Physics uses the repository-owned Ammo build and a 120 Hz fixed simulation.
-- Rendering interpolates authoritative kart snapshots at browser cadence.
-- The existing collision observer exposes copied per-step contact, approach
-  speed, impulse, normal, and pre/post velocity data.
-- The kart controller exposes wheel-support count and vertical velocity.
-- One PlayCanvas world unit is one metre.
-
-Do not add a camera, tweening, or physics dependency for this work. A
-PlayCanvas or Ammo upgrade is a separate tool change.
+observation rules from [`collisions`](../collisions/README.md). The shipped
+system lives in
+[`project-systems/chase-camera`](../../../project-systems/chase-camera/README.md).
 
 ## Camera State Boundary
 
@@ -99,9 +81,8 @@ heading bias or lateral frame offset.
 
 Calculate desired position and aim independently, then damp each toward its
 target. Keep vertical position/aim response separately tunable. Set FOV through
-`CameraComponent.fov` from a smoothed, clamped planar-speed mapping. Preserve
-the current desktop/narrow-mobile base settings until hands-on comparison
-justifies replacements.
+`CameraComponent.fov` from a smoothed, clamped planar-speed mapping, with
+separate desktop and narrow-mobile bases.
 
 Scale spatial framing values from the reference kart length: chase distance,
 height, pivot height, look-ahead distance, obstruction margins, impact offsets,
@@ -147,8 +128,7 @@ collision observer's copied ordinary data remains the boundary.
 
 ## Obstruction Queries
 
-Use `app.systems.rigidbody.raycastFirst(pivot, desiredPosition, options)` for
-the accepted first pass. Provide `filterCollisionMask` and a `filterCallback`
+Use `app.systems.rigidbody.raycastFirst(pivot, desiredPosition, options)`. Provide `filterCollisionMask` and a `filterCallback`
 or tag filter that includes course surfaces and solid obstacles but excludes
 the kart, presentation children, gizmos, and non-obstructing helpers.
 
@@ -158,99 +138,47 @@ pivot distance. Correct inward quickly enough to prevent clipping and recover
 outward with a slower delta-time-aware response. Aim remains derived from the
 stable target rather than the hit surface.
 
-`raycastFirst` tests a zero-width line, not the camera near plane. Validate it
-against the deliberate large wall, convex corner, and concave corner from
-multiple headings. If edge clipping remains visible, prefer a small set of
+`raycastFirst` tests a zero-width line, not the camera near plane; it passed
+the wall and corner fixtures. If future geometry shows edge clipping, prefer a small set of
 near-plane-offset filtered rays before expanding the direct Ammo boundary. A
 convex sweep requires separate evidence, reviewed allocation ownership, and a
 focused low-level adapter.
 
 ## Fixtures and Test Adapter
 
-Add a deliberately visible large wall and corner arrangement to the rough
-camera test route during implementation. Use simple static PlayCanvas shapes
-with honest matching visuals and the existing course collision groups. Place
-them so the player can:
+The rough course carries a visible off-loop large wall and L-corner, authored
+through the course document with ordinary collision groups, for obstruction,
+recovery, and corner scenarios. Test-only collision fixtures are never enabled
+in production.
 
-- drive between kart and wall until the desired camera position is obstructed;
-- clear the wall and observe outward recovery;
-- approach and turn around a convex edge;
-- enter and reverse from a concave corner; and
-- combine obstruction with collision impact without creating an artificial
-  trap in the normal loop.
+The non-production scene test adapter exposes copied camera diagnostics
+(planar speed and heading, slip, airborne blend, impact, obstruction distance,
+desired and actual pose, FOV, snap count) rather than private camera fields.
 
-Do not silently enable existing test-only collision fixtures in production.
-Author camera-test geometry through the data-driven course definition, with
-names and placement suitable for deliberate browser scenarios. Whether the
-fixtures remain in the later authored track is a later course-design decision.
+## Snap and Lifecycle Mapping
 
-Extend the deliberate scene test adapter with copied camera diagnostics and
-controlled scenario access rather than reaching into private camera fields.
-Useful diagnostics include filtered planar speed and heading, signed slip,
-airborne blend, impact magnitude, obstruction hit/distance, desired and actual
-camera pose, FOV, and a snap counter or reason.
-
-## Snap, Editor, and Lifecycle Mapping
-
-Replace calls that fake a snap by passing a large delta with an explicit
-`snap(snapshot)` or `reset(snapshot)` API. It must initialize all retained
+Use the explicit snap API, never a large fake delta. It initializes all retained
 camera state without interpolation. Invoke it after initial scene placement,
-gameplay reset, invalid-state recovery, controlled test pose changes, and
-editor camera transitions.
-
-Editor mode continues to own its separate orbit/pan camera behavior. Returning
-to gameplay snaps the chase camera to the current accepted kart pose. Pausing
+gameplay reset, invalid-state recovery, replay, and controlled test pose
+changes. Pausing
 does not accumulate camera smoothing time. Teardown clears impact state and
 any retained references; obstruction queries allocate no persistent Ammo
 objects through the public PlayCanvas API.
 
 ## Verification
 
-The mapping is not validated until focused tests demonstrate:
+`tests/chase-camera.spec.ts` covers the camera math (zero speed, reverse, slip,
+heading wraparound, impact thresholds, delta-time-independent damping). Browser
+coverage keeps the live wall obstruction case. Hands-on desktop and
+narrow-mobile driving judges comfort and route visibility.
 
-1. Unit-level camera math handles zero speed, forward motion, reverse, signed
-   slip, heading wraparound, impact thresholds, and delta-time-independent
-   damping without NaN or unbounded state.
-2. Synthetic 30, 60, and 120 Hz render schedules produce equivalent camera
-   pose, look target, and FOV within agreed tolerances.
-3. Camera tracking remains coherent with interpolated kart presentation while
-   authoritative physics continues at fixed cadence.
-4. Rest, acceleration, braking through zero, reverse, controlled slip, spin,
-   and recovery keep heading and prediction bounded.
-5. Low-energy wall contact produces no camera kick while controlled direct and
-   off-center impacts produce one capped response per qualifying fixed step.
-6. Ramp launch, apex, descent, partial support, and landing preserve the
-   world-up horizon and bounded vertical framing.
-7. The visible large wall forces inward correction without hiding the kart and
-   outward recovery does not pop.
-8. Convex and concave corner scenarios show no accepted ray edge clipping,
-   stuck correction, wrong-side placement, or obstruction/collision feedback
-   instability.
-9. Reset, invalid recovery, test teleport, and editor exit snap every retained
-   state immediately.
-10. Desktop and mobile Playwright projects cover supported viewport framing;
-    feature-lead desktop and narrow-mobile driving confirms comfort and route
-    visibility.
-11. Production builds make no new third-party request and teardown leaves no
-    camera listener or retained runtime resource alive.
+## Known Limitations
 
-Run repository-wide lint, typecheck, build, and relevant Playwright projects.
-Behavioral acceptance remains owned by the engine-independent camera node.
-
-## Known Limitations and Open Questions
-
-- Public PlayCanvas raycasts are zero-width and may miss near-plane edge
-  obstruction; wall and corner QA determines whether multiple rays are enough.
-- Collision events arrive from the fixed-step observer while camera updates run
-  at render cadence, so each normalized impact must be consumed exactly once.
-- Exact heading blend, slip shaping, impact thresholds, FOV range, damping,
-  obstruction margin, and airborne transition timing require implementation
-  measurements and feature-lead tuning.
-- Playable touch driving is implemented by the validated
-  [`player-input`](../../../project-systems/player-input/README.md) system; the
-  camera retains its own framing and controlled-browser acceptance coverage.
-- The camera-test wall and corner are rough-course fixtures, not final
-  Agricultural Zone art or guaranteed final-track geometry.
+- Raycasts are zero-width and may miss near-plane edge obstruction in narrow
+  future geometry.
+- Collision frames arrive at fixed-step cadence while the camera updates at
+  render cadence, so each impact event must be consumed exactly once.
+- The wall and corner are rough-course fixtures, not final track geometry.
 
 ## Sources
 

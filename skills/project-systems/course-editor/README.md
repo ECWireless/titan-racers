@@ -1,14 +1,10 @@
 # Protected Course Editor System
 
-## Status
-
-**Maturity:** Validated. PR 2.3.3 implementation, feature-lead QA, independent
-slice review, and Phase 2 regression coverage are complete as of 2026-07-14.
+**Maturity:** Validated (PR 2.3.3, Phase 2).
 
 ## Purpose And Scope
 
-This system replaces the development-only Lite Editor with the protected,
-document-driven authoring experience defined by the engine-independent
+This system is the protected, document-driven course authoring experience defined by the engine-independent
 [`course-editing`](../../game-concepts/course-editing/README.md) standard and
 the PlayCanvas mapping in
 [`tools/playcanvas-ammo/course-editing`](../../tools/playcanvas-ammo/course-editing/README.md).
@@ -180,13 +176,9 @@ owns only Resume and Exit.
 - Run focused `tests/course-editor-document.spec.ts` coverage once in the
   desktop project.
 - Run `tests/course-editor.spec.ts` in desktop and mobile projects.
-- Run `tests/auth-configuration.spec.ts` alongside the editor access scenarios;
-  the 2026-07-13 account-selection change passed the complete protected-editor
-  matrix with 36 passes and 12 intentional project-specific skips.
+- Run `tests/auth-configuration.spec.ts` alongside the editor access scenarios.
 - Keep direct protected-route denial and competing first-revision coverage in
   `tests/course-persistence.spec.ts` whenever seed initialization changes.
-- Run `pnpm lint`, `pnpm typecheck`, and `pnpm build` before feature-lead QA.
-- Preserve the existing guest and gameplay regression suite.
 
 ## Deferred Work
 
