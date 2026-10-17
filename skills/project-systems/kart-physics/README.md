@@ -358,8 +358,7 @@ The accepted system is covered by:
   force;
 - `tests/kart-tire-model.spec.ts` for velocity-derived slip angle, equal force
   at equal slip angle across rolling speeds, linear cornering stiffness,
-  low-speed settling, and peak-to-sliding grip; browser fixtures verify the
-  combined longitudinal/lateral force budget;
+  low-speed settling, and peak-to-sliding grip;
 - `tests/playcanvas-runtime.spec.ts` for engine startup, default-tick
   cancellation, callback/update/render ordering, exact manual steps, listener
   cleanup, animation-frame cancellation, and idempotent teardown;
@@ -382,7 +381,8 @@ The accepted system is covered by:
   righting, airborne landing, recovery, and the dynamics inspector. The
   per-relationship scene fixtures (drag, no-load speed, Ackermann, slip,
   handbrake, load transfer, suspension, pitch) were removed on 2026-10-17 in
-  favor of the model unit specs above.
+  favor of the model unit specs above. The Handling Kart bump-landing
+  stability fix and runtime coupled-inertia handoff now rely on manual QA.
 - `pnpm lint`, `pnpm typecheck`, and `pnpm build` for repository-wide static and
   production-build verification; and
 - the desktop and mobile Playwright projects for supported-browser runtime,

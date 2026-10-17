@@ -29,13 +29,18 @@ These still constrain every remaining phase.
 - **History is immutable.** Saved kart and course revisions never change.
   A kart revision stores its derived snapshot, and races use that snapshot. A
   published part version (`id@version`) never changes; add a new version
-  instead.
+  instead. Competitive runs pin a ruleset version rather than changing kart
+  revisions.
+- **Each phase adds its own analytics events** as it lands (logins,
+  leaderboard submissions, rooms, shares, community publishing and play,
+  thumbs-ups, input type, and drop-off before or during a race).
 - **Guests race without logging in.** Login is only for persistent identity,
   leaderboard submission, authoring, ranking, and admin tools.
 - **Titan Racers user IDs are canonical.** Login providers, wallets, and future
   embedded wallets attach to the app user and never replace it.
 - **Permissions are checked on the server.** Roles live in Postgres. Client-side
-  checks only shape the UI.
+  checks only shape the UI. No public role-promotion endpoint or deployment
+  allowlist grants roles.
 - **"Assembler" is a capability, not a role.** Admins assemble official karts
   now; every logged-in player gets the same tools in Phase 6.
 - **Kart cards stay practical.** Short machine-focused descriptors, no lore.
@@ -262,7 +267,8 @@ Publishing is immediate, with no approval queue.
 - [ ] Research and approve the damage standard and its PlayCanvas/Ammo mapping
       first.
 - [ ] Add versioned joints between parts to the kart document without breaking
-      older revisions, and upgrade the three official karts the same way.
+      older revisions, validate structural coherence, and upgrade the three
+      official karts the same way.
 - [ ] Derive joint strength from part roles, mass, geometry, and placement.
 - [ ] Derive impact severity from mass, contact velocity, contact normal, and
       angle of attack. Severe wall, obstacle, or fall impacts detach parts
@@ -307,7 +313,7 @@ editor.
 - [ ] Anyone can launch a published course, and each race records the course ID
       and publication revision.
 - [ ] Remove rough-course and Agricultural Zone assumptions from shared race
-      systems.
+      systems while keeping official-course selection and recovery working.
 
 **PR 7.3: Ranking, featuring, and safety**
 
@@ -335,14 +341,14 @@ authoritative system.
 - [ ] Choosing a kart marks a player ready; the host starts a synchronized
       countdown.
 - [ ] Opponents are visible with coherent race progress.
-- [ ] Synchronized results and replay in the same room. The race ends when all
+- [ ] Synchronized results with placements, and replay in the same room. The race ends when all
       active players finish or shortly after the first finisher.
 - [ ] No public matchmaking or ranked multiplayer leaderboard.
 
 **PR 8.2: Motion and resilience**
 
-- [ ] Define server authority, update cadence, prediction, interpolation, and
-      bounded correction.
+- [ ] Define server authority, update cadence, prediction, interpolation,
+      reconciliation, and bounded correction.
 - [ ] Keep remote presentation separate from authoritative race, collision, and
       damage state.
 - [ ] Survive latency, packet loss, reordering, backgrounding, disconnects,
@@ -354,14 +360,15 @@ authoritative system.
 - [ ] Resolve each kart-to-kart contact once, authoritatively, using both karts'
       mass, relative velocity, contact normal, and angle of attack.
 - [ ] Sync collision impulses, joint damage, and detached parts through the
-      Phase 6 structural model.
+      Phase 6 structural model, including contact that coincides with an
+      environment impact.
 - [ ] Prevent remote tunneling, explosive corrections, duplicate damage, and
       diverging detached parts, while keeping damage forgiving.
 
 **Done when:** a host creates a room, a guest joins by link, both ready up and
 race, and results resolve without hanging; the room can replay; and rubbing,
-glancing, rear-end, head-on, pileup, airborne, and wall-pinning contacts each
-resolve once with damage that stays in sync under latency and disconnects.
+glancing, rear-end, head-on, pileup, airborne, wall-pinning, and concurrent
+kart/environment contacts each resolve once with damage that stays in sync under latency and disconnects.
 
 ### Phase 9: Public Demo Polish
 

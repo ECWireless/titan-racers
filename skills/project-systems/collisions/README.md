@@ -166,12 +166,11 @@ and bounded response during a fast rotational wall contact.
   geometry-derived CCD plus shared-policy ownership.
 - `tests/playcanvas-runtime.spec.ts` verifies pre/update/post/render ordering and
   fixed-step callback lifecycle.
-- `tests/home.spec.ts` keeps browser smoke coverage for registered course
-  obstacle collision and the CCD-enabled thin-barrier case. The detailed
-  glancing, off-center, corner, discrete-baseline, and suspension scene
-  fixtures were removed on 2026-10-17 in favor of the unit specs above.
-- `pnpm lint`, `pnpm typecheck`, `pnpm build`, the complete desktop Playwright
-  project, and focused mobile collision/suspension scenarios provide repository,
+- `tests/home.spec.ts` keeps browser coverage for course collision setup and
+  the CCD-enabled thin-barrier case. Wall-impact response (straight, glancing,
+  off-center, and corner escape) no longer has automated coverage after the
+  2026-10-17 trim and relies on manual driving QA.
+- `pnpm lint`, `pnpm typecheck`, `pnpm build`, and the Playwright desktop and mobile projects provide repository,
   production, and supported-viewport regression coverage.
 - The feature lead accepted the wheel stance, corrected suspension-bar mounts,
   ride height, lighting, doubled top speed, simplified two-cylinder/one-ramp

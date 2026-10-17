@@ -134,8 +134,7 @@ in-memory normalization; canonical serialization and new saves use version two.
 - `tests/course-builder.spec.ts`: five projection, exact branch, fixture-gating,
   atomic rollback, and atomic attachment cases.
 - `tests/home.spec.ts`: course entity count, ground collider mapping, semantic
-  drivable role, obstacle/ramp registration, complete collision and camera
-  scenarios, and explicit non-production start/tuning/transform fixtures.
+  drivable role, and obstacle/ramp registration.
 - `pnpm lint`, `pnpm typecheck`, and `pnpm build` pass.
 
 ## Known Limits And Deferred Work

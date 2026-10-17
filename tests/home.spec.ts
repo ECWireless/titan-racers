@@ -2059,7 +2059,7 @@ test.describe("home screen", () => {
     expect(closeCamera.obstructionDistance).toBeLessThan(1);
   });
 
-  test("registers course obstacle collision", async ({ page }) => {
+  test("registers course collision and lighting setup", async ({ page }) => {
     await page.route("**/api/courses/rough-course/published", async (route) => {
       await route.fulfill({
         body: JSON.stringify({ error: "Published course not found." }),
