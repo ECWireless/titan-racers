@@ -12,7 +12,7 @@ import {
   useSyncExternalStore,
 } from "react";
 
-import { KartStatsDrawer } from "@/components/kart-tuning-drawer";
+import { KartStatsDrawer } from "@/components/kart-stats-drawer";
 import type {
   CourseTestObstacleId,
   DrivingInput,

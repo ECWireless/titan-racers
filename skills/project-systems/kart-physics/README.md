@@ -54,7 +54,7 @@ systems.
   the resolved snapshot (center-of-mass root, principal-axis physics frame,
   assembly-frame child), wires input and profiles, interpolates presentation,
   drives the camera, and coordinates reset and debug teleports.
-- `src/components/kart-tuning-drawer.tsx`: `KartStatsDrawer`, the read-only
+- `src/components/kart-stats-drawer.tsx`: `KartStatsDrawer`, the read-only
   "Kart stats" panel showing the selected kart's derived evidence, toggled with
   unmodified `T` during an active race (no touch access).
 - `src/game/testing/scene-test-adapter.ts`: non-production pose, step, and
