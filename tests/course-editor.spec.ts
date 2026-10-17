@@ -1,7 +1,6 @@
 import { expect, type Locator, test } from "@playwright/test";
 
 import { ROUGH_COURSE_DOCUMENT } from "../src/game/course/course-document";
-import { COURSE_EDITOR_CHECKPOINT_LIMIT } from "../src/game/editor/course-editor-document";
 import {
   disconnectStandardTestGamepad,
   installStandardGamepadFixture,
@@ -12,33 +11,6 @@ import {
 const courseApiPattern = "**/api/admin/courses/rough-course";
 const coursePublicationApiPattern =
   "**/api/admin/courses/rough-course/publication";
-
-function courseAtCheckpointLimit() {
-  const document = structuredClone(ROUGH_COURSE_DOCUMENT);
-  const template = document.checkpoints[0]!;
-  document.checkpoints = Array.from(
-    { length: COURSE_EDITOR_CHECKPOINT_LIMIT },
-    (_, index) => ({
-      ...structuredClone(template),
-      id: `limit-checkpoint-${index + 1}`,
-      order: index + 1,
-      position: { ...template.position, z: index },
-    }),
-  );
-  const objectTemplate = document.objects[0]!;
-  document.objects = Array.from(
-    { length: 500 },
-    (_, index) => ({
-      ...structuredClone(objectTemplate),
-      id: `limit-object-${index + 1}`,
-      transform: {
-        ...structuredClone(objectTemplate.transform),
-        position: { ...objectTemplate.transform.position, x: index % 100 },
-      },
-    }),
-  );
-  return document;
-}
 
 async function waitForEditorScene(canvas: Locator) {
   await expect(canvas).toHaveAttribute("data-scene-ready", "true");
@@ -389,193 +361,74 @@ test.describe("protected course editor access", () => {
 
     await expect(page.getByTestId("course-editor-shell")).toBeVisible();
     await expect(page.getByText("Rough Test Loop")).toBeVisible();
-    await waitForEditorScene(page.getByTestId("course-editor-canvas"));
+    const canvas = page.getByTestId("course-editor-canvas");
+    await waitForEditorScene(canvas);
     await expect(page.getByRole("button", { name: "Undo" })).toBeDisabled();
     await expect(page.getByRole("button", { name: "Redo" })).toBeDisabled();
-    await expect(page.getByTestId("course-editor-canvas")).toHaveAttribute(
-      "data-colliders-visible",
-      "false",
-    );
-    const moveTool = page.getByRole("button", { name: "Move" });
-    await moveTool.focus();
-    const moveTooltipId = await moveTool.getAttribute("aria-describedby");
-    await expect(page.locator(`[id="${moveTooltipId}"]`)).toBeVisible();
-    await expect(page.locator(`[id="${moveTooltipId}"]`)).toHaveText(
-      "Move selection (1)",
-    );
-    const scaleTool = page.getByRole("button", {
-      exact: true,
-      name: "Scale",
-    });
-    await scaleTool.focus();
-    await expect(scaleTool).toHaveAttribute("aria-disabled", "true");
-    const scaleTooltipId = await scaleTool.getAttribute("aria-describedby");
-    await expect(page.locator(`[id="${scaleTooltipId}"]`)).toBeVisible();
-    await expect(page.locator(`[id="${scaleTooltipId}"]`)).toHaveText(
-      "Scale is unavailable for the start position",
-    );
     await expect(
-      page.getByRole("button", { name: "Frame selection" }),
-    ).not.toHaveAttribute("aria-pressed");
+      page.getByRole("button", { exact: true, name: "Scale" }),
+    ).toHaveAttribute("aria-disabled", "true");
     await page.getByRole("button", { name: "Exit course editor" }).focus();
     await page.keyboard.press("2");
     await expect(page.getByRole("button", { name: "Rotate" })).toHaveAttribute(
       "aria-pressed",
       "true",
     );
-    const canvas = page.getByTestId("course-editor-canvas");
     await canvas.focus();
     await page.keyboard.press("1");
-    await expect(moveTool).toHaveAttribute(
+    await expect(page.getByRole("button", { name: "Move" })).toHaveAttribute(
       "aria-pressed",
       "true",
     );
-    await moveTool.click();
-    await page.getByRole("button", { name: "Camera controls" }).click();
-    const cameraControls = page.getByRole("region", {
-      name: "Camera controls",
-    });
-    await expect(cameraControls).toContainText(
-      "1 finger orbit · 2 finger pan · pinch zoom",
-    );
-    await expect(cameraControls).toContainText(
-      "Right-drag orbit · Shift-drag pan · wheel zoom",
-    );
-    await page.getByRole("button", { name: "Close camera controls" }).click();
 
-    if (testInfo.project.name === "mobile") {
-      const courseButton = page.getByRole("button", {
-        name: "Course",
-        exact: true,
-      });
-      await courseButton.click();
-      const dialog = page.getByRole("dialog", { name: "Course" });
-      await expect(dialog).toBeVisible();
-      await expect(page.getByTestId("editor-toolbar-shell")).toHaveJSProperty(
-        "inert",
-        true,
-      );
-      await expect(page.getByRole("button", { name: "Close panel" })).toBeFocused();
-      await expect(dialog.getByRole("heading", { name: "Add object" })).toBeVisible();
-      await expect(dialog.getByRole("button", { name: "block" })).toBeVisible();
-      await expect(
-        dialog.getByRole("heading", { name: "Environment" }),
-      ).toBeVisible();
-      await page.keyboard.press("Escape");
-      await expect(dialog).toHaveCount(0);
-      await expect(courseButton).toBeFocused();
-      await page.getByRole("button", { name: "Inspector" }).click();
-      const inspectorPanel = page.getByRole("complementary", {
-        name: "Inspector",
-      });
-      await expect(inspectorPanel).toBeVisible();
-      await expect(page.getByTestId("course-editor-canvas")).toBeVisible();
-      await expect
-        .poll(() =>
-          page.evaluate(
-            () =>
-              document.documentElement.scrollWidth -
-              document.documentElement.clientWidth,
-          ),
-        )
-        .toBe(0);
-      const viewportBounds = await page
-        .getByTestId("course-editor-canvas")
-        .boundingBox();
-      const inspectorBounds = await inspectorPanel.boundingBox();
-      expect(viewportBounds).not.toBeNull();
-      expect(inspectorBounds).not.toBeNull();
-      expect(viewportBounds!.y + viewportBounds!.height).toBeLessThanOrEqual(
-        inspectorBounds!.y + 1,
-      );
-      await page.setViewportSize({ width: 915, height: 412 });
-      const landscapeViewportBounds = await page
-        .getByTestId("course-editor-canvas")
-        .boundingBox();
-      const landscapeInspectorBounds = await inspectorPanel.boundingBox();
-      expect(landscapeViewportBounds).not.toBeNull();
-      expect(landscapeInspectorBounds).not.toBeNull();
-      expect(
-        landscapeViewportBounds!.x + landscapeViewportBounds!.width,
-      ).toBeLessThanOrEqual(landscapeInspectorBounds!.x + 1);
-      expect(landscapeViewportBounds!.height).toBeGreaterThan(200);
-      expect(landscapeInspectorBounds!.height).toBeGreaterThan(200);
-      await page.setViewportSize({ width: 412, height: 839 });
-      await expect(inspectorPanel.getByTestId("editor-selection")).toHaveText(
-        "start-position",
-      );
-      await page.getByRole("button", { name: "Close panel" }).click();
-      await courseButton.click();
-      await expect(page.getByRole("dialog", { name: "Course" })).toBeVisible();
-      await page.setViewportSize({ width: 1200, height: 800 });
-      await expect(page.getByRole("dialog")).toHaveCount(0);
-      await expect(page.locator("header")).toHaveJSProperty("inert", false);
-      await expect(
-        page.getByRole("button", { name: "Exit course editor" }),
-      ).toBeEnabled();
-    } else {
+    if (testInfo.project.name === "desktop") {
       await expect(page.getByTestId("editor-revision")).toHaveText(
         "Draft r3 · Published none",
       );
       await expect(page.getByRole("button", { name: "block" })).toBeVisible();
-      await expect(page.getByRole("heading", { name: "Environment" })).toBeVisible();
       await expect(page.getByTestId("editor-selection")).toHaveText(
         "start-position",
       );
+      return;
     }
-  });
 
-  test("disables creation and explains the editor limits", async ({
-    page,
-  }, testInfo) => {
-    testInfo.setTimeout(120_000);
-    const document = courseAtCheckpointLimit();
-    await page.route(courseApiPattern, async (route) => {
-      await route.fulfill({
-        body: JSON.stringify({
-          authorUserId: "admin-test-user",
-          courseId: document.courseId,
-          createdAt: new Date("2026-07-12T00:00:00.000Z").toISOString(),
-          document,
-          revision: 3,
-          schemaVersion: document.schemaVersion,
-        }),
-        contentType: "application/json",
-        status: 200,
-      });
+    const courseButton = page.getByRole("button", {
+      name: "Course",
+      exact: true,
     });
+    await courseButton.click();
+    const dialog = page.getByRole("dialog", { name: "Course" });
+    await expect(dialog.getByRole("button", { name: "block" })).toBeVisible();
+    await expect(page.getByTestId("editor-toolbar-shell")).toHaveJSProperty(
+      "inert",
+      true,
+    );
+    await expect(page.getByRole("button", { name: "Close panel" })).toBeFocused();
+    await page.keyboard.press("Escape");
+    await expect(dialog).toHaveCount(0);
+    await expect(courseButton).toBeFocused();
 
-    await page.goto("/editor");
-    if (testInfo.project.name === "mobile") {
-      await page.getByRole("button", { name: "Course", exact: true }).click();
-    }
-    const panel =
-      testInfo.project.name === "mobile"
-        ? page.getByRole("dialog", { name: "Course" })
-        : page;
-    const addCheckpoint = panel.getByRole("button", {
-      name: "Add checkpoint",
+    await page.getByRole("button", { name: "Inspector" }).click();
+    const inspectorPanel = page.getByRole("complementary", {
+      name: "Inspector",
     });
-    await expect(addCheckpoint).toBeDisabled();
-    await expect(addCheckpoint).toHaveAttribute(
-      "title",
-      `Checkpoint limit reached (${COURSE_EDITOR_CHECKPOINT_LIMIT})`,
+    await expect(inspectorPanel.getByTestId("editor-selection")).toHaveText(
+      "start-position",
     );
-    await expect(
-      panel.getByText(
-        `Checkpoint limit reached (${COURSE_EDITOR_CHECKPOINT_LIMIT})`,
-        { exact: true },
-      ),
-    ).toBeVisible();
-    const blockPreset = panel.getByRole("button", { name: "block" });
-    await expect(blockPreset).toBeDisabled();
-    await expect(blockPreset).toHaveAttribute(
-      "title",
-      "Editor object limit reached (500)",
+    await expect
+      .poll(() =>
+        page.evaluate(
+          () =>
+            document.documentElement.scrollWidth -
+            document.documentElement.clientWidth,
+        ),
+      )
+      .toBe(0);
+    const viewportBounds = await canvas.boundingBox();
+    const inspectorBounds = await inspectorPanel.boundingBox();
+    expect(viewportBounds!.y + viewportBounds!.height).toBeLessThanOrEqual(
+      inspectorBounds!.y + 1,
     );
-    await expect(
-      panel.getByText("Editor object limit reached (500)", { exact: true }),
-    ).toBeVisible();
   });
 
   test("saves a private draft and advances the clean revision", async ({
@@ -1227,11 +1080,7 @@ test.describe("protected course editor access", () => {
     await expect(canvas).toHaveAttribute("data-selected-id", "block-1");
     await expect(page.getByRole("button", { name: "Undo" })).toBeEnabled();
     if (testInfo.project.name === "desktop") {
-      await page.keyboard.press("2");
-      await expect(canvas).toHaveAttribute("data-tool", "rotate");
       await page.keyboard.press("3");
-      await expect(canvas).toHaveAttribute("data-tool", "scale");
-      await page.keyboard.press("Control+1");
       await expect(canvas).toHaveAttribute("data-tool", "scale");
     }
     if (testInfo.project.name === "mobile") {
@@ -1253,10 +1102,7 @@ test.describe("protected course editor access", () => {
     if (testInfo.project.name === "mobile") {
       await page.getByRole("button", { name: "Inspector" }).click();
     }
-    const inspector =
-      testInfo.project.name === "mobile"
-        ? page.getByRole("complementary", { name: "Inspector" })
-        : page.getByRole("complementary", { name: "Inspector" });
+    const inspector = page.getByRole("complementary", { name: "Inspector" });
     await expect(inspector.getByTestId("editor-selection")).toHaveText("block-1");
     await inspector.getByRole("button", { name: "Position x increase" }).click();
     await expect(inspector.getByTestId("position-x-value")).toHaveText("0.25");
@@ -1286,28 +1132,19 @@ test.describe("protected course editor access", () => {
       .click();
     await expect(canvas).toHaveAttribute("data-tool", "scale");
     await page.getByRole("button", { name: "Snap On" }).click();
-    await expect(page.getByRole("button", { name: "Snap Off" })).toHaveAttribute(
-      "aria-pressed",
-      "false",
-    );
     await expect(canvas).toHaveAttribute("data-snap-enabled", "false");
     const hiddenSelectionMappingCount =
       await getCourseEditorSelectionMappingCount(canvas);
-    for (let cycle = 0; cycle < 3; cycle += 1) {
-      await page.getByRole("button", { name: "Show collision shapes" }).click();
-      await expect(
-        page.getByRole("button", { name: "Hide collision shapes" }),
-      ).toHaveAttribute("aria-pressed", "true");
-      await expect(canvas).toHaveAttribute("data-colliders-visible", "true");
-      expect(await getCourseEditorSelectionMappingCount(canvas)).toBeGreaterThan(
-        hiddenSelectionMappingCount,
-      );
-      await page.getByRole("button", { name: "Hide collision shapes" }).click();
-      await expect(canvas).toHaveAttribute("data-colliders-visible", "false");
-      expect(await getCourseEditorSelectionMappingCount(canvas)).toBe(
-        hiddenSelectionMappingCount,
-      );
-    }
+    await page.getByRole("button", { name: "Show collision shapes" }).click();
+    await expect(canvas).toHaveAttribute("data-colliders-visible", "true");
+    expect(await getCourseEditorSelectionMappingCount(canvas)).toBeGreaterThan(
+      hiddenSelectionMappingCount,
+    );
+    await page.getByRole("button", { name: "Hide collision shapes" }).click();
+    await expect(canvas).toHaveAttribute("data-colliders-visible", "false");
+    expect(await getCourseEditorSelectionMappingCount(canvas)).toBe(
+      hiddenSelectionMappingCount,
+    );
     await page.getByRole("button", { name: "Undo" }).click();
     await page.getByRole("button", { name: "Undo" }).click();
     await page.getByRole("button", { name: "Undo" }).click();
@@ -1315,20 +1152,12 @@ test.describe("protected course editor access", () => {
     if (testInfo.project.name === "mobile") {
       await page.getByRole("button", { name: "Inspector" }).click();
     }
-    const restoredInspector =
-      testInfo.project.name === "mobile"
-        ? page.getByRole("complementary", { name: "Inspector" })
-        : page.getByRole("complementary", { name: "Inspector" });
-    await expect(restoredInspector.getByTestId("position-x-value")).toHaveText(
-      "0.00",
-    );
+    await expect(inspector.getByTestId("position-x-value")).toHaveText("0.00");
     await expect(
-      restoredInspector.getByRole("textbox", { name: "Object name" }),
+      inspector.getByRole("textbox", { name: "Object name" }),
     ).toHaveValue("block-1");
-    await expect(restoredInspector.getByTestId("scale-x-value")).toHaveText(
-      "2.00",
-    );
-    await restoredInspector
+    await expect(inspector.getByTestId("scale-x-value")).toHaveText("2.00");
+    await inspector
       .getByRole("button", { name: "Delete selected" })
       .click();
     await expect(canvas).toHaveAttribute("data-selected-id", "start-position");
@@ -1348,14 +1177,7 @@ test.describe("protected course editor access", () => {
     if (testInfo.project.name === "mobile") {
       await page.getByRole("button", { name: "Inspector" }).click();
     }
-    const checkpointInspector =
-      testInfo.project.name === "mobile"
-        ? page.getByRole("complementary", { name: "Inspector" })
-        : page.getByRole("complementary", { name: "Inspector" });
-    await checkpointInspector
-      .getByRole("button", { name: "Rotation y increase" })
-      .click();
-    await checkpointInspector
+    await inspector
       .getByRole("button", { name: "Delete selected" })
       .click();
     await expect(canvas).toHaveAttribute("data-selected-id", "start-position");

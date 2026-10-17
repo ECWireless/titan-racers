@@ -1,12 +1,15 @@
 import { expect, test } from "@playwright/test";
 
 import {
+  applyKartDevelopmentOverrides,
+  createKartDevelopmentValues,
   DEFAULT_KART_DEVELOPMENT_VALUES,
   KART_DEVELOPMENT_VALUE_BOUNDS,
   KART_DEVELOPMENT_VALUE_METADATA,
   normalizeKartDevelopmentValues,
   resolveKartDevelopmentValues,
 } from "../src/game/kart/kart-development-values";
+import { DEFAULT_KART_PHYSICAL_PROFILE } from "../src/game/kart/kart-physical-profile";
 
 test.describe("kart development values", () => {
   test("keeps every diagnostic default inside its development bounds", () => {
@@ -77,5 +80,45 @@ test.describe("kart development values", () => {
       maximumDriveForce: DEFAULT_KART_DEVELOPMENT_VALUES.maximumDriveForce,
       noLoadSpeed: DEFAULT_KART_DEVELOPMENT_VALUES.maxForwardSpeed,
     });
+  });
+
+  test("runs a derived profile exactly when it exceeds development bounds", () => {
+    const profile = {
+      ...DEFAULT_KART_PHYSICAL_PROFILE,
+      aerodynamics: {
+        dragArea: KART_DEVELOPMENT_VALUE_BOUNDS.aerodynamicDragArea.maximum * 2,
+      },
+      drivetrain: {
+        ...DEFAULT_KART_PHYSICAL_PROFILE.drivetrain,
+        maximumDriveForce:
+          KART_DEVELOPMENT_VALUE_BOUNDS.maximumDriveForce.maximum + 15,
+      },
+    };
+    const baseline = createKartDevelopmentValues(profile);
+
+    expect(applyKartDevelopmentOverrides(baseline, {})).toEqual(baseline);
+    expect(
+      resolveKartDevelopmentValues(applyKartDevelopmentOverrides(baseline, {}))
+        .kart,
+    ).toEqual(profile);
+  });
+
+  test("clamps only the development values a session overrides", () => {
+    const baseline = createKartDevelopmentValues({
+      ...DEFAULT_KART_PHYSICAL_PROFILE,
+      aerodynamics: {
+        dragArea: KART_DEVELOPMENT_VALUE_BOUNDS.aerodynamicDragArea.maximum * 2,
+      },
+    });
+    const values = applyKartDevelopmentOverrides(baseline, {
+      maxForwardSpeed: 500,
+      maximumDriveForce: Number.NaN,
+    });
+
+    expect(values.maxForwardSpeed).toBe(
+      KART_DEVELOPMENT_VALUE_BOUNDS.maxForwardSpeed.maximum,
+    );
+    expect(values.maximumDriveForce).toBe(baseline.maximumDriveForce);
+    expect(values.aerodynamicDragArea).toBe(baseline.aerodynamicDragArea);
   });
 });

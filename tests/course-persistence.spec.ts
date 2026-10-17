@@ -57,11 +57,7 @@ const CONFIGURED_ORIGIN =
 test.describe("course persistence and authorization", () => {
   test.describe.configure({ mode: "serial" });
 
-  test.beforeEach(async ({}, testInfo) => {
-    test.skip(
-      testInfo.project.name !== "desktop",
-      "Database integration runs once in the desktop project.",
-    );
+  test.beforeEach(() => {
     test.skip(
       requiredIntegrationVariables.some((name) => !process.env[name]?.trim()),
       "Database and auth environment variables are required for persistence integration tests.",

@@ -14,12 +14,6 @@ const IDENTITY_GATE: DirectedRaceGate = {
 };
 
 test.describe("directed race gate crossing", () => {
-  test.beforeEach(async ({}, testInfo) => {
-    test.skip(
-      testInfo.project.name !== "desktop",
-      "Pure gate coverage only needs to run once.",
-    );
-  });
 
   test("accepts a forward swept crossing through the bounded gate", () => {
     expect(

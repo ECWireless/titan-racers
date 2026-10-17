@@ -19,12 +19,6 @@ function renameCommand(
 }
 
 test.describe("course editor command history", () => {
-  test.beforeEach(async ({}, testInfo) => {
-    test.skip(
-      testInfo.project.name !== "desktop",
-      "Pure command history coverage only needs to run once.",
-    );
-  });
 
   test("tracks clean state across execute, undo, redo, save, and reset", () => {
     const loaded = { name: "Loaded" };

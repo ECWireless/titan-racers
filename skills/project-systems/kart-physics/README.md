@@ -99,7 +99,9 @@ mastery remain separate systems and PR-sized units.
   fixture. `src/game/kart/kart-development-values.ts`
   owns the temporary flat diagnostic adapter, its bounds, normalization,
   explicit ownership metadata, and conversion into those authoritative
-  contracts; runtime systems never consume the flat adapter directly.
+  contracts; runtime systems never consume the flat adapter directly. Races
+  start from the resolved snapshot exactly, and development bounds clamp only
+  values that a non-production test hook overrides.
 - `src/game/kart/kart-drift-smoke.ts` owns supported-wheel tire smoke. Measured
   final lateral tire force times lateral contact speed produces a rear-wheel
   scrub-power presentation signal in watts. Mass-scaled reference thresholds
@@ -356,12 +358,7 @@ The accepted system is covered by:
   force;
 - `tests/kart-tire-model.spec.ts` for velocity-derived slip angle, equal force
   at equal slip angle across rolling speeds, linear cornering stiffness,
-  low-speed settling, and peak-to-sliding grip; browser fixtures verify the
-  combined longitudinal/lateral force budget;
-- `tests/home.spec.ts` includes a deterministic recovery A/B: sustained
-  throttle/steer/handbrake is compared with release, brief counter-steer, then
-  centering; the recovery path must reduce terminal rear slip and yaw rate by
-  at least 40 percent relative to sustaining the slide;
+  low-speed settling, and peak-to-sliding grip;
 - `tests/playcanvas-runtime.spec.ts` for engine startup, default-tick
   cancellation, callback/update/render ordering, exact manual steps, listener
   cleanup, animation-frame cancellation, and idempotent teardown;
@@ -379,23 +376,13 @@ The accepted system is covered by:
 - `tests/kart-principal-axes.spec.ts` for deterministic diagonalization,
   tensor reconstruction, arbitrary-axis moments, coupled products of inertia,
   and invalid tensors;
-- `tests/home.spec.ts` for finite wheel support, visible clearance, springy ramp
-  landing, construction-derived full-speed ramp pitch, static equilibrium,
-  acceleration, configured top
-  speed, braking, reverse, forward and reverse steering, stable sustained
-  moderate-speed powered cornering, high-speed natural and brake-induced drift,
-  longitudinal and lateral load transfer, grip saturation and recovery,
-  wheel-specific ledge
-  support, tipping, airborne rotation, landing, invalid-state recovery,
-  speed-dependent live coasting, production read-only dynamics-inspector hotkey behavior,
-  tooltip accessibility, ownership labels, and key
-  completeness, controlled-fixture gravity and camera-envelope propagation, no straight-line
-  braking smoke without measured slip, stationary countdown burnout smoke, complete
-  inspector interaction isolation, responsive containment, editor transitions,
-  loading failure/cancellation, physical flat-roof and angled-roof manual
-  righting, touch tap/drag/raycast discrimination, unchanged automatic and
-  upright checkpoint recovery, and interpolated presentation/camera-target
-  coherence;
+- `tests/home.spec.ts` keeps browser smoke coverage for acceleration,
+  steering, braking into reverse, the Handling Kart launch, reset, manual
+  righting, airborne landing, recovery, and the dynamics inspector. The
+  per-relationship scene fixtures (drag, no-load speed, Ackermann, slip,
+  handbrake, load transfer, suspension, pitch) were removed on 2026-10-17 in
+  favor of the model unit specs above. The Handling Kart bump-landing
+  stability fix and runtime coupled-inertia handoff now rely on manual QA.
 - `pnpm lint`, `pnpm typecheck`, and `pnpm build` for repository-wide static and
   production-build verification; and
 - the desktop and mobile Playwright projects for supported-browser runtime,

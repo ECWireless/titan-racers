@@ -25,7 +25,15 @@ export default defineConfig({
       use: { ...devices["Desktop Chrome"] },
     },
     {
+      // Only browser specs with distinct touch or narrow-viewport behavior run
+      // twice; logic, API, and database specs run once on desktop.
       name: "mobile",
+      testMatch: [
+        "course-editor.spec.ts",
+        "home.spec.ts",
+        "kart-editor.spec.ts",
+        "profile.spec.ts",
+      ],
       use: { ...devices["Pixel 7"] },
     },
   ],

@@ -39,12 +39,6 @@ function snapshot(
 }
 
 test.describe("race presentation", () => {
-  test.beforeEach(async ({}, testInfo) => {
-    test.skip(
-      testInfo.project.name !== "desktop",
-      "Pure presentation coverage only needs to run once.",
-    );
-  });
 
   test("formats deterministic race times without rounding ahead", () => {
     expect(formatRaceTime(0)).toBe("0:00.0");
