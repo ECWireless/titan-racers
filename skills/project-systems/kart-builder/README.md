@@ -44,6 +44,12 @@ revision-bound previews live in [`kart-thumbnails`](../kart-thumbnails/README.md
 - **Routes:** `src/app/api/admin/karts/[kartId]/` (draft load/save,
   publication, revision thumbnails), `src/app/api/karts/[kartId]/` (published
   revision and thumbnail), and `src/app/api/karts/official/route.ts`.
+- **Visuals:** `src/game/kart/kart-assembly-visual.ts` is the one
+  presentation-only builder for race, editor, and thumbnails. It returns
+  per-instance roots (editor selection) and a wheel and suspension rig the race
+  poses each frame with `poseKartWheelVisual`. Rig parts sit in assembly axes,
+  so wheel instance rotation is not drawn, matching derivation. Materials
+  belong to the caller. Physics never reads these entities.
 - **Editor:** `src/app/admin/karts/` (roster page and per-kart editor);
   `src/components/kart-editor/` (access, shell, canvas, admin roster,
   post-save thumbnail capture); `src/game/editor/kart-editor-document.ts`
@@ -101,6 +107,5 @@ revision-bound previews live in [`kart-thumbnails`](../kart-thumbnails/README.md
 
 ## Known Limits
 
-Official vs. community status is not server-owned, request hardening is
-incomplete, and race and editor build kart visuals separately. Phase 6 owns
-the first two; PR 4.1.1 owns the shared visual builder.
+Official vs. community status is not server-owned and request hardening is
+incomplete. Phase 6 owns both.

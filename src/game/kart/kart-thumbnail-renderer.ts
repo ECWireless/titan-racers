@@ -83,16 +83,11 @@ async function renderKartThumbnailImmediately(document: KartAssemblyDocument) {
       preserveDrawingBuffer: true,
     },
   });
-  const { materials, root } = createKartAssemblyVisual(
+  const { root } = createKartAssemblyVisual(
     document,
     createThumbnailMaterial,
   );
   try {
-    materials.forEach((material) => {
-      material.metalness = 0.08;
-      material.gloss = 0.42;
-      material.update();
-    });
     app.setCanvasFillMode(pc.FILLMODE_NONE);
     app.setCanvasResolution(
       pc.RESOLUTION_FIXED,
@@ -245,6 +240,8 @@ function createThumbnailMaterial(color: string) {
     ((number >> 8) & 255) / 255,
     (number & 255) / 255,
   );
+  material.metalness = 0.08;
+  material.gloss = 0.42;
   material.update();
   return material;
 }

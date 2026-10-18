@@ -75,6 +75,11 @@ import {
   type KartDevelopmentValues,
 } from "@/game/kart/kart-development-values";
 import type { KartAssemblyDocument } from "@/game/kart/kart-assembly-document";
+import {
+  createKartAssemblyVisual,
+  type KartWheelVisual,
+  poseKartWheelVisual,
+} from "@/game/kart/kart-assembly-visual";
 import { createBalancedKartDocument } from "@/game/kart/balanced-kart-document";
 import { getApprovedKartComponent } from "@/game/kart/kart-component-registry";
 import {
@@ -123,11 +128,6 @@ import {
 } from "@/game/telemetry/gameplay-run-events";
 
 const DEFAULT_BALANCED_KART_DOCUMENT = createBalancedKartDocument();
-const KART_SUSPENSION_COIL_RADIUS = 0.014;
-const KART_SUSPENSION_COIL_SEGMENTS = 32;
-const KART_SUSPENSION_COIL_TURNS = 8;
-const KART_SUSPENSION_COIL_WIRE_RADIUS = 0.0025;
-const KART_SUSPENSION_DAMPER_RADIUS = 0.009;
 const KART_RESET_FALL_Y = -10;
 const KART_TAP_MAX_DURATION_MS = 300;
 const KART_TAP_MAX_MOVEMENT_PX = 12;
@@ -746,30 +746,6 @@ export function SoloTimeTrialCanvas({
         return entity;
       }
 
-      function createChildBox(
-        parent: pc.Entity,
-        name: string,
-        position: pc.Vec3,
-        scale: pc.Vec3,
-        material: pc.StandardMaterial,
-        eulerAngles = new pc.Vec3(),
-      ) {
-        const entity = new pc.Entity(name);
-        entity.addComponent("model", {
-          type: "box",
-        });
-        entity.setLocalPosition(position);
-        entity.setLocalEulerAngles(eulerAngles);
-        entity.setLocalScale(scale);
-        const meshInstances = entity.model?.meshInstances;
-        meshInstances?.forEach((meshInstance) => {
-          meshInstance.material = material;
-        });
-        parent.addChild(entity);
-
-        return entity;
-      }
-
       function createChildCollisionBox(
         parent: pc.Entity,
         name: string,
@@ -812,138 +788,6 @@ export function SoloTimeTrialCanvas({
         parent.addChild(entity);
 
         return entity;
-      }
-
-      function createChildCylinder(
-        parent: pc.Entity,
-        name: string,
-        position: pc.Vec3,
-        scale: pc.Vec3,
-        material: pc.StandardMaterial,
-        eulerAngles = new pc.Vec3(0, 0, 0),
-      ) {
-        const entity = new pc.Entity(name);
-        entity.addComponent("model", {
-          type: "cylinder",
-        });
-        entity.setLocalPosition(position);
-        entity.setLocalEulerAngles(eulerAngles);
-        entity.setLocalScale(scale);
-        const meshInstances = entity.model?.meshInstances;
-        meshInstances?.forEach((meshInstance) => {
-          meshInstance.material = material;
-        });
-        parent.addChild(entity);
-
-        return entity;
-      }
-
-      function createSuspensionBar(
-        parent: pc.Entity,
-        name: string,
-        material: pc.StandardMaterial,
-        radius: number,
-        shadows = true,
-      ) {
-        const entity = new pc.Entity(name);
-
-        entity.addComponent("model", { type: "cylinder" });
-        entity.model?.meshInstances?.forEach((meshInstance) => {
-          meshInstance.material = material;
-        });
-        if (entity.model) {
-          entity.model.castShadows = shadows;
-          entity.model.receiveShadows = shadows;
-        }
-        entity.setLocalScale(radius * 2, 0.5, radius * 2);
-        parent.addChild(entity);
-
-        return entity;
-      }
-
-      function placeSuspensionBar(
-        bar: pc.Entity,
-        start: pc.Vec3,
-        end: pc.Vec3,
-        radius: number,
-      ) {
-        const direction = end.clone().sub(start);
-        const length = direction.length();
-
-        if (length <= 0.0001) {
-          bar.enabled = false;
-          return;
-        }
-
-        bar.enabled = true;
-        bar.setLocalPosition(start.clone().add(end).mulScalar(0.5));
-        bar.setLocalRotation(
-          new pc.Quat().setFromDirections(pc.Vec3.UP, direction.normalize()),
-        );
-        bar.setLocalScale(radius * 2, length, radius * 2);
-      }
-
-      function createSuspensionCoil(
-        parent: pc.Entity,
-        name: string,
-        material: pc.StandardMaterial,
-      ) {
-        return Array.from(
-          { length: KART_SUSPENSION_COIL_SEGMENTS },
-          (_, index) =>
-            createSuspensionBar(
-              parent,
-              `${name}-coil-${index + 1}`,
-              material,
-              KART_SUSPENSION_COIL_WIRE_RADIUS,
-              false,
-            ),
-        );
-      }
-
-      function placeSuspensionCoil(
-        segments: pc.Entity[],
-        start: pc.Vec3,
-        end: pc.Vec3,
-      ) {
-        const axis = end.clone().sub(start);
-        const length = axis.length();
-        if (length <= 0.0001) {
-          segments.forEach((segment) => {
-            segment.enabled = false;
-          });
-          return;
-        }
-        axis.normalize();
-        const reference = Math.abs(axis.y) < 0.9 ? pc.Vec3.UP : pc.Vec3.RIGHT;
-        const side = new pc.Vec3().cross(axis, reference).normalize();
-        const up = new pc.Vec3().cross(side, axis).normalize();
-        let previous = start.clone();
-
-        segments.forEach((segment, index) => {
-          const t = (index + 1) / segments.length;
-          const angle = t * Math.PI * 2 * KART_SUSPENSION_COIL_TURNS;
-          const point = start
-            .clone()
-            .add(axis.clone().mulScalar(length * t))
-            .add(
-              side
-                .clone()
-                .mulScalar(Math.cos(angle) * KART_SUSPENSION_COIL_RADIUS),
-            )
-            .add(
-              up
-                .clone()
-                .mulScalar(Math.sin(angle) * KART_SUSPENSION_COIL_RADIUS),
-            );
-          placeSuspensionBar(
-            segment,
-            previous,
-            point,
-            KART_SUSPENSION_COIL_WIRE_RADIUS,
-          );
-          previous = point;
-        });
       }
 
       const {
@@ -1029,89 +873,15 @@ export function SoloTimeTrialCanvas({
         KART_ASSEMBLY_TO_PRINCIPAL_ROTATION,
       );
       kart.addChild(kartAssemblyFrame);
-      const kartVisual = new pc.Entity("kart-visual");
+      const {
+        instanceRoots: kartInstanceRoots,
+        root: kartVisual,
+        wheels: kartWheelVisuals,
+      } = createKartAssemblyVisual(kartRuntime.document, getKartVisualMaterial);
 
       kartAssemblyFrame.addChild(kartVisual);
       const currentStartPosition = START_POSITION.clone();
       const currentStartRotation = START_ROTATION.clone();
-
-      kartRuntime.document.primitiveInstances.forEach((primitive) => {
-        const position = toPcVector(primitive.transform.position);
-        const rotation = toPcVector(primitive.transform.rotationDegrees);
-        const material = getKartVisualMaterial(primitive.visualColor);
-
-        if (primitive.shape === "box") {
-          createChildBox(
-            kartVisual,
-            `kart-${primitive.id}`,
-            position,
-            toPcVector(primitive.size),
-            material,
-            rotation,
-          );
-        } else {
-          const primitiveRoot = new pc.Entity(`kart-${primitive.id}`);
-          primitiveRoot.setLocalPosition(position);
-          primitiveRoot.setLocalEulerAngles(rotation);
-          kartVisual.addChild(primitiveRoot);
-          createChildCylinder(
-            primitiveRoot,
-            `kart-${primitive.id}-shape`,
-            new pc.Vec3(),
-            new pc.Vec3(
-              primitive.radius * 2,
-              primitive.height,
-              primitive.radius * 2,
-            ),
-            material,
-            primitive.axis === "x"
-              ? new pc.Vec3(0, 0, 90)
-              : primitive.axis === "z"
-                ? new pc.Vec3(90, 0, 0)
-                : new pc.Vec3(),
-          );
-        }
-      });
-
-      kartRuntime.document.componentInstances.forEach((instance) => {
-        const definition = getApprovedKartComponent(instance.definition);
-        if (!definition || definition.category === "wheel-tire") return;
-        const instanceRoot = new pc.Entity(`kart-component-${instance.id}`);
-        instanceRoot.setLocalPosition(toPcVector(instance.transform.position));
-        instanceRoot.setLocalEulerAngles(
-          toPcVector(instance.transform.rotationDegrees),
-        );
-        kartVisual.addChild(instanceRoot);
-        definition.construction.forEach((part, index) => {
-          const material = getKartVisualMaterial(instance.visualColor);
-          if (part.shape === "box") {
-            createChildBox(
-              instanceRoot,
-              `${instance.id}-part-${index}`,
-              toPcVector(part.transform.position),
-              toPcVector(part.size),
-              material,
-              toPcVector(part.transform.rotationDegrees),
-            );
-          } else {
-            const axisRotation =
-              part.axis === "x"
-                ? new pc.Vec3(0, 0, 90)
-                : part.axis === "z"
-                  ? new pc.Vec3(90, 0, 0)
-                  : new pc.Vec3();
-            axisRotation.add(toPcVector(part.transform.rotationDegrees));
-            createChildCylinder(
-              instanceRoot,
-              `${instance.id}-part-${index}`,
-              toPcVector(part.transform.position),
-              new pc.Vec3(part.radius * 2, part.height, part.radius * 2),
-              material,
-              axisRotation,
-            );
-          }
-        });
-      });
 
       KART_SNAPSHOT.geometry.collisionCompound.forEach((primitive) => {
         const position = getKartPhysicsLocalPosition(
@@ -1163,22 +933,9 @@ export function SoloTimeTrialCanvas({
 
       const dynamicWheels: DynamicWheel[] = [];
       const wheelPresentations: Array<{
-        armForward: pc.Entity;
-        armRear: pc.Entity;
-        chassisForwardAnchor: pc.Vec3;
-        chassisRearAnchor: pc.Vec3;
-        chassisShockAnchor: pc.Vec3;
-        coil: pc.Entity[];
-        coilEnd: pc.Vec3;
         currentHubY: number;
-        hubX: number;
-        hubZ: number;
-        motionRatio: number;
-        pivot: pc.Entity;
         previousHubY: number;
-        referenceHubY: number;
-        shock: pc.Entity;
-        springArmAnchor: pc.Vec3;
+        visual: KartWheelVisual;
         wheelName: string;
       }> = [];
       const initialHubY =
@@ -1188,71 +945,21 @@ export function SoloTimeTrialCanvas({
         ).reduce((sum, station) => sum + station.position.y, 0) /
         KART_SNAPSHOT.geometry.wheelStations.length;
 
+      const kartWheelVisualById = new Map(
+        kartWheelVisuals.map((wheel) => [wheel.instanceId, wheel]),
+      );
       KART_SNAPSHOT.geometry.wheelStations.forEach((station) => {
         const { driven, steered } = station;
         const name = station.id.replace(/^wheel-/, "");
-        const wheelInstance = kartRuntime.document.componentInstances.find(
-          (instance) => instance.id === station.id,
-        );
-        const suspensionInstance = kartRuntime.document.connections
-          .filter(
-            (connection) =>
-              (connection.from.instanceId === station.id &&
-                connection.from.portId === "hub-mount") ||
-              (connection.to.instanceId === station.id &&
-                connection.to.portId === "hub-mount"),
-          )
-          .map((connection) =>
-            connection.from.instanceId === station.id
-              ? connection.to.instanceId
-              : connection.from.instanceId,
-          )
-          .map((instanceId) =>
-            kartRuntime.document.componentInstances.find(
-              (instance) => instance.id === instanceId,
-            ),
-          )
-          .find((instance) => {
-            const definition = instance
-              ? getApprovedKartComponent(instance.definition)
-              : null;
-            return definition?.category === "suspension";
-          });
-        const wheelMaterial = getKartVisualMaterial(
-          wheelInstance?.visualColor ??
-            kartRuntime.document.visualIdentity.primaryColor,
-        );
-        const suspensionMaterial = getKartVisualMaterial(
-          suspensionInstance?.visualColor ??
-            kartRuntime.document.visualIdentity.accentColor,
-        );
-        const { x, z } = station.position;
-        const wheelPivot = new pc.Entity(`kart-wheel-pivot-${name}`);
+        const wheelVisual = kartWheelVisualById.get(station.id);
+        if (!wheelVisual) {
+          throw new Error(`Kart wheel ${station.id} has no visual.`);
+        }
         const visualLocalPosition = toPcVector(station.position);
         const localPosition = getKartPhysicsLocalPosition(
           visualLocalPosition.clone(),
           KART_CENTER_OF_MASS_OFFSET,
           KART_ASSEMBLY_TO_PRINCIPAL_ROTATION,
-        );
-
-        wheelPivot.setLocalPosition(visualLocalPosition);
-        kartVisual.addChild(wheelPivot);
-
-        createChildCylinder(
-          wheelPivot,
-          `kart-wheel-${name}`,
-          new pc.Vec3(0, 0, 0),
-          new pc.Vec3(station.radius * 2, station.width, station.radius * 2),
-          wheelMaterial,
-          new pc.Vec3(0, 0, 90),
-        );
-        createChildCylinder(
-          wheelPivot,
-          `kart-wheel-hub-${name}`,
-          new pc.Vec3(0, 0, 0),
-          new pc.Vec3(station.radius, station.width + 0.006, station.radius),
-          wheelMaterial,
-          new pc.Vec3(0, 0, 90),
         );
 
         dynamicWheels.push({
@@ -1265,59 +972,16 @@ export function SoloTimeTrialCanvas({
             ),
           maximumSuspensionTravel: station.suspension.maximumWheelTravel,
           name,
-          pivot: wheelPivot,
+          pivot: wheelVisual.pivot,
           radius: station.radius,
           restSuspensionCompression: station.suspension.restWheelCompression,
           steered,
           width: station.width,
         });
-
-        const armForward = createSuspensionBar(
-          kartVisual,
-          `${name}-lower-arm-forward`,
-          suspensionMaterial,
-          0.005,
-        );
-        const armRear = createSuspensionBar(
-          kartVisual,
-          `${name}-lower-arm-rear`,
-          suspensionMaterial,
-          0.005,
-        );
-        const shock = createSuspensionBar(
-          kartVisual,
-          `${name}-shock`,
-          suspensionMaterial,
-          KART_SUSPENSION_DAMPER_RADIUS,
-          false,
-        );
-        const coil = createSuspensionCoil(
-          kartVisual,
-          `${name}-shock`,
-          suspensionMaterial,
-        );
-
         wheelPresentations.push({
-          armForward,
-          armRear,
-          chassisForwardAnchor: toPcVector(station.suspension.armPivot).add(
-            new pc.Vec3(0, 0, -0.025),
-          ),
-          chassisRearAnchor: toPcVector(station.suspension.armPivot).add(
-            new pc.Vec3(0, 0, 0.025),
-          ),
-          chassisShockAnchor: toPcVector(station.suspension.chassisAnchor),
-          coil,
-          coilEnd: toPcVector(station.suspension.springArmAnchor),
           currentHubY: initialHubY,
-          hubX: x,
-          hubZ: z,
-          motionRatio: station.suspension.motionRatio,
-          pivot: wheelPivot,
           previousHubY: initialHubY,
-          referenceHubY: station.suspension.hubAnchor.y,
-          shock,
-          springArmAnchor: toPcVector(station.suspension.springArmAnchor),
+          visual: wheelVisual,
           wheelName: name,
         });
       });
@@ -2029,36 +1693,14 @@ export function SoloTimeTrialCanvas({
 
       function renderWheelPresentation(accumulatorFraction: number) {
         wheelPresentations.forEach((wheel) => {
-          const hubY = pc.math.lerp(
-            wheel.previousHubY,
-            wheel.currentHubY,
-            accumulatorFraction,
+          poseKartWheelVisual(
+            wheel.visual,
+            pc.math.lerp(
+              wheel.previousHubY,
+              wheel.currentHubY,
+              accumulatorFraction,
+            ),
           );
-          const hub = new pc.Vec3(wheel.hubX, hubY, wheel.hubZ);
-          const springArm = wheel.springArmAnchor.clone();
-          springArm.y += (hubY - wheel.referenceHubY) * wheel.motionRatio;
-          wheel.coilEnd.copy(springArm);
-
-          wheel.pivot.setLocalPosition(hub);
-          placeSuspensionBar(
-            wheel.armForward,
-            wheel.chassisForwardAnchor,
-            hub,
-            0.005,
-          );
-          placeSuspensionBar(
-            wheel.armRear,
-            wheel.chassisRearAnchor,
-            hub,
-            0.005,
-          );
-          placeSuspensionBar(
-            wheel.shock,
-            wheel.chassisShockAnchor,
-            springArm,
-            KART_SUSPENSION_DAMPER_RADIUS,
-          );
-          placeSuspensionCoil(wheel.coil, wheel.chassisShockAnchor, springArm);
         });
       }
 
@@ -2717,48 +2359,43 @@ export function SoloTimeTrialCanvas({
           },
         );
         const wheelPresentation = wheelPresentations[0];
+        const suspension = wheelPresentation?.visual.suspension;
+        const pivot = wheelPresentation?.visual.pivot;
 
         return {
           bodywork: getFirstMeshDiffuse(
-            bodywork
-              ? (kartVisual.findByName(`kart-${bodywork.id}`) as pc.Entity)
-              : undefined,
+            bodywork ? kartInstanceRoots.get(bodywork.id) : undefined,
           ),
           component: getFirstMeshDiffuse(
-            component
-              ? (kartVisual.findByName(
-                  `kart-component-${component.id}`,
-                ) as pc.Entity)
-              : undefined,
+            component ? kartInstanceRoots.get(component.id) : undefined,
           ),
-          suspension: getFirstMeshDiffuse(wheelPresentation?.shock),
-          suspensionCastsShadows:
-            wheelPresentation?.shock.model?.castShadows ?? null,
+          suspension: getFirstMeshDiffuse(suspension?.shock),
+          suspensionCastsShadows: suspension?.shock.model?.castShadows ?? null,
           suspensionDamperDiameter:
-            wheelPresentation?.shock.getLocalScale().x ?? null,
+            suspension?.shock.getLocalScale().x ?? null,
           suspensionReceivesShadows:
-            wheelPresentation?.shock.model?.receiveShadows ?? null,
-          suspensionCoil: getFirstMeshDiffuse(wheelPresentation?.coil[0]),
+            suspension?.shock.model?.receiveShadows ?? null,
+          suspensionCoil: getFirstMeshDiffuse(suspension?.coil[0]),
           suspensionCoilCastsShadows:
-            wheelPresentation?.coil[0]?.model?.castShadows ?? null,
+            suspension?.coil[0]?.model?.castShadows ?? null,
           suspensionCoilReceivesShadows:
-            wheelPresentation?.coil[0]?.model?.receiveShadows ?? null,
-          suspensionCoilEnd: wheelPresentation
+            suspension?.coil[0]?.model?.receiveShadows ?? null,
+          suspensionCoilEnd: suspension
             ? {
-                x: wheelPresentation.coilEnd.x,
-                y: wheelPresentation.coilEnd.y,
-                z: wheelPresentation.coilEnd.z,
+                x: suspension.coilEnd.x,
+                y: suspension.coilEnd.y,
+                z: suspension.coilEnd.z,
               }
             : null,
-          suspensionCoilSegmentCount: wheelPresentation?.coil.length ?? 0,
+          suspensionCoilSegmentCount: suspension?.coil.length ?? 0,
           suspensionCoilWireDiameter:
-            wheelPresentation?.coil[0]?.getLocalScale().x ?? null,
-          wheel: getFirstMeshDiffuse(wheelPresentation?.pivot),
-          wheelHubPosition: wheelPresentation
+            suspension?.coil[0]?.getLocalScale().x ?? null,
+          wheel: getFirstMeshDiffuse(pivot),
+          wheelHubPosition: pivot
             ? {
-                x: wheelPresentation.pivot.getLocalPosition().x,
-                y: wheelPresentation.pivot.getLocalPosition().y,
-                z: wheelPresentation.pivot.getLocalPosition().z,
+                x: pivot.getLocalPosition().x,
+                y: pivot.getLocalPosition().y,
+                z: pivot.getLocalPosition().z,
               }
             : null,
         };

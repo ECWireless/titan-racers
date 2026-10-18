@@ -144,6 +144,15 @@ Suggested specialties are:
 - **Security and privacy reviewer:** authentication, authorization, secrets, analytics, data handling, uploads, external integrations, and trust boundaries.
 - **Experience reviewer:** user-visible behavior, accessibility, responsive layout, control clarity, and keyboard, touch, and gamepad experience when a phase has substantial interface or gameplay work.
 
+Every PR-level and final phase integration review includes a bloat pass,
+whatever the reviewer count. The reviewer flags code, tests, and docs that the
+diff introduces but the agreed scope does not need: speculative abstractions,
+options, or exports; dead or duplicated code; tests that repeat existing
+coverage or pin incidental detail; and docs that restate other owners, record
+history or review narrative, or break `skills/README.md`'s "Keep Nodes Lean"
+rules. Each finding names what to delete or merge. Net-negative diffs are
+welcome.
+
 ### Review Procedure
 
 1. Finish the agreed implementation and run its verification commands.
