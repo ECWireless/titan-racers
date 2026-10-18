@@ -57,7 +57,8 @@ revision-bound previews live in [`kart-thumbnails`](../kart-thumbnails/README.md
 ## Flow
 
 1. The editor edits a validated document through document commands. Live
-   validation shows path-addressed issues and a derived preview.
+   validation shows path-addressed issues and a derived preview. Official
+   karts can load their bundled design as an undoable change.
 2. Save sends only `{ document, expectedRevision }`. The server validates,
    derives, hashes, and appends an immutable revision; a stale expectation
    conflicts.

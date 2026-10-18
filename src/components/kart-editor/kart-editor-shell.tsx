@@ -58,6 +58,10 @@ import {
   KART_DERIVATION_VERSION,
 } from "@/game/kart/kart-derivation";
 import { buildPrimitiveMassElement } from "@/game/kart/kart-construction-geometry";
+import {
+  createOfficialKartDocument,
+  OFFICIAL_KART_IDS,
+} from "@/game/kart/official-kart-roster";
 import { getApprovedConstructionMaterial } from "@/game/kart/kart-material-registry";
 import {
   type PersistedKartRevision,
@@ -87,6 +91,7 @@ type OperationState =
 type KartConfirmationAction =
   | "exit"
   | "latest"
+  | "official"
   | "revert"
   | "sign-out"
   | "unpublish";
@@ -341,6 +346,9 @@ export function KartEditorShell({
   const needsRederivation =
     currentRevision.derivationVersion < KART_DERIVATION_VERSION;
   const canSave = history.isDirty || needsRederivation;
+  const officialKartId = OFFICIAL_KART_IDS.find(
+    (kartId) => kartId === document.kartId,
+  );
 
   const commitDocument = useCallback(
     (label: string, nextDocument: KartAssemblyDocument) => {
@@ -848,6 +856,33 @@ export function KartEditorShell({
     setOperation({ status: "idle" });
   }
 
+  function loadOfficialDesign(confirmed = false) {
+    if (!officialKartId || operationPendingRef.current || signOutPending)
+      return;
+    if (history.isDirty && !confirmed) {
+      openConfirmation("official");
+      return;
+    }
+    const official = createOfficialKartDocument(officialKartId);
+    if (
+      serializeKartAssemblyDocument(official) ===
+      serializeKartAssemblyDocument(document)
+    ) {
+      setOperation({
+        message: "Already matches the official design.",
+        status: "success",
+      });
+      return;
+    }
+    commitDocument("Load official design", official);
+    syncIdentityDraft(official);
+    selectInstance(null);
+    setOperation({
+      message: "Loaded the official design. Save to keep it.",
+      status: "success",
+    });
+  }
+
   function downloadBackup() {
     const url = URL.createObjectURL(
       new Blob([serializeKartAssemblyDocument(document)], {
@@ -910,6 +945,8 @@ export function KartEditorShell({
       void loadLatestDraft(true);
     } else if (action === "revert") {
       revertDraft(true);
+    } else if (action === "official") {
+      loadOfficialDesign(true);
     } else if (action === "unpublish") {
       requestUnpublish(true);
     } else if (action === "exit") {
@@ -1242,6 +1279,15 @@ export function KartEditorShell({
                   void loadLatestDraft();
                 }}
               />
+              {officialKartId ? (
+                <KartAction
+                  label="Load official design"
+                  onClick={() => {
+                    setActionsOpen(false);
+                    loadOfficialDesign();
+                  }}
+                />
+              ) : null}
               <KartAction
                 label="Download backup"
                 onClick={() => {
@@ -2058,7 +2104,9 @@ function KartConfirmationDialog({
       ? "Load latest draft"
       : action === "revert"
         ? "Revert changes"
-        : action === "unpublish"
+        : action === "official"
+          ? "Load official design"
+          : action === "unpublish"
           ? "Unpublish kart"
           : action === "exit"
             ? "Exit editor"
@@ -2072,7 +2120,9 @@ function KartConfirmationDialog({
       ? "Loading the latest saved draft replaces your local unsaved work. Download a backup first if you may need it."
       : action === "revert"
         ? "Reverting restores the last loaded or saved draft and removes your local unsaved work."
-        : action === "unpublish"
+        : action === "official"
+          ? "Loading the official design replaces your local unsaved work. You can undo it until you save."
+          : action === "unpublish"
           ? `${documentName} revision ${publishedRevision ?? ""} will no longer be available to players.`
           : action === "exit"
             ? "Exiting now removes your local unsaved work. Save a draft or keep editing if you may need it."
