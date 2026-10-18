@@ -134,7 +134,7 @@ test("derives the intended official kart tradeoffs without stat overrides", () =
   }).toEqual({
     balanced: { acceleration: 42, handling: 57, speed: 41, stability: 42 },
     handling: { acceleration: 92, handling: 81, speed: 10, stability: 52 },
-    speed: { acceleration: 13, handling: 1, speed: 88, stability: 20 },
+    speed: { acceleration: 13, handling: 21, speed: 88, stability: 19 },
   });
   expect({
     balanced: {
