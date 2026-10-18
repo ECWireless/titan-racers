@@ -32,6 +32,9 @@ The source code and authoritative project documents remain the final authority f
 - [Kart thumbnails](kart-thumbnails/README.md): exact revision-bound kart
   previews, deterministic browser capture, immutable persistence, protected
   draft access, and privacy-minimized public delivery.
+- [Scene lighting](scene-lighting/README.md): the shared tone mapping,
+  habitat environment light, kart material, and shadow policy for every
+  PlayCanvas application, plus the local `?perf=1` phone-budget overlay.
 - [Runtime resilience](runtime-resilience/README.md): lifecycle safety pauses,
   fixed-step overload bounds, resize reconciliation, WebGL recovery, and coarse
   run-health summaries.

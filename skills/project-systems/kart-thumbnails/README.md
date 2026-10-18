@@ -63,7 +63,8 @@ presentation. Kart authoring and publication belong to the
   the published revision.
 - Saving or capturing a draft cannot mutate the currently published thumbnail.
 - The browser capture uses fixed dimensions, camera, lighting, background, and
-  a versioned renderer contract.
+  a versioned renderer contract. Lighting and kart materials come from
+  [scene lighting](../scene-lighting/README.md).
 - Image uploads are authenticated, same-origin JSON mutations with canonical
   base64, PNG signature and dimensions, render-version, and byte-size checks.
 - Public delivery includes defensive content headers, immutable-revision ETags,

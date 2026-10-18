@@ -75,5 +75,7 @@ coarse run-health totals.
 - Hidden-document and abrupt-exit telemetry delivery is best-effort.
 - WebGL restoration depends on browser and driver support; reload remains the
   bounded fallback.
-- Adaptive quality, detailed performance monitoring, crash reporting, and
-  graphics-device diagnostics are intentionally out of scope.
+- Adaptive quality, production performance monitoring, crash reporting, and
+  graphics-device diagnostics are intentionally out of scope. The local
+  `?perf=1` budget overlay belongs to
+  [scene lighting](../scene-lighting/README.md).
