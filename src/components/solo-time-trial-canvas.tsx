@@ -61,6 +61,7 @@ import {
   getManualRightingAxis,
   getManualRightingCaptureLocalTorqueImpulse,
   getManualRightingGeometry,
+  getManualRightingHullLiftClearance,
   getManualRightingLiftImpulse,
   getManualRightingLocalTorqueImpulse,
   getManualRightingTorqueScale,
@@ -417,7 +418,49 @@ export function SoloTimeTrialCanvas({
         principalAxes.principalMoments.z,
       ),
       principalToAssemblyRotation,
-      manualRightingGeometry: getManualRightingGeometry(dimensions.z),
+      manualRightingGeometry: {
+        ...getManualRightingGeometry(dimensions.z),
+        // Collision box corners (cylinders by their bounds) relative to the
+        // center of mass, in assembly axes, including the wheel guard.
+        hullPoints: [
+          ...snapshot.geometry.collisionCompound,
+          ...("wheelGuard" in snapshot.geometry
+            ? [{ ...snapshot.geometry.wheelGuard, shape: "box" as const }]
+            : []),
+        ].flatMap((primitive) => {
+          const halfExtents =
+            primitive.shape === "box"
+              ? toPcVector(primitive.size).mulScalar(0.5)
+              : new pc.Vec3(
+                  primitive.axis === "x" ? primitive.height / 2 : primitive.radius,
+                  primitive.axis === "y" ? primitive.height / 2 : primitive.radius,
+                  primitive.axis === "z" ? primitive.height / 2 : primitive.radius,
+                );
+          const { position, rotationDegrees } = primitive.transform;
+          const rotation = new pc.Quat().setFromEulerAngles(
+            rotationDegrees.x,
+            rotationDegrees.y,
+            rotationDegrees.z,
+          );
+          return [-1, 1].flatMap((sx) =>
+            [-1, 1].flatMap((sy) =>
+              [-1, 1].map((sz) => {
+                const point = rotation
+                  .transformVector(
+                    new pc.Vec3(
+                      sx * halfExtents.x,
+                      sy * halfExtents.y,
+                      sz * halfExtents.z,
+                    ),
+                  )
+                  .add(toPcVector(position))
+                  .sub(toPcVector(centerOfMass));
+                return { x: point.x, y: point.y, z: point.z };
+              }),
+            ),
+          );
+        }),
+      },
       mass: snapshot.massProperties.totalMass,
       rootHeight: centerOfMass.y - contactPlaneY,
       snapshot,
@@ -1550,16 +1593,23 @@ export function SoloTimeTrialCanvas({
 
         const torqueScale =
           getManualRightingTorqueScale(kartAssemblyFrame.up) ?? 1;
-        const localAxis = kartAssemblyFrame
-          .getRotation()
-          .clone()
-          .invert()
-          .transformVector(new pc.Vec3(axis.x, axis.y, axis.z));
+        const inverseRotation = kartAssemblyFrame.getRotation().clone().invert();
+        const localAxis = inverseRotation.transformVector(
+          new pc.Vec3(axis.x, axis.y, axis.z),
+        );
+        const liftClearanceHeight = Math.max(
+          KART_MANUAL_RIGHTING_GEOMETRY.liftClearanceHeight,
+          getManualRightingHullLiftClearance(
+            KART_MANUAL_RIGHTING_GEOMETRY.hullPoints,
+            localAxis,
+            inverseRotation.transformVector(pc.Vec3.UP),
+          ),
+        );
         const localTorqueImpulse = getManualRightingLocalTorqueImpulse(
           KART_INERTIA_TENSOR,
           localAxis,
           activeDynamics.environment.gravity,
-          KART_MANUAL_RIGHTING_GEOMETRY.liftClearanceHeight,
+          liftClearanceHeight,
           torqueScale,
         );
         const worldTorqueImpulse = kartAssemblyFrame
@@ -1582,7 +1632,7 @@ export function SoloTimeTrialCanvas({
           getManualRightingLiftImpulse(
             KART_MASS,
             activeDynamics.environment.gravity,
-            KART_MANUAL_RIGHTING_GEOMETRY.liftClearanceHeight,
+            liftClearanceHeight,
           ),
           0,
         );

@@ -5,6 +5,7 @@ import {
   getManualRightingAxis,
   getManualRightingCaptureLocalTorqueImpulse,
   getManualRightingGeometry,
+  getManualRightingHullLiftClearance,
   getManualRightingLiftImpulse,
   getManualRightingLocalTorqueImpulse,
   getManualRightingTorqueScale,
@@ -177,6 +178,29 @@ test.describe("kart manual righting", () => {
         0,
         9.81,
         RIGHTING_GEOMETRY.liftClearanceHeight,
+      ),
+    ).toBe(0);
+  });
+
+  test("sizes hull lift so the swept collision hull clears its resting support", () => {
+    const hull = [-1, 1].flatMap((side) => [
+      { x: side * 0.2, y: -0.02, z: 0 },
+      { x: side * 0.2, y: 0.02, z: 0 },
+      { x: side * 0.05, y: 0.09, z: 0 },
+    ]);
+
+    expect(
+      getManualRightingHullLiftClearance(
+        hull,
+        { x: 0, y: 0, z: 1 },
+        { x: 0, y: -1, z: 0 },
+      ),
+    ).toBeCloseTo(Math.hypot(0.2, 0.02) - 0.09, 6);
+    expect(
+      getManualRightingHullLiftClearance(
+        hull,
+        { x: 0, y: 0, z: 0 },
+        { x: 0, y: -1, z: 0 },
       ),
     ).toBe(0);
   });

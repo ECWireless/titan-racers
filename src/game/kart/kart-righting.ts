@@ -249,6 +249,49 @@ export function getManualRightingLiftImpulse(
   return mass * liftSpeed;
 }
 
+// Lift the center of mass needs so the collision hull, swept about the
+// righting axis, clears the support it currently rests on. Hull points are
+// center-of-mass-relative; axis and up share the hull's frame.
+export function getManualRightingHullLiftClearance(
+  hullPoints: readonly RightingVector[],
+  localAxis: RightingVector,
+  localUp: RightingVector,
+) {
+  const axisLength = Math.hypot(localAxis.x, localAxis.y, localAxis.z);
+  const upLength = Math.hypot(localUp.x, localUp.y, localUp.z);
+  if (
+    !isFiniteVector(localAxis) ||
+    !isFiniteVector(localUp) ||
+    axisLength <= AXIS_EPSILON ||
+    upLength <= AXIS_EPSILON
+  ) {
+    return 0;
+  }
+
+  let sweptRadius = 0;
+  let restingDepth = 0;
+  for (const point of hullPoints) {
+    if (!isFiniteVector(point)) {
+      continue;
+    }
+    const along =
+      (point.x * localAxis.x + point.y * localAxis.y + point.z * localAxis.z) /
+      axisLength;
+    const lengthSquared = point.x ** 2 + point.y ** 2 + point.z ** 2;
+    sweptRadius = Math.max(
+      sweptRadius,
+      Math.sqrt(Math.max(0, lengthSquared - along ** 2)),
+    );
+    restingDepth = Math.max(
+      restingDepth,
+      -(point.x * localUp.x + point.y * localUp.y + point.z * localUp.z) /
+        upLength,
+    );
+  }
+
+  return Math.max(0, sweptRadius - restingDepth);
+}
+
 export function getManualRightingGeometry(kartLength: number) {
   const boundedLength =
     Number.isFinite(kartLength) && kartLength > 0 ? kartLength : 0;
