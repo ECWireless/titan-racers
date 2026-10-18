@@ -98,10 +98,8 @@ revision-bound previews live in [`kart-thumbnails`](../kart-thumbnails/README.md
 
 ## Known Limits
 
-Open items from the Phase 3 integration review live in
-`IMPLEMENTATION_PLAN.md` ("Deferred Phase 3 Findings"). The ones that touch this
-system: the bundled-roster fallback triggers on any error rather than only when
-the database is unreachable; official vs. community karts are not yet a
-server-owned field; `no-store`, request-size caps, and strict revision parsing
-need hardening before Phase 6; and race and editor still build kart visuals
-separately.
+The bundled-roster fallback triggers on any error rather than only when the
+database is unreachable (deferred in `IMPLEMENTATION_PLAN.md`). Official vs.
+community karts are not yet a server-owned field, admin and profile responses
+still need request-size caps and complete `no-store` coverage, and race and
+editor build kart visuals separately; Phase 6 owns those.

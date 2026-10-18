@@ -137,8 +137,8 @@ systems.
 
 ## Known Limits
 
-- Each kart's tire compound is not yet used at runtime; surface grip is uniform
-  (deferred Phase 3 finding).
+- Runtime uses the single approved tire compound (standard rubber); per-kart
+  compounds are not wired up because no second compound exists.
 - No automatic stuck-timer recovery; inverted karts on support need a manual
   request.
 - No player air control, anti-roll bar, yaw stabilization, or airborne pitch
