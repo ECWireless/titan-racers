@@ -53,7 +53,10 @@ import {
   APPROVED_COMPONENTS_BY_CATEGORY,
   getApprovedKartComponent,
 } from "@/game/kart/kart-component-registry";
-import { deriveKartSnapshot } from "@/game/kart/kart-derivation";
+import {
+  deriveKartSnapshot,
+  KART_DERIVATION_VERSION,
+} from "@/game/kart/kart-derivation";
 import { buildPrimitiveMassElement } from "@/game/kart/kart-construction-geometry";
 import { getApprovedConstructionMaterial } from "@/game/kart/kart-material-registry";
 import {
@@ -334,6 +337,10 @@ export function KartEditorShell({
     currentRevision.publication?.action === "publish"
       ? currentRevision.publication
       : null;
+  // Revisions from an older derivation can be re-saved without edits.
+  const needsRederivation =
+    currentRevision.derivationVersion < KART_DERIVATION_VERSION;
+  const canSave = history.isDirty || needsRederivation;
 
   const commitDocument = useCallback(
     (label: string, nextDocument: KartAssemblyDocument) => {
@@ -661,7 +668,7 @@ export function KartEditorShell({
     if (
       operationPendingRef.current ||
       signOutPending ||
-      !history.isDirty ||
+      (!history.isDirty && !needsRederivation) ||
       !derivation.snapshot
     ) {
       return;
@@ -1151,21 +1158,27 @@ export function KartEditorShell({
         </button>
         <span
           className={`hidden font-mono text-[0.65rem] font-bold uppercase tracking-[0.12em] lg:inline ${
-            history.isDirty ? "text-titan-hazard" : "text-titan-muted"
+            canSave ? "text-titan-hazard" : "text-titan-muted"
           }`}
         >
-          {history.isDirty ? "Unsaved changes" : "Draft saved"}
+          {history.isDirty
+            ? "Unsaved changes"
+            : needsRederivation
+              ? "Needs re-save"
+              : "Draft saved"}
         </span>
         <button
           aria-label="Save draft"
           className="editor-tool-button"
-          disabled={!history.isDirty || !derivation.snapshot || workspaceLocked}
+          disabled={!canSave || !derivation.snapshot || workspaceLocked}
           title={
             operation.status === "saving"
               ? "Saving draft…"
               : history.isDirty
                 ? "Save private draft (Ctrl/Cmd+S)"
-                : "Draft is saved"
+                : needsRederivation
+                  ? "Re-save draft with current derivation (Ctrl/Cmd+S)"
+                  : "Draft is saved"
           }
           type="button"
           onClick={() => void saveDraft()}

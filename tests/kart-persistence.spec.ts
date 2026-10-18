@@ -67,6 +67,9 @@ function createLegacyResolvedSnapshot(document: ReturnType<typeof createValidKar
   const current = structuredClone(
     deriveKartSnapshot(document),
   ) as unknown as ResolvedKartSnapshot;
+  const legacyGeometry: Partial<ResolvedKartSnapshot["geometry"]> =
+    current.geometry;
+  delete legacyGeometry.wheelGuard;
   return {
     ...current,
     derivationVersion: 1,
@@ -145,7 +148,7 @@ test.describe("kart persistence and authorization", () => {
     });
     expect(first).toMatchObject({
       authorUserId: ownerUserId,
-      derivationVersion: 2,
+      derivationVersion: 3,
       kartId,
       ownerUserId,
       revision: 1,
@@ -238,7 +241,7 @@ test.describe("kart persistence and authorization", () => {
     await db.insert(kartRevisions).values([
       {
         authorUserId: userId,
-        derivationVersion: 2,
+        derivationVersion: 3,
         document: malformedDocument,
         id: randomUUID(),
         kartId: malformedKartId,
@@ -249,7 +252,7 @@ test.describe("kart persistence and authorization", () => {
       },
       {
         authorUserId: userId,
-        derivationVersion: 2,
+        derivationVersion: 3,
         document: mismatchedDocument,
         id: randomUUID(),
         kartId: mismatchedKartId,

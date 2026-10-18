@@ -59,8 +59,17 @@ Each kart is one six-degree-of-freedom dynamic compound body. Its collision
 compound is the authored parts marked `collision: "solid"` (boxes and
 cylinders), derived into the resolved snapshot by `kart-derivation.ts`. The
 official karts collide with their chassis plate and upper housing; bumpers and
-other parts are visual only. There is no dedicated lateral wheel-guard shape on
-Phase 3 karts.
+other parts are visual only.
+
+Derivation also adds one collision-only wheel-guard box (`geometry.wheelGuard`)
+spanning the outer tire faces and the front/rear tire edges, from wheel-center
+height to tire top. It stops tires passing through walls on side, head-on, and
+corner hits. Its bottom stays inside the tire profile, so floors and ramps still
+meet the tires first and ground clearance is unchanged. The guard is not
+authored and carries no mass; steering clearance, drag area, player stats, the
+wheel-overlap check, and the runtime clearance datum ignore it. Walls lower than
+wheel center can still pass under it. Snapshots older than v3 have no guard and
+run with authored colliders only.
 
 The visible tires, hubs, A-arms, and shocks are presentation children rather
 than separately simulated rigid bodies. Their vertical motion comes from the
@@ -108,7 +117,8 @@ attitude torque.
 ## Continuous Collision Detection
 
 Derivation records each kart's smallest relevant collision cross-section (the
-smallest box dimension or cylinder diameter/height among solid parts). Shared
+smallest box dimension or cylinder diameter/height among solid parts and the
+wheel guard). Shared
 policy in `kart-collision-model.ts` sets the Ammo swept-sphere radius to half
 that cross-section and the CCD motion threshold to 75% of the radius. Values are
 applied after the Ammo body exists and copied for telemetry.

@@ -26,8 +26,8 @@ import type { KartPhysicalProfile } from "./kart-physical-profile";
 import { getAckermannWheelSteerAngle } from "./kart-steering";
 import { deepFreeze, type DeepReadonly } from "./immutable-registry";
 
-export const KART_DERIVATION_VERSION = 2;
-export const RESOLVED_KART_SNAPSHOT_VERSION = 2;
+export const KART_DERIVATION_VERSION = 3;
+export const RESOLVED_KART_SNAPSHOT_VERSION = 3;
 const DRAG_SHAPE_COEFFICIENT = 0.9;
 const MINIMUM_USABLE_STEERING_ANGLE_DEGREES = 1;
 
@@ -76,6 +76,10 @@ export type ResolvedKartSnapshot = {
     smallestRelevantCrossSection: number;
     trackWidth: number;
     wheelbase: number;
+    wheelGuard: {
+      size: KartVector;
+      transform: KartAssemblyDocument["primitiveInstances"][number]["transform"];
+    };
     wheelStations: ResolvedKartWheelStation[];
   };
   kartId: string;
@@ -109,12 +113,21 @@ export type ResolvedKartSnapshot = {
   snapshotVersion: typeof RESOLVED_KART_SNAPSHOT_VERSION;
 };
 
-export type ResolvedKartSnapshotV1 = Omit<
+export type ResolvedKartSnapshotV2 = Omit<
   ResolvedKartSnapshot,
+  "derivationVersion" | "geometry" | "snapshotVersion"
+> & {
+  derivationVersion: 2;
+  geometry: Omit<ResolvedKartSnapshot["geometry"], "wheelGuard">;
+  snapshotVersion: 2;
+};
+
+export type ResolvedKartSnapshotV1 = Omit<
+  ResolvedKartSnapshotV2,
   "derivationVersion" | "registryReferences" | "snapshotVersion"
 > & {
   derivationVersion: 1;
-  registryReferences: ResolvedKartSnapshot["registryReferences"] & {
+  registryReferences: ResolvedKartSnapshotV2["registryReferences"] & {
     surfaceMaterial: { id: string; version: number };
     tireSurfaceInteractionDerivationVersion: number;
   };
@@ -130,6 +143,7 @@ export type ResolvedKartSnapshotV1 = Omit<
 
 export type PersistedResolvedKartSnapshot =
   | ResolvedKartSnapshotV1
+  | ResolvedKartSnapshotV2
   | ResolvedKartSnapshot;
 
 const finiteNumberSchema = z.number().finite();
@@ -235,7 +249,19 @@ const resolvedKartSnapshotV2ObjectSchema = z.strictObject({
     snapshotVersion: z.literal(2),
   });
 
-export const resolvedKartSnapshotV2Schema: z.ZodType<ResolvedKartSnapshot> =
+export const resolvedKartSnapshotV3Schema: z.ZodType<ResolvedKartSnapshot> =
+  resolvedKartSnapshotV2ObjectSchema.extend({
+    derivationVersion: z.literal(3),
+    geometry: resolvedKartSnapshotV2ObjectSchema.shape.geometry.extend({
+      wheelGuard: z.strictObject({
+        size: resolvedVectorSchema,
+        transform: kartTransformSchema,
+      }),
+    }),
+    snapshotVersion: z.literal(3),
+  });
+
+export const resolvedKartSnapshotV2Schema: z.ZodType<ResolvedKartSnapshotV2> =
   resolvedKartSnapshotV2ObjectSchema;
 
 export const resolvedKartSnapshotV1Schema: z.ZodType<ResolvedKartSnapshotV1> =
@@ -273,6 +299,9 @@ export function parseResolvedKartSnapshot(
   }
   if (version.snapshotVersion === 2 && version.derivationVersion === 2) {
     return resolvedKartSnapshotV2Schema.parse(input);
+  }
+  if (version.snapshotVersion === 3 && version.derivationVersion === 3) {
+    return resolvedKartSnapshotV3Schema.parse(input);
   }
 
   throw new Error(
@@ -542,6 +571,37 @@ function deriveSteeringLimit(input: {
   return sharedLimit;
 }
 
+// Collision-only box spanning the outer tire faces and leading/trailing tire
+// edges, from wheel-center height to tire top. Its bottom stays inside the tire
+// profile, so floors and ramps still meet the tires first.
+function deriveWheelGuard(wheelStations: readonly ResolvedKartWheelStation[]) {
+  const minimum = {
+    x: Math.min(...wheelStations.map(({ position, width }) => position.x - width / 2)),
+    y: Math.max(...wheelStations.map(({ position }) => position.y)),
+    z: Math.min(...wheelStations.map(({ position, radius }) => position.z - radius)),
+  };
+  const maximum = {
+    x: Math.max(...wheelStations.map(({ position, width }) => position.x + width / 2)),
+    y: Math.max(...wheelStations.map(({ position, radius }) => position.y + radius)),
+    z: Math.max(...wheelStations.map(({ position, radius }) => position.z + radius)),
+  };
+  return {
+    size: {
+      x: maximum.x - minimum.x,
+      y: maximum.y - minimum.y,
+      z: maximum.z - minimum.z,
+    },
+    transform: {
+      position: {
+        x: (minimum.x + maximum.x) / 2,
+        y: (minimum.y + maximum.y) / 2,
+        z: (minimum.z + maximum.z) / 2,
+      },
+      rotationDegrees: { x: 0, y: 0, z: 0 },
+    },
+  };
+}
+
 function score(value: number, minimum: number, maximum: number) {
   const normalized = Math.max(0, Math.min(1, (value - minimum) / (maximum - minimum)));
   return Math.round(1 + normalized * 99);
@@ -773,12 +833,16 @@ export function deriveKartSnapshot(input: unknown): DeepReadonly<ResolvedKartSna
           transform: primitive.transform,
         },
   );
+  const wheelGuard = deriveWheelGuard(wheelStations);
   const smallestRelevantCrossSection = Math.min(
     ...collisionPrimitives.map((primitive) =>
       primitive.shape === "box"
         ? Math.min(primitive.size.x, primitive.size.y, primitive.size.z)
         : Math.min(primitive.radius * 2, primitive.height),
     ),
+    wheelGuard.size.x,
+    wheelGuard.size.y,
+    wheelGuard.size.z,
   );
   const inertia = massProperties.inertia;
   const snapshot: ResolvedKartSnapshot = {
@@ -789,6 +853,7 @@ export function deriveKartSnapshot(input: unknown): DeepReadonly<ResolvedKartSna
       smallestRelevantCrossSection,
       trackWidth,
       wheelbase,
+      wheelGuard,
       wheelStations,
     },
     kartId: assembly.document.kartId,

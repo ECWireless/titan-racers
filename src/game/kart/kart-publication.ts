@@ -4,6 +4,7 @@ import { kartAssemblyDocumentSchema, kartStableIdSchema } from "./kart-assembly-
 import {
   resolvedKartSnapshotV1Schema,
   resolvedKartSnapshotV2Schema,
+  resolvedKartSnapshotV3Schema,
 } from "./kart-derivation";
 
 export const kartPublicationEventSchema = z.strictObject({
@@ -26,6 +27,7 @@ const persistedKartRevisionBaseSchema = z.strictObject({
   resolvedSnapshot: z.union([
     resolvedKartSnapshotV1Schema,
     resolvedKartSnapshotV2Schema,
+    resolvedKartSnapshotV3Schema,
   ]),
   resolvedSnapshotHash: z.string().regex(/^[0-9a-f]{64}$/),
   revision: z.number().int().positive(),
@@ -57,6 +59,7 @@ export const publishedKartRuntimeSchema = z
     resolvedSnapshot: z.union([
       resolvedKartSnapshotV1Schema,
       resolvedKartSnapshotV2Schema,
+      resolvedKartSnapshotV3Schema,
     ]),
     resolvedSnapshotHash: z.string().regex(/^[0-9a-f]{64}$/),
     revision: z.number().int().positive(),

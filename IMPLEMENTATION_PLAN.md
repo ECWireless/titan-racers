@@ -163,7 +163,7 @@ Decisions from completed phases that later phases rely on:
 From the Phase 3 integration review. Handle these during cleanup or before the
 phase noted.
 
-- [ ] **Before Phase 4 track QA:** protruding wheels pass fully through walls
+- [x] **Before Phase 4 track QA:** protruding wheels pass fully through walls
       because only solid chassis parts collide. Add smooth lateral wheel
       protection derived from construction (no wheel bodies, no snag points),
       bump the derivation version, and re-save the official karts.
