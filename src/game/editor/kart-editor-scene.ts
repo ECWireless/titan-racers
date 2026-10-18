@@ -1,8 +1,7 @@
 import * as pc from "playcanvas";
 
 import {
-  createKartComponentVisualEntity,
-  createKartPrimitiveVisualEntity,
+  createKartAssemblyVisual,
   getRenderedKartBounds,
 } from "../kart/kart-assembly-visual";
 import type { KartAssemblyDocument } from "../kart/kart-assembly-document";
@@ -593,24 +592,23 @@ export class KartEditorScene {
     [...this.documentRoot.children].forEach((child) => child.destroy());
     this.destroyInstanceMaterials();
 
+    const { instanceRoots, root } = createKartAssemblyVisual(
+      this.currentDocument,
+      (visualColor, instanceId) =>
+        this.createInstanceMaterial(instanceId, visualColor),
+    );
+    this.documentRoot.addChild(root);
     for (const primitive of this.currentDocument.primitiveInstances) {
-      const material = this.createInstanceMaterial(
-        primitive.id,
-        primitive.visualColor,
-      );
-      const root = createKartPrimitiveVisualEntity(primitive, material);
-      this.documentRoot.addChild(root);
-      this.rememberSelection(root, { id: primitive.id, kind: "primitive" });
+      this.rememberSelection(instanceRoots.get(primitive.id)!, {
+        id: primitive.id,
+        kind: "primitive",
+      });
     }
-
     for (const instance of this.currentDocument.componentInstances) {
-      const material = this.createInstanceMaterial(
-        instance.id,
-        instance.visualColor,
-      );
-      const root = createKartComponentVisualEntity(instance, material);
-      this.documentRoot.addChild(root);
-      this.rememberSelection(root, { id: instance.id, kind: "component" });
+      this.rememberSelection(instanceRoots.get(instance.id)!, {
+        id: instance.id,
+        kind: "component",
+      });
     }
 
     const documentCenter = getRenderedKartBounds(this.documentRoot)?.center;
