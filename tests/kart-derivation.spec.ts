@@ -1,5 +1,7 @@
 import { expect, test } from "@playwright/test";
 
+import { createBalancedKartDocument } from "../src/game/kart/balanced-kart-document";
+import { createHandlingKartDocument } from "../src/game/kart/handling-kart-document";
 import { KartAssemblyValidationError } from "../src/game/kart/kart-assembly-validation";
 import {
   deriveKartSnapshot,
@@ -13,6 +15,7 @@ import {
 } from "../src/game/kart/kart-derivation";
 import { buildPrimitiveMassElement } from "../src/game/kart/kart-construction-geometry";
 import { getAckermannWheelSteerAngle } from "../src/game/kart/kart-steering";
+import { createSpeedKartDocument } from "../src/game/kart/speed-kart-document";
 import {
   createPredictedKartAssemblies,
   createValidKartAssembly,
@@ -241,6 +244,9 @@ test("retains version-one evidence and its audit hash", async () => {
   const current = structuredClone(
     deriveKartSnapshot(createValidKartAssembly()),
   ) as unknown as ResolvedKartSnapshot;
+  const legacyGeometry: Partial<ResolvedKartSnapshot["geometry"]> =
+    current.geometry;
+  delete legacyGeometry.wheelGuard;
   const legacy: ResolvedKartSnapshotV1 = {
     ...current,
     derivationVersion: 1,
@@ -271,6 +277,42 @@ test("retains version-one evidence and its audit hash", async () => {
   await expect(hashResolvedKartSnapshot(legacy)).resolves.toMatch(
     /^[0-9a-f]{64}$/,
   );
+});
+
+test("derives a wheel guard covering every official kart tire from wheel center up", () => {
+  for (const document of [
+    createBalancedKartDocument(),
+    createSpeedKartDocument(),
+    createHandlingKartDocument(),
+  ]) {
+    const snapshot = deriveKartSnapshot(document);
+    const { size, transform } = snapshot.geometry.wheelGuard;
+    const guardMin = {
+      x: transform.position.x - size.x / 2,
+      y: transform.position.y - size.y / 2,
+      z: transform.position.z - size.z / 2,
+    };
+    const guardMax = {
+      x: transform.position.x + size.x / 2,
+      y: transform.position.y + size.y / 2,
+      z: transform.position.z + size.z / 2,
+    };
+
+    expect(snapshot.derivationVersion).toBe(3);
+    expect(snapshot.snapshotVersion).toBe(3);
+    for (const { position, radius, width } of snapshot.geometry.wheelStations) {
+      expect(guardMin.x).toBeLessThanOrEqual(position.x - width / 2 + 1e-9);
+      expect(guardMax.x).toBeGreaterThanOrEqual(position.x + width / 2 - 1e-9);
+      expect(guardMin.z).toBeLessThanOrEqual(position.z - radius + 1e-9);
+      expect(guardMax.z).toBeGreaterThanOrEqual(position.z + radius - 1e-9);
+      expect(guardMax.y).toBeGreaterThanOrEqual(position.y + radius - 1e-9);
+      expect(guardMin.y).toBeGreaterThanOrEqual(position.y - 1e-9);
+    }
+    expect(guardMin.y).toBeCloseTo(
+      Math.max(...snapshot.geometry.wheelStations.map(({ position }) => position.y)),
+      9,
+    );
+  }
 });
 
 test("rejects derived wheel and chassis collision overlap", () => {

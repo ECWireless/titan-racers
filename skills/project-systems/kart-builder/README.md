@@ -75,7 +75,8 @@ revision-bound previews live in [`kart-thumbnails`](../kart-thumbnails/README.md
   Reads re-verify version metadata and hash and fail closed.
 - Revisions and publication events are immutable at the database boundary.
   Older derivation versions keep their parsers so historical hashes still
-  verify.
+  verify. The editor allows re-saving an unedited draft from an older
+  derivation version.
 - Only the server-verified `admin` role can save or publish today.
   "Assembler" is a capability, not a role.
 - Public responses omit ownership, author, and publication-actor IDs beyond

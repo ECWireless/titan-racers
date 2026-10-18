@@ -1100,6 +1100,23 @@ export function SoloTimeTrialCanvas({
           );
         }
       });
+      if ("wheelGuard" in KART_SNAPSHOT.geometry) {
+        const { wheelGuard } = KART_SNAPSHOT.geometry;
+        createChildCollisionBox(
+          kart,
+          "wheel-guard-collision",
+          getKartPhysicsLocalPosition(
+            toPcVector(wheelGuard.transform.position),
+            KART_CENTER_OF_MASS_OFFSET,
+            KART_ASSEMBLY_TO_PRINCIPAL_ROTATION,
+          ),
+          toPcVector(wheelGuard.size).mulScalar(0.5),
+          getKartPhysicsLocalRotation(
+            toPcVector(wheelGuard.transform.rotationDegrees),
+            KART_ASSEMBLY_TO_PRINCIPAL_ROTATION,
+          ),
+        );
+      }
 
       const dynamicWheels: DynamicWheel[] = [];
       const wheelPresentations: Array<{
