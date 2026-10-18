@@ -2,11 +2,13 @@
 
 import * as pc from "playcanvas";
 
+import { applySceneLook, applyShadowPolicy } from "../render/scene-look";
 import type { KartAssemblyDocument } from "./kart-assembly-document";
 import {
   createKartAssemblyVisual,
   getRenderedKartBounds,
 } from "./kart-assembly-visual";
+import { createKartVisualMaterial } from "./kart-visual-material";
 import {
   KART_THUMBNAIL_CONTENT_TYPE,
   KART_THUMBNAIL_HEIGHT,
@@ -83,10 +85,8 @@ async function renderKartThumbnailImmediately(document: KartAssemblyDocument) {
       preserveDrawingBuffer: true,
     },
   });
-  const { root } = createKartAssemblyVisual(
-    document,
-    createThumbnailMaterial,
-  );
+  const { root } = createKartAssemblyVisual(document, createKartVisualMaterial);
+  let releaseSceneLook = () => {};
   try {
     app.setCanvasFillMode(pc.FILLMODE_NONE);
     app.setCanvasResolution(
@@ -94,7 +94,6 @@ async function renderKartThumbnailImmediately(document: KartAssemblyDocument) {
       KART_THUMBNAIL_WIDTH,
       KART_THUMBNAIL_HEIGHT,
     );
-    app.scene.ambientLight = new pc.Color(0.34, 0.38, 0.43);
     app.root.addChild(root);
     app.root.syncHierarchy();
 
@@ -137,8 +136,7 @@ async function renderKartThumbnailImmediately(document: KartAssemblyDocument) {
     if (!camera.camera) {
       throw new Error("The kart thumbnail camera is unavailable.");
     }
-    camera.camera.gammaCorrection = pc.GAMMA_SRGB;
-    camera.camera.toneMapping = pc.TONEMAP_ACES;
+    releaseSceneLook = applySceneLook(app, camera.camera);
     const distance = Math.max(0.58, span * 2);
     camera.setPosition(
       target.x + distance * 0.68,
@@ -157,6 +155,7 @@ async function renderKartThumbnailImmediately(document: KartAssemblyDocument) {
       type: "directional",
     });
     keyLight.setEulerAngles(48, -32, 0);
+    applyShadowPolicy(keyLight.light!);
     app.root.addChild(keyLight);
 
     const fillLight = new pc.Entity("kart-thumbnail-fill-light");
@@ -175,6 +174,7 @@ async function renderKartThumbnailImmediately(document: KartAssemblyDocument) {
     app.render();
     return await canvasToBlob(canvas);
   } finally {
+    releaseSceneLook();
     app.destroy();
   }
 }
@@ -230,18 +230,4 @@ function nextFrame() {
     const frame = requestAnimationFrame(finish);
     const timeout = window.setTimeout(finish, 250);
   });
-}
-
-function createThumbnailMaterial(color: string) {
-  const number = Number.parseInt(color.slice(1), 16);
-  const material = new pc.StandardMaterial();
-  material.diffuse = new pc.Color(
-    ((number >> 16) & 255) / 255,
-    ((number >> 8) & 255) / 255,
-    (number & 255) / 255,
-  );
-  material.metalness = 0.08;
-  material.gloss = 0.42;
-  material.update();
-  return material;
 }

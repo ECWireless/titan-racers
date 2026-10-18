@@ -5,6 +5,8 @@ import {
   getRenderedKartBounds,
 } from "../kart/kart-assembly-visual";
 import type { KartAssemblyDocument } from "../kart/kart-assembly-document";
+import { createKartVisualMaterial } from "../kart/kart-visual-material";
+import { applySceneLook, applyShadowPolicy } from "../render/scene-look";
 import { validateKartAssembly } from "../kart/kart-assembly-validation";
 import {
   canAttachKartInstanceAtCurrentPosition,
@@ -88,6 +90,7 @@ export class KartEditorScene {
   private instanceEntities = new Map<string, pc.Entity>();
   private instanceMaterialById = new Map<string, pc.StandardMaterial>();
   private instanceMaterials: pc.StandardMaterial[] = [];
+  private readonly releaseSceneLook: () => void;
   private interactionEnabled = true;
   private lastTouchDistance: number | null = null;
   private lastTouchMidpoint: { x: number; y: number } | null = null;
@@ -115,7 +118,6 @@ export class KartEditorScene {
     this.documentRoot = new pc.Entity("kart-editor-document");
     this.app.setCanvasResolution(pc.RESOLUTION_AUTO);
     this.app.setCanvasFillMode(pc.FILLMODE_NONE);
-    this.app.scene.ambientLight = new pc.Color(0.46, 0.5, 0.55);
     this.app.root.addChild(this.documentRoot);
 
     this.camera = new pc.Entity("kart-editor-camera");
@@ -135,6 +137,7 @@ export class KartEditorScene {
       type: "directional",
     });
     light.setEulerAngles(42, -35, 0);
+    applyShadowPolicy(light.light!);
     this.app.root.addChild(light);
 
     this.gizmoLayer = pc.Gizmo.createLayer(this.app, "Kart Editor Gizmos");
@@ -142,6 +145,7 @@ export class KartEditorScene {
     if (!cameraComponent) {
       throw new Error("Kart editor camera is unavailable.");
     }
+    this.releaseSceneLook = applySceneLook(this.app, cameraComponent);
     const gizmos = createEditorTransformGizmos(
       cameraComponent,
       this.gizmoLayer,
@@ -177,6 +181,7 @@ export class KartEditorScene {
     this.scaleGizmo.destroy();
     this.picker.destroy();
     this.destroyInstanceMaterials();
+    this.releaseSceneLook();
     this.app.destroy();
   }
 
@@ -619,7 +624,7 @@ export class KartEditorScene {
   }
 
   private createInstanceMaterial(instanceId: string, visualColor: string) {
-    const material = createMaterial(colorFromHex(visualColor));
+    const material = createKartVisualMaterial(visualColor);
     this.instanceMaterialById.set(instanceId, material);
     this.instanceMaterials.push(material);
     return material;
@@ -780,23 +785,6 @@ function updatePrimitiveSize(
       },
     },
     mirrorPair,
-  );
-}
-
-function createMaterial(color: pc.Color) {
-  const material = new pc.StandardMaterial();
-  material.diffuse = color;
-  material.emissive = color.clone().mulScalar(0);
-  material.update();
-  return material;
-}
-
-function colorFromHex(value: string) {
-  const number = Number.parseInt(value.slice(1), 16);
-  return new pc.Color(
-    ((number >> 16) & 255) / 255,
-    ((number >> 8) & 255) / 255,
-    (number & 255) / 255,
   );
 }
 

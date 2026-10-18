@@ -190,7 +190,7 @@ Phase decisions:
 - **Near-axis, low-gravity racing belongs to a later course** placed near the
   axis, not to the Agricultural loop.
 - **A phone performance budget** is set in PR 4.1.2 and holds for the rest of
-  the phase.
+  the phase. `docs/visual-identity.md` owns it and the art direction.
 
 **PR 4.0: Phase 4 plan**
 
@@ -200,7 +200,7 @@ Phase decisions:
 
 - [x] 4.1.1: One shared kart visual builder for race, editor, and thumbnails,
       with no visual change.
-- [ ] 4.1.2: Lighting baseline (environment lighting, tone mapping, shadows),
+- [x] 4.1.2: Lighting baseline (environment lighting, tone mapping, shadows),
       phone performance budget, look exploration on one kart, and the first
       `docs/visual-identity.md`.
 - [ ] 4.1.3: Presentation-only visuals for each approved part version, with

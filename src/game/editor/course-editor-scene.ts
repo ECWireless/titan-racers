@@ -2,6 +2,11 @@ import * as pc from "playcanvas";
 
 import { buildCourseLighting } from "../course/build-course-lighting";
 import {
+  applySceneLook,
+  applyShadowPolicy,
+  setSceneAmbientIntensity,
+} from "../render/scene-look";
+import {
   buildRoughCourse,
   type CourseObjectProjection,
 } from "../course/build-rough-course";
@@ -72,6 +77,7 @@ const POINTER_MOVE_THRESHOLD = 5;
 export class CourseEditorScene {
   private readonly app: pc.Application;
   private readonly camera: pc.Entity;
+  private readonly releaseSceneLook: () => void;
   private readonly collisionMaterial = createMaterial(
     new pc.Color(1, 0.38, 0.04),
     0.92,
@@ -152,6 +158,8 @@ export class CourseEditorScene {
     if (!cameraComponent) {
       throw new Error("Course editor camera is unavailable.");
     }
+    // Rebuilds apply the document's ambient intensity.
+    this.releaseSceneLook = applySceneLook(this.app, cameraComponent);
 
     const gizmos = createEditorTransformGizmos(
       cameraComponent,
@@ -192,6 +200,7 @@ export class CourseEditorScene {
     this.collisionMaterial.destroy();
     this.selectionMaterial.destroy();
     this.startMaterial.destroy();
+    this.releaseSceneLook();
     this.app.destroy();
   }
 
@@ -716,7 +725,14 @@ export class CourseEditorScene {
       }
     });
     const lights = buildCourseLighting(this.app, { document: this.currentDocument });
-    lights.forEach((entity) => this.activeDocumentRoot?.addChild(entity));
+    lights.forEach((entity) => {
+      if (entity.light?.castShadows) applyShadowPolicy(entity.light);
+      this.activeDocumentRoot?.addChild(entity);
+    });
+    setSceneAmbientIntensity(
+      this.app.scene,
+      this.currentDocument.lighting.ambient.intensity,
+    );
     this.createMarkerEntities(this.activeDocumentRoot, this.currentDocument);
     if (this.collisionVisible) {
       this.createCollisionVisuals(this.activeDocumentRoot, this.currentDocument);
