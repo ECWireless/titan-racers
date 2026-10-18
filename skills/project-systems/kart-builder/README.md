@@ -103,4 +103,4 @@ revision-bound previews live in [`kart-thumbnails`](../kart-thumbnails/README.md
 
 Official vs. community status is not server-owned, request hardening is
 incomplete, and race and editor build kart visuals separately. Phase 6 owns
-all three.
+the first two; PR 4.1.1 owns the shared visual builder.
