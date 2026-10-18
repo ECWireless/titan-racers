@@ -14,9 +14,8 @@ accepted; the app, README, and durable docs take over from there.
 
 ## Status
 
-- **Done:** Phases 0–3 (PRs #1–#24 plus the Phase 3 closeout).
+- **Done:** Phases 0–3 (PRs #1–#24, the Phase 3 closeout, and its follow-ups).
 - **Next:** Phase 4, the Agricultural Zone track.
-- **Open follow-ups:** [Deferred Phase 3 findings](#deferred-phase-3-findings).
 
 ## Guiding Decisions
 
@@ -158,36 +157,6 @@ Decisions from completed phases that later phases rely on:
   component's tier is the highest tier among its parts, and neither tiers nor
   stats can be overridden.
 
-### Deferred Phase 3 Findings
-
-From the Phase 3 integration review. Handle these during cleanup or before the
-phase noted.
-
-- [x] **Before Phase 4 track QA:** protruding wheels pass fully through walls
-      because only solid chassis parts collide. Add smooth lateral wheel
-      protection derived from construction (no wheel bodies, no snag points),
-      bump the derivation version, and re-save the official karts.
-- [ ] Use the bundled roster only when the database is unreachable. If a single
-      official kart has invalid data, drop and log that kart instead of
-      restoring unpublished ones.
-- [ ] Replace locale-dependent `localeCompare` sorting in derivation hashing and
-      wheel ordering with plain code-point comparison.
-- [ ] Document migration `0012`'s one-way name and image rewrite (including a
-      backup step before applying it to a new hosted database), and define how
-      an operator moderates an immutable username.
-- [ ] **Before Phase 6:** mark official vs. community karts with a
-      server-owned field instead of relying on which admin saved first or on
-      client-chosen IDs, and check bundled official documents against their
-      published revisions.
-- [ ] **Before Phase 6:** send `no-store` on every admin and profile response,
-      cap JSON request sizes, restrict or server-render thumbnail PNG chunks,
-      block lookalike reserved usernames, make repeated anonymization safe,
-      and parse revision numbers strictly.
-- [ ] Use each kart's tire compound at runtime instead of the fixed default,
-      share one kart visual builder between race and editor, record kart
-      revision in gameplay telemetry, and recheck the Speed Kart's floor-level
-      handling stat.
-
 ## Remaining Phases
 
 ### Phase 4: Agricultural Zone Track
@@ -258,11 +227,17 @@ Publishing is immediate, with no approval queue.
 - [ ] Server-side ownership checks, validation, bounded text and parts,
       server-owned derivation, the approved part catalog, and publish rate
       limits. Guests cannot author or publish.
+- [ ] Mark official vs. community karts with a server-owned field instead of
+      relying on which admin saved first or on client-chosen IDs.
+- [ ] Send `no-store` on every admin and profile response, cap JSON request
+      sizes, and restrict or server-render thumbnail PNG chunks.
 
 **PR 6.2: Community kart discovery, play, and safety**
 
 - [ ] Public catalog that clearly separates official and community karts.
 - [ ] Anyone can race any published community kart in casual modes.
+- [ ] Race and editor share one kart visual builder, so a kart looks the same
+      in both.
 - [ ] Each race records the kart ID and publication revision.
 - [ ] Admins feature or safety-unpublish karts without changing stats,
       eligibility, history, or audit data. Unpublished karts leave discovery

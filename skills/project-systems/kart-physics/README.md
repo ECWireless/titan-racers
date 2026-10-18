@@ -110,8 +110,9 @@ systems.
 - Below-course falls and upright reset requests use race-session checkpoint
   recovery. A manual recovery request on a kart at least 120° inverted just
   above a drivable surface instead applies bounded roll and lift impulses in
-  place, with a 450 ms cooldown. Keyboard `R`, controller south face, the touch
-  recovery control, and a direct tap on the inverted kart all request it.
+  place, with a 450 ms cooldown and enough lift to clear the collision hull.
+  Keyboard `R`, controller south face, the touch recovery control, and a direct
+  tap on the inverted kart all request it.
 - Tire smoke is presentation only and never feeds back into grip.
 - Opening the stats drawer clears driving input and removes touch-driving
   controls while open. It cannot override any value.
@@ -137,8 +138,7 @@ systems.
 
 ## Known Limits
 
-- Each kart's tire compound is not yet used at runtime; surface grip is uniform
-  (deferred Phase 3 finding).
+- Only one tire compound exists, so runtime doesn't read it per kart.
 - No automatic stuck-timer recovery; inverted karts on support need a manual
   request.
 - No player air control, anti-roll bar, yaw stabilization, or airborne pitch

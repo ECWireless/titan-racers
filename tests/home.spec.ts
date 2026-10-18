@@ -1994,7 +1994,7 @@ test.describe("home screen", () => {
       Math.abs(airborneState.rotationZ - launchState.rotationZ),
     ).toBeGreaterThan(4.5);
 
-    const landingSamples = await stepSimulationWithKartSamples(canvas, 240);
+    const landingSamples = await stepSimulationWithKartSamples(canvas, 300);
     const landedState = landingSamples.at(-1)!;
     const maximumUpStep = Math.max(
       ...landingSamples

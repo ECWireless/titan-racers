@@ -36,7 +36,9 @@ revision-bound previews live in [`kart-thumbnails`](../kart-thumbnails/README.md
   publish/unpublish events, published-revision and thumbnail lookup);
   `src/game/kart/kart-publication.ts` (persisted and public runtime shapes).
 - **Roster and identity:** `src/server/official-kart-roster.ts` resolves each
-  official kart's live publication with an `@username` assembler credit;
+  official kart's live publication with an `@username` assembler credit; a
+  kart that fails to load is logged and dropped, and the bundled roster is a
+  last resort;
   `src/server/racer-identity.ts` and `src/app/api/profile/route.ts` own one-time
   racer username claims.
 - **Routes:** `src/app/api/admin/karts/[kartId]/` (draft load/save,
@@ -55,7 +57,8 @@ revision-bound previews live in [`kart-thumbnails`](../kart-thumbnails/README.md
 ## Flow
 
 1. The editor edits a validated document through document commands. Live
-   validation shows path-addressed issues and a derived preview.
+   validation shows path-addressed issues and a derived preview. Official
+   karts can load their bundled design as an undoable change.
 2. Save sends only `{ document, expectedRevision }`. The server validates,
    derives, hashes, and appends an immutable revision; a stale expectation
    conflicts.
@@ -98,10 +101,6 @@ revision-bound previews live in [`kart-thumbnails`](../kart-thumbnails/README.md
 
 ## Known Limits
 
-Open items from the Phase 3 integration review live in
-`IMPLEMENTATION_PLAN.md` ("Deferred Phase 3 Findings"). The ones that touch this
-system: the bundled-roster fallback triggers on any error rather than only when
-the database is unreachable; official vs. community karts are not yet a
-server-owned field; `no-store`, request-size caps, and strict revision parsing
-need hardening before Phase 6; and race and editor still build kart visuals
-separately.
+Official vs. community status is not server-owned, request hardening is
+incomplete, and race and editor build kart visuals separately. Phase 6 owns
+all three.

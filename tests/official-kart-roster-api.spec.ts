@@ -107,6 +107,36 @@ test("does not restore intentionally unpublished entries from fallback", async (
   expect(roster).toEqual({ karts: [], source: "published" });
 });
 
+test("drops only the official kart whose publication fails to load", async () => {
+  const balanced = await createPublishedRevision(
+    createBalancedKartDocument(),
+    "kart_assembler",
+  );
+  const handling = await createPublishedRevision(
+    createHandlingKartDocument(),
+    "handling_assembler",
+  );
+  const publications = new Map<OfficialKartId, PersistedPublishedKartRevision>([
+    [balanced.kartId as OfficialKartId, balanced],
+    [handling.kartId as OfficialKartId, handling],
+  ]);
+
+  const roster = await loadOfficialKartRoster(async (kartId) => {
+    if (kartId === "handling-kart") {
+      throw new Error("Published revision hash mismatch.");
+    }
+    return publications.get(kartId) ?? null;
+  });
+
+  expect(roster.source).toBe("published");
+  if (roster.source !== "published") {
+    throw new Error("Expected a persistence-backed official roster.");
+  }
+  expect(roster.karts.map(({ runtime }) => runtime.kartId)).toEqual([
+    "balanced-kart",
+  ]);
+});
+
 test("returns the validated bundled roster when persistence is unavailable", async () => {
   const roster = await loadOfficialKartRoster(async () => {
     throw new Error("Persistence unavailable.");

@@ -8,7 +8,7 @@ export const SPEED_KART_ID = "speed-kart";
 
 const SPEED_KART_CONFIG = {
   bodyMaterial: "material.structural-aluminum",
-  bodySize: { x: 0.28, y: 0.055, z: 0.34 },
+  bodySize: { x: 0.26, y: 0.055, z: 0.34 },
   bumperHeight: 0.22,
   bumperZ: 0.205,
   kartId: SPEED_KART_ID,

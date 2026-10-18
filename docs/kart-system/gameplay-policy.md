@@ -30,7 +30,8 @@ Current policy families include:
   turns and flat landings without damping pitch, yaw, ramps, single-wheel
   contact, or airborne motion;
 - manual righting uses shared eligibility, clearance, timing, and contact-loss
-  allowance while deriving impulses from mass and inertia; a bounded
+  allowance while deriving impulses from mass and inertia, with enough lift
+  for the collision hull (wheel guard included) to clear the ground; a bounded
   righting-only landing window targets upright angular velocity and performs a
   one-shot post-contact angular-momentum capture at the first upright
   four-wheel landing; and

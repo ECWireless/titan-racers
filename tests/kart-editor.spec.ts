@@ -1044,6 +1044,43 @@ test.describe("protected kart builder access", () => {
     ).toBeVisible();
   });
 
+  test("loads the bundled official design as an undoable unsaved change", async ({
+    page,
+  }, testInfo) => {
+    test.skip(
+      testInfo.project.name !== "desktop",
+      "Official design loading only needs to run once.",
+    );
+    await page.route(kartApiPattern, async (route) => {
+      await route.fulfill({
+        body: JSON.stringify(
+          createPersistedBalancedRevision({
+            ...createBalancedKartDocument(),
+            name: "Stale Balanced Draft",
+          }),
+        ),
+        contentType: "application/json",
+        status: 200,
+      });
+    });
+
+    await page.goto("/admin/karts/balanced-kart");
+    const saveButton = page.getByRole("button", { name: "Save draft" });
+    await expect(page.getByLabel("Name")).toHaveValue("Stale Balanced Draft");
+    await expect(saveButton).toBeDisabled();
+
+    await page.getByRole("button", { name: "Kart actions" }).click();
+    await page.getByRole("button", { name: "Load official design" }).click();
+    await expect(page.getByLabel("Name")).toHaveValue(
+      createBalancedKartDocument().name,
+    );
+    await expect(saveButton).toBeEnabled();
+
+    await page.getByRole("button", { name: "Undo" }).click();
+    await expect(page.getByLabel("Name")).toHaveValue("Stale Balanced Draft");
+    await expect(saveButton).toBeDisabled();
+  });
+
   test("keeps local editor history mounted when sign-out fails", async ({
     page,
   }, testInfo) => {

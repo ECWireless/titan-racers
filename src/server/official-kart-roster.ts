@@ -25,31 +25,40 @@ function publicAssemblerCredit(authorUsername: string | null) {
 export async function loadOfficialKartRoster(
   loadPublished: OfficialKartPublicationLoader = loadPublishedKartRevision,
 ): Promise<OfficialKartRoster> {
-  try {
-    const published = await Promise.all(
-      OFFICIAL_KART_IDS.map((kartId) => loadPublished(kartId)),
+  const results = await Promise.allSettled(
+    OFFICIAL_KART_IDS.map((kartId) => loadPublished(kartId)),
+  );
+  // Every load failing is the practical "database unreachable" signal.
+  if (results.every(({ status }) => status === "rejected")) {
+    return createBundledOfficialKartRoster();
+  }
+  const published = results.flatMap((result, index) => {
+    if (result.status === "fulfilled") {
+      return result.value ? [result.value] : [];
+    }
+    const message =
+      result.reason instanceof Error ? result.reason.message : "Unknown error";
+    console.error(
+      `Dropping official kart ${OFFICIAL_KART_IDS[index]}: ${message}`,
     );
+    return [];
+  });
+  try {
     return officialKartRosterSchema.parse({
-      karts: published
-        .filter(
-          (
-            revision,
-          ): revision is PersistedPublishedKartRevision => revision !== null,
-        )
-        .map((revision) => ({
-          assemblerCredit: publicAssemblerCredit(revision.authorUsername),
-          runtime: {
-            derivationVersion: revision.derivationVersion,
-            document: revision.document,
-            kartId: revision.kartId,
-            publishedAt: revision.publication.occurredAt.toISOString(),
-            resolvedSnapshot: revision.resolvedSnapshot,
-            resolvedSnapshotHash: revision.resolvedSnapshotHash,
-            revision: revision.revision,
-            schemaVersion: revision.schemaVersion,
-            thumbnailAvailable: revision.thumbnailAvailable,
-          },
-        })),
+      karts: published.map((revision) => ({
+        assemblerCredit: publicAssemblerCredit(revision.authorUsername),
+        runtime: {
+          derivationVersion: revision.derivationVersion,
+          document: revision.document,
+          kartId: revision.kartId,
+          publishedAt: revision.publication.occurredAt.toISOString(),
+          resolvedSnapshot: revision.resolvedSnapshot,
+          resolvedSnapshotHash: revision.resolvedSnapshotHash,
+          revision: revision.revision,
+          schemaVersion: revision.schemaVersion,
+          thumbnailAvailable: revision.thumbnailAvailable,
+        },
+      })),
       source: "published",
     });
   } catch {
