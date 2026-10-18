@@ -68,8 +68,7 @@ than the real materials they represent. PRs 4.1.3 and 4.2.1 revisit them.
 - **Target for PR 4.1.3:** finishes follow what each part is made of: painted
   shells, bare or anodized metal hardware, and matte rubber tires. The
   direction leans industrial (matte powder coat, blasted metal) over clean
-  hobby-grade gloss. That choice is made again on real part visuals, where
-  the difference shows.
+  hobby-grade gloss.
 
 ## Phone Performance Budget
 
@@ -78,14 +77,14 @@ its measurements against it.
 
 | Area | Budget |
 | --- | --- |
-| Target device | iPhone 16-class (A18). Android is not measured; a recent Android phone is expected to fit given the headroom. |
+| Target device | iPhone 16-class (A18). Android is not measured. |
 | Frame time | 60 fps through a full two-lap race: median frame interval ≤ 17 ms, p95 ≤ 20 ms, at most 1 hitch over 50 ms after the countdown. |
 | CPU work per frame | Median ≤ 5 ms (fixed steps, update, and render submit). |
 | Draw calls | ≤ 250 per frame across all passes, and ≤ 30 per kart. |
 | Shadows | One shadow-casting light with one 1024² PCF3 map, covering ≤ 40 m. Coil springs and dampers do not cast. |
 | Resolution | 1× device pixels with MSAA. |
 | Post-processing | None. |
-| Startup | Race mount to first frame adds ≤ 300 ms over the baseline. |
+| Startup | Race mount to first frame adds ≤ 300 ms over the "Before lighting" baseline below (63–136 ms warm). |
 
 **Known overrun:** the current kart exceeds 30 draw calls because each coil
 spring is built from 32 separate cylinders. PR 4.1.3 brings it under budget.

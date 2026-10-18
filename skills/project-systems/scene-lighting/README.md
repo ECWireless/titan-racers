@@ -63,5 +63,4 @@ course editor scenes in `src/game/editor/`, and
 
 - The habitat environment is a stand-in until the Island Three enclosure
   (PR 4.3.1) supplies its own light.
-- The course editor's ambient color control has no visible effect until then.
 - GPU time is not measured; shadow and fill cost show only through frame time.
