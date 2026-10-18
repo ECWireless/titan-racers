@@ -36,9 +36,9 @@ revision-bound previews live in [`kart-thumbnails`](../kart-thumbnails/README.md
   publish/unpublish events, published-revision and thumbnail lookup);
   `src/game/kart/kart-publication.ts` (persisted and public runtime shapes).
 - **Roster and identity:** `src/server/official-kart-roster.ts` resolves each
-  official kart's live publication with an `@username` assembler credit,
-  dropping and logging a kart whose load fails and using the bundled roster
-  only when every load fails or the assembled roster fails validation;
+  official kart's live publication with an `@username` assembler credit; a
+  kart that fails to load is logged and dropped, and the bundled roster is a
+  last resort;
   `src/server/racer-identity.ts` and `src/app/api/profile/route.ts` own one-time
   racer username claims.
 - **Routes:** `src/app/api/admin/karts/[kartId]/` (draft load/save,
@@ -101,7 +101,6 @@ revision-bound previews live in [`kart-thumbnails`](../kart-thumbnails/README.md
 
 ## Known Limits
 
-Official vs. community karts are not yet a server-owned field, admin and
-profile responses still need request-size caps and complete `no-store`
-coverage, and race and editor build kart visuals separately; Phase 6 owns
-those.
+Official vs. community status is not server-owned, request hardening is
+incomplete, and race and editor build kart visuals separately. Phase 6 owns
+all three.

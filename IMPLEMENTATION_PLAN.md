@@ -14,9 +14,8 @@ accepted; the app, README, and durable docs take over from there.
 
 ## Status
 
-- **Done:** Phases 0–3 (PRs #1–#24 plus the Phase 3 closeout).
+- **Done:** Phases 0–3 (PRs #1–#24, the Phase 3 closeout, and its follow-ups).
 - **Next:** Phase 4, the Agricultural Zone track.
-- **Open follow-ups:** [Deferred Phase 3 findings](#deferred-phase-3-findings).
 
 ## Guiding Decisions
 
@@ -157,22 +156,6 @@ Decisions from completed phases that later phases rely on:
   engineering is planned, progression unlocks engineered *parts*, an engineered
   component's tier is the highest tier among its parts, and neither tiers nor
   stats can be overridden.
-
-### Deferred Phase 3 Findings
-
-From the Phase 3 integration review. Phase 6 hardening items moved into PR 6.1
-and PR 6.2.
-
-- [x] **Before Phase 4 track QA:** protruding wheels pass fully through walls
-      because only solid chassis parts collide. Add smooth lateral wheel
-      protection derived from construction (no wheel bodies, no snag points),
-      bump the derivation version, and re-save the official karts.
-- [ ] **Before Phase 4 track QA:** the Speed Kart's handling stat sits at the
-      floor (1 of 100, about 11 degrees of steering). Retune its approved parts
-      so it turns acceptably on tight sections, then re-save it.
-- [x] Use the bundled roster only when the database is unreachable. If a single
-      official kart has invalid data, drop and log that kart instead of
-      restoring unpublished ones.
 
 ## Remaining Phases
 
