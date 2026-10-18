@@ -50,7 +50,7 @@ export function projectCourseLighting(document: CourseDocument) {
           ? null
           : {
               bias: 0.2,
-              distance: 45,
+              distance: 40,
               resolution: SHADOW_RESOLUTION[light.shadowQuality],
             },
     })),

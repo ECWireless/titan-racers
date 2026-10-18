@@ -86,6 +86,7 @@ import {
 } from "@/game/kart/kart-assembly-visual";
 import { createBalancedKartDocument } from "@/game/kart/balanced-kart-document";
 import { getApprovedKartComponent } from "@/game/kart/kart-component-registry";
+import { createKartVisualMaterial } from "@/game/kart/kart-visual-material";
 import {
   deriveKartSnapshot,
   type PersistedResolvedKartSnapshot,
@@ -109,6 +110,7 @@ import {
   getRigidBodyCcdConfiguration,
   setExplicitRigidBodyInertia,
 } from "@/game/runtime/ammo-rigid-body";
+import { applySceneLook, applyShadowPolicy } from "@/game/render/scene-look";
 import { FrameBudgetRecorder } from "@/game/runtime/frame-budget";
 import { createRaceSessionConfig } from "@/game/race/playcanvas-race-course";
 import {
@@ -166,10 +168,6 @@ function createMaterial(color: pc.Color, depthBias = 0) {
   material.update();
 
   return material;
-}
-
-function colorFromHex(hex: string) {
-  return new pc.Color().fromString(hex);
 }
 
 function toPcVector(vector: KartReferenceVector) {
@@ -704,7 +702,7 @@ export function SoloTimeTrialCanvas({
       const getKartVisualMaterial = (visualColor: string) => {
         const existing = kartVisualMaterials.get(visualColor);
         if (existing) return existing;
-        const material = createMaterial(colorFromHex(visualColor));
+        const material = createKartVisualMaterial(visualColor);
         kartVisualMaterials.set(visualColor, material);
         return material;
       };
@@ -1091,6 +1089,16 @@ export function SoloTimeTrialCanvas({
       const lightingEntities = buildCourseLighting(app, {
         document: COURSE_DOCUMENT,
       });
+      lightingEntities.forEach((entity) => {
+        if (entity.light?.castShadows) applyShadowPolicy(entity.light);
+      });
+      runtime.addCleanup(
+        applySceneLook(
+          app,
+          camera.camera!,
+          COURSE_DOCUMENT.lighting.ambient.intensity,
+        ),
+      );
 
       let driftSmoke: KartDriftSmoke | null = null;
       let inputManager: PlayerInputManager | null = null;
