@@ -170,7 +170,7 @@ and PR 6.2.
 - [ ] **Before Phase 4 track QA:** the Speed Kart's handling stat sits at the
       floor (1 of 100, about 11 degrees of steering). Retune its approved parts
       so it turns acceptably on tight sections, then re-save it.
-- [ ] Use the bundled roster only when the database is unreachable. If a single
+- [x] Use the bundled roster only when the database is unreachable. If a single
       official kart has invalid data, drop and log that kart instead of
       restoring unpublished ones.
 
