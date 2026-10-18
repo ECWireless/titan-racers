@@ -10,6 +10,7 @@ export type RaceLifecycleState =
   | "countdown"
   | "racing"
   | "paused"
+  | "resuming"
   | "recovering"
   | "finished";
 
@@ -65,12 +66,17 @@ export type RaceSessionSnapshot = {
   recoveryCandidates: Array<{ id: string; transform: RaceTransform }>;
   resumableState: Exclude<
     RaceLifecycleState,
-    "loading" | "ready" | "paused" | "finished"
+    "loading" | "ready" | "paused" | "resuming" | "finished"
   > | null;
+  resumeCountdownRemainingMicroseconds: number;
+  resumedAtElapsedMicroseconds: number | null;
   state: RaceLifecycleState;
 };
 
 const MICROSECONDS_PER_SECOND = 1_000_000;
+export const RESUME_COUNTDOWN_STEP_MICROSECONDS = 500_000;
+export const RESUME_COUNTDOWN_MICROSECONDS =
+  3 * RESUME_COUNTDOWN_STEP_MICROSECONDS;
 
 function cloneVector(vector: RaceVector3): RaceVector3 {
   return { ...vector };
@@ -98,6 +104,8 @@ export class RaceSession {
   private state: RaceLifecycleState = "loading";
   private resumableState: RaceSessionSnapshot["resumableState"] = null;
   private countdownRemainingMicroseconds: number;
+  private resumeCountdownRemainingMicroseconds = 0;
+  private resumedAtElapsedMicroseconds: number | null = null;
   private recoveryRemainingMicroseconds = 0;
   private elapsedRaceMicroseconds = 0;
   private lapStartedAtMicroseconds = 0;
@@ -156,6 +164,9 @@ export class RaceSession {
         transform: cloneTransform(transform),
       })),
       resumableState: this.resumableState,
+      resumeCountdownRemainingMicroseconds:
+        this.resumeCountdownRemainingMicroseconds,
+      resumedAtElapsedMicroseconds: this.resumedAtElapsedMicroseconds,
       state: this.state,
     };
   }
@@ -183,6 +194,10 @@ export class RaceSession {
   }
 
   pause() {
+    if (this.state === "resuming") {
+      this.state = "paused";
+      return true;
+    }
     if (
       this.state !== "countdown" &&
       this.state !== "racing" &&
@@ -196,13 +211,21 @@ export class RaceSession {
     return true;
   }
 
+  // Mid-race resumes hold the kart through a short countdown before control
+  // returns; a paused start countdown simply continues.
   resume() {
     if (this.state !== "paused" || this.resumableState === null) {
       return false;
     }
 
-    this.state = this.resumableState;
-    this.resumableState = null;
+    if (this.resumableState === "countdown") {
+      this.state = "countdown";
+      this.resumableState = null;
+      return true;
+    }
+
+    this.state = "resuming";
+    this.resumeCountdownRemainingMicroseconds = RESUME_COUNTDOWN_MICROSECONDS;
     return true;
   }
 
@@ -213,6 +236,7 @@ export class RaceSession {
 
     this.state = "countdown";
     this.resumableState = null;
+    this.resumedAtElapsedMicroseconds = null;
     this.countdownRemainingMicroseconds = toConfiguredMicroseconds(
       this.config.countdownSeconds,
       "countdownSeconds",
@@ -272,6 +296,30 @@ export class RaceSession {
 
         if (this.countdownRemainingMicroseconds === 0) {
           this.state = "racing";
+        }
+        continue;
+      }
+
+      if (this.state === "resuming") {
+        this.resumeCountdownRemainingMicroseconds = Math.max(
+          0,
+          this.resumeCountdownRemainingMicroseconds - remainingMicroseconds,
+        );
+        // Physics is frozen while resuming, so leftover time is not race time.
+        remainingMicroseconds = 0;
+
+        if (
+          this.resumeCountdownRemainingMicroseconds === 0 &&
+          this.resumableState !== null
+        ) {
+          this.state = this.resumableState;
+          this.resumableState = null;
+          // Control returns once any remaining recovery finishes.
+          this.resumedAtElapsedMicroseconds =
+            this.elapsedRaceMicroseconds +
+            (this.state === "recovering"
+              ? this.recoveryRemainingMicroseconds
+              : 0);
         }
         continue;
       }

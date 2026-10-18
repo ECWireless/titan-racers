@@ -1,6 +1,7 @@
 import { expect, test } from "@playwright/test";
 
 import {
+  RESUME_COUNTDOWN_MICROSECONDS,
   RaceSession,
   type RaceCheckpoint,
   type RaceSessionConfig,
@@ -77,6 +78,41 @@ test.describe("race session", () => {
     expect(session.resume()).toBe(true);
     session.advanceTime(0.5);
     expect(session.snapshot.state).toBe("racing");
+  });
+
+  test("holds a mid-race resume through a short countdown", () => {
+    const session = new RaceSession(config());
+    startRace(session);
+    session.advanceTime(1);
+    expect(session.pause()).toBe(true);
+    expect(session.resume()).toBe(true);
+    expect(session.snapshot).toMatchObject({
+      resumableState: "racing",
+      resumeCountdownRemainingMicroseconds: RESUME_COUNTDOWN_MICROSECONDS,
+      state: "resuming",
+    });
+    expect(session.acceptsDriving).toBe(false);
+
+    session.advanceTime(1);
+    expect(session.snapshot.elapsedRaceMicroseconds).toBe(1_000_000);
+    expect(session.pause()).toBe(true);
+    expect(session.snapshot).toMatchObject({
+      resumableState: "racing",
+      state: "paused",
+    });
+    expect(session.resume()).toBe(true);
+    expect(session.snapshot.resumeCountdownRemainingMicroseconds).toBe(
+      RESUME_COUNTDOWN_MICROSECONDS,
+    );
+
+    session.advanceTime(5);
+    expect(session.snapshot).toMatchObject({
+      elapsedRaceMicroseconds: 1_000_000,
+      resumableState: null,
+      resumedAtElapsedMicroseconds: 1_000_000,
+      state: "racing",
+    });
+    expect(session.acceptsDriving).toBe(true);
   });
 
   test("keeps fixed-step time exact across common render cadences", () => {
@@ -201,6 +237,13 @@ test.describe("race session", () => {
     session.advanceTime(1);
     expect(session.snapshot.recoveryRemainingMicroseconds).toBe(300_000);
     expect(session.resume()).toBe(true);
+    session.advanceTime(2);
+    expect(session.snapshot).toMatchObject({
+      elapsedRaceMicroseconds: 200_000,
+      recoveryRemainingMicroseconds: 300_000,
+      resumedAtElapsedMicroseconds: 500_000,
+      state: "recovering",
+    });
     session.advanceTime(0.3);
     expect(session.snapshot).toMatchObject({
       elapsedRaceMicroseconds: 500_000,

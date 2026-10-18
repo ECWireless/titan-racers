@@ -33,6 +33,8 @@ function snapshot(
     recoveryCandidates: [],
     recoveryRemainingMicroseconds: 0,
     resumableState: null,
+    resumeCountdownRemainingMicroseconds: 0,
+    resumedAtElapsedMicroseconds: null,
     state: "countdown",
     ...overrides,
   };
@@ -137,6 +139,52 @@ test.describe("race presentation", () => {
       lapTimes: ["0:06.125", "0:05.750"],
       state: "finished",
     });
+  });
+
+  test("projects the resume countdown and a Go cue after it", () => {
+    expect(
+      createRacePresentationSnapshot(
+        snapshot({
+          countdownRemainingMicroseconds: 0,
+          currentLap: 2,
+          elapsedRaceMicroseconds: 20_000_000,
+          resumableState: "racing",
+          resumeCountdownRemainingMicroseconds: 1_000_001,
+          state: "resuming",
+        }),
+      ),
+    ).toMatchObject({
+      announcement: "Resuming in 3",
+      countdownValue: 3,
+      cue: "3",
+    });
+    expect(
+      createRacePresentationSnapshot(
+        snapshot({
+          countdownRemainingMicroseconds: 0,
+          resumableState: "racing",
+          resumeCountdownRemainingMicroseconds: 400_000,
+          state: "resuming",
+        }),
+      ).cue,
+    ).toBe("1");
+
+    const resumed = {
+      countdownRemainingMicroseconds: 0,
+      currentLap: 2,
+      resumedAtElapsedMicroseconds: 20_000_000,
+      state: "racing" as const,
+    };
+    expect(
+      createRacePresentationSnapshot(
+        snapshot({ ...resumed, elapsedRaceMicroseconds: 20_500_000 }),
+      ),
+    ).toMatchObject({ announcement: "Go", cue: "Go!" });
+    expect(
+      createRacePresentationSnapshot(
+        snapshot({ ...resumed, elapsedRaceMicroseconds: 22_000_000 }),
+      ).cue,
+    ).toBeNull();
   });
 
   test("compares projected values instead of object identity", () => {

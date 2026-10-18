@@ -1444,6 +1444,16 @@ test.describe("home screen", () => {
     ).toBe(beforePause.recoveryRemainingMicroseconds);
 
     await page.getByRole("button", { name: "Resume" }).click();
+    const resuming = await getRaceDebugState(canvas);
+    expect(resuming).toMatchObject({
+      elapsedRaceMicroseconds: beforePause.elapsedRaceMicroseconds,
+      resumableState: "recovering",
+      state: "resuming",
+    });
+    await expect(page.locator(".race-lifecycle-cue")).toBeVisible();
+    await expect
+      .poll(async () => (await getRaceDebugState(canvas)).state)
+      .not.toBe("resuming");
     await setSimulationPaused(canvas, true);
     await stepSimulation(canvas, 40);
     const recovered = await getRaceDebugState(canvas);

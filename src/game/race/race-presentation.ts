@@ -1,6 +1,7 @@
-import type {
-  RaceProgressionResult,
-  RaceSessionSnapshot,
+import {
+  RESUME_COUNTDOWN_STEP_MICROSECONDS,
+  type RaceProgressionResult,
+  type RaceSessionSnapshot,
 } from "./race-session";
 
 export type RacePresentationSnapshot = {
@@ -95,22 +96,51 @@ function getCurrentLapMicroseconds(snapshot: RaceSessionSnapshot) {
   return Math.max(0, snapshot.elapsedRaceMicroseconds - completedTime);
 }
 
-function getCue(snapshot: RaceSessionSnapshot) {
+function getCountdownValue(snapshot: RaceSessionSnapshot) {
   if (snapshot.state === "countdown") {
-    return String(
-      Math.max(
-        1,
-        Math.ceil(
-          snapshot.countdownRemainingMicroseconds / MICROSECONDS_PER_SECOND,
-        ),
+    return Math.max(
+      1,
+      Math.ceil(
+        snapshot.countdownRemainingMicroseconds / MICROSECONDS_PER_SECOND,
       ),
     );
   }
-  if (
-    snapshot.state === "racing" &&
+  if (snapshot.state === "resuming") {
+    return Math.max(
+      1,
+      Math.ceil(
+        snapshot.resumeCountdownRemainingMicroseconds /
+          RESUME_COUNTDOWN_STEP_MICROSECONDS,
+      ),
+    );
+  }
+
+  return null;
+}
+
+function showsGoCue(snapshot: RaceSessionSnapshot) {
+  if (snapshot.state !== "racing") {
+    return false;
+  }
+  if (snapshot.resumedAtElapsedMicroseconds !== null) {
+    return (
+      snapshot.elapsedRaceMicroseconds - snapshot.resumedAtElapsedMicroseconds <
+      GO_CUE_MICROSECONDS
+    );
+  }
+
+  return (
     snapshot.currentLap === 1 &&
     snapshot.elapsedRaceMicroseconds < GO_CUE_MICROSECONDS
-  ) {
+  );
+}
+
+function getCue(snapshot: RaceSessionSnapshot) {
+  const countdownValue = getCountdownValue(snapshot);
+  if (countdownValue !== null) {
+    return String(countdownValue);
+  }
+  if (showsGoCue(snapshot)) {
     return "Go!";
   }
   if (
@@ -129,7 +159,10 @@ function getAnnouncement(
   result: RaceProgressionResult,
 ) {
   if (snapshot.state === "countdown") {
-    return `Race starts in ${Math.max(1, Math.ceil(snapshot.countdownRemainingMicroseconds / MICROSECONDS_PER_SECOND))}`;
+    return `Race starts in ${getCountdownValue(snapshot)}`;
+  }
+  if (snapshot.state === "resuming") {
+    return `Resuming in ${getCountdownValue(snapshot)}`;
   }
   if (snapshot.state === "recovering") {
     return "Recovering kart";
@@ -147,11 +180,7 @@ function getAnnouncement(
   ) {
     return "Lap route incomplete";
   }
-  if (
-    snapshot.state === "racing" &&
-    snapshot.currentLap === 1 &&
-    snapshot.elapsedRaceMicroseconds < GO_CUE_MICROSECONDS
-  ) {
+  if (showsGoCue(snapshot)) {
     return "Go";
   }
 
@@ -164,16 +193,7 @@ export function createRacePresentationSnapshot(
 ): RacePresentationSnapshot {
   return {
     announcement: getAnnouncement(snapshot, result),
-    countdownValue:
-      snapshot.state === "countdown"
-        ? Math.max(
-            1,
-            Math.ceil(
-              snapshot.countdownRemainingMicroseconds /
-                MICROSECONDS_PER_SECOND,
-            ),
-          )
-        : null,
+    countdownValue: getCountdownValue(snapshot),
     cue: getCue(snapshot),
     currentLap: snapshot.currentLap,
     elapsedTime: formatRaceTime(
