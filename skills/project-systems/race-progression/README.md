@@ -66,16 +66,18 @@ or the final Agricultural Zone course.
    state, clears input, and waits the configured stabilization duration before
    returning to `racing`.
 8. Pause requests finish the current fixed step, capture the resumable lifecycle
-   state, clear input, reset clock transport state, and stop simulation. Resume
-   restores countdown, racing, or recovery exactly where it stopped.
+   state, clear input, reset clock transport state, and stop simulation. A
+   paused start countdown continues where it stopped; a paused race or recovery
+   resumes through `resuming`, a 1.5 s countdown with physics frozen, driven by
+   a canvas animation-frame loop.
 
 ## Accepted Behavior And Invariants
 
 - Lifecycle state is one of `loading`, `ready`, `countdown`, `racing`, `paused`,
-  `recovering`, or `finished`; unsupported transitions are inert.
+  `resuming`, `recovering`, or `finished`; unsupported transitions are inert.
 - Competitive time is accumulated as integer microseconds with a retained
-  sub-microsecond remainder. Countdown, ready/loading, pause, and finish do not
-  add race time; recovery does.
+  sub-microsecond remainder. Countdown, ready/loading, pause, resuming, and
+  finish do not add race time; recovery does.
 - Capped frame time that the fixed-step clock discards is still charged to an
   active competitive timeline, so a stall cannot improve a result.
 - Checkpoints are accepted only in contiguous authored order. Repeated,

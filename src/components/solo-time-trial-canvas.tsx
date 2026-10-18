@@ -2104,6 +2104,50 @@ export function SoloTimeTrialCanvas({
         );
       };
 
+      // Physics stays frozen through the resume countdown; this loop advances
+      // it on wall-clock time and hands control back at "Go".
+      let resumeCountdownFrameId: number | null = null;
+      let resumeCountdownTimestamp: number | null = null;
+      const stopResumeCountdown = () => {
+        if (resumeCountdownFrameId !== null) {
+          cancelAnimationFrame(resumeCountdownFrameId);
+          resumeCountdownFrameId = null;
+        }
+      };
+      runtime.addCleanup(stopResumeCountdown);
+      const runResumeCountdown = (timestamp: number) => {
+        resumeCountdownFrameId = null;
+        if (raceSession.snapshot.state !== "resuming") {
+          return;
+        }
+
+        const elapsedSeconds =
+          resumeCountdownTimestamp === null
+            ? 0
+            : Math.min((timestamp - resumeCountdownTimestamp) / 1000, 0.1);
+        resumeCountdownTimestamp = timestamp;
+
+        if (inputManager.sample().pauseRequested) {
+          setScenePaused(true);
+          clearTouchPresentation();
+          setKartDynamicsOpen(false);
+          setGamePaused(true);
+          setDriveCursorHidden(false);
+          return;
+        }
+
+        raceSession.advanceTime(elapsedSeconds);
+        if (raceSession.snapshot.state !== "resuming") {
+          previousRacePosition.copy(kart.getPosition());
+          runtime.setPaused(false);
+          publishRacePresentation();
+          return;
+        }
+
+        publishRacePresentation();
+        resumeCountdownFrameId = requestAnimationFrame(runResumeCountdown);
+      };
+
       const setScenePaused = (paused: boolean) => {
         const changed = paused ? raceSession.pause() : raceSession.resume();
         if (!changed) {
@@ -2111,13 +2155,21 @@ export function SoloTimeTrialCanvas({
         }
         if (paused) {
           driftSmoke?.stop();
+          stopResumeCountdown();
         }
         inputManager.setEnabled(false);
         previousRacePosition.copy(kart.getPosition());
-        runtime.setPaused(paused);
+        const resuming = raceSession.snapshot.state === "resuming";
+        runtime.setPaused(paused || resuming);
         if (!paused) {
           queueMicrotask(() => inputManager.setEnabled(true));
         }
+        if (resuming) {
+          lastRaceAnnouncementResult = { kind: "none" };
+          resumeCountdownTimestamp = null;
+          resumeCountdownFrameId = requestAnimationFrame(runResumeCountdown);
+        }
+        publishRacePresentation();
         return changed;
       };
 

@@ -39,7 +39,8 @@ ghosts, telemetry, multiplayer, or final Agricultural Zone presentation.
 4. Meaningful progression events remain projected until later meaningful
    progression replaces them, keeping live-region updates observable across
    fixed-step batching.
-5. React renders persistent status, transient countdown/start/lap cues, a
+5. React renders persistent status, transient countdown/start/lap cues (resume
+   countdowns reuse them), a
    nonvisual recovery announcement, or the finish dialog without feeding values
    back into gameplay.
 6. Finish wins over a simultaneous pause edge, disables retained driving input,
