@@ -45,7 +45,7 @@ export function FrameBudgetOverlay({ report }: { report: FrameBudgetReport }) {
   }
   return (
     <dl
-      className="pointer-events-none absolute left-3 top-28 z-30 grid grid-cols-[auto_auto] gap-x-3 border border-titan-ice/25 bg-black/80 px-3 py-2 font-mono text-[0.6rem] uppercase tracking-[0.08em] text-titan-ice"
+      className="pointer-events-none absolute left-3 top-28 z-40 grid grid-cols-[auto_auto] gap-x-3 border border-titan-ice/25 bg-black/80 px-3 py-2 font-mono text-[0.6rem] uppercase tracking-[0.08em] text-titan-ice"
       data-testid="frame-budget"
     >
       {rows.map(([label, value]) => (
