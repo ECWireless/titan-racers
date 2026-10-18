@@ -15,7 +15,8 @@ accepted; the app, README, and durable docs take over from there.
 ## Status
 
 - **Done:** Phases 0–3 (PRs #1–#24, the Phase 3 closeout, and its follow-ups).
-- **Next:** Phase 4, the Agricultural Zone track.
+- **Next:** Phase 4: visual baseline, Island Three, and the Agricultural
+  Zone.
 
 ## Guiding Decisions
 
@@ -59,8 +60,9 @@ These still constrain every remaining phase.
 - **Analytics:** Vercel Web Analytics for anonymous page views, plus small
   gameplay-run summaries in Postgres with an admin dashboard.
 - **Assets:** karts and courses are bounded primitive documents, so no file
-  storage is needed. Add a reviewed S3-compatible boundary only if external
-  models arrive after Demo v1.
+  storage is needed. Textures and models are reviewed repository assets that
+  ship with the app (see Phase 4). Add a reviewed S3-compatible boundary only
+  if player uploads arrive after Demo v1.
 - **Multiplayer transport:** to be chosen in Phase 8.
 
 ## Scope
@@ -90,7 +92,8 @@ These still constrain every remaining phase.
 - Marketplace, patenting, licensing, or a deep economy.
 - On-chain gameplay or token rewards.
 - Global ranked multiplayer or robust anti-cheat.
-- Production-quality art or a real-world kit export pipeline.
+- Hand-finished production art or a real-world kit export pipeline. Phase 4
+  sets a demo-sized visual baseline instead.
 - Damage beyond the simple joint-breakage model in Phase 6.
 - Fuel or battery simulation, advanced tire physics, or punishing collisions.
 - Player-editable numerical tuning or raw handling controls.
@@ -159,11 +162,69 @@ Decisions from completed phases that later phases rely on:
 
 ## Remaining Phases
 
-### Phase 4: Agricultural Zone Track
+### Phase 4: Visual Baseline, Island Three, And The Agricultural Zone
 
-**Goal:** make the rough loop feel like Titan Racers.
+**Goal:** give Titan Racers a consistent visual identity, physical surfaces,
+and its home inside the Island Three habitat, then build the Agricultural Zone
+Service Circuit there.
 
-Route beats for the Agricultural Zone Service Circuit:
+Phase decisions:
+
+- **A visual identity, not plain realism.** Materials and lighting behave
+  physically, but within one consistent identity that starts from the site
+  palette. `docs/visual-identity.md` records it, and each PR refines it.
+- **Karts are 1:10 RC scale, and realism lives in the parts.** Each approved
+  part version gets a presentation-only visual. Every kart, including future
+  community karts, improves without changing derivation, revisions, or hashes.
+- **Assets mix code-built geometry, CC0 textures, and repository-owned
+  models,** including models generated in separate sessions. All are reviewed
+  and committed to the repository; players still cannot upload assets. Pull
+  back if the work drifts toward production art.
+- **Island Three is the enclosure for every course.** It spins for 1 g at the
+  floor (radius about 4 km). Courses name an enclosure and their placement in
+  it, so nothing is hard-coded to the Agricultural Zone. The distant cylinder
+  renders as its own layer, and course physics stays local.
+- **Rotating-habitat physics at true scale.** Position-dependent artificial
+  gravity (`g × r / R`) plus Coriolis force replace the fixed Earth gravity
+  under a new physics version, with no exaggeration.
+- **Near-axis, low-gravity racing belongs to a later course** placed near the
+  axis, not to the Agricultural loop.
+- **A phone performance budget** is set in PR 4.1.2 and holds for the rest of
+  the phase.
+
+**PR 4.0: Phase 4 plan**
+
+- [x] Rewrite Phase 4 and move the shared kart visual builder up from Phase 6.
+
+**PR 4.1: Kart visual baseline**
+
+- [ ] 4.1.1: One shared kart visual builder for race, editor, and thumbnails,
+      with no visual change.
+- [ ] 4.1.2: Lighting baseline (environment lighting, tone mapping, shadows),
+      phone performance budget, look exploration on one kart, and the first
+      `docs/visual-identity.md`.
+- [ ] 4.1.3: Presentation-only visuals for each approved part version, with
+      materials that follow the identity; regenerate official kart thumbnails.
+
+**PR 4.2: Sandbox surfaces**
+
+- [ ] 4.2.1: Road, grass, and marking visuals on `rough-course`.
+- [ ] 4.2.2: Surface physics: a grass surface material and its tire
+      interaction, per-surface materials in the course document (new schema
+      version with normalization), and a new physics version.
+
+**PR 4.3: Island Three**
+
+- [ ] 4.3.1: The cylinder enclosure as a distant render layer, enclosure and
+      placement in the course document, and a tiny `agricultural-zone` loop
+      inside it.
+- [ ] 4.3.2: Rotating-habitat physics: a research note first, then
+      position-dependent gravity and Coriolis through the kart controller,
+      steering, righting, and camera up; optionally a near-axis test pad.
+
+**PR 4.4: Agricultural Zone Service Circuit** (split by route section)
+
+Route beats:
 
 1. Starting service lane.
 2. Tight hydroponic rows.
@@ -173,17 +234,25 @@ Route beats for the Agricultural Zone Service Circuit:
 6. Return lane through floor-marked service infrastructure.
 
 - [ ] Two-lap route following those beats, authored under `agricultural-zone`.
-- [ ] Scale language over polish: oversized crop trays, pipes, vents, doors,
-      rails, ramps, and catwalks that make the karts feel tiny.
-- [ ] Hints of the O'Neill Cylinder's curvature and the habitat beyond the
-      route.
+- [ ] Scale language: oversized crop trays, pipes, vents, doors, rails, ramps,
+      and catwalks that make the karts feel tiny.
+- [ ] A jump that shows the spin's effect on a flying kart.
+- [ ] Habitat vistas that show the cylinder's curvature.
+
+**PR 4.5: Ambience and SFX**
+
 - [ ] Ambience and readable SFX for road contact, impacts, machinery,
       irrigation, and the habitat, kept separate from kart physics.
 
-**Done when:** two laps take roughly 90 seconds to 2.5 minutes, and the
-handling feels like fast RC arcade racing: quick acceleration, tight steering,
-slight controlled drift, forgiving walls, fast reset. Easy to finish, hard to
-master.
+**Done when:**
+
+- Two laps take roughly 90 seconds to 2.5 minutes, and the handling feels like
+  fast RC arcade racing: quick acceleration, tight steering, slight controlled
+  drift, forgiving walls, fast reset. Easy to finish, hard to master.
+- Karts, sandbox, enclosure, and course read as one visual identity and stay
+  within the phone performance budget.
+- Every physics change is versioned, and older runs keep their physics
+  version.
 
 ### Phase 5: Solo, Ghosts, Results, Leaderboard
 
@@ -236,8 +305,6 @@ Publishing is immediate, with no approval queue.
 
 - [ ] Public catalog that clearly separates official and community karts.
 - [ ] Anyone can race any published community kart in casual modes.
-- [ ] Race and editor share one kart visual builder, so a kart looks the same
-      in both.
 - [ ] Each race records the kart ID and publication revision.
 - [ ] Admins feature or safety-unpublish karts without changing stats,
       eligibility, history, or audit data. Unpublished karts leave discovery
