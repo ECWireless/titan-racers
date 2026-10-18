@@ -1,6 +1,7 @@
 import * as pc from "playcanvas";
 
 import { FixedStepClock, type FixedStepFrame } from "./fixed-step-clock";
+import { type FrameBudgetSample, takeFrameCounters } from "./frame-budget";
 
 type EventTargetWithListeners = Pick<
   EventTarget,
@@ -29,6 +30,9 @@ export class PlayCanvasRuntime {
     (stepSeconds: number) => void
   >();
   private readonly renderListeners = new Set<(frame: FixedStepFrame) => void>();
+  private readonly frameSampleListeners = new Set<
+    (sample: FrameBudgetSample) => void
+  >();
   private readonly cancelAnimationFrame: (animationFrameId: number) => void;
   private readonly cancelApplicationTick: (app: pc.Application) => void;
   private readonly requestAnimationFrame: (
@@ -38,6 +42,7 @@ export class PlayCanvasRuntime {
   private destroyed = false;
   private initialized = false;
   private lastFrameTimestamp: number | null = null;
+  private lastRenderedTimestamp: number | null = null;
   private paused = false;
   private pauseAfterCurrentStep = false;
   private renderingSuspended = false;
@@ -83,6 +88,12 @@ export class PlayCanvasRuntime {
   onRender(listener: (frame: FixedStepFrame) => void) {
     this.renderListeners.add(listener);
     this.addCleanup(() => this.renderListeners.delete(listener));
+  }
+
+  /** Measures each rendered frame; only costs anything while listened to. */
+  onFrameSample(listener: (sample: FrameBudgetSample) => void) {
+    this.frameSampleListeners.add(listener);
+    this.addCleanup(() => this.frameSampleListeners.delete(listener));
   }
 
   onPostFixedStep(listener: (stepSeconds: number) => void) {
@@ -244,6 +255,8 @@ export class PlayCanvasRuntime {
       return;
     }
 
+    const workStart =
+      this.frameSampleListeners.size > 0 ? performance.now() : 0;
     const frameSeconds =
       this.lastFrameTimestamp === null
         ? 0
@@ -253,6 +266,7 @@ export class PlayCanvasRuntime {
     if (this.paused) {
       if (!this.renderingSuspended) {
         this.app.render();
+        this.sampleRenderedFrame(timestamp, workStart);
       }
       this.animationFrameId = this.requestAnimationFrame(this.runFrame);
       return;
@@ -287,9 +301,24 @@ export class PlayCanvasRuntime {
     if (!this.renderingSuspended) {
       this.renderListeners.forEach((listener) => listener(frame));
       this.app.render();
+      this.sampleRenderedFrame(timestamp, workStart);
     }
     this.animationFrameId = this.requestAnimationFrame(this.runFrame);
   };
+
+  private sampleRenderedFrame(timestamp: number, workStart: number) {
+    if (this.frameSampleListeners.size === 0) return;
+    const sample = {
+      ...takeFrameCounters(this.app),
+      frameIntervalMs:
+        this.lastRenderedTimestamp === null
+          ? null
+          : timestamp - this.lastRenderedTimestamp,
+      workMs: performance.now() - workStart,
+    } satisfies FrameBudgetSample;
+    this.lastRenderedTimestamp = timestamp;
+    this.frameSampleListeners.forEach((listener) => listener(sample));
+  }
 
   private executeFixedStep(stepSeconds: number) {
     this.fixedStepListeners.forEach((listener) => listener(stepSeconds));

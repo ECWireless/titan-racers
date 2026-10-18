@@ -12,6 +12,10 @@ import {
   useSyncExternalStore,
 } from "react";
 
+import {
+  FrameBudgetOverlay,
+  type FrameBudgetReport,
+} from "@/components/frame-budget-overlay";
 import { KartStatsDrawer } from "@/components/kart-stats-drawer";
 import type {
   CourseTestObstacleId,
@@ -105,6 +109,7 @@ import {
   getRigidBodyCcdConfiguration,
   setExplicitRigidBodyInertia,
 } from "@/game/runtime/ammo-rigid-body";
+import { FrameBudgetRecorder } from "@/game/runtime/frame-budget";
 import { createRaceSessionConfig } from "@/game/race/playcanvas-race-course";
 import {
   createLoadingRacePresentationSnapshot,
@@ -548,6 +553,8 @@ export function SoloTimeTrialCanvas({
   >("initializing");
   const [sceneFailureCode, setSceneFailureCode] =
     useState<GameplayRunFailureCode | null>(null);
+  const [frameBudgetReport, setFrameBudgetReport] =
+    useState<FrameBudgetReport | null>(null);
 
   useControllerMenuNavigation({
     containerRef: pauseMenuRef,
@@ -623,6 +630,7 @@ export function SoloTimeTrialCanvas({
     }
 
     const activeCanvas = canvas;
+    const mountedAt = performance.now();
     const sceneTestControl = getSceneInitializationTestControl();
     let cancelled = false;
     let activeRuntime: ReturnType<typeof createPlayCanvasRuntime> | null = null;
@@ -2624,6 +2632,49 @@ export function SoloTimeTrialCanvas({
         );
       });
 
+      if (new URLSearchParams(window.location.search).get("perf") === "1") {
+        observeFrameBudget();
+      }
+
+      // Samples only the racing state, so countdowns, pauses, and results
+      // never count against the budget. A new countdown starts a new run.
+      // The report publishes only on state changes so the overlay's own
+      // React work never lands inside a measured frame.
+      function observeFrameBudget() {
+        const recorder = new FrameBudgetRecorder();
+        let firstFrameMs: number | null = null;
+        let previousState = raceSession.snapshot.state;
+        let previousRecorded = false;
+        const publish = (recording: boolean) => {
+          setFrameBudgetReport({
+            backBuffer: {
+              height: app.graphicsDevice.height,
+              width: app.graphicsDevice.width,
+            },
+            firstFrameMs,
+            recording,
+            summary: recording ? null : recorder.summarize(),
+          });
+        };
+        runtime.onFrameSample((sample) => {
+          firstFrameMs ??= performance.now() - mountedAt;
+          const { state } = raceSession.snapshot;
+          if (state === "countdown" && previousState !== "countdown") {
+            recorder.reset();
+          }
+          const recording = state === "racing";
+          if (recording) {
+            recorder.record({
+              ...sample,
+              frameIntervalMs: previousRecorded ? sample.frameIntervalMs : null,
+            });
+          }
+          if (state !== previousState) publish(recording);
+          previousState = state;
+          previousRecorded = recording;
+        });
+      }
+
       raceSession.markReady();
       raceSession.startCountdown();
       publishRacePresentation();
@@ -3146,6 +3197,9 @@ export function SoloTimeTrialCanvas({
       />
       {sceneStatus === "ready" ? (
         <>
+          {frameBudgetReport ? (
+            <FrameBudgetOverlay report={frameBudgetReport} />
+          ) : null}
           {sessionLabel ? (
             <p className="pointer-events-none absolute right-3 top-3 z-20 border border-titan-hazard/50 bg-black/80 px-3 py-2 font-mono text-[0.65rem] font-bold uppercase tracking-[0.12em] text-titan-hazard">
               {sessionLabel}
