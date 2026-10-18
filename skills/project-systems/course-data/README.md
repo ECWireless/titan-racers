@@ -1,10 +1,6 @@
 # Course Data System
 
-## Status
-
-**Maturity:** Validated. PR 2.3.1 implementation, automated desktop/mobile, static,
-production-build, physics, collision, camera, and editor regression gates,
-independent review, and feature-lead acceptance are complete.
+**Maturity:** Validated (PR 2.3.1, extended by PR 2.4.2).
 
 ## Purpose And Scope
 
@@ -24,7 +20,7 @@ Database revisions, authentication, and authorization are now owned by
 [`identity-course-persistence`](../identity-course-persistence/README.md).
 Active race progression and checkpoint recovery are owned by
 [`race-progression`](../race-progression/README.md). This node still does not
-own editor commands, persistence UI, or the future add-object palette.
+own editor commands or persistence UI.
 
 ## Source Ownership
 
@@ -86,8 +82,34 @@ and restitution.
 Coordinates and dimensions are finite and bounded to the accepted authoring
 envelope. Unknown fields and unsupported enum values fail rather than being
 silently stripped. The complete document validates before scene construction.
-Immutable stored version-one revisions remain readable through deterministic
-in-memory normalization; canonical serialization and new saves use version two.
+
+## Version-One Normalization
+
+Stored revisions are immutable, so `parseCourseDocument` keeps a strict
+version-one schema and normalizes it in memory to version two; canonical
+serialization and every new save use version two. Version two adds
+`start.gateHalfExtents`, `checkpoints[].forward`, and
+`checkpoints[].recovery`.
+
+- **Gate direction:** the route tangent between a checkpoint's preceding and
+  next anchors picks and signs the best-aligned rotated box axis (a
+  single-checkpoint course uses start-to-checkpoint). Candidate version-two
+  forward hints are also snapped to their gate face in memory, keeping already
+  published diagonal values playable without rewriting stored rows.
+- **Recovery:** position from the lower face of the checkpoint volume; yaw
+  toward the next anchor, wrapping the final checkpoint toward the start.
+- **Start gate:** reviewed default half-extents.
+- Degenerate coincident anchors or directions that cannot identify a face are
+  rejected rather than invented.
+- A loaded version-one row is normalized in memory, and its next save creates a
+  new version-two revision. Persistence responses report the normalized schema
+  version consistently.
+
+In the editor, moving a checkpoint translates its recovery pose, rotating it
+rotates the gate direction, and scaling changes only face bounds; new
+checkpoints derive defaults from their neighbors and start movement carries the
+start gate. Start-gate sizing and separate direction/recovery controls are not
+exposed in the UI.
 
 ## Construction Flow
 
@@ -127,29 +149,18 @@ in-memory normalization; canonical serialization and new saves use version two.
 
 ## Verification
 
-- `tests/course-document.spec.ts`: eighteen focused document, validation,
-  start-transform, and retained-geometry cases.
-- `tests/course-lighting.spec.ts`: four ambient-intensity, shadow-preset,
-  rollback, and atomic-attachment cases.
-- `tests/course-builder.spec.ts`: five projection, exact branch, fixture-gating,
-  atomic rollback, and atomic attachment cases.
-- `tests/home.spec.ts`: course entity count, ground collider mapping, semantic
-  drivable role, and obstacle/ramp registration.
-- `pnpm lint`, `pnpm typecheck`, and `pnpm build` pass.
+- `tests/course-document.spec.ts`: schema, seed, stable IDs, checkpoint order,
+  canonical round-trip, version normalization, invalid input, and retained
+  geometry.
+- `tests/course-lighting.spec.ts` and `tests/course-builder.spec.ts`: lighting
+  and projection, fixture gating, and atomic rollback.
+- `tests/home.spec.ts`: runtime construction and semantic collision roles.
 
-## Known Limits And Deferred Work
+## Known Limits
 
-- The sandbox runtime test adapter retains two explicit barrel IDs for focused
-  collision-transform fixtures; ordinary authoring uses document-driven stable
-  IDs in the protected editor.
-- Box and cylinder are the only approved primitives. Ramp and later palette
-  entries are presets over those primitives rather than new shape kinds.
-- The six checkpoint placements drive the accepted rough-loop progression,
-  recovery behavior, and shipped race presentation.
-- Postgres revisions, Better Auth, application roles, and protected course APIs
-  are implemented by the validated identity-and-course-persistence system.
-- Add-object presets, full selection, collision visualization, undo/redo,
-  reset-to-loaded-revision, save/reload, publication, and backup download are
-  implemented by the protected course editor.
-- Basic ambient and directional-light controls are implemented. Arbitrary
-  placeable lights, skyboxes, fog, and post-processing remain deferred.
+- The runtime test adapter keeps two explicit barrel IDs for collision-transform
+  fixtures.
+- Box and cylinder are the only approved primitives; ramps and other palette
+  entries are presets over them. New primitive kinds need runtime, collision,
+  and round-trip evidence.
+- Arbitrary placeable lights, skyboxes, fog, and post-processing are deferred.

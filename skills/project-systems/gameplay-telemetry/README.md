@@ -1,11 +1,6 @@
 # Gameplay Telemetry System
 
-## Status
-
-**Maturity:** Validated. PR 2.5.1 established the system, and PR 2.5.2's bounded
-automatic-pause and discarded-time extension passed focused browser,
-real-Postgres, privacy/security, technical, and feature-lead acceptance on
-2026-07-14.
+**Maturity:** Validated (PRs 2.5.1–2.5.2, 2026-07-14).
 
 ## Purpose And Scope
 
@@ -101,13 +96,7 @@ identity.
   dashboard aggregation, idempotent and ordered real-Postgres transitions,
   immutable attribution and terminal outcome, account deletion, ingestion
   failure, and responsive dashboard rendering.
-- `pnpm db:check`, `pnpm lint`, `pnpm typecheck`, and the production build passed.
-  The focused telemetry suite passed 21 tests with three intentional duplicate
-  mobile database skips; the broader regression matrix had also passed before
-  the final focused review corrections.
-- Feature-lead QA accepted real local runs in the authenticated dashboard,
-  range filtering without access-screen flicker, and desktop/narrow-screen
-  usefulness.
+- `pnpm db:check` covers migrations.
 
 ## Known Limits And Deferred Work
 

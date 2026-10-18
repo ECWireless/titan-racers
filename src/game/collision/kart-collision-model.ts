@@ -25,8 +25,8 @@ export const DEFAULT_KART_COLLISION_CONSTRUCTION: KartCollisionConstruction = {
     friction: 0.12,
     restitution: 0.04,
   },
-  // The accepted compound envelope's narrow protective section is the
-  // miniature RC fixture's lateral wheel-guard capsule.
+  // Reference-fixture default. Raced karts use the cross-section derived from
+  // their solid parts (resolved snapshot geometry).
   envelope: {
     smallestRelevantCrossSection:
       REFERENCE_KART_CONSTRUCTION.collision.smallestRelevantCrossSection,

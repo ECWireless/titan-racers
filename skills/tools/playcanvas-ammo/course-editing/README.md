@@ -1,7 +1,6 @@
 # PlayCanvas Course Editing
 
-**Maturity:** Validated. The PlayCanvas 2.20.6 course mapping, runtime migration,
-and browser regression gates passed for PR 2.3.1 on 2026-07-11.
+**Maturity:** Validated (PRs 2.3.1–2.3.3, July 2026).
 
 ## Purpose And Scope
 
@@ -26,7 +25,7 @@ GUIDs are runtime projections only; never write them back into course data.
 
 ## Primitive Mapping
 
-Version one maps visual primitives as follows:
+Visual primitives map as follows:
 
 - document `box` to a PlayCanvas box model;
 - document `cylinder` to a PlayCanvas cylinder model; and
@@ -67,8 +66,9 @@ existing obstacle tag, solid group/mask, friction, and zero-restitution static
 policy.
 
 Objects without collision data receive no collision or rigid-body component.
-Checkpoint volumes are document data in PR 2.3.1 and do not become triggers until
-race progression owns their lifecycle.
+Checkpoints never become collision or trigger entities; race progression
+projects them into plain directed gates (see
+[`race-progression`](../race-progression/README.md)).
 
 Keep diagnostic availability explicit. Standard objects build in ordinary play;
 collision-test fixtures build only when the existing non-production test hook
@@ -89,7 +89,7 @@ No partial best-effort course is permitted.
 
 ## Collision Visualization Mapping
 
-PR 2.3.3 should visualize the document's authoritative collision union rather than
+Diagnostics visualize the document's authoritative collision union rather than
 querying or copying Ammo shapes. Boxes can be rendered from half-extents and
 local offsets; cylinders from radius, height, axis, and offsets. Use dedicated
 debug materials or PlayCanvas immediate lines without physics participation.
@@ -104,48 +104,23 @@ object itself.
 
 ## Open-Source Editor Reference
 
-PR 2.3.3 research reviewed the MIT-licensed PlayCanvas Editor frontend as a
-reference implementation. Reuse the pinned Engine's maintained APIs directly
-instead of copying the complete Editor architecture:
+The MIT-licensed PlayCanvas Editor frontend informed the authoring design, but
+Titan Racers uses the pinned Engine APIs directly rather than its
+architecture: `TranslateGizmo`, `RotateGizmo`, and `ScaleGizmo` for one command
+per completed gesture, `Picker` for selection (paused while a gizmo owns the
+pointer), and explicit toolbar actions with keyboard equivalents for mode,
+snapping, focus, and history. Its Observer, PCUI, collaboration, and asset
+systems are deliberately not used. The draft/publish split mirrors PlayCanvas's
+editable-project vs published-build boundary: Save Draft creates a private
+revision, Publish promotes one saved revision to guest play, and Download
+Backup is only portable recovery.
 
-- `TranslateGizmo`, `RotateGizmo`, and `ScaleGizmo` provide transform lifecycle
-  events suitable for one command per completed gesture;
-- `Picker` provides viewport selection without inventing a parallel hit-test
-  model;
-- picking should pause while a transform handle owns the pointer; and
-- transform mode, local/world coordinates, snapping, focus, undo, and redo
-  should remain explicit toolbar actions with keyboard equivalents.
-
-The upstream Editor's hierarchy/viewport/inspector layout and collapsed
-narrow-screen panels are useful interaction references. Its Observer, PCUI,
-collaboration, asset, and general scene-graph systems are deliberately not part
-of Titan Racers: this application already owns a React shell, a bounded course
-document, immutable database revisions, and a narrower command history.
-
-PlayCanvas also distinguishes continuously saved editable project state from a
-published playable build and lets an operator promote one build to the primary
-audience-facing version. Titan Racers adopts that product boundary without
-copying PlayCanvas hosting: Save Draft creates an application-owned private
-revision, while a later protected Publish operation promotes one saved revision
-to the guest runtime. Download Backup remains portable-document recovery rather
-than a synonym for publishing.
-
-Titan Racers guest construction now resolves the explicit current guest course,
-validates its privacy-minimized published response, and passes that portable
-document into the same `buildRoughCourse` and `buildCourseLighting` projections.
-The renderer never reads a mutable database draft or publication metadata and
-contains no player-facing editor mode. Runtime mutation fixtures are exposed
-only through the non-production scene test adapter.
-
-Primary references:
+The guest runtime validates the published response and passes it through the
+same `buildRoughCourse` and `buildCourseLighting` projections; it never reads a
+draft and has no editor mode.
 
 - <https://github.com/playcanvas/editor>
-- <https://github.com/playcanvas/editor/blob/main/src/editor/viewport/gizmo/gizmo-transform.ts>
-- <https://github.com/playcanvas/editor/blob/main/src/editor/viewport/viewport-pick.ts>
-- <https://github.com/playcanvas/editor/blob/main/src/editor/layout/layout.ts>
-- <https://github.com/playcanvas/editor/blob/main/src/editor/toolbar/toolbar-history.ts>
 - <https://developer.playcanvas.com/user-manual/editor/>
-- <https://developer.playcanvas.com/user-manual/editor/publishing/web/playcanvas-hosting/>
 
 ## Implemented Authoring Mapping
 
@@ -221,8 +196,6 @@ replace the group; rotate, scale, rename, and delete stay single-selection only.
 
 ## Known Limits
 
-- Box and cylinder are the only approved version-one primitives.
-- The runtime continues to use the existing model-component primitives during
-  PR 2.3.1; adopting render components is a separate migration.
-- Checkpoint authoring visuals remain editor-only until race progression owns
-  runtime trigger lifecycle.
+- Box and cylinder are the only approved primitives.
+- Course and kart visuals use PlayCanvas `model` components; adopting `render`
+  components would be a separate migration.

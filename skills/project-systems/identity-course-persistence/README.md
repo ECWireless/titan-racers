@@ -1,11 +1,6 @@
 # Identity And Course Persistence System
 
-## Status
-
-**Maturity:** Validated. PR 2.3.2 implementation, clean-database migration
-rehearsal, focused auth/persistence integration tests, static checks,
-production build, complete gameplay regression coverage, independent review,
-and feature-lead acceptance are complete.
+**Maturity:** Validated (PR 2.3.2).
 
 ## Purpose And Scope
 
@@ -16,8 +11,10 @@ course load/save APIs.
 
 It keeps the portable course document defined by
 [`course-data`](../course-data/README.md) free of database metadata. The visible
-login and authoring experience belongs to the completed protected
-[`course-editor`](../course-editor/README.md) system.
+login and authoring experience belongs to the protected
+[`course-editor`](../course-editor/README.md) system. Kart revisions reuse the
+same identity, role, and request-guard boundaries; see the
+[kart builder](../kart-builder/README.md).
 
 ## Source Ownership
 
@@ -140,10 +137,8 @@ login and authoring experience belongs to the completed protected
 
 ## Known Limits And Deferred Work
 
-- The visible login/access experience and protected course editor are owned by
-  the completed PR 2.3.3 course-editor system.
-- Player-facing EOA/SIWE login, explicit account linking UI, and embedded wallets
-  remain deferred.
+- Player login, SIWE wallet login, and explicit account linking arrive in
+  Phase 5; embedded wallets need separately accepted scope.
 - Automated Neon preview branches and production deployment migrations are not
   configured. Production migration is currently a deliberate laptop operation.
 - The early hosted preview may share the production database by explicit

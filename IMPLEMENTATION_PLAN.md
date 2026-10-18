@@ -122,9 +122,11 @@ neon arcade skin. The main multiplayer call to action should read like
   multi-PR phase. `docs/pr-review-workflow.md` covers PR feedback.
 - **PR numbering:** `PR <phase>.<n>`, or `PR <phase>.<stage>.<n>` when a phase
   needs stages. Numbers never change once assigned.
-- **Knowledge first:** for substantial game systems, record the researched
-  standard in `skills/game-concepts/`, the engine mapping in `skills/tools/`,
-  and the shipped system in `skills/project-systems/` after it is accepted.
+- **Knowledge first:** for substantial game systems, record researched
+  standards in `skills/game-concepts/`, engine-specific behavior in
+  `skills/tools/`, and the shipped system in `skills/project-systems/` after it
+  is accepted. Add only the layers that own distinct content
+  (see `skills/README.md`).
 - **Every playable phase is checked with:** keyboard, touch, and gamepad
   playthroughs; at least one complete two-lap race; a result-timing sanity
   check; lint, typecheck, build, and relevant tests; and a visual check against
@@ -161,6 +163,10 @@ Decisions from completed phases that later phases rely on:
 From the Phase 3 integration review. Handle these during cleanup or before the
 phase noted.
 
+- [ ] **Before Phase 4 track QA:** protruding wheels pass fully through walls
+      because only solid chassis parts collide. Add smooth lateral wheel
+      protection derived from construction (no wheel bodies, no snag points),
+      bump the derivation version, and re-save the official karts.
 - [ ] Use the bundled roster only when the database is unreachable. If a single
       official kart has invalid data, drop and log that kart instead of
       restoring unpublished ones.
@@ -179,8 +185,8 @@ phase noted.
       and parse revision numbers strictly.
 - [ ] Use each kart's tire compound at runtime instead of the fixed default,
       share one kart visual builder between race and editor, record kart
-      revision in gameplay telemetry, recheck the Speed Kart's floor-level
-      handling stat, and refresh stale kart-system and chassis-contact docs.
+      revision in gameplay telemetry, and recheck the Speed Kart's floor-level
+      handling stat.
 
 ## Remaining Phases
 

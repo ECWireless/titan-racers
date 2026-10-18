@@ -1,8 +1,6 @@
 # Browser Race Presentation
 
-**Maturity:** Validated. The PR 2.4.3 mapping, feature-lead presentation/feel
-acceptance, complete automated regression, and fresh-context independent review
-are complete as of 2026-07-13.
+**Maturity:** Validated (PR 2.4.3, 2026-07-13).
 
 ## Purpose And Scope
 
@@ -59,17 +57,13 @@ as visual UI.
 
 ## Verification
 
-- Pure projection and lifecycle restart tests run in the desktop test project.
-- Browser integration covers visible progress, two-lap finish, lap results,
-  durable live-region announcements, same-step pause/finish arbitration,
-  controller replay/exit, held-input clearing, and reset to countdown/start
-  pose with snapped camera presentation.
-- Mobile coverage asserts a 350 CSS-pixel HUD clears reset and pause utilities.
-- Bundled-coordinate home/runtime fixtures route to the bundled rough course by
-  default; explicit publication and fallback tests install later route
-  overrides.
-- Desktop and 350-by-700 visual captures cover countdown and finish states.
-- The complete desktop/mobile Playwright matrix remains the regression gate.
+- Pure projection and restart tests: `tests/race-presentation.spec.ts`,
+  `tests/race-session.spec.ts`.
+- Browser coverage: two-lap finish, durable announcements, same-step
+  pause/finish arbitration, controller replay and exit, and a 350 px HUD that
+  clears touch utilities.
+- Bundled-course fixtures never consume mutable publication data; publication
+  tests use explicit route overrides.
 
 ## Known Limits
 

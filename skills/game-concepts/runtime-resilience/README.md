@@ -1,8 +1,6 @@
 # Runtime Resilience
 
-**Maturity:** Validated. PR 2.5.2 implementation, real browser and database
-fixtures, the complete desktop/mobile regression matrix, feature-lead QA, and
-independent review were accepted on 2026-07-14.
+**Maturity:** Validated (PR 2.5.2, 2026-07-14).
 
 ## Purpose And Scope
 

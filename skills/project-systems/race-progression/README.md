@@ -1,11 +1,6 @@
 # Race Progression System
 
-## Status
-
-**Maturity:** Validated. PR 2.4.2 implementation, feature-lead desktop/mobile QA,
-the canonical desktop/mobile browser matrix, focused deterministic tests,
-static checks, schema checks, the production build, and required independent
-review pass as of 2026-07-13.
+**Maturity:** Validated (PR 2.4.2, 2026-07-13).
 
 ## Purpose And Scope
 
@@ -100,8 +95,7 @@ or the final Agricultural Zone course.
 - Race snapshots and test diagnostics are defensive plain-data copies. Runtime
   PlayCanvas, Ammo, and mutable internal objects never cross the public or test
   contract.
-- Race progress and per-frame kart paths are not persisted. PR 2.4.2 adds no
-  analytics, telemetry, external requests, secrets, or player identifiers.
+- Race progress and per-frame kart paths are not persisted.
 
 ## Verification
 
@@ -122,31 +116,12 @@ Focused coverage includes:
 - editor and persistence tests for v2 authoring, publication, and immutable
   historical revision compatibility.
 
-The accepted 2026-07-13 evidence is:
-
-- feature-lead approval of all rough-loop checkpoints, latest-checkpoint reset,
-  two-lap completion, and the tuned mobile steering response;
-- the canonical single-worker desktop/mobile Playwright gate: 281 passed and 67
-  intentional project/environment skips;
-- `pnpm lint`, `pnpm typecheck`, `pnpm db:check`, and `git diff --check`; and
-- the optimized production build.
-
-One fresh-context technical/gameplay/experience reviewer reported a P1
-one-checkpoint v1 migration defect and a P2 checkpoint-rotation editor defect.
-Deterministic single-checkpoint arrival normalization, authored-face rotation,
-axis-independent scaling semantics, structured API validation, and pure,
-browser, plus real-database regressions resolved both. The original reviewer
-reproduced the corrected paths and cleared both findings in focused re-review
-with no remaining P0-P3 issue.
-
 ## Known Limits And Deferred Work
 
-- Race results and progress are session-memory only. Leaderboards, telemetry,
-  ghosts, and competitive eligibility remain later phases; the shipped telemetry
-  retains only bounded run summaries and runtime-health totals.
-- The rough course remains a development loop. Agricultural Zone art, final
-  trigger/recovery tuning, community courses, ratings, highlighting, and
-  unpublish/safety controls remain separately planned work.
+- Race results and progress are session-memory only; results, ghosts, and
+  leaderboards arrive in Phase 5.
+- The rough course is the development loop; the Agricultural Zone (Phase 4)
+  needs its own gate and recovery placements and QA.
 - Recovery support uses the accepted authored candidate chain and current
   PlayCanvas/Ammo raycast mapping; moving course geometry still requires
   course-specific clearance QA before publication.

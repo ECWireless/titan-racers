@@ -4,7 +4,7 @@ This directory is a progressively disclosed tree of reusable knowledge for agent
 
 ## Capability Boundary
 
-This is project knowledge, not a collection of installable Codex skills. Files in this tree use `README.md`; do not add `SKILL.md` files unless the repository deliberately adopts an executable Codex skill package in a separately reviewed change.
+This is project knowledge, not a collection of installable agent skills. Files in this tree use `README.md`; do not add `SKILL.md` files unless the repository deliberately adopts an executable agent skill package in a separately reviewed change.
 
 The Skills Tree supplements the repository's source-of-truth documents. It does not redefine product scope, phase boundaries, acceptance criteria, or approved architecture. When guidance here conflicts with `IMPLEMENTATION_PLAN.md` or a narrower authoritative project document, stop and resolve the inconsistency before implementation continues.
 
@@ -41,11 +41,21 @@ Each knowledge node should explain:
 - known limitations or open questions,
 - its maturity when the guidance is still evolving.
 
-Use `exploratory`, `candidate`, or `validated` when a maturity label is helpful:
+Use `exploratory`, `candidate`, or `validated` when a maturity label is helpful, as one line such as `**Maturity:** Validated (PR 2.4.1, 2026-07-13).`:
 
 - **Exploratory:** under investigation and not yet a default.
 - **Candidate:** supported enough to guide implementation, but still awaiting fuller project validation.
 - **Validated:** demonstrated through accepted implementation, testing, or explicit review and treated as the current default.
+
+## Keep Nodes Lean
+
+Nodes describe current truth for the next agent, not how it was reached.
+
+- Do not record test pass counts, reviewer findings, QA narratives, or dated acceptance evidence; PRs and git history hold them.
+- Once a node is validated, delete its open questions and pre-implementation plans ("compare X before selecting", "not validated until") and state what shipped.
+- Give each fact one owner: standards in `game-concepts/`, engine behavior in `tools/`, Titan Racers files, values, and invariants in `project-systems/` (or `docs/kart-system/` for kart handling). Link instead of restating.
+- Prefer present-tense facts and "not supported" lists over PR-scoped wording such as "outside PR 2.4.1".
+- Create a layer only when it owns distinct content. A small system may need just a project-system node; a branch needs a tool node only for real engine-specific behavior.
 
 ## Growth Rules
 

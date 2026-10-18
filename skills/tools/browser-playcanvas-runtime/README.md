@@ -1,8 +1,6 @@
 # Browser And PlayCanvas Runtime Resilience
 
-**Maturity:** Validated. The PlayCanvas 2.20.6 mapping passed focused runtime,
-real-browser lifecycle, resize, WebGL restoration/failure, database, and full
-desktop/mobile regression verification on 2026-07-14.
+**Maturity:** Validated (PR 2.5.2, 2026-07-14).
 
 ## Purpose And Scope
 
@@ -25,10 +23,10 @@ the existing run-summary transport.
 
 ## Fixed-Step And Resize Mapping
 
-The existing `FixedStepClock` accepts at most 100 ms of one animation frame and
-runs at most eight 120 Hz steps. It reports the remainder as discarded active
-time. Preserve that cap, add discarded time to authoritative race timing, and
-accumulate only a bounded rounded per-run total for health reporting.
+`FixedStepClock` accepts at most 100 ms of one animation frame and runs at most
+eight 120 Hz steps, reporting the remainder as discarded active time. Discarded
+time is charged to authoritative race timing and contributes only a bounded,
+rounded per-run total to health reporting.
 
 The app uses PlayCanvas `RESOLUTION_AUTO` and `FILLMODE_FILL_WINDOW`. Call
 `Application.resizeCanvas()` on `resize` and `orientationchange` so CSS size,
@@ -56,13 +54,13 @@ diagnostics; production code must never trigger context loss deliberately.
 
 ## Telemetry Mapping
 
-Add a strict `runtime_health` milestone containing only bounded nonnegative
+A strict `runtime_health` milestone contains only bounded nonnegative
 `automaticPauseCount` and `discardedTimeMs`. The repository updates each value
 monotonically and accepts safe duplicates. Terminal events repeat the final
 totals so a normal finish does not require extra requests. A hidden-document
 flush is best-effort and never blocks lifecycle handling.
 
-The dashboard should show runs with automatic pauses and runs with discarded
+The dashboard shows runs with automatic pauses and runs with discarded
 time, plus a coarse aggregate such as median discarded time among affected
 runs. Do not add charts, samples, viewport/device breakdowns, or raw run IDs.
 

@@ -1,10 +1,6 @@
 # Runtime Resilience System
 
-## Status
-
-**Maturity:** Validated. PR 2.5.2 passed focused runtime, browser, real-Postgres,
-static, production-build, feature-lead QA, and independent-review gates on
-2026-07-14.
+**Maturity:** Validated (PR 2.5.2, 2026-07-14).
 
 ## Purpose And Scope
 
@@ -73,11 +69,6 @@ coarse run-health totals.
 - `tests/home.spec.ts` covers cancellable loading, controlled initialization
   failure, input cancellation, explicit pause/resume, resize preservation, and
   browser-driven WebGL loss/restoration.
-- The complete matrix passed 329 tests and intentionally skipped 71
-  project/environment-specific cases. Post-review focused telemetry/database
-  verification passed 15 tests, and Home/WebGL/resize verification passed three.
-- Typecheck, lint, migration history, production build, privacy review, PR 2.5.2
-  technical review, and feature-lead QA passed.
 
 ## Known Limits
 
@@ -85,4 +76,4 @@ coarse run-health totals.
 - WebGL restoration depends on browser and driver support; reload remains the
   bounded fallback.
 - Adaptive quality, detailed performance monitoring, crash reporting, and
-  graphics-device diagnostics are intentionally outside Phase 2.
+  graphics-device diagnostics are intentionally out of scope.

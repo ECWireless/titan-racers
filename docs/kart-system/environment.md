@@ -36,6 +36,6 @@ weather or lighting changes do not become physics environment changes.
 ## Catalog
 
 `kart-material-registry.ts` owns the versioned tire compounds, surface
-materials, and tire/surface interactions. PR 3.2 includes standard rubber on
-the standard course surface. The five contact values are resolved evidence,
+materials, and tire/surface interactions. The catalog currently has one tire
+compound (standard rubber) and one surface (standard course). The five contact values are resolved evidence,
 not editable kart statistics.

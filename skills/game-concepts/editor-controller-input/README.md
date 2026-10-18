@@ -1,8 +1,6 @@
 # Editor Controller Input
 
-**Maturity:** Validated. This engine-independent standard was researched,
-implemented, independently reviewed, and accepted through automated plus
-physical standard-controller QA for PR 3.4 on 2026-07-25.
+**Maturity:** Validated (PR 3.4, 2026-07-25).
 
 ## Purpose And Scope
 
@@ -239,9 +237,8 @@ Resting-stick noise must not move focus or engage the viewport.
 
 ## Known Limits
 
-- This first standard supports only browser gamepads reported with the
-  `standard` mapping.
-- Remapping, controller glyph selection, vibration, nonstandard mappings, and
-  multiple simultaneous editor operators remain outside PR 3.4.
+- Only browser gamepads reported with the `standard` mapping are supported.
+- Not supported: remapping, controller glyphs, vibration, nonstandard mappings,
+  and multiple simultaneous editor operators.
 - Representative controller diversity remains limited until additional
   hardware QA is recorded.

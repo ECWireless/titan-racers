@@ -1,9 +1,6 @@
 # Vehicle Collisions
 
-**Maturity:** Validated. The feature lead accepted this engine-independent
-standard on 2026-07-10, then accepted the implemented collision, ramp, wheel,
-suspension, and high-speed response after repeatable automated and hands-on
-verification.
+**Maturity:** Validated (accepted 2026-07-10).
 
 ## Purpose and Scope
 
@@ -12,11 +9,10 @@ it before changing kart collision shapes, course collision geometry, contact
 materials, impact response, collision assists, snag prevention, continuous
 collision detection, or collision telemetry.
 
-It deliberately does not prescribe an engine API. Tool-specific implementation
-guidance belongs under [`../../tools/`](../../tools/README.md), while the actual
-shipped data flow and source ownership belong under
-[`../../project-systems/`](../../project-systems/README.md) after the
-implementation has been accepted.
+Engine mapping lives in
+[`tools/playcanvas-ammo/collisions`](../../tools/playcanvas-ammo/collisions/README.md);
+the shipped system lives in
+[`project-systems/collisions`](../../project-systems/collisions/README.md).
 
 ## Standard
 
@@ -250,45 +246,24 @@ Reject implementations that rely on:
 
 ## Validation
 
-An implementation is not accepted until repeatable tests and user-facing QA
-cover the following behaviors across representative low, medium, and maximum
-supported speeds:
+Accept with repeatable tests and hands-on desktop and mobile QA, across low,
+medium, and maximum supported speeds, covering: glancing strikes that keep
+useful tangential motion without grabbing or chatter; centered impacts with at
+most a modest rebound; off-center impacts that spin proportionately from the
+contact point; outside and inside corners that neither snag nor trap; seams that
+produce no phantom bumps; ramps with no false wall contacts; driving away after
+ordinary impacts; no tunneling through the thinnest required barrier at maximum
+speed; continuous collision protection without false hits or excessive cost;
+equivalent results across 30, 60, and 120 Hz render cadence; every assist tested
+enabled and disabled; and telemetry sufficient to explain any failure.
 
-1. Shallow and steep glancing strikes preserve useful tangential motion without
-   penetration, grabbing, chatter, or implausible acceleration.
-2. Centered barrier impacts substantially reduce normal motion and produce no
-   more than the accepted modest rebound.
-3. Off-center barrier and obstacle impacts create directional, proportionate
-   spin from the contact point without canned rotation.
-4. Convex outside corners and concave inside corners remain readable and do not
-   snag or trap the kart unreasonably.
-5. Repeated sliding across intended continuous surfaces and collider seams does
-   not produce phantom bumps or edge catches.
-6. Ramp bases, crests, sides, launches, and landings produce no false wall
-   contacts and preserve coherent momentum.
-7. The kart can steer and drive away after ordinary impacts without tire forces
-   erasing the hit or forcing persistent contact.
-8. The kart does not tunnel through the thinnest required barrier or obstacle
-   at the maximum supported linear and angular speed envelope.
-9. Continuous collision protection introduces no accepted false hits,
-   sticking, unstable rebound, or unacceptable performance cost.
-10. Comparable controlled scenarios at 30, 60, and 120 Hz render cadences yield
-    the same qualitative result and remain within agreed numerical tolerances.
-11. Every collision assist is tested both enabled and disabled, with evidence
-    that it fixes a specific failure without distorting unrelated contacts.
-12. Collision telemetry and debug rendering are sufficient to explain any
-    failed scenario above.
-13. Hands-on desktop and supported mobile-target QA confirms that collisions
-    are consequential, forgiving, legible, and quick to recover from.
-
-Agree exact speeds, incidence angles, retained-speed ranges, rebound limits,
-spin ranges, repetition counts, and performance budgets during tool mapping and
-implementation after the selected engine has been measured. Do not weaken a
-behavioral requirement merely because an API makes it inconvenient.
+Agree exact speeds, angles, tolerances, and budgets after measuring the chosen
+engine. Do not weaken a behavioral requirement because an API makes it
+inconvenient.
 
 ## Non-Goals
 
-Collision Mastery does not require:
+Out of scope:
 
 - kart damage, detachable parts, or joint breakage;
 - physical wheel rigid bodies;
@@ -321,19 +296,3 @@ Collision Mastery does not require:
   CCD controls](https://pybullet.org/Bullet/BulletFull/classbtCollisionObject.html)
 - [Vicarious Visions, Supercharged Vehicle Physics: layered, data-driven,
   rule-based vehicle collision response](https://media.gdcvault.com/gdc2016/Presentations/Donnelly_Patrick_Supercharged%20Vehicle%20Physics.pdf)
-
-## Open Questions
-
-- Which simple compound collision envelope gives the current kart the best
-  balance of silhouette accuracy, ground clearance, ramp behavior, and smooth
-  wall contact?
-- Which course primitives, bevels, or authored seams are required for the PR 2.2.2
-  collision test course?
-- How does the selected Ammo build combine friction and restitution for the
-  kart's compound children and static course shapes?
-- Which collision events or direct Ammo manifold data can provide reliable
-  approach speed, impulse, point, and normal telemetry in PlayCanvas?
-- What continuous-collision threshold and swept-sphere radius cover the maximum
-  supported kart speed without ghost contacts or excessive cost?
-- Does accepted behavior require any arcade collision assist after geometry,
-  materials, CCD, and tire-force interaction are tuned?

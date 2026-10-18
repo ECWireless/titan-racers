@@ -1,8 +1,6 @@
 # Browser Editor Controller Input
 
-**Maturity:** Validated. This browser and PlayCanvas mapping was researched,
-implemented, independently reviewed, and accepted through automated plus
-physical standard-controller QA for PR 3.4 on 2026-07-25.
+**Maturity:** Validated (PR 3.4, 2026-07-25).
 
 ## Purpose And Scope
 
@@ -11,7 +9,7 @@ This node maps the engine-independent
 standard to the browser Gamepad API, React DOM focus, Titan Racers' existing
 PlayCanvas editor scenes, and the repository's document-command boundaries.
 
-Read it before implementing or diagnosing controller behavior in a protected
+Read it before changing or diagnosing controller behavior in a protected
 editor. It supplements the validated
 [`browser-player-input`](../browser-player-input/README.md) mapping and must not
 change gameplay driving or menu behavior accidentally.
@@ -208,7 +206,7 @@ activation clears controller presentation and controller input state.
   available browser feature, so Titan Racers implements the accepted candidate
   search in application code.
 - Native browser behavior for controller activation of text, color, and select
-  controls varies; PR 3.4 guarantees navigation and existing semantic access,
+  controls varies; only navigation and existing semantic access are guaranteed,
   not an on-screen keyboard.
 - Synthetic gamepad snapshots cannot prove physical mapping, latency, or
   ergonomic quality.

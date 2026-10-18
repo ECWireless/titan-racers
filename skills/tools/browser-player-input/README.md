@@ -1,8 +1,6 @@
 # Browser Player Input
 
-**Maturity:** Validated. This mapping was researched against current browser
-standards and PlayCanvas Engine `2.20.6`, implemented, reviewed, and accepted
-through automated plus representative-device QA for PR 2.4.1 on 2026-07-13.
+**Maturity:** Validated (PR 2.4.1, 2026-07-13).
 
 ## Purpose And Scope
 
@@ -11,15 +9,14 @@ This node maps the engine-independent
 Keyboard Events, Pointer Events, the Gamepad API, React DOM controls, browser
 focus, and Titan Racers' owned fixed-step PlayCanvas runtime.
 
-Read it before implementing or diagnosing keyboard, touch, or controller input.
-It does not own kart physics, race progression, or the final repository source
-layout; verified implementation truth belongs under
-[`../../project-systems/`](../../project-systems/README.md).
+Read it before changing or diagnosing keyboard, touch, or controller input. The
+shipped system lives in
+[`project-systems/player-input`](../../project-systems/player-input/README.md).
 
 ## Tool Boundary
 
-Use browser input APIs directly for PR 2.4.1 rather than enabling PlayCanvas input
-device wrappers:
+Use browser input APIs directly rather than enabling PlayCanvas input device
+wrappers:
 
 - the existing race shell already owns keyboard listeners outside PlayCanvas;
 - touch controls are accessible React DOM elements layered over the canvas;
@@ -44,8 +41,8 @@ the resulting driving intent to kart gameplay.
 - Bind `ShiftLeft` and `ShiftRight` to the continuous handbrake action.
 - Bind `KeyR` to reset and `Escape` to pause without accepting repeated keydown
   events as new action edges.
-- During handling polish, bind an unmodified `KeyT` outside the gameplay input
-  adapter to toggle the read-only Kart Dynamics Inspector. Ignore it for
+- An unmodified `KeyT`, handled outside the gameplay input adapter, toggles the
+  read-only Kart stats drawer. Ignore it for
   editable targets, modified key combinations, pause, finish, and repeated
   keydown.
 - Call `preventDefault()` only for handled input while gameplay owns it.
@@ -155,6 +152,10 @@ Use native DOM focus as the controller selection model:
 3. move through linear controls in DOM/visual order with end wrapping; and
 4. activate the focused element through its native `click()` method.
 
+The home screen opts into the spatial navigation described in
+[`browser-editor-controller-input`](../browser-editor-controller-input/README.md);
+race overlays keep linear navigation.
+
 Do not dispatch synthetic keyboard events. Keyboard Tab/Enter/Escape behavior,
 dialog focus trapping, pointer activation, and assistive technology should
 continue using the semantic DOM controls directly.
@@ -207,8 +208,7 @@ listener and clears all retained device and pointer state.
 ## Known Limits
 
 - Browser and operating-system controller mappings can vary despite the
-  standard layout. PR 2.4.1 deliberately rejects nonstandard mappings instead of
-  guessing.
+  standard layout; nonstandard mappings are rejected rather than guessed.
 - Gamepad access may be affected by browser security, user activation, and
   permissions policy. Guest play must remain functional with keyboard and
   touch when no controller is exposed.
@@ -222,5 +222,3 @@ listener and clears all retained device and pointer state.
   [`runtime-resilience`](../../project-systems/runtime-resilience/README.md) and
   [`gameplay-telemetry`](../../project-systems/gameplay-telemetry/README.md)
   systems.
-- PR 2.4.1 menu navigation covers guest-play mode selection and race overlays, not
-  the protected course editor or a general spatial-navigation engine.

@@ -4,11 +4,10 @@ export type KartReferenceVector = Readonly<{
   z: number;
 }>;
 
-// The Phase 2 rough kart used full-size placeholder dimensions. PR 3.1 keeps
-// its validated proportions while converting the fixture to the accepted
-// miniature RC reference: about 0.46 m long and 1.875 kg. PR 3.3 replaces
-// this fixture with versioned authored construction and deterministic
-// derivation.
+// Miniature RC reference fixture (about 0.46 m long, 1.875 kg) at 0.25 scale
+// of the Phase 2 rough kart. Raced karts derive their geometry and mass from
+// authored construction; this fixture only sizes shared, kart-independent
+// policy and defaults (camera framing, smoke, steering geometry, CCD).
 export const REFERENCE_KART_LINEAR_SCALE = 0.25;
 export const REFERENCE_KART_AREA_SCALE = REFERENCE_KART_LINEAR_SCALE ** 2;
 export const REFERENCE_KART_MASS_SCALE = REFERENCE_KART_LINEAR_SCALE ** 3;
