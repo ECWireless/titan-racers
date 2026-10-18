@@ -10,10 +10,6 @@ import {
   getApprovedKartComponent,
 } from "./kart-component-registry";
 
-// One presentation-only builder for every kart surface: race, editor, and
-// thumbnails. Wheels and suspension form a rig the race poses each frame; the
-// editor and thumbnails show it at rest. Physics never reads these entities.
-
 export type KartRenderedBounds = {
   center: pc.Vec3;
   maximum: pc.Vec3;
@@ -21,14 +17,14 @@ export type KartRenderedBounds = {
 };
 
 /** Callers own material lifecycle; the builder only requests materials. */
-export type KartVisualMaterialFactory = (
+type KartVisualMaterialFactory = (
   visualColor: string,
   instanceId: string,
 ) => pc.StandardMaterial;
 
 type KartVector = { x: number; y: number; z: number };
 
-export type KartSuspensionVisual = {
+type KartSuspensionVisual = {
   armForward: pc.Entity;
   armRear: pc.Entity;
   chassisForwardAnchor: pc.Vec3;
@@ -53,7 +49,7 @@ export type KartWheelVisual = {
   suspension: KartSuspensionVisual | null;
 };
 
-export type KartAssemblyVisual = {
+type KartAssemblyVisual = {
   instanceRoots: Map<string, pc.Entity>;
   root: pc.Entity;
   wheels: KartWheelVisual[];

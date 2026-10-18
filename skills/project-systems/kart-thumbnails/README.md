@@ -98,5 +98,4 @@ presentation. Kart authoring and publication belong to the
 - Existing revisions without a stored image use exact local rendering until
   their next save or a future explicit backfill.
 - Any change to the shared builder's output must advance the renderer version.
-  Render version 2 is the current builder output; stored version 1 images
-  remain until their revision is re-saved or regenerated.
+  Stored older-version images remain until regenerated.
