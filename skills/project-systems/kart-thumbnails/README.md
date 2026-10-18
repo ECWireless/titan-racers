@@ -17,9 +17,10 @@ presentation. Kart authoring and publication belong to the
 
 ## Source Ownership
 
-- `src/game/kart/kart-assembly-visual.ts` constructs the shared visual assembly
-  and reports its rendered bounds without owning application or material
-  lifecycle.
+- `src/game/kart/kart-assembly-visual.ts` is the one kart visual builder shared
+  by race, editor, and thumbnails (see the
+  [kart builder](../kart-builder/README.md)). Capture shows its wheel and
+  suspension rig at rest.
 - `src/game/kart/kart-thumbnail-contract.ts` defines the fixed image dimensions,
   PNG content type, byte bound, and renderer version.
 - `src/game/kart/kart-thumbnail-renderer.ts` owns serialized, fixed-camera
@@ -96,5 +97,6 @@ presentation. Kart authoring and publication belong to the
   later without changing the revision identity contract.
 - Existing revisions without a stored image use exact local rendering until
   their next save or a future explicit backfill.
-- Capture uses the procedural primitive assembly. Future imported meshes will
-  require the shared visual builder and renderer version to advance together.
+- Any change to the shared builder's output must advance the renderer version.
+  Render version 2 is the current builder output; stored version 1 images
+  remain until their revision is re-saved or regenerated.

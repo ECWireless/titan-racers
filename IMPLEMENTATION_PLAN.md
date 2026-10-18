@@ -198,7 +198,7 @@ Phase decisions:
 
 **PR 4.1: Kart visual baseline**
 
-- [ ] 4.1.1: One shared kart visual builder for race, editor, and thumbnails,
+- [x] 4.1.1: One shared kart visual builder for race, editor, and thumbnails,
       with no visual change.
 - [ ] 4.1.2: Lighting baseline (environment lighting, tone mapping, shadows),
       phone performance budget, look exploration on one kart, and the first
