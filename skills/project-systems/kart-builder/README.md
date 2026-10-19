@@ -48,8 +48,20 @@ revision-bound previews live in [`kart-thumbnails`](../kart-thumbnails/README.md
   presentation-only builder for race, editor, and thumbnails. It returns
   per-instance roots (editor selection) and a wheel and suspension rig the race
   poses each frame with `poseKartWheelVisual`. Rig parts sit in assembly axes,
-  so wheel instance rotation is not drawn, matching derivation. Materials
-  belong to the caller. Physics never reads these entities.
+  so wheel instance rotation is not drawn, matching derivation. The steering
+  controller turns the same wheel pivots. Materials belong to the caller.
+  Physics never reads these entities.
+- **Part visuals:** `kart-part-visuals.ts` maps every approved `id@version`
+  to code-built geometry in `kart-part-visual-geometry.ts` (one piece per
+  finish, in the part's frame). Visuals are not fingerprinted; changing one
+  advances the thumbnail render version. A part version without a visual falls
+  back to its construction primitives. Coilovers are sized from their
+  suspension definition and posed from the mounts: the body rides the chassis
+  eye, the shaft the spring-arm eye, and the spring stretches between seats.
+  Primitives take a finish from their construction material. Visuals stay
+  inside construction envelopes except the motor shaft and terminals, the
+  wheel retaining collar, and suspension rig parts, which are posed from
+  mounts rather than the construction cylinder.
 - **Editor:** `src/app/admin/karts/` (roster page and per-kart editor);
   `src/components/kart-editor/` (access, shell, canvas, admin roster,
   post-save thumbnail capture); `src/game/editor/kart-editor-document.ts`
@@ -109,3 +121,8 @@ revision-bound previews live in [`kart-thumbnails`](../kart-thumbnails/README.md
 
 Official vs. community status is not server-owned and request hardening is
 incomplete. Phase 6 owns both.
+
+Derivation treats shock travel as motion ratio × wheel travel and ignores the
+shock's tilt. The drawn coilover follows the real mount geometry, so on the
+steeply tilted official shocks it compresses much less than the physics does
+and never visibly reaches the bump stop. They agree at rest.

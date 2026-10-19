@@ -5,7 +5,7 @@
 ## Purpose And Scope
 
 This system gives every PlayCanvas application one shared look: tone
-mapping, exposure, habitat environment light, kart material baseline, and
+mapping, exposure, habitat environment light, kart finish materials, and
 shadow settings. It also owns the local `?perf=1` overlay that measures the
 phone budget. Art direction and the budget itself live in
 [`docs/visual-identity.md`](../../../docs/visual-identity.md).
@@ -17,8 +17,9 @@ phone budget. Art direction and the budget itself live in
   it by the course's ambient intensity, and owns the shadow policy.
 - `src/game/render/habitat-environment-atlas.ts` builds the environment atlas
   pixels on the CPU, once per page.
-- `src/game/kart/kart-visual-material.ts` is the one kart material the
-  [kart visual builder](../kart-builder/README.md) receives from every caller.
+- `src/game/kart/kart-visual-material.ts` owns the kart finishes (one
+  material per finish) and the authored-color reflectance clamp that the
+  [kart visual builder](../kart-builder/README.md) uses.
 - `src/game/runtime/frame-budget.ts` and
   `src/components/frame-budget-overlay.tsx` sample rendered frames through
   `PlayCanvasRuntime.onFrameSample` and show the budget readout.
@@ -42,6 +43,14 @@ course editor scenes in `src/game/editor/`, and
 - CPU-built atlas pixels re-upload by themselves after a lost WebGL context.
   Do not switch to GPU prefiltering: it compiles extra shaders in every new
   application, and each kart thumbnail is one.
+- Every kart color is an sRGB vertex color (`vertexColorGamma`, a documented
+  option missing from the 2.20 typings), so all finishes share one shader
+  program and the race kart batches to about one draw per finish per pass.
+  Kart materials must stay free of per-part color or texture state.
+- The race kart is one dynamic batch group. Batched parts are skinned, and
+  PlayCanvas skins normals without the inverse-transpose, so parts stretched
+  unevenly (springs, arms) shade slightly differently in the race than in the
+  editor and thumbnails.
 - Any change to the look, kart material, or thumbnail lighting changes kart
   thumbnails and must advance `KART_THUMBNAIL_RENDER_VERSION`
   ([kart thumbnails](../kart-thumbnails/README.md)).

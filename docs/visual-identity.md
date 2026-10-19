@@ -57,18 +57,25 @@ Orange and hazard are signals. Use them sparingly so they stay readable.
 
 Neutral deepens the very darkest tones and their color. The near-black
 identity should therefore come from light and backgrounds, not from
-near-black surface colors. Today's asphalt and some kart colors are darker
-than the real materials they represent. PRs 4.1.3 and 4.2.1 revisit them.
+near-black surface colors. Kart colors render within real reflectance (see
+Materials). The sandbox asphalt is still darker than real asphalt; PR 4.2.1
+revisits it.
 
 ## Materials
 
-- **Current baseline:** every kart part uses one coated, non-metallic finish
-  on its authored color, a medium sheen like paint, anodizing, or powder
-  coat.
-- **Target for PR 4.1.3:** finishes follow what each part is made of: painted
-  shells, bare or anodized metal hardware, and matte rubber tires. The
-  direction leans industrial (matte powder coat, blasted metal) over clean
+- **Industrial finishes.** Finishes follow what each part is made of: matte
+  powder coat and paint, anodized and bead-blasted aluminum, machined and
+  black-oxide steel, molded plastic, copper, and matte rubber. Not clean
   hobby-grade gloss.
+- **Authored color goes on coated surfaces.** A part's chosen color shows on
+  its paint, anodizing, or dyed plastic. Hardware, heatsinks, wires, and tires
+  keep their real colors.
+- **Colors stay within real reflectance.** Authored colors render with their
+  hue kept but their lightness clamped to about 4% (black paint) to 85%
+  (white paint) reflectance. Documents keep the authored value.
+- **Parts look like real 1:10 RC parts.** Each approved part version has a
+  code-built visual that matches its registry dimensions. Wheels look the same
+  at any angle, because the physics has no wheel spin.
 
 ## Phone Performance Budget
 
@@ -81,13 +88,11 @@ its measurements against it.
 | Frame time | 60 fps through a full two-lap race: median frame interval ≤ 17 ms, p95 ≤ 20 ms, at most 1 hitch over 50 ms after the countdown. |
 | CPU work per frame | Median ≤ 5 ms (fixed steps, update, and render submit). |
 | Draw calls | ≤ 250 per frame across all passes, and ≤ 30 per kart. |
-| Shadows | One shadow-casting light with one 1024² PCF3 map, covering ≤ 40 m. Coil springs and dampers do not cast. |
+| Triangles | ≤ 20k per kart (soft cap). |
+| Shadows | One shadow-casting light with one 1024² PCF3 map, covering ≤ 40 m. |
 | Resolution | 1× device pixels with MSAA. |
 | Post-processing | None. |
 | Startup | Race mount to first frame adds ≤ 300 ms over the "Before lighting" baseline below (63–136 ms warm). |
-
-**Known overrun:** the current kart exceeds 30 draw calls because each coil
-spring is built from 32 separate cylinders. PR 4.1.3 brings it under budget.
 
 ### How To Measure
 
@@ -105,9 +110,9 @@ CPU work and draw calls are the headroom signals.
 
 ### Baseline
 
-| Measure | Before lighting (PR 4.1.2 start) | After lighting baseline |
-| --- | --- | --- |
-| Frame p50 / p95 | 17.0 / 18.0 ms | 17.0 / 18.0 ms |
-| CPU p50 / p95 | 3 / 4 ms | 3 / 4 ms |
-| Draw calls p50 / max | 212 / 226 | 213 / 226 |
-| First frame (warm) | 63–136 ms | 107–278 ms |
+| Measure | Before lighting (PR 4.1.2 start) | After lighting baseline | Part visuals (PR 4.1.3) |
+| --- | --- | --- | --- |
+| Frame p50 / p95 | 17.0 / 18.0 ms | 17.0 / 18.0 ms | 17.0 / 18.0 ms |
+| CPU p50 / p95 | 3 / 4 ms | 3 / 4 ms | 2 / 3 ms |
+| Draw calls p50 / max | 212 / 226 | 213 / 226 | 38–39 / 55 |
+| First frame (warm) | 63–136 ms | 107–278 ms | 121–128 ms |

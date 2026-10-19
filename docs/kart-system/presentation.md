@@ -8,6 +8,8 @@ solver contacts, race timing, or kart derivation.
 
 Current presentation types include:
 
+- code-built part visuals for approved part versions
+  (`src/game/kart/kart-part-visuals.ts`);
 - interpolated chassis and suspension transforms;
 - rear-tire smoke derived from measured lateral scrub power;
 - the explicit countdown burnout approximation;
