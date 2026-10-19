@@ -1,6 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 
 import { deriveKartSnapshot } from "../src/game/kart/kart-derivation";
+import { KART_THUMBNAIL_RENDER_VERSION } from "../src/game/kart/kart-thumbnail-contract";
 import {
   createOfficialKartDocument,
   type OfficialKartId,
@@ -10,6 +11,7 @@ import {
   pressStandardGamepadButton,
   setStandardTestGamepad,
 } from "./helpers/standard-gamepad";
+import { createTestPng } from "./support/png";
 
 function createPersistedRevision(kartId: OfficialKartId) {
   const document = createOfficialKartDocument(kartId);
@@ -43,6 +45,14 @@ async function useOfficialDraftStatuses(page: Page) {
       status: kartId === "balanced-kart" ? 200 : 404,
     });
   });
+  // Keeps the roster's thumbnail fill off the real server; tests that cover
+  // the fill register their own routes, which take precedence.
+  await page.route("**/api/karts/official", (route) =>
+    route.fulfill({ status: 503 }),
+  );
+  await page.route("**/api/admin/karts/*/revisions/*/thumbnail", (route) =>
+    route.fulfill({ status: 401 }),
+  );
 }
 
 test("routes the Kart Builder button through the official admin roster", async ({
@@ -94,6 +104,70 @@ test("routes the Kart Builder button through the official admin roster", async (
     () => document.documentElement.scrollWidth,
   );
   expect(documentWidth).toBeLessThanOrEqual(page.viewportSize()?.width ?? 0);
+});
+
+test("fills missing current-version thumbnails for latest and published revisions", async ({
+  page,
+}) => {
+  await useOfficialDraftStatuses(page);
+  const published = { ...createPersistedRevision("balanced-kart"), revision: 2 };
+  await page.route("**/api/karts/official", async (route) => {
+    await route.fulfill({
+      body: JSON.stringify({
+        karts: [
+          {
+            assemblerCredit: "@admin",
+            runtime: {
+              derivationVersion: published.derivationVersion,
+              document: published.document,
+              kartId: published.kartId,
+              publishedAt: published.createdAt,
+              resolvedSnapshot: published.resolvedSnapshot,
+              resolvedSnapshotHash: published.resolvedSnapshotHash,
+              revision: published.revision,
+              schemaVersion: published.schemaVersion,
+              thumbnailAvailable: false,
+            },
+          },
+        ],
+        source: "published",
+      }),
+      contentType: "application/json",
+    });
+  });
+  const uploads: Array<{ renderVersion: number; revision: string }> = [];
+  await page.route(
+    "**/api/admin/karts/balanced-kart/revisions/*/thumbnail",
+    async (route) => {
+      if (route.request().method() === "PUT") {
+        uploads.push({
+          renderVersion: route.request().postDataJSON().renderVersion,
+          revision: new URL(route.request().url()).pathname.split("/").at(-2)!,
+        });
+        await route.fulfill({ status: 201 });
+        return;
+      }
+      await route.fulfill({
+        body: createTestPng({ marker: 1 }),
+        contentType: "image/png",
+      });
+    },
+  );
+
+  await page.goto("/admin/karts");
+
+  await expect
+    .poll(() => uploads, { timeout: 20_000 })
+    .toEqual([
+      { renderVersion: KART_THUMBNAIL_RENDER_VERSION, revision: "1" },
+      { renderVersion: KART_THUMBNAIL_RENDER_VERSION, revision: "2" },
+    ]);
+  await expect(
+    page
+      .getByRole("article")
+      .filter({ hasText: "Balanced Kart" })
+      .locator('[data-kart-thumbnail-source="persisted"]'),
+  ).toBeVisible();
 });
 
 test("navigates into and back from the official roster with a controller", async ({

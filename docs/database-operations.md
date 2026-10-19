@@ -53,6 +53,14 @@ from the presence of an image. Apply the migration before deploying code that
 captures thumbnails. Existing revisions remain valid and use exact local
 rendering until a later save or an explicit future backfill creates an image.
 
+PR 4.1.3 (`0014`) keys thumbnails by revision and renderer version, so a
+renderer change adds an image beside the older ones instead of replacing them.
+Rows stay append-only, and only the current renderer version is served. After
+migrating and deploying a renderer change, open `/admin/karts` once as an
+admin: it captures any missing current-version images for each official kart's
+latest and published revisions. `0014` is roll-forward only: code from before
+it looks up thumbnails by revision alone and could serve an older render.
+
 PR 2.5.1 adds the typed `gameplay_runs` summary table through the same migration
 workflow. Guest rows are anonymous and carry permanent guest attribution
 separately from the nullable account foreign key. Database constraints and

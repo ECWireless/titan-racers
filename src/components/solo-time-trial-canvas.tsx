@@ -81,11 +81,13 @@ import {
 import type { KartAssemblyDocument } from "@/game/kart/kart-assembly-document";
 import {
   createKartAssemblyVisual,
+  getRenderedKartColor,
   type KartWheelVisual,
   poseKartWheelVisual,
 } from "@/game/kart/kart-assembly-visual";
 import { createBalancedKartDocument } from "@/game/kart/balanced-kart-document";
 import { getApprovedKartComponent } from "@/game/kart/kart-component-registry";
+import type { KartPartFinish } from "@/game/kart/kart-part-visual-geometry";
 import { createKartVisualMaterial } from "@/game/kart/kart-visual-material";
 import {
   deriveKartSnapshot,
@@ -699,11 +701,12 @@ export function SoloTimeTrialCanvas({
       }
 
       const kartVisualMaterials = new Map<string, pc.StandardMaterial>();
-      const getKartVisualMaterial = (visualColor: string) => {
-        const existing = kartVisualMaterials.get(visualColor);
+      // One material per finish, so the kart batches into few draws.
+      const getKartVisualMaterial = (finish: KartPartFinish) => {
+        const existing = kartVisualMaterials.get(finish);
         if (existing) return existing;
-        const material = createKartVisualMaterial(visualColor);
-        kartVisualMaterials.set(visualColor, material);
+        const material = createKartVisualMaterial(finish);
+        kartVisualMaterials.set(finish, material);
         return material;
       };
       runtime.addCleanup(() =>
@@ -883,7 +886,23 @@ export function SoloTimeTrialCanvas({
         instanceRoots: kartInstanceRoots,
         root: kartVisual,
         wheels: kartWheelVisuals,
-      } = createKartAssemblyVisual(kartRuntime.document, getKartVisualMaterial);
+      } = createKartAssemblyVisual(
+        kartRuntime.document,
+        getKartVisualMaterial,
+        app.graphicsDevice,
+      );
+      // One dynamic batch per shared material: parts keep their own moving
+      // entities, but the kart draws once per material in each pass.
+      const kartBatchGroup = app.batcher.addGroup(
+        "kart",
+        true,
+        Number.POSITIVE_INFINITY,
+      );
+      kartVisual.forEach((node) => {
+        if (node instanceof pc.Entity && node.render) {
+          node.render.batchGroupId = kartBatchGroup.id;
+        }
+      });
 
       kartAssemblyFrame.addChild(kartVisual);
       const currentStartPosition = START_POSITION.clone();
@@ -2338,26 +2357,13 @@ export function SoloTimeTrialCanvas({
         };
       };
 
-      function getFirstMeshDiffuse(
+      function getRenderedColor(
         entity: pc.Entity | undefined,
       ): Position3 | null {
-        if (!entity) return null;
-        const material = entity.model?.meshInstances?.[0]?.material as
-          pc.StandardMaterial | undefined;
-        if (material?.diffuse) {
-          return {
-            x: material.diffuse.r,
-            y: material.diffuse.g,
-            z: material.diffuse.b,
-          };
-        }
-        for (const child of entity.children) {
-          const diffuse: Position3 | null = getFirstMeshDiffuse(
-            child as pc.Entity,
-          );
-          if (diffuse) return diffuse;
-        }
-        return null;
+        const hex = entity ? getRenderedKartColor(entity) : null;
+        if (!hex) return null;
+        const color = new pc.Color().fromString(hex);
+        return { x: color.r, y: color.g, z: color.b };
       }
 
       const getKartVisualDebugState = () => {
@@ -2374,46 +2380,13 @@ export function SoloTimeTrialCanvas({
             );
           },
         );
-        const wheelPresentation = wheelPresentations[0];
-        const suspension = wheelPresentation?.visual.suspension;
-        const pivot = wheelPresentation?.visual.pivot;
-
         return {
-          bodywork: getFirstMeshDiffuse(
+          bodywork: getRenderedColor(
             bodywork ? kartInstanceRoots.get(bodywork.id) : undefined,
           ),
-          component: getFirstMeshDiffuse(
+          component: getRenderedColor(
             component ? kartInstanceRoots.get(component.id) : undefined,
           ),
-          suspension: getFirstMeshDiffuse(suspension?.shock),
-          suspensionCastsShadows: suspension?.shock.model?.castShadows ?? null,
-          suspensionDamperDiameter:
-            suspension?.shock.getLocalScale().x ?? null,
-          suspensionReceivesShadows:
-            suspension?.shock.model?.receiveShadows ?? null,
-          suspensionCoil: getFirstMeshDiffuse(suspension?.coil[0]),
-          suspensionCoilCastsShadows:
-            suspension?.coil[0]?.model?.castShadows ?? null,
-          suspensionCoilReceivesShadows:
-            suspension?.coil[0]?.model?.receiveShadows ?? null,
-          suspensionCoilEnd: suspension
-            ? {
-                x: suspension.coilEnd.x,
-                y: suspension.coilEnd.y,
-                z: suspension.coilEnd.z,
-              }
-            : null,
-          suspensionCoilSegmentCount: suspension?.coil.length ?? 0,
-          suspensionCoilWireDiameter:
-            suspension?.coil[0]?.getLocalScale().x ?? null,
-          wheel: getFirstMeshDiffuse(pivot),
-          wheelHubPosition: pivot
-            ? {
-                x: pivot.getLocalPosition().x,
-                y: pivot.getLocalPosition().y,
-                z: pivot.getLocalPosition().z,
-              }
-            : null,
         };
       };
 

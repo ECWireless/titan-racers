@@ -203,8 +203,11 @@ Phase decisions:
 - [x] 4.1.2: Lighting baseline (environment lighting, tone mapping, shadows),
       phone performance budget, look exploration on one kart, and the first
       `docs/visual-identity.md`.
-- [ ] 4.1.3: Presentation-only visuals for each approved part version, with
+- [x] 4.1.3: Presentation-only visuals for each approved part version, with
       materials that follow the identity; regenerate official kart thumbnails.
+- [ ] 4.1.4: Visuals for authored primitives (chassis, body shells, guards,
+      trim, and mass blocks), generated at each primitive's size from its role,
+      material, and solid or shell construction, staying inside its envelope.
 
 **PR 4.2: Sandbox surfaces**
 
@@ -221,6 +224,10 @@ Phase decisions:
 - [ ] 4.3.2: Rotating-habitat physics: a research note first, then
       position-dependent gravity and Coriolis through the kart controller,
       steering, righting, and camera up; optionally a near-axis test pad.
+      Also decide shock installation angle: derivation ignores shock tilt, so
+      the steeply tilted official shocks are much stiffer in physics than
+      their real geometry and travel further than drawn (deferred from
+      PR 4.1.3). Fixing it needs retuning or more upright official mounts.
 
 **PR 4.4: Agricultural Zone Service Circuit** (split by route section)
 

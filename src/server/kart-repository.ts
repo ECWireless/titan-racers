@@ -24,6 +24,7 @@ import {
   type PersistedResolvedKartSnapshot,
 } from "@/game/kart/kart-derivation";
 import type { DeepReadonly } from "@/game/kart/immutable-registry";
+import { KART_THUMBNAIL_RENDER_VERSION } from "@/game/kart/kart-thumbnail-contract";
 import { validateKartThumbnailImageData } from "@/server/kart-thumbnail";
 
 export class KartConflictError extends Error {
@@ -103,6 +104,12 @@ export type PersistedKartRevisionThumbnail = {
   revision: number;
 };
 
+/** Older render versions stay stored but are never served. */
+const currentThumbnailOfRevision = and(
+  eq(kartRevisionThumbnails.revisionId, kartRevisions.id),
+  eq(kartRevisionThumbnails.renderVersion, KART_THUMBNAIL_RENDER_VERSION),
+);
+
 const revisionSelection = {
   authorUserId: kartRevisions.authorUserId,
   createdAt: kartRevisions.createdAt,
@@ -160,10 +167,7 @@ export async function loadLatestKartRevision(
         eq(kartRevisions.revision, karts.currentRevision),
       ),
     )
-    .leftJoin(
-      kartRevisionThumbnails,
-      eq(kartRevisionThumbnails.revisionId, kartRevisions.id),
-    )
+    .leftJoin(kartRevisionThumbnails, currentThumbnailOfRevision)
     .where(eq(karts.id, kartId))
     .limit(1);
 
@@ -298,10 +302,7 @@ export async function loadPublishedKartRevision(
     )
     .innerJoin(karts, eq(karts.id, kartPublicationEvents.kartId))
     .leftJoin(users, eq(users.id, kartRevisions.authorUserId))
-    .leftJoin(
-      kartRevisionThumbnails,
-      eq(kartRevisionThumbnails.revisionId, kartRevisions.id),
-    )
+    .leftJoin(kartRevisionThumbnails, currentThumbnailOfRevision)
     .where(eq(kartPublicationEvents.kartId, kartId))
     .orderBy(desc(kartPublicationEvents.id))
     .limit(1);
@@ -366,10 +367,7 @@ export async function loadKartRevisionThumbnail(
   const [row] = await db
     .select(thumbnailSelection)
     .from(kartRevisionThumbnails)
-    .innerJoin(
-      kartRevisions,
-      eq(kartRevisions.id, kartRevisionThumbnails.revisionId),
-    )
+    .innerJoin(kartRevisions, currentThumbnailOfRevision)
     .where(
       and(
         eq(kartRevisions.kartId, kartId),
@@ -445,13 +443,17 @@ export async function saveKartRevisionThumbnail(input: {
         renderVersion: kartRevisionThumbnails.renderVersion,
       })
       .from(kartRevisionThumbnails)
-      .where(eq(kartRevisionThumbnails.revisionId, revision.id))
+      .where(
+        and(
+          eq(kartRevisionThumbnails.revisionId, revision.id),
+          eq(kartRevisionThumbnails.renderVersion, input.renderVersion),
+        ),
+      )
       .limit(1);
     if (
       !existing ||
       existing.contentType !== input.contentType ||
-      existing.imageSha256 !== imageSha256 ||
-      existing.renderVersion !== input.renderVersion
+      existing.imageSha256 !== imageSha256
     ) {
       throw new KartThumbnailConflictError();
     }

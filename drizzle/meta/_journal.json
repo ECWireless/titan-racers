@@ -99,6 +99,13 @@
       "when": 1785107563205,
       "tag": "0013_kart_revision_thumbnails",
       "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1792362625993,
+      "tag": "0014_kart_thumbnail_render_versions",
+      "breakpoints": true
     }
   ]
 }

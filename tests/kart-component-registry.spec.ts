@@ -21,6 +21,10 @@ import {
   getApprovedTireCompound,
 } from "../src/game/kart/kart-material-registry";
 import { deriveKartSnapshot } from "../src/game/kart/kart-derivation";
+import {
+  getKartPartVisual,
+  KART_PART_VISUALS,
+} from "../src/game/kart/kart-part-visuals";
 import { renderKartCatalogReference } from "../src/game/kart/kart-catalog-documentation";
 import { createValidKartAssembly } from "./support/kart-assembly";
 
@@ -129,6 +133,18 @@ test("resolves every component-owned material and tire compound reference", () =
       const { tireCompound } = definition.wheelTire;
       expect(getApprovedTireCompound(tireCompound)).toBeDefined();
     }
+  }
+});
+
+test("gives every approved part version a presentation visual", () => {
+  const references = APPROVED_KART_COMPONENTS.map(
+    ({ id, version }) => `${id}@${version}`,
+  );
+  expect(Object.keys(KART_PART_VISUALS).sort()).toEqual(references.sort());
+  for (const definition of APPROVED_KART_COMPONENTS) {
+    expect(getKartPartVisual(definition)?.kind).toBe(
+      definition.category === "suspension" ? "coilover" : "pieces",
+    );
   }
 });
 

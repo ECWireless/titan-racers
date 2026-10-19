@@ -331,7 +331,7 @@ export const kartRevisionThumbnails = pgTable(
   "kart_revision_thumbnails",
   {
     revisionId: uuid("revision_id")
-      .primaryKey()
+      .notNull()
       .references(() => kartRevisions.id, { onDelete: "restrict" }),
     renderVersion: integer("render_version").notNull(),
     contentType: text("content_type").notNull(),
@@ -345,6 +345,7 @@ export const kartRevisionThumbnails = pgTable(
       .notNull(),
   },
   (table) => [
+    primaryKey({ columns: [table.revisionId, table.renderVersion] }),
     index("kart_revision_thumbnails_generated_by_user_id_idx").on(
       table.generatedByUserId,
     ),

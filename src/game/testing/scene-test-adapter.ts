@@ -111,18 +111,6 @@ export type KartDebugPose = {
 export type KartVisualDebugState = {
   bodywork: Position3 | null;
   component: Position3 | null;
-  suspension: Position3 | null;
-  suspensionCastsShadows: boolean | null;
-  suspensionCoil: Position3 | null;
-  suspensionCoilCastsShadows: boolean | null;
-  suspensionCoilEnd: Position3 | null;
-  suspensionCoilReceivesShadows: boolean | null;
-  suspensionCoilSegmentCount: number;
-  suspensionCoilWireDiameter: number | null;
-  suspensionDamperDiameter: number | null;
-  suspensionReceivesShadows: boolean | null;
-  wheel: Position3 | null;
-  wheelHubPosition: Position3 | null;
 };
 
 export type PresentationDebugState = {
