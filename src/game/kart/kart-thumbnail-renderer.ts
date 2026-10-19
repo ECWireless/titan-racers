@@ -85,7 +85,11 @@ async function renderKartThumbnailImmediately(document: KartAssemblyDocument) {
       preserveDrawingBuffer: true,
     },
   });
-  const { root } = createKartAssemblyVisual(document, createKartVisualMaterial);
+  const { root } = createKartAssemblyVisual(
+    document,
+    createKartVisualMaterial,
+    app.graphicsDevice,
+  );
   let releaseSceneLook = () => {};
   try {
     app.setCanvasFillMode(pc.FILLMODE_NONE);

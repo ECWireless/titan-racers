@@ -117,8 +117,6 @@ export type KartVisualDebugState = {
   suspensionCoilCastsShadows: boolean | null;
   suspensionCoilEnd: Position3 | null;
   suspensionCoilReceivesShadows: boolean | null;
-  suspensionCoilSegmentCount: number;
-  suspensionCoilWireDiameter: number | null;
   suspensionDamperDiameter: number | null;
   suspensionReceivesShadows: boolean | null;
   wheel: Position3 | null;

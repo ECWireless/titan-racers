@@ -211,7 +211,7 @@ export class KartEditorScene {
     let color: { x: number; y: number; z: number } | null = null;
     root.forEach((node) => {
       if (color || !(node instanceof pc.Entity)) return;
-      const material = node.model?.meshInstances?.[0]?.material;
+      const material = node.render?.meshInstances?.[0]?.material;
       if (!(material instanceof pc.StandardMaterial)) return;
       color = {
         x: material.diffuse.r,
@@ -232,7 +232,7 @@ export class KartEditorScene {
       | pc.Entity
       | null
       | undefined;
-    const material = damper?.model?.meshInstances?.[0]
+    const material = damper?.render?.meshInstances?.[0]
       ?.material as pc.StandardMaterial | undefined;
     const emissive = material?.emissive;
     return {
@@ -601,6 +601,7 @@ export class KartEditorScene {
       this.currentDocument,
       (visualColor, instanceId) =>
         this.createInstanceMaterial(instanceId, visualColor),
+      this.app.graphicsDevice,
     );
     this.documentRoot.addChild(root);
     for (const primitive of this.currentDocument.primitiveInstances) {
@@ -673,7 +674,7 @@ export class KartEditorScene {
       }
       root.forEach((node) => {
         if (!(node instanceof pc.Entity)) return;
-        node.model?.meshInstances?.forEach((mesh) => {
+        node.render?.meshInstances?.forEach((mesh) => {
           mesh.deleteParameter("material_emissive");
         });
       });

@@ -883,7 +883,23 @@ export function SoloTimeTrialCanvas({
         instanceRoots: kartInstanceRoots,
         root: kartVisual,
         wheels: kartWheelVisuals,
-      } = createKartAssemblyVisual(kartRuntime.document, getKartVisualMaterial);
+      } = createKartAssemblyVisual(
+        kartRuntime.document,
+        getKartVisualMaterial,
+        app.graphicsDevice,
+      );
+      // One dynamic batch per shared material: parts keep their own moving
+      // entities, but the kart draws once per material in each pass.
+      const kartBatchGroup = app.batcher.addGroup(
+        "kart",
+        true,
+        Number.POSITIVE_INFINITY,
+      );
+      kartVisual.forEach((node) => {
+        if (node instanceof pc.Entity && node.render) {
+          node.render.batchGroupId = kartBatchGroup.id;
+        }
+      });
 
       kartAssemblyFrame.addChild(kartVisual);
       const currentStartPosition = START_POSITION.clone();
@@ -2342,7 +2358,7 @@ export function SoloTimeTrialCanvas({
         entity: pc.Entity | undefined,
       ): Position3 | null {
         if (!entity) return null;
-        const material = entity.model?.meshInstances?.[0]?.material as
+        const material = entity.render?.meshInstances?.[0]?.material as
           pc.StandardMaterial | undefined;
         if (material?.diffuse) {
           return {
@@ -2386,16 +2402,16 @@ export function SoloTimeTrialCanvas({
             component ? kartInstanceRoots.get(component.id) : undefined,
           ),
           suspension: getFirstMeshDiffuse(suspension?.shock),
-          suspensionCastsShadows: suspension?.shock.model?.castShadows ?? null,
+          suspensionCastsShadows: suspension?.shock.render?.castShadows ?? null,
           suspensionDamperDiameter:
             suspension?.shock.getLocalScale().x ?? null,
           suspensionReceivesShadows:
-            suspension?.shock.model?.receiveShadows ?? null,
-          suspensionCoil: getFirstMeshDiffuse(suspension?.coil[0]),
+            suspension?.shock.render?.receiveShadows ?? null,
+          suspensionCoil: getFirstMeshDiffuse(suspension?.coil),
           suspensionCoilCastsShadows:
-            suspension?.coil[0]?.model?.castShadows ?? null,
+            suspension?.coil.render?.castShadows ?? null,
           suspensionCoilReceivesShadows:
-            suspension?.coil[0]?.model?.receiveShadows ?? null,
+            suspension?.coil.render?.receiveShadows ?? null,
           suspensionCoilEnd: suspension
             ? {
                 x: suspension.coilEnd.x,
@@ -2403,9 +2419,6 @@ export function SoloTimeTrialCanvas({
                 z: suspension.coilEnd.z,
               }
             : null,
-          suspensionCoilSegmentCount: suspension?.coil.length ?? 0,
-          suspensionCoilWireDiameter:
-            suspension?.coil[0]?.getLocalScale().x ?? null,
           wheel: getFirstMeshDiffuse(pivot),
           wheelHubPosition: pivot
             ? {

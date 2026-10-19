@@ -97,8 +97,6 @@ async function getKartVisualColors(canvas: Locator) {
         suspensionCoilCastsShadows: boolean | null;
         suspensionCoilEnd: MaterialColor;
         suspensionCoilReceivesShadows: boolean | null;
-        suspensionCoilSegmentCount: number;
-        suspensionCoilWireDiameter: number | null;
         suspensionDamperDiameter: number | null;
         suspensionReceivesShadows: boolean | null;
         wheel: MaterialColor;
