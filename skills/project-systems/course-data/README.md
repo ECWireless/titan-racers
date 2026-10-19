@@ -42,6 +42,8 @@ own editor commands or persistence UI.
   PlayCanvas visual, collision, rigid-body, tag, group, and mask state. It
   returns stable-ID entity maps plus two explicit sandbox obstacle lookups used
   by reset-clearance checks and the non-production scene test adapter.
+- `src/game/course/course-visual-policy.ts` owns the depth-bias tiers that
+  order coplanar surface layers and identifies the base ground.
 - `src/game/course/build-course-lighting.ts` projects bounded ambient and
   directional-light records into PlayCanvas scene state and fixed shadow
   presets.
@@ -135,6 +137,10 @@ exposed in the UI.
 - Runtime and test entities are projections; the builder never mutates the
   document.
 - Visual scale does not silently define collision dimensions.
+- A drivable surface draws its top exactly at its collision top, and a
+  visual-only marking rests on the highest surface beneath it. Layers at the
+  same height are ordered by depth bias (base ground, asphalt, grass overlay,
+  race start pad, line), never by separating their heights.
 - Objects without collision data receive no collision or rigid-body component.
 - Diagnostic collision fixtures cannot appear in production or ordinary play.
 - Checkpoint data is projected into plain directed swept gates by the separate

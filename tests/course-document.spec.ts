@@ -199,40 +199,72 @@ test("keeps the expanded ground approximately 1.5 times its original area", () =
   expect(expandedArea / originalArea).toBeCloseTo(1.5, 1);
 });
 
-test("keeps inset grass presentation thin without moving its collision top", () => {
-  for (const id of [
-    "course-inner-straight",
-    "course-left-cutout",
-    "course-right-cutout",
-  ]) {
-    const object = findObject(id);
-    const collision = object?.collision;
+test("draws every drivable surface at its collision top", () => {
+  const surfaces = ROUGH_COURSE_DOCUMENT.objects.filter(
+    (object) => object.collision?.role === "drivable-surface",
+  );
 
-    expect(object?.visual.scale.y).toBe(0.002);
-    expect(
-      (object?.transform.position.y ?? 0) +
-        (object?.visual.scale.y ?? 0) * 0.5,
-    ).toBeCloseTo(0.051);
-    expect(collision).not.toBeNull();
-
+  expect(surfaces.length).toBeGreaterThan(0);
+  for (const object of surfaces) {
+    const collision = object.collision!;
+    const rotation = collision.offset.rotation;
     const collisionHalfHeight =
-      collision?.shape === "box"
+      collision.shape === "box"
         ? collision.halfExtents.y
-        : (collision?.height ?? 0) * 0.5;
+        : collision.height * 0.5;
+
+    // Both tops share the entity's local up axis, so tilted ramps compare too.
+    expect([rotation.x, rotation.y, rotation.z], object.id).toEqual([0, 0, 0]);
+    if (collision.shape === "cylinder") expect(collision.axis, object.id).toBe(1);
     expect(
-      (object?.transform.position.y ?? 0) +
-        (collision?.offset.position.y ?? 0) +
-        collisionHalfHeight,
-    ).toBeCloseTo(0);
+      Math.abs(
+        object.visual.scale.y * 0.5 -
+          (collision.offset.position.y + collisionHalfHeight),
+      ),
+      object.id,
+    ).toBeLessThanOrEqual(0.001);
   }
 });
 
-test("keeps the visual-only start line at surface height", () => {
-  const startLine = findObject("start-finish-line");
+test("rests every visual-only marking on the drivable surface beneath it", () => {
+  const surfaces = ROUGH_COURSE_DOCUMENT.objects.filter(
+    (object) =>
+      object.collision?.role === "drivable-surface" &&
+      object.transform.rotation.x === 0 &&
+      object.transform.rotation.z === 0,
+  );
+  const markings = ROUGH_COURSE_DOCUMENT.objects.filter(
+    (object) => object.category === "marker",
+  );
 
-  expect(startLine?.collision).toBeNull();
-  expect(startLine?.transform.position.y).toBe(0.05);
-  expect(startLine?.visual.scale.y).toBe(0.002);
+  expect(markings.length).toBeGreaterThan(0);
+  for (const marking of markings) {
+    const { position } = marking.transform;
+    const top = position.y + marking.visual.scale.y * 0.5;
+    const supportTops = surfaces
+      .filter((surface) => {
+        const yaw = (surface.transform.rotation.y * Math.PI) / 180;
+        const dx = position.x - surface.transform.position.x;
+        const dz = position.z - surface.transform.position.z;
+        const localX = dx * Math.cos(yaw) - dz * Math.sin(yaw);
+        const localZ = dx * Math.sin(yaw) + dz * Math.cos(yaw);
+        const { x, z } = surface.visual.scale;
+        return surface.visual.shape === "box"
+          ? Math.abs(localX) <= x * 0.5 && Math.abs(localZ) <= z * 0.5
+          : Math.hypot(localX / x, localZ / z) <= 0.5;
+      })
+      .map(
+        (surface) =>
+          surface.transform.position.y + surface.visual.scale.y * 0.5,
+      );
+
+    // A marking rests on the highest surface beneath it, not a buried one.
+    expect(marking.collision, marking.id).toBeNull();
+    expect(
+      Math.abs(top - Math.max(...supportTops)),
+      marking.id,
+    ).toBeLessThanOrEqual(0.001);
+  }
 });
 
 test("serializes the seed deterministically and round trips without changes", () => {

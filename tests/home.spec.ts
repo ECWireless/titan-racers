@@ -2131,7 +2131,7 @@ test.describe("home screen", () => {
     expect(collisionState.fillLightCastsShadows).toBe(false);
     expect(collisionState.groundCollisionShape).toBe("box");
     expect(collisionState.groundCollisionHalfExtentX).toBe(44);
-    expect(collisionState.groundCollisionOffsetY).toBe(0.01);
+    expect(collisionState.groundCollisionOffsetY).toBe(0);
     expect(collisionState.groundIsDrivable).toBe(true);
     expect(collisionState.obstacleAInteractionRadius).toBe(0.9);
     expect(collisionState.obstacleCount).toBe(2);
@@ -2140,9 +2140,9 @@ test.describe("home screen", () => {
     expect(collisionState.startClear).toBe(true);
     expect(collisionState.startLineHasCollision).toBe(false);
     expect(collisionState.startLineHasRigidBody).toBe(false);
-    expect(collisionState.startLineVisualCenterY).toBeCloseTo(0.05);
+    expect(collisionState.startLineVisualCenterY).toBeCloseTo(-0.001);
     expect(collisionState.startLineVisualThickness).toBeCloseTo(0.002);
-    expect(collisionState.startMarkerVisualCenterY).toBeCloseTo(0.05);
+    expect(collisionState.startMarkerVisualCenterY).toBeCloseTo(-0.001);
     expect(collisionState.startMarkerVisualThickness).toBeCloseTo(0.002);
   });
 

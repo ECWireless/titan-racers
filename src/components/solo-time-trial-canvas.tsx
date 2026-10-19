@@ -44,7 +44,7 @@ import {
 } from "@/game/course/course-document";
 import {
   COURSE_ASPHALT_COLOR,
-  getCourseVisualDepthBias,
+  getCourseSurfaceLayerDepthBias,
 } from "@/game/course/course-visual-policy";
 import { PlayerInputManager } from "@/game/input/player-input-manager";
 import { isEditableKeyboardTarget } from "@/game/input/keyboard-input";
@@ -140,8 +140,9 @@ const DEFAULT_BALANCED_KART_DOCUMENT = createBalancedKartDocument();
 const KART_RESET_FALL_Y = -10;
 const KART_TAP_MAX_DURATION_MS = 300;
 const KART_TAP_MAX_MOVEMENT_PX = 12;
-const START_MARKER_VISUAL_CENTER_HEIGHT = 0.05;
 const START_MARKER_VISUAL_THICKNESS = 0.002;
+// The start pad's top sits on the drivable surface at the start position.
+const START_MARKER_VISUAL_CENTER_HEIGHT = -START_MARKER_VISUAL_THICKNESS / 2;
 
 function subscribeToRaceSpeedUnit() {
   return () => {};
@@ -714,15 +715,20 @@ export function SoloTimeTrialCanvas({
       );
       const asphaltMaterial = createMaterial(
         new pc.Color(...COURSE_ASPHALT_COLOR),
+        getCourseSurfaceLayerDepthBias("asphalt"),
       );
       const lineMaterial = createMaterial(
         new pc.Color(0.95, 0.92, 0.86),
-        getCourseVisualDepthBias("line"),
+        getCourseSurfaceLayerDepthBias("line"),
       );
-      const markerMaterial = createMaterial(new pc.Color(1, 0.85, 0.15));
+      const markerMaterial = createMaterial(
+        new pc.Color(1, 0.85, 0.15),
+        getCourseSurfaceLayerDepthBias("startMarker"),
+      );
+      const baseGroundMaterial = createMaterial(new pc.Color(0.08, 0.36, 0.26));
       const groundMaterial = createMaterial(
         new pc.Color(0.08, 0.36, 0.26),
-        getCourseVisualDepthBias("ground"),
+        getCourseSurfaceLayerDepthBias("ground"),
       );
       const obstacleBlockMaterial = createMaterial(
         new pc.Color(0.82, 0.78, 0.68),
@@ -809,6 +815,7 @@ export function SoloTimeTrialCanvas({
       } = buildRoughCourse(app, {
         materials: {
           asphalt: asphaltMaterial,
+          baseGround: baseGroundMaterial,
           ground: groundMaterial,
           line: lineMaterial,
           obstacleBarrel: obstacleBarrelMaterial,

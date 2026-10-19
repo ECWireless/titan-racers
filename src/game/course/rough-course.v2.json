@@ -275,7 +275,7 @@
         "offset": {
           "position": {
             "x": 0,
-            "y": 0.01,
+            "y": 0,
             "z": 0
           },
           "rotation": {
@@ -293,7 +293,7 @@
       "transform": {
         "position": {
           "x": 0,
-          "y": -0.06,
+          "y": -0.05,
           "z": 8
         },
         "rotation": {
@@ -325,7 +325,7 @@
         "offset": {
           "position": {
             "x": 0,
-            "y": -0.05,
+            "y": 0,
             "z": 0
           },
           "rotation": {
@@ -343,7 +343,7 @@
       "transform": {
         "position": {
           "x": 0,
-          "y": 0.01,
+          "y": -0.04,
           "z": 8
         },
         "rotation": {
@@ -372,7 +372,7 @@
         "offset": {
           "position": {
             "x": 0,
-            "y": -0.05,
+            "y": 0,
             "z": 0
           },
           "rotation": {
@@ -391,7 +391,7 @@
       "transform": {
         "position": {
           "x": -20,
-          "y": 0.01,
+          "y": -0.04,
           "z": 8
         },
         "rotation": {
@@ -420,7 +420,7 @@
         "offset": {
           "position": {
             "x": 0,
-            "y": -0.05,
+            "y": 0,
             "z": 0
           },
           "rotation": {
@@ -439,7 +439,7 @@
       "transform": {
         "position": {
           "x": 20,
-          "y": 0.01,
+          "y": -0.04,
           "z": 8
         },
         "rotation": {
@@ -471,7 +471,7 @@
         "offset": {
           "position": {
             "x": 0,
-            "y": -0.09,
+            "y": -0.039,
             "z": 0
           },
           "rotation": {
@@ -489,7 +489,7 @@
       "transform": {
         "position": {
           "x": 0,
-          "y": 0.05,
+          "y": -0.001,
           "z": 8
         },
         "rotation": {
@@ -518,7 +518,7 @@
         "offset": {
           "position": {
             "x": 0,
-            "y": -0.09,
+            "y": -0.039,
             "z": 0
           },
           "rotation": {
@@ -537,7 +537,7 @@
       "transform": {
         "position": {
           "x": -20,
-          "y": 0.05,
+          "y": -0.001,
           "z": 8
         },
         "rotation": {
@@ -566,7 +566,7 @@
         "offset": {
           "position": {
             "x": 0,
-            "y": -0.09,
+            "y": -0.039,
             "z": 0
           },
           "rotation": {
@@ -585,7 +585,7 @@
       "transform": {
         "position": {
           "x": 20,
-          "y": 0.05,
+          "y": -0.001,
           "z": 8
         },
         "rotation": {
@@ -613,7 +613,7 @@
       "transform": {
         "position": {
           "x": 0,
-          "y": 0.05,
+          "y": -0.001,
           "z": 0
         },
         "rotation": {

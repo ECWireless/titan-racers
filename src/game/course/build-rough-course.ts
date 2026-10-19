@@ -9,6 +9,7 @@ import type {
   CourseVisualMaterial,
 } from "./course-document";
 import { ROUGH_COURSE_DOCUMENT } from "./course-document";
+import { isCourseBaseGround } from "./course-visual-policy";
 
 export type CollisionObstacle = {
   id: CourseTestObstacleId;
@@ -17,7 +18,13 @@ export type CollisionObstacle = {
   z: number;
 };
 
-type RoughCourseMaterials = Record<CourseVisualMaterial, pc.StandardMaterial>;
+export type RoughCourseMaterials = Record<
+  CourseVisualMaterial,
+  pc.StandardMaterial
+> & {
+  // The base ground draws under every coplanar surface layer.
+  baseGround: pc.StandardMaterial;
+};
 
 export type CourseObjectProjection = ReturnType<typeof projectCourseObject>;
 
@@ -104,7 +111,9 @@ export function buildRoughCourse(
         const projection = projectCourseObject(object);
         const entity = createEntity(
           projection,
-          materials[projection.visual.material],
+          isCourseBaseGround(projection.visual.material, projection.id)
+            ? materials.baseGround
+            : materials[projection.visual.material],
         );
 
         stagedEntities.push(entity);

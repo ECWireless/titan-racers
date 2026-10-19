@@ -9,16 +9,13 @@ import {
 import {
   buildRoughCourse,
   type CourseObjectProjection,
+  type RoughCourseMaterials,
 } from "../course/build-rough-course";
-import type {
-  CourseDocument,
-  CourseVisualMaterial,
-} from "../course/course-document";
+import type { CourseDocument } from "../course/course-document";
 import {
   COURSE_ASPHALT_COLOR,
   COURSE_EDITOR_CAMERA_NEAR_CLIP,
-  getCourseVisualDepthBias,
-  isCourseEditorBaseGround,
+  getCourseSurfaceLayerDepthBias,
 } from "../course/course-visual-policy";
 import {
   type CourseEditorGeometry,
@@ -65,13 +62,6 @@ type PointerState = {
   startY: number;
 };
 
-type CourseEditorMaterials = Record<
-  CourseVisualMaterial,
-  pc.StandardMaterial
-> & {
-  baseGround: pc.StandardMaterial;
-};
-
 const POINTER_MOVE_THRESHOLD = 5;
 
 export class CourseEditorScene {
@@ -89,7 +79,7 @@ export class CourseEditorScene {
     0.16,
   );
   private readonly gizmoLayer: pc.Layer;
-  private readonly materials: CourseEditorMaterials;
+  private readonly materials: RoughCourseMaterials;
   private readonly picker: pc.Picker;
   private readonly pointers = new Map<number, PointerState>();
   private readonly resizeObserver: ResizeObserver;
@@ -703,16 +693,7 @@ export class CourseEditorScene {
     this.selectionByNode.clear();
 
     const { courseEntities } = buildRoughCourse(this.app, {
-      createEntity: (projection, material) =>
-        createProjectionEntity(
-          projection,
-          isCourseEditorBaseGround(
-            projection.visual.material,
-            projection.id,
-          )
-            ? this.materials.baseGround
-            : material,
-        ),
+      createEntity: createProjectionEntity,
       document: this.currentDocument,
       materials: this.materials,
     });
@@ -921,26 +902,32 @@ export class CourseEditorScene {
 
 function createCourseMaterials() {
   return {
-    asphalt: createMaterial(new pc.Color(...COURSE_ASPHALT_COLOR)),
+    asphalt: createMaterial(
+      new pc.Color(...COURSE_ASPHALT_COLOR),
+      1,
+      false,
+      0,
+      getCourseSurfaceLayerDepthBias("asphalt"),
+    ),
     baseGround: createMaterial(new pc.Color(0.08, 0.36, 0.26)),
     ground: createMaterial(
       new pc.Color(0.08, 0.36, 0.26),
       1,
       false,
       0,
-      getCourseVisualDepthBias("ground"),
+      getCourseSurfaceLayerDepthBias("ground"),
     ),
     line: createMaterial(
       new pc.Color(0.95, 0.92, 0.86),
       1,
       false,
       0,
-      getCourseVisualDepthBias("line"),
+      getCourseSurfaceLayerDepthBias("line"),
     ),
     obstacleBarrel: createMaterial(new pc.Color(0.96, 0.45, 0.12)),
     obstacleBlock: createMaterial(new pc.Color(0.82, 0.78, 0.68)),
     ramp: createMaterial(new pc.Color(0.35, 0.39, 0.42)),
-  } satisfies CourseEditorMaterials;
+  } satisfies RoughCourseMaterials;
 }
 
 function createMaterial(
