@@ -21,6 +21,7 @@ import { shouldTrackKartEditorPointerDown } from "../src/game/editor/kart-editor
 import { createBalancedKartDocument } from "../src/game/kart/balanced-kart-document";
 import { validateKartAssembly } from "../src/game/kart/kart-assembly-validation";
 import { deriveKartSnapshot } from "../src/game/kart/kart-derivation";
+import { createValidKartAssembly } from "./support/kart-assembly";
 
 test("edits identity and transforms through schema-valid document commands", () => {
   const original = createBalancedKartDocument();
@@ -30,7 +31,7 @@ test("edits identity and transforms through schema-valid document commands", () 
   });
   const moved = nudgeKartInstance(
     named,
-    { id: "upper-housing", kind: "primitive" },
+    { id: "top-deck", kind: "primitive" },
     "y",
     0.01,
   );
@@ -38,9 +39,9 @@ test("edits identity and transforms through schema-valid document commands", () 
   expect(original.name).toBe("Balanced Kart");
   expect(named.name).toBe("Balanced Workshop");
   expect(
-    moved.primitiveInstances.find(({ id }) => id === "upper-housing")?.transform
+    moved.primitiveInstances.find(({ id }) => id === "top-deck")?.transform
       .position.y,
-  ).toBeCloseTo(0.1455);
+  ).toBeCloseTo(0.096);
 });
 
 test("adds, attaches, mirrors, and deletes bounded primitives", () => {
@@ -129,7 +130,7 @@ test("reattaches suspension from its visible chassis anchor", () => {
     canAttachKartInstanceAtCurrentPosition(
       document,
       selection,
-      "chassis-plate",
+      "shock-tower-front",
       retainedIds,
     ),
   ).toBe(true);
@@ -140,17 +141,17 @@ test("reattaches suspension from its visible chassis anchor", () => {
       ...suspension.transform,
       position: {
         ...suspension.transform.position,
-        z: suspension.transform.position.z + 0.02,
+        y: suspension.transform.position.y + 0.005,
       },
     },
-    "chassis-plate",
+    "shock-tower-front",
     retainedIds,
     true,
   );
   const retainedAttachment = smallMove.structuralAttachments.find(
     ({ child }) => child.instanceId === selection.id,
   );
-  expect(retainedAttachment?.parent.instanceId).toBe("chassis-plate");
+  expect(retainedAttachment?.parent.instanceId).toBe("shock-tower-front");
   expect(validateKartAssembly(smallMove).success).toBe(true);
 
   const movedSuspension = smallMove.componentInstances.find(
@@ -166,7 +167,7 @@ test("reattaches suspension from its visible chassis anchor", () => {
         y: movedSuspension.transform.position.y + 0.02,
       },
     },
-    "chassis-plate",
+    "shock-tower-front",
     retainedIds,
     true,
   );
@@ -325,25 +326,25 @@ test("preserves valid attachments, detaches invalid moves, and requires explicit
 
 test("attaches touching construction surfaces when their centers are out of range", () => {
   const document = createBalancedKartDocument();
-  const selection = { id: "upper-housing", kind: "primitive" } as const;
-  const bodywork = document.primitiveInstances.find(
+  const selection = { id: "top-deck", kind: "primitive" } as const;
+  const deck = document.primitiveInstances.find(
     ({ id }) => id === selection.id,
   )!;
   const bumper = document.primitiveInstances.find(
     ({ id }) => id === "rear-bumper",
   )!;
-  if (bodywork.shape !== "box" || bumper.shape !== "cylinder") {
+  if (deck.shape !== "box" || bumper.shape !== "box") {
     throw new Error("Balanced Kart construction geometry is unavailable.");
   }
   const moved = updateKartInstanceTransformAndAttachment(
     document,
     selection,
     {
-      ...bodywork.transform,
+      ...deck.transform,
       position: {
         x: bumper.transform.position.x,
         y: bumper.transform.position.y,
-        z: bumper.transform.position.z + bumper.radius + bodywork.size.z / 2,
+        z: bumper.transform.position.z + bumper.size.z / 2 + deck.size.z / 2,
       },
     },
     bumper.id,
@@ -379,8 +380,8 @@ test("attaches touching construction surfaces when their centers are out of rang
   const bumperAttachment = attached.structuralAttachments.find(
     ({ child }) => child.instanceId === selection.id,
   );
-  expect(bumperAttachment?.child.anchor.z).toBeCloseTo(-bodywork.size.z / 2);
-  expect(bumperAttachment?.parent.anchor.z).toBeCloseTo(bumper.radius);
+  expect(bumperAttachment?.child.anchor.z).toBeCloseTo(-deck.size.z / 2);
+  expect(bumperAttachment?.parent.anchor.z).toBeCloseTo(bumper.size.z / 2);
   expect(validateKartAssembly(attached).success).toBe(true);
 });
 
@@ -639,7 +640,8 @@ test("does not start camera gestures from gizmo-consumed pointer downs", () => {
 });
 
 test("applies approved suspension mounting defaults to a mirrored pair", () => {
-  const original = createBalancedKartDocument();
+  // The defaults assume 8 cm lower arms, as the fixture uses.
+  const original = createValidKartAssembly();
   const left = original.componentInstances.find(
     ({ id }) => id === "suspension-front-left",
   )!;

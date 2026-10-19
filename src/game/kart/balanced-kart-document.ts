@@ -7,28 +7,45 @@ import {
 export const BALANCED_KART_ID = "balanced-kart";
 
 const BALANCED_KART_CONFIG = {
-  bodyMaterial: "material.structural-aluminum",
-  bodySize: { x: 0.29, y: 0.07, z: 0.275 },
-  bumperHeight: 0.22,
-  bumperZ: 0.17,
+  armLength: 0.115,
+  chassis: {
+    armMount: { x: 0.016, z: 0.018 },
+    bumperSize: { x: 0.09, y: 0.02, z: 0.03 },
+    equipment: {
+      "battery-main": { x: -0.04, yawDegrees: 90, z: -0.035 },
+      // Centers the mass on the kart's centerline.
+      "brakes-main": { x: -0.0212, z: 0.04 },
+      "controller-main": { x: 0.04, z: -0.06 },
+      "motor-main": { x: 0.048, z: 0.035 },
+      "steering-main": { x: 0, z: -0.115 },
+      "transmission-main": { x: 0, z: 0.115 },
+    },
+    plate: {
+      bottomY: 0.044,
+      material: "material.structural-aluminum",
+      size: { x: 0.134, y: 0.002, z: 0.375 },
+    },
+    shockTowerThickness: 0.004,
+    topDeck: { bottomY: 0.085, size: { x: 0.04, y: 0.002 } },
+  },
   kartId: BALANCED_KART_ID,
   motionRatio: Math.sqrt(812.5 / 1_600),
   name: "Balanced Kart",
   practicalDescriptor:
     "Stable small-wheel setup with predictable steering and balanced speed.",
+  shockTopMount: { y: 0.118, z: 0.16 },
   suspensionComponentCenterY: 0.109,
   suspensionComponentPosition: "spring-arm",
   suspensionDefinitionId: "suspension.firm-short",
   suspensionRestCompression: 0.013,
-  trackWidth: 0.39,
+  trackWidth: 0.34,
   transmissionDefinitionId: "transmission.balanced-5to1",
-  upperHousingSize: { x: 0.18, y: 0.105, z: 0.195 },
   visualIdentity: {
     accentColor: "#f4b942",
     primaryColor: "#203040",
   },
   wheelDefinitionId: "wheel-tire.small-standard",
-  wheelbase: 0.3,
+  wheelbase: 0.345,
 } as const satisfies OfficialKartAssemblyConfig;
 
 /**

@@ -116,20 +116,24 @@ test.describe("kart principal axes", () => {
 
   test("reconstructs the tensor derived from an asymmetric kart", () => {
     const document = createBalancedKartDocument();
-    const upperHousing = document.primitiveInstances.find(
-      ({ id }) => id === "upper-housing",
+    const topDeck = document.primitiveInstances.find(
+      ({ id }) => id === "top-deck",
     );
-    const upperHousingMount = document.structuralAttachments.find(
-      ({ child }) => child.instanceId === "upper-housing",
+    const topDeckMount = document.structuralAttachments.find(
+      ({ child }) => child.instanceId === "top-deck",
     );
-    if (!upperHousing || !upperHousingMount) {
-      throw new Error("Balanced kart fixture is missing its upper housing.");
+    if (!topDeck || !topDeckMount) {
+      throw new Error("Balanced kart fixture is missing its top deck.");
     }
-    upperHousing.transform.position.x += 0.01;
-    upperHousingMount.parent.anchor.x += 0.01;
+    topDeck.transform.position.x += 0.01;
+    topDeckMount.parent.anchor.x += 0.01;
     const tensor = deriveKartSnapshot(document).massProperties.inertiaTensor;
 
-    expect(tensor.xy).not.toBe(0);
+    expect(tensor.xy).not.toBeCloseTo(
+      deriveKartSnapshot(createBalancedKartDocument()).massProperties
+        .inertiaTensor.xy,
+      9,
+    );
     expectPrincipalFrameReconstructs(tensor, 9);
   });
 

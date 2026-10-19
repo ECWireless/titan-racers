@@ -454,6 +454,24 @@ export function updateKartPrimitiveGeometry(
   });
 }
 
+/** Top face of the structural root, or the original chassis top without one. */
+function chassisTopY(document: KartAssemblyDocument) {
+  const children = new Set(
+    document.structuralAttachments.map(({ child }) => child.instanceId),
+  );
+  const root = document.primitiveInstances.find(
+    ({ id, role }) => role === "structure" && !children.has(id),
+  );
+  if (!root) return 0.118;
+  const halfHeight =
+    root.shape === "box"
+      ? root.size.y / 2
+      : root.axis === "y"
+        ? root.height / 2
+        : root.radius;
+  return root.transform.position.y + halfHeight;
+}
+
 export function addKartPrimitive(
   document: KartAssemblyDocument,
   preset: KartPrimitivePreset,
@@ -484,12 +502,14 @@ export function addKartPrimitive(
     transform: {
       position: {
         x: 0,
+        // Rest on the chassis, within attachment reach.
         y:
-          preset === "box-body"
-            ? 0.148
+          chassisTopY(document) +
+          (preset === "box-body"
+            ? 0.03
             : preset === "cylinder-guard"
-              ? 0.13
-              : 0.128,
+              ? 0.012
+              : 0.01),
         z: 0,
       },
       rotationDegrees: { ...ZERO_ROTATION },

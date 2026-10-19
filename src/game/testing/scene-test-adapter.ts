@@ -69,6 +69,7 @@ export type KartDebugState = {
   maxForwardSpeed: number;
   manualRightingCooldownSeconds: number;
   manualRightingCount: number;
+  rotation: { w: number; x: number; y: number; z: number };
   rotationX: number;
   rotationY: number;
   rotationZ: number;
@@ -109,8 +110,8 @@ export type KartDebugPose = {
 };
 
 export type KartVisualDebugState = {
-  bodywork: Position3 | null;
   component: Position3 | null;
+  primitive: Position3 | null;
 };
 
 export type PresentationDebugState = {
