@@ -57,8 +57,6 @@ type KartSuspensionVisual = {
   /** One helix mesh built at rest length and stretched between the perches. */
   coil: pc.Entity;
   coilRestLength: number;
-  /** Current spring-arm end of the shock, in assembly axes. */
-  coilEnd: pc.Vec3;
   /** Spring seats measured from each eye along the shock. */
   perches: { bottom: number; top: number };
   /** Hub height (assembly axes) at which the mount geometry is at rest. */
@@ -274,7 +272,6 @@ function poseKartSuspensionVisual(
 ) {
   const springArm = suspension.springArmAnchor.clone();
   springArm.y += (hub.y - suspension.restHubY) * suspension.motionRatio;
-  suspension.coilEnd.copy(springArm);
   poseArm(suspension, hub);
 
   const chassis = suspension.chassisShockAnchor;
@@ -303,21 +300,26 @@ function poseKartSuspensionVisual(
 
 /** Swings the A-arm about its chassis pivots and stretches it to the hub. */
 function poseArm(suspension: KartSuspensionVisual, hub: pc.Vec3) {
-  const dx = hub.x - suspension.armPivot.x;
-  const dy = hub.y - suspension.armPivot.y;
-  const rotation = new pc.Quat().setFromEulerAngles(
-    0,
-    0,
-    (Math.atan2(dy, Math.abs(dx)) * 180) / Math.PI,
+  const toHub = hub.clone().sub(suspension.armPivot);
+  const level = Math.hypot(toHub.x, toHub.z);
+  // Arm visuals point +X toward the hub: yaw to it, then pitch about the
+  // pivot axis, which keeps that axis level.
+  const rotation = new pc.Quat().mul2(
+    new pc.Quat().setFromEulerAngles(
+      0,
+      (Math.atan2(-toHub.z, toHub.x) * 180) / Math.PI,
+      0,
+    ),
+    new pc.Quat().setFromEulerAngles(
+      0,
+      0,
+      (Math.atan2(toHub.y, level) * 180) / Math.PI,
+    ),
   );
-  // Arm visuals point +X toward the hub; left arms turn around first.
-  if (dx < 0) {
-    rotation.mul2(new pc.Quat().setFromEulerAngles(0, 180, 0), rotation);
-  }
   suspension.arm.setLocalPosition(suspension.armPivot);
   suspension.arm.setLocalRotation(rotation);
   suspension.arm.setLocalScale(
-    Math.hypot(dx, dy) / suspension.armRestLength,
+    toHub.length() / suspension.armRestLength,
     1,
     1,
   );
@@ -488,10 +490,7 @@ function createSuspensionVisual(
   // Same expression as derivation, so race poses match the physics exactly.
   const hubLever = hubAnchor.distance(armPivot);
   const springLever = springArmAnchor.distance(armPivot);
-  const armRestLength = Math.hypot(
-    hubAnchor.x - armPivot.x,
-    hubAnchor.y - armPivot.y,
-  );
+  const armRestLength = hubAnchor.distance(armPivot);
   const coilRestLength = Math.max(
     springArmAnchor.distance(chassisShockAnchor) -
       coilover.topPerch -
@@ -530,7 +529,6 @@ function createSuspensionVisual(
     armRestLength,
     chassisShockAnchor,
     coil,
-    coilEnd: springArmAnchor.clone(),
     coilRestLength,
     perches: { bottom: coilover.bottomPerch, top: coilover.topPerch },
     restHubY,

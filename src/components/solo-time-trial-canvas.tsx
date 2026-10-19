@@ -2357,7 +2357,7 @@ export function SoloTimeTrialCanvas({
         };
       };
 
-      function getFirstMeshDiffuse(
+      function getRenderedColor(
         entity: pc.Entity | undefined,
       ): Position3 | null {
         const hex = entity ? getRenderedKartColor(entity) : null;
@@ -2380,43 +2380,13 @@ export function SoloTimeTrialCanvas({
             );
           },
         );
-        const wheelPresentation = wheelPresentations[0];
-        const suspension = wheelPresentation?.visual.suspension;
-        const pivot = wheelPresentation?.visual.pivot;
-
         return {
-          bodywork: getFirstMeshDiffuse(
+          bodywork: getRenderedColor(
             bodywork ? kartInstanceRoots.get(bodywork.id) : undefined,
           ),
-          component: getFirstMeshDiffuse(
+          component: getRenderedColor(
             component ? kartInstanceRoots.get(component.id) : undefined,
           ),
-          suspension: getFirstMeshDiffuse(suspension?.shock),
-          suspensionCastsShadows: suspension?.shock.render?.castShadows ?? null,
-          suspensionDamperDiameter:
-            suspension?.shock.getLocalScale().x ?? null,
-          suspensionReceivesShadows:
-            suspension?.shock.render?.receiveShadows ?? null,
-          suspensionCoil: getFirstMeshDiffuse(suspension?.coil),
-          suspensionCoilCastsShadows:
-            suspension?.coil.render?.castShadows ?? null,
-          suspensionCoilReceivesShadows:
-            suspension?.coil.render?.receiveShadows ?? null,
-          suspensionCoilEnd: suspension
-            ? {
-                x: suspension.coilEnd.x,
-                y: suspension.coilEnd.y,
-                z: suspension.coilEnd.z,
-              }
-            : null,
-          wheel: getFirstMeshDiffuse(pivot),
-          wheelHubPosition: pivot
-            ? {
-                x: pivot.getLocalPosition().x,
-                y: pivot.getLocalPosition().y,
-                z: pivot.getLocalPosition().z,
-              }
-            : null,
         };
       };
 

@@ -91,16 +91,6 @@ async function getKartVisualColors(canvas: Locator) {
       new Promise<{
         bodywork: MaterialColor;
         component: MaterialColor;
-        suspension: MaterialColor;
-        suspensionCastsShadows: boolean | null;
-        suspensionCoil: MaterialColor;
-        suspensionCoilCastsShadows: boolean | null;
-        suspensionCoilEnd: MaterialColor;
-        suspensionCoilReceivesShadows: boolean | null;
-        suspensionDamperDiameter: number | null;
-        suspensionReceivesShadows: boolean | null;
-        wheel: MaterialColor;
-        wheelHubPosition: MaterialColor;
       }>((resolve) => {
         element.dispatchEvent(
           new CustomEvent("getKartVisualDebugState", {

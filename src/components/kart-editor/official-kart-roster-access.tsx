@@ -45,6 +45,8 @@ type DraftAction =
 type DraftState = {
   action: DraftAction;
   document: KartAssemblyDocument;
+  /** A missing current-version thumbnail is being captured and uploaded. */
+  filling: boolean;
   revision: number | null;
   stats: OfficialKartRosterCard["stats"];
   thumbnailAvailable: boolean;
@@ -74,6 +76,7 @@ export function OfficialKartRosterAccess({
           {
             action: "checking",
             document,
+            filling: false,
             revision: null,
             stats: officialKarts.find((kart) => kart.kartId === kartId)!.stats,
             thumbnailAvailable: false,
@@ -107,13 +110,16 @@ export function OfficialKartRosterAccess({
       latest: PersistedKartRevision,
     ) {
       if (!latest.thumbnailAvailable) {
+        // The card waits on this capture rather than rendering the same kart
+        // locally; a failed upload falls back to the local render.
         const filled = await persistKartRevisionThumbnail(latest);
-        if (active && filled.thumbnailAvailable) {
+        if (active) {
           setDraftStates((current) => ({
             ...current,
             [latest.kartId]: {
               ...current[latest.kartId],
-              thumbnailAvailable: true,
+              filling: false,
+              thumbnailAvailable: filled.thumbnailAvailable,
             },
           }));
         }
@@ -155,6 +161,7 @@ export function OfficialKartRosterAccess({
             nextState = {
               action: "continue",
               document: revision.document,
+              filling: !revision.thumbnailAvailable,
               revision: revision.revision,
               stats: revision.resolvedSnapshot.playerStats,
               thumbnailAvailable: revision.thumbnailAvailable,
@@ -173,6 +180,7 @@ export function OfficialKartRosterAccess({
               document: officialKarts.find(
                 (kart) => kart.kartId === kartId,
               )!.document,
+              filling: false,
               revision: null,
               stats: officialKarts.find(
                 (kart) => kart.kartId === kartId,
@@ -185,6 +193,7 @@ export function OfficialKartRosterAccess({
             action: "open",
             document: officialKarts.find((kart) => kart.kartId === kartId)!
               .document,
+            filling: false,
             revision: null,
             stats: officialKarts.find((kart) => kart.kartId === kartId)!.stats,
             thumbnailAvailable: false,
@@ -254,6 +263,7 @@ export function OfficialKartRosterAccess({
             const draft = draftStates[kart.kartId] ?? {
               action: "open" as const,
               document: kart.document,
+              filling: false,
               revision: null,
               stats: kart.stats,
               thumbnailAvailable: false,
@@ -270,7 +280,7 @@ export function OfficialKartRosterAccess({
                 <KartThumbnail
                   document={draft.document}
                   initialized={draft.action === "continue"}
-                  pending={draft.action === "checking"}
+                  pending={draft.action === "checking" || draft.filling}
                   source={thumbnailSource}
                 />
                 <div className="grid gap-4">
