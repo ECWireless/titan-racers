@@ -825,6 +825,10 @@ test.describe("home screen", () => {
       "Client-navigation lifecycle coverage only needs one browser fixture.",
     );
     await delayNextKartThumbnailEncoding(page, 750);
+    // Bundled karts have no stored images, so every card renders locally.
+    await page.route("**/api/karts/official", (route) =>
+      route.fulfill({ status: 503 }),
+    );
     await page.goto("/");
     await expect(
       page.locator('[data-kart-thumbnail-source="rendering"]').first(),
@@ -836,9 +840,10 @@ test.describe("home screen", () => {
 
     await page.goBack();
     await expect(page).toHaveURL("/");
+    // Queued local renders drain one PlayCanvas application at a time.
     await expect(
       page.locator('[data-kart-thumbnail-source="generated"]').first(),
-    ).toBeVisible();
+    ).toBeVisible({ timeout: 15_000 });
   });
 
   test("shows locale-aware speed in the race HUD", async ({

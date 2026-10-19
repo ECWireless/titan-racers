@@ -12,10 +12,13 @@ import {
 export function KartThumbnail({
   document,
   initialized,
+  pending = false,
   source,
 }: {
   document: KartAssemblyDocument;
   initialized: boolean;
+  /** The caller is still resolving which revision to show. */
+  pending?: boolean;
   source: string | null;
 }) {
   const renderKey = useMemo(() => JSON.stringify(document), [document]);
@@ -60,9 +63,11 @@ export function KartThumbnail({
       ? "persisted"
       : generatedSource
         ? "generated"
-        : initialized && !renderFailed
-          ? "rendering"
-          : "placeholder";
+        : pending
+          ? "loading"
+          : initialized && !renderFailed
+            ? "rendering"
+            : "placeholder";
 
   return (
     <div
@@ -82,23 +87,21 @@ export function KartThumbnail({
             else setFailedRenderKey(renderKey);
           }}
         />
+      ) : imageKind === "loading" || imageKind === "rendering" ? (
+        <div
+          aria-label={`${document.name} thumbnail loading`}
+          className="absolute inset-0 bg-titan-ice/[0.04] motion-safe:animate-pulse"
+          role="img"
+        />
       ) : (
         <div
-          aria-label={
-            initialized
-              ? `${document.name} thumbnail ${
-                  renderFailed ? "unavailable" : "rendering"
-                }`
-              : `${document.name} thumbnail appears after its first save`
-          }
+          aria-label={`${document.name} thumbnail ${
+            initialized ? "unavailable" : "not yet saved"
+          }`}
           className="absolute inset-0 grid place-items-center px-5 text-center font-mono text-[0.62rem] font-bold uppercase tracking-[0.14em] text-titan-muted"
           role="img"
         >
-          {initialized
-            ? renderFailed
-              ? "Thumbnail unavailable"
-              : "Rendering kart…"
-            : "Thumbnail after first save"}
+          {initialized ? "Thumbnail unavailable" : "No saved design"}
         </div>
       )}
       <div

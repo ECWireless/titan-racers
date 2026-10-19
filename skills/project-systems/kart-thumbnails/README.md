@@ -33,8 +33,11 @@ presentation. Kart authoring and publication belong to the
   post-save capture and upload. A failed capture never discards a successful
   kart revision.
 - `src/db/schema.ts`, `src/server/kart-repository.ts`, and
-  `drizzle/0013_kart_revision_thumbnails.sql` own immutable, revision-keyed PNG
-  storage and lookup.
+  `drizzle/0013`–`0014` own immutable PNG storage keyed by revision and render
+  version, and lookup of the current version only.
+- `src/components/kart-editor/official-kart-roster-access.tsx` fills missing
+  current-version images for each official kart's latest and published
+  revisions when an admin opens the roster.
 - `src/app/api/admin/karts/[kartId]/revisions/[revision]/thumbnail/route.ts`
   owns authenticated exact-revision reads and same-origin writes.
 - `src/app/api/karts/[kartId]/thumbnail/route.ts` resolves the current
@@ -46,8 +49,9 @@ presentation. Kart authoring and publication belong to the
 1. A kart save first creates its immutable JSON revision.
 2. The browser captures that exact saved document at the fixed render version
    and submits a bounded PNG to the exact revision endpoint.
-3. The repository stores at most one immutable thumbnail for that revision.
-   Repeating the identical write is idempotent; different bytes conflict.
+3. The repository stores at most one immutable thumbnail per revision and
+   render version. Repeating the identical write is idempotent; different bytes
+   conflict. Older render versions stay stored but are never served.
 4. The admin roster resolves the kart's latest saved revision and requests only
    that revision's protected image.
 5. The public route resolves the live publication and returns only that
@@ -85,7 +89,7 @@ presentation. Kart authoring and publication belong to the
 - `tests/kart-editor.spec.ts` performs real browser PNG capture across save and
   publication workflows.
 - `tests/official-kart-admin-roster.spec.ts` covers initialized and placeholder
-  cards at desktop and mobile sizes.
+  cards at desktop and mobile sizes, and the roster's current-version fill.
 - `tests/home.spec.ts` covers published selection and serialized transition
   from fallback rendering into the solo runtime.
 - `pnpm db:check`, `pnpm lint`, `pnpm typecheck`, and `pnpm build` are the static
@@ -96,7 +100,7 @@ presentation. Kart authoring and publication belong to the
 - PNG bytes currently live in Postgres because the official roster and image
   bounds are deliberately small. Object storage can replace byte persistence
   later without changing the revision identity contract.
-- Existing revisions without a stored image use exact local rendering until
-  their next save or a future explicit backfill.
+- Revisions without a current-version image use exact local rendering until an
+  admin save or roster visit captures one. Community karts (Phase 6) need their
+  own fill path.
 - Any change to the shared builder's output must advance the renderer version.
-  Stored older-version images remain until regenerated.

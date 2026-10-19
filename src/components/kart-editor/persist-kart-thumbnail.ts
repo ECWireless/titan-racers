@@ -3,9 +3,12 @@
 import type { PersistedKartRevision } from "@/game/kart/kart-publication";
 import { createKartThumbnailUpload } from "@/game/kart/kart-thumbnail-renderer";
 
-export async function persistKartRevisionThumbnail(
-  revision: PersistedKartRevision,
-) {
+export async function persistKartRevisionThumbnail<
+  Revision extends Pick<
+    PersistedKartRevision,
+    "document" | "kartId" | "revision" | "thumbnailAvailable"
+  >,
+>(revision: Revision): Promise<Revision> {
   if (revision.thumbnailAvailable) return revision;
   try {
     const upload = await createKartThumbnailUpload(revision.document);

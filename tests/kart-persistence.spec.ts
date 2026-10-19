@@ -35,6 +35,7 @@ import {
 } from "../src/game/kart/kart-derivation";
 import { createBalancedKartDocument } from "../src/game/kart/balanced-kart-document";
 import { kartAssemblyDocumentV1Schema } from "../src/game/kart/kart-assembly-document";
+import { KART_THUMBNAIL_RENDER_VERSION } from "../src/game/kart/kart-thumbnail-contract";
 import {
   KartConflictError,
   KartPublicationConflictError,
@@ -286,13 +287,26 @@ test.describe("kart persistence and authorization", () => {
       ownerUserId: userId,
     });
     expect(firstRevision.thumbnailAvailable).toBe(false);
+    // An image from an older renderer stays stored but is never served.
+    await saveKartRevisionThumbnail({
+      contentType: "image/png",
+      generatedByUserId: userId,
+      imageData: createTestPng({ marker: 7 }),
+      kartId,
+      renderVersion: KART_THUMBNAIL_RENDER_VERSION - 1,
+      revision: 1,
+    });
+    await expect(loadLatestKartRevision(kartId)).resolves.toMatchObject({
+      thumbnailAvailable: false,
+    });
+    await expect(loadKartRevisionThumbnail(kartId, 1)).resolves.toBeNull();
     const firstImage = createTestPng({ marker: 1 });
     const firstThumbnail = await saveKartRevisionThumbnail({
       contentType: "image/png",
       generatedByUserId: userId,
       imageData: firstImage,
       kartId,
-      renderVersion: 1,
+      renderVersion: KART_THUMBNAIL_RENDER_VERSION,
       revision: 1,
     });
     expect(firstThumbnail.imageSha256).toMatch(/^[0-9a-f]{64}$/);
@@ -302,7 +316,7 @@ test.describe("kart persistence and authorization", () => {
         generatedByUserId: userId,
         imageData: firstImage,
         kartId,
-        renderVersion: 1,
+        renderVersion: KART_THUMBNAIL_RENDER_VERSION,
         revision: 1,
       }),
     ).resolves.toMatchObject({ imageSha256: firstThumbnail.imageSha256 });
@@ -312,7 +326,7 @@ test.describe("kart persistence and authorization", () => {
         generatedByUserId: userId,
         imageData: createTestPng({ marker: 9 }),
         kartId,
-        renderVersion: 1,
+        renderVersion: KART_THUMBNAIL_RENDER_VERSION,
         revision: 1,
       }),
     ).rejects.toBeInstanceOf(KartThumbnailConflictError);
@@ -331,7 +345,7 @@ test.describe("kart persistence and authorization", () => {
       generatedByUserId: userId,
       imageData: secondImage,
       kartId,
-      renderVersion: 1,
+      renderVersion: KART_THUMBNAIL_RENDER_VERSION,
       revision: 2,
     });
     await expect(loadLatestKartRevision(kartId)).resolves.toMatchObject({
@@ -375,7 +389,7 @@ test.describe("kart persistence and authorization", () => {
     let immutableThumbnailError: unknown;
     try {
       await db.execute(
-        sql`update ${kartRevisionThumbnails} set "render_version" = 2 where ${kartRevisionThumbnails.imageSha256} = ${firstThumbnail.imageSha256}`,
+        sql`update ${kartRevisionThumbnails} set "render_version" = ${KART_THUMBNAIL_RENDER_VERSION + 1} where ${kartRevisionThumbnails.imageSha256} = ${firstThumbnail.imageSha256}`,
       );
     } catch (error) {
       immutableThumbnailError = error;
@@ -725,7 +739,7 @@ test.describe("kart persistence and authorization", () => {
     const body = JSON.stringify({
       contentType: "image/png",
       data: imageData.toString("base64"),
-      renderVersion: 1,
+      renderVersion: KART_THUMBNAIL_RENDER_VERSION,
     });
     const request = (
       requestHeaders: HeadersInit,
@@ -806,7 +820,7 @@ test.describe("kart persistence and authorization", () => {
             marker: 8,
             width: 320,
           }).toString("base64"),
-          renderVersion: 1,
+          renderVersion: KART_THUMBNAIL_RENDER_VERSION,
         }),
       ),
       context,
@@ -832,7 +846,7 @@ test.describe("kart persistence and authorization", () => {
         JSON.stringify({
           contentType: "image/png",
           data: createTestPng({ marker: 9 }).toString("base64"),
-          renderVersion: 1,
+          renderVersion: KART_THUMBNAIL_RENDER_VERSION,
         }),
       ),
       context,

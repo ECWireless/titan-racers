@@ -7,10 +7,15 @@ import { useEffect, useRef, useState } from "react";
 
 import { useControllerMenuNavigation } from "@/game/input/use-controller-menu-navigation";
 import type { KartAssemblyDocument } from "@/game/kart/kart-assembly-document";
-import { persistedKartRevisionSchema } from "@/game/kart/kart-publication";
+import {
+  type PersistedKartRevision,
+  persistedKartRevisionSchema,
+} from "@/game/kart/kart-publication";
+import { officialKartRosterSchema } from "@/game/kart/official-kart-roster";
 import { racerOnboardingPath } from "@/lib/racer-username";
 
 import { KartThumbnail } from "../kart-thumbnail";
+import { persistKartRevisionThumbnail } from "./persist-kart-thumbnail";
 
 export type OfficialKartRosterCard = {
   document: KartAssemblyDocument;
@@ -86,9 +91,56 @@ export function OfficialKartRosterAccess({
 
   useEffect(() => {
     let active = true;
+    let publishedRoster: Promise<unknown> | null = null;
+    const loadPublishedRoster = () =>
+      (publishedRoster ??= fetch("/api/karts/official", {
+        cache: "no-store",
+        signal: AbortSignal.timeout(3_000),
+      })
+        .then((response) => response.json())
+        .catch(() => null));
+
+    // Fills in images missing at the current render version, so a renderer
+    // change regenerates official thumbnails when an admin opens the roster.
+    // Stored images are immutable; each render version is added alongside.
+    async function fillMissingThumbnails(
+      latest: PersistedKartRevision,
+    ) {
+      if (!latest.thumbnailAvailable) {
+        const filled = await persistKartRevisionThumbnail(latest);
+        if (active && filled.thumbnailAvailable) {
+          setDraftStates((current) => ({
+            ...current,
+            [latest.kartId]: {
+              ...current[latest.kartId],
+              thumbnailAvailable: true,
+            },
+          }));
+        }
+      }
+      const roster = officialKartRosterSchema.safeParse(
+        await loadPublishedRoster(),
+      );
+      const published =
+        roster.success && roster.data.source === "published"
+          ? roster.data.karts.find(
+              ({ runtime }) => runtime.kartId === latest.kartId,
+            )?.runtime
+          : undefined;
+      if (
+        active &&
+        published &&
+        published.revision !== latest.revision &&
+        !published.thumbnailAvailable
+      ) {
+        await persistKartRevisionThumbnail(published);
+      }
+    }
+
     for (const { kartId } of officialKarts) {
       void (async () => {
         let nextState: DraftState;
+        let latest: PersistedKartRevision | null = null;
         try {
           const response = await fetch(`/api/admin/karts/${kartId}`, {
             cache: "no-store",
@@ -99,6 +151,7 @@ export function OfficialKartRosterAccess({
             const revision = persistedKartRevisionSchema.parse(
               await response.json(),
             );
+            latest = revision;
             nextState = {
               action: "continue",
               document: revision.document,
@@ -140,6 +193,7 @@ export function OfficialKartRosterAccess({
         if (active) {
           setDraftStates((current) => ({ ...current, [kartId]: nextState }));
         }
+        if (latest && active) await fillMissingThumbnails(latest);
       })();
     }
     return () => {
@@ -216,6 +270,7 @@ export function OfficialKartRosterAccess({
                 <KartThumbnail
                   document={draft.document}
                   initialized={draft.action === "continue"}
+                  pending={draft.action === "checking"}
                   source={thumbnailSource}
                 />
                 <div className="grid gap-4">
