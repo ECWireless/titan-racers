@@ -8,6 +8,7 @@ import {
   createKartAssemblyVisual,
   getRenderedKartBounds,
 } from "./kart-assembly-visual";
+import type { KartPartFinish } from "./kart-part-visual-geometry";
 import { createKartVisualMaterial } from "./kart-visual-material";
 import {
   KART_THUMBNAIL_CONTENT_TYPE,
@@ -31,8 +32,12 @@ export function renderKartThumbnail(document: KartAssemblyDocument) {
   if (thumbnailRenderingPauseDepth > 0) {
     return Promise.reject(new KartThumbnailRenderingPausedError());
   }
+  // Renders still queued when the race pauses rendering are dropped, so the
+  // race waits only for the one in flight.
   const render = thumbnailRenderQueue.then(() =>
-    renderKartThumbnailImmediately(document),
+    thumbnailRenderingPauseDepth > 0
+      ? Promise.reject(new KartThumbnailRenderingPausedError())
+      : renderKartThumbnailImmediately(document),
   );
   thumbnailRenderQueue = render.catch(() => undefined);
   return render;
@@ -85,9 +90,15 @@ async function renderKartThumbnailImmediately(document: KartAssemblyDocument) {
       preserveDrawingBuffer: true,
     },
   });
+  const materials = new Map<KartPartFinish, pc.StandardMaterial>();
   const { root } = createKartAssemblyVisual(
     document,
-    createKartVisualMaterial,
+    (finish) => {
+      const material =
+        materials.get(finish) ?? createKartVisualMaterial(finish);
+      materials.set(finish, material);
+      return material;
+    },
     app.graphicsDevice,
   );
   let releaseSceneLook = () => {};

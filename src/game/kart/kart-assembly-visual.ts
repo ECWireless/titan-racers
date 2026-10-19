@@ -9,6 +9,25 @@ import {
   type ApprovedComponentDefinition,
   getApprovedKartComponent,
 } from "./kart-component-registry";
+import type { DeepReadonly } from "./immutable-registry";
+import type {
+  KartCoiloverVisual,
+  KartPartFinish,
+  KartPartVisualPiece,
+} from "./kart-part-visual-geometry";
+import { buildSuspensionArm } from "./kart-part-visual-geometry";
+import {
+  getAuthoredMaterialFinish,
+  getKartPartVisual,
+} from "./kart-part-visuals";
+import { getKartFinishColor } from "./kart-visual-material";
+
+type ReadonlyComponentDefinition = DeepReadonly<ApprovedComponentDefinition>;
+type CreatePieces = (
+  name: string,
+  pieces: KartPartVisualPiece[],
+  skin: KartVisualSkin,
+) => pc.Entity;
 
 export type KartRenderedBounds = {
   center: pc.Vec3;
@@ -18,26 +37,36 @@ export type KartRenderedBounds = {
 
 /** Callers own material lifecycle; the builder only requests materials. */
 type KartVisualMaterialFactory = (
-  visualColor: string,
+  finish: KartPartFinish,
   instanceId: string,
 ) => pc.StandardMaterial;
+
+/** One instance's materials and its authored color. */
+type KartVisualSkin = {
+  visualColor: string;
+  materialFor: (finish: KartPartFinish) => pc.StandardMaterial;
+};
 
 type KartVector = { x: number; y: number; z: number };
 
 type KartSuspensionVisual = {
-  armForward: pc.Entity;
-  armRear: pc.Entity;
-  chassisForwardAnchor: pc.Vec3;
-  chassisRearAnchor: pc.Vec3;
+  arm: pc.Entity;
+  armPivot: pc.Vec3;
+  armRestLength: number;
   chassisShockAnchor: pc.Vec3;
-  /** One helix mesh built at rest length and stretched along its axis. */
+  /** One helix mesh built at rest length and stretched between the perches. */
   coil: pc.Entity;
   coilRestLength: number;
-  /** Current spring-arm end of the shock and coil, in assembly axes. */
+  /** Current spring-arm end of the shock, in assembly axes. */
   coilEnd: pc.Vec3;
-  hubAnchorY: number;
+  /** Spring seats measured from each eye along the shock. */
+  perches: { bottom: number; top: number };
+  /** Hub height (assembly axes) at which the mount geometry is at rest. */
+  restHubY: number;
   instanceId: string;
   motionRatio: number;
+  shaft: pc.Entity;
+  /** The damper body, rigid with the chassis eye. */
   shock: pc.Entity;
   springArmAnchor: pc.Vec3;
 };
@@ -58,14 +87,8 @@ type KartAssemblyVisual = {
 };
 
 const ARM_ANCHOR_HALF_SPREAD = 0.025;
-const ARM_RADIUS = 0.005;
-const COIL_RADIUS = 0.014;
-const COIL_SEGMENTS_PER_TURN = 16;
-const COIL_TURNS = 8;
-const COIL_WIRE_RADIUS = 0.0025;
-const COIL_WIRE_SIDES = 6;
-const DAMPER_RADIUS = 0.009;
-const HUB_EXTRA_WIDTH = 0.006;
+const COIL_SEGMENTS_PER_TURN = 12;
+const COIL_WIRE_SIDES = 5;
 
 export function createKartAssemblyVisual(
   document: KartAssemblyDocument,
@@ -75,22 +98,42 @@ export function createKartAssemblyVisual(
   const root = new pc.Entity(`${document.kartId}-visual`);
   const instanceRoots = new Map<string, pc.Entity>();
   const materials = new Map<string, pc.StandardMaterial>();
-  const materialFor = (instance: { id: string; visualColor: string }) => {
-    let material = materials.get(instance.id);
-    if (!material) {
-      material = createMaterial(instance.visualColor, instance.id);
-      materials.set(instance.id, material);
-    }
-    return material;
-  };
+  const materialsFor = (instance: {
+    id: string;
+    visualColor: string;
+  }): KartVisualSkin => ({
+    visualColor: instance.visualColor,
+    materialFor: (finish) => {
+      const key = `${instance.id}:${finish}`;
+      let material = materials.get(key);
+      if (!material) {
+        material = createMaterial(finish, instance.id);
+        materials.set(key, material);
+      }
+      return material;
+    },
+  });
+  const createPieces: CreatePieces = (name, pieces, skin) =>
+    createPieceEntity(name, pieces, skin, device);
   const wheelInstances: Array<{
+    definition: ReadonlyComponentDefinition;
     instance: KartAssemblyComponentInstance;
-    radius: number;
-    width: number;
   }> = [];
 
   for (const primitive of document.primitiveInstances) {
-    const entity = createPrimitiveEntity(primitive, materialFor(primitive));
+    const entity = createPrimitiveEntity(
+      primitive,
+      createPieces(
+        `${primitive.id}-visual`,
+        [
+          createPrimitivePiece(
+            primitive.shape,
+            getAuthoredMaterialFinish(primitive.material.id),
+          ),
+        ],
+        materialsFor(primitive),
+      ),
+    );
     instanceRoots.set(primitive.id, entity);
     root.addChild(entity);
   }
@@ -100,24 +143,55 @@ export function createKartAssemblyVisual(
     const entity = createInstanceRoot(instance.id, instance.transform);
     instanceRoots.set(instance.id, entity);
     root.addChild(entity);
-    if (definition?.category === "wheel-tire") {
-      const { radius, width } = definition.wheelTire;
-      wheelInstances.push({ instance, radius, width });
+    if (!definition) continue;
+    if (definition.category === "wheel-tire") {
+      wheelInstances.push({ definition, instance });
       continue;
     }
-    const material = materialFor(instance);
-    definition?.construction.forEach((construction, index) => {
-      entity.addChild(
-        createConstructionEntity(
-          `${instance.id}-construction-${index}`,
-          construction,
-          material,
-        ),
-      );
-    });
+    const visual = getKartPartVisual(instance.definition);
+    // Suspension visuals are posed from the mounts once wheels are known.
+    if (visual?.kind === "coilover" && instance.suspensionMount) continue;
+    entity.addChild(
+      visual?.kind === "pieces"
+        ? createPieces(
+            `${instance.id}-part`,
+            visual.build(definition),
+            materialsFor(instance),
+          )
+        : createConstructionEntity(
+            instance.id,
+            definition,
+            materialsFor(instance),
+            createPieces,
+          ),
+    );
   }
 
-  const wheels = wheelInstances.map(({ instance, radius, width }) => {
+  const createSuspension = (
+    instance: KartAssemblyComponentInstance,
+    restHubY: number,
+  ) => {
+    const definition = getApprovedKartComponent(instance.definition);
+    const visual = getKartPartVisual(instance.definition);
+    if (
+      !definition ||
+      visual?.kind !== "coilover" ||
+      !instance.suspensionMount
+    ) {
+      return null;
+    }
+    return createSuspensionVisual(
+      instance,
+      instance.suspensionMount,
+      visual.build(definition),
+      restHubY,
+      instanceRoots.get(instance.id)!,
+      materialsFor(instance),
+      createPieces,
+    );
+  };
+
+  const wheels = wheelInstances.map(({ definition, instance }) => {
     const suspensionInstance = findWheelSuspension(document, instance.id);
     const wheelRoot = instanceRoots.get(instance.id)!;
     const wheelFrame = createAssemblyFrame(
@@ -129,33 +203,30 @@ export function createKartAssemblyVisual(
     const pivot = new pc.Entity(`${instance.id}-pivot`);
     pivot.setLocalPosition(hub);
     wheelFrame.addChild(pivot);
-    const material = materialFor(instance);
-    pivot.addChild(
-      createWheelCylinder(
-        `${instance.id}-tire`,
-        new pc.Vec3(radius * 2, width, radius * 2),
-        material,
-      ),
-    );
-    pivot.addChild(
-      createWheelCylinder(
-        `${instance.id}-hub`,
-        new pc.Vec3(radius, width + HUB_EXTRA_WIDTH, radius),
-        material,
-      ),
-    );
+    const visual = getKartPartVisual(instance.definition);
+    const wheelVisual =
+      visual?.kind === "pieces"
+        ? createPieces(
+            `${instance.id}-wheel`,
+            visual.build(definition),
+            materialsFor(instance),
+          )
+        : createConstructionEntity(
+            instance.id,
+            definition,
+            materialsFor(instance),
+            createPieces,
+          );
+    // Wheel visuals face outboard toward +X; left wheels turn around.
+    if (hub.x < 0) wheelVisual.setLocalEulerAngles(0, 180, 0);
+    pivot.addChild(wheelVisual);
 
     const wheel: KartWheelVisual = {
       hub,
       instanceId: instance.id,
       pivot,
       suspension: suspensionInstance
-        ? createSuspensionVisual(
-            suspensionInstance,
-            instanceRoots.get(suspensionInstance.id)!,
-            materialFor(suspensionInstance),
-            device,
-          )
+        ? createSuspension(suspensionInstance, hub.y)
         : null,
     };
     poseKartWheelVisual(wheel, hub.y);
@@ -175,11 +246,9 @@ export function createKartAssemblyVisual(
     ) {
       continue;
     }
-    const suspension = createSuspensionVisual(
+    const suspension = createSuspension(
       instance,
-      instanceRoots.get(instance.id)!,
-      materialFor(instance),
-      device,
+      instance.suspensionMount.hubAnchor.y,
     );
     if (suspension) {
       poseKartSuspensionVisual(
@@ -204,22 +273,54 @@ function poseKartSuspensionVisual(
   hub: pc.Vec3,
 ) {
   const springArm = suspension.springArmAnchor.clone();
-  springArm.y += (hub.y - suspension.hubAnchorY) * suspension.motionRatio;
+  springArm.y += (hub.y - suspension.restHubY) * suspension.motionRatio;
   suspension.coilEnd.copy(springArm);
-  placeBar(
-    suspension.armForward,
-    suspension.chassisForwardAnchor,
-    hub,
-    ARM_RADIUS,
+  poseArm(suspension, hub);
+
+  const chassis = suspension.chassisShockAnchor;
+  const axis = springArm.clone().sub(chassis);
+  const length = axis.length();
+  if (length <= 0.0001) return;
+  axis.mulScalar(1 / length);
+  const rotation = new pc.Quat().setFromDirections(pc.Vec3.UP, axis);
+  suspension.shock.setLocalPosition(chassis);
+  suspension.shock.setLocalRotation(rotation);
+  // The shaft faces back up the shock with its eye pin parallel to the body's.
+  suspension.shaft.setLocalPosition(springArm);
+  suspension.shaft.setLocalRotation(
+    rotation.clone().mul(new pc.Quat().setFromEulerAngles(0, 0, 180)),
   );
-  placeBar(suspension.armRear, suspension.chassisRearAnchor, hub, ARM_RADIUS);
-  placeBar(
-    suspension.shock,
-    suspension.chassisShockAnchor,
-    springArm,
-    DAMPER_RADIUS,
+  // Stretching the helix compresses its pitch like a real spring (the wire
+  // section flattens slightly with it).
+  const { bottom, top } = suspension.perches;
+  const coilLength = Math.max(length - top - bottom, 0);
+  suspension.coil.setLocalPosition(
+    chassis.clone().add(axis.clone().mulScalar(top)),
   );
-  placeCoil(suspension, springArm);
+  suspension.coil.setLocalRotation(rotation);
+  suspension.coil.setLocalScale(1, coilLength / suspension.coilRestLength, 1);
+}
+
+/** Swings the A-arm about its chassis pivots and stretches it to the hub. */
+function poseArm(suspension: KartSuspensionVisual, hub: pc.Vec3) {
+  const dx = hub.x - suspension.armPivot.x;
+  const dy = hub.y - suspension.armPivot.y;
+  const rotation = new pc.Quat().setFromEulerAngles(
+    0,
+    0,
+    (Math.atan2(dy, Math.abs(dx)) * 180) / Math.PI,
+  );
+  // Arm visuals point +X toward the hub; left arms turn around first.
+  if (dx < 0) {
+    rotation.mul2(new pc.Quat().setFromEulerAngles(0, 180, 0), rotation);
+  }
+  suspension.arm.setLocalPosition(suspension.armPivot);
+  suspension.arm.setLocalRotation(rotation);
+  suspension.arm.setLocalScale(
+    Math.hypot(dx, dy) / suspension.armRestLength,
+    1,
+    1,
+  );
 }
 
 export function getRenderedKartBounds(root: pc.Entity): KartRenderedBounds | null {
@@ -252,14 +353,9 @@ export function getRenderedKartBounds(root: pc.Entity): KartRenderedBounds | nul
 
 function createPrimitiveEntity(
   primitive: KartAssemblyPrimitiveInstance,
-  material: pc.StandardMaterial,
+  visual: pc.Entity,
 ) {
   const root = createInstanceRoot(primitive.id, primitive.transform);
-  const visual = createRenderEntity(
-    `${primitive.id}-visual`,
-    primitive.shape,
-    material,
-  );
   if (primitive.shape === "box") {
     root.setLocalScale(primitive.size.x, primitive.size.y, primitive.size.z);
   } else {
@@ -323,113 +419,126 @@ function createAssemblyFrame(
   return frame;
 }
 
+/** Fallback for a part version without a visual: its construction primitives. */
 function createConstructionEntity(
-  name: string,
-  construction: ApprovedComponentDefinition["construction"][number],
-  material: pc.StandardMaterial,
+  instanceId: string,
+  definition: ReadonlyComponentDefinition,
+  skin: KartVisualSkin,
+  createPieces: CreatePieces,
 ) {
-  const entity = createRenderEntity(name, construction.shape, material);
-  entity.setLocalPosition(
-    construction.transform.position.x,
-    construction.transform.position.y,
-    construction.transform.position.z,
-  );
-  entity.setLocalEulerAngles(
-    construction.transform.rotationDegrees.x,
-    construction.transform.rotationDegrees.y,
-    construction.transform.rotationDegrees.z,
-  );
-  if (construction.shape === "box") {
-    entity.setLocalScale(
-      construction.size.x,
-      construction.size.y,
-      construction.size.z,
+  const root = new pc.Entity(`${instanceId}-construction`);
+  definition.construction.forEach((construction, index) => {
+    const entity = createPieces(
+      `${instanceId}-construction-${index}`,
+      [
+        createPrimitivePiece(
+          construction.shape,
+          getAuthoredMaterialFinish(construction.material.id),
+        ),
+      ],
+      skin,
     );
-  } else {
-    entity.setLocalScale(
-      construction.radius * 2,
-      construction.height,
-      construction.radius * 2,
+    entity.setLocalPosition(
+      construction.transform.position.x,
+      construction.transform.position.y,
+      construction.transform.position.z,
     );
-    applyCylinderAxis(entity, construction.axis);
-  }
-  return entity;
-}
-
-function createWheelCylinder(
-  name: string,
-  scale: pc.Vec3,
-  material: pc.StandardMaterial,
-) {
-  const entity = createRenderEntity(name, "cylinder", material);
-  entity.setLocalEulerAngles(0, 0, 90);
-  entity.setLocalScale(scale);
-  return entity;
+    entity.setLocalEulerAngles(
+      construction.transform.rotationDegrees.x,
+      construction.transform.rotationDegrees.y,
+      construction.transform.rotationDegrees.z,
+    );
+    if (construction.shape === "box") {
+      entity.setLocalScale(
+        construction.size.x,
+        construction.size.y,
+        construction.size.z,
+      );
+    } else {
+      entity.setLocalScale(
+        construction.radius * 2,
+        construction.height,
+        construction.radius * 2,
+      );
+      applyCylinderAxis(entity, construction.axis);
+    }
+    root.addChild(entity);
+  });
+  return root;
 }
 
 function createSuspensionVisual(
   instance: KartAssemblyComponentInstance,
+  mount: NonNullable<KartAssemblyComponentInstance["suspensionMount"]>,
+  coilover: KartCoiloverVisual,
+  restHubY: number,
   instanceRoot: pc.Entity,
-  material: pc.StandardMaterial,
-  device: pc.GraphicsDevice,
-): KartSuspensionVisual | null {
-  const mount = instance.suspensionMount;
-  if (!mount) return null;
-  const coilover = createAssemblyFrame(
+  skin: KartVisualSkin,
+  createPieces: CreatePieces,
+): KartSuspensionVisual {
+  const rig = createAssemblyFrame(
     `${instance.id}-coilover`,
     instance.transform,
   );
-  instanceRoot.addChild(coilover);
-  const createBar = (name: string, radius: number, shadows: boolean) => {
-    const bar = createRenderEntity(name, "cylinder", material);
-    setShadows(bar, shadows);
-    bar.setLocalScale(radius * 2, 0.5, radius * 2);
-    coilover.addChild(bar);
-    return bar;
-  };
-  const coilRestLength = Math.hypot(
-    mount.springArmAnchor.x - mount.chassisAnchor.x,
-    mount.springArmAnchor.y - mount.chassisAnchor.y,
-    mount.springArmAnchor.z - mount.chassisAnchor.z,
-  );
-  const coil = new pc.Entity(`${instance.id}-coil`);
-  coil.addComponent("render", {
-    meshInstances: [
-      new pc.MeshInstance(createCoilMesh(device, coilRestLength), material),
-    ],
-  });
-  setShadows(coil, false);
-  coilover.addChild(coil);
+  instanceRoot.addChild(rig);
   const armPivot = toPcVector(mount.armPivot);
+  const hubAnchor = toPcVector(mount.hubAnchor);
+  const springArmAnchor = toPcVector(mount.springArmAnchor);
+  const chassisShockAnchor = toPcVector(mount.chassisAnchor);
   // Same expression as derivation, so race poses match the physics exactly.
-  const hubLever = Math.hypot(
-    mount.hubAnchor.x - mount.armPivot.x,
-    mount.hubAnchor.y - mount.armPivot.y,
-    mount.hubAnchor.z - mount.armPivot.z,
+  const hubLever = hubAnchor.distance(armPivot);
+  const springLever = springArmAnchor.distance(armPivot);
+  const armRestLength = Math.hypot(
+    hubAnchor.x - armPivot.x,
+    hubAnchor.y - armPivot.y,
   );
-  const springLever = Math.hypot(
-    mount.springArmAnchor.x - mount.armPivot.x,
-    mount.springArmAnchor.y - mount.armPivot.y,
-    mount.springArmAnchor.z - mount.armPivot.z,
+  const coilRestLength = Math.max(
+    springArmAnchor.distance(chassisShockAnchor) -
+      coilover.topPerch -
+      coilover.bottomPerch,
+    0.001,
   );
+
+  const arm = createPieces(
+    `${instance.id}-arm`,
+    buildSuspensionArm(armRestLength, ARM_ANCHOR_HALF_SPREAD),
+    skin,
+  );
+  const shock = createPieces(
+    `${instance.id}-damper`,
+    coilover.body,
+    skin,
+  );
+  const shaft = createPieces(
+    `${instance.id}-shaft`,
+    coilover.shaft,
+    skin,
+  );
+  const coil = createPieces(
+    `${instance.id}-coil`,
+    [createCoilPiece(coilover.spring, coilRestLength)],
+    skin,
+  );
+  rig.addChild(arm);
+  rig.addChild(shock);
+  rig.addChild(shaft);
+  rig.addChild(coil);
+
   return {
-    armForward: createBar(`${instance.id}-arm-forward`, ARM_RADIUS, true),
-    armRear: createBar(`${instance.id}-arm-rear`, ARM_RADIUS, true),
-    chassisForwardAnchor: armPivot
-      .clone()
-      .add(new pc.Vec3(0, 0, -ARM_ANCHOR_HALF_SPREAD)),
-    chassisRearAnchor: armPivot
-      .clone()
-      .add(new pc.Vec3(0, 0, ARM_ANCHOR_HALF_SPREAD)),
-    chassisShockAnchor: toPcVector(mount.chassisAnchor),
+    arm,
+    armPivot,
+    armRestLength,
+    chassisShockAnchor,
     coil,
-    coilEnd: toPcVector(mount.springArmAnchor),
+    coilEnd: springArmAnchor.clone(),
     coilRestLength,
-    hubAnchorY: mount.hubAnchor.y,
+    perches: { bottom: coilover.bottomPerch, top: coilover.topPerch },
+    restHubY,
     instanceId: instance.id,
     motionRatio: springLever / hubLever,
-    shock: createBar(`${instance.id}-damper`, DAMPER_RADIUS, false),
-    springArmAnchor: toPcVector(mount.springArmAnchor),
+    shaft,
+    shock,
+    springArmAnchor,
   };
 }
 
@@ -454,57 +563,28 @@ function findWheelSuspension(document: KartAssemblyDocument, wheelId: string) {
     );
 }
 
-function placeBar(
-  bar: pc.Entity,
-  start: pc.Vec3,
-  end: pc.Vec3,
-  radius: number,
-) {
-  const direction = end.clone().sub(start);
-  const length = direction.length();
-  // Collapse rather than disable: toggling a batched entity rebuilds its batch.
-  if (length <= 0.0001) {
-    bar.setLocalScale(radius * 2, 0, radius * 2);
-    return;
-  }
-  bar.setLocalPosition(start.clone().add(end).mulScalar(0.5));
-  bar.setLocalRotation(
-    new pc.Quat().setFromDirections(pc.Vec3.UP, direction.normalize()),
-  );
-  bar.setLocalScale(radius * 2, length, radius * 2);
-}
-
-function placeCoil(suspension: KartSuspensionVisual, end: pc.Vec3) {
-  const start = suspension.chassisShockAnchor;
-  const direction = end.clone().sub(start);
-  const length = direction.length();
-  if (length <= 0.0001) {
-    suspension.coil.setLocalScale(1, 0, 1);
-    return;
-  }
-  suspension.coil.setLocalPosition(start);
-  suspension.coil.setLocalRotation(
-    new pc.Quat().setFromDirections(pc.Vec3.UP, direction.normalize()),
-  );
-  // The pitch compresses with the spring; turns and wire stay the same.
-  suspension.coil.setLocalScale(1, length / suspension.coilRestLength, 1);
-}
-
-/** A helix tube from local y = 0 to `length`, so it scales along +Y. */
-function createCoilMesh(device: pc.GraphicsDevice, length: number) {
-  const steps = COIL_TURNS * COIL_SEGMENTS_PER_TURN;
+/**
+ * A helix tube from local y = 0 to `length`, so it scales along +Y. The
+ * spring is the suspension's own color, as on real coilovers.
+ */
+function createCoilPiece(
+  spring: KartCoiloverVisual["spring"],
+  length: number,
+): KartPartVisualPiece {
+  const { meanRadius, turns, wireRadius } = spring;
+  const steps = Math.ceil(turns * COIL_SEGMENTS_PER_TURN);
   const positions: number[] = [];
   const normals: number[] = [];
   const indices: number[] = [];
-  const pitch = length / COIL_TURNS;
-  const circumference = Math.PI * 2 * COIL_RADIUS;
+  const pitch = length / turns;
+  const circumference = Math.PI * 2 * meanRadius;
   const tangentScale = Math.hypot(circumference, pitch);
   for (let step = 0; step <= steps; step += 1) {
     const t = step / steps;
-    const angle = t * Math.PI * 2 * COIL_TURNS;
+    const angle = t * Math.PI * 2 * turns;
     const cos = Math.cos(angle);
     const sin = Math.sin(angle);
-    const center = new pc.Vec3(cos * COIL_RADIUS, t * length, sin * COIL_RADIUS);
+    const center = new pc.Vec3(cos * meanRadius, t * length, sin * meanRadius);
     const tangent = new pc.Vec3(
       (-sin * circumference) / tangentScale,
       pitch / tangentScale,
@@ -518,7 +598,7 @@ function createCoilMesh(device: pc.GraphicsDevice, length: number) {
         .clone()
         .mulScalar(Math.cos(phi))
         .add(binormal.clone().mulScalar(Math.sin(phi)));
-      const point = center.clone().add(normal.clone().mulScalar(COIL_WIRE_RADIUS));
+      const point = center.clone().add(normal.clone().mulScalar(wireRadius));
       positions.push(point.x, point.y, point.z);
       normals.push(normal.x, normal.y, normal.z);
     }
@@ -532,28 +612,68 @@ function createCoilMesh(device: pc.GraphicsDevice, length: number) {
       indices.push(a, b, c, b, d, c);
     }
   }
-  const mesh = new pc.Mesh(device);
-  mesh.setPositions(positions);
-  mesh.setNormals(normals);
-  mesh.setIndices(indices);
-  mesh.update(pc.PRIMITIVE_TRIANGLES);
-  return mesh;
+  return { finish: "authored-paint", indices, normals, positions };
 }
 
-function createRenderEntity(
-  name: string,
+const renderedColors = new WeakMap<pc.Entity, string>();
+
+/** The authored color as rendered (after mapping), for test diagnostics. */
+export function getRenderedKartColor(root: pc.Entity) {
+  let color: string | null = null;
+  root.forEach((node) => {
+    if (!color && node instanceof pc.Entity) {
+      color = renderedColors.get(node) ?? null;
+    }
+  });
+  return color;
+}
+
+/** A unit box or Y-axis cylinder, scaled to size by its entity. */
+function createPrimitivePiece(
   shape: "box" | "cylinder",
-  material: pc.StandardMaterial,
+  finish: KartPartFinish,
+): KartPartVisualPiece {
+  const geometry =
+    shape === "box"
+      ? new pc.BoxGeometry()
+      : new pc.CylinderGeometry({ capSegments: 24, height: 1, radius: 0.5 });
+  return {
+    finish,
+    indices: [...geometry.indices!],
+    normals: [...geometry.normals!],
+    positions: [...geometry.positions!],
+  };
+}
+
+function createPieceEntity(
+  name: string,
+  pieces: KartPartVisualPiece[],
+  skin: KartVisualSkin,
+  device: pc.GraphicsDevice,
 ) {
   const entity = new pc.Entity(name);
-  entity.addComponent("render", { material, type: shape });
+  entity.addComponent("render", {
+    meshInstances: pieces.map((piece) => {
+      const hex = getKartFinishColor(piece.finish, skin.visualColor);
+      const color = new pc.Color().fromString(hex);
+      const rgba = [color.r, color.g, color.b, 1].map((channel) =>
+        Math.round(channel * 255),
+      );
+      const mesh = new pc.Mesh(device);
+      mesh.setPositions(piece.positions);
+      mesh.setNormals(piece.normals);
+      mesh.setColors32(
+        Array.from({ length: piece.positions.length / 3 }, () => rgba).flat(),
+      );
+      if (piece.finish.startsWith("authored-")) {
+        renderedColors.set(entity, hex);
+      }
+      mesh.setIndices(piece.indices);
+      mesh.update(pc.PRIMITIVE_TRIANGLES);
+      return new pc.MeshInstance(mesh, skin.materialFor(piece.finish));
+    }),
+  });
   return entity;
-}
-
-function setShadows(entity: pc.Entity, shadows: boolean) {
-  if (!entity.render) return;
-  entity.render.castShadows = shadows;
-  entity.render.receiveShadows = shadows;
 }
 
 function applyCylinderAxis(entity: pc.Entity, axis: "x" | "y" | "z") {

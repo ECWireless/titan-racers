@@ -81,11 +81,13 @@ import {
 import type { KartAssemblyDocument } from "@/game/kart/kart-assembly-document";
 import {
   createKartAssemblyVisual,
+  getRenderedKartColor,
   type KartWheelVisual,
   poseKartWheelVisual,
 } from "@/game/kart/kart-assembly-visual";
 import { createBalancedKartDocument } from "@/game/kart/balanced-kart-document";
 import { getApprovedKartComponent } from "@/game/kart/kart-component-registry";
+import type { KartPartFinish } from "@/game/kart/kart-part-visual-geometry";
 import { createKartVisualMaterial } from "@/game/kart/kart-visual-material";
 import {
   deriveKartSnapshot,
@@ -699,11 +701,12 @@ export function SoloTimeTrialCanvas({
       }
 
       const kartVisualMaterials = new Map<string, pc.StandardMaterial>();
-      const getKartVisualMaterial = (visualColor: string) => {
-        const existing = kartVisualMaterials.get(visualColor);
+      // One material per finish, so the kart batches into few draws.
+      const getKartVisualMaterial = (finish: KartPartFinish) => {
+        const existing = kartVisualMaterials.get(finish);
         if (existing) return existing;
-        const material = createKartVisualMaterial(visualColor);
-        kartVisualMaterials.set(visualColor, material);
+        const material = createKartVisualMaterial(finish);
+        kartVisualMaterials.set(finish, material);
         return material;
       };
       runtime.addCleanup(() =>
@@ -2357,23 +2360,10 @@ export function SoloTimeTrialCanvas({
       function getFirstMeshDiffuse(
         entity: pc.Entity | undefined,
       ): Position3 | null {
-        if (!entity) return null;
-        const material = entity.render?.meshInstances?.[0]?.material as
-          pc.StandardMaterial | undefined;
-        if (material?.diffuse) {
-          return {
-            x: material.diffuse.r,
-            y: material.diffuse.g,
-            z: material.diffuse.b,
-          };
-        }
-        for (const child of entity.children) {
-          const diffuse: Position3 | null = getFirstMeshDiffuse(
-            child as pc.Entity,
-          );
-          if (diffuse) return diffuse;
-        }
-        return null;
+        const hex = entity ? getRenderedKartColor(entity) : null;
+        if (!hex) return null;
+        const color = new pc.Color().fromString(hex);
+        return { x: color.r, y: color.g, z: color.b };
       }
 
       const getKartVisualDebugState = () => {

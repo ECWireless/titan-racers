@@ -2,9 +2,11 @@ import * as pc from "playcanvas";
 
 import {
   createKartAssemblyVisual,
+  getRenderedKartColor,
   getRenderedKartBounds,
 } from "../kart/kart-assembly-visual";
 import type { KartAssemblyDocument } from "../kart/kart-assembly-document";
+import type { KartPartFinish } from "../kart/kart-part-visual-geometry";
 import { createKartVisualMaterial } from "../kart/kart-visual-material";
 import { applySceneLook, applyShadowPolicy } from "../render/scene-look";
 import { validateKartAssembly } from "../kart/kart-assembly-validation";
@@ -88,7 +90,7 @@ export class KartEditorScene {
   private canvas: HTMLCanvasElement;
   private currentDocument: KartAssemblyDocument;
   private instanceEntities = new Map<string, pc.Entity>();
-  private instanceMaterialById = new Map<string, pc.StandardMaterial>();
+  private instanceMaterialById = new Map<string, pc.StandardMaterial[]>();
   private instanceMaterials: pc.StandardMaterial[] = [];
   private readonly releaseSceneLook: () => void;
   private interactionEnabled = true;
@@ -208,18 +210,10 @@ export class KartEditorScene {
   getInstanceVisualColor(instanceId: string) {
     const root = this.instanceEntities.get(instanceId);
     if (!root) return null;
-    let color: { x: number; y: number; z: number } | null = null;
-    root.forEach((node) => {
-      if (color || !(node instanceof pc.Entity)) return;
-      const material = node.render?.meshInstances?.[0]?.material;
-      if (!(material instanceof pc.StandardMaterial)) return;
-      color = {
-        x: material.diffuse.r,
-        y: material.diffuse.g,
-        z: material.diffuse.b,
-      };
-    });
-    return color;
+    const hex = getRenderedKartColor(root);
+    if (!hex) return null;
+    const color = new pc.Color().fromString(hex);
+    return { x: color.r, y: color.g, z: color.b };
   }
 
   getInstanceVisualDebugState(instanceId: string) {
@@ -599,8 +593,7 @@ export class KartEditorScene {
 
     const { instanceRoots, root } = createKartAssemblyVisual(
       this.currentDocument,
-      (visualColor, instanceId) =>
-        this.createInstanceMaterial(instanceId, visualColor),
+      (finish, instanceId) => this.createInstanceMaterial(instanceId, finish),
       this.app.graphicsDevice,
     );
     this.documentRoot.addChild(root);
@@ -624,9 +617,13 @@ export class KartEditorScene {
     this.refreshSelection();
   }
 
-  private createInstanceMaterial(instanceId: string, visualColor: string) {
-    const material = createKartVisualMaterial(visualColor);
-    this.instanceMaterialById.set(instanceId, material);
+  // Per instance, so selection highlights one instance's finishes.
+  private createInstanceMaterial(instanceId: string, finish: KartPartFinish) {
+    const material = createKartVisualMaterial(finish);
+    this.instanceMaterialById.set(instanceId, [
+      ...(this.instanceMaterialById.get(instanceId) ?? []),
+      material,
+    ]);
     this.instanceMaterials.push(material);
     return material;
   }
@@ -657,7 +654,7 @@ export class KartEditorScene {
         : [],
     );
     for (const [id, root] of this.instanceEntities) {
-      const material = this.instanceMaterialById.get(id);
+      const materials = this.instanceMaterialById.get(id) ?? [];
       const emissive =
         id === selectedId && selectionState === "invalid"
           ? [0.95, 0.03, 0.02]
@@ -668,10 +665,10 @@ export class KartEditorScene {
               : mirrorCounterpartIds.has(id)
                 ? [1, 0.36, 0.04]
                 : [0, 0, 0];
-      if (material) {
+      materials.forEach((material) => {
         material.emissive.set(emissive[0], emissive[1], emissive[2]);
         material.update();
-      }
+      });
       root.forEach((node) => {
         if (!(node instanceof pc.Entity)) return;
         node.render?.meshInstances?.forEach((mesh) => {
