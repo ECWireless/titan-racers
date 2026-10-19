@@ -21,16 +21,16 @@ export type KartPartVisualPiece = {
   indices: number[];
 };
 
-type Vec3 = [number, number, number];
+export type Vec3 = [number, number, number];
 // Clockwise cross-section in (axial distance, radius). Smooth only the
 // explicitly marked profile joins; every other join has split normals.
-type Station = [axial: number, radius: number, smooth?: boolean];
+export type Station = [axial: number, radius: number, smooth?: boolean];
 
-function piece(finish: KartPartFinish): KartPartVisualPiece {
+export function piece(finish: KartPartFinish): KartPartVisualPiece {
   return { finish, positions: [], normals: [], indices: [] };
 }
 
-function vertex(mesh: KartPartVisualPiece, p: Vec3, n: Vec3): number {
+export function vertex(mesh: KartPartVisualPiece, p: Vec3, n: Vec3): number {
   const index = mesh.positions.length / 3;
   mesh.positions.push(...p);
   mesh.normals.push(...n);
@@ -38,7 +38,7 @@ function vertex(mesh: KartPartVisualPiece, p: Vec3, n: Vec3): number {
 }
 
 /** Revolve a closed section; cyclic XYZ permutation preserves handedness. */
-function lathe(
+export function lathe(
   mesh: KartPartVisualPiece,
   axis: "x" | "y" | "z",
   profile: Station[],
@@ -92,7 +92,7 @@ function lathe(
 }
 
 /** An axis-aligned box with flat faces. */
-function box(mesh: KartPartVisualPiece, center: Vec3, size: Vec3): void {
+export function box(mesh: KartPartVisualPiece, center: Vec3, size: Vec3): void {
   for (let axis = 0; axis < 3; axis++) {
     const u = (axis + 1) % 3;
     const v = (axis + 2) % 3;

@@ -17,6 +17,7 @@ import type {
 } from "./kart-part-visual-geometry";
 import { buildSuspensionArm } from "./kart-part-visual-geometry";
 import {
+  buildAuthoredPrimitiveVisual,
   getAuthoredMaterialFinish,
   getKartPartVisual,
 } from "./kart-part-visuals";
@@ -123,12 +124,7 @@ export function createKartAssemblyVisual(
       primitive,
       createPieces(
         `${primitive.id}-visual`,
-        [
-          createPrimitivePiece(
-            primitive.shape,
-            getAuthoredMaterialFinish(primitive.material.id),
-          ),
-        ],
+        buildAuthoredPrimitiveVisual(primitive),
         materialsFor(primitive),
       ),
     );
@@ -353,19 +349,21 @@ export function getRenderedKartBounds(root: pc.Entity): KartRenderedBounds | nul
   };
 }
 
+/**
+ * Primitive visuals are built at true size. A box root still carries its size
+ * as scale, which the editor's scale gizmo edits, so its visual undoes it; a
+ * drag preview stretches the visual until the committed size rebuilds it.
+ */
 function createPrimitiveEntity(
   primitive: KartAssemblyPrimitiveInstance,
   visual: pc.Entity,
 ) {
   const root = createInstanceRoot(primitive.id, primitive.transform);
   if (primitive.shape === "box") {
-    root.setLocalScale(primitive.size.x, primitive.size.y, primitive.size.z);
+    const { x, y, z } = primitive.size;
+    root.setLocalScale(x, y, z);
+    visual.setLocalScale(1 / x, 1 / y, 1 / z);
   } else {
-    visual.setLocalScale(
-      primitive.radius * 2,
-      primitive.height,
-      primitive.radius * 2,
-    );
     applyCylinderAxis(visual, primitive.axis);
   }
   root.addChild(visual);

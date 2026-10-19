@@ -1,3 +1,4 @@
+import type { KartAssemblyPrimitiveInstance } from "./kart-assembly-document";
 import type { ApprovedComponentDefinition } from "./kart-component-registry";
 import type { DeepReadonly } from "./immutable-registry";
 import {
@@ -12,9 +13,12 @@ import {
   buildTransmissionTall4to1V1,
   buildWheelTire,
   type KartCoiloverVisual,
-  type KartPartFinish,
   type KartPartVisualPiece,
 } from "./kart-part-visual-geometry";
+import {
+  buildPrimitiveVisual,
+  type KartPrimitiveVisualSpec,
+} from "./kart-primitive-visual-geometry";
 
 type ReadonlyComponentDefinition = DeepReadonly<ApprovedComponentDefinition>;
 
@@ -91,8 +95,45 @@ export function getKartPartVisual(reference: { id: string; version: number }) {
 }
 
 /** The finish a construction material takes when it carries authored color. */
-export function getAuthoredMaterialFinish(materialId: string): KartPartFinish {
+export function getAuthoredMaterialFinish(
+  materialId: string,
+): KartPrimitiveVisualSpec["finish"] {
   if (materialId === "material.structural-aluminum") return "authored-anodized";
   if (materialId === "material.engineering-polymer") return "authored-polymer";
   return "authored-paint";
+}
+
+/**
+ * An authored primitive at its true size: role picks the form, metal is
+ * machined and polymer molded, and solid steel structure is ballast.
+ */
+export function buildAuthoredPrimitiveVisual(
+  primitive: KartAssemblyPrimitiveInstance,
+): KartPartVisualPiece[] {
+  const material = primitive.material.id;
+  const steel = material === "material.steel";
+  return buildPrimitiveVisual({
+    construction: primitive.construction,
+    edge:
+      steel || material === "material.structural-aluminum"
+        ? "machined"
+        : "molded",
+    finish: getAuthoredMaterialFinish(material),
+    massBlock:
+      steel &&
+      primitive.role === "structure" &&
+      primitive.construction.mode === "solid",
+    role: primitive.role,
+    shape:
+      primitive.shape === "box"
+        ? {
+            kind: "box",
+            size: [primitive.size.x, primitive.size.y, primitive.size.z],
+          }
+        : {
+            height: primitive.height,
+            kind: "cylinder",
+            radius: primitive.radius,
+          },
+  });
 }
