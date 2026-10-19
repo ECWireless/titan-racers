@@ -32,12 +32,13 @@ rejected. Reads parse the persisted versioned snapshot, verify its document and
 version metadata, recompute its canonical hash, and fail closed if evidence is
 inconsistent.
 
-Snapshot and derivation version `3` are current. They add the collision-only
-`geometry.wheelGuard` box. Version `2` removed contacted-surface and
+Snapshot and derivation version `4` are current. They widen the
+`playerStats.stability` range so low, open chassis no longer saturate it.
+Version `3` added the collision-only `geometry.wheelGuard` box. Version `2` removed contacted-surface and
 tire/surface interaction values from kart-owned evidence and applied
-Ackermann-aware steering-clearance derivation. The version `1` and `2` parsers
+Ackermann-aware steering-clearance derivation. The version `1`, `2`, and `3` parsers
 remain available so existing immutable revisions can still be verified against
-their original hashes and still run (without a wheel guard). The admin editor
+their original hashes and still run (v1 and v2 without a wheel guard). The admin editor
 enables Save on an unedited draft whose derivation version is older than
 current, so it can be re-saved and republished. Version `1` contact evidence remains part of that immutable
 historical snapshot, including when published, so the public response stays
@@ -50,8 +51,8 @@ parseable and verifiable against its stored audit hash.
   appends a publish/unpublish transition.
 - `GET /api/karts/:kartId/published` exposes only the currently published source
   and derived evidence, with `Cache-Control: no-store`. It omits ownership,
-  author, and publication-actor identifiers. Current v3 and historical v2
-  evidence contain no environment-owned contact values; historical v1 evidence
+  author, and publication-actor identifiers. Current v4 and historical v2
+  and v3 evidence contain no environment-owned contact values; historical v1 evidence
   remains intact for hash verification.
 
 The admin kart editor (`/admin/karts`) and the public official roster

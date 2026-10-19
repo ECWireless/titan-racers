@@ -149,7 +149,7 @@ test.describe("kart persistence and authorization", () => {
     });
     expect(first).toMatchObject({
       authorUserId: ownerUserId,
-      derivationVersion: 3,
+      derivationVersion: 4,
       kartId,
       ownerUserId,
       revision: 1,
@@ -242,7 +242,7 @@ test.describe("kart persistence and authorization", () => {
     await db.insert(kartRevisions).values([
       {
         authorUserId: userId,
-        derivationVersion: 3,
+        derivationVersion: 4,
         document: malformedDocument,
         id: randomUUID(),
         kartId: malformedKartId,
@@ -253,7 +253,7 @@ test.describe("kart persistence and authorization", () => {
       },
       {
         authorUserId: userId,
-        derivationVersion: 3,
+        derivationVersion: 4,
         document: mismatchedDocument,
         id: randomUUID(),
         kartId: mismatchedKartId,
@@ -528,20 +528,23 @@ test.describe("kart persistence and authorization", () => {
       ownerUserId: savedUser.id,
     });
     const asymmetricDocument = structuredClone(firstDocument);
-    const upperHousing = asymmetricDocument.primitiveInstances.find(
-      ({ id }) => id === "upper-housing",
+    const topDeck = asymmetricDocument.primitiveInstances.find(
+      ({ id }) => id === "top-deck",
     );
-    const upperHousingMount = asymmetricDocument.structuralAttachments.find(
-      ({ child }) => child.instanceId === "upper-housing",
+    const topDeckMount = asymmetricDocument.structuralAttachments.find(
+      ({ child }) => child.instanceId === "top-deck",
     );
-    if (!upperHousing || !upperHousingMount) {
-      throw new Error("Kart publication fixture is missing its upper housing.");
+    if (!topDeck || !topDeckMount) {
+      throw new Error("Kart publication fixture is missing its top deck.");
     }
-    upperHousing.transform.position.x += 0.01;
-    upperHousingMount.parent.anchor.x += 0.01;
+    topDeck.transform.position.x += 0.01;
+    topDeckMount.parent.anchor.x += 0.01;
     expect(
       deriveKartSnapshot(asymmetricDocument).massProperties.inertiaTensor.xy,
-    ).not.toBe(0);
+    ).not.toBeCloseTo(
+      deriveKartSnapshot(firstDocument).massProperties.inertiaTensor.xy,
+      9,
+    );
     await saveKartRevision({
       authorUserId: savedUser.id,
       document: asymmetricDocument,

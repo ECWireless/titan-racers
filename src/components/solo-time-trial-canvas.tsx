@@ -2021,6 +2021,7 @@ export function SoloTimeTrialCanvas({
       const getKartDebugState = () => {
         const kartPosition = kart.getPosition();
         const kartRotation = kartAssemblyFrame.getEulerAngles();
+        const kartOrientation = kartAssemblyFrame.getRotation();
         const angularVelocity = kart.rigidbody?.angularVelocity ?? pc.Vec3.ZERO;
         const linearVelocity = kart.rigidbody?.linearVelocity ?? pc.Vec3.ZERO;
         const angularSpeed = angularVelocity.length();
@@ -2089,6 +2090,13 @@ export function SoloTimeTrialCanvas({
             manualRightingCooldownSeconds,
           ),
           manualRightingCount,
+          // Euler angles lose meaning near 90° yaw; compare orientations here.
+          rotation: {
+            w: Number(kartOrientation.w.toFixed(6)),
+            x: Number(kartOrientation.x.toFixed(6)),
+            y: Number(kartOrientation.y.toFixed(6)),
+            z: Number(kartOrientation.z.toFixed(6)),
+          },
           rotationX: toFixedStep(kartRotation.x),
           rotationY: toFixedStep(kartRotation.y),
           rotationZ: toFixedStep(kartRotation.z),
@@ -2367,9 +2375,7 @@ export function SoloTimeTrialCanvas({
       }
 
       const getKartVisualDebugState = () => {
-        const bodywork = kartRuntime.document.primitiveInstances.find(
-          (primitive) => primitive.role === "bodywork",
-        );
+        const [primitive] = kartRuntime.document.primitiveInstances;
         const component = kartRuntime.document.componentInstances.find(
           (instance) => {
             const definition = getApprovedKartComponent(instance.definition);
@@ -2381,8 +2387,8 @@ export function SoloTimeTrialCanvas({
           },
         );
         return {
-          bodywork: getRenderedColor(
-            bodywork ? kartInstanceRoots.get(bodywork.id) : undefined,
+          primitive: getRenderedColor(
+            primitive ? kartInstanceRoots.get(primitive.id) : undefined,
           ),
           component: getRenderedColor(
             component ? kartInstanceRoots.get(component.id) : undefined,

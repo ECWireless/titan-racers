@@ -298,8 +298,8 @@ test("derives a wheel guard covering every official kart tire from wheel center 
       z: transform.position.z + size.z / 2,
     };
 
-    expect(snapshot.derivationVersion).toBe(3);
-    expect(snapshot.snapshotVersion).toBe(3);
+    expect(snapshot.derivationVersion).toBe(4);
+    expect(snapshot.snapshotVersion).toBe(4);
     for (const { position, radius, width } of snapshot.geometry.wheelStations) {
       expect(guardMin.x).toBeLessThanOrEqual(position.x - width / 2 + 1e-9);
       expect(guardMax.x).toBeGreaterThanOrEqual(position.x + width / 2 - 1e-9);

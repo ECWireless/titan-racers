@@ -132,9 +132,9 @@ test("derives the intended official kart tradeoffs without stat overrides", () =
     handling: handling.playerStats,
     speed: speed.playerStats,
   }).toEqual({
-    balanced: { acceleration: 42, handling: 57, speed: 41, stability: 42 },
-    handling: { acceleration: 92, handling: 81, speed: 10, stability: 52 },
-    speed: { acceleration: 13, handling: 21, speed: 88, stability: 19 },
+    balanced: { acceleration: 42, handling: 60, speed: 41, stability: 57 },
+    handling: { acceleration: 79, handling: 81, speed: 10, stability: 87 },
+    speed: { acceleration: 10, handling: 54, speed: 88, stability: 46 },
   });
   expect({
     balanced: {
@@ -153,9 +153,9 @@ test("derives the intended official kart tradeoffs without stat overrides", () =
       wheelRadius: speed.geometry.wheelStations[0].radius,
     },
   }).toEqual({
-    balanced: { trackWidth: 0.39, wheelbase: 0.3, wheelRadius: 0.058 },
+    balanced: { trackWidth: 0.34, wheelbase: 0.345, wheelRadius: 0.058 },
     handling: { trackWidth: 0.42, wheelbase: 0.28, wheelRadius: 0.058 },
-    speed: { trackWidth: 0.36, wheelbase: 0.34, wheelRadius: 0.0725 },
+    speed: { trackWidth: 0.36, wheelbase: 0.37, wheelRadius: 0.0725 },
   });
   expect(
     new Set(

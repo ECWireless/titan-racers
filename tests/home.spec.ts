@@ -46,8 +46,11 @@ const BALANCED_KART_CCD_CONFIGURATION = deriveKartCcdConfiguration({
   smallestRelevantCrossSection:
     BALANCED_KART_SNAPSHOT.geometry.smallestRelevantCrossSection,
 });
+// The kart's leading collision face, including the derived wheel guard.
 function getBalancedCollisionHalfExtent(axis: "x" | "z") {
+  const { wheelGuard } = BALANCED_KART_SNAPSHOT.geometry;
   return Math.max(
+    Math.abs(wheelGuard.transform.position[axis]) + wheelGuard.size[axis] / 2,
     ...BALANCED_KART_SNAPSHOT.geometry.collisionCompound.map((primitive) => {
       const geometryHalfExtent =
         primitive.shape === "box"
@@ -62,13 +65,32 @@ function getBalancedCollisionHalfExtent(axis: "x" | "z") {
 const BALANCED_KART_COLLISION_HALF_EXTENT_Z =
   getBalancedCollisionHalfExtent("z");
 const CCD_THIN_WALL_NEAR_FACE_X = -32.95;
+const CCD_THIN_WALL_FAR_FACE_X = -33.05;
+const CCD_THIN_WALL_APPROACH_SPEED = 20.4;
 const CCD_THIN_WALL_APPROACH_CENTER_X =
   CCD_THIN_WALL_NEAR_FACE_X + BALANCED_KART_COLLISION_HALF_EXTENT_Z;
+// Discrete contacts may overlap the wall by up to one step of travel; see
+// PR 4.2.3 for leading-edge sweeps.
 const CCD_THIN_WALL_MAXIMUM_CONTACT_PENETRATION =
-  scaleReferenceKartLength(0.1);
+  CCD_THIN_WALL_APPROACH_SPEED * DEFAULT_FIXED_STEP_SECONDS;
 // Keep the established runtime-fixture coordinate name while sourcing it from
 // the authored default rather than the removed transitional construction.
 const REFERENCE_KART_UPRIGHT_ROOT_HEIGHT = BALANCED_KART_UPRIGHT_ROOT_HEIGHT;
+
+/** Degrees between an orientation and a pure yaw about +Y. */
+function angleFromYawDegrees(
+  rotation: { w: number; x: number; y: number; z: number },
+  yawDegrees: number,
+) {
+  const half = (yawDegrees * Math.PI) / 360;
+  const [c, s] = [Math.cos(half), Math.sin(half)];
+  // conjugate(yaw) * rotation
+  const w = c * rotation.w + s * rotation.y;
+  const x = c * rotation.x - s * rotation.z;
+  const y = c * rotation.y - s * rotation.w;
+  const z = c * rotation.z + s * rotation.x;
+  return (2 * Math.atan2(Math.hypot(x, y, z), Math.abs(w)) * 180) / Math.PI;
+}
 
 async function waitForSceneReady(canvas: Locator) {
   await expect(canvas).toHaveAttribute("data-scene-ready", "true");
@@ -1879,9 +1901,8 @@ test.describe("home screen", () => {
     );
     expect(resetState.y).toBeCloseTo(BALANCED_KART_UPRIGHT_ROOT_HEIGHT, 2);
     expect(resetState.z).toBeCloseTo(0, 2);
-    expect(Math.abs(resetState.rotationX)).toBeLessThan(0.05);
-    expect(Math.abs(resetState.rotationY - 90)).toBeLessThan(0.05);
-    expect(Math.abs(resetState.rotationZ)).toBeLessThan(0.05);
+    // Euler angles are degenerate at 90° yaw, so compare quaternions.
+    expect(angleFromYawDegrees(resetState.rotation, 90)).toBeLessThan(0.05);
     expect(Math.abs(resetState.verticalVelocity)).toBeLessThanOrEqual(
       resetState.developmentValues.gravity * DEFAULT_FIXED_STEP_SECONDS + 0.01,
     );
@@ -2135,7 +2156,7 @@ test.describe("home screen", () => {
 
     await setSimulationPaused(canvas, true);
     await setKartDebugPose(canvas, {
-      linearVelocity: { x: -20.4, y: 0, z: 0 },
+      linearVelocity: { x: -CCD_THIN_WALL_APPROACH_SPEED, y: 0, z: 0 },
       position: { x: -29.5, y: REFERENCE_KART_UPRIGHT_ROOT_HEIGHT, z: 24 },
       rotation: { x: 0, y: 90, z: 0 },
     });
@@ -2159,6 +2180,10 @@ test.describe("home screen", () => {
     expect(kart.x).toBeGreaterThan(
       CCD_THIN_WALL_APPROACH_CENTER_X -
         CCD_THIN_WALL_MAXIMUM_CONTACT_PENETRATION,
+    );
+    // The leading face never reaches the wall's far side.
+    expect(kart.x - BALANCED_KART_COLLISION_HALF_EXTENT_Z).toBeGreaterThan(
+      CCD_THIN_WALL_FAR_FACE_X,
     );
   });
 

@@ -59,15 +59,15 @@ The exact runtime capability field paths are:
 ## Player-Facing Scores
 
 Scores summarize derived evidence for selection UI; builders cannot edit them.
-For each v1 score, normalize `(value - lower) ÷ (upper - lower)`, clamp to
+For each score, normalize `(value - lower) ÷ (upper - lower)`, clamp to
 `0…1`, map to `1…100`, and round to the nearest integer.
 
-| Field | Derived value | V1 lower/upper bounds |
+| Field | Derived value | Lower/upper bounds |
 | --- | --- | --- |
 | `playerStats.acceleration` | `maximumDriveForce ÷ totalMass` | `5…22 m/s²` |
 | `playerStats.handling` | `tan(maximumCenterAngle × π ÷ 180) ÷ wheelbase` | `0.6…2.4 1/m` |
 | `playerStats.speed` | drivetrain `noLoadSpeed` | `7…23 m/s` |
-| `playerStats.stability` | `trackWidth ÷ (2 × max(0.01 m, centerOfMassHeightAboveContactPlane))` | `1.4…2.8` |
+| `playerStats.stability` | `trackWidth ÷ (2 × max(0.01 m, centerOfMassHeightAboveContactPlane))` | `1.4…3.6` (v1–v3: `1.4…2.8`) |
 
 These ranges are versioned mappings, not desired-stat targets or overrides. A
 construction outside a range clamps at the corresponding display endpoint.
@@ -165,5 +165,7 @@ new version and new resolved snapshot. Published revisions do not silently
 change meaning. Historical races retain their original snapshot/hash and
 derivation version. Snapshot parsers dispatch by persisted snapshot and
 derivation versions; the v1 parser is permanently pinned to the v1 contract,
-while v2 owns the current contact-free evidence and Ackermann-aware steering
-clearance rules.
+while v2 owns the contact-free evidence and Ackermann-aware steering
+clearance rules, v3 adds the wheel guard, and v4 (`ResolvedKartSnapshot`)
+widens the stability range. `ResolvedKartSnapshotV1`, `ResolvedKartSnapshotV2`,
+and `ResolvedKartSnapshotV3` type stored historical evidence.

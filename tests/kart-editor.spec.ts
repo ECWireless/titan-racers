@@ -24,6 +24,7 @@ import {
   pressStandardGamepadButton,
   setStandardTestGamepad,
 } from "./helpers/standard-gamepad";
+import { createValidKartAssembly } from "./support/kart-assembly";
 
 const kartApiPattern = "**/api/admin/karts/balanced-kart";
 const publishedKartApiPattern = "**/api/karts/balanced-kart/published";
@@ -89,8 +90,8 @@ async function getKartVisualColors(canvas: Locator) {
   return canvas.evaluate(
     (element) =>
       new Promise<{
-        bodywork: MaterialColor;
         component: MaterialColor;
+        primitive: MaterialColor;
       }>((resolve) => {
         element.dispatchEvent(
           new CustomEvent("getKartVisualDebugState", {
@@ -495,7 +496,10 @@ test.describe("protected kart builder access", () => {
       testInfo.project.name !== "desktop",
       "Historical component revision coverage only needs to run once.",
     );
-    let historicalDocument = createBalancedKartDocument();
+    // Approved suspension defaults assume the fixture's 8 cm lower arms.
+    let historicalDocument = createValidKartAssembly({
+      kartId: "balanced-kart",
+    });
     historicalDocument = replaceKartComponentDefinition(
       historicalDocument,
       "suspension-front-left",
@@ -553,9 +557,7 @@ test.describe("protected kart builder access", () => {
     const authoredDraft = createBalancedKartDocument();
     authoredDraft.name = "Unpublished Blue Draft";
     authoredDraft.visualIdentity.primaryColor = "#0000ff";
-    authoredDraft.primitiveInstances.forEach((instance) => {
-      if (instance.role === "bodywork") instance.visualColor = "#1188cc";
-    });
+    authoredDraft.primitiveInstances[0].visualColor = "#1188cc";
     const publishedKart = createBalancedKartDocument();
     publishedKart.name = "Published Neon Kart";
     const savedRevision = createPersistedBalancedRevision(
@@ -599,7 +601,7 @@ test.describe("protected kart builder access", () => {
     await expect(canvas).toHaveAttribute("data-kart-primary-color", "#0000ff");
     const runtimePhysics = await getKartRuntimePhysics(canvas);
     expect(runtimePhysics.developmentValues.maximumDriveForce).toBe(12.345);
-    expectMaterialColor((await getKartVisualColors(canvas)).bodywork, "#1188cc");
+    expectMaterialColor((await getKartVisualColors(canvas)).primitive, "#1188cc");
     await expect(
       page.getByText("Saved r2 on sandbox course · Unpublished Blue Draft"),
     ).toBeVisible();
@@ -886,20 +888,24 @@ test.describe("protected kart builder access", () => {
     const document = structuredClone(
       createBalancedKartDocument(),
     ) as KartAssemblyDocument;
-    const upperHousing = document.primitiveInstances.find(
-      ({ id }) => id === "upper-housing",
+    const topDeck = document.primitiveInstances.find(
+      ({ id }) => id === "top-deck",
     );
-    if (!upperHousing) throw new Error("Balanced upper housing is missing.");
-    upperHousing.transform.position.x += 0.01;
-    const upperHousingMount = document.structuralAttachments.find(
-      ({ child }) => child.instanceId === "upper-housing",
+    if (!topDeck) throw new Error("Balanced top deck is missing.");
+    topDeck.transform.position.x += 0.01;
+    const topDeckMount = document.structuralAttachments.find(
+      ({ child }) => child.instanceId === "top-deck",
     );
-    if (!upperHousingMount) {
-      throw new Error("Balanced upper-housing mount is missing.");
+    if (!topDeckMount) {
+      throw new Error("Balanced top-deck mount is missing.");
     }
-    upperHousingMount.parent.anchor.x += 0.01;
-    expect(deriveKartSnapshot(document).massProperties.inertiaTensor.xy).not.toBe(
-      0,
+    topDeckMount.parent.anchor.x += 0.01;
+    expect(
+      deriveKartSnapshot(document).massProperties.inertiaTensor.xy,
+    ).not.toBeCloseTo(
+      deriveKartSnapshot(createBalancedKartDocument()).massProperties
+        .inertiaTensor.xy,
+      9,
     );
     await usePublishedSandboxCourse(page);
 
@@ -970,7 +976,7 @@ test.describe("protected kart builder access", () => {
     await page.goto("/admin/karts/balanced-kart");
     await page
       .getByLabel("Kart and assembly")
-      .getByRole("button", { name: /upper-housing/ })
+      .getByRole("button", { name: /top-deck/ })
       .click();
     await page
       .getByRole("group", { name: "Position (m)" })
@@ -1170,7 +1176,7 @@ test.describe("protected kart builder access", () => {
     await expect(canvas).toHaveAttribute("data-editor-status", "ready");
     await page
       .getByLabel("Kart and assembly")
-      .getByRole("button", { name: /upper-housing/ })
+      .getByRole("button", { name: /top-deck/ })
       .click();
     await page.getByRole("button", { name: "Frame selection" }).click();
     const positionInputs = page
@@ -1209,7 +1215,7 @@ test.describe("protected kart builder access", () => {
     await expect(canvas).toHaveAttribute("data-controller-engaged", "true");
     await expect(page.getByTestId("kart-controller-reticle")).toBeVisible();
     await pressStandardGamepadButton(page, 0);
-    await expect(canvas).toHaveAttribute("data-selection-id", "upper-housing");
+    await expect(canvas).toHaveAttribute("data-selection-id", "top-deck");
 
     const cameraRevision = await canvas.getAttribute("data-camera-revision");
     const cameraPivotBeforePan = JSON.parse(

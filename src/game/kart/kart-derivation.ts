@@ -26,8 +26,8 @@ import type { KartPhysicalProfile } from "./kart-physical-profile";
 import { getAckermannWheelSteerAngle } from "./kart-steering";
 import { deepFreeze, type DeepReadonly } from "./immutable-registry";
 
-export const KART_DERIVATION_VERSION = 3;
-export const RESOLVED_KART_SNAPSHOT_VERSION = 3;
+export const KART_DERIVATION_VERSION = 4;
+export const RESOLVED_KART_SNAPSHOT_VERSION = 4;
 const DRAG_SHAPE_COEFFICIENT = 0.9;
 const MINIMUM_USABLE_STEERING_ANGLE_DEGREES = 1;
 
@@ -113,6 +113,15 @@ export type ResolvedKartSnapshot = {
   snapshotVersion: typeof RESOLVED_KART_SNAPSHOT_VERSION;
 };
 
+// V3 differs only in its stability score range.
+export type ResolvedKartSnapshotV3 = Omit<
+  ResolvedKartSnapshot,
+  "derivationVersion" | "snapshotVersion"
+> & {
+  derivationVersion: 3;
+  snapshotVersion: 3;
+};
+
 export type ResolvedKartSnapshotV2 = Omit<
   ResolvedKartSnapshot,
   "derivationVersion" | "geometry" | "snapshotVersion"
@@ -144,6 +153,7 @@ export type ResolvedKartSnapshotV1 = Omit<
 export type PersistedResolvedKartSnapshot =
   | ResolvedKartSnapshotV1
   | ResolvedKartSnapshotV2
+  | ResolvedKartSnapshotV3
   | ResolvedKartSnapshot;
 
 const finiteNumberSchema = z.number().finite();
@@ -249,7 +259,7 @@ const resolvedKartSnapshotV2ObjectSchema = z.strictObject({
     snapshotVersion: z.literal(2),
   });
 
-export const resolvedKartSnapshotV3Schema: z.ZodType<ResolvedKartSnapshot> =
+const resolvedKartSnapshotV3ObjectSchema =
   resolvedKartSnapshotV2ObjectSchema.extend({
     derivationVersion: z.literal(3),
     geometry: resolvedKartSnapshotV2ObjectSchema.shape.geometry.extend({
@@ -260,6 +270,15 @@ export const resolvedKartSnapshotV3Schema: z.ZodType<ResolvedKartSnapshot> =
     }),
     snapshotVersion: z.literal(3),
   });
+
+export const resolvedKartSnapshotV4Schema: z.ZodType<ResolvedKartSnapshot> =
+  resolvedKartSnapshotV3ObjectSchema.extend({
+    derivationVersion: z.literal(4),
+    snapshotVersion: z.literal(4),
+  });
+
+export const resolvedKartSnapshotV3Schema: z.ZodType<ResolvedKartSnapshotV3> =
+  resolvedKartSnapshotV3ObjectSchema;
 
 export const resolvedKartSnapshotV2Schema: z.ZodType<ResolvedKartSnapshotV2> =
   resolvedKartSnapshotV2ObjectSchema;
@@ -302,6 +321,9 @@ export function parseResolvedKartSnapshot(
   }
   if (version.snapshotVersion === 3 && version.derivationVersion === 3) {
     return resolvedKartSnapshotV3Schema.parse(input);
+  }
+  if (version.snapshotVersion === 4 && version.derivationVersion === 4) {
+    return resolvedKartSnapshotV4Schema.parse(input);
   }
 
   throw new Error(
@@ -877,7 +899,7 @@ export function deriveKartSnapshot(input: unknown): DeepReadonly<ResolvedKartSna
       acceleration: score(acceleration, 5, 22),
       handling: score(curvature, 0.6, 2.4),
       speed: score(noLoadSpeed, 7, 23),
-      stability: score(stabilityRatio, 1.4, 2.8),
+      stability: score(stabilityRatio, 1.4, 3.6),
     },
     registryReferences: {
       components: componentReferences,

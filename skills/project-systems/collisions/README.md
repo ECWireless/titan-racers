@@ -127,6 +127,15 @@ At 120 Hz a 17 m/s kart moves about 0.142 m per step. The controlled safety case
 drives at 20.4 m/s into a 0.1 m static barrier (`tests/home.spec.ts`). CCD is
 defense in depth, not a replacement for honest collider thickness.
 
+The open official chassis (PR 4.1.4) has 2 mm plates, so its sweep radius is
+1 mm and CCD sweeps on nearly every step. That costs nothing measurable on the
+reference iPhone, and forcing a 35 mm radius did not change the
+barrier result. The center sphere cannot protect a leading face 0.2 m ahead,
+so at 20.4 m/s the face can overlap the barrier by up to one step of travel
+and the solver may push the kart into the floor. The barrier test therefore
+allows one step of overlap but never a pass through the far face; PR 4.2.3
+owns the real fix.
+
 ## Accepted Invariants
 
 - Ordinary collisions are solver-driven; gameplay does not teleport, upright,
