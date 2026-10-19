@@ -205,16 +205,28 @@ Phase decisions:
       `docs/visual-identity.md`.
 - [x] 4.1.3: Presentation-only visuals for each approved part version, with
       materials that follow the identity; regenerate official kart thumbnails.
-- [ ] 4.1.4: Visuals for authored primitives (chassis, body shells, guards,
+- [x] 4.1.4: Visuals for authored primitives (chassis, body shells, guards,
       trim, and mass blocks), generated at each primitive's size from its role,
       material, and solid or shell construction, staying inside its envelope.
+      Scope grew to rebuild the official karts as open 1:10 RC chassis (plate,
+      hinge-pin mounts, shock towers, top deck, bumpers) with a retune and a
+      wider stability score range (derivation version 4).
 
 **PR 4.2: Sandbox surfaces**
 
-- [ ] 4.2.1: Road, grass, and marking visuals on `rough-course`.
+- [ ] 4.2.1: Road, grass, and marking visuals on `rough-course`. Align
+      surface visuals with their collision tops: the asphalt is drawn 5 cm
+      above where karts roll, hiding wheels and the low open chassis (found in
+      PR 4.1.4).
 - [ ] 4.2.2: Surface physics: a grass surface material and its tire
       interaction, per-surface materials in the course document (new schema
       version with normalization), and a new physics version.
+- [ ] 4.2.3: High-speed collision robustness. Above top speed a kart travels
+      farther per physics step than a thin wall is deep, so the solver can
+      push it into the floor (found in PR 4.1.4; the old official karts did it
+      too). Fix it with adaptive substeps or a leading-edge sweep under a new
+      physics version, then tighten the thin-wall test from one step of
+      overlap to a small fixed margin at any starting offset.
 
 **PR 4.3: Island Three**
 
@@ -228,6 +240,9 @@ Phase decisions:
       the steeply tilted official shocks are much stiffer in physics than
       their real geometry and travel further than drawn (deferred from
       PR 4.1.3). Fixing it needs retuning or more upright official mounts.
+      Re-lay out each axle at the same time: hinge-pin mounts long enough to
+      reach both A-arm legs (they float about 1 cm off), with the shock towers
+      clear of them (deferred from PR 4.1.4).
 
 **PR 4.4: Agricultural Zone Service Circuit** (split by route section)
 
@@ -298,6 +313,9 @@ Publishing is immediate, with no approval queue.
 
 - [ ] Role-aware player kart editor without admin or roster controls.
 - [ ] Players create, edit, and save only their own private drafts.
+- [ ] Swapping a suspension type keeps the current arm geometry. Approved
+      mounting defaults assume 8 cm arms, so on the official karts' longer
+      arms the hub lands off the wheel (deferred from PR 4.1.4).
 - [ ] Owners publish validated revisions immediately and unpublish their own
       karts while keeping history and attribution.
 - [ ] Server-side ownership checks, validation, bounded text and parts,
@@ -356,6 +374,9 @@ editor.
 
 - [ ] Role-aware player course editor without admin-only controls.
 - [ ] Players create, edit, and save only their own private drafts.
+- [ ] Swapping a suspension type keeps the current arm geometry. Approved
+      mounting defaults assume 8 cm arms, so on the official karts' longer
+      arms the hub lands off the wheel (deferred from PR 4.1.4).
 - [ ] Owners publish validated revisions immediately and unpublish their own
       courses while keeping history, attribution, and past race identity.
 - [ ] Server-side ownership checks, validation, bounded text, and publish rate

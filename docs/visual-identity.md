@@ -76,6 +76,16 @@ revisits it.
 - **Parts look like real 1:10 RC parts.** Each approved part version has a
   code-built visual that matches its registry dimensions. Wheels look the same
   at any angle, because the physics has no wheel spin.
+- **Authored primitives read as RC construction.** Role picks the form:
+  machined plates (detail on their largest face, so upright shock towers work
+  too), molded shells with vents and panel lines, ribbed bumpers, chamfered
+  trim, and screwed-down steel ballast. Material picks machined chamfers or
+  molded radii. Screws, ribs, and vents keep fixed real sizes and multiply
+  with size; everything stays inside the authored envelope, and nothing
+  implies missing material (no pockets or holes).
+- **Official karts are open 1:10 RC chassis.** A machined plate carries the
+  electronics, hinge-pin mounts, composite shock towers, a top deck, and
+  molded bumpers. Lightening pockets wait for derivation support.
 
 ## Phone Performance Budget
 
@@ -110,9 +120,13 @@ CPU work and draw calls are the headroom signals.
 
 ### Baseline
 
-| Measure | Before lighting (PR 4.1.2 start) | After lighting baseline | Part visuals (PR 4.1.3) |
-| --- | --- | --- | --- |
-| Frame p50 / p95 | 17.0 / 18.0 ms | 17.0 / 18.0 ms | 17.0 / 18.0 ms |
-| CPU p50 / p95 | 3 / 4 ms | 3 / 4 ms | 2 / 3 ms |
-| Draw calls p50 / max | 212 / 226 | 213 / 226 | 38–39 / 55 |
-| First frame (warm) | 63–136 ms | 107–278 ms | 121–128 ms |
+| Measure | Before lighting (PR 4.1.2 start) | After lighting baseline | Part visuals (PR 4.1.3) | Authored primitives (PR 4.1.4) |
+| --- | --- | --- | --- | --- |
+| Frame p50 / p95 | 17.0 / 18.0 ms | 17.0 / 18.0 ms | 17.0 / 18.0 ms | 17.0 / 18.0–19.0 ms |
+| CPU p50 / p95 | 3 / 4 ms | 3 / 4 ms | 2 / 3 ms | 2 / 3 ms |
+| Draw calls p50 / max | 212 / 226 | 213 / 226 | 38–39 / 55 | 38–39 / 51 |
+| First frame (warm) | 63–136 ms | 107–278 ms | 121–128 ms | 132–191 ms |
+
+PR 4.1.4 was measured with one race on each official kart rather than three
+Balanced races. Each official kart is 15.3–15.5k triangles: 11.6k of part
+visuals plus 3.7–3.8k of authored primitives (≤ 1,200 per primitive).

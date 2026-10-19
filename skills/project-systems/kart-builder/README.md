@@ -28,9 +28,14 @@ revision-bound previews live in [`kart-thumbnails`](../kart-thumbnails/README.md
   (mass elements and bounds), and `kart-derivation.ts` (versioned
   `deriveKartSnapshot`, wheel stations, physical profile, canonical
   serialization, and SHA-256 hash).
-- **Official karts:** `official-kart-assembly.ts`, the
-  `balanced-/speed-/handling-kart-document.ts` bundled documents, and
-  `official-kart-roster.ts` (IDs, roster schema, bundled fallback roster).
+- **Official karts:** `official-kart-assembly.ts` builds each as an open 1:10
+  RC chassis from its config: the plate is the structural root; hinge-pin
+  mounts sit under each arm pivot; composite shock towers carry the shock top
+  eyes (suspensions attach to the towers); a top deck spans the towers;
+  bumpers butt against the plate ends; electronics rest on the plate. The
+  `balanced-/speed-/handling-kart-document.ts` configs own arm length, shock
+  top mounts, plate, and equipment placement; `official-kart-roster.ts` owns
+  IDs, the roster schema, and the bundled fallback roster.
 - **Persistence:** `src/db/schema.ts` and `drizzle/0011`–`0013`;
   `src/server/kart-repository.ts` (optimistic-concurrency saves, append-only
   publish/unpublish events, published-revision and thumbnail lookup);
@@ -58,15 +63,18 @@ revision-bound previews live in [`kart-thumbnails`](../kart-thumbnails/README.md
   back to its construction primitives. Coilovers are sized from their
   suspension definition and posed from the mounts: the body rides the chassis
   eye, the shaft the spring-arm eye, and the spring stretches between seats.
-  Primitives take a finish from their construction material. Visuals stay
-  inside construction envelopes except the motor shaft and terminals, the
+  Primitives take a finish from their construction material and a form from
+  their role in `kart-primitive-visual-geometry.ts`, built at true size: a box
+  root keeps its size as scale (the editor gizmo) and its visual child
+  undoes it, so committed resizes rebuild detail and drag previews stretch.
+  Visuals stay inside construction envelopes except the motor shaft and terminals, the
   wheel retaining collar, and suspension rig parts, which are posed from
   mounts rather than the construction cylinder.
 - **Editor:** `src/app/admin/karts/` (roster page and per-kart editor);
   `src/components/kart-editor/` (access, shell, canvas, admin roster,
   post-save thumbnail capture); `src/game/editor/kart-editor-document.ts`
   (selection, transforms, attachment tolerance, mirror pairs, nudges, primitive
-  geometry) and `kart-editor-scene.ts` (PlayCanvas projection, picking,
+  geometry; new primitives spawn on the structural root's top face) and `kart-editor-scene.ts` (PlayCanvas projection, picking,
   gizmos, shared editor camera).
 - **Selection:** `src/components/play-home.tsx` loads the official roster,
   falls back to the bundled roster, and starts the race with the chosen
@@ -121,6 +129,14 @@ revision-bound previews live in [`kart-thumbnails`](../kart-thumbnails/README.md
 
 Official vs. community status is not server-owned and request hardening is
 incomplete. Phase 6 owns both.
+
+Approved suspension mounting defaults assume 8 cm lower arms. Swapping the
+suspension type on an official kart (longer arms) leaves the hub off the
+wheel until the builder repositions the suspension.
+
+Thin solid primitives (2 mm plates) are collision geometry too. Above top
+speed a kart can travel farther per physics step than a thin wall is deep,
+and the solver may push it into the floor; PR 4.2.3 owns the fix.
 
 Derivation treats shock travel as motion ratio × wheel travel and ignores the
 shock's tilt. The drawn coilover follows the real mount geometry, so on the
