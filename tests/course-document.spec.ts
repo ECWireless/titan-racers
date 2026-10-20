@@ -45,24 +45,22 @@ test("parses the versioned rough course with stable IDs and ordered checkpoints"
   expect(ROUGH_COURSE_DOCUMENT.schemaVersion).toBe(2);
   expect(ROUGH_COURSE_DOCUMENT.units).toBe("meters");
   expect(ROUGH_COURSE_DOCUMENT.start.id).toBe("start-position");
-  expect(ROUGH_COURSE_DOCUMENT.checkpoints).toHaveLength(6);
+  expect(ROUGH_COURSE_DOCUMENT.checkpoints).toHaveLength(3);
   expect(
     ROUGH_COURSE_DOCUMENT.checkpoints.map((checkpoint) => checkpoint.order),
-  ).toEqual([1, 2, 3, 4, 5, 6]);
+  ).toEqual([1, 2, 3]);
+  // Gates reach from the infield 4 m out into the grass beyond the lane.
   expect(ROUGH_COURSE_DOCUMENT.start.gateHalfExtents).toEqual({
-    x: 4,
+    x: 8,
     y: 1.5,
     z: 0.4,
   });
   expect(
     ROUGH_COURSE_DOCUMENT.checkpoints.map((checkpoint) => checkpoint.forward),
   ).toEqual([
-    { x: -1, y: 0, z: 0 },
     { x: 0, y: 0, z: 1 },
     { x: 1, y: 0, z: 0 },
-    { x: 1, y: 0, z: 0 },
     { x: 0, y: 0, z: -1 },
-    { x: -1, y: 0, z: 0 },
   ]);
   for (const checkpoint of ROUGH_COURSE_DOCUMENT.checkpoints) {
     expect(
@@ -181,9 +179,16 @@ test("preserves the accepted camera fixtures and ramp placement", () => {
     Math.cos(angle) * halfThickness;
   const entryX =
     (ramp?.transform.position.x ?? 0) - Math.cos(angle) * halfLength;
-  const runwayLength = entryX + 20;
+  const ground = findObject("ground");
+  const groundWestEdge =
+    (ground?.transform.position.x ?? 0) - (ground?.visual.scale.x ?? 0) * 0.5;
+  const runwayLength = entryX - groundWestEdge;
+  const lapOuterEdgeZ = 20;
 
-  expect(ramp?.transform.position.z).toBe(16);
+  // The tall jump is a sandbox feature beside the lap, not on it.
+  expect(
+    (ramp?.transform.position.z ?? 0) - (ramp?.visual.scale.z ?? 0) * 0.5,
+  ).toBeGreaterThan(lapOuterEdgeZ);
   expect(ramp?.transform.rotation.z).toBeGreaterThan(0);
   expect(entryTop).toBeGreaterThan(0.04);
   expect(entryTop).toBeLessThan(0.12);
@@ -199,40 +204,72 @@ test("keeps the expanded ground approximately 1.5 times its original area", () =
   expect(expandedArea / originalArea).toBeCloseTo(1.5, 1);
 });
 
-test("keeps inset grass presentation thin without moving its collision top", () => {
-  for (const id of [
-    "course-inner-straight",
-    "course-left-cutout",
-    "course-right-cutout",
-  ]) {
-    const object = findObject(id);
-    const collision = object?.collision;
+test("draws every drivable surface at its collision top", () => {
+  const surfaces = ROUGH_COURSE_DOCUMENT.objects.filter(
+    (object) => object.collision?.role === "drivable-surface",
+  );
 
-    expect(object?.visual.scale.y).toBe(0.002);
-    expect(
-      (object?.transform.position.y ?? 0) +
-        (object?.visual.scale.y ?? 0) * 0.5,
-    ).toBeCloseTo(0.051);
-    expect(collision).not.toBeNull();
-
+  expect(surfaces.length).toBeGreaterThan(0);
+  for (const object of surfaces) {
+    const collision = object.collision!;
+    const rotation = collision.offset.rotation;
     const collisionHalfHeight =
-      collision?.shape === "box"
+      collision.shape === "box"
         ? collision.halfExtents.y
-        : (collision?.height ?? 0) * 0.5;
+        : collision.height * 0.5;
+
+    // Both tops share the entity's local up axis, so tilted ramps compare too.
+    expect([rotation.x, rotation.y, rotation.z], object.id).toEqual([0, 0, 0]);
+    if (collision.shape === "cylinder") expect(collision.axis, object.id).toBe(1);
     expect(
-      (object?.transform.position.y ?? 0) +
-        (collision?.offset.position.y ?? 0) +
-        collisionHalfHeight,
-    ).toBeCloseTo(0);
+      Math.abs(
+        object.visual.scale.y * 0.5 -
+          (collision.offset.position.y + collisionHalfHeight),
+      ),
+      object.id,
+    ).toBeLessThanOrEqual(0.001);
   }
 });
 
-test("keeps the visual-only start line at surface height", () => {
-  const startLine = findObject("start-finish-line");
+test("rests every visual-only marking on the drivable surface beneath it", () => {
+  const surfaces = ROUGH_COURSE_DOCUMENT.objects.filter(
+    (object) =>
+      object.collision?.role === "drivable-surface" &&
+      object.transform.rotation.x === 0 &&
+      object.transform.rotation.z === 0,
+  );
+  const markings = ROUGH_COURSE_DOCUMENT.objects.filter(
+    (object) => object.category === "marker",
+  );
 
-  expect(startLine?.collision).toBeNull();
-  expect(startLine?.transform.position.y).toBe(0.05);
-  expect(startLine?.visual.scale.y).toBe(0.002);
+  expect(markings.length).toBeGreaterThan(0);
+  for (const marking of markings) {
+    const { position } = marking.transform;
+    const top = position.y + marking.visual.scale.y * 0.5;
+    const supportTops = surfaces
+      .filter((surface) => {
+        const yaw = (surface.transform.rotation.y * Math.PI) / 180;
+        const dx = position.x - surface.transform.position.x;
+        const dz = position.z - surface.transform.position.z;
+        const localX = dx * Math.cos(yaw) - dz * Math.sin(yaw);
+        const localZ = dx * Math.sin(yaw) + dz * Math.cos(yaw);
+        const { x, z } = surface.visual.scale;
+        return surface.visual.shape === "box"
+          ? Math.abs(localX) <= x * 0.5 && Math.abs(localZ) <= z * 0.5
+          : Math.hypot(localX / x, localZ / z) <= 0.5;
+      })
+      .map(
+        (surface) =>
+          surface.transform.position.y + surface.visual.scale.y * 0.5,
+      );
+
+    // A marking rests on the highest surface beneath it, not a buried one.
+    expect(marking.collision, marking.id).toBeNull();
+    expect(
+      Math.abs(top - Math.max(...supportTops)),
+      marking.id,
+    ).toBeLessThanOrEqual(0.001);
+  }
 });
 
 test("serializes the seed deterministically and round trips without changes", () => {
@@ -254,8 +291,21 @@ test("normalizes version-one course data without mutating the stored input", () 
   const storedInput = structuredClone(input);
   const normalized = parseCourseDocument(input);
 
+  // Version one derives recovery poses and the start gate; the seed authors
+  // lane-following recoveries and a wider start gate instead.
+  const withoutDerived = (document: typeof ROUGH_COURSE_DOCUMENT) => ({
+    ...document,
+    checkpoints: document.checkpoints.map((checkpoint) => ({
+      ...checkpoint,
+      recovery: null,
+    })),
+    start: { ...document.start, gateHalfExtents: null },
+  });
+
   expect(input).toEqual(storedInput);
-  expect(normalized).toEqual(ROUGH_COURSE_DOCUMENT);
+  expect(withoutDerived(normalized)).toEqual(
+    withoutDerived(ROUGH_COURSE_DOCUMENT),
+  );
   expect(normalized.schemaVersion).toBe(2);
 });
 
@@ -270,23 +320,24 @@ test("normalizes a valid one-checkpoint version-one course", () => {
   expect(normalized.checkpoints).toHaveLength(1);
   expect(normalized.checkpoints[0]).toMatchObject({
     forward: { x: -1, y: 0, z: 0 },
-    recovery: {
-      position: { x: -20, y: 0, z: 0 },
-      rotation: { x: 0, y: -90, z: 0 },
-    },
+    recovery: { position: { x: -28, y: 0, z: 8 } },
   });
+  // A lone checkpoint's recovery faces back toward the start.
+  expect(normalized.checkpoints[0].recovery.rotation.y).toBeCloseTo(
+    (Math.atan2(-28, 8) * 180) / Math.PI,
+  );
 });
 
 test("aligns legacy diagonal version-two directions to the full gate face", () => {
   const input = cloneSeed();
   const diagonal = Math.SQRT1_2;
-  input.checkpoints[1].forward = { x: -diagonal, y: 0, z: diagonal };
+  input.checkpoints[0].forward = { x: -diagonal, y: 0, z: diagonal };
   const storedInput = structuredClone(input);
 
   const normalized = parseCourseDocument(input);
 
   expect(input).toEqual(storedInput);
-  expect(normalized.checkpoints[1].forward).toEqual({ x: 0, y: 0, z: 1 });
+  expect(normalized.checkpoints[0].forward).toEqual({ x: 0, y: 0, z: 1 });
 });
 
 test("rejects non-normalized checkpoint directions", () => {

@@ -20,6 +20,15 @@ phone budget. Art direction and the budget itself live in
 - `src/game/kart/kart-visual-material.ts` owns the kart finishes (one
   material per finish) and the authored-color reflectance clamp that the
   [kart visual builder](../kart-builder/README.md) uses.
+- `src/game/course/course-surface-materials.ts` owns the course finishes:
+  one shader program whose diffuse override samples a CPU-built grain
+  texture by world position.
+- `src/game/course/build-course-lighting.ts` sets the course shadow presets
+  (20 m coverage, a bias small enough for kart-scale shadows); the course
+  editor widens coverage to 40 m for its overview.
+- `src/game/kart/kart-contact-shadow.ts` lays the race-only contact shadow
+  under the kart: one blended quad on the ground beneath the chassis, ordered
+  above the course layers and faded by ground clearance.
 - `src/game/runtime/frame-budget.ts` and
   `src/components/frame-budget-overlay.tsx` sample rendered frames through
   `PlayCanvasRuntime.onFrameSample` and show the budget readout.
@@ -40,6 +49,9 @@ course editor scenes in `src/game/editor/`, and
 - The atlas mirrors the PlayCanvas 2.20.6 `EnvLighting.generateAtlas` layout
   (512², RGBP, one-texel seams, v = 0 straight up). Re-verify it against the
   engine's envAtlas shader chunks on any engine upgrade.
+- The course finishes replace the `diffusePS` chunk for chunk version 2.20.
+  Re-verify it, like the atlas, on any engine upgrade. Their grain pixels
+  are also CPU-built and re-upload after a lost WebGL context.
 - CPU-built atlas pixels re-upload by themselves after a lost WebGL context.
   Do not switch to GPU prefiltering: it compiles extra shaders in every new
   application, and each kart thumbnail is one.

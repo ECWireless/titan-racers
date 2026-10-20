@@ -207,8 +207,6 @@ async function getCollisionDebugState(canvas: Locator) {
         startLineHasRigidBody: boolean;
         startLineVisualCenterY: number | null;
         startLineVisualThickness: number | null;
-        startMarkerVisualCenterY: number;
-        startMarkerVisualThickness: number;
       }>((resolve) => {
         element.dispatchEvent(
           new CustomEvent("getCollisionDebugState", {
@@ -1106,9 +1104,7 @@ test.describe("home screen", () => {
     await page.goto("/");
     await page.getByRole("button", { name: "Solo Time Trial" }).click();
 
-    await expect(page.getByRole("status")).toHaveText(
-      "Preparing kart physics…",
-    );
+    await expect(page.getByRole("status")).toHaveText("Loading race…");
     await expect(
       page.locator('[data-controller-menu-ready="true"]'),
     ).toHaveCount(1);
@@ -1240,7 +1236,9 @@ test.describe("home screen", () => {
   test("runs the deterministic two-lap race lifecycle through ordered gates", async ({
     page,
   }, testInfo) => {
-    testInfo.setTimeout(120_000);
+    // Software WebGL renders every stepped frame on the CPU, and the textured
+    // sandbox course roughly doubles that cost on test hosts.
+    testInfo.setTimeout(240_000);
     test.skip(
       testInfo.project.name !== "desktop",
       "Race progression integration only needs to run once.",
@@ -1274,12 +1272,9 @@ test.describe("home screen", () => {
     };
     const checkpoints = ROUGH_COURSE_DOCUMENT.checkpoints;
     const checkpointOffsets = [
-      { x: 0, y: 0, z: 1 },
       { x: 1, y: 0, z: 0 },
       { x: 0, y: 0, z: -1 },
-      { x: 0, y: 0, z: 1 },
       { x: -1, y: 0, z: 0 },
-      { x: 0, y: 0, z: -1 },
     ];
 
     let race = await getRaceDebugState(canvas);
@@ -1382,7 +1377,9 @@ test.describe("home screen", () => {
   test("recovers at the latest supported checkpoint and pauses stabilization", async ({
     page,
   }, testInfo) => {
-    testInfo.setTimeout(60_000);
+    // Software WebGL renders every stepped frame on the CPU; see the two-lap
+    // lifecycle test.
+    testInfo.setTimeout(90_000);
     test.skip(
       testInfo.project.name !== "desktop",
       "Race recovery integration only needs to run once.",
@@ -1442,8 +1439,10 @@ test.describe("home screen", () => {
       speed: 0,
       verticalVelocity: 0,
     });
-    expect(recoveredKart.forward.x).toBeCloseTo(-Math.SQRT1_2, 1);
-    expect(recoveredKart.forward.z).toBeCloseTo(Math.SQRT1_2, 1);
+    const recoveryYaw =
+      (firstCheckpoint.recovery.rotation.y * Math.PI) / 180;
+    expect(recoveredKart.forward.x).toBeCloseTo(-Math.sin(recoveryYaw), 1);
+    expect(recoveredKart.forward.z).toBeCloseTo(-Math.cos(recoveryYaw), 1);
     expect(presentation.visualPosition.x).toBeCloseTo(
       firstCheckpoint.recovery.position.x,
     );
@@ -2121,7 +2120,7 @@ test.describe("home screen", () => {
     expect(collisionState.barrelPhysicsGroup).toBe(PHYSICS_GROUP.solidObstacle);
     expect(collisionState.barrelPhysicsMask).toBe(PHYSICS_MASK.solidObstacle);
     expect(collisionState.barrelPhysicsRestitution).toBe(0);
-    expect(collisionState.courseEntityCount).toBe(13);
+    expect(collisionState.courseEntityCount).toBe(116);
     expect(collisionState.directionalLightCount).toBe(2);
     expect(collisionState.keyLightIntensity).toBeCloseTo(0.78);
     expect(collisionState.keyLightRotationX).toBeCloseTo(52);
@@ -2131,19 +2130,17 @@ test.describe("home screen", () => {
     expect(collisionState.fillLightCastsShadows).toBe(false);
     expect(collisionState.groundCollisionShape).toBe("box");
     expect(collisionState.groundCollisionHalfExtentX).toBe(44);
-    expect(collisionState.groundCollisionOffsetY).toBe(0.01);
+    expect(collisionState.groundCollisionOffsetY).toBe(0);
     expect(collisionState.groundIsDrivable).toBe(true);
     expect(collisionState.obstacleAInteractionRadius).toBe(0.9);
     expect(collisionState.obstacleCount).toBe(2);
-    expect(collisionState.rampCount).toBe(1);
+    expect(collisionState.rampCount).toBe(8);
     expect(collisionState.obstacleBlocksKart).toBe(true);
     expect(collisionState.startClear).toBe(true);
     expect(collisionState.startLineHasCollision).toBe(false);
     expect(collisionState.startLineHasRigidBody).toBe(false);
-    expect(collisionState.startLineVisualCenterY).toBeCloseTo(0.05);
+    expect(collisionState.startLineVisualCenterY).toBeCloseTo(-0.001);
     expect(collisionState.startLineVisualThickness).toBeCloseTo(0.002);
-    expect(collisionState.startMarkerVisualCenterY).toBeCloseTo(0.05);
-    expect(collisionState.startMarkerVisualThickness).toBeCloseTo(0.002);
   });
 
   test("keeps CCD active above top speed across a thin barrier", async ({

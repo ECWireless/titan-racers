@@ -37,15 +37,12 @@ import {
 } from "@/game/camera/chase-camera";
 import { buildCourseLighting } from "@/game/course/build-course-lighting";
 import { buildRoughCourse } from "@/game/course/build-rough-course";
+import { createCourseSurfaceMaterials } from "@/game/course/course-surface-materials";
 import {
   type CourseDocument,
   getCourseStartTransform,
   ROUGH_COURSE_DOCUMENT,
 } from "@/game/course/course-document";
-import {
-  COURSE_ASPHALT_COLOR,
-  getCourseVisualDepthBias,
-} from "@/game/course/course-visual-policy";
 import { PlayerInputManager } from "@/game/input/player-input-manager";
 import { isEditableKeyboardTarget } from "@/game/input/keyboard-input";
 import { useControllerMenuNavigation } from "@/game/input/use-controller-menu-navigation";
@@ -61,6 +58,11 @@ import {
   getLateralScrubPower,
   KartDriftSmoke,
 } from "@/game/kart/kart-drift-smoke";
+import {
+  getKartContactFootprint,
+  KartContactShadow,
+  type KartContactShadowGround,
+} from "@/game/kart/kart-contact-shadow";
 import {
   getManualRightingAxis,
   getManualRightingCaptureLocalTorqueImpulse,
@@ -140,8 +142,6 @@ const DEFAULT_BALANCED_KART_DOCUMENT = createBalancedKartDocument();
 const KART_RESET_FALL_Y = -10;
 const KART_TAP_MAX_DURATION_MS = 300;
 const KART_TAP_MAX_MOVEMENT_PX = 12;
-const START_MARKER_VISUAL_CENTER_HEIGHT = 0.05;
-const START_MARKER_VISUAL_THICKNESS = 0.002;
 
 function subscribeToRaceSpeedUnit() {
   return () => {};
@@ -161,16 +161,6 @@ const NEUTRAL_DRIVING_INPUT: DrivingInput = {
   steer: 0,
   throttle: 0,
 };
-
-function createMaterial(color: pc.Color, depthBias = 0) {
-  const material = new pc.StandardMaterial();
-  material.depthBias = depthBias;
-  material.diffuse = color;
-  material.slopeDepthBias = depthBias;
-  material.update();
-
-  return material;
-}
 
 function toPcVector(vector: KartReferenceVector) {
   return new pc.Vec3(vector.x, vector.y, vector.z);
@@ -712,48 +702,9 @@ export function SoloTimeTrialCanvas({
       runtime.addCleanup(() =>
         kartVisualMaterials.forEach((material) => material.destroy()),
       );
-      const asphaltMaterial = createMaterial(
-        new pc.Color(...COURSE_ASPHALT_COLOR),
-      );
-      const lineMaterial = createMaterial(
-        new pc.Color(0.95, 0.92, 0.86),
-        getCourseVisualDepthBias("line"),
-      );
-      const markerMaterial = createMaterial(new pc.Color(1, 0.85, 0.15));
-      const groundMaterial = createMaterial(
-        new pc.Color(0.08, 0.36, 0.26),
-        getCourseVisualDepthBias("ground"),
-      );
-      const obstacleBlockMaterial = createMaterial(
-        new pc.Color(0.82, 0.78, 0.68),
-      );
-      const obstacleBarrelMaterial = createMaterial(
-        new pc.Color(0.96, 0.45, 0.12),
-      );
-      const rampMaterial = createMaterial(new pc.Color(0.35, 0.39, 0.42));
-
-      function createBox(
-        name: string,
-        position: pc.Vec3,
-        scale: pc.Vec3,
-        material: pc.StandardMaterial,
-        rotationY = 0,
-      ) {
-        const entity = new pc.Entity(name);
-        entity.addComponent("model", {
-          type: "box",
-        });
-        entity.setPosition(position);
-        entity.setEulerAngles(0, rotationY, 0);
-        entity.setLocalScale(scale);
-        const meshInstances = entity.model?.meshInstances;
-        meshInstances?.forEach((meshInstance) => {
-          meshInstance.material = material;
-        });
-        app.root.addChild(entity);
-
-        return entity;
-      }
+      const courseSurfaces = createCourseSurfaceMaterials(app.graphicsDevice);
+      runtime.addCleanup(() => courseSurfaces.destroy());
+      const obstacleBarrelMaterial = courseSurfaces.materials.obstacleBarrel;
 
       function createChildCollisionBox(
         parent: pc.Entity,
@@ -807,14 +758,8 @@ export function SoloTimeTrialCanvas({
         obstacleEntities,
         rampEntities,
       } = buildRoughCourse(app, {
-        materials: {
-          asphalt: asphaltMaterial,
-          ground: groundMaterial,
-          line: lineMaterial,
-          obstacleBarrel: obstacleBarrelMaterial,
-          obstacleBlock: obstacleBlockMaterial,
-          ramp: rampMaterial,
-        },
+        materials: courseSurfaces.materials,
+        topFaces: courseSurfaces.topFaces,
         document: COURSE_DOCUMENT,
         includeCollisionFixtures:
           includeCollisionFixtures ||
@@ -822,6 +767,20 @@ export function SoloTimeTrialCanvas({
             new URLSearchParams(window.location.search).has(
               "collision-fixtures",
             )),
+      });
+
+      // Static course visuals batch by finish. Authored entities and colliders
+      // remain intact; the test-adapter barrels stay movable, and the editor
+      // keeps separate meshes for live editing.
+      const courseBatch = app.batcher.addGroup(
+        "course-static",
+        false,
+        Number.POSITIVE_INFINITY,
+      );
+      courseEntities.forEach((entity, id) => {
+        if (obstacleEntities.has(id as CourseTestObstacleId)) return;
+        const visual = entity.render ?? entity.model;
+        if (visual) visual.batchGroupId = courseBatch.id;
       });
 
       function syncObstacleCollision(
@@ -839,19 +798,6 @@ export function SoloTimeTrialCanvas({
         collisionObstacle.x = position.x;
         collisionObstacle.z = position.z;
       }
-
-      const startMarker = createBox(
-        "start-position",
-        new pc.Vec3(
-          START_POSITION.x,
-          START_POSITION.y + START_MARKER_VISUAL_CENTER_HEIGHT,
-          START_POSITION.z,
-        ),
-        new pc.Vec3(2.2, START_MARKER_VISUAL_THICKNESS, 1.6),
-        markerMaterial,
-        START_ROTATION.y,
-      );
-      startMarker.setEulerAngles(START_ROTATION);
 
       const kart = new pc.Entity("box-kart");
       const initialAssemblyRotation = new pc.Quat().setFromEulerAngles(
@@ -1546,11 +1492,6 @@ export function SoloTimeTrialCanvas({
           currentStartPosition.y,
           nextStartPosition.z,
         );
-        startMarker.setPosition(
-          currentStartPosition.x,
-          currentStartPosition.y + START_MARKER_VISUAL_CENTER_HEIGHT,
-          currentStartPosition.z,
-        );
       }
 
       function collidesWithObstacle(position: pc.Vec3) {
@@ -1582,6 +1523,25 @@ export function SoloTimeTrialCanvas({
       driftSmoke = new KartDriftSmoke(dynamicWheels);
       const activeDriftSmoke = driftSmoke;
       runtime.addCleanup(() => activeDriftSmoke.destroy());
+      const contactShadow = new KartContactShadow(
+        app,
+        getKartContactFootprint(KART_SNAPSHOT.geometry.wheelStations),
+      );
+      runtime.addCleanup(() => contactShadow.destroy());
+      // The wheel-probe filter reaches only drivable surfaces, so the engine
+      // can take its closest-hit path without a per-frame filter callback.
+      const groundProbeOptions = {
+        filterCollisionGroup: PHYSICS_GROUP.wheelProbe,
+        filterCollisionMask: PHYSICS_MASK.wheelSupport,
+      };
+      const findGroundBelowKart: KartContactShadowGround = (from, to) => {
+        const hit = activeRigidBodySystem.raycastFirst(
+          from,
+          to,
+          groundProbeOptions,
+        );
+        return hit ? { normal: hit.normal, point: hit.point } : null;
+      };
       const collisionObserver = new KartCollisionObserver(
         rigidBodySystem,
         kart,
@@ -2013,8 +1973,6 @@ export function SoloTimeTrialCanvas({
           startLineHasRigidBody: Boolean(startFinishLine?.rigidbody),
           startLineVisualCenterY: startFinishLine?.getPosition().y ?? null,
           startLineVisualThickness: startFinishLine?.getLocalScale().y ?? null,
-          startMarkerVisualCenterY: startMarker.getPosition().y,
-          startMarkerVisualThickness: startMarker.getLocalScale().y,
         };
       };
 
@@ -2582,6 +2540,7 @@ export function SoloTimeTrialCanvas({
         kartVisual.setPosition(interpolatedKartVisualPosition);
         kartVisual.setRotation(interpolatedKartAssemblyRotation);
         renderWheelPresentation(accumulatorFraction);
+        contactShadow.update(kartVisual, findGroundBelowKart);
 
         chaseCamera.update(frameSeconds, getChaseCameraSnapshot());
         const nextDisplayedSpeed = formatRaceSpeed(
@@ -3502,61 +3461,81 @@ export function SoloTimeTrialCanvas({
         </>
       ) : (
         <div className="absolute inset-0 z-20 grid place-items-center bg-titan-black/88 px-6 text-center font-mono text-titan-ice">
-          <div
-            className="grid max-w-md gap-4 border border-titan-ice/20 bg-titan-black p-6 shadow-[0_20px_70px_rgb(0_0_0/0.5)]"
-            ref={statusMenuRef}
-          >
-            {sceneStatus === "initializing" ? (
-              <p role="status" aria-live="polite">
-                Preparing kart physics…
+          {/* Both branches render the same unkeyed menu element, so the
+              controller menu hook stays attached across status changes. */}
+          {sceneStatus === "initializing" ? (
+            <div
+              className="race-loader grid justify-items-center gap-6"
+              ref={statusMenuRef}
+            >
+              <div className="race-loader-track" aria-hidden="true">
+                <div className="race-loader-sweep" />
+              </div>
+              <p className="sr-only" role="status" aria-live="polite">
+                Loading race…
               </p>
-            ) : sceneStatus === "context_lost" ? (
-              <div className="grid gap-3" role="status" aria-live="polite">
-                <p className="font-bold uppercase tracking-[0.12em] text-titan-hazard">
-                  Restoring graphics
-                </p>
-                <p className="text-sm text-titan-ice/78">
-                  The race is safely paused while the browser restores the
-                  graphics context.
-                </p>
-              </div>
-            ) : (
-              <div className="grid gap-3" role="alert" aria-live="assertive">
-                <p className="font-bold uppercase tracking-[0.12em] text-titan-hazard">
-                  {sceneFailureCode?.startsWith("webgl_")
-                    ? "Unable to continue the race"
-                    : "Unable to start the race"}
-                </p>
-                <p className="text-sm text-titan-ice/78">
-                  {sceneFailureCode?.startsWith("webgl_")
-                    ? "Graphics could not be restored. Reload the app, or return to mode selection."
-                    : "The kart physics engine could not load. Reload the app, or return to mode selection."}
-                </p>
-              </div>
-            )}
-            <div className="flex flex-wrap justify-center gap-3">
-              {sceneStatus === "failed" ? (
-                <button
-                  type="button"
-                  className="titan-button titan-button-primary"
-                  data-controller-default="true"
-                  onClick={() => window.location.reload()}
-                >
-                  Reload
-                </button>
-              ) : null}
               <button
                 type="button"
-                className="titan-button titan-button-secondary"
-                data-controller-default={
-                  sceneStatus !== "failed" ? "true" : undefined
-                }
+                className="race-loader-exit min-h-11 px-4 text-[0.68rem] font-bold uppercase tracking-[0.14em] text-titan-ice/55 transition hover:text-titan-ice focus-visible:text-titan-ice"
+                data-controller-default="true"
                 onClick={exitRace}
               >
                 Exit
               </button>
             </div>
-          </div>
+          ) : (
+            <div
+              className="grid max-w-md gap-4 border border-titan-ice/20 bg-titan-black p-6 shadow-[0_20px_70px_rgb(0_0_0/0.5)]"
+              ref={statusMenuRef}
+            >
+              {sceneStatus === "context_lost" ? (
+                <div className="grid gap-3" role="status" aria-live="polite">
+                  <p className="font-bold uppercase tracking-[0.12em] text-titan-hazard">
+                    Restoring graphics
+                  </p>
+                  <p className="text-sm text-titan-ice/78">
+                    The race is safely paused while the browser restores the
+                    graphics context.
+                  </p>
+                </div>
+              ) : (
+                <div className="grid gap-3" role="alert" aria-live="assertive">
+                  <p className="font-bold uppercase tracking-[0.12em] text-titan-hazard">
+                    {sceneFailureCode?.startsWith("webgl_")
+                      ? "Unable to continue the race"
+                      : "Unable to start the race"}
+                  </p>
+                  <p className="text-sm text-titan-ice/78">
+                    {sceneFailureCode?.startsWith("webgl_")
+                      ? "Graphics could not be restored. Reload the app, or return to mode selection."
+                      : "The kart physics engine could not load. Reload the app, or return to mode selection."}
+                  </p>
+                </div>
+              )}
+              <div className="flex flex-wrap justify-center gap-3">
+                {sceneStatus === "failed" ? (
+                  <button
+                    type="button"
+                    className="titan-button titan-button-primary"
+                    data-controller-default="true"
+                    onClick={() => window.location.reload()}
+                  >
+                    Reload
+                  </button>
+                ) : null}
+                <button
+                  type="button"
+                  className="titan-button titan-button-secondary"
+                  data-controller-default={
+                    sceneStatus !== "failed" ? "true" : undefined
+                  }
+                  onClick={exitRace}
+                >
+                  Exit
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       )}
     </main>

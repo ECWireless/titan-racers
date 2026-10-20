@@ -49,8 +49,8 @@ export function projectCourseLighting(document: CourseDocument) {
         light.shadowQuality === "off"
           ? null
           : {
-              bias: 0.2,
-              distance: 40,
+              bias: 0.005,
+              distance: 20,
               resolution: SHADOW_RESOLUTION[light.shadowQuality],
             },
     })),

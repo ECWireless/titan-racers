@@ -1,25 +1,19 @@
 import { expect, test } from "@playwright/test";
-import type {
-  Application,
-  Entity,
-  StandardMaterial,
-} from "playcanvas";
+import type { Application, Entity } from "playcanvas";
 
 import {
   buildRoughCourse,
   projectCourseObject,
+  type RoughCourseMaterials,
   selectCourseObjectsForBuild,
 } from "../src/game/course/build-rough-course";
-import {
-  type CourseVisualMaterial,
-  ROUGH_COURSE_DOCUMENT,
-} from "../src/game/course/course-document";
+import { ROUGH_COURSE_DOCUMENT } from "../src/game/course/course-document";
 import {
   PHYSICS_GROUP,
   PHYSICS_MASK,
 } from "../src/game/physics/collision-groups";
 
-const materials = {} as Record<CourseVisualMaterial, StandardMaterial>;
+const materials = {} as RoughCourseMaterials;
 
 function findObject(id: string) {
   const object = ROUGH_COURSE_DOCUMENT.objects.find(
@@ -68,7 +62,7 @@ test("maps exact box, cylinder, and visual-only branches", () => {
     collision: {
       halfExtents: { x: 44, y: 0.05, z: 29.5 },
       offset: {
-        position: { x: 0, y: 0.01, z: 0 },
+        position: { x: 0, y: 0, z: 0 },
         rotation: { x: 0, y: 0, z: 0 },
       },
       shape: "box",
@@ -203,8 +197,8 @@ test("attaches staged entities only after the complete batch succeeds", () => {
     event.startsWith("attach:"),
   );
 
-  expect(result.courseEntities.size).toBe(13);
-  expect(firstAttachIndex).toBe(13);
+  expect(result.courseEntities.size).toBe(116);
+  expect(firstAttachIndex).toBe(116);
   expect(events.slice(0, firstAttachIndex)).toEqual(
     selectCourseObjectsForBuild(ROUGH_COURSE_DOCUMENT, false).map(
       (object) => `create:${object.id}`,

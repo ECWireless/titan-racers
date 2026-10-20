@@ -29,7 +29,7 @@ test("projects ambient intensity and bounded directional shadow presets", () => 
         id: "warm-key-light",
         intensity: 0.78,
         rotation: { x: 52, y: 38, z: 0 },
-        shadows: { bias: 0.2, distance: 40, resolution: 1024 },
+        shadows: { bias: 0.005, distance: 20, resolution: 1024 },
       },
       {
         color: { b: 0.9, g: 0.68, r: 0.55 },

@@ -45,8 +45,6 @@ export type CollisionDebugState = {
   startLineHasRigidBody: boolean;
   startLineVisualCenterY: number | null;
   startLineVisualThickness: number | null;
-  startMarkerVisualCenterY: number;
-  startMarkerVisualThickness: number;
 };
 
 export type CameraDebugState = ChaseCameraDiagnostics;
