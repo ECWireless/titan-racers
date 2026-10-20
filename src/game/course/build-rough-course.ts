@@ -9,7 +9,10 @@ import type {
   CourseVisualMaterial,
 } from "./course-document";
 import { ROUGH_COURSE_DOCUMENT } from "./course-document";
-import { isCourseBaseGround } from "./course-visual-policy";
+import {
+  drawsCourseTopFaceOnly,
+  isCourseBaseGround,
+} from "./course-visual-policy";
 
 export type CollisionObstacle = {
   id: CourseTestObstacleId;
@@ -26,13 +29,17 @@ export type RoughCourseMaterials = Record<
   baseGround: pc.StandardMaterial;
 };
 
+export type CourseTopFaceMeshes = Record<"box" | "cylinder", pc.Mesh>;
+
 export type CourseObjectProjection = ReturnType<typeof projectCourseObject>;
 
 // Custom factories must return an unattached entity. The builder owns scene
-// attachment so the complete course batch can be committed atomically.
+// attachment so the complete course batch can be committed atomically. A
+// top-face mesh replaces the visual primitive for thin surface layers.
 type CourseEntityFactory = (
   projection: CourseObjectProjection,
   material: pc.StandardMaterial,
+  topFace?: pc.Mesh,
 ) => pc.Entity;
 
 type BuildRoughCourseOptions = {
@@ -40,6 +47,7 @@ type BuildRoughCourseOptions = {
   document?: CourseDocument;
   includeCollisionFixtures?: boolean;
   materials: RoughCourseMaterials;
+  topFaces?: CourseTopFaceMeshes;
 };
 
 function isCourseTestObstacleId(id: string): id is CourseTestObstacleId {
@@ -95,6 +103,7 @@ export function buildRoughCourse(
     document = ROUGH_COURSE_DOCUMENT,
     includeCollisionFixtures = false,
     materials,
+    topFaces,
   }: BuildRoughCourseOptions,
 ) {
   const obstacleEntities = new Map<CourseTestObstacleId, pc.Entity>();
@@ -114,6 +123,9 @@ export function buildRoughCourse(
           isCourseBaseGround(projection.visual.material, projection.id)
             ? materials.baseGround
             : materials[projection.visual.material],
+          drawsCourseTopFaceOnly(object)
+            ? topFaces?.[object.visual.shape]
+            : undefined,
         );
 
         stagedEntities.push(entity);
@@ -165,11 +177,12 @@ export function buildRoughCourse(
 function createCourseEntity(
   projection: CourseObjectProjection,
   material: pc.StandardMaterial,
+  topFace?: pc.Mesh,
 ) {
   const entity = new pc.Entity(projection.id);
 
   try {
-    return configureCourseEntity(entity, projection, material);
+    return configureCourseEntity(entity, projection, material, topFace);
   } catch (error) {
     entity.destroy();
     throw error;
@@ -180,14 +193,12 @@ function configureCourseEntity(
   entity: pc.Entity,
   projection: CourseObjectProjection,
   material: pc.StandardMaterial,
+  topFace?: pc.Mesh,
 ) {
-  entity.addComponent("model", { type: projection.visual.shape });
+  addCourseVisual(entity, projection.visual.shape, material, topFace);
   entity.setPosition(toVec3(projection.transform.position));
   entity.setEulerAngles(toVec3(projection.transform.rotation));
   entity.setLocalScale(toVec3(projection.visual.scale));
-  entity.model?.meshInstances?.forEach((meshInstance) => {
-    meshInstance.material = material;
-  });
 
   const collision = projection.collision;
   const physics = projection.physics;
@@ -238,4 +249,23 @@ function configureCourseEntity(
   }
 
   return entity;
+}
+
+export function addCourseVisual(
+  entity: pc.Entity,
+  shape: "box" | "cylinder",
+  material: pc.StandardMaterial,
+  topFace?: pc.Mesh,
+) {
+  if (topFace) {
+    entity.addComponent("render", {
+      castShadows: false,
+      meshInstances: [new pc.MeshInstance(topFace, material)],
+    });
+    return;
+  }
+  entity.addComponent("model", { type: shape });
+  entity.model?.meshInstances?.forEach((meshInstance) => {
+    meshInstance.material = material;
+  });
 }

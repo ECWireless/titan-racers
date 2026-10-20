@@ -45,24 +45,22 @@ test("parses the versioned rough course with stable IDs and ordered checkpoints"
   expect(ROUGH_COURSE_DOCUMENT.schemaVersion).toBe(2);
   expect(ROUGH_COURSE_DOCUMENT.units).toBe("meters");
   expect(ROUGH_COURSE_DOCUMENT.start.id).toBe("start-position");
-  expect(ROUGH_COURSE_DOCUMENT.checkpoints).toHaveLength(6);
+  expect(ROUGH_COURSE_DOCUMENT.checkpoints).toHaveLength(3);
   expect(
     ROUGH_COURSE_DOCUMENT.checkpoints.map((checkpoint) => checkpoint.order),
-  ).toEqual([1, 2, 3, 4, 5, 6]);
+  ).toEqual([1, 2, 3]);
+  // Gates reach from the infield 4 m out into the grass beyond the lane.
   expect(ROUGH_COURSE_DOCUMENT.start.gateHalfExtents).toEqual({
-    x: 4,
+    x: 8,
     y: 1.5,
     z: 0.4,
   });
   expect(
     ROUGH_COURSE_DOCUMENT.checkpoints.map((checkpoint) => checkpoint.forward),
   ).toEqual([
-    { x: -1, y: 0, z: 0 },
     { x: 0, y: 0, z: 1 },
     { x: 1, y: 0, z: 0 },
-    { x: 1, y: 0, z: 0 },
     { x: 0, y: 0, z: -1 },
-    { x: -1, y: 0, z: 0 },
   ]);
   for (const checkpoint of ROUGH_COURSE_DOCUMENT.checkpoints) {
     expect(
@@ -181,9 +179,16 @@ test("preserves the accepted camera fixtures and ramp placement", () => {
     Math.cos(angle) * halfThickness;
   const entryX =
     (ramp?.transform.position.x ?? 0) - Math.cos(angle) * halfLength;
-  const runwayLength = entryX + 20;
+  const ground = findObject("ground");
+  const groundWestEdge =
+    (ground?.transform.position.x ?? 0) - (ground?.visual.scale.x ?? 0) * 0.5;
+  const runwayLength = entryX - groundWestEdge;
+  const lapOuterEdgeZ = 20;
 
-  expect(ramp?.transform.position.z).toBe(16);
+  // The tall jump is a sandbox feature beside the lap, not on it.
+  expect(
+    (ramp?.transform.position.z ?? 0) - (ramp?.visual.scale.z ?? 0) * 0.5,
+  ).toBeGreaterThan(lapOuterEdgeZ);
   expect(ramp?.transform.rotation.z).toBeGreaterThan(0);
   expect(entryTop).toBeGreaterThan(0.04);
   expect(entryTop).toBeLessThan(0.12);
@@ -286,8 +291,21 @@ test("normalizes version-one course data without mutating the stored input", () 
   const storedInput = structuredClone(input);
   const normalized = parseCourseDocument(input);
 
+  // Version one derives recovery poses and the start gate; the seed authors
+  // lane-following recoveries and a wider start gate instead.
+  const withoutDerived = (document: typeof ROUGH_COURSE_DOCUMENT) => ({
+    ...document,
+    checkpoints: document.checkpoints.map((checkpoint) => ({
+      ...checkpoint,
+      recovery: null,
+    })),
+    start: { ...document.start, gateHalfExtents: null },
+  });
+
   expect(input).toEqual(storedInput);
-  expect(normalized).toEqual(ROUGH_COURSE_DOCUMENT);
+  expect(withoutDerived(normalized)).toEqual(
+    withoutDerived(ROUGH_COURSE_DOCUMENT),
+  );
   expect(normalized.schemaVersion).toBe(2);
 });
 
@@ -302,23 +320,24 @@ test("normalizes a valid one-checkpoint version-one course", () => {
   expect(normalized.checkpoints).toHaveLength(1);
   expect(normalized.checkpoints[0]).toMatchObject({
     forward: { x: -1, y: 0, z: 0 },
-    recovery: {
-      position: { x: -20, y: 0, z: 0 },
-      rotation: { x: 0, y: -90, z: 0 },
-    },
+    recovery: { position: { x: -28, y: 0, z: 8 } },
   });
+  // A lone checkpoint's recovery faces back toward the start.
+  expect(normalized.checkpoints[0].recovery.rotation.y).toBeCloseTo(
+    (Math.atan2(-28, 8) * 180) / Math.PI,
+  );
 });
 
 test("aligns legacy diagonal version-two directions to the full gate face", () => {
   const input = cloneSeed();
   const diagonal = Math.SQRT1_2;
-  input.checkpoints[1].forward = { x: -diagonal, y: 0, z: diagonal };
+  input.checkpoints[0].forward = { x: -diagonal, y: 0, z: diagonal };
   const storedInput = structuredClone(input);
 
   const normalized = parseCourseDocument(input);
 
   expect(input).toEqual(storedInput);
-  expect(normalized.checkpoints[1].forward).toEqual({ x: 0, y: 0, z: 1 });
+  expect(normalized.checkpoints[0].forward).toEqual({ x: 0, y: 0, z: 1 });
 });
 
 test("rejects non-normalized checkpoint directions", () => {

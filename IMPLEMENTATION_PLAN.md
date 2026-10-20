@@ -214,10 +214,14 @@ Phase decisions:
 
 **PR 4.2: Sandbox surfaces**
 
-- [ ] 4.2.1: Road, grass, and marking visuals on `rough-course`. Align
+- [x] 4.2.1: Road, grass, and marking visuals on `rough-course`. Align
       surface visuals with their collision tops: the asphalt is drawn 5 cm
       above where karts roll, hiding wheels and the low open chassis (found in
-      PR 4.1.4).
+      PR 4.1.4). Scope grew into an intro-course pass: service-yard finishes
+      and markings, a timing portal and props, a low bridge and kicker on the
+      lap, the tall jump moved beside it, an infield barrier, three wider
+      checkpoints, kart-scale shadows with a contact shadow, and no race-only
+      start pad.
 - [ ] 4.2.2: Surface physics: a grass surface material and its tire
       interaction, per-surface materials in the course document (new schema
       version with normalization), and a new physics version.

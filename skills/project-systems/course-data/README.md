@@ -33,8 +33,9 @@ own editor commands or persistence UI.
   current guest-runtime course selection explicit; `course-publication.ts`
   validates protected publication and privacy-minimized public runtime shapes.
 - `src/game/course/rough-course.v2.json` is the canonical portable rough-course
-  sandbox seed. It contains the start/finish gate, six ordered checkpoints with
-  directed gate and recovery data, ordinary surfaces and objects, camera
+  sandbox seed. It contains the start/finish gate, three ordered checkpoints
+  whose gates reach from the infield into the grass, with directed gate and
+  recovery data, an infield barrier, ordinary surfaces and objects, camera
   fixtures, and opt-in collision fixtures.
   It permanently restores only course ID `rough-course`; the official future
   Agricultural Zone document uses the distinct ID `agricultural-zone`.
@@ -43,7 +44,11 @@ own editor commands or persistence UI.
   returns stable-ID entity maps plus two explicit sandbox obstacle lookups used
   by reset-clearance checks and the non-production scene test adapter.
 - `src/game/course/course-visual-policy.ts` owns the depth-bias tiers that
-  order coplanar surface layers and identifies the base ground.
+  order coplanar surface layers, maps material keys to them, and decides which
+  thin layers draw only their top face.
+- `src/game/course/course-surface-materials.ts` creates the course finishes
+  shared by the race and editor (see
+  [scene lighting](../scene-lighting/README.md)) and the top-face meshes.
 - `src/game/course/build-course-lighting.ts` projects bounded ambient and
   directional-light records into PlayCanvas scene state and fixed shadow
   presets.
@@ -140,7 +145,9 @@ exposed in the UI.
 - A drivable surface draws its top exactly at its collision top, and a
   visual-only marking rests on the highest surface beneath it. Layers at the
   same height are ordered by depth bias (base ground, asphalt, grass overlay,
-  race start pad, line), never by separating their heights.
+  paint), never by separating their heights. Thin, level layers draw only
+  their top face, so the slope-scaled bias cannot pull hidden side faces
+  through as seams.
 - Objects without collision data receive no collision or rigid-body component.
 - Diagnostic collision fixtures cannot appear in production or ordinary play.
 - Checkpoint data is projected into plain directed swept gates by the separate

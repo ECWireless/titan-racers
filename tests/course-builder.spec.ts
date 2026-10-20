@@ -197,8 +197,8 @@ test("attaches staged entities only after the complete batch succeeds", () => {
     event.startsWith("attach:"),
   );
 
-  expect(result.courseEntities.size).toBe(13);
-  expect(firstAttachIndex).toBe(13);
+  expect(result.courseEntities.size).toBe(116);
+  expect(firstAttachIndex).toBe(116);
   expect(events.slice(0, firstAttachIndex)).toEqual(
     selectCourseObjectsForBuild(ROUGH_COURSE_DOCUMENT, false).map(
       (object) => `create:${object.id}`,

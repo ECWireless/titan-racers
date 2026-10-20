@@ -34,6 +34,8 @@ const transformSchema = z.strictObject({
 const visualSchema = z.strictObject({
   material: z.enum([
     "asphalt",
+    "hazard",
+    "steel",
     "ground",
     "line",
     "obstacleBarrel",

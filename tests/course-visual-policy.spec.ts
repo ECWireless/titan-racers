@@ -12,8 +12,8 @@ test("orders coplanar surface layers above the unbiased base ground", () => {
     0,
     getCourseSurfaceLayerDepthBias("asphalt"),
     getCourseSurfaceLayerDepthBias("ground"),
-    getCourseSurfaceLayerDepthBias("startMarker"),
     getCourseSurfaceLayerDepthBias("line"),
+    getCourseSurfaceLayerDepthBias("contactShadow"),
   ];
 
   order.slice(1).forEach((bias, index) => {
@@ -32,6 +32,6 @@ test("treats only the ground object as the base ground", () => {
 });
 
 test("keeps the asphalt visibly lighter than near-black kart tires", () => {
-  expect(COURSE_ASPHALT_COLOR).toEqual([0.18, 0.2, 0.22]);
+  expect(COURSE_ASPHALT_COLOR).toEqual([0.34, 0.37, 0.39]);
   expect(Math.min(...COURSE_ASPHALT_COLOR)).toBeGreaterThan(0.1);
 });
