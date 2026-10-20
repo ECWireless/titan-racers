@@ -1104,9 +1104,7 @@ test.describe("home screen", () => {
     await page.goto("/");
     await page.getByRole("button", { name: "Solo Time Trial" }).click();
 
-    await expect(page.getByRole("status")).toHaveText(
-      "Preparing kart physics…",
-    );
+    await expect(page.getByRole("status")).toHaveText("Loading race…");
     await expect(
       page.locator('[data-controller-menu-ready="true"]'),
     ).toHaveCount(1);

@@ -3461,61 +3461,81 @@ export function SoloTimeTrialCanvas({
         </>
       ) : (
         <div className="absolute inset-0 z-20 grid place-items-center bg-titan-black/88 px-6 text-center font-mono text-titan-ice">
-          <div
-            className="grid max-w-md gap-4 border border-titan-ice/20 bg-titan-black p-6 shadow-[0_20px_70px_rgb(0_0_0/0.5)]"
-            ref={statusMenuRef}
-          >
-            {sceneStatus === "initializing" ? (
-              <p role="status" aria-live="polite">
-                Preparing kart physics…
+          {/* Both branches render the same unkeyed menu element, so the
+              controller menu hook stays attached across status changes. */}
+          {sceneStatus === "initializing" ? (
+            <div
+              className="race-loader grid justify-items-center gap-6"
+              ref={statusMenuRef}
+            >
+              <div className="race-loader-track" aria-hidden="true">
+                <div className="race-loader-sweep" />
+              </div>
+              <p className="sr-only" role="status" aria-live="polite">
+                Loading race…
               </p>
-            ) : sceneStatus === "context_lost" ? (
-              <div className="grid gap-3" role="status" aria-live="polite">
-                <p className="font-bold uppercase tracking-[0.12em] text-titan-hazard">
-                  Restoring graphics
-                </p>
-                <p className="text-sm text-titan-ice/78">
-                  The race is safely paused while the browser restores the
-                  graphics context.
-                </p>
-              </div>
-            ) : (
-              <div className="grid gap-3" role="alert" aria-live="assertive">
-                <p className="font-bold uppercase tracking-[0.12em] text-titan-hazard">
-                  {sceneFailureCode?.startsWith("webgl_")
-                    ? "Unable to continue the race"
-                    : "Unable to start the race"}
-                </p>
-                <p className="text-sm text-titan-ice/78">
-                  {sceneFailureCode?.startsWith("webgl_")
-                    ? "Graphics could not be restored. Reload the app, or return to mode selection."
-                    : "The kart physics engine could not load. Reload the app, or return to mode selection."}
-                </p>
-              </div>
-            )}
-            <div className="flex flex-wrap justify-center gap-3">
-              {sceneStatus === "failed" ? (
-                <button
-                  type="button"
-                  className="titan-button titan-button-primary"
-                  data-controller-default="true"
-                  onClick={() => window.location.reload()}
-                >
-                  Reload
-                </button>
-              ) : null}
               <button
                 type="button"
-                className="titan-button titan-button-secondary"
-                data-controller-default={
-                  sceneStatus !== "failed" ? "true" : undefined
-                }
+                className="race-loader-exit min-h-11 px-4 text-[0.68rem] font-bold uppercase tracking-[0.14em] text-titan-ice/55 transition hover:text-titan-ice focus-visible:text-titan-ice"
+                data-controller-default="true"
                 onClick={exitRace}
               >
                 Exit
               </button>
             </div>
-          </div>
+          ) : (
+            <div
+              className="grid max-w-md gap-4 border border-titan-ice/20 bg-titan-black p-6 shadow-[0_20px_70px_rgb(0_0_0/0.5)]"
+              ref={statusMenuRef}
+            >
+              {sceneStatus === "context_lost" ? (
+                <div className="grid gap-3" role="status" aria-live="polite">
+                  <p className="font-bold uppercase tracking-[0.12em] text-titan-hazard">
+                    Restoring graphics
+                  </p>
+                  <p className="text-sm text-titan-ice/78">
+                    The race is safely paused while the browser restores the
+                    graphics context.
+                  </p>
+                </div>
+              ) : (
+                <div className="grid gap-3" role="alert" aria-live="assertive">
+                  <p className="font-bold uppercase tracking-[0.12em] text-titan-hazard">
+                    {sceneFailureCode?.startsWith("webgl_")
+                      ? "Unable to continue the race"
+                      : "Unable to start the race"}
+                  </p>
+                  <p className="text-sm text-titan-ice/78">
+                    {sceneFailureCode?.startsWith("webgl_")
+                      ? "Graphics could not be restored. Reload the app, or return to mode selection."
+                      : "The kart physics engine could not load. Reload the app, or return to mode selection."}
+                  </p>
+                </div>
+              )}
+              <div className="flex flex-wrap justify-center gap-3">
+                {sceneStatus === "failed" ? (
+                  <button
+                    type="button"
+                    className="titan-button titan-button-primary"
+                    data-controller-default="true"
+                    onClick={() => window.location.reload()}
+                  >
+                    Reload
+                  </button>
+                ) : null}
+                <button
+                  type="button"
+                  className="titan-button titan-button-secondary"
+                  data-controller-default={
+                    sceneStatus !== "failed" ? "true" : undefined
+                  }
+                  onClick={exitRace}
+                >
+                  Exit
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       )}
     </main>
