@@ -5,6 +5,7 @@ import {
   COURSE_TURF_COLOR,
   getCourseSurfaceLayerDepthBias,
 } from "../course/course-visual-policy";
+import { EARTH_WORLD_ENVIRONMENT } from "../physics/world-environment";
 import type { DynamicWheelTelemetry } from "./dynamic-kart-controller";
 import {
   getLateralScrubPower,
@@ -54,18 +55,17 @@ export const KART_SURFACE_EFFECT_POLICY = Object.freeze({
   clippingWidth: 0.006,
 });
 
-export type KartSurfaceEffectPolicy = typeof KART_SURFACE_EFFECT_POLICY;
-export type MarkSurface = keyof KartSurfaceEffectPolicy["marks"];
+type KartSurfaceEffectPolicy = typeof KART_SURFACE_EFFECT_POLICY;
+type MarkSurface = keyof KartSurfaceEffectPolicy["marks"];
 
 const ASPHALT_SURFACE_ID = "surface.standard-course";
 const GRASS_COLORS: Readonly<Record<string, string>> = {
   "surface.lawn-grass": COURSE_LAWN_COLOR,
   "surface.short-grass": COURSE_TURF_COLOR,
 };
-const GRAVITY = 9.81;
 const QUAD_INDICES = [0, 2, 1, 1, 2, 3];
 
-export type SurfaceEffectWheelSample = Pick<
+type SurfaceEffectWheelSample = Pick<
   DynamicWheelTelemetry,
   | "appliedLateralTireForce"
   | "contactNormal"
@@ -85,7 +85,7 @@ function clamp01(value: number) {
   return Math.min(Math.max(value, 0), 1);
 }
 
-export function getMarkSurface(wheel: SlipSample): MarkSurface | null {
+function getMarkSurface(wheel: SlipSample): MarkSurface | null {
   const id = wheel.surfaceMaterial?.id ?? "";
   if (id === ASPHALT_SURFACE_ID) return "asphalt";
   return GRASS_COLORS[id] ? "grass" : null;
@@ -100,9 +100,9 @@ export function getTireMarkStrength(
   wheel: SlipSample,
   surface: MarkSurface,
   marking = false,
-  policy: KartSurfaceEffectPolicy = KART_SURFACE_EFFECT_POLICY,
 ) {
   if (!wheel.supported || getMarkSurface(wheel) !== surface) return 0;
+  const policy = KART_SURFACE_EFFECT_POLICY;
   const onset = policy.marks[surface].scrubOnsetWatts;
   const threshold = marking
     ? onset * KART_TIRE_SMOKE_POLICY.releaseThresholdRatio
@@ -116,10 +116,8 @@ export function getTireMarkStrength(
 }
 
 /** Clippings per second thrown by one wheel; zero off grass. */
-export function getClippingRate(
-  wheel: SlipSample,
-  policy: KartSurfaceEffectPolicy = KART_SURFACE_EFFECT_POLICY,
-) {
+export function getClippingRate(wheel: SlipSample) {
+  const policy = KART_SURFACE_EFFECT_POLICY;
   if (!wheel.supported || !GRASS_COLORS[wheel.surfaceMaterial?.id ?? ""]) {
     return 0;
   }
@@ -177,14 +175,11 @@ export class TireMarkTrails {
   private written = 0;
   readonly capacity: number;
   private readonly maxOpacity: number;
+  private readonly policy = KART_SURFACE_EFFECT_POLICY;
 
-  constructor(
-    wheelCount: number,
-    surface: MarkSurface,
-    private readonly policy: KartSurfaceEffectPolicy = KART_SURFACE_EFFECT_POLICY,
-  ) {
-    this.capacity = policy.marks[surface].capacity;
-    this.maxOpacity = policy.marks[surface].maxOpacity;
+  constructor(wheelCount: number, surface: MarkSurface) {
+    this.capacity = this.policy.marks[surface].capacity;
+    this.maxOpacity = this.policy.marks[surface].maxOpacity;
     this.positions = new Float32Array(this.capacity * 12);
     this.strengths = new Float32Array(this.capacity);
     this.trails = Array.from({ length: wheelCount }, () => ({
@@ -300,10 +295,10 @@ export class GrassClippingPool {
   private live = 0;
   private seed = 20_461;
 
-  constructor(
-    private readonly policy: KartSurfaceEffectPolicy = KART_SURFACE_EFFECT_POLICY,
-  ) {
-    const capacity = policy.clippingCapacity;
+  private readonly policy = KART_SURFACE_EFFECT_POLICY;
+
+  constructor() {
+    const capacity = this.policy.clippingCapacity;
     this.positions = new Float32Array(capacity * 3);
     this.colors = new Uint8Array(capacity * 4);
     this.spins = new Float32Array(capacity);
@@ -355,7 +350,7 @@ export class GrassClippingPool {
     const drag = Math.exp(-clippingDragPerSecond * seconds);
     for (let index = this.live - 1; index >= 0; index--) {
       const p = index * 3;
-      this.velocities[p + 1] -= GRAVITY * seconds;
+      this.velocities[p + 1] -= EARTH_WORLD_ENVIRONMENT.gravity * seconds;
       for (let axis = 0; axis < 3; axis++) {
         this.velocities[p + axis] *= drag;
         this.positions[p + axis] += this.velocities[p + axis] * seconds;

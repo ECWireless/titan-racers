@@ -170,8 +170,7 @@ PR 4.2.3 was measured with three Balanced races, with no hitches. Speed-adaptive
 physics substeps (up to 4 Bullet steps per fixed step at racing speed) raised
 CPU work by about 1 ms, still within the 5 ms median budget.
 
-PR 4.2.4 was measured with three Balanced races. Course shadows filter over
-5×5 texels, and tire marks and grass clippings add at most three draw calls
-(asphalt marks, grass marks, clippings). The first race on a page hitched
-once as the effect shaders compiled on the first slide; the effects now draw
-once, empty, as the race starts, and a confirmation race had no hitches.
+PR 4.2.4 was measured with three Balanced races and a reloaded confirmation
+race, with no hitches. Course shadows filter over 5×5 texels, and tire marks
+and grass clippings add at most three draw calls (asphalt marks, grass marks,
+clippings).
