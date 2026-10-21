@@ -24,11 +24,20 @@ phone budget. Art direction and the budget itself live in
   one shader program whose diffuse override samples a CPU-built grain
   texture by world position.
 - `src/game/course/build-course-lighting.ts` sets the course shadow presets
-  (20 m coverage, a bias small enough for kart-scale shadows); the course
+  (20 m coverage, a bias small enough for kart-scale shadows, and PCF5
+  filtering); the course
   editor widens coverage to 40 m for its overview.
 - `src/game/kart/kart-contact-shadow.ts` lays the race-only contact shadow
   under the kart: one blended quad on the ground beneath the chassis, ordered
   above the course layers and faded by ground clearance.
+- `src/game/kart/kart-surface-effects.ts` draws the race-only surface
+  effects, each as one mesh with buffers allocated once and rewritten in
+  place: bounded pools of mark quads where tires scrub sideways, one for
+  asphalt and one for grass (the `tireMark` layer, between road paint and the
+  contact shadow), and a bounded pool of ballistic clippings thrown by wheels
+  on turf and lawn. Marks last until the race resets, and the oldest fade only
+  as a full pool recycles them. Clippings move on simulated time, so they
+  freeze while the race is paused.
 - `src/game/runtime/frame-budget.ts` and
   `src/components/frame-budget-overlay.tsx` sample rendered frames through
   `PlayCanvasRuntime.onFrameSample` and show the budget readout.

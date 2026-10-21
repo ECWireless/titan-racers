@@ -13,6 +13,7 @@ test("orders coplanar surface layers above the unbiased base ground", () => {
     getCourseSurfaceLayerDepthBias("asphalt"),
     getCourseSurfaceLayerDepthBias("ground"),
     getCourseSurfaceLayerDepthBias("line"),
+    getCourseSurfaceLayerDepthBias("tireMark"),
     getCourseSurfaceLayerDepthBias("contactShadow"),
   ];
 

@@ -241,18 +241,24 @@ Phase decisions:
       Telemetry must keep accepting `surface-physics-v1` starts from clients
       still running the older build.
       Shipped as speed-adaptive Bullet substeps under `collision-substeps-v1`.
-- [ ] 4.2.4: Surface driving effects: sparse grass clippings and bounded,
-      fading asphalt tire/skid streaks driven by wheel contact and slip.
+- [x] 4.2.4: Surface driving effects: grass clippings and bounded tire marks
+      (rubber on asphalt, torn turf on grass) driven by wheel contact and
+      slip. Marks last for the race; the oldest fade only when the pool is
+      full.
       Presentation only, within the phone performance budget; debrief the
-      effects before implementation.
+      effects before implementation. Also steadied the flickering kart shadow
+      (4.2.2 phone QA) with PCF5 filtering on course lights.
+- [ ] 4.2.5: Grass visuals for the uncut lawn and, likely, the short turf.
+      Decide first between flat blade detail in the surface finish and raised
+      layered grass. At 1:10, real lawn reaches the axles, so raised grass
+      would hide wheels the physics keeps on a flat surface and needs a change
+      to the "flat where karts roll flat" rule in `docs/visual-identity.md`.
+      Measure against the phone budget, and retune the 4.2.4 clipping colors
+      if the finishes change.
 
 Handling follow-up: reproduce rear-end left/right jolts during Shift handbrake
 drifting on open asphalt. The feature lead observed this before 4.2.2;
 investigate separately and compare with the 4.2.1 baseline.
-
-Presentation follow-up: the kart shadow flickers slightly on asphalt and more
-visibly on grass (seen in 4.2.2 phone QA). Investigate during the 4.2.4
-debrief, since surface effects draw on the same surfaces.
 
 **PR 4.3: Island Three**
 

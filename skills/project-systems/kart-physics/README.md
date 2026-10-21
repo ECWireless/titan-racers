@@ -34,8 +34,10 @@ systems.
   damper, progressive bump), `kart-steering` (speed-limited request envelope),
   `kart-rest-settling` and `kart-grounded-roll-damping` (shared low-energy and
   grounded stabilization policy), `kart-righting` (manual self-righting),
-  `kart-principal-axes` (inertia diagonalization), and `kart-drift-smoke`
-  (presentation-only scrub-power smoke).
+  `kart-principal-axes` (inertia diagonalization), `kart-drift-smoke`
+  (presentation-only scrub-power smoke), and `kart-surface-effects`
+  (presentation-only tire marks and grass clippings, see
+  [scene lighting](../scene-lighting/README.md)).
 - `src/game/kart/kart-derivation.ts` resolves a kart document into the
   persisted snapshot, including wheel stations, mass properties, and the
   `KartPhysicalProfile` (`kart-physical-profile.ts`) that runtime subsystems
@@ -114,7 +116,8 @@ systems.
   place, with a 450 ms cooldown and enough lift to clear the collision hull.
   Keyboard `R`, controller south face, the touch recovery control, and a direct
   tap on the inverted kart all request it.
-- Tire smoke is presentation only and never feeds back into grip.
+- Tire smoke, tire marks, and grass clippings are presentation only and never
+  feed back into grip. Wheel telemetry's contact point exists only for them.
 - Opening the stats drawer clears driving input and removes touch-driving
   controls while open. It cannot override any value.
 - Ammo objects never escape the low-level adapters.
@@ -126,6 +129,7 @@ systems.
   `kart-tire-model.spec.ts`, `kart-suspension-model.spec.ts`,
   `kart-righting.spec.ts`, `kart-rest-settling.spec.ts`,
   `kart-principal-axes.spec.ts`, `kart-drift-smoke.spec.ts`,
+  `kart-surface-effects.spec.ts`,
   `kart-tuning.spec.ts`, and `dynamic-kart-controller.spec.ts` (steering,
   reverse symmetry, Ackermann).
 - Runtime: `tests/fixed-step-clock.spec.ts`, `tests/playcanvas-runtime.spec.ts`,
