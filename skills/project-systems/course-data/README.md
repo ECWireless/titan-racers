@@ -69,7 +69,10 @@ degrees. It contains:
 
 - literal schema version `3`;
 - a stable course ID and name;
-- one stable start ID, transform, and bounded start-gate half-extents;
+- one stable start ID, transform (the start/finish gate), bounded start-gate
+  half-extents, and a spawn distance (0–10 m) placing the kart behind the gate
+  along its heading; legacy courses normalize to 0 and the editor marks the
+  spawn;
 - one ambient-light record and one-to-two stable directional-light records;
 - one-to-256 checkpoints whose explicit order must match a contiguous array
   order starting at one, each with bounded oriented half-extents, a normalized

@@ -1,6 +1,9 @@
 import { expect, type Locator, type Page, test } from "@playwright/test";
 
-import { ROUGH_COURSE_DOCUMENT } from "../src/game/course/course-document";
+import {
+  getCourseStartTransform,
+  ROUGH_COURSE_DOCUMENT,
+} from "../src/game/course/course-document";
 import { deriveKartCcdConfiguration } from "../src/game/collision/kart-collision-model";
 import { createKartDevelopmentValues } from "../src/game/kart/kart-development-values";
 import { createBalancedKartDocument } from "../src/game/kart/balanced-kart-document";
@@ -1429,12 +1432,10 @@ test.describe("home screen", () => {
     await requestRaceRecovery(canvas);
 
     const preRaceReset = await getPresentationDebugState(canvas);
-    expect(preRaceReset.visualPosition.x).toBeCloseTo(
-      ROUGH_COURSE_DOCUMENT.start.position.x,
-    );
-    expect(preRaceReset.visualPosition.z).toBeCloseTo(
-      ROUGH_COURSE_DOCUMENT.start.position.z,
-    );
+    // Start recovery returns to the spawn behind the gate.
+    const spawn = getCourseStartTransform(ROUGH_COURSE_DOCUMENT).position;
+    expect(preRaceReset.visualPosition.x).toBeCloseTo(spawn.x);
+    expect(preRaceReset.visualPosition.z).toBeCloseTo(spawn.z);
     expect(await getRaceDebugState(canvas)).toMatchObject({
       state: "countdown",
     });
@@ -1974,7 +1975,8 @@ test.describe("home screen", () => {
     const resetState = await getKartDebugState(canvas);
 
     expect(resetState.x).toBeCloseTo(
-      BALANCED_KART_SNAPSHOT.massProperties.centerOfMass.z,
+      getCourseStartTransform(ROUGH_COURSE_DOCUMENT).position.x +
+        BALANCED_KART_SNAPSHOT.massProperties.centerOfMass.z,
       2,
     );
     expect(resetState.y).toBeCloseTo(BALANCED_KART_UPRIGHT_ROOT_HEIGHT, 2);

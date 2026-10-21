@@ -5216,7 +5216,8 @@
       "x": 0,
       "y": 90,
       "z": 0
-    }
+    },
+    "spawnDistance": 0.6
   },
   "units": "meters"
 }

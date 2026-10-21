@@ -17,9 +17,12 @@ function cloneSeed() {
 
 function createVersionTwoSeed() {
   const document = cloneSeed();
+  const start: Partial<typeof document.start> = { ...document.start };
+  delete start.spawnDistance;
   return {
     ...document,
     schemaVersion: 2 as const,
+    start,
     objects: document.objects.map((object) => {
       if (!object.collision) return object;
       const collision = { ...object.collision } as Partial<
@@ -323,10 +326,11 @@ test("normalizes version-one course data without mutating the stored input", () 
       ...checkpoint,
       recovery: null,
     })),
-    start: { ...document.start, gateHalfExtents: null },
+    start: { ...document.start, gateHalfExtents: null, spawnDistance: null },
   });
 
   expect(input).toEqual(storedInput);
+  expect(normalized.start.spawnDistance).toBe(0);
   expect(withoutDerived(normalized)).toEqual(
     withoutDerived(ROUGH_COURSE_DOCUMENT),
   );
@@ -460,12 +464,24 @@ test("preserves a complete non-yaw start transform for runtime consumption", () 
   const input = cloneSeed();
   input.start.position = { x: 3, y: 1.25, z: -4 };
   input.start.rotation = { x: 8, y: 123, z: -6 };
+  input.start.spawnDistance = 0;
   const document = parseCourseDocument(input);
 
   expect(getCourseStartTransform(document)).toEqual({
     position: { x: 3, y: 1.25, z: -4 },
     rotation: { x: 8, y: 123, z: -6 },
   });
+});
+
+test("spawns the seed kart behind the start gate along its heading", () => {
+  const spawn = getCourseStartTransform(ROUGH_COURSE_DOCUMENT);
+  const gate = ROUGH_COURSE_DOCUMENT.start;
+
+  // The seed start faces -x, so behind the gate is +x.
+  expect(gate.rotation).toEqual({ x: 0, y: 90, z: 0 });
+  expect(spawn.position.x - gate.position.x).toBeCloseTo(gate.spawnDistance);
+  expect(spawn.position.z).toBeCloseTo(gate.position.z);
+  expect(gate.spawnDistance).toBeGreaterThan(0);
 });
 
 test("rejects oversized cylinder collision dimensions at exact paths", () => {
@@ -527,6 +543,8 @@ test("normalizes v2 to standard surfaces without inferring physics from visuals"
   const stored = structuredClone(input);
   const normalized = parseCourseDocument(input);
   expect(normalized.schemaVersion).toBe(3);
+  // Legacy karts keep spawning on the start gate.
+  expect(normalized.start.spawnDistance).toBe(0);
   for (const object of normalized.objects) {
     if (object.collision)
       expect(object.collision.surfaceMaterial).toEqual({

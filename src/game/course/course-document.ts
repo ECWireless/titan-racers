@@ -241,6 +241,10 @@ export const courseDocumentSchema = courseDocumentV2BaseSchema
   .extend({
     objects: z.array(courseObjectSchema).min(1).max(5_000),
     schemaVersion: z.literal(3),
+    // The kart spawns this far behind the start gate, along its heading.
+    start: courseStartSchema.extend({
+      spawnDistance: z.number().finite().min(0).max(10),
+    }),
   })
   .superRefine(validateCourseRoute);
 
@@ -478,6 +482,7 @@ export function parseCourseDocument(input: unknown): CourseDocument {
   return courseDocumentSchema.parse({
     ...document,
     schemaVersion: 3,
+    start: isVersionTwo ? { ...document.start, spawnDistance: 0 } : document.start,
     objects: isVersionTwo
       ? document.objects.map((object) => ({
           ...object,
@@ -496,10 +501,17 @@ export function parseCourseDocument(input: unknown): CourseDocument {
   });
 }
 
+/** The kart spawn: behind the start gate (local +z) by the authored distance. */
 export function getCourseStartTransform(document: CourseDocument) {
+  const { position, rotation, spawnDistance } = document.start;
+  const back = rotateByEulerAngles(rotation, { x: 0, y: 0, z: spawnDistance });
   return {
-    position: { ...document.start.position },
-    rotation: { ...document.start.rotation },
+    position: {
+      x: position.x + back.x,
+      y: position.y + back.y,
+      z: position.z + back.z,
+    },
+    rotation: { ...rotation },
   };
 }
 

@@ -391,7 +391,11 @@ export class RaceSession {
         currentPosition,
       )
     ) {
-      return { kind: "rejected", reason: "finish-before-checkpoints" };
+      // Karts spawn behind the start gate, so leaving the grid before the
+      // first checkpoint is not an incomplete lap.
+      return this.expectedCheckpointIndex === 0
+        ? { kind: "none" }
+        : { kind: "rejected", reason: "finish-before-checkpoints" };
     }
 
     for (const [index, checkpoint] of this.config.checkpoints.entries()) {

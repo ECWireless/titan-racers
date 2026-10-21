@@ -227,7 +227,8 @@ Phase decisions:
       version with normalization), and a new physics version. Scope grew to
       two grasses: short turf verges beside the asphalt and around the infield
       edge, with slower uncut lawn beyond, each with its own finish. The tall
-      jump ramp sits 8 cm lower so its entry is flush with the ground.
+      jump ramp sits 8 cm lower so its entry is flush with the ground, and
+      karts spawn just behind the start line (a course spawn distance).
 - [ ] 4.2.3: High-speed collision robustness. Above top speed a kart travels
       farther per physics step than a thin wall is deep, so the solver can
       push it into the floor (found in PR 4.1.4; the old official karts did it

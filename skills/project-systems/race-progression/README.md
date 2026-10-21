@@ -59,7 +59,9 @@ or the final Agricultural Zone course.
    diagnosing start, repeated, and out-of-order crossings.
 6. Accepting a checkpoint advances the stable expected ID and promotes its
    authored transform to the active recovery anchor. Crossing start after the
-   last checkpoint records a lap or atomically finishes the final lap.
+   last checkpoint records a lap or atomically finishes the final lap; crossing
+   it before the first checkpoint (leaving the spawn behind the gate) is
+   neutral. Start recovery uses the spawn, not the gate.
 7. Reset or fall recovery enters `recovering`, prefers the newest supported
    authored candidate while retaining an authored last resort, teleports the
    rigid body, clears linear and angular velocity, snaps presentation/camera

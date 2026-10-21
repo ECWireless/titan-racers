@@ -601,13 +601,14 @@ export class CourseEditorScene {
       document.start.rotation.y,
       document.start.rotation.z,
     );
+    // The selectable start sits on the gate; its marker shows the kart spawn.
     const startVisual = createVisualEntity(
       "start",
       "start-position-marker",
-      { x: 1.8, y: 0.18, z: 2.6 },
+      { x: 1.8, y: 0.18, z: 1.2 },
       this.startMaterial,
     );
-    startVisual.setLocalPosition(0, 0.09, 0);
+    startVisual.setLocalPosition(0, 0.09, document.start.spawnDistance);
     start.addChild(startVisual);
     this.documentEntities.set(selectionKey({ id: document.start.id, kind: "start" }), start);
     this.selectionByNode.set(start, { id: document.start.id, kind: "start" });
