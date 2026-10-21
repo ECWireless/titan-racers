@@ -111,6 +111,11 @@ Materials), and so do course surfaces (see Course Surfaces).
 - **Flat where karts roll flat.** No grass blades, gravel, or bumps the
   physics does not have. Anything raised, such as a bridge, kicker, or table, is
   solid geometry with collision all the way to the ground.
+- **Surfaces show how karts drive on them.** Tires sliding sideways lay
+  marks that last for the race: dark rubber on asphalt and fainter torn turf
+  on grass. Wheels on turf and lawn throw real-size clippings, more when they
+  slide, which fly under real gravity. All follow the actual tire contact and
+  slip.
 
 ## Phone Performance Budget
 
@@ -145,12 +150,12 @@ CPU work and draw calls are the headroom signals.
 
 ### Baseline
 
-| Measure | Before lighting (PR 4.1.2 start) | After lighting baseline | Part visuals (PR 4.1.3) | Authored primitives (PR 4.1.4) | Sandbox surfaces (PR 4.2.1) | Surface physics (PR 4.2.2) | Collision substeps (PR 4.2.3) |
-| --- | --- | --- | --- | --- | --- | --- | --- |
-| Frame p50 / p95 | 17.0 / 18.0 ms | 17.0 / 18.0 ms | 17.0 / 18.0 ms | 17.0 / 18.0–19.0 ms | 17.0 / 18.0 ms | 17.0 / 18.0 ms | 17.0 / 18.0 ms |
-| CPU p50 / p95 | 3 / 4 ms | 3 / 4 ms | 2 / 3 ms | 2 / 3 ms | 2 / 3–4 ms | 2 / 3 ms | 3 / 4 ms |
-| Draw calls p50 / max | 212 / 226 | 213 / 226 | 38–39 / 55 | 38–39 / 51 | 34 / 45–46 | 35 / 48–49 | 35–36 / 46–49 |
-| First frame (warm) | 63–136 ms | 107–278 ms | 121–128 ms | 132–191 ms | 335–392 ms | 133–207 ms | 136–282 ms |
+| Measure | Before lighting (PR 4.1.2 start) | After lighting baseline | Part visuals (PR 4.1.3) | Authored primitives (PR 4.1.4) | Sandbox surfaces (PR 4.2.1) | Surface physics (PR 4.2.2) | Collision substeps (PR 4.2.3) | Surface effects (PR 4.2.4) |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| Frame p50 / p95 | 17.0 / 18.0 ms | 17.0 / 18.0 ms | 17.0 / 18.0 ms | 17.0 / 18.0–19.0 ms | 17.0 / 18.0 ms | 17.0 / 18.0 ms | 17.0 / 18.0 ms | 17.0 / 18.0 ms |
+| CPU p50 / p95 | 3 / 4 ms | 3 / 4 ms | 2 / 3 ms | 2 / 3 ms | 2 / 3–4 ms | 2 / 3 ms | 3 / 4 ms | 2 / 3–4 ms |
+| Draw calls p50 / max | 212 / 226 | 213 / 226 | 38–39 / 55 | 38–39 / 51 | 34 / 45–46 | 35 / 48–49 | 35–36 / 46–49 | 36–37 / 49–51 |
+| First frame (warm) | 63–136 ms | 107–278 ms | 121–128 ms | 132–191 ms | 335–392 ms | 133–207 ms | 136–282 ms | 147–230 ms |
 
 PR 4.1.4 was measured with one race on each official kart rather than three
 Balanced races. Each official kart is 15.3–15.5k triangles: 11.6k of part
@@ -164,3 +169,9 @@ PR 4.2.2 was measured with three Balanced races on reloads, with no hitches.
 PR 4.2.3 was measured with three Balanced races, with no hitches. Speed-adaptive
 physics substeps (up to 4 Bullet steps per fixed step at racing speed) raised
 CPU work by about 1 ms, still within the 5 ms median budget.
+
+PR 4.2.4 was measured with three Balanced races. Course shadows filter over
+5×5 texels, and tire marks and grass clippings add at most three draw calls
+(asphalt marks, grass marks, clippings). The first race on a page hitched
+once as the effect shaders compiled on the first slide; the effects now draw
+once, empty, as the race starts, and a confirmation race had no hitches.

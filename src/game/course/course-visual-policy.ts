@@ -1,6 +1,9 @@
 import type { CourseVisualMaterial } from "./course-document";
 
 export const COURSE_ASPHALT_COLOR = [0.34, 0.37, 0.39] as const;
+export const COURSE_TURF_COLOR = "#65735a";
+// Uncut lawn: darker and denser than the clipped turf.
+export const COURSE_LAWN_COLOR = "#56644b";
 export const COURSE_BASE_GROUND_OBJECT_ID = "ground";
 export const COURSE_EDITOR_CAMERA_NEAR_CLIP = 0.5;
 // The editor overview sits about 30 m above the ground, beyond the race's
@@ -11,13 +14,15 @@ export const COURSE_EDITOR_SHADOW_DISTANCE = 40;
 // layers are ordered by depth bias instead of height. Each layer draws over
 // the ones before it; the base ground has no bias and draws under them all.
 // Verge turf edges the asphalt from beneath; infield turf and lawn draw over it.
-// The kart's contact shadow lies on top of every course layer.
+// Tire marks lie on the road, its paint, and grass; the kart's contact shadow
+// lies on top of every course layer.
 const COURSE_SURFACE_LAYERS = [
   "verge",
   "asphalt",
   "ground",
   "lawn",
   "line",
+  "tireMark",
   "contactShadow",
 ] as const;
 const COURSE_SURFACE_OVERLAY_MAX_THICKNESS = 0.01;

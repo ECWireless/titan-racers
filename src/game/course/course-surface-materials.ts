@@ -6,6 +6,8 @@ import type {
 } from "./build-rough-course";
 import {
   COURSE_ASPHALT_COLOR,
+  COURSE_LAWN_COLOR,
+  COURSE_TURF_COLOR,
   getCourseSurfaceLayerDepthBias,
   type CourseSurfaceLayer,
 } from "./course-visual-policy";
@@ -90,9 +92,9 @@ export function createCourseSurfaceMaterials(device: pc.GraphicsDevice) {
     return material;
   };
   const hex = (color: string) => new pc.Color().fromString(color);
-  const turf = () => hex("#65735a");
-  // Uncut lawn: darker and denser, with stronger broad patches and no stripes.
-  const lawn = () => hex("#56644b");
+  const turf = () => hex(COURSE_TURF_COLOR);
+  // Uncut lawn has stronger broad patches and no stripes.
+  const lawn = () => hex(COURSE_LAWN_COLOR);
   const materials = {
     asphalt: finish(new pc.Color(...COURSE_ASPHALT_COLOR), 0.18, [0.65, 0.28, 0], "asphalt"),
     baseGround: finish(turf(), 0.08, [0.45, 0.3, 0.035]),

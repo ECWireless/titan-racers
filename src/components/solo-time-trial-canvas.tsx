@@ -59,6 +59,7 @@ import {
   getLateralScrubPower,
   KartDriftSmoke,
 } from "@/game/kart/kart-drift-smoke";
+import { KartSurfaceEffects } from "@/game/kart/kart-surface-effects";
 import {
   getKartContactFootprint,
   KartContactShadow,
@@ -1068,6 +1069,10 @@ export function SoloTimeTrialCanvas({
       );
 
       let driftSmoke: KartDriftSmoke | null = null;
+      let surfaceEffects: KartSurfaceEffects | null = null;
+      // Simulated time not yet shown by the surface effects; it stops while
+      // the race is paused.
+      let pendingSurfaceEffectSeconds = 0;
       let inputManager: PlayerInputManager | null = null;
 
       function editStaticRigidBody(
@@ -1156,6 +1161,7 @@ export function SoloTimeTrialCanvas({
         manualRightingSettling = false;
         manualRightingSettlingRemainingSeconds = 0;
         driftSmoke?.stop();
+        surfaceEffects?.clear();
         snapKartPresentationState();
         previousRacePosition.copy(kart.getPosition());
         latestCameraImpact = null;
@@ -1526,6 +1532,9 @@ export function SoloTimeTrialCanvas({
       driftSmoke = new KartDriftSmoke(dynamicWheels);
       const activeDriftSmoke = driftSmoke;
       runtime.addCleanup(() => activeDriftSmoke.destroy());
+      surfaceEffects = new KartSurfaceEffects(app, dynamicWheels);
+      const activeSurfaceEffects = surfaceEffects;
+      runtime.addCleanup(() => activeSurfaceEffects.destroy());
       const contactShadow = new KartContactShadow(
         app,
         getKartContactFootprint(KART_SNAPSHOT.geometry.wheelStations),
@@ -2518,6 +2527,7 @@ export function SoloTimeTrialCanvas({
         }
 
         const raceState = raceSession.snapshot.state;
+        pendingSurfaceEffectSeconds += dt;
         driftSmoke?.update(kartController.state.wheelTelemetry, {
           countdownThrottle:
             raceState === "countdown"
@@ -2574,6 +2584,13 @@ export function SoloTimeTrialCanvas({
         contactShadow.update(kartVisual, findGroundBelowKart);
 
         chaseCamera.update(frameSeconds, getChaseCameraSnapshot());
+        activeSurfaceEffects.update(
+          pendingSurfaceEffectSeconds,
+          kartController.state.wheelTelemetry,
+          kart.rigidbody?.linearVelocity ?? pc.Vec3.ZERO,
+          camera,
+        );
+        pendingSurfaceEffectSeconds = 0;
         const nextDisplayedSpeed = formatRaceSpeed(
           kartController.state.speed,
           raceSpeedUnitRef.current,

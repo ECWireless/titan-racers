@@ -70,7 +70,9 @@ function smoothstep(value: number) {
   return clamped * clamped * (3 - 2 * clamped);
 }
 
-export function getLateralScrubPower(wheel: TireSmokeWheelSample) {
+export function getLateralScrubPower(
+  wheel: Pick<TireSmokeWheelSample, "appliedLateralTireForce" | "lateralSpeed">,
+) {
   return (
     Math.abs(wheel.appliedLateralTireForce) * Math.abs(wheel.lateralSpeed)
   );

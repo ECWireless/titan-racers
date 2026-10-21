@@ -119,6 +119,8 @@ export type DynamicWheelTelemetry = {
   driven: boolean;
   gripCoefficient: number;
   contactNormal: pc.Vec3 | null;
+  /** World point on the drivable surface under the wheel. Presentation only. */
+  contactPoint: pc.Vec3 | null;
   lateralSpeed: number;
   longitudinalSpeed: number;
   name: string;
@@ -334,6 +336,7 @@ export class DynamicKartController implements KartController {
         driven: wheel.driven,
         gripCoefficient: 0,
         contactNormal: null,
+        contactPoint: null,
         lateralSpeed: 0,
         longitudinalSpeed: 0,
         name: wheel.name,
@@ -439,6 +442,7 @@ export class DynamicKartController implements KartController {
       const stableContactPoint = wheelCenter
         .clone()
         .sub(contactNormal.clone().mulScalar(wheel.radius));
+      telemetry.contactPoint = stableContactPoint.clone();
       const surface = this.options.surfaceResolver.resolve(
         hit.entity.name, hit.point, contactNormal,
       );
