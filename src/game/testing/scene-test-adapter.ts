@@ -86,6 +86,7 @@ export type KartDebugState = {
   verticalVelocity: number;
   wheelHubYs: Record<string, number>;
   wheelContactNormals: Record<string, Position3 | null>;
+  wheelSurfaceMaterials: Record<string, { id: string; version: number } | null>;
   wheelLateralForces: Record<string, number>;
   wheelLateralScrubPowers: Record<string, number>;
   wheelLoads: Record<string, number>;

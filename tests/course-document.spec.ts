@@ -15,8 +15,24 @@ function cloneSeed() {
   return structuredClone(ROUGH_COURSE_DOCUMENT);
 }
 
-function createVersionOneSeed() {
+function createVersionTwoSeed() {
   const document = cloneSeed();
+  return {
+    ...document,
+    schemaVersion: 2 as const,
+    objects: document.objects.map((object) => {
+      if (!object.collision) return object;
+      const collision = { ...object.collision } as Partial<
+        typeof object.collision
+      >;
+      delete collision.surfaceMaterial;
+      return { ...object, collision };
+    }),
+  };
+}
+
+function createVersionOneSeed() {
+  const document = createVersionTwoSeed();
   const start = {
     id: document.start.id,
     position: document.start.position,
@@ -42,7 +58,7 @@ function findObject(id: string) {
 }
 
 test("parses the versioned rough course with stable IDs and ordered checkpoints", () => {
-  expect(ROUGH_COURSE_DOCUMENT.schemaVersion).toBe(2);
+  expect(ROUGH_COURSE_DOCUMENT.schemaVersion).toBe(3);
   expect(ROUGH_COURSE_DOCUMENT.units).toBe("meters");
   expect(ROUGH_COURSE_DOCUMENT.start.id).toBe("start-position");
   expect(ROUGH_COURSE_DOCUMENT.checkpoints).toHaveLength(3);
@@ -190,8 +206,9 @@ test("preserves the accepted camera fixtures and ramp placement", () => {
     (ramp?.transform.position.z ?? 0) - (ramp?.visual.scale.z ?? 0) * 0.5,
   ).toBeGreaterThan(lapOuterEdgeZ);
   expect(ramp?.transform.rotation.z).toBeGreaterThan(0);
-  expect(entryTop).toBeGreaterThan(0.04);
-  expect(entryTop).toBeLessThan(0.12);
+  // A raised entry lip taller than the wheel radius stops karts dead.
+  expect(entryTop).toBeLessThanOrEqual(0);
+  expect(entryTop).toBeGreaterThan(-0.005);
   expect(runwayLength).toBeGreaterThan(16);
 });
 
@@ -220,7 +237,8 @@ test("draws every drivable surface at its collision top", () => {
 
     // Both tops share the entity's local up axis, so tilted ramps compare too.
     expect([rotation.x, rotation.y, rotation.z], object.id).toEqual([0, 0, 0]);
-    if (collision.shape === "cylinder") expect(collision.axis, object.id).toBe(1);
+    if (collision.shape === "cylinder")
+      expect(collision.axis, object.id).toBe(1);
     expect(
       Math.abs(
         object.visual.scale.y * 0.5 -
@@ -275,7 +293,7 @@ test("rests every visual-only marking on the drivable surface beneath it", () =>
 test("serializes the seed deterministically and round trips without changes", () => {
   const serialized = serializeCourseDocument(ROUGH_COURSE_DOCUMENT);
   const source = readFileSync(
-    join(process.cwd(), "src/game/course/rough-course.v2.json"),
+    join(process.cwd(), "src/game/course/rough-course.v3.json"),
     "utf8",
   );
 
@@ -295,6 +313,12 @@ test("normalizes version-one course data without mutating the stored input", () 
   // lane-following recoveries and a wider start gate instead.
   const withoutDerived = (document: typeof ROUGH_COURSE_DOCUMENT) => ({
     ...document,
+    objects: document.objects.map((object) => ({
+      ...object,
+      collision: object.collision
+        ? { ...object.collision, surfaceMaterial: null }
+        : null,
+    })),
     checkpoints: document.checkpoints.map((checkpoint) => ({
       ...checkpoint,
       recovery: null,
@@ -306,7 +330,7 @@ test("normalizes version-one course data without mutating the stored input", () 
   expect(withoutDerived(normalized)).toEqual(
     withoutDerived(ROUGH_COURSE_DOCUMENT),
   );
-  expect(normalized.schemaVersion).toBe(2);
+  expect(normalized.schemaVersion).toBe(3);
 });
 
 test("normalizes a valid one-checkpoint version-one course", () => {
@@ -329,7 +353,7 @@ test("normalizes a valid one-checkpoint version-one course", () => {
 });
 
 test("aligns legacy diagonal version-two directions to the full gate face", () => {
-  const input = cloneSeed();
+  const input = createVersionTwoSeed();
   const diagonal = Math.SQRT1_2;
   input.checkpoints[0].forward = { x: -diagonal, y: 0, z: diagonal };
   const storedInput = structuredClone(input);
@@ -460,7 +484,14 @@ test("rejects oversized cylinder collision dimensions at exact paths", () => {
   expect(radiusResult.success).toBe(false);
   expect(radiusResult.error?.issues).toContainEqual(
     expect.objectContaining({
-      path: ["objects", 8, "collision", "radius"],
+      path: [
+        "objects",
+        oversizedRadius.objects.findIndex(
+          (object) => object.id === "obstacle-barrel-a",
+        ),
+        "collision",
+        "radius",
+      ],
     }),
   );
 
@@ -479,7 +510,44 @@ test("rejects oversized cylinder collision dimensions at exact paths", () => {
   expect(heightResult.success).toBe(false);
   expect(heightResult.error?.issues).toContainEqual(
     expect.objectContaining({
-      path: ["objects", 8, "collision", "height"],
+      path: [
+        "objects",
+        oversizedHeight.objects.findIndex(
+          (object) => object.id === "obstacle-barrel-a",
+        ),
+        "collision",
+        "height",
+      ],
     }),
   );
+});
+
+test("normalizes v2 to standard surfaces without inferring physics from visuals", () => {
+  const input = createVersionTwoSeed();
+  const stored = structuredClone(input);
+  const normalized = parseCourseDocument(input);
+  expect(normalized.schemaVersion).toBe(3);
+  for (const object of normalized.objects) {
+    if (object.collision)
+      expect(object.collision.surfaceMaterial).toEqual({
+        id: "surface.standard-course",
+        version: 1,
+      });
+  }
+  expect(input).toEqual(stored);
+  expect(
+    parseCourseDocument(JSON.parse(serializeCourseDocument(input))),
+  ).toEqual(normalized);
+});
+
+test("rejects missing and unsupported v3 surface identities", () => {
+  for (const surfaceMaterial of [
+    undefined,
+    { id: "surface.short-grass", version: 99 },
+    { id: "ground", version: 1 },
+  ]) {
+    const input = cloneSeed();
+    Object.assign(input.objects[0].collision!, { surfaceMaterial });
+    expect(courseDocumentSchema.safeParse(input).success).toBe(false);
+  }
 });

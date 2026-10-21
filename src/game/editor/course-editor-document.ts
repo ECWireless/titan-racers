@@ -97,6 +97,7 @@ const PRESET_OBJECTS: Record<
     availability: "standard",
     category: "obstacle",
     collision: {
+      surfaceMaterial: { id: "surface.standard-course", version: 1 },
       friction: 0.8,
       halfExtents: { x: 1, y: 0.5, z: 1 },
       offset: {
@@ -118,6 +119,7 @@ const PRESET_OBJECTS: Record<
     availability: "standard",
     category: "obstacle",
     collision: {
+      surfaceMaterial: { id: "surface.standard-course", version: 1 },
       friction: 0.8,
       halfExtents: { x: 2, y: 0.6, z: 0.25 },
       offset: {
@@ -139,6 +141,7 @@ const PRESET_OBJECTS: Record<
     availability: "standard",
     category: "obstacle",
     collision: {
+      surfaceMaterial: { id: "surface.standard-course", version: 1 },
       axis: 1,
       friction: 0.8,
       height: 1.4,
@@ -162,6 +165,7 @@ const PRESET_OBJECTS: Record<
     availability: "standard",
     category: "feature",
     collision: {
+      surfaceMaterial: { id: "surface.standard-course", version: 1 },
       friction: 1.1,
       halfExtents: { x: 2, y: 0.25, z: 3 },
       offset: {
@@ -183,6 +187,7 @@ const PRESET_OBJECTS: Record<
     availability: "standard",
     category: "surface",
     collision: {
+      surfaceMaterial: { id: "surface.standard-course", version: 1 },
       friction: 1.1,
       halfExtents: { x: 3, y: 0.25, z: 3 },
       offset: {

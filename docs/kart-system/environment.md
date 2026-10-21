@@ -33,9 +33,48 @@ Competitive runs pin an environment version. A material or gravity change that
 affects outcomes requires a new competitive race ruleset. Presentation-only
 weather or lighting changes do not become physics environment changes.
 
-## Catalog
+## Catalog And Surface Resolution
 
-`kart-material-registry.ts` owns the versioned tire compounds, surface
-materials, and tire/surface interactions. The catalog currently has one tire
-compound (standard rubber) and one surface (standard course). The five contact values are resolved evidence,
-not editable kart statistics.
+`kart-material-registry.ts` owns immutable tire compounds, surface materials,
+and tire/surface interactions. Standard rubber currently pairs with standard
+course, short grass, and lawn grass. Course v3 colliders carry the versioned surface identity;
+visual finish and Ammo friction/restitution remain separate.
+
+`CourseSurfaceResolver` uses authored box/cylinder collision bounds and transforms
+at each accepted wheel hit. Only surfaces on the hit's supporting plane with the
+same normal compete; the highest plane wins and later document order breaks
+coplanar ties. This resolves layered sandbox bands (lawn base, turf verge,
+asphalt, infield turf, infield lawn) without moving colliders or issuing extra
+sweeps. Elevated ramps and
+bridges retain their own interaction. The controller uses the resolved pair for
+all tire forces and rolling resistance; its shared steering-request policy keeps
+the standard-course reference.
+
+Both grass interactions with standard rubber use peak/sliding grip 0.85/0.65
+and peak/sliding slip angles 8°/24°. `surface.short-grass@1` (dry, closely
+mown turf on firm soil) has rolling resistance 0.12; `surface.lawn-grass@1`
+(dry, longer uncut lawn) has 0.28. Grip and slip angles are
+engineering estimates awaiting physical RC measurements; they are not claimed
+as measured tire data. Rolling resistance is an order-of-magnitude calibration:
+[Petterson and Gooch](https://doi.org/10.1017/dsd.2020.75), Table 2, measured
+short-grass ATV coefficients around 0.049–0.10. For a wheel sinking into soft
+ground, the coefficient grows roughly with the square root of sinkage over
+diameter, and these wheels are 12–15 cm across, about a quarter of an ATV
+tire, so the same sinkage gives about twice the coefficient (roughly 0.10–0.20).
+Turf's 0.12 sits in that range; lawn's 0.28 is above it, a feel calibration for
+longer grass. Both remain engineering estimates for these smaller tires and
+loads. Specialized RC grass
+tread can produce strong traction
+([Schumacher](https://www.racing-cars.com/wheels-tyres/short-course-tyre-mini-pin-blue-pr-u6768));
+that supports tire/surface dependence, not the exact grip estimates here.
+
+## Shipped Physics Identity
+
+`CURRENT_PHYSICS_VERSION` in `src/game/physics/physics-version.ts` identifies the
+complete shipped solver, environment, and gameplay-policy combination, currently
+`surface-physics-v1`. Telemetry pins the client build's identity when a run
+starts; duplicate starts and later milestones cannot change it. Existing rows
+and legacy starts remain null (unversioned), retaining their deployment
+attribution. There is no historical solver replay. Future ghosts and
+leaderboards must partition by physics identity alongside immutable course/kart
+revisions; neither system is implemented yet.

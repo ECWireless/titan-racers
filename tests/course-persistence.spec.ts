@@ -87,7 +87,7 @@ test.describe("course persistence and authorization", () => {
       authorUserId: userId,
       courseId,
       revision: 1,
-      schemaVersion: 2,
+      schemaVersion: 3,
     });
 
     const secondDocument = structuredClone(document);
@@ -126,7 +126,7 @@ test.describe("course persistence and authorization", () => {
       authorUserId: userId,
       courseId,
       revision: 3,
-      schemaVersion: 2,
+      schemaVersion: 3,
     });
 
     let immutableRevisionError: unknown;
@@ -144,7 +144,7 @@ test.describe("course persistence and authorization", () => {
     ).toMatch(/course revisions are immutable/);
   });
 
-  test("loads and publishes an immutable one-checkpoint v1 revision as v2", async () => {
+  test("loads and publishes an immutable one-checkpoint v1 revision as v3", async () => {
     const userId = randomUUID();
     const courseId = `legacy-one-checkpoint-${randomUUID()}`;
     const source = structuredClone(ROUGH_COURSE_DOCUMENT);
@@ -163,6 +163,12 @@ test.describe("course persistence and authorization", () => {
         rotation: checkpoint.rotation,
       })),
       courseId,
+      objects: source.objects.map((object) => {
+        if (!object.collision) return object;
+        const collision = { ...object.collision } as Partial<typeof object.collision>;
+        delete collision.surfaceMaterial;
+        return { ...object, collision };
+      }),
       schemaVersion: 1 as const,
       start: legacyStart,
     };
@@ -191,9 +197,9 @@ test.describe("course persistence and authorization", () => {
     expect(loaded).toMatchObject({
       document: {
         checkpoints: [{ forward: { x: -1, y: 0, z: 0 } }],
-        schemaVersion: 2,
+        schemaVersion: 3,
       },
-      schemaVersion: 2,
+      schemaVersion: 3,
     });
 
     await publishCourseRevision({
@@ -204,9 +210,9 @@ test.describe("course persistence and authorization", () => {
     });
     const published = await loadLatestCoursePublication(courseId);
     expect(published).toMatchObject({
-      document: { schemaVersion: 2 },
+      document: { schemaVersion: 3 },
       revision: 1,
-      schemaVersion: 2,
+      schemaVersion: 3,
     });
 
     const [stored] = await db

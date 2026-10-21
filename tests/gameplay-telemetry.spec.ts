@@ -18,6 +18,8 @@ import {
   type GameplayRunEvent,
 } from "../src/game/telemetry/gameplay-run-events";
 import { recordGameplayRunEvent } from "../src/server/gameplay-telemetry-repository";
+import { CURRENT_PHYSICS_VERSION } from "../src/game/physics/physics-version";
+import { createBundledOfficialKartRoster } from "../src/game/kart/official-kart-roster";
 
 const ORIGIN = "http://127.0.0.1:3873";
 
@@ -68,6 +70,11 @@ test.describe("gameplay telemetry contract", () => {
         type: "run_started",
       }),
     ).toMatchObject({ runId, type: "run_started" });
+
+    const versionedStart = { courseId: "rough-course", runId, schemaVersion: 2, type: "run_started" };
+    expect(gameplayRunEventSchema.safeParse(versionedStart).success).toBe(false);
+    expect(gameplayRunEventSchema.safeParse({ ...versionedStart, physicsVersion: "arbitrary-physics" }).success).toBe(false);
+    expect(gameplayRunEventSchema.safeParse({ ...versionedStart, physicsVersion: CURRENT_PHYSICS_VERSION }).success).toBe(true);
 
     expect(() =>
       gameplayRunEventSchema.parse({
@@ -189,6 +196,7 @@ test.describe("gameplay telemetry contract", () => {
       recoveryCount: 1,
     });
     expect(events[1]).toMatchObject({ elapsedMs: 2_000 });
+    expect(events[0]).toMatchObject({ schemaVersion: 2, physicsVersion: CURRENT_PHYSICS_VERSION });
     expect(keepalive).toEqual([false, false, true, false, true]);
   });
 
@@ -477,6 +485,79 @@ test.describe("gameplay telemetry Postgres integration", () => {
       !process.env.DATABASE_URL?.trim(),
       "DATABASE_URL is required for gameplay telemetry integration tests.",
     );
+  });
+
+  test("pins new run physics while legacy starts remain unversioned", async () => {
+    const legacyId = randomUUID();
+    const currentId = randomUUID();
+    try {
+      await recordGameplayRunEvent({
+        courseId: "rough-course",
+        runId: legacyId,
+        schemaVersion: 1,
+        type: "run_started",
+      });
+      await recordGameplayRunEvent({
+        courseId: "rough-course",
+        runId: currentId,
+        schemaVersion: 2,
+        physicsVersion: CURRENT_PHYSICS_VERSION,
+        type: "run_started",
+      });
+      // A duplicate from another client cannot relabel either run.
+      await recordGameplayRunEvent({
+        courseId: "rough-course",
+        runId: legacyId,
+        schemaVersion: 2,
+        physicsVersion: CURRENT_PHYSICS_VERSION,
+        type: "run_started",
+      });
+      await recordGameplayRunEvent({
+        courseId: "rough-course",
+        runId: currentId,
+        schemaVersion: 1,
+        type: "run_started",
+      });
+      const readVersion = async (id: string) =>
+        (
+          await db
+            .select({ version: gameplayRuns.physicsVersion })
+            .from(gameplayRuns)
+            .where(eq(gameplayRuns.id, id))
+        )[0].version;
+      expect(await readVersion(legacyId)).toBeNull();
+      expect(await readVersion(currentId)).toBe(CURRENT_PHYSICS_VERSION);
+      for (const id of [legacyId, currentId]) {
+        for (const terminal of [false, true]) {
+          if (terminal)
+            await recordGameplayRunEvent({
+              runId: id,
+              schemaVersion: 1,
+              type: "run_ended",
+              outcome: "exited",
+              inputFamilies: [],
+              recoveryCount: 0,
+            });
+          let failure: unknown;
+          try {
+            await db
+              .update(gameplayRuns)
+              .set({ physicsVersion: "replacement" })
+              .where(eq(gameplayRuns.id, id));
+          } catch (error) {
+            failure = error;
+          }
+          expect((failure as Error & { cause?: Error })?.cause?.message).toMatch(
+            /physics version cannot be changed/,
+          );
+        }
+      }
+      expect(await readVersion(legacyId)).toBeNull();
+      expect(await readVersion(currentId)).toBe(CURRENT_PHYSICS_VERSION);
+    } finally {
+      await db.delete(gameplayRuns).where(eq(gameplayRuns.id, legacyId));
+      await db.delete(gameplayRuns).where(eq(gameplayRuns.id, currentId));
+    }
   });
 
   test("stores anonymous server-owned milestones idempotently and freezes terminal outcome", async () => {
@@ -856,6 +937,12 @@ test.describe("gameplay telemetry Postgres integration", () => {
 });
 
 test.describe("gameplay telemetry browser integration", () => {
+  test.beforeEach(async ({ page }) => {
+    await page.route("**/api/karts/official", async (route) => {
+      await route.fulfill({ json: createBundledOfficialKartRoster() });
+    });
+  });
+
   test("flushes one coarse health summary when visibility safety-pauses a run", async ({
     page,
   }) => {

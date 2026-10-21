@@ -79,9 +79,13 @@ Exact densities and contact coefficients live in the
 | `material.polycarbonate-shell@1` — Polycarbonate shell | Thin impact-resistant bodywork. |
 | `tire-compound.standard-rubber@1` — Standard rubber | Shared sealed tire construction for the initial wheel options. |
 | `surface.standard-course@1` — Standard course surface | Baseline dry Demo v1 contact surface. |
+| `surface.short-grass@1` — Short grass | Dry, closely mown grass over firm soil. |
+| `surface.lawn-grass@1` — Lawn grass | Dry, longer uncut lawn grass over firm soil. |
 
-The initial interaction is
-`tire-compound.standard-rubber@1 × surface.standard-course@1 / derivation 1`.
+The approved interactions are
+`tire-compound.standard-rubber@1 × surface.standard-course@1 / derivation 1`,
+`tire-compound.standard-rubber@1 × surface.short-grass@1 / derivation 1`, and
+`tire-compound.standard-rubber@1 × surface.lawn-grass@1 / derivation 1`.
 Material compatibility and shell thickness are validated from construction;
 contact values are resolved evidence, not editable kart statistics.
 

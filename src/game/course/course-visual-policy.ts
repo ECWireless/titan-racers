@@ -10,10 +10,13 @@ export const COURSE_EDITOR_SHADOW_DISTANCE = 40;
 // Surfaces and markings are drawn at their shared collision top, so coplanar
 // layers are ordered by depth bias instead of height. Each layer draws over
 // the ones before it; the base ground has no bias and draws under them all.
+// Verge turf edges the asphalt from beneath; infield turf and lawn draw over it.
 // The kart's contact shadow lies on top of every course layer.
 const COURSE_SURFACE_LAYERS = [
+  "verge",
   "asphalt",
   "ground",
+  "lawn",
   "line",
   "contactShadow",
 ] as const;
@@ -33,9 +36,9 @@ function getCourseSurfaceLayer(
   material: CourseVisualMaterial,
   objectId: string,
 ): CourseSurfaceLayer | null {
-  if (material === "asphalt") return "asphalt";
-  if (material === "ground") {
-    return isCourseBaseGround(material, objectId) ? null : "ground";
+  if (material === "asphalt" || material === "verge") return material;
+  if (material === "ground" || material === "lawn") {
+    return isCourseBaseGround(material, objectId) ? null : material;
   }
   return material === "line" || material === "hazard" ? "line" : null;
 }
@@ -60,5 +63,8 @@ export function isCourseBaseGround(
   material: CourseVisualMaterial,
   objectId: string,
 ) {
-  return material === "ground" && objectId === COURSE_BASE_GROUND_OBJECT_ID;
+  return (
+    (material === "ground" || material === "lawn") &&
+    objectId === COURSE_BASE_GROUND_OBJECT_ID
+  );
 }

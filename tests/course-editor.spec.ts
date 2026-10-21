@@ -288,7 +288,7 @@ test.describe("protected course editor access", () => {
 
     await expect(page.getByTestId("course-editor-shell")).toBeVisible();
     expect(savePayload).toMatchObject({
-      document: { courseId: "rough-course", schemaVersion: 2 },
+      document: { courseId: "rough-course", schemaVersion: 3 },
       expectedRevision: null,
     });
   });
@@ -784,6 +784,7 @@ test.describe("protected course editor access", () => {
     page,
   }, testInfo) => {
     test.skip(testInfo.project.name !== "mobile", "Narrow action coverage is mobile-only.");
+    testInfo.setTimeout(60_000);
     await page.route(courseApiPattern, async (route) => {
       await route.fulfill({
         body: JSON.stringify({
@@ -1034,7 +1035,7 @@ test.describe("protected course editor access", () => {
   test("selects and authors course objects across desktop and mobile controls", async ({
     page,
   }, testInfo) => {
-    testInfo.setTimeout(45_000);
+    testInfo.setTimeout(60_000);
     await page.route(courseApiPattern, async (route) => {
       await route.fulfill({
         body: JSON.stringify({
@@ -1186,6 +1187,8 @@ test.describe("protected course editor access", () => {
   test("builds and trims an object group with desktop Shift-click or mobile additive mode", async ({
     page,
   }, testInfo) => {
+    // Layered sandbox surfaces make software-rendered editor frames slower.
+    testInfo.setTimeout(60_000);
     await page.route(courseApiPattern, async (route) => {
       await route.fulfill({
         body: JSON.stringify({

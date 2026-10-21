@@ -1,5 +1,25 @@
 import { getApprovedTireSurfaceInteraction } from "./kart-material-registry";
 
+export type SurfaceMaterialReference = Readonly<{
+  id: string;
+  version: number;
+}>;
+
+// All currently approved tires use standard rubber. This is contact evidence,
+// never a modification to a kart revision's resolved physical snapshot.
+export function resolveTireSurfaceInteraction(
+  surfaceMaterial: SurfaceMaterialReference,
+) {
+  const interaction = getApprovedTireSurfaceInteraction({
+    derivationVersion: 1,
+    surfaceMaterial,
+    tireCompound: { id: "tire-compound.standard-rubber", version: 1 },
+  });
+  if (!interaction)
+    throw new Error("The tire and surface interaction is unavailable.");
+  return interaction;
+}
+
 export type TireSurfaceInteractionProfile = {
   peakGripCoefficient: number;
   peakSlipAngleDegrees: number;

@@ -40,9 +40,9 @@ multiplayer kart contact policy, or general recovery-system expansion.
 - `src/game/runtime/playcanvas-application.ts` provides distinct pre-physics
   and post-physics fixed-step callbacks so collision observation brackets the
   Ammo solve.
-- `src/game/course/rough-course.v2.json` defines the accepted sparse play
-  course: two cylinder obstacles, one super-tall ramp centered on the lower
-  straight for counter-clockwise traffic, and controlled straight, thin-wall,
+- `src/game/course/rough-course.v3.json` defines the accepted sparse play
+  course: two cylinder obstacles, a tall jump ramp beside the lap, low ramps
+  on the lap (kicker, bridge, inspection table), and controlled straight, thin-wall,
   convex-corner, and concave-corner impact fixtures. The validated
   `build-rough-course.ts` projection creates their simple static rigid bodies
   with explicit filtering. Diagnostic walls are constructed only when
@@ -77,10 +77,12 @@ same finite cylinder sweeps and suspension travel that apply forces to the
 chassis. This avoids joint instability and exposed detail colliders while
 keeping the visible and physical silhouettes coherent.
 
-Course floors, the single ramp, and two cylinders use deliberately simple
-static primitives. The ramp is one aligned box with no separate base or crest
-lip. The diagnostic straight wall and 0.1 m thin wall are opt-in automated-test
-geometry, so normal play contains no invisible or off-course collision traps.
+Course floors, ramps, and the two cylinders use deliberately simple static
+primitives. Each ramp is an aligned box with no separate base or crest lip,
+and the tall jump is sunk so its entry edge is flush with the floor; any step
+taller than the wheel radius stops karts dead. The diagnostic straight wall
+and 0.1 m thin wall are opt-in automated-test geometry, so normal play
+contains no invisible or off-course collision traps.
 
 All karts share the default whole-body friction `0.12` and restitution `0.04`
 from `kart-collision-model.ts`. PlayCanvas compound children share one parent rigid-body

@@ -24,15 +24,15 @@ own editor commands or persistence UI.
 
 ## Source Ownership
 
-- `src/game/course/course-document.ts` defines strict Zod version-one and
-  canonical version-two schemas, deterministic v1-to-v2 normalization,
+- `src/game/course/course-document.ts` defines strict Zod legacy schemas and the
+  canonical version-three schema, deterministic legacy normalization,
   cross-document ID and checkpoint-order refinements, gate-face direction
   alignment, canonical sorting, serialization, inferred TypeScript types, and
   validated seed export.
 - `src/game/course/course-ids.ts` keeps permanent sandbox, future official, and
   current guest-runtime course selection explicit; `course-publication.ts`
   validates protected publication and privacy-minimized public runtime shapes.
-- `src/game/course/rough-course.v2.json` is the canonical portable rough-course
+- `src/game/course/rough-course.v3.json` is the canonical portable rough-course
   sandbox seed. It contains the start/finish gate, three ordered checkpoints
   whose gates reach from the infield into the grass, with directed gate and
   recovery data, an infield barrier, ordinary surfaces and objects, camera
@@ -64,10 +64,10 @@ own editor commands or persistence UI.
 
 ## Document Contract
 
-Canonical version two is strict JSON using metres, Y-up positions, and Euler
+Canonical version three is strict JSON using metres, Y-up positions, and Euler
 degrees. It contains:
 
-- literal schema version `2`;
+- literal schema version `3`;
 - a stable course ID and name;
 - one stable start ID, transform, and bounded start-gate half-extents;
 - one ambient-light record and one-to-two stable directional-light records;
@@ -84,17 +84,19 @@ Visual primitives are box and cylinder. Each object owns category,
 availability, editor eligibility, transform, visual primitive, positive scale,
 and semantic material. Optional collision data independently owns a box or
 cylinder shape, local transform, physical dimensions, semantic role, friction,
-and restitution.
+restitution, and a versioned `surfaceMaterial` reference. Visual material never
+selects tire grip.
 
 Coordinates and dimensions are finite and bounded to the accepted authoring
 envelope. Unknown fields and unsupported enum values fail rather than being
 silently stripped. The complete document validates before scene construction.
 
-## Version-One Normalization
+## Legacy Normalization
 
-Stored revisions are immutable, so `parseCourseDocument` keeps a strict
-version-one schema and normalizes it in memory to version two; canonical
-serialization and every new save use version two. Version two adds
+Stored revisions are immutable, so `parseCourseDocument` keeps strict
+version-one and version-two schemas and normalizes them in memory to version
+three; canonical serialization and every new save use version three. Version
+two adds
 `start.gateHalfExtents`, `checkpoints[].forward`, and
 `checkpoints[].recovery`.
 
@@ -109,8 +111,20 @@ serialization and every new save use version two. Version two adds
 - Degenerate coincident anchors or directions that cannot identify a face are
   rejected rather than invented.
 - A loaded version-one row is normalized in memory, and its next save creates a
-  new version-two revision. Persistence responses report the normalized schema
+  new version-three revision. Persistence responses report the normalized schema
   version consistently.
+
+Every legacy collider normalizes to `surface.standard-course@1`, including
+visually green surfaces. The v3 seed layers lawn grass on the base ground, 2 m
+short-turf verges (edge strips and cap discs) under the asphalt edge, short-turf
+infield cutouts, and an infield lawn leaving 1.5 m turf bands. Coplanar visual
+layers follow the material order in `course-visual-policy.ts`, while physics
+follows document order, so authored surfaces must list in that same layer order
+and pair each grass finish with its matching surface material. Collider surface
+identity survives editor transforms, history, save/load, and export; presets use
+standard-course identity and there is no surface inspector control. Per-wheel
+resolution and coplanar-layer precedence are owned by
+[environment contact interaction](../../../docs/kart-system/environment.md).
 
 In the editor, moving a checkpoint translates its recovery pose, rotating it
 rotates the gate direction, and scaling changes only face bounds; new
@@ -144,8 +158,8 @@ exposed in the UI.
 - Visual scale does not silently define collision dimensions.
 - A drivable surface draws its top exactly at its collision top, and a
   visual-only marking rests on the highest surface beneath it. Layers at the
-  same height are ordered by depth bias (base ground, asphalt, grass overlay,
-  paint), never by separating their heights. Thin, level layers draw only
+  same height are ordered by depth bias (base ground, turf verge, asphalt,
+  infield turf, lawn, paint), never by separating their heights. Thin, level layers draw only
   their top face, so the slope-scaled bias cannot pull hidden side faces
   through as seams.
 - Objects without collision data receive no collision or rigid-body component.

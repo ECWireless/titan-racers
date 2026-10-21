@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-import { ROUGH_COURSE_DOCUMENT } from "../src/game/course/course-document";
+import { ROUGH_COURSE_DOCUMENT, parseCourseDocument, serializeCourseDocument } from "../src/game/course/course-document";
 import {
   COURSE_EDITOR_CHECKPOINT_LIMIT,
   addCourseCheckpoint,
@@ -135,6 +135,7 @@ test.describe("course editor document commands", () => {
       "block",
     );
     const selection = { id: "block-1", kind: "object" } as const;
+    document.objects.at(-1)!.collision!.surfaceMaterial = { id: "surface.short-grass", version: 1 };
     const geometry = getSelectionGeometry(document, selection);
     expect(geometry).not.toBeNull();
 
@@ -148,7 +149,9 @@ test.describe("course editor document commands", () => {
     expect(object?.collision).toMatchObject({
       halfExtents: { x: 2, y: 1, z: 2 },
       shape: "box",
+      surfaceMaterial: { id: "surface.short-grass", version: 1 },
     });
+    expect(parseCourseDocument(JSON.parse(serializeCourseDocument(scaled)))).toEqual(scaled);
   });
 
   test("renames editable objects without changing their stable IDs", () => {

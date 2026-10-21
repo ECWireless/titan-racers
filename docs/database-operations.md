@@ -79,6 +79,13 @@ pauses and whether the fixed-step overload guard discarded active simulation
 time. Do not derive or add frame timelines, viewport dimensions, device or GPU
 details, exception text, or stack traces.
 
+Migration `0015` adds nullable `gameplay_runs.physics_version` with an immutable
+update guard. Existing rows remain null; version-one client starts also insert
+null. New starts pin the allowlisted client physics version. Apply the additive
+migration before deploying the versioned writer. This does not rewrite course
+revisions: adopting the v3 sandbox seed separately appends and publishes a new
+rough-course revision through the guarded reset workflow.
+
 ## Google OAuth
 
 Create a Google OAuth web client and configure these redirect URIs:

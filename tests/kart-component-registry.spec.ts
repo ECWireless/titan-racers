@@ -151,8 +151,8 @@ test("gives every approved part version a presentation visual", () => {
 test("ships versioned construction, tire, and environment material registries", () => {
   expect(APPROVED_CONSTRUCTION_MATERIALS).toHaveLength(4);
   expect(APPROVED_TIRE_COMPOUNDS).toHaveLength(1);
-  expect(APPROVED_SURFACE_MATERIALS).toHaveLength(1);
-  expect(APPROVED_TIRE_SURFACE_INTERACTIONS).toHaveLength(1);
+  expect(APPROVED_SURFACE_MATERIALS).toHaveLength(3);
+  expect(APPROVED_TIRE_SURFACE_INTERACTIONS).toHaveLength(3);
 
   for (const material of APPROVED_CONSTRUCTION_MATERIALS) {
     expect(material.density).toBeGreaterThan(0);
