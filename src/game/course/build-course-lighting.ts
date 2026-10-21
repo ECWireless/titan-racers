@@ -106,6 +106,9 @@ function createDirectionalLightEntity(light: CourseLightingProjection) {
             shadowBias: light.shadows.bias,
             shadowDistance: light.shadows.distance,
             shadowResolution: light.shadows.resolution,
+            // A 1:10 kart spans only a few shadow texels, so a 3×3 filter
+            // lets its moving shadow visibly step between them. 5×5 hides it.
+            shadowType: pc.SHADOW_PCF5_32F,
           }
         : {}),
       type: "directional",

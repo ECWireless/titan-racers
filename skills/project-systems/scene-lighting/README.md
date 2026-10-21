@@ -24,7 +24,8 @@ phone budget. Art direction and the budget itself live in
   one shader program whose diffuse override samples a CPU-built grain
   texture by world position.
 - `src/game/course/build-course-lighting.ts` sets the course shadow presets
-  (20 m coverage, a bias small enough for kart-scale shadows); the course
+  (20 m coverage, a bias small enough for kart-scale shadows, and PCF5
+  filtering); the course
   editor widens coverage to 40 m for its overview.
 - `src/game/kart/kart-contact-shadow.ts` lays the race-only contact shadow
   under the kart: one blended quad on the ground beneath the chassis, ordered
