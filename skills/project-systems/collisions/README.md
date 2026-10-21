@@ -132,11 +132,25 @@ defense in depth, not a replacement for honest collider thickness.
 The open official chassis (PR 4.1.4) has 2 mm plates, so its sweep radius is
 1 mm and CCD sweeps on nearly every step. That costs nothing measurable on the
 reference iPhone, and forcing a 35 mm radius did not change the
-barrier result. The center sphere cannot protect a leading face 0.2 m ahead,
-so at 20.4 m/s the face can overlap the barrier by up to one step of travel
-and the solver may push the kart into the floor. The barrier test therefore
-allows one step of overlap but never a pass through the far face; PR 4.2.3
-owns the real fix.
+barrier result. The center sphere cannot protect a leading face 0.2 m ahead.
+
+## Speed-Adaptive Substeps
+
+Each fixed step chooses Bullet's internal substep count from the kart's
+pre-step motion: `selectKartPhysicsSubsteps` picks the smallest power of two
+(cap 8) at which the fastest collider point, `|v| + |ω|·reach`, travels at most
+0.05 m per substep (half the thinnest 0.1 m obstacle). `reach` is the farthest
+collision hull corner from the center of mass. That is 1 substep up to about
+6 m/s, 2 to 12 m/s, and 4 through top speed and the 20.4 m/s safety case.
+`PlayCanvasRuntime.setPhysicsSubsteps` applies the count before each
+`app.update`; the wheel sweeps and controller still run once per fixed step.
+See the [Ammo internal-substep notes](../../tools/playcanvas-ammo/collisions/README.md#internal-substeps)
+for why forces persist and why counts are powers of two. CCD stays enabled as
+defense in depth.
+
+Contact events fire per substep. The observer still aggregates one frame per
+fixed step, but `maximumImpulse` is the largest single-substep impulse;
+`totalImpulse` remains the step total.
 
 ## Accepted Invariants
 
@@ -156,8 +170,10 @@ owns the real fix.
 - Wheel support cannot hit obstacles, the kart, or helpers; the kart itself
   continues to collide with both support surfaces and solid obstacles.
 - Contact vectors and results never escape PlayCanvas's pooled callback data.
-- CCD configuration survives body recreation, and the kart stays blocked by the
-  thin-barrier safety fixture at 20.4 m/s.
+- CCD configuration survives body recreation, and the kart stays within 0.05 m
+  of the thin-barrier safety fixture's near face at 20.4 m/s from any start
+  offset on grass or standard ground, without being pushed into the floor.
+- Physics substep counts are powers of two (see the Ammo tool node).
 - Runtime teardown removes contact listeners and destroys all owned Ammo sweep
   allocations exactly once.
 
@@ -168,12 +184,12 @@ owns the real fix.
 - `tests/ammo-rigid-body.spec.ts` verifies CCD validation, setters, activation,
   and retained configuration.
 - `tests/kart-collision-model.spec.ts` verifies default and scaled
-  geometry-derived CCD plus shared-policy ownership.
-- `tests/playcanvas-runtime.spec.ts` verifies pre/update/post/render ordering and
-  fixed-step callback lifecycle.
+  geometry-derived CCD, shared-policy ownership, and substep selection.
+- `tests/playcanvas-runtime.spec.ts` verifies pre/update/post/render ordering,
+  fixed-step callback lifecycle, and exact per-step substep application.
 - `tests/home.spec.ts` keeps browser coverage for course collision setup and
-  the CCD-enabled thin-barrier case. Wall-impact response (straight, glancing,
-  off-center, and corner escape) no longer has automated coverage after the
+  the thin-barrier case on both surfaces at five start offsets. Wall-impact
+  response (straight, glancing, off-center, and corner escape) no longer has automated coverage after the
   2026-10-17 trim and relies on manual driving QA.
 - `pnpm lint`, `pnpm typecheck`, `pnpm build`, and the Playwright desktop and mobile projects provide repository,
   production, and supported-viewport regression coverage.
@@ -183,8 +199,11 @@ owns the real fix.
 - The rough course uses primitives rather than final authored track meshes.
 - The diagnostic adapter summarizes controlled collision frames but there is no
   general in-game collision visualizer or player-facing telemetry UI.
-- CCD primarily protects fast translation; future materially higher angular or
-  linear speed envelopes require new controlled tests and retuning.
+- Substeps cap at 8, so point speeds above about 48 m/s exceed the 0.05 m
+  per-substep bound; future materially higher speed envelopes require new
+  controlled tests and retuning.
+- Substeps are chosen from the player kart's motion only; kart-to-kart contact
+  (Phase 8) should select from the fastest dynamic body.
 - Not implemented: kart-to-kart contact policy (Phase 8), damage and
   detachable parts (Phase 6), physical wheel bodies, per-child kart materials,
   and per-surface material authoring.

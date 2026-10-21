@@ -44,6 +44,7 @@ export class PlayCanvasRuntime {
   private lastFrameTimestamp: number | null = null;
   private lastRenderedTimestamp: number | null = null;
   private paused = false;
+  private physicsSubsteps: (stepSeconds: number) => number = () => 1;
   private pauseAfterCurrentStep = false;
   private renderingSuspended = false;
   private started = false;
@@ -99,6 +100,18 @@ export class PlayCanvasRuntime {
   onPostFixedStep(listener: (stepSeconds: number) => void) {
     this.postFixedStepListeners.add(listener);
     this.addCleanup(() => this.postFixedStepListeners.delete(listener));
+  }
+
+  /**
+   * Chooses Bullet's internal substep count for each fixed step, sampled after
+   * fixed-step listeners. Counts must be powers of two so the float32 substep
+   * divides the step exactly and Bullet carries no leftover time.
+   */
+  setPhysicsSubsteps(provider: (stepSeconds: number) => number) {
+    this.physicsSubsteps = provider;
+    this.addCleanup(() => {
+      this.physicsSubsteps = () => 1;
+    });
   }
 
   setPaused(paused: boolean) {
@@ -322,6 +335,18 @@ export class PlayCanvasRuntime {
 
   private executeFixedStep(stepSeconds: number) {
     this.fixedStepListeners.forEach((listener) => listener(stepSeconds));
+    const substeps = this.physicsSubsteps(stepSeconds);
+    if (
+      !Number.isInteger(substeps) ||
+      substeps < 1 ||
+      (substeps & (substeps - 1)) !== 0
+    ) {
+      throw new Error("Physics substep count must be a positive power of two");
+    }
+    // initialize() has already asserted the rigid-body system exists.
+    const rigidBodySystem = this.app.systems.rigidbody!;
+    rigidBodySystem.fixedTimeStep = stepSeconds / substeps;
+    rigidBodySystem.maxSubSteps = substeps;
     this.app.update(stepSeconds);
     this.postFixedStepListeners.forEach((listener) => listener(stepSeconds));
   }

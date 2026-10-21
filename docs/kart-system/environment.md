@@ -72,7 +72,10 @@ that supports tire/surface dependence, not the exact grip estimates here.
 
 `CURRENT_PHYSICS_VERSION` in `src/game/physics/physics-version.ts` identifies the
 complete shipped solver, environment, and gameplay-policy combination, currently
-`surface-physics-v1`. Telemetry pins the client build's identity when a run
+`collision-substeps-v1` (speed-adaptive solver substeps).
+`ACCEPTED_PHYSICS_VERSIONS` lists every identity
+telemetry still accepts, because open tabs keep reporting their build's
+version until reloaded. Telemetry pins the client build's identity when a run
 starts; duplicate starts and later milestones cannot change it. Existing rows
 and legacy starts remain null (unversioned), retaining their deployment
 attribution. There is no historical solver replay. Future ghosts and

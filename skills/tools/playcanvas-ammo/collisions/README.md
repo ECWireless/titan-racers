@@ -97,10 +97,11 @@ Subscribe to the global `contact` event on
 - entities `a` and `b`;
 - local and world contact points for each entity;
 - the Bullet world normal on body B; and
-- the accumulated solver impulse from the last substep.
+- the accumulated solver impulse from the last internal substep.
 
-PlayCanvas calls Ammo's `stepSimulation`, updates dynamic entity transforms,
-then checks manifolds and emits collision/contact events. These events are
+With the vendored build's internal tick callback, PlayCanvas checks manifolds
+and emits collision/contact events after each internal substep, inside
+`stepSimulation` and before dynamic entity transforms sync. These events are
 therefore post-solve. The engine reuses its contact and result objects from
 object pools and frees the pool at the end of the collision scan. Copy every
 vector, number, and entity classification needed by gameplay, telemetry, or
@@ -169,6 +170,22 @@ Bullet's swept-sphere path primarily protects translational motion. Do not
 assume it covers every fast rotational corner. Keep honest collider thickness
 and include high-angular-velocity scenarios. Verify that CCD does not create
 sticking, time loss, unstable bounce, false hits, or unacceptable mobile cost.
+
+## Internal Substeps
+
+The sphere sweeps from the body center, so it cannot stop an off-center
+leading face from overlapping a thin wall. Bound per-substep travel instead:
+PlayCanvas passes `rigidbody.fixedTimeStep` and `maxSubSteps` to
+`stepSimulation(dt, maxSubSteps, fixedTimeStep)` on every update, so both may
+change per fixed step. Within one `stepSimulation`, applied forces persist
+across internal substeps (Bullet clears them once at the end), and the
+vendored build's internal tick callback makes PlayCanvas emit contact events
+after every substep. Never call `stepSimulation` repeatedly instead; forces
+clear after the first call.
+
+Use power-of-two counts. Ammo is float32, and `dt / 2^k` is exact there, so
+`m_localTime` returns to zero and the motion state is not interpolated.
+Counts such as 3 leave a remainder that Bullet carries and interpolates.
 
 ## Collision Assists
 

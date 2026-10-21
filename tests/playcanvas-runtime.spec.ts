@@ -114,6 +114,35 @@ test("manual stepping advances exact updates and renders once", () => {
   ]);
 });
 
+test("applies the per-step physics substep count before each update", () => {
+  const { rigidbody, runtime } = createRuntimeHarness();
+  const applied: Array<[number, number]> = [];
+  const substepsByStep = [1, 4, 8];
+
+  runtime.setPhysicsSubsteps(() => substepsByStep[applied.length] ?? 1);
+  (runtime.app as unknown as { update: () => void }).update = () => {
+    applied.push([rigidbody.maxSubSteps, rigidbody.fixedTimeStep]);
+  };
+  runtime.start();
+  runtime.setPaused(true);
+  runtime.stepFixed(3);
+
+  expect(applied).toEqual([
+    [1, DEFAULT_FIXED_STEP_SECONDS],
+    [4, DEFAULT_FIXED_STEP_SECONDS / 4],
+    [8, DEFAULT_FIXED_STEP_SECONDS / 8],
+  ]);
+  // Power-of-two division is exact in float32, so Bullet keeps no remainder.
+  for (const [substeps, fixedTimeStep] of applied) {
+    expect(Math.fround(fixedTimeStep) * substeps).toBe(
+      Math.fround(DEFAULT_FIXED_STEP_SECONDS),
+    );
+  }
+
+  runtime.setPhysicsSubsteps(() => 3);
+  expect(() => runtime.stepFixed(1)).toThrow(/power of two/);
+});
+
 test("runs post-step listeners after the whole-world update", () => {
   const { events, runtime } = createRuntimeHarness();
 

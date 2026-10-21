@@ -75,6 +75,7 @@ test.describe("gameplay telemetry contract", () => {
     expect(gameplayRunEventSchema.safeParse(versionedStart).success).toBe(false);
     expect(gameplayRunEventSchema.safeParse({ ...versionedStart, physicsVersion: "arbitrary-physics" }).success).toBe(false);
     expect(gameplayRunEventSchema.safeParse({ ...versionedStart, physicsVersion: CURRENT_PHYSICS_VERSION }).success).toBe(true);
+    expect(gameplayRunEventSchema.safeParse({ ...versionedStart, physicsVersion: "surface-physics-v1" }).success).toBe(true);
 
     expect(() =>
       gameplayRunEventSchema.parse({
