@@ -66,3 +66,37 @@ export function deriveKartCcdConfiguration(
     sweptSphereRadius,
   };
 }
+
+// Bullet only sweeps a sphere around the body center, so it cannot stop a
+// leading face from tunnelling through a thin wall. Fast steps are split into
+// internal substeps so no kart point travels farther than this per substep
+// (half the thinnest 0.1 m solid obstacle). Power-of-two counts divide the
+// float32 fixed step exactly, leaving Bullet no interpolation remainder.
+export const KART_SUBSTEP_POLICY = {
+  maximumPointTravelPerSubstep: 0.05,
+  maximumSubsteps: 8,
+} as const;
+
+export function selectKartPhysicsSubsteps(motion: {
+  angularSpeed: number;
+  linearSpeed: number;
+  reach: number;
+  stepSeconds: number;
+}) {
+  const policy = KART_SUBSTEP_POLICY;
+  const travel =
+    (motion.linearSpeed + motion.angularSpeed * motion.reach) *
+    motion.stepSeconds;
+  if (!Number.isFinite(travel)) {
+    return policy.maximumSubsteps;
+  }
+
+  let substeps = 1;
+  while (
+    substeps < policy.maximumSubsteps &&
+    travel > policy.maximumPointTravelPerSubstep * substeps
+  ) {
+    substeps *= 2;
+  }
+  return substeps;
+}

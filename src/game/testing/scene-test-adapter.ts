@@ -138,6 +138,7 @@ export type CollisionResponseDebugState = {
   maximumAngularSpeedAfterImpact: number;
   maximumApproachSpeed: number;
   maximumImpulse: number;
+  maximumPhysicsSubsteps: number;
   postLinearVelocity: Position3;
   preLinearVelocity: Position3;
 };

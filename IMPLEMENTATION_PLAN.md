@@ -229,7 +229,7 @@ Phase decisions:
       edge, with slower uncut lawn beyond, each with its own finish. The tall
       jump ramp sits 8 cm lower so its entry is flush with the ground, and
       karts spawn just behind the start line (a course spawn distance).
-- [ ] 4.2.3: High-speed collision robustness. Above top speed a kart travels
+- [x] 4.2.3: High-speed collision robustness. Above top speed a kart travels
       farther per physics step than a thin wall is deep, so the solver can
       push it into the floor (found in PR 4.1.4; the old official karts did it
       too). Fix it with adaptive substeps or a leading-edge sweep under a new
@@ -240,6 +240,7 @@ Phase decisions:
       The existing CCD benchmark explicitly retains the standard interaction.
       Telemetry must keep accepting `surface-physics-v1` starts from clients
       still running the older build.
+      Shipped as speed-adaptive Bullet substeps under `collision-substeps-v1`.
 - [ ] 4.2.4: Surface driving effects: sparse grass clippings and bounded,
       fading asphalt tire/skid streaks driven by wheel contact and slip.
       Presentation only, within the phone performance budget; debrief the

@@ -68,14 +68,14 @@ function getBalancedCollisionHalfExtent(axis: "x" | "z") {
 const BALANCED_KART_COLLISION_HALF_EXTENT_Z =
   getBalancedCollisionHalfExtent("z");
 const CCD_THIN_WALL_NEAR_FACE_X = -32.95;
-const CCD_THIN_WALL_FAR_FACE_X = -33.05;
 const CCD_THIN_WALL_APPROACH_SPEED = 20.4;
 const CCD_THIN_WALL_APPROACH_CENTER_X =
   CCD_THIN_WALL_NEAR_FACE_X + BALANCED_KART_COLLISION_HALF_EXTENT_Z;
-// Discrete contacts may overlap the wall by up to one step of travel; see
-// PR 4.2.3 for leading-edge sweeps.
-const CCD_THIN_WALL_MAXIMUM_CONTACT_PENETRATION =
-  CCD_THIN_WALL_APPROACH_SPEED * DEFAULT_FIXED_STEP_SECONDS;
+// Fast steps are substepped so no kart point travels more than 5 cm per
+// substep; contact overlap stays within that margin at any start offset.
+const CCD_THIN_WALL_MAXIMUM_CONTACT_PENETRATION = 0.05;
+const CCD_THIN_WALL_MAXIMUM_FLOOR_SINK = 0.05;
+const CCD_THIN_WALL_START_OFFSETS = 5;
 // Keep the established runtime-fixture coordinate name while sourcing it from
 // the authored default rather than the removed transitional construction.
 const REFERENCE_KART_UPRIGHT_ROOT_HEIGHT = BALANCED_KART_UPRIGHT_ROOT_HEIGHT;
@@ -296,6 +296,7 @@ async function getCollisionResponseDebugState(canvas: Locator) {
         maximumAngularSpeedAfterImpact: number;
         maximumApproachSpeed: number;
         maximumImpulse: number;
+        maximumPhysicsSubsteps: number;
         postLinearVelocity: { x: number; y: number; z: number };
         preLinearVelocity: { x: number; y: number; z: number };
       }>((resolve) => {
@@ -2224,52 +2225,71 @@ test.describe("home screen", () => {
     expect(collisionState.startLineVisualThickness).toBeCloseTo(0.002);
   });
 
-  test("keeps standard-surface CCD active above top speed across a thin barrier", async ({
-    page,
-  }) => {
-    // Preserve the original standard-surface collision benchmark. Grass changes
-    // impact-step alignment; surface/offset-independent robustness is PR 4.2.3.
-    const standardCourse = structuredClone(ROUGH_COURSE_DOCUMENT);
-    standardCourse.objects.find((object) => object.id === "ground")!
-      .collision!.surfaceMaterial = { id: "surface.standard-course", version: 1 };
-    await useBundledRoughCourse(page, standardCourse);
-    await page.goto("/?collision-fixtures");
-    await page.getByRole("button", { name: "Solo Time Trial" }).click();
+  for (const surface of ["grass", "standard"] as const) {
+    test(`bounds thin-barrier penetration above top speed on ${surface} at any step offset`, async ({
+      page,
+    }) => {
+      // The shipped course is grass; standard ground stays as a second case.
+      const course = structuredClone(ROUGH_COURSE_DOCUMENT);
+      if (surface === "standard") {
+        course.objects.find((object) => object.id === "ground")!
+          .collision!.surfaceMaterial = {
+          id: "surface.standard-course",
+          version: 1,
+        };
+      }
+      await useBundledRoughCourse(page, course);
+      await page.goto("/?collision-fixtures");
+      await page.getByRole("button", { name: "Solo Time Trial" }).click();
 
-    const canvas = page.getByTestId("solo-time-trial-canvas");
+      const canvas = page.getByTestId("solo-time-trial-canvas");
+      await setSimulationPaused(canvas, true);
 
-    await setSimulationPaused(canvas, true);
-    await setKartDebugPose(canvas, {
-      linearVelocity: { x: -CCD_THIN_WALL_APPROACH_SPEED, y: 0, z: 0 },
-      position: { x: -29.5, y: REFERENCE_KART_UPRIGHT_ROOT_HEIGHT, z: 24 },
-      rotation: { x: 0, y: 90, z: 0 },
+      const stepTravel =
+        CCD_THIN_WALL_APPROACH_SPEED * DEFAULT_FIXED_STEP_SECONDS;
+      for (let offset = 0; offset < CCD_THIN_WALL_START_OFFSETS; offset += 1) {
+        const startX = -29.5 + (offset / CCD_THIN_WALL_START_OFFSETS) * stepTravel;
+        await setKartDebugPose(canvas, {
+          angularVelocity: { x: 0, y: 0, z: 0 },
+          linearVelocity: { x: -CCD_THIN_WALL_APPROACH_SPEED, y: 0, z: 0 },
+          position: { x: startX, y: REFERENCE_KART_UPRIGHT_ROOT_HEIGHT, z: 24 },
+          rotation: { x: 0, y: 90, z: 0 },
+        });
+        const samples = await stepSimulationWithKartSamples(canvas, 30);
+        const collision = await getCollisionResponseDebugState(canvas);
+        const minimumX = Math.min(...samples.map((sample) => sample.x));
+        const minimumY = Math.min(...samples.map((sample) => sample.y));
+        const context = `${surface} start x=${startX.toFixed(3)}`;
+
+        expect(collision.ccdMotionThreshold, context).toBeCloseTo(
+          BALANCED_KART_CCD_CONFIGURATION.motionThreshold,
+          2,
+        );
+        expect(collision.ccdSweptSphereRadius, context).toBeCloseTo(
+          BALANCED_KART_CCD_CONFIGURATION.sweptSphereRadius,
+          2,
+        );
+        expect(collision.contactedEntityNames, context).toContain(
+          "collision-ccd-thin-wall",
+        );
+        expect(collision.maximumApproachSpeed, context).toBeGreaterThan(
+          BALANCED_KART_DEVELOPMENT_VALUES.maxForwardSpeed,
+        );
+        expect(collision.maximumPhysicsSubsteps, context).toBeGreaterThan(1);
+        // The leading face stays within a fixed margin of the near face at
+        // every step, so it never nears the far face.
+        expect(minimumX, context).toBeGreaterThan(
+          CCD_THIN_WALL_APPROACH_CENTER_X -
+            CCD_THIN_WALL_MAXIMUM_CONTACT_PENETRATION,
+        );
+        // The wall pushes the kart back, not down into the floor.
+        expect(minimumY, context).toBeGreaterThan(
+          REFERENCE_KART_UPRIGHT_ROOT_HEIGHT -
+            CCD_THIN_WALL_MAXIMUM_FLOOR_SINK,
+        );
+      }
     });
-    await stepSimulation(canvas, 30);
-
-    const collision = await getCollisionResponseDebugState(canvas);
-    const kart = await getKartDebugState(canvas);
-
-    expect(collision.ccdMotionThreshold).toBeCloseTo(
-      BALANCED_KART_CCD_CONFIGURATION.motionThreshold,
-      2,
-    );
-    expect(collision.ccdSweptSphereRadius).toBeCloseTo(
-      BALANCED_KART_CCD_CONFIGURATION.sweptSphereRadius,
-      2,
-    );
-    expect(collision.contactedEntityNames).toContain("collision-ccd-thin-wall");
-    expect(collision.maximumApproachSpeed).toBeGreaterThan(
-      BALANCED_KART_DEVELOPMENT_VALUES.maxForwardSpeed,
-    );
-    expect(kart.x).toBeGreaterThan(
-      CCD_THIN_WALL_APPROACH_CENTER_X -
-        CCD_THIN_WALL_MAXIMUM_CONTACT_PENETRATION,
-    );
-    // The leading face never reaches the wall's far side.
-    expect(kart.x - BALANCED_KART_COLLISION_HALF_EXTENT_Z).toBeGreaterThan(
-      CCD_THIN_WALL_FAR_FACE_X,
-    );
-  });
+  }
 
   test("pauses and resumes from the mobile race HUD", async ({
     page,

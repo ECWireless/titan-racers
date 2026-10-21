@@ -27,6 +27,7 @@ import {
   DEFAULT_KART_COLLISION_CONSTRUCTION,
   deriveKartCcdConfiguration,
   KART_COLLISION_SOLVER_POLICY,
+  selectKartPhysicsSubsteps,
 } from "@/game/collision/kart-collision-model";
 import {
   calculateImpactStrength,
@@ -1576,6 +1577,7 @@ export function SoloTimeTrialCanvas({
         maximumAngularSpeedAfterImpact: 0,
         maximumApproachSpeed: 0,
         maximumImpulse: 0,
+        maximumPhysicsSubsteps: 1,
         postLinearVelocity: { x: 0, y: 0, z: 0 },
         preLinearVelocity: { x: 0, y: 0, z: 0 },
       };
@@ -1593,6 +1595,7 @@ export function SoloTimeTrialCanvas({
         collisionMetrics.maximumAngularSpeedAfterImpact = 0;
         collisionMetrics.maximumApproachSpeed = 0;
         collisionMetrics.maximumImpulse = 0;
+        collisionMetrics.maximumPhysicsSubsteps = 1;
         collisionMetrics.postLinearVelocity = { x: 0, y: 0, z: 0 };
         collisionMetrics.preLinearVelocity = { x: 0, y: 0, z: 0 };
       }
@@ -2168,6 +2171,7 @@ export function SoloTimeTrialCanvas({
             collisionMetrics.maximumApproachSpeed,
           ),
           maximumImpulse: toFixedStep(collisionMetrics.maximumImpulse),
+          maximumPhysicsSubsteps: collisionMetrics.maximumPhysicsSubsteps,
           postLinearVelocity: {
             x: toFixedStep(collisionMetrics.postLinearVelocity.x),
             y: toFixedStep(collisionMetrics.postLinearVelocity.y),
@@ -2396,6 +2400,28 @@ export function SoloTimeTrialCanvas({
       let latestDrivingInput = latestRequestedDrivingInput;
       let pauseAfterFixedStep = false;
       let raceFinishedThisFrame = false;
+
+      const kartCollisionReach = Math.max(
+        ...KART_MANUAL_RIGHTING_GEOMETRY.hullPoints.map((point) =>
+          Math.hypot(point.x, point.y, point.z),
+        ),
+      );
+      runtime.setPhysicsSubsteps((stepSeconds) => {
+        const body = kart.rigidbody;
+        const substeps = body
+          ? selectKartPhysicsSubsteps({
+              angularSpeed: body.angularVelocity.length(),
+              linearSpeed: body.linearVelocity.length(),
+              reach: kartCollisionReach,
+              stepSeconds,
+            })
+          : 1;
+        collisionMetrics.maximumPhysicsSubsteps = Math.max(
+          collisionMetrics.maximumPhysicsSubsteps,
+          substeps,
+        );
+        return substeps;
+      });
 
       runtime.onFixedStep((dt) => {
         collisionObserver.beginStep();

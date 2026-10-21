@@ -1,5 +1,8 @@
 import { z } from "zod";
-import { CURRENT_PHYSICS_VERSION } from "../physics/physics-version";
+import {
+  ACCEPTED_PHYSICS_VERSIONS,
+  CURRENT_PHYSICS_VERSION,
+} from "../physics/physics-version";
 
 export type GameplayInputFamily = "gamepad" | "keyboard" | "touch";
 
@@ -32,7 +35,7 @@ const runStartedEventSchema = z.strictObject({
 
 const versionedRunStartedEventSchema = runStartedEventSchema.extend({
   schemaVersion: z.literal(2),
-  physicsVersion: z.literal(CURRENT_PHYSICS_VERSION),
+  physicsVersion: z.enum(ACCEPTED_PHYSICS_VERSIONS),
 });
 
 const runtimeLoadedEventSchema = z.strictObject({
