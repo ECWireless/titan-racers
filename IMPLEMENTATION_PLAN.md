@@ -222,15 +222,36 @@ Phase decisions:
       lap, the tall jump moved beside it, an infield barrier, three wider
       checkpoints, kart-scale shadows with a contact shadow, and no race-only
       start pad.
-- [ ] 4.2.2: Surface physics: a grass surface material and its tire
+- [x] 4.2.2: Surface physics: a grass surface material and its tire
       interaction, per-surface materials in the course document (new schema
-      version with normalization), and a new physics version.
+      version with normalization), and a new physics version. Scope grew to
+      two grasses: short turf verges beside the asphalt and around the infield
+      edge, with slower uncut lawn beyond, each with its own finish. The tall
+      jump ramp sits 8 cm lower so its entry is flush with the ground, and
+      karts spawn just behind the start line (a course spawn distance).
 - [ ] 4.2.3: High-speed collision robustness. Above top speed a kart travels
       farther per physics step than a thin wall is deep, so the solver can
       push it into the floor (found in PR 4.1.4; the old official karts did it
       too). Fix it with adaptive substeps or a leading-edge sweep under a new
       physics version, then tighten the thin-wall test from one step of
-      overlap to a small fixed margin at any starting offset.
+      overlap to a small fixed margin at any starting offset. Cover standard
+      and grass approaches: at 20.4 m/s from x=-29.5, z=24, grass rolling
+      resistance changes impact-step alignment and exposes deeper penetration.
+      The existing CCD benchmark explicitly retains the standard interaction.
+      Telemetry must keep accepting `surface-physics-v1` starts from clients
+      still running the older build.
+- [ ] 4.2.4: Surface driving effects: sparse grass clippings and bounded,
+      fading asphalt tire/skid streaks driven by wheel contact and slip.
+      Presentation only, within the phone performance budget; debrief the
+      effects before implementation.
+
+Handling follow-up: reproduce rear-end left/right jolts during Shift handbrake
+drifting on open asphalt. The feature lead observed this before 4.2.2;
+investigate separately and compare with the 4.2.1 baseline.
+
+Presentation follow-up: the kart shadow flickers slightly on asphalt and more
+visibly on grass (seen in 4.2.2 phone QA). Investigate during the 4.2.4
+debrief, since surface effects draw on the same surfaces.
 
 **PR 4.3: Island Three**
 

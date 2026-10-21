@@ -1352,6 +1352,32 @@ The baseline dry course surface used by the Demo v1 environment.
 }
 ```
 
+### Short grass — `surface.short-grass@1`
+
+Dry, closely mown grass over firm soil.
+
+```json
+{
+  "id": "surface.short-grass",
+  "label": "Short grass",
+  "summary": "Dry, closely mown grass over firm soil.",
+  "version": 1
+}
+```
+
+### Lawn grass — `surface.lawn-grass@1`
+
+Dry, longer uncut lawn grass over firm soil.
+
+```json
+{
+  "id": "surface.lawn-grass",
+  "label": "Lawn grass",
+  "summary": "Dry, longer uncut lawn grass over firm soil.",
+  "version": 1
+}
+```
+
 ## Tire And Surface Interactions
 
 ```json
@@ -1365,6 +1391,38 @@ The baseline dry course surface used by the Demo v1 environment.
     "slidingSlipAngleDegrees": 18,
     "surfaceMaterial": {
       "id": "surface.standard-course",
+      "version": 1
+    },
+    "tireCompound": {
+      "id": "tire-compound.standard-rubber",
+      "version": 1
+    }
+  },
+  {
+    "derivationVersion": 1,
+    "peakGripCoefficient": 0.85,
+    "peakSlipAngleDegrees": 8,
+    "rollingResistanceCoefficient": 0.12,
+    "slidingGripCoefficient": 0.65,
+    "slidingSlipAngleDegrees": 24,
+    "surfaceMaterial": {
+      "id": "surface.short-grass",
+      "version": 1
+    },
+    "tireCompound": {
+      "id": "tire-compound.standard-rubber",
+      "version": 1
+    }
+  },
+  {
+    "derivationVersion": 1,
+    "peakGripCoefficient": 0.85,
+    "peakSlipAngleDegrees": 8,
+    "rollingResistanceCoefficient": 0.28,
+    "slidingGripCoefficient": 0.65,
+    "slidingSlipAngleDegrees": 24,
+    "surfaceMaterial": {
+      "id": "surface.lawn-grass",
       "version": 1
     },
     "tireCompound": {

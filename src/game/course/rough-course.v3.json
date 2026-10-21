@@ -178,7 +178,11 @@
         },
         "restitution": 0,
         "role": "drivable-surface",
-        "shape": "box"
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.lawn-grass",
+          "version": 1
+        }
       },
       "editable": false,
       "id": "ground",
@@ -195,13 +199,225 @@
         }
       },
       "visual": {
-        "material": "ground",
+        "material": "lawn",
         "scale": {
           "x": 88,
           "y": 0.1,
           "z": 59
         },
         "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "surface",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 20,
+          "y": 0.04,
+          "z": 1
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": -0.039,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "drivable-surface",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.short-grass",
+          "version": 1
+        }
+      },
+      "editable": false,
+      "id": "course-north-verge",
+      "transform": {
+        "position": {
+          "x": 0,
+          "y": -0.001,
+          "z": -5
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "verge",
+        "scale": {
+          "x": 40,
+          "y": 0.002,
+          "z": 2
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "surface",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 20,
+          "y": 0.04,
+          "z": 1
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": -0.039,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "drivable-surface",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.short-grass",
+          "version": 1
+        }
+      },
+      "editable": false,
+      "id": "course-south-verge",
+      "transform": {
+        "position": {
+          "x": 0,
+          "y": -0.001,
+          "z": 21
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "verge",
+        "scale": {
+          "x": 40,
+          "y": 0.002,
+          "z": 2
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "surface",
+      "collision": {
+        "axis": 1,
+        "friction": 0.7,
+        "height": 0.08,
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": -0.039,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "radius": 14,
+        "restitution": 0,
+        "role": "drivable-surface",
+        "shape": "cylinder",
+        "surfaceMaterial": {
+          "id": "surface.short-grass",
+          "version": 1
+        }
+      },
+      "editable": false,
+      "id": "course-left-verge",
+      "transform": {
+        "position": {
+          "x": -20,
+          "y": -0.001,
+          "z": 8
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "verge",
+        "scale": {
+          "x": 28,
+          "y": 0.002,
+          "z": 28
+        },
+        "shape": "cylinder"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "surface",
+      "collision": {
+        "axis": 1,
+        "friction": 0.7,
+        "height": 0.08,
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": -0.039,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "radius": 14,
+        "restitution": 0,
+        "role": "drivable-surface",
+        "shape": "cylinder",
+        "surfaceMaterial": {
+          "id": "surface.short-grass",
+          "version": 1
+        }
+      },
+      "editable": false,
+      "id": "course-right-verge",
+      "transform": {
+        "position": {
+          "x": 20,
+          "y": -0.001,
+          "z": 8
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "verge",
+        "scale": {
+          "x": 28,
+          "y": 0.002,
+          "z": 28
+        },
+        "shape": "cylinder"
       }
     },
     {
@@ -228,7 +444,11 @@
         },
         "restitution": 0,
         "role": "drivable-surface",
-        "shape": "box"
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.standard-course",
+          "version": 1
+        }
       },
       "editable": false,
       "id": "course-outer-straight",
@@ -276,7 +496,11 @@
         "radius": 12,
         "restitution": 0,
         "role": "drivable-surface",
-        "shape": "cylinder"
+        "shape": "cylinder",
+        "surfaceMaterial": {
+          "id": "surface.standard-course",
+          "version": 1
+        }
       },
       "editable": false,
       "id": "course-left-cap",
@@ -324,7 +548,11 @@
         "radius": 12,
         "restitution": 0,
         "role": "drivable-surface",
-        "shape": "cylinder"
+        "shape": "cylinder",
+        "surfaceMaterial": {
+          "id": "surface.standard-course",
+          "version": 1
+        }
       },
       "editable": false,
       "id": "course-right-cap",
@@ -374,7 +602,11 @@
         },
         "restitution": 0,
         "role": "drivable-surface",
-        "shape": "box"
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.short-grass",
+          "version": 1
+        }
       },
       "editable": false,
       "id": "course-inner-straight",
@@ -422,7 +654,11 @@
         "radius": 4,
         "restitution": 0,
         "role": "drivable-surface",
-        "shape": "cylinder"
+        "shape": "cylinder",
+        "surfaceMaterial": {
+          "id": "surface.short-grass",
+          "version": 1
+        }
       },
       "editable": false,
       "id": "course-left-cutout",
@@ -470,7 +706,11 @@
         "radius": 4,
         "restitution": 0,
         "role": "drivable-surface",
-        "shape": "cylinder"
+        "shape": "cylinder",
+        "surfaceMaterial": {
+          "id": "surface.short-grass",
+          "version": 1
+        }
       },
       "editable": false,
       "id": "course-right-cutout",
@@ -492,6 +732,164 @@
           "x": 8,
           "y": 0.002,
           "z": 8
+        },
+        "shape": "cylinder"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "surface",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 20,
+          "y": 0.04,
+          "z": 2.5
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": -0.039,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "drivable-surface",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.lawn-grass",
+          "version": 1
+        }
+      },
+      "editable": false,
+      "id": "course-inner-lawn",
+      "transform": {
+        "position": {
+          "x": 0,
+          "y": -0.001,
+          "z": 8
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "lawn",
+        "scale": {
+          "x": 40,
+          "y": 0.002,
+          "z": 5
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "surface",
+      "collision": {
+        "axis": 1,
+        "friction": 0.7,
+        "height": 0.08,
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": -0.039,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "radius": 2.5,
+        "restitution": 0,
+        "role": "drivable-surface",
+        "shape": "cylinder",
+        "surfaceMaterial": {
+          "id": "surface.lawn-grass",
+          "version": 1
+        }
+      },
+      "editable": false,
+      "id": "course-left-inner-lawn",
+      "transform": {
+        "position": {
+          "x": -20,
+          "y": -0.001,
+          "z": 8
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "lawn",
+        "scale": {
+          "x": 5,
+          "y": 0.002,
+          "z": 5
+        },
+        "shape": "cylinder"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "surface",
+      "collision": {
+        "axis": 1,
+        "friction": 0.7,
+        "height": 0.08,
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": -0.039,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "radius": 2.5,
+        "restitution": 0,
+        "role": "drivable-surface",
+        "shape": "cylinder",
+        "surfaceMaterial": {
+          "id": "surface.lawn-grass",
+          "version": 1
+        }
+      },
+      "editable": false,
+      "id": "course-right-inner-lawn",
+      "transform": {
+        "position": {
+          "x": 20,
+          "y": -0.001,
+          "z": 8
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "lawn",
+        "scale": {
+          "x": 5,
+          "y": 0.002,
+          "z": 5
         },
         "shape": "cylinder"
       }
@@ -546,7 +944,11 @@
         "radius": 0.45,
         "restitution": 0,
         "role": "solid-obstacle",
-        "shape": "cylinder"
+        "shape": "cylinder",
+        "surfaceMaterial": {
+          "id": "surface.standard-course",
+          "version": 1
+        }
       },
       "editable": true,
       "id": "obstacle-barrel-a",
@@ -594,7 +996,11 @@
         "radius": 0.425,
         "restitution": 0,
         "role": "solid-obstacle",
-        "shape": "cylinder"
+        "shape": "cylinder",
+        "surfaceMaterial": {
+          "id": "surface.standard-course",
+          "version": 1
+        }
       },
       "editable": true,
       "id": "obstacle-barrel-b",
@@ -644,14 +1050,18 @@
         },
         "restitution": 0,
         "role": "drivable-surface",
-        "shape": "box"
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.standard-course",
+          "version": 1
+        }
       },
       "editable": true,
       "id": "ramp-super-tall",
       "transform": {
         "position": {
           "x": -14,
-          "y": 1.76,
+          "y": 1.679,
           "z": 31
         },
         "rotation": {
@@ -694,7 +1104,11 @@
         },
         "restitution": 0,
         "role": "solid-obstacle",
-        "shape": "box"
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.standard-course",
+          "version": 1
+        }
       },
       "editable": false,
       "id": "camera-test-large-wall",
@@ -744,7 +1158,11 @@
         },
         "restitution": 0,
         "role": "solid-obstacle",
-        "shape": "box"
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.standard-course",
+          "version": 1
+        }
       },
       "editable": false,
       "id": "camera-test-corner-wall",
@@ -794,7 +1212,11 @@
         },
         "restitution": 0,
         "role": "solid-obstacle",
-        "shape": "box"
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.standard-course",
+          "version": 1
+        }
       },
       "editable": false,
       "id": "collision-response-wall",
@@ -844,7 +1266,11 @@
         },
         "restitution": 0,
         "role": "solid-obstacle",
-        "shape": "box"
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.standard-course",
+          "version": 1
+        }
       },
       "editable": false,
       "id": "collision-ccd-thin-wall",
@@ -894,7 +1320,11 @@
         },
         "restitution": 0,
         "role": "solid-obstacle",
-        "shape": "box"
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.standard-course",
+          "version": 1
+        }
       },
       "editable": false,
       "id": "collision-corner-horizontal-wall",
@@ -944,7 +1374,11 @@
         },
         "restitution": 0,
         "role": "solid-obstacle",
-        "shape": "box"
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.standard-course",
+          "version": 1
+        }
       },
       "editable": false,
       "id": "collision-corner-vertical-wall",
@@ -2898,7 +3332,11 @@
         },
         "restitution": 0,
         "role": "solid-obstacle",
-        "shape": "box"
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.standard-course",
+          "version": 1
+        }
       },
       "editable": true,
       "id": "timing-portal-north-post",
@@ -2948,7 +3386,11 @@
         },
         "restitution": 0,
         "role": "solid-obstacle",
-        "shape": "box"
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.standard-course",
+          "version": 1
+        }
       },
       "editable": true,
       "id": "timing-portal-south-post",
@@ -2998,7 +3440,11 @@
         },
         "restitution": 0,
         "role": "solid-obstacle",
-        "shape": "box"
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.standard-course",
+          "version": 1
+        }
       },
       "editable": true,
       "id": "timing-portal-crossbeam",
@@ -3048,7 +3494,11 @@
         },
         "restitution": 0,
         "role": "solid-obstacle",
-        "shape": "box"
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.standard-course",
+          "version": 1
+        }
       },
       "editable": true,
       "id": "service-bench-top",
@@ -3098,7 +3548,11 @@
         },
         "restitution": 0,
         "role": "solid-obstacle",
-        "shape": "box"
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.standard-course",
+          "version": 1
+        }
       },
       "editable": true,
       "id": "service-bench-leg-west-north",
@@ -3148,7 +3602,11 @@
         },
         "restitution": 0,
         "role": "solid-obstacle",
-        "shape": "box"
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.standard-course",
+          "version": 1
+        }
       },
       "editable": true,
       "id": "service-bench-leg-west-south",
@@ -3198,7 +3656,11 @@
         },
         "restitution": 0,
         "role": "solid-obstacle",
-        "shape": "box"
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.standard-course",
+          "version": 1
+        }
       },
       "editable": true,
       "id": "service-bench-leg-east-north",
@@ -3248,7 +3710,11 @@
         },
         "restitution": 0,
         "role": "solid-obstacle",
-        "shape": "box"
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.standard-course",
+          "version": 1
+        }
       },
       "editable": true,
       "id": "service-bench-leg-east-south",
@@ -3298,7 +3764,11 @@
         },
         "restitution": 0,
         "role": "solid-obstacle",
-        "shape": "box"
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.standard-course",
+          "version": 1
+        }
       },
       "editable": true,
       "id": "service-cabinet-main",
@@ -3348,7 +3818,11 @@
         },
         "restitution": 0,
         "role": "solid-obstacle",
-        "shape": "box"
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.standard-course",
+          "version": 1
+        }
       },
       "editable": true,
       "id": "service-cabinet-relay",
@@ -3398,7 +3872,11 @@
         },
         "restitution": 0,
         "role": "drivable-surface",
-        "shape": "box"
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.standard-course",
+          "version": 1
+        }
       },
       "editable": true,
       "id": "inspection-table-entry",
@@ -3448,7 +3926,11 @@
         },
         "restitution": 0,
         "role": "drivable-surface",
-        "shape": "box"
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.standard-course",
+          "version": 1
+        }
       },
       "editable": true,
       "id": "inspection-table-exit",
@@ -3498,7 +3980,11 @@
         },
         "restitution": 0,
         "role": "drivable-surface",
-        "shape": "box"
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.standard-course",
+          "version": 1
+        }
       },
       "editable": true,
       "id": "inspection-table-deck",
@@ -3548,7 +4034,11 @@
         },
         "restitution": 0,
         "role": "drivable-surface",
-        "shape": "box"
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.standard-course",
+          "version": 1
+        }
       },
       "editable": true,
       "id": "ramp-kicker",
@@ -3598,7 +4088,11 @@
         },
         "restitution": 0,
         "role": "drivable-surface",
-        "shape": "box"
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.standard-course",
+          "version": 1
+        }
       },
       "editable": true,
       "id": "service-bridge-approach",
@@ -3648,7 +4142,11 @@
         },
         "restitution": 0,
         "role": "drivable-surface",
-        "shape": "box"
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.standard-course",
+          "version": 1
+        }
       },
       "editable": true,
       "id": "service-bridge-deck",
@@ -3698,7 +4196,11 @@
         },
         "restitution": 0,
         "role": "drivable-surface",
-        "shape": "box"
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.standard-course",
+          "version": 1
+        }
       },
       "editable": true,
       "id": "service-bridge-descent",
@@ -3748,7 +4250,11 @@
         },
         "restitution": 0,
         "role": "solid-obstacle",
-        "shape": "box"
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.standard-course",
+          "version": 1
+        }
       },
       "editable": true,
       "id": "infield-barrier-north",
@@ -3798,7 +4304,11 @@
         },
         "restitution": 0,
         "role": "solid-obstacle",
-        "shape": "box"
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.standard-course",
+          "version": 1
+        }
       },
       "editable": true,
       "id": "infield-barrier-south",
@@ -3848,7 +4358,11 @@
         },
         "restitution": 0,
         "role": "solid-obstacle",
-        "shape": "box"
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.standard-course",
+          "version": 1
+        }
       },
       "editable": true,
       "id": "infield-barrier-west-1",
@@ -3898,7 +4412,11 @@
         },
         "restitution": 0,
         "role": "solid-obstacle",
-        "shape": "box"
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.standard-course",
+          "version": 1
+        }
       },
       "editable": true,
       "id": "infield-barrier-west-2",
@@ -3948,7 +4466,11 @@
         },
         "restitution": 0,
         "role": "solid-obstacle",
-        "shape": "box"
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.standard-course",
+          "version": 1
+        }
       },
       "editable": true,
       "id": "infield-barrier-west-3",
@@ -3998,7 +4520,11 @@
         },
         "restitution": 0,
         "role": "solid-obstacle",
-        "shape": "box"
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.standard-course",
+          "version": 1
+        }
       },
       "editable": true,
       "id": "infield-barrier-west-4",
@@ -4048,7 +4574,11 @@
         },
         "restitution": 0,
         "role": "solid-obstacle",
-        "shape": "box"
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.standard-course",
+          "version": 1
+        }
       },
       "editable": true,
       "id": "infield-barrier-west-5",
@@ -4098,7 +4628,11 @@
         },
         "restitution": 0,
         "role": "solid-obstacle",
-        "shape": "box"
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.standard-course",
+          "version": 1
+        }
       },
       "editable": true,
       "id": "infield-barrier-west-6",
@@ -4148,7 +4682,11 @@
         },
         "restitution": 0,
         "role": "solid-obstacle",
-        "shape": "box"
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.standard-course",
+          "version": 1
+        }
       },
       "editable": true,
       "id": "infield-barrier-west-7",
@@ -4198,7 +4736,11 @@
         },
         "restitution": 0,
         "role": "solid-obstacle",
-        "shape": "box"
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.standard-course",
+          "version": 1
+        }
       },
       "editable": true,
       "id": "infield-barrier-west-8",
@@ -4248,7 +4790,11 @@
         },
         "restitution": 0,
         "role": "solid-obstacle",
-        "shape": "box"
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.standard-course",
+          "version": 1
+        }
       },
       "editable": true,
       "id": "infield-barrier-east-1",
@@ -4298,7 +4844,11 @@
         },
         "restitution": 0,
         "role": "solid-obstacle",
-        "shape": "box"
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.standard-course",
+          "version": 1
+        }
       },
       "editable": true,
       "id": "infield-barrier-east-2",
@@ -4348,7 +4898,11 @@
         },
         "restitution": 0,
         "role": "solid-obstacle",
-        "shape": "box"
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.standard-course",
+          "version": 1
+        }
       },
       "editable": true,
       "id": "infield-barrier-east-3",
@@ -4398,7 +4952,11 @@
         },
         "restitution": 0,
         "role": "solid-obstacle",
-        "shape": "box"
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.standard-course",
+          "version": 1
+        }
       },
       "editable": true,
       "id": "infield-barrier-east-4",
@@ -4448,7 +5006,11 @@
         },
         "restitution": 0,
         "role": "solid-obstacle",
-        "shape": "box"
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.standard-course",
+          "version": 1
+        }
       },
       "editable": true,
       "id": "infield-barrier-east-5",
@@ -4498,7 +5060,11 @@
         },
         "restitution": 0,
         "role": "solid-obstacle",
-        "shape": "box"
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.standard-course",
+          "version": 1
+        }
       },
       "editable": true,
       "id": "infield-barrier-east-6",
@@ -4548,7 +5114,11 @@
         },
         "restitution": 0,
         "role": "solid-obstacle",
-        "shape": "box"
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.standard-course",
+          "version": 1
+        }
       },
       "editable": true,
       "id": "infield-barrier-east-7",
@@ -4598,7 +5168,11 @@
         },
         "restitution": 0,
         "role": "solid-obstacle",
-        "shape": "box"
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.standard-course",
+          "version": 1
+        }
       },
       "editable": true,
       "id": "infield-barrier-east-8",
@@ -4625,7 +5199,7 @@
       }
     }
   ],
-  "schemaVersion": 2,
+  "schemaVersion": 3,
   "start": {
     "gateHalfExtents": {
       "x": 8,
@@ -4642,7 +5216,8 @@
       "x": 0,
       "y": 90,
       "z": 0
-    }
+    },
+    "spawnDistance": 0.6
   },
   "units": "meters"
 }

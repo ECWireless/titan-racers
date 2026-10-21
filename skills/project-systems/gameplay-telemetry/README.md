@@ -18,7 +18,7 @@ identity.
 
 ## Source Ownership
 
-- `src/game/telemetry/gameplay-run-events.ts` defines the strict version-one
+- `src/game/telemetry/gameplay-run-events.ts` defines the strict versioned
   semantic contract, non-blocking coordinator, and first-party HTTP sink.
 - `src/app/api/telemetry/gameplay-runs/route.ts` owns the size-bounded,
   same-origin guest writer.
@@ -64,6 +64,11 @@ identity.
    rejects invalid or conflicting lifecycle
    transitions, and leaves missing terminals open. The dashboard classifies
    recent open rows as active and rows older than 30 minutes as unfinished.
+
+New clients emit version-two events. A version-two start requires the allowlisted
+client physics identity, pinned immutably for that run. Version-one starts remain
+accepted with null identity; existing rows are not backfilled. Deployment version
+remains server-derived. See [physics identity](../../../docs/kart-system/environment.md#shipped-physics-identity).
 
 ## Accepted Invariants
 

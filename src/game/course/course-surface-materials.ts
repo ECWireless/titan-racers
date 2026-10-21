@@ -91,10 +91,15 @@ export function createCourseSurfaceMaterials(device: pc.GraphicsDevice) {
   };
   const hex = (color: string) => new pc.Color().fromString(color);
   const turf = () => hex("#65735a");
+  // Uncut lawn: darker and denser, with stronger broad patches and no stripes.
+  const lawn = () => hex("#56644b");
   const materials = {
     asphalt: finish(new pc.Color(...COURSE_ASPHALT_COLOR), 0.18, [0.65, 0.28, 0], "asphalt"),
     baseGround: finish(turf(), 0.08, [0.45, 0.3, 0.035]),
+    baseLawn: finish(lawn(), 0.05, [0.55, 0.42, 0]),
     ground: finish(turf(), 0.08, [0.45, 0.3, 0.035], "ground"),
+    lawn: finish(lawn(), 0.05, [0.55, 0.42, 0], "lawn"),
+    verge: finish(turf(), 0.08, [0.45, 0.3, 0.035], "verge"),
     line: finish(hex("#e8e3d7"), 0.27, [0.12, 0.04, 0], "line"),
     hazard: finish(hex("#ffbd59"), 0.27, [0.12, 0.04, 0], "line"),
     steel: finish(hex("#34404a"), 0.32, [0.08, 0.04, 0]),

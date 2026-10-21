@@ -44,8 +44,9 @@ systems.
   helpers and fixture that size shared, kart-independent policy (camera
   framing, smoke, CCD reference). Per-kart wheels and mass come from derivation.
 - `src/game/physics/world-environment.ts`: Earth gravity and air density.
-  `src/game/kart/tire-surface-interaction.ts`: the transitional tire/surface
-  contact fixture.
+  `src/game/kart/tire-surface-interaction.ts`: the registered tire/surface
+  interaction lookup. `course-surface-resolver.ts` resolves authored collider
+  materials independently at each wheel hit (including coplanar layers).
 - `src/game/kart/kart-development-values.ts`: flat adapter with ownership
   metadata. Runtime builds its owner-specific profiles from the resolved
   snapshot through it; only non-production test hooks can override (and

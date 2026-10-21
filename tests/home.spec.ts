@@ -1,6 +1,9 @@
 import { expect, type Locator, type Page, test } from "@playwright/test";
 
-import { ROUGH_COURSE_DOCUMENT } from "../src/game/course/course-document";
+import {
+  getCourseStartTransform,
+  ROUGH_COURSE_DOCUMENT,
+} from "../src/game/course/course-document";
 import { deriveKartCcdConfiguration } from "../src/game/collision/kart-collision-model";
 import { createKartDevelopmentValues } from "../src/game/kart/kart-development-values";
 import { createBalancedKartDocument } from "../src/game/kart/balanced-kart-document";
@@ -128,6 +131,33 @@ async function setStandardTestGamepad(
       ];
     },
     { axes, buttonValues },
+  );
+}
+
+// Release on the browser's focus event so slow WebGL frames cannot turn one
+// intended D-pad press into a held navigation repeat before the test observes it.
+async function focusWithStandardTestGamepadButton(
+  target: Locator,
+  index: number,
+) {
+  await target.evaluate(
+    (element, buttonIndex) =>
+      new Promise<void>((resolve) => {
+        const buttons = (
+          window as typeof window & { __TR_GAMEPADS__?: Gamepad[] }
+        ).__TR_GAMEPADS__?.[0]?.buttons as GamepadButton[] | undefined;
+        if (!buttons) throw new Error("Missing test gamepad");
+        element.addEventListener(
+          "focus",
+          () => {
+            buttons[buttonIndex] = { pressed: false, touched: false, value: 0 };
+            resolve();
+          },
+          { once: true },
+        );
+        buttons[buttonIndex] = { pressed: true, touched: true, value: 1 };
+      }),
+    index,
   );
 }
 
@@ -460,15 +490,15 @@ async function crossRaceTarget(
   return getRaceDebugState(canvas);
 }
 
-async function useBundledRoughCourse(page: Page) {
+async function useBundledRoughCourse(page: Page, document = ROUGH_COURSE_DOCUMENT) {
   await page.route("**/api/courses/rough-course/published", async (route) => {
     await route.fulfill({
       body: JSON.stringify({
         courseId: "rough-course",
-        document: ROUGH_COURSE_DOCUMENT,
+        document,
         publishedAt: new Date("2026-07-12T00:05:00.000Z").toISOString(),
         revision: 1,
-        schemaVersion: 2,
+        schemaVersion: 3,
       }),
       contentType: "application/json",
       status: 200,
@@ -727,7 +757,7 @@ test.describe("home screen", () => {
 
     await setStandardTestGamepad(page);
     await page.waitForTimeout(50);
-    await setStandardTestGamepad(page, { buttons: { 14: 1 } });
+    await focusWithStandardTestGamepadButton(speed, 14);
     await expect(speed).toBeFocused();
     await setStandardTestGamepad(page);
     await page.waitForTimeout(50);
@@ -736,10 +766,10 @@ test.describe("home screen", () => {
 
     await setStandardTestGamepad(page);
     await page.waitForTimeout(50);
-    await setStandardTestGamepad(page, { buttons: { 15: 1 } });
     const soloTimeTrial = page.getByRole("button", {
       name: "Solo Time Trial",
     });
+    await focusWithStandardTestGamepadButton(soloTimeTrial, 15);
     await expect(soloTimeTrial).toBeFocused();
     await setStandardTestGamepad(page);
     await page.waitForTimeout(50);
@@ -911,7 +941,7 @@ test.describe("home screen", () => {
           document: publishedDocument,
           publishedAt: new Date("2026-07-12T00:05:00.000Z").toISOString(),
           revision: 3,
-          schemaVersion: 2,
+          schemaVersion: 3,
         }),
         contentType: "application/json",
         status: 200,
@@ -1025,7 +1055,7 @@ test.describe("home screen", () => {
           document: publishedDocument,
           publishedAt: new Date("2026-07-12T00:05:00.000Z").toISOString(),
           revision: 3,
-          schemaVersion: 2,
+          schemaVersion: 3,
         }),
         contentType: "application/json",
         status: 200,
@@ -1402,12 +1432,10 @@ test.describe("home screen", () => {
     await requestRaceRecovery(canvas);
 
     const preRaceReset = await getPresentationDebugState(canvas);
-    expect(preRaceReset.visualPosition.x).toBeCloseTo(
-      ROUGH_COURSE_DOCUMENT.start.position.x,
-    );
-    expect(preRaceReset.visualPosition.z).toBeCloseTo(
-      ROUGH_COURSE_DOCUMENT.start.position.z,
-    );
+    // Start recovery returns to the spawn behind the gate.
+    const spawn = getCourseStartTransform(ROUGH_COURSE_DOCUMENT).position;
+    expect(preRaceReset.visualPosition.x).toBeCloseTo(spawn.x);
+    expect(preRaceReset.visualPosition.z).toBeCloseTo(spawn.z);
     expect(await getRaceDebugState(canvas)).toMatchObject({
       state: "countdown",
     });
@@ -1596,6 +1624,58 @@ test.describe("home screen", () => {
         return Math.hypot(state.x - startState.x, state.z - startState.z);
       })
       .toBeLessThan(scaleReferenceKartLength(0.1));
+  });
+
+  test("resolves split grass contacts per tire and coasts shorter on turf, then lawn", async ({
+    page,
+  }) => {
+    test.setTimeout(60_000);
+    await page.goto("/");
+    await page.getByRole("button", { name: "Solo Time Trial" }).click();
+    const canvas = page.getByTestId("solo-time-trial-canvas");
+    await advanceRaceToRacing(canvas);
+    const pose = (z: number) => ({
+      position: { x: 10, y: BALANCED_KART_UPRIGHT_ROOT_HEIGHT, z },
+      rotation: { x: 0, y: 90, z: 0 },
+    });
+    await setKartDebugPose(canvas, pose(20));
+    await stepSimulation(canvas, 30);
+    const split = await getKartDebugState(canvas);
+    expect(split.supportCount).toBe(4);
+    expect(split.wheelSurfaceMaterials).toEqual({
+      "front-left": { id: "surface.short-grass", version: 1 },
+      "rear-left": { id: "surface.short-grass", version: 1 },
+      "front-right": { id: "surface.standard-course", version: 1 },
+      "rear-right": { id: "surface.standard-course", version: 1 },
+    });
+    const coastSpeeds: number[] = [];
+    for (const z of [18, 21, 25]) {
+      await setKartDebugPose(canvas, pose(z));
+      await stepSimulation(canvas, 30);
+      const settled = await getKartDebugState(canvas);
+      await setKartDebugPose(canvas, {
+        position: { x: settled.x, y: settled.y, z: settled.z },
+        rotation: { x: 0, y: 90, z: 0 },
+        linearVelocity: { x: -2, y: 0, z: 0 },
+      });
+      await stepSimulation(canvas, 60);
+      coastSpeeds.push((await getKartDebugState(canvas)).speed);
+    }
+    expect(coastSpeeds[0] - coastSpeeds[1]).toBeGreaterThan(0.15);
+    expect(coastSpeeds[1] - coastSpeeds[2]).toBeGreaterThan(0.15);
+    await setKartDebugPose(canvas, {
+      ...pose(22),
+      position: { x: 10, y: 3, z: 22 },
+    });
+    await stepSimulation(canvas);
+    const airborne = await getKartDebugState(canvas);
+    expect(airborne.supportCount).toBe(0);
+    expect(Object.values(airborne.wheelSurfaceMaterials)).toEqual([
+      null,
+      null,
+      null,
+      null,
+    ]);
   });
 
   test("keeps the Handling Kart drivable through launch", async ({
@@ -1895,7 +1975,8 @@ test.describe("home screen", () => {
     const resetState = await getKartDebugState(canvas);
 
     expect(resetState.x).toBeCloseTo(
-      BALANCED_KART_SNAPSHOT.massProperties.centerOfMass.z,
+      getCourseStartTransform(ROUGH_COURSE_DOCUMENT).position.x +
+        BALANCED_KART_SNAPSHOT.massProperties.centerOfMass.z,
       2,
     );
     expect(resetState.y).toBeCloseTo(BALANCED_KART_UPRIGHT_ROOT_HEIGHT, 2);
@@ -2120,7 +2201,7 @@ test.describe("home screen", () => {
     expect(collisionState.barrelPhysicsGroup).toBe(PHYSICS_GROUP.solidObstacle);
     expect(collisionState.barrelPhysicsMask).toBe(PHYSICS_MASK.solidObstacle);
     expect(collisionState.barrelPhysicsRestitution).toBe(0);
-    expect(collisionState.courseEntityCount).toBe(116);
+    expect(collisionState.courseEntityCount).toBe(123);
     expect(collisionState.directionalLightCount).toBe(2);
     expect(collisionState.keyLightIntensity).toBeCloseTo(0.78);
     expect(collisionState.keyLightRotationX).toBeCloseTo(52);
@@ -2143,9 +2224,15 @@ test.describe("home screen", () => {
     expect(collisionState.startLineVisualThickness).toBeCloseTo(0.002);
   });
 
-  test("keeps CCD active above top speed across a thin barrier", async ({
+  test("keeps standard-surface CCD active above top speed across a thin barrier", async ({
     page,
   }) => {
+    // Preserve the original standard-surface collision benchmark. Grass changes
+    // impact-step alignment; surface/offset-independent robustness is PR 4.2.3.
+    const standardCourse = structuredClone(ROUGH_COURSE_DOCUMENT);
+    standardCourse.objects.find((object) => object.id === "ground")!
+      .collision!.surfaceMaterial = { id: "surface.standard-course", version: 1 };
+    await useBundledRoughCourse(page, standardCourse);
     await page.goto("/?collision-fixtures");
     await page.getByRole("button", { name: "Solo Time Trial" }).click();
 

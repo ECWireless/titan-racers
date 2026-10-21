@@ -1,6 +1,9 @@
 import * as pc from "playcanvas";
 
-import type { CourseDocument } from "../course/course-document";
+import {
+  getCourseStartTransform,
+  type CourseDocument,
+} from "../course/course-document";
 import type {
   DirectedRaceGate,
   RaceQuaternion,
@@ -74,9 +77,6 @@ export function createRaceSessionConfig(
     lapCount: 2,
     recoverySeconds: 0.5,
     startGate: startGate(document),
-    startRecovery: {
-      position: toRaceVector(document.start.position),
-      rotation: toRaceVector(document.start.rotation),
-    },
+    startRecovery: getCourseStartTransform(document),
   };
 }

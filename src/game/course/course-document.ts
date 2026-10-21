@@ -1,6 +1,7 @@
 import { z } from "zod";
 
-import roughCourseDocumentJson from "./rough-course.v2.json";
+import { getApprovedSurfaceMaterial } from "../kart/kart-material-registry";
+import roughCourseDocumentJson from "./rough-course.v3.json";
 
 export const courseIdSchema = z
   .string()
@@ -37,10 +38,12 @@ const visualSchema = z.strictObject({
     "hazard",
     "steel",
     "ground",
+    "lawn",
     "line",
     "obstacleBarrel",
     "obstacleBlock",
     "ramp",
+    "verge",
   ]),
   scale: positiveVectorSchema,
   shape: z.enum(["box", "cylinder"]),
@@ -65,7 +68,7 @@ const cylinderCollisionSchema = collisionBaseSchema.extend({
   shape: z.literal("cylinder"),
 });
 
-const courseObjectSchema = z.strictObject({
+const courseObjectV2Schema = z.strictObject({
   availability: z.enum(["standard", "collision-test"]),
   category: z.enum(["surface", "obstacle", "feature", "fixture", "marker"]),
   editable: z.boolean(),
@@ -75,6 +78,26 @@ const courseObjectSchema = z.strictObject({
   visual: visualSchema,
   collision: z
     .discriminatedUnion("shape", [boxCollisionSchema, cylinderCollisionSchema])
+    .nullable(),
+});
+
+const surfaceMaterialSchema = z
+  .strictObject({
+    id: z.string(),
+    version: z.number().int().positive(),
+  })
+  .refine((reference) => Boolean(getApprovedSurfaceMaterial(reference)), {
+    message: "Unsupported surface material version",
+  });
+
+const courseObjectSchema = courseObjectV2Schema.extend({
+  collision: z
+    .discriminatedUnion("shape", [
+      boxCollisionSchema.extend({ surfaceMaterial: surfaceMaterialSchema }),
+      cylinderCollisionSchema.extend({
+        surfaceMaterial: surfaceMaterialSchema,
+      }),
+    ])
     .nullable(),
 });
 
@@ -121,7 +144,7 @@ const courseDocumentBaseSchema = z.strictObject({
   courseId: courseIdSchema,
   lighting: lightingSchema,
   name: z.string().trim().min(1).max(120),
-  objects: z.array(courseObjectSchema).min(1).max(5_000),
+  objects: z.array(courseObjectV2Schema).min(1).max(5_000),
   units: z.literal("meters"),
 });
 
@@ -182,31 +205,48 @@ export const courseDocumentV1Schema = courseDocumentBaseSchema
   })
   .superRefine(validateDocumentIdentityAndOrder);
 
-export const courseDocumentSchema = courseDocumentBaseSchema
-  .extend({
-    checkpoints: z.array(checkpointSchema).min(1).max(COURSE_CHECKPOINT_LIMIT),
-    schemaVersion: z.literal(2),
-    start: courseStartSchema,
-  })
-  .superRefine((document, context) => {
-    validateDocumentIdentityAndOrder(document, context);
+const courseDocumentV2BaseSchema = courseDocumentBaseSchema.extend({
+  checkpoints: z.array(checkpointSchema).min(1).max(COURSE_CHECKPOINT_LIMIT),
+  schemaVersion: z.literal(2),
+  start: courseStartSchema,
+});
 
-    document.checkpoints.forEach((checkpoint, index) => {
-      const forwardLength = Math.hypot(
-        checkpoint.forward.x,
-        checkpoint.forward.y,
-        checkpoint.forward.z,
-      );
+function validateCourseRoute(
+  document: Omit<z.infer<typeof courseDocumentV2BaseSchema>, "schemaVersion">,
+  context: z.RefinementCtx,
+) {
+  validateDocumentIdentityAndOrder(document, context);
 
-      if (Math.abs(forwardLength - 1) > 1e-6) {
-        context.addIssue({
-          code: "custom",
-          message: "Checkpoint forward direction must be normalized",
-          path: ["checkpoints", index, "forward"],
-        });
-      }
-    });
+  document.checkpoints.forEach((checkpoint, index) => {
+    const forwardLength = Math.hypot(
+      checkpoint.forward.x,
+      checkpoint.forward.y,
+      checkpoint.forward.z,
+    );
+
+    if (Math.abs(forwardLength - 1) > 1e-6) {
+      context.addIssue({
+        code: "custom",
+        message: "Checkpoint forward direction must be normalized",
+        path: ["checkpoints", index, "forward"],
+      });
+    }
   });
+}
+
+const courseDocumentV2Schema =
+  courseDocumentV2BaseSchema.superRefine(validateCourseRoute);
+
+export const courseDocumentSchema = courseDocumentV2BaseSchema
+  .extend({
+    objects: z.array(courseObjectSchema).min(1).max(5_000),
+    schemaVersion: z.literal(3),
+    // The kart spawns this far behind the start gate, along its heading.
+    start: courseStartSchema.extend({
+      spawnDistance: z.number().finite().min(0).max(10),
+    }),
+  })
+  .superRefine(validateCourseRoute);
 
 export type CourseDocumentV1 = z.infer<typeof courseDocumentV1Schema>;
 export type CourseDocument = z.infer<typeof courseDocumentSchema>;
@@ -375,7 +415,7 @@ export function migrateCourseDocumentV1(input: unknown): CourseDocument {
     z: document.start.position.z,
   };
 
-  return courseDocumentSchema.parse({
+  return parseCourseDocument({
     ...document,
     checkpoints: document.checkpoints.map((checkpoint, index) => {
       const previousPosition =
@@ -430,10 +470,30 @@ export function parseCourseDocument(input: unknown): CourseDocument {
     return migrateCourseDocumentV1(input);
   }
 
-  const document = courseDocumentSchema.parse(input);
+  const isVersionTwo =
+    input &&
+    typeof input === "object" &&
+    "schemaVersion" in input &&
+    input.schemaVersion === 2;
+  const document = isVersionTwo
+    ? courseDocumentV2Schema.parse(input)
+    : courseDocumentSchema.parse(input);
 
   return courseDocumentSchema.parse({
     ...document,
+    schemaVersion: 3,
+    start: isVersionTwo ? { ...document.start, spawnDistance: 0 } : document.start,
+    objects: isVersionTwo
+      ? document.objects.map((object) => ({
+          ...object,
+          collision: object.collision
+            ? {
+                ...object.collision,
+                surfaceMaterial: { id: "surface.standard-course", version: 1 },
+              }
+            : null,
+        }))
+      : document.objects,
     checkpoints: document.checkpoints.map((checkpoint) => ({
       ...checkpoint,
       forward: alignCheckpointForwardToGate(checkpoint, checkpoint.forward),
@@ -441,10 +501,17 @@ export function parseCourseDocument(input: unknown): CourseDocument {
   });
 }
 
+/** The kart spawn: behind the start gate (local +z) by the authored distance. */
 export function getCourseStartTransform(document: CourseDocument) {
+  const { position, rotation, spawnDistance } = document.start;
+  const back = rotateByEulerAngles(rotation, { x: 0, y: 0, z: spawnDistance });
   return {
-    position: { ...document.start.position },
-    rotation: { ...document.start.rotation },
+    position: {
+      x: position.x + back.x,
+      y: position.y + back.y,
+      z: position.z + back.z,
+    },
+    rotation: { ...rotation },
   };
 }
 

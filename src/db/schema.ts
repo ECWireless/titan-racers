@@ -411,6 +411,7 @@ export const gameplayRuns = pgTable(
     }),
     courseId: text("course_id").notNull(),
     deploymentVersion: text("deployment_version").notNull(),
+    physicsVersion: text("physics_version"),
     startedAt: timestamp("started_at", { mode: "date", withTimezone: true })
       .defaultNow()
       .notNull(),
@@ -449,6 +450,10 @@ export const gameplayRuns = pgTable(
     check(
       "gameplay_runs_deployment_version_length",
       sql`char_length(${table.deploymentVersion}) between 1 and 120`,
+    ),
+    check(
+      "gameplay_runs_physics_version_length",
+      sql`${table.physicsVersion} is null or char_length(${table.physicsVersion}) between 1 and 80`,
     ),
     check(
       "gameplay_runs_recovery_count_nonnegative",

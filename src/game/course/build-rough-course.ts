@@ -9,6 +9,7 @@ import type {
   CourseVisualMaterial,
 } from "./course-document";
 import { ROUGH_COURSE_DOCUMENT } from "./course-document";
+import { CourseSurfaceResolver } from "./course-surface-resolver";
 import {
   drawsCourseTopFaceOnly,
   isCourseBaseGround,
@@ -27,6 +28,7 @@ export type RoughCourseMaterials = Record<
 > & {
   // The base ground draws under every coplanar surface layer.
   baseGround: pc.StandardMaterial;
+  baseLawn: pc.StandardMaterial;
 };
 
 export type CourseTopFaceMeshes = Record<"box" | "cylinder", pc.Mesh>;
@@ -113,15 +115,19 @@ export function buildRoughCourse(
   const collisionFixtureEntities: pc.Entity[] = [];
   const rampEntities: pc.Entity[] = [];
   const stagedEntities: pc.Entity[] = [];
+  const objects = selectCourseObjectsForBuild(document, includeCollisionFixtures);
+  const surfaceResolver = new CourseSurfaceResolver(objects);
 
   try {
-    selectCourseObjectsForBuild(document, includeCollisionFixtures).forEach(
+    objects.forEach(
       (object) => {
         const projection = projectCourseObject(object);
         const entity = createEntity(
           projection,
           isCourseBaseGround(projection.visual.material, projection.id)
-            ? materials.baseGround
+            ? projection.visual.material === "lawn"
+              ? materials.baseLawn
+              : materials.baseGround
             : materials[projection.visual.material],
           drawsCourseTopFaceOnly(object)
             ? topFaces?.[object.visual.shape]
@@ -171,6 +177,7 @@ export function buildRoughCourse(
     courseEntities,
     obstacleEntities,
     rampEntities,
+    surfaceResolver,
   };
 }
 

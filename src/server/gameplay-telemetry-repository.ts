@@ -19,6 +19,7 @@ export async function recordGameplayRunEvent(
       .values({
         courseId: event.courseId,
         deploymentVersion: deploymentVersion(),
+        physicsVersion: event.schemaVersion === 2 ? event.physicsVersion : null,
         id: event.runId,
         inputFamilies: [],
         startedAt: receivedAt,

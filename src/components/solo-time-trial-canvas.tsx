@@ -757,6 +757,7 @@ export function SoloTimeTrialCanvas({
         courseEntities,
         obstacleEntities,
         rampEntities,
+        surfaceResolver,
       } = buildRoughCourse(app, {
         materials: courseSurfaces.materials,
         topFaces: courseSurfaces.topFaces,
@@ -1517,6 +1518,7 @@ export function SoloTimeTrialCanvas({
         physicalProfile: activeDynamics.kart,
         steeringGeometry: KART_STEERING_GEOMETRY,
         tireSurfaceInteraction: activeDynamics.tireSurfaceInteraction,
+        surfaceResolver,
         wheels: dynamicWheels,
       });
       runtime.addCleanup(() => kartController.destroy());
@@ -2092,6 +2094,9 @@ export function SoloTimeTrialCanvas({
                   }
                 : null,
             ]),
+          ),
+          wheelSurfaceMaterials: Object.fromEntries(
+            kartController.state.wheelTelemetry.map((wheel) => [wheel.name, wheel.surfaceMaterial]),
           ),
           wheelLateralForces: Object.fromEntries(
             kartController.state.wheelTelemetry.map((wheel) => [

@@ -95,6 +95,6 @@ authoritative poses and never writes interpolated state back into physics.
 
 ## Versioning
 
-Any solver change that can alter competitive outcomes creates a new runtime
-solver version and therefore a new composite competitive race ruleset. A kart
-revision alone cannot describe a solver change.
+Any solver change that can alter competitive outcomes advances the shared
+[physics identity](./environment.md#shipped-physics-identity). A kart revision
+alone cannot describe a solver change.

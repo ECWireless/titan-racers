@@ -15,6 +15,10 @@ import { registryEntryFingerprint } from "./support/registry-fingerprint";
  * it and add a new version instead. Pin each new version deliberately.
  */
 const PINNED_REGISTRY_FINGERPRINTS: Record<string, string> = {
+  "surface.short-grass@1": "4f08c526469cbf82deb0db0c08d1d7ebfdf0cd82733ba3878d9978c4b4ff00f9",
+  "interaction:tire-compound.standard-rubber@1+surface.short-grass@1/derivation-1": "e6e23af61a40e16f51dda5396421c90755f0df05562d63a75d78bef4c90348e0",
+  "surface.lawn-grass@1": "f15fcd72967c366553b1a9e6e26e5b6dfb65c1781c54d330a88921e686e32a12",
+  "interaction:tire-compound.standard-rubber@1+surface.lawn-grass@1/derivation-1": "19dad874e950204c041038bd0e5267d5ecf0106153612c6bc2e2a671109488b3",
   "battery.lipo-standard@1":
     "1c8675000da381b97c235d19db0e854b47c96c3f69699aad9151d9412d6821d1",
   "brakes.combined-standard@1":

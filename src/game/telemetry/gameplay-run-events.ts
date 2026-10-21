@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { CURRENT_PHYSICS_VERSION } from "../physics/physics-version";
 
 export type GameplayInputFamily = "gamepad" | "keyboard" | "touch";
 
@@ -19,13 +20,19 @@ export const gameplayRunFailureCodeSchema = z.enum([
 
 const eventBase = {
   runId: runIdSchema,
-  schemaVersion: z.literal(1),
+  schemaVersion: z.union([z.literal(1), z.literal(2)]),
 } as const;
 
 const runStartedEventSchema = z.strictObject({
   ...eventBase,
+  schemaVersion: z.literal(1),
   courseId: z.literal("rough-course"),
   type: z.literal("run_started"),
+});
+
+const versionedRunStartedEventSchema = runStartedEventSchema.extend({
+  schemaVersion: z.literal(2),
+  physicsVersion: z.literal(CURRENT_PHYSICS_VERSION),
 });
 
 const runtimeLoadedEventSchema = z.strictObject({
@@ -93,6 +100,7 @@ const failedRunSchema = z.strictObject({
 });
 
 export const gameplayRunEventSchema = z.union([
+  versionedRunStartedEventSchema,
   runStartedEventSchema,
   runtimeLoadedEventSchema,
   raceStartedEventSchema,
@@ -142,8 +150,9 @@ export class GameplayRunTelemetry {
     this.startedAtMs = this.now();
     this.runStartedDelivery = this.emit({
       courseId,
+      physicsVersion: CURRENT_PHYSICS_VERSION,
       runId: this.runId,
-      schemaVersion: 1,
+      schemaVersion: 2,
       type: "run_started",
     });
   }
@@ -158,7 +167,7 @@ export class GameplayRunTelemetry {
         Math.max(0, Math.round(this.now() - this.startedAtMs)),
       ),
       runId: this.runId,
-      schemaVersion: 1,
+      schemaVersion: 2,
       type: "runtime_loaded",
     });
   }
@@ -206,7 +215,7 @@ export class GameplayRunTelemetry {
       automaticPauseCount: this.automaticPauseCount,
       discardedTimeMs: this.discardedTimeMs,
       runId: this.runId,
-      schemaVersion: 1,
+      schemaVersion: 2,
       type: "runtime_health",
     } satisfies GameplayRunEvent;
 
@@ -252,7 +261,7 @@ export class GameplayRunTelemetry {
         inputFamilies: [...this.inputFamilies].sort(),
         recoveryCount: this.recoveryCount,
         runId: this.runId,
-        schemaVersion: 1,
+        schemaVersion: 2,
         type: "run_ended",
       } as GameplayRunEvent,
       true,
@@ -264,7 +273,7 @@ export class GameplayRunTelemetry {
       return;
     }
 
-    this.emit({ runId: this.runId, schemaVersion: 1, type });
+    this.emit({ runId: this.runId, schemaVersion: 2, type });
   }
 
   private emit(event: GameplayRunEvent, keepalive = false) {

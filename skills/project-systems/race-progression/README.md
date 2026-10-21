@@ -30,7 +30,7 @@ or the final Agricultural Zone course.
   checkpoint direction, and recovery contract plus immutable version-one
   normalization. Candidate v2 directions are aligned to the full rotated gate
   face in memory so historical diagonal values remain playable.
-- `src/game/course/rough-course.v2.json` owns the canonical rough-loop gate and
+- `src/game/course/rough-course.v3.json` owns the canonical rough-loop gate and
   recovery placements.
 - `src/components/solo-time-trial-canvas.tsx` samples input, advances race time,
   evaluates post-physics kart movement, applies recovery transforms and velocity
@@ -59,7 +59,9 @@ or the final Agricultural Zone course.
    diagnosing start, repeated, and out-of-order crossings.
 6. Accepting a checkpoint advances the stable expected ID and promotes its
    authored transform to the active recovery anchor. Crossing start after the
-   last checkpoint records a lap or atomically finishes the final lap.
+   last checkpoint records a lap or atomically finishes the final lap; crossing
+   it before the first checkpoint (leaving the spawn behind the gate) is
+   neutral. Start recovery uses the spawn, not the gate.
 7. Reset or fall recovery enters `recovering`, prefers the newest supported
    authored candidate while retaining an authored last resort, teleports the
    rigid body, clears linear and angular velocity, snaps presentation/camera

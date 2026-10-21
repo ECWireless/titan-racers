@@ -136,10 +136,8 @@ test.describe("race session", () => {
     const session = new RaceSession(config());
     startRace(session);
 
-    expect(cross(session, 3)).toEqual({
-      kind: "rejected",
-      reason: "finish-before-checkpoints",
-    });
+    // Leaving the grid across the start gate is neutral before checkpoint 1.
+    expect(cross(session, 3)).toEqual({ kind: "none" });
     expect(cross(session, 2)).toEqual({
       kind: "rejected",
       reason: "out-of-order",
@@ -148,6 +146,10 @@ test.describe("race session", () => {
     expect(cross(session, 1)).toEqual({
       checkpointId: "checkpoint-1",
       kind: "checkpoint",
+    });
+    expect(cross(session, 3)).toEqual({
+      kind: "rejected",
+      reason: "finish-before-checkpoints",
     });
     expect(cross(session, 1)).toEqual({
       kind: "rejected",

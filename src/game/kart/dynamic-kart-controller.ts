@@ -6,6 +6,7 @@ import type {
   KartControllerState,
 } from "../contracts";
 import type { WorldEnvironment } from "../physics/world-environment";
+import type { CourseSurfaceResolver } from "../course/course-surface-resolver";
 import { isDrivableSurfaceTopContact } from "../physics/drivable-surface-support";
 import {
   allocateDriveForce,
@@ -47,7 +48,11 @@ import {
 } from "./kart-tire-model";
 import type { KartPhysicalProfile } from "./kart-physical-profile";
 import type { KartInertiaTensor } from "./kart-principal-axes";
-import type { TireSurfaceInteractionProfile } from "./tire-surface-interaction";
+import {
+  resolveTireSurfaceInteraction,
+  type SurfaceMaterialReference,
+  type TireSurfaceInteractionProfile,
+} from "./tire-surface-interaction";
 import {
   AmmoWheelSweep,
   requireAmmoDynamicsWorld,
@@ -79,6 +84,7 @@ type DynamicKartControllerOptions = {
   physicalProfile: KartPhysicalProfile;
   steeringGeometry: KartSteeringGeometry;
   tireSurfaceInteraction: TireSurfaceInteractionProfile;
+  surfaceResolver: CourseSurfaceResolver;
   wheels: readonly DynamicWheel[];
 };
 
@@ -117,6 +123,7 @@ export type DynamicWheelTelemetry = {
   longitudinalSpeed: number;
   name: string;
   surfaceName: string | null;
+  surfaceMaterial: SurfaceMaterialReference | null;
   suspensionCompression: number;
   suspensionLoad: number;
   suspensionTravel: number;
@@ -331,6 +338,7 @@ export class DynamicKartController implements KartController {
         longitudinalSpeed: 0,
         name: wheel.name,
         surfaceName: null,
+        surfaceMaterial: null,
         suspensionCompression: 0,
         suspensionLoad: 0,
         suspensionTravel: wheel.maximumSuspensionTravel,
@@ -431,6 +439,18 @@ export class DynamicKartController implements KartController {
       const stableContactPoint = wheelCenter
         .clone()
         .sub(contactNormal.clone().mulScalar(wheel.radius));
+      const surface = this.options.surfaceResolver.resolve(
+        hit.entity.name, hit.point, contactNormal,
+      );
+      const material = surface?.collision.surfaceMaterial;
+      telemetry.surfaceMaterial = material ?? null;
+      telemetry.surfaceName = surface?.name ?? hit.entity.name;
+      // Preserve the standard-surface development fixture and steering policy;
+      // only explicitly authored other surfaces replace the contact interaction.
+      const interaction =
+        material && material.id !== "surface.standard-course"
+          ? resolveTireSurfaceInteraction(material)
+          : this.tireSurfaceInteraction;
       const relativePoint = stableContactPoint.sub(bodyPosition);
       const angularPointVelocity = new pc.Vec3().cross(
         angularVelocity,
@@ -477,7 +497,7 @@ export class DynamicKartController implements KartController {
       const slipAngle = getTireSlipAngle(longitudinalSpeed, lateralSpeed);
       const gripCoefficient = getTireGripCoefficient(
         slipAngle,
-        this.tireSurfaceInteraction,
+        interaction,
       );
       const movingInReverse =
         chassisForwardSpeed < -BRAKE_REVERSE_TRANSITION_SPEED;
@@ -496,7 +516,7 @@ export class DynamicKartController implements KartController {
         referenceWheelLoad,
       );
       const effectivePeakGripCoefficient = getLoadSensitiveGripCoefficient(
-        this.tireSurfaceInteraction.peakGripCoefficient * gripSafetyRatio,
+        interaction.peakGripCoefficient * gripSafetyRatio,
         suspensionLoad,
         referenceWheelLoad,
       );
@@ -506,7 +526,7 @@ export class DynamicKartController implements KartController {
       let longitudinalForce = getRollingResistanceForce(
         longitudinalSpeed,
         suspensionLoad,
-        this.tireSurfaceInteraction.rollingResistanceCoefficient,
+        interaction.rollingResistanceCoefficient,
       );
 
       if (
@@ -530,7 +550,7 @@ export class DynamicKartController implements KartController {
         getLoadDerivedCorneringStiffness(
           effectivePeakGripCoefficient,
           suspensionLoad,
-          this.tireSurfaceInteraction.peakSlipAngleDegrees,
+          interaction.peakSlipAngleDegrees,
         ),
         this.options.mass / this.options.wheels.length,
       );

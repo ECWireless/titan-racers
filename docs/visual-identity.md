@@ -98,13 +98,14 @@ Materials), and so do course surfaces (see Course Surfaces).
   asphalt grain, paint widths, posts, and cabinets are full-size, so the 1:10
   karts read as tiny.
 - **Service-yard finishes.** Aged mineral-grey asphalt (about 13%
-  reflectance), clipped muted-olive turf, ice road paint for edge and start
+  reflectance), clipped muted-olive turf bordering the road, darker and
+  patchier uncut lawn beyond it, ice road paint for edge and start
   lines, hazard paint for kerbs, apexes, and grid accents, and steel for posts
   and cabinets.
 - **Texture follows the world, not the piece.** A fine aggregate grain and a
   broad variation are generated in code and anchored to world position, so
   overlapping pieces and edited layouts stay continuous. Turf adds faint
-  mowing stripes.
+  mowing stripes; lawn has none.
 - **Flat where karts roll flat.** No grass blades, gravel, or bumps the
   physics does not have. Anything raised, such as a bridge, kicker, or table, is
   solid geometry with collision all the way to the ground.
@@ -142,12 +143,12 @@ CPU work and draw calls are the headroom signals.
 
 ### Baseline
 
-| Measure | Before lighting (PR 4.1.2 start) | After lighting baseline | Part visuals (PR 4.1.3) | Authored primitives (PR 4.1.4) | Sandbox surfaces (PR 4.2.1) |
-| --- | --- | --- | --- | --- | --- |
-| Frame p50 / p95 | 17.0 / 18.0 ms | 17.0 / 18.0 ms | 17.0 / 18.0 ms | 17.0 / 18.0–19.0 ms | 17.0 / 18.0 ms |
-| CPU p50 / p95 | 3 / 4 ms | 3 / 4 ms | 2 / 3 ms | 2 / 3 ms | 2 / 3–4 ms |
-| Draw calls p50 / max | 212 / 226 | 213 / 226 | 38–39 / 55 | 38–39 / 51 | 34 / 45–46 |
-| First frame (warm) | 63–136 ms | 107–278 ms | 121–128 ms | 132–191 ms | 335–392 ms |
+| Measure | Before lighting (PR 4.1.2 start) | After lighting baseline | Part visuals (PR 4.1.3) | Authored primitives (PR 4.1.4) | Sandbox surfaces (PR 4.2.1) | Surface physics (PR 4.2.2) |
+| --- | --- | --- | --- | --- | --- | --- |
+| Frame p50 / p95 | 17.0 / 18.0 ms | 17.0 / 18.0 ms | 17.0 / 18.0 ms | 17.0 / 18.0–19.0 ms | 17.0 / 18.0 ms | 17.0 / 18.0 ms |
+| CPU p50 / p95 | 3 / 4 ms | 3 / 4 ms | 2 / 3 ms | 2 / 3 ms | 2 / 3–4 ms | 2 / 3 ms |
+| Draw calls p50 / max | 212 / 226 | 213 / 226 | 38–39 / 55 | 38–39 / 51 | 34 / 45–46 | 35 / 48–49 |
+| First frame (warm) | 63–136 ms | 107–278 ms | 121–128 ms | 132–191 ms | 335–392 ms | 133–207 ms |
 
 PR 4.1.4 was measured with one race on each official kart rather than three
 Balanced races. Each official kart is 15.3–15.5k triangles: 11.6k of part
@@ -155,3 +156,5 @@ visuals plus 3.7–3.8k of authored primitives (≤ 1,200 per primitive).
 
 PR 4.2.1 was measured with three Balanced races, with no hitches. Its first
 frame includes compiling the course finish and contact-shadow programs.
+
+PR 4.2.2 was measured with three Balanced races on reloads, with no hitches.
