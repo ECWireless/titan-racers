@@ -124,8 +124,9 @@ Focused coverage includes:
 
 - Race results and progress are session-memory only; results, ghosts, and
   leaderboards arrive in Phase 5.
-- The rough course is the development loop; the Agricultural Zone (Phase 4)
-  needs its own gate and recovery placements and QA.
+- The rough course is the development loop. The Agricultural Zone's starter
+  loop has its own gates and recoveries; the full circuit (PR 4.4) will need
+  its own placements and QA.
 - Recovery support uses the accepted authored candidate chain and current
   PlayCanvas/Ammo raycast mapping; moving course geometry still requires
   course-specific clearance QA before publication.

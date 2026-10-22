@@ -42,7 +42,7 @@ import {
   ROUGH_COURSE_DOCUMENT,
   type CourseDocument,
 } from "@/game/course/course-document";
-import { CURRENT_GUEST_COURSE_ID } from "@/game/course/course-ids";
+import { SANDBOX_COURSE_ID } from "@/game/course/course-ids";
 import { publishedCourseRuntimeSchema } from "@/game/course/course-publication";
 import type { KartAssemblyDocument } from "@/game/kart/kart-assembly-document";
 import {
@@ -615,7 +615,7 @@ export function KartEditorShell({
     setTestPending(true);
     try {
       const courseDocument = await fetch(
-        `/api/courses/${CURRENT_GUEST_COURSE_ID}/published`,
+        `/api/courses/${SANDBOX_COURSE_ID}/published`,
         {
           cache: "no-store",
           signal: AbortSignal.timeout(3_000),

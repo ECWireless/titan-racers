@@ -70,6 +70,14 @@ test.describe("gameplay telemetry contract", () => {
         type: "run_started",
       }),
     ).toMatchObject({ runId, type: "run_started" });
+    expect(
+      gameplayRunEventSchema.parse({
+        courseId: "agricultural-zone",
+        runId,
+        schemaVersion: 1,
+        type: "run_started",
+      }),
+    ).toMatchObject({ courseId: "agricultural-zone" });
 
     const versionedStart = { courseId: "rough-course", runId, schemaVersion: 2, type: "run_started" };
     expect(gameplayRunEventSchema.safeParse(versionedStart).success).toBe(false);

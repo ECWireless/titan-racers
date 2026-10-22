@@ -5,17 +5,19 @@ import { useEffect, useState } from "react";
 import { z } from "zod";
 
 import {
+  BUNDLED_COURSE_DOCUMENTS,
   courseDocumentSchema,
-  ROUGH_COURSE_DOCUMENT,
 } from "@/game/course/course-document";
-import { SANDBOX_COURSE_ID } from "@/game/course/course-ids";
+import type { OfficialCourseId } from "@/game/course/course-ids";
 import { coursePublicationSummarySchema } from "@/game/course/course-publication";
 import { COURSE_EDITOR_OBJECT_LIMIT } from "@/game/editor/course-editor-document";
 import { racerOnboardingPath } from "@/lib/racer-username";
 
 import { CourseEditorShell } from "./course-editor-shell";
 
-export const COURSE_EDITOR_COURSE_ID = SANDBOX_COURSE_ID;
+export function courseEditorPath(courseId: OfficialCourseId) {
+  return `/admin/courses/${courseId}`;
+}
 
 export const persistedCourseRevisionSchema = z
   .strictObject({
@@ -50,9 +52,11 @@ type AccessState =
   | { status: "not-found" }
   | { revision: CourseEditorRevision; status: "ready" };
 
-async function resolveAccessState(): Promise<AccessState> {
+async function resolveAccessState(
+  courseId: OfficialCourseId,
+): Promise<AccessState> {
   try {
-    const response = await fetch(`/api/admin/courses/${COURSE_EDITOR_COURSE_ID}`, {
+    const response = await fetch(`/api/admin/courses/${courseId}`, {
       cache: "no-store",
       credentials: "include",
     });
@@ -92,7 +96,11 @@ async function resolveAccessState(): Promise<AccessState> {
   }
 }
 
-export function CourseEditorAccess() {
+export function CourseEditorAccess({
+  courseId,
+}: {
+  courseId: OfficialCourseId;
+}) {
   const [accessState, setAccessState] = useState<AccessState>({
     status: "loading",
   });
@@ -102,13 +110,13 @@ export function CourseEditorAccess() {
 
   async function loadCourse() {
     setAccessState({ status: "loading" });
-    setAccessState(await resolveAccessState());
+    setAccessState(await resolveAccessState(courseId));
   }
 
   useEffect(() => {
     let active = true;
 
-    void resolveAccessState().then((nextState) => {
+    void resolveAccessState(courseId).then((nextState) => {
       if (active) {
         setAccessState(nextState);
       }
@@ -117,7 +125,7 @@ export function CourseEditorAccess() {
     return () => {
       active = false;
     };
-  }, []);
+  }, [courseId]);
 
   async function signInWithGoogle({
     replaceCurrentSession = false,
@@ -140,8 +148,8 @@ export function CourseEditorAccess() {
 
       const response = await fetch("/api/auth/sign-in/social", {
         body: JSON.stringify({
-          callbackURL: "/editor",
-          newUserCallbackURL: racerOnboardingPath("/editor"),
+          callbackURL: courseEditorPath(courseId),
+          newUserCallbackURL: racerOnboardingPath(courseEditorPath(courseId)),
           provider: "google",
         }),
         credentials: "include",
@@ -170,9 +178,9 @@ export function CourseEditorAccess() {
     setInitializationPending(true);
 
     try {
-      const response = await fetch(`/api/admin/courses/${COURSE_EDITOR_COURSE_ID}`, {
+      const response = await fetch(`/api/admin/courses/${courseId}`, {
         body: JSON.stringify({
-          document: ROUGH_COURSE_DOCUMENT,
+          document: BUNDLED_COURSE_DOCUMENTS[courseId],
           expectedRevision: null,
         }),
         credentials: "include",
@@ -181,7 +189,7 @@ export function CourseEditorAccess() {
       });
 
       if (response.status === 409) {
-        setAccessState(await resolveAccessState());
+        setAccessState(await resolveAccessState(courseId));
         return;
       }
 
@@ -252,7 +260,7 @@ export function CourseEditorAccess() {
           </h1>
         </div>
 
-        <AccessMessage accessState={accessState} />
+        <AccessMessage accessState={accessState} courseId={courseId} />
 
         <div className="grid gap-3 sm:grid-cols-2">
           {accessState.status === "unauthenticated" ? (
@@ -267,7 +275,7 @@ export function CourseEditorAccess() {
           ) : accessState.status === "onboarding-required" ? (
             <Link
               className="titan-button titan-button-primary"
-              href={racerOnboardingPath("/editor")}
+              href={racerOnboardingPath(courseEditorPath(courseId))}
             >
               Complete account
             </Link>
@@ -311,7 +319,13 @@ export function CourseEditorAccess() {
   );
 }
 
-function AccessMessage({ accessState }: { accessState: AccessState }) {
+function AccessMessage({
+  accessState,
+  courseId,
+}: {
+  accessState: AccessState;
+  courseId: OfficialCourseId;
+}) {
   if (accessState.status === "loading") {
     return (
       <p className="border border-titan-ice/15 bg-titan-ice/[0.04] px-4 py-3 font-mono text-xs font-bold uppercase tracking-[0.14em] text-titan-muted" role="status">
@@ -347,7 +361,7 @@ function AccessMessage({ accessState }: { accessState: AccessState }) {
   if (accessState.status === "not-found") {
     return (
       <p className="border border-titan-hazard/35 bg-titan-hazard/[0.06] px-4 py-3 text-sm text-titan-ice/78">
-        No rough-course revision exists yet. Initialize it from the validated
+        No {courseId} revision exists yet. Initialize it from the validated
         recovery seed to begin authoring.
       </p>
     );

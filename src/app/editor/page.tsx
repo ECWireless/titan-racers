@@ -1,5 +1,6 @@
-import { CourseEditorAccess } from "@/components/course-editor/course-editor-access";
+import { redirect } from "next/navigation";
 
-export default function CourseEditorPage() {
-  return <CourseEditorAccess />;
+// The course editor moved under /admin/courses beside the Kart Builder.
+export default function LegacyCourseEditorPage() {
+  redirect("/admin/courses");
 }

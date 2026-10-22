@@ -45,7 +45,6 @@ import { useEditorController } from "@/game/input/use-editor-controller";
 
 import { EditorToolbarIcon } from "../editor/editor-toolbar-icon";
 import {
-  COURSE_EDITOR_COURSE_ID,
   type CourseEditorRevision,
   persistedCourseRevisionSchema,
 } from "./course-editor-access";
@@ -466,7 +465,7 @@ export function CourseEditorShell({
 
     try {
       const response = await fetch(
-        `/api/admin/courses/${COURSE_EDITOR_COURSE_ID}`,
+        `/api/admin/courses/${currentRevision.courseId}`,
         {
           body: JSON.stringify({
             document,
@@ -516,7 +515,7 @@ export function CourseEditorShell({
 
     try {
       const response = await fetch(
-        `/api/admin/courses/${COURSE_EDITOR_COURSE_ID}`,
+        `/api/admin/courses/${currentRevision.courseId}`,
         { cache: "no-store", credentials: "include" },
       );
       if (!response.ok) {
@@ -667,7 +666,7 @@ export function CourseEditorShell({
 
     try {
       const response = await fetch(
-        `/api/admin/courses/${COURSE_EDITOR_COURSE_ID}/publication`,
+        `/api/admin/courses/${currentRevision.courseId}/publication`,
         {
           body: JSON.stringify({
             expectedPublicationId:

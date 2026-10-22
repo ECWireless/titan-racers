@@ -86,6 +86,17 @@ migration before deploying the versioned writer. This does not rewrite course
 revisions: adopting the v3 sandbox seed separately appends and publishes a new
 rough-course revision through the guarded reset workflow.
 
+Migration `0016` widens the known-course check on `gameplay_runs.course_id`
+to the official courses, `rough-course` and `agricultural-zone`. Existing rows
+already satisfy it. Apply it before deploying the build that races
+`agricultural-zone`, or the database rejects those runs' telemetry (racing is
+unaffected). It is forward-only: restoring the old check first requires
+removing or remapping `agricultural-zone` rows.
+
+The same release renames the sandbox to Starter Course and walls in both
+courses' grounds. A database keeps its existing `rough-course` revision until
+the guarded sandbox reset below appends the new seed.
+
 ## Google OAuth
 
 Create a Google OAuth web client and configure these redirect URIs:
@@ -153,7 +164,7 @@ documentation or logs.
 ## Permanent Sandbox Course Reset
 
 `rough-course` is the permanent authoring and regression sandbox. It remains
-separate from the future official `agricultural-zone` course so editor, physics,
+separate from the official `agricultural-zone` course so editor, physics,
 collision, camera, and recovery fixtures never need to be embedded in the
 player-facing track.
 

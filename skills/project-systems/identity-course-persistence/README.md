@@ -81,10 +81,11 @@ same identity, role, and request-guard boundaries; see the
    already-current revision is idempotent and does not create history noise.
 4. Protected responses retain opaque attribution for audit. The unauthenticated
    runtime response omits author, publisher, and internal publication IDs.
-5. Guest racing selects an explicit course ID and consumes only its newest
-   publication. When persistence is unavailable or no publication exists, the
-   current demo may fall back to the validated bundled sandbox seed so guest play
-   remains available; it never consumes an unpublished database draft.
+5. Guest racing selects an explicit course ID (`agricultural-zone`) and
+   consumes only its newest publication. When persistence is unavailable or no
+   publication exists, it falls back to that course's validated bundled seed so
+   guest play remains available; it never consumes an unpublished database
+   draft.
 
 ## Accepted Invariants
 

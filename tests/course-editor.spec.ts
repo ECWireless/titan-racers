@@ -1,6 +1,9 @@
 import { expect, type Locator, test } from "@playwright/test";
 
-import { ROUGH_COURSE_DOCUMENT } from "../src/game/course/course-document";
+import {
+  AGRICULTURAL_ZONE_DOCUMENT,
+  ROUGH_COURSE_DOCUMENT,
+} from "../src/game/course/course-document";
 import {
   disconnectStandardTestGamepad,
   installStandardGamepadFixture,
@@ -102,7 +105,7 @@ test.describe("protected course editor access", () => {
       });
     });
 
-    await page.goto("/editor");
+    await page.goto("/admin/courses/rough-course");
 
     await expect(
       page.getByText("Sign in with an approved admin account to continue."),
@@ -124,7 +127,7 @@ test.describe("protected course editor access", () => {
       });
     });
 
-    await page.goto("/editor");
+    await page.goto("/admin/courses/rough-course");
 
     await expect(
       page.getByText(
@@ -133,7 +136,10 @@ test.describe("protected course editor access", () => {
     ).toBeVisible();
     await expect(
       page.getByRole("link", { name: "Complete account" }),
-    ).toHaveAttribute("href", "/onboarding?returnTo=%2Feditor");
+    ).toHaveAttribute(
+      "href",
+      "/onboarding?returnTo=%2Fadmin%2Fcourses%2Frough-course",
+    );
     await expect(page.getByTestId("course-editor-shell")).toHaveCount(0);
   });
 
@@ -163,7 +169,7 @@ test.describe("protected course editor access", () => {
       });
     });
 
-    await page.goto("/editor");
+    await page.goto("/admin/courses/rough-course");
     await expect(
       page.getByText("The course revision response was unavailable or invalid."),
     ).toBeVisible();
@@ -184,14 +190,14 @@ test.describe("protected course editor access", () => {
       await route.fulfill({
         body: JSON.stringify({
           redirect: true,
-          url: "http://127.0.0.1:3873/editor?oauth=started",
+          url: "http://127.0.0.1:3873/admin/courses/rough-course?oauth=started",
         }),
         contentType: "application/json",
         status: 200,
       });
     });
 
-    await page.goto("/editor");
+    await page.goto("/admin/courses/rough-course");
     await page.getByRole("button", { name: "Continue with Google" }).click();
 
     await expect(page).toHaveURL(/oauth=started/);
@@ -224,14 +230,14 @@ test.describe("protected course editor access", () => {
       await route.fulfill({
         body: JSON.stringify({
           redirect: true,
-          url: "http://127.0.0.1:3873/editor?oauth=account-switch",
+          url: "http://127.0.0.1:3873/admin/courses/rough-course?oauth=account-switch",
         }),
         contentType: "application/json",
         status: 200,
       });
     });
 
-    await page.goto("/editor");
+    await page.goto("/admin/courses/rough-course");
 
     await expect(
       page.getByText(
@@ -280,7 +286,7 @@ test.describe("protected course editor access", () => {
       });
     });
 
-    await page.goto("/editor");
+    await page.goto("/admin/courses/rough-course");
     await expect(
       page.getByText("No rough-course revision exists yet."),
     ).toBeVisible();
@@ -289,6 +295,64 @@ test.describe("protected course editor access", () => {
     await expect(page.getByTestId("course-editor-shell")).toBeVisible();
     expect(savePayload).toMatchObject({
       document: { courseId: "rough-course", schemaVersion: 4 },
+      expectedRevision: null,
+    });
+  });
+
+  test("lists the official courses and creates the Agricultural Zone from its card", async ({
+    page,
+  }, testInfo) => {
+    test.skip(testInfo.project.name !== "desktop", "The course roster runs once.");
+    let agriculturalSave: unknown;
+    const revisionBody = (document: typeof ROUGH_COURSE_DOCUMENT) =>
+      JSON.stringify({
+        authorUserId: "admin-test-user",
+        courseId: document.courseId,
+        createdAt: new Date("2026-07-12T00:00:00.000Z").toISOString(),
+        document,
+        revision: 1,
+        schemaVersion: document.schemaVersion,
+      });
+    await page.route(courseApiPattern, (route) =>
+      route.fulfill({
+        body: revisionBody(ROUGH_COURSE_DOCUMENT),
+        contentType: "application/json",
+        status: 200,
+      }),
+    );
+    await page.route("**/api/admin/courses/agricultural-zone", (route) => {
+      if (route.request().method() === "PUT") {
+        agriculturalSave = route.request().postDataJSON();
+        return route.fulfill({
+          body: revisionBody(AGRICULTURAL_ZONE_DOCUMENT),
+          contentType: "application/json",
+          status: 201,
+        });
+      }
+      return route.fulfill({
+        body: JSON.stringify({ error: "Course not found." }),
+        contentType: "application/json",
+        status: 404,
+      });
+    });
+
+    await page.goto("/editor");
+    await expect(page).toHaveURL(/\/admin\/courses$/);
+    const roster = page.getByRole("region", { name: "Official course drafts" });
+    await expect(roster.getByText("Draft r1 · Published none")).toBeVisible();
+    await expect(roster.getByText("No draft yet")).toBeVisible();
+    await roster
+      .getByRole("link", { name: "Create Agricultural Zone Service Circuit" })
+      .click();
+
+    await expect(page).toHaveURL(/\/admin\/courses\/agricultural-zone$/);
+    await page.getByRole("button", { name: "Initialize seed course" }).click();
+    await expect(page.getByTestId("course-editor-shell")).toBeVisible();
+    await expect(
+      page.getByText("Agricultural Zone Service Circuit"),
+    ).toBeVisible();
+    expect(agriculturalSave).toMatchObject({
+      document: { courseId: "agricultural-zone", schemaVersion: 4 },
       expectedRevision: null,
     });
   });
@@ -332,11 +396,11 @@ test.describe("protected course editor access", () => {
       });
     });
 
-    await page.goto("/editor");
+    await page.goto("/admin/courses/rough-course");
     await page.getByRole("button", { name: "Initialize seed course" }).click();
 
     await expect(page.getByTestId("course-editor-shell")).toBeVisible();
-    await expect(page.getByText("Rough Test Loop")).toBeVisible();
+    await expect(page.getByText("Starter Course")).toBeVisible();
   });
 
   test("loads the protected revision into the responsive editor shell", async ({
@@ -357,10 +421,10 @@ test.describe("protected course editor access", () => {
       });
     });
 
-    await page.goto("/editor");
+    await page.goto("/admin/courses/rough-course");
 
     await expect(page.getByTestId("course-editor-shell")).toBeVisible();
-    await expect(page.getByText("Rough Test Loop")).toBeVisible();
+    await expect(page.getByText("Starter Course")).toBeVisible();
     const canvas = page.getByTestId("course-editor-canvas");
     await waitForEditorScene(canvas);
     await expect(page.getByRole("button", { name: "Undo" })).toBeDisabled();
@@ -469,7 +533,7 @@ test.describe("protected course editor access", () => {
       });
     });
 
-    await page.goto("/editor");
+    await page.goto("/admin/courses/rough-course");
     await page.getByRole("button", { name: "block" }).click();
     const saveButton = page.getByRole("button", { name: "Save draft" });
     await expect(saveButton).toBeEnabled();
@@ -531,7 +595,7 @@ test.describe("protected course editor access", () => {
       });
     });
 
-    await page.goto("/editor");
+    await page.goto("/admin/courses/rough-course");
     await expect(page.getByTestId("editor-revision")).toContainText(
       "Draft r3 · Published r2",
     );
@@ -610,7 +674,7 @@ test.describe("protected course editor access", () => {
       });
     });
 
-    await page.goto("/editor");
+    await page.goto("/admin/courses/rough-course");
     await page.getByRole("button", { name: "Publish saved draft" }).click();
     const publicationError = page.getByRole("alert").filter({
       hasText: "Publication failed",
@@ -643,7 +707,7 @@ test.describe("protected course editor access", () => {
       });
     });
 
-    await page.goto("/editor");
+    await page.goto("/admin/courses/rough-course");
     const outline = page.getByRole("button", { name: "Course outline" });
     const position = page.getByRole("button", { name: "Position", exact: true });
     await expect(outline).toHaveAttribute("aria-expanded", "true");
@@ -701,7 +765,7 @@ test.describe("protected course editor access", () => {
       });
     });
 
-    await page.goto("/editor");
+    await page.goto("/admin/courses/rough-course");
     await page.getByRole("button", { name: "block" }).click();
     await page.getByRole("button", { name: "Save draft" }).click();
     await expect.poll(() => putCount).toBe(1);
@@ -755,7 +819,7 @@ test.describe("protected course editor access", () => {
       });
     });
 
-    await page.goto("/editor");
+    await page.goto("/admin/courses/rough-course");
     await page.getByRole("button", { name: "block" }).click();
     await page.getByRole("button", { name: "Course actions" }).click();
     await page.getByRole("button", { name: "Load latest draft" }).click();
@@ -802,7 +866,7 @@ test.describe("protected course editor access", () => {
 
     for (const width of [350, 375, 412]) {
       await page.setViewportSize({ width, height: 760 });
-      await page.goto("/editor");
+      await page.goto("/admin/courses/rough-course");
       await expect(page.getByTestId("course-editor-shell")).toBeVisible();
       await expect
         .poll(() =>
@@ -892,7 +956,7 @@ test.describe("protected course editor access", () => {
       });
     });
 
-    await page.goto("/editor");
+    await page.goto("/admin/courses/rough-course");
     await page.getByRole("button", { name: "block" }).click();
     await page.getByRole("button", { name: "Save draft" }).click();
     const alert = page
@@ -948,7 +1012,7 @@ test.describe("protected course editor access", () => {
       });
     });
 
-    await page.goto("/editor");
+    await page.goto("/admin/courses/rough-course");
     const mirrorAngle = page.getByRole("spinbutton", { name: "Mirror angle" });
     // A partly typed value is not clamped until it is committed.
     await mirrorAngle.fill("3");
@@ -1004,7 +1068,7 @@ test.describe("protected course editor access", () => {
       });
     });
 
-    await page.goto("/editor");
+    await page.goto("/admin/courses/rough-course");
     await page.getByRole("button", { name: "block" }).click();
     expect(
       await page.evaluate(() => {
@@ -1054,7 +1118,7 @@ test.describe("protected course editor access", () => {
       });
     });
 
-    await page.goto("/editor");
+    await page.goto("/admin/courses/rough-course");
     const canvas = page.getByTestId("course-editor-canvas");
     await waitForEditorScene(canvas);
 
@@ -1207,7 +1271,7 @@ test.describe("protected course editor access", () => {
       });
     });
 
-    await page.goto("/editor");
+    await page.goto("/admin/courses/rough-course");
     const canvas = page.getByTestId("course-editor-canvas");
     await waitForEditorScene(canvas);
 
@@ -1343,7 +1407,7 @@ test.describe("protected course editor access", () => {
       });
     });
 
-    await page.goto("/editor");
+    await page.goto("/admin/courses/rough-course");
     const canvas = page.getByTestId("course-editor-canvas");
     await waitForEditorScene(canvas);
     await page.getByRole("button", { name: "block" }).click();
@@ -1394,7 +1458,7 @@ test.describe("protected course editor access", () => {
       });
     });
 
-    await page.goto("/editor");
+    await page.goto("/admin/courses/rough-course");
     const canvas = page.getByTestId("course-editor-canvas");
     await waitForEditorScene(canvas);
     await page.getByRole("button", { name: "block" }).click();
@@ -1486,7 +1550,7 @@ test.describe("protected course editor access", () => {
       });
     });
 
-    await page.goto("/editor");
+    await page.goto("/admin/courses/rough-course");
     const canvas = page.getByTestId("course-editor-canvas");
     await waitForEditorScene(canvas);
     const points = await getCourseEditorTranslateGizmoPoints(canvas, "x");
@@ -1537,7 +1601,7 @@ test.describe("protected course editor access", () => {
       });
     });
 
-    await page.goto("/editor");
+    await page.goto("/admin/courses/rough-course");
     const canvas = page.getByTestId("course-editor-canvas");
     await waitForEditorScene(canvas);
     await page.getByRole("button", { name: "Course", exact: true }).click();
@@ -1616,7 +1680,7 @@ test.describe("protected course editor access", () => {
       });
     });
 
-    await page.goto("/editor");
+    await page.goto("/admin/courses/rough-course");
     if (testInfo.project.name === "mobile") {
       await page.getByRole("button", { name: "Course actions" }).click();
       await page.getByRole("button", { name: "Sign out" }).click();
@@ -1658,7 +1722,7 @@ test.describe("protected course editor access", () => {
       });
     });
 
-    await page.goto("/editor");
+    await page.goto("/admin/courses/rough-course");
     const shell = page.getByTestId("course-editor-shell");
     const canvas = page.getByTestId("course-editor-canvas");
     await waitForEditorScene(canvas);

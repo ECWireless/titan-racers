@@ -113,6 +113,13 @@
       "when": 1792527857032,
       "tag": "0015_run_physics_version",
       "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "7",
+      "when": 1792701451777,
+      "tag": "0016_official_course_telemetry",
+      "breakpoints": true
     }
   ]
 }

@@ -94,6 +94,6 @@ context recovery.
   knowledge for future implementation work.
 - `tests/`: deterministic pure, browser, and real-database verification.
 
-The rough course is both the current playable loop and a permanent engineering
-sandbox. Its stable `rough-course` ID must remain separate from the future
-player-facing `agricultural-zone` course.
+The rough course is the permanent engineering sandbox and the kart builder's
+test-drive course. The solo time trial races the separate player-facing
+`agricultural-zone` course.

@@ -314,7 +314,7 @@ function TelemetryDashboard({
             <Link className="titan-button titan-button-secondary px-4" href="/">
               Racing
             </Link>
-            <Link className="titan-button titan-button-secondary px-4" href="/editor">
+            <Link className="titan-button titan-button-secondary px-4" href="/admin/courses">
               Course editor
             </Link>
             <button
