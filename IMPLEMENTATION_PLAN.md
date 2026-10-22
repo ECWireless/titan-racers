@@ -257,7 +257,9 @@ Phase decisions:
 - [x] 4.2.6: Handbrake drift. Holding Shift with throttle jolted the rear
       left and right: the motor out-pulls the derived handbrake as the drift
       slows, so the rear re-gripped mid-slide. The handbrake now disengages
-      drive (gameplay policy, physics version `handbrake-clutch-v1`).
+      drive (gameplay policy, physics version `handbrake-clutch-v1`). On
+      touch, pulling the joystick back-diagonal at speed also pulls the
+      handbrake, without the brake pedal.
 
 **PR 4.3: Island Three**
 

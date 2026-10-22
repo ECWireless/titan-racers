@@ -73,12 +73,14 @@ export class PlayerInputManager {
     this.touch.requestReset();
   }
 
-  sample(): PlayerInputActions {
+  // `forwardSpeedRatio` is signed travel speed over the kart's no-load speed.
+  // Touch uses it and the step time to gate and ramp the pull-back handbrake.
+  sample(forwardSpeedRatio = 0, deltaSeconds = 0): PlayerInputActions {
     if (!this.enabled) {
       return { ...NEUTRAL_CONTINUOUS_INPUT, pauseRequested: false, resetRequested: false };
     }
     const keyboard = this.keyboard.sample();
-    const touch = this.touch.sample();
+    const touch = this.touch.sample(forwardSpeedRatio, deltaSeconds);
     const gamepad = this.gamepad.sample();
     const sources = { gamepad, keyboard, touch };
     const continuous = normalizeContinuousInput(
@@ -94,8 +96,14 @@ export class PlayerInputManager {
     };
   }
 
-  sampleDrivingInput(): { actions: PlayerInputActions; driving: DrivingInput } {
-    const actions = this.sample();
+  sampleDrivingInput(
+    forwardSpeedRatio = 0,
+    deltaSeconds = 0,
+  ): {
+    actions: PlayerInputActions;
+    driving: DrivingInput;
+  } {
+    const actions = this.sample(forwardSpeedRatio, deltaSeconds);
     return { actions, driving: toDrivingInput(actions) };
   }
 

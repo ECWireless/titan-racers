@@ -2509,7 +2509,7 @@ test.describe("home screen", () => {
     const joystick = page.getByRole("group", { name: "Drive joystick" });
     const brake = page.getByRole("button", { name: "Brake / Reverse" });
     const reset = page.getByRole("button", { name: "Reset kart" });
-    await expect(joystick).toHaveAccessibleDescription(/Touch gesture only:/);
+    await expect(joystick).toHaveAccessibleDescription(/Touch gestures only:/);
     for (const control of [accelerate, joystick, brake, reset]) {
       const bounds = await control.boundingBox();
       expect(bounds?.width ?? 0).toBeGreaterThanOrEqual(44);
