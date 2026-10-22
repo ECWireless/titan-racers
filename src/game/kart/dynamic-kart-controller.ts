@@ -580,6 +580,7 @@ export class DynamicKartController implements KartController {
             input.throttle,
             chassisForwardSpeed,
             this.physicalProfile.drivetrain,
+            input.handbrake,
           )
         : 0;
     const allocatedDriveForces = allocateDriveForce(

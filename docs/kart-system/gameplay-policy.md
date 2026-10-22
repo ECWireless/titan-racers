@@ -20,6 +20,11 @@ Current policy families include:
 - the sealed four-wheel service brake proportions its current request by
   measured supported-wheel load, while the handbrake retains a fixed rear-only
   split;
+- the handbrake acts as a clutch-in pull: its demand disengages the motor from
+  the driven wheels in proportion, at any speed, including standstill and
+  reverse. The derived handbrake force can be weaker than the motor at drift
+  speeds, so without this the throttle would cancel the handbrake mid-drift and
+  the rear would snap back to grip;
 - grounded rest settling uses shared eligibility/timing and derives corrective
   impulse from each kart's inertia;
 - grounded motion stabilization continuously damps only chassis-local roll

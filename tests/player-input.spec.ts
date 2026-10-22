@@ -23,6 +23,7 @@ import {
 } from "../src/game/input/player-input";
 import {
   getTouchBrakeSteerHandbrake,
+  getTouchPullHandbrake,
   normalizeTouchJoystick,
   TouchInput,
 } from "../src/game/input/touch-input";
@@ -319,6 +320,60 @@ test.describe("player input", () => {
     });
 
     expect(getTouchBrakeSteerHandbrake(1, true, Number.NaN)).toBe(0);
+  });
+
+  test("touch pull-back at speed requests the handbrake without the pedal", () => {
+    const touch = new TouchInput();
+    const behind = (degrees: number, magnitude = 1) => {
+      const radians = (degrees * Math.PI) / 180;
+      touch.setJoystick(
+        1,
+        -Math.cos(radians) * magnitude,
+        Math.sin(radians) * magnitude,
+      );
+    };
+
+    // The handbrake rises over the rise time, then holds.
+    behind(30);
+    expect(touch.sample(0.5, 0.15).handbrake).toBeCloseTo(0.5, 6);
+    expect(touch.sample(0.5, 0.15)).toMatchObject({
+      accelerate: 0,
+      handbrake: 1,
+      steer: -1,
+    });
+    expect(touch.sample(0.5, 0.15).brakeReverse).toBeCloseTo(0.1, 6);
+
+    // Letting go releases the gesture at once.
+    touch.release(1);
+    expect(touch.sample(0.5, 0.15).handbrake).toBe(0);
+    behind(30);
+    touch.sample(0.5, 1);
+
+    // Below the speed gate the same pull releases at once into service brake
+    // and reverse.
+    expect(touch.sample(0.2, 0.15).handbrake).toBe(0);
+    expect(touch.sample(0.2, 0.15).brakeReverse).toBeCloseTo(0.5, 6);
+    expect(touch.sample(-0.5, 1).handbrake).toBe(0);
+
+    // Near-sideways, steep, and light pulls are not the gesture.
+    for (const [degrees, magnitude] of [
+      [5, 1],
+      [60, 1],
+      [90, 1],
+      [30, 0.5],
+    ]) {
+      behind(degrees, magnitude);
+      expect(touch.sample(0.5, 1).handbrake).toBe(0);
+    }
+
+    // A full sideways push sagging slightly back only steers.
+    behind(5);
+    expect(touch.sample(0.5, 1)).toMatchObject({
+      brakeReverse: 0,
+      steer: -Math.cos((5 * Math.PI) / 180),
+    });
+
+    expect(getTouchPullHandbrake(Number.NaN, 1, 0.5)).toBe(0);
   });
 
   test("polls a standard gamepad, ignores drift, and edge-detects actions", () => {

@@ -2453,7 +2453,16 @@ export function SoloTimeTrialCanvas({
           manualRightingSettling = false;
         }
 
-        const sample = inputManager.sampleDrivingInput();
+        // Gate touch drifts on travel speed so a deep slide, where forward
+        // speed falls toward zero, does not release the pull-back handbrake.
+        // Travel only counts as reverse when it is clearly backward.
+        const travelSpeed = kart.rigidbody?.linearVelocity.length() ?? 0;
+        const sample = inputManager.sampleDrivingInput(
+          (kartController.state.speed < -0.5 * travelSpeed
+            ? -travelSpeed
+            : travelSpeed) / activeDynamics.kart.drivetrain.noLoadSpeed,
+          dt,
+        );
         latestRequestedDrivingInput = sample.driving;
         pauseAfterFixedStep =
           sample.actions.pauseRequested &&
@@ -3430,11 +3439,12 @@ export function SoloTimeTrialCanvas({
                   >
                     <span className="sr-only" id="touch-joystick-instructions">
                       Drag up to accelerate, down to brake or reverse, and left
-                      or right to steer. Touch gesture only: while moving
-                      forward, hold Brake / Reverse and steer strongly to
-                      progressively request rear braking. Tire grip determines
-                      whether the kart slides. Arrow keys provide the basic
-                      joystick directions only.
+                      or right to steer. Touch gestures only: while moving
+                      forward, hold Brake / Reverse and steer strongly, or at
+                      speed drag down and to one side, to progressively
+                      request rear braking. Tire grip determines whether the
+                      kart slides. Arrow keys provide the basic joystick
+                      directions only.
                     </span>
                     <span
                       aria-hidden="true"

@@ -254,10 +254,12 @@ Phase decisions:
       physics keeps on a flat surface. Scope grew to scan the asphalt too.
       Scans load before the race's first frame, and the 4.2.4 clipping colours
       follow the scanned blades.
-
-Handling follow-up: reproduce rear-end left/right jolts during Shift handbrake
-drifting on open asphalt. The feature lead observed this before 4.2.2;
-investigate separately and compare with the 4.2.1 baseline.
+- [x] 4.2.6: Handbrake drift. Holding Shift with throttle jolted the rear
+      left and right: the motor out-pulls the derived handbrake as the drift
+      slows, so the rear re-gripped mid-slide. The handbrake now disengages
+      drive (gameplay policy, physics version `handbrake-clutch-v1`). On
+      touch, pulling the joystick back-diagonal at speed also pulls the
+      handbrake, without the brake pedal.
 
 **PR 4.3: Island Three**
 
@@ -347,6 +349,10 @@ Publishing is immediate, with no approval queue.
 - [ ] Swapping a suspension type keeps the current arm geometry. Approved
       mounting defaults assume 8 cm arms, so on the official karts' longer
       arms the hub lands off the wheel (deferred from PR 4.1.4).
+- [ ] Debrief speed-carrying drifts: a handbrake drift should flow on out of
+      the corner, but sliding asphalt grip scrubs most of the speed. Options
+      to weigh: a drift tire with lower sliding grip, a wheel-spin model, or
+      an explicit assist (deferred from PR 4.2.6).
 - [ ] Owners publish validated revisions immediately and unpublish their own
       karts while keeping history and attribution.
 - [ ] Server-side ownership checks, validation, bounded text and parts,

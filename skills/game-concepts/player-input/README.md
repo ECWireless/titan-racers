@@ -124,9 +124,13 @@ concurrently.
 - Touch has no separate handbrake control. While forward intent is active,
   holding the brake/reverse pedal while steering past a light-corner threshold
   progressively biases the pedal toward the normalized rear handbrake action.
-  Straight braking and diagonal reverse stay service brake/reverse, steering
-  alone never requests rear braking, and the shared tire model alone decides
-  whether a drift results.
+  Above a fraction of the kart's no-load speed, pulling the joystick back about
+  20–40° behind horizontal does the same without the pedal, rising over a
+  short ramp and releasing at once. Within 10° behind horizontal the joystick
+  only steers, so a sagging sideways push never drags the service brake.
+  Straight braking and slow diagonal reverse stay service brake/reverse,
+  steering alone never requests rear braking, and the shared tire model alone
+  decides whether a drift results.
 - Treat pointer up, pointer cancel, lost capture, pause, and teardown as release.
 - Apply direct-manipulation suppression only to the control regions that need
   it; do not disable ordinary browser gestures across unrelated UI.
