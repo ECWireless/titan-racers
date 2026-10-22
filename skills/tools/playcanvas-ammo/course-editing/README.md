@@ -48,15 +48,12 @@ remain separate authored inputs.
 
 ## Lighting Mapping
 
-Multiply the validated ambient RGB color by its bounded intensity and assign
-the result to `app.scene.ambientLight`. Map each validated directional-light
-record to one PlayCanvas directional light entity named by its stable authored
-ID. Apply color, intensity, and Euler rotation directly.
-
-Map the portable shadow presets to fixed renderer settings: off disables shadow
-casting, while low/medium/high use 512/1024/2048 resolution respectively. Keep
-the accepted bias and distance inside the adapter rather than exposing raw
-renderer tuning in the portable course contract.
+Map the enclosure's sun to one PlayCanvas directional light entity. A
+directional light shines down its local −Y, and PlayCanvas applies Euler X
+before Y, so the Euler angles (acos(s.y), atan2(s.x, s.z), 0) turn it onto the
+rays from a unit sun direction s. Keep color, intensity, bias, distance, and
+shadow resolution inside the adapter rather than exposing raw renderer tuning
+in the portable course contract.
 
 ## Semantic Physics Roles
 
@@ -191,8 +188,8 @@ replace the group; rotate, scale, rename, and delete stay single-selection only.
 5. Existing selection maps still resolve the retained editable objects.
 6. Existing collision, camera, kart-physics, teardown, production-build, and
    supported-browser checks pass.
-7. Runtime diagnostics confirm ambient values, directional-light count,
-   rotations, intensities, and shadow-preset mapping from the seed document.
+7. Runtime diagnostics confirm the directional-light count and the sun's
+   direction, intensity, and shadow mapping from the seed document.
 
 ## Known Limits
 

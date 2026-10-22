@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import type { Application, Color, Entity } from "playcanvas";
+import type { Application, Entity } from "playcanvas";
 
 import {
   buildCourseLighting,
@@ -7,129 +7,68 @@ import {
 } from "../src/game/course/build-course-lighting";
 import { ROUGH_COURSE_DOCUMENT } from "../src/game/course/course-document";
 
-function createTestColor(r: number, g: number, b: number): Color {
-  return {
-    b,
-    clone() {
-      return createTestColor(r, g, b);
-    },
-    g,
-    r,
-  } as Color;
-}
+test("projects the enclosure sun from the course's mirror angle", () => {
+  const [sun] = projectCourseLighting(ROUGH_COURSE_DOCUMENT).directionalLights;
 
-test("projects ambient intensity and bounded directional shadow presets", () => {
-  const projection = projectCourseLighting(ROUGH_COURSE_DOCUMENT);
-
-  expect(projection).toEqual({
-    ambient: { b: 0.46, g: 0.39, r: 0.34 },
-    directionalLights: [
-      {
-        color: { b: 0.78, g: 0.91, r: 1 },
-        id: "warm-key-light",
-        intensity: 0.78,
-        rotation: { x: 52, y: 38, z: 0 },
-        shadows: { bias: 0.005, distance: 20, resolution: 1024 },
-      },
-      {
-        color: { b: 0.9, g: 0.68, r: 0.55 },
-        id: "cool-fill-light",
-        intensity: 0.32,
-        rotation: { x: 28, y: -132, z: 0 },
-        shadows: null,
-      },
-    ],
+  // The rough course's placement keeps its accepted key-light direction.
+  expect(sun).toMatchObject({
+    color: { b: 0.78, g: 0.91, r: 1 },
+    id: "enclosure-sun",
+    intensity: 0.78,
+    shadows: { bias: 0.005, distance: 20, resolution: 1024 },
   });
+  expect(sun.rotation.x).toBeCloseTo(52, 6);
+  expect(sun.rotation.y).toBeCloseTo(38, 6);
+
+  const noon = structuredClone(ROUGH_COURSE_DOCUMENT);
+  noon.enclosure.mirrorAngle = 45;
+  const [noonSun] = projectCourseLighting(noon).directionalLights;
+  expect(noonSun.rotation.x).toBeCloseTo(0, 6);
 });
 
-test("maps low and high shadow quality without exposing renderer tuning", () => {
+test("turns a directional light's rays away from the sun's image", () => {
   const document = structuredClone(ROUGH_COURSE_DOCUMENT);
-  document.lighting.ambient.intensity = 0.5;
-  document.lighting.directionalLights[0].shadowQuality = "low";
-  document.lighting.directionalLights[1].shadowQuality = "high";
-
-  const projection = projectCourseLighting(document);
-
-  expect(projection.ambient).toEqual({ b: 0.23, g: 0.195, r: 0.17 });
-  expect(projection.directionalLights[0].shadows?.resolution).toBe(512);
-  expect(projection.directionalLights[1].shadows?.resolution).toBe(2048);
+  document.enclosure.mirrorAngle = 80;
+  document.enclosure.placement.azimuth = 10;
+  const [sun] = projectCourseLighting(document).directionalLights;
+  // PlayCanvas applies X then Y, turning -Y onto this ray.
+  const [x, y] = [sun.rotation.x, sun.rotation.y].map(
+    (degrees) => (degrees * Math.PI) / 180,
+  );
+  const ray = {
+    x: -Math.sin(x) * Math.sin(y),
+    y: -Math.cos(x),
+    z: -Math.sin(x) * Math.cos(y),
+  };
+  // Evening: the sun's image sits low toward the anti-sun cap, so its rays
+  // run down and toward the sunward cap.
+  const heading = (-142 * Math.PI) / 180;
+  const sunward = { x: -Math.sin(heading), z: -Math.cos(heading) };
+  expect(ray.x * sunward.x + ray.z * sunward.z).toBeGreaterThan(0.9);
+  expect(ray.y).toBeLessThan(0);
 });
 
-test("rolls back staged lights and ambient when a later light fails", () => {
-  const events: string[] = [];
-  const originalAmbient = createTestColor(0.1, 0.2, 0.3);
+test("attaches nothing when the sun cannot be created", () => {
+  const attached: string[] = [];
   const app = {
-    root: {
-      addChild(entity: Entity) {
-        events.push(`attach:${entity.name}`);
-      },
-    },
-    scene: { ambientLight: originalAmbient },
+    root: { addChild: (entity: Entity) => attached.push(entity.name) },
   } as unknown as Application;
-  let createdCount = 0;
 
   expect(() =>
     buildCourseLighting(app, {
-      createColor: createTestColor,
-      createEntity(projection) {
-        createdCount += 1;
-
-        if (createdCount === 2) {
-          throw new Error("forced light failure");
-        }
-
-        events.push(`create:${projection.id}`);
-        return {
-          destroy() {
-            events.push(`destroy:${projection.id}`);
-          },
-          name: projection.id,
-        } as unknown as Entity;
+      createEntity() {
+        throw new Error("forced light failure");
       },
       document: ROUGH_COURSE_DOCUMENT,
     }),
   ).toThrow("forced light failure");
-
-  expect(events).toEqual([
-    "create:warm-key-light",
-    "destroy:warm-key-light",
-  ]);
-  expect(app.scene.ambientLight).toMatchObject({ r: 0.1, g: 0.2, b: 0.3 });
-});
-
-test("attaches lights only after the complete lighting batch succeeds", () => {
-  const events: string[] = [];
-  const app = {
-    root: {
-      addChild(entity: Entity) {
-        events.push(`attach:${entity.name}`);
-      },
-    },
-    scene: { ambientLight: createTestColor(0.1, 0.2, 0.3) },
-  } as unknown as Application;
+  expect(attached).toEqual([]);
 
   const entities = buildCourseLighting(app, {
-    createColor: createTestColor,
-    createEntity(projection) {
-      events.push(`create:${projection.id}`);
-      return {
-        destroy() {
-          events.push(`destroy:${projection.id}`);
-        },
-        name: projection.id,
-      } as unknown as Entity;
-    },
+    createEntity: (projection) =>
+      ({ name: projection.id }) as unknown as Entity,
     document: ROUGH_COURSE_DOCUMENT,
   });
-
-  expect(events).toEqual([
-    "create:warm-key-light",
-    "create:cool-fill-light",
-    "attach:warm-key-light",
-    "attach:cool-fill-light",
-  ]);
-  expect(entities.size).toBe(2);
-  expect(app.scene.ambientLight.r).toBeCloseTo(0.34);
-  expect(app.scene.ambientLight.g).toBeCloseTo(0.39);
-  expect(app.scene.ambientLight.b).toBeCloseTo(0.46);
+  expect([...entities.keys()]).toEqual(["enclosure-sun"]);
+  expect(attached).toEqual(["enclosure-sun"]);
 });

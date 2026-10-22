@@ -110,47 +110,16 @@
     }
   ],
   "courseId": "rough-course",
-  "lighting": {
-    "ambient": {
-      "color": {
-        "b": 0.46,
-        "g": 0.39,
-        "r": 0.34
-      },
-      "intensity": 1
+  "enclosure": {
+    "id": "enclosure.island-three",
+    "mirrorAngle": 19,
+    "placement": {
+      "axial": 0,
+      "azimuth": 0,
+      "heading": -142,
+      "height": 0
     },
-    "directionalLights": [
-      {
-        "color": {
-          "b": 0.78,
-          "g": 0.91,
-          "r": 1
-        },
-        "id": "warm-key-light",
-        "intensity": 0.78,
-        "rotation": {
-          "x": 52,
-          "y": 38,
-          "z": 0
-        },
-        "shadowQuality": "medium"
-      },
-      {
-        "color": {
-          "b": 0.9,
-          "g": 0.68,
-          "r": 0.55
-        },
-        "id": "cool-fill-light",
-        "intensity": 0.32,
-        "rotation": {
-          "x": 28,
-          "y": -132,
-          "z": 0
-        },
-        "shadowQuality": "off"
-      }
-    ]
+    "version": 1
   },
   "name": "Rough Test Loop",
   "objects": [
@@ -5199,7 +5168,7 @@
       }
     }
   ],
-  "schemaVersion": 3,
+  "schemaVersion": 4,
   "start": {
     "gateHalfExtents": {
       "x": 8,

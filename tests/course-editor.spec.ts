@@ -288,7 +288,7 @@ test.describe("protected course editor access", () => {
 
     await expect(page.getByTestId("course-editor-shell")).toBeVisible();
     expect(savePayload).toMatchObject({
-      document: { courseId: "rough-course", schemaVersion: 3 },
+      document: { courseId: "rough-course", schemaVersion: 4 },
       expectedRevision: null,
     });
   });
@@ -949,14 +949,16 @@ test.describe("protected course editor access", () => {
     });
 
     await page.goto("/editor");
-    const ambientIntensity = page.getByRole("spinbutton", {
-      name: "Ambient intensity",
-    });
-    await ambientIntensity.fill("4.1");
-    await expect(ambientIntensity).toHaveValue("4");
+    const mirrorAngle = page.getByRole("spinbutton", { name: "Mirror angle" });
+    // A partly typed value is not clamped until it is committed.
+    await mirrorAngle.fill("3");
+    await expect(mirrorAngle).toHaveValue("3");
+    await mirrorAngle.fill("86");
+    await mirrorAngle.press("Enter");
+    await expect(mirrorAngle).toHaveValue("85");
     await expect(page.getByRole("button", { name: "Save draft" })).toBeEnabled();
     await page.getByRole("button", { name: "Reset lighting" }).click();
-    await expect(ambientIntensity).toHaveValue("1");
+    await expect(mirrorAngle).toHaveValue("19");
 
     await page.getByRole("button", { name: "block" }).click();
     await page.getByRole("button", { name: "Course actions" }).click();

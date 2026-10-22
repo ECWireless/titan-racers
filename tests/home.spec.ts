@@ -204,9 +204,6 @@ async function getCollisionDebugState(canvas: Locator) {
   return canvas.evaluate(
     (element) =>
       new Promise<{
-        ambientLightB: number;
-        ambientLightG: number;
-        ambientLightR: number;
         barrelCollisionAxis: number | null;
         barrelCollisionHeight: number | null;
         barrelCollisionRadius: number | null;
@@ -217,16 +214,14 @@ async function getCollisionDebugState(canvas: Locator) {
         barrelPhysicsRestitution: number | null;
         courseEntityCount: number;
         directionalLightCount: number;
-        fillLightCastsShadows: boolean | null;
         groundCollisionHalfExtentX: number | null;
         groundCollisionOffsetY: number | null;
         groundCollisionShape: string | null;
         groundIsDrivable: boolean;
-        keyLightCastsShadows: boolean | null;
-        keyLightIntensity: number | null;
-        keyLightRotationX: number | null;
-        keyLightRotationY: number | null;
-        keyLightShadowResolution: number | null;
+        sunCastsShadows: boolean | null;
+        sunDirection: { x: number; y: number; z: number } | null;
+        sunIntensity: number | null;
+        sunShadowResolution: number | null;
         obstacleAInteractionRadius: number | null;
         obstacleAX: number | null;
         obstacleBlocksKart: boolean;
@@ -499,7 +494,7 @@ async function useBundledRoughCourse(page: Page, document = ROUGH_COURSE_DOCUMEN
         document,
         publishedAt: new Date("2026-07-12T00:05:00.000Z").toISOString(),
         revision: 1,
-        schemaVersion: 3,
+        schemaVersion: 4,
       }),
       contentType: "application/json",
       status: 200,
@@ -934,7 +929,8 @@ test.describe("home screen", () => {
     page,
   }) => {
     const publishedDocument = structuredClone(ROUGH_COURSE_DOCUMENT);
-    publishedDocument.lighting.ambient.color = { b: 0.4, g: 0.3, r: 0.2 };
+    // Noon puts the sun overhead, unlike the bundled seed.
+    publishedDocument.enclosure.mirrorAngle = 45;
     await page.route("**/api/courses/rough-course/published", async (route) => {
       await route.fulfill({
         body: JSON.stringify({
@@ -942,7 +938,7 @@ test.describe("home screen", () => {
           document: publishedDocument,
           publishedAt: new Date("2026-07-12T00:05:00.000Z").toISOString(),
           revision: 3,
-          schemaVersion: 3,
+          schemaVersion: 4,
         }),
         contentType: "application/json",
         status: 200,
@@ -953,9 +949,7 @@ test.describe("home screen", () => {
     await page.getByRole("button", { name: "Solo Time Trial" }).click();
     const canvas = page.getByTestId("solo-time-trial-canvas");
     const state = await getCollisionDebugState(canvas);
-    expect(state.ambientLightR).toBeCloseTo(0.2);
-    expect(state.ambientLightG).toBeCloseTo(0.3);
-    expect(state.ambientLightB).toBeCloseTo(0.4);
+    expect(state.sunDirection?.y).toBeCloseTo(1);
   });
 
   test("constructs guest racing from the published kart revision", async ({
@@ -1038,7 +1032,8 @@ test.describe("home screen", () => {
     page,
   }) => {
     const publishedDocument = structuredClone(ROUGH_COURSE_DOCUMENT);
-    publishedDocument.lighting.ambient.color = { b: 0.4, g: 0.3, r: 0.2 };
+    // Noon puts the sun overhead, unlike the bundled seed.
+    publishedDocument.enclosure.mirrorAngle = 45;
     let requestCount = 0;
     await page.route("**/api/courses/rough-course/published", async (route) => {
       requestCount += 1;
@@ -1056,7 +1051,7 @@ test.describe("home screen", () => {
           document: publishedDocument,
           publishedAt: new Date("2026-07-12T00:05:00.000Z").toISOString(),
           revision: 3,
-          schemaVersion: 3,
+          schemaVersion: 4,
         }),
         contentType: "application/json",
         status: 200,
@@ -1067,22 +1062,14 @@ test.describe("home screen", () => {
     await page.getByRole("button", { name: "Solo Time Trial" }).click();
     let canvas = page.getByTestId("solo-time-trial-canvas");
     let state = await getCollisionDebugState(canvas);
-    expect(state.ambientLightR).toBeCloseTo(0.2);
+    expect(state.sunDirection?.y).toBeCloseTo(1);
 
     await page.keyboard.press("Escape");
     await page.getByRole("button", { name: "Exit", exact: true }).click();
     await page.getByRole("button", { name: "Solo Time Trial" }).click();
     canvas = page.getByTestId("solo-time-trial-canvas");
     state = await getCollisionDebugState(canvas);
-    expect(state.ambientLightR).toBeCloseTo(
-      ROUGH_COURSE_DOCUMENT.lighting.ambient.color.r,
-    );
-    expect(state.ambientLightG).toBeCloseTo(
-      ROUGH_COURSE_DOCUMENT.lighting.ambient.color.g,
-    );
-    expect(state.ambientLightB).toBeCloseTo(
-      ROUGH_COURSE_DOCUMENT.lighting.ambient.color.b,
-    );
+    expect(state.sunDirection?.y).toBeCloseTo(Math.cos((52 * Math.PI) / 180));
     expect(requestCount).toBe(2);
   });
 
@@ -2191,9 +2178,6 @@ test.describe("home screen", () => {
     const canvas = page.getByTestId("solo-time-trial-canvas");
     const collisionState = await getCollisionDebugState(canvas);
 
-    expect(collisionState.ambientLightR).toBeCloseTo(0.34);
-    expect(collisionState.ambientLightG).toBeCloseTo(0.39);
-    expect(collisionState.ambientLightB).toBeCloseTo(0.46);
     expect(collisionState.barrelCollisionAxis).toBe(1);
     expect(collisionState.barrelCollisionHeight).toBe(0.9);
     expect(collisionState.barrelCollisionRadius).toBe(0.45);
@@ -2203,13 +2187,19 @@ test.describe("home screen", () => {
     expect(collisionState.barrelPhysicsMask).toBe(PHYSICS_MASK.solidObstacle);
     expect(collisionState.barrelPhysicsRestitution).toBe(0);
     expect(collisionState.courseEntityCount).toBe(123);
-    expect(collisionState.directionalLightCount).toBe(2);
-    expect(collisionState.keyLightIntensity).toBeCloseTo(0.78);
-    expect(collisionState.keyLightRotationX).toBeCloseTo(52);
-    expect(collisionState.keyLightRotationY).toBeCloseTo(38);
-    expect(collisionState.keyLightCastsShadows).toBe(true);
-    expect(collisionState.keyLightShadowResolution).toBe(1024);
-    expect(collisionState.fillLightCastsShadows).toBe(false);
+    expect(collisionState.directionalLightCount).toBe(1);
+    expect(collisionState.sunIntensity).toBeCloseTo(0.78);
+    // The rough course keeps its accepted key-light direction.
+    const [pitch, yaw] = [52, 38].map((degrees) => (degrees * Math.PI) / 180);
+    expect(collisionState.sunDirection?.x).toBeCloseTo(
+      Math.sin(pitch) * Math.sin(yaw),
+    );
+    expect(collisionState.sunDirection?.y).toBeCloseTo(Math.cos(pitch));
+    expect(collisionState.sunDirection?.z).toBeCloseTo(
+      Math.sin(pitch) * Math.cos(yaw),
+    );
+    expect(collisionState.sunCastsShadows).toBe(true);
+    expect(collisionState.sunShadowResolution).toBe(1024);
     expect(collisionState.groundCollisionShape).toBe("box");
     expect(collisionState.groundCollisionHalfExtentX).toBe(44);
     expect(collisionState.groundCollisionOffsetY).toBe(0);

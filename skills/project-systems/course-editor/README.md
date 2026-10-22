@@ -129,11 +129,10 @@ owns only Resume and Exit.
   native before-unload warning while work is dirty. Confirmation dialogs trap
   keyboard focus, close on Escape, and restore the invoking control when the
   author keeps editing.
-- Ambient and key/fill lighting controls mutate only bounded portable lighting
-  data. Fill is the optional second directional light, and Reset Lighting is
-  one history command back to the last loaded or saved draft setup. Manual
-  numeric entry clamps to the portable schema bounds before it becomes a
-  command.
+- The Environment control edits only the enclosure mirror angle (the time of
+  day), and Reset Lighting is one history command back to the last loaded or
+  saved draft's angle. Manual numeric entry clamps to the portable schema
+  bounds before it becomes a command. Placement has no editor control.
 - The header presents Save Draft as a compact accessible save icon with a
   hover/focus tooltip and disabled clean-state explanation. Course and Inspector
   top-level groups are independently collapsible; their disclosure preferences

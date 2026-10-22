@@ -1,0 +1,73 @@
+# Island Three
+
+Every course sits inside Island Three, Gerard O'Neill's large space-habitat
+design. This note owns the habitat's structure, the conventions that place a
+course inside it, and how its sunlight reaches a course. The enclosure
+registry lives in `src/game/enclosure/island-three.ts`; how it renders follows
+[`visual-identity.md`](visual-identity.md).
+
+## Structure
+
+Island Three is a pair of counter-rotating cylinders joined at their ends,
+whose spins cancel so the pair can keep its axis pointed at the Sun. Titan
+Racers models one cylinder (`enclosure.island-three@1`):
+
+| Feature | Value |
+| --- | --- |
+| Floor radius | 4,000 m (an 8 km diameter; some accounts give 6.4 km) |
+| Interior length | 32,000 m |
+| Spin for 1 g at the floor | √(g / R) ≈ 0.0495 rad/s: one turn every 127 s (0.47 rpm) |
+| Circumference | Six equal strips along the full length: three land valleys alternating with three windows, each 60° (about 4.2 km wide) |
+| Windows | Many small panes in aluminium or steel frames, which carry the air-pressure load |
+| Mirrors | One long flat mirror per window, hinged at the window's anti-sun end, its free edge toward the Sun. It reflects sunlight in through the window; opening it fully so the window sees space makes night |
+| Atmosphere | About half sea-level pressure (0.2 atm oxygen, 0.3 atm nitrogen), enough to haze the far side |
+
+Sources: G. K. O'Neill, *The Colonization of Space*, Physics Today 27(9),
+1974; G. K. O'Neill, *The High Frontier*, 1976; R. D. Johnson and C. Holbrow
+(eds.), *Space Settlements: A Design Study*, NASA SP-413, 1977; the
+[National Space Society summary](https://nss.org/o-neill-cylinder-space-settlement/).
+
+### Interpretations
+
+The sources do not specify these, so Titan Racers chooses them:
+
+- **End caps** close each end of the cylinder.
+- **Each valley is lit through the window opposite it.** A mirror's light
+  enters its window and crosses the axis to the far valley, so from a valley
+  floor the sun's image appears in the window overhead. All three mirrors
+  share one angle per course.
+- **Sunlight is not scaled for distance from the Sun.** The light level comes
+  from the registry, not from where the habitat orbits.
+
+## Placing A Course
+
+A course document names its enclosure by `id` and `version` and places its
+flat local ground with four values:
+
+| Field | Meaning |
+| --- | --- |
+| `axial` | Metres along the axis from the midpoint, positive toward the sunward end cap. Courses stay 500 m clear of the caps. |
+| `azimuth` | Degrees around the axis, increasing spinward. Valley *k* is centred at 120 *k*°, and courses stay 1.5° clear of the windows. |
+| `heading` | Yaw in degrees from the course's −Z to the sunward axis. |
+| `height` | Metres above the floor, at least 100 m clear of the axis. Floor courses use 0. |
+
+The course origin sits on the placement with +Y toward the axis. The cylinder
+spins right-handed about the sunward axis, so spinward = up × sunward. Course
+physics stays local; how the spin acts on a kart is PR 4.3.2.
+
+## Sunlight
+
+The course's `mirrorAngle` (5–85°) is the opening of its mirror from the
+window and sets the time of day. A flat mirror opened by α turns the Sun's
+rays by 2α, so the sun's image sits 2α above the horizon:
+
+- below 45° it sits toward the sunward end cap (morning);
+- at 45° it is overhead (noon);
+- above 45° it sits toward the anti-sun end cap (evening).
+
+Everything rotates together, so the light holds still for a whole race. The
+sun is the course's only shadow-casting light.
+
+Courses saved before the enclosure existed are placed at the middle of the
+first valley, turned and timed so the sun shines from their old key light's
+direction.

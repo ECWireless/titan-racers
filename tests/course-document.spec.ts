@@ -15,8 +15,39 @@ function cloneSeed() {
   return structuredClone(ROUGH_COURSE_DOCUMENT);
 }
 
+// The rough course's authored lights before it moved into Island Three.
+const LEGACY_LIGHTING = {
+  ambient: { color: { b: 0.46, g: 0.39, r: 0.34 }, intensity: 1 },
+  directionalLights: [
+    {
+      color: { b: 0.78, g: 0.91, r: 1 },
+      id: "warm-key-light",
+      intensity: 0.78,
+      rotation: { x: 52, y: 38, z: 0 },
+      shadowQuality: "medium",
+    },
+    {
+      color: { b: 0.9, g: 0.68, r: 0.55 },
+      id: "cool-fill-light",
+      intensity: 0.32,
+      rotation: { x: 28, y: -132, z: 0 },
+      shadowQuality: "off",
+    },
+  ],
+};
+
+function createVersionThreeSeed() {
+  const document: Partial<ReturnType<typeof cloneSeed>> = cloneSeed();
+  delete document.enclosure;
+  return {
+    ...(document as Omit<ReturnType<typeof cloneSeed>, "enclosure">),
+    lighting: structuredClone(LEGACY_LIGHTING),
+    schemaVersion: 3 as const,
+  };
+}
+
 function createVersionTwoSeed() {
-  const document = cloneSeed();
+  const document = createVersionThreeSeed();
   const start: Partial<typeof document.start> = { ...document.start };
   delete start.spawnDistance;
   return {
@@ -61,7 +92,7 @@ function findObject(id: string) {
 }
 
 test("parses the versioned rough course with stable IDs and ordered checkpoints", () => {
-  expect(ROUGH_COURSE_DOCUMENT.schemaVersion).toBe(3);
+  expect(ROUGH_COURSE_DOCUMENT.schemaVersion).toBe(4);
   expect(ROUGH_COURSE_DOCUMENT.units).toBe("meters");
   expect(ROUGH_COURSE_DOCUMENT.start.id).toBe("start-position");
   expect(ROUGH_COURSE_DOCUMENT.checkpoints).toHaveLength(3);
@@ -124,56 +155,62 @@ test("keeps the primitive catalog bounded and collision geometry explicit", () =
   });
 });
 
-test("keeps course lighting bounded and preserves the accepted setup", () => {
-  expect(ROUGH_COURSE_DOCUMENT.lighting).toEqual({
-    ambient: {
-      color: { b: 0.46, g: 0.39, r: 0.34 },
-      intensity: 1,
-    },
-    directionalLights: [
-      {
-        color: { b: 0.78, g: 0.91, r: 1 },
-        id: "warm-key-light",
-        intensity: 0.78,
-        rotation: { x: 52, y: 38, z: 0 },
-        shadowQuality: "medium",
-      },
-      {
-        color: { b: 0.9, g: 0.68, r: 0.55 },
-        id: "cool-fill-light",
-        intensity: 0.32,
-        rotation: { x: 28, y: -132, z: 0 },
-        shadowQuality: "off",
-      },
-    ],
+test("places the rough course in Island Three where its old key light shone", () => {
+  expect(ROUGH_COURSE_DOCUMENT.enclosure).toEqual({
+    id: "enclosure.island-three",
+    mirrorAngle: 19,
+    placement: { axial: 0, azimuth: 0, heading: -142, height: 0 },
+    version: 1,
   });
+  expect(parseCourseDocument(createVersionThreeSeed())).toEqual(
+    ROUGH_COURSE_DOCUMENT,
+  );
 });
 
-test("rejects unsafe or unbounded course lighting", () => {
-  const invalidColor = cloneSeed();
-  invalidColor.lighting.ambient.color.r = 1.01;
-  const colorResult = courseDocumentSchema.safeParse(invalidColor);
+test("rejects enclosures and placements outside the approved habitat", () => {
+  const cases: Array<
+    [(document: ReturnType<typeof cloneSeed>) => void, (string | number)[]]
+  > = [
+    [(document) => (document.enclosure.version = 2), ["enclosure", "id"]],
+    [
+      (document) => (document.enclosure.id = "enclosure.island-one"),
+      ["enclosure", "id"],
+    ],
+    [
+      (document) => (document.enclosure.placement.azimuth = 60),
+      ["enclosure", "placement", "azimuth"],
+    ],
+    [
+      (document) => (document.enclosure.placement.azimuth = 360),
+      ["enclosure", "placement", "azimuth"],
+    ],
+    [
+      (document) => (document.enclosure.placement.axial = -15_600),
+      ["enclosure", "placement", "axial"],
+    ],
+    [
+      (document) => (document.enclosure.placement.height = 3_950),
+      ["enclosure", "placement", "height"],
+    ],
+    [
+      (document) => (document.enclosure.mirrorAngle = 90),
+      ["enclosure", "mirrorAngle"],
+    ],
+  ];
 
-  expect(colorResult.success).toBe(false);
-  expect(colorResult.error?.issues).toContainEqual(
-    expect.objectContaining({
-      path: ["lighting", "ambient", "color", "r"],
-    }),
-  );
+  for (const [mutate, path] of cases) {
+    const input = cloneSeed();
+    mutate(input);
+    const result = courseDocumentSchema.safeParse(input);
+    expect(result.success, path.join(".")).toBe(false);
+    expect(result.error?.issues).toContainEqual(
+      expect.objectContaining({ path }),
+    );
+  }
 
-  const tooManyLights = cloneSeed();
-  tooManyLights.lighting.directionalLights.push({
-    ...tooManyLights.lighting.directionalLights[0],
-    id: "third-light",
-  });
-  const countResult = courseDocumentSchema.safeParse(tooManyLights);
-
-  expect(countResult.success).toBe(false);
-  expect(countResult.error?.issues).toContainEqual(
-    expect.objectContaining({
-      path: ["lighting", "directionalLights"],
-    }),
-  );
+  const otherValley = cloneSeed();
+  otherValley.enclosure.placement.azimuth = 268;
+  expect(courseDocumentSchema.safeParse(otherValley).success).toBe(true);
 });
 
 test("preserves the accepted camera fixtures and ramp placement", () => {
@@ -293,17 +330,22 @@ test("rests every visual-only marking on the drivable surface beneath it", () =>
   }
 });
 
-test("serializes the seed deterministically and round trips without changes", () => {
-  const serialized = serializeCourseDocument(ROUGH_COURSE_DOCUMENT);
-  const source = readFileSync(
-    join(process.cwd(), "src/game/course/rough-course.v3.json"),
-    "utf8",
-  );
+test("serializes the seeds deterministically and round trips without changes", () => {
+  for (const seed of ["rough-course.v4.json", "agricultural-zone.v4.json"]) {
+    const source = readFileSync(
+      join(process.cwd(), "src/game/course", seed),
+      "utf8",
+    );
+    const document = parseCourseDocument(JSON.parse(source));
 
-  expect(serialized).toBe(source);
-  expect(serializeCourseDocument(JSON.parse(serialized))).toBe(serialized);
-  expect(parseCourseDocument(JSON.parse(serialized))).toEqual(
-    ROUGH_COURSE_DOCUMENT,
+    expect(serializeCourseDocument(document)).toBe(source);
+    expect(parseCourseDocument(JSON.parse(source))).toEqual(document);
+  }
+  expect(serializeCourseDocument(ROUGH_COURSE_DOCUMENT)).toBe(
+    readFileSync(
+      join(process.cwd(), "src/game/course/rough-course.v4.json"),
+      "utf8",
+    ),
   );
 });
 
@@ -334,7 +376,7 @@ test("normalizes version-one course data without mutating the stored input", () 
   expect(withoutDerived(normalized)).toEqual(
     withoutDerived(ROUGH_COURSE_DOCUMENT),
   );
-  expect(normalized.schemaVersion).toBe(3);
+  expect(normalized.schemaVersion).toBe(4);
 });
 
 test("normalizes a valid one-checkpoint version-one course", () => {
@@ -412,21 +454,6 @@ test("rejects duplicate stable IDs across document sections", () => {
     expect.objectContaining({
       message: expect.stringContaining("Duplicate stable ID"),
       path: ["checkpoints", 0, "id"],
-    }),
-  );
-});
-
-test("rejects directional light IDs that collide with other authored IDs", () => {
-  const input = cloneSeed();
-  input.lighting.directionalLights[0].id = input.objects[0].id;
-
-  const result = courseDocumentSchema.safeParse(input);
-
-  expect(result.success).toBe(false);
-  expect(result.error?.issues).toContainEqual(
-    expect.objectContaining({
-      message: expect.stringContaining("Duplicate stable ID"),
-      path: ["lighting", "directionalLights", 0, "id"],
     }),
   );
 });
@@ -542,7 +569,7 @@ test("normalizes v2 to standard surfaces without inferring physics from visuals"
   const input = createVersionTwoSeed();
   const stored = structuredClone(input);
   const normalized = parseCourseDocument(input);
-  expect(normalized.schemaVersion).toBe(3);
+  expect(normalized.schemaVersion).toBe(4);
   // Legacy karts keep spawning on the start gate.
   expect(normalized.start.spawnDistance).toBe(0);
   for (const object of normalized.objects) {

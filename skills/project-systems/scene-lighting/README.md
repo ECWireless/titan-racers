@@ -13,8 +13,8 @@ phone budget. Art direction and the budget itself live in
 ## Source Ownership
 
 - `src/game/render/scene-look.ts` applies Neutral tone mapping, sRGB gamma,
-  exposure, and the habitat environment to an application and camera, scales
-  it by the course's ambient intensity, and owns the shadow policy.
+  exposure, and the habitat environment to an application and camera, and
+  owns the shadow policy.
 - `src/game/render/habitat-environment-atlas.ts` builds the environment atlas
   pixels on the CPU, once per page.
 - `src/game/kart/kart-visual-material.ts` owns the kart finishes (one
@@ -28,9 +28,10 @@ phone budget. Art direction and the budget itself live in
   screen starts it, the race waits for it before its first frame, and the
   course editor switches to the scans when they arrive. If they fail, those
   surfaces keep the grain finish.
-- `src/game/course/build-course-lighting.ts` sets the course shadow presets
-  (20 m coverage, a bias small enough for kart-scale shadows, and PCF5
-  filtering); the course
+- `src/game/course/build-course-lighting.ts` lights a course with its
+  enclosure's sun ([Island Three](../../../docs/island-three.md)) and sets its
+  shadows (1024², 20 m coverage, a bias small enough for kart-scale shadows,
+  and PCF5 filtering); the course
   editor widens coverage to 40 m for its overview.
 - `src/game/kart/kart-contact-shadow.ts` lays the race-only contact shadow
   under the kart: one blended quad on the ground beneath the chassis, ordered
@@ -56,8 +57,7 @@ course editor scenes in `src/game/editor/`, and
 - All four applications call `applySceneLook` and release it before
   `app.destroy()`.
 - The environment atlas replaces the scene's flat ambient light, so
-  `scene.ambientLight` has no visible effect. The course ambient color is
-  ignored; its intensity sets `skyboxIntensity`.
+  `scene.ambientLight` has no visible effect.
 - The environment never renders as a skybox: `applySceneLook` removes the
   skybox layer from the camera.
 - The atlas mirrors the PlayCanvas 2.20.6 `EnvLighting.generateAtlas` layout

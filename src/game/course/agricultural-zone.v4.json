@@ -1,0 +1,510 @@
+{
+  "checkpoints": [
+    {
+      "forward": {
+        "x": 0,
+        "y": 0,
+        "z": 1
+      },
+      "halfExtents": {
+        "x": 0.4,
+        "y": 1.5,
+        "z": 4.5
+      },
+      "id": "checkpoint-west-bend",
+      "order": 1,
+      "position": {
+        "x": -17.5,
+        "y": 1.5,
+        "z": 0
+      },
+      "recovery": {
+        "position": {
+          "x": -17.5,
+          "y": 0,
+          "z": 0
+        },
+        "rotation": {
+          "x": 0,
+          "y": 180,
+          "z": 0
+        }
+      },
+      "rotation": {
+        "x": 0,
+        "y": 90,
+        "z": 0
+      }
+    },
+    {
+      "forward": {
+        "x": 0,
+        "y": 0,
+        "z": -1
+      },
+      "halfExtents": {
+        "x": 0.4,
+        "y": 1.5,
+        "z": 4.5
+      },
+      "id": "checkpoint-east-bend",
+      "order": 2,
+      "position": {
+        "x": 17.5,
+        "y": 1.5,
+        "z": 0
+      },
+      "recovery": {
+        "position": {
+          "x": 17.5,
+          "y": 0,
+          "z": 0
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "rotation": {
+        "x": 0,
+        "y": 90,
+        "z": 0
+      }
+    }
+  ],
+  "courseId": "agricultural-zone",
+  "enclosure": {
+    "id": "enclosure.island-three",
+    "mirrorAngle": 84,
+    "placement": {
+      "axial": -8000,
+      "azimuth": 120,
+      "heading": 90,
+      "height": 0
+    },
+    "version": 1
+  },
+  "name": "Agricultural Zone Service Circuit",
+  "objects": [
+    {
+      "availability": "standard",
+      "category": "surface",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 30,
+          "y": 0.05,
+          "z": 20
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "drivable-surface",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.lawn-grass",
+          "version": 1
+        }
+      },
+      "editable": false,
+      "id": "ground",
+      "transform": {
+        "position": {
+          "x": 0,
+          "y": -0.05,
+          "z": 0
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "lawn",
+        "scale": {
+          "x": 60,
+          "y": 0.1,
+          "z": 40
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "surface",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 12,
+          "y": 0.04,
+          "z": 8
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": -0.039,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "drivable-surface",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.standard-course",
+          "version": 1
+        }
+      },
+      "editable": false,
+      "id": "loop-straights",
+      "transform": {
+        "position": {
+          "x": 0,
+          "y": -0.001,
+          "z": 0
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "asphalt",
+        "scale": {
+          "x": 24,
+          "y": 0.002,
+          "z": 16
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "surface",
+      "collision": {
+        "axis": 1,
+        "friction": 0.7,
+        "height": 0.08,
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": -0.039,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "radius": 8,
+        "restitution": 0,
+        "role": "drivable-surface",
+        "shape": "cylinder",
+        "surfaceMaterial": {
+          "id": "surface.standard-course",
+          "version": 1
+        }
+      },
+      "editable": false,
+      "id": "loop-west-bend",
+      "transform": {
+        "position": {
+          "x": -12,
+          "y": -0.001,
+          "z": 0
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "asphalt",
+        "scale": {
+          "x": 16,
+          "y": 0.002,
+          "z": 16
+        },
+        "shape": "cylinder"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "surface",
+      "collision": {
+        "axis": 1,
+        "friction": 0.7,
+        "height": 0.08,
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": -0.039,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "radius": 8,
+        "restitution": 0,
+        "role": "drivable-surface",
+        "shape": "cylinder",
+        "surfaceMaterial": {
+          "id": "surface.standard-course",
+          "version": 1
+        }
+      },
+      "editable": false,
+      "id": "loop-east-bend",
+      "transform": {
+        "position": {
+          "x": 12,
+          "y": -0.001,
+          "z": 0
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "asphalt",
+        "scale": {
+          "x": 16,
+          "y": 0.002,
+          "z": 16
+        },
+        "shape": "cylinder"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "surface",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 12,
+          "y": 0.04,
+          "z": 3
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": -0.039,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "drivable-surface",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.short-grass",
+          "version": 1
+        }
+      },
+      "editable": false,
+      "id": "infield",
+      "transform": {
+        "position": {
+          "x": 0,
+          "y": -0.001,
+          "z": 0
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "ground",
+        "scale": {
+          "x": 24,
+          "y": 0.002,
+          "z": 6
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "surface",
+      "collision": {
+        "axis": 1,
+        "friction": 0.7,
+        "height": 0.08,
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": -0.039,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "radius": 3,
+        "restitution": 0,
+        "role": "drivable-surface",
+        "shape": "cylinder",
+        "surfaceMaterial": {
+          "id": "surface.short-grass",
+          "version": 1
+        }
+      },
+      "editable": false,
+      "id": "infield-west",
+      "transform": {
+        "position": {
+          "x": -12,
+          "y": -0.001,
+          "z": 0
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "ground",
+        "scale": {
+          "x": 6,
+          "y": 0.002,
+          "z": 6
+        },
+        "shape": "cylinder"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "surface",
+      "collision": {
+        "axis": 1,
+        "friction": 0.7,
+        "height": 0.08,
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": -0.039,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "radius": 3,
+        "restitution": 0,
+        "role": "drivable-surface",
+        "shape": "cylinder",
+        "surfaceMaterial": {
+          "id": "surface.short-grass",
+          "version": 1
+        }
+      },
+      "editable": false,
+      "id": "infield-east",
+      "transform": {
+        "position": {
+          "x": 12,
+          "y": -0.001,
+          "z": 0
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "ground",
+        "scale": {
+          "x": 6,
+          "y": 0.002,
+          "z": 6
+        },
+        "shape": "cylinder"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "marker",
+      "collision": null,
+      "editable": false,
+      "id": "start-finish-line",
+      "transform": {
+        "position": {
+          "x": 0,
+          "y": -0.001,
+          "z": -5.5
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "line",
+        "scale": {
+          "x": 0.18,
+          "y": 0.002,
+          "z": 5
+        },
+        "shape": "box"
+      }
+    }
+  ],
+  "schemaVersion": 4,
+  "start": {
+    "gateHalfExtents": {
+      "x": 3.2,
+      "y": 1.5,
+      "z": 0.4
+    },
+    "id": "start-position",
+    "position": {
+      "x": 0,
+      "y": 0,
+      "z": -5.5
+    },
+    "rotation": {
+      "x": 0,
+      "y": 90,
+      "z": 0
+    },
+    "spawnDistance": 0.6
+  },
+  "units": "meters"
+}

@@ -1,11 +1,7 @@
 import * as pc from "playcanvas";
 
 import { buildCourseLighting } from "../course/build-course-lighting";
-import {
-  applySceneLook,
-  applyShadowPolicy,
-  setSceneAmbientIntensity,
-} from "../render/scene-look";
+import { applySceneLook, applyShadowPolicy } from "../render/scene-look";
 import {
   addCourseVisual,
   buildRoughCourse,
@@ -152,7 +148,6 @@ export class CourseEditorScene {
     if (!cameraComponent) {
       throw new Error("Course editor camera is unavailable.");
     }
-    // Rebuilds apply the document's ambient intensity.
     this.releaseSceneLook = applySceneLook(this.app, cameraComponent);
 
     const gizmos = createEditorTransformGizmos(
@@ -723,10 +718,6 @@ export class CourseEditorScene {
       }
       this.activeDocumentRoot?.addChild(entity);
     });
-    setSceneAmbientIntensity(
-      this.app.scene,
-      this.currentDocument.lighting.ambient.intensity,
-    );
     this.createMarkerEntities(this.activeDocumentRoot, this.currentDocument);
     if (this.collisionVisible) {
       this.createCollisionVisuals(this.activeDocumentRoot, this.currentDocument);

@@ -32,14 +32,13 @@ let habitatAtlasPixels: Uint8Array | null = null;
 export function applySceneLook(
   app: pc.Application,
   camera: pc.CameraComponent,
-  ambientIntensity = 1,
 ) {
   // The environment only lights the scene; backgrounds stay the clear color.
   camera.layers = camera.layers.filter((id) => id !== pc.LAYERID_SKYBOX);
   camera.gammaCorrection = pc.GAMMA_SRGB;
   camera.toneMapping = pc.TONEMAP_NEUTRAL;
   app.scene.exposure = EXPOSURE;
-  setSceneAmbientIntensity(app.scene, ambientIntensity);
+  app.scene.skyboxIntensity = ENVIRONMENT_GAIN;
 
   habitatAtlasPixels ??= createEnvironmentAtlasPixels(habitatColorAtElevation);
   const atlas = new pc.Texture(app.graphicsDevice, {
@@ -60,14 +59,6 @@ export function applySceneLook(
     if (app.scene?.envAtlas === atlas) app.scene.envAtlas = null;
     atlas.destroy();
   };
-}
-
-/** Courses keep control of ambient strength; the habitat sets its color. */
-export function setSceneAmbientIntensity(
-  scene: pc.Scene,
-  ambientIntensity: number,
-) {
-  scene.skyboxIntensity = ambientIntensity * ENVIRONMENT_GAIN;
 }
 
 /** One shadow policy for every shadow-casting light. */

@@ -13,7 +13,7 @@ the PlayCanvas mapping in
 The system owns the portable course-document contract, strict runtime
 validation, canonical serialization, source-controlled rough-course seed,
 stable authored IDs, start/checkpoint records, bounded primitive definitions,
-semantic collision roles, bounded environment lighting, diagnostic
+semantic collision roles, placement in the habitat enclosure, diagnostic
 availability, and construction of static PlayCanvas course entities.
 
 Database revisions, authentication, and authorization are now owned by
@@ -25,20 +25,21 @@ own editor commands or persistence UI.
 ## Source Ownership
 
 - `src/game/course/course-document.ts` defines strict Zod legacy schemas and the
-  canonical version-three schema, deterministic legacy normalization,
+  canonical version-four schema, deterministic legacy normalization,
   cross-document ID and checkpoint-order refinements, gate-face direction
   alignment, canonical sorting, serialization, inferred TypeScript types, and
   validated seed export.
 - `src/game/course/course-ids.ts` keeps permanent sandbox, future official, and
   current guest-runtime course selection explicit; `course-publication.ts`
   validates protected publication and privacy-minimized public runtime shapes.
-- `src/game/course/rough-course.v3.json` is the canonical portable rough-course
+- `src/game/course/rough-course.v4.json` is the canonical portable rough-course
   sandbox seed. It contains the start/finish gate, three ordered checkpoints
   whose gates reach from the infield into the grass, with directed gate and
   recovery data, an infield barrier, ordinary surfaces and objects, camera
   fixtures, and opt-in collision fixtures.
-  It permanently restores only course ID `rough-course`; the official future
-  Agricultural Zone document uses the distinct ID `agricultural-zone`.
+  It permanently restores only course ID `rough-course`; the official
+  Agricultural Zone document uses the distinct ID `agricultural-zone`, seeded
+  by `agricultural-zone.v4.json` (a small starter loop in another valley).
 - `src/game/course/build-rough-course.ts` projects a validated document into
   PlayCanvas visual, collision, rigid-body, tag, group, and mask state. It
   returns stable-ID entity maps plus two explicit sandbox obstacle lookups used
@@ -49,9 +50,11 @@ own editor commands or persistence UI.
 - `src/game/course/course-surface-materials.ts` creates the course finishes
   shared by the race and editor (see
   [scene lighting](../scene-lighting/README.md)) and the top-face meshes.
-- `src/game/course/build-course-lighting.ts` projects bounded ambient and
-  directional-light records into PlayCanvas scene state and fixed shadow
-  presets.
+- `src/game/course/build-course-lighting.ts` projects the enclosure's sun
+  into one shadow-casting directional light.
+- `src/game/enclosure/island-three.ts` owns the approved enclosure registry,
+  placement limits, and the enclosure frame and sun direction in course
+  coordinates ([Island Three](../../../docs/island-three.md)).
 - `src/components/solo-time-trial-canvas.tsx` reads the validated start transform,
   accepts a validated course document, passes repository-owned material
   instances to the builder, and projects the same published document through
@@ -64,22 +67,24 @@ own editor commands or persistence UI.
 
 ## Document Contract
 
-Canonical version three is strict JSON using metres, Y-up positions, and Euler
+Canonical version four is strict JSON using metres, Y-up positions, and Euler
 degrees. It contains:
 
-- literal schema version `3`;
+- literal schema version `4`;
 - a stable course ID and name;
 - one stable start ID, transform (the start/finish gate), bounded start-gate
   half-extents, and a spawn distance (0–10 m) placing the kart behind the gate
   along its heading; legacy courses normalize to 0 and the editor marks the
   spawn;
-- one ambient-light record and one-to-two stable directional-light records;
+- one enclosure reference (`id`, `version`) with its placement (`axial`,
+  `azimuth`, `heading`, `height`) and the mirror angle that sets the time of
+  day, validated against the enclosure registry;
 - one-to-256 checkpoints whose explicit order must match a contiguous array
   order starting at one, each with bounded oriented half-extents, a normalized
   gate-face direction, and a recovery transform; and
 - one-to-5,000 course objects.
 
-Every addressable start, checkpoint, object, and directional-light ID is unique
+Every addressable start, checkpoint, and object ID is unique
 across the complete document. IDs use lowercase kebab-case and are independent
 of PlayCanvas entities.
 
@@ -97,8 +102,8 @@ silently stripped. The complete document validates before scene construction.
 ## Legacy Normalization
 
 Stored revisions are immutable, so `parseCourseDocument` keeps strict
-version-one and version-two schemas and normalizes them in memory to version
-three; canonical serialization and every new save use version three. Version
+version-one to version-three schemas and normalizes them in memory to version
+four; canonical serialization and every new save use version four. Version
 two adds
 `start.gateHalfExtents`, `checkpoints[].forward`, and
 `checkpoints[].recovery`.
@@ -111,14 +116,17 @@ two adds
 - **Recovery:** position from the lower face of the checkpoint volume; yaw
   toward the next anchor, wrapping the final checkpoint toward the start.
 - **Start gate:** reviewed default half-extents.
+- **Enclosure (version three and earlier):** placed at the middle of Island
+  Three's first valley, turned and timed so the sun shines from the old key
+  light's direction; ambient and other lights are dropped.
 - Degenerate coincident anchors or directions that cannot identify a face are
   rejected rather than invented.
 - A loaded version-one row is normalized in memory, and its next save creates a
-  new version-three revision. Persistence responses report the normalized schema
+  new version-four revision. Persistence responses report the normalized schema
   version consistently.
 
 Every legacy collider normalizes to `surface.standard-course@1`, including
-visually green surfaces. The v3 seed layers lawn grass on the base ground, 2 m
+visually green surfaces. The rough-course seed layers lawn grass on the base ground, 2 m
 short-turf verges (edge strips and cap discs) under the asphalt edge, short-turf
 infield cutouts, and an infield lawn leaving 1.5 m turf bands. Coplanar visual
 layers follow the material order in `course-visual-policy.ts`, while physics
@@ -150,8 +158,8 @@ exposed in the UI.
    map; engine GUIDs never enter document state.
 8. The existing application lifecycle destroys every constructed entity and
    physics component.
-9. Course-level lighting maps to ambient scene color and stable directional
-   entities, with renderer-specific shadow details kept in the adapter.
+9. The enclosure's sun maps to one directional entity, with renderer-specific
+   shadow details kept in the adapter.
 
 ## Accepted Invariants
 
@@ -174,16 +182,17 @@ exposed in the UI.
 - Parsing and serializing the canonical seed reproduces it byte-for-byte.
 - The accepted course appearance, kart physics, collision, camera, and reset
   behavior remain unchanged while authoring lives only in the protected editor.
-- Lighting is bounded to ambient plus two directional lights and four shadow
-  presets; raw renderer tuning is not portable course data.
+- Course light comes from the enclosure: the document chooses only the mirror
+  angle, and raw renderer tuning is not portable course data.
 
 ## Verification
 
 - `tests/course-document.spec.ts`: schema, seed, stable IDs, checkpoint order,
   canonical round-trip, version normalization, invalid input, and retained
   geometry.
-- `tests/course-lighting.spec.ts` and `tests/course-builder.spec.ts`: lighting
-  and projection, fixture gating, and atomic rollback.
+- `tests/course-lighting.spec.ts`, `tests/island-three-enclosure.spec.ts`, and
+  `tests/course-builder.spec.ts`: sunlight and enclosure geometry, projection,
+  fixture gating, and atomic rollback.
 - `tests/home.spec.ts`: runtime construction and semantic collision roles.
 
 ## Known Limits

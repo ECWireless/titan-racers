@@ -42,11 +42,10 @@ Orange and hazard are signals. Use them sparingly so they stay readable.
 ## Light
 
 - **Habitat light.** Scenes are lit by a neutral, slightly warm environment:
-  a bright diffuse horizon, a softer overhead, and a dark floor bounce. Courses
-  add their own directional key and fill lights from the course document.
-- **Courses control ambient strength, not color.** A course's ambient
-  intensity scales the habitat light. Its ambient color has no visible effect
-  until Island Three (PR 4.3.1) supplies light from the enclosure itself.
+  a bright diffuse horizon, a softer overhead, and a dark floor bounce.
+- **Sunlight comes through Island Three's windows.** A course does not aim
+  its own lights. Its mirror angle sets the time of day, and the sun shines
+  from the window opposite its valley ([Island Three](island-three.md)).
 - **Neutral tone mapping.** Khronos PBR Neutral keeps the site's orange and
   hazard yellow on hue. ACES pushes them toward lemon yellow, and no tone
   mapping clips bright highlights.
