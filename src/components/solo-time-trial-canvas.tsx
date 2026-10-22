@@ -39,6 +39,7 @@ import {
 import { buildCourseLighting } from "@/game/course/build-course-lighting";
 import { buildRoughCourse } from "@/game/course/build-rough-course";
 import { createCourseSurfaceMaterials } from "@/game/course/course-surface-materials";
+import { loadCourseSurfaceImages } from "@/game/course/course-surface-textures";
 import {
   type CourseDocument,
   getCourseStartTransform,
@@ -629,7 +630,11 @@ export function SoloTimeTrialCanvas({
     let contextRestoreTimeoutId: number | null = null;
 
     const initializeScene = async () => {
-      await loadAmmoPhysics();
+      // The race waits for the scanned finishes so they never pop in.
+      const [, courseSurfaceImages] = await Promise.all([
+        loadAmmoPhysics(),
+        loadCourseSurfaceImages(),
+      ]);
 
       if (cancelled) {
         return;
@@ -706,6 +711,7 @@ export function SoloTimeTrialCanvas({
       );
       const courseSurfaces = createCourseSurfaceMaterials(app.graphicsDevice);
       runtime.addCleanup(() => courseSurfaces.destroy());
+      if (courseSurfaceImages) courseSurfaces.useScans(courseSurfaceImages);
       const obstacleBarrelMaterial = courseSurfaces.materials.obstacleBarrel;
 
       function createChildCollisionBox(

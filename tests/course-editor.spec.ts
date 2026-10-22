@@ -1035,7 +1035,8 @@ test.describe("protected course editor access", () => {
   test("selects and authors course objects across desktop and mobile controls", async ({
     page,
   }, testInfo) => {
-    testInfo.setTimeout(60_000);
+    // Scanned course finishes render slowly in the software-rendered browser.
+    testInfo.setTimeout(90_000);
     await page.route(courseApiPattern, async (route) => {
       await route.fulfill({
         body: JSON.stringify({
@@ -1632,6 +1633,8 @@ test.describe("protected course editor access", () => {
   test("supports best-effort standard-controller editing and safe dialog cancellation", async ({
     page,
   }, testInfo) => {
+    // Scanned course finishes render slowly in the software-rendered browser.
+    testInfo.setTimeout(60_000);
     test.skip(
       testInfo.project.name !== "desktop",
       "Controller editor coverage only needs to run once.",

@@ -9,6 +9,7 @@ import {
 } from "react";
 
 import type { CourseDocument } from "@/game/course/course-document";
+import { loadCourseSurfaceImages } from "@/game/course/course-surface-textures";
 import type {
   CourseEditorSelection,
   CourseEditorSelections,
@@ -76,6 +77,10 @@ export const CourseEditorCanvas = forwardRef<
       });
       sceneRef.current = scene;
       queueMicrotask(() => active && setStatus("ready"));
+      const surfaceScene = scene;
+      void loadCourseSurfaceImages().then((images) => {
+        if (active && images) surfaceScene.useCourseSurfaceScans(images);
+      });
     } catch (error) {
       console.error("Unable to start the course editor scene", error);
       queueMicrotask(() => active && setStatus("error"));

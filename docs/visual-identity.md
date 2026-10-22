@@ -104,18 +104,37 @@ Materials), and so do course surfaces (see Course Surfaces).
   patchier uncut lawn beyond it, ice road paint for edge and start
   lines, hazard paint for kerbs, apexes, and grid accents, and steel for posts
   and cabinets.
-- **Texture follows the world, not the piece.** A fine aggregate grain and a
-  broad variation are generated in code and anchored to world position, so
-  overlapping pieces and edited layouts stay continuous. Turf adds faint
-  mowing stripes; lawn has none.
-- **Flat where karts roll flat.** No grass blades, gravel, or bumps the
-  physics does not have. Anything raised, such as a bridge, kicker, or table, is
-  solid geometry with collision all the way to the ground.
+- **Asphalt and grass are photo scans at true size.** CC0 scans give their
+  aggregate, blades, relief, and roughness variation, recoloured and re-glossed
+  so each surface keeps its palette colour and sheen on average. Turf mowing stripes depend on viewing
+  direction, as real ones do: a band looks lighter when its blades lean away
+  from the viewer.
+- **Texture follows the world, not the piece.** Scans and a code-built broad
+  variation are anchored to world position, so overlapping pieces and edited
+  layouts stay continuous. Paint, steel, and other finishes keep a fine
+  code-built grain.
+- **Flat where karts roll flat.** No raised grass blades, gravel, or bumps the
+  physics does not have; grass relief is shading on the flat surface. Anything
+  raised, such as a bridge, kicker, or table, is solid geometry with collision
+  all the way to the ground.
 - **Surfaces show how karts drive on them.** Tires sliding sideways lay
   marks that last for the race: dark rubber on asphalt and fainter torn turf
   on grass. Wheels on turf and lawn throw real-size clippings, more when they
   slide, which fly under real gravity. All follow the actual tire contact and
   slip.
+
+### Surface Scans
+
+From [ambientCG](https://ambientcg.com) (CC0), 1K sets in
+`src/game/course/surface-textures/`, each packed into two JPEGs: colour as a
+ratio to the scan's mean with 80% of its ambient occlusion baked in, and the
+OpenGL normal's x and y with roughness.
+
+| Surface | Scan | Drawn at |
+| --- | --- | --- |
+| Asphalt | Asphalt030 | 2.2 m |
+| Uncut lawn | Grass001 | 1.4 m |
+| Turf | Grass004 | 0.8 m (scanned at 1.4 m) |
 
 ## Phone Performance Budget
 
@@ -150,12 +169,12 @@ CPU work and draw calls are the headroom signals.
 
 ### Baseline
 
-| Measure | Before lighting (PR 4.1.2 start) | After lighting baseline | Part visuals (PR 4.1.3) | Authored primitives (PR 4.1.4) | Sandbox surfaces (PR 4.2.1) | Surface physics (PR 4.2.2) | Collision substeps (PR 4.2.3) | Surface effects (PR 4.2.4) |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| Frame p50 / p95 | 17.0 / 18.0 ms | 17.0 / 18.0 ms | 17.0 / 18.0 ms | 17.0 / 18.0–19.0 ms | 17.0 / 18.0 ms | 17.0 / 18.0 ms | 17.0 / 18.0 ms | 17.0 / 18.0 ms |
-| CPU p50 / p95 | 3 / 4 ms | 3 / 4 ms | 2 / 3 ms | 2 / 3 ms | 2 / 3–4 ms | 2 / 3 ms | 3 / 4 ms | 2 / 3–4 ms |
-| Draw calls p50 / max | 212 / 226 | 213 / 226 | 38–39 / 55 | 38–39 / 51 | 34 / 45–46 | 35 / 48–49 | 35–36 / 46–49 | 36–37 / 49–51 |
-| First frame (warm) | 63–136 ms | 107–278 ms | 121–128 ms | 132–191 ms | 335–392 ms | 133–207 ms | 136–282 ms | 147–230 ms |
+| Measure | Before lighting (PR 4.1.2 start) | After lighting baseline | Part visuals (PR 4.1.3) | Authored primitives (PR 4.1.4) | Sandbox surfaces (PR 4.2.1) | Surface physics (PR 4.2.2) | Collision substeps (PR 4.2.3) | Surface effects (PR 4.2.4) | Surface scans (PR 4.2.5) |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| Frame p50 / p95 | 17.0 / 18.0 ms | 17.0 / 18.0 ms | 17.0 / 18.0 ms | 17.0 / 18.0–19.0 ms | 17.0 / 18.0 ms | 17.0 / 18.0 ms | 17.0 / 18.0 ms | 17.0 / 18.0 ms | 17.0 / 18.0 ms |
+| CPU p50 / p95 | 3 / 4 ms | 3 / 4 ms | 2 / 3 ms | 2 / 3 ms | 2 / 3–4 ms | 2 / 3 ms | 3 / 4 ms | 2 / 3–4 ms | 2–3 / 4 ms |
+| Draw calls p50 / max | 212 / 226 | 213 / 226 | 38–39 / 55 | 38–39 / 51 | 34 / 45–46 | 35 / 48–49 | 35–36 / 46–49 | 36–37 / 49–51 | 37–39 / 49–51 |
+| First frame (warm) | 63–136 ms | 107–278 ms | 121–128 ms | 132–191 ms | 335–392 ms | 133–207 ms | 136–282 ms | 147–230 ms | 240–243 ms |
 
 PR 4.1.4 was measured with one race on each official kart rather than three
 Balanced races. Each official kart is 15.3–15.5k triangles: 11.6k of part
@@ -174,3 +193,8 @@ PR 4.2.4 was measured with three Balanced races and a reloaded confirmation
 race, with no hitches. Course shadows filter over 5×5 texels, and tire marks
 and grass clippings add at most three draw calls (asphalt marks, grass marks,
 clippings).
+
+PR 4.2.5 was measured with three Balanced races on reloads, with no hitches.
+The scanned finishes add no draw calls; their first frame includes decoding
+and uploading about 3 MB of surface scans. The first load after a new build
+took 736 ms.

@@ -14,6 +14,7 @@ import {
 } from "../course/build-rough-course";
 import type { CourseDocument } from "../course/course-document";
 import { createCourseSurfaceMaterials } from "../course/course-surface-materials";
+import type { CourseSurfaceImages } from "../course/course-surface-textures";
 import {
   COURSE_EDITOR_CAMERA_NEAR_CLIP,
   COURSE_EDITOR_SHADOW_DISTANCE,
@@ -286,6 +287,10 @@ export class CourseEditorScene {
       this.selectionByNode.delete(entity);
       entity.destroy();
     });
+  }
+
+  useCourseSurfaceScans(images: CourseSurfaceImages) {
+    this.courseSurfaces.useScans(images);
   }
 
   setDocument(document: CourseDocument) {

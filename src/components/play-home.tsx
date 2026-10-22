@@ -9,6 +9,7 @@ import {
   type CourseDocument,
 } from "@/game/course/course-document";
 import { CURRENT_GUEST_COURSE_ID } from "@/game/course/course-ids";
+import { loadCourseSurfaceImages } from "@/game/course/course-surface-textures";
 import { publishedCourseRuntimeSchema } from "@/game/course/course-publication";
 import { useControllerMenuNavigation } from "@/game/input/use-controller-menu-navigation";
 import type { KartAssemblyDocument } from "@/game/kart/kart-assembly-document";
@@ -109,6 +110,9 @@ export function PlayHome() {
 
   useEffect(() => {
     let active = true;
+    // Decode the course finishes while the player picks a kart, so the race
+    // rarely waits for them.
+    void loadCourseSurfaceImages();
 
     void (async () => {
       let roster: OfficialKartRoster;

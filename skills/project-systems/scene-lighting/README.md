@@ -22,7 +22,12 @@ phone budget. Art direction and the budget itself live in
   [kart visual builder](../kart-builder/README.md) uses.
 - `src/game/course/course-surface-materials.ts` owns the course finishes:
   one shader program whose diffuse override samples a CPU-built grain
-  texture by world position.
+  texture by world position, and a second for asphalt, turf, and lawn that
+  samples their photo scans (colour, normal, and roughness) the same way.
+  `course-surface-textures.ts` decodes the scans once per page; the home
+  screen starts it, the race waits for it before its first frame, and the
+  course editor switches to the scans when they arrive. If they fail, those
+  surfaces keep the grain finish.
 - `src/game/course/build-course-lighting.ts` sets the course shadow presets
   (20 m coverage, a bias small enough for kart-scale shadows, and PCF5
   filtering); the course
@@ -58,9 +63,11 @@ course editor scenes in `src/game/editor/`, and
 - The atlas mirrors the PlayCanvas 2.20.6 `EnvLighting.generateAtlas` layout
   (512², RGBP, one-texel seams, v = 0 straight up). Re-verify it against the
   engine's envAtlas shader chunks on any engine upgrade.
-- The course finishes replace the `diffusePS` chunk for chunk version 2.20.
-  Re-verify it, like the atlas, on any engine upgrade. Their grain pixels
-  are also CPU-built and re-upload after a lost WebGL context.
+- The course finishes replace the `diffusePS` chunk (scanned finishes also
+  `normalMapPS` and `glossPS`) for chunk version 2.20. Re-verify them, like
+  the atlas, on any engine upgrade. Grain pixels and decoded scan images are
+  kept, so both re-upload after a lost WebGL context. Scans load as image
+  elements, not `ImageBitmap`s, which PlayCanvas avoids on Safari.
 - CPU-built atlas pixels re-upload by themselves after a lost WebGL context.
   Do not switch to GPU prefiltering: it compiles extra shaders in every new
   application, and each kart thumbnail is one.

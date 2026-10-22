@@ -1,8 +1,8 @@
 import * as pc from "playcanvas";
 
 import {
-  COURSE_LAWN_COLOR,
-  COURSE_TURF_COLOR,
+  COURSE_LAWN_CLIPPING_COLOR,
+  COURSE_TURF_CLIPPING_COLOR,
   getCourseSurfaceLayerDepthBias,
 } from "../course/course-visual-policy";
 import { EARTH_WORLD_ENVIRONMENT } from "../physics/world-environment";
@@ -60,8 +60,8 @@ type MarkSurface = keyof KartSurfaceEffectPolicy["marks"];
 
 const ASPHALT_SURFACE_ID = "surface.standard-course";
 const GRASS_COLORS: Readonly<Record<string, string>> = {
-  "surface.lawn-grass": COURSE_LAWN_COLOR,
-  "surface.short-grass": COURSE_TURF_COLOR,
+  "surface.lawn-grass": COURSE_LAWN_CLIPPING_COLOR,
+  "surface.short-grass": COURSE_TURF_CLIPPING_COLOR,
 };
 const QUAD_INDICES = [0, 2, 1, 1, 2, 3];
 

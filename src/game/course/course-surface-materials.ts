@@ -11,6 +11,10 @@ import {
   getCourseSurfaceLayerDepthBias,
   type CourseSurfaceLayer,
 } from "./course-visual-policy";
+import type {
+  CourseScannedSurface,
+  CourseSurfaceImages,
+} from "./course-surface-textures";
 
 // Retained CPU pixels are shared by page mounts and re-upload after context
 // restoration. GPU textures belong to one scene and are released with it.
@@ -54,6 +58,77 @@ void getAlbedo() {
 }
 `;
 
+// Scanned finishes (CC0 ambientCG scans, see docs/visual-identity.md). The
+// albedo image stores each texel's colour as a quarter of its ratio to the
+// scan's mean, so the finish keeps the palette's average colour while the scan
+// supplies variation. The surface image packs the OpenGL normal's x and y
+// with roughness.
+const SCANNED_SURFACE_ALBEDO = `
+uniform vec3 material_diffuse;
+uniform sampler2D courseGrain;
+uniform vec3 courseFinish;
+uniform sampler2D courseScanAlbedo;
+uniform sampler2D courseScanSurface;
+// x: texture repeats per metre, y: normal strength, z: share of the scan's
+// own hue kept, w: the scan's mean roughness.
+uniform vec4 courseScan;
+vec4 courseScanSample;
+// Mowing stripes: alternate 2 m bands lean +x and -x. A band looks lighter
+// when its blades lean away from the viewer and darker when they lean toward.
+float getMowingStripe(vec2 world) {
+    float horizontal = length(dViewDirW.xz);
+    if (courseFinish.z == 0.0 || horizontal < 0.001) return 0.0;
+    float lean = clamp(sin(world.y * 1.5707963) * 6.0, -1.0, 1.0);
+    return -lean * dViewDirW.x / horizontal * courseFinish.z;
+}
+void getAlbedo() {
+    vec2 world = vPositionW.xz;
+    vec2 uv = world * courseScan.x;
+    vec3 ratio = texture2D(courseScanAlbedo, uv).rgb * 4.0;
+    courseScanSample = texture2D(courseScanSurface, uv);
+    float broad = texture2D(courseGrain, mat2(0.8, -0.6, 0.6, 0.8) * world / 48.0).g;
+    // Brightness follows the scan; hue keeps only a share of its variation so
+    // dim channels are not amplified into speckle.
+    float brightness = dot(ratio, vec3(0.2126, 0.7152, 0.0722));
+    vec3 tint = mix(vec3(1.0), ratio / max(brightness, 0.002), courseScan.z);
+    dAlbedo = material_diffuse * brightness * tint
+        * (1.0 + (broad - 0.5) * courseFinish.y + getMowingStripe(world));
+}
+`;
+
+const SCANNED_SURFACE_NORMAL = `
+void getNormal() {
+    vec2 slope = (courseScanSample.rg * 2.0 - 1.0) * courseScan.y;
+    float up = sqrt(max(0.0, 1.0 - dot(slope, slope)));
+    // Texture u follows world +x and the image's up (OpenGL green) world -z.
+    // Only upward faces carry the scan's relief.
+    dNormalW = dVertexNormalW.y > 0.99
+        ? normalize(vec3(slope.x, up, -slope.y))
+        : dVertexNormalW;
+}
+`;
+
+// Each finish keeps its tuned gloss on average; the scan's roughness only
+// varies it, because scanned roughness levels differ between sources.
+const SCANNED_SURFACE_GLOSS = `
+uniform float material_gloss;
+void getGlossiness() {
+    float relative = (1.0 - courseScanSample.b) / max(1.0 - courseScan.w, 0.05);
+    dGlossiness = clamp(material_gloss * relative, 0.0, 1.0) + 0.0000001;
+}
+`;
+
+const SCANNED_SURFACES: Record<
+  CourseScannedSurface,
+  // roughness: mean of the packed surface image's blue channel.
+  { metres: number; normal: number; tint: number; roughness: number }
+> = {
+  asphalt: { metres: 2.2, normal: 1, tint: 0.12, roughness: 0.612 },
+  lawn: { metres: 1.4, normal: 1, tint: 0.35, roughness: 0.544 },
+  // A 1.4 m scan drawn smaller, so its blades read as clipped.
+  turf: { metres: 0.8, normal: 0.8, tint: 0.35, roughness: 0.263 },
+};
+
 /** Shared race/editor finishes. The caller must destroy the returned bundle. */
 export function createCourseSurfaceMaterials(device: pc.GraphicsDevice) {
   const grain = new pc.Texture(device, {
@@ -76,6 +151,7 @@ export function createCourseSurfaceMaterials(device: pc.GraphicsDevice) {
     gloss: number,
     variation: [number, number, number],
     layer?: CourseSurfaceLayer,
+    scanned?: CourseScannedSurface,
   ) => {
     const material = new pc.StandardMaterial();
     material.diffuse = color;
@@ -89,19 +165,22 @@ export function createCourseSurfaceMaterials(device: pc.GraphicsDevice) {
     material.setParameter("courseGrain", grain);
     material.setParameter("courseFinish", variation);
     material.update();
+    if (scanned) scannedMaterials.push([material, scanned]);
     return material;
   };
+  const scannedMaterials: Array<[pc.StandardMaterial, CourseScannedSurface]> = [];
+  const scanTextures: pc.Texture[] = [];
   const hex = (color: string) => new pc.Color().fromString(color);
   const turf = () => hex(COURSE_TURF_COLOR);
   // Uncut lawn has stronger broad patches and no stripes.
   const lawn = () => hex(COURSE_LAWN_COLOR);
   const materials = {
-    asphalt: finish(new pc.Color(...COURSE_ASPHALT_COLOR), 0.18, [0.65, 0.28, 0], "asphalt"),
-    baseGround: finish(turf(), 0.08, [0.45, 0.3, 0.035]),
-    baseLawn: finish(lawn(), 0.05, [0.55, 0.42, 0]),
-    ground: finish(turf(), 0.08, [0.45, 0.3, 0.035], "ground"),
-    lawn: finish(lawn(), 0.05, [0.55, 0.42, 0], "lawn"),
-    verge: finish(turf(), 0.08, [0.45, 0.3, 0.035], "verge"),
+    asphalt: finish(new pc.Color(...COURSE_ASPHALT_COLOR), 0.18, [0.65, 0.28, 0], "asphalt", "asphalt"),
+    baseGround: finish(turf(), 0.08, [0.45, 0.3, 0.035], undefined, "turf"),
+    baseLawn: finish(lawn(), 0.05, [0.55, 0.42, 0], undefined, "lawn"),
+    ground: finish(turf(), 0.08, [0.45, 0.3, 0.035], "ground", "turf"),
+    lawn: finish(lawn(), 0.05, [0.55, 0.42, 0], "lawn", "lawn"),
+    verge: finish(turf(), 0.08, [0.45, 0.3, 0.035], "verge", "turf"),
     line: finish(hex("#e8e3d7"), 0.27, [0.12, 0.04, 0], "line"),
     hazard: finish(hex("#ffbd59"), 0.27, [0.12, 0.04, 0], "line"),
     steel: finish(hex("#34404a"), 0.32, [0.08, 0.04, 0]),
@@ -116,10 +195,62 @@ export function createCourseSurfaceMaterials(device: pc.GraphicsDevice) {
   return {
     materials,
     topFaces,
+    /**
+     * Switches asphalt, turf, and lawn to their scanned finishes. Until then
+     * (or if the scans never load) they keep the code-built grain.
+     */
+    useScans(images: CourseSurfaceImages) {
+      if (scanTextures.length > 0) return;
+      const texture = (
+        name: string,
+        source: HTMLImageElement,
+        format: number,
+      ) => {
+        const result = new pc.Texture(device, {
+          name,
+          format,
+          mipmaps: true,
+          minFilter: pc.FILTER_LINEAR_MIPMAP_LINEAR,
+          magFilter: pc.FILTER_LINEAR,
+          // Anisotropic filtering added little at the chase camera's angle.
+          anisotropy: 1,
+          addressU: pc.ADDRESS_REPEAT,
+          addressV: pc.ADDRESS_REPEAT,
+        });
+        result.setSource(source);
+        scanTextures.push(result);
+        return result;
+      };
+      const textures = Object.fromEntries(
+        Object.entries(images).map(([surface, image]) => [
+          surface,
+          {
+            albedo: texture(`course-${surface}-albedo`, image.albedo, pc.PIXELFORMAT_SRGBA8),
+            surface: texture(`course-${surface}-surface`, image.surface, pc.PIXELFORMAT_RGBA8),
+          },
+        ]),
+      ) as Record<CourseScannedSurface, { albedo: pc.Texture; surface: pc.Texture }>;
+      for (const [material, surface] of scannedMaterials) {
+        const scan = SCANNED_SURFACES[surface];
+        material.shaderChunks.glsl.set("diffusePS", SCANNED_SURFACE_ALBEDO);
+        material.shaderChunks.glsl.set("normalMapPS", SCANNED_SURFACE_NORMAL);
+        material.shaderChunks.glsl.set("glossPS", SCANNED_SURFACE_GLOSS);
+        material.setParameter("courseScanAlbedo", textures[surface].albedo);
+        material.setParameter("courseScanSurface", textures[surface].surface);
+        material.setParameter("courseScan", [
+          1 / scan.metres,
+          scan.normal,
+          scan.tint,
+          scan.roughness,
+        ]);
+        material.update();
+      }
+    },
     destroy() {
       Object.values(materials).forEach((material) => material.destroy());
       Object.values(topFaces).forEach(releaseTopFaceMesh);
       grain.destroy();
+      scanTextures.forEach((texture) => texture.destroy());
     },
   };
 }

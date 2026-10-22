@@ -4,6 +4,10 @@ export const COURSE_ASPHALT_COLOR = [0.34, 0.37, 0.39] as const;
 export const COURSE_TURF_COLOR = "#65735a";
 // Uncut lawn: darker and denser than the clipped turf.
 export const COURSE_LAWN_COLOR = "#56644b";
+// Cut blades are not shaded by their neighbours, so clippings take each
+// grass colour without its scan's baked occlusion (about 85%).
+export const COURSE_TURF_CLIPPING_COLOR = "#6d7c61";
+export const COURSE_LAWN_CLIPPING_COLOR = "#5d6c51";
 export const COURSE_BASE_GROUND_OBJECT_ID = "ground";
 export const COURSE_EDITOR_CAMERA_NEAR_CLIP = 0.5;
 // The editor overview sits about 30 m above the ground, beyond the race's
