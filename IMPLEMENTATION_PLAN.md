@@ -248,13 +248,12 @@ Phase decisions:
       Presentation only, within the phone performance budget; debrief the
       effects before implementation. Also steadied the flickering kart shadow
       (4.2.2 phone QA) with PCF5 filtering on course lights.
-- [ ] 4.2.5: Grass visuals for the uncut lawn and, likely, the short turf.
-      Decide first between flat blade detail in the surface finish and raised
-      layered grass. At 1:10, real lawn reaches the axles, so raised grass
-      would hide wheels the physics keeps on a flat surface and needs a change
-      to the "flat where karts roll flat" rule in `docs/visual-identity.md`.
-      Measure against the phone budget, and retune the 4.2.4 clipping colors
-      if the finishes change.
+- [x] 4.2.5: Grass visuals for the uncut lawn and the short turf. A
+      comparison of code-built blades, photo scans, and scans with parallax
+      depth chose flat CC0 photo scans; raised grass would hide wheels the
+      physics keeps on a flat surface. Scope grew to scan the asphalt too.
+      Scans load before the race's first frame, and the 4.2.4 clipping colours
+      follow the scanned blades.
 
 Handling follow-up: reproduce rear-end left/right jolts during Shift handbrake
 drifting on open asphalt. The feature lead observed this before 4.2.2;
