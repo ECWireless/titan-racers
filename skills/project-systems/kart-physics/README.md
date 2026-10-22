@@ -26,7 +26,8 @@ systems.
   tire forces, steering, braking, reverse, resistance, and physics telemetry.
   No target-seeking torque while unsupported.
 - Engine-independent laws, each in its own module under `src/game/kart/`:
-  `kart-drive-model` (motor force, equal driven-wheel split, symmetric reverse),
+  `kart-drive-model` (motor force, equal driven-wheel split, symmetric reverse,
+  handbrake clutch),
   `kart-brake-model` (service brake and independent handbrake),
   `kart-coasting-model` (rolling and aerodynamic resistance),
   `kart-tire-model` (slip angle, load-derived cornering stiffness, peak-to-slide

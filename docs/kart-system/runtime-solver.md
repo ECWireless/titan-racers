@@ -39,6 +39,8 @@ supported wheel's current normal load before the combined tire-force clamp.
 This shared load-aware proportioning prevents an unloaded rear wheel from
 receiving the same force as a loaded front wheel. The handbrake remains a
 separate fixed rear-only split so it can deliberately consume rear tire budget.
+Handbrake demand also disengages drive (see
+[gameplay policy](./gameplay-policy.md)).
 
 These values may be exposed through telemetry but are recalculated after load,
 reset, contact change, or each fixed step. They must not be copied into an

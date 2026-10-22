@@ -34,8 +34,15 @@ export function getRequestedDriveForce(
   throttle: number,
   forwardSpeed: number,
   drivetrain: KartDrivetrainProfile,
+  handbrakeDemand = 0,
 ) {
-  const normalizedThrottle = clamp(throttle, -1, 1);
+  // The handbrake works like a clutch-in pull: its demand disengages the
+  // motor from the driven (handbraked) wheels. Otherwise the motor would
+  // cancel the weaker handbrake mid-drift and the rear would re-grip.
+  const clutchEngagement = Number.isFinite(handbrakeDemand)
+    ? 1 - clamp(handbrakeDemand, 0, 1)
+    : 1;
+  const normalizedThrottle = clamp(throttle, -1, 1) * clutchEngagement;
   if (normalizedThrottle === 0) {
     return 0;
   }

@@ -72,7 +72,7 @@ that supports tire/surface dependence, not the exact grip estimates here.
 
 `CURRENT_PHYSICS_VERSION` in `src/game/physics/physics-version.ts` identifies the
 complete shipped solver, environment, and gameplay-policy combination, currently
-`collision-substeps-v1` (speed-adaptive solver substeps).
+`handbrake-clutch-v1` (the handbrake disengages drive).
 `ACCEPTED_PHYSICS_VERSIONS` lists every identity
 telemetry still accepts, because open tabs keep reporting their build's
 version until reloaded. Telemetry pins the client build's identity when a run

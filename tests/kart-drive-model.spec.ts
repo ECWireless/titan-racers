@@ -40,6 +40,13 @@ test.describe("kart drive model", () => {
     ).toBe(-0);
   });
 
+  test("disengages motor force in proportion to handbrake demand", () => {
+    const drivetrain = DEFAULT_KART_PHYSICAL_PROFILE.drivetrain;
+
+    expect(getRequestedDriveForce(1, 0, drivetrain, 1)).toBe(0);
+    expect(getRequestedDriveForce(1, 0, drivetrain, 0.5)).toBe(8.90625);
+  });
+
   test("keeps a fixed driven-wheel split without transferring an unused share", () => {
     expect(allocateDriveForce(800, [500, 0], 2)).toEqual([400, 0]);
     expect(allocateDriveForce(600, [100, 700], 2)).toEqual([100, 300]);
