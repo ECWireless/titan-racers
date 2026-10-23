@@ -203,6 +203,24 @@ export function getEnclosureFrame(enclosure: CourseEnclosure) {
     };
   });
 
+  /**
+   * Whether a mirror's sunlight reaches a point: looking toward that
+   * mirror's sun image, the point sees the mirror.
+   */
+  const reflects = (mirror: (typeof mirrors)[number], at: Vector3) => {
+    const facing = dot(mirror.toSun, mirror.normal);
+    if (facing >= 0) return false;
+    const distance = dot(add(mirror.hinge, at, -1), mirror.normal) / facing;
+    if (distance <= 0) return false;
+    const hit = add(add(at, mirror.toSun, distance), mirror.hinge, -1);
+    const along = dot(hit, mirror.along);
+    return (
+      along >= 0 &&
+      along <= mirror.length &&
+      Math.abs(dot(hit, mirror.across)) <= mirror.halfWidth
+    );
+  };
+
   return {
     definition,
     mirrors,
@@ -227,17 +245,19 @@ export function getEnclosureFrame(enclosure: CourseEnclosure) {
     sunReaches(at: Vector3 = { x: 0, y: 0, z: 0 }) {
       const count = definition.valleyCount;
       const valley = Math.round((azimuth * count) / 360);
-      const mirror = mirrors[((valley % count) + count) % count]!;
-      const facing = dot(mirror.toSun, mirror.normal);
-      if (facing >= 0) return false;
-      const distance = dot(add(mirror.hinge, at, -1), mirror.normal) / facing;
-      if (distance <= 0) return false;
-      const hit = add(add(at, mirror.toSun, distance), mirror.hinge, -1);
-      const along = dot(hit, mirror.along);
-      return (
-        along >= 0 &&
-        along <= mirror.length &&
-        Math.abs(dot(hit, mirror.across)) <= mirror.halfWidth
+      return reflects(mirrors[((valley % count) + count) % count]!, at);
+    },
+    /**
+     * Sunlight on a surface at a point facing along a normal, relative to
+     * the sunlight's full intensity: the cosine toward each mirror's sun
+     * image that reflects onto the point.
+     */
+    sunlightOn(at: Vector3, normal: Vector3) {
+      return mirrors.reduce(
+        (light, mirror) =>
+          light +
+          (reflects(mirror, at) ? Math.max(dot(normal, mirror.toSun), 0) : 0),
+        0,
       );
     },
   };

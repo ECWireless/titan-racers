@@ -59,6 +59,12 @@ own:
   Zone's loop the end caps, 8 and 24 km away, keep about 55% and 18%.
 - The sun's image is traced through the mirrors, so it shows only where a
   32 km mirror can reflect it to the viewer. The twin cylinder is not drawn.
+- The enclosure lights the course too. Besides the sun, a race's diffuse
+  light is what the course sees around it: sunlit and shaded floors, caps,
+  windows showing the mirrors and black space, and the haze
+  (`src/game/enclosure/habitat-light.ts`). It is far dimmer than daylight on
+  Earth, so sunlit and shaded ground differ strongly. The enclosure's
+  surfaces take the same fill light.
 
 ## Placing A Course
 
@@ -92,6 +98,7 @@ sun lights the anti-sun end, noon most of the floor, and a low evening sun
 the sunward end. Below about 13° the light falls on the anti-sun cap and
 above about 83° on the sunward cap, leaving the valley floors dark. A course gets direct sun only if its placement lies in its
 mirror's band (`sunReaches`), and the enclosure floors show the same band.
+Outside it, the haze also loses its glow toward the sun's image.
 
 Everything rotates together, so the light holds still for a whole race. The
 sun is the course's only shadow-casting light.

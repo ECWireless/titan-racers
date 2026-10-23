@@ -49,6 +49,7 @@ import {
   ROUGH_COURSE_DOCUMENT,
 } from "@/game/course/course-document";
 import { createEnclosureView } from "@/game/enclosure/enclosure-view";
+import { getHabitatLight } from "@/game/enclosure/habitat-light";
 import { PlayerInputManager } from "@/game/input/player-input-manager";
 import { isEditableKeyboardTarget } from "@/game/input/keyboard-input";
 import { useControllerMenuNavigation } from "@/game/input/use-controller-menu-navigation";
@@ -1076,13 +1077,19 @@ export function SoloTimeTrialCanvas({
       lightingEntities.forEach((entity) => {
         if (entity.light?.castShadows) applyShadowPolicy(entity.light);
       });
-      runtime.addCleanup(applySceneLook(app, camera.camera!));
+      const habitatLight = getHabitatLight(COURSE_DOCUMENT.enclosure);
+      runtime.addCleanup(applySceneLook(app, camera.camera!, habitatLight));
       if (
         !TESTS_WITHOUT_ENCLOSURE ||
         new URLSearchParams(window.location.search).has("enclosure")
       ) {
         runtime.addCleanup(
-          createEnclosureView(app, camera, COURSE_DOCUMENT.enclosure),
+          createEnclosureView(
+            app,
+            camera,
+            COURSE_DOCUMENT.enclosure,
+            habitatLight,
+          ),
         );
       }
 

@@ -16,7 +16,12 @@ phone budget. Art direction and the budget itself live in
   exposure, and the habitat environment to an application and camera, and
   owns the shadow policy.
 - `src/game/render/habitat-environment-atlas.ts` builds the environment atlas
-  pixels on the CPU, once per page.
+  pixels on the CPU: the neutral habitat light once per page for editors and
+  thumbnails, and a race's direction-aware light from its radiance.
+- `src/game/enclosure/habitat-light.ts` computes the light Island Three sheds
+  on a race's course, reused while races stay on one placement: radiance by
+  direction for the atlas, and the fill light and sun glow the enclosure view
+  shares.
 - `src/game/kart/kart-visual-material.ts` owns the kart finishes (one
   material per finish) and the authored-color reflectance clamp that the
   [kart visual builder](../kart-builder/README.md) uses.
@@ -74,8 +79,12 @@ course editor scenes in `src/game/editor/`, and
 - The environment never renders as a skybox: `applySceneLook` removes the
   skybox layer from the camera.
 - The atlas mirrors the PlayCanvas 2.20.6 `EnvLighting.generateAtlas` layout
-  (512², RGBP, one-texel seams, v = 0 straight up). Re-verify it against the
-  engine's envAtlas shader chunks on any engine upgrade.
+  (512², RGBP, one-texel seams, v = 0 straight up), and its lookups mirror
+  world X. Re-verify both against the engine's envAtlas shader chunks on any
+  engine upgrade.
+- A race's environment is in scene units (`skyboxIntensity` 1); the neutral
+  habitat light keeps its gain. Its CPU build (about 30–60 ms on desktop,
+  25–40 ms on the reference iPhone) counts toward the startup budget.
 - The course finishes replace the `diffusePS` chunk (scanned finishes also
   `normalMapPS` and `glossPS`) for chunk version 2.20. Re-verify them, like
   the atlas, on any engine upgrade. Grain pixels and decoded scan images are
@@ -102,8 +111,10 @@ course editor scenes in `src/game/editor/`, and
 
 ## Verification
 
-- `tests/frame-budget.spec.ts` covers the summary math, and
-  `tests/course-lighting.spec.ts` covers course light projection.
+- `tests/frame-budget.spec.ts` covers the summary math,
+  `tests/course-lighting.spec.ts` covers course light projection, and
+  `tests/habitat-light.spec.ts` covers the habitat light and the
+  direction-aware atlas.
 - `tests/home.spec.ts` WebGL loss/restore and thumbnail isolation tests,
   `tests/kart-thumbnail.spec.ts`, and the kart and course editor suites cover
   the shared look in each application.
@@ -111,6 +122,10 @@ course editor scenes in `src/game/editor/`, and
 
 ## Known Limits
 
-- The habitat environment is a stand-in until the Island Three enclosure
-  (PR 4.3.1) supplies its own light.
+- The habitat light uses the enclosure's mean surface colours, not its
+  detail, and ignores the course's own geometry.
+- Both atlas builders blur reflections with cos^power lobes, about half as
+  wide as the engine's own GGX prefilter, and leave power 128 sharp, so
+  mid-gloss finishes reflect a little sharply. Matching the engine would
+  change every kart thumbnail.
 - GPU time is not measured; shadow and fill cost show only through frame time.

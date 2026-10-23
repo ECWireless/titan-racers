@@ -1,5 +1,12 @@
 import * as pc from "playcanvas";
 
+import {
+  AEROSOL_EXTINCTION,
+  AIR_GLOW,
+  CLEARING_RADIUS,
+  type HabitatLight,
+  RAYLEIGH_EXTINCTION,
+} from "./habitat-light";
 import { type CourseEnclosure, getEnclosureFrame } from "./island-three";
 
 // Island Three draws in its own pass, before the course, so the course keeps
@@ -18,19 +25,6 @@ const LONGERON_SPACING_DEGREES = 10;
 // Frames are sized to read from kilometres away, not to the sources' panes.
 const FRAME = { depth: 40, width: 30 };
 const SILL = { depth: 60, width: 60 };
-const CLEARING_RADIUS = 220;
-// Meteorological visibility of the habitat air: the distance at which a dark
-// object's contrast falls to 2% (extinction 3.912 / visibility). Clear days
-// on Earth see 20–50 km; at 55 km the end caps, 8–24 km away, stay visible
-// but faint. Air scatters some of that itself (Rayleigh); moisture and dust
-// make up the rest.
-const VISIBILITY = 55_000;
-// Sunlit air glows at 40% of the sunlight's brightness, so distance fades
-// toward a pale haze rather than toward white.
-const AIR_GLOW = 0.4;
-// Rayleigh extinction of air at half sea-level pressure, per metre, for red,
-// green, and blue.
-const RAYLEIGH_EXTINCTION = [2.9e-6, 6.75e-6, 16.55e-6];
 
 type Vector3 = { x: number; y: number; z: number };
 
@@ -78,9 +72,12 @@ varying vec3 vWorld;
 
 // Moisture and dust scatter nearly evenly across colours.
 const vec3 AEROSOL_TINT = vec3(0.95, 1.0, 1.05);
-// Brightness of sunlit air relative to the sunlight itself.
+// Brightness of sunlit air relative to the sunlight itself, and its glow
+// toward the sun's image.
 uniform float uAirGlow;
-const vec3 SKY_AMBIENT = vec3(0.42, 0.44, 0.48);
+uniform float uSunGlow;
+// The habitat's own diffuse light on its surfaces.
+uniform vec3 uFill;
 
 vec3 cylinderCoordinates(vec3 position) {
   vec3 fromAxis = position - uAxisMid;
@@ -132,14 +129,15 @@ float lattice(float x, float w, float s, float f) {
   return mix(band(d, w, f), 2.0 * w / s, smoothstep(0.3 * s, s, f));
 }
 
-// Air glows with scattered sunlight, brightest toward the sun's image.
+// Air glows with scattered sunlight, brightest toward the sun's image while
+// the course stands in the mirror's beam.
 vec3 throughAir(vec3 color, vec3 toSurface) {
   float distance = length(toSurface);
   vec3 transmit = exp(
     -(uRayleighExtinction + AEROSOL_TINT * uAerosolExtinction) * distance
   );
   float toSun = max(dot(toSurface / distance, uSunDirection), 0.0);
-  vec3 airLight = uSunColor * (uAirGlow + 1.2 * pow(toSun, 32.0));
+  vec3 airLight = uSunColor * (uAirGlow + uSunGlow * pow(toSun, 32.0));
   return color * transmit + airLight * (1.0 - transmit);
 }
 
@@ -320,7 +318,7 @@ void main(void) {
     normal = -normalize(fromAxis - dot(fromAxis, uSunward) * uSunward);
   }
   float sunLight = sunlit(vWorld, normal, max(f.x, f.y));
-  vec3 color = albedo * (uSunColor * sunLight + SKY_AMBIENT);
+  vec3 color = albedo * (uSunColor * sunLight + uFill);
   gl_FragColor = finish(throughAir(color, vWorld - view_position));
 }
 `;
@@ -389,7 +387,7 @@ varying vec3 vColor;
 
 void main(void) {
   // Sunlight reaches the frames' outer faces; these inner faces see the sky.
-  vec3 color = vColor * SKY_AMBIENT;
+  vec3 color = vColor * uFill;
   gl_FragColor = finish(throughAir(color, vWorld - view_position));
 }
 `;
@@ -487,6 +485,7 @@ export function createEnclosureView(
   app: pc.AppBase,
   raceCamera: pc.Entity,
   enclosure: CourseEnclosure,
+  habitat: HabitatLight,
 ) {
   const frame = getEnclosureFrame(enclosure);
   const { length, radius, valleyCount } = frame.definition;
@@ -609,14 +608,16 @@ export function createEnclosureView(
     uSunDirection: vec(sun),
     uSunward: vec(frame.sunward),
   };
-  const aerosolExtinction = 3.912 / VISIBILITY - RAYLEIGH_EXTINCTION[1];
   [shellMaterial, glassMaterial, frameMaterial].forEach((material) => {
     Object.entries(shared).forEach(([name, value]) =>
       material.setParameter(name, value),
     );
-    material.setParameter("uRayleighExtinction", RAYLEIGH_EXTINCTION);
-    material.setParameter("uAerosolExtinction", aerosolExtinction);
+    material.setParameter("uRayleighExtinction", [...RAYLEIGH_EXTINCTION]);
+    material.setParameter("uAerosolExtinction", AEROSOL_EXTINCTION);
     material.setParameter("uAirGlow", AIR_GLOW);
+    material.setParameter("uSunGlow", habitat.sunGlow);
+    const { b, g, r } = habitat.fill;
+    material.setParameter("uFill", [r, g, b]);
   });
   shellMaterial.setParameter("uClearing", [axial, azimuth, CLEARING_RADIUS]);
 
