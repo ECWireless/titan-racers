@@ -260,6 +260,8 @@ type SoloTimeTrialCanvasProps = {
   onExit: () => void;
   recordTelemetry?: boolean;
   sessionLabel?: string;
+  /** Test readout of height above the habitat floor and local gravity. */
+  showHabitatReadout?: boolean;
 };
 type SoloSceneControls = {
   clearInput: () => void;
@@ -369,6 +371,7 @@ export function SoloTimeTrialCanvas({
   onExit,
   recordTelemetry = true,
   sessionLabel,
+  showHabitatReadout = false,
 }: SoloTimeTrialCanvasProps) {
   const COURSE_DOCUMENT = courseDocument;
   const kartRuntime = useMemo(() => {
@@ -539,6 +542,10 @@ export function SoloTimeTrialCanvas({
   const [gamePaused, setGamePaused] = useState(false);
   const [kartDynamicsOpen, setKartDynamicsOpen] = useState(false);
   const [raceSpeed, setRaceSpeed] = useState(0);
+  const [habitatReadout, setHabitatReadout] = useState<{
+    altitude: number;
+    gravity: number;
+  } | null>(null);
   const raceSpeedUnit = useSyncExternalStore(
     subscribeToRaceSpeedUnit,
     getBrowserRaceSpeedUnit,
@@ -2596,6 +2603,7 @@ export function SoloTimeTrialCanvas({
         publishRacePresentation();
       });
 
+      let displayedHabitatReadout = { altitude: Number.NaN, gravity: Number.NaN };
       runtime.onRender(({ accumulatorFraction, frameSeconds }) => {
         interpolatedKartPosition.lerp(
           kartPresentation.previousPosition,
@@ -2641,6 +2649,24 @@ export function SoloTimeTrialCanvas({
         if (nextDisplayedSpeed !== displayedRaceSpeedRef.current) {
           displayedRaceSpeedRef.current = nextDisplayedSpeed;
           setRaceSpeed(nextDisplayedSpeed);
+        }
+        if (showHabitatReadout) {
+          // Gravity is ω² r, so it also gives the distance from the axis.
+          const { localGravity } = kartController.state;
+          const { spinRate } = kartController.habitat;
+          const floorGravity = activeDynamics.environment.gravity;
+          const floorRadius = floorGravity / spinRate ** 2;
+          const altitude = Math.round(
+            floorRadius - localGravity / spinRate ** 2,
+          );
+          const gravity = Math.round((localGravity / floorGravity) * 1_000);
+          if (
+            altitude !== displayedHabitatReadout.altitude ||
+            gravity !== displayedHabitatReadout.gravity
+          ) {
+            displayedHabitatReadout = { altitude, gravity };
+            setHabitatReadout(displayedHabitatReadout);
+          }
         }
         latestCameraImpact = null;
         publishRacePresentation();
@@ -2783,6 +2809,7 @@ export function SoloTimeTrialCanvas({
     gameplayTelemetry,
     includeCollisionFixtures,
     kartRuntime,
+    showHabitatReadout,
   ]);
 
   const updateKartDynamicsOpen = useCallback((open: boolean) => {
@@ -3240,6 +3267,15 @@ export function SoloTimeTrialCanvas({
           {sessionLabel ? (
             <p className="pointer-events-none absolute right-3 top-3 z-20 border border-titan-hazard/50 bg-black/80 px-3 py-2 font-mono text-[0.65rem] font-bold uppercase tracking-[0.12em] text-titan-hazard">
               {sessionLabel}
+            </p>
+          ) : null}
+          {showHabitatReadout && habitatReadout ? (
+            <p
+              className="pointer-events-none absolute right-3 top-24 z-20 border border-titan-steel/50 bg-black/80 px-3 py-2 font-mono text-[0.65rem] font-bold tracking-[0.12em] text-titan-ice"
+              data-testid="habitat-readout"
+            >
+              ALT {habitatReadout.altitude.toLocaleString()} m ·{" "}
+              {(habitatReadout.gravity / 1_000).toFixed(3)} g
             </p>
           ) : null}
           {kartDynamicsOpen &&

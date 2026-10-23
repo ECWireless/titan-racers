@@ -12,6 +12,7 @@ import {
   CURRENT_GUEST_COURSE_ID,
   SANDBOX_COURSE_ID,
 } from "@/game/course/course-ids";
+import { withAxisRampTest } from "@/game/course/axis-ramp-test";
 import { loadCourseSurfaceImages } from "@/game/course/course-surface-textures";
 import { publishedCourseRuntimeSchema } from "@/game/course/course-publication";
 import { useControllerMenuNavigation } from "@/game/input/use-controller-menu-navigation";
@@ -34,10 +35,21 @@ type PlayableOfficialKart = {
   thumbnailSource: string | null;
 };
 
-// Non-production test hook: `?sandbox-course` races the physics sandbox.
+// Non-production test hooks: `?sandbox-course` races the physics sandbox;
+// `?axisRamp` adds the ramp to the habitat axis and records no telemetry, and
+// `?axisRamp=<height>` starts the kart that many metres up it.
+function axisRampStartHeight() {
+  if (process.env.NODE_ENV === "production") return null;
+  const value = new URLSearchParams(window.location.search).get("axisRamp");
+  if (value === null) return null;
+  const height = Number(value);
+  return Number.isNaN(height) ? 0 : height;
+}
+
 function soloCourseId() {
   return process.env.NODE_ENV !== "production" &&
-    new URLSearchParams(window.location.search).has("sandbox-course")
+    (new URLSearchParams(window.location.search).has("sandbox-course") ||
+      axisRampStartHeight() !== null)
     ? SANDBOX_COURSE_ID
     : CURRENT_GUEST_COURSE_ID;
 }
@@ -97,6 +109,7 @@ export function PlayHome() {
   const [rosterPending, setRosterPending] = useState(true);
   const [officialKarts, setOfficialKarts] = useState<PlayableOfficialKart[]>([]);
   const [selectedKartId, setSelectedKartId] = useState<string | null>(null);
+  const [axisRampTest, setAxisRampTest] = useState(false);
   const [courseDocument, setCourseDocument] = useState<CourseDocument>(
     BUNDLED_COURSE_DOCUMENTS[CURRENT_GUEST_COURSE_ID],
   );
@@ -205,7 +218,11 @@ export function PlayHome() {
       nextCoursePromise,
     ]);
     if (resumeThumbnailRenderingRef.current !== thumbnailPause.release) return;
-    setCourseDocument(nextCourse);
+    const rampHeight = axisRampStartHeight();
+    setCourseDocument(
+      rampHeight === null ? nextCourse : withAxisRampTest(nextCourse, rampHeight),
+    );
+    setAxisRampTest(rampHeight !== null);
     setKartDocument(selectedKart.document);
     setKartSnapshot(selectedKart.resolvedSnapshot);
     setSoloPending(false);
@@ -218,6 +235,8 @@ export function PlayHome() {
         courseDocument={courseDocument}
         kartDocument={kartDocument}
         kartSnapshot={kartSnapshot}
+        recordTelemetry={!axisRampTest}
+        showHabitatReadout={axisRampTest}
         onExit={() => {
           resumeThumbnailRenderingRef.current?.();
           resumeThumbnailRenderingRef.current = null;

@@ -83,6 +83,23 @@ spins right-handed about the sunward axis, so spinward = up × sunward. Course
 physics stays local, with the spin's gravity and Coriolis acting on the kart
 ([environment](kart-system/environment.md#rotating-habitat)).
 
+Outside production, `?axisRamp` races the Starter Course with a temporary
+test ramp (`src/game/course/axis-ramp-test.ts`), shows the kart's altitude
+above the floor and its gravity on the HUD, and records no telemetry. An
+apron leaves the course through a gap in its perimeter wall, an open 20° ramp
+climbs to a flat pad 500 m from the axis (1/8 g), and a final ramp ends in a
+wall at the axis itself. Nothing else is walled, so karts can leave it
+anywhere; one that does falls outward until the usual fall reset 10 m below
+the floor. Its centreline runs sunward through the course origin, where
+gravity keeps its direction and only weakens; off the centreline it tilts,
+most near the axis. `?axisRamp=<height>` starts the kart that many metres up,
+at most 10 m below the axis. The pad and axis lie 10–11 km from the course
+origin, where single-precision physics positions step by about 1 mm, so
+motion slower than about 0.1 m/s there is coarse or rounded away. A kart parked on
+the ramp rolls back, as a free-rolling kart does on a 20° slope; in weak
+gravity, finite wheel sweeps also hop on the slopes because grounded heave
+damping only acts on near-level support.
+
 ## Sunlight
 
 The course's `mirrorAngle` (5–85°) is the opening of its mirror from the

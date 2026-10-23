@@ -2385,6 +2385,33 @@ test.describe("home screen", () => {
     });
   }
 
+  test("rests on the axis-ramp pad in weak gravity", async ({
+    page,
+  }, testInfo) => {
+    test.skip(
+      testInfo.project.name !== "desktop",
+      "The test ramp only needs one project.",
+    );
+    // 500 m from the axis the pad feels 1/8 of floor gravity.
+    await useBundledCourse(page);
+    await page.goto("/?axisRamp=3500");
+    await page.getByRole("button", { name: "Solo Time Trial" }).click();
+    const canvas = page.getByTestId("solo-time-trial-canvas");
+    await setSimulationPaused(canvas, true);
+    await stepSimulation(canvas, 240);
+    const padded = await getKartDebugState(canvas);
+    await stepSimulation(canvas, 240);
+    const rested = await getKartDebugState(canvas);
+    expect(padded.localGravity).toBeCloseTo((9.81 * 500) / 4_000, 2);
+    expect(rested.supportCount).toBe(4);
+    expect(Math.hypot(rested.x - padded.x, rested.z - padded.z)).toBeLessThan(
+      0.01,
+    );
+    await expect(page.getByTestId("habitat-readout")).toHaveText(
+      "ALT 3,500 m · 0.125 g",
+    );
+  });
+
   test("pauses and resumes from the mobile race HUD", async ({
     page,
   }, testInfo) => {
