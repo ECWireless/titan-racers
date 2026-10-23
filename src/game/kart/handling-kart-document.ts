@@ -1,4 +1,5 @@
 import type { KartAssemblyDocument } from "./kart-assembly-document";
+import { RATED_SHOCK_INSTALLATION_RADIANS } from "./kart-component-registry";
 import {
   createOfficialKartAssembly,
   type OfficialKartAssemblyConfig,
@@ -10,7 +11,7 @@ const HANDLING_KART_CONFIG = {
   armLength: 0.1,
   axleCenterZ: 0.01,
   chassis: {
-    armMount: { x: 0.016, z: 0.018 },
+    armMount: { x: 0.016, z: 0.06 },
     bumperSize: { x: 0.18, y: 0.02, z: 0.03 },
     equipment: {
       "battery-main": { x: -0.055, yawDegrees: 90, z: -0.06 },
@@ -33,12 +34,11 @@ const HANDLING_KART_CONFIG = {
   name: "Handling Kart",
   practicalDescriptor:
     "Short gearing, wide track, and compliant suspension favor agile cornering.",
-  shockTopMount: { y: 0.1055, z: 0.13 },
-  suspensionComponentCenterY: 0.094,
   suspensionComponentPosition: "shock-midpoint",
   suspensionDefinitionId: "suspension.compliant-long",
-  suspensionDefinitionVersion: 2,
-  suspensionRestCompression: 0.006,
+  suspensionDefinitionVersion: 3,
+  // The same wheel sag as before, with the shock at a 30° installation.
+  suspensionRestCompression: 0.006 * Math.cos(RATED_SHOCK_INSTALLATION_RADIANS),
   trackWidth: 0.42,
   transmissionDefinitionId: "transmission.short-8to1",
   visualIdentity: {

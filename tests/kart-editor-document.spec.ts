@@ -130,7 +130,7 @@ test("reattaches suspension from its visible chassis anchor", () => {
     canAttachKartInstanceAtCurrentPosition(
       document,
       selection,
-      "shock-tower-front",
+      "shock-tower-front-bar",
       retainedIds,
     ),
   ).toBe(true);
@@ -144,14 +144,14 @@ test("reattaches suspension from its visible chassis anchor", () => {
         y: suspension.transform.position.y + 0.005,
       },
     },
-    "shock-tower-front",
+    "shock-tower-front-bar",
     retainedIds,
     true,
   );
   const retainedAttachment = smallMove.structuralAttachments.find(
     ({ child }) => child.instanceId === selection.id,
   );
-  expect(retainedAttachment?.parent.instanceId).toBe("shock-tower-front");
+  expect(retainedAttachment?.parent.instanceId).toBe("shock-tower-front-bar");
   expect(validateKartAssembly(smallMove).success).toBe(true);
 
   const movedSuspension = smallMove.componentInstances.find(
@@ -167,7 +167,7 @@ test("reattaches suspension from its visible chassis anchor", () => {
         y: movedSuspension.transform.position.y + 0.02,
       },
     },
-    "shock-tower-front",
+    "shock-tower-front-bar",
     retainedIds,
     true,
   );
@@ -661,9 +661,9 @@ test("applies approved suspension mounting defaults to a mirrored pair", () => {
   )!;
 
   expect(changedLeft.definition.id).toBe("suspension.compliant-long");
-  expect(changedLeft.definition.version).toBe(2);
+  expect(changedLeft.definition.version).toBe(3);
   expect(right.definition.id).toBe("suspension.compliant-long");
-  expect(right.definition.version).toBe(2);
+  expect(right.definition.version).toBe(3);
   expect(changedLeft.suspensionMount?.armPivot.x).toBeCloseTo(
     changedLeft.transform.position.x + 0.08 * Math.sqrt(812.5 / 1_600),
   );

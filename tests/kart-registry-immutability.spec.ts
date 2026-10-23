@@ -45,10 +45,14 @@ const PINNED_REGISTRY_FINGERPRINTS: Record<string, string> = {
     "6008e62d6dabfc8118d681d2aa83419705f85b7ee0b90e7e0cd604d661dc0807",
   "suspension.compliant-long@2":
     "4575933cd303203886285f980943fdd087e6788127bc84677baba1041e155d49",
+  "suspension.compliant-long@3":
+    "629a177902e4f87bd2b3b3eb597035fc6a31cb6fcb9ad560a5556ceb6826c899",
   // Content changed in place during PR 3.3; the current content is canonical
   // because the official karts were authored against it.
   "suspension.firm-short@1":
     "da4dcbba70b0fef652035bead629f4c9d727d18a1722539c4afb6850791a9d21",
+  "suspension.firm-short@2":
+    "24c6f3ddf544c6724bf3f229a5202a8f7f3806fbdfba39def4454bca58d23819",
   "tire-compound.standard-rubber@1":
     "db0784c79307319a1f4a7ae48e9e4fe5196421da9903071afd9a91fe5ba63673",
   "transmission.balanced-5to1@1":

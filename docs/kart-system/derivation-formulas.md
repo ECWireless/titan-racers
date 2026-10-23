@@ -32,7 +32,7 @@ is exhaustive for those per-kart outputs; none may accept a stat override.
 | Drivetrain maximum drive force | Battery voltage/current limits; controller current limit; motor speed constant, winding resistance, safe current, and torque constant; transmission motor-rotations-per-wheel-rotation `G` and efficiency; driven wheel radii | Derive permitted near-stall motor torque, multiply by `G` and efficiency, then divide by driven-wheel radius. This is total unconstrained capability; the current fixed-split drivetrain requests an equal share at each driven station, and runtime grip may cap each share. |
 | Drivetrain no-load speed | Battery effective voltage; motor speed constant; `G`; driven wheel radii | `(motor no-load angular speed ÷ G) × driven-wheel radius`. This boundary is not an authored top-speed stat. |
 | Maximum center steering angle | Steering-servo maximum travel, each solid primitive's local bounds, wheelbase, track width, and steered-wheel centers, radii, and widths | Sweep the center request in both directions through servo travel in `0.01°` increments, convert each candidate to the same Ackermann inner/outer angles used at runtime, and stop before any inside-wheel path reaches the Ackermann singularity. Test each 2D oriented wheel envelope against collision elements whose vertical bounds overlap it. Retain the shared collision-free center angle and reject construction that cannot provide at least `1°`. Shared grip/rollover policy may request less at runtime. |
-| Suspension spring rate | Suspension-unit spring rate and installation motion ratio `R = spring travel ÷ wheel travel` | Effective wheel rate is `spring rate × R²`. |
+| Suspension spring rate | Suspension-unit spring rate and installation ratio `R = spring travel ÷ wheel travel` at rest: the arm lever ratio (spring-eye lever ÷ hub lever about the arm pivot) times the cosine of the angle between the shock axis and the direction its arm eye moves (perpendicular to the arm, about the horizontal hinge axis square to the arm in plan; arms are treated as level at rest) | Effective wheel rate is `spring rate × R²`. A tilted shock compresses less than its eye moves, so it acts softer and lets the wheel travel `stroke ÷ R`. Every station must derive the same `R` within `0.4…1`. |
 | Suspension damper rate | Suspension-unit damping coefficient and `R` | Effective wheel damping is `damper coefficient × R²`. |
 | Suspension bump start | Unit bump-stop onset measured in spring travel and `R` | Wheel-space onset is `unit bump onset ÷ R`. |
 | Suspension quadratic bump rate | Unit quadratic bump coefficient and `R` | Effective wheel-space coefficient is `unit coefficient × R³`. |
@@ -166,6 +166,8 @@ change meaning. Historical races retain their original snapshot/hash and
 derivation version. Snapshot parsers dispatch by persisted snapshot and
 derivation versions; the v1 parser is permanently pinned to the v1 contract,
 while v2 owns the contact-free evidence and Ackermann-aware steering
-clearance rules, v3 adds the wheel guard, and v4 (`ResolvedKartSnapshot`)
-widens the stability range. `ResolvedKartSnapshotV1`, `ResolvedKartSnapshotV2`,
-and `ResolvedKartSnapshotV3` type stored historical evidence.
+clearance rules, v3 adds the wheel guard, v4 widens the stability range, and
+v5 (`ResolvedKartSnapshot`) counts shock tilt in the installation ratio, where
+v4 used the arm lever ratio alone. `ResolvedKartSnapshotV1`,
+`ResolvedKartSnapshotV2`, `ResolvedKartSnapshotV3`, and
+`ResolvedKartSnapshotV4` type stored historical evidence.

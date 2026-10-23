@@ -29,13 +29,18 @@ revision-bound previews live in [`kart-thumbnails`](../kart-thumbnails/README.md
   `deriveKartSnapshot`, wheel stations, physical profile, canonical
   serialization, and SHA-256 hash).
 - **Official karts:** `official-kart-assembly.ts` builds each as an open 1:10
-  RC chassis from its config: the plate is the structural root; hinge-pin
-  mounts sit under each arm pivot; composite shock towers carry the shock top
-  eyes (suspensions attach to the towers); a top deck spans the towers;
-  bumpers butt against the plate ends; electronics rest on the plate. The
-  `balanced-/speed-/handling-kart-document.ts` configs own arm length, shock
-  top mounts, plate, and equipment placement; `official-kart-roster.ts` owns
-  IDs, the roster schema, and the bundled fallback roster.
+  RC chassis from its config: the plate is the structural root; composite
+  hinge-pin mounts under each arm pivot run deep enough to carry both arm
+  legs; each composite shock tower is a narrow post over its axle between
+  the mounts, with a crossbar above the arms and steered wheels carrying both
+  shock top eyes (suspensions attach to the crossbars); a top deck spans the
+  posts; the plate runs far enough to carry the mounts; bumpers butt against
+  the plate ends; electronics rest on the plate. Every shock leans 30° inward
+  from its arm eye's travel, on coilover versions rated for that
+  installation. The `balanced-/speed-/handling-kart-document.ts` configs own
+  arm length, motion ratio, plate, and equipment placement;
+  `official-kart-roster.ts` owns IDs, the roster schema, and the bundled
+  fallback roster.
 - **Persistence:** `src/db/schema.ts` and `drizzle/0011`–`0013`;
   `src/server/kart-repository.ts` (optimistic-concurrency saves, append-only
   publish/unpublish events, published-revision and thumbnail lookup);
@@ -138,7 +143,6 @@ Thin solid primitives (2 mm plates) are collision geometry too. Above top
 speed a kart can travel farther per physics step than a thin wall is deep,
 and the solver may push it into the floor; PR 4.2.3 owns the fix.
 
-Derivation treats shock travel as motion ratio × wheel travel and ignores the
-shock's tilt. The drawn coilover follows the real mount geometry, so on the
-steeply tilted official shocks it compresses much less than the physics does
-and never visibly reaches the bump stop. They agree at rest.
+Derivation counts shock tilt: shock travel is the installation ratio (motion
+ratio × the cosine of the shock's angle to its arm eye's travel) × wheel
+travel, so the drawn coilover compresses as the physics does.

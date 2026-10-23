@@ -806,6 +806,114 @@ A compact coilover with firm response and short travel.
 }
 ```
 
+### Firm short-travel suspension — `suspension.firm-short@2`
+
+A compact coilover with firm response and short travel, rated for a 30° installation.
+
+```json
+{
+  "assembly": {
+    "maximumInstances": 4,
+    "mirrorable": true,
+    "rotationAxes": [
+      "x",
+      "y",
+      "z"
+    ]
+  },
+  "category": "suspension",
+  "construction": [
+    {
+      "axis": "y",
+      "height": 0.12,
+      "material": {
+        "id": "material.steel",
+        "version": 1
+      },
+      "radius": 0.007,
+      "shape": "cylinder",
+      "transform": {
+        "position": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "rotationDegrees": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      }
+    }
+  ],
+  "id": "suspension.firm-short",
+  "label": "Firm short-travel suspension",
+  "mass": 0.045,
+  "massCenter": {
+    "x": 0,
+    "y": 0,
+    "z": 0
+  },
+  "ports": [
+    {
+      "direction": "bidirectional",
+      "id": "chassis-mount",
+      "interface": "suspension-chassis",
+      "multiple": false,
+      "position": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      }
+    },
+    {
+      "direction": "bidirectional",
+      "id": "hub-mount",
+      "interface": "suspension-hub",
+      "multiple": false,
+      "position": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      }
+    }
+  ],
+  "summary": "A compact coilover with firm response and short travel, rated for a 30° installation.",
+  "tradeoff": "Sharper support and less travel over large bumps.",
+  "version": 2,
+  "suspension": {
+    "bumpStart": 0.023382685902179845,
+    "damperRate": 44.30769230769231,
+    "extendedLength": 0.115,
+    "mounting": {
+      "armPivot": {
+        "x": 0.057008771254956896,
+        "y": -0.051,
+        "z": 0
+      },
+      "chassisAnchor": {
+        "x": 0.05099999999999999,
+        "y": 0.03733459118601274,
+        "z": 0
+      },
+      "hubAnchor": {
+        "x": -0.022991228745043106,
+        "y": -0.051,
+        "z": 0
+      },
+      "springArmAnchor": {
+        "x": 0,
+        "y": -0.051,
+        "z": 0
+      }
+    },
+    "maximumStroke": 0.030310889132455356,
+    "quadraticBumpRate": 27712.81292110203,
+    "springRate": 2133.333333333333
+  }
+}
+```
+
 ### Compliant long-travel suspension — `suspension.compliant-long@1`
 
 A longer coilover that gives the wheel more compliant travel.
@@ -1018,6 +1126,114 @@ A longer coilover with matched damping for compliant, controlled travel.
     "maximumStroke": 0.052,
     "quadraticBumpRate": 12000,
     "springRate": 900
+  }
+}
+```
+
+### Compliant long-travel suspension — `suspension.compliant-long@3`
+
+A longer coilover with matched damping for compliant, controlled travel, rated for a 30° installation.
+
+```json
+{
+  "assembly": {
+    "maximumInstances": 4,
+    "mirrorable": true,
+    "rotationAxes": [
+      "x",
+      "y",
+      "z"
+    ]
+  },
+  "category": "suspension",
+  "construction": [
+    {
+      "axis": "y",
+      "height": 0.145,
+      "material": {
+        "id": "material.structural-aluminum",
+        "version": 1
+      },
+      "radius": 0.008,
+      "shape": "cylinder",
+      "transform": {
+        "position": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "rotationDegrees": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      }
+    }
+  ],
+  "id": "suspension.compliant-long",
+  "label": "Compliant long-travel suspension",
+  "mass": 0.052,
+  "massCenter": {
+    "x": 0,
+    "y": 0,
+    "z": 0
+  },
+  "ports": [
+    {
+      "direction": "bidirectional",
+      "id": "chassis-mount",
+      "interface": "suspension-chassis",
+      "multiple": false,
+      "position": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      }
+    },
+    {
+      "direction": "bidirectional",
+      "id": "hub-mount",
+      "interface": "suspension-hub",
+      "multiple": false,
+      "position": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      }
+    }
+  ],
+  "summary": "A longer coilover with matched damping for compliant, controlled travel, rated for a 30° installation.",
+  "tradeoff": "More bump compliance with controlled rebound and slightly more mass.",
+  "version": 3,
+  "suspension": {
+    "bumpStart": 0.034641016151377546,
+    "damperRate": 24.999999999999996,
+    "extendedLength": 0.14,
+    "mounting": {
+      "armPivot": {
+        "x": 0.057008771254956896,
+        "y": -0.051,
+        "z": 0
+      },
+      "chassisAnchor": {
+        "x": 0.05099999999999999,
+        "y": 0.03733459118601274,
+        "z": 0
+      },
+      "hubAnchor": {
+        "x": -0.022991228745043106,
+        "y": -0.051,
+        "z": 0
+      },
+      "springArmAnchor": {
+        "x": 0,
+        "y": -0.051,
+        "z": 0
+      }
+    },
+    "maximumStroke": 0.04503332099679081,
+    "quadraticBumpRate": 18475.208614068022,
+    "springRate": 1199.9999999999998
   }
 }
 ```

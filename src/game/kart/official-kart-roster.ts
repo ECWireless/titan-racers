@@ -14,7 +14,7 @@ import {
 } from "./kart-assembly-document";
 import {
   deriveKartSnapshot,
-  resolvedKartSnapshotV4Schema,
+  resolvedKartSnapshotV5Schema,
 } from "./kart-derivation";
 import { publishedKartRuntimeSchema } from "./kart-publication";
 import {
@@ -42,7 +42,7 @@ const bundledOfficialKartRosterEntrySchema = z
     assemblerCredit: assemblerCreditSchema,
     document: kartAssemblyDocumentSchema,
     kartId: z.enum(OFFICIAL_KART_IDS),
-    resolvedSnapshot: resolvedKartSnapshotV4Schema,
+    resolvedSnapshot: resolvedKartSnapshotV5Schema,
   })
   .superRefine((entry, context) => {
     if (

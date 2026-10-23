@@ -342,13 +342,24 @@ export function KartEditorShell({
     currentRevision.publication?.action === "publish"
       ? currentRevision.publication
       : null;
-  // Revisions from an older derivation can be re-saved without edits.
-  const needsRederivation =
-    currentRevision.derivationVersion < KART_DERIVATION_VERSION;
-  const canSave = history.isDirty || needsRederivation;
   const officialKartId = OFFICIAL_KART_IDS.find(
     (kartId) => kartId === document.kartId,
   );
+  // Revisions from an older derivation can be re-saved without edits, except
+  // official karts whose design has since changed: they update by loading the
+  // current official design.
+  const needsRederivation =
+    currentRevision.derivationVersion < KART_DERIVATION_VERSION;
+  const officialDesignOutdated = useMemo(
+    () =>
+      needsRederivation &&
+      officialKartId !== undefined &&
+      serializeKartAssemblyDocument(createOfficialKartDocument(officialKartId)) !==
+        serializeKartAssemblyDocument(document),
+    [document, needsRederivation, officialKartId],
+  );
+  const canSave =
+    history.isDirty || (needsRederivation && !officialDesignOutdated);
 
   const commitDocument = useCallback(
     (label: string, nextDocument: KartAssemblyDocument) => {
@@ -676,7 +687,7 @@ export function KartEditorShell({
     if (
       operationPendingRef.current ||
       signOutPending ||
-      (!history.isDirty && !needsRederivation) ||
+      !canSave ||
       !derivation.snapshot
     ) {
       return;
@@ -1200,9 +1211,11 @@ export function KartEditorShell({
         >
           {history.isDirty
             ? "Unsaved changes"
-            : needsRederivation
-              ? "Needs re-save"
-              : "Draft saved"}
+            : officialDesignOutdated
+              ? "Load official design"
+              : needsRederivation
+                ? "Needs re-save"
+                : "Draft saved"}
         </span>
         <button
           aria-label="Save draft"
@@ -1213,9 +1226,11 @@ export function KartEditorShell({
               ? "Saving draft…"
               : history.isDirty
                 ? "Save private draft (Ctrl/Cmd+S)"
-                : needsRederivation
-                  ? "Re-save draft with current derivation (Ctrl/Cmd+S)"
-                  : "Draft is saved"
+                : officialDesignOutdated
+                  ? "Load the official design from Actions, then save"
+                  : needsRederivation
+                    ? "Re-save draft with current derivation (Ctrl/Cmd+S)"
+                    : "Draft is saved"
           }
           type="button"
           onClick={() => void saveDraft()}

@@ -3,7 +3,10 @@ import {
   parseKartAssemblyDocument,
   type KartAssemblyDocument,
 } from "./kart-assembly-document";
-import { getApprovedKartComponent } from "./kart-component-registry";
+import {
+  getApprovedKartComponent,
+  RATED_SHOCK_INSTALLATION_RADIANS,
+} from "./kart-component-registry";
 
 const ZERO_ROTATION = { x: 0, y: 0, z: 0 } as const;
 // Material left around a hinge pin or shock eye, and the molded-black
@@ -27,8 +30,9 @@ type StructuralMaterial =
 
 /**
  * Open 1:10 RC construction: a machined base plate, a hinge-pin mount at each
- * lower arm, an upright shock tower at each axle, a narrow top deck between
- * the towers, and molded bumpers. Electronics sit on the plate.
+ * lower arm deep enough to carry both arm legs, a shock tower over each axle
+ * (a post between the mounts and a crossbar above the wheels), a narrow top
+ * deck between the towers, and molded bumpers. Electronics sit on the plate.
  */
 export type OfficialKartChassisLayout = {
   armMount: { x: number; z: number };
@@ -48,14 +52,12 @@ export type OfficialKartAssemblyConfig = {
   motionRatio: number;
   name: string;
   practicalDescriptor: string;
-  /** Shock top eyes: height, and distance from the datum toward each axle. */
-  shockTopMount: { y: number; z: number };
-  suspensionComponentCenterY: number;
   suspensionComponentPosition: "shock-midpoint" | "spring-arm";
   suspensionDefinitionId:
     | "suspension.compliant-long"
     | "suspension.firm-short";
-  suspensionDefinitionVersion?: 1 | 2;
+  suspensionDefinitionVersion: 2 | 3;
+  /** Shock compression at rest, metres. */
   suspensionRestCompression: number;
   trackWidth: number;
   transmissionDefinitionId:
@@ -123,8 +125,13 @@ function createSuspensionInstance(
   const armPivotX = sign * (config.trackWidth / 2 - config.armLength);
   const springX =
     armPivotX + (hubX - armPivotX) * config.motionRatio;
-  const chassisAnchorY = config.shockTopMount.y;
-  const chassisAnchorZ = Math.sign(axleZ) * config.shockTopMount.z;
+  // The arm is level, so its eye moves straight up: the shock leans inward at
+  // its coilover's rated 30° installation to its top eye on the tower above
+  // the axle.
+  const chassisAnchorY =
+    wheelRadius +
+    suspensionRestShockLength * Math.cos(RATED_SHOCK_INSTALLATION_RADIANS);
+  const chassisAnchorZ = axleZ;
   const chassisAnchorX =
     springX -
     sign *
@@ -142,7 +149,7 @@ function createSuspensionInstance(
     id,
     config.suspensionDefinitionId,
     componentX,
-    config.suspensionComponentCenterY,
+    (wheelRadius + chassisAnchorY) / 2,
     axleZ,
     mirrorOf,
     {
@@ -196,7 +203,14 @@ function createChassis(
   },
 ) {
   const layout = config.chassis;
-  const { plate } = layout;
+  // The plate runs far enough to carry the hinge-pin mounts at both axles.
+  const plate = {
+    ...layout.plate,
+    size: {
+      ...layout.plate.size,
+      z: Math.max(layout.plate.size.z, config.wheelbase + layout.armMount.z),
+    },
+  };
   const plateCenter = {
     x: 0,
     y: plate.bottomY + plate.size.y / 2,
@@ -275,10 +289,10 @@ function createChassis(
         box(
           id,
           "structure",
-          "material.structural-aluminum",
+          "material.engineering-polymer",
           { ...layout.armMount, y: mountHeight },
           center,
-          identity.accentColor,
+          COMPOSITE_BLACK,
           { mode: "solid" },
           side === "right" ? `arm-mount-${axle}-left` : null,
         ),
@@ -287,31 +301,50 @@ function createChassis(
     }
   }
 
-  // Composite shock towers stand on the plate and carry each shock's top eye.
+  // Composite shock towers: a narrow post on the plate between the hinge-pin
+  // mounts, and a crossbar carrying both shock top eyes, high enough that the
+  // arms and steered wheels pass under it.
   for (const axle of ["front", "rear"] as const) {
     const anchor = suspension(`${axle}-left`).chassisAnchor;
     const top = anchor.y + MOUNT_MARGIN;
-    const size = {
-      x: 2 * (Math.abs(anchor.x) + MOUNT_MARGIN),
-      y: top - plateTopY,
-      z: layout.shockTowerThickness,
-    };
-    const center = { x: 0, y: (top + plateTopY) / 2, z: anchor.z };
-    const id = `shock-tower-${axle}`;
+    const barBottom = anchor.y - 2 * MOUNT_MARGIN;
+    const postId = `shock-tower-${axle}`;
+    const postCenter = { x: 0, y: (barBottom + plateTopY) / 2, z: anchor.z };
     add(
       box(
-        id,
+        postId,
         "structure",
         "material.engineering-polymer",
-        size,
-        center,
+        {
+          x: layout.topDeck.size.x + 2 * MOUNT_MARGIN,
+          y: barBottom - plateTopY,
+          z: layout.shockTowerThickness,
+        },
+        postCenter,
         COMPOSITE_BLACK,
       ),
     );
-    attach(id, "chassis-plate", { ...center, y: plateTopY });
+    attach(postId, "chassis-plate", { ...postCenter, y: plateTopY });
+    const barId = `shock-tower-${axle}-bar`;
+    const barCenter = { x: 0, y: (top + barBottom) / 2, z: anchor.z };
+    add(
+      box(
+        barId,
+        "structure",
+        "material.engineering-polymer",
+        {
+          x: 2 * (Math.abs(anchor.x) + MOUNT_MARGIN),
+          y: top - barBottom,
+          z: layout.shockTowerThickness,
+        },
+        barCenter,
+        COMPOSITE_BLACK,
+      ),
+    );
+    attach(barId, postId, { ...barCenter, y: barBottom });
     for (const side of ["left", "right"] as const) {
       const station = `${axle}-${side}`;
-      attach(`suspension-${station}`, id, suspension(station).chassisAnchor);
+      attach(`suspension-${station}`, barId, suspension(station).chassisAnchor);
     }
   }
 

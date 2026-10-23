@@ -110,10 +110,11 @@ test("constructs each specialization from approved component revisions", () => {
     ).toEqual(new Set([expected.wheel]));
     for (const instance of document.componentInstances) {
       expect(instance.definition.version).toBe(
-        document.kartId === HANDLING_KART_ID &&
-          instance.definition.id === "suspension.compliant-long"
-          ? 2
-          : 1,
+        instance.definition.id === "suspension.compliant-long"
+          ? 3
+          : instance.definition.id === "suspension.firm-short"
+            ? 2
+            : 1,
       );
     }
   }
@@ -132,9 +133,9 @@ test("derives the intended official kart tradeoffs without stat overrides", () =
     handling: handling.playerStats,
     speed: speed.playerStats,
   }).toEqual({
-    balanced: { acceleration: 42, handling: 60, speed: 41, stability: 57 },
-    handling: { acceleration: 79, handling: 81, speed: 10, stability: 87 },
-    speed: { acceleration: 10, handling: 54, speed: 88, stability: 46 },
+    balanced: { acceleration: 41, handling: 60, speed: 41, stability: 57 },
+    handling: { acceleration: 76, handling: 81, speed: 10, stability: 76 },
+    speed: { acceleration: 9, handling: 54, speed: 88, stability: 44 },
   });
   expect({
     balanced: {
@@ -193,7 +194,7 @@ test("derives the intended official kart tradeoffs without stat overrides", () =
   expect(handling.playerStats.stability).toBeGreaterThan(
     balanced.playerStats.stability,
   );
-  expect(handling.physicalProfile.suspension.damperRate).toBe(12);
+  expect(handling.physicalProfile.suspension.damperRate).toBeCloseTo(12, 9);
   expect(balanced.playerStats.stability).toBeGreaterThan(
     speed.playerStats.stability,
   );

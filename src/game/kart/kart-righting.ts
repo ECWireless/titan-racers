@@ -249,13 +249,20 @@ export function getManualRightingLiftImpulse(
   return mass * liftSpeed;
 }
 
-// Lift the center of mass needs so the collision hull, swept about the
-// righting axis, clears the support it currently rests on. Hull points are
-// center-of-mass-relative; axis and up share the hull's frame.
+const PIVOT_ROLL_RADIANS = (20 * Math.PI) / 180;
+
+// Lift the center of mass needs so the collision hull clears the support it
+// rests on throughout the roll, not just at the top of the hop. In time
+// scaled to the flight, height follows 4h(τ − τ²) and the roll angle is
+// π·k·τ for every lift h, where k is the roll speed relative to a half turn
+// per flight; so each hull point's dip sets a lower bound on h. The first 20°
+// is exempt: an edge dipping then only pivots the kart up off its support.
+// Hull points are center-of-mass-relative; axis and up share the hull's frame.
 export function getManualRightingHullLiftClearance(
   hullPoints: readonly RightingVector[],
   localAxis: RightingVector,
   localUp: RightingVector,
+  rollSpeedRatio: number,
 ) {
   const axisLength = Math.hypot(localAxis.x, localAxis.y, localAxis.z);
   const upLength = Math.hypot(localUp.x, localUp.y, localUp.z);
@@ -263,33 +270,68 @@ export function getManualRightingHullLiftClearance(
     !isFiniteVector(localAxis) ||
     !isFiniteVector(localUp) ||
     axisLength <= AXIS_EPSILON ||
-    upLength <= AXIS_EPSILON
+    upLength <= AXIS_EPSILON ||
+    !Number.isFinite(rollSpeedRatio) ||
+    rollSpeedRatio <= 0
   ) {
     return 0;
   }
 
-  let sweptRadius = 0;
-  let restingDepth = 0;
-  for (const point of hullPoints) {
-    if (!isFiniteVector(point)) {
+  const axis = {
+    x: localAxis.x / axisLength,
+    y: localAxis.y / axisLength,
+    z: localAxis.z / axisLength,
+  };
+  const up = {
+    x: localUp.x / upLength,
+    y: localUp.y / upLength,
+    z: localUp.z / upLength,
+  };
+  const points = hullPoints.filter(isFiniteVector);
+  const restingDepth = Math.max(
+    0,
+    ...points.map((point) => -(point.x * up.x + point.y * up.y + point.z * up.z)),
+  );
+  // Each point's height above the support after rolling by an angle
+  // (Rodrigues' rotation projected onto up), relative to the resting COM.
+  const heightAfterRoll = (point: RightingVector, angle: number) => {
+    const along = point.x * axis.x + point.y * axis.y + point.z * axis.z;
+    const cross = {
+      x: axis.y * point.z - axis.z * point.y,
+      y: axis.z * point.x - axis.x * point.z,
+      z: axis.x * point.y - axis.y * point.x,
+    };
+    const cosine = Math.cos(angle);
+    const sine = Math.sin(angle);
+    return (
+      (point.x * cosine + cross.x * sine + axis.x * along * (1 - cosine)) *
+        up.x +
+      (point.y * cosine + cross.y * sine + axis.y * along * (1 - cosine)) *
+        up.y +
+      (point.z * cosine + cross.z * sine + axis.z * along * (1 - cosine)) *
+        up.z +
+      restingDepth
+    );
+  };
+
+  const rollEnd = Math.min(1, 1 / rollSpeedRatio);
+  const samples = 180;
+  let clearance = 0;
+  for (let sample = 1; sample <= samples; sample += 1) {
+    const flightTime = (rollEnd * sample) / samples;
+    const rise = 4 * (flightTime - flightTime ** 2);
+    if (rise <= 0) {
       continue;
     }
-    const along =
-      (point.x * localAxis.x + point.y * localAxis.y + point.z * localAxis.z) /
-      axisLength;
-    const lengthSquared = point.x ** 2 + point.y ** 2 + point.z ** 2;
-    sweptRadius = Math.max(
-      sweptRadius,
-      Math.sqrt(Math.max(0, lengthSquared - along ** 2)),
-    );
-    restingDepth = Math.max(
-      restingDepth,
-      -(point.x * localUp.x + point.y * localUp.y + point.z * localUp.z) /
-        upLength,
-    );
+    const angle = Math.PI * rollSpeedRatio * flightTime;
+    if (angle < PIVOT_ROLL_RADIANS) {
+      continue;
+    }
+    for (const point of points) {
+      clearance = Math.max(clearance, -heightAfterRoll(point, angle) / rise);
+    }
   }
-
-  return Math.max(0, sweptRadius - restingDepth);
+  return clearance;
 }
 
 export function getManualRightingGeometry(kartLength: number) {

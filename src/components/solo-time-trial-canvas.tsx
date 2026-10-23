@@ -1296,6 +1296,7 @@ export function SoloTimeTrialCanvas({
             KART_MANUAL_RIGHTING_GEOMETRY.hullPoints,
             localAxis,
             inverseRotation.transformVector(localUp),
+            KART_MANUAL_RIGHTING_POLICY.contactTorqueAllowance * torqueScale,
           ),
         );
         const localTorqueImpulse = getManualRightingLocalTorqueImpulse(

@@ -43,7 +43,9 @@ Current policy families include:
   contact, or airborne motion;
 - manual righting uses shared eligibility, clearance, timing, and contact-loss
   allowance while deriving impulses from mass and inertia, with enough lift
-  for the collision hull (wheel guard included) to clear the ground; a bounded
+  for the collision hull (wheel guard included) to clear the ground throughout
+  the roll, not just at the top of the hop, so wide hull ends cannot dig in
+  early; a bounded
   righting-only landing window targets upright angular velocity and performs a
   one-shot post-contact angular-momentum capture at the first upright
   four-wheel landing; and

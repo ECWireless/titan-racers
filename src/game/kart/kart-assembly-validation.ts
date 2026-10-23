@@ -16,6 +16,7 @@ import {
   buildComponentMassElements,
   buildPrimitiveMassElement,
   combineBounds,
+  getSuspensionInstallationRatio,
   rotationMatrix,
   transformVector,
   type KartBounds,
@@ -886,7 +887,7 @@ function validateFunctionalConnections(
   const suspensionConnections = resolvedConnections.filter(
     ({ from }) => from.port.interface === "suspension-hub",
   );
-  const motionRatios: number[] = [];
+  const installationRatios: number[] = [];
   for (const connection of suspensionConnections) {
     const suspension =
       connection.from.definition.category === "suspension"
@@ -944,15 +945,13 @@ function validateFunctionalConnections(
         ["componentInstances", suspension.index, "suspensionMount", "hubAnchor"],
       );
     }
-    const hubLever = distance(mount.armPivot, mount.hubAnchor);
-    const springLever = distance(mount.armPivot, mount.springArmAnchor);
-    const motionRatio = hubLever > 0 ? springLever / hubLever : 0;
-    motionRatios.push(motionRatio);
-    if (motionRatio < 0.4 || motionRatio > 1) {
+    const { installationRatio } = getSuspensionInstallationRatio(mount);
+    installationRatios.push(installationRatio);
+    if (installationRatio < 0.4 || installationRatio > 1) {
       issue(
         issues,
         "invalid-suspension-motion-ratio",
-        "Suspension geometry must derive a motion ratio between 0.4 and 1.",
+        "Suspension geometry must derive an installation ratio (arm motion ratio times the cosine of the shock's angle) between 0.4 and 1.",
         ["componentInstances", suspension.index, "suspensionMount"],
       );
     }
@@ -975,13 +974,13 @@ function validateFunctionalConnections(
     }
   }
   if (
-    motionRatios.length === 4 &&
-    Math.max(...motionRatios) - Math.min(...motionRatios) > 1e-6
+    installationRatios.length === 4 &&
+    Math.max(...installationRatios) - Math.min(...installationRatios) > 1e-6
   ) {
     issue(
       issues,
       "unsupported-mixed-suspension-geometry",
-      "The current solver requires the same derived motion ratio at all four wheel stations.",
+      "The current solver requires the same derived installation ratio at all four wheel stations.",
       ["componentInstances"],
     );
   }

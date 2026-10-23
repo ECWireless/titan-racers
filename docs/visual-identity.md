@@ -96,8 +96,10 @@ Materials), and so do course surfaces (see Course Surfaces).
   with size; everything stays inside the authored envelope, and nothing
   implies missing material (no pockets or holes).
 - **Official karts are open 1:10 RC chassis.** A machined plate carries the
-  electronics, hinge-pin mounts, composite shock towers, a top deck, and
-  molded bumpers. Lightening pockets wait for derivation support.
+  electronics, composite hinge-pin mounts deep enough for both arm legs,
+  composite shock towers (a post and a crossbar above the steered wheels), a
+  top deck, and molded bumpers. Shocks lean 30°, a typical 1:10 installation.
+  Lightening pockets wait for derivation support.
 
 ## Course Surfaces
 
