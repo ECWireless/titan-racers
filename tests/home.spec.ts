@@ -2387,7 +2387,7 @@ test.describe("home screen", () => {
       "Graphics-context recovery only needs one Chromium coverage path.",
     );
 
-    await page.goto("/");
+    await page.goto("/?enclosure");
     await page.getByRole("button", { name: "Solo Time Trial" }).click();
     const canvas = page.getByTestId("solo-time-trial-canvas");
     await waitForSceneReady(canvas);
@@ -2475,7 +2475,7 @@ test.describe("home screen", () => {
       await route.fulfill({ status: 202 });
     });
 
-    await page.goto("/");
+    await page.goto("/?enclosure");
     await page.getByRole("button", { name: "Solo Time Trial" }).click();
     const canvas = page.getByTestId("solo-time-trial-canvas");
     await waitForSceneReady(canvas);

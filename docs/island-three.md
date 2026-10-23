@@ -39,6 +39,27 @@ The sources do not specify these, so Titan Racers chooses them:
 - **Sunlight is not scaled for distance from the Sun.** The light level comes
   from the registry, not from where the habitat orbits.
 
+### Rendering
+
+The race draws the enclosure around the course as a distant layer
+(`src/game/enclosure/enclosure-view.ts`). These choices are Titan Racers'
+own:
+
+- Window frames are sized to read from kilometres away: sills along each
+  window edge, longerons every 10°, and ring frames every kilometre, with
+  lighter mullions between them. The sources' panes are far smaller.
+- Valleys are farmland built in code: hedged fields, woods, a river,
+  ponds, villages, and service roads. Each course sits in a mown clearing.
+- End caps are flat, ribbed plating, with valley land terracing up their
+  foot.
+- The air hazes distance: clean-air scattering at half pressure plus
+  moisture and dust, together giving 55 km visibility (the distance at which
+  contrast falls to 2%), with the haze glowing at 40% of the sunlight. The
+  far side overhead keeps about 60% of its contrast. On the Agricultural
+  Zone's loop the end caps, 8 and 24 km away, keep about 55% and 18%.
+- The sun's image is traced through the mirrors, so it shows only where a
+  32 km mirror can reflect it to the viewer. The twin cylinder is not drawn.
+
 ## Placing A Course
 
 A course document names its enclosure by `id` and `version` and places its

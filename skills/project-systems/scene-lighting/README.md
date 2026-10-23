@@ -44,6 +44,11 @@ phone budget. Art direction and the budget itself live in
   on turf and lawn. Marks last until the race resets, and the oldest fade only
   as a full pool recycles them. Clippings move on simulated time, so they
   freeze while the race is paused.
+- `src/game/enclosure/enclosure-view.ts` draws the race's
+  [Island Three](../../../docs/island-three.md) enclosure from a second
+  camera on its own layer, before the course, in three draws. Farmland,
+  mirrors, the sun's image, and haze are computed per pixel, with no
+  textures.
 - `src/game/runtime/frame-budget.ts` and
   `src/components/frame-budget-overlay.tsx` sample rendered frames through
   `PlayCanvasRuntime.onFrameSample` and show the budget readout.
@@ -56,6 +61,14 @@ course editor scenes in `src/game/editor/`, and
 
 - All four applications call `applySceneLook` and release it before
   `app.destroy()`.
+- The enclosure's shell (floors, caps, and glass) is convex around the
+  camera, so it draws without depth and cannot z-fight the course; only its
+  frames depth-test, against each other. Its shaders include the engine's
+  `gammaPS` and `tonemappingPS` chunks (`gammaCorrectOutput`, `toneMap`);
+  re-verify them, like the chunk overrides below, on any engine upgrade.
+- Playwright's server sets `NEXT_PUBLIC_TEST_WITHOUT_ENCLOSURE=1`, because
+  CPU-rendered WebGL draws the enclosure at a few frames per second; tests
+  that need it load the race with `?enclosure`. Production always draws it.
 - The environment atlas replaces the scene's flat ambient light, so
   `scene.ambientLight` has no visible effect.
 - The environment never renders as a skybox: `applySceneLook` removes the

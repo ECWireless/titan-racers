@@ -33,7 +33,7 @@ export function applySceneLook(
   app: pc.Application,
   camera: pc.CameraComponent,
 ) {
-  // The environment only lights the scene; backgrounds stay the clear color.
+  // The environment only lights the scene and never renders as a skybox.
   camera.layers = camera.layers.filter((id) => id !== pc.LAYERID_SKYBOX);
   camera.gammaCorrection = pc.GAMMA_SRGB;
   camera.toneMapping = pc.TONEMAP_NEUTRAL;

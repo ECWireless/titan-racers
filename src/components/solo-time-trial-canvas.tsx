@@ -48,6 +48,7 @@ import {
   getCourseStartTransform,
   ROUGH_COURSE_DOCUMENT,
 } from "@/game/course/course-document";
+import { createEnclosureView } from "@/game/enclosure/enclosure-view";
 import { PlayerInputManager } from "@/game/input/player-input-manager";
 import { isEditableKeyboardTarget } from "@/game/input/keyboard-input";
 import { useControllerMenuNavigation } from "@/game/input/use-controller-menu-navigation";
@@ -223,6 +224,12 @@ function getKartRootPosition(
 }
 
 const ENABLE_SCENE_TEST_HOOKS = process.env.NODE_ENV !== "production";
+// Playwright renders WebGL on the CPU, where the enclosure's per-pixel
+// shading costs hundreds of milliseconds a frame. Its server leaves the
+// enclosure out unless a test asks for it with `?enclosure`.
+const TESTS_WITHOUT_ENCLOSURE =
+  ENABLE_SCENE_TEST_HOOKS &&
+  process.env.NEXT_PUBLIC_TEST_WITHOUT_ENCLOSURE === "1";
 
 type SceneInitializationTestControl = {
   contextRestoreTimeoutMs?: number;
@@ -1070,6 +1077,14 @@ export function SoloTimeTrialCanvas({
         if (entity.light?.castShadows) applyShadowPolicy(entity.light);
       });
       runtime.addCleanup(applySceneLook(app, camera.camera!));
+      if (
+        !TESTS_WITHOUT_ENCLOSURE ||
+        new URLSearchParams(window.location.search).has("enclosure")
+      ) {
+        runtime.addCleanup(
+          createEnclosureView(app, camera, COURSE_DOCUMENT.enclosure),
+        );
+      }
 
       let driftSmoke: KartDriftSmoke | null = null;
       let surfaceEffects: KartSurfaceEffects | null = null;
