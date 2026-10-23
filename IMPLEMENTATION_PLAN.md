@@ -263,9 +263,17 @@ Phase decisions:
 
 **PR 4.3: Island Three**
 
-- [ ] 4.3.1: The cylinder enclosure as a distant render layer, enclosure and
+- [x] 4.3.1: The cylinder enclosure as a distant render layer, enclosure and
       placement in the course document, and a tiny `agricultural-zone` loop
-      inside it.
+      inside it. Course schema v4 places each course in Island Three and
+      replaces authored lights with the sun through its mirror, which reaches
+      only a band of the valley. Races are lit by the habitat around the
+      course. The Agricultural Zone became the solo time trial, and
+      `rough-course` became the Starter Course, a sandbox for kart test drives.
+      Both courses gained perimeter walls. The course editor opens from a
+      course roster, and migration 0016 accepts official-course telemetry for
+      both. Course lamps moved to 4.3.5: at real brightness they would not show
+      until the habitat has a night.
 - [ ] 4.3.2: Rotating-habitat physics: a research note first, then
       position-dependent gravity and Coriolis through the kart controller,
       steering, righting, and camera up; optionally a near-axis test pad.
@@ -276,6 +284,19 @@ Phase decisions:
       Re-lay out each axle at the same time: hinge-pin mounts long enough to
       reach both A-arm legs (they float about 1 cm off), with the shock towers
       clear of them (deferred from PR 4.1.4).
+- [ ] 4.3.3: Course loading screen showing Island Three from outside in
+      space, held for a short minimum. Debrief whether Saturn appears and
+      whether the home screen shares the backdrop.
+- [ ] 4.3.4: Distant structures: a few large landmark structures and
+      clusters of buildings across the valleys, so the enclosure reads with
+      height rather than as flat ground. Code-built and within the phone
+      budget.
+- [ ] 4.3.5: Dusk and night: the haze and habitat light dim as the mirrors
+      close, as O'Neill's habitat makes night. Then course lamps (up to four
+      point or spot lights with visible full-size masts, seeded on the
+      Agricultural Zone), lights in the distant villages and roads, and a
+      decision on lamp shadows, which the budget's one shadow-casting light
+      does not yet allow.
 
 **PR 4.4: Agricultural Zone Service Circuit** (split by route section)
 
@@ -405,7 +426,8 @@ comments, and leaderboard eligibility for community karts.
 queue.
 
 Reuse the existing course document, revisions, and editor. No second format or
-editor.
+editor. The Starter Course (`rough-course`) is the template new community
+courses start from.
 
 **PR 7.1: Player course ownership and publishing**
 
