@@ -1020,9 +1020,13 @@ test.describe("protected course editor access", () => {
     await mirrorAngle.fill("86");
     await mirrorAngle.press("Enter");
     await expect(mirrorAngle).toHaveValue("85");
+    await expect(
+      page.getByText("At this angle the mirror's sunlight misses this course."),
+    ).toBeVisible();
     await expect(page.getByRole("button", { name: "Save draft" })).toBeEnabled();
     await page.getByRole("button", { name: "Reset lighting" }).click();
     await expect(mirrorAngle).toHaveValue("71");
+    await expect(page.getByText("Sunlight reaches this course.")).toBeVisible();
 
     await page.getByRole("button", { name: "block" }).click();
     await page.getByRole("button", { name: "Course actions" }).click();

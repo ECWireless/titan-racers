@@ -83,8 +83,8 @@ course editor scenes in `src/game/editor/`, and
   world X. Re-verify both against the engine's envAtlas shader chunks on any
   engine upgrade.
 - A race's environment is in scene units (`skyboxIntensity` 1); the neutral
-  habitat light keeps its gain. Its CPU build (about 30–60 ms on desktop,
-  25–40 ms on the reference iPhone) counts toward the startup budget.
+  habitat light keeps its gain. Its CPU build counts toward the startup
+  budget ([measured](../../../docs/visual-identity.md#baseline)).
 - The course finishes replace the `diffusePS` chunk (scanned finishes also
   `normalMapPS` and `glossPS`) for chunk version 2.20. Re-verify them, like
   the atlas, on any engine upgrade. Grain pixels and decoded scan images are

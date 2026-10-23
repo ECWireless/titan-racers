@@ -55,8 +55,8 @@ own:
 - The air hazes distance: clean-air scattering at half pressure plus
   moisture and dust, together giving 55 km visibility (the distance at which
   contrast falls to 2%), with the haze glowing at 40% of the sunlight. The
-  far side overhead keeps about 60% of its contrast. On the Agricultural
-  Zone's loop the end caps, 8 and 24 km away, keep about 55% and 18%.
+  far side overhead keeps about 57% of its contrast. On the Agricultural
+  Zone's loop the end caps, 8 and 24 km away, keep about 57% and 18%.
 - The sun's image is traced through the mirrors, so it shows only where a
   32 km mirror can reflect it to the viewer. The twin cylinder is not drawn.
 - The enclosure lights the course too. Besides the sun, a race's diffuse
@@ -96,8 +96,9 @@ A mirror is only as long as the cylinder, so its light lands on a band of
 the opposite valley that moves along the axis with the angle. A low morning
 sun lights the anti-sun end, noon most of the floor, and a low evening sun
 the sunward end. Below about 13° the light falls on the anti-sun cap and
-above about 83° on the sunward cap, leaving the valley floors dark. A course gets direct sun only if its placement lies in its
-mirror's band (`sunReaches`), and the enclosure floors show the same band.
+above about 83° on the sunward cap, leaving the valley floors dark. A course
+gets direct sun only if its placement lies in its mirror's band
+(`sunReaches`), and the enclosure floors show the same band.
 Outside it, the haze also loses its glow toward the sun's image.
 
 Everything rotates together, so the light holds still for a whole race. The

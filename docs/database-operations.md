@@ -93,9 +93,12 @@ already satisfy it. Apply it before deploying the build that races
 unaffected). It is forward-only: restoring the old check first requires
 removing or remapping `agricultural-zone` rows.
 
-The same release renames the sandbox to Starter Course and walls in both
-courses' grounds. A database keeps its existing `rough-course` revision until
-the guarded sandbox reset below appends the new seed.
+Courses saved from this build are schema version four, which earlier builds
+cannot read: rolling the code back after a save breaks the editor and the
+published-course route for that course, though players fall back to the
+bundled course. A database serves its existing `rough-course` revision, not
+the walled Starter Course seed, until the guarded sandbox reset below appends
+the seed and an admin publishes it.
 
 ## Google OAuth
 

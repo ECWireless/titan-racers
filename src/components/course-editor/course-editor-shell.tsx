@@ -14,7 +14,10 @@ import {
   EDITOR_TRANSLATE_SNAP,
 } from "@/game/editor/editor-viewport";
 import { EditorControllerAxisIndicator } from "@/components/editor-controller-axis-indicator";
-import { MIRROR_ANGLE_LIMITS } from "@/game/enclosure/island-three";
+import {
+  getEnclosureFrame,
+  MIRROR_ANGLE_LIMITS,
+} from "@/game/enclosure/island-three";
 import {
   type CoursePublicationSummary,
   persistedCoursePublicationSchema,
@@ -2158,7 +2161,10 @@ function EnvironmentControls({
       />
       <p className="text-[0.62rem] leading-relaxed text-titan-ice/56">
         Sets the time of day: 45° is noon, lower is morning, higher is
-        evening.
+        evening.{" "}
+        {getEnclosureFrame(document.enclosure).sunReaches()
+          ? "Sunlight reaches this course."
+          : "At this angle the mirror's sunlight misses this course."}
       </p>
     </CollapsibleSection>
   );

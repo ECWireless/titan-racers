@@ -2,7 +2,6 @@ import * as pc from "playcanvas";
 
 import type { HabitatLight } from "../enclosure/habitat-light";
 import {
-  createDirectionalEnvironmentAtlasPixels,
   createEnvironmentAtlasPixels,
   ENVIRONMENT_ATLAS_SIZE,
   type LinearColor,
@@ -24,7 +23,6 @@ const EXPOSURE = 1.6;
 const SHADOW_NORMAL_OFFSET_BIAS = 0.05;
 
 let habitatAtlasPixels: Uint8Array | null = null;
-const enclosureAtlasPixels = new WeakMap<HabitatLight, Uint8Array>();
 
 /**
  * Applies the shared Titan Racers look to one PlayCanvas application and
@@ -46,18 +44,11 @@ export function applySceneLook(
   // An enclosure's light is already in scene units.
   app.scene.skyboxIntensity = habitat ? 1 : ENVIRONMENT_GAIN;
 
-  let pixels: Uint8Array;
-  if (habitat) {
-    pixels =
-      enclosureAtlasPixels.get(habitat) ??
-      createDirectionalEnvironmentAtlasPixels(habitat.radiance);
-    enclosureAtlasPixels.set(habitat, pixels);
-  } else {
-    habitatAtlasPixels ??= createEnvironmentAtlasPixels(
-      habitatColorAtElevation,
-    );
-    pixels = habitatAtlasPixels;
-  }
+  const pixels = habitat
+    ? habitat.atlasPixels()
+    : (habitatAtlasPixels ??= createEnvironmentAtlasPixels(
+        habitatColorAtElevation,
+      ));
   const atlas = new pc.Texture(app.graphicsDevice, {
     addressU: pc.ADDRESS_CLAMP_TO_EDGE,
     addressV: pc.ADDRESS_CLAMP_TO_EDGE,

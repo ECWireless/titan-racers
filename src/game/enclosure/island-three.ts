@@ -41,7 +41,7 @@ export type CourseEnclosure = {
   placement: EnclosurePlacement;
 };
 
-type Vector3 = { x: number; y: number; z: number };
+export type Vector3 = { x: number; y: number; z: number };
 
 export const ISLAND_THREE_ENCLOSURE = {
   id: "enclosure.island-three",
@@ -122,15 +122,15 @@ export function getEnclosurePlacementIssues(
   return issues;
 }
 
-function add(a: Vector3, b: Vector3, scale = 1): Vector3 {
+export function add(a: Vector3, b: Vector3, scale = 1): Vector3 {
   return { x: a.x + b.x * scale, y: a.y + b.y * scale, z: a.z + b.z * scale };
 }
 
-function dot(a: Vector3, b: Vector3) {
+export function dot(a: Vector3, b: Vector3) {
   return a.x * b.x + a.y * b.y + a.z * b.z;
 }
 
-function scaled(vector: Vector3, scale: number): Vector3 {
+export function scaled(vector: Vector3, scale: number): Vector3 {
   return { x: vector.x * scale, y: vector.y * scale, z: vector.z * scale };
 }
 
@@ -228,7 +228,6 @@ export function getEnclosureFrame(enclosure: CourseEnclosure) {
     point,
     spinward,
     sunward,
-    up,
     /**
      * Unit vector toward the sun's image. Each valley is lit through the
      * window opposite it: a mirror opened by α turns the sun's rays by 2α, so

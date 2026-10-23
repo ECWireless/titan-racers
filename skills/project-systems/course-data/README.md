@@ -120,8 +120,8 @@ two adds
 - **Start gate:** reviewed default half-extents.
 - **Enclosure (version three and earlier):** placed at the middle of Island
   Three's first valley, turned and timed on the evening side so the sun
-  shines from the old key light's direction and reaches the course; ambient
-  and other lights are dropped.
+  shines from the old key light's direction; it reaches the course when that
+  light was above about 27°. Ambient and other lights are dropped.
 - Degenerate coincident anchors or directions that cannot identify a face are
   rejected rather than invented.
 - A loaded version-one row is normalized in memory, and its next save creates a

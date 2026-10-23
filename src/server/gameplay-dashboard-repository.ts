@@ -1,7 +1,8 @@
-import { gte } from "drizzle-orm";
+import { and, eq, gte } from "drizzle-orm";
 
 import { db } from "@/db/client";
 import { gameplayRuns } from "@/db/schema";
+import { CURRENT_GUEST_COURSE_ID } from "@/game/course/course-ids";
 import {
   aggregateGameplayDashboard,
   type GameplayDashboardRange,
@@ -40,9 +41,11 @@ export async function loadGameplayDashboard(
       startedAt: gameplayRuns.startedAt,
     })
     .from(gameplayRuns);
-  const runs = since
-    ? await query.where(gte(gameplayRuns.startedAt, since))
-    : await query;
+  // Race times only compare within one course: the current solo course.
+  const onCourse = eq(gameplayRuns.courseId, CURRENT_GUEST_COURSE_ID);
+  const runs = await query.where(
+    since ? and(onCourse, gte(gameplayRuns.startedAt, since)) : onCourse,
+  );
 
   return aggregateGameplayDashboard(
     runs.map((run) => ({

@@ -306,8 +306,9 @@ function TelemetryDashboard({
               Gameplay Telemetry
             </h1>
             <p className="max-w-2xl text-sm text-titan-ice/62">
-              Anonymous run-level summaries. No raw controls, kart paths, IP
-              addresses, user agents, or persistent guest identities.
+              Anonymous run-level summaries for the current solo time trial
+              course. No raw controls, kart paths, IP addresses, user agents,
+              or persistent guest identities.
             </p>
           </div>
           <nav aria-label="Admin navigation" className="flex flex-wrap gap-2">

@@ -1,5 +1,15 @@
-import type { LinearColor } from "../render/habitat-environment-atlas";
-import { type CourseEnclosure, getEnclosureFrame } from "./island-three";
+import {
+  createDirectionalEnvironmentAtlasPixels,
+  type LinearColor,
+} from "../render/habitat-environment-atlas";
+import {
+  add,
+  type CourseEnclosure,
+  dot,
+  getEnclosureFrame,
+  scaled,
+  type Vector3,
+} from "./island-three";
 
 /**
  * The light Island Three sheds on a course, computed on the CPU from the same
@@ -9,7 +19,6 @@ import { type CourseEnclosure, getEnclosureFrame } from "./island-three";
  * sunlit floor. Surfaces use the view's mean colours rather than its detail.
  */
 
-type Vector3 = { x: number; y: number; z: number };
 
 // Meteorological visibility of the habitat air: the distance at which a dark
 // object's contrast falls to 2% (extinction 3.912 / visibility). Clear days
@@ -61,6 +70,8 @@ export type HabitatLight = {
   sunGlow: number;
   /** Light arriving at the course from a world direction (unit vector). */
   radiance(direction: Vector3): LinearColor;
+  /** Environment-atlas pixels of this light, built on first use. */
+  atlasPixels(): Uint8Array;
 };
 
 let cached: { key: string; light: HabitatLight } | null = null;
@@ -91,9 +102,9 @@ function createHabitatLight(enclosure: CourseEnclosure): HabitatLight {
   const origin = { x: 0, y: EYE_HEIGHT, z: 0 };
   const placement = enclosure.placement;
 
-  const fromOrigin = sub(origin, axisMid);
+  const fromOrigin = add(origin, axisMid, -1);
   const originAxial = dot(fromOrigin, frame.sunward);
-  const originRadial = sub(fromOrigin, scale3(frame.sunward, originAxial));
+  const originRadial = add(fromOrigin, frame.sunward, -originAxial);
   const extinction = [0, 1, 2].map(
     (c) => RAYLEIGH_EXTINCTION[c]! + AEROSOL_TINT[c]! * AEROSOL_EXTINCTION,
   );
@@ -104,9 +115,9 @@ function createHabitatLight(enclosure: CourseEnclosure): HabitatLight {
     let light = 0;
     for (const mirror of frame.mirrors) {
       const facing = dot(direction, mirror.normal);
-      const distance = dot(sub(mirror.hinge, at), mirror.normal) / facing;
+      const distance = dot(add(mirror.hinge, at, -1), mirror.normal) / facing;
       if (!(distance > 0) || distance >= nearest) continue;
-      const hit = sub(add(at, scale3(direction, distance)), mirror.hinge);
+      const hit = add(add(at, direction, distance), mirror.hinge, -1);
       const along = dot(hit, mirror.along);
       if (along < 0 || along > mirror.length) continue;
       if (Math.abs(dot(hit, mirror.across)) > mirror.halfWidth) continue;
@@ -132,7 +143,7 @@ function createHabitatLight(enclosure: CourseEnclosure): HabitatLight {
 
   const trace = (direction: Vector3, fill: LinearColor): LinearColor => {
     const axialStep = dot(direction, frame.sunward);
-    const radialStep = sub(direction, scale3(frame.sunward, axialStep));
+    const radialStep = add(direction, frame.sunward, -axialStep);
     // Inside the cylinder: |radial + t·radialStep| = radius has one root ahead.
     const a = dot(radialStep, radialStep);
     const b = dot(originRadial, radialStep);
@@ -143,10 +154,10 @@ function createHabitatLight(enclosure: CourseEnclosure): HabitatLight {
         ? Infinity
         : (Math.sign(axialStep) * halfLength - originAxial) / axialStep;
     const distance = Math.min(toWall, toCap);
-    const hit = add(origin, scale3(direction, distance));
-    const fromAxis = sub(hit, axisMid);
+    const hit = add(origin, direction, distance);
+    const fromAxis = add(hit, axisMid, -1);
     const axial = dot(fromAxis, frame.sunward);
-    const radial = sub(fromAxis, scale3(frame.sunward, axial));
+    const radial = add(fromAxis, frame.sunward, -axial);
     const azimuth =
       (Math.atan2(dot(radial, outward90), dot(radial, outward0)) * 180) /
       Math.PI;
@@ -161,7 +172,7 @@ function createHabitatLight(enclosure: CourseEnclosure): HabitatLight {
           : Math.abs(offset) < spacing / 4 && capRadius < 0.7 * radius
             ? TERRACES
             : PLATING;
-      const normal = scale3(frame.sunward, -Math.sign(axial));
+      const normal = scaled(frame.sunward, -Math.sign(axial));
       color = surfaceLight(albedo, hit, normal, fill);
     } else if (Math.abs(offset) <= spacing / 4) {
       const clearingTurn =
@@ -171,7 +182,7 @@ function createHabitatLight(enclosure: CourseEnclosure): HabitatLight {
           axial - placement.axial,
           (clearingTurn * Math.PI * radius) / 180,
         ) < CLEARING_RADIUS;
-      const normal = scale3(radial, -1 / length3(radial));
+      const normal = scaled(radial, -1 / length3(radial));
       color = surfaceLight(inClearing ? LAWN : FIELDS, hit, normal, fill);
     } else {
       color = beyond(hit, direction);
@@ -197,9 +208,13 @@ function createHabitatLight(enclosure: CourseEnclosure): HabitatLight {
     fill = upwardMean((direction) => trace(direction, fill));
   }
   const finalFill = fill;
+  const radiance = (direction: Vector3) => trace(direction, finalFill);
+  let pixels: Uint8Array | null = null;
   return {
+    atlasPixels: () =>
+      (pixels ??= createDirectionalEnvironmentAtlasPixels(radiance)),
     fill: finalFill,
-    radiance: (direction) => trace(direction, finalFill),
+    radiance,
     sunGlow,
   };
 }
@@ -230,24 +245,8 @@ function upwardMean(radiance: (direction: Vector3) => LinearColor) {
   return scale(sum, 1 / total);
 }
 
-function add(a: Vector3, b: Vector3): Vector3 {
-  return { x: a.x + b.x, y: a.y + b.y, z: a.z + b.z };
-}
-
-function sub(a: Vector3, b: Vector3): Vector3 {
-  return { x: a.x - b.x, y: a.y - b.y, z: a.z - b.z };
-}
-
-function dot(a: Vector3, b: Vector3) {
-  return a.x * b.x + a.y * b.y + a.z * b.z;
-}
-
 function length3(a: Vector3) {
   return Math.sqrt(dot(a, a));
-}
-
-function scale3(a: Vector3, factor: number): Vector3 {
-  return { x: a.x * factor, y: a.y * factor, z: a.z * factor };
 }
 
 function scale(color: LinearColor, factor: number): LinearColor {

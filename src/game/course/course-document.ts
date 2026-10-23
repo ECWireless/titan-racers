@@ -91,7 +91,7 @@ const courseObjectV2Schema = z.strictObject({
 
 const surfaceMaterialSchema = z
   .strictObject({
-    id: z.string(),
+    id: z.string().max(80),
     version: z.number().int().positive(),
   })
   .refine((reference) => Boolean(getApprovedSurfaceMaterial(reference)), {
@@ -265,7 +265,7 @@ const courseDocumentV3Schema =
 
 const enclosureSchema = z
   .strictObject({
-    id: z.string(),
+    id: z.string().max(80),
     mirrorAngle: z
       .number()
       .finite()
