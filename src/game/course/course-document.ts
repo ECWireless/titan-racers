@@ -1,7 +1,15 @@
 import { z } from "zod";
 
+import {
+  getApprovedEnclosure,
+  getEnclosurePlacementIssues,
+  ISLAND_THREE_ENCLOSURE,
+  MIRROR_ANGLE_LIMITS,
+} from "../enclosure/island-three";
 import { getApprovedSurfaceMaterial } from "../kart/kart-material-registry";
-import roughCourseDocumentJson from "./rough-course.v3.json";
+import agriculturalZoneDocumentJson from "./agricultural-zone.v4.json";
+import type { OfficialCourseId } from "./course-ids";
+import roughCourseDocumentJson from "./rough-course.v4.json";
 
 export const courseIdSchema = z
   .string()
@@ -83,7 +91,7 @@ const courseObjectV2Schema = z.strictObject({
 
 const surfaceMaterialSchema = z
   .strictObject({
-    id: z.string(),
+    id: z.string().max(80),
     version: z.number().int().positive(),
   })
   .refine((reference) => Boolean(getApprovedSurfaceMaterial(reference)), {
@@ -150,7 +158,7 @@ const courseDocumentBaseSchema = z.strictObject({
 
 type DocumentIdentityShape = {
   checkpoints: Array<{ id: string; order: number }>;
-  lighting: { directionalLights: Array<{ id: string }> };
+  lighting?: { directionalLights: Array<{ id: string }> };
   objects: Array<{ id: string }>;
   start: { id: string };
 };
@@ -192,7 +200,7 @@ function validateDocumentIdentityAndOrder(
     }
   });
 
-  document.lighting.directionalLights.forEach((light, index) =>
+  document.lighting?.directionalLights.forEach((light, index) =>
     registerId(light.id, ["lighting", "directionalLights", index, "id"]),
   );
 }
@@ -212,7 +220,13 @@ const courseDocumentV2BaseSchema = courseDocumentBaseSchema.extend({
 });
 
 function validateCourseRoute(
-  document: Omit<z.infer<typeof courseDocumentV2BaseSchema>, "schemaVersion">,
+  document: Omit<DocumentIdentityShape, "checkpoints"> & {
+    checkpoints: Array<{
+      forward: { x: number; y: number; z: number };
+      id: string;
+      order: number;
+    }>;
+  },
   context: z.RefinementCtx,
 ) {
   validateDocumentIdentityAndOrder(document, context);
@@ -237,18 +251,62 @@ function validateCourseRoute(
 const courseDocumentV2Schema =
   courseDocumentV2BaseSchema.superRefine(validateCourseRoute);
 
-export const courseDocumentSchema = courseDocumentV2BaseSchema
-  .extend({
-    objects: z.array(courseObjectSchema).min(1).max(5_000),
-    schemaVersion: z.literal(3),
-    // The kart spawns this far behind the start gate, along its heading.
-    start: courseStartSchema.extend({
-      spawnDistance: z.number().finite().min(0).max(10),
+const courseDocumentV3BaseSchema = courseDocumentV2BaseSchema.extend({
+  objects: z.array(courseObjectSchema).min(1).max(5_000),
+  schemaVersion: z.literal(3),
+  // The kart spawns this far behind the start gate, along its heading.
+  start: courseStartSchema.extend({
+    spawnDistance: z.number().finite().min(0).max(10),
+  }),
+});
+
+const courseDocumentV3Schema =
+  courseDocumentV3BaseSchema.superRefine(validateCourseRoute);
+
+const enclosureSchema = z
+  .strictObject({
+    id: z.string().max(80),
+    mirrorAngle: z
+      .number()
+      .finite()
+      .min(MIRROR_ANGLE_LIMITS.min)
+      .max(MIRROR_ANGLE_LIMITS.max),
+    placement: z.strictObject({
+      axial: z.number().finite(),
+      azimuth: z.number().finite().min(0).lt(360),
+      heading: z.number().finite().min(-180).max(180),
+      height: z.number().finite().min(0),
     }),
+    version: z.number().int().positive(),
+  })
+  .superRefine((enclosure, context) => {
+    const definition = getApprovedEnclosure(enclosure);
+    if (!definition) {
+      context.addIssue({
+        code: "custom",
+        message: "Unsupported enclosure",
+        path: ["id"],
+      });
+      return;
+    }
+    getEnclosurePlacementIssues(definition, enclosure.placement).forEach(
+      ({ message, path }) =>
+        context.addIssue({ code: "custom", message, path: ["placement", path] }),
+    );
+  });
+
+// Version four places the course in its habitat enclosure, whose sunlight
+// replaces authored directional lights.
+export const courseDocumentSchema = courseDocumentV3BaseSchema
+  .omit({ lighting: true })
+  .extend({
+    enclosure: enclosureSchema,
+    schemaVersion: z.literal(4),
   })
   .superRefine(validateCourseRoute);
 
 export type CourseDocumentV1 = z.infer<typeof courseDocumentV1Schema>;
+type CourseDocumentV3 = z.infer<typeof courseDocumentV3Schema>;
 export type CourseDocument = z.infer<typeof courseDocumentSchema>;
 export type CourseObject = CourseDocument["objects"][number];
 export type CourseVisualMaterial = CourseObject["visual"]["material"];
@@ -460,26 +518,34 @@ export function migrateCourseDocumentV1(input: unknown): CourseDocument {
   });
 }
 
-export function parseCourseDocument(input: unknown): CourseDocument {
-  if (
-    input &&
+function hasSchemaVersion(input: unknown, version: number) {
+  return (
+    Boolean(input) &&
     typeof input === "object" &&
-    "schemaVersion" in input &&
-    input.schemaVersion === 1
-  ) {
-    return migrateCourseDocumentV1(input);
-  }
+    "schemaVersion" in (input as object) &&
+    (input as { schemaVersion: unknown }).schemaVersion === version
+  );
+}
 
-  const isVersionTwo =
-    input &&
-    typeof input === "object" &&
-    "schemaVersion" in input &&
-    input.schemaVersion === 2;
+function alignCheckpoints<
+  T extends {
+    forward: { x: number; y: number; z: number };
+    rotation: { x: number; y: number; z: number };
+  },
+>(checkpoints: T[]) {
+  return checkpoints.map((checkpoint) => ({
+    ...checkpoint,
+    forward: alignCheckpointForwardToGate(checkpoint, checkpoint.forward),
+  }));
+}
+
+function parseCourseDocumentV3(input: unknown): CourseDocumentV3 {
+  const isVersionTwo = hasSchemaVersion(input, 2);
   const document = isVersionTwo
     ? courseDocumentV2Schema.parse(input)
-    : courseDocumentSchema.parse(input);
+    : courseDocumentV3Schema.parse(input);
 
-  return courseDocumentSchema.parse({
+  return courseDocumentV3Schema.parse({
     ...document,
     schemaVersion: 3,
     start: isVersionTwo ? { ...document.start, spawnDistance: 0 } : document.start,
@@ -494,10 +560,74 @@ export function parseCourseDocument(input: unknown): CourseDocument {
             : null,
         }))
       : document.objects,
-    checkpoints: document.checkpoints.map((checkpoint) => ({
-      ...checkpoint,
-      forward: alignCheckpointForwardToGate(checkpoint, checkpoint.forward),
-    })),
+    checkpoints: alignCheckpoints(document.checkpoints),
+  });
+}
+
+const roundHundredth = (value: number) => Math.round(value * 100) / 100 || 0;
+
+/**
+ * Places a pre-enclosure course at the middle of the first valley, turned
+ * and timed so the habitat sun shines from its old key light's direction.
+ * It uses the evening side, the sun's image toward the anti-sun cap, whose
+ * light reaches the middle of the habitat for elevations above about 27°
+ * (see `getEnclosureFrame`). Other lights and ambient color are dropped.
+ */
+function upgradeCourseDocumentV3({
+  lighting,
+  ...document
+}: CourseDocumentV3): CourseDocument {
+  const keyLight = lighting.directionalLights[0]!;
+  const lightDirection = rotateByEulerAngles(keyLight.rotation, {
+    x: 0,
+    y: -1,
+    z: 0,
+  });
+  const elevation =
+    (Math.asin(Math.max(-1, Math.min(1, -lightDirection.y))) * 180) / Math.PI;
+  const horizontal = Math.hypot(lightDirection.x, lightDirection.z);
+
+  return {
+    ...document,
+    enclosure: {
+      ...ISLAND_THREE_ENCLOSURE,
+      mirrorAngle: Math.min(
+        MIRROR_ANGLE_LIMITS.max,
+        Math.max(45, roundHundredth(90 - elevation / 2)),
+      ),
+      placement: {
+        axial: 0,
+        azimuth: 0,
+        // The rays run toward the sunward cap.
+        heading:
+          horizontal > 1e-9
+            ? roundHundredth(
+                (Math.atan2(-lightDirection.x, -lightDirection.z) * 180) /
+                  Math.PI,
+              )
+            : 0,
+        height: 0,
+      },
+    },
+    schemaVersion: 4,
+  };
+}
+
+export function parseCourseDocument(input: unknown): CourseDocument {
+  if (hasSchemaVersion(input, 1)) {
+    return migrateCourseDocumentV1(input);
+  }
+
+  if (hasSchemaVersion(input, 2) || hasSchemaVersion(input, 3)) {
+    return courseDocumentSchema.parse(
+      upgradeCourseDocumentV3(parseCourseDocumentV3(input)),
+    );
+  }
+
+  const document = courseDocumentSchema.parse(input);
+  return courseDocumentSchema.parse({
+    ...document,
+    checkpoints: alignCheckpoints(document.checkpoints),
   });
 }
 
@@ -540,3 +670,14 @@ export function serializeCourseDocument(input: unknown) {
 export const ROUGH_COURSE_DOCUMENT = parseCourseDocument(
   roughCourseDocumentJson,
 );
+
+export const AGRICULTURAL_ZONE_DOCUMENT = parseCourseDocument(
+  agriculturalZoneDocumentJson,
+);
+
+/** Validated source seeds, used when no publication is available. */
+export const BUNDLED_COURSE_DOCUMENTS: Record<OfficialCourseId, CourseDocument> =
+  {
+    "agricultural-zone": AGRICULTURAL_ZONE_DOCUMENT,
+    "rough-course": ROUGH_COURSE_DOCUMENT,
+  };

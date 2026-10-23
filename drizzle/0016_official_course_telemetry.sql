@@ -1,0 +1,2 @@
+ALTER TABLE "gameplay_runs" DROP CONSTRAINT "gameplay_runs_known_course";--> statement-breakpoint
+ALTER TABLE "gameplay_runs" ADD CONSTRAINT "gameplay_runs_known_course" CHECK ("gameplay_runs"."course_id" in ('rough-course', 'agricultural-zone'));

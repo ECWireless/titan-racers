@@ -110,49 +110,18 @@
     }
   ],
   "courseId": "rough-course",
-  "lighting": {
-    "ambient": {
-      "color": {
-        "b": 0.46,
-        "g": 0.39,
-        "r": 0.34
-      },
-      "intensity": 1
+  "enclosure": {
+    "id": "enclosure.island-three",
+    "mirrorAngle": 71,
+    "placement": {
+      "axial": 0,
+      "azimuth": 0,
+      "heading": 38,
+      "height": 0
     },
-    "directionalLights": [
-      {
-        "color": {
-          "b": 0.78,
-          "g": 0.91,
-          "r": 1
-        },
-        "id": "warm-key-light",
-        "intensity": 0.78,
-        "rotation": {
-          "x": 52,
-          "y": 38,
-          "z": 0
-        },
-        "shadowQuality": "medium"
-      },
-      {
-        "color": {
-          "b": 0.9,
-          "g": 0.68,
-          "r": 0.55
-        },
-        "id": "cool-fill-light",
-        "intensity": 0.32,
-        "rotation": {
-          "x": 28,
-          "y": -132,
-          "z": 0
-        },
-        "shadowQuality": "off"
-      }
-    ]
+    "version": 1
   },
-  "name": "Rough Test Loop",
+  "name": "Starter Course",
   "objects": [
     {
       "availability": "standard",
@@ -5197,9 +5166,229 @@
         },
         "shape": "box"
       }
+    },
+    {
+      "availability": "standard",
+      "category": "obstacle",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 44,
+          "y": 0.5,
+          "z": 0.15
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "solid-obstacle",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.standard-course",
+          "version": 1
+        }
+      },
+      "editable": true,
+      "id": "perimeter-wall-north",
+      "label": "Perimeter wall (north)",
+      "transform": {
+        "position": {
+          "x": 0,
+          "y": 0.5,
+          "z": -21.35
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "obstacleBlock",
+        "scale": {
+          "x": 88,
+          "y": 1,
+          "z": 0.3
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "obstacle",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 44,
+          "y": 0.5,
+          "z": 0.15
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "solid-obstacle",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.standard-course",
+          "version": 1
+        }
+      },
+      "editable": true,
+      "id": "perimeter-wall-south",
+      "label": "Perimeter wall (south)",
+      "transform": {
+        "position": {
+          "x": 0,
+          "y": 0.5,
+          "z": 37.35
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "obstacleBlock",
+        "scale": {
+          "x": 88,
+          "y": 1,
+          "z": 0.3
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "obstacle",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 0.15,
+          "y": 0.5,
+          "z": 29.2
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "solid-obstacle",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.standard-course",
+          "version": 1
+        }
+      },
+      "editable": true,
+      "id": "perimeter-wall-west",
+      "label": "Perimeter wall (west)",
+      "transform": {
+        "position": {
+          "x": -43.85,
+          "y": 0.5,
+          "z": 8
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "obstacleBlock",
+        "scale": {
+          "x": 0.3,
+          "y": 1,
+          "z": 58.4
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "obstacle",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 0.15,
+          "y": 0.5,
+          "z": 29.2
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "solid-obstacle",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.standard-course",
+          "version": 1
+        }
+      },
+      "editable": true,
+      "id": "perimeter-wall-east",
+      "label": "Perimeter wall (east)",
+      "transform": {
+        "position": {
+          "x": 43.85,
+          "y": 0.5,
+          "z": 8
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "obstacleBlock",
+        "scale": {
+          "x": 0.3,
+          "y": 1,
+          "z": 58.4
+        },
+        "shape": "box"
+      }
     }
   ],
-  "schemaVersion": 3,
+  "schemaVersion": 4,
   "start": {
     "gateHalfExtents": {
       "x": 8,

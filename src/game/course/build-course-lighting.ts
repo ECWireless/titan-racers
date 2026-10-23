@@ -1,13 +1,10 @@
 import * as pc from "playcanvas";
 
+import { getEnclosureFrame } from "../enclosure/island-three";
 import type { CourseDocument } from "./course-document";
 import { ROUGH_COURSE_DOCUMENT } from "./course-document";
 
-const SHADOW_RESOLUTION = {
-  high: 2048,
-  low: 512,
-  medium: 1024,
-} as const;
+export const ENCLOSURE_SUN_ID = "enclosure-sun";
 
 export type CourseLightingProjection = ReturnType<
   typeof projectCourseLighting
@@ -19,48 +16,43 @@ type CourseLightingEntityFactory = (
   projection: CourseLightingProjection,
 ) => pc.Entity;
 
-type CourseLightingColorFactory = (
-  r: number,
-  g: number,
-  b: number,
-) => pc.Color;
-
 type BuildCourseLightingOptions = {
-  createColor?: CourseLightingColorFactory;
   createEntity?: CourseLightingEntityFactory;
   document?: CourseDocument;
 };
 
+/**
+ * The course's light: the enclosure's sunlight, shining from the sun's image
+ * in the window opposite the course, when the mirror's light reaches the
+ * course at all. Its Euler angles turn a directional light's -Y onto the
+ * sun's rays.
+ */
 export function projectCourseLighting(document: CourseDocument) {
-  const { ambient, directionalLights } = document.lighting;
+  const frame = getEnclosureFrame(document.enclosure);
+  if (!frame.sunReaches()) return { directionalLights: [] };
+  const toSun = frame.sunDirection();
+  const toDegrees = (radians: number) => (radians * 180) / Math.PI || 0;
 
   return {
-    ambient: {
-      b: ambient.color.b * ambient.intensity,
-      g: ambient.color.g * ambient.intensity,
-      r: ambient.color.r * ambient.intensity,
-    },
-    directionalLights: directionalLights.map((light) => ({
-      color: light.color,
-      id: light.id,
-      intensity: light.intensity,
-      rotation: light.rotation,
-      shadows:
-        light.shadowQuality === "off"
-          ? null
-          : {
-              bias: 0.005,
-              distance: 20,
-              resolution: SHADOW_RESOLUTION[light.shadowQuality],
-            },
-    })),
+    directionalLights: [
+      {
+        color: { ...frame.definition.sunlight.color },
+        id: ENCLOSURE_SUN_ID,
+        intensity: frame.definition.sunlight.intensity,
+        rotation: {
+          x: toDegrees(Math.acos(Math.max(-1, Math.min(1, toSun.y)))),
+          y: toDegrees(Math.atan2(toSun.x, toSun.z)),
+          z: 0,
+        },
+        shadows: { bias: 0.005, distance: 20, resolution: 1024 },
+      },
+    ],
   };
 }
 
 export function buildCourseLighting(
   app: pc.Application,
   {
-    createColor = (r, g, b) => new pc.Color(r, g, b),
     createEntity = createDirectionalLightEntity,
     document = ROUGH_COURSE_DOCUMENT,
   }: BuildCourseLightingOptions = {},
@@ -68,7 +60,6 @@ export function buildCourseLighting(
   const projection = projectCourseLighting(document);
   const entities = new Map<string, pc.Entity>();
   const stagedEntities: pc.Entity[] = [];
-  const previousAmbientLight = app.scene.ambientLight.clone();
 
   try {
     projection.directionalLights.forEach((light) => {
@@ -79,14 +70,8 @@ export function buildCourseLighting(
     });
 
     stagedEntities.forEach((entity) => app.root.addChild(entity));
-    app.scene.ambientLight = createColor(
-      projection.ambient.r,
-      projection.ambient.g,
-      projection.ambient.b,
-    );
   } catch (error) {
     stagedEntities.forEach((entity) => entity.destroy());
-    app.scene.ambientLight = previousAmbientLight;
     throw error;
   }
 

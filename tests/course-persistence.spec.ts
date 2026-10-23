@@ -87,7 +87,7 @@ test.describe("course persistence and authorization", () => {
       authorUserId: userId,
       courseId,
       revision: 1,
-      schemaVersion: 3,
+      schemaVersion: 4,
     });
 
     const secondDocument = structuredClone(document);
@@ -126,7 +126,7 @@ test.describe("course persistence and authorization", () => {
       authorUserId: userId,
       courseId,
       revision: 3,
-      schemaVersion: 3,
+      schemaVersion: 4,
     });
 
     let immutableRevisionError: unknown;
@@ -144,10 +144,13 @@ test.describe("course persistence and authorization", () => {
     ).toMatch(/course revisions are immutable/);
   });
 
-  test("loads and publishes an immutable one-checkpoint v1 revision as v3", async () => {
+  test("loads and publishes an immutable one-checkpoint v1 revision as v4", async () => {
     const userId = randomUUID();
     const courseId = `legacy-one-checkpoint-${randomUUID()}`;
-    const source = structuredClone(ROUGH_COURSE_DOCUMENT);
+    const source: Partial<typeof ROUGH_COURSE_DOCUMENT> &
+      Omit<typeof ROUGH_COURSE_DOCUMENT, "enclosure"> =
+      structuredClone(ROUGH_COURSE_DOCUMENT);
+    delete source.enclosure;
     const legacyStart = {
       id: source.start.id,
       position: source.start.position,
@@ -170,6 +173,18 @@ test.describe("course persistence and authorization", () => {
         return { ...object, collision };
       }),
       schemaVersion: 1 as const,
+      lighting: {
+        ambient: { color: { b: 0.46, g: 0.39, r: 0.34 }, intensity: 1 },
+        directionalLights: [
+          {
+            color: { b: 0.78, g: 0.91, r: 1 },
+            id: "warm-key-light",
+            intensity: 0.78,
+            rotation: { x: 52, y: 38, z: 0 },
+            shadowQuality: "medium",
+          },
+        ],
+      },
       start: legacyStart,
     };
 
@@ -197,9 +212,10 @@ test.describe("course persistence and authorization", () => {
     expect(loaded).toMatchObject({
       document: {
         checkpoints: [{ forward: { x: -1, y: 0, z: 0 } }],
-        schemaVersion: 3,
+        enclosure: ROUGH_COURSE_DOCUMENT.enclosure,
+        schemaVersion: 4,
       },
-      schemaVersion: 3,
+      schemaVersion: 4,
     });
 
     await publishCourseRevision({
@@ -210,9 +226,9 @@ test.describe("course persistence and authorization", () => {
     });
     const published = await loadLatestCoursePublication(courseId);
     expect(published).toMatchObject({
-      document: { schemaVersion: 3 },
+      document: { schemaVersion: 4 },
       revision: 1,
-      schemaVersion: 3,
+      schemaVersion: 4,
     });
 
     const [stored] = await db

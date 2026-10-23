@@ -36,7 +36,10 @@ import {
   type ChaseCameraImpact,
   type ChaseCameraSnapshot,
 } from "@/game/camera/chase-camera";
-import { buildCourseLighting } from "@/game/course/build-course-lighting";
+import {
+  buildCourseLighting,
+  ENCLOSURE_SUN_ID,
+} from "@/game/course/build-course-lighting";
 import { buildRoughCourse } from "@/game/course/build-rough-course";
 import { createCourseSurfaceMaterials } from "@/game/course/course-surface-materials";
 import { loadCourseSurfaceImages } from "@/game/course/course-surface-textures";
@@ -45,6 +48,8 @@ import {
   getCourseStartTransform,
   ROUGH_COURSE_DOCUMENT,
 } from "@/game/course/course-document";
+import { createEnclosureView } from "@/game/enclosure/enclosure-view";
+import { getHabitatLight } from "@/game/enclosure/habitat-light";
 import { PlayerInputManager } from "@/game/input/player-input-manager";
 import { isEditableKeyboardTarget } from "@/game/input/keyboard-input";
 import { useControllerMenuNavigation } from "@/game/input/use-controller-menu-navigation";
@@ -220,6 +225,12 @@ function getKartRootPosition(
 }
 
 const ENABLE_SCENE_TEST_HOOKS = process.env.NODE_ENV !== "production";
+// Playwright renders WebGL on the CPU, where the enclosure's per-pixel
+// shading costs hundreds of milliseconds a frame. Its server leaves the
+// enclosure out unless a test asks for it with `?enclosure`.
+const TESTS_WITHOUT_ENCLOSURE =
+  ENABLE_SCENE_TEST_HOOKS &&
+  process.env.NEXT_PUBLIC_TEST_WITHOUT_ENCLOSURE === "1";
 
 type SceneInitializationTestControl = {
   contextRestoreTimeoutMs?: number;
@@ -1066,13 +1077,21 @@ export function SoloTimeTrialCanvas({
       lightingEntities.forEach((entity) => {
         if (entity.light?.castShadows) applyShadowPolicy(entity.light);
       });
-      runtime.addCleanup(
-        applySceneLook(
-          app,
-          camera.camera!,
-          COURSE_DOCUMENT.lighting.ambient.intensity,
-        ),
-      );
+      const habitatLight = getHabitatLight(COURSE_DOCUMENT.enclosure);
+      runtime.addCleanup(applySceneLook(app, camera.camera!, habitatLight));
+      if (
+        !TESTS_WITHOUT_ENCLOSURE ||
+        new URLSearchParams(window.location.search).has("enclosure")
+      ) {
+        runtime.addCleanup(
+          createEnclosureView(
+            app,
+            camera,
+            COURSE_DOCUMENT.enclosure,
+            habitatLight,
+          ),
+        );
+      }
 
       let driftSmoke: KartDriftSmoke | null = null;
       let surfaceEffects: KartSurfaceEffects | null = null;
@@ -1948,8 +1967,7 @@ export function SoloTimeTrialCanvas({
         );
         const obstacleAEntity = obstacleEntities.get("obstacle-barrel-a");
         const ground = courseEntities.get("ground");
-        const keyLight = lightingEntities.get("warm-key-light");
-        const fillLight = lightingEntities.get("cool-fill-light");
+        const sun = lightingEntities.get(ENCLOSURE_SUN_ID);
         const startFinishLine = courseEntities.get("start-finish-line");
 
         return {
@@ -1964,21 +1982,19 @@ export function SoloTimeTrialCanvas({
           barrelPhysicsMask: obstacleAEntity?.rigidbody?.mask ?? null,
           barrelPhysicsRestitution:
             obstacleAEntity?.rigidbody?.restitution ?? null,
-          ambientLightB: app.scene.ambientLight.b,
-          ambientLightG: app.scene.ambientLight.g,
-          ambientLightR: app.scene.ambientLight.r,
           courseEntityCount: courseEntities.size,
           directionalLightCount: lightingEntities.size,
-          fillLightCastsShadows: fillLight?.light?.castShadows ?? null,
           groundCollisionHalfExtentX: ground?.collision?.halfExtents?.x ?? null,
           groundCollisionOffsetY: ground?.collision?.linearOffset?.y ?? null,
           groundCollisionShape: ground?.collision?.type ?? null,
           groundIsDrivable: ground?.tags.has("drivable-surface") ?? false,
-          keyLightCastsShadows: keyLight?.light?.castShadows ?? null,
-          keyLightIntensity: keyLight?.light?.intensity ?? null,
-          keyLightRotationX: keyLight?.getEulerAngles().x ?? null,
-          keyLightRotationY: keyLight?.getEulerAngles().y ?? null,
-          keyLightShadowResolution: keyLight?.light?.shadowResolution ?? null,
+          sunCastsShadows: sun?.light?.castShadows ?? null,
+          sunIntensity: sun?.light?.intensity ?? null,
+          // A directional light shines down its -Y, so +Y points at the sun.
+          sunDirection: sun
+            ? { x: sun.up.x, y: sun.up.y, z: sun.up.z }
+            : null,
+          sunShadowResolution: sun?.light?.shadowResolution ?? null,
           obstacleAInteractionRadius: obstacleA?.radius ?? null,
           obstacleAX: obstacleA ? toFixedStep(obstacleA.x) : null,
           obstacleBlocksKart: firstObstacle

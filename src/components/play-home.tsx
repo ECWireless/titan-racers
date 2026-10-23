@@ -5,10 +5,13 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 
 import {
-  ROUGH_COURSE_DOCUMENT,
+  BUNDLED_COURSE_DOCUMENTS,
   type CourseDocument,
 } from "@/game/course/course-document";
-import { CURRENT_GUEST_COURSE_ID } from "@/game/course/course-ids";
+import {
+  CURRENT_GUEST_COURSE_ID,
+  SANDBOX_COURSE_ID,
+} from "@/game/course/course-ids";
 import { loadCourseSurfaceImages } from "@/game/course/course-surface-textures";
 import { publishedCourseRuntimeSchema } from "@/game/course/course-publication";
 import { useControllerMenuNavigation } from "@/game/input/use-controller-menu-navigation";
@@ -31,9 +34,17 @@ type PlayableOfficialKart = {
   thumbnailSource: string | null;
 };
 
-async function loadPublishedCourse() {
+// Non-production test hook: `?sandbox-course` races the physics sandbox.
+function soloCourseId() {
+  return process.env.NODE_ENV !== "production" &&
+    new URLSearchParams(window.location.search).has("sandbox-course")
+    ? SANDBOX_COURSE_ID
+    : CURRENT_GUEST_COURSE_ID;
+}
+
+async function loadPublishedCourse(courseId: string) {
   const response = await fetch(
-    `/api/courses/${CURRENT_GUEST_COURSE_ID}/published`,
+    `/api/courses/${courseId}/published`,
     {
       cache: "no-store",
       signal: AbortSignal.timeout(3_000),
@@ -87,7 +98,7 @@ export function PlayHome() {
   const [officialKarts, setOfficialKarts] = useState<PlayableOfficialKart[]>([]);
   const [selectedKartId, setSelectedKartId] = useState<string | null>(null);
   const [courseDocument, setCourseDocument] = useState<CourseDocument>(
-    ROUGH_COURSE_DOCUMENT,
+    BUNDLED_COURSE_DOCUMENTS[CURRENT_GUEST_COURSE_ID],
   );
   const [kartDocument, setKartDocument] = useState<
     KartAssemblyDocument | undefined
@@ -183,8 +194,9 @@ export function PlayHome() {
 
     setUtilityMenuOpen(false);
     setSoloPending(true);
-    const nextCoursePromise = loadPublishedCourse().catch(
-      () => ROUGH_COURSE_DOCUMENT,
+    const courseId = soloCourseId();
+    const nextCoursePromise = loadPublishedCourse(courseId).catch(
+      () => BUNDLED_COURSE_DOCUMENTS[courseId],
     );
     const thumbnailPause = pauseKartThumbnailRendering();
     resumeThumbnailRenderingRef.current = thumbnailPause.release;
@@ -254,7 +266,7 @@ export function PlayHome() {
               {[
                 ["Profile", "/profile"],
                 ["Kart Builder", "/admin/karts"],
-                ["Course Editor", "/editor"],
+                ["Course Editor", "/admin/courses"],
               ].map(([label, href]) => (
                 <Link
                   className="border border-transparent px-4 py-3 font-mono text-xs font-bold uppercase tracking-[0.14em] text-titan-ice/78 transition hover:border-titan-ice/20 hover:bg-titan-ice/[0.06] hover:text-titan-hazard focus-visible:border-titan-hazard focus-visible:bg-titan-hazard/[0.08] focus-visible:text-titan-hazard focus-visible:outline-none"

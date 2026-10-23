@@ -19,9 +19,14 @@ owns only Resume and Exit.
 
 ## Current Source Ownership
 
-- `src/app/editor/page.tsx` is the dedicated editor entry point.
+- `src/app/admin/courses/page.tsx` and
+  `src/components/course-editor/official-course-roster-access.tsx` list the
+  official courses beside the Kart Builder's roster, each with its draft and
+  publication state and an Edit or Create action.
+  `src/app/admin/courses/[courseId]/page.tsx` is the editor entry point for an
+  official course; other IDs are not found. `/editor` redirects to the roster.
 - `src/components/course-editor/course-editor-access.tsx` loads the protected
-  rough-course revision, distinguishes authentication, authorization, and
+  revision of the chosen course, distinguishes authentication, authorization, and
   environment failures, validates successful API responses, starts Google
   login, replaces a forbidden session through a sign-out-then-account-selection
   flow, signs out active editor sessions, and lets an authorized admin initialize
@@ -129,11 +134,10 @@ owns only Resume and Exit.
   native before-unload warning while work is dirty. Confirmation dialogs trap
   keyboard focus, close on Escape, and restore the invoking control when the
   author keeps editing.
-- Ambient and key/fill lighting controls mutate only bounded portable lighting
-  data. Fill is the optional second directional light, and Reset Lighting is
-  one history command back to the last loaded or saved draft setup. Manual
-  numeric entry clamps to the portable schema bounds before it becomes a
-  command.
+- The Environment control edits only the enclosure mirror angle (the time of
+  day), and Reset Lighting is one history command back to the last loaded or
+  saved draft's angle. Manual numeric entry clamps to the portable schema
+  bounds before it becomes a command. Placement has no editor control.
 - The header presents Save Draft as a compact accessible save icon with a
   hover/focus tooltip and disabled clean-state explanation. Course and Inspector
   top-level groups are independently collapsible; their disclosure preferences
@@ -147,10 +151,10 @@ owns only Resume and Exit.
 - Course Actions is an ordinary disclosure action list rather than an ARIA menu:
   its native buttons retain normal Tab order, while Escape restores trigger
   focus and outside pointer interaction dismisses the list.
-- The protected editor currently targets the permanent `rough-course` sandbox.
-  The source-controlled seed can be restored through the guarded database
-  operation documented in `docs/database-operations.md`; the official
-  `agricultural-zone` course remains a separate future document and revision
+- The protected editor edits the official courses only: the permanent
+  `rough-course` sandbox and `agricultural-zone`. The sandbox seed can be
+  restored through the guarded database operation documented in
+  `docs/database-operations.md`; `agricultural-zone` keeps its own document and revision
   history.
 - Draft and Published revision state are shown separately. Publish remains
   disabled while dirty or when the saved draft is already current, uses a

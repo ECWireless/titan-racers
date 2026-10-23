@@ -1,4 +1,9 @@
 import { z } from "zod";
+
+import {
+  isOfficialCourseId,
+  OFFICIAL_COURSE_IDS,
+} from "../course/course-ids";
 import {
   ACCEPTED_PHYSICS_VERSIONS,
   CURRENT_PHYSICS_VERSION,
@@ -29,7 +34,7 @@ const eventBase = {
 const runStartedEventSchema = z.strictObject({
   ...eventBase,
   schemaVersion: z.literal(1),
-  courseId: z.literal("rough-course"),
+  courseId: z.enum(OFFICIAL_COURSE_IDS),
   type: z.literal("run_started"),
 });
 
@@ -141,7 +146,7 @@ export class GameplayRunTelemetry {
   ) {}
 
   start(courseId: string) {
-    if (courseId !== "rough-course") {
+    if (!isOfficialCourseId(courseId)) {
       return;
     }
     this.runId = this.createRunId();

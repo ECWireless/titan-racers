@@ -30,7 +30,7 @@ or the final Agricultural Zone course.
   checkpoint direction, and recovery contract plus immutable version-one
   normalization. Candidate v2 directions are aligned to the full rotated gate
   face in memory so historical diagonal values remain playable.
-- `src/game/course/rough-course.v3.json` owns the canonical rough-loop gate and
+- `src/game/course/rough-course.v4.json` owns the canonical rough-loop gate and
   recovery placements.
 - `src/components/solo-time-trial-canvas.tsx` samples input, advances race time,
   evaluates post-physics kart movement, applies recovery transforms and velocity
@@ -124,8 +124,9 @@ Focused coverage includes:
 
 - Race results and progress are session-memory only; results, ghosts, and
   leaderboards arrive in Phase 5.
-- The rough course is the development loop; the Agricultural Zone (Phase 4)
-  needs its own gate and recovery placements and QA.
+- The rough course is the development loop. The Agricultural Zone's starter
+  loop has its own gates and recoveries; the full circuit (PR 4.4) will need
+  its own placements and QA.
 - Recovery support uses the accepted authored candidate chain and current
   PlayCanvas/Ammo raycast mapping; moving course geometry still requires
   course-specific clearance QA before publication.

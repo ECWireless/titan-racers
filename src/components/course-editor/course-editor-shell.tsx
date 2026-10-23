@@ -15,6 +15,10 @@ import {
 } from "@/game/editor/editor-viewport";
 import { EditorControllerAxisIndicator } from "@/components/editor-controller-axis-indicator";
 import {
+  getEnclosureFrame,
+  MIRROR_ANGLE_LIMITS,
+} from "@/game/enclosure/island-three";
+import {
   type CoursePublicationSummary,
   persistedCoursePublicationSchema,
 } from "@/game/course/course-publication";
@@ -35,10 +39,8 @@ import {
   reconcileCourseEditorSelections,
   renameCourseObject,
   scaleSelectionAxis,
-  setFillLightEnabled,
-  updateAmbientLighting,
   updateCourseEditorSelections,
-  updateDirectionalLight,
+  updateMirrorAngle,
 } from "@/game/editor/course-editor-document";
 import type { CourseEditorTool } from "@/game/editor/course-editor-scene";
 import { CommandHistory } from "@/game/editor/command-history";
@@ -46,7 +48,6 @@ import { useEditorController } from "@/game/input/use-editor-controller";
 
 import { EditorToolbarIcon } from "../editor/editor-toolbar-icon";
 import {
-  COURSE_EDITOR_COURSE_ID,
   type CourseEditorRevision,
   persistedCourseRevisionSchema,
 } from "./course-editor-access";
@@ -143,7 +144,6 @@ export function CourseEditorShell({
   const actionsContainerRef = useRef<HTMLDivElement>(null);
   const recoveryFocusRef = useRef<HTMLElement | null>(null);
   const restoreFocusAfterOperationRef = useRef(false);
-  const lastFillLightRef = useRef(revision.document.lighting.directionalLights[1]);
   const closePanelButtonRef = useRef<HTMLButtonElement>(null);
   const coursePanelButtonRef = useRef<HTMLButtonElement>(null);
   const inspectorPanelButtonRef = useRef<HTMLButtonElement>(null);
@@ -446,41 +446,15 @@ export function CourseEditorShell({
     );
   }
 
-  function commitAmbientLighting(
-    update: Parameters<typeof updateAmbientLighting>[1],
-  ) {
-    commitDocument(
-      "Edit ambient lighting",
-      updateAmbientLighting(document, update),
-    );
-  }
-
-  function commitDirectionalLighting(
-    lightId: string,
-    update: Parameters<typeof updateDirectionalLight>[2],
-  ) {
-    commitDocument(
-      `Edit ${lightId}`,
-      updateDirectionalLight(document, lightId, update),
-    );
-  }
-
-  function toggleFillLight(enabled: boolean) {
-    const currentFill = document.lighting.directionalLights[1];
-    if (currentFill) {
-      lastFillLightRef.current = currentFill;
-    }
-    commitDocument(
-      enabled ? "Enable fill light" : "Disable fill light",
-      setFillLightEnabled(document, enabled, lastFillLightRef.current),
-    );
+  function commitMirrorAngle(mirrorAngle: number) {
+    commitDocument("Edit mirror angle", updateMirrorAngle(document, mirrorAngle));
   }
 
   function resetLighting() {
-    commitDocument("Reset lighting", {
-      ...document,
-      lighting: structuredClone(currentRevision.document.lighting),
-    });
+    commitDocument(
+      "Reset lighting",
+      updateMirrorAngle(document, currentRevision.document.enclosure.mirrorAngle),
+    );
   }
 
   async function saveDraft() {
@@ -494,7 +468,7 @@ export function CourseEditorShell({
 
     try {
       const response = await fetch(
-        `/api/admin/courses/${COURSE_EDITOR_COURSE_ID}`,
+        `/api/admin/courses/${currentRevision.courseId}`,
         {
           body: JSON.stringify({
             document,
@@ -544,7 +518,7 @@ export function CourseEditorShell({
 
     try {
       const response = await fetch(
-        `/api/admin/courses/${COURSE_EDITOR_COURSE_ID}`,
+        `/api/admin/courses/${currentRevision.courseId}`,
         { cache: "no-store", credentials: "include" },
       );
       if (!response.ok) {
@@ -556,8 +530,6 @@ export function CourseEditorShell({
       setDocument(history.reload(latestRevision.document));
       setCurrentRevision(latestRevision);
       issuedIdsRef.current = collectCourseDocumentIds(latestRevision.document);
-      lastFillLightRef.current =
-        latestRevision.document.lighting.directionalLights[1];
       setSelections([
         { id: latestRevision.document.start.id, kind: "start" },
       ]);
@@ -697,7 +669,7 @@ export function CourseEditorShell({
 
     try {
       const response = await fetch(
-        `/api/admin/courses/${COURSE_EDITOR_COURSE_ID}/publication`,
+        `/api/admin/courses/${currentRevision.courseId}/publication`,
         {
           body: JSON.stringify({
             expectedPublicationId:
@@ -1178,10 +1150,8 @@ export function CourseEditorShell({
             selections={selections}
             onAddCheckpoint={addCheckpoint}
             onAddPreset={addPreset}
-            onAmbientChange={commitAmbientLighting}
-            onDirectionalLightChange={commitDirectionalLighting}
-            onFillLightToggle={toggleFillLight}
             onLightingReset={resetLighting}
+            onMirrorAngleChange={commitMirrorAngle}
             onSectionToggle={toggleSection}
             sectionOpen={sectionOpen}
             onSelect={selectCourseItem}
@@ -1415,10 +1385,8 @@ export function CourseEditorShell({
                 selections={selections}
                 onAddCheckpoint={addCheckpoint}
                 onAddPreset={addPreset}
-                onAmbientChange={commitAmbientLighting}
-                onDirectionalLightChange={commitDirectionalLighting}
-                onFillLightToggle={toggleFillLight}
                 onLightingReset={resetLighting}
+                onMirrorAngleChange={commitMirrorAngle}
                 onSectionToggle={toggleSection}
                 sectionOpen={sectionOpen}
                 onSelect={(nextSelection, additive) => {
@@ -2003,10 +1971,8 @@ function CoursePanel({
   document,
   onAddCheckpoint,
   onAddPreset,
-  onAmbientChange,
-  onDirectionalLightChange,
-  onFillLightToggle,
   onLightingReset,
+  onMirrorAngleChange,
   onSectionToggle,
   sectionOpen,
   onSelect,
@@ -2015,15 +1981,8 @@ function CoursePanel({
   document: CourseDocument;
   onAddCheckpoint: () => void;
   onAddPreset: (preset: CourseObjectPreset) => void;
-  onAmbientChange: (
-    update: Parameters<typeof updateAmbientLighting>[1],
-  ) => void;
-  onDirectionalLightChange: (
-    lightId: string,
-    update: Parameters<typeof updateDirectionalLight>[2],
-  ) => void;
-  onFillLightToggle: (enabled: boolean) => void;
   onLightingReset: () => void;
+  onMirrorAngleChange: (mirrorAngle: number) => void;
   onSectionToggle: (section: EditorSection) => void;
   sectionOpen: Record<EditorSection, boolean>;
   onSelect: (selection: CourseEditorSelection, additive?: boolean) => void;
@@ -2101,10 +2060,8 @@ function CoursePanel({
 
       <EnvironmentControls
         document={document}
-        onAmbientChange={onAmbientChange}
-        onDirectionalLightChange={onDirectionalLightChange}
-        onFillLightToggle={onFillLightToggle}
         onLightingReset={onLightingReset}
+        onMirrorAngleChange={onMirrorAngleChange}
         open={sectionOpen["course-environment"]}
         onToggle={() => onSectionToggle("course-environment")}
       />
@@ -2176,28 +2133,17 @@ function CoursePanel({
 
 function EnvironmentControls({
   document,
-  onAmbientChange,
-  onDirectionalLightChange,
-  onFillLightToggle,
   onLightingReset,
+  onMirrorAngleChange,
   onToggle,
   open,
 }: {
   document: CourseDocument;
-  onAmbientChange: (
-    update: Parameters<typeof updateAmbientLighting>[1],
-  ) => void;
-  onDirectionalLightChange: (
-    lightId: string,
-    update: Parameters<typeof updateDirectionalLight>[2],
-  ) => void;
-  onFillLightToggle: (enabled: boolean) => void;
   onLightingReset: () => void;
+  onMirrorAngleChange: (mirrorAngle: number) => void;
   onToggle: () => void;
   open: boolean;
 }) {
-  const [keyLight, fillLight] = document.lighting.directionalLights;
-
   return (
     <CollapsibleSection open={open} title="Environment" onToggle={onToggle}>
       <div className="flex justify-end">
@@ -2209,192 +2155,62 @@ function EnvironmentControls({
           Reset lighting
         </button>
       </div>
-      <LightingColorControl
-        color={document.lighting.ambient.color}
-        label="Ambient color"
-        onChange={(color) => onAmbientChange({ color })}
+      <MirrorAngleControl
+        value={document.enclosure.mirrorAngle}
+        onChange={onMirrorAngleChange}
       />
-      <LightingNumberControl
-        label="Ambient intensity"
-        max={4}
-        step={0.05}
-        value={document.lighting.ambient.intensity}
-        onChange={(intensity) => onAmbientChange({ intensity })}
-      />
-      {keyLight ? (
-        <DirectionalLightControls
-          label="Key light"
-          light={keyLight}
-          onChange={(update) => onDirectionalLightChange(keyLight.id, update)}
-        />
-      ) : null}
-      <label className="flex min-h-11 items-center justify-between gap-3 border border-titan-ice/12 bg-titan-black/20 px-3">
-        <span className="font-bold uppercase tracking-[0.08em] text-titan-ice/76">
-          Fill light
-        </span>
-        <input
-          checked={Boolean(fillLight)}
-          className="h-5 w-5 accent-titan-blue"
-          type="checkbox"
-          onChange={(event) => onFillLightToggle(event.target.checked)}
-        />
-      </label>
-      {fillLight ? (
-        <DirectionalLightControls
-          label="Fill settings"
-          light={fillLight}
-          onChange={(update) => onDirectionalLightChange(fillLight.id, update)}
-        />
-      ) : null}
+      <p className="text-[0.62rem] leading-relaxed text-titan-ice/56">
+        Sets the time of day: 45° is noon, lower is morning, higher is
+        evening.{" "}
+        {getEnclosureFrame(document.enclosure).sunReaches()
+          ? "Sunlight reaches this course."
+          : "At this angle the mirror's sunlight misses this course."}
+      </p>
     </CollapsibleSection>
   );
 }
 
-function DirectionalLightControls({
-  label,
-  light,
+function MirrorAngleControl({
   onChange,
-}: {
-  label: string;
-  light: CourseDocument["lighting"]["directionalLights"][number];
-  onChange: (update: Parameters<typeof updateDirectionalLight>[2]) => void;
-}) {
-  return (
-    <details className="border border-titan-ice/12 bg-titan-black/20 p-3">
-      <summary className="cursor-pointer font-bold uppercase tracking-[0.08em] text-titan-ice/76">
-        {label}
-      </summary>
-      <div className="mt-3 grid gap-3">
-        <LightingColorControl
-          color={light.color}
-          label={`${label} color`}
-          onChange={(color) => onChange({ color })}
-        />
-        <LightingNumberControl
-          label={`${label} intensity`}
-          max={8}
-          step={0.05}
-          value={light.intensity}
-          onChange={(intensity) => onChange({ intensity })}
-        />
-        <fieldset className="grid gap-2">
-          <legend className="font-bold uppercase tracking-[0.08em] text-titan-muted">
-            Direction
-          </legend>
-          {(["x", "y", "z"] as const).map((axis) => (
-            <LightingNumberControl
-              key={axis}
-              label={`${label} rotation ${axis}`}
-              max={10_000}
-              min={-10_000}
-              step={1}
-              value={light.rotation[axis]}
-              onChange={(value) =>
-                onChange({ rotation: { ...light.rotation, [axis]: value } })
-              }
-            />
-          ))}
-        </fieldset>
-        <label className="grid gap-1 font-bold uppercase tracking-[0.08em] text-titan-muted">
-          Shadow quality
-          <select
-            aria-label={`${label} shadow quality`}
-            className="min-h-10 border border-titan-ice/18 bg-titan-black px-2 text-titan-ice"
-            value={light.shadowQuality}
-            onChange={(event) =>
-              onChange({
-                shadowQuality: event.target.value as typeof light.shadowQuality,
-              })
-            }
-          >
-            {(["off", "low", "medium", "high"] as const).map((quality) => (
-              <option key={quality} value={quality}>
-                {quality}
-              </option>
-            ))}
-          </select>
-        </label>
-      </div>
-    </details>
-  );
-}
-
-function LightingColorControl({
-  color,
-  label,
-  onChange,
-}: {
-  color: { b: number; g: number; r: number };
-  label: string;
-  onChange: (color: { b: number; g: number; r: number }) => void;
-}) {
-  return (
-    <label className="flex min-h-10 items-center justify-between gap-3 font-bold uppercase tracking-[0.08em] text-titan-muted">
-      {label}
-      <input
-        aria-label={label}
-        className="h-9 w-14 cursor-pointer border border-titan-ice/18 bg-transparent p-0.5"
-        type="color"
-        value={courseColorToHex(color)}
-        onChange={(event) => onChange(hexToCourseColor(event.target.value))}
-      />
-    </label>
-  );
-}
-
-function LightingNumberControl({
-  label,
-  max,
-  min = 0,
-  onChange,
-  step,
   value,
 }: {
-  label: string;
-  max: number;
-  min?: number;
   onChange: (value: number) => void;
-  step: number;
   value: number;
 }) {
+  // Commit once on Enter or blur: clamping each keystroke would turn a
+  // partly typed "30" into the 5° minimum.
+  const [draft, setDraft] = useState<string | null>(null);
+  const commit = () => {
+    if (draft === null) return;
+    setDraft(null);
+    const next = Number(draft);
+    if (draft.trim() === "" || !Number.isFinite(next)) return;
+    const clamped = Math.min(
+      MIRROR_ANGLE_LIMITS.max,
+      Math.max(MIRROR_ANGLE_LIMITS.min, next),
+    );
+    if (clamped !== value) onChange(clamped);
+  };
+
   return (
     <label className="grid grid-cols-[minmax(0,1fr)_5.5rem] items-center gap-3 font-bold uppercase tracking-[0.08em] text-titan-muted">
-      {label}
+      Mirror angle
       <input
-        aria-label={label}
+        aria-label="Mirror angle"
         className="min-h-10 min-w-0 border border-titan-ice/18 bg-titan-black px-2 text-right text-titan-ice outline-none focus:border-titan-hazard"
-        max={max}
-        min={min}
-        step={step}
+        max={MIRROR_ANGLE_LIMITS.max}
+        min={MIRROR_ANGLE_LIMITS.min}
+        step="any"
         type="number"
-        value={value}
-        onChange={(event) => {
-          const nextValue = event.target.valueAsNumber;
-          if (Number.isFinite(nextValue)) {
-            onChange(Math.min(max, Math.max(min, nextValue)));
-          }
+        value={draft ?? value}
+        onBlur={commit}
+        onChange={(event) => setDraft(event.target.value)}
+        onKeyDown={(event) => {
+          if (event.key === "Enter") commit();
         }}
       />
     </label>
   );
-}
-
-function courseColorToHex(color: { b: number; g: number; r: number }) {
-  return `#${([color.r, color.g, color.b] as const)
-    .map((channel) =>
-      Math.round(channel * 255)
-        .toString(16)
-        .padStart(2, "0"),
-    )
-    .join("")}`;
-}
-
-function hexToCourseColor(hex: string) {
-  return {
-    r: Number.parseInt(hex.slice(1, 3), 16) / 255,
-    g: Number.parseInt(hex.slice(3, 5), 16) / 255,
-    b: Number.parseInt(hex.slice(5, 7), 16) / 255,
-  };
 }
 
 function SelectionRow({

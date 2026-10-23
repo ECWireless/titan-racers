@@ -30,7 +30,8 @@ identity.
 - `src/game/telemetry/gameplay-dashboard.ts` owns pure aggregate semantics and
   the strict response contract.
 - `src/server/gameplay-dashboard-repository.ts` loads only the selected summary
-  columns and date range.
+  columns and date range, for the current solo course, so race times compare
+  within one course.
 - `src/app/api/admin/telemetry/route.ts` enforces the database-backed admin role
   before returning aggregates.
 - `src/components/admin/telemetry-dashboard-access.tsx` owns protected access,

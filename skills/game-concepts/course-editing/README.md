@@ -50,8 +50,8 @@ The document owns:
 - course objects with stable IDs, transforms, editor eligibility, availability,
   visual primitives, semantic materials, and optional collision definitions;
   and
-- one bounded environment-lighting setup with ambient light and no more than
-  two directional lights.
+- its place in the habitat enclosure and the time of day there, from which
+  the course's light follows.
 
 Persist plain JSON values only. Do not persist engine GUIDs, entity references,
 material instances, physics handles, callbacks, maps, sets, or derived screen
@@ -59,8 +59,7 @@ coordinates.
 
 ## Stable Identity And Ordering
 
-IDs are unique across every addressable object and directional light in one
-course document. They are opaque authored identifiers rather than array indexes
+IDs are unique across every addressable object in one course document. They are opaque authored identifiers rather than array indexes
 or labels. Deleting an object does not permit silent ID reuse inside the active
 editing session. Keep a session-level issued-ID set across delete, undo, redo,
 and branch replacement; a newly allocated object or checkpoint must skip every
@@ -93,11 +92,11 @@ standard until final track and asset workflows establish a real requirement.
 
 ## Lighting Controls
 
-Course lighting is portable authored data rather than component-local engine
-state: ambient color and intensity plus one or two directional lights with stable IDs, color, intensity, rotation, and a bounded
-off/low/medium/high shadow-quality preset. Colors and intensities are bounded,
-and the light count is deliberately capped to keep authoring predictable and
-runtime cost reviewable.
+Course lighting follows from portable authored data rather than
+component-local engine state: the course chooses where it sits in its
+enclosure and the time of day, and the enclosure supplies the light. Authors
+do not aim, color, or count lights, which keeps authoring predictable, light
+physically coherent across courses, and runtime cost reviewable.
 
 Arbitrary point/spot light placement, skyboxes, fog, post-processing,
 and renderer-specific shadow tuning remain outside this standard.

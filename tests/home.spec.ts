@@ -1,6 +1,7 @@
 import { expect, type Locator, type Page, test } from "@playwright/test";
 
 import {
+  AGRICULTURAL_ZONE_DOCUMENT,
   getCourseStartTransform,
   ROUGH_COURSE_DOCUMENT,
 } from "../src/game/course/course-document";
@@ -204,9 +205,6 @@ async function getCollisionDebugState(canvas: Locator) {
   return canvas.evaluate(
     (element) =>
       new Promise<{
-        ambientLightB: number;
-        ambientLightG: number;
-        ambientLightR: number;
         barrelCollisionAxis: number | null;
         barrelCollisionHeight: number | null;
         barrelCollisionRadius: number | null;
@@ -217,16 +215,14 @@ async function getCollisionDebugState(canvas: Locator) {
         barrelPhysicsRestitution: number | null;
         courseEntityCount: number;
         directionalLightCount: number;
-        fillLightCastsShadows: boolean | null;
         groundCollisionHalfExtentX: number | null;
         groundCollisionOffsetY: number | null;
         groundCollisionShape: string | null;
         groundIsDrivable: boolean;
-        keyLightCastsShadows: boolean | null;
-        keyLightIntensity: number | null;
-        keyLightRotationX: number | null;
-        keyLightRotationY: number | null;
-        keyLightShadowResolution: number | null;
+        sunCastsShadows: boolean | null;
+        sunDirection: { x: number; y: number; z: number } | null;
+        sunIntensity: number | null;
+        sunShadowResolution: number | null;
         obstacleAInteractionRadius: number | null;
         obstacleAX: number | null;
         obstacleBlocksKart: boolean;
@@ -491,15 +487,15 @@ async function crossRaceTarget(
   return getRaceDebugState(canvas);
 }
 
-async function useBundledRoughCourse(page: Page, document = ROUGH_COURSE_DOCUMENT) {
-  await page.route("**/api/courses/rough-course/published", async (route) => {
+async function useBundledCourse(page: Page, document = ROUGH_COURSE_DOCUMENT) {
+  await page.route(`**/api/courses/${document.courseId}/published`, async (route) => {
     await route.fulfill({
       body: JSON.stringify({
-        courseId: "rough-course",
+        courseId: document.courseId,
         document,
         publishedAt: new Date("2026-07-12T00:05:00.000Z").toISOString(),
         revision: 1,
-        schemaVersion: 3,
+        schemaVersion: 4,
       }),
       contentType: "application/json",
       status: 200,
@@ -651,7 +647,8 @@ test.describe("home screen", () => {
   test.describe.configure({ mode: "serial" });
   test.beforeEach(async ({ page }) => {
     await Promise.all([
-      useBundledRoughCourse(page),
+      useBundledCourse(page),
+      useBundledCourse(page, AGRICULTURAL_ZONE_DOCUMENT),
       useBundledBalancedKart(page),
     ]);
   });
@@ -904,7 +901,7 @@ test.describe("home screen", () => {
       testInfo.project.name !== "desktop",
       "The browser speed readout only needs one rendered locale fixture.",
     );
-    await page.goto("/");
+    await page.goto("/?sandbox-course");
     await page.getByRole("button", { name: "Solo Time Trial" }).click();
     const canvas = page.getByTestId("solo-time-trial-canvas");
     await setSimulationPaused(canvas, true);
@@ -930,11 +927,70 @@ test.describe("home screen", () => {
     ).toBeVisible();
   });
 
+  test("races the Agricultural Zone as the solo course through two laps", async ({
+    page,
+  }, testInfo) => {
+    testInfo.setTimeout(120_000);
+    test.skip(
+      testInfo.project.name !== "desktop",
+      "Solo course progression only needs to run once.",
+    );
+    const requested: string[] = [];
+    await page.route("**/api/courses/*/published", async (route) => {
+      requested.push(new URL(route.request().url()).pathname);
+      await route.fulfill({
+        body: JSON.stringify({ error: "Published course not found." }),
+        contentType: "application/json",
+        status: 404,
+      });
+    });
+
+    await page.goto("/");
+    await page.getByRole("button", { name: "Solo Time Trial" }).click();
+    const canvas = page.getByTestId("solo-time-trial-canvas");
+    await waitForSceneReady(canvas);
+
+    // Unpublished, it falls back to the bundled seed.
+    expect(requested).toEqual(["/api/courses/agricultural-zone/published"]);
+    await expect(canvas).toHaveAttribute(
+      "data-course-document-id",
+      "agricultural-zone",
+    );
+
+    await advanceRaceToRacing(canvas);
+    const { checkpoints, start } = AGRICULTURAL_ZONE_DOCUMENT;
+    const startYaw = (start.rotation.y * Math.PI) / 180;
+    const startTarget = {
+      forward: { x: -Math.sin(startYaw), y: 0, z: -Math.cos(startYaw) },
+      position: {
+        ...start.position,
+        y: start.position.y + start.gateHalfExtents.y,
+      },
+    };
+    let race = await getRaceDebugState(canvas);
+    for (let lap = 1; lap <= 2; lap += 1) {
+      for (const checkpoint of checkpoints) {
+        race = await crossRaceTarget(canvas, checkpoint);
+        expect(race.lastProgressionResult).toEqual({
+          checkpointId: checkpoint.id,
+          kind: "checkpoint",
+        });
+      }
+      race = await crossRaceTarget(canvas, startTarget);
+    }
+    expect(race).toMatchObject({
+      lastProgressionResult: { kind: "finished", lap: 2 },
+      state: "finished",
+    });
+    await expect(page.getByRole("dialog", { name: "Finish" })).toBeVisible();
+  });
+
   test("constructs guest racing from the published course revision", async ({
     page,
   }) => {
     const publishedDocument = structuredClone(ROUGH_COURSE_DOCUMENT);
-    publishedDocument.lighting.ambient.color = { b: 0.4, g: 0.3, r: 0.2 };
+    // Noon puts the sun overhead, unlike the bundled seed.
+    publishedDocument.enclosure.mirrorAngle = 45;
     await page.route("**/api/courses/rough-course/published", async (route) => {
       await route.fulfill({
         body: JSON.stringify({
@@ -942,20 +998,18 @@ test.describe("home screen", () => {
           document: publishedDocument,
           publishedAt: new Date("2026-07-12T00:05:00.000Z").toISOString(),
           revision: 3,
-          schemaVersion: 3,
+          schemaVersion: 4,
         }),
         contentType: "application/json",
         status: 200,
       });
     });
 
-    await page.goto("/");
+    await page.goto("/?sandbox-course");
     await page.getByRole("button", { name: "Solo Time Trial" }).click();
     const canvas = page.getByTestId("solo-time-trial-canvas");
     const state = await getCollisionDebugState(canvas);
-    expect(state.ambientLightR).toBeCloseTo(0.2);
-    expect(state.ambientLightG).toBeCloseTo(0.3);
-    expect(state.ambientLightB).toBeCloseTo(0.4);
+    expect(state.sunDirection?.y).toBeCloseTo(1);
   });
 
   test("constructs guest racing from the published kart revision", async ({
@@ -996,7 +1050,7 @@ test.describe("home screen", () => {
       });
     });
 
-    await page.goto("/");
+    await page.goto("/?sandbox-course");
     await page.getByRole("button", { name: "Solo Time Trial" }).click();
     const canvas = page.getByTestId("solo-time-trial-canvas");
     await expect(canvas).toHaveAttribute("data-kart-primary-color", "#125599");
@@ -1038,7 +1092,8 @@ test.describe("home screen", () => {
     page,
   }) => {
     const publishedDocument = structuredClone(ROUGH_COURSE_DOCUMENT);
-    publishedDocument.lighting.ambient.color = { b: 0.4, g: 0.3, r: 0.2 };
+    // Noon puts the sun overhead, unlike the bundled seed.
+    publishedDocument.enclosure.mirrorAngle = 45;
     let requestCount = 0;
     await page.route("**/api/courses/rough-course/published", async (route) => {
       requestCount += 1;
@@ -1056,33 +1111,25 @@ test.describe("home screen", () => {
           document: publishedDocument,
           publishedAt: new Date("2026-07-12T00:05:00.000Z").toISOString(),
           revision: 3,
-          schemaVersion: 3,
+          schemaVersion: 4,
         }),
         contentType: "application/json",
         status: 200,
       });
     });
 
-    await page.goto("/");
+    await page.goto("/?sandbox-course");
     await page.getByRole("button", { name: "Solo Time Trial" }).click();
     let canvas = page.getByTestId("solo-time-trial-canvas");
     let state = await getCollisionDebugState(canvas);
-    expect(state.ambientLightR).toBeCloseTo(0.2);
+    expect(state.sunDirection?.y).toBeCloseTo(1);
 
     await page.keyboard.press("Escape");
     await page.getByRole("button", { name: "Exit", exact: true }).click();
     await page.getByRole("button", { name: "Solo Time Trial" }).click();
     canvas = page.getByTestId("solo-time-trial-canvas");
     state = await getCollisionDebugState(canvas);
-    expect(state.ambientLightR).toBeCloseTo(
-      ROUGH_COURSE_DOCUMENT.lighting.ambient.color.r,
-    );
-    expect(state.ambientLightG).toBeCloseTo(
-      ROUGH_COURSE_DOCUMENT.lighting.ambient.color.g,
-    );
-    expect(state.ambientLightB).toBeCloseTo(
-      ROUGH_COURSE_DOCUMENT.lighting.ambient.color.b,
-    );
+    expect(state.sunDirection?.y).toBeCloseTo(Math.cos((52 * Math.PI) / 180));
     expect(requestCount).toBe(2);
   });
 
@@ -1276,7 +1323,7 @@ test.describe("home screen", () => {
     );
 
     await installStandardGamepadFixture(page);
-    await page.goto("/");
+    await page.goto("/?sandbox-course");
     await page.getByRole("button", { name: "Solo Time Trial" }).click();
     const canvas = page.getByTestId("solo-time-trial-canvas");
     await setSimulationPaused(canvas, true);
@@ -1372,7 +1419,7 @@ test.describe("home screen", () => {
   }, testInfo) => {
     test.skip(testInfo.project.name !== "mobile", "Mobile HUD layout only.");
     await page.setViewportSize({ height: 700, width: 350 });
-    await page.goto("/");
+    await page.goto("/?sandbox-course");
     await page.getByRole("button", { name: "Solo Time Trial" }).click();
 
     const canvas = page.getByTestId("solo-time-trial-canvas");
@@ -1416,7 +1463,7 @@ test.describe("home screen", () => {
       "Race recovery integration only needs to run once.",
     );
 
-    await page.goto("/");
+    await page.goto("/?sandbox-course");
     await page.getByRole("button", { name: "Solo Time Trial" }).click();
     const canvas = page.getByTestId("solo-time-trial-canvas");
 
@@ -1530,7 +1577,7 @@ test.describe("home screen", () => {
       "Mobile rendering path only.",
     );
 
-    await page.goto("/");
+    await page.goto("/?sandbox-course");
 
     await page.getByRole("button", { name: "Solo Time Trial" }).click();
 
@@ -1574,7 +1621,7 @@ test.describe("home screen", () => {
   test("accelerates the solo kart through the tuned movement controller", async ({
     page,
   }) => {
-    await page.goto("/");
+    await page.goto("/?sandbox-course");
 
     await page.getByRole("button", { name: "Solo Time Trial" }).click();
 
@@ -1630,8 +1677,10 @@ test.describe("home screen", () => {
   test("resolves split grass contacts per tire and coasts shorter on turf, then lawn", async ({
     page,
   }) => {
-    test.setTimeout(60_000);
-    await page.goto("/");
+    // Software WebGL renders every stepped frame on the CPU; see the two-lap
+    // lifecycle test.
+    test.setTimeout(90_000);
+    await page.goto("/?sandbox-course");
     await page.getByRole("button", { name: "Solo Time Trial" }).click();
     const canvas = page.getByTestId("solo-time-trial-canvas");
     await advanceRaceToRacing(canvas);
@@ -1683,7 +1732,7 @@ test.describe("home screen", () => {
     page,
   }) => {
     await useBundledHandlingKart(page);
-    await page.goto("/");
+    await page.goto("/?sandbox-course");
     await page.getByRole("button", { name: "Solo Time Trial" }).click();
 
     const canvas = page.getByTestId("solo-time-trial-canvas");
@@ -1739,7 +1788,7 @@ test.describe("home screen", () => {
   test("steers the front wheels while turning the solo kart", async ({
     page,
   }) => {
-    await page.goto("/");
+    await page.goto("/?sandbox-course");
 
     await page.getByRole("button", { name: "Solo Time Trial" }).click();
 
@@ -1787,7 +1836,7 @@ test.describe("home screen", () => {
   });
 
   test("brakes before engaging reverse", async ({ page }) => {
-    await page.goto("/");
+    await page.goto("/?sandbox-course");
 
     await page.getByRole("button", { name: "Solo Time Trial" }).click();
 
@@ -1840,7 +1889,7 @@ test.describe("home screen", () => {
     page,
   }, testInfo) => {
     testInfo.setTimeout(60_000);
-    await page.goto("/");
+    await page.goto("/?sandbox-course");
     await page.getByRole("button", { name: "Solo Time Trial" }).click();
 
     const canvas = page.getByTestId("solo-time-trial-canvas");
@@ -1951,7 +2000,7 @@ test.describe("home screen", () => {
   test("resets an upside-down kart with orientation and momentum cleared", async ({
     page,
   }) => {
-    await page.goto("/");
+    await page.goto("/?sandbox-course");
 
     await page.getByRole("button", { name: "Solo Time Trial" }).click();
 
@@ -1994,7 +2043,7 @@ test.describe("home screen", () => {
     page,
   }, testInfo) => {
     testInfo.setTimeout(60_000);
-    await page.goto("/");
+    await page.goto("/?sandbox-course");
     await page.getByRole("button", { name: "Solo Time Trial" }).click();
 
     const canvas = page.getByTestId("solo-time-trial-canvas");
@@ -2086,7 +2135,7 @@ test.describe("home screen", () => {
     page,
   }) => {
     test.setTimeout(60_000);
-    await page.goto("/");
+    await page.goto("/?sandbox-course");
 
     await page.getByRole("button", { name: "Solo Time Trial" }).click();
 
@@ -2136,7 +2185,7 @@ test.describe("home screen", () => {
   test("corrects the chase camera against the visible wall and releases it", async ({
     page,
   }) => {
-    await page.goto("/");
+    await page.goto("/?sandbox-course");
     await page.getByRole("button", { name: "Solo Time Trial" }).click();
 
     const canvas = page.getByTestId("solo-time-trial-canvas");
@@ -2184,16 +2233,13 @@ test.describe("home screen", () => {
         status: 404,
       });
     });
-    await page.goto("/");
+    await page.goto("/?sandbox-course");
 
     await page.getByRole("button", { name: "Solo Time Trial" }).click();
 
     const canvas = page.getByTestId("solo-time-trial-canvas");
     const collisionState = await getCollisionDebugState(canvas);
 
-    expect(collisionState.ambientLightR).toBeCloseTo(0.34);
-    expect(collisionState.ambientLightG).toBeCloseTo(0.39);
-    expect(collisionState.ambientLightB).toBeCloseTo(0.46);
     expect(collisionState.barrelCollisionAxis).toBe(1);
     expect(collisionState.barrelCollisionHeight).toBe(0.9);
     expect(collisionState.barrelCollisionRadius).toBe(0.45);
@@ -2202,14 +2248,20 @@ test.describe("home screen", () => {
     expect(collisionState.barrelPhysicsGroup).toBe(PHYSICS_GROUP.solidObstacle);
     expect(collisionState.barrelPhysicsMask).toBe(PHYSICS_MASK.solidObstacle);
     expect(collisionState.barrelPhysicsRestitution).toBe(0);
-    expect(collisionState.courseEntityCount).toBe(123);
-    expect(collisionState.directionalLightCount).toBe(2);
-    expect(collisionState.keyLightIntensity).toBeCloseTo(0.78);
-    expect(collisionState.keyLightRotationX).toBeCloseTo(52);
-    expect(collisionState.keyLightRotationY).toBeCloseTo(38);
-    expect(collisionState.keyLightCastsShadows).toBe(true);
-    expect(collisionState.keyLightShadowResolution).toBe(1024);
-    expect(collisionState.fillLightCastsShadows).toBe(false);
+    expect(collisionState.courseEntityCount).toBe(127);
+    expect(collisionState.directionalLightCount).toBe(1);
+    expect(collisionState.sunIntensity).toBeCloseTo(0.78);
+    // The rough course keeps its accepted key-light direction.
+    const [pitch, yaw] = [52, 38].map((degrees) => (degrees * Math.PI) / 180);
+    expect(collisionState.sunDirection?.x).toBeCloseTo(
+      Math.sin(pitch) * Math.sin(yaw),
+    );
+    expect(collisionState.sunDirection?.y).toBeCloseTo(Math.cos(pitch));
+    expect(collisionState.sunDirection?.z).toBeCloseTo(
+      Math.sin(pitch) * Math.cos(yaw),
+    );
+    expect(collisionState.sunCastsShadows).toBe(true);
+    expect(collisionState.sunShadowResolution).toBe(1024);
     expect(collisionState.groundCollisionShape).toBe("box");
     expect(collisionState.groundCollisionHalfExtentX).toBe(44);
     expect(collisionState.groundCollisionOffsetY).toBe(0);
@@ -2238,8 +2290,8 @@ test.describe("home screen", () => {
           version: 1,
         };
       }
-      await useBundledRoughCourse(page, course);
-      await page.goto("/?collision-fixtures");
+      await useBundledCourse(page, course);
+      await page.goto("/?sandbox-course&collision-fixtures");
       await page.getByRole("button", { name: "Solo Time Trial" }).click();
 
       const canvas = page.getByTestId("solo-time-trial-canvas");
@@ -2297,7 +2349,7 @@ test.describe("home screen", () => {
     test.skip(testInfo.project.name !== "mobile", "Mobile pause control only.");
     await page.setViewportSize({ height: 800, width: 1280 });
 
-    await page.goto("/");
+    await page.goto("/?sandbox-course");
     await page.getByRole("button", { name: "Solo Time Trial" }).click();
 
     const canvas = page.getByTestId("solo-time-trial-canvas");
@@ -2335,7 +2387,7 @@ test.describe("home screen", () => {
       "Graphics-context recovery only needs one Chromium coverage path.",
     );
 
-    await page.goto("/");
+    await page.goto("/?enclosure");
     await page.getByRole("button", { name: "Solo Time Trial" }).click();
     const canvas = page.getByTestId("solo-time-trial-canvas");
     await waitForSceneReady(canvas);
@@ -2423,7 +2475,7 @@ test.describe("home screen", () => {
       await route.fulfill({ status: 202 });
     });
 
-    await page.goto("/");
+    await page.goto("/?enclosure");
     await page.getByRole("button", { name: "Solo Time Trial" }).click();
     const canvas = page.getByTestId("solo-time-trial-canvas");
     await waitForSceneReady(canvas);
@@ -2496,7 +2548,7 @@ test.describe("home screen", () => {
   }, testInfo) => {
     test.skip(testInfo.project.name !== "mobile", "Touch controls only.");
 
-    await page.goto("/");
+    await page.goto("/?sandbox-course");
     await page.getByRole("button", { name: "Solo Time Trial" }).click();
 
     const canvas = page.getByTestId("solo-time-trial-canvas");
@@ -2611,7 +2663,7 @@ test.describe("home screen", () => {
     );
 
     await installStandardGamepadFixture(page);
-    await page.goto("/");
+    await page.goto("/?sandbox-course");
     await page.getByRole("button", { name: "Solo Time Trial" }).click();
 
     const canvas = page.getByTestId("solo-time-trial-canvas");
@@ -2743,7 +2795,7 @@ test.describe("home screen", () => {
     await setStandardTestGamepad(page);
     await page.waitForTimeout(50);
     await setStandardTestGamepad(page, { buttons: { 0: 1 } });
-    await expect(page).toHaveURL(/\/editor$/);
+    await expect(page).toHaveURL(/\/admin\/courses$/);
   });
 
   test("requires neutral controller input after pointer ownership", async ({
