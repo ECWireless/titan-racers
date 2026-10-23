@@ -126,6 +126,10 @@ function add(a: Vector3, b: Vector3, scale = 1): Vector3 {
   return { x: a.x + b.x * scale, y: a.y + b.y * scale, z: a.z + b.z * scale };
 }
 
+function dot(a: Vector3, b: Vector3) {
+  return a.x * b.x + a.y * b.y + a.z * b.z;
+}
+
 function scaled(vector: Vector3, scale: number): Vector3 {
   return { x: vector.x * scale, y: vector.y * scale, z: vector.z * scale };
 }
@@ -155,33 +159,85 @@ export function getEnclosureFrame(enclosure: CourseEnclosure) {
     return add(scaled(up, -Math.cos(offset)), spinward, Math.sin(offset));
   };
 
+  const mirrorAngle = toRadians(enclosure.mirrorAngle);
+  const deflection = 2 * mirrorAngle;
+  const valleyCentres = Array.from(
+    { length: definition.valleyCount },
+    (_, k) => (k * 360) / definition.valleyCount,
+  );
+  const point = (atAxial: number, atAzimuth: number, radius: number) =>
+    add(add(axisOrigin, sunward, atAxial - axial), outward(atAzimuth), radius);
+  /** Toward the sun's image seen from a valley, through its window. */
+  const sunFromValley = (centre: number) =>
+    add(
+      scaled(sunward, Math.cos(deflection)),
+      outward(centre + 180),
+      Math.sin(deflection),
+    );
+
+  /**
+   * The mirror lighting each valley: a flat mirror the length of the
+   * cylinder, hinged across the anti-sun end of the window opposite the
+   * valley and opened toward the Sun by the mirror angle. Its normal faces
+   * the Sun and the window.
+   */
+  const mirrors = valleyCentres.map((centre) => {
+    const out = outward(centre + 180);
+    return {
+      across: outward(centre + 270),
+      along: add(
+        scaled(sunward, Math.cos(mirrorAngle)),
+        out,
+        Math.sin(mirrorAngle),
+      ),
+      halfWidth:
+        definition.radius * Math.sin(toRadians(90 / definition.valleyCount)),
+      hinge: point(-definition.length / 2, centre + 180, definition.radius),
+      length: definition.length,
+      normal: add(
+        scaled(sunward, Math.sin(mirrorAngle)),
+        out,
+        -Math.cos(mirrorAngle),
+      ),
+      toSun: sunFromValley(centre),
+    };
+  });
+
   return {
     definition,
+    mirrors,
     outward,
+    point,
     spinward,
     sunward,
     up,
-    /** A point in cylinder coordinates, in course coordinates. */
-    point(atAxial: number, atAzimuth: number, radius: number) {
-      return add(
-        add(axisOrigin, sunward, atAxial - axial),
-        outward(atAzimuth),
-        radius,
-      );
-    },
     /**
      * Unit vector toward the sun's image. Each valley is lit through the
-     * window opposite it, by a flat mirror hinged at the window's anti-sun
-     * end: a mirror opened by α turns the sun's rays by 2α, so the image sits
-     * 2α above the sunward horizon (overhead at 45°).
+     * window opposite it: a mirror opened by α turns the sun's rays by 2α, so
+     * the image sits 2α above the sunward horizon (overhead at 45°).
      */
     sunDirection() {
-      const deflection = toRadians(2 * enclosure.mirrorAngle);
-      const window = nearestValleyCentre(definition, azimuth) + 180;
-      return add(
-        scaled(sunward, Math.cos(deflection)),
-        outward(window),
-        Math.sin(deflection),
+      return sunFromValley(nearestValleyCentre(definition, azimuth));
+    },
+    /**
+     * Whether the course's mirror reflects sunlight onto a point (course
+     * coordinates). A 32 km mirror lights only a band of its valley, which
+     * moves along the axis with the mirror angle.
+     */
+    sunReaches(at: Vector3 = { x: 0, y: 0, z: 0 }) {
+      const count = definition.valleyCount;
+      const valley = Math.round((azimuth * count) / 360);
+      const mirror = mirrors[((valley % count) + count) % count]!;
+      const facing = dot(mirror.toSun, mirror.normal);
+      if (facing >= 0) return false;
+      const distance = dot(add(mirror.hinge, at, -1), mirror.normal) / facing;
+      if (distance <= 0) return false;
+      const hit = add(add(at, mirror.toSun, distance), mirror.hinge, -1);
+      const along = dot(hit, mirror.along);
+      return (
+        along >= 0 &&
+        along <= mirror.length &&
+        Math.abs(dot(hit, mirror.across)) <= mirror.halfWidth
       );
     },
   };

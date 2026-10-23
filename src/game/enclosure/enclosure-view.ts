@@ -65,7 +65,13 @@ uniform vec3 uOutward0;
 uniform vec3 uOutward90;
 uniform vec3 uSunDirection;
 uniform vec3 uSunColor;
-uniform vec2 uMirrorDeflection;
+// The mirror lighting each valley, and the sun's direction seen through it.
+uniform vec3 uMirrorHinge[3];
+uniform vec3 uMirrorNormal[3];
+uniform vec3 uMirrorAlong[3];
+uniform vec3 uMirrorAcross[3];
+uniform vec3 uMirrorToSun[3];
+uniform vec2 uMirrorSize;
 uniform vec3 uRayleighExtinction;
 uniform float uAerosolExtinction;
 varying vec3 vWorld;
@@ -266,15 +272,42 @@ vec3 endCap(float radius, float azimuth, float f) {
   return mix(color, STEEL, inside(radius - 260.0, f));
 }
 
+// Sunlight on a shell point facing along normal: each mirror's rays reach
+// it only if, looking toward that mirror's sun, it sees the mirror. A 32 km
+// mirror so lights a band of its valley. The band's edge softens by the sun
+// disc's half-degree width over the distance from the mirror.
+float sunlit(vec3 position, vec3 normal, float pixel) {
+  float light = 0.0;
+  for (int i = 0; i < 3; i++) {
+    float facing = dot(uMirrorToSun[i], uMirrorNormal[i]);
+    float hitDistance = dot(uMirrorHinge[i] - position, uMirrorNormal[i]) / facing;
+    if (facing >= 0.0 || hitDistance <= 0.0) continue;
+    vec3 hit = position + uMirrorToSun[i] * hitDistance - uMirrorHinge[i];
+    float along = dot(hit, uMirrorAlong[i]);
+    float edge = min(
+      min(along, uMirrorSize.x - along),
+      uMirrorSize.y - abs(dot(hit, uMirrorAcross[i]))
+    );
+    // Both measured on the mirror: the sun's blur stretches by the mirror's
+    // tilt (1 / sin α), and a floor pixel maps onto 2 cos α of mirror.
+    float softness = max(
+      pixel * 2.0 * sqrt(1.0 - facing * facing),
+      0.0093 * hitDistance / -facing
+    );
+    light += max(dot(normal, uMirrorToSun[i]), 0.0)
+      * clamp(edge / softness + 0.5, 0.0, 1.0);
+  }
+  return light;
+}
+
 void main(void) {
   vec3 c = cylinderCoordinates(vWorld);
   vec2 f = footprint(vWorld);
   vec3 albedo;
-  float sunLight;
+  vec3 normal;
   if (abs(c.x) > HALF_LENGTH - 1.0) {
     albedo = endCap(c.z, c.y, f.y);
-    // The caps face along the axis; the sunlight crosses them as it travels.
-    sunLight = max(0.0, -sign(c.x) * uMirrorDeflection.y);
+    normal = -sign(c.x) * uSunward;
   } else {
     float valley = floor(c.y / VALLEY_SPACING + 0.5);
     float offset = c.y - valley * VALLEY_SPACING;
@@ -283,20 +316,16 @@ void main(void) {
     float clearingTurn = mod(c.y - uClearing.y + 180.0, 360.0) - 180.0;
     vec2 toClearing = vec2(c.x - uClearing.x, radians(clearingTurn) * RADIUS);
     albedo = mix(albedo, LAWN, inside(length(toClearing) - uClearing.z, max(f.x, f.y) + 40.0));
-    // Each valley is lit through the window opposite it.
-    sunLight = uMirrorDeflection.x * cos(radians(offset));
+    vec3 fromAxis = vWorld - uAxisMid;
+    normal = -normalize(fromAxis - dot(fromAxis, uSunward) * uSunward);
   }
+  float sunLight = sunlit(vWorld, normal, max(f.x, f.y));
   vec3 color = albedo * (uSunColor * sunLight + SKY_AMBIENT);
   gl_FragColor = finish(throughAir(color, vWorld - view_position));
 }
 `;
 
 const WINDOW_PS = /* glsl */ `
-uniform vec3 uMirrorHinge[3];
-uniform vec3 uMirrorNormal[3];
-uniform vec3 uMirrorAlong[3];
-uniform vec3 uMirrorAcross[3];
-uniform vec2 uMirrorSize;
 
 // The sun's angular radius, and its brightness relative to its light.
 const float SUN_COS = 0.99998911;
@@ -569,7 +598,6 @@ export function createEnclosureView(
   });
 
   const sun = frame.sunDirection();
-  const mirrorAngle = (enclosure.mirrorAngle * Math.PI) / 180;
   const { color, intensity } = frame.definition.sunlight;
   const axisMid = frame.point(0, 0, 0);
   const vec = ({ x, y, z }: Vector3) => [x, y, z];
@@ -579,10 +607,6 @@ export function createEnclosureView(
     uOutward90: vec(frame.outward(90)),
     uSunColor: [color.r * intensity, color.g * intensity, color.b * intensity],
     uSunDirection: vec(sun),
-    uMirrorDeflection: [
-      Math.sin(2 * mirrorAngle),
-      Math.cos(2 * mirrorAngle),
-    ],
     uSunward: vec(frame.sunward),
   };
   const aerosolExtinction = 3.912 / VISIBILITY - RAYLEIGH_EXTINCTION[1];
@@ -596,42 +620,17 @@ export function createEnclosureView(
   });
   shellMaterial.setParameter("uClearing", [axial, azimuth, CLEARING_RADIUS]);
 
-  // Each mirror is hinged across its window's anti-sun end and opened toward
-  // the Sun by the mirror angle; its normal faces the Sun and the window.
-  const mirrors = valleyCentres.map((centre) => {
-    const out = frame.outward(centre + 180);
-    const scaledSum = (a: Vector3, sa: number, b: Vector3, sb: number) => [
-      a.x * sa + b.x * sb,
-      a.y * sa + b.y * sb,
-      a.z * sa + b.z * sb,
-    ];
-    return {
-      across: vec(frame.outward(centre + 270)),
-      along: scaledSum(
-        frame.sunward,
-        Math.cos(mirrorAngle),
-        out,
-        Math.sin(mirrorAngle),
-      ),
-      hinge: vec(frame.point(-halfLength, centre + 180, radius)),
-      normal: scaledSum(
-        frame.sunward,
-        Math.sin(mirrorAngle),
-        out,
-        -Math.cos(mirrorAngle),
-      ),
-    };
+  const mirrorArray = (key: "across" | "along" | "hinge" | "normal" | "toSun") =>
+    new Float32Array(frame.mirrors.flatMap((mirror) => vec(mirror[key])));
+  const [{ halfWidth, length: mirrorLength }] = frame.mirrors;
+  [shellMaterial, glassMaterial].forEach((material) => {
+    material.setParameter("uMirrorHinge[0]", mirrorArray("hinge"));
+    material.setParameter("uMirrorNormal[0]", mirrorArray("normal"));
+    material.setParameter("uMirrorAlong[0]", mirrorArray("along"));
+    material.setParameter("uMirrorAcross[0]", mirrorArray("across"));
+    material.setParameter("uMirrorToSun[0]", mirrorArray("toSun"));
+    material.setParameter("uMirrorSize", [mirrorLength, halfWidth]);
   });
-  const mirrorArray = (key: keyof (typeof mirrors)[number]) =>
-    new Float32Array(mirrors.flatMap((mirror) => mirror[key]));
-  glassMaterial.setParameter("uMirrorHinge[0]", mirrorArray("hinge"));
-  glassMaterial.setParameter("uMirrorNormal[0]", mirrorArray("normal"));
-  glassMaterial.setParameter("uMirrorAlong[0]", mirrorArray("along"));
-  glassMaterial.setParameter("uMirrorAcross[0]", mirrorArray("across"));
-  glassMaterial.setParameter("uMirrorSize", [
-    length,
-    radius * Math.sin((stripWidth / 2) * (Math.PI / 180)),
-  ]);
 
   const layer = new pc.Layer({
     name: "Island Three",

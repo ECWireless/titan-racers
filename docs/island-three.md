@@ -86,9 +86,17 @@ rays by 2α, so the sun's image sits 2α above the horizon:
 - at 45° it is overhead (noon);
 - above 45° it sits toward the anti-sun end cap (evening).
 
+A mirror is only as long as the cylinder, so its light lands on a band of
+the opposite valley that moves along the axis with the angle. A low morning
+sun lights the anti-sun end, noon most of the floor, and a low evening sun
+the sunward end. Below about 13° the light falls on the anti-sun cap and
+above about 83° on the sunward cap, leaving the valley floors dark. A course gets direct sun only if its placement lies in its
+mirror's band (`sunReaches`), and the enclosure floors show the same band.
+
 Everything rotates together, so the light holds still for a whole race. The
 sun is the course's only shadow-casting light.
 
 Courses saved before the enclosure existed are placed at the middle of the
 first valley, turned and timed so the sun shines from their old key light's
-direction.
+direction. They use the evening side, whose light reaches the middle of the
+habitat for sun elevations above about 27°.

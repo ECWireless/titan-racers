@@ -67,3 +67,22 @@ test("lights each valley through the window opposite it", () => {
   expect(offCentre.y).toBeCloseTo(Math.cos(Math.PI / 18), 6);
   expect(offCentre.z).toBeCloseTo(Math.sin(Math.PI / 18), 6);
 });
+
+test("lights only the band of floor its mirror reaches", () => {
+  const reaches = (axial: number, mirrorAngle: number) =>
+    getEnclosureFrame({
+      ...enclosure,
+      mirrorAngle,
+      placement: { ...enclosure.placement, axial },
+    }).sunReaches();
+
+  // A low morning sun lands toward the anti-sun cap; an evening one at the
+  // same elevation reaches the middle.
+  expect(reaches(0, 19)).toBe(false);
+  expect(reaches(-12_000, 19)).toBe(true);
+  expect(reaches(0, 71)).toBe(true);
+  // Low evening sun reaches only the sunward end, and at 84° nothing.
+  expect(reaches(5_000, 80)).toBe(false);
+  expect(reaches(8_000, 80)).toBe(true);
+  expect(reaches(15_000, 84)).toBe(false);
+});

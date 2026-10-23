@@ -1022,7 +1022,7 @@ test.describe("protected course editor access", () => {
     await expect(mirrorAngle).toHaveValue("85");
     await expect(page.getByRole("button", { name: "Save draft" })).toBeEnabled();
     await page.getByRole("button", { name: "Reset lighting" }).click();
-    await expect(mirrorAngle).toHaveValue("19");
+    await expect(mirrorAngle).toHaveValue("71");
 
     await page.getByRole("button", { name: "block" }).click();
     await page.getByRole("button", { name: "Course actions" }).click();

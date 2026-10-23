@@ -568,9 +568,10 @@ const roundHundredth = (value: number) => Math.round(value * 100) / 100 || 0;
 
 /**
  * Places a pre-enclosure course at the middle of the first valley, turned
- * and timed so the habitat sun shines from its old key light's direction:
- * the sun sits 2 × mirror angle above the sunward horizon (see
- * `getEnclosureFrame`). Its other lights and ambient color are dropped.
+ * and timed so the habitat sun shines from its old key light's direction.
+ * It uses the evening side, the sun's image toward the anti-sun cap, whose
+ * light reaches the middle of the habitat for elevations above about 27°
+ * (see `getEnclosureFrame`). Other lights and ambient color are dropped.
  */
 function upgradeCourseDocumentV3({
   lighting,
@@ -590,17 +591,18 @@ function upgradeCourseDocumentV3({
     ...document,
     enclosure: {
       ...ISLAND_THREE_ENCLOSURE,
-      mirrorAngle: Math.max(
-        MIRROR_ANGLE_LIMITS.min,
-        Math.min(45, roundHundredth(elevation / 2)),
+      mirrorAngle: Math.min(
+        MIRROR_ANGLE_LIMITS.max,
+        Math.max(45, roundHundredth(90 - elevation / 2)),
       ),
       placement: {
         axial: 0,
         azimuth: 0,
+        // The rays run toward the sunward cap.
         heading:
           horizontal > 1e-9
             ? roundHundredth(
-                (Math.atan2(lightDirection.x, lightDirection.z) * 180) /
+                (Math.atan2(-lightDirection.x, -lightDirection.z) * 180) /
                   Math.PI,
               )
             : 0,

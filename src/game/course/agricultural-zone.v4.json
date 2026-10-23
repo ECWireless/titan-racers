@@ -76,9 +76,9 @@
   "courseId": "agricultural-zone",
   "enclosure": {
     "id": "enclosure.island-three",
-    "mirrorAngle": 84,
+    "mirrorAngle": 80,
     "placement": {
-      "axial": -8000,
+      "axial": 8000,
       "azimuth": 120,
       "heading": 90,
       "height": 0

@@ -29,6 +29,7 @@ test("projects the enclosure sun from the course's mirror angle", () => {
 test("turns a directional light's rays away from the sun's image", () => {
   const document = structuredClone(ROUGH_COURSE_DOCUMENT);
   document.enclosure.mirrorAngle = 80;
+  document.enclosure.placement.axial = 8_000;
   document.enclosure.placement.azimuth = 10;
   const [sun] = projectCourseLighting(document).directionalLights;
   // PlayCanvas applies X then Y, turning -Y onto this ray.
@@ -42,10 +43,17 @@ test("turns a directional light's rays away from the sun's image", () => {
   };
   // Evening: the sun's image sits low toward the anti-sun cap, so its rays
   // run down and toward the sunward cap.
-  const heading = (-142 * Math.PI) / 180;
+  const heading = (document.enclosure.placement.heading * Math.PI) / 180;
   const sunward = { x: -Math.sin(heading), z: -Math.cos(heading) };
   expect(ray.x * sunward.x + ray.z * sunward.z).toBeGreaterThan(0.9);
   expect(ray.y).toBeLessThan(0);
+});
+
+test("leaves a course unlit where its mirror's light does not reach", () => {
+  const document = structuredClone(ROUGH_COURSE_DOCUMENT);
+  // An 80° mirror lights only the valley's sunward end.
+  document.enclosure.mirrorAngle = 80;
+  expect(projectCourseLighting(document).directionalLights).toEqual([]);
 });
 
 test("attaches nothing when the sun cannot be created", () => {

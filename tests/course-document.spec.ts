@@ -158,8 +158,8 @@ test("keeps the primitive catalog bounded and collision geometry explicit", () =
 test("places the rough course in Island Three where its old key light shone", () => {
   expect(ROUGH_COURSE_DOCUMENT.enclosure).toEqual({
     id: "enclosure.island-three",
-    mirrorAngle: 19,
-    placement: { axial: 0, azimuth: 0, heading: -142, height: 0 },
+    mirrorAngle: 71,
+    placement: { axial: 0, azimuth: 0, heading: 38, height: 0 },
     version: 1,
   });
   expect(parseCourseDocument(createVersionThreeSeed())).toEqual(

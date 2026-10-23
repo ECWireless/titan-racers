@@ -112,11 +112,11 @@
   "courseId": "rough-course",
   "enclosure": {
     "id": "enclosure.island-three",
-    "mirrorAngle": 19,
+    "mirrorAngle": 71,
     "placement": {
       "axial": 0,
       "azimuth": 0,
-      "heading": -142,
+      "heading": 38,
       "height": 0
     },
     "version": 1

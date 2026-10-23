@@ -23,11 +23,13 @@ type BuildCourseLightingOptions = {
 
 /**
  * The course's light: the enclosure's sunlight, shining from the sun's image
- * in the window opposite the course. Its Euler angles turn a directional
- * light's -Y onto the sun's rays.
+ * in the window opposite the course, when the mirror's light reaches the
+ * course at all. Its Euler angles turn a directional light's -Y onto the
+ * sun's rays.
  */
 export function projectCourseLighting(document: CourseDocument) {
   const frame = getEnclosureFrame(document.enclosure);
+  if (!frame.sunReaches()) return { directionalLights: [] };
   const toSun = frame.sunDirection();
   const toDegrees = (radians: number) => (radians * 180) / Math.PI || 0;
 
