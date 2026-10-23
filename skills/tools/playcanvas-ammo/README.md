@@ -104,6 +104,15 @@ validated data source shared by support, visuals, steering, and drivetrain
   forces and angles to the engine.
 - With every wheel unsupported, submit no suspension, tire, or attitude-seeking
   force.
+- Position-dependent gravity: set `app.systems.rigidbody.gravity` each fixed
+  step. PlayCanvas pushes a changed value to Bullet in its update, but
+  Bullet's `setGravity` only reaches active bodies. It suits this world
+  because the kart is the only dynamic body and the forces applied to it every
+  step keep it active.
+- Forces from `applyForce` accumulate across Bullet's internal substeps and
+  clear after the whole step, so one force per fixed step acts for all of it.
+  Inertial forces such as Coriolis are mass times acceleration by definition;
+  they are the one place a force is built from mass.
 - Use impulses only for discrete events (manual righting, a future damage
   response) and for the shared grounded stabilization policies documented in
   `docs/kart-system/gameplay-policy.md`. Never write a dynamic entity's

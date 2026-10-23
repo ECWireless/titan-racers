@@ -147,8 +147,9 @@ Toward the axis:
 
 ## Tool Mappings
 
-How PlayCanvas/Ammo applies the field is recorded with the engine notes under
-[`tools/playcanvas-ammo`](../../tools/playcanvas-ammo/README.md) once shipped.
+PlayCanvas/Ammo gravity and force timing:
+[`tools/playcanvas-ammo`](../../tools/playcanvas-ammo/README.md#applying-forces).
+The shipped field: [`docs/kart-system/environment.md`](../../../docs/kart-system/environment.md#rotating-habitat).
 
 ## Sources
 

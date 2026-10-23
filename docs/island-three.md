@@ -80,7 +80,8 @@ flat local ground with four values:
 
 The course origin sits on the placement with +Y toward the axis. The cylinder
 spins right-handed about the sunward axis, so spinward = up × sunward. Course
-physics stays local; how the spin acts on a kart is PR 4.3.2.
+physics stays local, with the spin's gravity and Coriolis acting on the kart
+([environment](kart-system/environment.md#rotating-habitat)).
 
 ## Sunlight
 

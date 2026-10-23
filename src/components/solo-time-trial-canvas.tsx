@@ -113,6 +113,7 @@ import {
   type KartReferenceVector,
 } from "@/game/kart/kart-reference-construction";
 import { PHYSICS_GROUP, PHYSICS_MASK } from "@/game/physics/collision-groups";
+import { getLevelRotation } from "@/game/physics/rotating-habitat";
 import {
   createPlayCanvasRuntime,
   loadAmmoPhysics,
@@ -674,7 +675,6 @@ export function SoloTimeTrialCanvas({
         activeDevelopmentValues,
       );
 
-      rigidBodySystem.gravity.set(0, -activeDynamics.environment.gravity, 0);
       activeCanvas.focus();
 
       if (sceneTestControl?.forceRaceSessionFailure) {
@@ -1229,19 +1229,20 @@ export function SoloTimeTrialCanvas({
 
       function hasManualRightingSupport() {
         const position = kart.getPosition();
+        const { localUp } = kartController.state;
         const rayStart = position
           .clone()
           .add(
-            new pc.Vec3(0, KART_MANUAL_RIGHTING_GEOMETRY.supportProbeStart, 0),
+            localUp
+              .clone()
+              .mulScalar(KART_MANUAL_RIGHTING_GEOMETRY.supportProbeStart),
           );
         const rayEnd = position
           .clone()
           .add(
-            new pc.Vec3(
-              0,
-              -KART_MANUAL_RIGHTING_GEOMETRY.supportProbeDistance,
-              0,
-            ),
+            localUp
+              .clone()
+              .mulScalar(-KART_MANUAL_RIGHTING_GEOMETRY.supportProbeDistance),
           );
         const hit = activeRigidBodySystem.raycastFirst(rayStart, rayEnd, {
           filterCollisionGroup: PHYSICS_GROUP.kart,
@@ -1258,35 +1259,42 @@ export function SoloTimeTrialCanvas({
         if (!rigidBody) {
           return false;
         }
-        const axis = getManualRightingAxis(
-          kartAssemblyFrame.up,
-          kartAssemblyFrame.forward,
+        // Righting policy is written for a Y-up world: run it in the level
+        // frame, where habitat up is +Y, and turn its axis back.
+        const { localGravity, localUp } = kartController.state;
+        const level = getLevelRotation(localUp);
+        const levelRotation = new pc.Quat(level.x, level.y, level.z, level.w);
+        const levelUp = levelRotation.transformVector(kartAssemblyFrame.up);
+        const levelAxis = getManualRightingAxis(
+          levelUp,
+          levelRotation.transformVector(kartAssemblyFrame.forward),
         );
-        if (!axis || !hasManualRightingSupport()) {
+        if (!levelAxis || !hasManualRightingSupport()) {
           return false;
         }
         if (manualRightingCooldownSeconds > 0) {
           return true;
         }
 
-        const torqueScale =
-          getManualRightingTorqueScale(kartAssemblyFrame.up) ?? 1;
+        const torqueScale = getManualRightingTorqueScale(levelUp) ?? 1;
+        const axis = levelRotation
+          .clone()
+          .invert()
+          .transformVector(new pc.Vec3(levelAxis.x, levelAxis.y, levelAxis.z));
         const inverseRotation = kartAssemblyFrame.getRotation().clone().invert();
-        const localAxis = inverseRotation.transformVector(
-          new pc.Vec3(axis.x, axis.y, axis.z),
-        );
+        const localAxis = inverseRotation.transformVector(axis);
         const liftClearanceHeight = Math.max(
           KART_MANUAL_RIGHTING_GEOMETRY.liftClearanceHeight,
           getManualRightingHullLiftClearance(
             KART_MANUAL_RIGHTING_GEOMETRY.hullPoints,
             localAxis,
-            inverseRotation.transformVector(pc.Vec3.UP),
+            inverseRotation.transformVector(localUp),
           ),
         );
         const localTorqueImpulse = getManualRightingLocalTorqueImpulse(
           KART_INERTIA_TENSOR,
           localAxis,
-          activeDynamics.environment.gravity,
+          localGravity,
           liftClearanceHeight,
           torqueScale,
         );
@@ -1306,13 +1314,15 @@ export function SoloTimeTrialCanvas({
           worldTorqueImpulse.z,
         );
         rigidBody.applyImpulse(
-          0,
-          getManualRightingLiftImpulse(
-            KART_MASS,
-            activeDynamics.environment.gravity,
-            liftClearanceHeight,
-          ),
-          0,
+          localUp
+            .clone()
+            .mulScalar(
+              getManualRightingLiftImpulse(
+                KART_MASS,
+                localGravity,
+                liftClearanceHeight,
+              ),
+            ),
         );
         rigidBody.activate();
         manualRightingCapturePending = true;
@@ -1337,13 +1347,14 @@ export function SoloTimeTrialCanvas({
         }
 
         const angularVelocity = rigidBody.angularVelocity.clone();
+        const { localUp } = kartController.state;
+        const uprightness = kartAssemblyFrame.up.dot(localUp);
         const upwardAlignmentRate = new pc.Vec3()
           .cross(angularVelocity, kartAssemblyFrame.up)
-          .dot(pc.Vec3.UP);
+          .dot(localUp);
         if (!manualRightingSettling) {
           if (
-            kartAssemblyFrame.up.y <
-              KART_MANUAL_RIGHTING_POLICY.captureMinimumUpY ||
+            uprightness < KART_MANUAL_RIGHTING_POLICY.captureMinimumUpY ||
             upwardAlignmentRate > 0
           ) {
             return;
@@ -1357,12 +1368,10 @@ export function SoloTimeTrialCanvas({
           inverseRotation.transformVector(angularVelocity);
         const alignmentAxis = new pc.Vec3().cross(
           kartAssemblyFrame.up,
-          pc.Vec3.UP,
+          localUp,
         );
         const alignmentSin = Math.min(1, alignmentAxis.length());
-        const alignmentAngle = Math.acos(
-          Math.min(1, Math.max(-1, kartAssemblyFrame.up.y)),
-        );
+        const alignmentAngle = Math.acos(Math.min(1, Math.max(-1, uprightness)));
         const targetAngularVelocity =
           alignmentSin > 1e-6
             ? alignmentAxis
@@ -1392,7 +1401,7 @@ export function SoloTimeTrialCanvas({
         rigidBody.activate();
         if (
           kartController.state.supportCount === dynamicWheels.length &&
-          kartAssemblyFrame.up.y > 0.9
+          uprightness > 0.9
         ) {
           manualRightingCapturePending = false;
           manualRightingSettling = false;
@@ -1541,6 +1550,7 @@ export function SoloTimeTrialCanvas({
       const kartController = new DynamicKartController({
         app,
         assemblyFrame: kartAssemblyFrame,
+        enclosure: COURSE_DOCUMENT.enclosure,
         environment: activeDynamics.environment,
         fallResetY: KART_RESET_FALL_Y,
         kart,
@@ -1593,6 +1603,7 @@ export function SoloTimeTrialCanvas({
         position: new pc.Vec3(),
         rotation: new pc.Quat(),
         supportCount: 0,
+        up: kartController.state.localUp,
       };
       const suspensionMetrics = {
         maximumCompression: 0,
@@ -1754,11 +1765,6 @@ export function SoloTimeTrialCanvas({
         kartController.setEnvironment(activeDynamics.environment);
         kartController.setTireSurfaceInteraction(
           activeDynamics.tireSurfaceInteraction,
-        );
-        activeRigidBodySystem.gravity.set(
-          0,
-          -activeDynamics.environment.gravity,
-          0,
         );
         chaseCamera.setMaximumSpeed(activeDynamics.kart.drivetrain.noLoadSpeed);
       }
@@ -2105,6 +2111,7 @@ export function SoloTimeTrialCanvas({
           ).length,
           developmentValueMetadata: KART_DEVELOPMENT_VALUE_METADATA,
           developmentValues: { ...activeDevelopmentValues },
+          localGravity: toFixedStep(kartController.state.localGravity),
           up: {
             x: toFixedStep(kartAssemblyFrame.up.x),
             y: toFixedStep(kartAssemblyFrame.up.y),
@@ -2615,6 +2622,11 @@ export function SoloTimeTrialCanvas({
         contactShadow.update(kartVisual, findGroundBelowKart);
 
         chaseCamera.update(frameSeconds, getChaseCameraSnapshot());
+        const { habitat } = kartController;
+        activeSurfaceEffects.setHabitat(
+          habitat.gravity(interpolatedKartPosition),
+          habitat.spin,
+        );
         activeSurfaceEffects.update(
           pendingSurfaceEffectSeconds,
           kartController.state.wheelTelemetry,

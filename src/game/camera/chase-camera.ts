@@ -74,6 +74,8 @@ export type ChaseCameraSnapshot = {
   position: pc.Vec3;
   rotation: pc.Quat;
   supportCount: number;
+  /** Habitat up at the kart. */
+  up: pc.Vec3;
 };
 
 export type ChaseCameraObstruction = {
@@ -239,6 +241,7 @@ export class ChaseCamera {
   private readonly trackedPosition = new pc.Vec3();
   private readonly scaledHeading = new pc.Vec3();
   private readonly scaledRight = new pc.Vec3();
+  private readonly scaledUp = new pc.Vec3();
   private readonly pivotToHit = new pc.Vec3();
   private readonly desiredDirection = new pc.Vec3();
   private smoothedFov = DESKTOP_SETTINGS.fov;
@@ -254,6 +257,7 @@ export class ChaseCamera {
   private stabilizationBlend = 0;
   private angularSpeed = 0;
   private uprightness = 1;
+  private readonly up = new pc.Vec3(0, 1, 0);
 
   constructor(
     private readonly camera: pc.Entity,
@@ -381,8 +385,9 @@ export class ChaseCamera {
 
   private updateMotionState(snapshot: ChaseCameraSnapshot) {
     snapshot.rotation.transformVector(pc.Vec3.FORWARD, this.kartForward);
+    this.up.copy(snapshot.up);
     snapshot.rotation.transformVector(pc.Vec3.UP, this.kartUp);
-    this.uprightness = clamp(this.kartUp.y, -1, 1);
+    this.uprightness = clamp(this.kartUp.dot(this.up), -1, 1);
     this.angularSpeed = snapshot.angularVelocity.length();
 
     this.kartForward.y = 0;
@@ -491,8 +496,11 @@ export class ChaseCamera {
       .sub(
         this.scaledHeading.copy(this.chaseHeading).mulScalar(settings.distance),
       );
-    this.desiredPosition.y +=
-      settings.height + this.airborneBlend * AIRBORNE_VERTICAL_LAG;
+    this.desiredPosition.add(
+      this.scaledUp
+        .copy(this.up)
+        .mulScalar(settings.height + this.airborneBlend * AIRBORNE_VERTICAL_LAG),
+    );
     this.desiredPosition.add(
       this.scaledRight.copy(this.kartRight).mulScalar(slipOffset),
     );
@@ -500,7 +508,7 @@ export class ChaseCamera {
     this.desiredLookTarget
       .copy(snapshot.position)
       .add(this.scaledHeading.copy(this.chaseHeading).mulScalar(lookAhead));
-    this.desiredLookTarget.y += 0.45;
+    this.desiredLookTarget.add(this.scaledUp.copy(this.up).mulScalar(0.45));
     this.desiredLookTarget.add(
       this.scaledRight.copy(this.kartRight).mulScalar(slipOffset * 0.65),
     );
@@ -508,7 +516,9 @@ export class ChaseCamera {
 
   private resolveObstruction() {
     this.cameraPivot.copy(this.trackedPosition);
-    this.cameraPivot.y += CAMERA_PIVOT_HEIGHT;
+    this.cameraPivot.add(
+      this.scaledUp.copy(this.up).mulScalar(CAMERA_PIVOT_HEIGHT),
+    );
     const obstruction = this.queryObstruction(
       this.cameraPivot,
       this.desiredPosition,
@@ -601,7 +611,7 @@ export class ChaseCamera {
     }
 
     this.camera.setPosition(this.smoothedPosition);
-    this.camera.lookAt(this.smoothedLookTarget, pc.Vec3.UP);
+    this.camera.lookAt(this.smoothedLookTarget, this.up);
   }
 
   private getDesiredFov(settings: CameraSettings) {

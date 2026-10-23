@@ -77,6 +77,8 @@ export type KartDebugState = {
     KartDevelopmentValueMetadata
   >;
   developmentValues: KartDevelopmentValues;
+  /** Habitat gravity at the center of mass, m/s². */
+  localGravity: number;
   up: Position3;
   verticalVelocity: number;
   wheelHubYs: Record<string, number>;

@@ -6,10 +6,7 @@ import {
   DEFAULT_TIRE_SURFACE_INTERACTION,
   type TireSurfaceInteractionProfile,
 } from "./tire-surface-interaction";
-import {
-  EARTH_WORLD_ENVIRONMENT,
-  type WorldEnvironment,
-} from "../physics/world-environment";
+import { HABITAT_WORLD_ENVIRONMENT } from "../physics/world-environment";
 import { REFERENCE_KART_CONSTRUCTION } from "./kart-reference-construction";
 
 export type KartSteeringGeometry = {
@@ -30,12 +27,16 @@ function finitePositive(value: number) {
   return Number.isFinite(value) && value > 0 ? value : 0;
 }
 
+/**
+ * `supportGravity` is the acceleration pressing the kart onto its support:
+ * habitat gravity plus the Coriolis component along local up.
+ */
 export function getPhysicalLateralAccelerationLimit(
   interaction: TireSurfaceInteractionProfile,
-  environment: WorldEnvironment,
+  supportGravity: number,
   geometry: KartSteeringGeometry,
 ) {
-  const gravity = finitePositive(environment.gravity);
+  const gravity = finitePositive(supportGravity);
   const gripLimit = finitePositive(interaction.peakGripCoefficient) * gravity;
   const centerOfMassHeight = finitePositive(geometry.centerOfMassHeight);
   const trackWidth = finitePositive(geometry.trackWidth);
@@ -49,11 +50,11 @@ export function getPhysicalLateralAccelerationLimit(
 
 export function getSteeringRequestLateralAccelerationLimit(
   interaction: TireSurfaceInteractionProfile,
-  environment: WorldEnvironment,
+  supportGravity: number,
   geometry: KartSteeringGeometry,
 ) {
   return (
-    getPhysicalLateralAccelerationLimit(interaction, environment, geometry) *
+    getPhysicalLateralAccelerationLimit(interaction, supportGravity, geometry) *
     STEERING_REQUEST_PHYSICAL_LIMIT_RATIO
   );
 }
@@ -63,7 +64,7 @@ export function getMaximumSteerAngle(
   steering: KartSteeringProfile = DEFAULT_KART_PHYSICAL_PROFILE.steering,
   interaction: TireSurfaceInteractionProfile =
     DEFAULT_TIRE_SURFACE_INTERACTION,
-  environment: WorldEnvironment = EARTH_WORLD_ENVIRONMENT,
+  supportGravity: number = HABITAT_WORLD_ENVIRONMENT.gravity,
   geometry: KartSteeringGeometry = DEFAULT_KART_STEERING_GEOMETRY,
 ) {
   const mechanicalSteeringLock = finitePositive(
@@ -74,7 +75,7 @@ export function getMaximumSteerAngle(
   const lateralAccelerationLimit =
     getSteeringRequestLateralAccelerationLimit(
       interaction,
-      environment,
+      supportGravity,
       geometry,
     );
 
@@ -87,7 +88,7 @@ export function getMaximumSteerAngle(
     (180 / Math.PI);
   const gripAccelerationLimit =
     finitePositive(interaction.peakGripCoefficient) *
-    finitePositive(environment.gravity);
+    finitePositive(supportGravity);
   // Front and rear slip largely cancel in steady-state bicycle geometry, so
   // adding a complete axle slip angle double-counts cornering demand. Retain a
   // bounded transient share so initial steering still develops tire force

@@ -6,6 +6,12 @@ import type {
   KartControllerState,
 } from "../contracts";
 import type { WorldEnvironment } from "../physics/world-environment";
+import {
+  createHabitatField,
+  getLevelRotation,
+  type HabitatField,
+} from "../physics/rotating-habitat";
+import type { CourseEnclosure } from "../enclosure/island-three";
 import type { CourseSurfaceResolver } from "../course/course-surface-resolver";
 import { isDrivableSurfaceTopContact } from "../physics/drivable-surface-support";
 import {
@@ -75,6 +81,7 @@ export type DynamicWheel = {
 type DynamicKartControllerOptions = {
   app: pc.Application;
   assemblyFrame: pc.Entity;
+  enclosure: CourseEnclosure;
   environment: WorldEnvironment;
   fallResetY: number;
   kart: pc.Entity;
@@ -104,6 +111,10 @@ const MINIMUM_WHEEL_SUPPORT_ALIGNMENT = 0.25;
 export type DynamicKartControllerState = KartControllerState & {
   actualTurnRadius: number | null;
   geometricTurnRadius: number | null;
+  /** Habitat gravity at the center of mass, m/s². */
+  localGravity: number;
+  /** Unit up at the center of mass: toward the habitat axis. */
+  localUp: pc.Vec3;
   maximumSteerAngle: number;
   supportCount: number;
   supportEntityNames: string[];
@@ -162,6 +173,8 @@ export class DynamicKartController implements KartController {
   readonly state: DynamicKartControllerState = {
     actualTurnRadius: null,
     geometricTurnRadius: null,
+    localGravity: 0,
+    localUp: new pc.Vec3(0, 1, 0),
     maximumSteerAngle: 0,
     speed: 0,
     steerAngle: 0,
@@ -175,6 +188,8 @@ export class DynamicKartController implements KartController {
 
   private physicalProfile: KartPhysicalProfile;
   private environment: WorldEnvironment;
+  private habitatField: HabitatField;
+  private readonly localGravityVector = new pc.Vec3(0, -9.81, 0);
   private tireSurfaceInteraction: TireSurfaceInteractionProfile;
   private readonly drivenWheelCount: number;
   private readonly steeringCenterX: number;
@@ -184,6 +199,10 @@ export class DynamicKartController implements KartController {
   constructor(private readonly options: DynamicKartControllerOptions) {
     this.physicalProfile = options.physicalProfile;
     this.environment = options.environment;
+    this.habitatField = createHabitatField(
+      options.enclosure,
+      options.environment.gravity,
+    );
     this.tireSurfaceInteraction = options.tireSurfaceInteraction;
     this.drivenWheelCount = options.wheels.filter(
       (wheel) => wheel.driven,
@@ -213,6 +232,11 @@ export class DynamicKartController implements KartController {
         ),
       );
     }
+    this.applyHabitatGravity(options.kart.getPosition());
+  }
+
+  get habitat() {
+    return this.habitatField;
   }
 
   destroy() {
@@ -244,7 +268,7 @@ export class DynamicKartController implements KartController {
       0,
       this.physicalProfile.steering,
       this.tireSurfaceInteraction,
-      this.environment,
+      this.state.localGravity,
       this.options.steeringGeometry,
     );
     this.setSteerAngle(0);
@@ -256,6 +280,11 @@ export class DynamicKartController implements KartController {
 
   setEnvironment(environment: WorldEnvironment) {
     this.environment = environment;
+    this.habitatField = createHabitatField(
+      this.options.enclosure,
+      environment.gravity,
+    );
+    this.applyHabitatGravity(this.options.kart.getPosition());
   }
 
   setTireSurfaceInteraction(interaction: TireSurfaceInteractionProfile) {
@@ -282,11 +311,23 @@ export class DynamicKartController implements KartController {
     const linearVelocity = rigidBody.linearVelocity.clone();
     const angularVelocity = rigidBody.angularVelocity.clone();
     const chassisForwardSpeed = linearVelocity.dot(bodyForward);
-    const planarVelocity = new pc.Vec3(
-      linearVelocity.x,
-      0,
-      linearVelocity.z,
+    const localUp = this.applyHabitatGravity(bodyPosition);
+    const coriolis = this.habitatField.coriolis(linearVelocity);
+    rigidBody.applyForce(
+      coriolis.x * this.options.mass,
+      coriolis.y * this.options.mass,
+      coriolis.z * this.options.mass,
     );
+    // Tires feel gravity plus Coriolis along up: more spinward, less
+    // anti-spinward, nothing once the kart floats free.
+    const supportGravity = Math.max(
+      0,
+      this.state.localGravity -
+        (localUp.x * coriolis.x + localUp.y * coriolis.y + localUp.z * coriolis.z),
+    );
+    const planarVelocity = linearVelocity
+      .clone()
+      .sub(localUp.clone().mulScalar(linearVelocity.dot(localUp)));
     const planarSpeed = planarVelocity.length();
     if (planarSpeed > 0) {
       const aerodynamicDragForce = getAerodynamicDragForce(
@@ -302,7 +343,7 @@ export class DynamicKartController implements KartController {
       chassisForwardSpeed,
       this.physicalProfile.steering,
       this.tireSurfaceInteraction,
-      this.environment,
+      supportGravity,
       this.options.steeringGeometry,
     );
     this.state.maximumSteerAngle = maximumSteerAngle;
@@ -527,10 +568,24 @@ export class DynamicKartController implements KartController {
       const maximumTireForce = suspensionLoad * effectiveGripCoefficient;
       telemetry.slipAngle = slipAngle;
       telemetry.gripCoefficient = effectiveGripCoefficient;
+      // This wheel's share of gravity along the support: its load scaled by
+      // the slope under it, split along its travel and its right axis.
+      const gravityIntoSupport = -this.localGravityVector.dot(contactNormal);
+      const loadPerGravity =
+        gravityIntoSupport > 1e-6 ? suspensionLoad / gravityIntoSupport : 0;
+      // A driven wheel resists the net push, not gravity alone, so the
+      // longitudinal hold only applies without throttle.
+      const gravityPull =
+        input.throttle === 0
+          ? loadPerGravity * this.localGravityVector.dot(wheelForward)
+          : 0;
+      const lateralGravityPull =
+        loadPerGravity * this.localGravityVector.dot(wheelRight);
       let longitudinalForce = getRollingResistanceForce(
         longitudinalSpeed,
         suspensionLoad,
         interaction.rollingResistanceCoefficient,
+        gravityPull,
       );
 
       if (
@@ -557,6 +612,7 @@ export class DynamicKartController implements KartController {
           interaction.peakSlipAngleDegrees,
         ),
         this.options.mass / this.options.wheels.length,
+        lateralGravityPull,
       );
 
       supportedWheelForceStates.push({
@@ -653,7 +709,7 @@ export class DynamicKartController implements KartController {
     this.state.supportCount = supportCount;
     this.state.supportEntityNames = supportEntityNames;
     this.state.supportedWheelNames = supportedWheelNames;
-    this.state.verticalVelocity = linearVelocity.y;
+    this.state.verticalVelocity = linearVelocity.dot(localUp);
     this.state.wheelTelemetry = wheelTelemetry;
   }
 
@@ -661,6 +717,14 @@ export class DynamicKartController implements KartController {
     const rigidBody = requireRigidBody(this.options.kart);
     const linearVelocity = rigidBody.linearVelocity.clone();
     const angularVelocity = rigidBody.angularVelocity.clone();
+    const localUp = this.state.localUp;
+    const levelRotation = getLevelRotation(localUp);
+    const levelLinearVelocity = new pc.Quat(
+      levelRotation.x,
+      levelRotation.y,
+      levelRotation.z,
+      levelRotation.w,
+    ).transformVector(linearVelocity);
 
     const hasDrivingInput =
       input.brake !== 0 ||
@@ -668,7 +732,7 @@ export class DynamicKartController implements KartController {
       input.steer !== 0 ||
       input.throttle !== 0;
     const isRestingWithoutInput = isRestSettlingEligible(
-      linearVelocity,
+      levelLinearVelocity,
       angularVelocity,
       this.state.supportCount === this.options.wheels.length,
       hasDrivingInput,
@@ -697,22 +761,22 @@ export class DynamicKartController implements KartController {
       worldRollDampingImpulse.y,
       worldRollDampingImpulse.z,
     );
-    const minimumSupportNormalY = this.state.wheelTelemetry.reduce(
+    const minimumSupportAlignment = this.state.wheelTelemetry.reduce(
       (minimum, wheel) =>
         wheel.supported && wheel.contactNormal
-          ? Math.min(minimum, wheel.contactNormal.y)
+          ? Math.min(minimum, wheel.contactNormal.dot(localUp))
           : minimum,
       1,
     );
     const heaveDampingImpulse = getFlatGroundedHeaveDampingImpulse(
-      linearVelocity.y,
+      levelLinearVelocity.y,
       this.options.mass,
       this.state.supportCount,
-      minimumSupportNormalY,
-      this.options.assemblyFrame.up.y,
+      minimumSupportAlignment,
+      this.options.assemblyFrame.up.dot(localUp),
       deltaSeconds,
     );
-    rigidBody.applyImpulse(0, heaveDampingImpulse, 0);
+    rigidBody.applyImpulse(localUp.clone().mulScalar(heaveDampingImpulse));
 
     if (isRestingWithoutInput) {
       // Finite wheel sweeps can alternate between coplanar course primitives at
@@ -742,7 +806,7 @@ export class DynamicKartController implements KartController {
     const bodyForward = this.options.assemblyFrame.forward.clone().normalize();
     const bodyUp = this.options.assemblyFrame.up.clone().normalize();
     this.state.speed = observedLinearVelocity.dot(bodyForward);
-    this.state.verticalVelocity = observedLinearVelocity.y;
+    this.state.verticalVelocity = observedLinearVelocity.dot(localUp);
     this.state.yawRate = observedAngularVelocity.dot(bodyUp);
     this.state.geometricTurnRadius = getGeometricTurnRadius(
       this.state.steerAngle,
@@ -752,6 +816,24 @@ export class DynamicKartController implements KartController {
       this.state.speed,
       this.state.yawRate,
     );
+  }
+
+  /**
+   * Points the solver's gravity at the habitat field for this position and
+   * records local up. The kart is the only dynamic body, so world gravity is
+   * its gravity.
+   */
+  private applyHabitatGravity(position: pc.Vec3) {
+    const gravity = this.habitatField.gravity(position);
+    const up = this.habitatField.up(position);
+    this.options.app.systems.rigidbody?.gravity.set(
+      gravity.x,
+      gravity.y,
+      gravity.z,
+    );
+    this.localGravityVector.set(gravity.x, gravity.y, gravity.z);
+    this.state.localGravity = this.localGravityVector.length();
+    return this.state.localUp.set(up.x, up.y, up.z);
   }
 
   private getWheelForward(

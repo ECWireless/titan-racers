@@ -75,12 +75,18 @@ export function getTireSlipAngle(
   );
 }
 
+/**
+ * Below rolling speed the tire settles lateral motion and, like a parked tire
+ * on a gentle side slope, holds against `gravityPull` (gravity's force along
+ * the wheel's right axis). The combined tire-force clamp still bounds it.
+ */
 export function getRequestedLateralTireForce(
   slipAngle: number,
   longitudinalSpeed: number,
   lateralSpeed: number,
   corneringStiffness: number,
   supportedMass: number,
+  gravityPull = 0,
 ) {
   if (
     !Number.isFinite(slipAngle) ||
@@ -99,7 +105,8 @@ export function getRequestedLateralTireForce(
     Math.abs(slipAngle) *
     corneringStiffness;
   const lowSpeedSettlingForce =
-    (-lateralSpeed * supportedMass) / LOW_SPEED_LATERAL_SETTLE_SECONDS;
+    (-lateralSpeed * supportedMass) / LOW_SPEED_LATERAL_SETTLE_SECONDS -
+    (Number.isFinite(gravityPull) ? gravityPull : 0);
   const rollingTransition = smoothstep(
     clamp(Math.abs(longitudinalSpeed) / LOW_SPEED_TIRE_REFERENCE, 0, 1),
   );

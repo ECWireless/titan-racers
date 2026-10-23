@@ -5,7 +5,7 @@ import {
   COURSE_TURF_CLIPPING_COLOR,
   getCourseSurfaceLayerDepthBias,
 } from "../course/course-visual-policy";
-import { EARTH_WORLD_ENVIRONMENT } from "../physics/world-environment";
+import { HABITAT_WORLD_ENVIRONMENT } from "../physics/world-environment";
 import type { DynamicWheelTelemetry } from "./dynamic-kart-controller";
 import {
   getLateralScrubPower,
@@ -294,6 +294,13 @@ export class GrassClippingPool {
   private readonly planes: Float32Array;
   private live = 0;
   private seed = 20_461;
+  // Habitat gravity near the kart and the spin vector (rad/s) for Coriolis.
+  private readonly gravity: Vec3Like = {
+    x: 0,
+    y: -HABITAT_WORLD_ENVIRONMENT.gravity,
+    z: 0,
+  };
+  private readonly habitatSpin = vec();
 
   private readonly policy = KART_SURFACE_EFFECT_POLICY;
 
@@ -341,7 +348,13 @@ export class GrassClippingPool {
     return true;
   }
 
+  setHabitat(gravity: Vec3Like, spin: Vec3Like) {
+    copy(this.gravity, gravity);
+    copy(this.habitatSpin, spin);
+  }
+
   step(seconds: number) {
+    const { gravity, habitatSpin: spin } = this;
     const {
       clippingDragPerSecond,
       clippingFadeSeconds,
@@ -350,7 +363,16 @@ export class GrassClippingPool {
     const drag = Math.exp(-clippingDragPerSecond * seconds);
     for (let index = this.live - 1; index >= 0; index--) {
       const p = index * 3;
-      this.velocities[p + 1] -= EARTH_WORLD_ENVIRONMENT.gravity * seconds;
+      const vx = this.velocities[p];
+      const vy = this.velocities[p + 1];
+      const vz = this.velocities[p + 2];
+      // Gravity plus Coriolis, −2ω × v.
+      this.velocities[p] +=
+        (gravity.x - 2 * (spin.y * vz - spin.z * vy)) * seconds;
+      this.velocities[p + 1] +=
+        (gravity.y - 2 * (spin.z * vx - spin.x * vz)) * seconds;
+      this.velocities[p + 2] +=
+        (gravity.z - 2 * (spin.x * vy - spin.y * vx)) * seconds;
       for (let axis = 0; axis < 3; axis++) {
         this.velocities[p + axis] *= drag;
         this.positions[p + axis] += this.velocities[p + axis] * seconds;
@@ -538,6 +560,11 @@ export class KartSurfaceEffects {
     this.flakePositions = new Float32Array(policy.clippingCapacity * 12);
     this.flakeNormals = new Float32Array(policy.clippingCapacity * 12);
     this.flakeColors = new Uint8Array(policy.clippingCapacity * 16);
+  }
+
+  /** Habitat gravity near the kart and the spin vector, rad/s. */
+  setHabitat(gravity: Vec3Like, spin: Vec3Like) {
+    this.clippings.setHabitat(gravity, spin);
   }
 
   /**

@@ -21,28 +21,35 @@ export function getAerodynamicDragForce(
   );
 }
 
+/**
+ * Rolling resistance opposes travel with up to `Crr × N`. Below the transition
+ * speed it fades with speed for numerical smoothness, and the share it gives
+ * up instead holds the wheel against `gravityPull` (gravity's force along the
+ * wheel's travel, positive forward), as a stopped tire holds on a slope gentler
+ * than its rolling resistance.
+ */
 export function getRollingResistanceForce(
   longitudinalSpeed: number,
   normalLoad: number,
   rollingResistanceCoefficient: number,
+  gravityPull = 0,
 ) {
-  if (!Number.isFinite(longitudinalSpeed) || longitudinalSpeed === 0) {
+  if (!Number.isFinite(longitudinalSpeed)) {
     return 0;
   }
 
-  const boundedLoad = finiteNonNegative(normalLoad);
-  const boundedCoefficient = finiteNonNegative(
-    rollingResistanceCoefficient,
-  );
+  const limit =
+    finiteNonNegative(rollingResistanceCoefficient) *
+    finiteNonNegative(normalLoad);
   const lowSpeedScale = Math.min(
     Math.abs(longitudinalSpeed) / ROLLING_RESISTANCE_TRANSITION_SPEED,
     1,
   );
+  const hold = Number.isFinite(gravityPull)
+    ? -gravityPull * (1 - lowSpeedScale)
+    : 0;
 
-  return (
-    -Math.sign(longitudinalSpeed) *
-    boundedCoefficient *
-    boundedLoad *
-    lowSpeedScale
-  );
+  const force = -Math.sign(longitudinalSpeed) * limit * lowSpeedScale + hold;
+
+  return Math.min(Math.max(force, -limit), limit);
 }
