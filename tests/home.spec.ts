@@ -414,6 +414,33 @@ async function setSimulationPaused(canvas: Locator, paused: boolean) {
   }, paused);
 }
 
+// Pauses the race from inside the page the moment its scene reports ready,
+// before its first frame. Slow software-WebGL frames otherwise let the
+// countdown run out before a test's own pause request arrives. Also records
+// whether a loading screen still covered the race then.
+async function pauseSimulationWhenSceneReady(page: Page) {
+  await page.evaluate(() => {
+    const observer = new MutationObserver(() => {
+      const canvas = document.querySelector(
+        "[data-testid='solo-time-trial-canvas'][data-scene-ready='true']",
+      );
+      if (!canvas) return;
+      observer.disconnect();
+      (window as { coveredAtSceneReady?: boolean }).coveredAtSceneReady =
+        document.querySelector(
+          "[data-testid='course-loading-screen']:not([data-leaving='true'])",
+        ) !== null;
+      canvas.dispatchEvent(
+        new CustomEvent("setSimulationPaused", { detail: { paused: true } }),
+      );
+    });
+    observer.observe(document.body, {
+      attributeFilter: ["data-scene-ready"],
+      subtree: true,
+    });
+  });
+}
+
 async function resetKart(canvas: Locator) {
   await waitForSceneReady(canvas);
   await canvas.evaluate((element) => {
@@ -1457,17 +1484,17 @@ test.describe("home screen", () => {
   }, testInfo) => {
     // Software WebGL renders every stepped frame on the CPU; see the two-lap
     // lifecycle test.
-    testInfo.setTimeout(90_000);
+    testInfo.setTimeout(120_000);
     test.skip(
       testInfo.project.name !== "desktop",
       "Race recovery integration only needs to run once.",
     );
 
     await page.goto("/?sandbox-course");
+    await pauseSimulationWhenSceneReady(page);
     await page.getByRole("button", { name: "Solo Time Trial" }).click();
     const canvas = page.getByTestId("solo-time-trial-canvas");
 
-    await setSimulationPaused(canvas, true);
     expect(await getRaceDebugState(canvas)).toMatchObject({
       state: "countdown",
     });
@@ -1567,6 +1594,44 @@ test.describe("home screen", () => {
     expect(recovered.elapsedRaceMicroseconds).toBeGreaterThan(
       beforePause.elapsedRaceMicroseconds,
     );
+  });
+
+  test("holds the Island Three loading screen before the countdown", async ({
+    page,
+  }, testInfo) => {
+    // Software WebGL draws the exterior and the enclosure slowly; a small
+    // viewport keeps it quick.
+    testInfo.setTimeout(120_000);
+    test.skip(
+      testInfo.project.name !== "desktop",
+      "The loading screen flow only needs to run once.",
+    );
+    await page.setViewportSize({ height: 270, width: 480 });
+    await page.goto("/?enclosure");
+    const solo = page.getByRole("button", { name: "Solo Time Trial" });
+    const cover = page.getByTestId("course-loading-screen");
+
+    await solo.click();
+    await expect(cover.getByRole("status")).toHaveText("Loading race…");
+    // Next's dev indicator covers the corner Exit sits in, so use the keyboard.
+    await cover.getByRole("button", { name: "Exit" }).press("Enter");
+    await expect(cover).toHaveCount(0);
+    await expect(solo).toBeEnabled();
+
+    await pauseSimulationWhenSceneReady(page);
+    await solo.click();
+    const startedAt = Date.now();
+    await expect(cover).toBeVisible();
+    await expect(cover).toHaveCount(0, { timeout: 90_000 });
+    expect(Date.now() - startedAt).toBeGreaterThanOrEqual(2_500);
+    expect(
+      await page.evaluate(
+        () => (window as { coveredAtSceneReady?: boolean }).coveredAtSceneReady,
+      ),
+    ).toBe(false);
+    expect(
+      await getRaceDebugState(page.getByTestId("solo-time-trial-canvas")),
+    ).toMatchObject({ state: "countdown" });
   });
 
   test("keeps the mobile solo canvas sized and kart centered", async ({
@@ -2458,6 +2523,10 @@ test.describe("home screen", () => {
 
     await page.goto("/?enclosure");
     await page.getByRole("button", { name: "Solo Time Trial" }).click();
+    // The enclosure brings the loading screen, which holds the countdown.
+    await expect(page.getByTestId("course-loading-screen")).toHaveCount(0, {
+      timeout: 60_000,
+    });
     const canvas = page.getByTestId("solo-time-trial-canvas");
     await waitForSceneReady(canvas);
 
@@ -2546,6 +2615,10 @@ test.describe("home screen", () => {
 
     await page.goto("/?enclosure");
     await page.getByRole("button", { name: "Solo Time Trial" }).click();
+    // The enclosure brings the loading screen, which holds the countdown.
+    await expect(page.getByTestId("course-loading-screen")).toHaveCount(0, {
+      timeout: 60_000,
+    });
     const canvas = page.getByTestId("solo-time-trial-canvas");
     await waitForSceneReady(canvas);
     const contextLossSupported = await canvas.evaluate((element) => {

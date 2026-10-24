@@ -36,6 +36,9 @@ The sources do not specify these, so Titan Racers chooses them:
   enters its window and crosses the axis to the far valley, so from a valley
   floor the sun's image appears in the window overhead. All three mirrors
   share one angle per course.
+- **Island Three orbits Saturn with Titan,** 1.22 million km from Saturn and
+  9.54 AU from the Sun, where the Sun looks a tenth as wide as from Earth.
+  The sun's image in the windows has that size.
 - **Sunlight is not scaled for distance from the Sun.** The light level comes
   from the registry, not from where the habitat orbits.
 
@@ -65,6 +68,31 @@ own:
   (`src/game/enclosure/habitat-light.ts`). It is far dimmer than daylight on
   Earth, so sunlit and shaded ground differ strongly. The enclosure's
   surfaces take the same fill light.
+
+### From Outside
+
+The course loading screen shows Island Three from space
+(`src/game/enclosure/exterior-view.ts`): one full-screen shader that traces
+the hull, the mirrors, and Saturn, with no meshes or textures.
+
+- The habitat turns at its true spin, one turn every 127 s; the camera, the
+  Sun, and Saturn stay still. The camera looks back from the sunlit side, so
+  the sunward cap and the mirrors' faces catch the Sun.
+- The windows show the lit interior, drawn with the same land, cap, and
+  mirror-light code as the race (`src/game/enclosure/habitat-glsl.ts`). The
+  mirrors reflect the scene once.
+- Saturn hangs behind the habitat as an oblate, banded globe. Titan orbits
+  within 0.35° of the ring plane; the habitat's own orbit tilts 2°, so it
+  sees the rings nearly edge-on but open enough to read. The Sun stands 20°
+  above them. The rings shadow the globe and the
+  globe shadows the rings. Saturnshine is the only light where the Sun does
+  not reach.
+- The camera frames one cylinder; its twin is not drawn. There are no stars:
+  beside a sunlit habitat they are far too faint to show, as in a real
+  camera.
+
+The screen holds for at least 2.5 s while the race builds behind it, then
+fades into the countdown.
 
 ## Placing A Course
 

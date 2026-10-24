@@ -4,6 +4,7 @@ import * as pc from "playcanvas";
 import {
   type KeyboardEvent as ReactKeyboardEvent,
   type PointerEvent as ReactPointerEvent,
+  type RefObject,
   useCallback,
   useEffect,
   useMemo,
@@ -13,6 +14,7 @@ import {
 } from "react";
 
 import {
+  type CourseLoadTimings,
   FrameBudgetOverlay,
   type FrameBudgetReport,
 } from "@/components/frame-budget-overlay";
@@ -48,7 +50,10 @@ import {
   getCourseStartTransform,
   ROUGH_COURSE_DOCUMENT,
 } from "@/game/course/course-document";
-import { createEnclosureView } from "@/game/enclosure/enclosure-view";
+import {
+  createEnclosureView,
+  drawsEnclosure,
+} from "@/game/enclosure/enclosure-view";
 import { getHabitatLight } from "@/game/enclosure/habitat-light";
 import { PlayerInputManager } from "@/game/input/player-input-manager";
 import { isEditableKeyboardTarget } from "@/game/input/keyboard-input";
@@ -226,12 +231,6 @@ function getKartRootPosition(
 }
 
 const ENABLE_SCENE_TEST_HOOKS = process.env.NODE_ENV !== "production";
-// Playwright renders WebGL on the CPU, where the enclosure's per-pixel
-// shading costs hundreds of milliseconds a frame. Its server leaves the
-// enclosure out unless a test asks for it with `?enclosure`.
-const TESTS_WITHOUT_ENCLOSURE =
-  ENABLE_SCENE_TEST_HOOKS &&
-  process.env.NEXT_PUBLIC_TEST_WITHOUT_ENCLOSURE === "1";
 
 type SceneInitializationTestControl = {
   contextRestoreTimeoutMs?: number;
@@ -257,7 +256,18 @@ type SoloTimeTrialCanvasProps = {
   includeCollisionFixtures?: boolean;
   kartDocument?: KartAssemblyDocument;
   kartSnapshot?: PersistedResolvedKartSnapshot;
+  /** Times from the loading screen, shown on the `?perf=1` readout. */
+  loadTimings?: CourseLoadTimings;
+  /**
+   * A loading screen covers the race: it hides its own loader and holds the
+   * countdown until this turns false.
+   */
+  covered?: boolean;
   onExit: () => void;
+  /** Called once the scene is ready to start, or has failed to load. */
+  onLoaded?: (ready: boolean) => void;
+  /** Receives the race's own exit, which records it, while mounted. */
+  exitRef?: RefObject<(() => void) | null>;
   recordTelemetry?: boolean;
   sessionLabel?: string;
   /** Test readout of height above the habitat floor and local gravity. */
@@ -367,8 +377,12 @@ export function SoloTimeTrialCanvas({
   courseDocument = ROUGH_COURSE_DOCUMENT,
   includeCollisionFixtures = false,
   kartDocument = DEFAULT_BALANCED_KART_DOCUMENT,
+  exitRef,
   kartSnapshot,
+  loadTimings,
+  covered = false,
   onExit,
+  onLoaded,
   recordTelemetry = true,
   sessionLabel,
   showHabitatReadout = false,
@@ -524,6 +538,10 @@ export function SoloTimeTrialCanvas({
   const resumeButtonRef = useRef<HTMLButtonElement | null>(null);
   const sceneApiRef = useRef<SoloSceneControls | null>(null);
   const statusMenuRef = useRef<HTMLDivElement | null>(null);
+  const countdownHeldRef = useRef(covered);
+  const startCountdownRef = useRef<(() => void) | null>(null);
+  const onLoadedRef = useRef(onLoaded);
+  const loadedReportedRef = useRef(false);
   const touchPedalElementsRef = useRef<
     Partial<Record<TouchPedalAction, HTMLButtonElement>>
   >({});
@@ -581,9 +599,24 @@ export function SoloTimeTrialCanvas({
   });
   useControllerMenuNavigation({
     containerRef: statusMenuRef,
-    enabled: sceneStatus !== "ready",
+    enabled: sceneStatus !== "ready" && !covered,
     onBack: exitRace,
   });
+
+  useEffect(() => {
+    onLoadedRef.current = onLoaded;
+  }, [onLoaded]);
+
+  useEffect(() => {
+    if (sceneStatus === "initializing" || loadedReportedRef.current) return;
+    loadedReportedRef.current = true;
+    onLoadedRef.current?.(sceneStatus === "ready");
+  }, [sceneStatus]);
+
+  useEffect(() => {
+    countdownHeldRef.current = covered;
+    if (!covered) startCountdownRef.current?.();
+  }, [covered]);
 
   useEffect(() => {
     if (!gameplayTelemetryStartedRef.current) {
@@ -1086,10 +1119,7 @@ export function SoloTimeTrialCanvas({
       });
       const habitatLight = getHabitatLight(COURSE_DOCUMENT.enclosure);
       runtime.addCleanup(applySceneLook(app, camera.camera!, habitatLight));
-      if (
-        !TESTS_WITHOUT_ENCLOSURE ||
-        new URLSearchParams(window.location.search).has("enclosure")
-      ) {
+      if (drawsEnclosure()) {
         runtime.addCleanup(
           createEnclosureView(
             app,
@@ -2495,8 +2525,11 @@ export function SoloTimeTrialCanvas({
           dt,
         );
         latestRequestedDrivingInput = sample.driving;
+        // A race held behind its loading screen cannot pause yet; pausing
+        // would disable input with nothing to turn it back on.
         pauseAfterFixedStep =
           sample.actions.pauseRequested &&
+          raceSession.snapshot.state !== "ready" &&
           raceSession.snapshot.state !== "finished";
         raceSession.advanceTime(dt);
         if (!raceStartReported && raceSession.snapshot.state === "racing") {
@@ -2740,19 +2773,34 @@ export function SoloTimeTrialCanvas({
       }
 
       raceSession.markReady();
-      raceSession.startCountdown();
       publishRacePresentation();
       runtime.start();
-      activeCanvas.dataset.sceneReady = "true";
       setSceneFailureCode(null);
       setSceneStatus("ready");
       gameplayTelemetry.markRuntimeLoaded();
-      setDriveCursorHidden(true);
-      if (document.hidden || !document.hasFocus()) {
-        pauseForInterruption();
-        gameplayTelemetry.flushRuntimeHealth();
-      }
+      // A loading screen holds the countdown until it lifts; the scene
+      // renders behind it meanwhile, so its first frame is already done.
+      startCountdownRef.current = () => {
+        startCountdownRef.current = null;
+        raceSession.startCountdown();
+        publishRacePresentation();
+        activeCanvas.dataset.sceneReady = "true";
+        activeCanvas.focus();
+        setDriveCursorHidden(true);
+        // A context lost behind the loading screen could not pause the
+        // race before its countdown.
+        if (
+          document.hidden ||
+          !document.hasFocus() ||
+          contextRestoreTimeoutId !== null
+        ) {
+          pauseForInterruption();
+          gameplayTelemetry.flushRuntimeHealth();
+        }
+      };
+      if (!countdownHeldRef.current) startCountdownRef.current();
       runtime.addCleanup(() => {
+        startCountdownRef.current = null;
         delete activeCanvas.dataset.sceneReady;
       });
     };
@@ -2880,6 +2928,14 @@ export function SoloTimeTrialCanvas({
     gameplayTelemetry.exit();
     onExit();
   }
+
+  useEffect(() => {
+    if (!exitRef) return;
+    exitRef.current = exitRace;
+    return () => {
+      exitRef.current = null;
+    };
+  });
 
   function pressTouchControl(
     event: ReactPointerEvent<HTMLButtonElement>,
@@ -3263,7 +3319,10 @@ export function SoloTimeTrialCanvas({
       {sceneStatus === "ready" ? (
         <>
           {frameBudgetReport ? (
-            <FrameBudgetOverlay report={frameBudgetReport} />
+            <FrameBudgetOverlay
+              loadTimings={loadTimings}
+              report={frameBudgetReport}
+            />
           ) : null}
           {sessionLabel ? (
             <p className="pointer-events-none absolute right-3 top-3 z-20 border border-titan-hazard/50 bg-black/80 px-3 py-2 font-mono text-[0.65rem] font-bold uppercase tracking-[0.12em] text-titan-hazard">
@@ -3588,7 +3647,7 @@ export function SoloTimeTrialCanvas({
             </>
           ) : null}
         </>
-      ) : (
+      ) : covered && sceneStatus === "initializing" ? null : (
         <div className="absolute inset-0 z-20 grid place-items-center bg-titan-black/88 px-6 text-center font-mono text-titan-ice">
           {/* Both branches render the same unkeyed menu element, so the
               controller menu hook stays attached across status changes. */}

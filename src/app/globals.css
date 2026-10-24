@@ -492,9 +492,23 @@ button[aria-disabled="true"] {
   }
 }
 
+/* The fade's duration comes from COURSE_LOADING_FADE_MS. */
+.course-loading {
+  transition: opacity ease-out;
+}
+
+.course-loading[data-leaving="true"] {
+  opacity: 0;
+  pointer-events: none;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .race-lifecycle-cue-motion {
     animation: none;
+  }
+
+  .course-loading {
+    transition: none;
   }
 
   .race-loader {

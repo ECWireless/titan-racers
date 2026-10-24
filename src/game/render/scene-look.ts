@@ -19,7 +19,7 @@ const HABITAT_ENVIRONMENT = {
 } satisfies Record<string, LinearColor>;
 
 const ENVIRONMENT_GAIN = 1.2;
-const EXPOSURE = 1.6;
+export const EXPOSURE = 1.6;
 const SHADOW_NORMAL_OFFSET_BIAS = 0.05;
 
 let habitatAtlasPixels: Uint8Array | null = null;
