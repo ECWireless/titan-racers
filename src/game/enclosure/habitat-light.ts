@@ -11,6 +11,7 @@ import {
   scaled,
   type Vector3,
 } from "./island-three";
+import { TREE_CROWN_SHADE, TREE_MEAN_ALBEDO } from "./tree-billboards";
 
 /**
  * The light Island Three sheds on a course, computed on the CPU from the same
@@ -52,7 +53,12 @@ const LAWN = { b: 0.071, g: 0.127, r: 0.093 };
 const PLATING = { b: 0.105, g: 0.11, r: 0.11 };
 const TERRACES = { b: 0.031, g: 0.069, r: 0.05 };
 const STEEL = { b: 0.068, g: 0.05, r: 0.034 };
-const LEAVES = { b: 0.026, g: 0.06, r: 0.036 };
+const [LEAF_R, LEAF_G, LEAF_B] = TREE_MEAN_ALBEDO.map((value) => value * TREE_CROWN_SHADE) as [
+  number,
+  number,
+  number,
+];
+const LEAVES = { b: LEAF_B, g: LEAF_G, r: LEAF_R };
 // Dusty mirror film scatters this much of the sunlight; the glass passes 90%.
 const MIRROR_SCATTER = 0.18;
 const MIRROR_BACK = 0.01;

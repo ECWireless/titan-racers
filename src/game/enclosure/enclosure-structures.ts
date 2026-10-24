@@ -34,10 +34,12 @@ import {
   scaled,
   type Vector3,
 } from "./island-three";
+import { CONIFER_SPECIES, TREE_SPECIES } from "./tree-billboards";
 
 // Code-built structures that give Island Three height: the end caps'
-// terraces, elevator lines, and docks, the falls bridge, and the real trees
-// and town buildings placed where the land shader paints them.
+// terraces, elevator lines, and docks, and the falls bridge; and the
+// instanced tree billboards and town buildings, placed where the land shader
+// paints them.
 
 type EnclosureFrame = ReturnType<typeof getEnclosureFrame>;
 /** Linear albedo, 0–255, and how the frame shader lights it (alpha). */
@@ -579,37 +581,34 @@ export function addStructures(builder: MeshBuilder, frame: EnclosureFrame) {
 }
 
 // Instanced trees and buildings: per instance, (axial, across, height,
-// seed) and a shape (trees: crown radius, crown base as a share of height,
-// conifer, shade; buildings: half length along the axis, half width
-// across, roof, shade).
+// seed) and a shape (trees: billboard side, species, unused, shade;
+// buildings: half length along the axis, half width across, roof, shade).
 const INSTANCE_STRIDE = 8;
 
 /**
  * Real trees within reach of the course, where the land shader paints them:
- * the belt around its clearing, the woods, and single park trees. Near ones
- * use the detailed tree mesh.
+ * the belt around its clearing, the woods, and single park trees, each a
+ * baked species billboard.
  */
 export function createTreeInstances(clearing: { axial: number; across: number }, seed: number, valleyHalfWidth: number) {
-  const near: number[] = [];
-  const far: number[] = [];
-  const nearReach = BELT_REACH + 140;
+  const trees: number[] = [];
+  const broadleaves = TREE_SPECIES.map((_, index) => index).filter(
+    (index) => index !== CONIFER_SPECIES,
+  );
   const plant = (
     qx: number,
     qy: number,
     kind: "belt" | "park" | "wood",
   ) => {
     const r = (n: number) => hash(qx * 0.37 + n * 17.1, qy * 0.53 - n * 9.3);
-    const conifer = r(1) < (kind === "wood" ? 0.3 : kind === "belt" ? 0.2 : 0.08) ? 1 : 0;
+    const conifer = r(1) < (kind === "wood" ? 0.3 : kind === "belt" ? 0.2 : 0.08);
+    const species = conifer
+      ? CONIFER_SPECIES
+      : broadleaves[Math.min(Math.floor(r(3) * broadleaves.length), broadleaves.length - 1)]!;
     const height =
       kind === "belt" ? 12 + 12 * r(2) : kind === "wood" ? 11 + 11 * r(2) : 10 + 8 * r(2);
-    const width = conifer
-      ? height * (0.17 + 0.06 * r(3))
-      : kind === "park"
-        ? Math.max(5.5, height * (0.36 + 0.08 * r(3)))
-        : height * (0.28 + 0.12 * r(3));
-    const base = conifer ? 0.08 + 0.06 * r(4) : kind === "wood" ? 0.38 + 0.1 * r(4) : 0.26 + 0.12 * r(4);
-    const distance = Math.sqrt((qx - clearing.axial) ** 2 + (qy - clearing.across) ** 2);
-    (distance < nearReach ? near : far).push(qx, qy, height, r(5), width, base, conifer, 0.8 + 0.4 * r(6));
+    const side = height * TREE_SPECIES[species]!.span;
+    trees.push(qx, qy, height, r(5), side, species, 0, 0.8 + 0.4 * r(6));
   };
   const clear = (qx: number, qy: number, margin: number) =>
     waterEdge(qx, qy, seed) > 12 + margin &&
@@ -667,7 +666,7 @@ export function createTreeInstances(clearing: { axial: number; across: number },
       if (inReach(qx, qy) && clear(qx, qy, 0) && unbuilt(qx, qy)) plant(qx, qy, "park");
     }
   }
-  return { far: new Float32Array(far), near: new Float32Array(near) };
+  return new Float32Array(trees);
 }
 
 /**
@@ -734,57 +733,10 @@ export function createBuildingInstances(
   return new Float32Array(buildings);
 }
 
-/**
- * A tree for instancing, as a lathe: rings of (cos θ, sin θ, height share,
- * part) that the vertex shader shapes into a broadleaf or conifer crown, and
- * a trunk (part 0) when `trunkSides` is set.
- */
-export function createTreeMesh(device: pc.GraphicsDevice, sides: number, rings: number[], trunkSides = 0) {
-  const positions: number[] = [];
-  const indices: number[] = [];
-  const vertex = (angle: number, t: number, part: number) => {
-    positions.push(Math.cos(angle), Math.sin(angle), t, part);
-    return positions.length / 4 - 1;
-  };
-  const step = (2 * Math.PI) / sides;
-  const ringStart = rings.map((t, ring) => {
-    const start = positions.length / 4;
-    for (let i = 0; i < sides; i++) vertex(i * step + ring * step * 0.5, t, 1);
-    return start;
-  });
-  for (let ring = 0; ring < rings.length - 1; ring++) {
-    for (let i = 0; i < sides; i++) {
-      const a = ringStart[ring]! + i;
-      const b = ringStart[ring]! + ((i + 1) % sides);
-      const c = ringStart[ring + 1]! + i;
-      const d = ringStart[ring + 1]! + ((i + 1) % sides);
-      indices.push(a, b, c, b, d, c);
-    }
-  }
-  const apex = vertex(0, 1, 1);
-  const underside = vertex(0, 0.04, 1);
-  const last = ringStart[rings.length - 1]!;
-  for (let i = 0; i < sides; i++) {
-    indices.push(last + i, last + ((i + 1) % sides), apex);
-    indices.push(ringStart[0]! + ((i + 1) % sides), ringStart[0]! + i, underside);
-  }
-  // The apex and underside sit on the axis: zero their ring.
-  positions.splice(apex * 4, 2, 0, 0);
-  positions.splice(underside * 4, 2, 0, 0);
-  if (trunkSides > 0) {
-    const trunkStep = (2 * Math.PI) / trunkSides;
-    const base = positions.length / 4;
-    for (let i = 0; i < trunkSides; i++) {
-      vertex(i * trunkStep, 0, 0);
-      vertex(i * trunkStep, 1, 0);
-    }
-    for (let i = 0; i < trunkSides; i++) {
-      const a = base + i * 2;
-      const b = base + ((i + 1) % trunkSides) * 2;
-      indices.push(a, b, a + 1, b, b + 1, a + 1);
-    }
-  }
-  return instancedMesh(device, positions, new Array((positions.length / 4) * 3).fill(0), indices);
+/** A billboard for instancing: x from −1 to 1 across, y from 0 to 1 up. */
+export function createBillboardMesh(device: pc.GraphicsDevice) {
+  const positions = [-1, 0, 0, 0, 1, 0, 0, 0, 1, 1, 0, 0, -1, 1, 0, 0];
+  return instancedMesh(device, positions, new Array(12).fill(0), [0, 1, 2, 0, 2, 3]);
 }
 
 /** A unit box for instancing: x and z from −1 to 1, y from 0 to 1, no floor. */

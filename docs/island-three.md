@@ -65,8 +65,10 @@ own:
   also rises in geometry, so hills show in silhouette where the view grazes.
 - Each course sits in a flat, mown clearing of 220 m radius, ringed
   by clumps of real trees that open toward the sunward cap. Within 750 m of
-  the course the woods and park trees are real trees, 10–24 m tall; beyond,
-  the woods' canopy rises 12 m as relief. In the course's valley, the town
+  the course the woods and park trees are real trees, 10–24 m tall: three
+  broadleaves and a fir, each a billboard baked from a scanned tree that
+  turns to face the camera ([tree billboards](visual-identity.md#tree-billboards)).
+  Beyond, the woods' canopy rises 12 m as relief. In the course's valley, the town
   and village centres stand as blocks of three to five storeys.
 - End caps are ribbed plating. In each valley's sector, eight terraces climb
   from the floor to 0.7 R, reaching 800 m into the valley: each a 150 m step

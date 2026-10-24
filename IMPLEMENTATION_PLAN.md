@@ -343,7 +343,9 @@ Phase decisions:
       decision on lamp shadows, which the budget's one shadow-casting light
       does not yet allow. Also chase the sun-shadow flicker on kart and wall
       shadows seen on iPhone in PR 4.3.2 QA; it may predate that PR, whose
-      camera now follows habitat up.
+      camera now follows habitat up. Sun shadows also pop in at their 20 m
+      reach (seen in PR 4.3.4 QA): use two cascades out to about 60 m,
+      blended, with the far edge faded, and update the shadow budget.
 
 **PR 4.4: Falls View Park Circuit** (split by route section)
 

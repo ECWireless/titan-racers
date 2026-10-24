@@ -5,8 +5,8 @@ import {
   createBoxMesh,
   createBuildingInstances,
   createInstanceBuffer,
+  createBillboardMesh,
   createTreeInstances,
-  createTreeMesh,
   frameShade,
   MeshBuilder,
   steps,
@@ -32,6 +32,14 @@ import {
   RAYLEIGH_EXTINCTION,
 } from "./habitat-light";
 import { type CourseEnclosure, getEnclosureFrame } from "./island-three";
+import {
+  CONIFER_SPECIES,
+  TREE_CROWN_SHADE,
+  TREE_FOOT,
+  TREE_SPECIES,
+  TREE_VIEWS,
+} from "./tree-billboards";
+import { loadTreeImages, type TreeImages } from "./tree-images";
 
 // Island Three draws in its own pass, before the course, so the course keeps
 // its own depth range and draws on top. Within the pass, everything inside
@@ -60,9 +68,6 @@ const SILL = { depth: 60, width: 60 };
 // spreading with distance, and columns as wide as the shell's.
 const RELIEF_ROW = { flat: 100, nearest: 25, spread: 0.035 };
 const RELIEF_SEGMENT_DEGREES = 0.75;
-// Detailed trees near the course; simpler crowns further out.
-const NEAR_TREE = { rings: [0.05, 0.2, 0.42, 0.65, 0.86], sides: 6, trunkSides: 4 };
-const FAR_TREE = { rings: [0.1, 0.5], sides: 5 };
 
 type Vector3 = { x: number; y: number; z: number };
 
@@ -181,8 +186,8 @@ void main(void) {
 }
 `;
 
-// Trees and buildings, instanced in the course valley and standing on its
-// hills: per instance, (axial, across, height, seed) and a shape.
+// Buildings, instanced in the course valley and standing on its hills: per
+// instance, (axial, across, height, seed) and a shape.
 const INSTANCED_VS = /* glsl */ `
 attribute vec4 vertex_position;
 attribute vec3 vertex_normal;
@@ -194,16 +199,10 @@ uniform vec2 uValley;
 varying vec3 vWorld;
 varying vec3 vNormal;
 varying vec3 vAlbedo;
-varying float vShade;
-varying vec4 vLeaf;
-varying vec3 vUp;
 ${CYLINDER_GLSL}
 ${HABITAT_PATTERN_GLSL}
 ${HABITAT_LAND_GLSL}
 ${COURSE_GLSL}
-const vec3 LEAF = vec3(0.04, 0.066, 0.026);
-const vec3 NEEDLE = vec3(0.024, 0.042, 0.027);
-const vec3 BARK = vec3(0.06, 0.05, 0.04);
 const vec3 RENDER = ${glslVec3(RENDER_ALBEDO)};
 
 void main(void) {
@@ -214,61 +213,92 @@ void main(void) {
   vec3 across = cross(up, uSunward);
   float ground = hillHeight(q, uValley.y, hillKeep(fromClearing(q.x, azimuth)));
   vec3 base = uAxisMid + uSunward * q.x + outward * (RADIUS - ground);
-  float part = vertex_position.w;
   float height = aPlace.z;
-  vec3 local;
-  vec3 normal;
-  vLeaf = vec4(0.0);
-  vShade = 1.0;
-  if (part < 0.5) {
-    // The trunk, from below ground up into the crown.
-    float crownBase = aShape.y * height;
-    float radius = max(0.02 * height, 0.2);
-    local = vec3(vertex_position.x * radius, mix(-1.5, crownBase + 0.2 * (height - crownBase),
-      vertex_position.z), vertex_position.y * radius);
-    normal = vec3(vertex_position.x, 0.0, vertex_position.y);
-    vAlbedo = BARK;
-    vShade = 0.6;
-  } else if (part < 1.5) {
-    // A broadleaf or conifer crown, lumpy by its seed.
-    float width = aShape.x;
-    float crownBase = aShape.y * height - 1.0;
-    float conifer = aShape.z;
-    vec2 ring = vertex_position.xy;
-    float t = vertex_position.z;
-    float s = pow(max(t, 1e-4), 0.8);
-    float broad = sqrt(max(1.0 - (2.0 * s - 1.0) * (2.0 * s - 1.0), 0.0));
-    float cone = min(1.0, 1.3 * (1.0 - t)) * (0.55 + 0.45 * smoothstep(0.0, 0.15, t));
-    float profile = mix(broad, cone, conifer);
-    // Each ring vertex moves out and up by its own seed; the apex and
-    // underside, on the axis, stay put.
-    bool onRing = dot(ring, ring) > 0.5;
-    vec2 corner = onRing
-      ? vec2(floor(atan(ring.y, ring.x) * 2.0 + 0.5), floor(t * 20.0 + 0.5)) : vec2(0.0);
-    float lump = onRing ? 1.0 + mix(0.5, 0.2, conifer) * (hash(corner + aPlace.w * 97.0) - 0.5) : 1.0;
-    float crownHeight = height - 1.0 - crownBase;
-    float rise = t + (onRing && t > 0.05 && t < 0.95 ? 0.12 * (hash(corner + aPlace.w * 61.0) - 0.5) : 0.0);
-    local = vec3(ring.x, 0.0, ring.y) * width * profile * lump
-      + vec3(0.0, crownBase + rise * crownHeight, 0.0);
-    vec3 rounded = vec3(ring.x * broad / width, (2.0 * s - 1.0) / (0.5 * crownHeight), ring.y * broad / width);
-    vec3 pointed = vec3(ring.x, width / crownHeight, ring.y);
-    normal = normalize(normalize(mix(rounded, pointed, conifer)) + vec3(0.0, 0.3, 0.0));
-    vAlbedo = mix(LEAF, NEEDLE, conifer) * aShape.w;
-    // Leaves deep in the crown see less of the sky.
-    vShade = 0.45 + 0.55 * t;
-    vLeaf = vec4(local + aPlace.w * 50.0, 1.0);
-  } else {
-    // A building on its lot: walls and a flat roof.
-    local = vec3(vertex_position.x * aShape.x, mix(-3.0, height, vertex_position.y),
-      vertex_position.z * aShape.y);
-    normal = vertex_normal;
-    float roof = aShape.z;
-    vAlbedo = part > 2.5 ? (roof < 0.5 ? TILE : roof < 1.5 ? PALE : SLATE) : RENDER * aShape.w;
-  }
+  // Walls and a flat roof on the building's lot.
+  vec3 local = vec3(vertex_position.x * aShape.x, mix(-3.0, height, vertex_position.y),
+    vertex_position.z * aShape.y);
+  float roof = aShape.z;
+  vAlbedo = vertex_position.w > 2.5 ? (roof < 0.5 ? TILE : roof < 1.5 ? PALE : SLATE)
+    : RENDER * aShape.w;
   vec3 world = base + uSunward * local.x + up * local.y + across * local.z;
   vWorld = world;
-  vNormal = uSunward * normal.x + up * normal.y + across * normal.z;
+  vNormal = uSunward * vertex_normal.x + up * vertex_normal.y + across * vertex_normal.z;
+  gl_Position = matrix_viewProjection * vec4(world, 1.0);
+}
+`;
+
+// Trees, instanced in the course valley as billboards of baked species
+// that turn about their own up to face the camera: per instance, (axial,
+// across, height, seed) and (billboard side, species, unused, shade).
+const TREE_VS = /* glsl */ `
+attribute vec4 vertex_position;
+attribute vec4 aPlace;
+attribute vec4 aShape;
+uniform mat4 matrix_viewProjection;
+uniform vec3 view_position;
+// The valley's centre azimuth and land seed.
+uniform vec2 uValley;
+varying vec3 vWorld;
+varying vec4 vUv;
+varying float vBlend;
+varying vec3 vRight;
+varying vec3 vUp;
+varying vec3 vFacing;
+varying vec2 vTree;
+${CYLINDER_GLSL}
+${HABITAT_PATTERN_GLSL}
+${HABITAT_LAND_GLSL}
+${COURSE_GLSL}
+const float VIEWS = ${glslFloat(TREE_VIEWS)};
+const float SPECIES = ${glslFloat(TREE_SPECIES.length)};
+const float CONIFER = ${glslFloat(CONIFER_SPECIES)};
+const float FOOT = ${glslFloat(TREE_FOOT)};
+
+void main(void) {
+  vec2 q = aPlace.xy;
+  float azimuth = uValley.x + degrees(q.y / RADIUS);
+  vec3 outward = outwardAt(azimuth);
+  vec3 up = -outward;
+  vec3 across = cross(up, uSunward);
+  float ground = hillHeight(q, uValley.y, hillKeep(fromClearing(q.x, azimuth)));
+  vec3 base = uAxisMid + uSunward * q.x + outward * (RADIUS - ground);
+  vec3 toEye = view_position - base;
+  vec3 level = toEye - up * dot(toEye, up);
+  vec3 facing = dot(level, level) > 1e-6 ? normalize(level) : across;
+  vec3 right = cross(up, facing);
+  // The baked view is a square a little wider than the tree's span; the
+  // billboard keeps only the tree's height of it, sunk half a metre so the
+  // trunk meets sloping ground.
+  float height = aPlace.z;
+  float side = aShape.x;
+  float tall = min(side, 1.04 * height);
+  vec3 world = base + right * (vertex_position.x * 0.5 * side)
+    + up * (vertex_position.y * tall - 0.5);
+  // The direction to the camera in the tree's own frame, turned by its
+  // seed, picks the two nearest of its baked views.
+  float yaw = aPlace.w * 6.2831853;
+  vec3 front = cos(yaw) * uSunward + sin(yaw) * across;
+  float view = mod(atan(dot(facing, cross(up, front)), dot(facing, front)) / 6.2831853 * VIEWS, VIEWS);
+  float first = floor(view);
+  vBlend = view - first;
+  // Atlas rows run down the image, species by species, each tree's foot
+  // raised above the bottom of its cell.
+  vec2 inCell = vec2(0.5 + 0.5 * vertex_position.x,
+    1.0 - FOOT - vertex_position.y * tall / side);
+  float row = aShape.y;
+  vUv = vec4(
+    (vec2(first, row) + inCell) / vec2(VIEWS, SPECIES),
+    (vec2(mod(first + 1.0, VIEWS), row) + inCell) / vec2(VIEWS, SPECIES)
+  );
+  vRight = right;
   vUp = up;
+  vFacing = facing;
+  // x: the crown's shade on its leaves, with firs, which bake pale,
+  // darkened toward the woods' needles. y: how high up the tree, for the
+  // light deep in a crown.
+  vTree = vec2(${glslFloat(TREE_CROWN_SHADE)} * aShape.w * (abs(row - CONIFER) < 0.5 ? 0.7 : 1.0),
+    min(vertex_position.y * tall / height, 1.0));
+  vWorld = world;
   gl_Position = matrix_viewProjection * vec4(world, 1.0);
 }
 `;
@@ -450,33 +480,41 @@ void main(void) {
 const INSTANCED_PS = /* glsl */ `
 varying vec3 vNormal;
 varying vec3 vAlbedo;
-varying float vShade;
-varying vec4 vLeaf;
+
+void main(void) {
+  vec3 normal = normalize(vNormal);
+  float pixel = max(length(fwidth(vWorld)), 0.25);
+  vec3 color = vAlbedo * (uSunColor * sunlit(vWorld, normal, pixel) + uFill);
+  gl_FragColor = finish(throughAir(color, vWorld - view_position));
+}
+`;
+
+const TREE_PS = /* glsl */ `
+// Colour, and the shape: view-space normal x and y, and leaf coverage.
+uniform sampler2D uTreeColour;
+uniform sampler2D uTreeShape;
+varying vec4 vUv;
+varying float vBlend;
+varying vec3 vRight;
 varying vec3 vUp;
+varying vec3 vFacing;
+varying vec2 vTree;
 // Leaves pass on some of the sunlight on the far side of a crown.
 const float LEAF_TRANSMISSION = 0.2;
 
 void main(void) {
-  vec3 normal = normalize(vNormal);
-  vec3 albedo = vAlbedo;
   float pixel = max(length(fwidth(vWorld)), 0.25);
-  float leaves = 0.0;
-  if (vLeaf.w > 0.5) {
-    // Clumps of leaves, bumping the crown's surface; both fade to their mean
-    // once smaller than a pixel.
-    float detail = 1.0 - smoothstep(0.4, 1.5, pixel);
-    vec3 a = valueNoiseGradient(vLeaf.xy / 2.2);
-    vec3 b = valueNoiseGradient(vLeaf.zy / 2.2 + 7.0);
-    float clumps = 0.5 * (a.x + b.x);
-    vec3 across = cross(vUp, uSunward);
-    vec3 bump = uSunward * a.y + vUp * (a.z + b.z) + across * b.y;
-    normal = normalize(normal - 0.7 * detail * (bump - dot(bump, normal) * normal));
-    albedo *= mix(1.0, 0.5 + clumps, detail);
-    leaves = 1.0;
-  }
-  float sun = sunlit(vWorld, normal, pixel);
-  sun += leaves * LEAF_TRANSMISSION * sunlit(vWorld, -normal, pixel);
-  vec3 color = albedo * (uSunColor * sun + uFill * vShade);
+  vec3 shape = mix(texture2D(uTreeShape, vUv.xy).rgb, texture2D(uTreeShape, vUv.zw).rgb, vBlend);
+  if (shape.b < 0.35) discard;
+  // The baked normals all face the camera.
+  vec2 n = shape.rg * 2.0 - 1.0;
+  vec3 normal = normalize(vRight * n.x + vUp * n.y
+    + vFacing * sqrt(max(1.0 - dot(n, n), 0.0)));
+  vec3 albedo = mix(texture2D(uTreeColour, vUv.xy).rgb, texture2D(uTreeColour, vUv.zw).rgb, vBlend);
+  float sun = sunlit(vWorld, normal, pixel)
+    + LEAF_TRANSMISSION * sunlit(vWorld, -normal, pixel);
+  // The habitat's fill reaches less of a crown's lower, inner leaves.
+  vec3 color = albedo * vTree.x * (uSunColor * sun + uFill * (0.5 + 0.5 * vTree.y));
   gl_FragColor = finish(throughAir(color, vWorld - view_position));
 }
 `;
@@ -707,8 +745,11 @@ export function createEnclosureView(
       },
     },
   );
+  const treeMaterial = createMaterial("tree", TREE_VS, TREE_PS, constants, {
+    attributes: { aPlace: pc.SEMANTIC_ATTR12, aShape: pc.SEMANTIC_ATTR13 },
+  });
   glassMaterial.depthWrite = false;
-  const materials = [shellMaterial, glassMaterial, frameMaterial, instancedMaterial];
+  const materials = [shellMaterial, glassMaterial, frameMaterial, instancedMaterial, treeMaterial];
 
   const sun = frame.sunDirection();
   const { color, intensity } = frame.definition.sunlight;
@@ -744,6 +785,7 @@ export function createEnclosureView(
     material.setParameter("uClearing", [axial, azimuth]);
   });
   instancedMaterial.setParameter("uValley", [courseValleyCentre, courseSeed]);
+  treeMaterial.setParameter("uValley", [courseValleyCentre, courseSeed]);
 
   const layer = new pc.Layer({
     name: "Island Three",
@@ -778,40 +820,68 @@ export function createEnclosureView(
 
   // The structures, trees, and buildings take tens of milliseconds to lay
   // out, so they join after the first frame, usually behind the loading
-  // screen.
+  // screen. Trees wait for their atlases too.
   const valleyHalfWidth = (stripWidth / 2) * toRadians * radius;
   const instanceBuffers: pc.VertexBuffer[] = [];
+  const textures: pc.Texture[] = [];
   const detail = new pc.Entity("island-three-detail");
+  const forest = new pc.Entity("island-three-trees");
+  let disposed = false;
+  const instancedOf = (data: Float32Array, mesh: pc.Mesh, material: pc.Material, drawOrder: number) => {
+    const instance = instanceOf(mesh, material, drawOrder);
+    const buffer = createInstanceBuffer(device, data);
+    instanceBuffers.push(buffer);
+    instance.setInstancing(buffer);
+    return instance;
+  };
+  const addTrees = (images: TreeImages) => {
+    const trees = createTreeInstances(clearing, courseSeed, valleyHalfWidth);
+    if (trees.length === 0) return;
+    const [colour, shape] = (["colour", "shape"] as const).map((name) => {
+      const texture = new pc.Texture(device, {
+        addressU: pc.ADDRESS_CLAMP_TO_EDGE,
+        addressV: pc.ADDRESS_CLAMP_TO_EDGE,
+        anisotropy: 1,
+        format: name === "colour" ? pc.PIXELFORMAT_SRGBA8 : pc.PIXELFORMAT_RGBA8,
+        magFilter: pc.FILTER_LINEAR,
+        minFilter: pc.FILTER_LINEAR_MIPMAP_LINEAR,
+        mipmaps: true,
+        name: `island-three-tree-${name}`,
+      });
+      texture.setSource(images[name]);
+      textures.push(texture);
+      return texture;
+    });
+    treeMaterial.setParameter("uTreeColour", colour!);
+    treeMaterial.setParameter("uTreeShape", shape!);
+    forest.addComponent("render", {
+      castShadows: false,
+      layers: [layer.id],
+      meshInstances: [instancedOf(trees, createBillboardMesh(device), treeMaterial, 1)],
+      receiveShadows: false,
+    });
+    app.root.addChild(forest);
+  };
   const addDetail = () => {
     addStructures(frames, frame);
     const framesOnly = frameInstance.mesh;
     frameInstance.mesh = frames.build(device);
     meshes.splice(meshes.indexOf(framesOnly), 1, frameInstance.mesh);
     framesOnly.destroy();
-    const trees = createTreeInstances(clearing, courseSeed, valleyHalfWidth);
-    const instanced = [
-      {
-        data: trees.near,
-        mesh: () => createTreeMesh(device, NEAR_TREE.sides, NEAR_TREE.rings, NEAR_TREE.trunkSides),
-      },
-      { data: trees.far, mesh: () => createTreeMesh(device, FAR_TREE.sides, FAR_TREE.rings) },
-      { data: createBuildingInstances(clearing, courseSeed, halfLength), mesh: () => createBoxMesh(device) },
-    ];
+    const buildings = createBuildingInstances(clearing, courseSeed, halfLength);
     detail.addComponent("render", {
       castShadows: false,
       layers: [layer.id],
-      meshInstances: instanced
-        .filter(({ data }) => data.length > 0)
-        .map(({ data, mesh }, index) => {
-          const instance = instanceOf(mesh(), instancedMaterial, 1 + index);
-          const buffer = createInstanceBuffer(device, data);
-          instanceBuffers.push(buffer);
-          instance.setInstancing(buffer);
-          return instance;
-        }),
+      meshInstances:
+        buildings.length > 0
+          ? [instancedOf(buildings, createBoxMesh(device), instancedMaterial, 2)]
+          : [],
       receiveShadows: false,
     });
     app.root.addChild(detail);
+    void loadTreeImages().then((images) => {
+      if (images && !disposed) addTrees(images);
+    });
   };
   app.once("postrender", addDetail);
 
@@ -836,14 +906,17 @@ export function createEnclosureView(
 
   return () => {
     app.off("prerender", followFov);
+    disposed = true;
     app.off("postrender", addDetail);
     raceView.clearColorBuffer = true;
     view.destroy();
     detail.destroy();
+    forest.destroy();
     entity.destroy();
     app.scene?.layers.remove(layer);
     meshes.forEach((mesh) => mesh.destroy());
     instanceBuffers.forEach((buffer) => buffer.destroy());
+    textures.forEach((texture) => texture.destroy());
     materials.forEach((material) => material.destroy());
   };
 }
