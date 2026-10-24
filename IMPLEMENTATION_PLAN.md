@@ -292,18 +292,29 @@ Phase decisions:
       Manual righting now clears the hull through the whole roll. After
       merge, re-save and republish the three official karts in production
       (Load official design, Save, Publish).
-- [ ] 4.3.3: Course loading screen showing Island Three from outside in
-      space, held for a short minimum. Debrief whether Saturn appears and
-      whether the home screen shares the backdrop. Also fix the `home.spec`
-      test "recovers at the latest supported checkpoint and pauses
-      stabilization", which fails on `main` (found in PR 4.3.2): the race is
-      already racing when the test expects the countdown.
-- [ ] 4.3.4: Distant structures: a few large landmark structures and
-      clusters of buildings across the valleys, so the enclosure reads with
-      height rather than as flat ground. Code-built and within the phone
-      budget. Consider a waterfall off an end-cap terrace whose falling water
-      bends anti-spinward with Coriolis, as the spin demands: about 40 m of
-      drift over a 200 m drop (feature lead idea from PR 4.3.2).
+- [x] 4.3.3: Course loading screen showing Island Three from outside in
+      space, held for a short minimum. Shipped as a ray-traced view of the
+      habitat spinning at its true rate, with Saturn and its rings behind:
+      Island Three orbits Saturn with Titan. The race builds behind it, and
+      the screen holds for at least 2.5 s before fading into the countdown.
+      The home screen keeps its own backdrop for now. The `home.spec`
+      recovery test now pauses the race as it becomes ready, before it can
+      start racing.
+- [ ] 4.3.4: Valleys and distant structures. Start with a short research
+      note on what O'Neill and later studies put inside Island Three. Then
+      rename the official course, which stays in its valley: in O'Neill's
+      design the valleys are for living, and crops grow in separate
+      agricultural modules, so "Agricultural Zone" misnames it. Decide the
+      new name and whether the `agricultural-zone` ID follows it (that needs
+      a migration for the telemetry check and a production data step); PR
+      4.4 and the phase titles follow the rename. Then, guided by the note,
+      turn the valleys from farmland as far as the eye can see into
+      villages, parkland, and woods, with a few large landmark structures
+      and clusters of buildings, so the enclosure reads with height rather
+      than as flat ground. Code-built and within the phone budget. Consider
+      a waterfall off an end-cap terrace whose falling water bends
+      anti-spinward with Coriolis, as the spin demands: about 40 m of drift
+      over a 200 m drop (feature lead idea from PR 4.3.2).
 - [ ] 4.3.5: Dusk and night: the haze and habitat light dim as the mirrors
       close, as O'Neill's habitat makes night. Then course lamps (up to four
       point or spot lights with visible full-size masts, seeded on the

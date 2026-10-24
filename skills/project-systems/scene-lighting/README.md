@@ -54,9 +54,16 @@ phone budget. Art direction and the budget itself live in
   camera on its own layer, before the course, in three draws. Farmland,
   mirrors, the sun's image, and haze are computed per pixel, with no
   textures.
+- `src/game/enclosure/exterior-view.ts` draws Island Three from space for
+  the course loading screen (`src/components/course-loading-screen.tsx`):
+  raw WebGL2 on its own canvas, one full-screen shader that traces the hull,
+  mirrors, and Saturn and repeats the scene look's Neutral tone mapping and
+  exposure. `src/game/enclosure/habitat-glsl.ts` holds the land, cap, and
+  mirror-light GLSL it shares with the enclosure view.
 - `src/game/runtime/frame-budget.ts` and
   `src/components/frame-budget-overlay.tsx` sample rendered frames through
-  `PlayCanvasRuntime.onFrameSample` and show the budget readout.
+  `PlayCanvasRuntime.onFrameSample` and show the budget readout, with the
+  loading screen's cover, race-ready, and reveal times from the tap.
 
 Callers: the race (`src/components/solo-time-trial-canvas.tsx`), the kart and
 course editor scenes in `src/game/editor/`, and
@@ -72,8 +79,15 @@ course editor scenes in `src/game/editor/`, and
   `gammaPS` and `tonemappingPS` chunks (`gammaCorrectOutput`, `toneMap`);
   re-verify them, like the chunk overrides below, on any engine upgrade.
 - Playwright's server sets `NEXT_PUBLIC_TEST_WITHOUT_ENCLOSURE=1`, because
-  CPU-rendered WebGL draws the enclosure at a few frames per second; tests
-  that need it load the race with `?enclosure`. Production always draws it.
+  CPU-rendered WebGL draws the enclosure at a few frames per second; it also
+  skips the loading screen (`drawsEnclosure`). Tests that need either load
+  the race with `?enclosure`. Production always draws both.
+- The loading screen's view uses its own WebGL context, created per screen
+  and lost on dispose, so the race's context is unaffected. Its tone mapping
+  copies `toneMap` by hand: re-verify it against the engine's Neutral chunk,
+  and keep `EXPOSURE` shared, on any engine or look change. If its shader
+  fails or its context is lost, the screen falls back to plain near-black
+  and the race still loads.
 - The environment atlas replaces the scene's flat ambient light, so
   `scene.ambientLight` has no visible effect.
 - The environment never renders as a skybox: `applySceneLook` removes the
