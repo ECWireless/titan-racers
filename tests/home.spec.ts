@@ -414,6 +414,28 @@ async function setSimulationPaused(canvas: Locator, paused: boolean) {
   }, paused);
 }
 
+// Pauses the race from inside the page the moment its scene reports ready,
+// before its first frame. Slow software-WebGL frames otherwise let the
+// countdown run out before a test's own pause request arrives.
+async function pauseSimulationWhenSceneReady(page: Page) {
+  await page.evaluate(() => {
+    const observer = new MutationObserver(() => {
+      const canvas = document.querySelector(
+        "[data-testid='solo-time-trial-canvas'][data-scene-ready='true']",
+      );
+      if (!canvas) return;
+      observer.disconnect();
+      canvas.dispatchEvent(
+        new CustomEvent("setSimulationPaused", { detail: { paused: true } }),
+      );
+    });
+    observer.observe(document.body, {
+      attributeFilter: ["data-scene-ready"],
+      subtree: true,
+    });
+  });
+}
+
 async function resetKart(canvas: Locator) {
   await waitForSceneReady(canvas);
   await canvas.evaluate((element) => {
@@ -1457,17 +1479,17 @@ test.describe("home screen", () => {
   }, testInfo) => {
     // Software WebGL renders every stepped frame on the CPU; see the two-lap
     // lifecycle test.
-    testInfo.setTimeout(90_000);
+    testInfo.setTimeout(120_000);
     test.skip(
       testInfo.project.name !== "desktop",
       "Race recovery integration only needs to run once.",
     );
 
     await page.goto("/?sandbox-course");
+    await pauseSimulationWhenSceneReady(page);
     await page.getByRole("button", { name: "Solo Time Trial" }).click();
     const canvas = page.getByTestId("solo-time-trial-canvas");
 
-    await setSimulationPaused(canvas, true);
     expect(await getRaceDebugState(canvas)).toMatchObject({
       state: "countdown",
     });
