@@ -56,9 +56,26 @@ own:
   meadows, woods, single park trees and footpaths, a river with lakes, a
   valley road, and towns, villages, and hamlets of houses in gardens. No
   settlement reaches Falls View Park, the sunward 6 km of the valley at
-  azimuth 120°. Each course sits in a mown clearing.
-- End caps are flat, ribbed plating, with valley land terracing up their
-  foot, some terraces lined with housing.
+  azimuth 120°, whose lake lies below the sunward terraces.
+- The valleys roll in hills up to about 65 m, kept gentle as
+  [habitat land use](../skills/game-concepts/habitat-land-use/README.md)
+  explains. Hills settle flat toward water, the windows, and the terraces,
+  under settlements, and within 700 m of the falls lake's shore, where the
+  bridge stands. Every valley is shaded by them; the course's own valley
+  also rises in geometry, so hills show in silhouette where the view grazes.
+- Each course sits in a flat, mown clearing of 220 m radius, ringed
+  by clumps of real trees that open toward the sunward cap. Within 750 m of
+  the course the woods and park trees are real trees, 10–24 m tall; beyond,
+  the woods' canopy rises 12 m as relief. In the course's valley, the town
+  and village centres stand as blocks of three to five storeys.
+- End caps are ribbed plating. In each valley's sector, eight terraces climb
+  from the floor to 0.7 R, reaching 800 m into the valley: each a 150 m step
+  of retaining wall, planted slope, and level shelf, some shelves lined with
+  terraced housing. An elevator line climbs each sector, up the terraces'
+  faces and then the cap, to a hub at the axis where the docks are.
+- The falls bridge, a suspension bridge after Don Davis's 1975 end-cap
+  painting, crosses the Falls View Park lake: an 800 m main span, towers
+  120 m high, and a deck that follows the floor's curve.
 - The air hazes distance: clean-air scattering at half pressure plus
   moisture and dust, together giving 55 km visibility (the distance at which
   contrast falls to 2%), with the haze glowing at 40% of the sunlight. The
@@ -67,8 +84,9 @@ own:
 - The sun's image is traced through the mirrors, so it shows only where a
   32 km mirror can reflect it to the viewer. The twin cylinder is not drawn.
 - The enclosure lights the course too. Besides the sun, a race's diffuse
-  light is what the course sees around it: sunlit and shaded floors, caps,
-  windows showing the mirrors and black space, and the haze
+  light is what the course sees around it: sunlit and shaded floors, caps
+  and their terraces, windows showing the mirrors and black space, the haze,
+  and the trees ringing its clearing
   (`src/game/enclosure/habitat-light.ts`). It is far dimmer than daylight on
   Earth, so sunlit and shaded ground differ strongly. The enclosure's
   surfaces take the same fill light.
@@ -105,7 +123,7 @@ flat local ground with four values:
 
 | Field | Meaning |
 | --- | --- |
-| `axial` | Metres along the axis from the midpoint, positive toward the sunward end cap. Courses stay 500 m clear of the caps. |
+| `axial` | Metres along the axis from the midpoint, positive toward the sunward end cap. Courses stay 1200 m clear of the caps, beyond their terraces. |
 | `azimuth` | Degrees around the axis, increasing spinward. Valley *k* is centred at 120 *k*°, and courses stay 1.5° clear of the windows. |
 | `heading` | Yaw in degrees from the course's −Z to the sunward axis. |
 | `height` | Metres above the floor, at least 100 m clear of the axis. Floor courses use 0. |

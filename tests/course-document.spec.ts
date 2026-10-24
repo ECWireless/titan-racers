@@ -185,7 +185,7 @@ test("rejects enclosures and placements outside the approved habitat", () => {
       ["enclosure", "placement", "azimuth"],
     ],
     [
-      (document) => (document.enclosure.placement.axial = -15_600),
+      (document) => (document.enclosure.placement.axial = -14_900),
       ["enclosure", "placement", "axial"],
     ],
     [

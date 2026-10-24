@@ -2,6 +2,7 @@ import {
   createDirectionalEnvironmentAtlasPixels,
   type LinearColor,
 } from "../render/habitat-environment-atlas";
+import { BELT, CLEARING_RADIUS, HUB_RADIUS } from "./habitat-land";
 import {
   add,
   type CourseEnclosure,
@@ -38,8 +39,12 @@ export const AIR_GLOW = 0.4;
 // Air in the mirror's beam glows brighter toward the sun's image.
 const SUN_GLOW = 1.2;
 const SUN_GLOW_POWER = 32;
-/** The mown clearing around the course, metres. */
-export const CLEARING_RADIUS = 220;
+// The belt of trees around the clearing fills the horizon to about this
+// height, at its middle depth, with gaps between clumps and toward the
+// sunward cap.
+const BELT_HEIGHT = 16;
+const BELT_DISTANCE = CLEARING_RADIUS + BELT.inset + BELT.depth / 2;
+const BELT_COVER = 0.45;
 
 // Mean albedos of the enclosure view's surfaces.
 const LAND = { b: 0.042, g: 0.093, r: 0.076 };
@@ -47,7 +52,7 @@ const LAWN = { b: 0.071, g: 0.127, r: 0.093 };
 const PLATING = { b: 0.105, g: 0.11, r: 0.11 };
 const TERRACES = { b: 0.031, g: 0.069, r: 0.05 };
 const STEEL = { b: 0.068, g: 0.05, r: 0.034 };
-const HUB_RADIUS = 260;
+const LEAVES = { b: 0.026, g: 0.06, r: 0.036 };
 // Dusty mirror film scatters this much of the sunlight; the glass passes 90%.
 const MIRROR_SCATTER = 0.18;
 const MIRROR_BACK = 0.01;
@@ -169,7 +174,7 @@ function createHabitatLight(enclosure: CourseEnclosure): HabitatLight {
       const albedo =
         capRadius < HUB_RADIUS
           ? STEEL
-          : Math.abs(offset) < spacing / 4 && capRadius < 0.7 * radius
+          : Math.abs(offset) < spacing / 4 && capRadius > 0.7 * radius
             ? TERRACES
             : PLATING;
       const normal = scaled(frame.sunward, -Math.sign(axial));
@@ -194,11 +199,21 @@ function createHabitatLight(enclosure: CourseEnclosure): HabitatLight {
       const transmit = Math.exp(-extinction[c]! * distance);
       return value * transmit + air * glow * (1 - transmit);
     };
-    return {
+    const seen = {
       b: channel(color.b, sunColor.b, 2),
       g: channel(color.g, sunColor.g, 1),
       r: channel(color.r, sunColor.r, 0),
     };
+    // Low on the horizon, the belt of trees around the clearing stands in
+    // front of the rest, close enough to be clear of haze.
+    const level = Math.hypot(direction.x, direction.z);
+    if (direction.y < 0 || direction.y * BELT_DISTANCE > BELT_HEIGHT * level) {
+      return seen;
+    }
+    const facing = { x: -direction.x / level, y: 0, z: -direction.z / level };
+    const trees = surfaceLight(LEAVES, scaled(facing, -BELT_DISTANCE), facing, fill);
+    const mix = (a: number, b: number) => a + (b - a) * BELT_COVER;
+    return { b: mix(seen.b, trees.b), g: mix(seen.g, trees.g), r: mix(seen.r, trees.r) };
   };
 
   // The fill on the enclosure's floors is its own light, so it converges in

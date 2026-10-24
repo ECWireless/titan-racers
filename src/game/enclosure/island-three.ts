@@ -49,7 +49,7 @@ export const ISLAND_THREE_ENCLOSURE = {
 };
 
 // Courses keep clear of the end caps and window edges by these margins.
-const END_CAP_MARGIN = 500;
+const END_CAP_MARGIN = 1_200;
 const WINDOW_EDGE_MARGIN_DEGREES = 1.5;
 const AXIS_MARGIN = 100;
 
@@ -138,6 +138,18 @@ export function dot(a: Vector3, b: Vector3) {
 
 export function scaled(vector: Vector3, scale: number): Vector3 {
   return { x: vector.x * scale, y: vector.y * scale, z: vector.z * scale };
+}
+
+export function normalize(vector: Vector3): Vector3 {
+  return scaled(vector, 1 / Math.hypot(vector.x, vector.y, vector.z));
+}
+
+export function cross(a: Vector3, b: Vector3): Vector3 {
+  return {
+    x: a.y * b.z - a.z * b.y,
+    y: a.z * b.x - a.x * b.z,
+    z: a.x * b.y - a.y * b.x,
+  };
 }
 
 const toRadians = (degrees: number) => (degrees * Math.PI) / 180;

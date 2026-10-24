@@ -299,7 +299,7 @@ Phase decisions:
       The home screen keeps its own backdrop for now. The `home.spec`
       recovery test now pauses the race as it becomes ready, before it can
       start racing.
-- [ ] 4.3.4: Valleys and distant structures, in four commits.
+- [ ] 4.3.4: Valleys and distant structures, in six commits.
       1. A research note (`skills/game-concepts/habitat-land-use/`) on what
          O'Neill and later studies put inside Island Three: the valleys are
          for living, with parkland, villages, and low-rise towns, while crops
@@ -322,10 +322,18 @@ Phase decisions:
       3. The valley land follows the note: parkland, woods, meadows, water,
          villages, and denser town centres instead of farmland, and the
          enclosure where the note asks for it.
-      4. Code-built distant structures that give the enclosure height:
-         building clusters, a few landmarks, and a waterfall off an end-cap
-         terrace whose 400 m drop bends about 130 m anti-spinward with
-         Coriolis, as the spin demands (feature lead idea from PR 4.3.2).
+      4. Code-built distant 3D structures that give the enclosure height:
+         rolling hills of tens of metres, real trees around the course's
+         clearing and in the nearby woods, building clusters in the town
+         centres, the end caps' terraces with elevator lines to the axis
+         hub and docks, and one landmark, a suspension bridge across the
+         Falls View Park lake after Don Davis's painting.
+      5. Realistic trees: billboards baked from CC0 Poly Haven tree scans,
+         drawn at the angle the camera sees them and lit and hazed like the
+         habitat, replacing the code-built trees.
+      6. A waterfall that drops 400 m off a sunward terrace and bends about
+         130 m anti-spinward with Coriolis, as the spin demands (feature
+         lead idea from PR 4.3.2).
       Everything stays within the phone budget, checked with `?perf=1` on
       iPhone.
 - [ ] 4.3.5: Dusk and night: the haze and habitat light dim as the mirrors
@@ -354,6 +362,9 @@ Route beats:
       and catwalks that make the karts feel tiny.
 - [ ] A jump that shows the spin's effect on a flying kart.
 - [ ] Habitat vistas that show the cylinder's curvature.
+- [ ] Floor markings' slope depth bias lets edge lines show through a
+      ramp's thin toe from low, distant views (seen in PR 4.3.4 QA). Fix it
+      with the route's ramps.
 
 **PR 4.5: Ambience and SFX**
 

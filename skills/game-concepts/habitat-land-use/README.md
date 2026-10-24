@@ -24,8 +24,9 @@ The valleys are where people live. Crops and heavy industry live elsewhere:
   cylinder, by the docks on the axis. Valleys keep light service
   infrastructure: maintenance yards, utility lanes, pumping and air plant.
 - **The land is a landscape,** not a grid: rivers, lakes, woods, meadows, and
-  hills, with houses scattered through it. The end cap at each end rises in
-  terraces toward the axis.
+  hills, with houses scattered through it. Hills stay gentle, tens of
+  metres: soil loads the hull, and gravity weakens toward the axis. The end
+  cap at each end rises in terraces toward the axis.
 - **People live in villages and small towns at low height.** Homes are one or
   two storeys, with clusters up to four or five storeys, often terraced, and
   parks beside the denser neighbourhoods. The design goal is "a city which

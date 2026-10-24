@@ -51,9 +51,18 @@ phone budget. Art direction and the budget itself live in
   freeze while the race is paused.
 - `src/game/enclosure/enclosure-view.ts` draws the race's
   [Island Three](../../../docs/island-three.md) enclosure from a second
-  camera on its own layer, before the course, in three draws. Valley land,
-  mirrors, the sun's image, and haze are computed per pixel, with no
-  textures.
+  camera on its own layer, before the course, in six draws: frames and
+  structures, near and far trees, buildings, the shell with the course
+  valley's relief, and the glass. Valley land, relief shading, mirrors, the
+  sun's image, and haze are computed per pixel, with no textures; the
+  relief's height comes from the same GLSL in the vertex shaders.
+- `src/game/enclosure/enclosure-structures.ts` builds the end caps'
+  terraces, elevators, and hubs, and the falls bridge into the frames' mesh,
+  and the instanced trees and buildings, placed by
+  `src/game/enclosure/habitat-land.ts`, a CPU mirror of the land GLSL.
+  They are laid out after the race's first frame, usually behind the
+  loading screen; the kart editor's test drive has none, and a slow load can
+  show the hitch during its fade.
 - `src/game/enclosure/exterior-view.ts` draws Island Three from space for
   the course loading screen (`src/components/course-loading-screen.tsx`):
   raw WebGL2 on its own canvas, one full-screen shader that traces the hull,
@@ -73,11 +82,15 @@ course editor scenes in `src/game/editor/`, and
 
 - All four applications call `applySceneLook` and release it before
   `app.destroy()`.
-- The enclosure's shell (floors, caps, and glass) is convex around the
-  camera, so it draws without depth and cannot z-fight the course; only its
-  frames depth-test, against each other. Its shaders include the engine's
-  `gammaPS` and `tonemappingPS` chunks (`gammaCorrectOutput`, `toneMap`);
-  re-verify them, like the chunk overrides below, on any engine upgrade.
+- The enclosure keeps its own depth range, cleared before the course
+  draws, so it never z-fights the course. Within it, everything inside the
+  shell depth-tests normally: frames, structures, trees, buildings, and the
+  course valley's relief. The rest of the shell (the other floors, the caps,
+  and the glass) is convex around the camera, so it pins its depth to the
+  far plane and draws last, behind everything inside it. Its shaders include
+  the engine's `gammaPS` and `tonemappingPS` chunks (`gammaCorrectOutput`,
+  `toneMap`); re-verify them, like the chunk overrides below, on any engine
+  upgrade.
 - Playwright's server sets `NEXT_PUBLIC_TEST_WITHOUT_ENCLOSURE=1`, because
   CPU-rendered WebGL draws the enclosure at a few frames per second; it also
   skips the loading screen (`drawsEnclosure`). Tests that need either load
@@ -137,7 +150,9 @@ course editor scenes in `src/game/editor/`, and
 ## Known Limits
 
 - The habitat light uses the enclosure's mean surface colours, not its
-  detail, and ignores the course's own geometry.
+  detail: its terraces lie flat on the caps, its hills are left out, and the
+  trees around the clearing are a band of mean cover. It ignores the
+  course's own geometry.
 - Both atlas builders blur reflections with cos^power lobes, about half as
   wide as the engine's own GGX prefilter, and leave power 128 sharp, so
   mid-gloss finishes reflect a little sharply. Matching the engine would

@@ -1,4 +1,20 @@
+import {
+  CANOPY_HEIGHT,
+  FALLS_LAKE,
+  HILL_HEIGHT,
+  HUB_RADIUS,
+  PARK,
+  ROOF_ALBEDOS,
+  TERRACE_REACH,
+} from "./habitat-land";
 import { SUN_ANGULAR_RADIUS } from "./island-three";
+
+/** A number as a GLSL float literal. */
+export const glslFloat = (value: number) =>
+  Number.isInteger(value) ? value.toFixed(1) : `${value}`;
+
+export const glslVec3 = (value: readonly number[]) =>
+  `vec3(${value.map(glslFloat).join(", ")})`;
 
 // GLSL shared by the enclosure view from inside and the exterior view on the
 // loading screen, so both draw the same habitat. Lengths are metres.
@@ -27,6 +43,34 @@ float valueNoise(vec2 p) {
   );
 }
 
+// Value noise and its gradient per unit of p.
+vec3 valueNoiseGradient(vec2 p) {
+  vec2 cell = floor(p);
+  vec2 f = fract(p);
+  vec2 u = f * f * (3.0 - 2.0 * f);
+  vec2 du = 6.0 * f * (1.0 - f);
+  float a = hash(cell);
+  float b = hash(cell + vec2(1.0, 0.0));
+  float c = hash(cell + vec2(0.0, 1.0));
+  float d = hash(cell + vec2(1.0));
+  float k = a - b - c + d;
+  return vec3(
+    a + (b - a) * u.x + (c - a) * u.y + k * u.x * u.y,
+    du * vec2(b - a + k * u.y, c - a + k * u.x)
+  );
+}
+
+// smoothstep(edge0, edge1, x), and its derivative along x.
+vec2 ramp(float edge0, float edge1, float x) {
+  float t = clamp((x - edge0) / (edge1 - edge0), 0.0, 1.0);
+  return vec2(t * t * (3.0 - 2.0 * t), 6.0 * t * (1.0 - t) / (edge1 - edge0));
+}
+
+// The product of two (value, gradient) fields.
+vec3 times(vec3 a, vec3 b) {
+  return vec3(a.x * b.x, a.yz * b.x + a.x * b.yz);
+}
+
 // Box-filtered coverage of a band of half-width w around d = 0, for a pixel
 // footprint f, so thin lines fade to their average instead of shimmering.
 float band(float d, float w, float f) {
@@ -43,8 +87,9 @@ float lattice(float x, float w, float s, float f) {
 
 /**
  * Valley land and end caps: parkland, woods, water, villages, and towns, as
- * the habitat-land-use research note describes. Needs the pattern chunk and
- * the RADIUS and VALLEY_SPACING defines.
+ * the habitat-land-use research note describes, and the land's relief.
+ * Needs the pattern chunk and the RADIUS, HALF_LENGTH, and VALLEY_SPACING
+ * defines. habitat-land.ts mirrors the layout on the CPU.
  */
 export const HABITAT_LAND_GLSL = /* glsl */ `
 const vec3 FOREST = vec3(0.028, 0.042, 0.02);
@@ -57,30 +102,48 @@ const vec3 ROAD = vec3(0.17, 0.17, 0.16);
 const vec3 PAVING = vec3(0.2, 0.19, 0.17);
 const vec3 WATER = vec3(0.02, 0.04, 0.055);
 const vec3 SHORE = vec3(0.16, 0.15, 0.09);
-const vec3 TILE = vec3(0.3, 0.1, 0.05);
-const vec3 PALE = vec3(0.3, 0.29, 0.26);
-const vec3 SLATE = vec3(0.07, 0.075, 0.085);
+const vec3 TILE = ${glslVec3(ROOF_ALBEDOS[0])};
+const vec3 PALE = ${glslVec3(ROOF_ALBEDOS[1])};
+const vec3 SLATE = ${glslVec3(ROOF_ALBEDOS[2])};
 const vec3 ROOF_MEAN = vec3(0.24, 0.16, 0.13);
 const vec3 PLATING = vec3(0.1, 0.1, 0.095);
 const vec3 STEEL = vec3(0.034, 0.05, 0.068);
 
 // Falls View Park, the sunward end of valley 1 (azimuth 120°), stays rural:
-// no settlement reaches beyond this axial distance from the midpoint.
-const float PARK_SEED = 2.0;
-const float PARK_FROM = 10000.0;
+// no settlement reaches beyond this axial distance from the midpoint. Its
+// lake lies below the sunward terraces.
+const float PARK_SEED = ${glslFloat(PARK.seed)};
+const float PARK_FROM = ${glslFloat(PARK.from)};
+const vec2 FALLS_LAKE_CENTRE = vec2(${glslFloat(FALLS_LAKE.axial)}, ${glslFloat(FALLS_LAKE.across)});
+const vec2 FALLS_LAKE_RADII = vec2(${glslFloat(FALLS_LAKE.radii[0])}, ${glslFloat(FALLS_LAKE.radii[1])});
+const float FALLS_FLAT_BEYOND = ${glslFloat(FALLS_LAKE.flatBeyond)};
+
+// Rolling hills, as the habitat-land-use note sets out. Woods' canopy rises
+// as relief where no real trees stand. The end caps' terraces reach this far
+// into each valley.
+const float HILL_HEIGHT = ${glslFloat(HILL_HEIGHT)};
+const float CANOPY_HEIGHT = ${glslFloat(CANOPY_HEIGHT)};
+const float TERRACE_REACH = ${glslFloat(TERRACE_REACH)};
+const float HUB_RADIUS = ${glslFloat(HUB_RADIUS)};
+const float VALLEY_HALF_WIDTH = 0.25 * VALLEY_SPACING * 0.017453293 * RADIUS;
 
 // Distance across the valley of its river and of its road.
 float riverAcross(float axial, float seed) {
   return 600.0 * sin(axial / 2900.0 + seed) + 260.0 * sin(axial / 1100.0 + 2.0 * seed);
+}
+float riverSlope(float axial, float seed) {
+  return 600.0 / 2900.0 * cos(axial / 2900.0 + seed)
+    + 260.0 / 1100.0 * cos(axial / 1100.0 + 2.0 * seed);
 }
 float roadAcross(float axial, float seed) {
   return 500.0 * sin(axial / 4100.0 + 2.0 * seed) + 180.0 * sin(axial / 1300.0 + seed);
 }
 
 // The settlement, if any, in q's cell of a row along the valley, as
-// (distance from its edge, density at q): towns, villages, or hamlets. None
-// reach into Falls View Park. Ragged, from 0 to 1, roughens the edge.
-vec2 settlementIn(vec2 q, float spacing, float across, float jitter,
+// (distance from its edge, density at q, and the distance's gradient
+// ignoring the edge's roughness): towns, villages, or hamlets. None reach
+// into Falls View Park. Ragged, from 0 to 1, roughens the edge.
+vec4 settlementIn(vec2 q, float spacing, float across, float jitter,
     vec2 radii, float chance, float ragged, float valley, float seed) {
   float cell = floor(q.x / spacing);
   vec2 centre = vec2(
@@ -88,10 +151,29 @@ vec2 settlementIn(vec2 q, float spacing, float across, float jitter,
     across + (hash(vec2(seed, cell)) - 0.5) * jitter
   );
   if (abs(valley - PARK_SEED) < 0.5 && centre.x + 1.25 * radii.y > PARK_FROM) chance = 0.0;
-  float radius = mix(radii.x, radii.y, hash(vec2(cell, seed + 4.0)))
-    * step(hash(vec2(cell + 9.0, seed)), chance);
+  if (hash(vec2(cell + 9.0, seed)) > chance) return vec4(1e4, 0.0, 0.0, 0.0);
+  float radius = mix(radii.x, radii.y, hash(vec2(cell, seed + 4.0)));
   float r = length(q - centre);
-  return vec2(r - radius * (0.75 + 0.5 * ragged), 1.0 - r / max(radius, 1.0));
+  return vec4(r - radius * (0.75 + 0.5 * ragged), 1.0 - r / max(radius, 1.0),
+    (q - centre) / max(r, 1e-3));
+}
+
+// The nearer town or village: towns on the valley road and villages on the
+// river, but none in Falls View Park. As settlementIn.
+vec4 townAt(vec2 q, float seed, float ragged) {
+  vec4 town = settlementIn(q, 2600.0, roadAcross(q.x, seed), 300.0, vec2(300.0, 600.0), 0.8,
+    ragged, seed, seed);
+  float villageAxial = (floor((q.x + 1300.0) / 2600.0) + 0.5) * 2600.0 - 1300.0;
+  vec4 village = settlementIn(q + vec2(1300.0, 0.0), 2600.0, riverAcross(villageAxial, seed), 300.0,
+    vec2(150.0, 320.0), 0.75, ragged, seed, seed + 20.0);
+  return town.x < village.x ? town : village;
+}
+
+// The nearest settlement, counting hamlets anywhere, which have no density.
+vec4 placeAt(vec4 town, vec2 q, float seed, float ragged) {
+  vec4 hamlet = settlementIn(q, 400.0, floor(q.y / 400.0) * 400.0 + 200.0, 200.0,
+    vec2(30.0, 70.0), 0.12, ragged, seed, seed + floor(q.y / 400.0) * 3.0);
+  return hamlet.x < town.x ? vec4(hamlet.x, 0.0, hamlet.zw) : town;
 }
 
 // Houses on lots along lanes, crowding into a town centre as density rises.
@@ -130,17 +212,76 @@ vec3 settlement(vec2 q, vec2 f, float density, float seed) {
   return mix(color, mean, smoothstep(0.3 * lotSize, lotSize, pixel));
 }
 
-// Valley land: q is (axial, across) in metres, f its footprint.
-vec3 land(vec2 q, vec2 f, float seed) {
+// Distance outside an elliptical lake's shore (negative inside), and its
+// gradient ignoring the shore's wobble.
+vec3 lakeShore(vec2 q, vec2 centre, vec2 radii, float wobble) {
+  vec2 v = (q - centre) / radii;
+  float r = max(length(v), 1e-3);
+  return vec3((r - 1.0 + wobble) * radii.y, v / (r * radii) * radii.y);
+}
+
+// Lakes along the river, which meanders the valley's length, and the falls
+// lake in Falls View Park.
+vec3 lakeEdge(vec2 q, float seed) {
+  float lakeCell = floor(q.x / 3000.0);
+  float lakeAxial = (lakeCell + 0.3 + 0.4 * hash(vec2(lakeCell, seed + 2.0))) * 3000.0;
+  // Kept within the cell, as the centre stays 900 m from its ends.
+  vec2 lakeRadius = mix(vec2(350.0, 150.0), vec2(750.0, 400.0), hash(vec2(seed, lakeCell + 3.0)));
+  float wobble = 0.3 * (valueNoise(q / 140.0) - 0.5);
+  vec3 lake = hash(vec2(lakeCell, seed + 6.0)) < 0.5
+    ? lakeShore(q, vec2(lakeAxial, riverAcross(lakeAxial, seed)), lakeRadius, wobble)
+    : vec3(1e4, 0.0, 0.0);
+  if (abs(seed - PARK_SEED) < 0.5) {
+    vec3 falls = lakeShore(q, FALLS_LAKE_CENTRE, FALLS_LAKE_RADII, wobble);
+    if (falls.x < lake.x) lake = falls;
+  }
+  return lake;
+}
+
+// Distance from open water, and its gradient: the river or a lake.
+vec3 nearerWater(vec2 q, float seed, float river, float riverHalfWidth, vec3 lake) {
+  vec3 bank = vec3(abs(river) - riverHalfWidth, sign(river) * vec2(-riverSlope(q.x, seed), 1.0));
+  return lake.x < bank.x ? lake : bank;
+}
+
+// What the land's colour and relief share at q.
+struct Land {
+  vec3 wood;  // woodland index, painted as woods from 0.9, and its gradient
+  float fine;  // fine variation
+  float road;  // offset across from the valley road
+  float river;  // offset across from the river's centre line
+  float riverHalfWidth;
+  vec3 lake;  // distance outside the nearest lake, and its gradient
+  vec4 town;  // nearer town or village, as townAt gives it
+  vec4 place;  // nearest settlement, as placeAt gives it
+};
+
+Land landAt(vec2 q, float seed) {
+  Land l;
+  vec3 broadWood = valueNoiseGradient(q / 520.0 + seed * 9.0);
+  vec3 fineWood = valueNoiseGradient(q / 150.0 + seed);
+  l.wood = vec3(broadWood.x, broadWood.yz / 520.0)
+    + 0.45 * vec3(fineWood.x, fineWood.yz / 150.0);
+  l.fine = valueNoise(q / 160.0 + seed);
+  l.road = q.y - roadAcross(q.x, seed);
+  l.river = q.y - riverAcross(q.x, seed);
+  l.riverHalfWidth = 26.0 + 10.0 * sin(q.x / 1700.0 + seed);
+  l.lake = lakeEdge(q, seed);
+  l.town = townAt(q, seed, l.fine);
+  l.place = placeAt(l.town, q, seed, l.fine);
+  return l;
+}
+
+// Valley land's albedo: q is (axial, across) in metres, f its footprint.
+vec3 landColor(Land l, vec2 q, vec2 f, float seed) {
   float pixel = max(f.x, f.y);
 
   // Grass and meadow in broad, soft patches.
   float broad = valueNoise(q / 700.0 + seed * 7.0);
-  float fine = valueNoise(q / 160.0 + seed);
-  vec3 color = mix(GRASS, MEADOW, smoothstep(0.35, 0.75, broad)) * (0.85 + 0.3 * fine);
+  vec3 color = mix(GRASS, MEADOW, smoothstep(0.35, 0.75, broad)) * (0.85 + 0.3 * l.fine);
 
   // Woods in large, ragged stands, their crowns mottled up close.
-  float wood = valueNoise(q / 520.0 + seed * 9.0) + 0.45 * valueNoise(q / 150.0 + seed);
+  float wood = l.wood.x;
   float crowns = pixel < 10.0
     ? mix(valueNoise(q / 7.0), 0.5, smoothstep(3.0, 10.0, pixel)) : 0.5;
   color = mix(color, FOREST * (0.7 + 0.6 * crowns), smoothstep(0.9, 0.95, wood));
@@ -158,40 +299,75 @@ vec3 land(vec2 q, vec2 f, float seed) {
   float contour = (valueNoise(q / 650.0 + seed * 3.0) - 0.5) * 650.0;
   color = mix(color, PATH, band(contour, 1.5, pixel));
 
-  // Towns on the valley road, villages on the river, and hamlets anywhere,
-  // but none in Falls View Park.
-  float road = roadAcross(q.x, seed);
-  vec2 town = settlementIn(q, 2600.0, road, 300.0, vec2(300.0, 600.0), 0.8, fine, seed, seed);
-  float villageAxial = (floor((q.x + 1300.0) / 2600.0) + 0.5) * 2600.0 - 1300.0;
-  vec2 village = settlementIn(q + vec2(1300.0, 0.0), 2600.0, riverAcross(villageAxial, seed), 300.0,
-    vec2(150.0, 320.0), 0.75, fine, seed, seed + 20.0);
-  vec2 hamlet = settlementIn(q, 400.0, floor(q.y / 400.0) * 400.0 + 200.0, 200.0,
-    vec2(30.0, 70.0), 0.12, fine, seed, seed + floor(q.y / 400.0) * 3.0);
-  vec2 place = town.x < village.x ? town : village;
-  place = hamlet.x < place.x ? vec2(hamlet.x, 0.0) : place;
-  float built = inside(place.x, pixel);
+  float built = inside(l.place.x, pixel);
   if (built > 0.0) {
-    color = mix(color, settlement(q, f, clamp(place.y, 0.0, 1.0), seed), built);
+    color = mix(color, settlement(q, f, clamp(l.place.y, 0.0, 1.0), seed), built);
   }
 
-  // Lakes along the river, which meanders the valley's length.
-  float river = riverAcross(q.x, seed);
-  float lakeCell = floor(q.x / 3000.0);
-  float lakeAxial = (lakeCell + 0.3 + 0.4 * hash(vec2(lakeCell, seed + 2.0))) * 3000.0;
-  vec2 lakeCentre = vec2(lakeAxial, riverAcross(lakeAxial, seed));
-  // Kept within the cell, as the centre stays 900 m from its ends.
-  vec2 lakeRadius = mix(vec2(350.0, 150.0), vec2(750.0, 400.0), hash(vec2(seed, lakeCell + 3.0)));
-  float lake = hash(vec2(lakeCell, seed + 6.0)) < 0.5
-    ? (length((q - lakeCentre) / lakeRadius) - 1.0 + 0.3 * (valueNoise(q / 140.0) - 0.5)) * lakeRadius.y
-    : 1e4;
-  float riverHalfWidth = 26.0 + 10.0 * sin(q.x / 1700.0 + seed);
-  float water = max(inside(lake, pixel), band(q.y - river, riverHalfWidth, f.y));
-  float shore = max(inside(lake - 10.0, pixel), band(q.y - river, riverHalfWidth + 8.0, f.y));
+  float water = max(inside(l.lake.x, pixel), band(l.river, l.riverHalfWidth, f.y));
+  float shore = max(inside(l.lake.x - 10.0, pixel), band(l.river, l.riverHalfWidth + 8.0, f.y));
   color = mix(color, SHORE, shore);
   color = mix(color, WATER, water);
 
   // The valley road, crossing the river on bridges.
-  return mix(color, ROAD, band(q.y - road, 5.0, f.y));
+  return mix(color, ROAD, band(l.road, 5.0, f.y));
+}
+
+vec3 land(vec2 q, vec2 f, float seed) {
+  return landColor(landAt(q, seed), q, f, seed);
+}
+
+// Height of the land above the floor in metres, with its gradient along
+// (axial, across). Hills settle flat toward water, the windows, and the
+// end-cap terraces, under settlements, and around the falls lake's bridge;
+// keep, a (value, gradient) field, flattens them further, as around a
+// course. Canopy, from 0 to 1, raises the woods' canopy.
+vec3 landRelief(Land l, vec2 q, float seed, vec3 keep, float canopy) {
+  vec3 a = valueNoiseGradient(q / 1400.0 + seed * 5.0);
+  vec3 b = valueNoiseGradient(q / 600.0 + seed * 11.0);
+  vec3 c = valueNoiseGradient(q / 260.0 + seed * 13.0);
+  vec3 n = vec3(
+    0.6 * a.x + 0.3 * b.x + 0.1 * c.x,
+    0.6 * a.yz / 1400.0 + 0.3 * b.yz / 600.0 + 0.1 * c.yz / 260.0
+  );
+  vec2 rise = ramp(0.25, 0.95, n.x);
+  vec3 water = nearerWater(q, seed, l.river, l.riverHalfWidth, l.lake);
+  vec2 shore = ramp(30.0, 300.0, water.x);
+  vec2 edge = ramp(100.0, 500.0, VALLEY_HALF_WIDTH - abs(q.y));
+  vec2 cap = ramp(150.0, 700.0, HALF_LENGTH - TERRACE_REACH - abs(q.x));
+  // Hills settle flat under towns and villages, where buildings stand.
+  vec2 built = ramp(0.0, 150.0, l.town.x);
+  vec3 bridge = vec3(1.0, 0.0, 0.0);
+  if (abs(seed - PARK_SEED) < 0.5) {
+    vec3 falls = lakeShore(q, FALLS_LAKE_CENTRE, FALLS_LAKE_RADII, 0.0);
+    vec2 clear = ramp(FALLS_FLAT_BEYOND, FALLS_FLAT_BEYOND + 300.0, falls.x);
+    bridge = vec3(clear.x, clear.y * falls.yz);
+  }
+  vec3 settle = times(
+    times(vec3(shore.x, shore.y * water.yz), vec3(edge.x, 0.0, -sign(q.y) * edge.y)),
+    times(vec3(cap.x, -sign(q.x) * cap.y, 0.0), vec3(built.x, built.y * l.town.zw))
+  );
+  settle = times(settle, bridge);
+  vec3 relief = times(times(HILL_HEIGHT * vec3(rise.x, rise.y * n.yz), settle), keep);
+  // The canopy stands clear of water, the road, settlements, and the bridge.
+  vec2 cover = ramp(0.88, 0.97, l.wood.x);
+  float open = canopy * edge.x * cap.x * bridge.x * smoothstep(10.0, 40.0, water.x)
+    * smoothstep(8.0, 20.0, abs(l.road)) * smoothstep(0.0, 30.0, l.place.x);
+  return relief + CANOPY_HEIGHT * open * vec3(cover.x, cover.y * l.wood.yz);
+}
+
+// The floor's hills alone, where no colour is needed.
+float hillHeight(vec2 q, float seed, vec3 keep) {
+  Land l;
+  l.wood = vec3(0.0);
+  l.fine = valueNoise(q / 160.0 + seed);
+  l.river = q.y - riverAcross(q.x, seed);
+  l.riverHalfWidth = 26.0 + 10.0 * sin(q.x / 1700.0 + seed);
+  l.lake = lakeEdge(q, seed);
+  l.road = 1e4;
+  l.town = townAt(q, seed, l.fine);
+  l.place = l.town;
+  return landRelief(l, q, seed, keep, 0.0).x;
 }
 
 // Flat cap coordinates, continuous where the azimuth wraps.
@@ -212,7 +388,7 @@ vec3 capPlating(float radius, float azimuth, float f) {
 
 // The steel hub at the axis.
 vec3 capHub(vec3 color, float radius, float f) {
-  return mix(color, STEEL, inside(radius - 260.0, f));
+  return mix(color, STEEL, inside(radius - HUB_RADIUS, f));
 }
 
 // End caps from inside: plating with valley land climbing it in terraces,
