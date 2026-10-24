@@ -25,8 +25,26 @@ import {
   type OfficialKartRoster,
 } from "@/game/kart/official-kart-roster";
 
+import { drawsEnclosure } from "@/game/enclosure/enclosure-view";
+import type { CourseEnclosure } from "@/game/enclosure/island-three";
+
+import {
+  COURSE_LOADING_FADE_MS,
+  CourseLoadingScreen,
+} from "./course-loading-screen";
+import type { CourseLoadTimings } from "./frame-budget-overlay";
 import { KartThumbnail } from "./kart-thumbnail";
 import { SoloTimeTrialCanvas } from "./solo-time-trial-canvas";
+
+// The loading screen stays up at least this long, even when the course is
+// ready sooner.
+const COURSE_LOADING_HOLD_MS = 2_500;
+
+type CourseLoading = {
+  courseName: string;
+  enclosure: CourseEnclosure;
+  leaving: boolean;
+};
 
 type PlayableOfficialKart = {
   assemblerCredit: string;
@@ -103,6 +121,14 @@ export function PlayHome() {
   const utilityMenuButtonRef = useRef<HTMLButtonElement | null>(null);
   const resumeThumbnailRenderingRef = useRef<(() => void) | null>(null);
   const [mode, setMode] = useState<"home" | "solo">("home");
+  const [courseLoading, setCourseLoading] = useState<CourseLoading | null>(
+    null,
+  );
+  const [loadTimings, setLoadTimings] = useState<CourseLoadTimings>();
+  const courseLoadingStartRef = useRef<number | null>(null);
+  const coverPaintedRef = useRef<(() => void) | null>(null);
+  const revealTimerRef = useRef<number | null>(null);
+  const raceExitRef = useRef<(() => void) | null>(null);
   const [utilityMenuOpen, setUtilityMenuOpen] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
   const [soloPending, setSoloPending] = useState(false);
@@ -122,7 +148,7 @@ export function PlayHome() {
 
   useControllerMenuNavigation({
     containerRef: homeMenuRef,
-    enabled: mode === "home",
+    enabled: mode === "home" && courseLoading === null,
     navigationMode: "spatial",
     onBack: utilityMenuOpen
       ? () => {
@@ -191,6 +217,9 @@ export function PlayHome() {
     () => () => {
       resumeThumbnailRenderingRef.current?.();
       resumeThumbnailRenderingRef.current = null;
+      if (revealTimerRef.current !== null) {
+        window.clearTimeout(revealTimerRef.current);
+      }
     },
     [],
   );
@@ -213,11 +242,41 @@ export function PlayHome() {
     );
     const thumbnailPause = pauseKartThumbnailRendering();
     resumeThumbnailRenderingRef.current = thumbnailPause.release;
+    // The loading screen shows the bundled course's habitat at once, and
+    // the race mounts only after its first frame, so the race's own setup
+    // cannot delay it.
+    let coverPainted = Promise.resolve();
+    if (drawsEnclosure()) {
+      const bundledCourse = BUNDLED_COURSE_DOCUMENTS[courseId];
+      courseLoadingStartRef.current = performance.now();
+      coverPainted = new Promise((resolve) => {
+        coverPaintedRef.current = resolve;
+      });
+      setLoadTimings({
+        coverFirstFrameMs: null,
+        raceReadyMs: null,
+        revealedMs: null,
+      });
+      setCourseLoading({
+        courseName: bundledCourse.name,
+        enclosure: bundledCourse.enclosure,
+        leaving: false,
+      });
+    }
     const [, nextCourse] = await Promise.all([
       thumbnailPause.ready,
       nextCoursePromise,
+      coverPainted,
     ]);
     if (resumeThumbnailRenderingRef.current !== thumbnailPause.release) return;
+    setCourseLoading(
+      (current) =>
+        current && {
+          ...current,
+          courseName: nextCourse.name,
+          enclosure: nextCourse.enclosure,
+        },
+    );
     const rampHeight = axisRampStartHeight();
     setCourseDocument(
       rampHeight === null ? nextCourse : withAxisRampTest(nextCourse, rampHeight),
@@ -229,25 +288,101 @@ export function PlayHome() {
     setMode("solo");
   }
 
+  function markCoverPainted() {
+    const start = courseLoadingStartRef.current;
+    if (start !== null) {
+      const coverFirstFrameMs = performance.now() - start;
+      setLoadTimings(
+        (timings) =>
+          timings && {
+            ...timings,
+            coverFirstFrameMs: timings.coverFirstFrameMs ?? coverFirstFrameMs,
+          },
+      );
+    }
+    coverPaintedRef.current?.();
+    coverPaintedRef.current = null;
+  }
+
+  // Lifts the loading screen once the race is ready and the minimum hold
+  // has passed, or at once if the race failed to load.
+  function revealRace(ready: boolean) {
+    const start = courseLoadingStartRef.current;
+    if (start === null) return;
+    const raceReadyMs = performance.now() - start;
+    setLoadTimings((timings) => timings && { ...timings, raceReadyMs });
+    const hold = ready ? Math.max(0, COURSE_LOADING_HOLD_MS - raceReadyMs) : 0;
+    revealTimerRef.current = window.setTimeout(() => {
+      const revealedMs = performance.now() - start;
+      setLoadTimings((timings) => timings && { ...timings, revealedMs });
+      setCourseLoading((current) => current && { ...current, leaving: true });
+      const reducedMotion = window.matchMedia(
+        "(prefers-reduced-motion: reduce)",
+      ).matches;
+      revealTimerRef.current = window.setTimeout(
+        () => {
+          revealTimerRef.current = null;
+          courseLoadingStartRef.current = null;
+          setCourseLoading(null);
+        },
+        reducedMotion ? 0 : COURSE_LOADING_FADE_MS,
+      );
+    }, hold);
+  }
+
+  function exitSolo() {
+    if (revealTimerRef.current !== null) {
+      window.clearTimeout(revealTimerRef.current);
+      revealTimerRef.current = null;
+    }
+    courseLoadingStartRef.current = null;
+    coverPaintedRef.current = null;
+    resumeThumbnailRenderingRef.current?.();
+    resumeThumbnailRenderingRef.current = null;
+    setCourseLoading(null);
+    setSoloPending(false);
+    setMode("home");
+  }
+
+  const covered = courseLoading !== null && !courseLoading.leaving;
+  const loadingScreen = courseLoading ? (
+    <CourseLoadingScreen
+      courseName={courseLoading.courseName}
+      enclosure={courseLoading.enclosure}
+      leaving={courseLoading.leaving}
+      // Once mounted, the race records its own exit.
+      onExit={() => (raceExitRef.current ?? exitSolo)()}
+      onFirstFrame={markCoverPainted}
+    />
+  ) : null;
+
+  // The loading screen keeps one place in the tree across both modes, so it
+  // is not remounted when the race mounts beneath it.
   if (mode === "solo") {
     return (
-      <SoloTimeTrialCanvas
-        courseDocument={courseDocument}
-        kartDocument={kartDocument}
-        kartSnapshot={kartSnapshot}
-        recordTelemetry={!axisRampTest}
-        showHabitatReadout={axisRampTest}
-        onExit={() => {
-          resumeThumbnailRenderingRef.current?.();
-          resumeThumbnailRenderingRef.current = null;
-          setMode("home");
-        }}
-      />
+      <>
+        <div className="contents" inert={covered}>
+          <SoloTimeTrialCanvas
+            courseDocument={courseDocument}
+            exitRef={raceExitRef}
+            kartDocument={kartDocument}
+            kartSnapshot={kartSnapshot}
+            loadTimings={loadTimings}
+            loadingScreen={covered}
+            recordTelemetry={!axisRampTest}
+            showHabitatReadout={axisRampTest}
+            onExit={exitSolo}
+            onLoaded={revealRace}
+          />
+        </div>
+        {loadingScreen}
+      </>
     );
   }
 
-  return (
+  const homeScreen = (
     <section
+      inert={courseLoading !== null}
       ref={homeMenuRef}
       className="relative z-10 mx-auto flex min-h-screen w-full max-w-7xl flex-col px-5 py-6 sm:px-8 lg:px-12"
     >
@@ -446,5 +581,12 @@ export function PlayHome() {
         </section>
       </div>
     </section>
+  );
+
+  return (
+    <>
+      {homeScreen}
+      {loadingScreen}
+    </>
   );
 }

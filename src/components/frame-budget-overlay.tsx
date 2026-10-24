@@ -8,16 +8,39 @@ export type FrameBudgetReport = {
   summary: FrameBudgetSummary | null;
 };
 
+/** Loading-screen milestones, each from the tap that started the race. */
+export type CourseLoadTimings = {
+  /** The exterior's first frame on screen. */
+  coverFirstFrameMs: number | null;
+  /** The race scene built behind the loading screen. */
+  raceReadyMs: number | null;
+  /** The loading screen lifting and the countdown starting. */
+  revealedMs: number | null;
+};
+
+const milliseconds = (value: number | null) =>
+  value === null ? "—" : `${Math.round(value)} ms`;
+
 /** Local `?perf=1` readout for the phone performance budget. */
-export function FrameBudgetOverlay({ report }: { report: FrameBudgetReport }) {
+export function FrameBudgetOverlay({
+  loadTimings,
+  report,
+}: {
+  loadTimings?: CourseLoadTimings;
+  report: FrameBudgetReport;
+}) {
   const { backBuffer, firstFrameMs, recording, summary } = report;
   const rows: Array<[string, string]> = [
     ["Buffer", `${backBuffer.width}×${backBuffer.height}`],
-    [
-      "First frame",
-      firstFrameMs === null ? "—" : `${Math.round(firstFrameMs)} ms`,
-    ],
+    ["First frame", milliseconds(firstFrameMs)],
   ];
+  if (loadTimings) {
+    rows.push(
+      ["Cover frame", milliseconds(loadTimings.coverFirstFrameMs)],
+      ["Race ready", milliseconds(loadTimings.raceReadyMs)],
+      ["Revealed", milliseconds(loadTimings.revealedMs)],
+    );
+  }
   if (recording || !summary) {
     rows.push(["Status", recording ? "Recording" : "Waiting for race"]);
   } else {

@@ -53,6 +53,12 @@ const END_CAP_MARGIN = 500;
 const WINDOW_EDGE_MARGIN_DEGREES = 1.5;
 const AXIS_MARGIN = 100;
 
+/**
+ * The Sun's angular radius, radians. Island Three orbits Saturn with Titan,
+ * 9.54 AU out, where the Sun looks a tenth as wide as from Earth.
+ */
+export const SUN_ANGULAR_RADIUS = 0.004652 / 9.54;
+
 export const MIRROR_ANGLE_LIMITS = { max: 85, min: 5 } as const;
 
 const enclosures = new Map(
