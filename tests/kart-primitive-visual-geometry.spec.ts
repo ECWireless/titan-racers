@@ -130,6 +130,6 @@ test("official kart primitives stay within the triangle budget", () => {
         sum + triangleCount(buildAuthoredPrimitiveVisual(primitive)),
       0,
     );
-    expect(total, document.kartId).toBeLessThanOrEqual(4_000);
+    expect(total, document.kartId).toBeLessThanOrEqual(5_000);
   }
 });

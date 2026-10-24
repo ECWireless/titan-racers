@@ -184,6 +184,12 @@ export type ApprovedComponentDefinition = z.infer<
 const aluminum = { id: "material.structural-aluminum", version: 1 } as const;
 const polymer = { id: "material.engineering-polymer", version: 1 } as const;
 const steel = { id: "material.steel", version: 1 } as const;
+// Coilover versions rated for a 30° installation: their spring, damper,
+// stroke, and bump values give the wheel the same rates and travel as the
+// version they follow did when derivation ignored shock tilt, and their
+// default mounts lean 30° inward.
+export const RATED_SHOCK_INSTALLATION_RADIANS = Math.PI / 6;
+const RATED_SHOCK_COSINE = Math.cos(RATED_SHOCK_INSTALLATION_RADIANS);
 const zeroTransform = {
   position: { x: 0, y: 0, z: 0 },
   rotationDegrees: { x: 0, y: 0, z: 0 },
@@ -557,6 +563,65 @@ export const APPROVED_KART_COMPONENTS = deepFreeze(
         rotationAxes: ["x", "y", "z"],
       },
       category: "suspension",
+      construction: [cylinder(steel, 0.007, 0.12, "y")],
+      id: "suspension.firm-short",
+      label: "Firm short-travel suspension",
+      mass: 0.045,
+      massCenter: { x: 0, y: 0, z: 0 },
+      ports: [
+        {
+          direction: "bidirectional",
+          id: "chassis-mount",
+          interface: "suspension-chassis",
+          multiple: false,
+        },
+        {
+          direction: "bidirectional",
+          id: "hub-mount",
+          interface: "suspension-hub",
+          multiple: false,
+        },
+      ],
+      summary:
+        "A compact coilover with firm response and short travel, rated for a 30° installation.",
+      suspension: {
+        bumpStart: 0.027 * RATED_SHOCK_COSINE,
+        damperRate: 33.23076923076923 / RATED_SHOCK_COSINE ** 2,
+        extendedLength: 0.115,
+        mounting: {
+          armPivot: {
+            x: 0.08 * Math.sqrt(812.5 / 1_600),
+            y: -0.051,
+            z: 0,
+          },
+          // 30° inward from the arm eye, at the 0.102 m eye-to-eye length.
+          chassisAnchor: {
+            x: 0.102 * Math.sin(RATED_SHOCK_INSTALLATION_RADIANS),
+            y: -0.051 + 0.102 * RATED_SHOCK_COSINE,
+            z: 0,
+          },
+          hubAnchor: {
+            x: -0.08 * (1 - Math.sqrt(812.5 / 1_600)),
+            y: -0.051,
+            z: 0,
+          },
+          springArmAnchor: { x: 0, y: -0.051, z: 0 },
+        },
+        maximumStroke: 0.035 * RATED_SHOCK_COSINE,
+        quadraticBumpRate: 18_000 / RATED_SHOCK_COSINE ** 3,
+        springRate: 1_600 / RATED_SHOCK_COSINE ** 2,
+      },
+      tradeoff:
+        "Sharper support and less travel over large bumps.",
+      version: 2,
+    },
+    {
+      assembly: {
+        maximumInstances: 4,
+        mirrorable: true,
+        rotationAxes: ["x", "y", "z"],
+      },
+      category: "suspension",
       construction: [cylinder(aluminum, 0.008, 0.145, "y")],
       id: "suspension.compliant-long",
       label: "Compliant long-travel suspension",
@@ -656,6 +721,65 @@ export const APPROVED_KART_COMPONENTS = deepFreeze(
       tradeoff:
         "More bump compliance with controlled rebound and slightly more mass.",
       version: 2,
+    },
+    {
+      assembly: {
+        maximumInstances: 4,
+        mirrorable: true,
+        rotationAxes: ["x", "y", "z"],
+      },
+      category: "suspension",
+      construction: [cylinder(aluminum, 0.008, 0.145, "y")],
+      id: "suspension.compliant-long",
+      label: "Compliant long-travel suspension",
+      mass: 0.052,
+      massCenter: { x: 0, y: 0, z: 0 },
+      ports: [
+        {
+          direction: "bidirectional",
+          id: "chassis-mount",
+          interface: "suspension-chassis",
+          multiple: false,
+        },
+        {
+          direction: "bidirectional",
+          id: "hub-mount",
+          interface: "suspension-hub",
+          multiple: false,
+        },
+      ],
+      summary:
+        "A longer coilover with matched damping for compliant, controlled travel, rated for a 30° installation.",
+      suspension: {
+        bumpStart: 0.04 * RATED_SHOCK_COSINE,
+        damperRate: 18.75 / RATED_SHOCK_COSINE ** 2,
+        extendedLength: 0.14,
+        mounting: {
+          armPivot: {
+            x: 0.08 * Math.sqrt(812.5 / 1_600),
+            y: -0.051,
+            z: 0,
+          },
+          // 30° inward from the arm eye, at the 0.102 m eye-to-eye length.
+          chassisAnchor: {
+            x: 0.102 * Math.sin(RATED_SHOCK_INSTALLATION_RADIANS),
+            y: -0.051 + 0.102 * RATED_SHOCK_COSINE,
+            z: 0,
+          },
+          hubAnchor: {
+            x: -0.08 * (1 - Math.sqrt(812.5 / 1_600)),
+            y: -0.051,
+            z: 0,
+          },
+          springArmAnchor: { x: 0, y: -0.051, z: 0 },
+        },
+        maximumStroke: 0.052 * RATED_SHOCK_COSINE,
+        quadraticBumpRate: 12_000 / RATED_SHOCK_COSINE ** 3,
+        springRate: 900 / RATED_SHOCK_COSINE ** 2,
+      },
+      tradeoff:
+        "More bump compliance with controlled rebound and slightly more mass.",
+      version: 3,
     },
     {
       assembly: {

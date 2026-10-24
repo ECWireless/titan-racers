@@ -8,7 +8,9 @@ participating kart; a kart document cannot choose a more advantageous version.
 
 Current policy families include:
 
-- steering requests use 45% of the lower physical grip or rollover boundary
+- steering requests use 45% of the lower physical grip or rollover boundary,
+  both computed from the gravity pressing the kart onto its support (habitat
+  gravity plus Coriolis along local up, never below zero),
   and add half of the transient tire-slip demand needed to build cornering
   force; front and rear slip largely cancel in steady-state bicycle geometry,
   so a full extra axle slip angle would double-count the request;
@@ -16,7 +18,12 @@ Current policy families include:
 - the axle trailing the direction of travel receives one mild grip-safety
   ratio so the simplified tire solver remains recoverable in forward and
   reverse;
-- near-zero tire behavior uses shared crossover and settling timing;
+- near-zero tire behavior uses shared crossover and settling timing; below
+  rolling speed, rolling resistance and lateral settling also hold against
+  each wheel's share of gravity along the support (rolling resistance up to
+  `Crr × N`, lateral up to the tire-force clamp), so a parked kart stays put on
+  slopes gentler than its tires can hold, such as a flat course's slight
+  habitat slope;
 - the sealed four-wheel service brake proportions its current request by
   measured supported-wheel load, while the handbrake retains a fixed rear-only
   split;
@@ -28,7 +35,7 @@ Current policy families include:
 - grounded rest settling uses shared eligibility/timing and derives corrective
   impulse from each kart's inertia;
 - grounded motion stabilization continuously damps only chassis-local roll
-  whenever at least two wheels are supported, plus world-vertical heave only
+  whenever at least two wheels are supported, plus heave along local up only
   while the kart and every contacted support are nearly upright. Its shared
   0.10/0.08-second responses derive torque/linear impulse from each kart's
   inertia/mass. This deliberately suppresses finite-sweep hopping during hard
@@ -36,11 +43,20 @@ Current policy families include:
   contact, or airborne motion;
 - manual righting uses shared eligibility, clearance, timing, and contact-loss
   allowance while deriving impulses from mass and inertia, with enough lift
-  for the collision hull (wheel guard included) to clear the ground; a bounded
+  for the collision hull (wheel guard included) to clear the ground throughout
+  the roll, not just at the top of the hop, so wide hull ends cannot dig in
+  early (the first 20° of roll is exempt, where a dipping edge only pivots
+  the kart up; karts righted from on their side hop higher as a result); a
+  bounded
   righting-only landing window targets upright angular velocity and performs a
   one-shot post-contact angular-momentum capture at the first upright
   four-wheel landing; and
 - collision numerical damping and CCD ratios are shared solver policy.
+
+Policies written for a Y-up world (rest settling, heave damping, and manual
+righting) run on vectors turned into the level frame, where local habitat up
+is +Y, so they behave the same anywhere in the habitat; righting lifts along
+local up and sizes its lift from local gravity.
 
 Construction, mass distribution, geometry, suspension load, and the shared
 tire/contact model still determine the physical balance. The trailing-axle

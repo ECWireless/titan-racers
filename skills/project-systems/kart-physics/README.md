@@ -46,7 +46,10 @@ systems.
 - `src/game/kart/kart-reference-construction.ts`: the reference RC scale
   helpers and fixture that size shared, kart-independent policy (camera
   framing, smoke, CCD reference). Per-kart wheels and mass come from derivation.
-- `src/game/physics/world-environment.ts`: Earth gravity and air density.
+- `src/game/physics/world-environment.ts`: habitat floor gravity and air
+  density.
+- `src/game/physics/rotating-habitat.ts`: the habitat's gravity, Coriolis,
+  local up, and level-frame rotation.
   `src/game/kart/tire-surface-interaction.ts`: the registered tire/surface
   interaction lookup. `course-surface-resolver.ts` resolves authored collider
   materials independently at each wheel hit (including coplanar layers).

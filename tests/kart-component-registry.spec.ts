@@ -60,7 +60,7 @@ test("provides at least one component option in every required category", () => 
     );
   }
 
-  expect(APPROVED_KART_COMPONENTS).toHaveLength(13);
+  expect(APPROVED_KART_COMPONENTS).toHaveLength(15);
 });
 
 test("limits additional component options to accepted physical tradeoffs", () => {
@@ -113,8 +113,8 @@ test("retains historical component revisions while authoring the latest one", ()
   expect(
     getLatestApprovedKartComponent("suspension.compliant-long"),
   ).toMatchObject({
-    suspension: { damperRate: 18.75 },
-    version: 2,
+    suspension: { damperRate: 18.75 / Math.cos(Math.PI / 6) ** 2 },
+    version: 3,
   });
   expect(
     APPROVED_COMPONENTS_BY_CATEGORY.suspension.filter(

@@ -74,7 +74,7 @@ test.describe("kart development values", () => {
     const resolved = resolveKartDevelopmentValues(
       DEFAULT_KART_DEVELOPMENT_VALUES,
     );
-    expect(resolved.environment.airDensity).toBe(1.225);
+    expect(resolved.environment.airDensity).toBe(0.615);
     expect(resolved.environment.gravity).toBe(9.81);
     expect(resolved.kart.drivetrain).toEqual({
       maximumDriveForce: DEFAULT_KART_DEVELOPMENT_VALUES.maximumDriveForce,

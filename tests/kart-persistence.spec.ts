@@ -149,7 +149,7 @@ test.describe("kart persistence and authorization", () => {
     });
     expect(first).toMatchObject({
       authorUserId: ownerUserId,
-      derivationVersion: 4,
+      derivationVersion: 5,
       kartId,
       ownerUserId,
       revision: 1,
@@ -242,7 +242,7 @@ test.describe("kart persistence and authorization", () => {
     await db.insert(kartRevisions).values([
       {
         authorUserId: userId,
-        derivationVersion: 4,
+        derivationVersion: 5,
         document: malformedDocument,
         id: randomUUID(),
         kartId: malformedKartId,
@@ -253,7 +253,7 @@ test.describe("kart persistence and authorization", () => {
       },
       {
         authorUserId: userId,
-        derivationVersion: 4,
+        derivationVersion: 5,
         document: mismatchedDocument,
         id: randomUUID(),
         kartId: mismatchedKartId,

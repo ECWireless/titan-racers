@@ -274,29 +274,44 @@ Phase decisions:
       course roster, and migration 0016 accepts official-course telemetry for
       both. Course lamps moved to 4.3.5: at real brightness they would not show
       until the habitat has a night.
-- [ ] 4.3.2: Rotating-habitat physics: a research note first, then
+- [x] 4.3.2: Rotating-habitat physics: a research note first, then
       position-dependent gravity and Coriolis through the kart controller,
       steering, righting, and camera up; optionally a near-axis test pad.
-      Also decide shock installation angle: derivation ignores shock tilt, so
-      the steeply tilted official shocks are much stiffer in physics than
-      their real geometry and travel further than drawn (deferred from
-      PR 4.1.3). Fixing it needs retuning or more upright official mounts.
-      Re-lay out each axle at the same time: hinge-pin mounts long enough to
-      reach both A-arm legs (they float about 1 cm off), with the shock towers
-      clear of them (deferred from PR 4.1.4).
+      Also decide shock installation angle and re-lay out each axle.
+      Shipped as physics version `rotating-habitat-v1`: gravity from the
+      kart's distance to the axis, Coriolis, local up, Island Three's
+      half-pressure air, and a parked-kart hold on a flat course's slight
+      habitat slope. The test pad grew into a dev-only `?axisRamp` ramp
+      from the Starter Course to a pad 500 m from the axis and on to the
+      axis itself. Derivation v5 counts shock tilt; every official shock
+      leans 30° on coilover versions rated for it, so wheel rates and travel
+      are unchanged, with deep hinge-pin mounts and post-and-crossbar towers.
+      The taller towers and longer plates shift stats slightly: acceleration
+      Balanced 42→41, Speed 10→9, Handling 79→76; stability Speed 46→44,
+      Handling 87→76.
+      Manual righting now clears the hull through the whole roll. After
+      merge, re-save and republish the three official karts in production
+      (Load official design, Save, Publish).
 - [ ] 4.3.3: Course loading screen showing Island Three from outside in
       space, held for a short minimum. Debrief whether Saturn appears and
-      whether the home screen shares the backdrop.
+      whether the home screen shares the backdrop. Also fix the `home.spec`
+      test "recovers at the latest supported checkpoint and pauses
+      stabilization", which fails on `main` (found in PR 4.3.2): the race is
+      already racing when the test expects the countdown.
 - [ ] 4.3.4: Distant structures: a few large landmark structures and
       clusters of buildings across the valleys, so the enclosure reads with
       height rather than as flat ground. Code-built and within the phone
-      budget.
+      budget. Consider a waterfall off an end-cap terrace whose falling water
+      bends anti-spinward with Coriolis, as the spin demands: about 40 m of
+      drift over a 200 m drop (feature lead idea from PR 4.3.2).
 - [ ] 4.3.5: Dusk and night: the haze and habitat light dim as the mirrors
       close, as O'Neill's habitat makes night. Then course lamps (up to four
       point or spot lights with visible full-size masts, seeded on the
       Agricultural Zone), lights in the distant villages and roads, and a
       decision on lamp shadows, which the budget's one shadow-casting light
-      does not yet allow.
+      does not yet allow. Also chase the sun-shadow flicker on kart and wall
+      shadows seen on iPhone in PR 4.3.2 QA; it may predate that PR, whose
+      camera now follows habitat up.
 
 **PR 4.4: Agricultural Zone Service Circuit** (split by route section)
 

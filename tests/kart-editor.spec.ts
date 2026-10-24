@@ -536,13 +536,13 @@ test.describe("protected kart builder access", () => {
       variant.locator('option[value="suspension.compliant-long@1"]'),
     ).toHaveAttribute("disabled", "");
     await expect(
-      variant.locator('option[value="suspension.compliant-long@2"]'),
+      variant.locator('option[value="suspension.compliant-long@3"]'),
     ).toHaveText(
       "Compliant long-travel suspension — More bump compliance with controlled rebound and slightly more mass.",
     );
 
-    await variant.selectOption("suspension.compliant-long@2");
-    await expect(variant).toHaveValue("suspension.compliant-long@2");
+    await variant.selectOption("suspension.compliant-long@3");
+    await expect(variant).toHaveValue("suspension.compliant-long@3");
     await expect(page.getByText("Unsaved changes", { exact: true })).toBeVisible();
   });
 

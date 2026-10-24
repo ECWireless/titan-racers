@@ -17,6 +17,7 @@ import {
   buildPrimitiveMassElement,
   combineBounds,
   deriveMassProperties,
+  getSuspensionInstallationRatio,
   projectedRectangleUnionArea,
   type KartBounds,
   type KartMassElement,
@@ -26,8 +27,8 @@ import type { KartPhysicalProfile } from "./kart-physical-profile";
 import { getAckermannWheelSteerAngle } from "./kart-steering";
 import { deepFreeze, type DeepReadonly } from "./immutable-registry";
 
-export const KART_DERIVATION_VERSION = 4;
-export const RESOLVED_KART_SNAPSHOT_VERSION = 4;
+export const KART_DERIVATION_VERSION = 5;
+export const RESOLVED_KART_SNAPSHOT_VERSION = 5;
 const DRAG_SHAPE_COEFFICIENT = 0.9;
 const MINIMUM_USABLE_STEERING_ANGLE_DEGREES = 1;
 
@@ -46,6 +47,7 @@ export type ResolvedKartWheelStation = {
     chassisAnchor: KartVector;
     hubAnchor: KartVector;
     maximumWheelTravel: number;
+    /** Arm lever ratio alone; the installation ratio also counts shock tilt. */
     motionRatio: number;
     restWheelCompression: number;
     springArmAnchor: KartVector;
@@ -113,6 +115,15 @@ export type ResolvedKartSnapshot = {
   snapshotVersion: typeof RESOLVED_KART_SNAPSHOT_VERSION;
 };
 
+// V4 has the same shape; its suspension ignored shock tilt.
+export type ResolvedKartSnapshotV4 = Omit<
+  ResolvedKartSnapshot,
+  "derivationVersion" | "snapshotVersion"
+> & {
+  derivationVersion: 4;
+  snapshotVersion: 4;
+};
+
 // V3 differs only in its stability score range.
 export type ResolvedKartSnapshotV3 = Omit<
   ResolvedKartSnapshot,
@@ -154,6 +165,7 @@ export type PersistedResolvedKartSnapshot =
   | ResolvedKartSnapshotV1
   | ResolvedKartSnapshotV2
   | ResolvedKartSnapshotV3
+  | ResolvedKartSnapshotV4
   | ResolvedKartSnapshot;
 
 const finiteNumberSchema = z.number().finite();
@@ -271,7 +283,13 @@ const resolvedKartSnapshotV3ObjectSchema =
     snapshotVersion: z.literal(3),
   });
 
-export const resolvedKartSnapshotV4Schema: z.ZodType<ResolvedKartSnapshot> =
+export const resolvedKartSnapshotV5Schema: z.ZodType<ResolvedKartSnapshot> =
+  resolvedKartSnapshotV3ObjectSchema.extend({
+    derivationVersion: z.literal(5),
+    snapshotVersion: z.literal(5),
+  });
+
+export const resolvedKartSnapshotV4Schema: z.ZodType<ResolvedKartSnapshotV4> =
   resolvedKartSnapshotV3ObjectSchema.extend({
     derivationVersion: z.literal(4),
     snapshotVersion: z.literal(4),
@@ -324,6 +342,9 @@ export function parseResolvedKartSnapshot(
   }
   if (version.snapshotVersion === 4 && version.derivationVersion === 4) {
     return resolvedKartSnapshotV4Schema.parse(input);
+  }
+  if (version.snapshotVersion === 5 && version.derivationVersion === 5) {
+    return resolvedKartSnapshotV5Schema.parse(input);
   }
 
   throw new Error(
@@ -420,17 +441,8 @@ function deriveWheelStations(assembly: ValidatedKartAssembly) {
       }
       const suspension = suspensionForWheel(instance.id);
       const mount = suspension.instance.suspensionMount!;
-      const hubLever = Math.hypot(
-        mount.hubAnchor.x - mount.armPivot.x,
-        mount.hubAnchor.y - mount.armPivot.y,
-        mount.hubAnchor.z - mount.armPivot.z,
-      );
-      const springLever = Math.hypot(
-        mount.springArmAnchor.x - mount.armPivot.x,
-        mount.springArmAnchor.y - mount.armPivot.y,
-        mount.springArmAnchor.z - mount.armPivot.z,
-      );
-      const motionRatio = springLever / hubLever;
+      const { installationRatio, motionRatio } =
+        getSuspensionInstallationRatio(mount);
       const shockLength = Math.hypot(
         mount.chassisAnchor.x - mount.springArmAnchor.x,
         mount.chassisAnchor.y - mount.springArmAnchor.y,
@@ -461,15 +473,15 @@ function deriveWheelStations(assembly: ValidatedKartAssembly) {
         suspension: {
           armPivot: mount.armPivot,
           bumpStartWheelCompression:
-            suspensionConstruction.bumpStart / motionRatio,
+            suspensionConstruction.bumpStart / installationRatio,
           chassisAnchor: mount.chassisAnchor,
           hubAnchor: mount.hubAnchor,
           maximumWheelTravel:
-            suspensionConstruction.maximumStroke / motionRatio,
+            suspensionConstruction.maximumStroke / installationRatio,
           motionRatio,
           restWheelCompression:
             (suspensionConstruction.extendedLength - shockLength) /
-            motionRatio,
+            installationRatio,
           springArmAnchor: mount.springArmAnchor,
         },
         width: definition.wheelTire.width,
@@ -482,24 +494,15 @@ function average(values: readonly number[]) {
   return values.reduce((sum, value) => sum + value, 0) / values.length;
 }
 
-function deriveMotionRatio(assembly: ValidatedKartAssembly) {
+function deriveInstallationRatio(assembly: ValidatedKartAssembly) {
   return average(
     [...assembly.components.values()]
       .filter(({ definition }) => definition.category === "suspension")
-      .map(({ instance }) => {
-        const mount = instance.suspensionMount!;
-        const hubLever = Math.hypot(
-          mount.hubAnchor.x - mount.armPivot.x,
-          mount.hubAnchor.y - mount.armPivot.y,
-          mount.hubAnchor.z - mount.armPivot.z,
-        );
-        const springLever = Math.hypot(
-          mount.springArmAnchor.x - mount.armPivot.x,
-          mount.springArmAnchor.y - mount.armPivot.y,
-          mount.springArmAnchor.z - mount.armPivot.z,
-        );
-        return springLever / hubLever;
-      }),
+      .map(
+        ({ instance }) =>
+          getSuspensionInstallationRatio(instance.suspensionMount!)
+            .installationRatio,
+      ),
   );
 }
 
@@ -775,7 +778,7 @@ export function deriveKartSnapshot(input: unknown): DeepReadonly<ResolvedKartSna
     (motorNoLoadAngularSpeed /
       transmission.transmission.motorRotationsPerWheelRotation) *
     wheel.wheelTire.radius;
-  const motionRatio = deriveMotionRatio(assembly);
+  const installationRatio = deriveInstallationRatio(assembly);
   const maximumCenterAngle = deriveSteeringLimit({
     collisionElements,
     maximumTravelDegrees: steering.steering.maximumTravelDegrees,
@@ -798,10 +801,11 @@ export function deriveKartSnapshot(input: unknown): DeepReadonly<ResolvedKartSna
     drivetrain: { maximumDriveForce, noLoadSpeed },
     steering: { maximumCenterAngle },
     suspension: {
-      bumpRate: suspension.suspension.quadraticBumpRate * motionRatio ** 3,
-      bumpStart: suspension.suspension.bumpStart / motionRatio,
-      damperRate: suspension.suspension.damperRate * motionRatio ** 2,
-      springRate: suspension.suspension.springRate * motionRatio ** 2,
+      bumpRate:
+        suspension.suspension.quadraticBumpRate * installationRatio ** 3,
+      bumpStart: suspension.suspension.bumpStart / installationRatio,
+      damperRate: suspension.suspension.damperRate * installationRatio ** 2,
+      springRate: suspension.suspension.springRate * installationRatio ** 2,
     },
   };
   assertDerivedBounds({

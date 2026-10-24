@@ -1,4 +1,5 @@
 import type { KartAssemblyDocument } from "./kart-assembly-document";
+import { RATED_SHOCK_INSTALLATION_RADIANS } from "./kart-component-registry";
 import {
   createOfficialKartAssembly,
   type OfficialKartAssemblyConfig,
@@ -9,7 +10,7 @@ export const BALANCED_KART_ID = "balanced-kart";
 const BALANCED_KART_CONFIG = {
   armLength: 0.115,
   chassis: {
-    armMount: { x: 0.016, z: 0.018 },
+    armMount: { x: 0.016, z: 0.06 },
     bumperSize: { x: 0.09, y: 0.02, z: 0.03 },
     equipment: {
       "battery-main": { x: -0.04, yawDegrees: 90, z: -0.035 },
@@ -33,11 +34,11 @@ const BALANCED_KART_CONFIG = {
   name: "Balanced Kart",
   practicalDescriptor:
     "Stable small-wheel setup with predictable steering and balanced speed.",
-  shockTopMount: { y: 0.118, z: 0.16 },
-  suspensionComponentCenterY: 0.109,
   suspensionComponentPosition: "spring-arm",
   suspensionDefinitionId: "suspension.firm-short",
-  suspensionRestCompression: 0.013,
+  suspensionDefinitionVersion: 2,
+  // The same wheel sag as before, with the shock at a 30° installation.
+  suspensionRestCompression: 0.013 * Math.cos(RATED_SHOCK_INSTALLATION_RADIANS),
   trackWidth: 0.34,
   transmissionDefinitionId: "transmission.balanced-5to1",
   visualIdentity: {

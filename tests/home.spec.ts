@@ -2037,6 +2037,8 @@ test.describe("home screen", () => {
       resetState.developmentValues.gravity * DEFAULT_FIXED_STEP_SECONDS + 0.01,
     );
     expect(resetState.angularSpeed).toBeLessThan(0.05);
+    // A floor course feels its habitat's full floor gravity.
+    expect(resetState.localGravity).toBeCloseTo(9.81, 2);
   });
 
   test("physically rights an upside-down kart in place across supported input", async ({
@@ -2342,6 +2344,73 @@ test.describe("home screen", () => {
       }
     });
   }
+
+  // A flat course is a chord of the habitat floor, so 50 m across the spin
+  // gravity leans 0.7° downhill. Asphalt's rolling resistance (0.025) outweighs
+  // that 1.25% grade, so a parked kart stays put however it faces.
+  for (const [facing, yaw] of [
+    ["spinward", 128],
+    ["sunward", 38],
+  ] as const) {
+    test(`holds a parked kart still on a slight habitat slope facing ${facing}`, async ({
+      page,
+    }) => {
+      const course = structuredClone(ROUGH_COURSE_DOCUMENT);
+      course.objects.find((object) => object.id === "ground")!
+        .collision!.surfaceMaterial = {
+        id: "surface.standard-course",
+        version: 1,
+      };
+      await useBundledCourse(page, course);
+      await page.goto("/?sandbox-course");
+      await page.getByRole("button", { name: "Solo Time Trial" }).click();
+
+      const canvas = page.getByTestId("solo-time-trial-canvas");
+      await setSimulationPaused(canvas, true);
+      await setKartDebugPose(canvas, {
+        angularVelocity: { x: 0, y: 0, z: 0 },
+        linearVelocity: { x: 0, y: 0, z: 0 },
+        position: { x: -40, y: REFERENCE_KART_UPRIGHT_ROOT_HEIGHT, z: 30 },
+        rotation: { x: 0, y: yaw, z: 0 },
+      });
+      await stepSimulation(canvas, 120);
+      const settled = await getKartDebugState(canvas);
+      await stepSimulation(canvas, 360);
+      const parked = await getKartDebugState(canvas);
+
+      expect(parked.supportCount).toBe(4);
+      expect(
+        Math.hypot(parked.x - settled.x, parked.z - settled.z),
+      ).toBeLessThan(0.01);
+    });
+  }
+
+  test("rests on the axis-ramp pad in weak gravity", async ({
+    page,
+  }, testInfo) => {
+    test.skip(
+      testInfo.project.name !== "desktop",
+      "The test ramp only needs one project.",
+    );
+    // 500 m from the axis the pad feels 1/8 of floor gravity.
+    await useBundledCourse(page);
+    await page.goto("/?axisRamp=3500");
+    await page.getByRole("button", { name: "Solo Time Trial" }).click();
+    const canvas = page.getByTestId("solo-time-trial-canvas");
+    await setSimulationPaused(canvas, true);
+    await stepSimulation(canvas, 240);
+    const padded = await getKartDebugState(canvas);
+    await stepSimulation(canvas, 240);
+    const rested = await getKartDebugState(canvas);
+    expect(padded.localGravity).toBeCloseTo((9.81 * 500) / 4_000, 2);
+    expect(rested.supportCount).toBe(4);
+    expect(Math.hypot(rested.x - padded.x, rested.z - padded.z)).toBeLessThan(
+      0.01,
+    );
+    await expect(page.getByTestId("habitat-readout")).toHaveText(
+      "ALT 3,500 m · 0.125 g",
+    );
+  });
 
   test("pauses and resumes from the mobile race HUD", async ({
     page,

@@ -279,6 +279,22 @@ test("retains version-one evidence and its audit hash", async () => {
   );
 });
 
+test("keeps stored v4 snapshots parseable and hash-stable", async () => {
+  // V4 ignored shock tilt but shares v5's shape; stored revisions stay as-is.
+  const stored = {
+    ...deriveKartSnapshot(createBalancedKartDocument()),
+    derivationVersion: 4,
+    snapshotVersion: 4,
+  };
+  const parsed = parseResolvedKartSnapshot(stored);
+  expect(parsed).toEqual(stored);
+  await expect(
+    hashResolvedKartSnapshot(parsed as unknown as ResolvedKartSnapshot),
+  ).resolves.toBe(
+    await hashResolvedKartSnapshot(stored as unknown as ResolvedKartSnapshot),
+  );
+});
+
 test("derives a wheel guard covering every official kart tire from wheel center up", () => {
   for (const document of [
     createBalancedKartDocument(),
@@ -298,8 +314,8 @@ test("derives a wheel guard covering every official kart tire from wheel center 
       z: transform.position.z + size.z / 2,
     };
 
-    expect(snapshot.derivationVersion).toBe(4);
-    expect(snapshot.snapshotVersion).toBe(4);
+    expect(snapshot.derivationVersion).toBe(5);
+    expect(snapshot.snapshotVersion).toBe(5);
     for (const { position, radius, width } of snapshot.geometry.wheelStations) {
       expect(guardMin.x).toBeLessThanOrEqual(position.x - width / 2 + 1e-9);
       expect(guardMax.x).toBeGreaterThanOrEqual(position.x + width / 2 - 1e-9);

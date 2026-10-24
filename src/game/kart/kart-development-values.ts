@@ -3,7 +3,7 @@ import {
   type KartPhysicalProfile,
 } from "./kart-physical-profile";
 import {
-  EARTH_WORLD_ENVIRONMENT,
+  HABITAT_WORLD_ENVIRONMENT,
   type WorldEnvironment,
 } from "../physics/world-environment";
 import {
@@ -55,7 +55,7 @@ type KartDevelopmentValueBound = {
 
 export const DEFAULT_KART_DEVELOPMENT_VALUES: KartDevelopmentValues = {
   aerodynamicDragArea: DEFAULT_KART_PHYSICAL_PROFILE.aerodynamics.dragArea,
-  gravity: EARTH_WORLD_ENVIRONMENT.gravity,
+  gravity: HABITAT_WORLD_ENVIRONMENT.gravity,
   maxForwardSpeed: DEFAULT_KART_PHYSICAL_PROFILE.drivetrain.noLoadSpeed,
   maximumBrakingForce:
     DEFAULT_KART_PHYSICAL_PROFILE.brakes.maximumServiceBrakeForce,
@@ -251,7 +251,7 @@ export function resolveKartDevelopmentValues(
   tireSurfaceInteraction: TireSurfaceInteractionProfile;
 } {
   return {
-    environment: { ...EARTH_WORLD_ENVIRONMENT, gravity: values.gravity },
+    environment: { ...HABITAT_WORLD_ENVIRONMENT, gravity: values.gravity },
     kart: {
       aerodynamics: { dragArea: values.aerodynamicDragArea },
       brakes: {

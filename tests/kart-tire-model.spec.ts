@@ -114,6 +114,8 @@ test.describe("kart tire model", () => {
         30,
       ),
     ).toBeCloseTo(-75);
+    // Parked on a side slope, it also holds gravity's lateral pull.
+    expect(getRequestedLateralTireForce(0, 0, 0, 8_800, 30, 4)).toBeCloseTo(-4);
   });
 
   test("falls smoothly from peak grip to a sliding plateau", () => {

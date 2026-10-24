@@ -6,11 +6,33 @@ Environment data describes the race world rather than any kart. It includes
 gravity and the registered construction/material of the surface contacted by
 each wheel.
 
-The demo uses Earth gravity at exactly `9.81 m/s²` and standard sea-level air
-density at `1.225 kg/m³`. Kart documents and course documents cannot override
-either value. The current source of truth is
-`EARTH_WORLD_ENVIRONMENT` in `src/game/physics/world-environment.ts`.
-Its public contract is `WorldEnvironment`.
+Every course sits in Island Three, which spins for exactly `9.81 m/s²` at its
+floor. Its air is about half sea-level pressure (0.2 atm oxygen, 0.3 atm
+nitrogen at 20 °C), giving a density of `0.615 kg/m³`. Kart documents and
+course documents cannot override either value. The source of truth is
+`HABITAT_WORLD_ENVIRONMENT` in `src/game/physics/world-environment.ts`; its
+public contract is `WorldEnvironment`, whose `gravity` is the floor gravity
+that sets the spin.
+
+## Rotating Habitat
+
+Gravity is not constant. `createHabitatField` in
+`src/game/physics/rotating-habitat.ts` builds the habitat's field from the
+course's enclosure placement, following the
+[rotating-habitat standard](../../skills/game-concepts/rotating-habitat-physics/README.md):
+
+- centrifugal gravity `ω² r⊥` at the kart's center of mass, away from the
+  axis, with `ω = √(9.81 / R)`;
+- Coriolis `−2ω × v` on the kart's velocity relative to the course; and
+- local up toward the axis, which the controller, rest settling, heave
+  damping, manual righting, the chase camera's height and look-at, and grass
+  clippings use instead of course +Y.
+
+Each fixed step the controller points the solver's gravity at the field and
+applies Coriolis as a central force. Tire load sensitivity keeps its fixed
+reference load (the kart's weight at floor gravity), because it describes the
+tire, not the place. The fall-reset height and the contact shadow stay in
+course coordinates.
 
 ## Contact Interaction
 
@@ -72,7 +94,7 @@ that supports tire/surface dependence, not the exact grip estimates here.
 
 `CURRENT_PHYSICS_VERSION` in `src/game/physics/physics-version.ts` identifies the
 complete shipped solver, environment, and gameplay-policy combination, currently
-`handbrake-clutch-v1` (the handbrake disengages drive).
+`rotating-habitat-v1` (habitat gravity, Coriolis, and Island Three air).
 `ACCEPTED_PHYSICS_VERSIONS` lists every identity
 telemetry still accepts, because open tabs keep reporting their build's
 version until reloaded. Telemetry pins the client build's identity when a run

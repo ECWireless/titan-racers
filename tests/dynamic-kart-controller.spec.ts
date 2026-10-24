@@ -15,7 +15,7 @@ import {
 } from "../src/game/kart/kart-steering";
 import { DEFAULT_TIRE_SURFACE_INTERACTION } from "../src/game/kart/tire-surface-interaction";
 import { REFERENCE_KART_CONSTRUCTION } from "../src/game/kart/kart-reference-construction";
-import { EARTH_WORLD_ENVIRONMENT } from "../src/game/physics/world-environment";
+import { HABITAT_WORLD_ENVIRONMENT } from "../src/game/physics/world-environment";
 
 test.describe("dynamic kart steering", () => {
   test("derives a nonlinear speed envelope from lateral acceleration", () => {
@@ -40,15 +40,15 @@ test.describe("dynamic kart steering", () => {
   test("uses the lower tire-grip or rollover boundary", () => {
     const gripLimit =
       DEFAULT_TIRE_SURFACE_INTERACTION.peakGripCoefficient *
-      EARTH_WORLD_ENVIRONMENT.gravity;
+      HABITAT_WORLD_ENVIRONMENT.gravity;
     const baselineLimit = getPhysicalLateralAccelerationLimit(
       DEFAULT_TIRE_SURFACE_INTERACTION,
-      EARTH_WORLD_ENVIRONMENT,
+      HABITAT_WORLD_ENVIRONMENT.gravity,
       DEFAULT_KART_STEERING_GEOMETRY,
     );
     const highCenterOfMassLimit = getPhysicalLateralAccelerationLimit(
       DEFAULT_TIRE_SURFACE_INTERACTION,
-      EARTH_WORLD_ENVIRONMENT,
+      HABITAT_WORLD_ENVIRONMENT.gravity,
       {
         ...DEFAULT_KART_STEERING_GEOMETRY,
         centerOfMassHeight: 1,
@@ -57,7 +57,7 @@ test.describe("dynamic kart steering", () => {
 
     expect(baselineLimit).toBeCloseTo(gripLimit);
     expect(highCenterOfMassLimit).toBeCloseTo(
-      (EARTH_WORLD_ENVIRONMENT.gravity *
+      (HABITAT_WORLD_ENVIRONMENT.gravity *
         DEFAULT_KART_STEERING_GEOMETRY.trackWidth) /
         2,
     );
@@ -67,12 +67,12 @@ test.describe("dynamic kart steering", () => {
   test("keeps a shared steering reserve below the physical boundary", () => {
     const physicalLimit = getPhysicalLateralAccelerationLimit(
       DEFAULT_TIRE_SURFACE_INTERACTION,
-      EARTH_WORLD_ENVIRONMENT,
+      HABITAT_WORLD_ENVIRONMENT.gravity,
       DEFAULT_KART_STEERING_GEOMETRY,
     );
     const requestedLimit = getSteeringRequestLateralAccelerationLimit(
       DEFAULT_TIRE_SURFACE_INTERACTION,
-      EARTH_WORLD_ENVIRONMENT,
+      HABITAT_WORLD_ENVIRONMENT.gravity,
       DEFAULT_KART_STEERING_GEOMETRY,
     );
 

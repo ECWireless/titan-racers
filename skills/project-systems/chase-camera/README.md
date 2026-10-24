@@ -51,7 +51,7 @@ progression.
    latest rigid-body linear and angular velocity, wheel-support count, and
    retained copied impact event.
 5. The camera smooths velocity, derives planar speed and heading, evaluates
-   angular speed and world-up alignment, applies the forward-only slip policy,
+   angular speed and habitat-up alignment, applies the forward-only slip policy,
    calculates desired position/aim/FOV, blends airborne height, and consumes
    each impact identifier no more than once.
 6. A filtered rigid-body raycast runs from a kart-side pivot toward the desired
@@ -60,7 +60,7 @@ progression.
 7. Obstruction correction moves inward quickly with a safety margin; clear
    space restores normal position damping. Impact offset remains small and
    decays independently.
-8. The PlayCanvas camera entity receives the final position, world-up look-at,
+8. The PlayCanvas camera entity receives the final position, habitat-up look-at,
    and smoothed FOV. No camera value feeds back into simulation or gameplay.
 
 ## Accepted Behavior and Invariants
@@ -99,7 +99,10 @@ progression.
   visibly physical while the camera avoids continuous orbit and reconnects
   without a snap.
 - Airborne behavior uses zero wheel support, adds bounded vertical lag, and
-  always aims with world up rather than copying chassis pitch or roll.
+  always aims with habitat up rather than copying chassis pitch or roll.
+  Height offsets, uprightness, and the look-at follow habitat up; heading and
+  slip are still measured in the course's horizontal plane, which differs
+  from the habitat's by under a degree on floor courses.
 - Only contacts above the accepted approach-speed threshold create camera
   feedback. Multiple fixed steps retain the strongest pending event until the
   next render consumes it; one event produces at most one capped directional

@@ -446,3 +446,52 @@ export function projectedRectangleUnionArea(bounds: readonly KartBounds[]) {
   }
   return area;
 }
+
+type SuspensionMount = NonNullable<
+  KartAssemblyDocument["componentInstances"][number]["suspensionMount"]
+>;
+
+/**
+ * How far the shock compresses per unit of wheel travel at rest: the arm's
+ * lever ratio times the cosine of the shock's angle to the direction its arm
+ * eye moves. Arms hinge about the horizontal axis square to them in plan (the
+ * fore-aft axis for a sideways arm), so the eye moves perpendicular to the arm
+ * in the vertical plane containing it; the derivation treats arms as level at
+ * rest. A tilted shock compresses less than its eye moves, so it acts softer
+ * and lets the wheel travel further.
+ */
+export function getSuspensionInstallationRatio(mount: SuspensionMount) {
+  const hubLever = Math.hypot(
+    mount.hubAnchor.x - mount.armPivot.x,
+    mount.hubAnchor.y - mount.armPivot.y,
+    mount.hubAnchor.z - mount.armPivot.z,
+  );
+  const arm = {
+    x: mount.springArmAnchor.x - mount.armPivot.x,
+    y: mount.springArmAnchor.y - mount.armPivot.y,
+    z: mount.springArmAnchor.z - mount.armPivot.z,
+  };
+  const springLever = Math.hypot(arm.x, arm.y, arm.z);
+  // Eye motion: hinge (−arm.z, 0, arm.x) crossed with the arm.
+  const motion = {
+    x: -arm.x * arm.y,
+    y: arm.x ** 2 + arm.z ** 2,
+    z: -arm.y * arm.z,
+  };
+  const shock = {
+    x: mount.chassisAnchor.x - mount.springArmAnchor.x,
+    y: mount.chassisAnchor.y - mount.springArmAnchor.y,
+    z: mount.chassisAnchor.z - mount.springArmAnchor.z,
+  };
+  const motionLength = Math.hypot(motion.x, motion.y, motion.z);
+  const shockLength = Math.hypot(shock.x, shock.y, shock.z);
+  const motionRatio = hubLever > 0 ? springLever / hubLever : 0;
+  const cosine =
+    motionLength > 0 && shockLength > 0
+      ? Math.abs(
+          motion.x * shock.x + motion.y * shock.y + motion.z * shock.z,
+        ) /
+        (motionLength * shockLength)
+      : 0;
+  return { installationRatio: motionRatio * cosine, motionRatio };
+}

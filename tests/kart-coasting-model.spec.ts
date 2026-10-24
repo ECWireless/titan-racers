@@ -4,19 +4,19 @@ import {
   getAerodynamicDragForce,
   getRollingResistanceForce,
 } from "../src/game/kart/kart-coasting-model";
-import { EARTH_WORLD_ENVIRONMENT } from "../src/game/physics/world-environment";
+import { HABITAT_WORLD_ENVIRONMENT } from "../src/game/physics/world-environment";
 
 test.describe("kart coasting model", () => {
   test("makes aerodynamic drag quadratic with speed", () => {
     const slowDrag = getAerodynamicDragForce(
       5,
       0.4,
-      EARTH_WORLD_ENVIRONMENT.airDensity,
+      HABITAT_WORLD_ENVIRONMENT.airDensity,
     );
     const fastDrag = getAerodynamicDragForce(
       10,
       0.4,
-      EARTH_WORLD_ENVIRONMENT.airDensity,
+      HABITAT_WORLD_ENVIRONMENT.airDensity,
     );
 
     expect(fastDrag).toBeCloseTo(slowDrag * 4);
@@ -26,12 +26,12 @@ test.describe("kart coasting model", () => {
     const baselineDrag = getAerodynamicDragForce(
       10,
       0.4,
-      EARTH_WORLD_ENVIRONMENT.airDensity,
+      HABITAT_WORLD_ENVIRONMENT.airDensity,
     );
     const doubleAreaDrag = getAerodynamicDragForce(
       10,
       0.8,
-      EARTH_WORLD_ENVIRONMENT.airDensity,
+      HABITAT_WORLD_ENVIRONMENT.airDensity,
     );
 
     expect(doubleAreaDrag).toBeCloseTo(baselineDrag * 2);
@@ -40,19 +40,19 @@ test.describe("kart coasting model", () => {
   });
 
   test("combines kart drag area with environment-owned air density", () => {
-    const earthDrag = getAerodynamicDragForce(
+    const habitatDrag = getAerodynamicDragForce(
       10,
       0.4,
-      EARTH_WORLD_ENVIRONMENT.airDensity,
+      HABITAT_WORLD_ENVIRONMENT.airDensity,
     );
 
     expect(
       getAerodynamicDragForce(
         10,
         0.4,
-        EARTH_WORLD_ENVIRONMENT.airDensity * 2,
+        HABITAT_WORLD_ENVIRONMENT.airDensity * 2,
       ),
-    ).toBeCloseTo(earthDrag * 2);
+    ).toBeCloseTo(habitatDrag * 2);
     expect(getAerodynamicDragForce(10, 0.4, Number.NaN)).toBe(0);
   });
 
@@ -83,11 +83,15 @@ test.describe("kart coasting model", () => {
     expect(getRollingResistanceForce(-10, 1_000, 0.025)).toBe(25);
     expect(getRollingResistanceForce(0.25, 1_000, 0.025)).toBe(-12.5);
     expect(getRollingResistanceForce(Number.NaN, 1_000, 0.025)).toBe(0);
+    // Parked, it holds gravity's pull along travel up to Crr × N.
+    expect(getRollingResistanceForce(0, 1_000, 0.025, 12)).toBe(-12);
+    expect(getRollingResistanceForce(0, 1_000, 0.025, -40)).toBe(25);
+    expect(getRollingResistanceForce(0.25, 1_000, 0.025, 12)).toBe(-18.5);
     expect(
       getAerodynamicDragForce(
         10,
         Number.NaN,
-        EARTH_WORLD_ENVIRONMENT.airDensity,
+        HABITAT_WORLD_ENVIRONMENT.airDensity,
       ),
     ).toBe(0);
   });

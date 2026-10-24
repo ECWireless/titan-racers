@@ -189,18 +189,34 @@ test.describe("kart manual righting", () => {
       { x: side * 0.05, y: 0.09, z: 0 },
     ]);
 
-    expect(
-      getManualRightingHullLiftClearance(
-        hull,
-        { x: 0, y: 0, z: 1 },
-        { x: 0, y: -1, z: 0 },
-      ),
-    ).toBeCloseTo(Math.hypot(0.2, 0.02) - 0.09, 6);
+    // At least the swept radius above the resting point by mid-roll, and more
+    // when the wide ends dip before the hop has risen.
+    const clearance = getManualRightingHullLiftClearance(
+      hull,
+      { x: 0, y: 0, z: 1 },
+      { x: 0, y: -1, z: 0 },
+      1.15,
+    );
+    expect(clearance).toBeGreaterThan(Math.hypot(0.2, 0.02) - 0.09);
+    for (let step = 1; step <= 100; step += 1) {
+      const flight = step / 100 / 1.15;
+      const angle = Math.PI * 1.15 * flight;
+      if (angle < (20 * Math.PI) / 180) continue;
+      const rise = 4 * clearance * (flight - flight ** 2);
+      for (const point of hull) {
+        // Rolled height above the support (up is −y), resting depth 0.09.
+        const height =
+          -(point.x * Math.sin(angle) + point.y * Math.cos(angle)) + 0.09;
+        // Sampled at 180 points, so allow a sub-millimetre gap between them.
+        expect(rise + height).toBeGreaterThanOrEqual(-1e-4);
+      }
+    }
     expect(
       getManualRightingHullLiftClearance(
         hull,
         { x: 0, y: 0, z: 0 },
         { x: 0, y: -1, z: 0 },
+        1.15,
       ),
     ).toBe(0);
   });
