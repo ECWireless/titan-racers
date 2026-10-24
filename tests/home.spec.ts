@@ -416,7 +416,8 @@ async function setSimulationPaused(canvas: Locator, paused: boolean) {
 
 // Pauses the race from inside the page the moment its scene reports ready,
 // before its first frame. Slow software-WebGL frames otherwise let the
-// countdown run out before a test's own pause request arrives.
+// countdown run out before a test's own pause request arrives. Also records
+// whether a loading screen still covered the race then.
 async function pauseSimulationWhenSceneReady(page: Page) {
   await page.evaluate(() => {
     const observer = new MutationObserver(() => {
@@ -425,6 +426,10 @@ async function pauseSimulationWhenSceneReady(page: Page) {
       );
       if (!canvas) return;
       observer.disconnect();
+      (window as { coveredAtSceneReady?: boolean }).coveredAtSceneReady =
+        document.querySelector(
+          "[data-testid='course-loading-screen']:not([data-leaving='true'])",
+        ) !== null;
       canvas.dispatchEvent(
         new CustomEvent("setSimulationPaused", { detail: { paused: true } }),
       );
@@ -1613,22 +1618,6 @@ test.describe("home screen", () => {
     await expect(cover).toHaveCount(0);
     await expect(solo).toBeEnabled();
 
-    // Records whether the loading screen still covered the race when its
-    // countdown started.
-    await page.evaluate(() => {
-      const observer = new MutationObserver(() => {
-        if (!document.querySelector("[data-scene-ready='true']")) return;
-        observer.disconnect();
-        (window as { coveredAtCountdown?: boolean }).coveredAtCountdown =
-          document.querySelector(
-            "[data-testid='course-loading-screen']:not([data-leaving='true'])",
-          ) !== null;
-      });
-      observer.observe(document.body, {
-        attributeFilter: ["data-scene-ready"],
-        subtree: true,
-      });
-    });
     await pauseSimulationWhenSceneReady(page);
     await solo.click();
     const startedAt = Date.now();
@@ -1637,7 +1626,7 @@ test.describe("home screen", () => {
     expect(Date.now() - startedAt).toBeGreaterThanOrEqual(2_500);
     expect(
       await page.evaluate(
-        () => (window as { coveredAtCountdown?: boolean }).coveredAtCountdown,
+        () => (window as { coveredAtSceneReady?: boolean }).coveredAtSceneReady,
       ),
     ).toBe(false);
     expect(

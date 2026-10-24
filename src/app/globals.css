@@ -492,8 +492,9 @@ button[aria-disabled="true"] {
   }
 }
 
+/* The fade's duration comes from COURSE_LOADING_FADE_MS. */
 .course-loading {
-  transition: opacity 300ms ease-out;
+  transition: opacity ease-out;
 }
 
 .course-loading[data-leaving="true"] {

@@ -81,9 +81,10 @@ the hull, the mirrors, and Saturn, with no meshes or textures.
 - The windows show the lit interior, drawn with the same land, cap, and
   mirror-light code as the race (`src/game/enclosure/habitat-glsl.ts`). The
   mirrors reflect the scene once.
-- Saturn hangs behind the habitat as an oblate, banded globe. Titan orbits in
-  the ring plane, so the habitat sits 2° above the rings and sees them nearly
-  edge-on; the Sun stands 20° above them. The rings shadow the globe and the
+- Saturn hangs behind the habitat as an oblate, banded globe. Titan orbits
+  within 0.35° of the ring plane; the habitat's own orbit tilts 2°, so it
+  sees the rings nearly edge-on but open enough to read. The Sun stands 20°
+  above them. The rings shadow the globe and the
   globe shadows the rings. Saturnshine is the only light where the Sun does
   not reach.
 - The camera frames one cylinder; its twin is not drawn. There are no stars:

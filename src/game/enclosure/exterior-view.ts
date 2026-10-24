@@ -27,9 +27,10 @@ import {
 // outward at azimuth 0°, +Y at 90°. The habitat turns about +Z at its true
 // spin; the camera, the Sun, and Saturn stay still.
 
-// Saturn from Titan's orbit. Titan orbits in Saturn's ring plane, so a
-// habitat near it sees the rings nearly edge-on; the Sun stands 20° above
-// them (Saturn's seasons reach 26.7°).
+// Saturn from near Titan's orbit. Titan orbits within 0.35° of Saturn's ring
+// plane; the habitat's own orbit tilts 2°, so it sees the rings nearly
+// edge-on but open enough to read. The Sun stands 20° above them (Saturn's
+// seasons reach 26.7°).
 const SATURN = {
   distance: 1_221_870e3,
   equatorialRadius: 60_268e3,
@@ -538,7 +539,7 @@ export type ExteriorView = {
  * Draws Island Three from outside on a canvas filling a container, at one
  * pixel per CSS pixel, turning at the habitat's true spin. Each view owns
  * its canvas, so its context can be released at once on disposal. Returns
- * null without WebGL 2.
+ * null without a usable WebGL 2 context or if its shader fails.
  */
 export function createExteriorView(
   container: HTMLElement,
@@ -554,7 +555,8 @@ export function createExteriorView(
     depth: false,
     stencil: false,
   });
-  if (!gl) {
+  // A page over its context budget can be handed an already-lost context.
+  if (!gl || gl.isContextLost()) {
     canvas.remove();
     return null;
   }

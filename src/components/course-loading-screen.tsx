@@ -66,6 +66,7 @@ export function CourseLoadingScreen({
       className="course-loading fixed inset-0 z-50 bg-titan-black text-titan-ice"
       data-leaving={leaving}
       data-testid="course-loading-screen"
+      style={{ transitionDuration: `${COURSE_LOADING_FADE_MS}ms` }}
     >
       <div ref={viewRef} className="absolute inset-0" />
       <div

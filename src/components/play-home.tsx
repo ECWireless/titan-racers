@@ -269,13 +269,10 @@ export function PlayHome() {
       coverPainted,
     ]);
     if (resumeThumbnailRenderingRef.current !== thumbnailPause.release) return;
+    // Name the course being raced. The habitat view stays as it is rather
+    // than restart for a published course's slightly different placement.
     setCourseLoading(
-      (current) =>
-        current && {
-          ...current,
-          courseName: nextCourse.name,
-          enclosure: nextCourse.enclosure,
-        },
+      (current) => current && { ...current, courseName: nextCourse.name },
     );
     const rampHeight = axisRampStartHeight();
     setCourseDocument(
@@ -336,6 +333,8 @@ export function PlayHome() {
       revealTimerRef.current = null;
     }
     courseLoadingStartRef.current = null;
+    // Settles a start still waiting on the screen; it then sees the exit.
+    coverPaintedRef.current?.();
     coverPaintedRef.current = null;
     resumeThumbnailRenderingRef.current?.();
     resumeThumbnailRenderingRef.current = null;
@@ -368,7 +367,7 @@ export function PlayHome() {
             kartDocument={kartDocument}
             kartSnapshot={kartSnapshot}
             loadTimings={loadTimings}
-            loadingScreen={covered}
+            covered={covered}
             recordTelemetry={!axisRampTest}
             showHabitatReadout={axisRampTest}
             onExit={exitSolo}

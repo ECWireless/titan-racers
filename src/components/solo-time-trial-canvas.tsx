@@ -262,7 +262,7 @@ type SoloTimeTrialCanvasProps = {
    * A loading screen covers the race: it hides its own loader and holds the
    * countdown until this turns false.
    */
-  loadingScreen?: boolean;
+  covered?: boolean;
   onExit: () => void;
   /** Called once the scene is ready to start, or has failed to load. */
   onLoaded?: (ready: boolean) => void;
@@ -380,7 +380,7 @@ export function SoloTimeTrialCanvas({
   exitRef,
   kartSnapshot,
   loadTimings,
-  loadingScreen = false,
+  covered = false,
   onExit,
   onLoaded,
   recordTelemetry = true,
@@ -538,7 +538,7 @@ export function SoloTimeTrialCanvas({
   const resumeButtonRef = useRef<HTMLButtonElement | null>(null);
   const sceneApiRef = useRef<SoloSceneControls | null>(null);
   const statusMenuRef = useRef<HTMLDivElement | null>(null);
-  const countdownHeldRef = useRef(loadingScreen);
+  const countdownHeldRef = useRef(covered);
   const startCountdownRef = useRef<(() => void) | null>(null);
   const onLoadedRef = useRef(onLoaded);
   const loadedReportedRef = useRef(false);
@@ -599,9 +599,7 @@ export function SoloTimeTrialCanvas({
   });
   useControllerMenuNavigation({
     containerRef: statusMenuRef,
-    enabled:
-      sceneStatus !== "ready" &&
-      !(loadingScreen && sceneStatus === "initializing"),
+    enabled: sceneStatus !== "ready" && !covered,
     onBack: exitRace,
   });
 
@@ -616,9 +614,9 @@ export function SoloTimeTrialCanvas({
   }, [sceneStatus]);
 
   useEffect(() => {
-    countdownHeldRef.current = loadingScreen;
-    if (!loadingScreen) startCountdownRef.current?.();
-  }, [loadingScreen]);
+    countdownHeldRef.current = covered;
+    if (!covered) startCountdownRef.current?.();
+  }, [covered]);
 
   useEffect(() => {
     if (!gameplayTelemetryStartedRef.current) {
@@ -2527,8 +2525,11 @@ export function SoloTimeTrialCanvas({
           dt,
         );
         latestRequestedDrivingInput = sample.driving;
+        // A race held behind its loading screen cannot pause yet; pausing
+        // would disable input with nothing to turn it back on.
         pauseAfterFixedStep =
           sample.actions.pauseRequested &&
+          raceSession.snapshot.state !== "ready" &&
           raceSession.snapshot.state !== "finished";
         raceSession.advanceTime(dt);
         if (!raceStartReported && raceSession.snapshot.state === "racing") {
@@ -3646,7 +3647,7 @@ export function SoloTimeTrialCanvas({
             </>
           ) : null}
         </>
-      ) : loadingScreen && sceneStatus === "initializing" ? null : (
+      ) : covered && sceneStatus === "initializing" ? null : (
         <div className="absolute inset-0 z-20 grid place-items-center bg-titan-black/88 px-6 text-center font-mono text-titan-ice">
           {/* Both branches render the same unkeyed menu element, so the
               controller menu hook stays attached across status changes. */}

@@ -232,8 +232,8 @@ PR 4.3.1, varying run to run with no change to startup work; near the
 budget's top, so worth watching.
 
 PR 4.3.3 was measured with three Balanced races on reloads, with no hitches,
-on the Agricultural Zone. The loading screen draws only before the race shows
-and is gone by the countdown, so racing costs are unchanged. It painted its
+on the Agricultural Zone. The loading screen draws only until the race shows,
+fading out over the countdown's first 300 ms, so racing costs are unchanged. It painted its
 first frame 28–29 ms after the tap (268 ms on the first run, which compiled
 its shader), the race was ready after 371–914 ms, and every race showed at
 the 2.5 s minimum. The first run's race first frame took 425 ms.
