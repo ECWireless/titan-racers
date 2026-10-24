@@ -10,11 +10,9 @@ import {
  * mass. See skills/game-concepts/rotating-habitat-physics for the model.
  */
 export type HabitatField = {
-  /** Spin rate, rad/s, right-handed about `spinAxis`. */
+  /** Spin rate, rad/s. */
   readonly spinRate: number;
-  /** Unit vector along the spin axis (sunward). */
-  readonly spinAxis: Vector3;
-  /** The spin as a vector, ω × `spinAxis`, rad/s. */
+  /** The spin as a vector, rad/s: right-handed about the sunward axis. */
   readonly spin: Vector3;
   /** Centrifugal gravity at a position: ω² r⊥, away from the axis. */
   gravity(position: Vector3): Vector3;
@@ -83,7 +81,6 @@ export function createHabitatField(
       y: axis.y * spinRate,
       z: axis.z * spinRate,
     }),
-    spinAxis: Object.freeze({ ...axis }),
     spinRate,
     up(position: Vector3) {
       const offset = radial(position);

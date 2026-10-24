@@ -1,6 +1,7 @@
 import { expect, test } from "@playwright/test";
 
 import { withAxisRampTest } from "../src/game/course/axis-ramp-test";
+import { getEnclosureFrame } from "../src/game/enclosure/island-three";
 import { ROUGH_COURSE_DOCUMENT } from "../src/game/course/course-document";
 
 test("opens the Starter Course wall where the open ramp leaves it", () => {
@@ -10,11 +11,14 @@ test("opens the Starter Course wall where the open ramp leaves it", () => {
   const [west, east] = ["a", "b"].map((suffix) =>
     course.objects.find((o) => o.id === `perimeter-wall-north-${suffix}`)!,
   );
-  // The centreline crosses the wall 27 m out, 16.7 m west of the origin.
+  // The gap straddles where the ramp's centreline (sunward through the
+  // origin) meets the wall, wider than the 8 m ramp.
+  const { sunward } = getEnclosureFrame(course.enclosure);
+  const crossingX = (west.transform.position.z / sunward.z) * sunward.x;
   const westEnd = west.transform.position.x + west.visual.scale.x / 2;
   const eastEnd = east.transform.position.x - east.visual.scale.x / 2;
-  expect(westEnd).toBeLessThan(-16.68 - 5.08);
-  expect(eastEnd).toBeGreaterThan(-16.68 + 5.08);
+  expect(westEnd).toBeLessThan(crossingX - 4);
+  expect(eastEnd).toBeGreaterThan(crossingX + 4);
   // Only the stop at the axis is a wall; the ramps and pad stay open.
   expect(
     course.objects

@@ -62,5 +62,5 @@ A game-concept node should normally cover:
   wheel-support, tire-force, airborne, and recovery standard for RC-style kart
   handling.
 - [`rotating-habitat-physics/`](rotating-habitat-physics/README.md): the
-  candidate standard for centrifugal gravity, Coriolis, and local up inside a
+  validated standard for centrifugal gravity, Coriolis, and local up inside a
   spinning habitat at true scale.

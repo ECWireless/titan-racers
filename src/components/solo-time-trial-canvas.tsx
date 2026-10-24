@@ -2651,7 +2651,7 @@ export function SoloTimeTrialCanvas({
           displayedRaceSpeedRef.current = nextDisplayedSpeed;
           setRaceSpeed(nextDisplayedSpeed);
         }
-        if (showHabitatReadout) {
+        if (showHabitatReadout && kartController.habitat.spinRate > 0) {
           // Gravity is ω² r, so it also gives the distance from the axis.
           const { localGravity } = kartController.state;
           const { spinRate } = kartController.habitat;

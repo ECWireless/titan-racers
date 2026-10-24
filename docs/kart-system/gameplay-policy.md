@@ -45,7 +45,9 @@ Current policy families include:
   allowance while deriving impulses from mass and inertia, with enough lift
   for the collision hull (wheel guard included) to clear the ground throughout
   the roll, not just at the top of the hop, so wide hull ends cannot dig in
-  early; a bounded
+  early (the first 20° of roll is exempt, where a dipping edge only pivots
+  the kart up; karts righted from on their side hop higher as a result); a
+  bounded
   righting-only landing window targets upright angular velocity and performs a
   one-shot post-contact angular-momentum capture at the first upright
   four-wheel landing; and

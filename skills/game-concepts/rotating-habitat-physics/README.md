@@ -1,6 +1,6 @@
 # Rotating-Habitat Physics
 
-**Maturity:** Candidate (research for PR 4.3.2).
+**Maturity:** Validated (PR 4.3.2, 2026-10-23).
 
 ## Purpose and Scope
 
@@ -137,7 +137,9 @@ Toward the axis:
 - Recovery, airborne landings, and camera framing still behave on the floor.
 - A climb toward the axis shows fading weight and grip, a spinward push, and
   weightless coasting at the axis. Course placements stay clear of the axis,
-  so this needs a test structure that rises from a placed course.
+  so the dev-only `?axisRamp` structure in
+  [`docs/island-three.md`](../../../docs/island-three.md) rises to it from a
+  floor course.
 
 ## Known Limits
 

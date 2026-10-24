@@ -34,7 +34,7 @@ test("spins for floor gravity: one turn every 127 s", () => {
   const field = createHabitatField(enclosure(), G);
   expect(field.spinRate).toBeCloseTo(Math.sqrt(G / R), 12);
   expect((2 * Math.PI) / field.spinRate).toBeCloseTo(126.9, 1);
-  expectVector(field.spinAxis, sunward);
+  expectVector(field.spin, scale(sunward, field.spinRate));
 });
 
 test("pulls with floor gravity straight down at a floor placement", () => {

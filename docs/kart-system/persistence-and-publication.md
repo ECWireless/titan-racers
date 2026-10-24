@@ -41,8 +41,8 @@ Ackermann-aware steering-clearance derivation. The version `1` to `4` parsers
 remain available so existing immutable revisions can still be verified against
 their original hashes and still run (v1 and v2 without a wheel guard). The admin editor
 enables Save on an unedited draft whose derivation version is older than
-current, so it can be re-saved and republished. Official karts are the
-exception: their layout changes with the derivation, so an outdated official
+current, so it can be re-saved and republished. Official karts whose stored
+document differs from the current official design are the exception: such a
 draft shows "Load official design" and saves only after **Actions → Load
 official design**, then Save (which captures a new thumbnail) and Publish. Version `1` contact evidence remains part of that immutable
 historical snapshot, including when published, so the public response stays
