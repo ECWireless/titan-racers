@@ -81,7 +81,7 @@ same identity, role, and request-guard boundaries; see the
    already-current revision is idempotent and does not create history noise.
 4. Protected responses retain opaque attribution for audit. The unauthenticated
    runtime response omits author, publisher, and internal publication IDs.
-5. Guest racing selects an explicit course ID (`agricultural-zone`) and
+5. Guest racing selects an explicit course ID (`falls-view-park`) and
    consumes only its newest publication. When persistence is unavailable or no
    publication exists, it falls back to that course's validated bundled seed so
    guest play remains available; it never consumes an unpublished database
@@ -112,8 +112,8 @@ same identity, role, and request-guard boundaries; see the
   immutable saved revisions.
 - `rough-course` is a permanent sandbox course. Resetting it appends the
   validated source-controlled seed as a new attributed revision and never
-  deletes history; the official Agricultural Zone uses the separate stable ID
-  `agricultural-zone`.
+  deletes history; the official Falls View Park uses the separate stable ID
+  `falls-view-park`.
 - Application traffic may use a pooled Neon connection; production migrations
   require the explicit direct migration URL and never run at app startup.
 

@@ -1,0 +1,5088 @@
+{
+  "checkpoints": [
+    {
+      "forward": {
+        "x": 0,
+        "y": 0,
+        "z": 1
+      },
+      "halfExtents": {
+        "x": 0.4,
+        "y": 1.5,
+        "z": 8
+      },
+      "id": "checkpoint-left-turn",
+      "order": 1,
+      "position": {
+        "x": -28,
+        "y": 1.5,
+        "z": 8
+      },
+      "recovery": {
+        "position": {
+          "x": -28,
+          "y": 0,
+          "z": 8
+        },
+        "rotation": {
+          "x": 0,
+          "y": -135,
+          "z": 0
+        }
+      },
+      "rotation": {
+        "x": 0,
+        "y": 90,
+        "z": 0
+      }
+    },
+    {
+      "forward": {
+        "x": 1,
+        "y": 0,
+        "z": 0
+      },
+      "halfExtents": {
+        "x": 0.4,
+        "y": 1.5,
+        "z": 8
+      },
+      "id": "checkpoint-lower-straight",
+      "order": 2,
+      "position": {
+        "x": 0,
+        "y": 1.5,
+        "z": 16
+      },
+      "recovery": {
+        "position": {
+          "x": 0,
+          "y": 0,
+          "z": 16
+        },
+        "rotation": {
+          "x": 0,
+          "y": -90,
+          "z": 0
+        }
+      },
+      "rotation": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      }
+    },
+    {
+      "forward": {
+        "x": 0,
+        "y": 0,
+        "z": -1
+      },
+      "halfExtents": {
+        "x": 0.4,
+        "y": 1.5,
+        "z": 8
+      },
+      "id": "checkpoint-right-turn",
+      "order": 3,
+      "position": {
+        "x": 28,
+        "y": 1.5,
+        "z": 8
+      },
+      "recovery": {
+        "position": {
+          "x": 28,
+          "y": 0,
+          "z": 8
+        },
+        "rotation": {
+          "x": 0,
+          "y": 45,
+          "z": 0
+        }
+      },
+      "rotation": {
+        "x": 0,
+        "y": 90,
+        "z": 0
+      }
+    }
+  ],
+  "courseId": "falls-view-park",
+  "enclosure": {
+    "id": "enclosure.island-three",
+    "mirrorAngle": 80,
+    "placement": {
+      "axial": 13500,
+      "azimuth": 120,
+      "heading": 90,
+      "height": 0
+    },
+    "version": 1
+  },
+  "name": "Falls View Park Circuit",
+  "objects": [
+    {
+      "availability": "standard",
+      "category": "surface",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 44,
+          "y": 0.05,
+          "z": 29.5
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "drivable-surface",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.lawn-grass",
+          "version": 1
+        }
+      },
+      "editable": false,
+      "id": "ground",
+      "transform": {
+        "position": {
+          "x": 0,
+          "y": -0.05,
+          "z": 8
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "lawn",
+        "scale": {
+          "x": 88,
+          "y": 0.1,
+          "z": 59
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "surface",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 20,
+          "y": 0.04,
+          "z": 1
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": -0.039,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "drivable-surface",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.short-grass",
+          "version": 1
+        }
+      },
+      "editable": false,
+      "id": "course-north-verge",
+      "transform": {
+        "position": {
+          "x": 0,
+          "y": -0.001,
+          "z": -5
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "verge",
+        "scale": {
+          "x": 40,
+          "y": 0.002,
+          "z": 2
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "surface",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 20,
+          "y": 0.04,
+          "z": 1
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": -0.039,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "drivable-surface",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.short-grass",
+          "version": 1
+        }
+      },
+      "editable": false,
+      "id": "course-south-verge",
+      "transform": {
+        "position": {
+          "x": 0,
+          "y": -0.001,
+          "z": 21
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "verge",
+        "scale": {
+          "x": 40,
+          "y": 0.002,
+          "z": 2
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "surface",
+      "collision": {
+        "axis": 1,
+        "friction": 0.7,
+        "height": 0.08,
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": -0.039,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "radius": 14,
+        "restitution": 0,
+        "role": "drivable-surface",
+        "shape": "cylinder",
+        "surfaceMaterial": {
+          "id": "surface.short-grass",
+          "version": 1
+        }
+      },
+      "editable": false,
+      "id": "course-left-verge",
+      "transform": {
+        "position": {
+          "x": -20,
+          "y": -0.001,
+          "z": 8
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "verge",
+        "scale": {
+          "x": 28,
+          "y": 0.002,
+          "z": 28
+        },
+        "shape": "cylinder"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "surface",
+      "collision": {
+        "axis": 1,
+        "friction": 0.7,
+        "height": 0.08,
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": -0.039,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "radius": 14,
+        "restitution": 0,
+        "role": "drivable-surface",
+        "shape": "cylinder",
+        "surfaceMaterial": {
+          "id": "surface.short-grass",
+          "version": 1
+        }
+      },
+      "editable": false,
+      "id": "course-right-verge",
+      "transform": {
+        "position": {
+          "x": 20,
+          "y": -0.001,
+          "z": 8
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "verge",
+        "scale": {
+          "x": 28,
+          "y": 0.002,
+          "z": 28
+        },
+        "shape": "cylinder"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "surface",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 20,
+          "y": 0.04,
+          "z": 12
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": -0.039,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "drivable-surface",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.standard-course",
+          "version": 1
+        }
+      },
+      "editable": false,
+      "id": "course-outer-straight",
+      "transform": {
+        "position": {
+          "x": 0,
+          "y": -0.001,
+          "z": 8
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "asphalt",
+        "scale": {
+          "x": 40,
+          "y": 0.002,
+          "z": 24
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "surface",
+      "collision": {
+        "axis": 1,
+        "friction": 0.7,
+        "height": 0.08,
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": -0.039,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "radius": 12,
+        "restitution": 0,
+        "role": "drivable-surface",
+        "shape": "cylinder",
+        "surfaceMaterial": {
+          "id": "surface.standard-course",
+          "version": 1
+        }
+      },
+      "editable": false,
+      "id": "course-left-cap",
+      "transform": {
+        "position": {
+          "x": -20,
+          "y": -0.001,
+          "z": 8
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "asphalt",
+        "scale": {
+          "x": 24,
+          "y": 0.002,
+          "z": 24
+        },
+        "shape": "cylinder"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "surface",
+      "collision": {
+        "axis": 1,
+        "friction": 0.7,
+        "height": 0.08,
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": -0.039,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "radius": 12,
+        "restitution": 0,
+        "role": "drivable-surface",
+        "shape": "cylinder",
+        "surfaceMaterial": {
+          "id": "surface.standard-course",
+          "version": 1
+        }
+      },
+      "editable": false,
+      "id": "course-right-cap",
+      "transform": {
+        "position": {
+          "x": 20,
+          "y": -0.001,
+          "z": 8
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "asphalt",
+        "scale": {
+          "x": 24,
+          "y": 0.002,
+          "z": 24
+        },
+        "shape": "cylinder"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "surface",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 20,
+          "y": 0.04,
+          "z": 4
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": -0.039,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "drivable-surface",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.short-grass",
+          "version": 1
+        }
+      },
+      "editable": false,
+      "id": "course-inner-straight",
+      "transform": {
+        "position": {
+          "x": 0,
+          "y": -0.001,
+          "z": 8
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "ground",
+        "scale": {
+          "x": 40,
+          "y": 0.002,
+          "z": 8
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "surface",
+      "collision": {
+        "axis": 1,
+        "friction": 0.7,
+        "height": 0.08,
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": -0.039,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "radius": 4,
+        "restitution": 0,
+        "role": "drivable-surface",
+        "shape": "cylinder",
+        "surfaceMaterial": {
+          "id": "surface.short-grass",
+          "version": 1
+        }
+      },
+      "editable": false,
+      "id": "course-left-cutout",
+      "transform": {
+        "position": {
+          "x": -20,
+          "y": -0.001,
+          "z": 8
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "ground",
+        "scale": {
+          "x": 8,
+          "y": 0.002,
+          "z": 8
+        },
+        "shape": "cylinder"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "surface",
+      "collision": {
+        "axis": 1,
+        "friction": 0.7,
+        "height": 0.08,
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": -0.039,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "radius": 4,
+        "restitution": 0,
+        "role": "drivable-surface",
+        "shape": "cylinder",
+        "surfaceMaterial": {
+          "id": "surface.short-grass",
+          "version": 1
+        }
+      },
+      "editable": false,
+      "id": "course-right-cutout",
+      "transform": {
+        "position": {
+          "x": 20,
+          "y": -0.001,
+          "z": 8
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "ground",
+        "scale": {
+          "x": 8,
+          "y": 0.002,
+          "z": 8
+        },
+        "shape": "cylinder"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "surface",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 20,
+          "y": 0.04,
+          "z": 2.5
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": -0.039,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "drivable-surface",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.lawn-grass",
+          "version": 1
+        }
+      },
+      "editable": false,
+      "id": "course-inner-lawn",
+      "transform": {
+        "position": {
+          "x": 0,
+          "y": -0.001,
+          "z": 8
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "lawn",
+        "scale": {
+          "x": 40,
+          "y": 0.002,
+          "z": 5
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "surface",
+      "collision": {
+        "axis": 1,
+        "friction": 0.7,
+        "height": 0.08,
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": -0.039,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "radius": 2.5,
+        "restitution": 0,
+        "role": "drivable-surface",
+        "shape": "cylinder",
+        "surfaceMaterial": {
+          "id": "surface.lawn-grass",
+          "version": 1
+        }
+      },
+      "editable": false,
+      "id": "course-left-inner-lawn",
+      "transform": {
+        "position": {
+          "x": -20,
+          "y": -0.001,
+          "z": 8
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "lawn",
+        "scale": {
+          "x": 5,
+          "y": 0.002,
+          "z": 5
+        },
+        "shape": "cylinder"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "surface",
+      "collision": {
+        "axis": 1,
+        "friction": 0.7,
+        "height": 0.08,
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": -0.039,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "radius": 2.5,
+        "restitution": 0,
+        "role": "drivable-surface",
+        "shape": "cylinder",
+        "surfaceMaterial": {
+          "id": "surface.lawn-grass",
+          "version": 1
+        }
+      },
+      "editable": false,
+      "id": "course-right-inner-lawn",
+      "transform": {
+        "position": {
+          "x": 20,
+          "y": -0.001,
+          "z": 8
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "lawn",
+        "scale": {
+          "x": 5,
+          "y": 0.002,
+          "z": 5
+        },
+        "shape": "cylinder"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "marker",
+      "collision": null,
+      "editable": false,
+      "id": "start-finish-line",
+      "transform": {
+        "position": {
+          "x": 0,
+          "y": -0.001,
+          "z": 0
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "line",
+        "scale": {
+          "x": 0.18,
+          "y": 0.002,
+          "z": 8.4
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "obstacle",
+      "collision": {
+        "axis": 1,
+        "friction": 0.7,
+        "height": 0.9,
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "radius": 0.45,
+        "restitution": 0,
+        "role": "solid-obstacle",
+        "shape": "cylinder",
+        "surfaceMaterial": {
+          "id": "surface.standard-course",
+          "version": 1
+        }
+      },
+      "editable": true,
+      "id": "obstacle-barrel-a",
+      "transform": {
+        "position": {
+          "x": 14.5,
+          "y": 0.46,
+          "z": 2
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "obstacleBarrel",
+        "scale": {
+          "x": 0.9,
+          "y": 0.9,
+          "z": 0.9
+        },
+        "shape": "cylinder"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "obstacle",
+      "collision": {
+        "axis": 1,
+        "friction": 0.7,
+        "height": 0.9,
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "radius": 0.425,
+        "restitution": 0,
+        "role": "solid-obstacle",
+        "shape": "cylinder",
+        "surfaceMaterial": {
+          "id": "surface.standard-course",
+          "version": 1
+        }
+      },
+      "editable": true,
+      "id": "obstacle-barrel-b",
+      "transform": {
+        "position": {
+          "x": 20.6,
+          "y": 0.46,
+          "z": 8.4
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "obstacleBarrel",
+        "scale": {
+          "x": 0.85,
+          "y": 0.9,
+          "z": 0.85
+        },
+        "shape": "cylinder"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": {
+        "friction": 0.55,
+        "halfExtents": {
+          "x": 4,
+          "y": 0.225,
+          "z": 1.8
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "drivable-surface",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.standard-course",
+          "version": 1
+        }
+      },
+      "editable": true,
+      "id": "ramp-super-tall",
+      "transform": {
+        "position": {
+          "x": -14,
+          "y": 1.679,
+          "z": 31
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 28
+        }
+      },
+      "visual": {
+        "material": "ramp",
+        "scale": {
+          "x": 8,
+          "y": 0.45,
+          "z": 3.6
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "marker",
+      "collision": null,
+      "editable": true,
+      "id": "edge-north-outer",
+      "transform": {
+        "position": {
+          "x": 0,
+          "y": -0.001,
+          "z": -3.4
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "line",
+        "scale": {
+          "x": 40,
+          "y": 0.002,
+          "z": 0.14
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "marker",
+      "collision": null,
+      "editable": true,
+      "id": "edge-north-inner",
+      "transform": {
+        "position": {
+          "x": 0,
+          "y": -0.001,
+          "z": 3.4
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "line",
+        "scale": {
+          "x": 40,
+          "y": 0.002,
+          "z": 0.14
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "marker",
+      "collision": null,
+      "editable": true,
+      "id": "edge-south-inner",
+      "transform": {
+        "position": {
+          "x": 0,
+          "y": -0.001,
+          "z": 12.6
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "line",
+        "scale": {
+          "x": 40,
+          "y": 0.002,
+          "z": 0.14
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "marker",
+      "collision": null,
+      "editable": true,
+      "id": "edge-south-outer",
+      "transform": {
+        "position": {
+          "x": 0,
+          "y": -0.001,
+          "z": 19.4
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "line",
+        "scale": {
+          "x": 40,
+          "y": 0.002,
+          "z": 0.14
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "marker",
+      "collision": null,
+      "editable": true,
+      "id": "edge-west-inner-1",
+      "transform": {
+        "position": {
+          "x": -20.79878161726788,
+          "y": -0.001,
+          "z": 3.469884336143844
+        },
+        "rotation": {
+          "x": 0,
+          "y": -80,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "line",
+        "scale": {
+          "x": 0.14,
+          "y": 0.002,
+          "z": 1.4772466788880003
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "marker",
+      "collision": null,
+      "editable": true,
+      "id": "edge-west-inner-2",
+      "transform": {
+        "position": {
+          "x": -22.3,
+          "y": -0.001,
+          "z": 4.016283142591583
+        },
+        "rotation": {
+          "x": 0,
+          "y": -60.00000000000001,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "line",
+        "scale": {
+          "x": 0.14,
+          "y": 0.002,
+          "z": 1.4772466788880003
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "marker",
+      "collision": null,
+      "editable": true,
+      "id": "edge-west-inner-3",
+      "transform": {
+        "position": {
+          "x": -23.523804438347298,
+          "y": -0.001,
+          "z": 5.04317699544192
+        },
+        "rotation": {
+          "x": 0,
+          "y": -40,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "line",
+        "scale": {
+          "x": 0.14,
+          "y": 0.002,
+          "z": 1.4772466788880003
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "marker",
+      "collision": null,
+      "editable": true,
+      "id": "edge-west-inner-4",
+      "transform": {
+        "position": {
+          "x": -24.322586055615176,
+          "y": -0.001,
+          "z": 6.426707340701924
+        },
+        "rotation": {
+          "x": 0,
+          "y": -20.000000000000004,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "line",
+        "scale": {
+          "x": 0.14,
+          "y": 0.002,
+          "z": 1.4772466788880003
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "marker",
+      "collision": null,
+      "editable": true,
+      "id": "edge-west-inner-5",
+      "transform": {
+        "position": {
+          "x": -24.6,
+          "y": -0.001,
+          "z": 8
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "line",
+        "scale": {
+          "x": 0.14,
+          "y": 0.002,
+          "z": 1.4772466788880003
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "marker",
+      "collision": null,
+      "editable": true,
+      "id": "edge-west-inner-6",
+      "transform": {
+        "position": {
+          "x": -24.32258605561518,
+          "y": -0.001,
+          "z": 9.573292659298076
+        },
+        "rotation": {
+          "x": 0,
+          "y": 19.99999999999999,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "line",
+        "scale": {
+          "x": 0.14,
+          "y": 0.002,
+          "z": 1.4772466788880003
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "marker",
+      "collision": null,
+      "editable": true,
+      "id": "edge-west-inner-7",
+      "transform": {
+        "position": {
+          "x": -23.523804438347298,
+          "y": -0.001,
+          "z": 10.956823004558082
+        },
+        "rotation": {
+          "x": 0,
+          "y": 40.00000000000001,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "line",
+        "scale": {
+          "x": 0.14,
+          "y": 0.002,
+          "z": 1.4772466788880003
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "marker",
+      "collision": null,
+      "editable": true,
+      "id": "edge-west-inner-8",
+      "transform": {
+        "position": {
+          "x": -22.3,
+          "y": -0.001,
+          "z": 11.983716857408417
+        },
+        "rotation": {
+          "x": 0,
+          "y": 59.999999999999986,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "line",
+        "scale": {
+          "x": 0.14,
+          "y": 0.002,
+          "z": 1.4772466788880003
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "marker",
+      "collision": null,
+      "editable": true,
+      "id": "edge-west-inner-9",
+      "transform": {
+        "position": {
+          "x": -20.798781617267878,
+          "y": -0.001,
+          "z": 12.530115663856158
+        },
+        "rotation": {
+          "x": 0,
+          "y": 80.00000000000001,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "line",
+        "scale": {
+          "x": 0.14,
+          "y": 0.002,
+          "z": 1.4772466788880003
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "marker",
+      "collision": null,
+      "editable": true,
+      "id": "edge-west-outer-1",
+      "transform": {
+        "position": {
+          "x": -21.979589225403007,
+          "y": -0.001,
+          "z": -3.226808384339172
+        },
+        "rotation": {
+          "x": 0,
+          "y": -80,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "line",
+        "scale": {
+          "x": 0.14,
+          "y": 0.002,
+          "z": 3.661002638983306
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "marker",
+      "collision": null,
+      "editable": true,
+      "id": "edge-west-outer-2",
+      "transform": {
+        "position": {
+          "x": -25.7,
+          "y": -0.001,
+          "z": -1.872689603142602
+        },
+        "rotation": {
+          "x": 0,
+          "y": -60.00000000000001,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "line",
+        "scale": {
+          "x": 0.14,
+          "y": 0.002,
+          "z": 3.661002638983306
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "marker",
+      "collision": null,
+      "editable": true,
+      "id": "edge-west-outer-3",
+      "transform": {
+        "position": {
+          "x": -28.73290665155635,
+          "y": -0.001,
+          "z": 0.6722212495734521
+        },
+        "rotation": {
+          "x": 0,
+          "y": -40,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "line",
+        "scale": {
+          "x": 0.14,
+          "y": 0.002,
+          "z": 3.661002638983306
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "marker",
+      "collision": null,
+      "editable": true,
+      "id": "edge-west-outer-4",
+      "transform": {
+        "position": {
+          "x": -30.712495876959355,
+          "y": -0.001,
+          "z": 4.100970366087376
+        },
+        "rotation": {
+          "x": 0,
+          "y": -20.000000000000004,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "line",
+        "scale": {
+          "x": 0.14,
+          "y": 0.002,
+          "z": 3.661002638983306
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "marker",
+      "collision": null,
+      "editable": true,
+      "id": "edge-west-outer-5",
+      "transform": {
+        "position": {
+          "x": -31.4,
+          "y": -0.001,
+          "z": 8
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "line",
+        "scale": {
+          "x": 0.14,
+          "y": 0.002,
+          "z": 3.661002638983306
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "marker",
+      "collision": null,
+      "editable": true,
+      "id": "edge-west-outer-6",
+      "transform": {
+        "position": {
+          "x": -30.71249587695936,
+          "y": -0.001,
+          "z": 11.899029633912622
+        },
+        "rotation": {
+          "x": 0,
+          "y": 19.99999999999999,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "line",
+        "scale": {
+          "x": 0.14,
+          "y": 0.002,
+          "z": 3.661002638983306
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "marker",
+      "collision": null,
+      "editable": true,
+      "id": "edge-west-outer-7",
+      "transform": {
+        "position": {
+          "x": -28.73290665155635,
+          "y": -0.001,
+          "z": 15.32777875042655
+        },
+        "rotation": {
+          "x": 0,
+          "y": 40.00000000000001,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "line",
+        "scale": {
+          "x": 0.14,
+          "y": 0.002,
+          "z": 3.661002638983306
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "marker",
+      "collision": null,
+      "editable": true,
+      "id": "edge-west-outer-8",
+      "transform": {
+        "position": {
+          "x": -25.700000000000003,
+          "y": -0.001,
+          "z": 17.872689603142597
+        },
+        "rotation": {
+          "x": 0,
+          "y": 59.999999999999986,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "line",
+        "scale": {
+          "x": 0.14,
+          "y": 0.002,
+          "z": 3.661002638983306
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "marker",
+      "collision": null,
+      "editable": true,
+      "id": "edge-west-outer-9",
+      "transform": {
+        "position": {
+          "x": -21.979589225403004,
+          "y": -0.001,
+          "z": 19.226808384339172
+        },
+        "rotation": {
+          "x": 0,
+          "y": 80.00000000000001,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "line",
+        "scale": {
+          "x": 0.14,
+          "y": 0.002,
+          "z": 3.661002638983306
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "marker",
+      "collision": null,
+      "editable": true,
+      "id": "apron-west-hazard-1",
+      "transform": {
+        "position": {
+          "x": -23.630949683905634,
+          "y": -0.001,
+          "z": -3.1749140664680535
+        },
+        "rotation": {
+          "x": 0,
+          "y": -72,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "hazard",
+        "scale": {
+          "x": 0.35,
+          "y": 0.002,
+          "z": 1.5
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "marker",
+      "collision": null,
+      "editable": true,
+      "id": "apron-west-hazard-2",
+      "transform": {
+        "position": {
+          "x": -29.505949683905634,
+          "y": -0.001,
+          "z": 1.0935232855634407
+        },
+        "rotation": {
+          "x": 0,
+          "y": -36,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "hazard",
+        "scale": {
+          "x": 0.35,
+          "y": 0.002,
+          "z": 1.5
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "marker",
+      "collision": null,
+      "editable": true,
+      "id": "apron-west-hazard-3",
+      "transform": {
+        "position": {
+          "x": -31.75,
+          "y": -0.001,
+          "z": 8
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "hazard",
+        "scale": {
+          "x": 0.35,
+          "y": 0.002,
+          "z": 1.5
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "marker",
+      "collision": null,
+      "editable": true,
+      "id": "apron-west-hazard-4",
+      "transform": {
+        "position": {
+          "x": -29.505949683905634,
+          "y": -0.001,
+          "z": 14.90647671443656
+        },
+        "rotation": {
+          "x": 0,
+          "y": 36,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "hazard",
+        "scale": {
+          "x": 0.35,
+          "y": 0.002,
+          "z": 1.5
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "marker",
+      "collision": null,
+      "editable": true,
+      "id": "apron-west-hazard-5",
+      "transform": {
+        "position": {
+          "x": -23.630949683905634,
+          "y": -0.001,
+          "z": 19.174914066468055
+        },
+        "rotation": {
+          "x": 0,
+          "y": 72,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "hazard",
+        "scale": {
+          "x": 0.35,
+          "y": 0.002,
+          "z": 1.5
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "marker",
+      "collision": null,
+      "editable": true,
+      "id": "edge-east-inner-1",
+      "transform": {
+        "position": {
+          "x": 20.79878161726788,
+          "y": -0.001,
+          "z": 3.469884336143844
+        },
+        "rotation": {
+          "x": 0,
+          "y": 80,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "line",
+        "scale": {
+          "x": 0.14,
+          "y": 0.002,
+          "z": 1.4772466788880003
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "marker",
+      "collision": null,
+      "editable": true,
+      "id": "edge-east-inner-2",
+      "transform": {
+        "position": {
+          "x": 22.3,
+          "y": -0.001,
+          "z": 4.016283142591583
+        },
+        "rotation": {
+          "x": 0,
+          "y": 60.00000000000001,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "line",
+        "scale": {
+          "x": 0.14,
+          "y": 0.002,
+          "z": 1.4772466788880003
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "marker",
+      "collision": null,
+      "editable": true,
+      "id": "edge-east-inner-3",
+      "transform": {
+        "position": {
+          "x": 23.523804438347298,
+          "y": -0.001,
+          "z": 5.04317699544192
+        },
+        "rotation": {
+          "x": 0,
+          "y": 40,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "line",
+        "scale": {
+          "x": 0.14,
+          "y": 0.002,
+          "z": 1.4772466788880003
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "marker",
+      "collision": null,
+      "editable": true,
+      "id": "edge-east-inner-4",
+      "transform": {
+        "position": {
+          "x": 24.322586055615176,
+          "y": -0.001,
+          "z": 6.426707340701924
+        },
+        "rotation": {
+          "x": 0,
+          "y": 20.000000000000004,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "line",
+        "scale": {
+          "x": 0.14,
+          "y": 0.002,
+          "z": 1.4772466788880003
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "marker",
+      "collision": null,
+      "editable": true,
+      "id": "edge-east-inner-5",
+      "transform": {
+        "position": {
+          "x": 24.6,
+          "y": -0.001,
+          "z": 8
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "line",
+        "scale": {
+          "x": 0.14,
+          "y": 0.002,
+          "z": 1.4772466788880003
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "marker",
+      "collision": null,
+      "editable": true,
+      "id": "edge-east-inner-6",
+      "transform": {
+        "position": {
+          "x": 24.32258605561518,
+          "y": -0.001,
+          "z": 9.573292659298076
+        },
+        "rotation": {
+          "x": 0,
+          "y": -19.99999999999999,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "line",
+        "scale": {
+          "x": 0.14,
+          "y": 0.002,
+          "z": 1.4772466788880003
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "marker",
+      "collision": null,
+      "editable": true,
+      "id": "edge-east-inner-7",
+      "transform": {
+        "position": {
+          "x": 23.523804438347298,
+          "y": -0.001,
+          "z": 10.956823004558082
+        },
+        "rotation": {
+          "x": 0,
+          "y": -40.00000000000001,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "line",
+        "scale": {
+          "x": 0.14,
+          "y": 0.002,
+          "z": 1.4772466788880003
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "marker",
+      "collision": null,
+      "editable": true,
+      "id": "edge-east-inner-8",
+      "transform": {
+        "position": {
+          "x": 22.3,
+          "y": -0.001,
+          "z": 11.983716857408417
+        },
+        "rotation": {
+          "x": 0,
+          "y": -59.999999999999986,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "line",
+        "scale": {
+          "x": 0.14,
+          "y": 0.002,
+          "z": 1.4772466788880003
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "marker",
+      "collision": null,
+      "editable": true,
+      "id": "edge-east-inner-9",
+      "transform": {
+        "position": {
+          "x": 20.798781617267878,
+          "y": -0.001,
+          "z": 12.530115663856158
+        },
+        "rotation": {
+          "x": 0,
+          "y": -80.00000000000001,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "line",
+        "scale": {
+          "x": 0.14,
+          "y": 0.002,
+          "z": 1.4772466788880003
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "marker",
+      "collision": null,
+      "editable": true,
+      "id": "edge-east-outer-1",
+      "transform": {
+        "position": {
+          "x": 21.979589225403007,
+          "y": -0.001,
+          "z": -3.226808384339172
+        },
+        "rotation": {
+          "x": 0,
+          "y": 80,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "line",
+        "scale": {
+          "x": 0.14,
+          "y": 0.002,
+          "z": 3.661002638983306
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "marker",
+      "collision": null,
+      "editable": true,
+      "id": "edge-east-outer-2",
+      "transform": {
+        "position": {
+          "x": 25.7,
+          "y": -0.001,
+          "z": -1.872689603142602
+        },
+        "rotation": {
+          "x": 0,
+          "y": 60.00000000000001,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "line",
+        "scale": {
+          "x": 0.14,
+          "y": 0.002,
+          "z": 3.661002638983306
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "marker",
+      "collision": null,
+      "editable": true,
+      "id": "edge-east-outer-3",
+      "transform": {
+        "position": {
+          "x": 28.73290665155635,
+          "y": -0.001,
+          "z": 0.6722212495734521
+        },
+        "rotation": {
+          "x": 0,
+          "y": 40,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "line",
+        "scale": {
+          "x": 0.14,
+          "y": 0.002,
+          "z": 3.661002638983306
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "marker",
+      "collision": null,
+      "editable": true,
+      "id": "edge-east-outer-4",
+      "transform": {
+        "position": {
+          "x": 30.712495876959355,
+          "y": -0.001,
+          "z": 4.100970366087376
+        },
+        "rotation": {
+          "x": 0,
+          "y": 20.000000000000004,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "line",
+        "scale": {
+          "x": 0.14,
+          "y": 0.002,
+          "z": 3.661002638983306
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "marker",
+      "collision": null,
+      "editable": true,
+      "id": "edge-east-outer-5",
+      "transform": {
+        "position": {
+          "x": 31.4,
+          "y": -0.001,
+          "z": 8
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "line",
+        "scale": {
+          "x": 0.14,
+          "y": 0.002,
+          "z": 3.661002638983306
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "marker",
+      "collision": null,
+      "editable": true,
+      "id": "edge-east-outer-6",
+      "transform": {
+        "position": {
+          "x": 30.71249587695936,
+          "y": -0.001,
+          "z": 11.899029633912622
+        },
+        "rotation": {
+          "x": 0,
+          "y": -19.99999999999999,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "line",
+        "scale": {
+          "x": 0.14,
+          "y": 0.002,
+          "z": 3.661002638983306
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "marker",
+      "collision": null,
+      "editable": true,
+      "id": "edge-east-outer-7",
+      "transform": {
+        "position": {
+          "x": 28.73290665155635,
+          "y": -0.001,
+          "z": 15.32777875042655
+        },
+        "rotation": {
+          "x": 0,
+          "y": -40.00000000000001,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "line",
+        "scale": {
+          "x": 0.14,
+          "y": 0.002,
+          "z": 3.661002638983306
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "marker",
+      "collision": null,
+      "editable": true,
+      "id": "edge-east-outer-8",
+      "transform": {
+        "position": {
+          "x": 25.700000000000003,
+          "y": -0.001,
+          "z": 17.872689603142597
+        },
+        "rotation": {
+          "x": 0,
+          "y": -59.999999999999986,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "line",
+        "scale": {
+          "x": 0.14,
+          "y": 0.002,
+          "z": 3.661002638983306
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "marker",
+      "collision": null,
+      "editable": true,
+      "id": "edge-east-outer-9",
+      "transform": {
+        "position": {
+          "x": 21.979589225403004,
+          "y": -0.001,
+          "z": 19.226808384339172
+        },
+        "rotation": {
+          "x": 0,
+          "y": -80.00000000000001,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "line",
+        "scale": {
+          "x": 0.14,
+          "y": 0.002,
+          "z": 3.661002638983306
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "marker",
+      "collision": null,
+      "editable": true,
+      "id": "apron-east-hazard-1",
+      "transform": {
+        "position": {
+          "x": 23.630949683905634,
+          "y": -0.001,
+          "z": -3.1749140664680535
+        },
+        "rotation": {
+          "x": 0,
+          "y": 72,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "hazard",
+        "scale": {
+          "x": 0.35,
+          "y": 0.002,
+          "z": 1.5
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "marker",
+      "collision": null,
+      "editable": true,
+      "id": "apron-east-hazard-2",
+      "transform": {
+        "position": {
+          "x": 29.505949683905634,
+          "y": -0.001,
+          "z": 1.0935232855634407
+        },
+        "rotation": {
+          "x": 0,
+          "y": 36,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "hazard",
+        "scale": {
+          "x": 0.35,
+          "y": 0.002,
+          "z": 1.5
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "marker",
+      "collision": null,
+      "editable": true,
+      "id": "apron-east-hazard-3",
+      "transform": {
+        "position": {
+          "x": 31.75,
+          "y": -0.001,
+          "z": 8
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "hazard",
+        "scale": {
+          "x": 0.35,
+          "y": 0.002,
+          "z": 1.5
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "marker",
+      "collision": null,
+      "editable": true,
+      "id": "apron-east-hazard-4",
+      "transform": {
+        "position": {
+          "x": 29.505949683905634,
+          "y": -0.001,
+          "z": 14.90647671443656
+        },
+        "rotation": {
+          "x": 0,
+          "y": -36,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "hazard",
+        "scale": {
+          "x": 0.35,
+          "y": 0.002,
+          "z": 1.5
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "marker",
+      "collision": null,
+      "editable": true,
+      "id": "apron-east-hazard-5",
+      "transform": {
+        "position": {
+          "x": 23.630949683905634,
+          "y": -0.001,
+          "z": 19.174914066468055
+        },
+        "rotation": {
+          "x": 0,
+          "y": -72,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "hazard",
+        "scale": {
+          "x": 0.35,
+          "y": 0.002,
+          "z": 1.5
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "marker",
+      "collision": null,
+      "editable": true,
+      "id": "grid-1-outer",
+      "transform": {
+        "position": {
+          "x": 2.5,
+          "y": -0.001,
+          "z": -1.4
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "line",
+        "scale": {
+          "x": 0.16,
+          "y": 0.002,
+          "z": 1
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "marker",
+      "collision": null,
+      "editable": true,
+      "id": "grid-1-inner",
+      "transform": {
+        "position": {
+          "x": 2.5,
+          "y": -0.001,
+          "z": 1.4
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "line",
+        "scale": {
+          "x": 0.16,
+          "y": 0.002,
+          "z": 1
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "marker",
+      "collision": null,
+      "editable": true,
+      "id": "grid-2-outer",
+      "transform": {
+        "position": {
+          "x": 4.8,
+          "y": -0.001,
+          "z": -1.4
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "line",
+        "scale": {
+          "x": 0.16,
+          "y": 0.002,
+          "z": 1
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "marker",
+      "collision": null,
+      "editable": true,
+      "id": "grid-2-inner",
+      "transform": {
+        "position": {
+          "x": 4.8,
+          "y": -0.001,
+          "z": 1.4
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "line",
+        "scale": {
+          "x": 0.16,
+          "y": 0.002,
+          "z": 1
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "marker",
+      "collision": null,
+      "editable": true,
+      "id": "grid-3-outer",
+      "transform": {
+        "position": {
+          "x": 7.1,
+          "y": -0.001,
+          "z": -1.4
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "line",
+        "scale": {
+          "x": 0.16,
+          "y": 0.002,
+          "z": 1
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "marker",
+      "collision": null,
+      "editable": true,
+      "id": "grid-3-inner",
+      "transform": {
+        "position": {
+          "x": 7.1,
+          "y": -0.001,
+          "z": 1.4
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "line",
+        "scale": {
+          "x": 0.16,
+          "y": 0.002,
+          "z": 1
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "marker",
+      "collision": null,
+      "editable": true,
+      "id": "grid-4-outer",
+      "transform": {
+        "position": {
+          "x": 9.399999999999999,
+          "y": -0.001,
+          "z": -1.4
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "line",
+        "scale": {
+          "x": 0.16,
+          "y": 0.002,
+          "z": 1
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "marker",
+      "collision": null,
+      "editable": true,
+      "id": "grid-4-inner",
+      "transform": {
+        "position": {
+          "x": 9.399999999999999,
+          "y": -0.001,
+          "z": 1.4
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "line",
+        "scale": {
+          "x": 0.16,
+          "y": 0.002,
+          "z": 1
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "marker",
+      "collision": null,
+      "editable": true,
+      "id": "finish-comb-1",
+      "transform": {
+        "position": {
+          "x": -0.42,
+          "y": -0.001,
+          "z": -2.7
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "hazard",
+        "scale": {
+          "x": 0.6,
+          "y": 0.002,
+          "z": 0.7
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "marker",
+      "collision": null,
+      "editable": true,
+      "id": "finish-comb-2",
+      "transform": {
+        "position": {
+          "x": -0.42,
+          "y": -0.001,
+          "z": -0.9000000000000001
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "hazard",
+        "scale": {
+          "x": 0.6,
+          "y": 0.002,
+          "z": 0.7
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "marker",
+      "collision": null,
+      "editable": true,
+      "id": "finish-comb-3",
+      "transform": {
+        "position": {
+          "x": -0.42,
+          "y": -0.001,
+          "z": 0.8999999999999999
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "hazard",
+        "scale": {
+          "x": 0.6,
+          "y": 0.002,
+          "z": 0.7
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "marker",
+      "collision": null,
+      "editable": true,
+      "id": "finish-comb-4",
+      "transform": {
+        "position": {
+          "x": -0.42,
+          "y": -0.001,
+          "z": 2.7
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "hazard",
+        "scale": {
+          "x": 0.6,
+          "y": 0.002,
+          "z": 0.7
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "marker",
+      "collision": null,
+      "editable": true,
+      "id": "arrow-departure-left",
+      "transform": {
+        "position": {
+          "x": -16,
+          "y": -0.001,
+          "z": -0.42
+        },
+        "rotation": {
+          "x": 0,
+          "y": 38,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "line",
+        "scale": {
+          "x": 1.3,
+          "y": 0.002,
+          "z": 0.18
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "marker",
+      "collision": null,
+      "editable": true,
+      "id": "arrow-departure-right",
+      "transform": {
+        "position": {
+          "x": -16,
+          "y": -0.001,
+          "z": 0.42
+        },
+        "rotation": {
+          "x": 0,
+          "y": -38,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "line",
+        "scale": {
+          "x": 1.3,
+          "y": 0.002,
+          "z": 0.18
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "marker",
+      "collision": null,
+      "editable": true,
+      "id": "arrow-return-left",
+      "transform": {
+        "position": {
+          "x": 14,
+          "y": -0.001,
+          "z": 15.58
+        },
+        "rotation": {
+          "x": 0,
+          "y": -38,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "line",
+        "scale": {
+          "x": 1.3,
+          "y": 0.002,
+          "z": 0.18
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "marker",
+      "collision": null,
+      "editable": true,
+      "id": "arrow-return-right",
+      "transform": {
+        "position": {
+          "x": 14,
+          "y": -0.001,
+          "z": 16.42
+        },
+        "rotation": {
+          "x": 0,
+          "y": 38,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "line",
+        "scale": {
+          "x": 1.3,
+          "y": 0.002,
+          "z": 0.18
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "marker",
+      "collision": null,
+      "editable": true,
+      "id": "arrow-home-left",
+      "transform": {
+        "position": {
+          "x": 10,
+          "y": -0.001,
+          "z": -0.42
+        },
+        "rotation": {
+          "x": 0,
+          "y": 38,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "line",
+        "scale": {
+          "x": 1.3,
+          "y": 0.002,
+          "z": 0.18
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "marker",
+      "collision": null,
+      "editable": true,
+      "id": "arrow-home-right",
+      "transform": {
+        "position": {
+          "x": 10,
+          "y": -0.001,
+          "z": 0.42
+        },
+        "rotation": {
+          "x": 0,
+          "y": -38,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "line",
+        "scale": {
+          "x": 1.3,
+          "y": 0.002,
+          "z": 0.18
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "obstacle",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 0.12,
+          "y": 1.6,
+          "z": 0.12
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "solid-obstacle",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.standard-course",
+          "version": 1
+        }
+      },
+      "editable": true,
+      "id": "timing-portal-north-post",
+      "transform": {
+        "position": {
+          "x": 0,
+          "y": 1.6,
+          "z": -4.8
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "steel",
+        "scale": {
+          "x": 0.24,
+          "y": 3.2,
+          "z": 0.24
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "obstacle",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 0.12,
+          "y": 1.6,
+          "z": 0.12
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "solid-obstacle",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.standard-course",
+          "version": 1
+        }
+      },
+      "editable": true,
+      "id": "timing-portal-south-post",
+      "transform": {
+        "position": {
+          "x": 0,
+          "y": 1.6,
+          "z": 4.8
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "steel",
+        "scale": {
+          "x": 0.24,
+          "y": 3.2,
+          "z": 0.24
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "obstacle",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 0.16,
+          "y": 0.16,
+          "z": 4.92
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "solid-obstacle",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.standard-course",
+          "version": 1
+        }
+      },
+      "editable": true,
+      "id": "timing-portal-crossbeam",
+      "transform": {
+        "position": {
+          "x": 0,
+          "y": 3.24,
+          "z": 0
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "hazard",
+        "scale": {
+          "x": 0.32,
+          "y": 0.32,
+          "z": 9.84
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "obstacle",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 1.6,
+          "y": 0.06,
+          "z": 0.55
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "solid-obstacle",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.standard-course",
+          "version": 1
+        }
+      },
+      "editable": true,
+      "id": "service-bench-top",
+      "transform": {
+        "position": {
+          "x": -10,
+          "y": 0.84,
+          "z": 8
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "obstacleBlock",
+        "scale": {
+          "x": 3.2,
+          "y": 0.12,
+          "z": 1.1
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "obstacle",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 0.06,
+          "y": 0.39,
+          "z": 0.06
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "solid-obstacle",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.standard-course",
+          "version": 1
+        }
+      },
+      "editable": true,
+      "id": "service-bench-leg-west-north",
+      "transform": {
+        "position": {
+          "x": -11.35,
+          "y": 0.39,
+          "z": 7.6
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "steel",
+        "scale": {
+          "x": 0.12,
+          "y": 0.78,
+          "z": 0.12
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "obstacle",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 0.06,
+          "y": 0.39,
+          "z": 0.06
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "solid-obstacle",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.standard-course",
+          "version": 1
+        }
+      },
+      "editable": true,
+      "id": "service-bench-leg-west-south",
+      "transform": {
+        "position": {
+          "x": -11.35,
+          "y": 0.39,
+          "z": 8.4
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "steel",
+        "scale": {
+          "x": 0.12,
+          "y": 0.78,
+          "z": 0.12
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "obstacle",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 0.06,
+          "y": 0.39,
+          "z": 0.06
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "solid-obstacle",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.standard-course",
+          "version": 1
+        }
+      },
+      "editable": true,
+      "id": "service-bench-leg-east-north",
+      "transform": {
+        "position": {
+          "x": -8.65,
+          "y": 0.39,
+          "z": 7.6
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "steel",
+        "scale": {
+          "x": 0.12,
+          "y": 0.78,
+          "z": 0.12
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "obstacle",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 0.06,
+          "y": 0.39,
+          "z": 0.06
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "solid-obstacle",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.standard-course",
+          "version": 1
+        }
+      },
+      "editable": true,
+      "id": "service-bench-leg-east-south",
+      "transform": {
+        "position": {
+          "x": -8.65,
+          "y": 0.39,
+          "z": 8.4
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "steel",
+        "scale": {
+          "x": 0.12,
+          "y": 0.78,
+          "z": 0.12
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "obstacle",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 1.2,
+          "y": 1.1,
+          "z": 0.6
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "solid-obstacle",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.standard-course",
+          "version": 1
+        }
+      },
+      "editable": true,
+      "id": "service-cabinet-main",
+      "transform": {
+        "position": {
+          "x": 9,
+          "y": 1.1,
+          "z": 8
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "steel",
+        "scale": {
+          "x": 2.4,
+          "y": 2.2,
+          "z": 1.2
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "obstacle",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 0.6,
+          "y": 0.65,
+          "z": 0.6
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "solid-obstacle",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.standard-course",
+          "version": 1
+        }
+      },
+      "editable": true,
+      "id": "service-cabinet-relay",
+      "transform": {
+        "position": {
+          "x": 11,
+          "y": 0.65,
+          "z": 8
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "obstacleBlock",
+        "scale": {
+          "x": 1.2,
+          "y": 1.3,
+          "z": 1.2
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 1.25,
+          "y": 0.200922,
+          "z": 1.1
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "drivable-surface",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.standard-course",
+          "version": 1
+        }
+      },
+      "editable": true,
+      "id": "inspection-table-entry",
+      "transform": {
+        "position": {
+          "x": -7.269612,
+          "y": -0.025,
+          "z": -1.8
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": -8
+        }
+      },
+      "visual": {
+        "material": "ramp",
+        "scale": {
+          "x": 2.5,
+          "y": 0.401843,
+          "z": 2.2
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 1.25,
+          "y": 0.200922,
+          "z": 1.1
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "drivable-surface",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.standard-course",
+          "version": 1
+        }
+      },
+      "editable": true,
+      "id": "inspection-table-exit",
+      "transform": {
+        "position": {
+          "x": -12.230388,
+          "y": -0.025,
+          "z": -1.8
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 8
+        }
+      },
+      "visual": {
+        "material": "ramp",
+        "scale": {
+          "x": 2.5,
+          "y": 0.401843,
+          "z": 2.2
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 1.270515300130641,
+          "y": 0.198967,
+          "z": 1.1
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "drivable-surface",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.standard-course",
+          "version": 1
+        }
+      },
+      "editable": true,
+      "id": "inspection-table-deck",
+      "transform": {
+        "position": {
+          "x": -9.75,
+          "y": 0.148966,
+          "z": -1.8
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "ramp",
+        "scale": {
+          "x": 2.541030600261282,
+          "y": 0.397933,
+          "z": 2.2
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": {
+        "friction": 0.55,
+        "halfExtents": {
+          "x": 1.3,
+          "y": 0.142846,
+          "z": 1
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "drivable-surface",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.standard-course",
+          "version": 1
+        }
+      },
+      "editable": true,
+      "id": "ramp-kicker",
+      "transform": {
+        "position": {
+          "x": 5.31245,
+          "y": -0.021,
+          "z": 13.9
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 5
+        }
+      },
+      "visual": {
+        "material": "ramp",
+        "scale": {
+          "x": 2.6,
+          "y": 0.285692,
+          "z": 2
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 2.0063897926375125,
+          "y": 0.185591,
+          "z": 1
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "drivable-surface",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.standard-course",
+          "version": 1
+        }
+      },
+      "editable": true,
+      "id": "service-bridge-approach",
+      "transform": {
+        "position": {
+          "x": -11.989985,
+          "y": -0.025,
+          "z": 18.3
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 4.573921259900861
+        }
+      },
+      "visual": {
+        "material": "ramp",
+        "scale": {
+          "x": 4.012779585275025,
+          "y": 0.371182,
+          "z": 2
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 2,
+          "y": 0.185,
+          "z": 1
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "drivable-surface",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.standard-course",
+          "version": 1
+        }
+      },
+      "editable": true,
+      "id": "service-bridge-deck",
+      "transform": {
+        "position": {
+          "x": -8,
+          "y": 0.135,
+          "z": 18.3
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "ramp",
+        "scale": {
+          "x": 4,
+          "y": 0.37,
+          "z": 2
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 2.0063897926375125,
+          "y": 0.185591,
+          "z": 1
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "drivable-surface",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.standard-course",
+          "version": 1
+        }
+      },
+      "editable": true,
+      "id": "service-bridge-descent",
+      "transform": {
+        "position": {
+          "x": -4.010015,
+          "y": -0.025,
+          "z": 18.3
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": -4.573921259900861
+        }
+      },
+      "visual": {
+        "material": "ramp",
+        "scale": {
+          "x": 4.012779585275025,
+          "y": 0.371182,
+          "z": 2
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "obstacle",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 20,
+          "y": 0.1,
+          "z": 0.15
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "solid-obstacle",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.standard-course",
+          "version": 1
+        }
+      },
+      "editable": true,
+      "id": "infield-barrier-north",
+      "transform": {
+        "position": {
+          "x": 0,
+          "y": 0.1,
+          "z": 4.15
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "obstacleBlock",
+        "scale": {
+          "x": 40,
+          "y": 0.2,
+          "z": 0.3
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "obstacle",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 20,
+          "y": 0.1,
+          "z": 0.15
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "solid-obstacle",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.standard-course",
+          "version": 1
+        }
+      },
+      "editable": true,
+      "id": "infield-barrier-south",
+      "transform": {
+        "position": {
+          "x": 0,
+          "y": 0.1,
+          "z": 11.85
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "obstacleBlock",
+        "scale": {
+          "x": 40,
+          "y": 0.2,
+          "z": 0.3
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "obstacle",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 0.811098,
+          "y": 0.1,
+          "z": 0.15
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "solid-obstacle",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.standard-course",
+          "version": 1
+        }
+      },
+      "editable": true,
+      "id": "infield-barrier-west-1",
+      "transform": {
+        "position": {
+          "x": -20.751098,
+          "y": 0.1,
+          "z": 4.223977
+        },
+        "rotation": {
+          "x": 0,
+          "y": 11.250005,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "obstacleBlock",
+        "scale": {
+          "x": 1.622195,
+          "y": 0.2,
+          "z": 0.3
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "obstacle",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 0.811098,
+          "y": 0.1,
+          "z": 0.15
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "solid-obstacle",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.standard-course",
+          "version": 1
+        }
+      },
+      "editable": true,
+      "id": "infield-barrier-west-2",
+      "transform": {
+        "position": {
+          "x": -22.138945,
+          "y": 0.1,
+          "z": 4.798842
+        },
+        "rotation": {
+          "x": 0,
+          "y": 33.749995,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "obstacleBlock",
+        "scale": {
+          "x": 1.622195,
+          "y": 0.2,
+          "z": 0.3
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "obstacle",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 0.811098,
+          "y": 0.1,
+          "z": 0.15
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "solid-obstacle",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.standard-course",
+          "version": 1
+        }
+      },
+      "editable": true,
+      "id": "infield-barrier-west-3",
+      "transform": {
+        "position": {
+          "x": -23.201158,
+          "y": 0.1,
+          "z": 5.861055
+        },
+        "rotation": {
+          "x": 0,
+          "y": 56.250005,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "obstacleBlock",
+        "scale": {
+          "x": 1.622195,
+          "y": 0.2,
+          "z": 0.3
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "obstacle",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 0.811098,
+          "y": 0.1,
+          "z": 0.15
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "solid-obstacle",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.standard-course",
+          "version": 1
+        }
+      },
+      "editable": true,
+      "id": "infield-barrier-west-4",
+      "transform": {
+        "position": {
+          "x": -23.776023,
+          "y": 0.1,
+          "z": 7.248902
+        },
+        "rotation": {
+          "x": 0,
+          "y": 78.749995,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "obstacleBlock",
+        "scale": {
+          "x": 1.622195,
+          "y": 0.2,
+          "z": 0.3
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "obstacle",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 0.811098,
+          "y": 0.1,
+          "z": 0.15
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "solid-obstacle",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.standard-course",
+          "version": 1
+        }
+      },
+      "editable": true,
+      "id": "infield-barrier-west-5",
+      "transform": {
+        "position": {
+          "x": -23.776023,
+          "y": 0.1,
+          "z": 8.751098
+        },
+        "rotation": {
+          "x": 0,
+          "y": 101.250005,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "obstacleBlock",
+        "scale": {
+          "x": 1.622195,
+          "y": 0.2,
+          "z": 0.3
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "obstacle",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 0.811098,
+          "y": 0.1,
+          "z": 0.15
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "solid-obstacle",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.standard-course",
+          "version": 1
+        }
+      },
+      "editable": true,
+      "id": "infield-barrier-west-6",
+      "transform": {
+        "position": {
+          "x": -23.201158,
+          "y": 0.1,
+          "z": 10.138945
+        },
+        "rotation": {
+          "x": 0,
+          "y": 123.749995,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "obstacleBlock",
+        "scale": {
+          "x": 1.622195,
+          "y": 0.2,
+          "z": 0.3
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "obstacle",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 0.811098,
+          "y": 0.1,
+          "z": 0.15
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "solid-obstacle",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.standard-course",
+          "version": 1
+        }
+      },
+      "editable": true,
+      "id": "infield-barrier-west-7",
+      "transform": {
+        "position": {
+          "x": -22.138945,
+          "y": 0.1,
+          "z": 11.201158
+        },
+        "rotation": {
+          "x": 0,
+          "y": 146.250005,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "obstacleBlock",
+        "scale": {
+          "x": 1.622195,
+          "y": 0.2,
+          "z": 0.3
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "obstacle",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 0.811098,
+          "y": 0.1,
+          "z": 0.15
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "solid-obstacle",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.standard-course",
+          "version": 1
+        }
+      },
+      "editable": true,
+      "id": "infield-barrier-west-8",
+      "transform": {
+        "position": {
+          "x": -20.751098,
+          "y": 0.1,
+          "z": 11.776023
+        },
+        "rotation": {
+          "x": 0,
+          "y": 168.749995,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "obstacleBlock",
+        "scale": {
+          "x": 1.622195,
+          "y": 0.2,
+          "z": 0.3
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "obstacle",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 0.811098,
+          "y": 0.1,
+          "z": 0.15
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "solid-obstacle",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.standard-course",
+          "version": 1
+        }
+      },
+      "editable": true,
+      "id": "infield-barrier-east-1",
+      "transform": {
+        "position": {
+          "x": 20.751098,
+          "y": 0.1,
+          "z": 4.223977
+        },
+        "rotation": {
+          "x": 0,
+          "y": -11.250005,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "obstacleBlock",
+        "scale": {
+          "x": 1.622195,
+          "y": 0.2,
+          "z": 0.3
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "obstacle",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 0.811098,
+          "y": 0.1,
+          "z": 0.15
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "solid-obstacle",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.standard-course",
+          "version": 1
+        }
+      },
+      "editable": true,
+      "id": "infield-barrier-east-2",
+      "transform": {
+        "position": {
+          "x": 22.138945,
+          "y": 0.1,
+          "z": 4.798842
+        },
+        "rotation": {
+          "x": 0,
+          "y": -33.749995,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "obstacleBlock",
+        "scale": {
+          "x": 1.622195,
+          "y": 0.2,
+          "z": 0.3
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "obstacle",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 0.811098,
+          "y": 0.1,
+          "z": 0.15
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "solid-obstacle",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.standard-course",
+          "version": 1
+        }
+      },
+      "editable": true,
+      "id": "infield-barrier-east-3",
+      "transform": {
+        "position": {
+          "x": 23.201158,
+          "y": 0.1,
+          "z": 5.861055
+        },
+        "rotation": {
+          "x": 0,
+          "y": -56.250005,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "obstacleBlock",
+        "scale": {
+          "x": 1.622195,
+          "y": 0.2,
+          "z": 0.3
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "obstacle",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 0.811098,
+          "y": 0.1,
+          "z": 0.15
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "solid-obstacle",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.standard-course",
+          "version": 1
+        }
+      },
+      "editable": true,
+      "id": "infield-barrier-east-4",
+      "transform": {
+        "position": {
+          "x": 23.776023,
+          "y": 0.1,
+          "z": 7.248902
+        },
+        "rotation": {
+          "x": 0,
+          "y": -78.749995,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "obstacleBlock",
+        "scale": {
+          "x": 1.622195,
+          "y": 0.2,
+          "z": 0.3
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "obstacle",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 0.811098,
+          "y": 0.1,
+          "z": 0.15
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "solid-obstacle",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.standard-course",
+          "version": 1
+        }
+      },
+      "editable": true,
+      "id": "infield-barrier-east-5",
+      "transform": {
+        "position": {
+          "x": 23.776023,
+          "y": 0.1,
+          "z": 8.751098
+        },
+        "rotation": {
+          "x": 0,
+          "y": -101.250005,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "obstacleBlock",
+        "scale": {
+          "x": 1.622195,
+          "y": 0.2,
+          "z": 0.3
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "obstacle",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 0.811098,
+          "y": 0.1,
+          "z": 0.15
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "solid-obstacle",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.standard-course",
+          "version": 1
+        }
+      },
+      "editable": true,
+      "id": "infield-barrier-east-6",
+      "transform": {
+        "position": {
+          "x": 23.201158,
+          "y": 0.1,
+          "z": 10.138945
+        },
+        "rotation": {
+          "x": 0,
+          "y": -123.749995,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "obstacleBlock",
+        "scale": {
+          "x": 1.622195,
+          "y": 0.2,
+          "z": 0.3
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "obstacle",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 0.811098,
+          "y": 0.1,
+          "z": 0.15
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "solid-obstacle",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.standard-course",
+          "version": 1
+        }
+      },
+      "editable": true,
+      "id": "infield-barrier-east-7",
+      "transform": {
+        "position": {
+          "x": 22.138945,
+          "y": 0.1,
+          "z": 11.201158
+        },
+        "rotation": {
+          "x": 0,
+          "y": -146.250005,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "obstacleBlock",
+        "scale": {
+          "x": 1.622195,
+          "y": 0.2,
+          "z": 0.3
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "obstacle",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 0.811098,
+          "y": 0.1,
+          "z": 0.15
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "solid-obstacle",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.standard-course",
+          "version": 1
+        }
+      },
+      "editable": true,
+      "id": "infield-barrier-east-8",
+      "transform": {
+        "position": {
+          "x": 20.751098,
+          "y": 0.1,
+          "z": 11.776023
+        },
+        "rotation": {
+          "x": 0,
+          "y": -168.749995,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "obstacleBlock",
+        "scale": {
+          "x": 1.622195,
+          "y": 0.2,
+          "z": 0.3
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "obstacle",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 44,
+          "y": 0.5,
+          "z": 0.15
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "solid-obstacle",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.standard-course",
+          "version": 1
+        }
+      },
+      "editable": true,
+      "id": "perimeter-wall-north",
+      "label": "Perimeter wall (north)",
+      "transform": {
+        "position": {
+          "x": 0,
+          "y": 0.5,
+          "z": -21.35
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "obstacleBlock",
+        "scale": {
+          "x": 88,
+          "y": 1,
+          "z": 0.3
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "obstacle",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 44,
+          "y": 0.5,
+          "z": 0.15
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "solid-obstacle",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.standard-course",
+          "version": 1
+        }
+      },
+      "editable": true,
+      "id": "perimeter-wall-south",
+      "label": "Perimeter wall (south)",
+      "transform": {
+        "position": {
+          "x": 0,
+          "y": 0.5,
+          "z": 37.35
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "obstacleBlock",
+        "scale": {
+          "x": 88,
+          "y": 1,
+          "z": 0.3
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "obstacle",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 0.15,
+          "y": 0.5,
+          "z": 29.2
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "solid-obstacle",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.standard-course",
+          "version": 1
+        }
+      },
+      "editable": true,
+      "id": "perimeter-wall-west",
+      "label": "Perimeter wall (west)",
+      "transform": {
+        "position": {
+          "x": -43.85,
+          "y": 0.5,
+          "z": 8
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "obstacleBlock",
+        "scale": {
+          "x": 0.3,
+          "y": 1,
+          "z": 58.4
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "obstacle",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 0.15,
+          "y": 0.5,
+          "z": 29.2
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "solid-obstacle",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.standard-course",
+          "version": 1
+        }
+      },
+      "editable": true,
+      "id": "perimeter-wall-east",
+      "label": "Perimeter wall (east)",
+      "transform": {
+        "position": {
+          "x": 43.85,
+          "y": 0.5,
+          "z": 8
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "obstacleBlock",
+        "scale": {
+          "x": 0.3,
+          "y": 1,
+          "z": 58.4
+        },
+        "shape": "box"
+      }
+    }
+  ],
+  "schemaVersion": 4,
+  "start": {
+    "gateHalfExtents": {
+      "x": 8,
+      "y": 1.5,
+      "z": 0.4
+    },
+    "id": "start-position",
+    "position": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+    },
+    "rotation": {
+      "x": 0,
+      "y": 90,
+      "z": 0
+    },
+    "spawnDistance": 0.6
+  },
+  "units": "meters"
+}

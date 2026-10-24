@@ -28,7 +28,7 @@ phase order. New implementation sessions must also follow `AGENTS.md` and
   loading, and recoverable WebGL context loss.
 
 Phase 2 deliberately stops at one rough kart and the rough test loop. Kart
-uploads, Agricultural Zone visual production, ghosts, leaderboard submission,
+uploads, official-course visual production, ghosts, leaderboard submission,
 and multiplayer remain later phases.
 
 ## Controls
@@ -96,4 +96,4 @@ context recovery.
 
 The rough course is the permanent engineering sandbox and the kart builder's
 test-drive course. The solo time trial races the separate player-facing
-`agricultural-zone` course.
+`falls-view-park` course.

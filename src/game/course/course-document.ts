@@ -7,7 +7,7 @@ import {
   MIRROR_ANGLE_LIMITS,
 } from "../enclosure/island-three";
 import { getApprovedSurfaceMaterial } from "../kart/kart-material-registry";
-import agriculturalZoneDocumentJson from "./agricultural-zone.v4.json";
+import fallsViewParkDocumentJson from "./falls-view-park.v4.json";
 import type { OfficialCourseId } from "./course-ids";
 import roughCourseDocumentJson from "./rough-course.v4.json";
 
@@ -671,13 +671,13 @@ export const ROUGH_COURSE_DOCUMENT = parseCourseDocument(
   roughCourseDocumentJson,
 );
 
-export const AGRICULTURAL_ZONE_DOCUMENT = parseCourseDocument(
-  agriculturalZoneDocumentJson,
+export const FALLS_VIEW_PARK_DOCUMENT = parseCourseDocument(
+  fallsViewParkDocumentJson,
 );
 
 /** Validated source seeds, used when no publication is available. */
 export const BUNDLED_COURSE_DOCUMENTS: Record<OfficialCourseId, CourseDocument> =
   {
-    "agricultural-zone": AGRICULTURAL_ZONE_DOCUMENT,
+    "falls-view-park": FALLS_VIEW_PARK_DOCUMENT,
     "rough-course": ROUGH_COURSE_DOCUMENT,
   };

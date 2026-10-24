@@ -216,7 +216,7 @@ Out of scope:
 
 - player-controlled camera orbit or look-back input;
 - cinematic replay, spectator, ghost, multiplayer, or split-screen cameras;
-- camera behavior authored per final Agricultural Zone segment;
+- camera behavior authored per final Falls View Park segment;
 - motion blur, chromatic aberration, depth of field, or other post-processing;
 - procedural camera animation unrelated to observed kart state;
 - changing kart physics, collision response, input, recovery policy, or race

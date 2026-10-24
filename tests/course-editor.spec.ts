@@ -1,7 +1,7 @@
 import { expect, type Locator, test } from "@playwright/test";
 
 import {
-  AGRICULTURAL_ZONE_DOCUMENT,
+  FALLS_VIEW_PARK_DOCUMENT,
   ROUGH_COURSE_DOCUMENT,
 } from "../src/game/course/course-document";
 import {
@@ -299,11 +299,11 @@ test.describe("protected course editor access", () => {
     });
   });
 
-  test("lists the official courses and creates the Agricultural Zone from its card", async ({
+  test("lists the official courses and creates Falls View Park from its card", async ({
     page,
   }, testInfo) => {
     test.skip(testInfo.project.name !== "desktop", "The course roster runs once.");
-    let agriculturalSave: unknown;
+    let parkSave: unknown;
     const revisionBody = (document: typeof ROUGH_COURSE_DOCUMENT) =>
       JSON.stringify({
         authorUserId: "admin-test-user",
@@ -320,11 +320,11 @@ test.describe("protected course editor access", () => {
         status: 200,
       }),
     );
-    await page.route("**/api/admin/courses/agricultural-zone", (route) => {
+    await page.route("**/api/admin/courses/falls-view-park", (route) => {
       if (route.request().method() === "PUT") {
-        agriculturalSave = route.request().postDataJSON();
+        parkSave = route.request().postDataJSON();
         return route.fulfill({
-          body: revisionBody(AGRICULTURAL_ZONE_DOCUMENT),
+          body: revisionBody(FALLS_VIEW_PARK_DOCUMENT),
           contentType: "application/json",
           status: 201,
         });
@@ -342,17 +342,17 @@ test.describe("protected course editor access", () => {
     await expect(roster.getByText("Draft r1 · Published none")).toBeVisible();
     await expect(roster.getByText("No draft yet")).toBeVisible();
     await roster
-      .getByRole("link", { name: "Create Agricultural Zone Service Circuit" })
+      .getByRole("link", { name: "Create Falls View Park Circuit" })
       .click();
 
-    await expect(page).toHaveURL(/\/admin\/courses\/agricultural-zone$/);
+    await expect(page).toHaveURL(/\/admin\/courses\/falls-view-park$/);
     await page.getByRole("button", { name: "Initialize seed course" }).click();
     await expect(page.getByTestId("course-editor-shell")).toBeVisible();
     await expect(
-      page.getByText("Agricultural Zone Service Circuit"),
+      page.getByText("Falls View Park Circuit"),
     ).toBeVisible();
-    expect(agriculturalSave).toMatchObject({
-      document: { courseId: "agricultural-zone", schemaVersion: 4 },
+    expect(parkSave).toMatchObject({
+      document: { courseId: "falls-view-park", schemaVersion: 4 },
       expectedRevision: null,
     });
   });

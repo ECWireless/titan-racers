@@ -58,8 +58,8 @@ own:
 - The air hazes distance: clean-air scattering at half pressure plus
   moisture and dust, together giving 55 km visibility (the distance at which
   contrast falls to 2%), with the haze glowing at 40% of the sunlight. The
-  far side overhead keeps about 57% of its contrast. On the Agricultural
-  Zone's loop the end caps, 8 and 24 km away, keep about 57% and 18%.
+  far side overhead keeps about 57% of its contrast. From Falls View Park the
+  end caps, 2.5 and 29.5 km away, keep about 84% and 12%.
 - The sun's image is traced through the mirrors, so it shows only where a
   32 km mirror can reflect it to the viewer. The twin cylinder is not drawn.
 - The enclosure lights the course too. Besides the sun, a race's diffuse

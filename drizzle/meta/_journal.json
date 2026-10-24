@@ -120,6 +120,13 @@
       "when": 1792701451777,
       "tag": "0016_official_course_telemetry",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1792854671759,
+      "tag": "0017_falls_view_park_telemetry",
+      "breakpoints": true
     }
   ]
 }

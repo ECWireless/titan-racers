@@ -43,7 +43,7 @@ time and progression snapshots.
   presentation updates, and a slow device does not receive free discarded time.
 - Recovery is fast and forgiving without becoming a timing or shortcut exploit.
 - Progression consumes any validated course document and never hard-codes the
-  rough course, Agricultural Zone, or a database publication.
+  rough course, Falls View Park, or a database publication.
 
 ## Lifecycle Model
 

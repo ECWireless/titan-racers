@@ -93,6 +93,18 @@ already satisfy it. Apply it before deploying the build that races
 unaffected). It is forward-only: restoring the old check first requires
 removing or remapping `agricultural-zone` rows.
 
+Migration `0017` adds `falls-view-park`, the time trial's ID from PR 4.3.4,
+to that check and keeps `agricultural-zone`: earlier runs keep their ID, and
+clients still on the older build keep sending it. Apply it before deploying
+the build that races `falls-view-park`. The new ID starts with no saved
+revision, so players race its bundled seed until an admin opens it from the
+course roster, selects **Initialize seed course**, and publishes it. Any
+`agricultural-zone` revisions and runs stay as history, but the editor no
+longer lists the course and the telemetry dashboard shows only
+`falls-view-park` runs. Rolling the code back is safe, since the check only
+widened; restoring the `0016` check first requires removing or remapping
+`falls-view-park` rows.
+
 Courses saved from this build are schema version four, which earlier builds
 cannot read: rolling the code back after a save breaks the editor and the
 published-course route for that course, though players fall back to the
@@ -167,7 +179,7 @@ documentation or logs.
 ## Permanent Sandbox Course Reset
 
 `rough-course` is the permanent authoring and regression sandbox. It remains
-separate from the official `agricultural-zone` course so editor, physics,
+separate from the official `falls-view-park` course so editor, physics,
 collision, camera, and recovery fixtures never need to be embedded in the
 player-facing track.
 

@@ -47,8 +47,8 @@ multiplayer kart contact policy, or general recovery-system expansion.
   `build-rough-course.ts` projection creates their simple static rigid bodies
   with explicit filtering. Diagnostic walls are constructed only when
   non-production test hooks and the deliberate `?collision-fixtures` route are
-  both active, on the sandbox course (`?sandbox-course`, since `/` races the
-  Agricultural Zone); they cannot appear in production or the normal course.
+  both active, on the sandbox course (`?sandbox-course`, since `/` races Falls
+  View Park); they cannot appear in production or the normal course.
 - `src/game/testing/scene-test-adapter.ts` exposes test-only controlled poses,
   exact manual steps, wheel/suspension state, CCD configuration and deliberate
   disabled baseline, contacted entity names, approach speed, impulse, and
