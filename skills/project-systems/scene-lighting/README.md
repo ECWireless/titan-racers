@@ -51,7 +51,7 @@ phone budget. Art direction and the budget itself live in
   freeze while the race is paused.
 - `src/game/enclosure/enclosure-view.ts` draws the race's
   [Island Three](../../../docs/island-three.md) enclosure from a second
-  camera on its own layer, before the course, in three draws. Farmland,
+  camera on its own layer, before the course, in three draws. Valley land,
   mirrors, the sun's image, and haze are computed per pixel, with no
   textures.
 - `src/game/enclosure/exterior-view.ts` draws Island Three from space for

@@ -51,10 +51,14 @@ own:
 - Window frames are sized to read from kilometres away: sills along each
   window edge, longerons every 10°, and ring frames every kilometre, with
   lighter mullions between them. The sources' panes are far smaller.
-- Valleys are farmland built in code: hedged fields, woods, a river,
-  ponds, villages, and service roads. Each course sits in a mown clearing.
+- Valleys are lived-in landscape built in code, following
+  [habitat land use](../skills/game-concepts/habitat-land-use/README.md):
+  meadows, woods, single park trees and footpaths, a river with lakes, a
+  valley road, and towns, villages, and hamlets of houses in gardens. No
+  settlement reaches Falls View Park, the sunward 6 km of the valley at
+  azimuth 120°. Each course sits in a mown clearing.
 - End caps are flat, ribbed plating, with valley land terracing up their
-  foot.
+  foot, some terraces lined with housing.
 - The air hazes distance: clean-air scattering at half pressure plus
   moisture and dust, together giving 55 km visibility (the distance at which
   contrast falls to 2%), with the haze glowing at 40% of the sunlight. The

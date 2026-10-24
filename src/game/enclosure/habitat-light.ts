@@ -42,10 +42,10 @@ const SUN_GLOW_POWER = 32;
 export const CLEARING_RADIUS = 220;
 
 // Mean albedos of the enclosure view's surfaces.
-const FIELDS = { b: 0.04, g: 0.095, r: 0.09 };
+const LAND = { b: 0.042, g: 0.093, r: 0.076 };
 const LAWN = { b: 0.071, g: 0.127, r: 0.093 };
 const PLATING = { b: 0.105, g: 0.11, r: 0.11 };
-const TERRACES = { b: 0.03, g: 0.071, r: 0.049 };
+const TERRACES = { b: 0.031, g: 0.069, r: 0.05 };
 const STEEL = { b: 0.068, g: 0.05, r: 0.034 };
 const HUB_RADIUS = 260;
 // Dusty mirror film scatters this much of the sunlight; the glass passes 90%.
@@ -183,7 +183,7 @@ function createHabitatLight(enclosure: CourseEnclosure): HabitatLight {
           (clearingTurn * Math.PI * radius) / 180,
         ) < CLEARING_RADIUS;
       const normal = scaled(radial, -1 / length3(radial));
-      color = surfaceLight(inClearing ? LAWN : FIELDS, hit, normal, fill);
+      color = surfaceLight(inClearing ? LAWN : LAND, hit, normal, fill);
     } else {
       color = beyond(hit, direction);
     }
