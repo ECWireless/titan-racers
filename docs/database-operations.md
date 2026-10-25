@@ -105,17 +105,13 @@ longer lists the course and the telemetry dashboard shows only
 widened; restoring the `0016` check first requires removing or remapping
 `falls-view-park` rows.
 
-Courses saved from this build are schema version four, which earlier builds
-cannot read: rolling the code back after a save breaks the editor and the
-published-course route for that course, though players fall back to the
-bundled course. A database serves its existing `rough-course` revision, not
-the walled Starter Course seed, until the guarded sandbox reset below appends
-the seed and an admin publishes it.
-
-PR 4.3.5 moves courses to schema version five, which adds course lamps and
-mirror angles up to 90°. Version-four rows load unchanged, and saves from that
-build are version five, which earlier builds cannot read, with the same
-rollback caveat as version four. No migration is needed.
+Courses are saved as schema version five (course lamps and mirror angles up
+to 90°, from PR 4.3.5); earlier rows load unchanged, with no migration.
+Earlier builds cannot read version five: rolling the code back after a save
+breaks the editor and the published-course route for that course, though
+players fall back to the bundled course. A database serves its existing
+`rough-course` revision, not the walled Starter Course seed, until the guarded
+sandbox reset below appends the seed and an admin publishes it.
 
 ## Google OAuth
 

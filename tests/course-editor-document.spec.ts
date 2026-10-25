@@ -348,7 +348,7 @@ test.describe("course editor document commands", () => {
     expect(document.checkpoints.at(-1)?.id).toBe("checkpoint-2");
   });
 
-  test("adds street lamps up to the course's lamp limit", () => {
+  test("adds floodlights up to the course's lamp limit", () => {
     let document = structuredClone(ROUGH_COURSE_DOCUMENT);
     for (let count = 0; count < 5; count += 1) {
       document = addCourseObjectPreset(document, "lamp");

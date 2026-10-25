@@ -1,6 +1,9 @@
 import { expect, test } from "@playwright/test";
 
-import { FALLS_VIEW_PARK_DOCUMENT } from "../src/game/course/course-document";
+import {
+  FALLS_VIEW_PARK_DOCUMENT,
+  ROUGH_COURSE_DOCUMENT,
+} from "../src/game/course/course-document";
 import { courseLampLux } from "../src/game/course/course-lamps";
 import { getHabitatLight } from "../src/game/enclosure/habitat-light";
 import { getEnclosureFrame } from "../src/game/enclosure/island-three";
@@ -76,7 +79,11 @@ test("darkens toward night as the mirror opens, adapting and lighting lamps at d
   expect(trackLux).toBeLessThan(3000);
   const floodlit = getHabitatLight(FALLS_VIEW_PARK_DOCUMENT.enclosure, trackLux);
   expect(floodlit.adaptation).toBeLessThan(dusk.adaptation);
-  expect(floodlit.lightLevel * floodlit.adaptation).toBeCloseTo(1, 6);
+
+  // The Starter Course's afternoon keeps its accepted haze, unadapted.
+  const starter = getHabitatLight(ROUGH_COURSE_DOCUMENT.enclosure);
+  expect(starter.airGlow).toBeCloseTo(0.4, 2);
+  expect(starter).toMatchObject({ adaptation: 1, lampsOn: 0 });
 });
 
 test("builds the elevation-only atlas from directional light", () => {

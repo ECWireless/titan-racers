@@ -64,7 +64,13 @@ export const SUN_ANGULAR_RADIUS = 0.004652 / 9.54;
  * shows the illuminance it receives, so one cd/m² of luminance is π lux of
  * scene light, and a lamp's candela sets its light's intensity in lux.
  */
-export const SUNLIGHT_LUX = 100_000;
+const SUNLIGHT_LUX = 100_000;
+
+// Lamp colours, linear at unit luminance: warm white (about 3000 K) for
+// street and bridge lamps, and neutral white (about 4500 K) as sports
+// floodlights are.
+export const WARM_WHITE = [1.82, 0.83, 0.27] as const;
+export const NEUTRAL_WHITE = [1.33, 0.94, 0.65] as const;
 
 /** Scene light per lux in an enclosure, by luminance. */
 export function sceneLux(definition: DeepReadonly<EnclosureDefinition>) {

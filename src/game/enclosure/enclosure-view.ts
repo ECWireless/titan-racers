@@ -35,6 +35,7 @@ import {
 import {
   type CourseEnclosure,
   getEnclosureFrame,
+  NEUTRAL_WHITE,
   sceneLux,
 } from "./island-three";
 import {
@@ -45,7 +46,7 @@ import {
   TREE_VIEWS,
 } from "./tree-billboards";
 import { loadTreeImages, type TreeImages } from "./tree-images";
-import { createDistantLights, NEUTRAL_LIGHT } from "./distant-lights";
+import { createDistantLights } from "./distant-lights";
 
 // The falls are floodlit at dusk like a landmark, to about this many lux.
 const FALLS_FLOODLIGHT_LUX = 300;
@@ -976,7 +977,7 @@ export function createEnclosureView(
   const floodlight = habitat.lampsOn * FALLS_FLOODLIGHT_LUX * sceneLux(frame.definition);
   fallsMaterial.setParameter(
     "uFallsFloodlight",
-    NEUTRAL_LIGHT.map((channel) => channel * floodlight),
+    NEUTRAL_WHITE.map((channel) => channel * floodlight),
   );
 
   const layer = new pc.Layer({

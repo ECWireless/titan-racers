@@ -1,5 +1,6 @@
 import { BRIDGE, bridgeCableHeight } from "./enclosure-structures";
-import { FALLS_LAKE, PARK, waterEdge } from "./habitat-land";
+import { FALLS_LAKE, PARK } from "./habitat-land";
+import { NEUTRAL_WHITE, WARM_WHITE } from "./island-three";
 
 /**
  * Lights seen across Island Three at dusk, drawn as points: the falls
@@ -7,13 +8,11 @@ import { FALLS_LAKE, PARK, waterEdge } from "./habitat-land";
  * sports fields up the valley sides and across the cylinder. Each instance
  * is (axial, across, height above the ground, candela toward the viewer)
  * and (linear colour at unit luminance, valley index); the land's own
- * street lamps are drawn by the land shader instead.
+ * street lamps are drawn by the land shader instead. Fields stand on dry
+ * land (checked by tests/island-three-enclosure.spec.ts).
  */
 
-// Linear colour at unit luminance: warm white (about 3000 K), neutral white
-// (about 4500 K, as sports floodlights are), and aviation red.
-const WARM = [1.82, 0.83, 0.27] as const;
-export const NEUTRAL_LIGHT = [1.33, 0.94, 0.65] as const;
+// Aviation red, linear at unit luminance.
 const RED = [4.7, 0, 0] as const;
 
 // Seen from afar: decorative cable lamps, road lamps on the deck, medium
@@ -57,7 +56,7 @@ function bridgeLights(): Light[] {
         across: FALLS_LAKE.across + across,
         axial: FALLS_LAKE.axial + side * (BRIDGE.halfWidth + 1),
         candela: NECKLACE_CANDELA,
-        colour: WARM,
+        colour: WARM_WHITE,
         height: bridgeCableHeight(across),
         valley,
       }),
@@ -69,7 +68,7 @@ function bridgeLights(): Light[] {
         across: FALLS_LAKE.across + across,
         axial: FALLS_LAKE.axial + side * (BRIDGE.halfWidth - 1),
         candela: DECK_CANDELA,
-        colour: WARM,
+        colour: WARM_WHITE,
         height: BRIDGE.deck + 6,
         valley,
       }),
@@ -89,20 +88,18 @@ function bridgeLights(): Light[] {
 }
 
 function fieldLights(): Light[] {
-  return FIELDS.flatMap(([valley, axial, across]) => {
-    // Valley k's land uses seed k + 1; fields stand clear of water.
-    if (waterEdge(axial, across, valley + 1) < FIELD.along) return [];
-    return [-1, 1].flatMap((end) =>
+  return FIELDS.flatMap(([valley, axial, across]) =>
+    [-1, 1].flatMap((end) =>
       [-1, 1].map((side) => ({
         across: across + side * FIELD.across,
         axial: axial + end * FIELD.along,
         candela: FIELD_CANDELA,
-        colour: NEUTRAL_LIGHT,
+        colour: NEUTRAL_WHITE,
         height: FIELD.height,
         valley,
       })),
-    );
-  });
+    ),
+  );
 }
 
 export function createDistantLights() {

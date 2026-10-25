@@ -8,7 +8,7 @@ import {
 } from "./habitat-glsl";
 import {
   AEROSOL_EXTINCTION,
-  getHabitatLight,
+  getEnclosureLight,
   RAYLEIGH_EXTINCTION,
 } from "./habitat-light";
 import {
@@ -570,7 +570,7 @@ export function createExteriorView(
   const scene = exteriorScene(enclosure);
   const definition = getEnclosureFrame(enclosure).definition;
   const { color, intensity } = definition.sunlight;
-  const { airGlow, fill } = getHabitatLight(enclosure);
+  const { airGlow, fill } = getEnclosureLight(enclosure);
   const spinRate = createHabitatField(
     enclosure,
     HABITAT_WORLD_ENVIRONMENT.gravity,

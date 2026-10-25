@@ -7,7 +7,7 @@ import {
   ROOF_ALBEDOS,
   TERRACE_REACH,
 } from "./habitat-land";
-import { SUN_ANGULAR_RADIUS } from "./island-three";
+import { SUN_ANGULAR_RADIUS, WARM_WHITE } from "./island-three";
 
 /** A number as a GLSL float literal. */
 export const glslFloat = (value: number) =>
@@ -320,8 +320,7 @@ vec3 landColor(Land l, vec2 q, vec2 f, float seed) {
 // its total light; once lamps are a few pixels apart they blend to their
 // mean. None stand on water.
 const float LAMP_CANDELA = 1000.0;
-// Warm white, about 3000 K, at unit luminance.
-const vec3 LAMP_TINT = vec3(1.82, 0.83, 0.27);
+const vec3 LAMP_TINT = ${glslVec3(WARM_WHITE)};
 const float ROAD_LAMP_SPACING = 40.0;
 const float ROAD_LAMP_SETBACK = 6.0;
 const float VILLAGE_LAMP_SPACING = 30.0;

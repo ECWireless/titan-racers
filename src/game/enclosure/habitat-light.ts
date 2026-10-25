@@ -138,24 +138,29 @@ export function getHabitatLight(
   enclosure: CourseEnclosure,
   courseLampLux = 0,
 ): HabitatLight {
-  const enclosureKey = JSON.stringify(enclosure);
-  if (cachedEnclosure?.key !== enclosureKey) {
-    cachedEnclosure = {
-      key: enclosureKey,
-      light: createEnclosureLight(enclosure),
-    };
-  }
-  const key = `${enclosureKey}:${courseLampLux}`;
+  const key = `${JSON.stringify(enclosure)}:${courseLampLux}`;
   if (cached?.key !== key) {
     cached = {
       key,
       light: adaptToCourse(
-        cachedEnclosure.light,
+        getEnclosureLight(enclosure),
         courseLampLux * sceneLux(getEnclosureFrame(enclosure).definition),
       ),
     };
   }
   return cached.light;
+}
+
+/**
+ * The enclosure's own light, before any course adapts to it: enough for a
+ * view of the habitat from outside, without disturbing the race's light.
+ */
+export function getEnclosureLight(enclosure: CourseEnclosure): EnclosureLight {
+  const key = JSON.stringify(enclosure);
+  if (cachedEnclosure?.key !== key) {
+    cachedEnclosure = { key, light: createEnclosureLight(enclosure) };
+  }
+  return cachedEnclosure.light;
 }
 
 /**
