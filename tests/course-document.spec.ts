@@ -238,12 +238,12 @@ test("adds course lamps and night mirrors from schema version five", () => {
   };
   expect(() => parseCourseDocument(lampsInVersionFour)).toThrow();
 
-  const fifthLamp = structuredClone(FALLS_VIEW_PARK_DOCUMENT);
-  fifthLamp.objects.push({
-    ...fifthLamp.objects.find((object) => object.lamp)!,
-    id: "lamp-fifth",
+  const extraLamp = structuredClone(FALLS_VIEW_PARK_DOCUMENT);
+  extraLamp.objects.push({
+    ...extraLamp.objects.find((object) => object.lamp)!,
+    id: "lamp-extra",
   });
-  expect(courseDocumentSchema.safeParse(fifthLamp).error?.issues).toContainEqual(
+  expect(courseDocumentSchema.safeParse(extraLamp).error?.issues).toContainEqual(
     expect.objectContaining({ path: ["objects"] }),
   );
 });

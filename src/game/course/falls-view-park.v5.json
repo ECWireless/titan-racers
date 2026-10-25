@@ -23453,7 +23453,277 @@
       "lamp": "floodlight",
       "transform": {
         "position": {
-          "x": 72,
+          "x": 50,
+          "y": 8.9,
+          "z": 30
+        },
+        "rotation": {
+          "x": 0,
+          "y": -180,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "steel",
+        "scale": {
+          "x": 0.3,
+          "y": 12,
+          "z": 0.3
+        },
+        "shape": "cylinder"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "obstacle",
+      "collision": {
+        "axis": 1,
+        "friction": 0.5,
+        "height": 12,
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "radius": 0.15,
+        "restitution": 0,
+        "role": "solid-obstacle",
+        "shape": "cylinder",
+        "surfaceMaterial": {
+          "id": "surface.standard-course",
+          "version": 1
+        }
+      },
+      "editable": true,
+      "id": "lamp-2",
+      "label": "Floodlight 2",
+      "lamp": "floodlight",
+      "transform": {
+        "position": {
+          "x": 74,
+          "y": 6,
+          "z": 2
+        },
+        "rotation": {
+          "x": 0,
+          "y": 90,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "steel",
+        "scale": {
+          "x": 0.3,
+          "y": 12,
+          "z": 0.3
+        },
+        "shape": "cylinder"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "obstacle",
+      "collision": {
+        "axis": 1,
+        "friction": 0.5,
+        "height": 12,
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "radius": 0.15,
+        "restitution": 0,
+        "role": "solid-obstacle",
+        "shape": "cylinder",
+        "surfaceMaterial": {
+          "id": "surface.standard-course",
+          "version": 1
+        }
+      },
+      "editable": true,
+      "id": "lamp-3",
+      "label": "Floodlight 3",
+      "lamp": "floodlight",
+      "transform": {
+        "position": {
+          "x": -50,
+          "y": 6,
+          "z": -2
+        },
+        "rotation": {
+          "x": 0,
+          "y": 92,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "steel",
+        "scale": {
+          "x": 0.3,
+          "y": 12,
+          "z": 0.3
+        },
+        "shape": "cylinder"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "obstacle",
+      "collision": {
+        "axis": 1,
+        "friction": 0.5,
+        "height": 12,
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "radius": 0.15,
+        "restitution": 0,
+        "role": "solid-obstacle",
+        "shape": "cylinder",
+        "surfaceMaterial": {
+          "id": "surface.standard-course",
+          "version": 1
+        }
+      },
+      "editable": true,
+      "id": "lamp-4",
+      "label": "Floodlight 4",
+      "lamp": "floodlight",
+      "transform": {
+        "position": {
+          "x": -50,
+          "y": 6,
+          "z": -36
+        },
+        "rotation": {
+          "x": 0,
+          "y": 90,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "steel",
+        "scale": {
+          "x": 0.3,
+          "y": 12,
+          "z": 0.3
+        },
+        "shape": "cylinder"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "obstacle",
+      "collision": {
+        "axis": 1,
+        "friction": 0.5,
+        "height": 12,
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "radius": 0.15,
+        "restitution": 0,
+        "role": "solid-obstacle",
+        "shape": "cylinder",
+        "surfaceMaterial": {
+          "id": "surface.standard-course",
+          "version": 1
+        }
+      },
+      "editable": true,
+      "id": "lamp-5",
+      "label": "Floodlight 5",
+      "lamp": "floodlight",
+      "transform": {
+        "position": {
+          "x": -46,
+          "y": 8.9,
+          "z": 30
+        },
+        "rotation": {
+          "x": 0,
+          "y": -180,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "steel",
+        "scale": {
+          "x": 0.3,
+          "y": 12,
+          "z": 0.3
+        },
+        "shape": "cylinder"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "obstacle",
+      "collision": {
+        "axis": 1,
+        "friction": 0.5,
+        "height": 12,
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "radius": 0.15,
+        "restitution": 0,
+        "role": "solid-obstacle",
+        "shape": "cylinder",
+        "surfaceMaterial": {
+          "id": "surface.standard-course",
+          "version": 1
+        }
+      },
+      "editable": true,
+      "id": "lamp-6",
+      "label": "Floodlight 6",
+      "lamp": "floodlight",
+      "transform": {
+        "position": {
+          "x": 84,
           "y": 8.9,
           "z": 36
         },
@@ -23502,122 +23772,68 @@
         }
       },
       "editable": true,
-      "id": "lamp-2",
-      "label": "Floodlight 2",
+      "id": "lamp-7",
+      "label": "Floodlight 7",
       "lamp": "floodlight",
       "transform": {
         "position": {
-          "x": 66,
-          "y": 6,
-          "z": 6
-        },
-        "rotation": {
-          "x": 0,
-          "y": -90,
-          "z": 0
-        }
-      },
-      "visual": {
-        "material": "steel",
-        "scale": {
-          "x": 0.3,
-          "y": 12,
-          "z": 0.3
-        },
-        "shape": "cylinder"
-      }
-    },
-    {
-      "availability": "standard",
-      "category": "obstacle",
-      "collision": {
-        "axis": 1,
-        "friction": 0.5,
-        "height": 12,
-        "offset": {
-          "position": {
-            "x": 0,
-            "y": 0,
-            "z": 0
-          },
-          "rotation": {
-            "x": 0,
-            "y": 0,
-            "z": 0
-          }
-        },
-        "radius": 0.15,
-        "restitution": 0,
-        "role": "solid-obstacle",
-        "shape": "cylinder",
-        "surfaceMaterial": {
-          "id": "surface.standard-course",
-          "version": 1
-        }
-      },
-      "editable": true,
-      "id": "lamp-3",
-      "label": "Floodlight 3",
-      "lamp": "floodlight",
-      "transform": {
-        "position": {
-          "x": -44,
-          "y": 6,
-          "z": -40
-        },
-        "rotation": {
-          "x": 0,
-          "y": 0,
-          "z": 0
-        }
-      },
-      "visual": {
-        "material": "steel",
-        "scale": {
-          "x": 0.3,
-          "y": 12,
-          "z": 0.3
-        },
-        "shape": "cylinder"
-      }
-    },
-    {
-      "availability": "standard",
-      "category": "obstacle",
-      "collision": {
-        "axis": 1,
-        "friction": 0.5,
-        "height": 12,
-        "offset": {
-          "position": {
-            "x": 0,
-            "y": 0,
-            "z": 0
-          },
-          "rotation": {
-            "x": 0,
-            "y": 0,
-            "z": 0
-          }
-        },
-        "radius": 0.15,
-        "restitution": 0,
-        "role": "solid-obstacle",
-        "shape": "cylinder",
-        "surfaceMaterial": {
-          "id": "surface.standard-course",
-          "version": 1
-        }
-      },
-      "editable": true,
-      "id": "lamp-4",
-      "label": "Floodlight 4",
-      "lamp": "floodlight",
-      "transform": {
-        "position": {
-          "x": -46,
+          "x": 2,
           "y": 8.9,
           "z": 30
+        },
+        "rotation": {
+          "x": 0,
+          "y": -180,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "steel",
+        "scale": {
+          "x": 0.3,
+          "y": 12,
+          "z": 0.3
+        },
+        "shape": "cylinder"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "obstacle",
+      "collision": {
+        "axis": 1,
+        "friction": 0.5,
+        "height": 12,
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "radius": 0.15,
+        "restitution": 0,
+        "role": "solid-obstacle",
+        "shape": "cylinder",
+        "surfaceMaterial": {
+          "id": "surface.standard-course",
+          "version": 1
+        }
+      },
+      "editable": true,
+      "id": "lamp-8",
+      "label": "Floodlight 8",
+      "lamp": "floodlight",
+      "transform": {
+        "position": {
+          "x": -14,
+          "y": 6,
+          "z": -48
         },
         "rotation": {
           "x": 0,

@@ -103,7 +103,7 @@ cylinder shape, local transform, physical dimensions, semantic role, friction,
 restitution, and a versioned `surfaceMaterial` reference. Visual material never
 selects tire grip. An object marked `lamp: "floodlight"` is a floodlight's mast:
 `course-lamps.ts` adds the arm, luminaire, and spot light on its top, reaching
-along its local -Z. A course has at most four lamps (`COURSE_LAMP_LIMIT`).
+along its local -Z. A course has at most eight lamps (`COURSE_LAMP_LIMIT`).
 
 Coordinates and dimensions are finite and bounded to the accepted authoring
 envelope. Unknown fields and unsupported enum values fail rather than being

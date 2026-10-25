@@ -109,9 +109,12 @@ Courses are saved as schema version five (course lamps and mirror angles up
 to 90°, from PR 4.3.5); earlier rows load unchanged, with no migration.
 Earlier builds cannot read version five: rolling the code back after a save
 breaks the editor and the published-course route for that course, though
-players fall back to the bundled course. A database serves its existing
-`rough-course` revision, not the walled Starter Course seed, until the guarded
-sandbox reset below appends the seed and an admin publishes it.
+players fall back to the bundled course. Version five allows up to eight
+lamps from PR 4.4.1 (four before), with no migration; a build from before
+then cannot read a revision with more than four, in the same way. A database
+serves its existing `rough-course` revision, not the walled Starter Course
+seed, until the guarded sandbox reset below appends the seed and an admin
+publishes it.
 
 ## Google OAuth
 

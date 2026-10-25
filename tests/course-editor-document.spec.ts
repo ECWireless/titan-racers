@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-import { ROUGH_COURSE_DOCUMENT, parseCourseDocument, serializeCourseDocument } from "../src/game/course/course-document";
+import { COURSE_LAMP_LIMIT, ROUGH_COURSE_DOCUMENT, parseCourseDocument, serializeCourseDocument } from "../src/game/course/course-document";
 import {
   COURSE_EDITOR_CHECKPOINT_LIMIT,
   addCourseCheckpoint,
@@ -350,17 +350,17 @@ test.describe("course editor document commands", () => {
 
   test("adds floodlights up to the course's lamp limit", () => {
     let document = structuredClone(ROUGH_COURSE_DOCUMENT);
-    for (let count = 0; count < 5; count += 1) {
+    for (let count = 0; count <= COURSE_LAMP_LIMIT; count += 1) {
       document = addCourseObjectPreset(document, "lamp");
     }
     const lamps = document.objects.filter((object) => object.lamp);
 
-    expect(lamps.map((lamp) => lamp.id)).toEqual([
-      "lamp-1",
-      "lamp-2",
-      "lamp-3",
-      "lamp-4",
-    ]);
+    expect(lamps.map((lamp) => lamp.id)).toEqual(
+      Array.from(
+        { length: COURSE_LAMP_LIMIT },
+        (_, index) => `lamp-${index + 1}`,
+      ),
+    );
     expect(lamps[0]).toMatchObject({
       collision: { role: "solid-obstacle", shape: "cylinder" },
       lamp: "floodlight",

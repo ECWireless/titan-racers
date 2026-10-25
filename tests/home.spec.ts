@@ -957,7 +957,9 @@ test.describe("home screen", () => {
   test("races Falls View Park as the solo course through two laps", async ({
     page,
   }, testInfo) => {
-    testInfo.setTimeout(120_000);
+    // Software WebGL renders every stepped frame on the CPU, under all of
+    // the course's floodlights.
+    testInfo.setTimeout(300_000);
     test.skip(
       testInfo.project.name !== "desktop",
       "Solo course progression only needs to run once.",
