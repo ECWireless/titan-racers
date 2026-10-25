@@ -38,7 +38,7 @@ export type CollisionDebugState = {
   startLineVisualThickness: number | null;
   sunCastsShadows: boolean | null;
   sunDirection: Position3 | null;
-  sunIntensity: number | null;
+  sunLinearColor: { b: number; g: number; r: number } | null;
   sunShadowResolution: number | null;
 };
 

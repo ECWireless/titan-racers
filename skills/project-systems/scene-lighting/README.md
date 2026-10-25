@@ -38,13 +38,13 @@ phone budget. Art direction and the budget itself live in
   and downward spot light on each `lamp` object's mast, at real brightness
   from the enclosure's lux scale and the habitat's lamp schedule, with no
   shadows, and measures the illuminance they put on the track, which the
-  race's exposure counts. A light's colour carries its brightness at intensity 1, because
-  PlayCanvas applies intensities below 1 before linearising the colour. The
-  race batches the lamp parts with the static course; the editor shows them
-  switched off.
+  race's exposure counts. The race batches the lamp parts with the static
+  course; the editor shows them switched off.
 - `src/game/course/build-course-lighting.ts` lights a course with its
-  enclosure's sun ([Island Three](../../../docs/island-three.md)) and sets its
-  shadows: two 1024² cascades in one 2048² map out to 60 m, blended over
+  enclosure's sun ([Island Three](../../../docs/island-three.md)). Its
+  colour carries its brightness at intensity 1, as the lamps' do, because
+  PlayCanvas applies intensities below 1 before linearising the colour. It
+  sets its shadows: two 1024² cascades in one 2048² map out to 60 m, blended over
   the near cascade's last fifth, a bias small enough for kart-scale shadows,
   and PCF5 filtering. `scene-look.ts` fades cascaded shadows over their
   last fifth by patching the `shadowCascadesPS` and `lightFunctionLightPS`

@@ -221,7 +221,7 @@ async function getCollisionDebugState(canvas: Locator) {
         groundIsDrivable: boolean;
         sunCastsShadows: boolean | null;
         sunDirection: { x: number; y: number; z: number } | null;
-        sunIntensity: number | null;
+        sunLinearColor: { b: number; g: number; r: number } | null;
         sunShadowResolution: number | null;
         obstacleAInteractionRadius: number | null;
         obstacleAX: number | null;
@@ -2317,7 +2317,10 @@ test.describe("home screen", () => {
     expect(collisionState.barrelPhysicsRestitution).toBe(0);
     expect(collisionState.courseEntityCount).toBe(127);
     expect(collisionState.directionalLightCount).toBe(1);
-    expect(collisionState.sunIntensity).toBeCloseTo(0.78);
+    // The sun renders at the enclosure's sunlight, linear red, green, blue.
+    expect(collisionState.sunLinearColor?.r).toBeCloseTo(0.78, 2);
+    expect(collisionState.sunLinearColor?.g).toBeCloseTo(0.91 * 0.78, 2);
+    expect(collisionState.sunLinearColor?.b).toBeCloseTo(0.78 * 0.78, 2);
     // The rough course keeps its accepted key-light direction.
     const [pitch, yaw] = [52, 38].map((degrees) => (degrees * Math.PI) / 180);
     expect(collisionState.sunDirection?.x).toBeCloseTo(
