@@ -55,9 +55,12 @@ Orange and hazard are signals. Use them sparingly so they stay readable.
   mapping clips bright highlights.
 - **No post-processing.** Tone mapping runs inside the main shader. There are
   no bloom, ambient-occlusion, or other full-screen passes.
-- **Shadows reach the karts.** Race shadows cover the 20 m around the camera
-  (the editor overview keeps 40 m) with a bias small enough for a 1:10 kart to
-  shadow the ground beneath it. Course lights soften shadow edges over 5×5
+- **Shadows reach the karts.** Sun shadows cover the 60 m ahead of the camera
+  in two cascades: a sharp one to about 16 m, blended into a coarser one
+  beyond, which fades out over its last 12 m rather than ending at an edge.
+  Their bias is small enough for a 1:10 kart to shadow the ground beneath it,
+  and they keep one size as the chase camera widens with speed, so static
+  shadows hold still. Course lights soften shadow edges over 5×5
   texels, because a kart spans only a few and a narrower filter lets its
   moving shadow flicker.
   Because the environment light is not occluded, the race also lays a soft
@@ -169,7 +172,7 @@ its measurements against it.
 | CPU work per frame | Median ≤ 5 ms (fixed steps, update, and render submit). |
 | Draw calls | ≤ 250 per frame across all passes, and ≤ 30 per kart. |
 | Triangles | ≤ 20k per kart (soft cap). |
-| Shadows | One shadow-casting light with one 1024² map, covering ≤ 40 m. PCF5 filtering on course lights, PCF3 elsewhere. |
+| Shadows | One shadow-casting light with one 2048² map holding two 1024² cascades, covering ≤ 60 m. PCF5 filtering on course lights, PCF3 elsewhere. |
 | Resolution | 1× device pixels with MSAA. |
 | Post-processing | None. |
 | Startup | Race mount to first frame adds ≤ 300 ms over the "Before lighting" baseline below (63–136 ms warm). |

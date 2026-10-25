@@ -35,9 +35,12 @@ phone budget. Art direction and the budget itself live in
   surfaces keep the grain finish.
 - `src/game/course/build-course-lighting.ts` lights a course with its
   enclosure's sun ([Island Three](../../../docs/island-three.md)) and sets its
-  shadows (1024², 20 m coverage, a bias small enough for kart-scale shadows,
-  and PCF5 filtering); the course
-  editor widens coverage to 40 m for its overview.
+  shadows: two 1024² cascades in one 2048² map out to 60 m, blended over
+  the near cascade's last fifth, a bias small enough for kart-scale shadows,
+  and PCF5 filtering. `scene-look.ts` fades cascaded shadows over their
+  last fifth by patching the `shadowCascadesPS` and `lightFunctionLightPS`
+  chunks, which leaves single-map lights (the kart editor and thumbnails) as
+  they were.
 - `src/game/kart/kart-contact-shadow.ts` lays the race-only contact shadow
   under the kart: one blended quad on the ground beneath the chassis, ordered
   above the course layers and faded by ground clearance.
@@ -123,7 +126,9 @@ course editor scenes in `src/game/editor/`, and
   habitat light keeps its gain. Its CPU build counts toward the startup
   budget ([measured](../../../docs/visual-identity.md#baseline)).
 - The course finishes replace the `diffusePS` chunk (scanned finishes also
-  `normalMapPS` and `glossPS`) for chunk version 2.20. Re-verify them, like
+  `normalMapPS` and `glossPS`), and the cascaded-shadow fade patches
+  `shadowCascadesPS` and `lightFunctionLightPS`, for chunk version 2.20; the
+  fade throws if its anchor text is gone. Re-verify them, like
   the atlas, on any engine upgrade. Grain pixels and decoded scan images are
   kept, so both re-upload after a lost WebGL context. Scans load as image
   elements, not `ImageBitmap`s, which PlayCanvas avoids on Safari.

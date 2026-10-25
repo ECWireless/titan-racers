@@ -11,10 +11,7 @@ import {
 import type { CourseDocument } from "../course/course-document";
 import { createCourseSurfaceMaterials } from "../course/course-surface-materials";
 import type { CourseSurfaceImages } from "../course/course-surface-textures";
-import {
-  COURSE_EDITOR_CAMERA_NEAR_CLIP,
-  COURSE_EDITOR_SHADOW_DISTANCE,
-} from "../course/course-visual-policy";
+import { COURSE_EDITOR_CAMERA_NEAR_CLIP } from "../course/course-visual-policy";
 import {
   type CourseEditorGeometry,
   type CourseEditorSelection,
@@ -712,10 +709,7 @@ export class CourseEditorScene {
     });
     const lights = buildCourseLighting(this.app, { document: this.currentDocument });
     lights.forEach((entity) => {
-      if (entity.light?.castShadows) {
-        applyShadowPolicy(entity.light);
-        entity.light.shadowDistance = COURSE_EDITOR_SHADOW_DISTANCE;
-      }
+      if (entity.light?.castShadows) applyShadowPolicy(entity.light);
       this.activeDocumentRoot?.addChild(entity);
     });
     this.createMarkerEntities(this.activeDocumentRoot, this.currentDocument);

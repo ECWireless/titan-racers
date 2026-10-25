@@ -2328,7 +2328,7 @@ test.describe("home screen", () => {
       Math.sin(pitch) * Math.cos(yaw),
     );
     expect(collisionState.sunCastsShadows).toBe(true);
-    expect(collisionState.sunShadowResolution).toBe(1024);
+    expect(collisionState.sunShadowResolution).toBe(2048);
     expect(collisionState.groundCollisionShape).toBe("box");
     expect(collisionState.groundCollisionHalfExtentX).toBe(44);
     expect(collisionState.groundCollisionOffsetY).toBe(0);

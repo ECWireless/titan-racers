@@ -21,6 +21,8 @@ const HABITAT_ENVIRONMENT = {
 const ENVIRONMENT_GAIN = 1.2;
 export const EXPOSURE = 1.6;
 const SHADOW_NORMAL_OFFSET_BIAS = 0.05;
+// Cascaded shadows fade out over the last fifth of their reach.
+const SHADOW_FADE_START = 0.8;
 
 let habitatAtlasPixels: Uint8Array | null = null;
 
@@ -62,11 +64,54 @@ export function applySceneLook(
     width: ENVIRONMENT_ATLAS_SIZE,
   });
   app.scene.envAtlas = atlas;
+  fadeCascadedShadowEdge(app.graphicsDevice);
 
   return () => {
     if (app.scene?.envAtlas === atlas) app.scene.envAtlas = null;
     atlas.destroy();
   };
+}
+
+/**
+ * Fades cascaded directional shadows out toward their distance, where the
+ * engine otherwise cuts them off and they pop in as the camera nears. Only
+ * lights with cascades (the course sun) change. Patches the PlayCanvas 2.20
+ * `shadowCascadesPS` and `lightFunctionLightPS` chunks for the device.
+ */
+function fadeCascadedShadowEdge(device: pc.GraphicsDevice) {
+  const chunks = pc.ShaderChunks.get(device, pc.SHADERLANGUAGE_GLSL);
+  const cascades = chunks.get("shadowCascadesPS")!;
+  if (cascades.includes("dShadowFade")) return;
+  chunks.set(
+    "shadowCascadesPS",
+    `${replaceChunkText(cascades, "vec3 fadeShadow(", "vec3 cutShadow(")}
+float dShadowFade = 1.0;
+vec3 fadeShadow(vec3 shadowCoord, vec4 shadowCascadeDistances) {
+  float far = shadowCascadeDistances.w;
+  dShadowFade = 1.0 - smoothstep(far * ${SHADOW_FADE_START.toFixed(2)}, far, 1.0 / gl_FragCoord.w);
+  return cutShadow(shadowCoord, shadowCascadeDistances);
+}
+`,
+  );
+  chunks.set(
+    "lightFunctionLightPS",
+    replaceChunkText(
+      chunks.get("lightFunctionLightPS")!,
+      "shadow = mix(1.0, shadow, light{i}_shadowIntensity);",
+      `#ifdef LIGHT{i}_SHADOW_CASCADES
+			shadow = mix(1.0, shadow, light{i}_shadowIntensity * dShadowFade);
+		#else
+			shadow = mix(1.0, shadow, light{i}_shadowIntensity);
+		#endif`,
+    ),
+  );
+}
+
+function replaceChunkText(chunk: string, find: string, replacement: string) {
+  if (!chunk.includes(find)) {
+    throw new Error(`Shader chunk no longer contains ${find}`);
+  }
+  return chunk.replace(find, replacement);
 }
 
 /** One shadow policy for every shadow-casting light. */

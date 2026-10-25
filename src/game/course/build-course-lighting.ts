@@ -44,7 +44,15 @@ export function projectCourseLighting(document: CourseDocument) {
           y: toDegrees(Math.atan2(toSun.x, toSun.z)),
           z: 0,
         },
-        shadows: { bias: 0.005, distance: 20, resolution: 1024 },
+        // Two cascades, each a 1024² quarter of the map: the near one ends
+        // about 16 m out, and they blend over its last fifth.
+        shadows: {
+          bias: 0.005,
+          cascadeBlend: 0.2,
+          cascades: 2,
+          distance: 60,
+          resolution: 2048,
+        },
       },
     ],
   };
@@ -88,6 +96,8 @@ function createDirectionalLightEntity(light: CourseLightingProjection) {
       intensity: light.intensity,
       ...(light.shadows
         ? {
+            cascadeBlend: light.shadows.cascadeBlend,
+            numCascades: light.shadows.cascades,
             shadowBias: light.shadows.bias,
             shadowDistance: light.shadows.distance,
             shadowResolution: light.shadows.resolution,
