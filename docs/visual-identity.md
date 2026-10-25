@@ -252,11 +252,6 @@ PR 4.3.4 was measured with three Balanced races on reloads, with no hitches,
 on Falls View Park, which now takes the sandbox's layout, so it has more
 course draws than the Agricultural Zone's starter loop. The enclosure's hills,
 trees, town buildings, end-cap terraces, elevators, and falls bridge add
-two draw calls and about 50k triangles, with no measurable frame time. Its
-code-built trees first measured 3 / 4 ms CPU, 44–46 / 56–57 draws, and
-260–281 ms first frames, with about 130k triangles; the baked tree
-billboards that replaced them cut about 80k triangles and a draw. The race
-was ready after 493–586 ms with the billboards (318–375 ms before, as their
-atlases decode alongside), and every race showed at the 2.5 s minimum. The
-translucent falls add a draw and no measurable frame time, with races ready
-after 429–707 ms.
+two draw calls and about 50k triangles, and the translucent falls one more,
+with no measurable frame time. Races were ready after 429–707 ms, and every
+race showed at the 2.5 s minimum.

@@ -19,15 +19,14 @@ const SOURCES = {
   turf: { albedo: turfAlbedo, surface: turfSurface },
 } satisfies Record<CourseScannedSurface, Record<"albedo" | "surface", { src: string }>>;
 
-// The images carry no colour profile, so the packed normals and roughness
-// upload unchanged.
-
 let loading: Promise<CourseSurfaceImages | null> | undefined;
 
 /**
- * Decodes the scanned course finishes once per page. Images are kept so
- * textures re-upload after a lost WebGL context. Resolves null when any image
- * fails, and the course keeps its code-built finishes; the next call retries.
+ * Decodes the scanned course finishes once per page. The images carry no
+ * colour profile, so the packed normals and roughness upload unchanged.
+ * Images are kept so textures re-upload after a lost WebGL context. Resolves
+ * null when any image fails, and the course keeps its code-built finishes;
+ * the next call retries.
  */
 export function loadCourseSurfaceImages() {
   loading ??= Promise.all(

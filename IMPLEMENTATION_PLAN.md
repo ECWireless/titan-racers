@@ -299,43 +299,19 @@ Phase decisions:
       The home screen keeps its own backdrop for now. The `home.spec`
       recovery test now pauses the race as it becomes ready, before it can
       start racing.
-- [ ] 4.3.4: Valleys and distant structures, in six commits.
-      1. A research note (`skills/game-concepts/habitat-land-use/`) on what
-         O'Neill and later studies put inside Island Three: the valleys are
-         for living, with parkland, villages, and low-rise towns, while crops
-         grow in separate agricultural modules and heavy industry works in
-         zero gravity. So the official course is renamed Falls View Park
-         Circuit, ID `falls-view-park`, a rural meadow in the same valley
-         facing a waterfall off the sunward end cap.
-      2. Until PR 4.4 builds its route, the course takes the Starter
-         Course's layout: surfaces, markings, gate, checkpoints, props,
-         ramps, infield barriers, and perimeter walls, but not the
-         sandbox's test fixtures. It keeps its own ID, name, valley, heading,
-         and mirror angle, and moves to about 2.5 km from the sunward cap,
-         still in the evening sun. Migration 0017 adds the new ID to the
-         telemetry course check and keeps `agricultural-zone` for existing
-         runs and for clients still on the older build. Older runs stay
-         under the old ID; there are no ghosts or stored results yet. In
-         production: migrate before deploying, then an admin initialises
-         and publishes the new course from its seed. The Starter Course
-         stays unchanged as the kart test-drive sandbox.
-      3. The valley land follows the note: parkland, woods, meadows, water,
-         villages, and denser town centres instead of farmland, and the
-         enclosure where the note asks for it.
-      4. Code-built distant 3D structures that give the enclosure height:
-         rolling hills of tens of metres, real trees around the course's
-         clearing and in the nearby woods, building clusters in the town
-         centres, the end caps' terraces with elevator lines to the axis
-         hub and docks, and one landmark, a suspension bridge across the
-         Falls View Park lake after Don Davis's painting.
-      5. Realistic trees: billboards baked from CC0 Poly Haven tree scans,
-         drawn at the angle the camera sees them and lit and hazed like the
-         habitat, replacing the code-built trees.
-      6. A waterfall that drops 800 m down a gorge cut through the sunward
-         terraces and bends about 426 m anti-spinward with Coriolis, as the
-         spin demands (feature lead idea from PR 4.3.2).
-      Everything stays within the phone budget, checked with `?perf=1` on
-      iPhone.
+- [x] 4.3.4: Valleys and distant structures. Shipped as a land-use
+      research note (`skills/game-concepts/habitat-land-use/`) and, following
+      it, the official course renamed Falls View Park (`falls-view-park`) on
+      the Starter Course's layout until PR 4.4 builds its route, 2.5 km from
+      the sunward cap. Migration 0017 adds the ID to the telemetry check and
+      keeps `agricultural-zone` for older runs and clients; in production,
+      migrate before deploying, then an admin initialises and publishes the
+      course. The valleys now hold parkland, woods, villages, and towns, with
+      rolling hills, town buildings, the end caps' terraces and elevators, a
+      suspension bridge over the falls lake, and trees as billboards baked
+      from CC0 Poly Haven scans. An 800 m waterfall drops down a granite
+      gorge in the sunward terraces, bending about 426 m anti-spinward as the
+      habitat turns. All within the phone budget on iPhone `?perf=1`.
 - [ ] 4.3.5: Dusk and night: the haze and habitat light dim as the mirrors
       close, as O'Neill's habitat makes night. Then course lamps (up to four
       point or spot lights with visible full-size masts, seeded on Falls

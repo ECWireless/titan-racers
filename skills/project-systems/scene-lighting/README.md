@@ -59,14 +59,15 @@ phone budget. Art direction and the budget itself live in
   shaders. Trees are instanced
   [billboards](../../../docs/visual-identity.md#tree-billboards) that turn
   about their own up toward the camera, blending the two nearest baked
-  views, and join once their atlases load.
+  views, and join once their atlases load; the home screen starts decoding
+  them.
 - `src/game/enclosure/enclosure-structures.ts` builds the end caps'
   terraces, elevators, and hubs, and the falls bridge into the frames' mesh,
   and the instanced trees and buildings, placed by
   `src/game/enclosure/habitat-land.ts`, a CPU mirror of the land GLSL.
   They are laid out after the race's first frame, usually behind the
-  loading screen; the kart editor's test drive has none, and a slow load can
-  show the hitch during its fade.
+  loading screen; the kart editor's test drive has no loading screen, and a
+  slow load can show the hitch during its fade.
 - `src/game/enclosure/exterior-view.ts` draws Island Three from space for
   the course loading screen (`src/components/course-loading-screen.tsx`):
   raw WebGL2 on its own canvas, one full-screen shader that traces the hull,

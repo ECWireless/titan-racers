@@ -165,7 +165,6 @@ window.bake = async ({ id, node }, views, cell) => {
   return { height, rows: rows.map((row) => row.toDataURL("image/png")), span };
 };
 
-// The species' rows stacked into the two atlases.
 // The species' rows stacked into two opaque atlases: colour, and the
 // normal's x and y with the leaves' coverage. Canvases store colour
 // premultiplied, so coverage kept in alpha would black out the dilation.

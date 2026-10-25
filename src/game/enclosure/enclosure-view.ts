@@ -932,9 +932,7 @@ export function createEnclosureView(
     instance.setInstancing(buffer);
     return instance;
   };
-  const addTrees = (images: TreeImages) => {
-    const trees = createTreeInstances(clearing, courseSeed, valleyHalfWidth);
-    if (trees.length === 0) return;
+  const addTrees = (trees: Float32Array, images: TreeImages) => {
     const [colour, shape] = (["colour", "shape"] as const).map((name) => {
       const texture = new pc.Texture(device, {
         addressU: pc.ADDRESS_CLAMP_TO_EDGE,
@@ -987,8 +985,11 @@ export function createEnclosureView(
       receiveShadows: false,
     });
     app.root.addChild(waterfall);
+    // Lay the trees out now, so their atlases arriving costs only an upload.
+    const trees = createTreeInstances(clearing, courseSeed, valleyHalfWidth);
+    if (trees.length === 0) return;
     void loadTreeImages().then((images) => {
-      if (images && !disposed) addTrees(images);
+      if (images && !disposed) addTrees(trees, images);
     });
   };
   app.once("postrender", addDetail);

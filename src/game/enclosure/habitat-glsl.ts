@@ -314,10 +314,6 @@ vec3 landColor(Land l, vec2 q, vec2 f, float seed) {
   return mix(color, ROAD, band(l.road, 5.0, f.y));
 }
 
-vec3 land(vec2 q, vec2 f, float seed) {
-  return landColor(landAt(q, seed), q, f, seed);
-}
-
 // Height of the land above the floor in metres, with its gradient along
 // (axial, across). Hills settle flat toward water, the windows, and the
 // end-cap terraces, under settlements, and around the falls lake's bridge;

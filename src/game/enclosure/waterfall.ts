@@ -57,7 +57,7 @@ export function veilShape(side: -1 | 1, time: number, landingTime: number) {
   };
 }
 
-export type FallPoint = {
+type FallPoint = {
   /** Seconds since leaving the spillway. */
   time: number;
   /** Distance from the axis, metres. */
