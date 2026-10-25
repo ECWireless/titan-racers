@@ -1447,6 +1447,8 @@ test.describe("protected course editor access", () => {
       testInfo.project.name !== "desktop",
       "The direct gizmo regression runs once; mobile precision controls have separate coverage.",
     );
+    // Each of its many pointer steps redraws the editor's full Starter Course.
+    testInfo.setTimeout(60_000);
     await page.route(courseApiPattern, async (route) => {
       await route.fulfill({
         body: JSON.stringify({
