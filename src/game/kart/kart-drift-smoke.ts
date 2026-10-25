@@ -58,6 +58,8 @@ type DriftSmokeEmitter = {
   component: pc.ParticleSystemComponent;
   entity: pc.Entity;
   level: 1 | 2;
+  // Unlit, so the smoke dims with the course's light.
+  lightLevel: number;
   wheelName: string;
 };
 
@@ -174,11 +176,10 @@ function createSmokeEmitter(
   ]);
   alphaGraph.type = pc.CURVE_SMOOTHSTEP;
 
-  // Unlit, so it dims with the course's light.
   const colorGraph = new pc.CurveSet([
-    [0, 0.62 * lightLevel, 1, 0.74 * lightLevel],
-    [0, 0.64 * lightLevel, 1, 0.76 * lightLevel],
-    [0, 0.66 * lightLevel, 1, 0.78 * lightLevel],
+    [0, 0.62, 1, 0.74],
+    [0, 0.64, 1, 0.76],
+    [0, 0.66, 1, 0.78],
   ]);
   colorGraph.type = pc.CURVE_LINEAR;
 
@@ -241,6 +242,7 @@ function createSmokeEmitter(
     component,
     entity,
     level,
+    lightLevel,
     wheelName: mount.name,
   };
 }
@@ -258,9 +260,11 @@ function setEmitterIntensity(emitter: DriftSmokeEmitter, intensity: number) {
     // aging into view. Keep the authored full-density rate stable and vary the
     // renderer's color multiplier instead, which preserves continuous visual
     // intensity without restarting simulation.
+    // The colour graph is stored as sRGB, so light scales here, after it
+    // is linearised.
     emitter.component.emitter?.material?.setParameter(
       "colorMult",
-      intensity,
+      intensity * emitter.lightLevel,
     );
   }
 

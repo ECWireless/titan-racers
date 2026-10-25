@@ -1,6 +1,7 @@
 import { expect, test } from "@playwright/test";
 
 import { FALLS_VIEW_PARK_DOCUMENT } from "../src/game/course/course-document";
+import { courseLampLux } from "../src/game/course/course-lamps";
 import { getHabitatLight } from "../src/game/enclosure/habitat-light";
 import { getEnclosureFrame } from "../src/game/enclosure/island-three";
 import {
@@ -9,7 +10,8 @@ import {
   ENVIRONMENT_ATLAS_SIZE,
 } from "../src/game/render/habitat-environment-atlas";
 
-const sunlit = FALLS_VIEW_PARK_DOCUMENT.enclosure;
+// Falls View Park's placement in a low evening sun.
+const sunlit = { ...FALLS_VIEW_PARK_DOCUMENT.enclosure, mirrorAngle: 80 };
 // The far half of the valley, beyond the mirror's band.
 const shaded = {
   ...sunlit,
@@ -66,6 +68,15 @@ test("darkens toward night as the mirror opens, adapting and lighting lamps at d
   expect(dusk.adaptation).toBeGreaterThan(4);
   expect(dusk.lampsOn).toBe(1);
   expect(dusk.lightLevel).toBeLessThan(0.05);
+
+  // Falls View Park's floodlights light its track like a lit circuit, and
+  // eyes adjust to them rather than to the dim valley.
+  const trackLux = courseLampLux(FALLS_VIEW_PARK_DOCUMENT);
+  expect(trackLux).toBeGreaterThan(300);
+  expect(trackLux).toBeLessThan(3000);
+  const floodlit = getHabitatLight(FALLS_VIEW_PARK_DOCUMENT.enclosure, trackLux);
+  expect(floodlit.adaptation).toBeLessThan(dusk.adaptation);
+  expect(floodlit.lightLevel * floodlit.adaptation).toBeCloseTo(1, 6);
 });
 
 test("builds the elevation-only atlas from directional light", () => {

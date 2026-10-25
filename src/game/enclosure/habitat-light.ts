@@ -9,6 +9,7 @@ import {
   dot,
   getEnclosureFrame,
   scaled,
+  sceneLux,
   type Vector3,
 } from "./island-three";
 import { TREE_CROWN_SHADE, TREE_MEAN_ALBEDO } from "./tree-billboards";
@@ -48,12 +49,15 @@ const SUN_GLOW_POWER = 32;
 const LAMPS_OFF_DAYLIGHT = 0.06;
 const LAMPS_ON_DAYLIGHT = 0.03;
 
-// Eyes adjust to a dim habitat, though not fully: below the key light of a
-// low sun, the race brightens by this power of how much dimmer the course is,
-// so dusk reads darker than day but stays drivable.
+// Eyes adjust to a dim course, as they do fully at these light levels: below
+// the key light of a low sun, the race brightens by how much dimmer the
+// course's key light is, up to a limit. Dusk still reads from the dark haze,
+// the missing sun shadows, and the lit course against its dimmer valley.
 const ADAPTED_KEY = 0.25;
-const ADAPTATION_POWER = 0.6;
 const MAXIMUM_ADAPTATION = 64;
+// The lit course fills about half the view, so eyes adjust to half its
+// lamps' light, and the lit track reads brighter than the dusk around it.
+const COURSE_LAMP_VIEW_SHARE = 0.5;
 
 // The belt of trees around the clearing fills the horizon to about this
 // height, at its middle depth, with gaps between clumps and toward the
@@ -117,21 +121,70 @@ export type HabitatLight = {
   atlasPixels(): Uint8Array;
 };
 
+type EnclosureLight = Omit<
+  HabitatLight,
+  "adaptation" | "atlasPixels" | "lightLevel"
+> & { key: number };
+
+let cachedEnclosure: { key: string; light: EnclosureLight } | null = null;
 let cached: { key: string; light: HabitatLight } | null = null;
 
 /**
  * The light an enclosure sheds on its course, reused while races stay on the
- * same placement.
+ * same placement. A course's own lamps, given as the illuminance they put on
+ * its track while on, count toward how far eyes adjust.
  */
-export function getHabitatLight(enclosure: CourseEnclosure): HabitatLight {
-  const key = JSON.stringify(enclosure);
+export function getHabitatLight(
+  enclosure: CourseEnclosure,
+  courseLampLux = 0,
+): HabitatLight {
+  const enclosureKey = JSON.stringify(enclosure);
+  if (cachedEnclosure?.key !== enclosureKey) {
+    cachedEnclosure = {
+      key: enclosureKey,
+      light: createEnclosureLight(enclosure),
+    };
+  }
+  const key = `${enclosureKey}:${courseLampLux}`;
   if (cached?.key !== key) {
-    cached = { key, light: createHabitatLight(enclosure) };
+    cached = {
+      key,
+      light: adaptToCourse(
+        cachedEnclosure.light,
+        courseLampLux * sceneLux(getEnclosureFrame(enclosure).definition),
+      ),
+    };
   }
   return cached.light;
 }
 
-function createHabitatLight(enclosure: CourseEnclosure): HabitatLight {
+/**
+ * Eyes adjust to the course's key light: the habitat's fill, any sun, and
+ * the course's own lamps.
+ */
+function adaptToCourse(
+  { key, ...light }: EnclosureLight,
+  courseLamps: number,
+): HabitatLight {
+  const lightLevel = Math.min(
+    1,
+    (key + COURSE_LAMP_VIEW_SHARE * courseLamps * light.lampsOn) /
+      ADAPTED_KEY,
+  );
+  const adaptation = Math.min(MAXIMUM_ADAPTATION, 1 / lightLevel);
+  let pixels: Uint8Array | null = null;
+  return {
+    ...light,
+    adaptation,
+    atlasPixels: () =>
+      (pixels ??= createDirectionalEnvironmentAtlasPixels((direction) =>
+        scale(light.radiance(direction), adaptation),
+      )),
+    lightLevel,
+  };
+}
+
+function createEnclosureLight(enclosure: CourseEnclosure): EnclosureLight {
   const frame = getEnclosureFrame(enclosure);
   const { length, radius, sunlight, valleyCount } = frame.definition;
   const halfLength = length / 2;
@@ -272,27 +325,14 @@ function createHabitatLight(enclosure: CourseEnclosure): HabitatLight {
   const finalFill = fill;
   const luminance = ({ b, g, r }: LinearColor) =>
     0.2126 * r + 0.7152 * g + 0.0722 * b;
-  const key =
-    luminance(finalFill) +
-    (frame.sunReaches() ? luminance(sunColor) * Math.max(sun.y, 0) : 0);
-  const lightLevel = Math.min(1, key / ADAPTED_KEY);
-  const adaptation = Math.min(
-    MAXIMUM_ADAPTATION,
-    lightLevel ** -ADAPTATION_POWER,
-  );
-  const radiance = (direction: Vector3) => trace(direction, finalFill);
-  let pixels: Uint8Array | null = null;
   return {
-    adaptation,
     airGlow,
-    atlasPixels: () =>
-      (pixels ??= createDirectionalEnvironmentAtlasPixels((direction) =>
-        scale(radiance(direction), adaptation),
-      )),
     fill: finalFill,
+    key:
+      luminance(finalFill) +
+      (frame.sunReaches() ? luminance(sunColor) * Math.max(sun.y, 0) : 0),
     lampsOn,
-    lightLevel,
-    radiance,
+    radiance: (direction: Vector3) => trace(direction, finalFill),
     sunGlow,
   };
 }

@@ -34,6 +34,14 @@ phone budget. Art direction and the budget itself live in
   screen starts it, the race waits for it before its first frame, and the
   course editor switches to the scans when they arrive. If they fail, those
   surfaces keep the grain finish.
+- `src/game/course/course-lamps.ts` puts a floodlight's arm, luminaire,
+  and downward spot light on each `lamp` object's mast, at real brightness
+  from the enclosure's lux scale and the habitat's lamp schedule, with no
+  shadows, and measures the illuminance they put on the track, which the
+  race's exposure counts. A light's colour carries its brightness at intensity 1, because
+  PlayCanvas applies intensities below 1 before linearising the colour. The
+  race batches the lamp parts with the static course; the editor shows them
+  switched off.
 - `src/game/course/build-course-lighting.ts` lights a course with its
   enclosure's sun ([Island Three](../../../docs/island-three.md)) and sets its
   shadows: two 1024² cascades in one 2048² map out to 60 m, blended over
@@ -76,7 +84,8 @@ phone budget. Art direction and the budget itself live in
   the course loading screen (`src/components/course-loading-screen.tsx`):
   raw WebGL2 on its own canvas, one full-screen shader that traces the hull,
   mirrors, and Saturn and repeats the scene look's Neutral tone mapping and
-  its base exposure, unadapted, since it looks on from sunlit space.
+  its base exposure, unadapted, since it looks on from sunlit space, and
+  shows the habitat by day (mirrors at most 80°).
   `src/game/enclosure/habitat-glsl.ts` holds the land, cap, mirror-light,
   and distant-lamp GLSL it shares with the enclosure view.
 - `src/game/runtime/frame-budget.ts` and

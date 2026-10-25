@@ -5,6 +5,7 @@ import { useEffect, useId, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
 import {
+  COURSE_LAMP_LIMIT,
   type CourseDocument,
   serializeCourseDocument,
 } from "@/game/course/course-document";
@@ -32,6 +33,7 @@ import {
   addCourseCheckpoint,
   addCourseObjectPreset,
   collectCourseDocumentIds,
+  courseLampLimitReached,
   deleteCourseSelection,
   getSelectionGeometry,
   nudgeObjectSelections,
@@ -1991,6 +1993,8 @@ function CoursePanel({
   const objectLimitReached =
     document.objects.length >= COURSE_EDITOR_OBJECT_LIMIT;
   const objectLimitMessageId = useId();
+  const lampLimitReached = courseLampLimitReached(document);
+  const lampLimitMessageId = useId();
   const checkpointLimitReached =
     document.checkpoints.length >= COURSE_EDITOR_CHECKPOINT_LIMIT;
   const checkpointLimitMessageId = useId();
@@ -2002,25 +2006,34 @@ function CoursePanel({
         onToggle={() => onSectionToggle("course-add")}
       >
         <div className="grid min-w-0 grid-cols-2 gap-2">
-          {COURSE_OBJECT_PRESETS.map((preset) => (
-            <button
-              aria-describedby={
-                objectLimitReached ? objectLimitMessageId : undefined
-              }
-              className="min-h-11 border border-titan-ice/15 bg-titan-black/24 px-2 py-2 font-bold uppercase tracking-[0.08em] text-titan-ice/78 hover:border-titan-hazard hover:text-titan-hazard focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-titan-hazard disabled:cursor-not-allowed disabled:opacity-35"
-              disabled={objectLimitReached}
-              key={preset}
-              title={
-                objectLimitReached
-                  ? `Editor object limit reached (${COURSE_EDITOR_OBJECT_LIMIT})`
-                  : `Add ${preset}`
-              }
-              type="button"
-              onClick={() => onAddPreset(preset)}
-            >
-              {preset}
-            </button>
-          ))}
+          {COURSE_OBJECT_PRESETS.map((preset) => {
+            const lampBlocked = preset === "lamp" && lampLimitReached;
+            return (
+              <button
+                aria-describedby={
+                  objectLimitReached
+                    ? objectLimitMessageId
+                    : lampBlocked
+                      ? lampLimitMessageId
+                      : undefined
+                }
+                className="min-h-11 border border-titan-ice/15 bg-titan-black/24 px-2 py-2 font-bold uppercase tracking-[0.08em] text-titan-ice/78 hover:border-titan-hazard hover:text-titan-hazard focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-titan-hazard disabled:cursor-not-allowed disabled:opacity-35"
+                disabled={objectLimitReached || lampBlocked}
+                key={preset}
+                title={
+                  objectLimitReached
+                    ? `Editor object limit reached (${COURSE_EDITOR_OBJECT_LIMIT})`
+                    : lampBlocked
+                      ? `Lamp limit reached (${COURSE_LAMP_LIMIT})`
+                      : `Add ${preset}`
+                }
+                type="button"
+                onClick={() => onAddPreset(preset)}
+              >
+                {preset}
+              </button>
+            );
+          })}
         </div>
         {objectLimitReached ? (
           <p
@@ -2029,6 +2042,15 @@ function CoursePanel({
             role="status"
           >
             Editor object limit reached ({COURSE_EDITOR_OBJECT_LIMIT})
+          </p>
+        ) : null}
+        {!objectLimitReached && lampLimitReached ? (
+          <p
+            className="text-[0.65rem] font-bold uppercase tracking-[0.08em] text-titan-muted"
+            id={lampLimitMessageId}
+            role="status"
+          >
+            Lamp limit reached ({COURSE_LAMP_LIMIT})
           </p>
         ) : null}
         <button

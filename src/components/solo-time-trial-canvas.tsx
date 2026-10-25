@@ -55,6 +55,7 @@ import {
   drawsEnclosure,
 } from "@/game/enclosure/enclosure-view";
 import { getHabitatLight } from "@/game/enclosure/habitat-light";
+import { addCourseLamps, courseLampLux } from "@/game/course/course-lamps";
 import { PlayerInputManager } from "@/game/input/player-input-manager";
 import { isEditableKeyboardTarget } from "@/game/input/keyboard-input";
 import { useControllerMenuNavigation } from "@/game/input/use-controller-menu-navigation";
@@ -833,6 +834,17 @@ export function SoloTimeTrialCanvas({
             )),
       });
 
+      const habitatLight = getHabitatLight(
+        COURSE_DOCUMENT.enclosure,
+        courseLampLux(COURSE_DOCUMENT),
+      );
+      runtime.addCleanup(
+        addCourseLamps(courseEntities, COURSE_DOCUMENT, {
+          lampsOn: habitatLight.lampsOn,
+          steel: courseSurfaces.materials.steel,
+        }),
+      );
+
       // Static course visuals batch by finish. Authored entities and colliders
       // remain intact; the test-adapter barrels stay movable, and the editor
       // keeps separate meshes for live editing.
@@ -843,8 +855,10 @@ export function SoloTimeTrialCanvas({
       );
       courseEntities.forEach((entity, id) => {
         if (obstacleEntities.has(id as CourseTestObstacleId)) return;
-        const visual = entity.render ?? entity.model;
-        if (visual) visual.batchGroupId = courseBatch.id;
+        entity.forEach((node) => {
+          const visual = (node as pc.Entity).render ?? (node as pc.Entity).model;
+          if (visual) visual.batchGroupId = courseBatch.id;
+        });
       });
 
       function syncObstacleCollision(
@@ -1122,7 +1136,6 @@ export function SoloTimeTrialCanvas({
       lightingEntities.forEach((entity) => {
         if (entity.light?.castShadows) applyShadowPolicy(entity.light);
       });
-      const habitatLight = getHabitatLight(COURSE_DOCUMENT.enclosure);
       runtime.addCleanup(applySceneLook(app, camera.camera!, habitatLight));
       if (drawsEnclosure()) {
         runtime.addCleanup(

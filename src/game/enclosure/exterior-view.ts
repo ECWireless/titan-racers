@@ -529,6 +529,11 @@ export type ExteriorView = {
   dispose(): void;
 };
 
+// Past this angle the mirrors turn edge-on to the Sun, so from outside the
+// habitat goes dark. The loading screen shows Island Three by day; the race
+// keeps its course's own time.
+const EXTERIOR_MIRROR_ANGLE_MAX = 80;
+
 /**
  * Draws Island Three from outside on a canvas filling a container, at one
  * pixel per CSS pixel, turning at the habitat's true spin. Each view owns
@@ -537,8 +542,15 @@ export type ExteriorView = {
  */
 export function createExteriorView(
   container: HTMLElement,
-  enclosure: CourseEnclosure,
+  courseEnclosure: CourseEnclosure,
 ): ExteriorView | null {
+  const enclosure = {
+    ...courseEnclosure,
+    mirrorAngle: Math.min(
+      courseEnclosure.mirrorAngle,
+      EXTERIOR_MIRROR_ANGLE_MAX,
+    ),
+  };
   const canvas = document.createElement("canvas");
   canvas.setAttribute("aria-hidden", "true");
   canvas.style.cssText = "position:absolute;inset:0;width:100%;height:100%";

@@ -1,6 +1,7 @@
 import * as pc from "playcanvas";
 
 import { buildCourseLighting } from "../course/build-course-lighting";
+import { addCourseLamps } from "../course/course-lamps";
 import { applySceneLook, applyShadowPolicy } from "../render/scene-look";
 import {
   addCourseVisual,
@@ -110,6 +111,7 @@ export class CourseEditorScene {
   private lastTouchMidpoint: { x: number; y: number } | null = null;
   private options: CourseEditorSceneOptions;
   private pointerCleanup: (() => void) | null = null;
+  private lampCleanup: (() => void) | null = null;
   private selections: CourseEditorSelections;
   private selectionEntities: pc.Entity[] = [];
   private tool: CourseEditorTool = "translate";
@@ -177,6 +179,8 @@ export class CourseEditorScene {
     this.resizeObserver.disconnect();
     this.pointerCleanup?.();
     this.pointerCleanup = null;
+    this.lampCleanup?.();
+    this.lampCleanup = null;
     this.translateGizmo.destroy();
     this.rotateGizmo.destroy();
     this.scaleGizmo.destroy();
@@ -698,6 +702,12 @@ export class CourseEditorScene {
       topFaces: this.courseSurfaces.topFaces,
       document: this.currentDocument,
       materials: this.materials,
+    });
+    // The editor shows lamps switched off, as by day.
+    this.lampCleanup?.();
+    this.lampCleanup = addCourseLamps(courseEntities, this.currentDocument, {
+      lampsOn: 0,
+      steel: this.materials.steel,
     });
     courseEntities.forEach((entity, id) => {
       const selection = { id, kind: "object" } as const;

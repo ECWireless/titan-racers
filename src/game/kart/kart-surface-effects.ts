@@ -513,8 +513,9 @@ export class KartSurfaceEffects {
       material.useLighting = false;
       material.useSkybox = false;
       material.diffuse = new pc.Color(0, 0, 0);
-      const mark = 0.02 * lightLevel;
-      material.emissive = new pc.Color(mark, mark, mark);
+      material.emissive = new pc.Color(0.02, 0.02, 0.02);
+      // Colours are linearised; intensity scales the linear light.
+      material.emissiveIntensity = lightLevel;
       material.opacityVertexColor = true;
       material.opacityVertexColorChannel = "a";
       material.blendType = pc.BLEND_NORMAL;

@@ -1,5 +1,7 @@
 import {
   COURSE_CHECKPOINT_LIMIT,
+  COURSE_LAMP_LIMIT,
+  countCourseLamps,
   type CourseDocument,
   type CourseObject,
   parseCourseDocument,
@@ -12,6 +14,7 @@ export const COURSE_OBJECT_PRESETS = [
   "barrel",
   "ramp",
   "platform",
+  "lamp",
 ] as const;
 export const COURSE_EDITOR_OBJECT_LIMIT = 500;
 export const COURSE_EDITOR_CHECKPOINT_LIMIT = COURSE_CHECKPOINT_LIMIT;
@@ -179,6 +182,32 @@ const PRESET_OBJECTS: Record<
       shape: "box",
     },
   },
+  // A full-size floodlight: a 12 m steel mast with its luminaire on top.
+  lamp: {
+    availability: "standard",
+    category: "obstacle",
+    collision: {
+      surfaceMaterial: { id: "surface.standard-course", version: 1 },
+      axis: 1,
+      friction: 0.5,
+      height: 12,
+      offset: {
+        position: { x: 0, y: 0, z: 0 },
+        rotation: { x: 0, y: 0, z: 0 },
+      },
+      radius: 0.15,
+      restitution: 0,
+      role: "solid-obstacle",
+      shape: "cylinder",
+    },
+    editable: true,
+    lamp: "floodlight",
+    visual: {
+      material: "steel",
+      scale: { x: 0.3, y: 12, z: 0.3 },
+      shape: "cylinder",
+    },
+  },
   platform: {
     availability: "standard",
     category: "surface",
@@ -208,7 +237,10 @@ export function addCourseObjectPreset(
   preset: CourseObjectPreset,
   reservedIds: ReadonlySet<string> = new Set(),
 ) {
-  if (document.objects.length >= COURSE_EDITOR_OBJECT_LIMIT) {
+  if (
+    document.objects.length >= COURSE_EDITOR_OBJECT_LIMIT ||
+    (preset === "lamp" && courseLampLimitReached(document))
+  ) {
     return document;
   }
 
@@ -240,6 +272,10 @@ export function addCourseObjectPreset(
     ...document,
     objects: [...document.objects, object],
   });
+}
+
+export function courseLampLimitReached(document: CourseDocument) {
+  return countCourseLamps(document) >= COURSE_LAMP_LIMIT;
 }
 
 export function addCourseCheckpoint(

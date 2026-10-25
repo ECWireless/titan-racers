@@ -35,7 +35,7 @@ import {
 import {
   type CourseEnclosure,
   getEnclosureFrame,
-  SUNLIGHT_LUX,
+  sceneLux,
 } from "./island-three";
 import {
   CONIFER_SPECIES,
@@ -879,12 +879,9 @@ export function createEnclosureView(
     material.setParameter("uRayleighExtinction", [...RAYLEIGH_EXTINCTION]);
     material.setParameter("uAerosolExtinction", AEROSOL_EXTINCTION);
     material.setParameter("uAirGlow", habitat.airGlow);
-    // One lux of illuminance is the sunlight's luminance over SUNLIGHT_LUX.
     material.setParameter(
       "uCandela",
-      (habitat.lampsOn * Math.PI * intensity *
-        (0.2126 * color.r + 0.7152 * color.g + 0.0722 * color.b)) /
-        SUNLIGHT_LUX,
+      habitat.lampsOn * Math.PI * sceneLux(frame.definition),
     );
     material.setParameter("uSunGlow", habitat.sunGlow);
     const { b, g, r } = habitat.fill;

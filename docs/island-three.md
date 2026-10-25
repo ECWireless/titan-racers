@@ -123,6 +123,9 @@ the hull, the mirrors, and Saturn, with no meshes or textures.
   beside a sunlit habitat they are far too faint to show, as in a real
   camera.
 
+The screen shows Island Three by day: past 80° the mirrors turn edge-on to
+the Sun and the habitat would go dark from outside, so a dusk course's
+habitat appears with its mirrors at 80°, while the race keeps its own time.
 The screen holds for at least 2.5 s while the race builds behind it, then
 fades into the countdown.
 
@@ -162,7 +165,7 @@ damping only acts on near-level support.
 
 ## Sunlight
 
-The course's `mirrorAngle` (5–85°) is the opening of its mirror from the
+The course's `mirrorAngle` (5–90°) is the opening of its mirror from the
 window and sets the time of day. A flat mirror opened by α turns the Sun's
 rays by 2α, so the sun's image sits 2α above the horizon:
 
@@ -191,8 +194,12 @@ toward the window darkens the habitat the same way.
 
 - The haze glows with the daylight, so it fades at dusk and is dark at
   night, and the habitat's light on the course fades with it.
-- The race brightens a dim course as eyes adjust, but not fully, so dusk
-  reads darker than day (`adaptation` in `habitat-light.ts`).
+- The race exposes for its course's key light, as eyes adjust fully at these
+  levels, up to 64 times brighter (`adaptation` in `habitat-light.ts`). The
+  key light counts the habitat's fill, any sun, and half the light of the
+  course's own floodlights, since the lit course fills about half the view.
+  So a floodlit course reads brighter than day, while dusk shows in the dark
+  haze, the missing sun shadows, and the dimmer valley around it.
 - Island Three's lamps come on with the mirrors' schedule, below about a
   twentieth of noon's daylight, well before a light sensor would:
   street lamps along the valley roads and through the towns and villages,
@@ -200,6 +207,11 @@ toward the window darkens the habitat the same way.
   a distant lamp is a faint point and a far town a dim glow, and they show
   only once the haze has dimmed. The enclosure view leaves out those near the
   course, whose lamps stand on their own masts.
+- A course's own lamps (at most four) are floodlights, as a lit circuit
+  has: 12 m masts with a sports floodlight of about 200,000 cd in neutral
+  white (about 4500 K) shining down, on the habitat's lamp schedule, with no
+  shadows. Falls View Park races at deep dusk (89.5°) under four, which puts
+  about 1,050 lux on its track against about 400 from the habitat.
 
 Everything rotates together, so the light holds still for a whole race. The
 sun is the course's only shadow-casting light.

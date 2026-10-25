@@ -294,7 +294,7 @@ test.describe("protected course editor access", () => {
 
     await expect(page.getByTestId("course-editor-shell")).toBeVisible();
     expect(savePayload).toMatchObject({
-      document: { courseId: "rough-course", schemaVersion: 4 },
+      document: { courseId: "rough-course", schemaVersion: 5 },
       expectedRevision: null,
     });
   });
@@ -352,7 +352,7 @@ test.describe("protected course editor access", () => {
       page.getByText("Falls View Park Circuit"),
     ).toBeVisible();
     expect(parkSave).toMatchObject({
-      document: { courseId: "falls-view-park", schemaVersion: 4 },
+      document: { courseId: "falls-view-park", schemaVersion: 5 },
       expectedRevision: null,
     });
   });
@@ -1017,9 +1017,9 @@ test.describe("protected course editor access", () => {
     // A partly typed value is not clamped until it is committed.
     await mirrorAngle.fill("3");
     await expect(mirrorAngle).toHaveValue("3");
-    await mirrorAngle.fill("86");
+    await mirrorAngle.fill("91");
     await mirrorAngle.press("Enter");
-    await expect(mirrorAngle).toHaveValue("85");
+    await expect(mirrorAngle).toHaveValue("90");
     await expect(
       page.getByText("At this angle the mirror's sunlight misses this course."),
     ).toBeVisible();

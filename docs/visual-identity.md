@@ -45,7 +45,8 @@ Orange and hazard are signals. Use them sparingly so they stay readable.
   Three: sunlit and shaded floors, windows, and haze, so a kart is brighter
   on the side facing the sunlit floor. The habitat is dim next to Earth's
   sky, so shade is deep and sunlight carries the scene. Toward dusk the race
-  brightens as eyes adjust, though not fully, so dusk reads darker than day
+  exposes for its course's key light, as eyes adjust, so a floodlit course
+  reads clearly while the haze and valley around it go dark
   ([dusk and night](island-three.md#dusk-and-night)). Editors and
   thumbnails use a neutral, slightly warm environment: a bright diffuse
   horizon, a softer overhead, and a dark floor bounce.
@@ -72,6 +73,10 @@ Orange and hazard are signals. Use them sparingly so they stay readable.
   sunlight, and softened by distance haze so its kilometres read
   ([Island Three](island-three.md#rendering)). Editors and thumbnails keep
   flat clear colors.
+- **Lamps at real brightness.** At dusk, warm white street lamps light
+  across the habitat, and a course is floodlit like a lit circuit: up to
+  four neutral white floodlights on full-size masts, with no shadows
+  ([dusk and night](island-three.md#dusk-and-night)).
 - **Races load in space.** The loading screen shows Island Three from
   outside, lit by the same sun and tone mapping as the race, against black
   space and Saturn ([Island Three](island-three.md#from-outside)). The site's

@@ -62,11 +62,21 @@ export const SUN_ANGULAR_RADIUS = 0.004652 / 9.54;
 /**
  * The registry's sunlight stands for full sunlight, in lux. A white surface
  * shows the illuminance it receives, so one cd/m² of luminance is π lux of
- * scene light, and a lamp's candela set its light's intensity in lux.
+ * scene light, and a lamp's candela sets its light's intensity in lux.
  */
 export const SUNLIGHT_LUX = 100_000;
 
-export const MIRROR_ANGLE_LIMITS = { max: 85, min: 5 } as const;
+/** Scene light per lux in an enclosure, by luminance. */
+export function sceneLux(definition: DeepReadonly<EnclosureDefinition>) {
+  const { color, intensity } = definition.sunlight;
+  return (
+    (intensity * (0.2126 * color.r + 0.7152 * color.g + 0.0722 * color.b)) /
+    SUNLIGHT_LUX
+  );
+}
+
+/** A mirror at 90° stands fully open, so its window sees only space: night. */
+export const MIRROR_ANGLE_LIMITS = { max: 90, min: 5 } as const;
 
 const enclosures = new Map(
   (
