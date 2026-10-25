@@ -29,11 +29,14 @@ import {
 } from "./habitat-land";
 import {
   AEROSOL_EXTINCTION,
-  AIR_GLOW,
   type HabitatLight,
   RAYLEIGH_EXTINCTION,
 } from "./habitat-light";
-import { type CourseEnclosure, getEnclosureFrame } from "./island-three";
+import {
+  type CourseEnclosure,
+  getEnclosureFrame,
+  SUNLIGHT_LUX,
+} from "./island-three";
 import {
   CONIFER_SPECIES,
   TREE_CROWN_SHADE,
@@ -325,6 +328,8 @@ uniform float uAirGlow;
 uniform float uSunGlow;
 // The habitat's own diffuse light on its surfaces.
 uniform vec3 uFill;
+// Scene radiance of one cd/m² of lamplight while the lamps are on.
+uniform float uCandela;
 ${HABITAT_MIRROR_GLSL}
 
 // Pixel footprint in metres, along the axis and around it.
@@ -361,6 +366,7 @@ void main(void) {
   vec2 f = footprint(vWorld);
   vec3 albedo;
   vec3 normal;
+  float lamps = 0.0;
   if (abs(c.x) > HALF_LENGTH - 1.0) {
     albedo = endCap(c.z, c.y, f.y);
     normal = -sign(c.x) * uSunward;
@@ -387,9 +393,12 @@ void main(void) {
     vec3 relief = landRelief(l, q, seed, hillKeep(offset), canopy);
     vec3 up = -outwardAt(c.y);
     normal = normalize(up - relief.y * uSunward - relief.z * cross(up, uSunward));
+    // Lamps near the course are its own, on full-size masts.
+    lamps = lampLight(l, q, pixel, seed)
+      * smoothstep(0.0, 100.0, fromCentre - CLEARING_RADIUS - BELT_INSET - BELT_DEPTH);
   }
   float sunLight = sunlit(vWorld, normal, max(f.x, f.y));
-  vec3 color = albedo * (uSunColor * sunLight + uFill);
+  vec3 color = albedo * (uSunColor * sunLight + uFill) + LAMP_TINT * uCandela * lamps;
   gl_FragColor = finish(throughAir(color, vWorld - view_position));
 }
 `;
@@ -869,7 +878,14 @@ export function createEnclosureView(
     );
     material.setParameter("uRayleighExtinction", [...RAYLEIGH_EXTINCTION]);
     material.setParameter("uAerosolExtinction", AEROSOL_EXTINCTION);
-    material.setParameter("uAirGlow", AIR_GLOW);
+    material.setParameter("uAirGlow", habitat.airGlow);
+    // One lux of illuminance is the sunlight's luminance over SUNLIGHT_LUX.
+    material.setParameter(
+      "uCandela",
+      (habitat.lampsOn * Math.PI * intensity *
+        (0.2126 * color.r + 0.7152 * color.g + 0.0722 * color.b)) /
+        SUNLIGHT_LUX,
+    );
     material.setParameter("uSunGlow", habitat.sunGlow);
     const { b, g, r } = habitat.fill;
     material.setParameter("uFill", [r, g, b]);

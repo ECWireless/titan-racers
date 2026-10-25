@@ -314,6 +314,49 @@ vec3 landColor(Land l, vec2 q, vec2 f, float seed) {
   return mix(color, ROAD, band(l.road, 5.0, f.y));
 }
 
+// Street lamps along the valley road and through settlements, as luminance
+// in cd/m² seen from afar. Each lamp is a point of LAMP_CANDELA drawn as a
+// dot at least a pixel wide that spreads its light, so a distant lamp keeps
+// its total light; once lamps are a few pixels apart they blend to their
+// mean. None stand on water.
+const float LAMP_CANDELA = 1000.0;
+// Warm white, about 3000 K, at unit luminance.
+const vec3 LAMP_TINT = vec3(1.82, 0.83, 0.27);
+const float ROAD_LAMP_SPACING = 40.0;
+const float ROAD_LAMP_SETBACK = 6.0;
+const float VILLAGE_LAMP_SPACING = 30.0;
+
+// The antialiased dot covers π(r² + pixel²/12) on average.
+float lampDot(vec2 offset, float pixel) {
+  float r = max(0.25, 0.5 * pixel);
+  return LAMP_CANDELA / (3.14159 * (r * r + pixel * pixel / 12.0))
+    * inside(length(offset) - r, pixel);
+}
+
+float lampLight(Land l, vec2 q, float pixel, float seed) {
+  float along = mod(q.x, ROAD_LAMP_SPACING) - 0.5 * ROAD_LAMP_SPACING;
+  float road = mix(
+    lampDot(vec2(along, abs(l.road) - ROAD_LAMP_SETBACK), pixel),
+    band(l.road, ROAD_LAMP_SETBACK, pixel) * LAMP_CANDELA
+      / (ROAD_LAMP_SPACING * ROAD_LAMP_SETBACK),
+    smoothstep(0.1, 0.4, pixel / ROAD_LAMP_SPACING)
+  );
+  float built = inside(l.place.x, pixel)
+    * (1.0 - max(inside(l.lake.x, pixel), band(l.river, l.riverHalfWidth, pixel)));
+  if (built <= 0.0) return road;
+  vec2 cell = floor(q / VILLAGE_LAMP_SPACING);
+  vec2 at = (cell + 0.2 + 0.6 * vec2(hash(cell + seed * 5.0), hash(cell + 11.0)))
+    * VILLAGE_LAMP_SPACING;
+  float chance = 0.35 + 0.65 * clamp(l.place.y, 0.0, 1.0);
+  float lit = step(hash(cell + 17.0 + seed), chance);
+  float village = mix(
+    lit * lampDot(q - at, pixel),
+    chance * LAMP_CANDELA / (VILLAGE_LAMP_SPACING * VILLAGE_LAMP_SPACING),
+    smoothstep(0.1, 0.4, pixel / VILLAGE_LAMP_SPACING)
+  );
+  return road + built * village;
+}
+
 // Height of the land above the floor in metres, with its gradient along
 // (axial, across). Hills settle flat toward water, the windows, and the
 // end-cap terraces, under settlements, and around the falls lake's bridge;

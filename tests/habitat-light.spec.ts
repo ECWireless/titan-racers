@@ -54,6 +54,20 @@ test("dims the floor and the haze glow outside the mirror's band", () => {
   expect(dark.sunGlow).toBe(0);
 });
 
+test("darkens toward night as the mirror opens, adapting and lighting lamps at dusk", () => {
+  const at = (mirrorAngle: number) => ({ ...sunlit, mirrorAngle });
+  expect(getEnclosureFrame(at(45)).daylight()).toBeCloseTo(1, 1);
+  expect(getEnclosureFrame(at(90)).daylight()).toBeCloseTo(0, 6);
+
+  const day = getHabitatLight(at(70));
+  expect(day).toMatchObject({ adaptation: 1, lampsOn: 0, lightLevel: 1 });
+  const dusk = getHabitatLight(at(89.5));
+  expect(dusk.airGlow).toBeLessThan(day.airGlow / 20);
+  expect(dusk.adaptation).toBeGreaterThan(4);
+  expect(dusk.lampsOn).toBe(1);
+  expect(dusk.lightLevel).toBeLessThan(0.05);
+});
+
 test("builds the elevation-only atlas from directional light", () => {
   const colorAtElevation = (sine: number) => ({
     b: 0.2 + 0.2 * sine,

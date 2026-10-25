@@ -151,6 +151,7 @@ export function shouldEmitDriftSmoke(
 function createSmokeEmitter(
   mount: DriftSmokeWheelMount,
   level: 1 | 2,
+  lightLevel: number,
 ): DriftSmokeEmitter {
   const layerName = level === 1 ? "light" : "heavy";
   const entity = new pc.Entity(`kart-drift-smoke-${layerName}-${mount.name}`);
@@ -173,10 +174,11 @@ function createSmokeEmitter(
   ]);
   alphaGraph.type = pc.CURVE_SMOOTHSTEP;
 
+  // Unlit, so it dims with the course's light.
   const colorGraph = new pc.CurveSet([
-    [0, 0.62, 1, 0.74],
-    [0, 0.64, 1, 0.76],
-    [0, 0.66, 1, 0.78],
+    [0, 0.62 * lightLevel, 1, 0.74 * lightLevel],
+    [0, 0.64 * lightLevel, 1, 0.76 * lightLevel],
+    [0, 0.66 * lightLevel, 1, 0.78 * lightLevel],
   ]);
   colorGraph.type = pc.CURVE_LINEAR;
 
@@ -280,10 +282,11 @@ export class KartDriftSmoke {
   private readonly currentLevels = new Map<string, number>();
   private countdownLifted = false;
 
-  constructor(wheels: readonly DriftSmokeWheelMount[]) {
+  /** `lightLevel` is the course's light relative to a low sun's (at most 1). */
+  constructor(wheels: readonly DriftSmokeWheelMount[], lightLevel = 1) {
     this.emitters = wheels.flatMap((wheel) => [
-      createSmokeEmitter(wheel, 1),
-      createSmokeEmitter(wheel, 2),
+      createSmokeEmitter(wheel, 1, lightLevel),
+      createSmokeEmitter(wheel, 2, lightLevel),
     ]);
   }
 

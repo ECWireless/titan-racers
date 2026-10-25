@@ -8,7 +8,6 @@ import {
 } from "./habitat-glsl";
 import {
   AEROSOL_EXTINCTION,
-  AIR_GLOW,
   getHabitatLight,
   RAYLEIGH_EXTINCTION,
 } from "./habitat-light";
@@ -559,7 +558,7 @@ export function createExteriorView(
   const scene = exteriorScene(enclosure);
   const definition = getEnclosureFrame(enclosure).definition;
   const { color, intensity } = definition.sunlight;
-  const { fill } = getHabitatLight(enclosure);
+  const { airGlow, fill } = getHabitatLight(enclosure);
   const spinRate = createHabitatField(
     enclosure,
     HABITAT_WORLD_ENVIRONMENT.gravity,
@@ -572,7 +571,7 @@ export function createExteriorView(
     gl.FRAGMENT_SHADER,
     FRAGMENT_SHADER({
       AEROSOL_EXTINCTION,
-      AIR_GLOW,
+      AIR_GLOW: airGlow,
       EXPOSURE,
       HALF_LENGTH: scene.halfLength,
       LENS_SHIFT: VIEW.lensShift,

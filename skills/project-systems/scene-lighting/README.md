@@ -20,8 +20,9 @@ phone budget. Art direction and the budget itself live in
   thumbnails, and a race's direction-aware light from its radiance.
 - `src/game/enclosure/habitat-light.ts` computes the light Island Three sheds
   on a race's course, reused while races stay on one placement: radiance by
-  direction for the atlas, and the fill light and sun glow the enclosure view
-  shares.
+  direction for the atlas, the fill light, air and sun glow the enclosure
+  view shares, and how far a dim course adapts, its lamps are on, and its
+  unlit effects (tire marks, drift smoke) dim.
 - `src/game/kart/kart-visual-material.ts` owns the kart finishes (one
   material per finish) and the authored-color reflectance clamp that the
   [kart visual builder](../kart-builder/README.md) uses.
@@ -75,8 +76,9 @@ phone budget. Art direction and the budget itself live in
   the course loading screen (`src/components/course-loading-screen.tsx`):
   raw WebGL2 on its own canvas, one full-screen shader that traces the hull,
   mirrors, and Saturn and repeats the scene look's Neutral tone mapping and
-  exposure. `src/game/enclosure/habitat-glsl.ts` holds the land, cap, and
-  mirror-light GLSL it shares with the enclosure view.
+  its base exposure, unadapted, since it looks on from sunlit space.
+  `src/game/enclosure/habitat-glsl.ts` holds the land, cap, mirror-light,
+  and distant-lamp GLSL it shares with the enclosure view.
 - `src/game/runtime/frame-budget.ts` and
   `src/components/frame-budget-overlay.tsx` sample rendered frames through
   `PlayCanvasRuntime.onFrameSample` and show the budget readout, with the
@@ -122,8 +124,10 @@ course editor scenes in `src/game/editor/`, and
   (512², RGBP, one-texel seams, v = 0 straight up), and its lookups mirror
   world X. Re-verify both against the engine's envAtlas shader chunks on any
   engine upgrade.
-- A race's environment is in scene units (`skyboxIntensity` 1); the neutral
-  habitat light keeps its gain. Its CPU build counts toward the startup
+- A race's environment is in scene units. A dim course's atlas is stored
+  brightened by its adaptation, with `skyboxIntensity` its inverse and the
+  exposure raised by it, so dusk keeps its precision in the 8-bit atlas; the
+  neutral habitat light keeps its gain. Its CPU build counts toward the startup
   budget ([measured](../../../docs/visual-identity.md#baseline)).
 - The course finishes replace the `diffusePS` chunk (scanned finishes also
   `normalMapPS` and `glossPS`), and the cascaded-shadow fade patches

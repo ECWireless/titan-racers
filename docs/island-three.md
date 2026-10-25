@@ -87,7 +87,8 @@ own:
   120 m high, and a deck that follows the floor's curve.
 - The air hazes distance: clean-air scattering at half pressure plus
   moisture and dust, together giving 55 km visibility (the distance at which
-  contrast falls to 2%), with the haze glowing at 40% of the sunlight. The
+  contrast falls to 2%), with the haze glowing with the daylight the mirrors
+  let in (40% of the sunlight on the Starter Course's afternoon). The
   far side overhead keeps about 57% of its contrast. From Falls View Park the
   end caps, 2.5 and 29.5 km away, keep about 84% and 12%.
 - The sun's image is traced through the mirrors, so it shows only where a
@@ -177,6 +178,28 @@ above about 83° on the sunward cap, leaving the valley floors dark. A course
 gets direct sun only if its placement lies in its mirror's band
 (`sunReaches`), and the enclosure floors show the same band.
 Outside it, the haze also loses its glow toward the sun's image.
+
+### Dusk And Night
+
+The daylight inside is what the mirrors send through the windows onto the
+floors and caps (`daylight`). It peaks just after noon, where the mirror
+catches the most sunlight (about 1.2 of noon's at 60°), and falls as the
+mirror opens toward the anti-sun end: about half at 80°, a quarter at 84°
+with all of it on the sunward cap, and none once the mirror stands fully
+open at 90°, where the window sees only space. Closing a morning mirror
+toward the window darkens the habitat the same way.
+
+- The haze glows with the daylight, so it fades at dusk and is dark at
+  night, and the habitat's light on the course fades with it.
+- The race brightens a dim course as eyes adjust, but not fully, so dusk
+  reads darker than day (`adaptation` in `habitat-light.ts`).
+- Island Three's lamps come on with the mirrors' schedule, below about a
+  twentieth of noon's daylight, well before a light sensor would:
+  street lamps along the valley roads and through the towns and villages,
+  1000 cd each in warm white. Seen from afar they keep their total light, so
+  a distant lamp is a faint point and a far town a dim glow, and they show
+  only once the haze has dimmed. The enclosure view leaves out those near the
+  course, whose lamps stand on their own masts.
 
 Everything rotates together, so the light holds still for a whole race. The
 sun is the course's only shadow-casting light.

@@ -44,7 +44,9 @@ Orange and hazard are signals. Use them sparingly so they stay readable.
 - **Habitat light.** A race is lit by what surrounds its course in Island
   Three: sunlit and shaded floors, windows, and haze, so a kart is brighter
   on the side facing the sunlit floor. The habitat is dim next to Earth's
-  sky, so shade is deep and sunlight carries the scene. Editors and
+  sky, so shade is deep and sunlight carries the scene. Toward dusk the race
+  brightens as eyes adjust, though not fully, so dusk reads darker than day
+  ([dusk and night](island-three.md#dusk-and-night)). Editors and
   thumbnails use a neutral, slightly warm environment: a bright diffuse
   horizon, a softer overhead, and a dark floor bounce.
 - **Sunlight comes through Island Three's windows.** A course does not aim

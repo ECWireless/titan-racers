@@ -1607,10 +1607,14 @@ export function SoloTimeTrialCanvas({
         wheels: dynamicWheels,
       });
       runtime.addCleanup(() => kartController.destroy());
-      driftSmoke = new KartDriftSmoke(dynamicWheels);
+      driftSmoke = new KartDriftSmoke(dynamicWheels, habitatLight.lightLevel);
       const activeDriftSmoke = driftSmoke;
       runtime.addCleanup(() => activeDriftSmoke.destroy());
-      surfaceEffects = new KartSurfaceEffects(app, dynamicWheels);
+      surfaceEffects = new KartSurfaceEffects(
+        app,
+        dynamicWheels,
+        habitatLight.lightLevel,
+      );
       const activeSurfaceEffects = surfaceEffects;
       runtime.addCleanup(() => activeSurfaceEffects.destroy());
       const contactShadow = new KartContactShadow(

@@ -42,9 +42,11 @@ export function applySceneLook(
   camera.layers = camera.layers.filter((id) => id !== pc.LAYERID_SKYBOX);
   camera.gammaCorrection = pc.GAMMA_SRGB;
   camera.toneMapping = pc.TONEMAP_NEUTRAL;
-  app.scene.exposure = EXPOSURE;
-  // An enclosure's light is already in scene units.
-  app.scene.skyboxIntensity = habitat ? 1 : ENVIRONMENT_GAIN;
+  // A dim habitat is exposed brighter, as eyes adjust. Its atlas is stored
+  // already brightened, and its light is otherwise in scene units.
+  const adaptation = habitat?.adaptation ?? 1;
+  app.scene.exposure = EXPOSURE * adaptation;
+  app.scene.skyboxIntensity = habitat ? 1 / adaptation : ENVIRONMENT_GAIN;
 
   const pixels = habitat
     ? habitat.atlasPixels()
