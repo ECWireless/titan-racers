@@ -196,8 +196,8 @@ toward the window darkens the habitat the same way.
   night, and the habitat's light on the course fades with it.
 - The race exposes for its course's key light, as eyes adjust fully at these
   levels, up to 64 times brighter (`adaptation` in `habitat-light.ts`). The
-  key light counts the habitat's fill, any sun, and half the light of the
-  course's own floodlights, since the lit course fills about half the view.
+  key light counts the habitat's fill, any sun, and 40% of the light of the
+  course's own floodlights, since the lit course fills under half the view.
   So a floodlit course reads brighter than day, while dusk shows in the dark
   haze, the missing sun shadows, and the dimmer valley around it.
 - Island Three's lamps come on with the mirrors' schedule, below about a
@@ -207,11 +207,16 @@ toward the window darkens the habitat the same way.
   a distant lamp is a faint point and a far town a dim glow, and they show
   only once the haze has dimmed. The enclosure view leaves out those near the
   course, whose lamps stand on their own masts.
+- Brighter lights carry through the dusk haze from kilometres away: the falls
+  bridge's necklace of lamps along its main cables, its deck lamps, and red
+  beacons on its towers; a few floodlit sports fields up the valley sides
+  and across the cylinder; and the falls themselves, floodlit to about
+  300 lux like a landmark (`src/game/enclosure/distant-lights.ts`).
 - A course's own lamps (at most four) are floodlights, as a lit circuit
-  has: 12 m masts with a sports floodlight of about 200,000 cd in neutral
+  has: 12 m masts with a sports floodlight of about 250,000 cd in neutral
   white (about 4500 K) shining down, on the habitat's lamp schedule, with no
   shadows. Falls View Park races at deep dusk (89.5°) under four, which puts
-  about 1,050 lux on its track against about 400 from the habitat.
+  about 1,300 lux on its track against about 400 from the habitat.
 
 Everything rotates together, so the light holds still for a whole race. The
 sun is the course's only shadow-casting light.

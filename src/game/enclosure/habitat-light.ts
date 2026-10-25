@@ -55,9 +55,9 @@ const LAMPS_ON_DAYLIGHT = 0.03;
 // the missing sun shadows, and the lit course against its dimmer valley.
 const ADAPTED_KEY = 0.25;
 const MAXIMUM_ADAPTATION = 64;
-// The lit course fills about half the view, so eyes adjust to half its
+// The lit course fills under half the view, so eyes adjust to part of its
 // lamps' light, and the lit track reads brighter than the dusk around it.
-const COURSE_LAMP_VIEW_SHARE = 0.5;
+const COURSE_LAMP_VIEW_SHARE = 0.4;
 
 // The belt of trees around the clearing fills the horizon to about this
 // height, at its middle depth, with gaps between clumps and toward the

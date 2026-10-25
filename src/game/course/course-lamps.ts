@@ -3,8 +3,8 @@ import * as pc from "playcanvas";
 import { getApprovedEnclosure, sceneLux } from "../enclosure/island-three";
 import type { CourseDocument } from "./course-document";
 
-// A sports floodlight, about 200,000 cd: a circuit is lit to hundreds of lux.
-const LAMP_CANDELA = 200_000;
+// A sports floodlight, about 250,000 cd: a circuit is lit to over 1,000 lux.
+const LAMP_CANDELA = 250_000;
 // Neutral white, about 4500 K as sports floodlights are, in linear colour at
 // unit luminance.
 const LAMP_TINT = [1.33, 0.94, 0.65] as const;

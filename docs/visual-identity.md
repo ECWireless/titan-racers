@@ -75,7 +75,9 @@ Orange and hazard are signals. Use them sparingly so they stay readable.
   flat clear colors.
 - **Lamps at real brightness.** At dusk, warm white street lamps light
   across the habitat, and a course is floodlit like a lit circuit: up to
-  four neutral white floodlights on full-size masts, with no shadows
+  four neutral white floodlights on full-size masts, with no shadows. The
+  falls are floodlit, and the falls bridge and distant sports fields carry
+  their lights through the haze
   ([dusk and night](island-three.md#dusk-and-night)).
 - **Races load in space.** The loading screen shows Island Three from
   outside, lit by the same sun and tone mapping as the race, against black

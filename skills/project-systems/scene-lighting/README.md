@@ -63,10 +63,13 @@ phone budget. Art direction and the budget itself live in
   freeze while the race is paused.
 - `src/game/enclosure/enclosure-view.ts` draws the race's
   [Island Three](../../../docs/island-three.md) enclosure from a second
-  camera on its own layer, before the course, in six draws: frames and
+  camera on its own layer, before the course, in seven draws: frames and
   structures, trees, buildings, the shell with the course valley's relief,
-  the glass, and the translucent falls. Valley land, relief shading,
-  mirrors, the sun's image, and haze are computed per pixel, with no
+  the glass, the translucent falls, and the distant lights at dusk
+  (`distant-lights.ts`: additive discs at least a pixel wide that keep each
+  light's total, dimmed by the haze, placed on the land like the trees).
+  Valley land, relief shading, mirrors, the sun's image, and haze are
+  computed per pixel, with no
   textures; the relief's height comes from the same GLSL in the vertex
   shaders. Trees are instanced
   [billboards](../../../docs/visual-identity.md#tree-billboards) that turn
