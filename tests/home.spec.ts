@@ -2519,6 +2519,9 @@ test.describe("home screen", () => {
   test("recovers a lost WebGL context into an explicit pause and preserves resize state", async ({
     page,
   }, testInfo) => {
+    // Software WebGL draws the enclosure at dusk slowly, so each in-page
+    // query waits seconds for the main thread.
+    testInfo.setTimeout(180_000);
     test.skip(
       testInfo.project.name !== "desktop",
       "Graphics-context recovery only needs one Chromium coverage path.",
@@ -2563,18 +2566,22 @@ test.describe("home screen", () => {
     const pauseDialog = page.getByRole("dialog", { name: "Paused" });
     await expect(pauseDialog).toBeVisible();
     await expect
-      .poll(async () => (await getRaceDebugState(canvas)).state)
+      .poll(async () => (await getRaceDebugState(canvas)).state, {
+        timeout: 60_000,
+      })
       .toBe("paused");
 
     await page.setViewportSize({ height: 700, width: 900 });
     await expect
-      .poll(() =>
-        canvas.evaluate((element) => ({
-          clientHeight: (element as HTMLCanvasElement).clientHeight,
-          clientWidth: (element as HTMLCanvasElement).clientWidth,
-          height: (element as HTMLCanvasElement).height,
-          width: (element as HTMLCanvasElement).width,
-        })),
+      .poll(
+        () =>
+          canvas.evaluate((element) => ({
+            clientHeight: (element as HTMLCanvasElement).clientHeight,
+            clientWidth: (element as HTMLCanvasElement).clientWidth,
+            height: (element as HTMLCanvasElement).height,
+            width: (element as HTMLCanvasElement).width,
+          })),
+        { timeout: 60_000 },
       )
       .toEqual({
         clientHeight: 700,
@@ -2591,6 +2598,8 @@ test.describe("home screen", () => {
   test("falls back to reload or exit when a lost WebGL context does not restore", async ({
     page,
   }, testInfo) => {
+    // Software WebGL draws the enclosure at dusk slowly; see the test above.
+    testInfo.setTimeout(120_000);
     test.skip(
       testInfo.project.name !== "desktop",
       "Graphics-context failure only needs one Chromium coverage path.",
