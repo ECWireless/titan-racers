@@ -44,7 +44,10 @@ Orange and hazard are signals. Use them sparingly so they stay readable.
 - **Habitat light.** A race is lit by what surrounds its course in Island
   Three: sunlit and shaded floors, windows, and haze, so a kart is brighter
   on the side facing the sunlit floor. The habitat is dim next to Earth's
-  sky, so shade is deep and sunlight carries the scene. Editors and
+  sky, so shade is deep and sunlight carries the scene. Toward dusk the race
+  exposes for its course's key light, as eyes adjust, so a floodlit course
+  reads clearly while the haze and valley around it go dark
+  ([dusk and night](island-three.md#dusk-and-night)). Editors and
   thumbnails use a neutral, slightly warm environment: a bright diffuse
   horizon, a softer overhead, and a dark floor bounce.
 - **Sunlight comes through Island Three's windows.** A course does not aim
@@ -55,9 +58,12 @@ Orange and hazard are signals. Use them sparingly so they stay readable.
   mapping clips bright highlights.
 - **No post-processing.** Tone mapping runs inside the main shader. There are
   no bloom, ambient-occlusion, or other full-screen passes.
-- **Shadows reach the karts.** Race shadows cover the 20 m around the camera
-  (the editor overview keeps 40 m) with a bias small enough for a 1:10 kart to
-  shadow the ground beneath it. Course lights soften shadow edges over 5×5
+- **Shadows reach the karts.** Sun shadows cover the 60 m ahead of the camera
+  in two cascades: a sharp one to about 16 m, blended into a coarser one
+  beyond, which fades out over its last 12 m rather than ending at an edge.
+  Their bias is small enough for a 1:10 kart to shadow the ground beneath it,
+  and they keep one size as the chase camera widens with speed, so static
+  shadows hold still. Course lights soften shadow edges over 5×5
   texels, because a kart spans only a few and a narrower filter lets its
   moving shadow flicker.
   Because the environment light is not occluded, the race also lays a soft
@@ -67,6 +73,12 @@ Orange and hazard are signals. Use them sparingly so they stay readable.
   sunlight, and softened by distance haze so its kilometres read
   ([Island Three](island-three.md#rendering)). Editors and thumbnails keep
   flat clear colors.
+- **Lamps at real brightness.** At dusk, warm white street lamps light
+  across the habitat, and a course is floodlit like a lit circuit: up to
+  four neutral white floodlights on full-size masts, with no shadows. The
+  falls are floodlit, and the falls bridge and distant sports fields carry
+  their lights through the haze
+  ([dusk and night](island-three.md#dusk-and-night)).
 - **Races load in space.** The loading screen shows Island Three from
   outside, lit by the same sun and tone mapping as the race, against black
   space and Saturn ([Island Three](island-three.md#from-outside)). The site's
@@ -169,7 +181,7 @@ its measurements against it.
 | CPU work per frame | Median ≤ 5 ms (fixed steps, update, and render submit). |
 | Draw calls | ≤ 250 per frame across all passes, and ≤ 30 per kart. |
 | Triangles | ≤ 20k per kart (soft cap). |
-| Shadows | One shadow-casting light with one 1024² map, covering ≤ 40 m. PCF5 filtering on course lights, PCF3 elsewhere. |
+| Shadows | One shadow-casting light with one 2048² map holding two 1024² cascades, covering ≤ 60 m. PCF5 filtering on course lights, PCF3 elsewhere. |
 | Resolution | 1× device pixels with MSAA. |
 | Post-processing | None. |
 | Startup | Race mount to first frame adds ≤ 300 ms over the "Before lighting" baseline below (63–136 ms warm). |
@@ -190,12 +202,12 @@ CPU work and draw calls are the headroom signals.
 
 ### Baseline
 
-| Measure | Before lighting (PR 4.1.2 start) | After lighting baseline | Part visuals (PR 4.1.3) | Authored primitives (PR 4.1.4) | Sandbox surfaces (PR 4.2.1) | Surface physics (PR 4.2.2) | Collision substeps (PR 4.2.3) | Surface effects (PR 4.2.4) | Surface scans (PR 4.2.5) | Handbrake clutch (PR 4.2.6) | Island Three (PR 4.3.1) | Habitat physics (PR 4.3.2) | Loading screen (PR 4.3.3) | Valley structures (PR 4.3.4) |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| Frame p50 / p95 | 17.0 / 18.0 ms | 17.0 / 18.0 ms | 17.0 / 18.0 ms | 17.0 / 18.0–19.0 ms | 17.0 / 18.0 ms | 17.0 / 18.0 ms | 17.0 / 18.0 ms | 17.0 / 18.0 ms | 17.0 / 18.0 ms | 17.0 / 18.0 ms | 17.0 / 18.0 ms | 17.0 / 18.0 ms | 17.0 / 18.0 ms | 17.0 / 18.0 ms |
-| CPU p50 / p95 | 3 / 4 ms | 3 / 4 ms | 2 / 3 ms | 2 / 3 ms | 2 / 3–4 ms | 2 / 3 ms | 3 / 4 ms | 2 / 3–4 ms | 2–3 / 4 ms | 2 / 3 ms | 2 / 3 ms | 2 / 3–4 ms | 2 / 3 ms | 3 / 4 ms |
-| Draw calls p50 / max | 212 / 226 | 213 / 226 | 38–39 / 55 | 38–39 / 51 | 34 / 45–46 | 35 / 48–49 | 35–36 / 46–49 | 36–37 / 49–51 | 37–39 / 49–51 | 36–37 / 49–50 | 30–31 / 41 | 31–32 / 41–42 | 30–32 / 41 | 44–45 / 55–58 |
-| First frame (warm) | 63–136 ms | 107–278 ms | 121–128 ms | 132–191 ms | 335–392 ms | 133–207 ms | 136–282 ms | 147–230 ms | 240–243 ms | Not measured | 259 ms | 352–433 ms | 289–295 ms | 302–575 ms |
+| Measure | Before lighting (PR 4.1.2 start) | After lighting baseline | Part visuals (PR 4.1.3) | Authored primitives (PR 4.1.4) | Sandbox surfaces (PR 4.2.1) | Surface physics (PR 4.2.2) | Collision substeps (PR 4.2.3) | Surface effects (PR 4.2.4) | Surface scans (PR 4.2.5) | Handbrake clutch (PR 4.2.6) | Island Three (PR 4.3.1) | Habitat physics (PR 4.3.2) | Loading screen (PR 4.3.3) | Valley structures (PR 4.3.4) | Dusk and night (PR 4.3.5) |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| Frame p50 / p95 | 17.0 / 18.0 ms | 17.0 / 18.0 ms | 17.0 / 18.0 ms | 17.0 / 18.0–19.0 ms | 17.0 / 18.0 ms | 17.0 / 18.0 ms | 17.0 / 18.0 ms | 17.0 / 18.0 ms | 17.0 / 18.0 ms | 17.0 / 18.0 ms | 17.0 / 18.0 ms | 17.0 / 18.0 ms | 17.0 / 18.0 ms | 17.0 / 18.0 ms | 17.0 / 18.0 ms |
+| CPU p50 / p95 | 3 / 4 ms | 3 / 4 ms | 2 / 3 ms | 2 / 3 ms | 2 / 3–4 ms | 2 / 3 ms | 3 / 4 ms | 2 / 3–4 ms | 2–3 / 4 ms | 2 / 3 ms | 2 / 3 ms | 2 / 3–4 ms | 2 / 3 ms | 3 / 4 ms | 2–3 / 3–4 ms |
+| Draw calls p50 / max | 212 / 226 | 213 / 226 | 38–39 / 55 | 38–39 / 51 | 34 / 45–46 | 35 / 48–49 | 35–36 / 46–49 | 36–37 / 49–51 | 37–39 / 49–51 | 36–37 / 49–50 | 30–31 / 41 | 31–32 / 41–42 | 30–32 / 41 | 44–45 / 55–58 | 31 / 43–44 |
+| First frame (warm) | 63–136 ms | 107–278 ms | 121–128 ms | 132–191 ms | 335–392 ms | 133–207 ms | 136–282 ms | 147–230 ms | 240–243 ms | Not measured | 259 ms | 352–433 ms | 289–295 ms | 302–575 ms | 265–281 ms |
 
 PR 4.1.4 was measured with one race on each official kart rather than three
 Balanced races. Each official kart is 15.3–15.5k triangles: 11.6k of part
@@ -255,3 +267,14 @@ trees, town buildings, end-cap terraces, elevators, and falls bridge add
 two draw calls and about 50k triangles, and the translucent falls one more,
 with no measurable frame time. Races were ready after 429–707 ms, and every
 race showed at the 2.5 s minimum.
+
+PR 4.3.5 was measured with three Balanced races on reloads, with no hitches,
+on Falls View Park at deep dusk, where the sun misses the course and its
+four floodlights and the distant lights are on; the first load after a new
+build took 702 ms. The floodlights (clustered spot lights without shadows)
+and the distant lights' one extra draw add no measurable frame time, and
+races were ready after 355–366 ms. With no sun there is no shadow pass, so
+draws fall. A race with the course back in its 80° evening sun (one race,
+the first load after a new build) measured the two sun shadow cascades in
+their 2048² map: 63 / 71 draws, about 34 in the shadow pass, with frame and
+CPU times unchanged at 17.0 / 18.0 and 3 / 4 ms.

@@ -10,9 +10,6 @@ export const COURSE_TURF_CLIPPING_COLOR = "#6d7c61";
 export const COURSE_LAWN_CLIPPING_COLOR = "#5d6c51";
 export const COURSE_BASE_GROUND_OBJECT_ID = "ground";
 export const COURSE_EDITOR_CAMERA_NEAR_CLIP = 0.5;
-// The editor overview sits about 30 m above the ground, beyond the race's
-// 20 m shadow reach, so it keeps the budget's full 40 m.
-export const COURSE_EDITOR_SHADOW_DISTANCE = 40;
 
 // Surfaces and markings are drawn at their shared collision top, so coplanar
 // layers are ordered by depth bias instead of height. Each layer draws over

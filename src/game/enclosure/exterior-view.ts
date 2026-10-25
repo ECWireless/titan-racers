@@ -8,8 +8,7 @@ import {
 } from "./habitat-glsl";
 import {
   AEROSOL_EXTINCTION,
-  AIR_GLOW,
-  getHabitatLight,
+  getEnclosureLight,
   RAYLEIGH_EXTINCTION,
 } from "./habitat-light";
 import {
@@ -530,6 +529,11 @@ export type ExteriorView = {
   dispose(): void;
 };
 
+// Past this angle the mirrors turn edge-on to the Sun, so from outside the
+// habitat goes dark. The loading screen shows Island Three by day; the race
+// keeps its course's own time.
+const EXTERIOR_MIRROR_ANGLE_MAX = 80;
+
 /**
  * Draws Island Three from outside on a canvas filling a container, at one
  * pixel per CSS pixel, turning at the habitat's true spin. Each view owns
@@ -538,8 +542,15 @@ export type ExteriorView = {
  */
 export function createExteriorView(
   container: HTMLElement,
-  enclosure: CourseEnclosure,
+  courseEnclosure: CourseEnclosure,
 ): ExteriorView | null {
+  const enclosure = {
+    ...courseEnclosure,
+    mirrorAngle: Math.min(
+      courseEnclosure.mirrorAngle,
+      EXTERIOR_MIRROR_ANGLE_MAX,
+    ),
+  };
   const canvas = document.createElement("canvas");
   canvas.setAttribute("aria-hidden", "true");
   canvas.style.cssText = "position:absolute;inset:0;width:100%;height:100%";
@@ -559,7 +570,7 @@ export function createExteriorView(
   const scene = exteriorScene(enclosure);
   const definition = getEnclosureFrame(enclosure).definition;
   const { color, intensity } = definition.sunlight;
-  const { fill } = getHabitatLight(enclosure);
+  const { airGlow, fill } = getEnclosureLight(enclosure);
   const spinRate = createHabitatField(
     enclosure,
     HABITAT_WORLD_ENVIRONMENT.gravity,
@@ -572,7 +583,7 @@ export function createExteriorView(
     gl.FRAGMENT_SHADER,
     FRAGMENT_SHADER({
       AEROSOL_EXTINCTION,
-      AIR_GLOW,
+      AIR_GLOW: airGlow,
       EXPOSURE,
       HALF_LENGTH: scene.halfLength,
       LENS_SHIFT: VIEW.lensShift,

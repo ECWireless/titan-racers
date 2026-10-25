@@ -33,15 +33,16 @@ own editor commands or persistence UI.
   courses with bundled seeds, and the guest solo course (`falls-view-park`)
   explicit; `course-publication.ts`
   validates protected publication and privacy-minimized public runtime shapes.
-- `src/game/course/rough-course.v4.json` is the canonical portable rough-course
+- `src/game/course/rough-course.v5.json` is the canonical portable rough-course
   sandbox seed. It contains the start/finish gate, three ordered checkpoints
   whose gates reach from the infield into the grass, with directed gate and
   recovery data, an infield barrier, ordinary surfaces and objects, camera
   fixtures, and opt-in collision fixtures.
   It permanently restores only course ID `rough-course`; the official
   Falls View Park document uses the distinct ID `falls-view-park`, seeded by
-  `falls-view-park.v4.json`: the sandbox's layout without its fixtures,
-  placed in another valley 2.5 km from the sunward end cap.
+  `falls-view-park.v5.json`: the sandbox's layout without its fixtures,
+  placed in another valley 2.5 km from the sunward end cap, at deep dusk
+  (mirror 89.5°) under four floodlights.
   `BUNDLED_COURSE_DOCUMENTS` maps each official course to its seed.
 - `src/game/course/build-rough-course.ts` projects a validated document into
   PlayCanvas visual, collision, rigid-body, tag, group, and mask state. It
@@ -70,18 +71,18 @@ own editor commands or persistence UI.
 
 ## Document Contract
 
-Canonical version four is strict JSON using metres, Y-up positions, and Euler
+Canonical version five is strict JSON using metres, Y-up positions, and Euler
 degrees. It contains:
 
-- literal schema version `4`;
+- literal schema version `5`;
 - a stable course ID and name;
 - one stable start ID, transform (the start/finish gate), bounded start-gate
   half-extents, and a spawn distance (0–10 m) placing the kart behind the gate
   along its heading; legacy courses normalize to 0 and the editor marks the
   spawn;
 - one enclosure reference (`id`, `version`) with its placement (`axial`,
-  `azimuth`, `heading`, `height`) and the mirror angle that sets the time of
-  day, validated against the enclosure registry;
+  `azimuth`, `heading`, `height`) and the mirror angle (5–90°) that sets the
+  time of day, validated against the enclosure registry;
 - one-to-256 checkpoints whose explicit order must match a contiguous array
   order starting at one, each with bounded oriented half-extents, a normalized
   gate-face direction, and a recovery transform; and
@@ -96,7 +97,9 @@ availability, editor eligibility, transform, visual primitive, positive scale,
 and semantic material. Optional collision data independently owns a box or
 cylinder shape, local transform, physical dimensions, semantic role, friction,
 restitution, and a versioned `surfaceMaterial` reference. Visual material never
-selects tire grip.
+selects tire grip. An object marked `lamp: "floodlight"` is a floodlight's mast:
+`course-lamps.ts` adds the arm, luminaire, and spot light on its top, reaching
+along its local -Z. A course has at most four lamps (`COURSE_LAMP_LIMIT`).
 
 Coordinates and dimensions are finite and bounded to the accepted authoring
 envelope. Unknown fields and unsupported enum values fail rather than being
@@ -105,9 +108,10 @@ silently stripped. The complete document validates before scene construction.
 ## Legacy Normalization
 
 Stored revisions are immutable, so `parseCourseDocument` keeps strict
-version-one to version-three schemas and normalizes them in memory to version
-four; canonical serialization and every new save use version four. Version
-two adds
+version-one to version-four schemas and normalizes them in memory to version
+five; canonical serialization and every new save use version five. Version
+four allows mirror angles only up to 85° and no lamps; it upgrades unchanged.
+Version two adds
 `start.gateHalfExtents`, `checkpoints[].forward`, and
 `checkpoints[].recovery`.
 
@@ -126,7 +130,7 @@ two adds
 - Degenerate coincident anchors or directions that cannot identify a face are
   rejected rather than invented.
 - A loaded version-one row is normalized in memory, and its next save creates a
-  new version-four revision. Persistence responses report the normalized schema
+  new version-five revision. Persistence responses report the normalized schema
   version consistently.
 
 Every legacy collider normalizes to `surface.standard-course@1`, including

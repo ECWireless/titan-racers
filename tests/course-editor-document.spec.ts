@@ -348,12 +348,33 @@ test.describe("course editor document commands", () => {
     expect(document.checkpoints.at(-1)?.id).toBe("checkpoint-2");
   });
 
+  test("adds floodlights up to the course's lamp limit", () => {
+    let document = structuredClone(ROUGH_COURSE_DOCUMENT);
+    for (let count = 0; count < 5; count += 1) {
+      document = addCourseObjectPreset(document, "lamp");
+    }
+    const lamps = document.objects.filter((object) => object.lamp);
+
+    expect(lamps.map((lamp) => lamp.id)).toEqual([
+      "lamp-1",
+      "lamp-2",
+      "lamp-3",
+      "lamp-4",
+    ]);
+    expect(lamps[0]).toMatchObject({
+      collision: { role: "solid-obstacle", shape: "cylinder" },
+      lamp: "floodlight",
+      transform: { position: { y: 6 } },
+    });
+  });
+
   test("sets the time of day through the enclosure mirror angle", () => {
     const document = structuredClone(ROUGH_COURSE_DOCUMENT);
     const evening = updateMirrorAngle(document, 80);
 
     expect(evening.enclosure).toEqual({ ...document.enclosure, mirrorAngle: 80 });
     expect(evening.objects).toEqual(document.objects);
-    expect(() => updateMirrorAngle(document, 90)).toThrow();
+    expect(updateMirrorAngle(document, 90).enclosure.mirrorAngle).toBe(90);
+    expect(() => updateMirrorAngle(document, 90.5)).toThrow();
   });
 });

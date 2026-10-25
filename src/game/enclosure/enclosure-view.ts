@@ -29,11 +29,15 @@ import {
 } from "./habitat-land";
 import {
   AEROSOL_EXTINCTION,
-  AIR_GLOW,
   type HabitatLight,
   RAYLEIGH_EXTINCTION,
 } from "./habitat-light";
-import { type CourseEnclosure, getEnclosureFrame } from "./island-three";
+import {
+  type CourseEnclosure,
+  getEnclosureFrame,
+  NEUTRAL_WHITE,
+  sceneLux,
+} from "./island-three";
 import {
   CONIFER_SPECIES,
   TREE_CROWN_SHADE,
@@ -42,6 +46,10 @@ import {
   TREE_VIEWS,
 } from "./tree-billboards";
 import { loadTreeImages, type TreeImages } from "./tree-images";
+import { createDistantLights } from "./distant-lights";
+
+// The falls are floodlit at dusk like a landmark, to about this many lux.
+const FALLS_FLOODLIGHT_LUX = 300;
 
 // Island Three draws in its own pass, before the course, so the course keeps
 // its own depth range and draws on top. Within the pass, everything inside
@@ -229,6 +237,69 @@ void main(void) {
 }
 `;
 
+// Distant lights (see createDistantLights): per instance, (axial, across,
+// height above the ground, candela) and (linear colour, valley index), on
+// the hills in the course valley. Each is a disc facing the camera at least
+// a pixel wide that spreads its light, so a far lamp keeps its total light.
+const LIGHTS_VS = /* glsl */ `
+attribute vec4 vertex_position;
+attribute vec4 aPlace;
+attribute vec4 aShape;
+uniform mat4 matrix_viewProjection;
+uniform vec3 view_position;
+uniform vec2 uValley;
+// Radians per pixel at the view's centre.
+uniform float uPixelAngle;
+varying vec3 vWorld;
+varying vec2 vCorner;
+varying vec4 vLight;
+${CYLINDER_GLSL}
+${HABITAT_PATTERN_GLSL}
+${HABITAT_LAND_GLSL}
+${COURSE_GLSL}
+const float LAMP_RADIUS = 0.3;
+
+void main(void) {
+  vec2 q = aPlace.xy;
+  float centre = aShape.w * VALLEY_SPACING;
+  float azimuth = centre + degrees(q.y / RADIUS);
+  vec3 outward = outwardAt(azimuth);
+  // Only the course valley's land rises in geometry.
+  float ground = abs(mod(centre - uValley.x + 180.0, 360.0) - 180.0) < 0.5
+    ? hillHeight(q, uValley.y, hillKeep(fromClearing(q.x, azimuth)))
+    : 0.0;
+  vec3 at = uAxisMid + uSunward * q.x + outward * (RADIUS - ground - aPlace.z);
+  vec3 facing = normalize(view_position - at);
+  vec3 right = normalize(cross(facing, abs(facing.y) < 0.99 ? vec3(0.0, 1.0, 0.0) : vec3(1.0, 0.0, 0.0)));
+  vec3 up = cross(right, facing);
+  float size = max(LAMP_RADIUS, distance(view_position, at) * uPixelAngle);
+  // A lamp stands in front of the steel it hangs on.
+  at += facing * max(4.0, size);
+  vCorner = vec2(vertex_position.x, vertex_position.y * 2.0 - 1.0);
+  vWorld = at + (right * vCorner.x + up * vCorner.y) * size;
+  // The disc's (1 - rho^2)^2 profile covers pi size^2 / 3.
+  vLight = vec4(aShape.rgb, aPlace.w / (1.0471976 * size * size));
+  gl_Position = matrix_viewProjection * vec4(vWorld, 1.0);
+}
+`;
+
+const LIGHTS_PS = /* glsl */ `
+varying vec2 vCorner;
+varying vec4 vLight;
+
+void main(void) {
+  float rho2 = dot(vCorner, vCorner);
+  if (rho2 >= 1.0) discard;
+  vec3 transmit = exp(
+    -(uRayleighExtinction + AEROSOL_TINT * uAerosolExtinction) * length(vWorld - view_position)
+  );
+  vec3 light = vLight.rgb * vLight.a * (1.0 - rho2) * (1.0 - rho2) * uCandela * transmit;
+  // Added after tone mapping and gamma, which slightly brightens faint
+  // edges over a lit background; there is no linear target to add in.
+  gl_FragColor = finish(light);
+}
+`;
+
 // Trees, instanced in the course valley as billboards of baked species
 // that turn about their own up to face the camera: per instance, (axial,
 // across, height, seed) and (billboard side, species, unused, shade).
@@ -325,6 +396,8 @@ uniform float uAirGlow;
 uniform float uSunGlow;
 // The habitat's own diffuse light on its surfaces.
 uniform vec3 uFill;
+// Scene radiance of one cd/m² of lamplight while the lamps are on.
+uniform float uCandela;
 ${HABITAT_MIRROR_GLSL}
 
 // Pixel footprint in metres, along the axis and around it.
@@ -361,6 +434,7 @@ void main(void) {
   vec2 f = footprint(vWorld);
   vec3 albedo;
   vec3 normal;
+  float lamps = 0.0;
   if (abs(c.x) > HALF_LENGTH - 1.0) {
     albedo = endCap(c.z, c.y, f.y);
     normal = -sign(c.x) * uSunward;
@@ -387,9 +461,12 @@ void main(void) {
     vec3 relief = landRelief(l, q, seed, hillKeep(offset), canopy);
     vec3 up = -outwardAt(c.y);
     normal = normalize(up - relief.y * uSunward - relief.z * cross(up, uSunward));
+    // Lamps near the course are its own, on full-size masts.
+    lamps = lampLight(l, q, pixel, seed)
+      * smoothstep(0.0, 100.0, fromCentre - CLEARING_RADIUS - BELT_INSET - BELT_DEPTH);
   }
   float sunLight = sunlit(vWorld, normal, max(f.x, f.y));
-  vec3 color = albedo * (uSunColor * sunLight + uFill);
+  vec3 color = albedo * (uSunColor * sunLight + uFill) + LAMP_TINT * uCandela * lamps;
   gl_FragColor = finish(throughAir(color, vWorld - view_position));
 }
 `;
@@ -520,6 +597,8 @@ const FALLS_PS = /* glsl */ `
 uniform float uTime;
 uniform float uFallTime;
 uniform vec3 uFallsUp;
+// Floodlights on the falls at dusk, as scene light.
+uniform vec3 uFallsFloodlight;
 varying vec4 vFlow;
 // White water and spray, and the clear water at the lip.
 const vec3 FOAM = vec3(0.66, 0.69, 0.71);
@@ -557,7 +636,7 @@ void main(void) {
   }
   // Lit from the valley side, as the cliff face is.
   vec3 facing = normalize(uFallsUp - uSunward);
-  vec3 color = albedo * (uSunColor * sunlit(vWorld, facing, pixel) + uFill);
+  vec3 color = albedo * (uSunColor * sunlit(vWorld, facing, pixel) + uFill + uFallsFloodlight);
   gl_FragColor = vec4(finish(throughAir(color, vWorld - view_position)).rgb, clamp(alpha, 0.0, 1.0));
 }
 `;
@@ -838,6 +917,11 @@ export function createEnclosureView(
   });
   fallsMaterial.blendType = pc.BLEND_NORMAL;
   fallsMaterial.depthWrite = false;
+  const lightsMaterial = createMaterial("lights", LIGHTS_VS, LIGHTS_PS, constants, {
+    attributes: { aPlace: pc.SEMANTIC_ATTR12, aShape: pc.SEMANTIC_ATTR13 },
+  });
+  lightsMaterial.blendType = pc.BLEND_ADDITIVE;
+  lightsMaterial.depthWrite = false;
   glassMaterial.depthWrite = false;
   const materials = [
     shellMaterial,
@@ -846,6 +930,7 @@ export function createEnclosureView(
     instancedMaterial,
     treeMaterial,
     fallsMaterial,
+    lightsMaterial,
   ];
 
   const sun = frame.sunDirection();
@@ -869,7 +954,11 @@ export function createEnclosureView(
     );
     material.setParameter("uRayleighExtinction", [...RAYLEIGH_EXTINCTION]);
     material.setParameter("uAerosolExtinction", AEROSOL_EXTINCTION);
-    material.setParameter("uAirGlow", AIR_GLOW);
+    material.setParameter("uAirGlow", habitat.airGlow);
+    material.setParameter(
+      "uCandela",
+      habitat.lampsOn * Math.PI * sceneLux(frame.definition),
+    );
     material.setParameter("uSunGlow", habitat.sunGlow);
     const { b, g, r } = habitat.fill;
     material.setParameter("uFill", [r, g, b]);
@@ -883,10 +972,19 @@ export function createEnclosureView(
   });
   instancedMaterial.setParameter("uValley", [courseValleyCentre, courseSeed]);
   treeMaterial.setParameter("uValley", [courseValleyCentre, courseSeed]);
+  lightsMaterial.setParameter("uValley", [courseValleyCentre, courseSeed]);
+  // The falls are lit to about FALLS_FLOODLIGHT_LUX, in neutral white.
+  const floodlight = habitat.lampsOn * FALLS_FLOODLIGHT_LUX * sceneLux(frame.definition);
+  fallsMaterial.setParameter(
+    "uFallsFloodlight",
+    NEUTRAL_WHITE.map((channel) => channel * floodlight),
+  );
 
   const layer = new pc.Layer({
     name: "Island Three",
     opaqueSortMode: pc.SORTMODE_MANUAL,
+    // The falls, then the lights added over them.
+    transparentSortMode: pc.SORTMODE_MANUAL,
   });
   app.scene.layers.insert(layer, 0);
   // Nearer things draw first, so the depth test spares the land shader the
@@ -924,6 +1022,7 @@ export function createEnclosureView(
   const detail = new pc.Entity("island-three-detail");
   const forest = new pc.Entity("island-three-trees");
   const waterfall = new pc.Entity("island-three-falls");
+  const lights = new pc.Entity("island-three-lights");
   let disposed = false;
   const instancedOf = (data: Float32Array, mesh: pc.Mesh, material: pc.Material, drawOrder: number) => {
     const instance = instanceOf(mesh, material, drawOrder);
@@ -985,6 +1084,17 @@ export function createEnclosureView(
       receiveShadows: false,
     });
     app.root.addChild(waterfall);
+    if (habitat.lampsOn > 0) {
+      lights.addComponent("render", {
+        castShadows: false,
+        layers: [layer.id],
+        meshInstances: [
+          instancedOf(createDistantLights(), createBillboardMesh(device), lightsMaterial, 7),
+        ],
+        receiveShadows: false,
+      });
+      app.root.addChild(lights);
+    }
     // Lay the trees out now, so their atlases arriving costs only an upload.
     const trees = createTreeInstances(clearing, courseSeed, valleyHalfWidth);
     if (trees.length === 0) return;
@@ -1010,6 +1120,10 @@ export function createEnclosureView(
   raceView.clearColorBuffer = false;
   const followFov = () => {
     view.camera!.fov = raceView.fov;
+    lightsMaterial.setParameter(
+      "uPixelAngle",
+      (2 * Math.tan((raceView.fov * Math.PI) / 360)) / Math.max(device.height, 1),
+    );
   };
   app.on("prerender", followFov);
   // The falls' water and mist flow on the app's clock, paused or not; the
@@ -1031,6 +1145,7 @@ export function createEnclosureView(
     detail.destroy();
     forest.destroy();
     waterfall.destroy();
+    lights.destroy();
     entity.destroy();
     app.scene?.layers.remove(layer);
     meshes.forEach((mesh) => mesh.destroy());

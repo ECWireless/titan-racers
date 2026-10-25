@@ -4,7 +4,9 @@ import { join } from "node:path";
 import { expect, test } from "@playwright/test";
 
 import {
+  COURSE_LAMP_LIMIT,
   courseDocumentSchema,
+  FALLS_VIEW_PARK_DOCUMENT,
   getCourseStartTransform,
   parseCourseDocument,
   ROUGH_COURSE_DOCUMENT,
@@ -92,7 +94,7 @@ function findObject(id: string) {
 }
 
 test("parses the versioned rough course with stable IDs and ordered checkpoints", () => {
-  expect(ROUGH_COURSE_DOCUMENT.schemaVersion).toBe(4);
+  expect(ROUGH_COURSE_DOCUMENT.schemaVersion).toBe(5);
   expect(ROUGH_COURSE_DOCUMENT.units).toBe("meters");
   expect(ROUGH_COURSE_DOCUMENT.start.id).toBe("start-position");
   expect(ROUGH_COURSE_DOCUMENT.checkpoints).toHaveLength(3);
@@ -193,7 +195,7 @@ test("rejects enclosures and placements outside the approved habitat", () => {
       ["enclosure", "placement", "height"],
     ],
     [
-      (document) => (document.enclosure.mirrorAngle = 90),
+      (document) => (document.enclosure.mirrorAngle = 90.5),
       ["enclosure", "mirrorAngle"],
     ],
   ];
@@ -211,6 +213,38 @@ test("rejects enclosures and placements outside the approved habitat", () => {
   const otherValley = cloneSeed();
   otherValley.enclosure.placement.azimuth = 268;
   expect(courseDocumentSchema.safeParse(otherValley).success).toBe(true);
+});
+
+test("adds course lamps and night mirrors from schema version five", () => {
+  // Falls View Park races at deep dusk under its lamps.
+  expect(FALLS_VIEW_PARK_DOCUMENT.enclosure.mirrorAngle).toBe(89.5);
+  expect(
+    FALLS_VIEW_PARK_DOCUMENT.objects.filter((object) => object.lamp),
+  ).toHaveLength(COURSE_LAMP_LIMIT);
+
+  // Version four upgrades unchanged, but keeps its 85° mirrors and no lamps.
+  expect(parseCourseDocument({ ...cloneSeed(), schemaVersion: 4 })).toEqual(
+    ROUGH_COURSE_DOCUMENT,
+  );
+  const night = cloneSeed();
+  night.enclosure.mirrorAngle = 90;
+  expect(courseDocumentSchema.safeParse(night).success).toBe(true);
+  expect(() => parseCourseDocument({ ...night, schemaVersion: 4 })).toThrow();
+  const lampsInVersionFour = {
+    ...structuredClone(FALLS_VIEW_PARK_DOCUMENT),
+    enclosure: { ...FALLS_VIEW_PARK_DOCUMENT.enclosure, mirrorAngle: 80 },
+    schemaVersion: 4,
+  };
+  expect(() => parseCourseDocument(lampsInVersionFour)).toThrow();
+
+  const fifthLamp = structuredClone(FALLS_VIEW_PARK_DOCUMENT);
+  fifthLamp.objects.push({
+    ...fifthLamp.objects.find((object) => object.lamp)!,
+    id: "lamp-fifth",
+  });
+  expect(courseDocumentSchema.safeParse(fifthLamp).error?.issues).toContainEqual(
+    expect.objectContaining({ path: ["objects"] }),
+  );
 });
 
 test("preserves the accepted camera fixtures and ramp placement", () => {
@@ -331,7 +365,7 @@ test("rests every visual-only marking on the drivable surface beneath it", () =>
 });
 
 test("serializes the seeds deterministically and round trips without changes", () => {
-  for (const seed of ["rough-course.v4.json", "falls-view-park.v4.json"]) {
+  for (const seed of ["rough-course.v5.json", "falls-view-park.v5.json"]) {
     const source = readFileSync(
       join(process.cwd(), "src/game/course", seed),
       "utf8",
@@ -343,7 +377,7 @@ test("serializes the seeds deterministically and round trips without changes", (
   }
   expect(serializeCourseDocument(ROUGH_COURSE_DOCUMENT)).toBe(
     readFileSync(
-      join(process.cwd(), "src/game/course/rough-course.v4.json"),
+      join(process.cwd(), "src/game/course/rough-course.v5.json"),
       "utf8",
     ),
   );
@@ -376,7 +410,7 @@ test("normalizes version-one course data without mutating the stored input", () 
   expect(withoutDerived(normalized)).toEqual(
     withoutDerived(ROUGH_COURSE_DOCUMENT),
   );
-  expect(normalized.schemaVersion).toBe(4);
+  expect(normalized.schemaVersion).toBe(5);
 });
 
 test("normalizes a valid one-checkpoint version-one course", () => {
@@ -569,7 +603,7 @@ test("normalizes v2 to standard surfaces without inferring physics from visuals"
   const input = createVersionTwoSeed();
   const stored = structuredClone(input);
   const normalized = parseCourseDocument(input);
-  expect(normalized.schemaVersion).toBe(4);
+  expect(normalized.schemaVersion).toBe(5);
   // Legacy karts keep spawning on the start gate.
   expect(normalized.start.spawnDistance).toBe(0);
   for (const object of normalized.objects) {

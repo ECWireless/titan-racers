@@ -15,7 +15,13 @@ test("projects the enclosure sun from the course's mirror angle", () => {
     color: { b: 0.78, g: 0.91, r: 1 },
     id: "enclosure-sun",
     intensity: 0.78,
-    shadows: { bias: 0.005, distance: 20, resolution: 1024 },
+    shadows: {
+      bias: 0.005,
+      cascadeBlend: 0.2,
+      cascades: 2,
+      distance: 60,
+      resolution: 2048,
+    },
   });
   expect(sun.rotation.x).toBeCloseTo(52, 6);
   expect(sun.rotation.y).toBeCloseTo(38, 6);

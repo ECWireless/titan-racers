@@ -194,5 +194,6 @@ replace the group; rotate, scale, rename, and delete stay single-selection only.
 ## Known Limits
 
 - Box and cylinder are the only approved primitives.
-- Course and kart visuals use PlayCanvas `model` components; adopting `render`
-  components would be a separate migration.
+- Course object and kart visuals use PlayCanvas `model` components; adopting
+  `render` components would be a separate migration. A course lamp's added
+  arm and luminaire use `render`.

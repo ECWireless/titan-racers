@@ -20,8 +20,9 @@ phone budget. Art direction and the budget itself live in
   thumbnails, and a race's direction-aware light from its radiance.
 - `src/game/enclosure/habitat-light.ts` computes the light Island Three sheds
   on a race's course, reused while races stay on one placement: radiance by
-  direction for the atlas, and the fill light and sun glow the enclosure view
-  shares.
+  direction for the atlas, the fill light, air and sun glow the enclosure
+  view shares, and how far a dim course adapts, its lamps are on, and its
+  unlit effects (tire marks, drift smoke) dim.
 - `src/game/kart/kart-visual-material.ts` owns the kart finishes (one
   material per finish) and the authored-color reflectance clamp that the
   [kart visual builder](../kart-builder/README.md) uses.
@@ -33,11 +34,22 @@ phone budget. Art direction and the budget itself live in
   screen starts it, the race waits for it before its first frame, and the
   course editor switches to the scans when they arrive. If they fail, those
   surfaces keep the grain finish.
+- `src/game/course/course-lamps.ts` puts a floodlight's arm, luminaire,
+  and downward spot light on each `lamp` object's mast, at real brightness
+  from the enclosure's lux scale and the habitat's lamp schedule, with no
+  shadows, and measures the illuminance they put on the track, which the
+  race's exposure counts. A light's colour carries its brightness at intensity 1, because
+  PlayCanvas applies intensities below 1 before linearising the colour. The
+  race batches the lamp parts with the static course; the editor shows them
+  switched off.
 - `src/game/course/build-course-lighting.ts` lights a course with its
   enclosure's sun ([Island Three](../../../docs/island-three.md)) and sets its
-  shadows (1024², 20 m coverage, a bias small enough for kart-scale shadows,
-  and PCF5 filtering); the course
-  editor widens coverage to 40 m for its overview.
+  shadows: two 1024² cascades in one 2048² map out to 60 m, blended over
+  the near cascade's last fifth, a bias small enough for kart-scale shadows,
+  and PCF5 filtering. `scene-look.ts` fades cascaded shadows over their
+  last fifth by patching the `shadowCascadesPS` and `lightFunctionLightPS`
+  chunks, which leaves single-map lights (the kart editor and thumbnails) as
+  they were.
 - `src/game/kart/kart-contact-shadow.ts` lays the race-only contact shadow
   under the kart: one blended quad on the ground beneath the chassis, ordered
   above the course layers and faded by ground clearance.
@@ -51,10 +63,13 @@ phone budget. Art direction and the budget itself live in
   freeze while the race is paused.
 - `src/game/enclosure/enclosure-view.ts` draws the race's
   [Island Three](../../../docs/island-three.md) enclosure from a second
-  camera on its own layer, before the course, in six draws: frames and
+  camera on its own layer, before the course, in seven draws: frames and
   structures, trees, buildings, the shell with the course valley's relief,
-  the glass, and the translucent falls. Valley land, relief shading,
-  mirrors, the sun's image, and haze are computed per pixel, with no
+  the glass, the translucent falls, and the distant lights at dusk
+  (`distant-lights.ts`: additive discs at least a pixel wide that keep each
+  light's total, dimmed by the haze, placed on the land like the trees).
+  Valley land, relief shading, mirrors, the sun's image, and haze are
+  computed per pixel, with no
   textures; the relief's height comes from the same GLSL in the vertex
   shaders. Trees are instanced
   [billboards](../../../docs/visual-identity.md#tree-billboards) that turn
@@ -72,8 +87,10 @@ phone budget. Art direction and the budget itself live in
   the course loading screen (`src/components/course-loading-screen.tsx`):
   raw WebGL2 on its own canvas, one full-screen shader that traces the hull,
   mirrors, and Saturn and repeats the scene look's Neutral tone mapping and
-  exposure. `src/game/enclosure/habitat-glsl.ts` holds the land, cap, and
-  mirror-light GLSL it shares with the enclosure view.
+  its base exposure, unadapted, since it looks on from sunlit space, and
+  shows the habitat by day (mirrors at most 80°).
+  `src/game/enclosure/habitat-glsl.ts` holds the land, cap, mirror-light,
+  and distant-lamp GLSL it shares with the enclosure view.
 - `src/game/runtime/frame-budget.ts` and
   `src/components/frame-budget-overlay.tsx` sample rendered frames through
   `PlayCanvasRuntime.onFrameSample` and show the budget readout, with the
@@ -110,15 +127,24 @@ course editor scenes in `src/game/editor/`, and
   `scene.ambientLight` has no visible effect.
 - The environment never renders as a skybox: `applySceneLook` removes the
   skybox layer from the camera.
+- The race camera reports its frustum corners at its widest view
+  (`steadyShadowFit`), so sun shadows keep one size, and hold still, while
+  the chase camera widens with speed. PlayCanvas 2.20.6 reads frustum
+  corners only to fit directional shadows; re-verify that on any engine
+  upgrade.
 - The atlas mirrors the PlayCanvas 2.20.6 `EnvLighting.generateAtlas` layout
   (512², RGBP, one-texel seams, v = 0 straight up), and its lookups mirror
   world X. Re-verify both against the engine's envAtlas shader chunks on any
   engine upgrade.
-- A race's environment is in scene units (`skyboxIntensity` 1); the neutral
-  habitat light keeps its gain. Its CPU build counts toward the startup
+- A race's environment is in scene units. A dim course's atlas is stored
+  brightened by its adaptation, with `skyboxIntensity` its inverse and the
+  exposure raised by it, so dusk keeps its precision in the 8-bit atlas; the
+  neutral habitat light keeps its gain. Its CPU build counts toward the startup
   budget ([measured](../../../docs/visual-identity.md#baseline)).
 - The course finishes replace the `diffusePS` chunk (scanned finishes also
-  `normalMapPS` and `glossPS`) for chunk version 2.20. Re-verify them, like
+  `normalMapPS` and `glossPS`), and the cascaded-shadow fade patches
+  `shadowCascadesPS` and `lightFunctionLightPS`, for chunk version 2.20; the
+  fade throws if its anchor text is gone. Re-verify them, like
   the atlas, on any engine upgrade. Grain pixels and decoded scan images are
   kept, so both re-upload after a lost WebGL context. Scans load as image
   elements, not `ImageBitmap`s, which PlayCanvas avoids on Safari.

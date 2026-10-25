@@ -86,7 +86,7 @@ const PARK_VALLEY = PARK.seed - 1;
  * floor): towers standing just inside its shores, anchorages beyond, and
  * approaches down to the ground.
  */
-const BRIDGE = {
+export const BRIDGE = {
   anchor: [600, 660],
   deck: 25,
   end: 900,
@@ -94,6 +94,15 @@ const BRIDGE = {
   tower: 400,
   towerTop: 120,
 };
+
+/** A main cable's height above the floor, metres across from the lake's centre. */
+export function bridgeCableHeight(across: number) {
+  const { anchor, deck, tower, towerTop } = BRIDGE;
+  const t = Math.abs(across);
+  if (t <= tower) return deck + 6 + (towerTop - deck - 6) * (t / tower) ** 2;
+  const s = (t - tower) / (anchor[0] - tower);
+  return towerTop + (deck + 4 - towerTop) * s - 10 * Math.sin(Math.PI * s);
+}
 /** How far the course's clearing and its belt of trees reach. */
 const BELT_REACH = CLEARING_RADIUS + BELT.inset + BELT.depth;
 
@@ -579,12 +588,6 @@ function addBridge(builder: MeshBuilder, frame: EnclosureFrame) {
       BRIDGE_RUST,
     );
   }
-  const cableHeight = (across: number) => {
-    const t = Math.abs(across);
-    if (t <= tower) return deck + 6 + (towerTop - deck - 6) * (t / tower) ** 2;
-    const s = (t - tower) / (anchor[0] - tower);
-    return towerTop + (deck + 4 - towerTop) * s - 10 * Math.sin(Math.PI * s);
-  };
   [-1, 1].forEach((sign) => {
     const towerAcross = sign * tower;
     const up = upAt(towerAcross);
@@ -629,8 +632,8 @@ function addBridge(builder: MeshBuilder, frame: EnclosureFrame) {
       const a = cableStations[i]!;
       const b = cableStations[i + 1]!;
       builder.beam(
-        at(a, cableHeight(a), offset),
-        at(b, cableHeight(b), offset),
+        at(a, bridgeCableHeight(a), offset),
+        at(b, bridgeCableHeight(b), offset),
         upAt((a + b) / 2),
         2.5,
         2.5,
@@ -642,7 +645,7 @@ function addBridge(builder: MeshBuilder, frame: EnclosureFrame) {
       .forEach((across) =>
         builder.beam(
           at(across, deck, offset),
-          at(across, cableHeight(across), offset),
+          at(across, bridgeCableHeight(across), offset),
           frame.sunward,
           1,
           1,

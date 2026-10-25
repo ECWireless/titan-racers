@@ -21,6 +21,8 @@ const HABITAT_ENVIRONMENT = {
 const ENVIRONMENT_GAIN = 1.2;
 export const EXPOSURE = 1.6;
 const SHADOW_NORMAL_OFFSET_BIAS = 0.05;
+// Cascaded shadows fade out over the last fifth of their reach.
+const SHADOW_FADE_START = 0.8;
 
 let habitatAtlasPixels: Uint8Array | null = null;
 
@@ -40,9 +42,11 @@ export function applySceneLook(
   camera.layers = camera.layers.filter((id) => id !== pc.LAYERID_SKYBOX);
   camera.gammaCorrection = pc.GAMMA_SRGB;
   camera.toneMapping = pc.TONEMAP_NEUTRAL;
-  app.scene.exposure = EXPOSURE;
-  // An enclosure's light is already in scene units.
-  app.scene.skyboxIntensity = habitat ? 1 : ENVIRONMENT_GAIN;
+  // A dim habitat is exposed brighter, as eyes adjust. Its atlas is stored
+  // already brightened, and its light is otherwise in scene units.
+  const adaptation = habitat?.adaptation ?? 1;
+  app.scene.exposure = EXPOSURE * adaptation;
+  app.scene.skyboxIntensity = habitat ? 1 / adaptation : ENVIRONMENT_GAIN;
 
   const pixels = habitat
     ? habitat.atlasPixels()
@@ -62,6 +66,7 @@ export function applySceneLook(
     width: ENVIRONMENT_ATLAS_SIZE,
   });
   app.scene.envAtlas = atlas;
+  fadeCascadedShadowEdge(app.graphicsDevice);
 
   return () => {
     if (app.scene?.envAtlas === atlas) app.scene.envAtlas = null;
@@ -69,9 +74,79 @@ export function applySceneLook(
   };
 }
 
+/**
+ * Fades cascaded directional shadows out toward their distance, where the
+ * engine otherwise cuts them off and they pop in as the camera nears. Only
+ * lights with cascades (the course sun) change. Patches the PlayCanvas 2.20
+ * `shadowCascadesPS` and `lightFunctionLightPS` chunks for the device.
+ */
+function fadeCascadedShadowEdge(device: pc.GraphicsDevice) {
+  const chunks = pc.ShaderChunks.get(device, pc.SHADERLANGUAGE_GLSL);
+  const cascades = chunks.get("shadowCascadesPS")!;
+  if (cascades.includes("dShadowFade")) return;
+  chunks.set(
+    "shadowCascadesPS",
+    `${replaceChunkText(cascades, "vec3 fadeShadow(", "vec3 cutShadow(")}
+float dShadowFade = 1.0;
+vec3 fadeShadow(vec3 shadowCoord, vec4 shadowCascadeDistances) {
+  float far = shadowCascadeDistances.w;
+  dShadowFade = 1.0 - smoothstep(far * ${SHADOW_FADE_START.toFixed(2)}, far, 1.0 / gl_FragCoord.w);
+  return cutShadow(shadowCoord, shadowCascadeDistances);
+}
+`,
+  );
+  chunks.set(
+    "lightFunctionLightPS",
+    replaceChunkText(
+      chunks.get("lightFunctionLightPS")!,
+      "shadow = mix(1.0, shadow, light{i}_shadowIntensity);",
+      `#ifdef LIGHT{i}_SHADOW_CASCADES
+			shadow = mix(1.0, shadow, light{i}_shadowIntensity * dShadowFade);
+		#else
+			shadow = mix(1.0, shadow, light{i}_shadowIntensity);
+		#endif`,
+    ),
+  );
+}
+
+function replaceChunkText(chunk: string, find: string, replacement: string) {
+  if (!chunk.includes(find)) {
+    throw new Error(`Shader chunk no longer contains ${find}`);
+  }
+  return chunk.replace(find, replacement);
+}
+
 /** One shadow policy for every shadow-casting light. */
 export function applyShadowPolicy(light: pc.LightComponent) {
   light.normalOffsetBias = SHADOW_NORMAL_OFFSET_BIAS;
+}
+
+/**
+ * Holds a camera's directional shadows at one size while its field of view
+ * changes. PlayCanvas fits each shadow cascade to a sphere around the view
+ * and snaps it to shadow texels, which holds still only while the sphere
+ * keeps its size; a view widening with speed rescales the map every frame,
+ * so static shadow edges shimmer. The engine reads frustum corners only for
+ * that fit, so this camera reports them at its widest view.
+ */
+export function steadyShadowFit(
+  camera: pc.CameraComponent,
+  widestFov: () => number,
+) {
+  const lens = camera.camera;
+  const corners = lens.getFrustumCorners.bind(lens);
+  lens.getFrustumCorners = (near, far) => {
+    const points = corners(near, far);
+    const halfAngle = (degrees: number) => (degrees * Math.PI) / 360;
+    const scale =
+      Math.tan(halfAngle(Math.max(widestFov(), lens.fov))) /
+      Math.tan(halfAngle(lens.fov));
+    points.forEach((point) => {
+      point.x *= scale;
+      point.y *= scale;
+    });
+    return points;
+  };
 }
 
 /** Bright diffuse horizon, soft overhead, and a quick fade to floor bounce. */

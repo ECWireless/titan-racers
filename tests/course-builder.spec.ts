@@ -161,11 +161,15 @@ test("destroys every staged entity when a later course object fails", () => {
     }),
   ).toThrow("forced mid-build failure");
 
+  const [first, second] = selectCourseObjectsForBuild(
+    ROUGH_COURSE_DOCUMENT,
+    false,
+  ).map((object) => object.id);
   expect(events).toEqual([
-    "create:ground",
-    "create:course-outer-straight",
-    "destroy:ground",
-    "destroy:course-outer-straight",
+    `create:${first}`,
+    `create:${second}`,
+    `destroy:${first}`,
+    `destroy:${second}`,
   ]);
   expect(events.some((event) => event.startsWith("attach:"))).toBe(false);
 });
@@ -197,12 +201,12 @@ test("attaches staged entities only after the complete batch succeeds", () => {
     event.startsWith("attach:"),
   );
 
-  expect(result.courseEntities.size).toBe(116);
-  expect(firstAttachIndex).toBe(116);
+  const built = selectCourseObjectsForBuild(ROUGH_COURSE_DOCUMENT, false);
+
+  expect(result.courseEntities.size).toBe(built.length);
+  expect(firstAttachIndex).toBe(built.length);
   expect(events.slice(0, firstAttachIndex)).toEqual(
-    selectCourseObjectsForBuild(ROUGH_COURSE_DOCUMENT, false).map(
-      (object) => `create:${object.id}`,
-    ),
+    built.map((object) => `create:${object.id}`),
   );
   expect(events.some((event) => event.startsWith("destroy:"))).toBe(false);
 });

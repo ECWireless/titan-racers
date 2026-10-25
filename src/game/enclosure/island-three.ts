@@ -59,7 +59,30 @@ const AXIS_MARGIN = 100;
  */
 export const SUN_ANGULAR_RADIUS = 0.004652 / 9.54;
 
-export const MIRROR_ANGLE_LIMITS = { max: 85, min: 5 } as const;
+/**
+ * The registry's sunlight stands for full sunlight, in lux. A white surface
+ * shows the illuminance it receives, so one cd/m² of luminance is π lux of
+ * scene light, and a lamp's candela sets its light's intensity in lux.
+ */
+const SUNLIGHT_LUX = 100_000;
+
+// Lamp colours, linear at unit luminance: warm white (about 3000 K) for
+// street and bridge lamps, and neutral white (about 4500 K) as sports
+// floodlights are.
+export const WARM_WHITE = [1.82, 0.83, 0.27] as const;
+export const NEUTRAL_WHITE = [1.33, 0.94, 0.65] as const;
+
+/** Scene light per lux in an enclosure, by luminance. */
+export function sceneLux(definition: DeepReadonly<EnclosureDefinition>) {
+  const { color, intensity } = definition.sunlight;
+  return (
+    (intensity * (0.2126 * color.r + 0.7152 * color.g + 0.0722 * color.b)) /
+    SUNLIGHT_LUX
+  );
+}
+
+/** A mirror at 90° stands fully open, so its window sees only space: night. */
+export const MIRROR_ANGLE_LIMITS = { max: 90, min: 5 } as const;
 
 const enclosures = new Map(
   (
@@ -239,6 +262,19 @@ export function getEnclosureFrame(enclosure: CourseEnclosure) {
     );
   };
 
+  /**
+   * Sunlight on a surface at a point facing along a normal, relative to
+   * the sunlight's full intensity: the cosine toward each mirror's sun
+   * image that reflects onto the point.
+   */
+  const sunlightOn = (at: Vector3, normal: Vector3) =>
+    mirrors.reduce(
+      (light, mirror) =>
+        light +
+        (reflects(mirror, at) ? Math.max(dot(normal, mirror.toSun), 0) : 0),
+      0,
+    );
+
   return {
     definition,
     mirrors,
@@ -265,17 +301,65 @@ export function getEnclosureFrame(enclosure: CourseEnclosure) {
       return reflects(mirrors[((valley % count) + count) % count]!, at);
     },
     /**
-     * Sunlight on a surface at a point facing along a normal, relative to
-     * the sunlight's full intensity: the cosine toward each mirror's sun
-     * image that reflects onto the point.
+     * Sunlight the mirrors send into the habitat, relative to a noon
+     * mirror's full catch: what lands on the floors and end caps. Opening a
+     * mirror past noon moves its light onto the sunward cap and then out of
+     * the windows altogether, which makes dusk and night. Every valley
+     * shares the angle, so one valley and its two cap sectors stand for all.
      */
-    sunlightOn(at: Vector3, normal: Vector3) {
-      return mirrors.reduce(
-        (light, mirror) =>
-          light +
-          (reflects(mirror, at) ? Math.max(dot(normal, mirror.toSun), 0) : 0),
+    daylight() {
+      const { length, radius } = definition;
+      const spacing = 360 / definition.valleyCount;
+      const halfStrip = spacing / 4;
+      const sample = (
+        steps: readonly [number, number],
+        at: (u: number, v: number) => { area: number; normal: Vector3; point: Vector3 },
+      ) => {
+        let flux = 0;
+        for (let i = 0; i < steps[0]; i += 1) {
+          for (let j = 0; j < steps[1]; j += 1) {
+            const { area, normal, point } = at(
+              (i + 0.5) / steps[0],
+              (j + 0.5) / steps[1],
+            );
+            flux += sunlightOn(point, normal) * area;
+          }
+        }
+        return flux;
+      };
+      const floorStep = [64, 12] as const;
+      const floor = sample(floorStep, (u, v) => {
+        const along = (u - 0.5) * length;
+        const around = (v - 0.5) * 2 * halfStrip;
+        return {
+          area:
+            (length / floorStep[0]) *
+            ((toRadians(2 * halfStrip) * radius) / floorStep[1]),
+          normal: scaled(outward(around), -1),
+          point: point(along, around, radius - 1),
+        };
+      });
+      const capStep = [24, 24] as const;
+      const caps = [1, -1].reduce(
+        (flux, end) =>
+          flux +
+          sample(capStep, (u, v) => {
+            const fromAxis = u * radius;
+            const around = (v - 0.5) * spacing;
+            return {
+              area:
+                (radius / capStep[0]) *
+                ((toRadians(spacing) * fromAxis) / capStep[1]),
+              normal: scaled(sunward, -end),
+              point: point(end * (length / 2 - 1), around, fromAxis),
+            };
+          }),
         0,
       );
+      const noonCatch =
+        mirrors[0]!.halfWidth * 2 * length * Math.sin(Math.PI / 4);
+      return (floor + caps) / noonCatch;
     },
+    sunlightOn,
   };
 }

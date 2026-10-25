@@ -497,14 +497,16 @@ export class KartSurfaceEffects {
   // compiles then instead of stalling the first slide.
   private warmUp: "pending" | "drawn" | "done" = "pending";
 
+  /** `lightLevel` is the course's light relative to a low sun's (at most 1). */
   constructor(
     app: pc.AppBase,
     private readonly wheels: readonly SurfaceEffectWheelMount[],
+    lightLevel = 1,
   ) {
     const policy = KART_SURFACE_EFFECT_POLICY;
     this.spawnDebt = new Float32Array(wheels.length);
     // Both marks darken what is beneath them: rubber on the road, and torn,
-    // flattened blades on grass.
+    // flattened blades on grass. Unlit, they dim with the course's light.
     this.markLayers = (["asphalt", "grass"] as const).map((surface) => {
       const trails = new TireMarkTrails(wheels.length, surface);
       const material = new pc.StandardMaterial();
@@ -512,6 +514,8 @@ export class KartSurfaceEffects {
       material.useSkybox = false;
       material.diffuse = new pc.Color(0, 0, 0);
       material.emissive = new pc.Color(0.02, 0.02, 0.02);
+      // Colours are linearised; intensity scales the linear light.
+      material.emissiveIntensity = lightLevel;
       material.opacityVertexColor = true;
       material.opacityVertexColorChannel = "a";
       material.blendType = pc.BLEND_NORMAL;

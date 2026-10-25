@@ -1,6 +1,7 @@
 import * as pc from "playcanvas";
 
 import { buildCourseLighting } from "../course/build-course-lighting";
+import { addCourseLamps } from "../course/course-lamps";
 import { applySceneLook, applyShadowPolicy } from "../render/scene-look";
 import {
   addCourseVisual,
@@ -11,10 +12,7 @@ import {
 import type { CourseDocument } from "../course/course-document";
 import { createCourseSurfaceMaterials } from "../course/course-surface-materials";
 import type { CourseSurfaceImages } from "../course/course-surface-textures";
-import {
-  COURSE_EDITOR_CAMERA_NEAR_CLIP,
-  COURSE_EDITOR_SHADOW_DISTANCE,
-} from "../course/course-visual-policy";
+import { COURSE_EDITOR_CAMERA_NEAR_CLIP } from "../course/course-visual-policy";
 import {
   type CourseEditorGeometry,
   type CourseEditorSelection,
@@ -113,6 +111,7 @@ export class CourseEditorScene {
   private lastTouchMidpoint: { x: number; y: number } | null = null;
   private options: CourseEditorSceneOptions;
   private pointerCleanup: (() => void) | null = null;
+  private lampCleanup: (() => void) | null = null;
   private selections: CourseEditorSelections;
   private selectionEntities: pc.Entity[] = [];
   private tool: CourseEditorTool = "translate";
@@ -180,6 +179,8 @@ export class CourseEditorScene {
     this.resizeObserver.disconnect();
     this.pointerCleanup?.();
     this.pointerCleanup = null;
+    this.lampCleanup?.();
+    this.lampCleanup = null;
     this.translateGizmo.destroy();
     this.rotateGizmo.destroy();
     this.scaleGizmo.destroy();
@@ -702,6 +703,12 @@ export class CourseEditorScene {
       document: this.currentDocument,
       materials: this.materials,
     });
+    // The editor shows lamps switched off, as by day.
+    this.lampCleanup?.();
+    this.lampCleanup = addCourseLamps(courseEntities, this.currentDocument, {
+      lampsOn: 0,
+      steel: this.materials.steel,
+    });
     courseEntities.forEach((entity, id) => {
       const selection = { id, kind: "object" } as const;
       this.activeDocumentRoot?.addChild(entity);
@@ -712,10 +719,7 @@ export class CourseEditorScene {
     });
     const lights = buildCourseLighting(this.app, { document: this.currentDocument });
     lights.forEach((entity) => {
-      if (entity.light?.castShadows) {
-        applyShadowPolicy(entity.light);
-        entity.light.shadowDistance = COURSE_EDITOR_SHADOW_DISTANCE;
-      }
+      if (entity.light?.castShadows) applyShadowPolicy(entity.light);
       this.activeDocumentRoot?.addChild(entity);
     });
     this.createMarkerEntities(this.activeDocumentRoot, this.currentDocument);

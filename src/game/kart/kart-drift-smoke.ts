@@ -58,6 +58,8 @@ type DriftSmokeEmitter = {
   component: pc.ParticleSystemComponent;
   entity: pc.Entity;
   level: 1 | 2;
+  // Unlit, so the smoke dims with the course's light.
+  lightLevel: number;
   wheelName: string;
 };
 
@@ -151,6 +153,7 @@ export function shouldEmitDriftSmoke(
 function createSmokeEmitter(
   mount: DriftSmokeWheelMount,
   level: 1 | 2,
+  lightLevel: number,
 ): DriftSmokeEmitter {
   const layerName = level === 1 ? "light" : "heavy";
   const entity = new pc.Entity(`kart-drift-smoke-${layerName}-${mount.name}`);
@@ -239,6 +242,7 @@ function createSmokeEmitter(
     component,
     entity,
     level,
+    lightLevel,
     wheelName: mount.name,
   };
 }
@@ -256,9 +260,11 @@ function setEmitterIntensity(emitter: DriftSmokeEmitter, intensity: number) {
     // aging into view. Keep the authored full-density rate stable and vary the
     // renderer's color multiplier instead, which preserves continuous visual
     // intensity without restarting simulation.
+    // The colour graph is stored as sRGB, so light scales here, after it
+    // is linearised.
     emitter.component.emitter?.material?.setParameter(
       "colorMult",
-      intensity,
+      intensity * emitter.lightLevel,
     );
   }
 
@@ -280,10 +286,11 @@ export class KartDriftSmoke {
   private readonly currentLevels = new Map<string, number>();
   private countdownLifted = false;
 
-  constructor(wheels: readonly DriftSmokeWheelMount[]) {
+  /** `lightLevel` is the course's light relative to a low sun's (at most 1). */
+  constructor(wheels: readonly DriftSmokeWheelMount[], lightLevel = 1) {
     this.emitters = wheels.flatMap((wheel) => [
-      createSmokeEmitter(wheel, 1),
-      createSmokeEmitter(wheel, 2),
+      createSmokeEmitter(wheel, 1, lightLevel),
+      createSmokeEmitter(wheel, 2, lightLevel),
     ]);
   }
 

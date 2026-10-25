@@ -1,5 +1,7 @@
 import { expect, test } from "@playwright/test";
 
+import { createDistantLights } from "../src/game/enclosure/distant-lights";
+import { waterEdge } from "../src/game/enclosure/habitat-land";
 import {
   getEnclosureFrame,
   ISLAND_THREE_ENCLOSURE,
@@ -85,4 +87,21 @@ test("lights only the band of floor its mirror reaches", () => {
   expect(reaches(5_000, 80)).toBe(false);
   expect(reaches(8_000, 80)).toBe(true);
   expect(reaches(15_000, 84)).toBe(false);
+});
+
+test("lights the falls bridge and a few floodlit fields clear of water", () => {
+  const data = createDistantLights();
+  const lights = Array.from({ length: data.length / 8 }, (_, i) =>
+    Array.from(data.subarray(i * 8, i * 8 + 8)),
+  );
+  const [beacons, fields] = [
+    lights.filter(([, , , , , green]) => green === 0),
+    lights.filter(([, , , candela]) => candela! > 10_000),
+  ];
+
+  expect(beacons).toHaveLength(4);
+  expect(fields).toHaveLength(24);
+  for (const [axial, across, , , , , , valley] of fields) {
+    expect(waterEdge(axial!, across!, valley! + 1)).toBeGreaterThan(0);
+  }
 });

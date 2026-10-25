@@ -7,9 +7,9 @@ import {
   MIRROR_ANGLE_LIMITS,
 } from "../enclosure/island-three";
 import { getApprovedSurfaceMaterial } from "../kart/kart-material-registry";
-import fallsViewParkDocumentJson from "./falls-view-park.v4.json";
+import fallsViewParkDocumentJson from "./falls-view-park.v5.json";
 import type { OfficialCourseId } from "./course-ids";
-import roughCourseDocumentJson from "./rough-course.v4.json";
+import roughCourseDocumentJson from "./rough-course.v5.json";
 
 export const courseIdSchema = z
   .string()
@@ -147,6 +147,13 @@ const lightingSchema = z.strictObject({
 });
 
 export const COURSE_CHECKPOINT_LIMIT = 256;
+/** Course lamps each add a light, so a course has at most this many. */
+export const COURSE_LAMP_LIMIT = 4;
+export function countCourseLamps(document: { objects: { lamp?: string }[] }) {
+  return document.objects.filter((object) => object.lamp).length;
+}
+// Courses before schema version five opened their mirrors at most this far.
+const LEGACY_MIRROR_ANGLE_MAX = 85;
 
 const courseDocumentBaseSchema = z.strictObject({
   courseId: courseIdSchema,
@@ -263,14 +270,14 @@ const courseDocumentV3BaseSchema = courseDocumentV2BaseSchema.extend({
 const courseDocumentV3Schema =
   courseDocumentV3BaseSchema.superRefine(validateCourseRoute);
 
-const enclosureSchema = z
+const enclosureSchema = (mirrorAngleMax: number) => z
   .strictObject({
     id: z.string().max(80),
     mirrorAngle: z
       .number()
       .finite()
       .min(MIRROR_ANGLE_LIMITS.min)
-      .max(MIRROR_ANGLE_LIMITS.max),
+      .max(mirrorAngleMax),
     placement: z.strictObject({
       axial: z.number().finite(),
       azimuth: z.number().finite().min(0).lt(360),
@@ -297,16 +304,46 @@ const enclosureSchema = z
 
 // Version four places the course in its habitat enclosure, whose sunlight
 // replaces authored directional lights.
-export const courseDocumentSchema = courseDocumentV3BaseSchema
+const courseDocumentV4BaseSchema = courseDocumentV3BaseSchema
   .omit({ lighting: true })
   .extend({
-    enclosure: enclosureSchema,
+    enclosure: enclosureSchema(LEGACY_MIRROR_ANGLE_MAX),
     schemaVersion: z.literal(4),
+  });
+
+const courseDocumentV4Schema =
+  courseDocumentV4BaseSchema.superRefine(validateCourseRoute);
+
+// Version five adds course lamps, a light on a full-size mast, and lets a
+// mirror open fully for night.
+export const courseDocumentSchema = courseDocumentV4BaseSchema
+  .extend({
+    enclosure: enclosureSchema(MIRROR_ANGLE_LIMITS.max),
+    objects: courseDocumentV3BaseSchema.shape.objects.element
+      .extend({
+        // A floodlight: its luminaire and light stand on top of the object,
+        // reaching along its local -Z.
+        lamp: z.literal("floodlight").optional(),
+      })
+      .array()
+      .min(1)
+      .max(5_000),
+    schemaVersion: z.literal(5),
   })
-  .superRefine(validateCourseRoute);
+  .superRefine((document, context) => {
+    validateCourseRoute(document, context);
+    if (countCourseLamps(document) > COURSE_LAMP_LIMIT) {
+      context.addIssue({
+        code: "custom",
+        message: `A course has at most ${COURSE_LAMP_LIMIT} lamps`,
+        path: ["objects"],
+      });
+    }
+  });
 
 export type CourseDocumentV1 = z.infer<typeof courseDocumentV1Schema>;
 type CourseDocumentV3 = z.infer<typeof courseDocumentV3Schema>;
+type CourseDocumentV4 = z.infer<typeof courseDocumentV4Schema>;
 export type CourseDocument = z.infer<typeof courseDocumentSchema>;
 export type CourseObject = CourseDocument["objects"][number];
 export type CourseVisualMaterial = CourseObject["visual"]["material"];
@@ -576,7 +613,7 @@ const roundHundredth = (value: number) => Math.round(value * 100) / 100 || 0;
 function upgradeCourseDocumentV3({
   lighting,
   ...document
-}: CourseDocumentV3): CourseDocument {
+}: CourseDocumentV3): CourseDocumentV4 {
   const keyLight = lighting.directionalLights[0]!;
   const lightDirection = rotateByEulerAngles(keyLight.rotation, {
     x: 0,
@@ -592,7 +629,7 @@ function upgradeCourseDocumentV3({
     enclosure: {
       ...ISLAND_THREE_ENCLOSURE,
       mirrorAngle: Math.min(
-        MIRROR_ANGLE_LIMITS.max,
+        LEGACY_MIRROR_ANGLE_MAX,
         Math.max(45, roundHundredth(90 - elevation / 2)),
       ),
       placement: {
@@ -619,9 +656,17 @@ export function parseCourseDocument(input: unknown): CourseDocument {
   }
 
   if (hasSchemaVersion(input, 2) || hasSchemaVersion(input, 3)) {
-    return courseDocumentSchema.parse(
-      upgradeCourseDocumentV3(parseCourseDocumentV3(input)),
-    );
+    return courseDocumentSchema.parse({
+      ...upgradeCourseDocumentV3(parseCourseDocumentV3(input)),
+      schemaVersion: 5,
+    });
+  }
+
+  if (hasSchemaVersion(input, 4)) {
+    return parseCourseDocument({
+      ...courseDocumentV4Schema.parse(input),
+      schemaVersion: 5,
+    });
   }
 
   const document = courseDocumentSchema.parse(input);

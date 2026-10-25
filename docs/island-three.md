@@ -87,7 +87,8 @@ own:
   120 m high, and a deck that follows the floor's curve.
 - The air hazes distance: clean-air scattering at half pressure plus
   moisture and dust, together giving 55 km visibility (the distance at which
-  contrast falls to 2%), with the haze glowing at 40% of the sunlight. The
+  contrast falls to 2%), with the haze glowing with the daylight the mirrors
+  let in (40% of the sunlight on the Starter Course's afternoon). The
   far side overhead keeps about 57% of its contrast. From Falls View Park the
   end caps, 2.5 and 29.5 km away, keep about 84% and 12%.
 - The sun's image is traced through the mirrors, so it shows only where a
@@ -122,6 +123,9 @@ the hull, the mirrors, and Saturn, with no meshes or textures.
   beside a sunlit habitat they are far too faint to show, as in a real
   camera.
 
+The screen shows Island Three by day: past 80° the mirrors turn edge-on to
+the Sun and the habitat would go dark from outside, so a dusk course's
+habitat appears with its mirrors at 80°, while the race keeps its own time.
 The screen holds for at least 2.5 s while the race builds behind it, then
 fades into the countdown.
 
@@ -161,7 +165,7 @@ damping only acts on near-level support.
 
 ## Sunlight
 
-The course's `mirrorAngle` (5–85°) is the opening of its mirror from the
+The course's `mirrorAngle` (5–90°) is the opening of its mirror from the
 window and sets the time of day. A flat mirror opened by α turns the Sun's
 rays by 2α, so the sun's image sits 2α above the horizon:
 
@@ -177,6 +181,42 @@ above about 83° on the sunward cap, leaving the valley floors dark. A course
 gets direct sun only if its placement lies in its mirror's band
 (`sunReaches`), and the enclosure floors show the same band.
 Outside it, the haze also loses its glow toward the sun's image.
+
+### Dusk And Night
+
+The daylight inside is what the mirrors send through the windows onto the
+floors and caps (`daylight`). It peaks just after noon, where the mirror
+catches the most sunlight (about 1.2 of noon's at 60°), and falls as the
+mirror opens toward the anti-sun end: about half at 80°, a quarter at 84°
+with all of it on the sunward cap, and none once the mirror stands fully
+open at 90°, where the window sees only space. Closing a morning mirror
+toward the window darkens the habitat the same way.
+
+- The haze glows with the daylight, so it fades at dusk and is dark at
+  night, and the habitat's light on the course fades with it.
+- The race exposes for its course's key light, as eyes adjust fully at these
+  levels, up to 64 times brighter (`adaptation` in `habitat-light.ts`). The
+  key light counts the habitat's fill, any sun, and 40% of the light of the
+  course's own floodlights, since the lit course fills under half the view.
+  So a floodlit course reads brighter than day, while dusk shows in the dark
+  haze, the missing sun shadows, and the dimmer valley around it.
+- Island Three's lamps come on with the mirrors' schedule, below about a
+  twentieth of noon's daylight, well before a light sensor would:
+  street lamps along the valley roads and through the towns and villages,
+  1000 cd each in warm white. Seen from afar they keep their total light, so
+  a distant lamp is a faint point and a far town a dim glow, and they show
+  only once the haze has dimmed. The enclosure view leaves out those near the
+  course, whose lamps stand on their own masts.
+- Brighter lights carry through the dusk haze from kilometres away: the falls
+  bridge's necklace of lamps along its main cables, its deck lamps, and red
+  beacons on its towers; a few floodlit sports fields up the valley sides
+  and across the cylinder; and the falls themselves, floodlit to about
+  300 lux like a landmark (`src/game/enclosure/distant-lights.ts`).
+- A course's own lamps (at most four) are floodlights, as a lit circuit
+  has: 12 m masts with a sports floodlight of about 250,000 cd in neutral
+  white (about 4500 K) shining down, on the habitat's lamp schedule, with no
+  shadows. Falls View Park races at deep dusk (89.5°) under four, which puts
+  about 1,300 lux on its track against about 400 from the habitat.
 
 Everything rotates together, so the light holds still for a whole race. The
 sun is the course's only shadow-casting light.

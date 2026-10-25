@@ -266,6 +266,11 @@ export class ChaseCamera {
     private maximumSpeed = DEFAULT_MAXIMUM_SPEED,
   ) {}
 
+  /** The widest view the camera opens to at speed, degrees. */
+  get maximumFov() {
+    return this.getSettings().maximumFov;
+  }
+
   setMaximumSpeed(maximumSpeed: number) {
     this.maximumSpeed = Math.max(maximumSpeed, Number.EPSILON);
   }
