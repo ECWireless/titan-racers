@@ -261,7 +261,7 @@ its shader), the race was ready after 371–914 ms, and every race showed at
 the 2.5 s minimum. The first run's race first frame took 425 ms.
 
 PR 4.3.4 was measured with three Balanced races on reloads, with no hitches,
-on Falls View Park, which now takes the sandbox's layout, so it has more
+on Falls View Park, which then took the sandbox's layout, so it had more
 course draws than the Agricultural Zone's starter loop. The enclosure's hills,
 trees, town buildings, end-cap terraces, elevators, and falls bridge add
 two draw calls and about 50k triangles, and the translucent falls one more,

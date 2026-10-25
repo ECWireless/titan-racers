@@ -40,9 +40,13 @@ own editor commands or persistence UI.
   fixtures, and opt-in collision fixtures.
   It permanently restores only course ID `rough-course`; the official
   Falls View Park document uses the distinct ID `falls-view-park`, seeded by
-  `falls-view-park.v5.json`: the sandbox's layout without its fixtures,
-  placed in another valley 2.5 km from the sunward end cap, at deep dusk
-  (mirror 89.5°) under four floodlights.
+  `falls-view-park.v5.json`: a walled two-lap circuit of about 550 m, with
+  4.5 m lanes for four karts abreast, from a utility tunnel through nursery
+  rows and a culvert, up onto a levee crest facing the falls, down an
+  anti-spinward descent that forks into a jump lane and a gentle lane, and
+  back along a return lane, placed in another valley 2.5 km from the
+  sunward end cap, at deep dusk (mirror 89.5°) under floodlights. Its
+  sections are plain track, not yet dressed.
   `BUNDLED_COURSE_DOCUMENTS` maps each official course to its seed.
 - `src/game/course/build-rough-course.ts` projects a validated document into
   PlayCanvas visual, collision, rigid-body, tag, group, and mask state. It
@@ -211,3 +215,5 @@ exposed in the UI.
   entries are presets over them. New primitive kinds need runtime, collision,
   and round-trip evidence.
 - Arbitrary placeable lights, skyboxes, fog, and post-processing are deferred.
+- Wheel contacts jitter on very long collision boxes: a 140 m deck bounced
+  karts at speed, so authored roads come in pieces of at most about 20 m.

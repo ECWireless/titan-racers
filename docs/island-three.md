@@ -215,8 +215,9 @@ toward the window darkens the habitat the same way.
 - A course's own lamps (at most four) are floodlights, as a lit circuit
   has: 12 m masts with a sports floodlight of about 250,000 cd in neutral
   white (about 4500 K) shining down, on the habitat's lamp schedule, with no
-  shadows. Falls View Park races at deep dusk (89.5°) under four, which puts
-  about 1,300 lux on its track against about 400 from the habitat.
+  shadows. Falls View Park races at deep dusk (89.5°) under four, whose
+  pools light parts of its track; the habitat gives about 400 lux
+  everywhere.
 
 Everything rotates together, so the light holds still for a whole race. The
 sun is the course's only shadow-casting light.
