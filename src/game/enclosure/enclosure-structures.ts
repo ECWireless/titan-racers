@@ -35,6 +35,7 @@ import {
   type Vector3,
 } from "./island-three";
 import { CONIFER_SPECIES, TREE_SPECIES } from "./tree-billboards";
+import { FALLS, fallPath, sheetHalfWidth, spillHalfDegrees, veilShape } from "./waterfall";
 
 // Code-built structures that give Island Three height: the end caps'
 // terraces, elevator lines, and docks, and the falls bridge; and the
@@ -46,7 +47,8 @@ type EnclosureFrame = ReturnType<typeof getEnclosureFrame>;
 type Finish = readonly [number, number, number, number];
 
 // Alpha: frames see only the habitat's fill; structures also take sunlight;
-// planted ground also varies in patches.
+// rock also takes granite's streaks and moss; planted ground also varies in
+// patches.
 const LIT = 128;
 const PLANTED = 255;
 
@@ -69,6 +71,11 @@ const HUB_STEEL = albedo(0.08, 0.09, 0.1);
 // The site palette's rust, weathered.
 const BRIDGE_RUST = albedo(0.16, 0.048, 0.032);
 const CONCRETE = albedo(0.14, 0.135, 0.13);
+// Rock in strata, darker where the falls wet it.
+const ROCKY = 176;
+const ROCK = albedo(0.1, 0.092, 0.08, ROCKY);
+const WET_ROCK = albedo(0.045, 0.045, 0.042, ROCKY);
+const POOL = albedo(0.02, 0.04, 0.055);
 const RETAINING = albedo(0.075, 0.074, 0.066, PLANTED);
 
 const ELEVATOR_OFFSET_DEGREES = -12;
@@ -76,8 +83,8 @@ const ELEVATOR_OFFSET_DEGREES = -12;
 const PARK_VALLEY = PARK.seed - 1;
 /**
  * The falls bridge across its lake (metres across the valley and above the
- * floor): towers on the shores, anchorages beyond, and approaches down to
- * the ground.
+ * floor): towers standing just inside its shores, anchorages beyond, and
+ * approaches down to the ground.
  */
 const BRIDGE = {
   anchor: [600, 660],
@@ -274,26 +281,53 @@ function addTerraces(builder: MeshBuilder, frame: EnclosureFrame) {
   const { radius, valleyCount } = frame.definition;
   const spacing = 360 / valleyCount;
   const profile = terraceProfile(radius);
+  // The falls' gorge: a plunge pool a metre above the floor, the cliff, and
+  // the terraces above it.
+  const cliffTop = profile.findIndex(
+    ({ at: [inward, r] }) => inward === FALLS.cliff.in && r === radius - FALLS.cliff.height,
+  );
+  if (cliffTop < 0) throw new Error("The falls' cliff must meet a terrace's top");
+  const gorge = [
+    { at: [profile[0]!.at[0], radius - 1] as const, finish: POOL },
+    { at: [FALLS.cliff.in, radius - 1] as const, finish: POOL },
+    { at: [FALLS.cliff.in, radius - FALLS.cliff.height] as const, finish: ROCK },
+    ...profile.slice(cliffTop + 1),
+  ];
   [-1, 1].forEach((side) => {
     const { inward, point } = capPoints(frame, side);
     for (let valley = 0; valley < valleyCount; valley++) {
       const centre = valley * spacing;
       const edges = [centre - spacing / 4, centre + spacing / 4];
       const azimuths = steps(edges[0]!, edges[1]!, 2.5);
-      for (let i = 0; i < profile.length - 1; i++) {
-        const [inA, radiusA] = profile[i]!.at;
-        const [inB, radiusB] = profile[i + 1]!.at;
-        const { finish } = profile[i + 1]!;
-        for (let j = 0; j < azimuths.length - 1; j++) {
-          const a0 = azimuths[j]!;
-          const a1 = azimuths[j + 1]!;
-          const up = scaled(frame.outward((a0 + a1) / 2), -1);
+      const falls = side === 1 && valley === PARK_VALLEY;
+      const [gorgeFrom, gorgeTo] = FALLS.gorge.map((offset) => centre + offset) as [number, number];
+      const inGorge = (a0: number, a1: number) =>
+        falls && (a0 + a1) / 2 > gorgeFrom && (a0 + a1) / 2 < gorgeTo;
+      // The cliff is wet behind the falls' upper sheet.
+      const spillHalf = spillHalfDegrees(radius);
+      const wet = (a0: number, a1: number) =>
+        a1 > centre + FALLS.azimuth - spillHalf && a0 < centre + FALLS.azimuth + spillHalf;
+      for (let j = 0; j < azimuths.length - 1; j++) {
+        const a0 = azimuths[j]!;
+        const a1 = azimuths[j + 1]!;
+        const up = scaled(frame.outward((a0 + a1) / 2), -1);
+        const faces = inGorge(a0, a1) ? gorge : profile;
+        for (let i = 0; i < faces.length - 1; i++) {
+          const [inA, radiusA] = faces[i]!.at;
+          const [inB, radiusB] = faces[i + 1]!.at;
+          const finish =
+            faces[i + 1]!.finish === ROCK && inGorge(a0, a1) && wet(a0, a1) ? WET_ROCK : faces[i + 1]!.finish;
           builder.quad(
             [point(inA, radiusA, a0), point(inA, radiusA, a1), point(inB, radiusB, a1), point(inB, radiusB, a0)],
             finish,
-            finish === SHELF ? up : add(inward, up),
+            finish === SHELF || finish === POOL ? up : add(inward, up),
           );
         }
+      }
+      if (falls) addGorgeSides(builder, frame, point, profile.slice(0, cliffTop + 1), [gorgeFrom, gorgeTo], centre);
+      for (let i = 0; i < profile.length - 1; i++) {
+        const [inA, radiusA] = profile[i]!.at;
+        const [inB, radiusB] = profile[i + 1]!.at;
         // Bulkheads close the terraces' sides at the windows.
         edges.forEach((edge, e) =>
           builder.quad(
@@ -303,7 +337,7 @@ function addTerraces(builder: MeshBuilder, frame: EnclosureFrame) {
           ),
         );
       }
-      // Terraced housing along the back of some shelves.
+      // Terraced housing along the back of some shelves, clear of the gorge.
       for (let k = 1; k <= TERRACES.count; k++) {
         const shelfRadius = radius - k * TERRACES.rise;
         const back = (TERRACES.count - k) * TERRACES.depth;
@@ -313,12 +347,56 @@ function addTerraces(builder: MeshBuilder, frame: EnclosureFrame) {
           if (hash(k + side * 17 + valley * 5, s) > 0.3) continue;
           const from = edges[0]! + s * segment + segment * 0.08;
           const to = from + segment * 0.84;
+          const cut = k * TERRACES.rise < FALLS.cliff.height;
+          if (falls && cut && from < gorgeTo && to > gorgeFrom) {
+            continue;
+          }
           const roof = ROOFS[Math.floor(hash(s + 3, k + valley) * 3)]!;
           addRow(builder, point, inward, back, shelfRadius, from, to, roof);
         }
       }
     }
   });
+}
+
+/**
+ * The gorge's rock sides, where it cuts the terraces below its cliff (the
+ * profile up to the cliff's top), and the spillway the falls leave, high
+ * on the cliff.
+ */
+function addGorgeSides(
+  builder: MeshBuilder,
+  frame: EnclosureFrame,
+  point: ReturnType<typeof capPoints>["point"],
+  cut: ReturnType<typeof terraceProfile>,
+  sides: readonly [number, number],
+  centre: number,
+) {
+  const { radius } = frame.definition;
+  // The cut terraces are a staircase over the gorge's floor, so a fan from
+  // the cliff's foot covers each side.
+  sides.forEach((edge, e) => {
+    const sign = e === 0 ? -1 : 1;
+    const foot = point(FALLS.cliff.in, radius - 1, edge);
+    for (let i = 0; i < cut.length - 1; i++) {
+      const [inA, radiusA] = cut[i]!.at;
+      const [inB, radiusB] = cut[i + 1]!.at;
+      const b = point(inB, radiusB, edge);
+      builder.quad([foot, point(inA, radiusA, edge), b, b], ROCK, frame.outward(edge - sign * 90));
+    }
+  });
+  const spill = centre + FALLS.azimuth;
+  const half = spillHalfDegrees(radius);
+  // The spillway: a lip on the cliff, its top where the water leaves.
+  const lipIn = FALLS.cliff.in + FALLS.lip / 2;
+  builder.beam(
+    point(lipIn, radius - FALLS.drop + 3, spill - half - 0.1),
+    point(lipIn, radius - FALLS.drop + 3, spill + half + 0.1),
+    scaled(frame.outward(spill), -1),
+    FALLS.lip,
+    6,
+    CONCRETE,
+  );
 }
 
 /** A curved row of terraced houses on a shelf, its back to the next riser. */
@@ -477,10 +555,11 @@ function addBridge(builder: MeshBuilder, frame: EnclosureFrame) {
   const { radius } = frame.definition;
   const valleyCentre = (360 / frame.definition.valleyCount) * PARK_VALLEY;
   const toDegrees = 180 / Math.PI;
+  // Across the lake from its centre.
+  const azimuthAt = (across: number) => valleyCentre + ((FALLS_LAKE.across + across) / radius) * toDegrees;
   const at = (across: number, height: number, axialOffset = 0) =>
-    frame.point(FALLS_LAKE.axial + axialOffset, valleyCentre + (across / radius) * toDegrees, radius - height);
-  const upAt = (across: number) =>
-    scaled(frame.outward(valleyCentre + (across / radius) * toDegrees), -1);
+    frame.point(FALLS_LAKE.axial + axialOffset, azimuthAt(across), radius - height);
+  const upAt = (across: number) => scaled(frame.outward(azimuthAt(across)), -1);
   const { anchor, deck, end, tower, towerTop, halfWidth } = BRIDGE;
   const deckHeight = (across: number) =>
     Math.abs(across) <= anchor[1]
@@ -780,4 +859,91 @@ export function createInstanceBuffer(device: pc.GraphicsDevice, data: Float32Arr
   return new pc.VertexBuffer(device, format, data.length / INSTANCE_STRIDE, {
     data: data.buffer as ArrayBuffer,
   });
+}
+
+/**
+ * The falls: three layered sheets along the fall path, spray veils off
+ * their edges, and spray puffs that billow where they land. Per vertex,
+ * flow is (x across from −1 to 1, y seconds of fall, kind, seed) for sheets
+ * (kind 0) and veils (1); a puff's vertices sit at its centre with (corner
+ * x and y, 2, size), and turn to face the camera.
+ */
+export function createWaterfallMesh(device: pc.GraphicsDevice, frame: EnclosureFrame, valleyCentre: number) {
+  const { length, radius } = frame.definition;
+  const at = (inward: number, azimuth: number, height: number) =>
+    frame.point(length / 2 - inward, valleyCentre + azimuth, radius - height);
+  const path = fallPath(radius, FALLS.drop, FALLS.outflow, 48);
+  const landing = path[path.length - 1]!;
+  const positions: number[] = [];
+  const flow: number[] = [];
+  const indices: number[] = [];
+  const vertex = (point: Vector3, x: number, y: number, kind: number, w: number) => {
+    positions.push(point.x, point.y, point.z);
+    flow.push(x, y, kind, w);
+    return positions.length / 3 - 1;
+  };
+  const ribbon = (
+    kind: number,
+    seed: number,
+    shape: (time: number) => { half: number; offset: number; out: number },
+  ) => {
+    const start = positions.length / 3;
+    path.forEach(({ out, radius: r, time, turn }, i) => {
+      const { half, offset, out: extra } = shape(time);
+      const centre = FALLS.azimuth + turn * (180 / Math.PI) + (offset / r) * (180 / Math.PI);
+      [-1, 1].forEach((side) =>
+        vertex(
+          at(FALLS.cliff.in + FALLS.lip + out + extra, centre + ((side * half) / r) * (180 / Math.PI), radius - r),
+          side,
+          time,
+          kind,
+          seed,
+        ),
+      );
+      if (i > 0) {
+        const a = start + (i - 1) * 2;
+        indices.push(a, a + 1, a + 2, a + 1, a + 3, a + 2);
+      }
+    });
+  };
+  // Sheets, the nearest narrowest, a few metres apart.
+  [0, 1, 2].forEach((layer) =>
+    ribbon(0, layer, (time) => ({
+      half: sheetHalfWidth(time, landing.time) * (1 - 0.15 * layer),
+      offset: 0,
+      out: 5 * layer,
+    })),
+  );
+  // Veils trail off each edge, spreading out and away as they fall.
+  ([-1, 1] as const).forEach((side) => ribbon(1, side + 3, (time) => veilShape(side, time, landing.time)));
+  // Spray billowing up from the plunge pool, above the trees and walls.
+  const foot = {
+    azimuth: FALLS.azimuth + landing.turn * (180 / Math.PI),
+    in: FALLS.cliff.in + FALLS.lip + landing.out,
+  };
+  const puffs: [number, number, number, number][] = [
+    // across, out, height, size (metres)
+    [0, 10, 70, 110],
+    [-90, 30, 60, 90],
+    [95, 25, 65, 95],
+    [-30, 60, 140, 170],
+    [40, 45, 170, 200],
+    [0, 90, 260, 240],
+  ];
+  puffs.forEach(([across, out, height, size]) => {
+    const centre = at(foot.in + out, foot.azimuth + (across / radius) * (180 / Math.PI), height);
+    const start = positions.length / 3;
+    [-1, 1].forEach((y) => [-1, 1].forEach((x) => vertex(centre, x, y, 2, size)));
+    indices.push(start, start + 1, start + 3, start, start + 3, start + 2);
+  });
+  const mesh = new pc.Mesh(device);
+  mesh.setPositions(positions);
+  mesh.setVertexStream(pc.SEMANTIC_ATTR9, flow, 4);
+  mesh.setIndices(indices);
+  mesh.update(pc.PRIMITIVE_TRIANGLES, false);
+  return {
+    fallTime: landing.time,
+    mesh,
+    up: scaled(frame.outward(valleyCentre + foot.azimuth), -1),
+  };
 }

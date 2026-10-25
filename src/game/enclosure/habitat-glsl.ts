@@ -232,7 +232,8 @@ vec3 lakeEdge(vec2 q, float seed) {
     ? lakeShore(q, vec2(lakeAxial, riverAcross(lakeAxial, seed)), lakeRadius, wobble)
     : vec3(1e4, 0.0, 0.0);
   if (abs(seed - PARK_SEED) < 0.5) {
-    vec3 falls = lakeShore(q, FALLS_LAKE_CENTRE, FALLS_LAKE_RADII, wobble);
+    // A smooth shore, so the lake surely meets the falls' plunge pool.
+    vec3 falls = lakeShore(q, FALLS_LAKE_CENTRE, FALLS_LAKE_RADII, 0.0);
     if (falls.x < lake.x) lake = falls;
   }
   return lake;

@@ -75,6 +75,13 @@ own:
   of retaining wall, planted slope, and level shelf, some shelves lined with
   terraced housing. An elevator line climbs each sector, up the terraces'
   faces and then the cap, to a hub at the axis where the docks are.
+- The falls drop 800 m from a spillway in a granite gorge cut through the
+  lowest six sunward terraces of Falls View Park, spinward of the course's
+  view of the cap, into a plunge pool joined to its lake. Falling for 15 s,
+  they bend about 426 m anti-spinward as the habitat turns beneath them,
+  ignoring air drag (`src/game/enclosure/waterfall.ts`). Layered sheets
+  break from clear water at the lip into strands and veils whose streaks
+  move at the water's own speed, and spray billows where they land.
 - The falls bridge, a suspension bridge after Don Davis's 1975 end-cap
   painting, crosses the Falls View Park lake: an 800 m main span, towers
   120 m high, and a deck that follows the floor's curve.

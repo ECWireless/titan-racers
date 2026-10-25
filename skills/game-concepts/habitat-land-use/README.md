@@ -69,8 +69,9 @@ water leaving the lip at rest relative to the habitat:
 | Drop | Fall time | Anti-spinward drift |
 | --- | --- | --- |
 | 200 m | 6.6 s | 45 m |
-| 400 m | 9.8 s | 134 m |
-| 600 m | 12.5 s | 259 m |
+| 400 m | 9.8 s | 133 m |
+| 600 m | 12.5 s | 260 m |
+| 800 m | 15.1 s | 426 m |
 
 From 8 km away, a 45 m bend is about 0.3°, a few phone pixels; a fall of
 400 m or more shows its bend clearly.

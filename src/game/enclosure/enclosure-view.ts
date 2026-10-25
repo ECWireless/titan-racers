@@ -7,6 +7,7 @@ import {
   createInstanceBuffer,
   createBillboardMesh,
   createTreeInstances,
+  createWaterfallMesh,
   frameShade,
   MeshBuilder,
   steps,
@@ -22,6 +23,7 @@ import {
   BELT,
   CLEARING_RADIUS,
   FLAT_AROUND_COURSE,
+  PARK,
   RENDER_ALBEDO,
   TREES,
 } from "./habitat-land";
@@ -470,10 +472,93 @@ void main(void) {
   if (vKind > 0.75) {
     vec3 c = cylinderCoordinates(vWorld);
     albedo *= 0.7 + 0.6 * valueNoise(vec2(radians(c.y) * c.z, c.x + c.z) / 60.0);
+  } else if (vKind > 0.6) {
+    // Granite like Yosemite's: faint strata, long dark streaks where water
+    // has run down it, and moss in patches. Arc is measured at the floor's
+    // radius, so the streaks run straight up the cap toward the axis; adding
+    // the axial distance textures the gorge's sides, where arc is constant.
+    vec3 c = cylinderCoordinates(vWorld);
+    float arc = radians(c.y) * RADIUS + c.x;
+    float strata = valueNoise(vec2(arc / 120.0, c.z / 30.0));
+    float streaks = smoothstep(0.45, 0.85, valueNoise(vec2(arc / 14.0, c.z / 350.0)))
+      * smoothstep(0.3, 0.6, valueNoise(vec2(arc / 60.0, c.z / 120.0)));
+    albedo *= (0.75 + 0.5 * strata) * (1.0 - 0.6 * streaks);
+    // Moss holds to ledges, in bands across the face.
+    float moss = smoothstep(0.66, 0.82, valueNoise(vec2(arc / 110.0, c.z / 18.0) + 9.0));
+    albedo = mix(albedo, vec3(0.035, 0.05, 0.025), 0.7 * moss);
   }
   float sun = vKind > 0.25 ? sunlit(vWorld, normalize(vNormal), pixel) : 0.0;
   vec3 color = albedo * (uSunColor * sun + uFill);
   gl_FragColor = finish(throughAir(color, vWorld - view_position));
+}
+`;
+
+// The falls: world positions, with flow (see createWaterfallMesh); spray
+// puffs turn about the falls' up to face the camera.
+const FALLS_VS = /* glsl */ `
+attribute vec3 vertex_position;
+attribute vec4 aFlow;
+uniform mat4 matrix_viewProjection;
+uniform vec3 view_position;
+uniform vec3 uFallsUp;
+varying vec3 vWorld;
+varying vec4 vFlow;
+
+void main(void) {
+  vec3 world = vertex_position;
+  if (aFlow.z > 1.5) {
+    vec3 right = normalize(cross(uFallsUp, view_position - world));
+    world += (right * aFlow.x + uFallsUp * 0.7 * aFlow.y) * 0.5 * aFlow.w;
+  }
+  vWorld = world;
+  vFlow = aFlow;
+  gl_Position = matrix_viewProjection * vec4(world, 1.0);
+}
+`;
+
+const FALLS_PS = /* glsl */ `
+uniform float uTime;
+uniform float uFallTime;
+uniform vec3 uFallsUp;
+varying vec4 vFlow;
+// White water and spray, and the clear water at the lip.
+const vec3 FOAM = vec3(0.66, 0.69, 0.71);
+const vec3 CLEAR = vec3(0.3, 0.38, 0.4);
+
+void main(void) {
+  float pixel = max(length(fwidth(vWorld)), 0.25);
+  float alpha;
+  vec3 albedo = FOAM;
+  if (vFlow.z < 1.5) {
+    // Sheets and veils: patterns fixed in fall time move at the water's own
+    // speed. A clear, smooth sheet at the lip breaks into strands, then
+    // froth; fine strands fade to their mean once narrower than a pixel.
+    float fall = vFlow.y / uFallTime;
+    float age = vFlow.y - uTime;
+    float seed = vFlow.w * 13.7;
+    float fine = 1.0 - smoothstep(0.3, 0.8, fwidth(vFlow.x * 16.0));
+    float strands = 0.6 * valueNoise(vec2(vFlow.x * 6.0 + seed, age * 0.9))
+      + 0.4 * mix(0.5, valueNoise(vec2(vFlow.x * 16.0 + seed, age * 2.2)), fine);
+    float edge = 1.0 - smoothstep(0.6, 1.0, abs(vFlow.x));
+    if (vFlow.z < 0.5) {
+      float broken = smoothstep(0.04, 0.25, fall);
+      float threshold = mix(0.0, 0.5, broken) - 0.15 * fall;
+      alpha = edge * smoothstep(threshold, threshold + 0.25, strands)
+        * mix(0.95, 0.75, fall) * (1.0 - 0.25 * vFlow.w);
+      albedo = mix(CLEAR, FOAM, broken) * (0.8 + 0.4 * strands);
+    } else {
+      alpha = 0.4 * edge * smoothstep(0.05, 0.3, fall) * smoothstep(0.35, 0.8, strands);
+    }
+  } else {
+    // Spray puffs, billowing up, densest at their hearts.
+    float billow = 0.6 * valueNoise(vFlow.xy * 1.6 + vec2(vFlow.w, -uTime * 0.07))
+      + 0.4 * valueNoise(vFlow.xy * 3.7 + vec2(-vFlow.w, -uTime * 0.13));
+    alpha = 0.5 * (1.0 - smoothstep(0.2, 1.0, length(vFlow.xy))) * (0.3 + 1.0 * billow);
+  }
+  // Lit from the valley side, as the cliff face is.
+  vec3 facing = normalize(uFallsUp - uSunward);
+  vec3 color = albedo * (uSunColor * sunlit(vWorld, facing, pixel) + uFill);
+  gl_FragColor = vec4(finish(throughAir(color, vWorld - view_position)).rgb, clamp(alpha, 0.0, 1.0));
 }
 `;
 
@@ -748,8 +833,20 @@ export function createEnclosureView(
   const treeMaterial = createMaterial("tree", TREE_VS, TREE_PS, constants, {
     attributes: { aPlace: pc.SEMANTIC_ATTR12, aShape: pc.SEMANTIC_ATTR13 },
   });
+  const fallsMaterial = createMaterial("falls", FALLS_VS, FALLS_PS, constants, {
+    attributes: { aFlow: pc.SEMANTIC_ATTR9 },
+  });
+  fallsMaterial.blendType = pc.BLEND_NORMAL;
+  fallsMaterial.depthWrite = false;
   glassMaterial.depthWrite = false;
-  const materials = [shellMaterial, glassMaterial, frameMaterial, instancedMaterial, treeMaterial];
+  const materials = [
+    shellMaterial,
+    glassMaterial,
+    frameMaterial,
+    instancedMaterial,
+    treeMaterial,
+    fallsMaterial,
+  ];
 
   const sun = frame.sunDirection();
   const { color, intensity } = frame.definition.sunlight;
@@ -826,6 +923,7 @@ export function createEnclosureView(
   const textures: pc.Texture[] = [];
   const detail = new pc.Entity("island-three-detail");
   const forest = new pc.Entity("island-three-trees");
+  const waterfall = new pc.Entity("island-three-falls");
   let disposed = false;
   const instancedOf = (data: Float32Array, mesh: pc.Mesh, material: pc.Material, drawOrder: number) => {
     const instance = instanceOf(mesh, material, drawOrder);
@@ -879,6 +977,16 @@ export function createEnclosureView(
       receiveShadows: false,
     });
     app.root.addChild(detail);
+    const falls = createWaterfallMesh(device, frame, spacing * (PARK.seed - 1));
+    fallsMaterial.setParameter("uFallTime", falls.fallTime);
+    fallsMaterial.setParameter("uFallsUp", [falls.up.x, falls.up.y, falls.up.z]);
+    waterfall.addComponent("render", {
+      castShadows: false,
+      layers: [layer.id],
+      meshInstances: [instanceOf(falls.mesh, fallsMaterial, 6)],
+      receiveShadows: false,
+    });
+    app.root.addChild(waterfall);
     void loadTreeImages().then((images) => {
       if (images && !disposed) addTrees(images);
     });
@@ -903,15 +1011,25 @@ export function createEnclosureView(
     view.camera!.fov = raceView.fov;
   };
   app.on("prerender", followFov);
+  // The falls' water and mist flow on the app's clock, paused or not; the
+  // clock wraps hourly, when their pattern jumps once.
+  let fallsTime = 0;
+  const flowFalls = (dt: number) => {
+    fallsTime = (fallsTime + dt) % 3600;
+    fallsMaterial.setParameter("uTime", fallsTime);
+  };
+  app.on("update", flowFalls);
 
   return () => {
     app.off("prerender", followFov);
+    app.off("update", flowFalls);
     disposed = true;
     app.off("postrender", addDetail);
     raceView.clearColorBuffer = true;
     view.destroy();
     detail.destroy();
     forest.destroy();
+    waterfall.destroy();
     entity.destroy();
     app.scene?.layers.remove(layer);
     meshes.forEach((mesh) => mesh.destroy());

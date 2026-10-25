@@ -331,9 +331,9 @@ Phase decisions:
       5. Realistic trees: billboards baked from CC0 Poly Haven tree scans,
          drawn at the angle the camera sees them and lit and hazed like the
          habitat, replacing the code-built trees.
-      6. A waterfall that drops 400 m off a sunward terrace and bends about
-         130 m anti-spinward with Coriolis, as the spin demands (feature
-         lead idea from PR 4.3.2).
+      6. A waterfall that drops 800 m down a gorge cut through the sunward
+         terraces and bends about 426 m anti-spinward with Coriolis, as the
+         spin demands (feature lead idea from PR 4.3.2).
       Everything stays within the phone budget, checked with `?perf=1` on
       iPhone.
 - [ ] 4.3.5: Dusk and night: the haze and habitat light dim as the mirrors

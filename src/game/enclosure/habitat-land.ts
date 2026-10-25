@@ -29,10 +29,12 @@ export const TERRACE_REACH = TERRACES.count * TERRACES.depth;
 /** Falls View Park, the sunward end of valley 1, which no settlement reaches. */
 export const PARK = { from: 10_000, seed: 2 };
 /**
- * The lake below the sunward terraces of Falls View Park. Hills stay flat
- * within `flatBeyond` of its shore, under the falls bridge.
+ * The lake below the sunward terraces of Falls View Park, with a smooth
+ * shore that runs under their foot, so it meets the falls' plunge pool
+ * where the water lands. Hills stay flat within `flatBeyond` of its
+ * shore, under the falls bridge.
  */
-export const FALLS_LAKE = { across: 0, axial: 14_825, flatBeyond: 700, radii: [325, 400] as const };
+export const FALLS_LAKE = { across: 450, axial: 14_825, flatBeyond: 700, radii: [420, 450] as const };
 /** The steel hub at the axis of each end cap, out to this radius. */
 export const HUB_RADIUS = 260;
 /**
@@ -178,10 +180,10 @@ export function lakeEdge(qx: number, qy: number, seed: number) {
   const lakeAxial = (lakeCell + 0.3 + 0.4 * hash(lakeCell, seed + 2)) * 3000;
   const t = hash(seed, lakeCell + 3);
   const shore = 0.3 * (valueNoise(qx / 140, qy / 140) - 0.5);
-  const ellipse = (cx: number, cy: number, rx: number, ry: number) => {
+  const ellipse = (cx: number, cy: number, rx: number, ry: number, wobble = shore) => {
     const u = (qx - cx) / rx;
     const v = (qy - cy) / ry;
-    return (Math.sqrt(u * u + v * v) - 1 + shore) * ry;
+    return (Math.sqrt(u * u + v * v) - 1 + wobble) * ry;
   };
   let edge =
     hash(lakeCell, seed + 6) < 0.5
@@ -190,7 +192,7 @@ export function lakeEdge(qx: number, qy: number, seed: number) {
   if (Math.abs(seed - PARK.seed) < 0.5) {
     edge = Math.min(
       edge,
-      ellipse(FALLS_LAKE.axial, FALLS_LAKE.across, FALLS_LAKE.radii[0], FALLS_LAKE.radii[1]),
+      ellipse(FALLS_LAKE.axial, FALLS_LAKE.across, FALLS_LAKE.radii[0], FALLS_LAKE.radii[1], 0),
     );
   }
   return edge;
