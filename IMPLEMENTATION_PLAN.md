@@ -312,21 +312,23 @@ Phase decisions:
       from CC0 Poly Haven scans. An 800 m waterfall drops down a granite
       gorge in the sunward terraces, bending about 426 m anti-spinward as the
       habitat turns. All within the phone budget on iPhone `?perf=1`.
-- [ ] 4.3.5: Dusk and night: the haze and habitat light dim as the mirrors
-      close, as O'Neill's habitat makes night. Then course lamps (up to four
-      point or spot lights with visible full-size masts, seeded on Falls
-      View Park), lights in the distant villages and roads, and a
-      decision on lamp shadows, which the budget's one shadow-casting light
-      does not yet allow. Also chase the sun-shadow flicker on kart and wall
-      shadows seen on iPhone in PR 4.3.2 QA; it may predate that PR, whose
-      camera now follows habitat up. Sun shadows also pop in at their 20 m
-      reach (seen in PR 4.3.4 QA): use two cascades out to about 60 m,
-      blended, with the far edge faded, and update the shadow budget.
-      Also fix three tests already failing on `main` (found in PR 4.3.4's
-      closing pass): `course-builder.spec`'s two staged-build tests expect
-      the Starter Course's old first objects and 116-object count, but it
-      now opens with its verges and builds 127, and `course-editor.spec`'s
-      translate and scale gizmo drag test times out on the canvas cursor.
+- [x] 4.3.5: Dusk and night. Shipped as the habitat's daylight: what the
+      mirrors send onto its floors and caps, falling to nothing as a mirror
+      opens fully toward 90°, where its window sees only space. The haze
+      glows with it, and the race exposes for its course's key light as eyes
+      adjust. Course schema v5 adds up to four floodlights per course (12 m
+      masts, about 250,000 cd, no shadows; lamp shadows were decided against)
+      and mirrors up to 90°. Falls View Park is seeded at deep dusk (89.5°)
+      under four, with the falls floodlit, the bridge lit, and street lamps
+      and a few floodlit fields across the valleys; in production an admin
+      initializes and publishes it. The loading screen shows Island Three by
+      day. The iPhone sun-shadow flicker came from the chase camera widening
+      with speed, so the shadow fit now holds the widest view; sun shadows
+      reach 60 m in two blended cascades with a faded far edge. The three
+      failing tests were fixed. Deferred: the course's direct sun renders
+      about a third dimmer than the habitat model assumes (PlayCanvas applies
+      light intensities below 1 before linearising the colour), and
+      `home.spec`'s lost-WebGL-context recovery test already fails on `main`.
 
 **PR 4.4: Falls View Park Circuit** (split by route section)
 
