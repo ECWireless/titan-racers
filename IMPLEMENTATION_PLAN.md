@@ -343,6 +343,11 @@ Route beats:
 - [ ] Floor markings' slope depth bias lets edge lines show through a
       ramp's thin toe from low, distant views (seen in PR 4.3.4 QA). Fix it
       with the route's ramps.
+- [ ] Three tests already failing on `main` (found in PR 4.3.4's closing
+      pass): `course-builder.spec`'s two staged-build tests expect the
+      Starter Course's old first objects and 116-object count, but it now
+      opens with its verges and builds 127, and `course-editor.spec`'s
+      translate and scale gizmo drag test times out on the canvas cursor.
 
 **PR 4.5: Ambience and SFX**
 
