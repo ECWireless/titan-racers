@@ -74,6 +74,34 @@ export function applyShadowPolicy(light: pc.LightComponent) {
   light.normalOffsetBias = SHADOW_NORMAL_OFFSET_BIAS;
 }
 
+/**
+ * Holds a camera's directional shadows at one size while its field of view
+ * changes. PlayCanvas fits each shadow cascade to a sphere around the view
+ * and snaps it to shadow texels, which holds still only while the sphere
+ * keeps its size; a view widening with speed rescales the map every frame,
+ * so static shadow edges shimmer. The engine reads frustum corners only for
+ * that fit, so this camera reports them at its widest view.
+ */
+export function steadyShadowFit(
+  camera: pc.CameraComponent,
+  widestFov: () => number,
+) {
+  const lens = camera.camera;
+  const corners = lens.getFrustumCorners.bind(lens);
+  lens.getFrustumCorners = (near, far) => {
+    const points = corners(near, far);
+    const halfAngle = (degrees: number) => (degrees * Math.PI) / 360;
+    const scale =
+      Math.tan(halfAngle(Math.max(widestFov(), lens.fov))) /
+      Math.tan(halfAngle(lens.fov));
+    points.forEach((point) => {
+      point.x *= scale;
+      point.y *= scale;
+    });
+    return points;
+  };
+}
+
 /** Bright diffuse horizon, soft overhead, and a quick fade to floor bounce. */
 function habitatColorAtElevation(sine: number) {
   const { ground, horizon, zenith } = HABITAT_ENVIRONMENT;

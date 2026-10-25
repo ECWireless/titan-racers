@@ -128,7 +128,11 @@ import {
   getRigidBodyCcdConfiguration,
   setExplicitRigidBodyInertia,
 } from "@/game/runtime/ammo-rigid-body";
-import { applySceneLook, applyShadowPolicy } from "@/game/render/scene-look";
+import {
+  applySceneLook,
+  applyShadowPolicy,
+  steadyShadowFit,
+} from "@/game/render/scene-look";
 import { FrameBudgetRecorder } from "@/game/runtime/frame-budget";
 import { createRaceSessionConfig } from "@/game/race/playcanvas-race-course";
 import {
@@ -1104,6 +1108,7 @@ export function SoloTimeTrialCanvas({
         },
         activeDynamics.kart.drivetrain.noLoadSpeed,
       );
+      steadyShadowFit(camera.camera!, () => chaseCamera.maximumFov);
       let kartTapRightingRequested = false;
       let manualRightingCapturePending = false;
       let manualRightingCooldownSeconds = 0;

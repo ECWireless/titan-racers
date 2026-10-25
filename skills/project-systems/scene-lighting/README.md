@@ -110,6 +110,11 @@ course editor scenes in `src/game/editor/`, and
   `scene.ambientLight` has no visible effect.
 - The environment never renders as a skybox: `applySceneLook` removes the
   skybox layer from the camera.
+- The race camera reports its frustum corners at its widest view
+  (`steadyShadowFit`), so sun shadows keep one size, and hold still, while
+  the chase camera widens with speed. PlayCanvas 2.20.6 reads frustum
+  corners only to fit directional shadows; re-verify that on any engine
+  upgrade.
 - The atlas mirrors the PlayCanvas 2.20.6 `EnvLighting.generateAtlas` layout
   (512², RGBP, one-texel seams, v = 0 straight up), and its lookups mirror
   world X. Re-verify both against the engine's envAtlas shader chunks on any
