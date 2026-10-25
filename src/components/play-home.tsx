@@ -26,6 +26,7 @@ import {
 } from "@/game/kart/official-kart-roster";
 
 import { drawsEnclosure } from "@/game/enclosure/enclosure-view";
+import { loadTreeImages } from "@/game/enclosure/tree-images";
 import type { CourseEnclosure } from "@/game/enclosure/island-three";
 
 import {
@@ -160,9 +161,10 @@ export function PlayHome() {
 
   useEffect(() => {
     let active = true;
-    // Decode the course finishes while the player picks a kart, so the race
-    // rarely waits for them.
+    // Decode the course finishes and the habitat's trees while the player
+    // picks a kart, so the race rarely waits for them.
     void loadCourseSurfaceImages();
+    if (drawsEnclosure()) void loadTreeImages();
 
     void (async () => {
       let roster: OfficialKartRoster;

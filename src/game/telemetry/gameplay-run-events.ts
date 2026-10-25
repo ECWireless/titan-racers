@@ -2,7 +2,7 @@ import { z } from "zod";
 
 import {
   isOfficialCourseId,
-  OFFICIAL_COURSE_IDS,
+  TELEMETRY_COURSE_IDS,
 } from "../course/course-ids";
 import {
   ACCEPTED_PHYSICS_VERSIONS,
@@ -34,7 +34,7 @@ const eventBase = {
 const runStartedEventSchema = z.strictObject({
   ...eventBase,
   schemaVersion: z.literal(1),
-  courseId: z.enum(OFFICIAL_COURSE_IDS),
+  courseId: z.enum(TELEMETRY_COURSE_IDS),
   type: z.literal("run_started"),
 });
 

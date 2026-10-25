@@ -12,7 +12,7 @@ mapping. It owns the rough-loop countdown, lap/time HUD, recovery announcement,
 finish results, and replay presentation.
 
 It does not own race authority, course geometry, persistence, leaderboards,
-ghosts, telemetry, multiplayer, or final Agricultural Zone presentation.
+ghosts, telemetry, multiplayer, or final Falls View Park presentation.
 
 ## Source Ownership
 

@@ -445,7 +445,7 @@ export const gameplayRuns = pgTable(
     ),
     check(
       "gameplay_runs_known_course",
-      sql`${table.courseId} in ('rough-course', 'agricultural-zone')`,
+      sql`${table.courseId} in ('rough-course', 'falls-view-park', 'agricultural-zone')`,
     ),
     check(
       "gameplay_runs_deployment_version_length",

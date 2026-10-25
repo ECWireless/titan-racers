@@ -6,7 +6,7 @@ import { BUNDLED_COURSE_DOCUMENTS } from "@/game/course/course-document";
 import { OFFICIAL_COURSE_IDS } from "@/game/course/course-ids";
 
 const COURSE_PURPOSES = {
-  "agricultural-zone": "The solo time trial course inside Island Three.",
+  "falls-view-park": "The solo time trial course inside Island Three.",
   "rough-course":
     "The editor and physics sandbox, and the Kart Builder's test-drive course.",
 } as const;

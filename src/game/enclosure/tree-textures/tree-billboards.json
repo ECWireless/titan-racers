@@ -1,0 +1,28 @@
+{
+  "cell": 256,
+  "foot": 0.04,
+  "meanAlbedo": [
+    0.0782,
+    0.0824,
+    0.03
+  ],
+  "species": [
+    {
+      "id": "island_tree_02",
+      "span": 1.8904
+    },
+    {
+      "id": "island_tree_01",
+      "span": 1.4811
+    },
+    {
+      "id": "jacaranda_tree",
+      "span": 1.7534
+    },
+    {
+      "id": "fir_tree_01",
+      "span": 1.1
+    }
+  ],
+  "views": 8
+}

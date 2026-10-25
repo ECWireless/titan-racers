@@ -1,7 +1,7 @@
 import { expect, type Locator, type Page, test } from "@playwright/test";
 
 import {
-  AGRICULTURAL_ZONE_DOCUMENT,
+  FALLS_VIEW_PARK_DOCUMENT,
   getCourseStartTransform,
   ROUGH_COURSE_DOCUMENT,
 } from "../src/game/course/course-document";
@@ -675,7 +675,7 @@ test.describe("home screen", () => {
   test.beforeEach(async ({ page }) => {
     await Promise.all([
       useBundledCourse(page),
-      useBundledCourse(page, AGRICULTURAL_ZONE_DOCUMENT),
+      useBundledCourse(page, FALLS_VIEW_PARK_DOCUMENT),
       useBundledBalancedKart(page),
     ]);
   });
@@ -954,7 +954,7 @@ test.describe("home screen", () => {
     ).toBeVisible();
   });
 
-  test("races the Agricultural Zone as the solo course through two laps", async ({
+  test("races Falls View Park as the solo course through two laps", async ({
     page,
   }, testInfo) => {
     testInfo.setTimeout(120_000);
@@ -978,14 +978,14 @@ test.describe("home screen", () => {
     await waitForSceneReady(canvas);
 
     // Unpublished, it falls back to the bundled seed.
-    expect(requested).toEqual(["/api/courses/agricultural-zone/published"]);
+    expect(requested).toEqual(["/api/courses/falls-view-park/published"]);
     await expect(canvas).toHaveAttribute(
       "data-course-document-id",
-      "agricultural-zone",
+      "falls-view-park",
     );
 
     await advanceRaceToRacing(canvas);
-    const { checkpoints, start } = AGRICULTURAL_ZONE_DOCUMENT;
+    const { checkpoints, start } = FALLS_VIEW_PARK_DOCUMENT;
     const startYaw = (start.rotation.y * Math.PI) / 180;
     const startTarget = {
       forward: { x: -Math.sin(startYaw), y: 0, z: -Math.cos(startYaw) },
@@ -3038,11 +3038,11 @@ test.describe("home screen", () => {
     await setStandardTestGamepad(page);
     await page.waitForTimeout(50);
 
-    await setStandardTestGamepad(page, { buttons: { 13: 1 } });
+    await focusWithStandardTestGamepadButton(exit, 13);
     await expect(exit).toBeFocused();
     await setStandardTestGamepad(page);
     await page.waitForTimeout(50);
-    await setStandardTestGamepad(page, { buttons: { 13: 1 } });
+    await focusWithStandardTestGamepadButton(resume, 13);
     await expect(resume).toBeFocused();
     await setStandardTestGamepad(page);
     await page.waitForTimeout(50);
@@ -3064,7 +3064,7 @@ test.describe("home screen", () => {
     await expect(pauseDialog).toBeVisible();
     await setStandardTestGamepad(page);
     await page.waitForTimeout(50);
-    await setStandardTestGamepad(page, { buttons: { 13: 1 } });
+    await focusWithStandardTestGamepadButton(exit, 13);
     await expect(exit).toBeFocused();
     await setStandardTestGamepad(page);
     await page.waitForTimeout(50);

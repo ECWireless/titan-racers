@@ -15,8 +15,7 @@ accepted; the app, README, and durable docs take over from there.
 ## Status
 
 - **Done:** Phases 0–3 (PRs #1–#24, the Phase 3 closeout, and its follow-ups).
-- **Next:** Phase 4: visual baseline, Island Three, and the Agricultural
-  Zone.
+- **Next:** Phase 4: visual baseline, Island Three, and Falls View Park.
 
 ## Guiding Decisions
 
@@ -70,7 +69,7 @@ These still constrain every remaining phase.
 ### In Demo v1
 
 - Mobile-friendly web app with fast guest entry into racing.
-- One official track: the Agricultural Zone Service Circuit.
+- One official track: the Falls View Park Circuit.
 - Two-lap solo time trial with a result screen after every race.
 - Three official karts (Balanced, Speed, Handling) with distinct handling, each
   showing name, assembler credit, visual identity, stat bars, and a short
@@ -78,7 +77,7 @@ These still constrain every remaining phase.
 - Keyboard, touch, and gamepad controls, plus fast reset.
 - Developer ghost and player-best ghost.
 - Login-gated solo leaderboard.
-- Agricultural Zone best-time medals that set progression tiers.
+- Falls View Park best-time medals that set progression tiers.
 - Admin kart builder; after Phase 5, player-built community karts with
   immediate publishing, discovery, and admin safety unpublishing.
 - Player-built community courses with immediate publishing, thumbs-ups, admin
@@ -148,8 +147,8 @@ Details live in git history, `docs/kart-system/`, and `skills/project-systems/`.
 Decisions from completed phases that later phases rely on:
 
 - `rough-course` is the permanent editor and physics sandbox. The official track
-  uses its own course ID, `agricultural-zone`, and publishing or guest play must
-  never mix the two.
+  uses its own course ID, `falls-view-park` (`agricultural-zone` until PR
+  4.3.4), and publishing or guest play must never mix the two.
 - Gameplay telemetry stays small: one summarized record per run, with no raw
   input, per-frame, hardware-identity, or player-journey capture.
 - Course revision history and restore, real-time collaboration, and multi-author
@@ -162,11 +161,11 @@ Decisions from completed phases that later phases rely on:
 
 ## Remaining Phases
 
-### Phase 4: Visual Baseline, Island Three, And The Agricultural Zone
+### Phase 4: Visual Baseline, Island Three, And Falls View Park
 
 **Goal:** give Titan Racers a consistent visual identity, physical surfaces,
-and its home inside the Island Three habitat, then build the Agricultural Zone
-Service Circuit there.
+and its home inside the Island Three habitat, then build the Falls View Park
+Circuit there.
 
 Phase decisions:
 
@@ -182,13 +181,13 @@ Phase decisions:
   back if the work drifts toward production art.
 - **Island Three is the enclosure for every course.** It spins for 1 g at the
   floor (radius about 4 km). Courses name an enclosure and their placement in
-  it, so nothing is hard-coded to the Agricultural Zone. The distant cylinder
+  it, so nothing is hard-coded to one course. The distant cylinder
   renders as its own layer, and course physics stays local.
 - **Rotating-habitat physics at true scale.** Position-dependent artificial
   gravity (`g × r / R`) plus Coriolis force replace the fixed Earth gravity
   under a new physics version, with no exaggeration.
 - **Near-axis, low-gravity racing belongs to a later course** placed near the
-  axis, not to the Agricultural loop.
+  axis, not to Falls View Park.
 - **A phone performance budget** is set in PR 4.1.2 and holds for the rest of
   the phase. `docs/visual-identity.md` owns it and the art direction.
 
@@ -300,46 +299,55 @@ Phase decisions:
       The home screen keeps its own backdrop for now. The `home.spec`
       recovery test now pauses the race as it becomes ready, before it can
       start racing.
-- [ ] 4.3.4: Valleys and distant structures. Start with a short research
-      note on what O'Neill and later studies put inside Island Three. Then
-      rename the official course, which stays in its valley: in O'Neill's
-      design the valleys are for living, and crops grow in separate
-      agricultural modules, so "Agricultural Zone" misnames it. Decide the
-      new name and whether the `agricultural-zone` ID follows it (that needs
-      a migration for the telemetry check and a production data step); PR
-      4.4 and the phase titles follow the rename. Then, guided by the note,
-      turn the valleys from farmland as far as the eye can see into
-      villages, parkland, and woods, with a few large landmark structures
-      and clusters of buildings, so the enclosure reads with height rather
-      than as flat ground. Code-built and within the phone budget. Consider
-      a waterfall off an end-cap terrace whose falling water bends
-      anti-spinward with Coriolis, as the spin demands: about 40 m of drift
-      over a 200 m drop (feature lead idea from PR 4.3.2).
+- [x] 4.3.4: Valleys and distant structures. Shipped as a land-use
+      research note (`skills/game-concepts/habitat-land-use/`) and, following
+      it, the official course renamed Falls View Park (`falls-view-park`) on
+      the Starter Course's layout until PR 4.4 builds its route, 2.5 km from
+      the sunward cap. Migration 0017 adds the ID to the telemetry check and
+      keeps `agricultural-zone` for older runs and clients; in production,
+      migrate before deploying, then an admin initialises and publishes the
+      course. The valleys now hold parkland, woods, villages, and towns, with
+      rolling hills, town buildings, the end caps' terraces and elevators, a
+      suspension bridge over the falls lake, and trees as billboards baked
+      from CC0 Poly Haven scans. An 800 m waterfall drops down a granite
+      gorge in the sunward terraces, bending about 426 m anti-spinward as the
+      habitat turns. All within the phone budget on iPhone `?perf=1`.
 - [ ] 4.3.5: Dusk and night: the haze and habitat light dim as the mirrors
       close, as O'Neill's habitat makes night. Then course lamps (up to four
-      point or spot lights with visible full-size masts, seeded on the
-      Agricultural Zone), lights in the distant villages and roads, and a
+      point or spot lights with visible full-size masts, seeded on Falls
+      View Park), lights in the distant villages and roads, and a
       decision on lamp shadows, which the budget's one shadow-casting light
       does not yet allow. Also chase the sun-shadow flicker on kart and wall
       shadows seen on iPhone in PR 4.3.2 QA; it may predate that PR, whose
-      camera now follows habitat up.
+      camera now follows habitat up. Sun shadows also pop in at their 20 m
+      reach (seen in PR 4.3.4 QA): use two cascades out to about 60 m,
+      blended, with the far edge faded, and update the shadow budget.
+      Also fix three tests already failing on `main` (found in PR 4.3.4's
+      closing pass): `course-builder.spec`'s two staged-build tests expect
+      the Starter Course's old first objects and 116-object count, but it
+      now opens with its verges and builds 127, and `course-editor.spec`'s
+      translate and scale gizmo drag test times out on the canvas cursor.
 
-**PR 4.4: Agricultural Zone Service Circuit** (split by route section)
+**PR 4.4: Falls View Park Circuit** (split by route section)
 
 Route beats:
 
 1. Starting service lane.
-2. Tight hydroponic rows.
-3. Narrow irrigation tunnel.
-4. Glass canopy or habitat vista.
+2. Tight rows through the park's tree nursery.
+3. Narrow culvert under the falls' stream.
+4. Habitat vista toward the falls and the terraced end cap.
 5. Maintenance ramp or drop.
 6. Return lane through floor-marked service infrastructure.
 
-- [ ] Two-lap route following those beats, authored under `agricultural-zone`.
-- [ ] Scale language: oversized crop trays, pipes, vents, doors, rails, ramps,
+- [ ] Two-lap route following those beats, authored under `falls-view-park`
+      from the Starter Course layout it took in PR 4.3.4.
+- [ ] Scale language: oversized pipes, vents, culverts, doors, rails, ramps,
       and catwalks that make the karts feel tiny.
 - [ ] A jump that shows the spin's effect on a flying kart.
 - [ ] Habitat vistas that show the cylinder's curvature.
+- [ ] Floor markings' slope depth bias lets edge lines show through a
+      ramp's thin toe from low, distant views (seen in PR 4.3.4 QA). Fix it
+      with the route's ramps.
 
 **PR 4.5: Ambience and SFX**
 
@@ -368,7 +376,7 @@ Route beats:
 - [ ] Login-gated global solo leaderboard. Official karts are eligible;
       community karts stay casual until their balance is validated.
       Multiplayer results stay room-only.
-- [ ] Progression tiers from Agricultural Zone best-time medals: a finish tier,
+- [ ] Progression tiers from Falls View Park best-time medals: a finish tier,
       then bronze, silver, and gold. Tiers do not unlock kart-assembly parts.
 - [ ] Guests keep racing freely without progression.
 - [ ] Races and results record the course ID and immutable publication revision
@@ -473,7 +481,7 @@ courses start from.
       with featured, popular, and new views.
 - [ ] Anyone can launch a published course, and each race records the course ID
       and publication revision.
-- [ ] Remove rough-course and Agricultural Zone assumptions from shared race
+- [ ] Remove rough-course and Falls View Park assumptions from shared race
       systems while keeping official-course selection and recovery working.
 
 **PR 7.3: Ranking, featuring, and safety**

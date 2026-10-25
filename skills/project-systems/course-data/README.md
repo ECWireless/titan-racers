@@ -30,7 +30,7 @@ own editor commands or persistence UI.
   alignment, canonical sorting, serialization, inferred TypeScript types, and
   validated seed export.
 - `src/game/course/course-ids.ts` keeps the permanent sandbox, the official
-  courses with bundled seeds, and the guest solo course (`agricultural-zone`)
+  courses with bundled seeds, and the guest solo course (`falls-view-park`)
   explicit; `course-publication.ts`
   validates protected publication and privacy-minimized public runtime shapes.
 - `src/game/course/rough-course.v4.json` is the canonical portable rough-course
@@ -39,8 +39,9 @@ own editor commands or persistence UI.
   recovery data, an infield barrier, ordinary surfaces and objects, camera
   fixtures, and opt-in collision fixtures.
   It permanently restores only course ID `rough-course`; the official
-  Agricultural Zone document uses the distinct ID `agricultural-zone`, seeded
-  by `agricultural-zone.v4.json` (a small starter loop in another valley).
+  Falls View Park document uses the distinct ID `falls-view-park`, seeded by
+  `falls-view-park.v4.json`: the sandbox's layout without its fixtures,
+  placed in another valley 2.5 km from the sunward end cap.
   `BUNDLED_COURSE_DOCUMENTS` maps each official course to its seed.
 - `src/game/course/build-rough-course.ts` projects a validated document into
   PlayCanvas visual, collision, rigid-body, tag, group, and mask state. It

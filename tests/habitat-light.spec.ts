@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-import { AGRICULTURAL_ZONE_DOCUMENT } from "../src/game/course/course-document";
+import { FALLS_VIEW_PARK_DOCUMENT } from "../src/game/course/course-document";
 import { getHabitatLight } from "../src/game/enclosure/habitat-light";
 import { getEnclosureFrame } from "../src/game/enclosure/island-three";
 import {
@@ -9,7 +9,7 @@ import {
   ENVIRONMENT_ATLAS_SIZE,
 } from "../src/game/render/habitat-environment-atlas";
 
-const sunlit = AGRICULTURAL_ZONE_DOCUMENT.enclosure;
+const sunlit = FALLS_VIEW_PARK_DOCUMENT.enclosure;
 // The far half of the valley, beyond the mirror's band.
 const shaded = {
   ...sunlit,

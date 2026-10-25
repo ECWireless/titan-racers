@@ -140,7 +140,7 @@ hands-on desktop and narrow-mobile driving.
   corner cases show no blocking clipping, but future authored narrow geometry
   may justify near-plane-offset rays or a separately reviewed convex sweep.
 - The large wall and short L-corner are rough test-bay fixtures rather than
-  final Agricultural Zone art or guaranteed final-track geometry.
+  final Falls View Park art or guaranteed final-track geometry.
 - Camera tuning is one kart/profile baseline. Per-kart or per-track authored
   camera profiles remain unneeded until later roster and track work proves a
   real requirement.

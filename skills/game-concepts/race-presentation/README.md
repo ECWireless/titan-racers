@@ -112,5 +112,5 @@ wall-clock reads.
 
 - Not yet supported: configurable HUD scale, contrast themes, audio cues,
   narration settings, split comparison, minimaps, or wayfinding.
-- New course environments (such as the Agricultural Zone) need renewed HUD
+- New course environments (such as Falls View Park) need renewed HUD
   contrast and obstruction checks.

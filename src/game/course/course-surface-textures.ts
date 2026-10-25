@@ -1,3 +1,4 @@
+import { decodeImage } from "../render/decode-image";
 import asphaltAlbedo from "./surface-textures/asphalt-albedo.jpg";
 import asphaltSurface from "./surface-textures/asphalt-surface.jpg";
 import lawnAlbedo from "./surface-textures/lawn-albedo.jpg";
@@ -18,29 +19,21 @@ const SOURCES = {
   turf: { albedo: turfAlbedo, surface: turfSurface },
 } satisfies Record<CourseScannedSurface, Record<"albedo" | "surface", { src: string }>>;
 
-// Image elements, not ImageBitmaps: PlayCanvas avoids ImageBitmap uploads on
-// Safari. The images carry no colour profile, so the packed normals and
-// roughness upload unchanged.
-async function decode(url: string) {
-  const image = new Image();
-  image.src = url;
-  await image.decode();
-  return image;
-}
-
 let loading: Promise<CourseSurfaceImages | null> | undefined;
 
 /**
- * Decodes the scanned course finishes once per page. Images are kept so
- * textures re-upload after a lost WebGL context. Resolves null when any image
- * fails, and the course keeps its code-built finishes; the next call retries.
+ * Decodes the scanned course finishes once per page. The images carry no
+ * colour profile, so the packed normals and roughness upload unchanged.
+ * Images are kept so textures re-upload after a lost WebGL context. Resolves
+ * null when any image fails, and the course keeps its code-built finishes;
+ * the next call retries.
  */
 export function loadCourseSurfaceImages() {
   loading ??= Promise.all(
     Object.entries(SOURCES).map(async ([surface, { albedo, surface: packed }]) => {
       const [albedoImage, packedImage] = await Promise.all([
-        decode(albedo.src),
-        decode(packed.src),
+        decodeImage(albedo.src),
+        decodeImage(packed.src),
       ]);
       return [surface, { albedo: albedoImage, surface: packedImage }] as const;
     }),

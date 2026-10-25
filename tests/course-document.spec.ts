@@ -185,7 +185,7 @@ test("rejects enclosures and placements outside the approved habitat", () => {
       ["enclosure", "placement", "azimuth"],
     ],
     [
-      (document) => (document.enclosure.placement.axial = -15_600),
+      (document) => (document.enclosure.placement.axial = -14_900),
       ["enclosure", "placement", "axial"],
     ],
     [
@@ -331,7 +331,7 @@ test("rests every visual-only marking on the drivable surface beneath it", () =>
 });
 
 test("serializes the seeds deterministically and round trips without changes", () => {
-  for (const seed of ["rough-course.v4.json", "agricultural-zone.v4.json"]) {
+  for (const seed of ["rough-course.v4.json", "falls-view-park.v4.json"]) {
     const source = readFileSync(
       join(process.cwd(), "src/game/course", seed),
       "utf8",

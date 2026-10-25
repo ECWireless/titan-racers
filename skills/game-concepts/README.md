@@ -64,3 +64,6 @@ A game-concept node should normally cover:
 - [`rotating-habitat-physics/`](rotating-habitat-physics/README.md): the
   validated standard for centrifugal gravity, Coriolis, and local up inside a
   spinning habitat at true scale.
+- [`habitat-land-use/`](habitat-land-use/README.md): the candidate standard
+  for what fills a large habitat's valleys (parkland, villages, low-rise
+  towns, quiet transport) and what stays outside (crops, heavy industry).

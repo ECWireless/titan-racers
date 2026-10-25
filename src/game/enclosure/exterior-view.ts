@@ -15,8 +15,10 @@ import {
 import {
   add,
   type CourseEnclosure,
+  cross,
   dot,
   getEnclosureFrame,
+  normalize,
   scaled,
   type Vector3,
 } from "./island-three";
@@ -57,18 +59,6 @@ const VIEW = {
 };
 
 const toRadians = (degrees: number) => (degrees * Math.PI) / 180;
-
-function normalize(v: Vector3): Vector3 {
-  return scaled(v, 1 / Math.hypot(v.x, v.y, v.z));
-}
-
-function cross(a: Vector3, b: Vector3): Vector3 {
-  return {
-    x: a.y * b.z - a.z * b.y,
-    y: a.z * b.x - a.x * b.z,
-    z: a.x * b.y - a.y * b.x,
-  };
-}
 
 const VERTEX_SHADER = /* glsl */ `#version 300 es
 void main(void) {
@@ -212,8 +202,13 @@ vec3 interior(vec3 entry, vec3 direction, float travelled, float pixelAngle) {
     float pixel = (travelled + t) * pixelAngle
       / max(abs(dot(direction, normal)), 0.1);
     float valley = floor(azimuth / VALLEY_SPACING + 0.5);
+    float seed = mod(valley, 3.0) + 1.0;
     vec2 q = vec2(far.z, radians(valleyOffset(azimuth)) * RADIUS);
-    vec3 albedo = land(q, vec2(pixel), mod(valley, 3.0) + 1.0);
+    Land l = landAt(q, seed);
+    vec3 albedo = landColor(l, q, vec2(pixel), seed);
+    // The land's hills and woods shade it.
+    vec3 relief = landRelief(l, q, seed, vec3(1.0, 0.0, 0.0), 1.0);
+    normal = normalize(normal - relief.y * SUN - relief.z * cross(normal, SUN));
     color = albedo * (uSunColor * sunlit(far, normal, pixel) + uFill);
   }
   return throughAir(color, t);
