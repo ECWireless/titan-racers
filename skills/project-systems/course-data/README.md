@@ -215,5 +215,5 @@ exposed in the UI.
   entries are presets over them. New primitive kinds need runtime, collision,
   and round-trip evidence.
 - Arbitrary placeable lights, skyboxes, fog, and post-processing are deferred.
-- Wheel contacts jitter on very long collision boxes: a 140 m deck bounced
-  karts at speed, so authored roads come in pieces of at most about 20 m.
+- Wheel contacts jitter at speed on long elevated decks, so drivable decks
+  and roads come in pieces of at most about 20 m.

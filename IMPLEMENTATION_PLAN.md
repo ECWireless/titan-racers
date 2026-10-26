@@ -356,14 +356,14 @@ habitat step by step, and each beat is one moment the route shows:
 
 The route stays clearly lit at deep dusk (89.5°).
 
-- [ ] 4.4.1: Carry-overs from PR 4.3.5, then the route layout. The course's
-      direct sun renders about a third dimmer than the habitat model assumes
-      (PlayCanvas applies light intensities below 1 before linearising the
-      colour), and `home.spec`'s lost-WebGL-context recovery test fails on
-      `main`. Then the whole two-lap route as plain drivable track, with the
-      levee's climb and descent as plain ramps, a placeholder tunnel,
-      checkpoints that stop shortcuts, and floodlights covering it; raise the
-      four-lamp limit to eight if four cannot.
+- [x] 4.4.1: Carry-overs from PR 4.3.5, then the route layout. Shipped:
+      the sun renders at the habitat model's brightness, and the
+      lost-WebGL-context tests allow for the software renderer's slow dusk
+      frames. Falls View Park is a walled blockout of the full route, about
+      550 m a lap with 4.5 m lanes for four karts abreast; its downhill
+      forks into a jump lane and a gentle lane. A course may carry eight
+      floodlights (schema v5, no migration); Falls View Park places eight
+      outdoors, within the phone budget.
 - [ ] 4.4.2: Utility tunnel, with its own lights. Habitat light and lamps
       pass through walls today, so an interior renders as bright as outside;
       debrief the fix first.
