@@ -388,6 +388,11 @@ test("keeps every start and recovery pose clear of solid obstacles", () => {
       if (collision?.role !== "solid-obstacle" || collision.shape !== "box") {
         continue;
       }
+      const { rotation } = object.transform;
+      expect(
+        [rotation.x, rotation.y, rotation.z].filter(Boolean).length,
+        `${object.id} turns about one axis`,
+      ).toBeLessThanOrEqual(1);
       for (const pose of poses) {
         // A kart's body sits just above its pose.
         const local = toObjectFrame(object, { ...pose, y: pose.y + 0.15 });
