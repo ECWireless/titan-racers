@@ -90,10 +90,17 @@ function createDirectionalLightEntity(light: CourseLightingProjection) {
   const entity = new pc.Entity(light.id);
 
   try {
+    const { b, g, r } = light.color;
     entity.addComponent("light", {
       castShadows: light.shadows !== null,
-      color: new pc.Color(light.color.r, light.color.g, light.color.b),
-      intensity: light.intensity,
+      // Intensity 1 keeps the engine's colour linear; the colour carries the
+      // light, since lower intensities are applied before linearising.
+      color: new pc.Color(
+        r * light.intensity,
+        g * light.intensity,
+        b * light.intensity,
+      ).gamma(),
+      intensity: 1,
       ...(light.shadows
         ? {
             cascadeBlend: light.shadows.cascadeBlend,

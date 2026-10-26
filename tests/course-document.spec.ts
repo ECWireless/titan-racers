@@ -5,6 +5,7 @@ import { expect, test } from "@playwright/test";
 
 import {
   COURSE_LAMP_LIMIT,
+  type CourseDocument,
   courseDocumentSchema,
   FALLS_VIEW_PARK_DOCUMENT,
   getCourseStartTransform,
@@ -237,12 +238,12 @@ test("adds course lamps and night mirrors from schema version five", () => {
   };
   expect(() => parseCourseDocument(lampsInVersionFour)).toThrow();
 
-  const fifthLamp = structuredClone(FALLS_VIEW_PARK_DOCUMENT);
-  fifthLamp.objects.push({
-    ...fifthLamp.objects.find((object) => object.lamp)!,
-    id: "lamp-fifth",
+  const extraLamp = structuredClone(FALLS_VIEW_PARK_DOCUMENT);
+  extraLamp.objects.push({
+    ...extraLamp.objects.find((object) => object.lamp)!,
+    id: "lamp-extra",
   });
-  expect(courseDocumentSchema.safeParse(fifthLamp).error?.issues).toContainEqual(
+  expect(courseDocumentSchema.safeParse(extraLamp).error?.issues).toContainEqual(
     expect.objectContaining({ path: ["objects"] }),
   );
 });
@@ -296,8 +297,11 @@ test("keeps the expanded ground approximately 1.5 times its original area", () =
 });
 
 test("draws every drivable surface at its collision top", () => {
-  const surfaces = ROUGH_COURSE_DOCUMENT.objects.filter(
-    (object) => object.collision?.role === "drivable-surface",
+  const surfaces = [ROUGH_COURSE_DOCUMENT, FALLS_VIEW_PARK_DOCUMENT].flatMap(
+    (document) =>
+      document.objects.filter(
+        (object) => object.collision?.role === "drivable-surface",
+      ),
   );
 
   expect(surfaces.length).toBeGreaterThan(0);
@@ -324,13 +328,19 @@ test("draws every drivable surface at its collision top", () => {
 });
 
 test("rests every visual-only marking on the drivable surface beneath it", () => {
-  const surfaces = ROUGH_COURSE_DOCUMENT.objects.filter(
+  for (const document of [ROUGH_COURSE_DOCUMENT, FALLS_VIEW_PARK_DOCUMENT]) {
+    expectMarkingsRestOnSurfaces(document);
+  }
+});
+
+function expectMarkingsRestOnSurfaces(document: CourseDocument) {
+  const surfaces = document.objects.filter(
     (object) =>
       object.collision?.role === "drivable-surface" &&
       object.transform.rotation.x === 0 &&
       object.transform.rotation.z === 0,
   );
-  const markings = ROUGH_COURSE_DOCUMENT.objects.filter(
+  const markings = document.objects.filter(
     (object) => object.category === "marker",
   );
 
@@ -362,7 +372,65 @@ test("rests every visual-only marking on the drivable surface beneath it", () =>
       marking.id,
     ).toBeLessThanOrEqual(0.001);
   }
+}
+
+test("keeps every start and recovery pose clear of solid obstacles", () => {
+  for (const document of [ROUGH_COURSE_DOCUMENT, FALLS_VIEW_PARK_DOCUMENT]) {
+    const poses = [
+      { id: document.start.id, ...document.start.position },
+      ...document.checkpoints.map(({ id, recovery }) => ({
+        id,
+        ...recovery.position,
+      })),
+    ];
+    for (const object of document.objects) {
+      const { collision } = object;
+      if (collision?.role !== "solid-obstacle" || collision.shape !== "box") {
+        continue;
+      }
+      const { rotation } = object.transform;
+      expect(
+        [rotation.x, rotation.y, rotation.z].filter(Boolean).length,
+        `${object.id} turns about one axis`,
+      ).toBeLessThanOrEqual(1);
+      for (const pose of poses) {
+        // A kart's body sits just above its pose.
+        const local = toObjectFrame(object, { ...pose, y: pose.y + 0.15 });
+        const inside = (["x", "y", "z"] as const).every(
+          (axis) =>
+            Math.abs(local[axis] - collision.offset.position[axis]) <
+            collision.halfExtents[axis],
+        );
+        expect(inside, `${pose.id} inside ${object.id}`).toBe(false);
+      }
+    }
+  }
 });
+
+// Seeds turn obstacles about a single axis, so the order of the inverse
+// rotations does not matter.
+function toObjectFrame(
+  object: CourseDocument["objects"][number],
+  point: { x: number; y: number; z: number },
+) {
+  const { position, rotation } = object.transform;
+  let { x, y, z } = {
+    x: point.x - position.x,
+    y: point.y - position.y,
+    z: point.z - position.z,
+  };
+  const turn = (degrees: number) => {
+    const radians = (-degrees * Math.PI) / 180;
+    return [Math.cos(radians), Math.sin(radians)] as const;
+  };
+  let [cos, sin] = turn(rotation.x);
+  [y, z] = [y * cos - z * sin, y * sin + z * cos];
+  [cos, sin] = turn(rotation.y);
+  [x, z] = [x * cos + z * sin, -x * sin + z * cos];
+  [cos, sin] = turn(rotation.z);
+  [x, y] = [x * cos - y * sin, x * sin + y * cos];
+  return { x, y, z };
+}
 
 test("serializes the seeds deterministically and round trips without changes", () => {
   for (const seed of ["rough-course.v5.json", "falls-view-park.v5.json"]) {

@@ -148,7 +148,7 @@ const lightingSchema = z.strictObject({
 
 export const COURSE_CHECKPOINT_LIMIT = 256;
 /** Course lamps each add a light, so a course has at most this many. */
-export const COURSE_LAMP_LIMIT = 4;
+export const COURSE_LAMP_LIMIT = 8;
 export function countCourseLamps(document: { objects: { lamp?: string }[] }) {
   return document.objects.filter((object) => object.lamp).length;
 }

@@ -221,7 +221,7 @@ async function getCollisionDebugState(canvas: Locator) {
         groundIsDrivable: boolean;
         sunCastsShadows: boolean | null;
         sunDirection: { x: number; y: number; z: number } | null;
-        sunIntensity: number | null;
+        sunLinearColor: { b: number; g: number; r: number } | null;
         sunShadowResolution: number | null;
         obstacleAInteractionRadius: number | null;
         obstacleAX: number | null;
@@ -957,7 +957,9 @@ test.describe("home screen", () => {
   test("races Falls View Park as the solo course through two laps", async ({
     page,
   }, testInfo) => {
-    testInfo.setTimeout(120_000);
+    // Software WebGL renders every stepped frame on the CPU, under all of
+    // the course's floodlights.
+    testInfo.setTimeout(300_000);
     test.skip(
       testInfo.project.name !== "desktop",
       "Solo course progression only needs to run once.",
@@ -2317,7 +2319,10 @@ test.describe("home screen", () => {
     expect(collisionState.barrelPhysicsRestitution).toBe(0);
     expect(collisionState.courseEntityCount).toBe(127);
     expect(collisionState.directionalLightCount).toBe(1);
-    expect(collisionState.sunIntensity).toBeCloseTo(0.78);
+    // The sun renders at the enclosure's sunlight, linear red, green, blue.
+    expect(collisionState.sunLinearColor?.r).toBeCloseTo(0.78, 2);
+    expect(collisionState.sunLinearColor?.g).toBeCloseTo(0.91 * 0.78, 2);
+    expect(collisionState.sunLinearColor?.b).toBeCloseTo(0.78 * 0.78, 2);
     // The rough course keeps its accepted key-light direction.
     const [pitch, yaw] = [52, 38].map((degrees) => (degrees * Math.PI) / 180);
     expect(collisionState.sunDirection?.x).toBeCloseTo(
@@ -2516,6 +2521,9 @@ test.describe("home screen", () => {
   test("recovers a lost WebGL context into an explicit pause and preserves resize state", async ({
     page,
   }, testInfo) => {
+    // Software WebGL draws the enclosure at dusk slowly, so each in-page
+    // query waits seconds for the main thread.
+    testInfo.setTimeout(180_000);
     test.skip(
       testInfo.project.name !== "desktop",
       "Graphics-context recovery only needs one Chromium coverage path.",
@@ -2560,18 +2568,22 @@ test.describe("home screen", () => {
     const pauseDialog = page.getByRole("dialog", { name: "Paused" });
     await expect(pauseDialog).toBeVisible();
     await expect
-      .poll(async () => (await getRaceDebugState(canvas)).state)
+      .poll(async () => (await getRaceDebugState(canvas)).state, {
+        timeout: 60_000,
+      })
       .toBe("paused");
 
     await page.setViewportSize({ height: 700, width: 900 });
     await expect
-      .poll(() =>
-        canvas.evaluate((element) => ({
-          clientHeight: (element as HTMLCanvasElement).clientHeight,
-          clientWidth: (element as HTMLCanvasElement).clientWidth,
-          height: (element as HTMLCanvasElement).height,
-          width: (element as HTMLCanvasElement).width,
-        })),
+      .poll(
+        () =>
+          canvas.evaluate((element) => ({
+            clientHeight: (element as HTMLCanvasElement).clientHeight,
+            clientWidth: (element as HTMLCanvasElement).clientWidth,
+            height: (element as HTMLCanvasElement).height,
+            width: (element as HTMLCanvasElement).width,
+          })),
+        { timeout: 60_000 },
       )
       .toEqual({
         clientHeight: 700,
@@ -2588,6 +2600,8 @@ test.describe("home screen", () => {
   test("falls back to reload or exit when a lost WebGL context does not restore", async ({
     page,
   }, testInfo) => {
+    // Software WebGL draws the enclosure at dusk slowly; see the test above.
+    testInfo.setTimeout(120_000);
     test.skip(
       testInfo.project.name !== "desktop",
       "Graphics-context failure only needs one Chromium coverage path.",

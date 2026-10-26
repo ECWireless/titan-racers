@@ -2055,7 +2055,22 @@ export function SoloTimeTrialCanvas({
           groundCollisionShape: ground?.collision?.type ?? null,
           groundIsDrivable: ground?.tags.has("drivable-surface") ?? false,
           sunCastsShadows: sun?.light?.castShadows ?? null,
-          sunIntensity: sun?.light?.intensity ?? null,
+          // The light the engine renders, linearised as it does: intensities
+          // below 1 apply before linearising, others after.
+          sunLinearColor: sun?.light
+            ? (() => {
+                const { color, intensity } = sun.light;
+                const linear = (channel: number) =>
+                  intensity >= 1
+                    ? channel ** 2.2 * intensity
+                    : (channel * intensity) ** 2.2;
+                return {
+                  b: linear(color.b),
+                  g: linear(color.g),
+                  r: linear(color.r),
+                };
+              })()
+            : null,
           // A directional light shines down its -Y, so +Y points at the sun.
           sunDirection: sun
             ? { x: sun.up.x, y: sun.up.y, z: sun.up.z }

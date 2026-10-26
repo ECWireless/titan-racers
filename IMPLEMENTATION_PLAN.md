@@ -332,24 +332,53 @@ Phase decisions:
 
 **PR 4.4: Falls View Park Circuit** (split by route section)
 
-Route beats:
+A two-lap circuit of about 500–550 m a lap, authored under `falls-view-park`
+from the Starter Course layout it took in PR 4.3.4. Courses are rough circuits
+the habitat's youth build through the infrastructure already there, so
+everything stands at real size around the 1:10 karts: pipes, vents, culverts,
+doors, rails, ramps, and catwalks that make them feel tiny. The lap reveals the
+habitat step by step, and each beat is one moment the route shows:
 
-1. Starting service lane.
-2. Tight rows through the park's tree nursery.
-3. Narrow culvert under the falls' stream.
-4. Habitat vista toward the falls and the terraced end cap.
-5. Maintenance ramp or drop.
-6. Return lane through floor-marked service infrastructure.
+1. **Utility tunnel:** the park's service tunnel under the soil, carrying its
+   water, power, and air, with the start/finish inside. Nothing of the
+   habitat shows.
+2. **Tree nursery rows:** tight turns between rows of young trees, with
+   glimpses of sky through them.
+3. **Stream and culvert:** the stream's banks open the view a little, then a
+   narrow culvert ducks under the water.
+4. **Levee crest:** the climb onto the stream's flood levee reveals the
+   floodlit falls, the terraced sunward cap, and the bridge's lamps.
+5. **Downhill run:** a fast descent off the levee heading anti-spinward, with
+   the floor curving up ahead and a jump that shows the spin's effect on a
+   flying kart.
+6. **Return lane:** heading anti-sunward, with street lamps running down the
+   cylinder's length, back into the tunnel portal.
 
-- [ ] Two-lap route following those beats, authored under `falls-view-park`
-      from the Starter Course layout it took in PR 4.3.4.
-- [ ] Scale language: oversized pipes, vents, culverts, doors, rails, ramps,
-      and catwalks that make the karts feel tiny.
-- [ ] A jump that shows the spin's effect on a flying kart.
-- [ ] Habitat vistas that show the cylinder's curvature.
-- [ ] Floor markings' slope depth bias lets edge lines show through a
-      ramp's thin toe from low, distant views (seen in PR 4.3.4 QA). Fix it
-      with the route's ramps.
+The route stays clearly lit at deep dusk (89.5°).
+
+- [x] 4.4.1: Carry-overs from PR 4.3.5, then the route layout. Shipped:
+      the sun renders at the habitat model's brightness, and the
+      lost-WebGL-context tests allow for the software renderer's slow dusk
+      frames. Falls View Park is a walled blockout of the full route, about
+      550 m a lap with 4.5 m lanes for four karts abreast; its downhill
+      forks into a jump lane and a gentle lane. A course may carry eight
+      floodlights (schema v5, no migration); Falls View Park places eight
+      outdoors, within the phone budget.
+- [ ] 4.4.2: Utility tunnel, with its own lights. Habitat light and lamps
+      pass through walls today, so an interior renders as bright as outside;
+      debrief the fix first.
+- [ ] 4.4.3: Tree nursery rows, and how their trees look.
+- [ ] 4.4.4: Stream, culvert, and levee vista, and how the water looks.
+- [ ] 4.4.5: Downhill run and spin jump. Floor markings' slope depth bias
+      lets edge lines show through a ramp's thin toe from low, distant views
+      (seen in PR 4.3.4 QA); fix it with these ramps. Karts hop down a
+      steady slope at speed, because grounded heave damping acts only on
+      near-level support (seen on the 4.4.1 descent); decide whether the
+      downhill needs a versioned physics change.
+- [ ] 4.4.6: Return lane and finish: a final lighting pass, an iPhone
+      `?perf=1` run on the finished route, and the route in production.
+      Falls View Park is published there, so extend the guarded seed reset
+      to `falls-view-park`, then an admin publishes it.
 
 **PR 4.5: Ambience and SFX**
 

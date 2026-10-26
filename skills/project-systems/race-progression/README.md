@@ -124,9 +124,8 @@ Focused coverage includes:
 
 - Race results and progress are session-memory only; results, ghosts, and
   leaderboards arrive in Phase 5.
-- The rough course is the development loop. Falls View Park shares its
-  layout, gates, and recoveries; its own circuit will need its own
-  placements and QA.
+- The rough course is the development loop. Falls View Park has its own
+  circuit, gates, and recoveries.
 - Recovery support uses the accepted authored candidate chain and current
   PlayCanvas/Ammo raycast mapping; moving course geometry still requires
   course-specific clearance QA before publication.
