@@ -9,6 +9,7 @@ import {
   courseDocumentSchema,
   FALLS_VIEW_PARK_DOCUMENT,
   getCourseStartTransform,
+  isCoursePrimitiveObject,
   parseCourseDocument,
   ROUGH_COURSE_DOCUMENT,
   serializeCourseDocument,
@@ -91,7 +92,9 @@ function createVersionOneSeed() {
 }
 
 function findObject(id: string) {
-  return ROUGH_COURSE_DOCUMENT.objects.find((object) => object.id === id);
+  return ROUGH_COURSE_DOCUMENT.objects
+    .filter(isCoursePrimitiveObject)
+    .find((object) => object.id === id);
 }
 
 test("parses the versioned rough course with stable IDs and ordered checkpoints", () => {
@@ -249,8 +252,9 @@ test("adds course lamps and night mirrors from schema version five", () => {
 });
 
 test("adds indoor objects, overhead objects, and tunnel lamps from schema version six", () => {
-  // Version five upgrades unchanged, but has no tunnel lamps or indoors.
+  // Version five upgrades unchanged, but has no tunnel lamps, indoors or arcs.
   const outdoors = structuredClone(FALLS_VIEW_PARK_DOCUMENT);
+  outdoors.objects = outdoors.objects.filter(isCoursePrimitiveObject);
   outdoors.objects.forEach((object) => {
     delete object.indoors;
     delete object.overhead;
@@ -384,12 +388,89 @@ test("keeps the expanded ground approximately 1.5 times its original area", () =
   expect(expandedArea / originalArea).toBeCloseTo(1.5, 1);
 });
 
+test("adds smooth arcs in schema version six", () => {
+  const barrier = FALLS_VIEW_PARK_DOCUMENT.objects.find(
+    ({ id }) => id === "tunnel-bend-barrier-inner",
+  )!;
+  expect(barrier.visual).toEqual({
+    arc: { height: 0.5, innerRadius: 4.45, sweep: 90, width: 0.3 },
+    material: "obstacleBlock",
+    shape: "arc",
+  });
+  expect(barrier.collision).toMatchObject({
+    role: "solid-obstacle",
+    shape: "arc",
+  });
+
+  const withArc = (change: (object: Record<string, unknown>) => void) => {
+    const document = structuredClone(FALLS_VIEW_PARK_DOCUMENT);
+    const object = document.objects.find(({ id }) => id === barrier.id)!;
+    change(object as unknown as Record<string, unknown>);
+    return courseDocumentSchema.safeParse(document).error?.issues ?? [];
+  };
+  const index = FALLS_VIEW_PARK_DOCUMENT.objects.indexOf(barrier);
+  expect(withArc(() => {})).toEqual([]);
+  // Arcs collide as arcs, and only as walls.
+  expect(
+    withArc((object) => {
+      object.collision = structuredClone(
+        FALLS_VIEW_PARK_DOCUMENT.objects.find(
+          ({ id }) => id === "tunnel-pipe-bay",
+        )!.collision,
+      );
+    }),
+  ).toContainEqual(
+    expect.objectContaining({
+      path: ["objects", index, "collision", "shape"],
+    }),
+  );
+  expect(
+    withArc((object) => {
+      (object.collision as { role: string }).role = "drivable-surface";
+    }),
+  ).not.toEqual([]);
+  expect(
+    withArc((object) => {
+      object.lamp = "tunnel";
+    }),
+  ).toContainEqual(
+    expect.objectContaining({ path: ["objects", index, "visual", "shape"] }),
+  );
+  expect(
+    withArc((object) => {
+      (object.visual as { arc: { width: number } }).arc.width = 196;
+    }),
+  ).toContainEqual(
+    expect.objectContaining({
+      message: "An arc's outer radius is at most 200 m",
+    }),
+  );
+  // A box cannot collide as an arc either.
+  const boxAsArc = structuredClone(FALLS_VIEW_PARK_DOCUMENT);
+  boxAsArc.objects[0]!.collision = structuredClone(barrier.collision);
+  expect(courseDocumentSchema.safeParse(boxAsArc).success).toBe(false);
+  // Version five has no arcs: without its other version-six fields, the
+  // seed fails as version five only while it keeps them.
+  const versionFive = structuredClone(FALLS_VIEW_PARK_DOCUMENT);
+  versionFive.objects.forEach((object) => {
+    delete object.indoors;
+    delete object.overhead;
+  });
+  expect(() =>
+    parseCourseDocument({ ...versionFive, schemaVersion: 5 }),
+  ).toThrow();
+  versionFive.objects = versionFive.objects.filter(isCoursePrimitiveObject);
+  expect(() =>
+    parseCourseDocument({ ...versionFive, schemaVersion: 5 }),
+  ).not.toThrow();
+});
+
 test("draws every drivable surface at its collision top", () => {
   const surfaces = [ROUGH_COURSE_DOCUMENT, FALLS_VIEW_PARK_DOCUMENT].flatMap(
     (document) =>
-      document.objects.filter(
-        (object) => object.collision?.role === "drivable-surface",
-      ),
+      document.objects
+        .filter(isCoursePrimitiveObject)
+        .filter((object) => object.collision?.role === "drivable-surface"),
   );
 
   expect(surfaces.length).toBeGreaterThan(0);
@@ -422,15 +503,17 @@ test("rests every visual-only marking on the drivable surface beneath it", () =>
 });
 
 function expectMarkingsRestOnSurfaces(document: CourseDocument) {
-  const surfaces = document.objects.filter(
-    (object) =>
-      object.collision?.role === "drivable-surface" &&
-      object.transform.rotation.x === 0 &&
-      object.transform.rotation.z === 0,
-  );
-  const markings = document.objects.filter(
-    (object) => object.category === "marker",
-  );
+  const surfaces = document.objects
+    .filter(isCoursePrimitiveObject)
+    .filter(
+      (object) =>
+        object.collision?.role === "drivable-surface" &&
+        object.transform.rotation.x === 0 &&
+        object.transform.rotation.z === 0,
+    );
+  const markings = document.objects
+    .filter(isCoursePrimitiveObject)
+    .filter((object) => object.category === "marker");
 
   expect(markings.length).toBeGreaterThan(0);
   for (const marking of markings) {
@@ -472,7 +555,24 @@ test("keeps every start and recovery pose clear of solid obstacles", () => {
       })),
     ];
     for (const object of document.objects) {
-      const { collision } = object;
+      const { collision, visual } = object;
+      if (collision?.shape === "arc" && visual.shape === "arc") {
+        for (const pose of poses) {
+          const local = toObjectFrame(object, { ...pose, y: pose.y + 0.15 });
+          const radius = Math.hypot(local.x, local.z);
+          const angle =
+            (Math.atan2(-local.z, local.x) + 2 * Math.PI) % (2 * Math.PI);
+          const { height, innerRadius, sweep, width } = visual.arc;
+          const inside =
+            radius >= innerRadius &&
+            radius <= innerRadius + width &&
+            local.y >= 0 &&
+            local.y <= height &&
+            angle <= (sweep * Math.PI) / 180;
+          expect(inside, `${pose.id} inside ${object.id}`).toBe(false);
+        }
+        continue;
+      }
       if (collision?.role !== "solid-obstacle" || collision.shape !== "box") {
         continue;
       }
@@ -665,7 +765,9 @@ test("rejects non-contiguous checkpoint order", () => {
 
 test("rejects non-positive primitive dimensions", () => {
   const input = cloneSeed();
-  input.objects[0].visual.scale.x = 0;
+  const ground = input.objects[0]!;
+  if (ground.visual.shape === "arc") throw new Error("Expected a box");
+  ground.visual.scale.x = 0;
 
   const result = courseDocumentSchema.safeParse(input);
 

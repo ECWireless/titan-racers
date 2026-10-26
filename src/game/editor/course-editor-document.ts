@@ -1,9 +1,13 @@
+import type { CourseArc } from "../course/course-arc";
 import {
   COURSE_CHECKPOINT_LIMIT,
   COURSE_LAMP_LIMIT,
   countCourseLamps,
   type CourseDocument,
+  courseDocumentSchema,
   type CourseObject,
+  type CoursePrimitiveObject,
+  isCoursePrimitiveObject,
   parseCourseDocument,
   rotateCourseDirection,
 } from "../course/course-document";
@@ -11,6 +15,7 @@ import {
 export const COURSE_OBJECT_PRESETS = [
   "block",
   "barrier",
+  "curve",
   "barrel",
   "ramp",
   "platform",
@@ -136,6 +141,24 @@ const PRESET_OBJECTS: Record<
       shape: "box",
     },
   },
+  // A quarter-circle 0.5 m race barrier, smooth and sized by its arc.
+  curve: {
+    availability: "standard",
+    category: "obstacle",
+    collision: {
+      surfaceMaterial: { id: "surface.standard-course", version: 1 },
+      friction: 0.8,
+      restitution: 0,
+      role: "solid-obstacle",
+      shape: "arc",
+    },
+    editable: true,
+    visual: {
+      arc: { height: 0.5, innerRadius: 4, sweep: 90, width: 0.3 },
+      material: "obstacleBlock",
+      shape: "arc",
+    },
+  },
   barrel: {
     availability: "standard",
     category: "obstacle",
@@ -249,10 +272,13 @@ export function addCourseObjectPreset(
     object.id.startsWith(`${preset}-`),
   ).length;
   const template = PRESET_OBJECTS[preset];
+  // Boxes and cylinders stand on their centres, arcs on their bases.
   const y =
     template.collision?.shape === "box"
       ? template.collision.halfExtents.y
-      : (template.collision?.height ?? 1) / 2;
+      : template.collision?.shape === "cylinder"
+        ? template.collision.height / 2
+        : 0;
   const object: CourseObject = {
     ...structuredClone(template),
     id,
@@ -377,13 +403,45 @@ export function getSelectionGeometry(
   }
 
   const object = document.objects.find(({ id }) => id === selection.id);
-  return object
-    ? {
-        position: { ...object.transform.position },
-        rotation: { ...object.transform.rotation },
-        scale: { ...object.visual.scale },
-      }
-    : null;
+  if (!object) return null;
+  return {
+    position: { ...object.transform.position },
+    rotation: { ...object.transform.rotation },
+    ...(object.visual.shape === "arc"
+      ? {}
+      : { scale: { ...object.visual.scale } }),
+  };
+}
+
+/**
+ * Resizes an arc wall. Its collision boxes follow from these dimensions, and
+ * the schema keeps them in range: an edit beyond it leaves the arc unchanged.
+ */
+export function updateSelectionArc(
+  document: CourseDocument,
+  selection: CourseEditorSelection,
+  arc: CourseArc,
+) {
+  const next = courseDocumentSchema.safeParse({
+    ...document,
+    objects: document.objects.map((object) =>
+      object.id === selection.id && object.visual.shape === "arc"
+        ? {
+            ...object,
+            visual: {
+              ...object.visual,
+              arc: {
+                height: roundEditorValue(arc.height),
+                innerRadius: roundEditorValue(arc.innerRadius),
+                sweep: roundEditorValue(arc.sweep),
+                width: roundEditorValue(arc.width),
+              },
+            },
+          }
+        : object,
+    ),
+  });
+  return next.success ? parseCourseDocument(next.data) : document;
 }
 
 export function updateSelectionGeometry(
@@ -451,6 +509,10 @@ export function updateSelectionGeometry(
     objects: document.objects.map((object) => {
       if (object.id !== selection.id) {
         return object;
+      }
+      // An arc is sized by its own dimensions; see updateSelectionArc.
+      if (!isCoursePrimitiveObject(object)) {
+        return { ...object, transform: { position, rotation } };
       }
 
       const requestedScale = geometry.scale
@@ -748,7 +810,7 @@ function radialAxes(axis: 0 | 1 | 2) {
 }
 
 function normalizeCylinderScale(
-  object: CourseObject,
+  object: CoursePrimitiveObject,
   requestedScale: { x: number; y: number; z: number },
 ) {
   if (object.collision?.shape !== "cylinder") {

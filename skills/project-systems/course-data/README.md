@@ -52,6 +52,9 @@ own editor commands or persistence UI.
   PlayCanvas visual, collision, rigid-body, tag, group, and mask state. It
   returns stable-ID entity maps plus two explicit sandbox obstacle lookups used
   by reset-clearance checks and the non-production scene test adapter.
+- `src/game/course/course-arc.ts` generates an arc's smooth surface and its
+  collision boxes from its dimensions, at 3 mm visual and 5 mm collision
+  tolerance; the builder turns them into a render mesh and static box bodies.
 - `src/game/course/course-visual-policy.ts` owns the depth-bias tiers that
   order coplanar surface layers, maps material keys to them, and decides which
   thin layers draw only their top face.
@@ -67,6 +70,8 @@ own editor commands or persistence UI.
   accepts a validated course document, passes repository-owned material
   instances to the builder, and projects the same published document through
   course geometry, start, collision, and lighting construction.
+- `tests/course-arc.spec.ts` owns the arc generator: segment counts, chord
+  error, normals and winding, and collision boxes that meet on the outer face.
 - `tests/course-document.spec.ts` owns schema, seed, catalog, stable-ID,
   checkpoint-order, canonical round-trip, invalid-input, and retained-geometry
   assertions.
@@ -104,6 +109,16 @@ restitution, and a versioned `surfaceMaterial` reference. Visual material never
 selects tire grip. An object marked `lamp: "floodlight"` is a floodlight's mast:
 `course-lamps.ts` adds the arm, luminaire, and spot light on its top, reaching
 along its local -Z. A course has at most eight lamps (`COURSE_LAMP_LIMIT`).
+
+Version six adds arcs. An arc's visual has no scale: `visual.arc` holds its
+inner radius (≥ 0.05 m), width (≥ 0.1 m), height, and sweep (up to 360°), with
+an outer radius of at most 200 m. It sweeps about the object's origin, at its
+base, from local +X toward local −Z, so bends that share a centre share a
+position. Its collision is `{ shape: "arc" }` with friction, restitution, a
+surface material, and the solid-obstacle role only; arcs and only arcs collide
+as arcs, and lamps never stand on them. Segment counts and collision boxes are
+derived at build time, never stored. `isCoursePrimitiveObject` narrows to the
+box and cylinder objects that have a scale.
 
 Coordinates and dimensions are finite and bounded to the accepted authoring
 envelope. Unknown fields and unsupported enum values fail rather than being
@@ -211,9 +226,10 @@ exposed in the UI.
 
 - The runtime test adapter keeps two explicit barrel IDs for collision-transform
   fixtures.
-- Box and cylinder are the only approved primitives; ramps and other palette
-  entries are presets over them. New primitive kinds need runtime, collision,
-  and round-trip evidence.
+- Box, cylinder, and arc are the approved primitives; ramps and other palette
+  entries are presets over them. Arcs are walls only: curved decks, rising and
+  banked arcs are not yet supported. New primitive kinds need runtime,
+  collision, and round-trip evidence.
 - Arbitrary placeable lights, skyboxes, fog, and post-processing are deferred.
 - Wheel contacts jitter at speed on long elevated decks, so drivable decks
   and roads come in pieces of at most about 20 m.

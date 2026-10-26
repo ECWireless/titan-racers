@@ -55,6 +55,10 @@ A game-concept node should normally cover:
 - [`chase-camera/`](chase-camera/README.md): the accepted engine-independent
   standard for motion-led vehicle framing, slip readability, impacts, airborne
   behavior, obstruction handling, and reset coherence.
+- [`curved-course-geometry/`](curved-course-geometry/README.md): the
+  candidate standard for smooth curved walls and barriers: error-based
+  tessellation, mitred shared rings, smooth shading with sharp folds, and
+  convex collision pieces that meet on the convex side.
 - [`collisions/`](collisions/README.md): the accepted engine-independent
   standard for forgiving, physically coherent vehicle contacts, collision
   geometry, impact response, snag prevention, and tunneling protection.

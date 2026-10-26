@@ -46,6 +46,31 @@ Do not infer an authored collider from render scale inside the engine adapter.
 The seed may deliberately use matching values, but visual and physical geometry
 remain separate authored inputs.
 
+### Arcs
+
+A document `arc` (see [curved course
+geometry](../../../game-concepts/curved-course-geometry/README.md)) is built to
+size at scale 1, about its entity origin:
+
+- **Visual:** one generated `pc.Mesh` on a `render` component. It must carry
+  the box primitive's vertex streams (position, normal, UV0, UV1, all float32;
+  `scene/geometry/box-geometry.js`) and cast shadows like boxes, because the
+  static batcher splits batches on material, layer, vertex-format
+  `batchingHash`, indexing, `_shaderDefs` (which include UV presence), and
+  `castShadow` (`scene/batching/batch-manager.js`). Matching them lets arcs
+  merge into their finish's existing batch: no extra draw calls, no new shader
+  program. The course finishes sample world position, so UVs are placeholders.
+  A mesh instance frees its mesh when the instance is destroyed, so generated
+  meshes need no separate ownership.
+- **Collision:** one static box rigidbody per generated piece, on child
+  entities tagged like the arc's role. Separate static bodies match how
+  authored boxes already behave (contacts, the chase camera's ray, the static
+  broadphase) and avoid compound-shape construction order.
+- **Not used:** triangle meshes (the vendored Ammo build has no
+  `btGenerateInternalEdgeInfo`/`btTriangleInfoMap`, so internal edges cannot be
+  corrected) and convex hulls (PlayCanvas forces a 1 cm hull margin,
+  `framework/components/collision/system.js`).
+
 ## Lighting Mapping
 
 Map the enclosure's sun to one PlayCanvas directional light entity. A
@@ -88,7 +113,8 @@ No partial best-effort course is permitted.
 
 Diagnostics visualize the document's authoritative collision union rather than
 querying or copying Ammo shapes. Boxes can be rendered from half-extents and
-local offsets; cylinders from radius, height, axis, and offsets. Use dedicated
+local offsets; cylinders from radius, height, axis, and offsets; arcs from the
+same generated pieces the runtime builds. Use dedicated
 debug materials or PlayCanvas immediate lines without physics participation.
 
 PlayCanvas `Application.drawLine` and related immediate-line methods accept
@@ -177,6 +203,12 @@ creates one history command. The same document helper applies Inspector group
 nudges in a single validation pass. Start and checkpoint selection always
 replace the group; rotate, scale, rename, and delete stay single-selection only.
 
+Arcs keep translate and rotate gizmos at their origin, the arc's centre, so
+they turn about it; the scale gizmo does not attach to them. The inspector
+steps their dimensions instead, and an edit outside the schema's range leaves
+the arc unchanged. `Picker` resolves the generated mesh like any primitive;
+the selection outline is the arc's own surface grown 2 cm.
+
 ## Verification
 
 1. Every seed object produces the expected entity name, transform, material,
@@ -193,7 +225,7 @@ replace the group; rotate, scale, rename, and delete stay single-selection only.
 
 ## Known Limits
 
-- Box and cylinder are the only approved primitives.
-- Course object and kart visuals use PlayCanvas `model` components; adopting
-  `render` components would be a separate migration. A course lamp's added
-  arm and luminaire use `render`.
+- Box, cylinder, and arc are the approved primitives; arcs are walls only.
+- Box and cylinder visuals use PlayCanvas `model` components; adopting
+  `render` components for them would be a separate migration. Arcs, top-face
+  layers, and a course lamp's arm and luminaire use `render`.

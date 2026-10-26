@@ -7,7 +7,10 @@ import {
   type RoughCourseMaterials,
   selectCourseObjectsForBuild,
 } from "../src/game/course/build-rough-course";
-import { ROUGH_COURSE_DOCUMENT } from "../src/game/course/course-document";
+import {
+  FALLS_VIEW_PARK_DOCUMENT,
+  ROUGH_COURSE_DOCUMENT,
+} from "../src/game/course/course-document";
 import {
   PHYSICS_GROUP,
   PHYSICS_MASK,
@@ -103,6 +106,26 @@ test("maps exact box, cylinder, and visual-only branches", () => {
     collision: null,
     physics: null,
     visual: { material: "line", shape: "box" },
+  });
+});
+
+test("maps arcs to solid obstacles built to size", () => {
+  const barrier = FALLS_VIEW_PARK_DOCUMENT.objects.find(
+    ({ id }) => id === "tunnel-bend-barrier-outer",
+  )!;
+  expect(projectCourseObject(barrier)).toMatchObject({
+    collision: { role: "solid-obstacle", shape: "arc" },
+    physics: {
+      friction: 0.7,
+      group: PHYSICS_GROUP.solidObstacle,
+      mask: PHYSICS_MASK.solidObstacle,
+      restitution: 0,
+      tag: "obstacle",
+    },
+    visual: {
+      arc: { height: 0.5, innerRadius: 9.25, sweep: 90, width: 0.3 },
+      shape: "arc",
+    },
   });
 });
 

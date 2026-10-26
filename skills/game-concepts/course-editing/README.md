@@ -75,15 +75,17 @@ and layer IDs instead of using display order as identity:
 
 ## Primitive Catalog
 
-Keep the catalog to the smallest set already proven in play (currently box and
-cylinder).
+Keep the catalog to the smallest set already proven in play (currently box,
+cylinder, and arc). An arc is a smooth curved wall sized by its own dimensions
+rather than a scale; see [curved course
+geometry](../curved-course-geometry/README.md).
 
 Visual geometry and collision geometry are deliberately separate fields. A
 visual primitive owns its display scale and semantic material. An optional
 collision union owns shape-specific physical dimensions, local offset, local
 rotation, and one semantic role: drivable surface or solid obstacle.
 
-Editor placement uses approved presets such as block, barrier, barrel,
+Editor placement uses approved presets such as block, barrier, curve, barrel,
 ramp, and platform. Presets create ordinary document objects with safe defaults;
 they are not additional persisted engine shape types. A ramp is a rotated box.
 New primitive kinds require focused runtime, collision, visualization, and

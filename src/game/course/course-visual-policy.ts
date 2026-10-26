@@ -51,14 +51,15 @@ function getCourseSurfaceLayer(
 
 // A thin, level layer only ever shows its top face. Drawing just that face
 // keeps the slope-scaled layer bias from pulling its hidden side faces through
-// the layers above it as dark seams.
+// the layers above it as dark seams. Arcs, which have no scale, never do.
 export function drawsCourseTopFaceOnly(object: {
   id: string;
   transform: { rotation: { x: number; z: number } };
-  visual: { material: CourseVisualMaterial; scale: { y: number } };
+  visual: { material: CourseVisualMaterial; scale?: { y: number } };
 }) {
   return (
     getCourseSurfaceLayer(object.visual.material, object.id) !== null &&
+    object.visual.scale !== undefined &&
     object.visual.scale.y <= COURSE_SURFACE_OVERLAY_MAX_THICKNESS &&
     object.transform.rotation.x === 0 &&
     object.transform.rotation.z === 0

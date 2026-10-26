@@ -17,6 +17,7 @@ import {
   updateCourseEditorSelections,
   updateMirrorAngle,
   updateObjectSelectionPositions,
+  updateSelectionArc,
   updateSelectionGeometry,
 } from "../src/game/editor/course-editor-document";
 
@@ -143,7 +144,7 @@ test.describe("course editor document commands", () => {
     });
     const object = scaled.objects.at(-1);
 
-    expect(object?.visual.scale).toEqual({ x: 4, y: 2, z: 4 });
+    expect(object?.visual).toMatchObject({ scale: { x: 4, y: 2, z: 4 } });
     expect(object?.collision).toMatchObject({
       halfExtents: { x: 2, y: 1, z: 2 },
       shape: "box",
@@ -376,5 +377,50 @@ test.describe("course editor document commands", () => {
     expect(evening.objects).toEqual(document.objects);
     expect(updateMirrorAngle(document, 90).enclosure.mirrorAngle).toBe(90);
     expect(() => updateMirrorAngle(document, 90.5)).toThrow();
+  });
+
+  test("adds a smooth curved barrier and sizes it by its arc", () => {
+    const document = addCourseObjectPreset(
+      structuredClone(ROUGH_COURSE_DOCUMENT),
+      "curve",
+    );
+    const selection = { id: "curve-1", kind: "object" } as const;
+    const curve = document.objects.at(-1)!;
+    expect(curve).toMatchObject({
+      collision: { role: "solid-obstacle", shape: "arc" },
+      id: "curve-1",
+      visual: {
+        arc: { height: 0.5, innerRadius: 4, sweep: 90, width: 0.3 },
+        shape: "arc",
+      },
+    });
+    // An arc stands on its base and has no scale to edit.
+    expect(curve.transform.position.y).toBe(0);
+    expect(getSelectionGeometry(document, selection)?.scale).toBeUndefined();
+    expect(scaleSelectionAxis(document, selection, "x", 2)).toBe(document);
+    expect(scaleSelectionUniformly(document, selection, 2)).toBe(document);
+
+    const arc = { height: 0.6, innerRadius: 6.12345, sweep: 120, width: 0.4 };
+    const resized = updateSelectionArc(document, selection, arc);
+    expect(resized.objects.at(-1)!.visual).toMatchObject({
+      arc: { ...arc, innerRadius: 6.123 },
+    });
+    // Dimensions outside the schema's range leave the arc unchanged.
+    expect(
+      updateSelectionArc(resized, selection, { ...arc, width: 0.05 }),
+    ).toBe(resized);
+    expect(updateSelectionArc(resized, selection, { ...arc, sweep: 365 })).toBe(
+      resized,
+    );
+
+    // Moving and turning it keep its dimensions.
+    const moved = updateSelectionGeometry(resized, selection, {
+      position: { x: 1, y: 0, z: 2 },
+      rotation: { x: 0, y: 30, z: 0 },
+    });
+    expect(moved.objects.at(-1)).toMatchObject({
+      transform: { position: { x: 1, y: 0, z: 2 }, rotation: { y: 30 } },
+      visual: resized.objects.at(-1)!.visual,
+    });
   });
 });

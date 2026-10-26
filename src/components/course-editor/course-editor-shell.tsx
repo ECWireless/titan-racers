@@ -43,7 +43,9 @@ import {
   scaleSelectionAxis,
   updateCourseEditorSelections,
   updateMirrorAngle,
+  updateSelectionArc,
 } from "@/game/editor/course-editor-document";
+import type { CourseArc } from "@/game/course/course-arc";
 import type { CourseEditorTool } from "@/game/editor/course-editor-scene";
 import { CommandHistory } from "@/game/editor/command-history";
 import { useEditorController } from "@/game/input/use-editor-controller";
@@ -445,6 +447,13 @@ export function CourseEditorShell({
     commitDocument(
       `Scale ${selection.id}`,
       scaleSelectionAxis(document, selection, axis, multiplier),
+    );
+  }
+
+  function resizeArc(arc: CourseArc) {
+    commitDocument(
+      `Resize ${selection.id}`,
+      updateSelectionArc(document, selection, arc),
     );
   }
 
@@ -1277,6 +1286,11 @@ export function CourseEditorShell({
             canDelete={canDelete}
             geometry={selectedGeometry}
             objectName={selectedObject?.label ?? selectedObject?.id ?? null}
+            arc={
+              selectedObject?.visual.shape === "arc"
+                ? selectedObject.visual.arc
+                : null
+            }
             scaleShape={selectedObject?.visual.shape ?? "box"}
             selection={selection}
             selectionCount={selections.length}
@@ -1284,6 +1298,7 @@ export function CourseEditorShell({
             sectionOpen={sectionOpen}
             onDelete={deleteSelection}
             onNudge={nudge}
+            onArc={resizeArc}
             onRename={renameObject}
             onScale={scaleAxis}
             onSectionToggle={toggleSection}
@@ -1330,6 +1345,11 @@ export function CourseEditorShell({
                 canDelete={canDelete}
                 geometry={selectedGeometry}
                 objectName={selectedObject?.label ?? selectedObject?.id ?? null}
+                arc={
+                  selectedObject?.visual.shape === "arc"
+                    ? selectedObject.visual.arc
+                    : null
+                }
                 scaleShape={selectedObject?.visual.shape ?? "box"}
                 selection={selection}
                 selectionCount={selections.length}
@@ -1337,6 +1357,7 @@ export function CourseEditorShell({
                 sectionOpen={sectionOpen}
                 onDelete={deleteSelection}
                 onNudge={nudge}
+                onArc={resizeArc}
                 onRename={renameObject}
                 onScale={scaleAxis}
                 onSectionToggle={toggleSection}
@@ -2269,10 +2290,12 @@ function SelectionRow({
 }
 
 function Inspector({
+  arc,
   canDelete,
   geometry,
   groupPosition,
   objectName,
+  onArc,
   onDelete,
   onNudge,
   onRename,
@@ -2283,6 +2306,7 @@ function Inspector({
   selection,
   selectionCount,
 }: {
+  arc: CourseArc | null;
   canDelete: boolean;
   geometry: ReturnType<typeof getSelectionGeometry>;
   groupPosition: { x: number; y: number; z: number } | null;
@@ -2293,10 +2317,11 @@ function Inspector({
     axis: "x" | "y" | "z",
     delta: number,
   ) => void;
+  onArc: (arc: CourseArc) => void;
   onRename: (label: string) => void;
   onScale: (axis: "x" | "y" | "z", multiplier: number) => void;
   onSectionToggle: (section: EditorSection) => void;
-  scaleShape: "box" | "cylinder";
+  scaleShape: "arc" | "box" | "cylinder";
   sectionOpen: Record<EditorSection, boolean>;
   selection: CourseEditorSelection;
   selectionCount: number;
@@ -2394,6 +2419,15 @@ function Inspector({
         onNudge={(axis, delta) => onNudge("rotation", axis, delta)}
       />
       </CollapsibleSection>
+      {arc ? (
+        <CollapsibleSection
+          open={sectionOpen["inspector-scale"]}
+          title="Arc"
+          onToggle={() => onSectionToggle("inspector-scale")}
+        >
+          <ArcFields arc={arc} onArc={onArc} />
+        </CollapsibleSection>
+      ) : null}
       {geometry.scale ? (
         <CollapsibleSection
           open={sectionOpen["inspector-scale"]}
@@ -2457,6 +2491,72 @@ function Inspector({
       </button>
       </CollapsibleSection>
     </div>
+  );
+}
+
+// An arc's dimensions, each stepped in its own unit down to its minimum.
+const ARC_FIELDS = [
+  {
+    field: "innerRadius",
+    label: "Inner radius",
+    min: 0.05,
+    step: 0.25,
+    unit: "m",
+  },
+  { field: "width", label: "Width", min: 0.1, step: 0.05, unit: "m" },
+  { field: "height", label: "Height", min: 0.05, step: 0.1, unit: "m" },
+  { field: "sweep", label: "Sweep", min: 5, step: 5, unit: "°" },
+] as const;
+
+function ArcFields({
+  arc,
+  onArc,
+}: {
+  arc: CourseArc;
+  onArc: (arc: CourseArc) => void;
+}) {
+  return (
+    <fieldset className="grid gap-2">
+      <legend className="mb-1 font-bold uppercase tracking-[0.12em] text-titan-muted">
+        Dimensions
+      </legend>
+      {ARC_FIELDS.map(({ field, label, min, step, unit }) => (
+        <div
+          className="grid grid-cols-[5.5rem_1fr_2.75rem_2.75rem] items-center gap-2"
+          key={field}
+        >
+          <span className="font-bold uppercase text-titan-muted">{label}</span>
+          <output
+            className="truncate text-right text-titan-ice/86"
+            data-testid={`arc-${field}-value`}
+          >
+            {arc[field].toFixed(2)} {unit}
+          </output>
+          <button
+            aria-label={`${label} decrease`}
+            className="h-10 border border-titan-ice/18 text-base hover:border-titan-hazard hover:text-titan-hazard"
+            type="button"
+            onClick={() =>
+              onArc({ ...arc, [field]: Math.max(min, arc[field] - step) })
+            }
+          >
+            −
+          </button>
+          <button
+            aria-label={`${label} increase`}
+            className="h-10 border border-titan-ice/18 text-base hover:border-titan-hazard hover:text-titan-hazard"
+            type="button"
+            onClick={() => onArc({ ...arc, [field]: arc[field] + step })}
+          >
+            +
+          </button>
+        </div>
+      ))}
+      <p className="text-[0.62rem] leading-relaxed text-titan-muted">
+        The arc turns about its origin from its local X axis; its collision
+        follows its dimensions.
+      </p>
+    </fieldset>
   );
 }
 

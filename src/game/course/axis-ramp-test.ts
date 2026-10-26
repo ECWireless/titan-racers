@@ -157,6 +157,7 @@ function openPerimeter(objects: CourseObject[], along: Vector3) {
     if (
       !object.id.startsWith("perimeter-wall") ||
       collision?.shape !== "box" ||
+      object.visual.shape === "arc" ||
       collision.offset.position.x !== 0 ||
       collision.offset.position.z !== 0 ||
       rotation.x !== 0 ||
@@ -165,6 +166,7 @@ function openPerimeter(objects: CourseObject[], along: Vector3) {
     ) {
       return [object];
     }
+    const { visual } = object;
     const long = collision.halfExtents.x > collision.halfExtents.z ? "x" : "z";
     const across = long === "x" ? "z" : "x";
     if (Math.abs(along[across]) < 1e-6) return [object];
@@ -193,10 +195,7 @@ function openPerimeter(objects: CourseObject[], along: Vector3) {
             ...object.transform,
             position: { ...position, [long]: centre },
           },
-          visual: {
-            ...object.visual,
-            scale: { ...object.visual.scale, [long]: length },
-          },
+          visual: { ...visual, scale: { ...visual.scale, [long]: length } },
         };
       });
   });

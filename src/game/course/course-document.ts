@@ -109,6 +109,35 @@ const courseObjectSchema = courseObjectV2Schema.extend({
     .nullable(),
 });
 
+// An arc sweeps a rectangular section about its object's origin; see
+// course-arc.ts. Its outer edge stays within the course's ±200 m.
+const arcSchema = z
+  .strictObject({
+    height: z.number().finite().positive().max(100),
+    innerRadius: z.number().finite().min(0.05).max(200),
+    sweep: z.number().finite().positive().max(360),
+    width: z.number().finite().min(0.1).max(100),
+  })
+  .refine((arc) => arc.innerRadius + arc.width <= 200, {
+    message: "An arc's outer radius is at most 200 m",
+    path: ["width"],
+  });
+
+const arcVisualSchema = z.strictObject({
+  arc: arcSchema,
+  material: visualSchema.shape.material,
+  shape: z.literal("arc"),
+});
+
+// Arcs collide only as walls: their boxes never support a kart.
+const arcCollisionSchema = z.strictObject({
+  friction: collisionBaseSchema.shape.friction,
+  restitution: collisionBaseSchema.shape.restitution,
+  role: z.literal("solid-obstacle"),
+  shape: z.literal("arc"),
+  surfaceMaterial: surfaceMaterialSchema,
+});
+
 const courseStartV1Schema = transformSchema.extend({
   id: courseIdSchema,
 });
@@ -350,15 +379,23 @@ const courseDocumentV5Schema = courseDocumentV5BaseSchema.superRefine(
 );
 
 // Version six adds indoor objects, lit only by tunnel lamps and an interior
-// environment, overhead objects the editor can cut away, and tunnel lamps.
+// environment, overhead objects the editor can cut away, tunnel lamps, and
+// smooth arcs.
 export const courseDocumentSchema = courseDocumentV5BaseSchema
   .extend({
     objects: courseDocumentV3BaseSchema.shape.objects.element
       .extend({
+        collision: z
+          .discriminatedUnion("shape", [
+            ...courseObjectSchema.shape.collision.unwrap().options,
+            arcCollisionSchema,
+          ])
+          .nullable(),
         indoors: z.literal(true).optional(),
         // A tunnel lamp's luminaire and light hang beneath the object.
         lamp: z.enum(["floodlight", "tunnel"]).optional(),
         overhead: z.literal(true).optional(),
+        visual: z.discriminatedUnion("shape", [visualSchema, arcVisualSchema]),
       })
       .array()
       .min(1)
@@ -400,6 +437,23 @@ export const courseDocumentSchema = courseDocumentV5BaseSchema
           path: ["objects", index, "collision", "role"],
         });
       }
+      if (
+        object.collision &&
+        (object.collision.shape === "arc") !== (object.visual.shape === "arc")
+      ) {
+        context.addIssue({
+          code: "custom",
+          message: "Arcs collide as arcs, and only arcs do",
+          path: ["objects", index, "collision", "shape"],
+        });
+      }
+      if (object.lamp && object.visual.shape === "arc") {
+        context.addIssue({
+          code: "custom",
+          message: "Lamps stand on boxes or cylinders",
+          path: ["objects", index, "visual", "shape"],
+        });
+      }
     });
   });
 
@@ -409,6 +463,17 @@ type CourseDocumentV4 = z.infer<typeof courseDocumentV4Schema>;
 export type CourseDocument = z.infer<typeof courseDocumentSchema>;
 export type CourseObject = CourseDocument["objects"][number];
 export type CourseVisualMaterial = CourseObject["visual"]["material"];
+/** A box or cylinder, scaled from a unit primitive; arcs are built to size. */
+export type CoursePrimitiveObject = CourseObject & {
+  collision: Exclude<CourseObject["collision"], { shape: "arc" }>;
+  visual: Exclude<CourseObject["visual"], { shape: "arc" }>;
+};
+
+export function isCoursePrimitiveObject(
+  object: CourseObject,
+): object is CoursePrimitiveObject {
+  return object.visual.shape !== "arc" && object.collision?.shape !== "arc";
+}
 
 const DEFAULT_START_GATE_HALF_EXTENTS = {
   x: 4,

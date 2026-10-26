@@ -60,7 +60,8 @@ test("uses collision bounds and offsets on rotated elevated surfaces", async () 
     position: { x: 0, y: 2, z: 8 },
     rotation: { x: 10, y: 25, z: 0 },
   };
-  if (platform.collision?.shape !== "box") throw new Error("Expected box");
+  if (platform.collision?.shape !== "box" || platform.visual.shape === "arc")
+    throw new Error("Expected box");
   platform.collision.offset.position = { x: 0.5, y: 0, z: 0 };
   platform.collision.halfExtents = { x: 1, y: 0.1, z: 1 };
   platform.visual.scale = { x: 100, y: 100, z: 100 };

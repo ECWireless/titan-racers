@@ -5,7 +5,12 @@ import {
   NEUTRAL_WHITE,
   sceneLux,
 } from "../enclosure/island-three";
-import type { CourseDocument } from "./course-document";
+import {
+  type CourseDocument,
+  type CourseObject,
+  type CoursePrimitiveObject,
+  isCoursePrimitiveObject,
+} from "./course-document";
 
 // A sports floodlight, about 250,000 cd: a circuit is lit to over 1,000 lux.
 const LAMP_CANDELA = 250_000;
@@ -20,6 +25,11 @@ const FALLOFF_SCALE = 16;
 // Floodlights spread wide; beyond 80 m their light is negligible.
 const SPOT = { inner: 50, outer: 75, range: 80 };
 
+// Floodlights stand on boxes or cylinders, never arcs.
+function isFloodlight(object: CourseObject): object is CoursePrimitiveObject {
+  return object.lamp === "floodlight" && isCoursePrimitiveObject(object);
+}
+
 /**
  * The mean illuminance, in lux, the course's floodlights put on its track
  * while on: at its start and checkpoints, from each lamp's top straight down
@@ -27,9 +37,7 @@ const SPOT = { inner: 50, outer: 75, range: 80 };
  * adjust to it.
  */
 export function courseLampLux(document: CourseDocument) {
-  const lamps = document.objects.filter(
-    (object) => object.lamp === "floodlight",
-  );
+  const lamps = document.objects.filter(isFloodlight);
   const points = [
     document.start.position,
     ...document.checkpoints.map((checkpoint) => checkpoint.recovery.position),
@@ -67,9 +75,7 @@ export function addCourseLamps(
   document: CourseDocument,
   { lampsOn, steel }: { lampsOn: number; steel: pc.Material },
 ) {
-  const lamps = document.objects.filter(
-    (object) => object.lamp === "floodlight",
-  );
+  const lamps = document.objects.filter(isFloodlight);
   const definition = getApprovedEnclosure(document.enclosure);
   if (lamps.length === 0 || !definition) return () => {};
 

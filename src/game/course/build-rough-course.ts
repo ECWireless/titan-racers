@@ -9,6 +9,11 @@ import type {
   CourseVisualMaterial,
 } from "./course-document";
 import { ROUGH_COURSE_DOCUMENT } from "./course-document";
+import {
+  type CourseArc,
+  createCourseArcGeometry,
+  getCourseArcCollisionBoxes,
+} from "./course-arc";
 import { CourseSurfaceResolver } from "./course-surface-resolver";
 import {
   drawsCourseTopFaceOnly,
@@ -37,11 +42,12 @@ export type CourseObjectProjection = ReturnType<typeof projectCourseObject>;
 
 // Custom factories must return an unattached entity. The builder owns scene
 // attachment so the complete course batch can be committed atomically. A
-// top-face mesh replaces the visual primitive for thin surface layers.
+// generated mesh replaces the visual primitive: an arc's surface, or the top
+// face of a thin surface layer.
 type CourseEntityFactory = (
   projection: CourseObjectProjection,
   material: pc.StandardMaterial,
-  topFace?: pc.Mesh,
+  mesh?: pc.Mesh,
 ) => pc.Entity;
 
 type BuildRoughCourseOptions = {
@@ -122,17 +128,29 @@ export function buildRoughCourse(
     objects.forEach(
       (object) => {
         const projection = projectCourseObject(object);
-        const entity = createEntity(
-          projection,
-          isCourseBaseGround(projection.visual.material, projection.id)
-            ? projection.visual.material === "lawn"
-              ? materials.baseLawn
-              : materials.baseGround
-            : materials[projection.visual.material],
-          drawsCourseTopFaceOnly(object)
-            ? topFaces?.[object.visual.shape]
-            : undefined,
-        );
+        const arcMesh =
+          object.visual.shape === "arc"
+            ? createCourseArcMesh(app.graphicsDevice, object.visual.arc)
+            : undefined;
+        let entity: pc.Entity;
+        try {
+          entity = createEntity(
+            projection,
+            isCourseBaseGround(projection.visual.material, projection.id)
+              ? projection.visual.material === "lawn"
+                ? materials.baseLawn
+                : materials.baseGround
+              : materials[projection.visual.material],
+            arcMesh ??
+              (object.visual.shape !== "arc" && drawsCourseTopFaceOnly(object)
+                ? topFaces?.[object.visual.shape]
+                : undefined),
+          );
+        } catch (error) {
+          // Free the mesh the entity never took; destroying it twice is safe.
+          arcMesh?.destroy();
+          throw error;
+        }
 
         stagedEntities.push(entity);
         courseEntities.set(object.id, entity);
@@ -149,6 +167,7 @@ export function buildRoughCourse(
 
         if (
           object.category === "obstacle" &&
+          object.visual.shape !== "arc" &&
           isCourseTestObstacleId(object.id)
         ) {
           obstacleEntities.set(object.id, entity);
@@ -184,12 +203,12 @@ export function buildRoughCourse(
 function createCourseEntity(
   projection: CourseObjectProjection,
   material: pc.StandardMaterial,
-  topFace?: pc.Mesh,
+  mesh?: pc.Mesh,
 ) {
   const entity = new pc.Entity(projection.id);
 
   try {
-    return configureCourseEntity(entity, projection, material, topFace);
+    return configureCourseEntity(entity, projection, material, mesh);
   } catch (error) {
     entity.destroy();
     throw error;
@@ -200,17 +219,22 @@ function configureCourseEntity(
   entity: pc.Entity,
   projection: CourseObjectProjection,
   material: pc.StandardMaterial,
-  topFace?: pc.Mesh,
+  mesh?: pc.Mesh,
 ) {
-  addCourseVisual(entity, projection.visual.shape, material, topFace);
+  const { visual } = projection;
+  addCourseVisual(entity, visual.shape, material, mesh);
   entity.setPosition(toVec3(projection.transform.position));
   entity.setEulerAngles(toVec3(projection.transform.rotation));
-  entity.setLocalScale(toVec3(projection.visual.scale));
+  // An arc's mesh is built to size.
+  if (visual.shape !== "arc") entity.setLocalScale(toVec3(visual.scale));
 
   const collision = projection.collision;
   const physics = projection.physics;
 
-  if (collision && physics) {
+  if (collision?.shape === "arc" && physics) {
+    if (visual.shape !== "arc") throw new Error("Arcs collide as arcs");
+    addCourseArcCollision(entity, visual.arc, physics);
+  } else if (collision && collision.shape !== "arc" && physics) {
     const angularOffset = new pc.Quat().setFromEulerAngles(
       collision.offset.rotation.x,
       collision.offset.rotation.y,
@@ -260,19 +284,64 @@ function configureCourseEntity(
 
 export function addCourseVisual(
   entity: pc.Entity,
-  shape: "box" | "cylinder",
+  shape: "arc" | "box" | "cylinder",
   material: pc.StandardMaterial,
-  topFace?: pc.Mesh,
+  mesh?: pc.Mesh,
 ) {
-  if (topFace) {
+  if (mesh) {
     entity.addComponent("render", {
-      castShadows: false,
-      meshInstances: [new pc.MeshInstance(topFace, material)],
+      // A thin layer's top face casts no shadow; an arc casts like a box.
+      castShadows: shape === "arc",
+      meshInstances: [new pc.MeshInstance(mesh, material)],
     });
     return;
   }
+  if (shape === "arc") throw new Error("An arc needs its generated mesh");
   entity.addComponent("model", { type: shape });
   entity.model?.meshInstances?.forEach((meshInstance) => {
     meshInstance.material = material;
+  });
+}
+
+/**
+ * An arc's smooth surface, with the box primitive's vertex streams so it
+ * joins its finish's static batch. Its mesh instance frees it on destroy.
+ */
+export function createCourseArcMesh(device: pc.GraphicsDevice, arc: CourseArc) {
+  const geometry = createCourseArcGeometry(arc);
+  const mesh = new pc.Mesh(device);
+  mesh.setPositions(geometry.positions);
+  mesh.setNormals(geometry.normals);
+  mesh.setUvs(0, geometry.uvs);
+  mesh.setUvs(1, geometry.uvs);
+  mesh.setIndices(geometry.indices);
+  mesh.update();
+  return mesh;
+}
+
+// Each collision box is its own static body, as authored boxes are, under
+// the arc's entity; contacts and the chase camera's ray see their tags.
+function addCourseArcCollision(
+  entity: pc.Entity,
+  arc: CourseArc,
+  physics: NonNullable<CourseObjectProjection["physics"]>,
+) {
+  getCourseArcCollisionBoxes(arc).forEach((box, index) => {
+    const part = new pc.Entity(`${entity.name}-collision-${index + 1}`);
+    part.tags.add(physics.tag);
+    part.setLocalPosition(box.center.x, box.center.y, box.center.z);
+    part.setLocalEulerAngles(0, box.yaw, 0);
+    part.addComponent("collision", {
+      halfExtents: toVec3(box.halfExtents),
+      type: "box",
+    });
+    part.addComponent("rigidbody", {
+      friction: physics.friction,
+      group: physics.group,
+      mask: physics.mask,
+      restitution: physics.restitution,
+      type: pc.BODYTYPE_STATIC,
+    });
+    entity.addChild(part);
   });
 }
