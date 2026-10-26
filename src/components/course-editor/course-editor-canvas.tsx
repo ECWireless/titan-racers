@@ -29,6 +29,7 @@ type CourseEditorCanvasProps = {
     selection: CourseEditorSelection,
     additive: boolean,
   ) => void;
+  roofsHidden: boolean;
   selections: CourseEditorSelections;
   snapEnabled: boolean;
   tool: CourseEditorTool;
@@ -44,6 +45,7 @@ export const CourseEditorCanvas = forwardRef<
     frameRequest,
     onDocumentChange,
     onSelectionChange,
+    roofsHidden,
     selections,
     snapEnabled,
     tool,
@@ -222,6 +224,7 @@ export const CourseEditorCanvas = forwardRef<
     () => sceneRef.current?.setCollisionVisible(collisionVisible),
     [collisionVisible],
   );
+  useEffect(() => sceneRef.current?.setRoofsHidden(roofsHidden), [roofsHidden]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -257,6 +260,7 @@ export const CourseEditorCanvas = forwardRef<
         className="block h-full w-full touch-none cursor-default outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-titan-hazard"
         data-camera-revision={cameraRevision}
         data-colliders-visible={collisionVisible ? "true" : "false"}
+        data-roofs-hidden={roofsHidden ? "true" : "false"}
         data-controller-default="true"
         data-editor-controller-viewport="true"
         data-scene-ready={status === "ready" ? "true" : "false"}

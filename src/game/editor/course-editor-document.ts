@@ -2,6 +2,7 @@ import type { CourseArc } from "../course/course-arc";
 import {
   COURSE_CHECKPOINT_LIMIT,
   COURSE_LAMP_LIMIT,
+  COURSE_TUNNEL_LAMP_LIMIT,
   countCourseLamps,
   type CourseDocument,
   courseDocumentSchema,
@@ -20,11 +21,23 @@ export const COURSE_OBJECT_PRESETS = [
   "ramp",
   "platform",
   "lamp",
+  "tunnel-lamp",
 ] as const;
 export const COURSE_EDITOR_OBJECT_LIMIT = 1_000;
 export const COURSE_EDITOR_CHECKPOINT_LIMIT = COURSE_CHECKPOINT_LIMIT;
 
 export type CourseObjectPreset = (typeof COURSE_OBJECT_PRESETS)[number];
+
+export const COURSE_OBJECT_PRESET_LABELS: Record<CourseObjectPreset, string> = {
+  barrel: "barrel",
+  barrier: "barrier",
+  block: "block",
+  curve: "curve",
+  lamp: "floodlight",
+  platform: "platform",
+  ramp: "ramp",
+  "tunnel-lamp": "tunnel lamp",
+};
 
 export type CourseEditorSelection =
   | { id: string; kind: "checkpoint" }
@@ -231,6 +244,21 @@ const PRESET_OBJECTS: Record<
       shape: "cylinder",
     },
   },
+  // A tunnel's LED luminaire housing; the race hangs its lens and light
+  // beneath it. Tunnel lamps stand indoors.
+  "tunnel-lamp": {
+    availability: "standard",
+    category: "feature",
+    collision: null,
+    editable: true,
+    indoors: true,
+    lamp: "tunnel",
+    visual: {
+      material: "steel",
+      scale: { x: 1.2, y: 0.12, z: 0.36 },
+      shape: "box",
+    },
+  },
   platform: {
     availability: "standard",
     category: "surface",
@@ -262,7 +290,7 @@ export function addCourseObjectPreset(
 ) {
   if (
     document.objects.length >= COURSE_EDITOR_OBJECT_LIMIT ||
-    (preset === "lamp" && courseLampLimitReached(document))
+    coursePresetLimitReached(document, preset)
   ) {
     return document;
   }
@@ -272,13 +300,16 @@ export function addCourseObjectPreset(
     object.id.startsWith(`${preset}-`),
   ).length;
   const template = PRESET_OBJECTS[preset];
-  // Boxes and cylinders stand on their centres, arcs on their bases.
+  // Boxes and cylinders stand on their centres, arcs on their bases; a
+  // tunnel lamp hangs from a 3.6 m tunnel's roof.
   const y =
-    template.collision?.shape === "box"
-      ? template.collision.halfExtents.y
-      : template.collision?.shape === "cylinder"
-        ? template.collision.height / 2
-        : 0;
+    preset === "tunnel-lamp"
+      ? 3.6 - 0.06
+      : template.collision?.shape === "box"
+        ? template.collision.halfExtents.y
+        : template.collision?.shape === "cylinder"
+          ? template.collision.height / 2
+          : 0;
   const object: CourseObject = {
     ...structuredClone(template),
     id,
@@ -302,6 +333,63 @@ export function addCourseObjectPreset(
 
 export function courseLampLimitReached(document: CourseDocument) {
   return countCourseLamps(document, "floodlight") >= COURSE_LAMP_LIMIT;
+}
+
+/** The lamp limit a preset has reached, if any. */
+export function coursePresetLimitReached(
+  document: CourseDocument,
+  preset: CourseObjectPreset,
+) {
+  if (preset === "lamp" && courseLampLimitReached(document)) {
+    return COURSE_LAMP_LIMIT;
+  }
+  if (
+    preset === "tunnel-lamp" &&
+    countCourseLamps(document, "tunnel") >= COURSE_TUNNEL_LAMP_LIMIT
+  ) {
+    return COURSE_TUNNEL_LAMP_LIMIT;
+  }
+  return null;
+}
+
+/**
+ * Marks an object indoors (lit only by indoor light) or overhead (a roof the
+ * editor can cut away; beneath an indoor one, the race counts a kart
+ * indoors). The schema's rules hold: tunnel lamps stand indoors and
+ * floodlights outdoors, and an overhead object never supports a kart. A
+ * change that breaks one leaves the course unchanged.
+ */
+export function updateSelectionPlacement(
+  document: CourseDocument,
+  selection: CourseEditorSelection,
+  { indoors, overhead }: { indoors: boolean; overhead: boolean },
+) {
+  const object =
+    selection.kind === "object"
+      ? document.objects.find(({ id }) => id === selection.id)
+      : undefined;
+  if (
+    !object ||
+    (Boolean(object.indoors) === indoors &&
+      Boolean(object.overhead) === overhead)
+  ) {
+    return document;
+  }
+  const next = courseDocumentSchema.safeParse({
+    ...document,
+    objects: document.objects.map((candidate) => {
+      if (candidate.id !== selection.id) {
+        return candidate;
+      }
+      const placed = { ...candidate };
+      delete placed.indoors;
+      delete placed.overhead;
+      if (indoors) placed.indoors = true;
+      if (overhead) placed.overhead = true;
+      return placed;
+    }),
+  });
+  return next.success ? parseCourseDocument(next.data) : document;
 }
 
 export function addCourseCheckpoint(

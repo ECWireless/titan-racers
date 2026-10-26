@@ -94,6 +94,17 @@ owns only Resume and Exit.
   diagnostics never participate in physics.
 - Snapping is an explicit toolbar state backed by the maintained PlayCanvas
   transform-gizmo APIs; object labels never replace or mutate stable IDs.
+- Cut away roofs hides every `overhead` object (a tunnel's roof slabs and
+  the earth berm over them) and its collision diagnostics, so what lies
+  beneath can be seen and picked; it defaults off and changes no data.
+- The inspector's Placement checkboxes mark an object indoors (lit only by
+  indoor light in the race) or overhead (a roof: cut away here, and karts
+  beneath an indoor one count as indoors). The schema's rules hold: lamps
+  keep their indoor or outdoor side, and nothing karts drive on is a roof; an
+  edit that breaks one leaves the course unchanged.
+- The palette names the `lamp` preset "floodlight" and adds a "tunnel lamp"
+  preset, the luminaire housing hung from a 3.6 m roof, indoors; floodlights
+  and tunnel lamps each stop at their own limit (8 and 16).
 - Collision diagnostics default hidden. The compact icon toolbar retains
   accessible action names, explanatory tooltips, active-state styling, and an
   in-product mouse/touch camera-control reference.

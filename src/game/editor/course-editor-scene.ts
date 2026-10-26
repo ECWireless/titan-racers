@@ -104,6 +104,7 @@ export class CourseEditorScene {
   private activeTransformDocument: CourseDocument | null = null;
   private canvas: HTMLCanvasElement;
   private collisionVisible = false;
+  private roofsHidden = false;
   private currentDocument: CourseDocument;
   private documentEntities = new Map<string, pc.Entity>();
   private readonly editorCamera = new EditorOrbitCamera({
@@ -300,6 +301,42 @@ export class CourseEditorScene {
     collisionVisuals.forEach((entity) => {
       this.selectionByNode.delete(entity);
       entity.destroy();
+    });
+  }
+
+  /**
+   * Cuts away overhead objects, such as a tunnel's roof, and their collision
+   * shapes, so what lies beneath them can be seen and picked.
+   */
+  setRoofsHidden(hidden: boolean) {
+    if (this.roofsHidden === hidden) {
+      return;
+    }
+
+    this.roofsHidden = hidden;
+    this.showRoofs();
+    this.refreshSelectionPresentation();
+    if (this.collisionVisible && this.activeDocumentRoot) {
+      this.activeDocumentRoot
+        .findByTag("collision-visual")
+        .forEach((entity) => {
+          this.selectionByNode.delete(entity);
+          entity.destroy();
+        });
+      this.createCollisionVisuals(
+        this.activeDocumentRoot,
+        this.currentDocument,
+      );
+    }
+  }
+
+  private showRoofs() {
+    this.currentDocument.objects.forEach((object) => {
+      if (!object.overhead) return;
+      const entity = this.documentEntities.get(
+        selectionKey({ id: object.id, kind: "object" }),
+      );
+      if (entity) entity.enabled = !this.roofsHidden;
     });
   }
 
@@ -542,7 +579,7 @@ export class CourseEditorScene {
   ) {
     document.objects.forEach((object) => {
       const collision = object.collision;
-      if (!collision) {
+      if (!collision || (object.overhead && this.roofsHidden)) {
         return;
       }
 
@@ -752,6 +789,7 @@ export class CourseEditorScene {
         this.selectionByNode.set(entity, selection);
       }
     });
+    this.showRoofs();
     const lights = buildCourseLighting(this.app, { document: this.currentDocument });
     lights.forEach((entity) => {
       if (entity.light?.castShadows) applyShadowPolicy(entity.light);
@@ -777,9 +815,10 @@ export class CourseEditorScene {
     this.translateGizmo.detach();
     this.rotateGizmo.detach();
     this.scaleGizmo.detach();
+    // A roof cut away is not handled in the viewport.
     const entities = this.selections
       .map((selection) => this.entityForSelection(selection))
-      .filter((entity): entity is pc.Entity => Boolean(entity));
+      .filter((entity): entity is pc.Entity => Boolean(entity?.enabled));
     if (entities.length !== this.selections.length) {
       return;
     }
@@ -833,7 +872,7 @@ export class CourseEditorScene {
     this.selections.forEach((selection) => {
       const entity = this.entityForSelection(selection);
       const geometry = getSelectionGeometry(this.currentDocument, selection);
-      if (!entity || !geometry) {
+      if (!entity?.enabled || !geometry) {
         return;
       }
 

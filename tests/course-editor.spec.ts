@@ -4,6 +4,7 @@ import {
   FALLS_VIEW_PARK_DOCUMENT,
   ROUGH_COURSE_DOCUMENT,
 } from "../src/game/course/course-document";
+import { COURSE_EDITOR_OBJECT_LIMIT } from "../src/game/editor/course-editor-document";
 import {
   disconnectStandardTestGamepad,
   installStandardGamepadFixture,
@@ -149,10 +150,13 @@ test.describe("protected course editor access", () => {
     const template = ROUGH_COURSE_DOCUMENT.objects[0];
     const oversizedDocument = {
       ...ROUGH_COURSE_DOCUMENT,
-      objects: Array.from({ length: 501 }, (_, index) => ({
-        ...structuredClone(template),
-        id: `editor-budget-${index + 1}`,
-      })),
+      objects: Array.from(
+        { length: COURSE_EDITOR_OBJECT_LIMIT + 1 },
+        (_, index) => ({
+          ...structuredClone(template),
+          id: `editor-budget-${index + 1}`,
+        }),
+      ),
     };
     await page.route(courseApiPattern, async (route) => {
       await route.fulfill({
@@ -1159,6 +1163,65 @@ test.describe("protected course editor access", () => {
 
     await page.getByRole("button", { name: "Show collision shapes" }).click();
     await expect(canvas).toHaveAttribute("data-colliders-visible", "true");
+  });
+
+  test("adds tunnel lamps and cuts away roofs", async ({ page }, testInfo) => {
+    test.skip(
+      testInfo.project.name !== "desktop",
+      "Cutaway editing runs once.",
+    );
+    // Scanned course finishes render slowly in the software-rendered browser.
+    testInfo.setTimeout(90_000);
+    await page.route(courseApiPattern, async (route) => {
+      await route.fulfill({
+        body: JSON.stringify({
+          authorUserId: "admin-test-user",
+          courseId: ROUGH_COURSE_DOCUMENT.courseId,
+          createdAt: new Date("2026-07-12T00:00:00.000Z").toISOString(),
+          document: ROUGH_COURSE_DOCUMENT,
+          revision: 3,
+          schemaVersion: ROUGH_COURSE_DOCUMENT.schemaVersion,
+        }),
+        contentType: "application/json",
+        status: 200,
+      });
+    });
+
+    await page.goto("/admin/courses/rough-course");
+    const canvas = page.getByTestId("course-editor-canvas");
+    await waitForEditorScene(canvas);
+    const inspector = page.getByRole("complementary", { name: "Inspector" });
+
+    // A tunnel lamp always stands indoors.
+    await page.getByRole("button", { name: "tunnel lamp" }).click();
+    await expect(canvas).toHaveAttribute("data-selected-id", "tunnel-lamp-1");
+    const indoors = inspector.getByRole("checkbox", { name: /Indoors/ });
+    await expect(indoors).toBeChecked();
+    await expect(indoors).toBeDisabled();
+
+    // A block made a roof disappears, and stops being picked, when roofs
+    // are cut away.
+    await page.getByRole("button", { name: "block" }).click();
+    await expect(canvas).toHaveAttribute("data-selected-id", "block-1");
+    await inspector.getByRole("checkbox", { name: /Overhead/ }).check();
+    await expect(
+      inspector.getByRole("checkbox", { name: /Overhead/ }),
+    ).toBeChecked();
+    const blockPoint = await getCourseEditorSelectionPoint(canvas, {
+      id: "block-1",
+      kind: "object",
+    });
+    expect(blockPoint).not.toBeNull();
+    await page.getByRole("button", { name: "Cut away roofs" }).click();
+    await expect(canvas).toHaveAttribute("data-roofs-hidden", "true");
+    await page.getByRole("button", { name: "Start Spawn" }).click();
+    await canvas.click({ position: blockPoint! });
+    await expect(canvas).not.toHaveAttribute("data-selected-id", "block-1");
+
+    await page.getByRole("button", { name: "Show roofs" }).click();
+    await expect(canvas).toHaveAttribute("data-roofs-hidden", "false");
+    await canvas.click({ position: blockPoint! });
+    await expect(canvas).toHaveAttribute("data-selected-id", "block-1");
   });
 
   test("selects and authors course objects across desktop and mobile controls", async ({

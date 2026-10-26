@@ -5,7 +5,6 @@ import { useEffect, useId, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
 import {
-  COURSE_LAMP_LIMIT,
   type CourseDocument,
   serializeCourseDocument,
 } from "@/game/course/course-document";
@@ -33,7 +32,8 @@ import {
   addCourseCheckpoint,
   addCourseObjectPreset,
   collectCourseDocumentIds,
-  courseLampLimitReached,
+  COURSE_OBJECT_PRESET_LABELS,
+  coursePresetLimitReached,
   deleteCourseSelection,
   getSelectionGeometry,
   nudgeObjectSelections,
@@ -44,6 +44,7 @@ import {
   updateCourseEditorSelections,
   updateMirrorAngle,
   updateSelectionArc,
+  updateSelectionPlacement,
 } from "@/game/editor/course-editor-document";
 import type { CourseArc } from "@/game/course/course-arc";
 import type { CourseEditorTool } from "@/game/editor/course-editor-scene";
@@ -136,6 +137,7 @@ export function CourseEditorShell({
   const [tool, setTool] = useState<CourseEditorTool>("translate");
   const [snapEnabled, setSnapEnabled] = useState(true);
   const [collisionVisible, setCollisionVisible] = useState(false);
+  const [roofsHidden, setRoofsHidden] = useState(false);
   const [cameraHelpOpen, setCameraHelpOpen] = useState(false);
   const [mobilePanel, setMobilePanel] = useState<MobilePanel>(null);
   const [controllerAxis, setControllerAxis] = useState<"x" | "y" | "z">("x");
@@ -447,6 +449,22 @@ export function CourseEditorShell({
     commitDocument(
       `Scale ${selection.id}`,
       scaleSelectionAxis(document, selection, axis, multiplier),
+    );
+  }
+
+  const selectedPlacement = selectedObject
+    ? {
+        indoors: Boolean(selectedObject.indoors),
+        lamp: selectedObject.lamp ?? null,
+        overhead: Boolean(selectedObject.overhead),
+        supportsKarts: selectedObject.collision?.role === "drivable-surface",
+      }
+    : null;
+
+  function placeObject(placement: { indoors: boolean; overhead: boolean }) {
+    commitDocument(
+      `Place ${selection.id}`,
+      updateSelectionPlacement(document, selection, placement),
     );
   }
 
@@ -1131,7 +1149,9 @@ export function CourseEditorShell({
           selection={selection}
           snapEnabled={snapEnabled}
           tool={tool}
+          roofsHidden={roofsHidden}
           onCollisionToggle={() => setCollisionVisible((visible) => !visible)}
+          onRoofsToggle={() => setRoofsHidden((hidden) => !hidden)}
           onCameraHelpToggle={() => setCameraHelpOpen((open) => !open)}
           onAdditiveSelectionToggle={() =>
             setAdditiveSelectionEnabled((enabled) => !enabled)
@@ -1178,6 +1198,7 @@ export function CourseEditorShell({
             collisionVisible={collisionVisible}
             document={document}
             frameRequest={frameRequest}
+            roofsHidden={roofsHidden}
             selections={selections}
             snapEnabled={snapEnabled}
             tool={tool}
@@ -1286,6 +1307,7 @@ export function CourseEditorShell({
             canDelete={canDelete}
             geometry={selectedGeometry}
             objectName={selectedObject?.label ?? selectedObject?.id ?? null}
+            placement={selectedPlacement}
             arc={
               selectedObject?.visual.shape === "arc"
                 ? selectedObject.visual.arc
@@ -1299,6 +1321,7 @@ export function CourseEditorShell({
             onDelete={deleteSelection}
             onNudge={nudge}
             onArc={resizeArc}
+            onPlace={placeObject}
             onRename={renameObject}
             onScale={scaleAxis}
             onSectionToggle={toggleSection}
@@ -1345,6 +1368,7 @@ export function CourseEditorShell({
                 canDelete={canDelete}
                 geometry={selectedGeometry}
                 objectName={selectedObject?.label ?? selectedObject?.id ?? null}
+                placement={selectedPlacement}
                 arc={
                   selectedObject?.visual.shape === "arc"
                     ? selectedObject.visual.arc
@@ -1358,6 +1382,7 @@ export function CourseEditorShell({
                 onDelete={deleteSelection}
                 onNudge={nudge}
                 onArc={resizeArc}
+                onPlace={placeObject}
                 onRename={renameObject}
                 onScale={scaleAxis}
                 onSectionToggle={toggleSection}
@@ -1707,8 +1732,10 @@ function EditorToolbar({
   onCameraHelpToggle,
   onCollisionToggle,
   onFrame,
+  onRoofsToggle,
   onSnapToggle,
   onToolChange,
+  roofsHidden,
   selection,
   snapEnabled,
   tool,
@@ -1723,8 +1750,10 @@ function EditorToolbar({
   onCameraHelpToggle: () => void;
   onCollisionToggle: () => void;
   onFrame: () => void;
+  onRoofsToggle: () => void;
   onSnapToggle: () => void;
   onToolChange: (tool: CourseEditorTool) => void;
+  roofsHidden: boolean;
   selection: CourseEditorSelection;
   snapEnabled: boolean;
   tool: CourseEditorTool;
@@ -1812,6 +1841,19 @@ function EditorToolbar({
         onClick={onCollisionToggle}
       >
         <EditorToolbarIcon name="collision" />
+      </ToolbarIconButton>
+      <ToolbarIconButton
+        active={roofsHidden}
+        activeClassName="border-titan-orange/60 text-titan-orange"
+        label={roofsHidden ? "Show roofs" : "Cut away roofs"}
+        tooltip={
+          roofsHidden
+            ? "Show the roofs and other overhead objects again"
+            : "Hide roofs and other overhead objects to edit beneath them"
+        }
+        onClick={onRoofsToggle}
+      >
+        <EditorToolbarIcon name="cutaway" />
       </ToolbarIconButton>
       <ToolbarIconButton
         label="Frame selection"
@@ -2014,7 +2056,15 @@ function CoursePanel({
   const objectLimitReached =
     document.objects.length >= COURSE_EDITOR_OBJECT_LIMIT;
   const objectLimitMessageId = useId();
-  const lampLimitReached = courseLampLimitReached(document);
+  const presetLimits = COURSE_OBJECT_PRESETS.map(
+    (preset) => [preset, coursePresetLimitReached(document, preset)] as const,
+  );
+  const reachedLimits = presetLimits.flatMap(([preset, limit]) =>
+    limit === null
+      ? []
+      : [`${COURSE_OBJECT_PRESET_LABELS[preset]} limit reached (${limit})`],
+  );
+  const lampLimitReached = reachedLimits.length > 0;
   const lampLimitMessageId = useId();
   const checkpointLimitReached =
     document.checkpoints.length >= COURSE_EDITOR_CHECKPOINT_LIMIT;
@@ -2027,8 +2077,9 @@ function CoursePanel({
         onToggle={() => onSectionToggle("course-add")}
       >
         <div className="grid min-w-0 grid-cols-2 gap-2">
-          {COURSE_OBJECT_PRESETS.map((preset) => {
-            const lampBlocked = preset === "lamp" && lampLimitReached;
+          {presetLimits.map(([preset, lampLimit]) => {
+            const lampBlocked = lampLimit !== null;
+            const label = COURSE_OBJECT_PRESET_LABELS[preset];
             return (
               <button
                 aria-describedby={
@@ -2045,13 +2096,13 @@ function CoursePanel({
                   objectLimitReached
                     ? `Editor object limit reached (${COURSE_EDITOR_OBJECT_LIMIT})`
                     : lampBlocked
-                      ? `Lamp limit reached (${COURSE_LAMP_LIMIT})`
-                      : `Add ${preset}`
+                      ? `${label} limit reached (${lampLimit})`
+                      : `Add ${label}`
                 }
                 type="button"
                 onClick={() => onAddPreset(preset)}
               >
-                {preset}
+                {label}
               </button>
             );
           })}
@@ -2071,7 +2122,7 @@ function CoursePanel({
             id={lampLimitMessageId}
             role="status"
           >
-            Lamp limit reached ({COURSE_LAMP_LIMIT})
+            {reachedLimits.join(" · ")}
           </p>
         ) : null}
         <button
@@ -2298,9 +2349,11 @@ function Inspector({
   onArc,
   onDelete,
   onNudge,
+  onPlace,
   onRename,
   onScale,
   onSectionToggle,
+  placement,
   scaleShape,
   sectionOpen,
   selection,
@@ -2318,9 +2371,11 @@ function Inspector({
     delta: number,
   ) => void;
   onArc: (arc: CourseArc) => void;
+  onPlace: (placement: { indoors: boolean; overhead: boolean }) => void;
   onRename: (label: string) => void;
   onScale: (axis: "x" | "y" | "z", multiplier: number) => void;
   onSectionToggle: (section: EditorSection) => void;
+  placement: ObjectPlacement | null;
   scaleShape: "arc" | "box" | "cylinder";
   sectionOpen: Record<EditorSection, boolean>;
   selection: CourseEditorSelection;
@@ -2393,6 +2448,9 @@ function Inspector({
           stableId={selection.id}
           onRename={onRename}
         />
+      ) : null}
+      {selection.kind === "object" && placement ? (
+        <ObjectPlacementControl placement={placement} onPlace={onPlace} />
       ) : null}
       </CollapsibleSection>
       <CollapsibleSection
@@ -2491,6 +2549,76 @@ function Inspector({
       </button>
       </CollapsibleSection>
     </div>
+  );
+}
+
+type ObjectPlacement = {
+  indoors: boolean;
+  lamp: "floodlight" | "tunnel" | null;
+  overhead: boolean;
+  supportsKarts: boolean;
+};
+
+// Indoors objects take only indoor light in the race; overhead objects are
+// roofs, cut away in the editor and counting karts beneath them as indoors.
+function ObjectPlacementControl({
+  onPlace,
+  placement,
+}: {
+  onPlace: (placement: { indoors: boolean; overhead: boolean }) => void;
+  placement: ObjectPlacement;
+}) {
+  const { indoors, lamp, overhead, supportsKarts } = placement;
+  const options = [
+    {
+      checked: indoors,
+      hint: lamp
+        ? lamp === "tunnel"
+          ? "Tunnel lamps stand indoors."
+          : "Floodlights stand outdoors."
+        : "Lit only by indoor light in the race.",
+      label: "Indoors",
+      locked: lamp !== null,
+      next: { indoors: !indoors, overhead },
+    },
+    {
+      checked: overhead,
+      hint: supportsKarts
+        ? "Surfaces karts drive on cannot be roofs."
+        : "A roof: cut away in the editor; karts beneath an indoor roof count as indoors.",
+      label: "Overhead",
+      locked: supportsKarts,
+      next: { indoors, overhead: !overhead },
+    },
+  ];
+  return (
+    <fieldset className="grid gap-2">
+      <legend className="mb-1 font-bold uppercase tracking-[0.12em] text-titan-muted">
+        Placement
+      </legend>
+      {options.map(({ checked, hint, label, locked, next }) => (
+        <label
+          className="flex min-h-10 items-start gap-2 text-titan-ice/86"
+          key={label}
+        >
+          <input
+            checked={checked}
+            className="mt-0.5 h-4 w-4 accent-titan-hazard disabled:opacity-35"
+            disabled={locked}
+            type="checkbox"
+            onChange={() => onPlace(next)}
+          />
+          <span className="grid gap-0.5">
+            <span className="font-bold uppercase tracking-[0.1em]">
+              {label}
+            </span>
+            <span className="text-[0.62rem] leading-relaxed text-titan-muted">
+              {hint}
+            </span>
+          </span>
+        </label>
+      ))}
+    </fieldset>
   );
 }
 

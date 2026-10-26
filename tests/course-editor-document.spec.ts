@@ -1,6 +1,12 @@
 import { expect, test } from "@playwright/test";
 
-import { COURSE_LAMP_LIMIT, ROUGH_COURSE_DOCUMENT, parseCourseDocument, serializeCourseDocument } from "../src/game/course/course-document";
+import {
+  COURSE_LAMP_LIMIT,
+  COURSE_TUNNEL_LAMP_LIMIT,
+  ROUGH_COURSE_DOCUMENT,
+  parseCourseDocument,
+  serializeCourseDocument,
+} from "../src/game/course/course-document";
 import {
   COURSE_EDITOR_CHECKPOINT_LIMIT,
   addCourseCheckpoint,
@@ -17,8 +23,10 @@ import {
   updateCourseEditorSelections,
   updateMirrorAngle,
   updateObjectSelectionPositions,
+  coursePresetLimitReached,
   updateSelectionArc,
   updateSelectionGeometry,
+  updateSelectionPlacement,
 } from "../src/game/editor/course-editor-document";
 
 function courseAtCheckpointLimit() {
@@ -367,6 +375,76 @@ test.describe("course editor document commands", () => {
       lamp: "floodlight",
       transform: { position: { y: 6 } },
     });
+  });
+
+  test("hangs tunnel lamps from the roof, up to their own limit", () => {
+    let document = structuredClone(ROUGH_COURSE_DOCUMENT);
+    for (let count = 0; count <= COURSE_TUNNEL_LAMP_LIMIT; count += 1) {
+      document = addCourseObjectPreset(document, "tunnel-lamp");
+    }
+    const lamps = document.objects.filter(
+      (object) => object.lamp === "tunnel",
+    );
+
+    expect(lamps).toHaveLength(COURSE_TUNNEL_LAMP_LIMIT);
+    expect(lamps[0]).toMatchObject({
+      collision: null,
+      id: "tunnel-lamp-1",
+      indoors: true,
+      transform: { position: { y: 3.54 } },
+      visual: { material: "steel", scale: { x: 1.2, y: 0.12, z: 0.36 } },
+    });
+    expect(coursePresetLimitReached(document, "tunnel-lamp")).toBe(
+      COURSE_TUNNEL_LAMP_LIMIT,
+    );
+    // Floodlights keep their own limit beside them.
+    expect(coursePresetLimitReached(document, "lamp")).toBeNull();
+    expect(addCourseObjectPreset(document, "lamp").objects).toHaveLength(
+      document.objects.length + 1,
+    );
+  });
+
+  test("marks objects indoors or overhead within the course's rules", () => {
+    let document = addCourseObjectPreset(
+      structuredClone(ROUGH_COURSE_DOCUMENT),
+      "block",
+    );
+    document = addCourseObjectPreset(document, "lamp");
+    document = addCourseObjectPreset(document, "platform");
+    const block = { id: "block-1", kind: "object" } as const;
+    const find = (id: string, next = document) =>
+      next.objects.find((object) => object.id === id)!;
+
+    const roofed = updateSelectionPlacement(document, block, {
+      indoors: true,
+      overhead: true,
+    });
+    expect(find("block-1", roofed)).toMatchObject({
+      indoors: true,
+      overhead: true,
+    });
+    const cleared = updateSelectionPlacement(roofed, block, {
+      indoors: false,
+      overhead: false,
+    });
+    expect(find("block-1", cleared)).not.toHaveProperty("indoors");
+    expect(find("block-1", cleared)).not.toHaveProperty("overhead");
+
+    // Floodlights stand outdoors, and karts never drive on a roof.
+    expect(
+      updateSelectionPlacement(
+        document,
+        { id: "lamp-1", kind: "object" },
+        { indoors: true, overhead: false },
+      ),
+    ).toBe(document);
+    expect(
+      updateSelectionPlacement(
+        document,
+        { id: "platform-1", kind: "object" },
+        { indoors: false, overhead: true },
+      ),
+    ).toBe(document);
   });
 
   test("sets the time of day through the enclosure mirror angle", () => {
