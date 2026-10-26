@@ -551,6 +551,7 @@
       },
       "editable": true,
       "id": "tunnel-west-1",
+      "indoors": true,
       "transform": {
         "position": {
           "x": 18,
@@ -605,6 +606,7 @@
       },
       "editable": true,
       "id": "tunnel-west-2",
+      "indoors": true,
       "transform": {
         "position": {
           "x": 34,
@@ -659,6 +661,7 @@
       },
       "editable": true,
       "id": "tunnel-west-3",
+      "indoors": true,
       "transform": {
         "position": {
           "x": 50,
@@ -713,6 +716,7 @@
       },
       "editable": true,
       "id": "tunnel-west-4",
+      "indoors": true,
       "transform": {
         "position": {
           "x": 66,
@@ -729,546 +733,6 @@
         "material": "asphalt",
         "scale": {
           "x": 16.02,
-          "y": 0.002,
-          "z": 4.5
-        },
-        "shape": "box"
-      }
-    },
-    {
-      "availability": "standard",
-      "category": "surface",
-      "collision": {
-        "friction": 0.7,
-        "halfExtents": {
-          "x": 0.750747,
-          "y": 0.04,
-          "z": 2.25
-        },
-        "offset": {
-          "position": {
-            "x": 0,
-            "y": -0.039,
-            "z": 0
-          },
-          "rotation": {
-            "x": 0,
-            "y": 0,
-            "z": 0
-          }
-        },
-        "restitution": 0,
-        "role": "drivable-surface",
-        "shape": "box",
-        "surfaceMaterial": {
-          "id": "surface.standard-course",
-          "version": 1
-        }
-      },
-      "editable": true,
-      "id": "tunnel-bend-1",
-      "transform": {
-        "position": {
-          "x": 74.549214,
-          "y": -0.001,
-          "z": -44.978421
-        },
-        "rotation": {
-          "x": 0,
-          "y": -4.5,
-          "z": 0
-        }
-      },
-      "visual": {
-        "material": "asphalt",
-        "scale": {
-          "x": 1.501493,
-          "y": 0.002,
-          "z": 4.5
-        },
-        "shape": "box"
-      }
-    },
-    {
-      "availability": "standard",
-      "category": "surface",
-      "collision": {
-        "friction": 0.7,
-        "halfExtents": {
-          "x": 0.750747,
-          "y": 0.04,
-          "z": 2.25
-        },
-        "offset": {
-          "position": {
-            "x": 0,
-            "y": -0.039,
-            "z": 0
-          },
-          "rotation": {
-            "x": 0,
-            "y": 0,
-            "z": 0
-          }
-        },
-        "restitution": 0,
-        "role": "drivable-surface",
-        "shape": "box",
-        "surfaceMaterial": {
-          "id": "surface.standard-course",
-          "version": 1
-        }
-      },
-      "editable": true,
-      "id": "tunnel-bend-2",
-      "transform": {
-        "position": {
-          "x": 75.634118,
-          "y": -0.001,
-          "z": -44.806589
-        },
-        "rotation": {
-          "x": 0,
-          "y": -13.5,
-          "z": 0
-        }
-      },
-      "visual": {
-        "material": "asphalt",
-        "scale": {
-          "x": 1.501493,
-          "y": 0.002,
-          "z": 4.5
-        },
-        "shape": "box"
-      }
-    },
-    {
-      "availability": "standard",
-      "category": "surface",
-      "collision": {
-        "friction": 0.7,
-        "halfExtents": {
-          "x": 0.750747,
-          "y": 0.04,
-          "z": 2.25
-        },
-        "offset": {
-          "position": {
-            "x": 0,
-            "y": -0.039,
-            "z": 0
-          },
-          "rotation": {
-            "x": 0,
-            "y": 0,
-            "z": 0
-          }
-        },
-        "restitution": 0,
-        "role": "drivable-surface",
-        "shape": "box",
-        "surfaceMaterial": {
-          "id": "surface.standard-course",
-          "version": 1
-        }
-      },
-      "editable": true,
-      "id": "tunnel-bend-3",
-      "transform": {
-        "position": {
-          "x": 76.678784,
-          "y": -0.001,
-          "z": -44.467157
-        },
-        "rotation": {
-          "x": 0,
-          "y": -22.5,
-          "z": 0
-        }
-      },
-      "visual": {
-        "material": "asphalt",
-        "scale": {
-          "x": 1.501493,
-          "y": 0.002,
-          "z": 4.5
-        },
-        "shape": "box"
-      }
-    },
-    {
-      "availability": "standard",
-      "category": "surface",
-      "collision": {
-        "friction": 0.7,
-        "halfExtents": {
-          "x": 0.750747,
-          "y": 0.04,
-          "z": 2.25
-        },
-        "offset": {
-          "position": {
-            "x": 0,
-            "y": -0.039,
-            "z": 0
-          },
-          "rotation": {
-            "x": 0,
-            "y": 0,
-            "z": 0
-          }
-        },
-        "restitution": 0,
-        "role": "drivable-surface",
-        "shape": "box",
-        "surfaceMaterial": {
-          "id": "surface.standard-course",
-          "version": 1
-        }
-      },
-      "editable": true,
-      "id": "tunnel-bend-4",
-      "transform": {
-        "position": {
-          "x": 77.65749,
-          "y": -0.001,
-          "z": -43.968481
-        },
-        "rotation": {
-          "x": 0,
-          "y": -31.5,
-          "z": 0
-        }
-      },
-      "visual": {
-        "material": "asphalt",
-        "scale": {
-          "x": 1.501493,
-          "y": 0.002,
-          "z": 4.5
-        },
-        "shape": "box"
-      }
-    },
-    {
-      "availability": "standard",
-      "category": "surface",
-      "collision": {
-        "friction": 0.7,
-        "halfExtents": {
-          "x": 0.750747,
-          "y": 0.04,
-          "z": 2.25
-        },
-        "offset": {
-          "position": {
-            "x": 0,
-            "y": -0.039,
-            "z": 0
-          },
-          "rotation": {
-            "x": 0,
-            "y": 0,
-            "z": 0
-          }
-        },
-        "restitution": 0,
-        "role": "drivable-surface",
-        "shape": "box",
-        "surfaceMaterial": {
-          "id": "surface.standard-course",
-          "version": 1
-        }
-      },
-      "editable": true,
-      "id": "tunnel-bend-5",
-      "transform": {
-        "position": {
-          "x": 78.546136,
-          "y": -0.001,
-          "z": -43.322842
-        },
-        "rotation": {
-          "x": 0,
-          "y": -40.5,
-          "z": 0
-        }
-      },
-      "visual": {
-        "material": "asphalt",
-        "scale": {
-          "x": 1.501493,
-          "y": 0.002,
-          "z": 4.5
-        },
-        "shape": "box"
-      }
-    },
-    {
-      "availability": "standard",
-      "category": "surface",
-      "collision": {
-        "friction": 0.7,
-        "halfExtents": {
-          "x": 0.750747,
-          "y": 0.04,
-          "z": 2.25
-        },
-        "offset": {
-          "position": {
-            "x": 0,
-            "y": -0.039,
-            "z": 0
-          },
-          "rotation": {
-            "x": 0,
-            "y": 0,
-            "z": 0
-          }
-        },
-        "restitution": 0,
-        "role": "drivable-surface",
-        "shape": "box",
-        "surfaceMaterial": {
-          "id": "surface.standard-course",
-          "version": 1
-        }
-      },
-      "editable": true,
-      "id": "tunnel-bend-6",
-      "transform": {
-        "position": {
-          "x": 79.322842,
-          "y": -0.001,
-          "z": -42.546136
-        },
-        "rotation": {
-          "x": 0,
-          "y": -49.5,
-          "z": 0
-        }
-      },
-      "visual": {
-        "material": "asphalt",
-        "scale": {
-          "x": 1.501493,
-          "y": 0.002,
-          "z": 4.5
-        },
-        "shape": "box"
-      }
-    },
-    {
-      "availability": "standard",
-      "category": "surface",
-      "collision": {
-        "friction": 0.7,
-        "halfExtents": {
-          "x": 0.750747,
-          "y": 0.04,
-          "z": 2.25
-        },
-        "offset": {
-          "position": {
-            "x": 0,
-            "y": -0.039,
-            "z": 0
-          },
-          "rotation": {
-            "x": 0,
-            "y": 0,
-            "z": 0
-          }
-        },
-        "restitution": 0,
-        "role": "drivable-surface",
-        "shape": "box",
-        "surfaceMaterial": {
-          "id": "surface.standard-course",
-          "version": 1
-        }
-      },
-      "editable": true,
-      "id": "tunnel-bend-7",
-      "transform": {
-        "position": {
-          "x": 79.968481,
-          "y": -0.001,
-          "z": -41.65749
-        },
-        "rotation": {
-          "x": 0,
-          "y": -58.5,
-          "z": 0
-        }
-      },
-      "visual": {
-        "material": "asphalt",
-        "scale": {
-          "x": 1.501493,
-          "y": 0.002,
-          "z": 4.5
-        },
-        "shape": "box"
-      }
-    },
-    {
-      "availability": "standard",
-      "category": "surface",
-      "collision": {
-        "friction": 0.7,
-        "halfExtents": {
-          "x": 0.750747,
-          "y": 0.04,
-          "z": 2.25
-        },
-        "offset": {
-          "position": {
-            "x": 0,
-            "y": -0.039,
-            "z": 0
-          },
-          "rotation": {
-            "x": 0,
-            "y": 0,
-            "z": 0
-          }
-        },
-        "restitution": 0,
-        "role": "drivable-surface",
-        "shape": "box",
-        "surfaceMaterial": {
-          "id": "surface.standard-course",
-          "version": 1
-        }
-      },
-      "editable": true,
-      "id": "tunnel-bend-8",
-      "transform": {
-        "position": {
-          "x": 80.467157,
-          "y": -0.001,
-          "z": -40.678784
-        },
-        "rotation": {
-          "x": 0,
-          "y": -67.5,
-          "z": 0
-        }
-      },
-      "visual": {
-        "material": "asphalt",
-        "scale": {
-          "x": 1.501493,
-          "y": 0.002,
-          "z": 4.5
-        },
-        "shape": "box"
-      }
-    },
-    {
-      "availability": "standard",
-      "category": "surface",
-      "collision": {
-        "friction": 0.7,
-        "halfExtents": {
-          "x": 0.750747,
-          "y": 0.04,
-          "z": 2.25
-        },
-        "offset": {
-          "position": {
-            "x": 0,
-            "y": -0.039,
-            "z": 0
-          },
-          "rotation": {
-            "x": 0,
-            "y": 0,
-            "z": 0
-          }
-        },
-        "restitution": 0,
-        "role": "drivable-surface",
-        "shape": "box",
-        "surfaceMaterial": {
-          "id": "surface.standard-course",
-          "version": 1
-        }
-      },
-      "editable": true,
-      "id": "tunnel-bend-9",
-      "transform": {
-        "position": {
-          "x": 80.806589,
-          "y": -0.001,
-          "z": -39.634118
-        },
-        "rotation": {
-          "x": 0,
-          "y": -76.5,
-          "z": 0
-        }
-      },
-      "visual": {
-        "material": "asphalt",
-        "scale": {
-          "x": 1.501493,
-          "y": 0.002,
-          "z": 4.5
-        },
-        "shape": "box"
-      }
-    },
-    {
-      "availability": "standard",
-      "category": "surface",
-      "collision": {
-        "friction": 0.7,
-        "halfExtents": {
-          "x": 0.750747,
-          "y": 0.04,
-          "z": 2.25
-        },
-        "offset": {
-          "position": {
-            "x": 0,
-            "y": -0.039,
-            "z": 0
-          },
-          "rotation": {
-            "x": 0,
-            "y": 0,
-            "z": 0
-          }
-        },
-        "restitution": 0,
-        "role": "drivable-surface",
-        "shape": "box",
-        "surfaceMaterial": {
-          "id": "surface.standard-course",
-          "version": 1
-        }
-      },
-      "editable": true,
-      "id": "tunnel-bend-10",
-      "transform": {
-        "position": {
-          "x": 80.978421,
-          "y": -0.001,
-          "z": -38.549214
-        },
-        "rotation": {
-          "x": 0,
-          "y": -85.5,
-          "z": 0
-        }
-      },
-      "visual": {
-        "material": "asphalt",
-        "scale": {
-          "x": 1.501493,
           "y": 0.002,
           "z": 4.5
         },
@@ -1307,6 +771,7 @@
       },
       "editable": true,
       "id": "tunnel-north-1",
+      "indoors": true,
       "transform": {
         "position": {
           "x": 81,
@@ -1361,6 +826,7 @@
       },
       "editable": true,
       "id": "tunnel-north-2",
+      "indoors": true,
       "transform": {
         "position": {
           "x": 81,
@@ -4737,8 +4203,8 @@
       "collision": {
         "friction": 0.7,
         "halfExtents": {
-          "x": 32,
-          "y": 1.5,
+          "x": 36.775,
+          "y": 1.8,
           "z": 0.15
         },
         "offset": {
@@ -4763,11 +4229,12 @@
       },
       "editable": true,
       "id": "tunnel-west-wall-l",
+      "indoors": true,
       "transform": {
         "position": {
-          "x": 42,
-          "y": 1.5,
-          "z": -47.4
+          "x": 46.775,
+          "y": 1.8,
+          "z": -48.3
         },
         "rotation": {
           "x": 0,
@@ -4778,8 +4245,8 @@
       "visual": {
         "material": "obstacleBlock",
         "scale": {
-          "x": 64,
-          "y": 3,
+          "x": 73.55,
+          "y": 3.6,
           "z": 0.3
         },
         "shape": "box"
@@ -4791,8 +4258,8 @@
       "collision": {
         "friction": 0.7,
         "halfExtents": {
-          "x": 32,
-          "y": 1.5,
+          "x": 32.031,
+          "y": 1.8,
           "z": 0.15
         },
         "offset": {
@@ -4817,10 +4284,11 @@
       },
       "editable": true,
       "id": "tunnel-west-wall-r",
+      "indoors": true,
       "transform": {
         "position": {
-          "x": 42,
-          "y": 1.5,
+          "x": 42.031,
+          "y": 1.8,
           "z": -42.6
         },
         "rotation": {
@@ -4832,8 +4300,8 @@
       "visual": {
         "material": "obstacleBlock",
         "scale": {
-          "x": 64,
-          "y": 3,
+          "x": 64.062,
+          "y": 3.6,
           "z": 0.3
         },
         "shape": "box"
@@ -4846,7 +4314,7 @@
         "friction": 0.7,
         "halfExtents": {
           "x": 0.759284,
-          "y": 1.5,
+          "y": 0.25,
           "z": 0.15
         },
         "offset": {
@@ -4871,10 +4339,11 @@
       },
       "editable": true,
       "id": "tunnel-bend-wall-o-1",
+      "indoors": true,
       "transform": {
         "position": {
           "x": 74.737515,
-          "y": 1.5,
+          "y": 0.25,
           "z": -47.371023
         },
         "rotation": {
@@ -4887,7 +4356,7 @@
         "material": "obstacleBlock",
         "scale": {
           "x": 1.518569,
-          "y": 3,
+          "y": 0.5,
           "z": 0.3
         },
         "shape": "box"
@@ -4900,7 +4369,7 @@
         "friction": 0.7,
         "halfExtents": {
           "x": 0.359143,
-          "y": 1.5,
+          "y": 0.25,
           "z": 0.15
         },
         "offset": {
@@ -4925,10 +4394,11 @@
       },
       "editable": true,
       "id": "tunnel-bend-wall-i-1",
+      "indoors": true,
       "transform": {
         "position": {
           "x": 74.360912,
-          "y": 1.5,
+          "y": 0.25,
           "z": -42.58582
         },
         "rotation": {
@@ -4941,7 +4411,7 @@
         "material": "obstacleBlock",
         "scale": {
           "x": 0.718286,
-          "y": 3,
+          "y": 0.5,
           "z": 0.3
         },
         "shape": "box"
@@ -4954,7 +4424,7 @@
         "friction": 0.7,
         "halfExtents": {
           "x": 0.759284,
-          "y": 1.5,
+          "y": 0.25,
           "z": 0.15
         },
         "offset": {
@@ -4979,10 +4449,11 @@
       },
       "editable": true,
       "id": "tunnel-bend-wall-o-2",
+      "indoors": true,
       "transform": {
         "position": {
           "x": 76.194386,
-          "y": 1.5,
+          "y": 0.25,
           "z": -47.140277
         },
         "rotation": {
@@ -4995,7 +4466,7 @@
         "material": "obstacleBlock",
         "scale": {
           "x": 1.518569,
-          "y": 3,
+          "y": 0.5,
           "z": 0.3
         },
         "shape": "box"
@@ -5008,7 +4479,7 @@
         "friction": 0.7,
         "halfExtents": {
           "x": 0.359143,
-          "y": 1.5,
+          "y": 0.25,
           "z": 0.15
         },
         "offset": {
@@ -5033,10 +4504,11 @@
       },
       "editable": true,
       "id": "tunnel-bend-wall-i-2",
+      "indoors": true,
       "transform": {
         "position": {
           "x": 75.073849,
-          "y": 1.5,
+          "y": 0.25,
           "z": -42.472902
         },
         "rotation": {
@@ -5049,7 +4521,7 @@
         "material": "obstacleBlock",
         "scale": {
           "x": 0.718286,
-          "y": 3,
+          "y": 0.5,
           "z": 0.3
         },
         "shape": "box"
@@ -5062,7 +4534,7 @@
         "friction": 0.7,
         "halfExtents": {
           "x": 0.759284,
-          "y": 1.5,
+          "y": 0.25,
           "z": 0.15
         },
         "offset": {
@@ -5087,10 +4559,11 @@
       },
       "editable": true,
       "id": "tunnel-bend-wall-o-3",
+      "indoors": true,
       "transform": {
         "position": {
           "x": 77.597224,
-          "y": 1.5,
+          "y": 0.25,
           "z": -46.684468
         },
         "rotation": {
@@ -5103,7 +4576,7 @@
         "material": "obstacleBlock",
         "scale": {
           "x": 1.518569,
-          "y": 3,
+          "y": 0.5,
           "z": 0.3
         },
         "shape": "box"
@@ -5116,7 +4589,7 @@
         "friction": 0.7,
         "halfExtents": {
           "x": 0.359143,
-          "y": 1.5,
+          "y": 0.25,
           "z": 0.15
         },
         "offset": {
@@ -5141,10 +4614,11 @@
       },
       "editable": true,
       "id": "tunnel-bend-wall-i-3",
+      "indoors": true,
       "transform": {
         "position": {
           "x": 75.760344,
-          "y": 1.5,
+          "y": 0.25,
           "z": -42.249846
         },
         "rotation": {
@@ -5157,7 +4631,7 @@
         "material": "obstacleBlock",
         "scale": {
           "x": 0.718286,
-          "y": 3,
+          "y": 0.5,
           "z": 0.3
         },
         "shape": "box"
@@ -5170,7 +4644,7 @@
         "friction": 0.7,
         "halfExtents": {
           "x": 0.759284,
-          "y": 1.5,
+          "y": 0.25,
           "z": 0.15
         },
         "offset": {
@@ -5195,10 +4669,11 @@
       },
       "editable": true,
       "id": "tunnel-bend-wall-o-4",
+      "indoors": true,
       "transform": {
         "position": {
           "x": 78.911487,
-          "y": 1.5,
+          "y": 0.25,
           "z": -46.014818
         },
         "rotation": {
@@ -5211,7 +4686,7 @@
         "material": "obstacleBlock",
         "scale": {
           "x": 1.518569,
-          "y": 3,
+          "y": 0.5,
           "z": 0.3
         },
         "shape": "box"
@@ -5224,7 +4699,7 @@
         "friction": 0.7,
         "halfExtents": {
           "x": 0.359143,
-          "y": 1.5,
+          "y": 0.25,
           "z": 0.15
         },
         "offset": {
@@ -5249,10 +4724,11 @@
       },
       "editable": true,
       "id": "tunnel-bend-wall-i-4",
+      "indoors": true,
       "transform": {
         "position": {
           "x": 76.403493,
-          "y": 1.5,
+          "y": 0.25,
           "z": -41.922145
         },
         "rotation": {
@@ -5265,7 +4741,7 @@
         "material": "obstacleBlock",
         "scale": {
           "x": 0.718286,
-          "y": 3,
+          "y": 0.5,
           "z": 0.3
         },
         "shape": "box"
@@ -5278,7 +4754,7 @@
         "friction": 0.7,
         "halfExtents": {
           "x": 0.759284,
-          "y": 1.5,
+          "y": 0.25,
           "z": 0.15
         },
         "offset": {
@@ -5303,10 +4779,11 @@
       },
       "editable": true,
       "id": "tunnel-bend-wall-o-5",
+      "indoors": true,
       "transform": {
         "position": {
           "x": 80.104812,
-          "y": 1.5,
+          "y": 0.25,
           "z": -45.147816
         },
         "rotation": {
@@ -5319,7 +4796,7 @@
         "material": "obstacleBlock",
         "scale": {
           "x": 1.518569,
-          "y": 3,
+          "y": 0.5,
           "z": 0.3
         },
         "shape": "box"
@@ -5332,7 +4809,7 @@
         "friction": 0.7,
         "halfExtents": {
           "x": 0.359143,
-          "y": 1.5,
+          "y": 0.25,
           "z": 0.15
         },
         "offset": {
@@ -5357,10 +4834,11 @@
       },
       "editable": true,
       "id": "tunnel-bend-wall-i-5",
+      "indoors": true,
       "transform": {
         "position": {
           "x": 76.987461,
-          "y": 1.5,
+          "y": 0.25,
           "z": -41.497867
         },
         "rotation": {
@@ -5373,7 +4851,7 @@
         "material": "obstacleBlock",
         "scale": {
           "x": 0.718286,
-          "y": 3,
+          "y": 0.5,
           "z": 0.3
         },
         "shape": "box"
@@ -5386,7 +4864,7 @@
         "friction": 0.7,
         "halfExtents": {
           "x": 0.759284,
-          "y": 1.5,
+          "y": 0.25,
           "z": 0.15
         },
         "offset": {
@@ -5411,10 +4889,11 @@
       },
       "editable": true,
       "id": "tunnel-bend-wall-o-6",
+      "indoors": true,
       "transform": {
         "position": {
           "x": 81.147816,
-          "y": 1.5,
+          "y": 0.25,
           "z": -44.104812
         },
         "rotation": {
@@ -5427,7 +4906,7 @@
         "material": "obstacleBlock",
         "scale": {
           "x": 1.518569,
-          "y": 3,
+          "y": 0.5,
           "z": 0.3
         },
         "shape": "box"
@@ -5440,7 +4919,7 @@
         "friction": 0.7,
         "halfExtents": {
           "x": 0.359143,
-          "y": 1.5,
+          "y": 0.25,
           "z": 0.15
         },
         "offset": {
@@ -5465,10 +4944,11 @@
       },
       "editable": true,
       "id": "tunnel-bend-wall-i-6",
+      "indoors": true,
       "transform": {
         "position": {
           "x": 77.497867,
-          "y": 1.5,
+          "y": 0.25,
           "z": -40.987461
         },
         "rotation": {
@@ -5481,7 +4961,7 @@
         "material": "obstacleBlock",
         "scale": {
           "x": 0.718286,
-          "y": 3,
+          "y": 0.5,
           "z": 0.3
         },
         "shape": "box"
@@ -5494,7 +4974,7 @@
         "friction": 0.7,
         "halfExtents": {
           "x": 0.759284,
-          "y": 1.5,
+          "y": 0.25,
           "z": 0.15
         },
         "offset": {
@@ -5519,10 +4999,11 @@
       },
       "editable": true,
       "id": "tunnel-bend-wall-o-7",
+      "indoors": true,
       "transform": {
         "position": {
           "x": 82.014818,
-          "y": 1.5,
+          "y": 0.25,
           "z": -42.911487
         },
         "rotation": {
@@ -5535,7 +5016,7 @@
         "material": "obstacleBlock",
         "scale": {
           "x": 1.518569,
-          "y": 3,
+          "y": 0.5,
           "z": 0.3
         },
         "shape": "box"
@@ -5548,7 +5029,7 @@
         "friction": 0.7,
         "halfExtents": {
           "x": 0.359143,
-          "y": 1.5,
+          "y": 0.25,
           "z": 0.15
         },
         "offset": {
@@ -5573,10 +5054,11 @@
       },
       "editable": true,
       "id": "tunnel-bend-wall-i-7",
+      "indoors": true,
       "transform": {
         "position": {
           "x": 77.922145,
-          "y": 1.5,
+          "y": 0.25,
           "z": -40.403493
         },
         "rotation": {
@@ -5589,7 +5071,7 @@
         "material": "obstacleBlock",
         "scale": {
           "x": 0.718286,
-          "y": 3,
+          "y": 0.5,
           "z": 0.3
         },
         "shape": "box"
@@ -5602,7 +5084,7 @@
         "friction": 0.7,
         "halfExtents": {
           "x": 0.759284,
-          "y": 1.5,
+          "y": 0.25,
           "z": 0.15
         },
         "offset": {
@@ -5627,10 +5109,11 @@
       },
       "editable": true,
       "id": "tunnel-bend-wall-o-8",
+      "indoors": true,
       "transform": {
         "position": {
           "x": 82.684468,
-          "y": 1.5,
+          "y": 0.25,
           "z": -41.597224
         },
         "rotation": {
@@ -5643,7 +5126,7 @@
         "material": "obstacleBlock",
         "scale": {
           "x": 1.518569,
-          "y": 3,
+          "y": 0.5,
           "z": 0.3
         },
         "shape": "box"
@@ -5656,7 +5139,7 @@
         "friction": 0.7,
         "halfExtents": {
           "x": 0.359143,
-          "y": 1.5,
+          "y": 0.25,
           "z": 0.15
         },
         "offset": {
@@ -5681,10 +5164,11 @@
       },
       "editable": true,
       "id": "tunnel-bend-wall-i-8",
+      "indoors": true,
       "transform": {
         "position": {
           "x": 78.249846,
-          "y": 1.5,
+          "y": 0.25,
           "z": -39.760344
         },
         "rotation": {
@@ -5697,7 +5181,7 @@
         "material": "obstacleBlock",
         "scale": {
           "x": 0.718286,
-          "y": 3,
+          "y": 0.5,
           "z": 0.3
         },
         "shape": "box"
@@ -5710,7 +5194,7 @@
         "friction": 0.7,
         "halfExtents": {
           "x": 0.759284,
-          "y": 1.5,
+          "y": 0.25,
           "z": 0.15
         },
         "offset": {
@@ -5735,10 +5219,11 @@
       },
       "editable": true,
       "id": "tunnel-bend-wall-o-9",
+      "indoors": true,
       "transform": {
         "position": {
           "x": 83.140277,
-          "y": 1.5,
+          "y": 0.25,
           "z": -40.194386
         },
         "rotation": {
@@ -5751,7 +5236,7 @@
         "material": "obstacleBlock",
         "scale": {
           "x": 1.518569,
-          "y": 3,
+          "y": 0.5,
           "z": 0.3
         },
         "shape": "box"
@@ -5764,7 +5249,7 @@
         "friction": 0.7,
         "halfExtents": {
           "x": 0.359143,
-          "y": 1.5,
+          "y": 0.25,
           "z": 0.15
         },
         "offset": {
@@ -5789,10 +5274,11 @@
       },
       "editable": true,
       "id": "tunnel-bend-wall-i-9",
+      "indoors": true,
       "transform": {
         "position": {
           "x": 78.472902,
-          "y": 1.5,
+          "y": 0.25,
           "z": -39.073849
         },
         "rotation": {
@@ -5805,7 +5291,7 @@
         "material": "obstacleBlock",
         "scale": {
           "x": 0.718286,
-          "y": 3,
+          "y": 0.5,
           "z": 0.3
         },
         "shape": "box"
@@ -5818,7 +5304,7 @@
         "friction": 0.7,
         "halfExtents": {
           "x": 0.759284,
-          "y": 1.5,
+          "y": 0.25,
           "z": 0.15
         },
         "offset": {
@@ -5843,10 +5329,11 @@
       },
       "editable": true,
       "id": "tunnel-bend-wall-o-10",
+      "indoors": true,
       "transform": {
         "position": {
           "x": 83.371023,
-          "y": 1.5,
+          "y": 0.25,
           "z": -38.737515
         },
         "rotation": {
@@ -5859,7 +5346,7 @@
         "material": "obstacleBlock",
         "scale": {
           "x": 1.518569,
-          "y": 3,
+          "y": 0.5,
           "z": 0.3
         },
         "shape": "box"
@@ -5872,7 +5359,7 @@
         "friction": 0.7,
         "halfExtents": {
           "x": 0.359143,
-          "y": 1.5,
+          "y": 0.25,
           "z": 0.15
         },
         "offset": {
@@ -5897,10 +5384,11 @@
       },
       "editable": true,
       "id": "tunnel-bend-wall-i-10",
+      "indoors": true,
       "transform": {
         "position": {
           "x": 78.58582,
-          "y": 1.5,
+          "y": 0.25,
           "z": -38.360912
         },
         "rotation": {
@@ -5913,7 +5401,7 @@
         "material": "obstacleBlock",
         "scale": {
           "x": 0.718286,
-          "y": 3,
+          "y": 0.5,
           "z": 0.3
         },
         "shape": "box"
@@ -5925,8 +5413,8 @@
       "collision": {
         "friction": 0.7,
         "halfExtents": {
-          "x": 14,
-          "y": 1.5,
+          "x": 19.225,
+          "y": 1.8,
           "z": 0.15
         },
         "offset": {
@@ -5951,11 +5439,12 @@
       },
       "editable": true,
       "id": "tunnel-north-wall-l",
+      "indoors": true,
       "transform": {
         "position": {
           "x": 83.4,
-          "y": 1.5,
-          "z": -24
+          "y": 1.8,
+          "z": -29.225
         },
         "rotation": {
           "x": 0,
@@ -5966,8 +5455,8 @@
       "visual": {
         "material": "obstacleBlock",
         "scale": {
-          "x": 28,
-          "y": 3,
+          "x": 38.45,
+          "y": 3.6,
           "z": 0.3
         },
         "shape": "box"
@@ -5979,8 +5468,8 @@
       "collision": {
         "friction": 0.7,
         "halfExtents": {
-          "x": 14,
-          "y": 1.5,
+          "x": 14.031,
+          "y": 1.8,
           "z": 0.15
         },
         "offset": {
@@ -6005,11 +5494,12 @@
       },
       "editable": true,
       "id": "tunnel-north-wall-r",
+      "indoors": true,
       "transform": {
         "position": {
           "x": 78.6,
-          "y": 1.5,
-          "z": -24
+          "y": 1.8,
+          "z": -24.031
         },
         "rotation": {
           "x": 0,
@@ -6020,9 +5510,1890 @@
       "visual": {
         "material": "obstacleBlock",
         "scale": {
-          "x": 28,
-          "y": 3,
+          "x": 28.062,
+          "y": 3.6,
           "z": 0.3
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "surface",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 4.63,
+          "y": 0.04,
+          "z": 5.08
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": -0.039,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "drivable-surface",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.standard-course",
+          "version": 1
+        }
+      },
+      "editable": true,
+      "id": "tunnel-chamber-floor",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 78.62,
+          "y": -0.001,
+          "z": -43.07
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "asphalt",
+        "scale": {
+          "x": 9.26,
+          "y": 0.002,
+          "z": 10.16
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "obstacle",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 32,
+          "y": 0.075,
+          "z": 0.45
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "solid-obstacle",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.standard-course",
+          "version": 1
+        }
+      },
+      "editable": true,
+      "id": "tunnel-pipe-bay",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 42,
+          "y": 0.075,
+          "z": -47.7
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "obstacleBlock",
+        "scale": {
+          "x": 64,
+          "y": 0.15,
+          "z": 0.9
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "obstacle",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 3.314691,
+          "y": 1.8,
+          "z": 0.15
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "solid-obstacle",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.standard-course",
+          "version": 1
+        }
+      },
+      "editable": true,
+      "id": "tunnel-chamber-wall-inner",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 76.3,
+          "y": 1.8,
+          "z": -40.3
+        },
+        "rotation": {
+          "x": 0,
+          "y": -45,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "obstacleBlock",
+        "scale": {
+          "x": 6.629382,
+          "y": 3.6,
+          "z": 0.3
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "obstacle",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 8,
+          "y": 0.175,
+          "z": 3
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "solid-obstacle",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.standard-course",
+          "version": 1
+        }
+      },
+      "editable": true,
+      "id": "tunnel-roof-west-1",
+      "indoors": true,
+      "overhead": true,
+      "transform": {
+        "position": {
+          "x": 18,
+          "y": 3.775,
+          "z": -45.45
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "obstacleBlock",
+        "scale": {
+          "x": 16,
+          "y": 0.35,
+          "z": 6
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "obstacle",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 8,
+          "y": 0.175,
+          "z": 3
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "solid-obstacle",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.standard-course",
+          "version": 1
+        }
+      },
+      "editable": true,
+      "id": "tunnel-roof-west-2",
+      "indoors": true,
+      "overhead": true,
+      "transform": {
+        "position": {
+          "x": 34,
+          "y": 3.775,
+          "z": -45.45
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "obstacleBlock",
+        "scale": {
+          "x": 16,
+          "y": 0.35,
+          "z": 6
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "obstacle",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 8,
+          "y": 0.175,
+          "z": 3
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "solid-obstacle",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.standard-course",
+          "version": 1
+        }
+      },
+      "editable": true,
+      "id": "tunnel-roof-west-3",
+      "indoors": true,
+      "overhead": true,
+      "transform": {
+        "position": {
+          "x": 50,
+          "y": 3.775,
+          "z": -45.45
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "obstacleBlock",
+        "scale": {
+          "x": 16,
+          "y": 0.35,
+          "z": 6
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "obstacle",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 8,
+          "y": 0.175,
+          "z": 3
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "solid-obstacle",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.standard-course",
+          "version": 1
+        }
+      },
+      "editable": true,
+      "id": "tunnel-roof-west-4",
+      "indoors": true,
+      "overhead": true,
+      "transform": {
+        "position": {
+          "x": 66,
+          "y": 3.775,
+          "z": -45.45
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "obstacleBlock",
+        "scale": {
+          "x": 16,
+          "y": 0.35,
+          "z": 6
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "obstacle",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 4.775,
+          "y": 0.175,
+          "z": 3
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "solid-obstacle",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.standard-course",
+          "version": 1
+        }
+      },
+      "editable": true,
+      "id": "tunnel-roof-chamber",
+      "indoors": true,
+      "overhead": true,
+      "transform": {
+        "position": {
+          "x": 78.775,
+          "y": 3.775,
+          "z": -45.45
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "obstacleBlock",
+        "scale": {
+          "x": 9.55,
+          "y": 0.35,
+          "z": 6
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "obstacle",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 3.3,
+          "y": 0.175,
+          "z": 1.65
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "solid-obstacle",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.standard-course",
+          "version": 1
+        }
+      },
+      "editable": true,
+      "id": "tunnel-roof-chamfer",
+      "indoors": true,
+      "overhead": true,
+      "transform": {
+        "position": {
+          "x": 77.36066,
+          "y": 3.776,
+          "z": -41.36066
+        },
+        "rotation": {
+          "x": 0,
+          "y": -45,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "obstacleBlock",
+        "scale": {
+          "x": 6.6,
+          "y": 0.35,
+          "z": 3.3
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "obstacle",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 2.55,
+          "y": 0.175,
+          "z": 9.3
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "solid-obstacle",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.standard-course",
+          "version": 1
+        }
+      },
+      "editable": true,
+      "id": "tunnel-roof-north-1",
+      "indoors": true,
+      "overhead": true,
+      "transform": {
+        "position": {
+          "x": 81,
+          "y": 3.775,
+          "z": -33.15
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "obstacleBlock",
+        "scale": {
+          "x": 5.1,
+          "y": 0.35,
+          "z": 18.6
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "obstacle",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 2.55,
+          "y": 0.175,
+          "z": 6.925
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "solid-obstacle",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.standard-course",
+          "version": 1
+        }
+      },
+      "editable": true,
+      "id": "tunnel-roof-north-2",
+      "indoors": true,
+      "overhead": true,
+      "transform": {
+        "position": {
+          "x": 81,
+          "y": 3.775,
+          "z": -16.925
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "obstacleBlock",
+        "scale": {
+          "x": 5.1,
+          "y": 0.35,
+          "z": 13.85
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-berm-crest-west",
+      "transform": {
+        "position": {
+          "x": 46.775,
+          "y": 4.275,
+          "z": -45.45
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "lawn",
+        "scale": {
+          "x": 73.55,
+          "y": 0.65,
+          "z": 6
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-berm-crest-chamfer",
+      "transform": {
+        "position": {
+          "x": 77.36066,
+          "y": 4.2755,
+          "z": -41.36066
+        },
+        "rotation": {
+          "x": 0,
+          "y": -45,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "lawn",
+        "scale": {
+          "x": 6.6,
+          "y": 0.649,
+          "z": 3.3
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-berm-crest-north",
+      "transform": {
+        "position": {
+          "x": 81,
+          "y": 4.275,
+          "z": -26.225
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "lawn",
+        "scale": {
+          "x": 5.1,
+          "y": 0.65,
+          "z": 32.45
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-berm-south",
+      "transform": {
+        "position": {
+          "x": 46.775,
+          "y": 1.942229,
+          "z": -52.871115
+        },
+        "rotation": {
+          "x": -26.565051,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "lawn",
+        "scale": {
+          "x": 73.55,
+          "y": 0.8,
+          "z": 10.285913
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-berm-inner-west",
+      "transform": {
+        "position": {
+          "x": 42,
+          "y": 1.942229,
+          "z": -38.028885
+        },
+        "rotation": {
+          "x": -26.565051,
+          "y": -180,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "lawn",
+        "scale": {
+          "x": 64,
+          "y": 0.8,
+          "z": 10.285913
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-berm-chamfer",
+      "transform": {
+        "position": {
+          "x": 73.067734,
+          "y": 1.942229,
+          "z": -37.067734
+        },
+        "rotation": {
+          "x": -26.565051,
+          "y": 135,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "lawn",
+        "scale": {
+          "x": 6.6,
+          "y": 0.8,
+          "z": 10.285913
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-berm-inner-north",
+      "transform": {
+        "position": {
+          "x": 74.028885,
+          "y": 1.942229,
+          "z": -24
+        },
+        "rotation": {
+          "x": -26.565051,
+          "y": 90,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "lawn",
+        "scale": {
+          "x": 28,
+          "y": 0.8,
+          "z": 10.285913
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-berm-east",
+      "transform": {
+        "position": {
+          "x": 87.971115,
+          "y": 1.942229,
+          "z": -29.225
+        },
+        "rotation": {
+          "x": -26.565051,
+          "y": -90,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "lawn",
+        "scale": {
+          "x": 38.45,
+          "y": 0.8,
+          "z": 10.285913
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-berm-corner-inner-1",
+      "transform": {
+        "position": {
+          "x": 83.634638,
+          "y": 3.667229,
+          "z": -49.417419
+        },
+        "rotation": {
+          "x": -26.565051,
+          "y": -5,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "lawn",
+        "scale": {
+          "x": 0.452448,
+          "y": 0.8,
+          "z": 2.571478
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-berm-corner-outer-1",
+      "transform": {
+        "position": {
+          "x": 84.022481,
+          "y": 1.442229,
+          "z": -53.850486
+        },
+        "rotation": {
+          "x": -26.565051,
+          "y": -5,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "lawn",
+        "scale": {
+          "x": 1.659791,
+          "y": 0.8,
+          "z": 8.049845
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-berm-corner-inner-2",
+      "transform": {
+        "position": {
+          "x": 83.801343,
+          "y": 3.667229,
+          "z": -49.388025
+        },
+        "rotation": {
+          "x": -26.565051,
+          "y": -15,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "lawn",
+        "scale": {
+          "x": 0.452448,
+          "y": 0.8,
+          "z": 2.571478
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-berm-corner-outer-2",
+      "transform": {
+        "position": {
+          "x": 84.953088,
+          "y": 1.442229,
+          "z": -53.686395
+        },
+        "rotation": {
+          "x": -26.565051,
+          "y": -15,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "lawn",
+        "scale": {
+          "x": 1.659791,
+          "y": 0.8,
+          "z": 8.049845
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-berm-corner-inner-3",
+      "transform": {
+        "position": {
+          "x": 83.960411,
+          "y": 3.667229,
+          "z": -49.330129
+        },
+        "rotation": {
+          "x": -26.565051,
+          "y": -25,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "lawn",
+        "scale": {
+          "x": 0.452448,
+          "y": 0.8,
+          "z": 2.571478
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-berm-corner-outer-3",
+      "transform": {
+        "position": {
+          "x": 85.841062,
+          "y": 1.442229,
+          "z": -53.363198
+        },
+        "rotation": {
+          "x": -26.565051,
+          "y": -25,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "lawn",
+        "scale": {
+          "x": 1.659791,
+          "y": 0.8,
+          "z": 8.049845
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-berm-corner-inner-4",
+      "transform": {
+        "position": {
+          "x": 84.107008,
+          "y": 3.667229,
+          "z": -49.24549
+        },
+        "rotation": {
+          "x": -26.565051,
+          "y": -35,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "lawn",
+        "scale": {
+          "x": 0.452448,
+          "y": 0.8,
+          "z": 2.571478
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-berm-corner-outer-4",
+      "transform": {
+        "position": {
+          "x": 86.659424,
+          "y": 1.442229,
+          "z": -52.890717
+        },
+        "rotation": {
+          "x": -26.565051,
+          "y": -35,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "lawn",
+        "scale": {
+          "x": 1.659791,
+          "y": 0.8,
+          "z": 8.049845
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-berm-corner-inner-5",
+      "transform": {
+        "position": {
+          "x": 84.236682,
+          "y": 3.667229,
+          "z": -49.136682
+        },
+        "rotation": {
+          "x": -26.565051,
+          "y": -45,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "lawn",
+        "scale": {
+          "x": 0.452448,
+          "y": 0.8,
+          "z": 2.571478
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-berm-corner-outer-5",
+      "transform": {
+        "position": {
+          "x": 87.383307,
+          "y": 1.442229,
+          "z": -52.283307
+        },
+        "rotation": {
+          "x": -26.565051,
+          "y": -45,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "lawn",
+        "scale": {
+          "x": 1.659791,
+          "y": 0.8,
+          "z": 8.049845
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-berm-corner-inner-6",
+      "transform": {
+        "position": {
+          "x": 84.34549,
+          "y": 3.667229,
+          "z": -49.007008
+        },
+        "rotation": {
+          "x": -26.565051,
+          "y": -55,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "lawn",
+        "scale": {
+          "x": 0.452448,
+          "y": 0.8,
+          "z": 2.571478
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-berm-corner-outer-6",
+      "transform": {
+        "position": {
+          "x": 87.990717,
+          "y": 1.442229,
+          "z": -51.559424
+        },
+        "rotation": {
+          "x": -26.565051,
+          "y": -55,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "lawn",
+        "scale": {
+          "x": 1.659791,
+          "y": 0.8,
+          "z": 8.049845
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-berm-corner-inner-7",
+      "transform": {
+        "position": {
+          "x": 84.430129,
+          "y": 3.667229,
+          "z": -48.860411
+        },
+        "rotation": {
+          "x": -26.565051,
+          "y": -65,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "lawn",
+        "scale": {
+          "x": 0.452448,
+          "y": 0.8,
+          "z": 2.571478
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-berm-corner-outer-7",
+      "transform": {
+        "position": {
+          "x": 88.463198,
+          "y": 1.442229,
+          "z": -50.741062
+        },
+        "rotation": {
+          "x": -26.565051,
+          "y": -65,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "lawn",
+        "scale": {
+          "x": 1.659791,
+          "y": 0.8,
+          "z": 8.049845
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-berm-corner-inner-8",
+      "transform": {
+        "position": {
+          "x": 84.488025,
+          "y": 3.667229,
+          "z": -48.701343
+        },
+        "rotation": {
+          "x": -26.565051,
+          "y": -75,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "lawn",
+        "scale": {
+          "x": 0.452448,
+          "y": 0.8,
+          "z": 2.571478
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-berm-corner-outer-8",
+      "transform": {
+        "position": {
+          "x": 88.786395,
+          "y": 1.442229,
+          "z": -49.853088
+        },
+        "rotation": {
+          "x": -26.565051,
+          "y": -75,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "lawn",
+        "scale": {
+          "x": 1.659791,
+          "y": 0.8,
+          "z": 8.049845
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-berm-corner-inner-9",
+      "transform": {
+        "position": {
+          "x": 84.517419,
+          "y": 3.667229,
+          "z": -48.534638
+        },
+        "rotation": {
+          "x": -26.565051,
+          "y": -85,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "lawn",
+        "scale": {
+          "x": 0.452448,
+          "y": 0.8,
+          "z": 2.571478
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-berm-corner-outer-9",
+      "transform": {
+        "position": {
+          "x": 88.950486,
+          "y": 1.442229,
+          "z": -48.922481
+        },
+        "rotation": {
+          "x": -26.565051,
+          "y": -85,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "lawn",
+        "scale": {
+          "x": 1.659791,
+          "y": 0.8,
+          "z": 8.049845
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "obstacle",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 0.2,
+          "y": 0.575,
+          "z": 2.7
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "solid-obstacle",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.standard-course",
+          "version": 1
+        }
+      },
+      "editable": true,
+      "id": "tunnel-headwall-west-lintel",
+      "transform": {
+        "position": {
+          "x": 9.9,
+          "y": 4.175,
+          "z": -45.45
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "obstacleBlock",
+        "scale": {
+          "x": 0.4,
+          "y": 1.15,
+          "z": 5.4
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "obstacle",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 0.2,
+          "y": 2.375,
+          "z": 2.45
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "solid-obstacle",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.standard-course",
+          "version": 1
+        }
+      },
+      "editable": true,
+      "id": "tunnel-headwall-west-l1",
+      "transform": {
+        "position": {
+          "x": 9.9,
+          "y": 2.375,
+          "z": -50.6
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "obstacleBlock",
+        "scale": {
+          "x": 0.4,
+          "y": 4.75,
+          "z": 4.9
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "obstacle",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 0.2,
+          "y": 1.225,
+          "z": 2.3
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "solid-obstacle",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.standard-course",
+          "version": 1
+        }
+      },
+      "editable": true,
+      "id": "tunnel-headwall-west-l2",
+      "transform": {
+        "position": {
+          "x": 9.9,
+          "y": 1.225,
+          "z": -55.35
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "obstacleBlock",
+        "scale": {
+          "x": 0.4,
+          "y": 2.45,
+          "z": 4.6
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "obstacle",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 0.2,
+          "y": 2.375,
+          "z": 2.45
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "solid-obstacle",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.standard-course",
+          "version": 1
+        }
+      },
+      "editable": true,
+      "id": "tunnel-headwall-west-r1",
+      "transform": {
+        "position": {
+          "x": 9.9,
+          "y": 2.375,
+          "z": -40.3
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "obstacleBlock",
+        "scale": {
+          "x": 0.4,
+          "y": 4.75,
+          "z": 4.9
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "obstacle",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 0.2,
+          "y": 1.225,
+          "z": 2.3
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "solid-obstacle",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.standard-course",
+          "version": 1
+        }
+      },
+      "editable": true,
+      "id": "tunnel-headwall-west-r2",
+      "transform": {
+        "position": {
+          "x": 9.9,
+          "y": 1.225,
+          "z": -35.55
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "obstacleBlock",
+        "scale": {
+          "x": 0.4,
+          "y": 2.45,
+          "z": 4.6
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "obstacle",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 2.25,
+          "y": 0.575,
+          "z": 0.2
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "solid-obstacle",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.standard-course",
+          "version": 1
+        }
+      },
+      "editable": true,
+      "id": "tunnel-headwall-north-lintel",
+      "transform": {
+        "position": {
+          "x": 81,
+          "y": 4.175,
+          "z": -9.9
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "obstacleBlock",
+        "scale": {
+          "x": 4.5,
+          "y": 1.15,
+          "z": 0.4
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "obstacle",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 2.45,
+          "y": 2.375,
+          "z": 0.2
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "solid-obstacle",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.standard-course",
+          "version": 1
+        }
+      },
+      "editable": true,
+      "id": "tunnel-headwall-north-l1",
+      "transform": {
+        "position": {
+          "x": 85.7,
+          "y": 2.375,
+          "z": -9.9
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "obstacleBlock",
+        "scale": {
+          "x": 4.9,
+          "y": 4.75,
+          "z": 0.4
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "obstacle",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 2.3,
+          "y": 1.225,
+          "z": 0.2
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "solid-obstacle",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.standard-course",
+          "version": 1
+        }
+      },
+      "editable": true,
+      "id": "tunnel-headwall-north-l2",
+      "transform": {
+        "position": {
+          "x": 90.45,
+          "y": 1.225,
+          "z": -9.9
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "obstacleBlock",
+        "scale": {
+          "x": 4.6,
+          "y": 2.45,
+          "z": 0.4
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "obstacle",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 2.45,
+          "y": 2.375,
+          "z": 0.2
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "solid-obstacle",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.standard-course",
+          "version": 1
+        }
+      },
+      "editable": true,
+      "id": "tunnel-headwall-north-r1",
+      "transform": {
+        "position": {
+          "x": 76.3,
+          "y": 2.375,
+          "z": -9.9
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "obstacleBlock",
+        "scale": {
+          "x": 4.9,
+          "y": 4.75,
+          "z": 0.4
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "obstacle",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 2.3,
+          "y": 1.225,
+          "z": 0.2
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "solid-obstacle",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.standard-course",
+          "version": 1
+        }
+      },
+      "editable": true,
+      "id": "tunnel-headwall-north-r2",
+      "transform": {
+        "position": {
+          "x": 71.55,
+          "y": 1.225,
+          "z": -9.9
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "obstacleBlock",
+        "scale": {
+          "x": 4.6,
+          "y": 2.45,
+          "z": 0.4
         },
         "shape": "box"
       }
@@ -23857,6 +25228,7 @@
       "collision": null,
       "editable": false,
       "id": "start-finish-line",
+      "indoors": true,
       "transform": {
         "position": {
           "x": 30,
@@ -23875,6 +25247,232 @@
           "x": 0.18,
           "y": 0.002,
           "z": 4.5
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "obstacle",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 0.12,
+          "y": 1.425,
+          "z": 0.12
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "solid-obstacle",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.standard-course",
+          "version": 1
+        }
+      },
+      "editable": true,
+      "id": "timing-portal-left-post",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 30,
+          "y": 1.575,
+          "z": -47.37
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "steel",
+        "scale": {
+          "x": 0.24,
+          "y": 2.85,
+          "z": 0.24
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "timing-portal-wall-clamp",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 30,
+          "y": 3.04,
+          "z": -42.765
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "steel",
+        "scale": {
+          "x": 0.36,
+          "y": 0.5,
+          "z": 0.03
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "obstacle",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 0.16,
+          "y": 0.16,
+          "z": 2.37
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "solid-obstacle",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.standard-course",
+          "version": 1
+        }
+      },
+      "editable": true,
+      "id": "timing-portal-crossbeam",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 30,
+          "y": 3.04,
+          "z": -45.12
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "hazard",
+        "scale": {
+          "x": 0.32,
+          "y": 0.32,
+          "z": 4.74
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "marker",
+      "collision": null,
+      "editable": false,
+      "id": "start-grid-tape-front",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 29.725,
+          "y": -0.001,
+          "z": -45
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "hazard",
+        "scale": {
+          "x": 0.05,
+          "y": 0.002,
+          "z": 0.65
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "marker",
+      "collision": null,
+      "editable": false,
+      "id": "start-grid-tape-left",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 29.35,
+          "y": -0.001,
+          "z": -45.3
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "hazard",
+        "scale": {
+          "x": 0.7,
+          "y": 0.002,
+          "z": 0.05
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "marker",
+      "collision": null,
+      "editable": false,
+      "id": "start-grid-tape-right",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 29.35,
+          "y": -0.001,
+          "z": -44.7
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "hazard",
+        "scale": {
+          "x": 0.7,
+          "y": 0.002,
+          "z": 0.05
         },
         "shape": "box"
       }

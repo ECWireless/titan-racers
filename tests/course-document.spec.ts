@@ -250,11 +250,13 @@ test("adds course lamps and night mirrors from schema version five", () => {
 
 test("adds indoor objects, overhead objects, and tunnel lamps from schema version six", () => {
   // Version five upgrades unchanged, but has no tunnel lamps or indoors.
-  const versionFive = {
-    ...structuredClone(FALLS_VIEW_PARK_DOCUMENT),
-    schemaVersion: 5,
-  };
-  expect(parseCourseDocument(versionFive)).toEqual(FALLS_VIEW_PARK_DOCUMENT);
+  const outdoors = structuredClone(FALLS_VIEW_PARK_DOCUMENT);
+  outdoors.objects.forEach((object) => {
+    delete object.indoors;
+    delete object.overhead;
+  });
+  const versionFive = { ...outdoors, schemaVersion: 5 };
+  expect(parseCourseDocument(versionFive)).toEqual(outdoors);
   const indoorsInVersionFive = structuredClone(versionFive);
   Object.assign(indoorsInVersionFive.objects[0]!, { indoors: true });
   expect(() => parseCourseDocument(indoorsInVersionFive)).toThrow();
