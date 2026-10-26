@@ -134,7 +134,7 @@ export function CourseEditorShell({
   ]);
   const [additiveSelectionEnabled, setAdditiveSelectionEnabled] =
     useState(false);
-  const [tool, setTool] = useState<CourseEditorTool>("translate");
+  const [chosenTool, setTool] = useState<CourseEditorTool>("translate");
   const [snapEnabled, setSnapEnabled] = useState(true);
   const [collisionVisible, setCollisionVisible] = useState(false);
   const [roofsHidden, setRoofsHidden] = useState(false);
@@ -452,11 +452,19 @@ export function CourseEditorShell({
     );
   }
 
+  // The start has no size, and a curve is sized by its Arc controls.
+  const curveSelected = selectedObject?.visual.shape === "arc";
+  const scaleUnavailable = selection.kind === "start" || curveSelected;
+  // Scale falls back to Move while it is unavailable rather than stranding
+  // the selection without handles.
+  const tool =
+    scaleUnavailable && chosenTool === "scale" ? "translate" : chosenTool;
   const selectedPlacement = selectedObject
     ? {
         indoors: Boolean(selectedObject.indoors),
         lamp: selectedObject.lamp ?? null,
         overhead: Boolean(selectedObject.overhead),
+        boxShaped: selectedObject.visual.shape === "box",
         supportsKarts: selectedObject.collision?.role === "drivable-surface",
       }
     : null;
@@ -842,7 +850,7 @@ export function CourseEditorShell({
     onToolCycle: (direction) => {
       const tools: CourseEditorTool[] = multipleObjectsSelected
         ? ["translate"]
-        : selection.kind === "start"
+        : scaleUnavailable
           ? ["translate", "rotate"]
           : ["translate", "rotate", "scale"];
       setTool((current) => {
@@ -863,7 +871,7 @@ export function CourseEditorShell({
       } else if (
         tool === "scale" &&
         !multipleObjectsSelected &&
-        selection.kind !== "start"
+        !scaleUnavailable
       ) {
         const grow = direction === "right" || direction === "up";
         scaleAxis(controllerAxis, grow ? 1.1 : 1 / 1.1);
@@ -927,7 +935,7 @@ export function CourseEditorShell({
         unmodifiedShortcut &&
         event.key === "3" &&
         !multipleObjectsSelected &&
-        selection.kind !== "start"
+        !scaleUnavailable
       ) {
         setTool("scale");
         return;
@@ -1142,6 +1150,7 @@ export function CourseEditorShell({
         <EditorToolbar
           additiveSelectionEnabled={additiveSelectionEnabled}
           collisionVisible={collisionVisible}
+          curveSelected={curveSelected}
           cameraHelpOpen={cameraHelpOpen}
           controllerAxis={controllerAxis}
           controllerConnected={controllerConnected}
@@ -1727,6 +1736,7 @@ function EditorToolbar({
   collisionVisible,
   controllerAxis,
   controllerConnected,
+  curveSelected,
   multipleObjectsSelected,
   onAdditiveSelectionToggle,
   onCameraHelpToggle,
@@ -1745,6 +1755,7 @@ function EditorToolbar({
   collisionVisible: boolean;
   controllerAxis: "x" | "y" | "z";
   controllerConnected: boolean;
+  curveSelected: boolean;
   multipleObjectsSelected: boolean;
   onAdditiveSelectionToggle: () => void;
   onCameraHelpToggle: () => void;
@@ -1765,7 +1776,8 @@ function EditorToolbar({
           active={tool === candidate}
           disabled={
             (multipleObjectsSelected && candidate !== "translate") ||
-            (candidate === "scale" && selection.kind === "start")
+            (candidate === "scale" &&
+              (selection.kind === "start" || curveSelected))
           }
           key={candidate}
           label={
@@ -1782,7 +1794,9 @@ function EditorToolbar({
                 ? "Rotate selection (2)"
                 : selection.kind === "start"
                   ? "Scale is unavailable for the start position"
-                  : "Scale selection by axis (3)"
+                  : curveSelected
+                    ? "Size a curve with its Arc controls in the inspector"
+                    : "Scale selection by axis (3)"
           }
           onClick={() => onToolChange(candidate)}
         >
@@ -2064,8 +2078,8 @@ function CoursePanel({
       ? []
       : [`${COURSE_OBJECT_PRESET_LABELS[preset]} limit reached (${limit})`],
   );
-  const lampLimitReached = reachedLimits.length > 0;
-  const lampLimitMessageId = useId();
+  const presetLimitReached = reachedLimits.length > 0;
+  const presetLimitMessageId = useId();
   const checkpointLimitReached =
     document.checkpoints.length >= COURSE_EDITOR_CHECKPOINT_LIMIT;
   const checkpointLimitMessageId = useId();
@@ -2077,26 +2091,26 @@ function CoursePanel({
         onToggle={() => onSectionToggle("course-add")}
       >
         <div className="grid min-w-0 grid-cols-2 gap-2">
-          {presetLimits.map(([preset, lampLimit]) => {
-            const lampBlocked = lampLimit !== null;
+          {presetLimits.map(([preset, presetLimit]) => {
+            const presetBlocked = presetLimit !== null;
             const label = COURSE_OBJECT_PRESET_LABELS[preset];
             return (
               <button
                 aria-describedby={
                   objectLimitReached
                     ? objectLimitMessageId
-                    : lampBlocked
-                      ? lampLimitMessageId
+                    : presetBlocked
+                      ? presetLimitMessageId
                       : undefined
                 }
                 className="min-h-11 border border-titan-ice/15 bg-titan-black/24 px-2 py-2 font-bold uppercase tracking-[0.08em] text-titan-ice/78 hover:border-titan-hazard hover:text-titan-hazard focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-titan-hazard disabled:cursor-not-allowed disabled:opacity-35"
-                disabled={objectLimitReached || lampBlocked}
+                disabled={objectLimitReached || presetBlocked}
                 key={preset}
                 title={
                   objectLimitReached
                     ? `Editor object limit reached (${COURSE_EDITOR_OBJECT_LIMIT})`
-                    : lampBlocked
-                      ? `${label} limit reached (${lampLimit})`
+                    : presetBlocked
+                      ? `${label} limit reached (${presetLimit})`
                       : `Add ${label}`
                 }
                 type="button"
@@ -2116,10 +2130,10 @@ function CoursePanel({
             Editor object limit reached ({COURSE_EDITOR_OBJECT_LIMIT})
           </p>
         ) : null}
-        {!objectLimitReached && lampLimitReached ? (
+        {!objectLimitReached && presetLimitReached ? (
           <p
             className="text-[0.65rem] font-bold uppercase tracking-[0.08em] text-titan-muted"
-            id={lampLimitMessageId}
+            id={presetLimitMessageId}
             role="status"
           >
             {reachedLimits.join(" · ")}
@@ -2553,6 +2567,7 @@ function Inspector({
 }
 
 type ObjectPlacement = {
+  boxShaped: boolean;
   indoors: boolean;
   lamp: "floodlight" | "tunnel" | null;
   overhead: boolean;
@@ -2568,7 +2583,8 @@ function ObjectPlacementControl({
   onPlace: (placement: { indoors: boolean; overhead: boolean }) => void;
   placement: ObjectPlacement;
 }) {
-  const { indoors, lamp, overhead, supportsKarts } = placement;
+  const { boxShaped, indoors, lamp, overhead, supportsKarts } = placement;
+  // Only a box can be an indoor roof.
   const options = [
     {
       checked: indoors,
@@ -2576,18 +2592,22 @@ function ObjectPlacementControl({
         ? lamp === "tunnel"
           ? "Tunnel lamps stand indoors."
           : "Floodlights stand outdoors."
-        : "Lit only by indoor light in the race.",
+        : overhead && !boxShaped
+          ? "Indoor roofs are boxes."
+          : "Lit only by indoor light in the race.",
       label: "Indoors",
-      locked: lamp !== null,
+      locked: lamp !== null || (overhead && !boxShaped),
       next: { indoors: !indoors, overhead },
     },
     {
       checked: overhead,
       hint: supportsKarts
         ? "Surfaces karts drive on cannot be roofs."
-        : "A roof: cut away in the editor; karts beneath an indoor roof count as indoors.",
+        : indoors && !boxShaped
+          ? "Indoor roofs are boxes."
+          : "A roof: cut away in the editor; karts beneath an indoor roof count as indoors.",
       label: "Overhead",
-      locked: supportsKarts,
+      locked: supportsKarts || (indoors && !boxShaped),
       next: { indoors, overhead: !overhead },
     },
   ];
@@ -2658,7 +2678,9 @@ function ArcFields({
             className="truncate text-right text-titan-ice/86"
             data-testid={`arc-${field}-value`}
           >
-            {arc[field].toFixed(2)} {unit}
+            {field === "sweep"
+              ? `${Math.round(arc.sweep)}°`
+              : `${arc[field].toFixed(2)} ${unit}`}
           </output>
           <button
             aria-label={`${label} decrease`}
@@ -2681,8 +2703,8 @@ function ArcFields({
         </div>
       ))}
       <p className="text-[0.62rem] leading-relaxed text-titan-muted">
-        The arc turns about its origin from its local X axis; its collision
-        follows its dimensions.
+        The curve bends around its centre point, where its move and rotate
+        handles sit; karts hit exactly the wall you see.
       </p>
     </fieldset>
   );

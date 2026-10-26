@@ -382,8 +382,8 @@ barriers are the youth's portable race kit
       1/15 s (an art choice) into grey rings, with no full-screen pass. The
       chase camera sees mostly black tread, so the blur shows best side-on.
       Within the phone budget.
-- [x] 4.4.2: Utility tunnel, with its own lights. Shipped: Opus won the
-      design competition. The start/finish sits in a cut-and-cover service
+- [x] 4.4.2: Utility tunnel, with its own lights. Shipped: the
+      start/finish sits in a cut-and-cover service
       road under an earth berm: 4.5 m lane, 3.6 m clear height, a pipe bay
       behind a kerb bench, and a junction chamber at the right-hander, where
       the bend's barriers are smooth arcs, a new course primitive drawn
@@ -407,7 +407,11 @@ barriers are the youth's portable race kit
       checkpoints and drops the nursery and culvert ones, as the downhill
       fork does, so a crash in between recovers at the tunnel exit. Both
       routes stay clearly lit at dusk; all eight floodlights are placed, so
-      decide how the road is lit.
+      decide how the road is lit. Also add the engine-backed lighting test
+      deferred from PR 4.4.2: through the scene test adapter, check that the
+      kart switches light channel and environment at each portal, on both its
+      original and its batched meshes, and again after a reset and a course
+      rebuild.
 - [ ] 4.4.4: Stream, culvert, and levee vista, and how the water looks.
 - [ ] 4.4.5: Downhill run and spin jump. Floor markings' slope depth bias
       lets edge lines show through a ramp's thin toe from low, distant views

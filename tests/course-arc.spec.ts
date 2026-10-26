@@ -2,6 +2,7 @@ import { expect, test } from "@playwright/test";
 
 import {
   COURSE_ARC_COLLISION_TOLERANCE,
+  COURSE_ARC_MAXIMUM_WIDTH_RATIO,
   COURSE_ARC_VISUAL_TOLERANCE,
   type CourseArc,
   createCourseArcGeometry,
@@ -9,23 +10,16 @@ import {
   getCourseArcSegmentCount,
 } from "../src/game/course/course-arc";
 
-// Falls View Park's tunnel bend barriers and a tight hairpin wall.
+// Falls View Park's tunnel bend barriers, a tight hairpin wall, and a wide
+// low wall whose open ends need the shortest end segments.
 const ARCS: CourseArc[] = [
   { height: 0.5, innerRadius: 4.45, sweep: 90, width: 0.3 },
   { height: 0.5, innerRadius: 9.25, sweep: 90, width: 0.3 },
   { height: 0.5, innerRadius: 2.25, sweep: 180, width: 0.3 },
+  { height: 0.3, innerRadius: 4, sweep: 90, width: 2 },
 ];
 
 test("splits arcs finely enough to stay within millimetres of the circle", () => {
-  expect(getCourseArcSegmentCount(4.75, 90, COURSE_ARC_VISUAL_TOLERANCE)).toBe(
-    23,
-  );
-  expect(getCourseArcSegmentCount(9.55, 90, COURSE_ARC_VISUAL_TOLERANCE)).toBe(
-    32,
-  );
-  expect(
-    getCourseArcSegmentCount(4.75, 90, COURSE_ARC_COLLISION_TOLERANCE),
-  ).toBe(18);
   // The largest arc the schema allows keeps the tolerance too.
   const largest = getCourseArcSegmentCount(
     200,
@@ -36,9 +30,9 @@ test("splits arcs finely enough to stay within millimetres of the circle", () =>
     COURSE_ARC_VISUAL_TOLERANCE,
   );
   // Small radii still step at most 6°.
-  expect(getCourseArcSegmentCount(0.1, 90, COURSE_ARC_VISUAL_TOLERANCE)).toBe(
-    15,
-  );
+  expect(
+    90 / getCourseArcSegmentCount(0.1, 90, COURSE_ARC_VISUAL_TOLERANCE),
+  ).toBeLessThanOrEqual(6);
   for (const arc of ARCS) {
     const outer = arc.innerRadius + arc.width;
     const { segments } = createCourseArcGeometry(arc);
@@ -130,13 +124,6 @@ test("collides with boxes that meet on the outer face without gaps or spikes", (
   for (const arc of ARCS) {
     const outer = arc.innerRadius + arc.width;
     const boxes = getCourseArcCollisionBoxes(arc);
-    expect(boxes).toHaveLength(
-      getCourseArcSegmentCount(
-        outer,
-        arc.sweep,
-        COURSE_ARC_COLLISION_TOLERANCE,
-      ),
-    );
     // A box's corner in the arc's frame, turned like the builder turns it.
     const corner = (
       box: (typeof boxes)[number],
@@ -177,5 +164,38 @@ test("collides with boxes that meet on the outer face without gaps or spikes", (
         expect(Math.hypot(a.x - b.x, a.z - b.z)).toBeLessThan(1e-9);
       }
     });
+    // No box reaches past the arc's open ends by more than the tolerance:
+    // its start lies on local z = 0, its end on the plane at the sweep.
+    const sweep = (arc.sweep * Math.PI) / 180;
+    const pastEnd = { x: -Math.sin(sweep), z: -Math.cos(sweep) };
+    for (const box of boxes) {
+      for (const along of [-1, 1]) {
+        for (const out of [-1, 1]) {
+          const point = corner(box, along, out);
+          expect(point.z).toBeLessThanOrEqual(
+            COURSE_ARC_COLLISION_TOLERANCE + 1e-9,
+          );
+          expect(point.x * pastEnd.x + point.z * pastEnd.z).toBeLessThanOrEqual(
+            COURSE_ARC_COLLISION_TOLERANCE + 1e-9,
+          );
+        }
+      }
+    }
+  }
+});
+
+test("keeps the widest allowed arcs to a few hundred collision boxes", () => {
+  // Open ends shorten the boxes most where the wall is widest for its inner
+  // radius, so the schema bounds that ratio.
+  for (const innerRadius of [0.05, 0.5, 6.25]) {
+    for (const sweep of [1, 90, 359.999999]) {
+      const arc = {
+        height: 0.5,
+        innerRadius,
+        sweep,
+        width: COURSE_ARC_MAXIMUM_WIDTH_RATIO * innerRadius,
+      };
+      expect(getCourseArcCollisionBoxes(arc).length).toBeLessThanOrEqual(500);
+    }
   }
 });

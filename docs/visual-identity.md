@@ -84,7 +84,8 @@ Orange and hazard are signals. Use them sparingly so they stay readable.
   tunnel's 8,600 cd ceiling luminaires, and the light its floor, walls, and
   ceiling bounce back; its lamps spill out of a portal onto the approach.
   One exposure serves the race, set for the outdoor course, so a dusk tunnel
-  sits a little below the floodlit track and a sunlit one well below.
+  sits a little below the floodlit track, but by day a tunnel's start is
+  near-black: courses with a tunnel race at dusk or later.
 - **Races load in space.** The loading screen shows Island Three from
   outside, lit by the same sun and tone mapping as the race, against black
   space and Saturn ([Island Three](island-three.md#from-outside)). The site's

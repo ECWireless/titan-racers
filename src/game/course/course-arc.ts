@@ -21,6 +21,9 @@ const MAXIMUM_ARC_STEP = (6 * Math.PI) / 180;
 // Enough for any arc the schema allows (outer radius ≤ 200 m, ≤ 360°) to keep
 // the visual tolerance; the cap only guards against bad input.
 const MAXIMUM_ARC_SEGMENTS = 1024;
+// Near an open end, collision boxes shrink with the wall's width over its
+// inner radius; this bound keeps any arc to a few hundred boxes.
+export const COURSE_ARC_MAXIMUM_WIDTH_RATIO = 16;
 
 /**
  * Segments that keep a circle of this radius within the tolerance: a chord
@@ -172,28 +175,69 @@ export function createCourseArcGeometry(arc: CourseArc) {
  * the outer circle, so neighbours meet there without a gap or a protruding
  * corner, and they overlap only inside the wall. Faces stay within the
  * collision tolerance of the drawn arc: the outer face up to that much
- * inside it, the inner face up to that much proud of it.
+ * inside it, the inner face up to that much proud of it. A box's inner
+ * corners reach past its segment's ends by the wall's width times the sine
+ * of half its angle, so the arc's end segments are short enough to keep its
+ * open ends within the tolerance too.
  */
 export function getCourseArcCollisionBoxes(arc: CourseArc) {
   const outerRadius = arc.innerRadius + arc.width;
-  const segments = getCourseArcSegmentCount(
-    outerRadius,
-    arc.sweep,
-    COURSE_ARC_COLLISION_TOLERANCE,
-  );
-  const step = (arc.sweep * Math.PI) / 180 / segments;
-  const halfStep = Math.cos(step / 2);
-  const outerFace = outerRadius * halfStep;
-  const innerFace = arc.innerRadius * halfStep;
-  return Array.from({ length: segments }, (_, index) => {
-    const angle = step * (index + 0.5);
-    const { x, z } = direction(angle);
+  const sweep = (arc.sweep * Math.PI) / 180;
+  const step =
+    sweep /
+    getCourseArcSegmentCount(
+      outerRadius,
+      arc.sweep,
+      COURSE_ARC_COLLISION_TOLERANCE,
+    );
+  // A box's inner corners reach past its start by width × sin(half its
+  // angle); near an open end that must stay within the tolerance of the end
+  // plane, so segments grow from each end as the arc behind them allows.
+  const ends: number[] = [0];
+  while (ends.at(-1)! < sweep / 2) {
+    const from = ends.at(-1)!;
+    const allowed =
+      (COURSE_ARC_COLLISION_TOLERANCE + arc.innerRadius * Math.sin(from)) /
+      arc.width;
+    const size = Math.min(step, 2 * Math.asin(Math.min(1, allowed)));
+    if (size >= step) break;
+    ends.push(Math.min(sweep / 2, from + size));
+  }
+  // Segment boundaries by angle; a closed ring has no ends to keep.
+  const uniform = (from: number, to: number) => {
+    const count = Math.max(1, Math.ceil((to - from) / step - 1e-9));
+    return Array.from(
+      { length: count + 1 },
+      (_, index) => from + ((to - from) * index) / count,
+    );
+  };
+  const graded = ends.at(-1)!;
+  const bounds =
+    arc.sweep >= 360 || ends.length === 1
+      ? uniform(0, sweep)
+      : [
+          ...ends.slice(0, -1),
+          ...(graded < sweep / 2
+            ? uniform(graded, sweep - graded)
+            : [sweep / 2]),
+          ...ends
+            .slice(0, -1)
+            .reverse()
+            .map((angle) => sweep - angle),
+        ];
+  return bounds.slice(1).map((to, index) => {
+    const from = bounds[index]!;
+    const half = (to - from) / 2;
+    const angle = from + half;
+    const outerFace = outerRadius * Math.cos(half);
+    const innerFace = arc.innerRadius * Math.cos(half);
     const middle = (outerFace + innerFace) / 2;
+    const { x, z } = direction(angle);
     return {
       center: { x: x * middle, y: arc.height / 2, z: z * middle },
       halfExtents: {
         // Along the chord, then the wall's height, then its depth.
-        x: outerRadius * Math.sin(step / 2),
+        x: outerRadius * Math.sin(half),
         y: arc.height / 2,
         z: (outerFace - innerFace) / 2,
       },

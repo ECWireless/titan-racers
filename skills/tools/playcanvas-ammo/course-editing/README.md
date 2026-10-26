@@ -203,11 +203,10 @@ creates one history command. The same document helper applies Inspector group
 nudges in a single validation pass. Start and checkpoint selection always
 replace the group; rotate, scale, rename, and delete stay single-selection only.
 
-Arcs keep translate and rotate gizmos at their origin, the arc's centre, so
-they turn about it; the scale gizmo does not attach to them. The inspector
-steps their dimensions instead, and an edit outside the schema's range leaves
-the arc unchanged. `Picker` resolves the generated mesh like any primitive;
-the selection outline is the arc's own surface grown 2 cm.
+`Picker` resolves a generated mesh's instances like any primitive's. A
+wireframe drawn from a generated mesh must pass `renderStyle` in the render
+component's data: assigning `meshInstances` resets each instance's style to
+the component's.
 
 ## Verification
 

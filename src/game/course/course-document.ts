@@ -7,6 +7,7 @@ import {
   MIRROR_ANGLE_LIMITS,
 } from "../enclosure/island-three";
 import { getApprovedSurfaceMaterial } from "../kart/kart-material-registry";
+import { COURSE_ARC_MAXIMUM_WIDTH_RATIO } from "./course-arc";
 import fallsViewParkDocumentJson from "./falls-view-park.v6.json";
 import type { OfficialCourseId } from "./course-ids";
 import roughCourseDocumentJson from "./rough-course.v6.json";
@@ -121,7 +122,14 @@ const arcSchema = z
   .refine((arc) => arc.innerRadius + arc.width <= 200, {
     message: "An arc's outer radius is at most 200 m",
     path: ["width"],
-  });
+  })
+  .refine(
+    (arc) => arc.width <= COURSE_ARC_MAXIMUM_WIDTH_RATIO * arc.innerRadius,
+    {
+      message: `An arc is at most ${COURSE_ARC_MAXIMUM_WIDTH_RATIO} times as wide as its inner radius`,
+      path: ["width"],
+    },
+  );
 
 const arcVisualSchema = z.strictObject({
   arc: arcSchema,
@@ -445,6 +453,14 @@ export const courseDocumentSchema = courseDocumentV5BaseSchema
           code: "custom",
           message: "Arcs collide as arcs, and only arcs do",
           path: ["objects", index, "collision", "shape"],
+        });
+      }
+      // The race finds a kart indoors beneath an indoor roof's rectangle.
+      if (object.overhead && object.indoors && object.visual.shape !== "box") {
+        context.addIssue({
+          code: "custom",
+          message: "Indoor roofs are boxes",
+          path: ["objects", index, "visual", "shape"],
         });
       }
       if (object.lamp && object.visual.shape === "arc") {

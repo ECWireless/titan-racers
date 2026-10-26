@@ -331,16 +331,15 @@ export function addCourseObjectPreset(
   });
 }
 
-export function courseLampLimitReached(document: CourseDocument) {
-  return countCourseLamps(document, "floodlight") >= COURSE_LAMP_LIMIT;
-}
-
 /** The lamp limit a preset has reached, if any. */
 export function coursePresetLimitReached(
   document: CourseDocument,
   preset: CourseObjectPreset,
 ) {
-  if (preset === "lamp" && courseLampLimitReached(document)) {
+  if (
+    preset === "lamp" &&
+    countCourseLamps(document, "floodlight") >= COURSE_LAMP_LIMIT
+  ) {
     return COURSE_LAMP_LIMIT;
   }
   if (
@@ -510,22 +509,27 @@ export function updateSelectionArc(
   selection: CourseEditorSelection,
   arc: CourseArc,
 ) {
+  const rounded = {
+    height: roundEditorValue(arc.height),
+    innerRadius: roundEditorValue(arc.innerRadius),
+    sweep: roundEditorValue(arc.sweep),
+    width: roundEditorValue(arc.width),
+  };
+  const current = document.objects.find(({ id }) => id === selection.id);
+  const visual = current?.visual;
+  if (
+    visual?.shape !== "arc" ||
+    (Object.keys(rounded) as (keyof CourseArc)[]).every(
+      (key) => visual.arc[key] === rounded[key],
+    )
+  ) {
+    return document;
+  }
   const next = courseDocumentSchema.safeParse({
     ...document,
     objects: document.objects.map((object) =>
-      object.id === selection.id && object.visual.shape === "arc"
-        ? {
-            ...object,
-            visual: {
-              ...object.visual,
-              arc: {
-                height: roundEditorValue(arc.height),
-                innerRadius: roundEditorValue(arc.innerRadius),
-                sweep: roundEditorValue(arc.sweep),
-                width: roundEditorValue(arc.width),
-              },
-            },
-          }
+      object === current
+        ? { ...object, visual: { ...visual, arc: rounded } }
         : object,
     ),
   });

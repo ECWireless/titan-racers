@@ -97,14 +97,16 @@ owns only Resume and Exit.
 - Cut away roofs hides every `overhead` object (a tunnel's roof slabs and
   the earth berm over them) and its collision diagnostics, so what lies
   beneath can be seen and picked; it defaults off and changes no data.
-- The inspector's Placement checkboxes mark an object indoors (lit only by
-  indoor light in the race) or overhead (a roof: cut away here, and karts
-  beneath an indoor one count as indoors). The schema's rules hold: lamps
-  keep their indoor or outdoor side, and nothing karts drive on is a roof; an
-  edit that breaks one leaves the course unchanged.
-- The palette names the `lamp` preset "floodlight" and adds a "tunnel lamp"
-  preset, the luminaire housing hung from a 3.6 m roof, indoors; floodlights
-  and tunnel lamps each stop at their own limit (8 and 16).
+- The inspector's Placement checkboxes set an object's `indoors` and
+  `overhead` flags within the schema's rules
+  ([course data](../course-data/README.md)); an edit that breaks one leaves
+  the course unchanged.
+- The palette shows the `lamp` preset as "floodlight" beside a "tunnel lamp"
+  preset hung from a 3.6 m roof; each kind stops at its own limit.
+- Arcs (the `curve` preset) keep the move and rotate gizmos at the arc's
+  centre and have no Scale tool; the inspector steps their dimensions, and an
+  edit that changes nothing or breaks the schema records no step. Their
+  selection outline is their own surface grown 2 cm.
 - Collision diagnostics default hidden. The compact icon toolbar retains
   accessible action names, explanatory tooltips, active-state styling, and an
   in-product mouse/touch camera-control reference.

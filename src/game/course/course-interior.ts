@@ -69,7 +69,7 @@ export function createCourseInteriorAtlas(
 
 /**
  * Whether a point is indoors: beneath one of the course's overhead indoor
- * objects (a tunnel's roof). Null when the course has none.
+ * objects (a tunnel's roof, always a box). Null when the course has none.
  */
 export function createCourseInteriorTest(document: CourseDocument) {
   // Each roof's local axes in the world, found once: a point's local

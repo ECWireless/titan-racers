@@ -121,7 +121,8 @@ is both counts as indoors.
 
 Version six adds arcs. An arc's visual has no scale: `visual.arc` holds its
 inner radius (≥ 0.05 m), width (≥ 0.1 m), height, and sweep (up to 360°), with
-an outer radius of at most 200 m. It sweeps about the object's origin, at its
+an outer radius of at most 200 m and a width of at most 16 times its inner
+radius (which bounds its collision boxes). It sweeps about the object's origin, at its
 base, from local +X toward local −Z, so bends that share a centre share a
 position. Its collision is `{ shape: "arc" }` with friction, restitution, a
 surface material, and the solid-obstacle role only; arcs and only arcs collide
@@ -216,6 +217,12 @@ exposed in the UI.
   place one directly behind unbiased detail (a door frame behind its door, a
   painted board behind dark chevrons). Put the biased finish in front, or
   beside, instead.
+- Earthworks built from tilted slabs fill concave corners correctly (the
+  surface is the highest slope), but a convex corner needs the lowest, and
+  overlapping slabs leave lips that show as dark lines. Plan visible
+  earthworks with concave corners only (Falls View Park's chamber has a
+  chamfered inner wall for this), and keep any convex corner, such as the
+  berm's far corner fan, out of the main sightlines.
 - Objects without collision data receive no collision or rigid-body component.
 - Diagnostic collision fixtures cannot appear in production or ordinary play.
 - Checkpoint data is projected into plain directed swept gates by the separate

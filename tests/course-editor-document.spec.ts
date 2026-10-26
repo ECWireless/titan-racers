@@ -483,7 +483,11 @@ test.describe("course editor document commands", () => {
     expect(resized.objects.at(-1)!.visual).toMatchObject({
       arc: { ...arc, innerRadius: 6.123 },
     });
-    // Dimensions outside the schema's range leave the arc unchanged.
+    // An edit that changes nothing, such as a step held at a minimum, or
+    // dimensions outside the schema's range leave the arc unchanged.
+    expect(
+      updateSelectionArc(resized, selection, { ...arc, innerRadius: 6.123 }),
+    ).toBe(resized);
     expect(
       updateSelectionArc(resized, selection, { ...arc, width: 0.05 }),
     ).toBe(resized);

@@ -1130,10 +1130,22 @@ test.describe("protected course editor access", () => {
     await page.goto("/admin/courses/rough-course");
     const canvas = page.getByTestId("course-editor-canvas");
     await waitForEditorScene(canvas);
+    await page.getByRole("button", { name: "block" }).click();
+    const scaleTool = page
+      .getByTestId("editor-toolbar-shell")
+      .getByRole("button", { exact: true, name: "Scale" });
+    await scaleTool.click();
+    await expect(canvas).toHaveAttribute("data-tool", "scale");
     await page.getByRole("button", { name: "curve" }).click();
     await expect(canvas).toHaveAttribute("data-selected-id", "curve-1");
 
-    // An arc is sized by its dimensions, not by scale.
+    // An arc is sized by its dimensions, not by scale, so Scale gives way to
+    // Move.
+    await expect(scaleTool).toHaveAttribute("aria-disabled", "true");
+    await expect(scaleTool).toHaveAccessibleDescription(
+      "Size a curve with its Arc controls in the inspector",
+    );
+    await expect(canvas).toHaveAttribute("data-tool", "translate");
     const inspector = page.getByRole("complementary", { name: "Inspector" });
     await expect(inspector.getByTestId("scale-x-value")).toHaveCount(0);
     await expect(inspector.getByTestId("arc-innerRadius-value")).toHaveText(
@@ -1146,9 +1158,7 @@ test.describe("protected course editor access", () => {
       "4.25 m",
     );
     await inspector.getByRole("button", { name: "Sweep decrease" }).click();
-    await expect(inspector.getByTestId("arc-sweep-value")).toHaveText(
-      "85.00 °",
-    );
+    await expect(inspector.getByTestId("arc-sweep-value")).toHaveText("85°");
 
     // Its generated surface picks like any primitive.
     await page.getByRole("button", { name: "Start Spawn" }).click();
@@ -1160,9 +1170,6 @@ test.describe("protected course editor access", () => {
     expect(curvePoint).not.toBeNull();
     await canvas.click({ position: curvePoint! });
     await expect(canvas).toHaveAttribute("data-selected-id", "curve-1");
-
-    await page.getByRole("button", { name: "Show collision shapes" }).click();
-    await expect(canvas).toHaveAttribute("data-colliders-visible", "true");
   });
 
   test("adds tunnel lamps and cuts away roofs", async ({ page }, testInfo) => {

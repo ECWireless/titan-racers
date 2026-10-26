@@ -453,6 +453,30 @@ test("adds smooth arcs in schema version six", () => {
       message: "An arc's outer radius is at most 200 m",
     }),
   );
+  expect(
+    withArc((object) => {
+      Object.assign((object.visual as { arc: object }).arc, {
+        innerRadius: 0.05,
+        width: 1,
+      });
+    }),
+  ).toContainEqual(
+    expect.objectContaining({
+      message: "An arc is at most 16 times as wide as its inner radius",
+      path: ["objects", index, "visual", "arc", "width"],
+    }),
+  );
+  // The race finds karts beneath box roofs only.
+  expect(
+    withArc((object) => {
+      object.overhead = true;
+    }),
+  ).toContainEqual(
+    expect.objectContaining({
+      message: "Indoor roofs are boxes",
+      path: ["objects", index, "visual", "shape"],
+    }),
+  );
   // A box cannot collide as an arc either.
   const boxAsArc = structuredClone(FALLS_VIEW_PARK_DOCUMENT);
   boxAsArc.objects[0]!.collision = structuredClone(barrier.collision);
