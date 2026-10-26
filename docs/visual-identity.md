@@ -79,6 +79,12 @@ Orange and hazard are signals. Use them sparingly so they stay readable.
   falls are floodlit, and the falls bridge and distant sports fields carry
   their lights through the haze
   ([dusk and night](island-three.md#dusk-and-night)).
+- **Indoors is lit from indoors.** Habitat light, the sun, and floodlights
+  never pass through a roof. An interior takes only its own lamps, such as a
+  tunnel's 8,600 cd ceiling luminaires, and the light its floor, walls, and
+  ceiling bounce back; its lamps spill out of a portal onto the approach.
+  One exposure serves the race, set for the outdoor course, so a dusk tunnel
+  sits a little below the floodlit track and a sunlit one well below.
 - **Races load in space.** The loading screen shows Island Three from
   outside, lit by the same sun and tone mapping as the race, against black
   space and Saturn ([Island Three](island-three.md#from-outside)). The site's
@@ -130,6 +136,14 @@ Materials), and so do course surfaces (see Course Surfaces).
 - **Built for people.** Courses are habitat infrastructure at human scale:
   asphalt grain, paint widths, posts, and cabinets are full-size, so the 1:10
   karts read as tiny.
+- **Two layers: the park's and the youth's.** Everything on a course is one
+  of two things. The park's infrastructure is permanent, full-size, and built
+  to its trade: service roads, mains, doors, lamps, road markings, and signs.
+  The youth's race kit is portable and improvised: the timing portal and the
+  work light clamped to it, taped grid slots, and later the jump and
+  makeshift barriers, in steel, hazard paint, and tape. Every new section
+  follows the rule, so the route reads as kids racing through a working
+  park.
 - **Service-yard finishes.** Aged mineral-grey asphalt (about 13%
   reflectance), clipped muted-olive turf bordering the road, darker and
   patchier uncut lawn beyond it, ice road paint for edge and start
@@ -210,12 +224,12 @@ CPU work and draw calls are the headroom signals.
 
 ### Baseline
 
-| Measure | Before lighting (PR 4.1.2 start) | After lighting baseline | Part visuals (PR 4.1.3) | Authored primitives (PR 4.1.4) | Sandbox surfaces (PR 4.2.1) | Surface physics (PR 4.2.2) | Collision substeps (PR 4.2.3) | Surface effects (PR 4.2.4) | Surface scans (PR 4.2.5) | Handbrake clutch (PR 4.2.6) | Island Three (PR 4.3.1) | Habitat physics (PR 4.3.2) | Loading screen (PR 4.3.3) | Valley structures (PR 4.3.4) | Dusk and night (PR 4.3.5) | Falls View Park route (PR 4.4.1) | Wheel blur (PR 4.4.1.1) |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| Frame p50 / p95 | 17.0 / 18.0 ms | 17.0 / 18.0 ms | 17.0 / 18.0 ms | 17.0 / 18.0–19.0 ms | 17.0 / 18.0 ms | 17.0 / 18.0 ms | 17.0 / 18.0 ms | 17.0 / 18.0 ms | 17.0 / 18.0 ms | 17.0 / 18.0 ms | 17.0 / 18.0 ms | 17.0 / 18.0 ms | 17.0 / 18.0 ms | 17.0 / 18.0 ms | 17.0 / 18.0 ms | 17.0 / 18.0 ms | 17.0 / 18.0 ms |
-| CPU p50 / p95 | 3 / 4 ms | 3 / 4 ms | 2 / 3 ms | 2 / 3 ms | 2 / 3–4 ms | 2 / 3 ms | 3 / 4 ms | 2 / 3–4 ms | 2–3 / 4 ms | 2 / 3 ms | 2 / 3 ms | 2 / 3–4 ms | 2 / 3 ms | 3 / 4 ms | 2–3 / 3–4 ms | 3 / 4 ms | 3 / 4 ms |
-| Draw calls p50 / max | 212 / 226 | 213 / 226 | 38–39 / 55 | 38–39 / 51 | 34 / 45–46 | 35 / 48–49 | 35–36 / 46–49 | 36–37 / 49–51 | 37–39 / 49–51 | 36–37 / 49–50 | 30–31 / 41 | 31–32 / 41–42 | 30–32 / 41 | 44–45 / 55–58 | 31 / 43–44 | 24 / 37–39 | 27 / 42 |
-| First frame (warm) | 63–136 ms | 107–278 ms | 121–128 ms | 132–191 ms | 335–392 ms | 133–207 ms | 136–282 ms | 147–230 ms | 240–243 ms | Not measured | 259 ms | 352–433 ms | 289–295 ms | 302–575 ms | 265–281 ms | 305–321 ms | 300 ms |
+| Measure | Before lighting (PR 4.1.2 start) | After lighting baseline | Part visuals (PR 4.1.3) | Authored primitives (PR 4.1.4) | Sandbox surfaces (PR 4.2.1) | Surface physics (PR 4.2.2) | Collision substeps (PR 4.2.3) | Surface effects (PR 4.2.4) | Surface scans (PR 4.2.5) | Handbrake clutch (PR 4.2.6) | Island Three (PR 4.3.1) | Habitat physics (PR 4.3.2) | Loading screen (PR 4.3.3) | Valley structures (PR 4.3.4) | Dusk and night (PR 4.3.5) | Falls View Park route (PR 4.4.1) | Wheel blur (PR 4.4.1.1) | Utility tunnel (PR 4.4.2) |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| Frame p50 / p95 | 17.0 / 18.0 ms | 17.0 / 18.0 ms | 17.0 / 18.0 ms | 17.0 / 18.0–19.0 ms | 17.0 / 18.0 ms | 17.0 / 18.0 ms | 17.0 / 18.0 ms | 17.0 / 18.0 ms | 17.0 / 18.0 ms | 17.0 / 18.0 ms | 17.0 / 18.0 ms | 17.0 / 18.0 ms | 17.0 / 18.0 ms | 17.0 / 18.0 ms | 17.0 / 18.0 ms | 17.0 / 18.0 ms | 17.0 / 18.0 ms | 17.0 / 18.0 ms |
+| CPU p50 / p95 | 3 / 4 ms | 3 / 4 ms | 2 / 3 ms | 2 / 3 ms | 2 / 3–4 ms | 2 / 3 ms | 3 / 4 ms | 2 / 3–4 ms | 2–3 / 4 ms | 2 / 3 ms | 2 / 3 ms | 2 / 3–4 ms | 2 / 3 ms | 3 / 4 ms | 2–3 / 3–4 ms | 3 / 4 ms | 3 / 4 ms | 3 / 4 ms |
+| Draw calls p50 / max | 212 / 226 | 213 / 226 | 38–39 / 55 | 38–39 / 51 | 34 / 45–46 | 35 / 48–49 | 35–36 / 46–49 | 36–37 / 49–51 | 37–39 / 49–51 | 36–37 / 49–50 | 30–31 / 41 | 31–32 / 41–42 | 30–32 / 41 | 44–45 / 55–58 | 31 / 43–44 | 24 / 37–39 | 27 / 42 | 32 / 52 |
+| First frame (warm) | 63–136 ms | 107–278 ms | 121–128 ms | 132–191 ms | 335–392 ms | 133–207 ms | 136–282 ms | 147–230 ms | 240–243 ms | Not measured | 259 ms | 352–433 ms | 289–295 ms | 302–575 ms | 265–281 ms | 305–321 ms | 300 ms | 302 ms |
 
 PR 4.1.4 was measured with one race on each official kart rather than three
 Balanced races. Each official kart is 15.3–15.5k triangles: 11.6k of part
@@ -298,3 +312,11 @@ on Falls View Park at deep dusk, a smaller sample for a narrow change. The
 two wheel finishes are their own shader programs, adding three draws;
 frame time and CPU work are unchanged, and the race was ready after 401 ms.
 The first load after a new build took 698 ms.
+
+PR 4.4.2 was measured with one Balanced race on a reload, with no hitches,
+on Falls View Park at deep dusk with its start in the utility tunnel. The
+tunnel's thirteen lamps (clustered spot lights without shadows), its indoor
+finishes and interior environment, and 131 dressing objects add about five
+draws; frame time and CPU work are unchanged, and the race was ready after
+414 ms. Crossing the portals compiles nothing: the kart lit both ways
+behind the loading screen. The first load after a new build took 1,259 ms.

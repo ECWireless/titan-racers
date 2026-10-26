@@ -111,7 +111,11 @@ Earlier builds cannot read version five: rolling the code back after a save
 breaks the editor and the published-course route for that course, though
 players fall back to the bundled course. Version five allows up to eight
 lamps from PR 4.4.1 (four before), with no migration; a build from before
-then cannot read a revision with more than four, in the same way. A database
+then cannot read a revision with more than four, in the same way. From PR
+4.4.2, courses are saved as schema version six (indoor and overhead objects,
+tunnel lamps, and smooth arcs); earlier rows load unchanged, with no
+migration, and a build from before then cannot read a version-six save, in
+the same way. A database
 serves its existing `rough-course` revision, not the walled Starter Course
 seed, until the guarded seed reset below appends the seed and an admin
 publishes it.

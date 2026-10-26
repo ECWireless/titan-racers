@@ -1,6 +1,6 @@
 # Curved Course Geometry
 
-**Maturity:** Candidate (PR 4.4.2, 2026-10-26).
+**Maturity:** Validated (PR 4.4.2, 2026-10-26).
 
 ## Purpose And Scope
 
