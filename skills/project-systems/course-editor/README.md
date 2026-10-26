@@ -85,7 +85,7 @@ owns only Resume and Exit.
   a portable document and enters history as one coherent command.
 - Runtime entities, selection outlines, checkpoint markers, gizmos, and
   collision wireframes remain disposable projections of stable document IDs.
-- The protected editor accepts at most 500 course objects and 256 checkpoints,
+- The protected editor accepts at most 1,000 course objects and 256 checkpoints,
   disables creation at either limit, retains issued IDs as session tombstones,
   and creates collision diagnostics only while visible.
 - Box and checkpoint axes scale independently; cylinder height is independent

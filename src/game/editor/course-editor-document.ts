@@ -21,7 +21,7 @@ export const COURSE_OBJECT_PRESETS = [
   "platform",
   "lamp",
 ] as const;
-export const COURSE_EDITOR_OBJECT_LIMIT = 500;
+export const COURSE_EDITOR_OBJECT_LIMIT = 1_000;
 export const COURSE_EDITOR_CHECKPOINT_LIMIT = COURSE_CHECKPOINT_LIMIT;
 
 export type CourseObjectPreset = (typeof COURSE_OBJECT_PRESETS)[number];

@@ -5470,6 +5470,3805 @@
     },
     {
       "availability": "standard",
+      "category": "obstacle",
+      "collision": {
+        "axis": 1,
+        "friction": 0.7,
+        "height": 64,
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "radius": 0.163,
+        "restitution": 0,
+        "role": "solid-obstacle",
+        "shape": "cylinder",
+        "surfaceMaterial": {
+          "id": "surface.standard-course",
+          "version": 1
+        }
+      },
+      "editable": true,
+      "id": "tunnel-water-main",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 42,
+          "y": 0.413,
+          "z": -47.75
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 90
+        }
+      },
+      "visual": {
+        "material": "ramp",
+        "scale": {
+          "x": 0.326,
+          "y": 64,
+          "z": 0.326
+        },
+        "shape": "cylinder"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-water-main-saddle-1",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 13,
+          "y": 0.2,
+          "z": -47.75
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "obstacleBlock",
+        "scale": {
+          "x": 0.35,
+          "y": 0.1,
+          "z": 0.5
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-water-main-saddle-2",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 19,
+          "y": 0.2,
+          "z": -47.75
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "obstacleBlock",
+        "scale": {
+          "x": 0.35,
+          "y": 0.1,
+          "z": 0.5
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-water-main-saddle-3",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 25,
+          "y": 0.2,
+          "z": -47.75
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "obstacleBlock",
+        "scale": {
+          "x": 0.35,
+          "y": 0.1,
+          "z": 0.5
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-water-main-saddle-4",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 31,
+          "y": 0.2,
+          "z": -47.75
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "obstacleBlock",
+        "scale": {
+          "x": 0.35,
+          "y": 0.1,
+          "z": 0.5
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-water-main-saddle-5",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 37,
+          "y": 0.2,
+          "z": -47.75
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "obstacleBlock",
+        "scale": {
+          "x": 0.35,
+          "y": 0.1,
+          "z": 0.5
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-water-main-saddle-6",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 43,
+          "y": 0.2,
+          "z": -47.75
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "obstacleBlock",
+        "scale": {
+          "x": 0.35,
+          "y": 0.1,
+          "z": 0.5
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-water-main-saddle-7",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 49,
+          "y": 0.2,
+          "z": -47.75
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "obstacleBlock",
+        "scale": {
+          "x": 0.35,
+          "y": 0.1,
+          "z": 0.5
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-water-main-saddle-8",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 55,
+          "y": 0.2,
+          "z": -47.75
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "obstacleBlock",
+        "scale": {
+          "x": 0.35,
+          "y": 0.1,
+          "z": 0.5
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-water-main-saddle-9",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 61,
+          "y": 0.2,
+          "z": -47.75
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "obstacleBlock",
+        "scale": {
+          "x": 0.35,
+          "y": 0.1,
+          "z": 0.5
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-water-main-saddle-10",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 67,
+          "y": 0.2,
+          "z": -47.75
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "obstacleBlock",
+        "scale": {
+          "x": 0.35,
+          "y": 0.1,
+          "z": 0.5
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-water-main-saddle-11",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 73,
+          "y": 0.2,
+          "z": -47.75
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "obstacleBlock",
+        "scale": {
+          "x": 0.35,
+          "y": 0.1,
+          "z": 0.5
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-fire-main",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 42,
+          "y": 0.9,
+          "z": -48.035
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 90
+        }
+      },
+      "visual": {
+        "material": "obstacleBarrel",
+        "scale": {
+          "x": 0.17,
+          "y": 64,
+          "z": 0.17
+        },
+        "shape": "cylinder"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-fire-main-bracket-1",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 14,
+          "y": 0.9,
+          "z": -48.09
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "steel",
+        "scale": {
+          "x": 0.06,
+          "y": 0.24,
+          "z": 0.12
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-fire-main-bracket-2",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 22,
+          "y": 0.9,
+          "z": -48.09
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "steel",
+        "scale": {
+          "x": 0.06,
+          "y": 0.24,
+          "z": 0.12
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-fire-main-bracket-3",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 30,
+          "y": 0.9,
+          "z": -48.09
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "steel",
+        "scale": {
+          "x": 0.06,
+          "y": 0.24,
+          "z": 0.12
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-fire-main-bracket-4",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 38,
+          "y": 0.9,
+          "z": -48.09
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "steel",
+        "scale": {
+          "x": 0.06,
+          "y": 0.24,
+          "z": 0.12
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-fire-main-bracket-5",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 46,
+          "y": 0.9,
+          "z": -48.09
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "steel",
+        "scale": {
+          "x": 0.06,
+          "y": 0.24,
+          "z": 0.12
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-fire-main-bracket-6",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 54,
+          "y": 0.9,
+          "z": -48.09
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "steel",
+        "scale": {
+          "x": 0.06,
+          "y": 0.24,
+          "z": 0.12
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-fire-main-bracket-7",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 62,
+          "y": 0.9,
+          "z": -48.09
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "steel",
+        "scale": {
+          "x": 0.06,
+          "y": 0.24,
+          "z": 0.12
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-fire-main-bracket-8",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 70,
+          "y": 0.9,
+          "z": -48.09
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "steel",
+        "scale": {
+          "x": 0.06,
+          "y": 0.24,
+          "z": 0.12
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-fire-cabinet-1",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 26,
+          "y": 1.6,
+          "z": -48.11
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "obstacleBarrel",
+        "scale": {
+          "x": 0.75,
+          "y": 0.75,
+          "z": 0.08
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-fire-cabinet-2",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 58,
+          "y": 1.6,
+          "z": -48.11
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "obstacleBarrel",
+        "scale": {
+          "x": 0.75,
+          "y": 0.75,
+          "z": 0.08
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-cable-tray-left",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 42,
+          "y": 3.3,
+          "z": -48
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "steel",
+        "scale": {
+          "x": 63.6,
+          "y": 0.06,
+          "z": 0.3
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-cable-tray-right",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 42.1,
+          "y": 3.3,
+          "z": -42.9
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "steel",
+        "scale": {
+          "x": 63.8,
+          "y": 0.06,
+          "z": 0.3
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-cable-tray-north",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 83.1,
+          "y": 3.3,
+          "z": -24.1
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "steel",
+        "scale": {
+          "x": 0.3,
+          "y": 0.06,
+          "z": 27.8
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-door-1-frame-head",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 33.5,
+          "y": 2.12,
+          "z": -42.753
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "line",
+        "scale": {
+          "x": 1.08,
+          "y": 0.04,
+          "z": 0.006
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-door-1-frame-left",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 32.98,
+          "y": 1.05,
+          "z": -42.753
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "line",
+        "scale": {
+          "x": 0.04,
+          "y": 2.1,
+          "z": 0.006
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-door-1-frame-right",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 34.02,
+          "y": 1.05,
+          "z": -42.753
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "line",
+        "scale": {
+          "x": 0.04,
+          "y": 2.1,
+          "z": 0.006
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-door-1",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 33.5,
+          "y": 1.05,
+          "z": -42.761
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "steel",
+        "scale": {
+          "x": 1,
+          "y": 2.1,
+          "z": 0.01
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-door-1-kick-plate",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 33.5,
+          "y": 0.125,
+          "z": -42.768
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "ramp",
+        "scale": {
+          "x": 1,
+          "y": 0.25,
+          "z": 0.004
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-door-1-handle",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 33.12,
+          "y": 1,
+          "z": -42.791
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "steel",
+        "scale": {
+          "x": 0.12,
+          "y": 0.03,
+          "z": 0.05
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-door-1-number-b",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 33.415,
+          "y": 1.7,
+          "z": -42.765
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "line",
+        "scale": {
+          "x": 0.05,
+          "y": 0.2,
+          "z": 0.006
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-door-1-number-c",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 33.415,
+          "y": 1.5,
+          "z": -42.765
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "line",
+        "scale": {
+          "x": 0.05,
+          "y": 0.2,
+          "z": 0.006
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-door-2-frame-head",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 50,
+          "y": 2.12,
+          "z": -42.753
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "line",
+        "scale": {
+          "x": 1.08,
+          "y": 0.04,
+          "z": 0.006
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-door-2-frame-left",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 49.48,
+          "y": 1.05,
+          "z": -42.753
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "line",
+        "scale": {
+          "x": 0.04,
+          "y": 2.1,
+          "z": 0.006
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-door-2-frame-right",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 50.52,
+          "y": 1.05,
+          "z": -42.753
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "line",
+        "scale": {
+          "x": 0.04,
+          "y": 2.1,
+          "z": 0.006
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-door-2",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 50,
+          "y": 1.05,
+          "z": -42.761
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "steel",
+        "scale": {
+          "x": 1,
+          "y": 2.1,
+          "z": 0.01
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-door-2-kick-plate",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 50,
+          "y": 0.125,
+          "z": -42.768
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "ramp",
+        "scale": {
+          "x": 1,
+          "y": 0.25,
+          "z": 0.004
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-door-2-handle",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 49.62,
+          "y": 1,
+          "z": -42.791
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "steel",
+        "scale": {
+          "x": 0.12,
+          "y": 0.03,
+          "z": 0.05
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-door-2-number-a",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 50,
+          "y": 1.775,
+          "z": -42.765
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "line",
+        "scale": {
+          "x": 0.22,
+          "y": 0.05,
+          "z": 0.006
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-door-2-number-g",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 50,
+          "y": 1.6,
+          "z": -42.765
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "line",
+        "scale": {
+          "x": 0.22,
+          "y": 0.05,
+          "z": 0.006
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-door-2-number-d",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 50,
+          "y": 1.425,
+          "z": -42.765
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "line",
+        "scale": {
+          "x": 0.22,
+          "y": 0.05,
+          "z": 0.006
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-door-2-number-b",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 49.915,
+          "y": 1.7,
+          "z": -42.765
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "line",
+        "scale": {
+          "x": 0.05,
+          "y": 0.2,
+          "z": 0.006
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-door-2-number-e",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 50.085,
+          "y": 1.5,
+          "z": -42.765
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "line",
+        "scale": {
+          "x": 0.05,
+          "y": 0.2,
+          "z": 0.006
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-door-3-frame-head",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 66,
+          "y": 2.12,
+          "z": -42.753
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "line",
+        "scale": {
+          "x": 1.08,
+          "y": 0.04,
+          "z": 0.006
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-door-3-frame-left",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 65.48,
+          "y": 1.05,
+          "z": -42.753
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "line",
+        "scale": {
+          "x": 0.04,
+          "y": 2.1,
+          "z": 0.006
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-door-3-frame-right",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 66.52,
+          "y": 1.05,
+          "z": -42.753
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "line",
+        "scale": {
+          "x": 0.04,
+          "y": 2.1,
+          "z": 0.006
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-door-3",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 66,
+          "y": 1.05,
+          "z": -42.761
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "steel",
+        "scale": {
+          "x": 1,
+          "y": 2.1,
+          "z": 0.01
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-door-3-kick-plate",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 66,
+          "y": 0.125,
+          "z": -42.768
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "ramp",
+        "scale": {
+          "x": 1,
+          "y": 0.25,
+          "z": 0.004
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-door-3-handle",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 65.62,
+          "y": 1,
+          "z": -42.791
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "steel",
+        "scale": {
+          "x": 0.12,
+          "y": 0.03,
+          "z": 0.05
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-door-3-number-a",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 66,
+          "y": 1.775,
+          "z": -42.765
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "line",
+        "scale": {
+          "x": 0.22,
+          "y": 0.05,
+          "z": 0.006
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-door-3-number-g",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 66,
+          "y": 1.6,
+          "z": -42.765
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "line",
+        "scale": {
+          "x": 0.22,
+          "y": 0.05,
+          "z": 0.006
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-door-3-number-d",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 66,
+          "y": 1.425,
+          "z": -42.765
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "line",
+        "scale": {
+          "x": 0.22,
+          "y": 0.05,
+          "z": 0.006
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-door-3-number-b",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 65.915,
+          "y": 1.7,
+          "z": -42.765
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "line",
+        "scale": {
+          "x": 0.05,
+          "y": 0.2,
+          "z": 0.006
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-door-3-number-c",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 65.915,
+          "y": 1.5,
+          "z": -42.765
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "line",
+        "scale": {
+          "x": 0.05,
+          "y": 0.2,
+          "z": 0.006
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-door-4-frame-head",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 78.753,
+          "y": 2.12,
+          "z": -22
+        },
+        "rotation": {
+          "x": 0,
+          "y": 90,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "line",
+        "scale": {
+          "x": 1.08,
+          "y": 0.04,
+          "z": 0.006
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-door-4-frame-left",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 78.753,
+          "y": 1.05,
+          "z": -22.52
+        },
+        "rotation": {
+          "x": 0,
+          "y": 90,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "line",
+        "scale": {
+          "x": 0.04,
+          "y": 2.1,
+          "z": 0.006
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-door-4-frame-right",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 78.753,
+          "y": 1.05,
+          "z": -21.48
+        },
+        "rotation": {
+          "x": 0,
+          "y": 90,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "line",
+        "scale": {
+          "x": 0.04,
+          "y": 2.1,
+          "z": 0.006
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-door-4",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 78.761,
+          "y": 1.05,
+          "z": -22
+        },
+        "rotation": {
+          "x": 0,
+          "y": 90,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "steel",
+        "scale": {
+          "x": 1,
+          "y": 2.1,
+          "z": 0.01
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-door-4-kick-plate",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 78.768,
+          "y": 0.125,
+          "z": -22
+        },
+        "rotation": {
+          "x": 0,
+          "y": 90,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "ramp",
+        "scale": {
+          "x": 1,
+          "y": 0.25,
+          "z": 0.004
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-door-4-handle",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 78.791,
+          "y": 1,
+          "z": -22.38
+        },
+        "rotation": {
+          "x": 0,
+          "y": 90,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "steel",
+        "scale": {
+          "x": 0.12,
+          "y": 0.03,
+          "z": 0.05
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-door-4-number-g",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 78.765,
+          "y": 1.6,
+          "z": -22
+        },
+        "rotation": {
+          "x": 0,
+          "y": 90,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "line",
+        "scale": {
+          "x": 0.22,
+          "y": 0.05,
+          "z": 0.006
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-door-4-number-f",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 78.765,
+          "y": 1.7,
+          "z": -21.915
+        },
+        "rotation": {
+          "x": 0,
+          "y": 90,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "line",
+        "scale": {
+          "x": 0.05,
+          "y": 0.2,
+          "z": 0.006
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-door-4-number-b",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 78.765,
+          "y": 1.7,
+          "z": -22.085
+        },
+        "rotation": {
+          "x": 0,
+          "y": 90,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "line",
+        "scale": {
+          "x": 0.05,
+          "y": 0.2,
+          "z": 0.006
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-door-4-number-c",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 78.765,
+          "y": 1.5,
+          "z": -22.085
+        },
+        "rotation": {
+          "x": 0,
+          "y": 90,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "line",
+        "scale": {
+          "x": 0.05,
+          "y": 0.2,
+          "z": 0.006
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-hose-tap",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 35,
+          "y": 0.6,
+          "z": -42.78
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "steel",
+        "scale": {
+          "x": 0.04,
+          "y": 0.04,
+          "z": 0.06
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-hose-tap-wheel",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 35,
+          "y": 0.6,
+          "z": -42.818
+        },
+        "rotation": {
+          "x": 90,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "obstacleBarrel",
+        "scale": {
+          "x": 0.07,
+          "y": 0.015,
+          "z": 0.07
+        },
+        "shape": "cylinder"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "marker",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-centre-line-west-12",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 12,
+          "y": -0.001,
+          "z": -45
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "line",
+        "scale": {
+          "x": 1,
+          "y": 0.002,
+          "z": 0.1
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "marker",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-centre-line-west-16",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 16,
+          "y": -0.001,
+          "z": -45
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "line",
+        "scale": {
+          "x": 1,
+          "y": 0.002,
+          "z": 0.1
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "marker",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-centre-line-west-20",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 20,
+          "y": -0.001,
+          "z": -45
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "line",
+        "scale": {
+          "x": 1,
+          "y": 0.002,
+          "z": 0.1
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "marker",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-centre-line-west-24",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 24,
+          "y": -0.001,
+          "z": -45
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "line",
+        "scale": {
+          "x": 1,
+          "y": 0.002,
+          "z": 0.1
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "marker",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-centre-line-west-28",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 28,
+          "y": -0.001,
+          "z": -45
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "line",
+        "scale": {
+          "x": 1,
+          "y": 0.002,
+          "z": 0.1
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "marker",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-centre-line-west-32",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 32,
+          "y": -0.001,
+          "z": -45
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "line",
+        "scale": {
+          "x": 1,
+          "y": 0.002,
+          "z": 0.1
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "marker",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-centre-line-west-36",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 36,
+          "y": -0.001,
+          "z": -45
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "line",
+        "scale": {
+          "x": 1,
+          "y": 0.002,
+          "z": 0.1
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "marker",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-centre-line-west-40",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 40,
+          "y": -0.001,
+          "z": -45
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "line",
+        "scale": {
+          "x": 1,
+          "y": 0.002,
+          "z": 0.1
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "marker",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-centre-line-west-44",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 44,
+          "y": -0.001,
+          "z": -45
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "line",
+        "scale": {
+          "x": 1,
+          "y": 0.002,
+          "z": 0.1
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "marker",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-centre-line-west-48",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 48,
+          "y": -0.001,
+          "z": -45
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "line",
+        "scale": {
+          "x": 1,
+          "y": 0.002,
+          "z": 0.1
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "marker",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-centre-line-west-52",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 52,
+          "y": -0.001,
+          "z": -45
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "line",
+        "scale": {
+          "x": 1,
+          "y": 0.002,
+          "z": 0.1
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "marker",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-centre-line-west-56",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 56,
+          "y": -0.001,
+          "z": -45
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "line",
+        "scale": {
+          "x": 1,
+          "y": 0.002,
+          "z": 0.1
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "marker",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-centre-line-west-60",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 60,
+          "y": -0.001,
+          "z": -45
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "line",
+        "scale": {
+          "x": 1,
+          "y": 0.002,
+          "z": 0.1
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "marker",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-centre-line-west-64",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 64,
+          "y": -0.001,
+          "z": -45
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "line",
+        "scale": {
+          "x": 1,
+          "y": 0.002,
+          "z": 0.1
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "marker",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-centre-line-west-68",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 68,
+          "y": -0.001,
+          "z": -45
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "line",
+        "scale": {
+          "x": 1,
+          "y": 0.002,
+          "z": 0.1
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "marker",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-centre-line-west-72",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 72,
+          "y": -0.001,
+          "z": -45
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "line",
+        "scale": {
+          "x": 1,
+          "y": 0.002,
+          "z": 0.1
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "marker",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-centre-line-north-36",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 81,
+          "y": -0.001,
+          "z": -36
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "line",
+        "scale": {
+          "x": 0.1,
+          "y": 0.002,
+          "z": 1
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "marker",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-centre-line-north-32",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 81,
+          "y": -0.001,
+          "z": -32
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "line",
+        "scale": {
+          "x": 0.1,
+          "y": 0.002,
+          "z": 1
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "marker",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-centre-line-north-28",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 81,
+          "y": -0.001,
+          "z": -28
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "line",
+        "scale": {
+          "x": 0.1,
+          "y": 0.002,
+          "z": 1
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "marker",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-centre-line-north-24",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 81,
+          "y": -0.001,
+          "z": -24
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "line",
+        "scale": {
+          "x": 0.1,
+          "y": 0.002,
+          "z": 1
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "marker",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-centre-line-north-20",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 81,
+          "y": -0.001,
+          "z": -20
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "line",
+        "scale": {
+          "x": 0.1,
+          "y": 0.002,
+          "z": 1
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "marker",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-centre-line-north-16",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 81,
+          "y": -0.001,
+          "z": -16
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "line",
+        "scale": {
+          "x": 0.1,
+          "y": 0.002,
+          "z": 1
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "marker",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-centre-line-north-12",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 81,
+          "y": -0.001,
+          "z": -12
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "line",
+        "scale": {
+          "x": 0.1,
+          "y": 0.002,
+          "z": 1
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-chevron-board",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 83.23,
+          "y": 1.5,
+          "z": -45
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "steel",
+        "scale": {
+          "x": 0.04,
+          "y": 1.2,
+          "z": 2.4
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-chevron-1-upper",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 83.2,
+          "y": 1.692836,
+          "z": -45.879813
+        },
+        "rotation": {
+          "x": -50,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "hazard",
+        "scale": {
+          "x": 0.02,
+          "y": 0.6,
+          "z": 0.22
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-chevron-1-lower",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 83.2,
+          "y": 1.307164,
+          "z": -45.879813
+        },
+        "rotation": {
+          "x": 50,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "hazard",
+        "scale": {
+          "x": 0.02,
+          "y": 0.6,
+          "z": 0.22
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-chevron-2-upper",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 83.2,
+          "y": 1.692836,
+          "z": -45.079813
+        },
+        "rotation": {
+          "x": -50,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "hazard",
+        "scale": {
+          "x": 0.02,
+          "y": 0.6,
+          "z": 0.22
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-chevron-2-lower",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 83.2,
+          "y": 1.307164,
+          "z": -45.079813
+        },
+        "rotation": {
+          "x": 50,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "hazard",
+        "scale": {
+          "x": 0.02,
+          "y": 0.6,
+          "z": 0.22
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-chevron-3-upper",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 83.2,
+          "y": 1.692836,
+          "z": -44.279813
+        },
+        "rotation": {
+          "x": -50,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "hazard",
+        "scale": {
+          "x": 0.02,
+          "y": 0.6,
+          "z": 0.22
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-chevron-3-lower",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 83.2,
+          "y": 1.307164,
+          "z": -44.279813
+        },
+        "rotation": {
+          "x": 50,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "hazard",
+        "scale": {
+          "x": 0.02,
+          "y": 0.6,
+          "z": 0.22
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-sump-grate",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 76.087868,
+          "y": 0.02,
+          "z": -41.36066
+        },
+        "rotation": {
+          "x": 0,
+          "y": -45,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "steel",
+        "scale": {
+          "x": 0.8,
+          "y": 0.04,
+          "z": 0.8
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-sump-pump",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 77.148528,
+          "y": 0.35,
+          "z": -40.3
+        },
+        "rotation": {
+          "x": 0,
+          "y": -45,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "ramp",
+        "scale": {
+          "x": 0.6,
+          "y": 0.7,
+          "z": 0.5
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-riser-1",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 82.6,
+          "y": 0.6,
+          "z": -47.3
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "ramp",
+        "scale": {
+          "x": 0.326,
+          "y": 1.2,
+          "z": 0.326
+        },
+        "shape": "cylinder"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-riser-1-stem",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 82.6,
+          "y": 1.275,
+          "z": -47.3
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "steel",
+        "scale": {
+          "x": 0.05,
+          "y": 0.15,
+          "z": 0.05
+        },
+        "shape": "cylinder"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-riser-1-wheel",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 82.6,
+          "y": 1.37,
+          "z": -47.3
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "obstacleBarrel",
+        "scale": {
+          "x": 0.4,
+          "y": 0.04,
+          "z": 0.4
+        },
+        "shape": "cylinder"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-riser-2",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 81.7,
+          "y": 0.6,
+          "z": -47.75
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "ramp",
+        "scale": {
+          "x": 0.326,
+          "y": 1.2,
+          "z": 0.326
+        },
+        "shape": "cylinder"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-riser-2-stem",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 81.7,
+          "y": 1.275,
+          "z": -47.75
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "steel",
+        "scale": {
+          "x": 0.05,
+          "y": 0.15,
+          "z": 0.05
+        },
+        "shape": "cylinder"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-riser-2-wheel",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 81.7,
+          "y": 1.37,
+          "z": -47.75
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "obstacleBarrel",
+        "scale": {
+          "x": 0.4,
+          "y": 0.04,
+          "z": 0.4
+        },
+        "shape": "cylinder"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-fire-cabinet-3",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 83.21,
+          "y": 1.6,
+          "z": -28
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "obstacleBarrel",
+        "scale": {
+          "x": 0.08,
+          "y": 0.75,
+          "z": 0.75
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-headwall-west-coping",
+      "transform": {
+        "position": {
+          "x": 9.85,
+          "y": 4.8,
+          "z": -45.45
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "obstacleBlock",
+        "scale": {
+          "x": 0.4,
+          "y": 0.1,
+          "z": 15.3
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-headwall-west-coping-l2",
+      "transform": {
+        "position": {
+          "x": 9.85,
+          "y": 2.5,
+          "z": -55.375
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "obstacleBlock",
+        "scale": {
+          "x": 0.4,
+          "y": 0.1,
+          "z": 4.65
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-headwall-west-coping-r2",
+      "transform": {
+        "position": {
+          "x": 9.85,
+          "y": 2.5,
+          "z": -35.525
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "obstacleBlock",
+        "scale": {
+          "x": 0.4,
+          "y": 0.1,
+          "z": 4.65
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-portal-west-jamb-l",
+      "transform": {
+        "position": {
+          "x": 9.675,
+          "y": 1.8,
+          "z": -48.275
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "obstacleBlock",
+        "scale": {
+          "x": 0.05,
+          "y": 3.6,
+          "z": 0.25
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-portal-west-jamb-r",
+      "transform": {
+        "position": {
+          "x": 9.675,
+          "y": 1.8,
+          "z": -42.625
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "obstacleBlock",
+        "scale": {
+          "x": 0.05,
+          "y": 3.6,
+          "z": 0.25
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-portal-west-height-board",
+      "transform": {
+        "position": {
+          "x": 9.67,
+          "y": 3.8,
+          "z": -45.45
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "steel",
+        "scale": {
+          "x": 0.06,
+          "y": 0.4,
+          "z": 5.9
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-portal-west-height-stripe-1",
+      "transform": {
+        "position": {
+          "x": 9.63,
+          "y": 3.8,
+          "z": -47.9
+        },
+        "rotation": {
+          "x": 45,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "hazard",
+        "scale": {
+          "x": 0.02,
+          "y": 0.42,
+          "z": 0.14
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-portal-west-height-stripe-2",
+      "transform": {
+        "position": {
+          "x": 9.63,
+          "y": 3.8,
+          "z": -46.95
+        },
+        "rotation": {
+          "x": 45,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "hazard",
+        "scale": {
+          "x": 0.02,
+          "y": 0.42,
+          "z": 0.14
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-portal-west-height-stripe-3",
+      "transform": {
+        "position": {
+          "x": 9.63,
+          "y": 3.8,
+          "z": -46
+        },
+        "rotation": {
+          "x": 45,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "hazard",
+        "scale": {
+          "x": 0.02,
+          "y": 0.42,
+          "z": 0.14
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-portal-west-height-stripe-4",
+      "transform": {
+        "position": {
+          "x": 9.63,
+          "y": 3.8,
+          "z": -45.05
+        },
+        "rotation": {
+          "x": 45,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "hazard",
+        "scale": {
+          "x": 0.02,
+          "y": 0.42,
+          "z": 0.14
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-portal-west-height-stripe-5",
+      "transform": {
+        "position": {
+          "x": 9.63,
+          "y": 3.8,
+          "z": -44.1
+        },
+        "rotation": {
+          "x": 45,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "hazard",
+        "scale": {
+          "x": 0.02,
+          "y": 0.42,
+          "z": 0.14
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-portal-west-height-stripe-6",
+      "transform": {
+        "position": {
+          "x": 9.63,
+          "y": 3.8,
+          "z": -43.15
+        },
+        "rotation": {
+          "x": 45,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "hazard",
+        "scale": {
+          "x": 0.02,
+          "y": 0.42,
+          "z": 0.14
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-headwall-north-coping",
+      "transform": {
+        "position": {
+          "x": 81,
+          "y": 4.8,
+          "z": -9.85
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "obstacleBlock",
+        "scale": {
+          "x": 14.4,
+          "y": 0.1,
+          "z": 0.4
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-headwall-north-coping-l2",
+      "transform": {
+        "position": {
+          "x": 90.475,
+          "y": 2.5,
+          "z": -9.85
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "obstacleBlock",
+        "scale": {
+          "x": 4.65,
+          "y": 0.1,
+          "z": 0.4
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-headwall-north-coping-r2",
+      "transform": {
+        "position": {
+          "x": 71.525,
+          "y": 2.5,
+          "z": -9.85
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "obstacleBlock",
+        "scale": {
+          "x": 4.65,
+          "y": 0.1,
+          "z": 0.4
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-portal-north-jamb-l",
+      "transform": {
+        "position": {
+          "x": 83.375,
+          "y": 1.8,
+          "z": -9.675
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "obstacleBlock",
+        "scale": {
+          "x": 0.25,
+          "y": 3.6,
+          "z": 0.05
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-portal-north-jamb-r",
+      "transform": {
+        "position": {
+          "x": 78.625,
+          "y": 1.8,
+          "z": -9.675
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "obstacleBlock",
+        "scale": {
+          "x": 0.25,
+          "y": 3.6,
+          "z": 0.05
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-portal-north-height-board",
+      "transform": {
+        "position": {
+          "x": 81,
+          "y": 3.8,
+          "z": -9.67
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "steel",
+        "scale": {
+          "x": 5,
+          "y": 0.4,
+          "z": 0.06
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-portal-north-height-stripe-1",
+      "transform": {
+        "position": {
+          "x": 78.9,
+          "y": 3.8,
+          "z": -9.63
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 45
+        }
+      },
+      "visual": {
+        "material": "hazard",
+        "scale": {
+          "x": 0.14,
+          "y": 0.42,
+          "z": 0.02
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-portal-north-height-stripe-2",
+      "transform": {
+        "position": {
+          "x": 79.74,
+          "y": 3.8,
+          "z": -9.63
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 45
+        }
+      },
+      "visual": {
+        "material": "hazard",
+        "scale": {
+          "x": 0.14,
+          "y": 0.42,
+          "z": 0.02
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-portal-north-height-stripe-3",
+      "transform": {
+        "position": {
+          "x": 80.58,
+          "y": 3.8,
+          "z": -9.63
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 45
+        }
+      },
+      "visual": {
+        "material": "hazard",
+        "scale": {
+          "x": 0.14,
+          "y": 0.42,
+          "z": 0.02
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-portal-north-height-stripe-4",
+      "transform": {
+        "position": {
+          "x": 81.42,
+          "y": 3.8,
+          "z": -9.63
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 45
+        }
+      },
+      "visual": {
+        "material": "hazard",
+        "scale": {
+          "x": 0.14,
+          "y": 0.42,
+          "z": 0.02
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-portal-north-height-stripe-5",
+      "transform": {
+        "position": {
+          "x": 82.26,
+          "y": 3.8,
+          "z": -9.63
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 45
+        }
+      },
+      "visual": {
+        "material": "hazard",
+        "scale": {
+          "x": 0.14,
+          "y": 0.42,
+          "z": 0.02
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-portal-north-height-stripe-6",
+      "transform": {
+        "position": {
+          "x": 83.1,
+          "y": 3.8,
+          "z": -9.63
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 45
+        }
+      },
+      "visual": {
+        "material": "hazard",
+        "scale": {
+          "x": 0.14,
+          "y": 0.42,
+          "z": 0.02
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
       "category": "feature",
       "collision": null,
       "editable": true,
@@ -24654,7 +28453,7 @@
       "transform": {
         "position": {
           "x": 30,
-          "y": 3.04,
+          "y": 3.02,
           "z": -42.765
         },
         "rotation": {
@@ -24667,7 +28466,7 @@
         "material": "steel",
         "scale": {
           "x": 0.36,
-          "y": 0.5,
+          "y": 0.46,
           "z": 0.03
         },
         "shape": "box"
