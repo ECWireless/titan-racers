@@ -84,7 +84,7 @@ update guard. Existing rows remain null; version-one client starts also insert
 null. New starts pin the allowlisted client physics version. Apply the additive
 migration before deploying the versioned writer. This does not rewrite course
 revisions: adopting the v3 sandbox seed separately appends and publishes a new
-rough-course revision through the guarded reset workflow.
+rough-course revision through the guarded seed reset.
 
 Migration `0016` widens the known-course check on `gameplay_runs.course_id`
 to the official courses, `rough-course` and `agricultural-zone`. Existing rows
@@ -113,7 +113,7 @@ players fall back to the bundled course. Version five allows up to eight
 lamps from PR 4.4.1 (four before), with no migration; a build from before
 then cannot read a revision with more than four, in the same way. A database
 serves its existing `rough-course` revision, not the walled Starter Course
-seed, until the guarded sandbox reset below appends the seed and an admin
+seed, until the guarded seed reset below appends the seed and an admin
 publishes it.
 
 ## Google OAuth
@@ -180,29 +180,32 @@ baseline player role remain so immutable course revisions keep referential
 integrity. The supplied email and real profile values are never written to
 documentation or logs.
 
-## Permanent Sandbox Course Reset
+## Official Course Seed Reset
 
 `rough-course` is the permanent authoring and regression sandbox. It remains
 separate from the official `falls-view-park` course so editor, physics,
 collision, camera, and recovery fixtures never need to be embedded in the
 player-facing track.
 
-From a trusted machine, restore the sandbox to the validated source-controlled
-seed with an existing application admin identity:
+From a trusted machine, restore either official course to its validated
+source-controlled seed with an existing application admin identity:
 
 ```bash
-corepack pnpm db:reset-sandbox-course \
+corepack pnpm db:reset-course-seed \
   --email operator@example.com \
-  --confirm rough-course
+  --confirm falls-view-park # or rough-course
 ```
 
 The explicit course-ID confirmation guards the destructive product intent. The
 operation does not delete or rewrite immutable history: it validates the seed
 and appends it as the next attributed draft revision using optimistic
-concurrency. It fails if another author advances the sandbox during the reset.
-The command uses `DATABASE_URL`, so confirm which database that variable targets
-before running it. The supplied email is used only for the credentialed admin
-lookup and is never logged or stored in configuration.
+concurrency. It fails if another author advances the course during the reset.
+Players keep racing the current publication until an admin opens the course
+in the editor and publishes the new draft. The seed comes from the local
+checkout, so run the command from the deployed commit (normally `main`), and
+deploy a build that changes a seed's schema before resetting to it. The command uses `DATABASE_URL`, so confirm which database that variable
+targets before running it. The supplied email is used only for the
+credentialed admin lookup and is never logged or stored in configuration.
 
 ## Production Migration And Preview Policy
 
@@ -232,7 +235,7 @@ Application traffic uses the pooled Neon `DATABASE_URL`. The direct migration
 credential should not be present in the application runtime when the hosting
 platform can keep deployment credentials separate.
 
-Ordinary `db:generate`, `db:check`, `db:migrate`, and sandbox-reset commands
+Ordinary `db:generate`, `db:check`, `db:migrate`, and `db:reset-course-seed` commands
 intentionally read only `DATABASE_URL`; they never fall back to
 `DATABASE_MIGRATION_URL`. The production credential is consumed only by the
 explicitly named `db:migrate:production` script.

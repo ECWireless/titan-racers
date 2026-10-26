@@ -39,7 +39,7 @@ same identity, role, and request-guard boundaries; see the
   publication status and mutation; `src/app/api/courses/[courseId]/published`
   exposes only the validated runtime document and non-personal revision timing.
 - `scripts/` and `docs/database-operations.md` own migration, first-admin,
-  anonymization, and guarded sandbox-reset operations.
+  anonymization, and guarded course seed-reset operations.
 
 ## Identity And Authorization Flow
 
