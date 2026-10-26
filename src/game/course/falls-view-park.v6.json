@@ -23880,7 +23880,7 @@
       }
     }
   ],
-  "schemaVersion": 5,
+  "schemaVersion": 6,
   "start": {
     "gateHalfExtents": {
       "x": 2.85,

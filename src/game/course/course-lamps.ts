@@ -21,12 +21,15 @@ const FALLOFF_SCALE = 16;
 const SPOT = { inner: 50, outer: 75, range: 80 };
 
 /**
- * The mean illuminance, in lux, the course's lamps put on its track while on:
- * at its start and checkpoints, from each lamp's top straight down within its
- * cone, counting full intensity out to the cone's edge. Eyes adjust to it.
+ * The mean illuminance, in lux, the course's floodlights put on its track
+ * while on: at its start and checkpoints, from each lamp's top straight down
+ * within its cone, counting full intensity out to the cone's edge. Eyes
+ * adjust to it.
  */
 export function courseLampLux(document: CourseDocument) {
-  const lamps = document.objects.filter((object) => object.lamp);
+  const lamps = document.objects.filter(
+    (object) => object.lamp === "floodlight",
+  );
   const points = [
     document.start.position,
     ...document.checkpoints.map((checkpoint) => checkpoint.recovery.position),
@@ -54,7 +57,7 @@ export function courseLampLux(document: CourseDocument) {
 
 /**
  * Adds a floodlight's arm, luminaire, and downward spot light to each course
- * object marked `lamp`, at the top of its mast and reaching along its local
+ * floodlight object, at the top of its mast and reaching along its local
  * -Z. Lamps shine at real brightness, scaled by how far the habitat's lamps
  * are on, so they are dark by day and their pools show only once the habitat
  * is dim. They cast no shadows. Returns a cleanup for the lens material.
@@ -64,7 +67,9 @@ export function addCourseLamps(
   document: CourseDocument,
   { lampsOn, steel }: { lampsOn: number; steel: pc.Material },
 ) {
-  const lamps = document.objects.filter((object) => object.lamp);
+  const lamps = document.objects.filter(
+    (object) => object.lamp === "floodlight",
+  );
   const definition = getApprovedEnclosure(document.enclosure);
   if (lamps.length === 0 || !definition) return () => {};
 

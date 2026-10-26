@@ -95,7 +95,7 @@ function findObject(id: string) {
 }
 
 test("parses the versioned rough course with stable IDs and ordered checkpoints", () => {
-  expect(ROUGH_COURSE_DOCUMENT.schemaVersion).toBe(5);
+  expect(ROUGH_COURSE_DOCUMENT.schemaVersion).toBe(6);
   expect(ROUGH_COURSE_DOCUMENT.units).toBe("meters");
   expect(ROUGH_COURSE_DOCUMENT.start.id).toBe("start-position");
   expect(ROUGH_COURSE_DOCUMENT.checkpoints).toHaveLength(3);
@@ -246,6 +246,92 @@ test("adds course lamps and night mirrors from schema version five", () => {
   expect(courseDocumentSchema.safeParse(extraLamp).error?.issues).toContainEqual(
     expect.objectContaining({ path: ["objects"] }),
   );
+});
+
+test("adds indoor objects, overhead objects, and tunnel lamps from schema version six", () => {
+  // Version five upgrades unchanged, but has no tunnel lamps or indoors.
+  const versionFive = {
+    ...structuredClone(FALLS_VIEW_PARK_DOCUMENT),
+    schemaVersion: 5,
+  };
+  expect(parseCourseDocument(versionFive)).toEqual(FALLS_VIEW_PARK_DOCUMENT);
+  const indoorsInVersionFive = structuredClone(versionFive);
+  Object.assign(indoorsInVersionFive.objects[0]!, { indoors: true });
+  expect(() => parseCourseDocument(indoorsInVersionFive)).toThrow();
+
+  const mast = FALLS_VIEW_PARK_DOCUMENT.objects.find((object) => object.lamp)!;
+  const tunnelLamp = (index: number) => ({
+    ...structuredClone(mast),
+    collision: null,
+    id: `tunnel-lamp-${index}`,
+    indoors: true as const,
+    lamp: "tunnel" as const,
+  });
+  const tunnel = structuredClone(FALLS_VIEW_PARK_DOCUMENT);
+  tunnel.objects.push(
+    ...Array.from({ length: 16 }, (_, index) => tunnelLamp(index)),
+    {
+      ...structuredClone(tunnel.objects[0]!),
+      collision: null,
+      id: "tunnel-roof",
+      indoors: true,
+      overhead: true,
+    },
+  );
+  // Tunnel lamps have their own limit beside the eight floodlights.
+  expect(parseCourseDocument(tunnel)).toEqual(tunnel);
+  expect(
+    parseCourseDocument(JSON.parse(serializeCourseDocument(tunnel))),
+  ).toEqual(tunnel);
+
+  const issuePath = (document: CourseDocument) =>
+    courseDocumentSchema
+      .safeParse(document)
+      .error?.issues.map(({ path }) => path);
+  const extraTunnelLamp = structuredClone(tunnel);
+  extraTunnelLamp.objects.push(tunnelLamp(16));
+  expect(
+    courseDocumentSchema.safeParse(extraTunnelLamp).error?.issues,
+  ).toContainEqual(
+    expect.objectContaining({
+      message: expect.stringContaining("tunnel lamps"),
+      path: ["objects"],
+    }),
+  );
+
+  const outdoorTunnelLamp = structuredClone(tunnel);
+  const lampIndex = outdoorTunnelLamp.objects.findIndex(
+    (object) => object.lamp === "tunnel",
+  );
+  delete outdoorTunnelLamp.objects[lampIndex]!.indoors;
+  expect(issuePath(outdoorTunnelLamp)).toContainEqual([
+    "objects",
+    lampIndex,
+    "indoors",
+  ]);
+
+  const indoorFloodlight = structuredClone(tunnel);
+  const mastIndex = indoorFloodlight.objects.findIndex(
+    (object) => object.lamp === "floodlight",
+  );
+  indoorFloodlight.objects[mastIndex]!.indoors = true;
+  expect(issuePath(indoorFloodlight)).toContainEqual([
+    "objects",
+    mastIndex,
+    "indoors",
+  ]);
+
+  // A drivable roof would catch karts and checkpoint recovery above it.
+  const drivableRoof = structuredClone(tunnel);
+  const roof = drivableRoof.objects.at(-1)!;
+  roof.collision = structuredClone(tunnel.objects[0]!.collision);
+  expect(roof.collision?.role).toBe("drivable-surface");
+  expect(issuePath(drivableRoof)).toContainEqual([
+    "objects",
+    drivableRoof.objects.length - 1,
+    "collision",
+    "role",
+  ]);
 });
 
 test("preserves the accepted camera fixtures and ramp placement", () => {
@@ -433,7 +519,7 @@ function toObjectFrame(
 }
 
 test("serializes the seeds deterministically and round trips without changes", () => {
-  for (const seed of ["rough-course.v5.json", "falls-view-park.v5.json"]) {
+  for (const seed of ["rough-course.v6.json", "falls-view-park.v6.json"]) {
     const source = readFileSync(
       join(process.cwd(), "src/game/course", seed),
       "utf8",
@@ -445,7 +531,7 @@ test("serializes the seeds deterministically and round trips without changes", (
   }
   expect(serializeCourseDocument(ROUGH_COURSE_DOCUMENT)).toBe(
     readFileSync(
-      join(process.cwd(), "src/game/course/rough-course.v5.json"),
+      join(process.cwd(), "src/game/course/rough-course.v6.json"),
       "utf8",
     ),
   );
@@ -478,7 +564,7 @@ test("normalizes version-one course data without mutating the stored input", () 
   expect(withoutDerived(normalized)).toEqual(
     withoutDerived(ROUGH_COURSE_DOCUMENT),
   );
-  expect(normalized.schemaVersion).toBe(5);
+  expect(normalized.schemaVersion).toBe(6);
 });
 
 test("normalizes a valid one-checkpoint version-one course", () => {
@@ -671,7 +757,7 @@ test("normalizes v2 to standard surfaces without inferring physics from visuals"
   const input = createVersionTwoSeed();
   const stored = structuredClone(input);
   const normalized = parseCourseDocument(input);
-  expect(normalized.schemaVersion).toBe(5);
+  expect(normalized.schemaVersion).toBe(6);
   // Legacy karts keep spawning on the start gate.
   expect(normalized.start.spawnDistance).toBe(0);
   for (const object of normalized.objects) {

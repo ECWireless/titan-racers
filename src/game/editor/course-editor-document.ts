@@ -275,7 +275,7 @@ export function addCourseObjectPreset(
 }
 
 export function courseLampLimitReached(document: CourseDocument) {
-  return countCourseLamps(document) >= COURSE_LAMP_LIMIT;
+  return countCourseLamps(document, "floodlight") >= COURSE_LAMP_LIMIT;
 }
 
 export function addCourseCheckpoint(
