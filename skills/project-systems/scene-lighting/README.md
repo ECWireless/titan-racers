@@ -43,7 +43,11 @@ phone budget. Art direction and the budget itself live in
   and downward spot light on each `lamp` object's mast, at real brightness
   from the enclosure's lux scale and the habitat's lamp schedule, with no
   shadows, and measures the illuminance they put on the track, which the
-  race's exposure counts. The race batches the lamp parts with the static
+  race's exposure counts. Under each `lamp: "tunnel"` object, the luminaire's
+  housing, it adds a glowing lens and a downward LED spot light (8,600 cd,
+  fading out between 40° and 80° from straight down, 12 m reach) that burns day and night and reaches both indoor
+  and outdoor objects, so its light spills from a portal; tunnel lamps do not
+  count toward the exposure. The race batches the lamp parts with the static
   course; the editor shows them switched off.
 - `src/game/course/course-interior.ts` lights a course's indoors: an
   interior environment atlas built by elevation from the light a lamp-lit

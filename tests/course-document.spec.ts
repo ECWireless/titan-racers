@@ -223,7 +223,9 @@ test("adds course lamps and night mirrors from schema version five", () => {
   // Falls View Park races at deep dusk under its lamps.
   expect(FALLS_VIEW_PARK_DOCUMENT.enclosure.mirrorAngle).toBe(89.5);
   expect(
-    FALLS_VIEW_PARK_DOCUMENT.objects.filter((object) => object.lamp),
+    FALLS_VIEW_PARK_DOCUMENT.objects.filter(
+      (object) => object.lamp === "floodlight",
+    ),
   ).toHaveLength(COURSE_LAMP_LIMIT);
 
   // Version four upgrades unchanged, but keeps its 85° mirrors and no lamps.
@@ -243,7 +245,7 @@ test("adds course lamps and night mirrors from schema version five", () => {
 
   const extraLamp = structuredClone(FALLS_VIEW_PARK_DOCUMENT);
   extraLamp.objects.push({
-    ...extraLamp.objects.find((object) => object.lamp)!,
+    ...extraLamp.objects.find((object) => object.lamp === "floodlight")!,
     id: "lamp-extra",
   });
   expect(courseDocumentSchema.safeParse(extraLamp).error?.issues).toContainEqual(
@@ -254,7 +256,9 @@ test("adds course lamps and night mirrors from schema version five", () => {
 test("adds indoor objects, overhead objects, and tunnel lamps from schema version six", () => {
   // Version five upgrades unchanged, but has no tunnel lamps, indoors or arcs.
   const outdoors = structuredClone(FALLS_VIEW_PARK_DOCUMENT);
-  outdoors.objects = outdoors.objects.filter(isCoursePrimitiveObject);
+  outdoors.objects = outdoors.objects
+    .filter(isCoursePrimitiveObject)
+    .filter((object) => object.lamp !== "tunnel");
   outdoors.objects.forEach((object) => {
     delete object.indoors;
     delete object.overhead;
@@ -265,7 +269,9 @@ test("adds indoor objects, overhead objects, and tunnel lamps from schema versio
   Object.assign(indoorsInVersionFive.objects[0]!, { indoors: true });
   expect(() => parseCourseDocument(indoorsInVersionFive)).toThrow();
 
-  const mast = FALLS_VIEW_PARK_DOCUMENT.objects.find((object) => object.lamp)!;
+  const mast = FALLS_VIEW_PARK_DOCUMENT.objects.find(
+    (object) => object.lamp === "floodlight",
+  )!;
   const tunnelLamp = (index: number) => ({
     ...structuredClone(mast),
     collision: null,
@@ -273,7 +279,9 @@ test("adds indoor objects, overhead objects, and tunnel lamps from schema versio
     indoors: true as const,
     lamp: "tunnel" as const,
   });
+  // The seed's own tunnel lamps make way for a full set of sixteen.
   const tunnel = structuredClone(FALLS_VIEW_PARK_DOCUMENT);
+  tunnel.objects = tunnel.objects.filter((object) => object.lamp !== "tunnel");
   tunnel.objects.push(
     ...Array.from({ length: 16 }, (_, index) => tunnelLamp(index)),
     {
@@ -452,6 +460,9 @@ test("adds smooth arcs in schema version six", () => {
   // Version five has no arcs: without its other version-six fields, the
   // seed fails as version five only while it keeps them.
   const versionFive = structuredClone(FALLS_VIEW_PARK_DOCUMENT);
+  versionFive.objects = versionFive.objects.filter(
+    (object) => object.lamp !== "tunnel",
+  );
   versionFive.objects.forEach((object) => {
     delete object.indoors;
     delete object.overhead;

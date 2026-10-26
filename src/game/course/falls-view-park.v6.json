@@ -5113,6 +5113,366 @@
       "category": "feature",
       "collision": null,
       "editable": true,
+      "id": "tunnel-lamp-1",
+      "indoors": true,
+      "lamp": "tunnel",
+      "transform": {
+        "position": {
+          "x": 14,
+          "y": 3.54,
+          "z": -45
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "steel",
+        "scale": {
+          "x": 1.2,
+          "y": 0.12,
+          "z": 0.36
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-lamp-2",
+      "indoors": true,
+      "lamp": "tunnel",
+      "transform": {
+        "position": {
+          "x": 22,
+          "y": 3.54,
+          "z": -45
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "steel",
+        "scale": {
+          "x": 1.2,
+          "y": 0.12,
+          "z": 0.36
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-lamp-3",
+      "indoors": true,
+      "lamp": "tunnel",
+      "transform": {
+        "position": {
+          "x": 38,
+          "y": 3.54,
+          "z": -45
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "steel",
+        "scale": {
+          "x": 1.2,
+          "y": 0.12,
+          "z": 0.36
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-lamp-4",
+      "indoors": true,
+      "lamp": "tunnel",
+      "transform": {
+        "position": {
+          "x": 46,
+          "y": 3.54,
+          "z": -45
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "steel",
+        "scale": {
+          "x": 1.2,
+          "y": 0.12,
+          "z": 0.36
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-lamp-5",
+      "indoors": true,
+      "lamp": "tunnel",
+      "transform": {
+        "position": {
+          "x": 54,
+          "y": 3.54,
+          "z": -45
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "steel",
+        "scale": {
+          "x": 1.2,
+          "y": 0.12,
+          "z": 0.36
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-lamp-6",
+      "indoors": true,
+      "lamp": "tunnel",
+      "transform": {
+        "position": {
+          "x": 62,
+          "y": 3.54,
+          "z": -45
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "steel",
+        "scale": {
+          "x": 1.2,
+          "y": 0.12,
+          "z": 0.36
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-lamp-7",
+      "indoors": true,
+      "lamp": "tunnel",
+      "transform": {
+        "position": {
+          "x": 70,
+          "y": 3.54,
+          "z": -45
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "steel",
+        "scale": {
+          "x": 1.2,
+          "y": 0.12,
+          "z": 0.36
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-lamp-8",
+      "indoors": true,
+      "lamp": "tunnel",
+      "transform": {
+        "position": {
+          "x": 79.1,
+          "y": 3.54,
+          "z": -43.1
+        },
+        "rotation": {
+          "x": 0,
+          "y": -45,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "steel",
+        "scale": {
+          "x": 1.2,
+          "y": 0.12,
+          "z": 0.36
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-lamp-9",
+      "indoors": true,
+      "lamp": "tunnel",
+      "transform": {
+        "position": {
+          "x": 81,
+          "y": 3.54,
+          "z": -34
+        },
+        "rotation": {
+          "x": 0,
+          "y": 90,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "steel",
+        "scale": {
+          "x": 1.2,
+          "y": 0.12,
+          "z": 0.36
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-lamp-10",
+      "indoors": true,
+      "lamp": "tunnel",
+      "transform": {
+        "position": {
+          "x": 81,
+          "y": 3.54,
+          "z": -26.5
+        },
+        "rotation": {
+          "x": 0,
+          "y": 90,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "steel",
+        "scale": {
+          "x": 1.2,
+          "y": 0.12,
+          "z": 0.36
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-lamp-11",
+      "indoors": true,
+      "lamp": "tunnel",
+      "transform": {
+        "position": {
+          "x": 81,
+          "y": 3.54,
+          "z": -19
+        },
+        "rotation": {
+          "x": 0,
+          "y": 90,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "steel",
+        "scale": {
+          "x": 1.2,
+          "y": 0.12,
+          "z": 0.36
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-lamp-12",
+      "indoors": true,
+      "lamp": "tunnel",
+      "transform": {
+        "position": {
+          "x": 81,
+          "y": 3.54,
+          "z": -11.5
+        },
+        "rotation": {
+          "x": 0,
+          "y": 90,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "steel",
+        "scale": {
+          "x": 1.2,
+          "y": 0.12,
+          "z": 0.36
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
       "id": "tunnel-berm-crest-west",
       "transform": {
         "position": {
@@ -24309,6 +24669,36 @@
           "x": 0.36,
           "y": 0.5,
           "z": 0.03
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "timing-portal-work-light",
+      "indoors": true,
+      "lamp": "tunnel",
+      "transform": {
+        "position": {
+          "x": 30,
+          "y": 2.81,
+          "z": -45
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "steel",
+        "scale": {
+          "x": 0.3,
+          "y": 0.14,
+          "z": 0.22
         },
         "shape": "box"
       }

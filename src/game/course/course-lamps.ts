@@ -5,6 +5,7 @@ import {
   NEUTRAL_WHITE,
   sceneLux,
 } from "../enclosure/island-three";
+import { keepCourseVisualIndoors } from "./build-rough-course";
 import {
   type CourseDocument,
   type CourseObject,
@@ -25,9 +26,66 @@ const FALLOFF_SCALE = 16;
 // Floodlights spread wide; beyond 80 m their light is negligible.
 const SPOT = { inner: 50, outer: 75, range: 80 };
 
-// Floodlights stand on boxes or cylinders, never arcs.
-function isFloodlight(object: CourseObject): object is CoursePrimitiveObject {
-  return object.lamp === "floodlight" && isCoursePrimitiveObject(object);
+// A tunnel's LED luminaire, about 27,000 lm: 8,600 cd straight down, fading
+// out between 40° and 80° from straight down, so its pools overlap along a
+// lit road.
+const TUNNEL_LAMP = { candela: 8_600, inner: 40, outer: 80, range: 12 };
+// Its lens fills most of the housing's underside.
+const TUNNEL_LENS = { x: 0.92, y: 0.01, z: 0.78 };
+
+// Lamps stand on boxes or cylinders, never arcs.
+function isLamp(kind: "floodlight" | "tunnel") {
+  return (object: CourseObject): object is CoursePrimitiveObject =>
+    object.lamp === kind && isCoursePrimitiveObject(object);
+}
+const isFloodlight = isLamp("floodlight");
+
+/** A lens glowing with a lamp's light spread over its area. */
+function createLensMaterial(candela: number, area: number, lux: number) {
+  const lens = new pc.StandardMaterial();
+  lens.diffuse = new pc.Color(0, 0, 0);
+  const [r, g, b] = LAMP_TINT;
+  lens.emissive = new pc.Color(
+    r / LAMP_TINT_PEAK,
+    g / LAMP_TINT_PEAK,
+    b / LAMP_TINT_PEAK,
+  ).gamma();
+  lens.emissiveIntensity = (candela / area) * Math.PI * lux * LAMP_TINT_PEAK;
+  lens.update();
+  return lens;
+}
+
+/**
+ * A lamp's downward spot light at real brightness. Intensity 1 keeps the
+ * engine's colour linear; the colour carries the light, since lower
+ * intensities are applied before linearising.
+ */
+function addSpotLight(
+  parent: pc.Entity,
+  name: string,
+  position: [number, number, number],
+  spot: { candela: number; inner: number; outer: number; range: number },
+  lux: number,
+  reachesIndoors: boolean,
+) {
+  const light = new pc.Entity(name);
+  light.setLocalPosition(...position);
+  const linear = LAMP_TINT.map(
+    (channel) => (channel * spot.candela * lux) / FALLOFF_SCALE,
+  ) as [number, number, number];
+  light.addComponent("light", {
+    // Indoor objects take only lights that reach indoors.
+    affectLightmapped: reachesIndoors,
+    castShadows: false,
+    color: new pc.Color(...linear).gamma(),
+    falloffMode: pc.LIGHTFALLOFF_INVERSESQUARED,
+    innerConeAngle: spot.inner,
+    intensity: 1,
+    outerConeAngle: spot.outer,
+    range: spot.range,
+    type: "spot",
+  });
+  parent.addChild(light);
 }
 
 /**
@@ -68,31 +126,29 @@ export function courseLampLux(document: CourseDocument) {
  * floodlight object, at the top of its mast and reaching along its local
  * -Z. Lamps shine at real brightness, scaled by how far the habitat's lamps
  * are on, so they are dark by day and their pools show only once the habitat
- * is dim. They cast no shadows. Returns a cleanup for the lens material.
+ * is dim. They cast no shadows. Tunnel lamps light too when `tunnelLampsOn`.
+ * Returns a cleanup for the lens materials.
  */
 export function addCourseLamps(
   entities: ReadonlyMap<string, pc.Entity>,
   document: CourseDocument,
-  { lampsOn, steel }: { lampsOn: number; steel: pc.Material },
+  {
+    lampsOn,
+    steel,
+    tunnelLampsOn = false,
+  }: { lampsOn: number; steel: pc.Material; tunnelLampsOn?: boolean },
 ) {
-  const lamps = document.objects.filter(isFloodlight);
   const definition = getApprovedEnclosure(document.enclosure);
-  if (lamps.length === 0 || !definition) return () => {};
+  if (!definition) return () => {};
+  const releaseTunnelLamps = addTunnelLamps(entities, document, {
+    lux: tunnelLampsOn ? sceneLux(definition) : 0,
+  });
+  const lamps = document.objects.filter(isFloodlight);
+  if (lamps.length === 0) return releaseTunnelLamps;
 
   // Scene illuminance of the lamp, per candela at 1 m, while it is on.
   const lux = sceneLux(definition) * lampsOn;
-  const lens = new pc.StandardMaterial();
-  lens.diffuse = new pc.Color(0, 0, 0);
-  const [r, g, b] = LAMP_TINT;
-  lens.emissive = new pc.Color(
-    r / LAMP_TINT_PEAK,
-    g / LAMP_TINT_PEAK,
-    b / LAMP_TINT_PEAK,
-  ).gamma();
-  // Its luminance spreads the lamp's light over the lens.
-  lens.emissiveIntensity =
-    (LAMP_CANDELA / (LENS.x * LENS.z)) * Math.PI * lux * LAMP_TINT_PEAK;
-  lens.update();
+  const lens = createLensMaterial(LAMP_CANDELA, LENS.x * LENS.z, lux);
 
   lamps.forEach((object) => {
     const mast = entities.get(object.id);
@@ -125,25 +181,73 @@ export function addCourseLamps(
     box("lens", lens, LENS, [0, -HOUSING.y - LENS.y / 2, -ARM.length]);
 
     if (lampsOn <= 0) return;
-    const light = new pc.Entity(`${object.id}-light`);
-    light.setLocalPosition(0, -HOUSING.y - LENS.y, -ARM.length);
-    // Intensity 1 keeps the engine's colour linear; the colour carries the
-    // light, since lower intensities are applied before linearising.
-    const linear = LAMP_TINT.map(
-      (channel) => (channel * LAMP_CANDELA * lux) / FALLOFF_SCALE,
-    ) as [number, number, number];
-    light.addComponent("light", {
-      castShadows: false,
-      color: new pc.Color(...linear).gamma(),
-      falloffMode: pc.LIGHTFALLOFF_INVERSESQUARED,
-      innerConeAngle: SPOT.inner,
-      intensity: 1,
-      outerConeAngle: SPOT.outer,
-      range: SPOT.range,
-      type: "spot",
-    });
-    head.addChild(light);
+    addSpotLight(
+      head,
+      `${object.id}-light`,
+      [0, -HOUSING.y - LENS.y, -ARM.length],
+      { candela: LAMP_CANDELA, ...SPOT },
+      lux,
+      false,
+    );
   });
 
-  return () => lens.destroy();
+  return () => {
+    lens.destroy();
+    releaseTunnelLamps();
+  };
+}
+
+/**
+ * Adds a glowing lens and a downward spot light under each tunnel lamp
+ * object, which is the luminaire's housing. Tunnel lamps light both the
+ * inside and, through a portal, the outside, and burn day and night; `lux`
+ * is the scene light per lux, or 0 to show them off. Returns a cleanup for
+ * the lens materials.
+ */
+function addTunnelLamps(
+  entities: ReadonlyMap<string, pc.Entity>,
+  document: CourseDocument,
+  { lux }: { lux: number },
+) {
+  const lenses = new Map<string, pc.StandardMaterial>();
+  document.objects.filter(isLamp("tunnel")).forEach((object) => {
+    const housing = entities.get(object.id);
+    if (!housing) return;
+    const { x, y, z } = object.visual.scale;
+    // The housing is scaled to its visual size; the lens's frame undoes it.
+    const underside = new pc.Entity(`${object.id}-underside`);
+    underside.setLocalPosition(0, -0.5, 0);
+    underside.setLocalScale(1 / x, 1 / y, 1 / z);
+    housing.addChild(underside);
+
+    const size = {
+      x: x * TUNNEL_LENS.x,
+      y: TUNNEL_LENS.y,
+      z: z * TUNNEL_LENS.z,
+    };
+    const key = `${size.x}:${size.z}`;
+    let material = lenses.get(key);
+    if (!material) {
+      material = createLensMaterial(TUNNEL_LAMP.candela, size.x * size.z, lux);
+      lenses.set(key, material);
+    }
+    const lens = new pc.Entity(`${object.id}-lens`);
+    lens.addComponent("render", { material, type: "box" });
+    lens.setLocalPosition(0, -size.y / 2, 0);
+    lens.setLocalScale(size.x, size.y, size.z);
+    underside.addChild(lens);
+    // Tunnel lamps always stand indoors.
+    keepCourseVisualIndoors(lens);
+
+    if (lux <= 0) return;
+    addSpotLight(
+      underside,
+      `${object.id}-light`,
+      [0, -size.y, 0],
+      TUNNEL_LAMP,
+      lux,
+      true,
+    );
+  });
+  return () => lenses.forEach((material) => material.destroy());
 }

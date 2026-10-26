@@ -877,6 +877,7 @@ export function SoloTimeTrialCanvas({
         addCourseLamps(courseEntities, COURSE_DOCUMENT, {
           lampsOn: habitatLight.lampsOn,
           steel: courseSurfaces.materials.steel,
+          tunnelLampsOn: true,
         }),
       );
 
