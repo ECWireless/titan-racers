@@ -477,7 +477,7 @@
         },
         "offset": {
           "position": {
-            "x": 0,
+            "x": 0.005,
             "y": -0.039,
             "z": 0
           },
@@ -499,7 +499,7 @@
       "id": "return-lane-3",
       "transform": {
         "position": {
-          "x": 0.166667,
+          "x": 0.161667,
           "y": -0.001,
           "z": -45
         },
@@ -512,7 +512,7 @@
       "visual": {
         "material": "asphalt",
         "scale": {
-          "x": 19.686667,
+          "x": 19.676666,
           "y": 0.002,
           "z": 4.5
         },
@@ -531,7 +531,7 @@
         },
         "offset": {
           "position": {
-            "x": 0,
+            "x": -0.005,
             "y": -0.039,
             "z": 0
           },
@@ -554,7 +554,7 @@
       "indoors": true,
       "transform": {
         "position": {
-          "x": 18,
+          "x": 18.005,
           "y": -0.001,
           "z": -45
         },
@@ -567,7 +567,7 @@
       "visual": {
         "material": "asphalt",
         "scale": {
-          "x": 16.02,
+          "x": 16.01,
           "y": 0.002,
           "z": 4.5
         },
@@ -806,7 +806,7 @@
         },
         "offset": {
           "position": {
-            "x": 0,
+            "x": 0.005,
             "y": -0.039,
             "z": 0
           },
@@ -831,7 +831,7 @@
         "position": {
           "x": 81,
           "y": -0.001,
-          "z": -17
+          "z": -17.005
         },
         "rotation": {
           "x": 0,
@@ -842,7 +842,7 @@
       "visual": {
         "material": "asphalt",
         "scale": {
-          "x": 14.02,
+          "x": 14.01,
           "y": 0.002,
           "z": 4.5
         },
@@ -861,7 +861,7 @@
         },
         "offset": {
           "position": {
-            "x": 0,
+            "x": -0.005,
             "y": -0.039,
             "z": 0
           },
@@ -885,7 +885,7 @@
         "position": {
           "x": 81,
           "y": -0.001,
-          "z": -4.5
+          "z": -4.495
         },
         "rotation": {
           "x": 0,
@@ -896,7 +896,7 @@
       "visual": {
         "material": "asphalt",
         "scale": {
-          "x": 11.02,
+          "x": 11.01,
           "y": 0.002,
           "z": 4.5
         },
@@ -5842,7 +5842,7 @@
       "collision": {
         "friction": 0.7,
         "halfExtents": {
-          "x": 0.2,
+          "x": 0.15,
           "y": 0.575,
           "z": 2.7
         },
@@ -5870,7 +5870,7 @@
       "id": "tunnel-headwall-west-lintel",
       "transform": {
         "position": {
-          "x": 9.9,
+          "x": 9.85,
           "y": 4.175,
           "z": -45.45
         },
@@ -5883,7 +5883,7 @@
       "visual": {
         "material": "obstacleBlock",
         "scale": {
-          "x": 0.4,
+          "x": 0.3,
           "y": 1.15,
           "z": 5.4
         },
@@ -5896,7 +5896,7 @@
       "collision": {
         "friction": 0.7,
         "halfExtents": {
-          "x": 0.2,
+          "x": 0.15,
           "y": 2.375,
           "z": 2.45
         },
@@ -5924,7 +5924,7 @@
       "id": "tunnel-headwall-west-l1",
       "transform": {
         "position": {
-          "x": 9.9,
+          "x": 9.85,
           "y": 2.375,
           "z": -50.6
         },
@@ -5937,7 +5937,7 @@
       "visual": {
         "material": "obstacleBlock",
         "scale": {
-          "x": 0.4,
+          "x": 0.3,
           "y": 4.75,
           "z": 4.9
         },
@@ -5950,7 +5950,7 @@
       "collision": {
         "friction": 0.7,
         "halfExtents": {
-          "x": 0.2,
+          "x": 0.15,
           "y": 1.225,
           "z": 2.3
         },
@@ -5978,7 +5978,7 @@
       "id": "tunnel-headwall-west-l2",
       "transform": {
         "position": {
-          "x": 9.9,
+          "x": 9.85,
           "y": 1.225,
           "z": -55.35
         },
@@ -5991,7 +5991,7 @@
       "visual": {
         "material": "obstacleBlock",
         "scale": {
-          "x": 0.4,
+          "x": 0.3,
           "y": 2.45,
           "z": 4.6
         },
@@ -6004,7 +6004,7 @@
       "collision": {
         "friction": 0.7,
         "halfExtents": {
-          "x": 0.2,
+          "x": 0.15,
           "y": 2.375,
           "z": 2.45
         },
@@ -6032,7 +6032,7 @@
       "id": "tunnel-headwall-west-r1",
       "transform": {
         "position": {
-          "x": 9.9,
+          "x": 9.85,
           "y": 2.375,
           "z": -40.3
         },
@@ -6045,7 +6045,7 @@
       "visual": {
         "material": "obstacleBlock",
         "scale": {
-          "x": 0.4,
+          "x": 0.3,
           "y": 4.75,
           "z": 4.9
         },
@@ -6058,7 +6058,7 @@
       "collision": {
         "friction": 0.7,
         "halfExtents": {
-          "x": 0.2,
+          "x": 0.15,
           "y": 1.225,
           "z": 2.3
         },
@@ -6086,7 +6086,7 @@
       "id": "tunnel-headwall-west-r2",
       "transform": {
         "position": {
-          "x": 9.9,
+          "x": 9.85,
           "y": 1.225,
           "z": -35.55
         },
@@ -6099,7 +6099,7 @@
       "visual": {
         "material": "obstacleBlock",
         "scale": {
-          "x": 0.4,
+          "x": 0.3,
           "y": 2.45,
           "z": 4.6
         },
@@ -6114,7 +6114,7 @@
         "halfExtents": {
           "x": 2.25,
           "y": 0.575,
-          "z": 0.2
+          "z": 0.15
         },
         "offset": {
           "position": {
@@ -6142,7 +6142,7 @@
         "position": {
           "x": 81,
           "y": 4.175,
-          "z": -9.9
+          "z": -9.85
         },
         "rotation": {
           "x": 0,
@@ -6155,7 +6155,7 @@
         "scale": {
           "x": 4.5,
           "y": 1.15,
-          "z": 0.4
+          "z": 0.3
         },
         "shape": "box"
       }
@@ -6168,7 +6168,7 @@
         "halfExtents": {
           "x": 2.45,
           "y": 2.375,
-          "z": 0.2
+          "z": 0.15
         },
         "offset": {
           "position": {
@@ -6196,7 +6196,7 @@
         "position": {
           "x": 85.7,
           "y": 2.375,
-          "z": -9.9
+          "z": -9.85
         },
         "rotation": {
           "x": 0,
@@ -6209,7 +6209,7 @@
         "scale": {
           "x": 4.9,
           "y": 4.75,
-          "z": 0.4
+          "z": 0.3
         },
         "shape": "box"
       }
@@ -6222,7 +6222,7 @@
         "halfExtents": {
           "x": 2.3,
           "y": 1.225,
-          "z": 0.2
+          "z": 0.15
         },
         "offset": {
           "position": {
@@ -6250,7 +6250,7 @@
         "position": {
           "x": 90.45,
           "y": 1.225,
-          "z": -9.9
+          "z": -9.85
         },
         "rotation": {
           "x": 0,
@@ -6263,7 +6263,7 @@
         "scale": {
           "x": 4.6,
           "y": 2.45,
-          "z": 0.4
+          "z": 0.3
         },
         "shape": "box"
       }
@@ -6276,7 +6276,7 @@
         "halfExtents": {
           "x": 2.45,
           "y": 2.375,
-          "z": 0.2
+          "z": 0.15
         },
         "offset": {
           "position": {
@@ -6304,7 +6304,7 @@
         "position": {
           "x": 76.3,
           "y": 2.375,
-          "z": -9.9
+          "z": -9.85
         },
         "rotation": {
           "x": 0,
@@ -6317,7 +6317,7 @@
         "scale": {
           "x": 4.9,
           "y": 4.75,
-          "z": 0.4
+          "z": 0.3
         },
         "shape": "box"
       }
@@ -6330,7 +6330,7 @@
         "halfExtents": {
           "x": 2.3,
           "y": 1.225,
-          "z": 0.2
+          "z": 0.15
         },
         "offset": {
           "position": {
@@ -6358,7 +6358,7 @@
         "position": {
           "x": 71.55,
           "y": 1.225,
-          "z": -9.9
+          "z": -9.85
         },
         "rotation": {
           "x": 0,
@@ -6371,7 +6371,7 @@
         "scale": {
           "x": 4.6,
           "y": 2.45,
-          "z": 0.4
+          "z": 0.3
         },
         "shape": "box"
       }

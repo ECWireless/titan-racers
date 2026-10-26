@@ -54,6 +54,11 @@ type BuildRoughCourseOptions = {
   createEntity?: CourseEntityFactory;
   document?: CourseDocument;
   includeCollisionFixtures?: boolean;
+  /**
+   * Finishes lit by an interior's environment. Given them, indoor objects
+   * use them and take light only from lights that reach indoors.
+   */
+  indoorMaterials?: RoughCourseMaterials | null;
   materials: RoughCourseMaterials;
   topFaces?: CourseTopFaceMeshes;
 };
@@ -110,6 +115,7 @@ export function buildRoughCourse(
     createEntity = createCourseEntity,
     document = ROUGH_COURSE_DOCUMENT,
     includeCollisionFixtures = false,
+    indoorMaterials = null,
     materials,
     topFaces,
   }: BuildRoughCourseOptions,
@@ -128,6 +134,8 @@ export function buildRoughCourse(
     objects.forEach(
       (object) => {
         const projection = projectCourseObject(object);
+        const finishes = (object.indoors && indoorMaterials) || materials;
+        const indoors = finishes !== materials;
         const arcMesh =
           object.visual.shape === "arc"
             ? createCourseArcMesh(app.graphicsDevice, object.visual.arc)
@@ -138,9 +146,9 @@ export function buildRoughCourse(
             projection,
             isCourseBaseGround(projection.visual.material, projection.id)
               ? projection.visual.material === "lawn"
-                ? materials.baseLawn
-                : materials.baseGround
-              : materials[projection.visual.material],
+                ? finishes.baseLawn
+                : finishes.baseGround
+              : finishes[projection.visual.material],
             arcMesh ??
               (object.visual.shape !== "arc" && drawsCourseTopFaceOnly(object)
                 ? topFaces?.[object.visual.shape]
@@ -152,6 +160,7 @@ export function buildRoughCourse(
           throw error;
         }
 
+        if (indoors) keepCourseVisualIndoors(entity);
         stagedEntities.push(entity);
         courseEntities.set(object.id, entity);
 
@@ -343,5 +352,21 @@ function addCourseArcCollision(
       type: pc.BODYTYPE_STATIC,
     });
     entity.addChild(part);
+  });
+}
+
+/**
+ * Lights an indoor object only with lights that reach indoors (whose mask
+ * includes MASK_AFFECT_LIGHTMAPPED), so the sun and outdoor lamps never shine
+ * through a roof. It casts no sun shadow: nothing it could shade is lit by
+ * the sun. Set after the visual exists, since assigning a render
+ * component's mesh instances resets their masks.
+ */
+export function keepCourseVisualIndoors(entity: pc.Entity) {
+  const visual = entity.render ?? entity.model;
+  if (!visual) return;
+  visual.castShadows = false;
+  visual.meshInstances?.forEach((meshInstance) => {
+    meshInstance.mask = pc.MASK_AFFECT_LIGHTMAPPED;
   });
 }
