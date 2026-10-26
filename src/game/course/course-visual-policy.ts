@@ -66,6 +66,25 @@ export function drawsCourseTopFaceOnly(object: {
   );
 }
 
+/**
+ * Whether grass draws with no layer bias: the base ground beneath every
+ * layer, and solid earthworks such as a berm. The bias only orders thin
+ * coplanar layers; on a large slope seen edge-on it would pull the earth
+ * through the walls in front of it.
+ */
+export function drawsCourseGrassUnlayered(object: {
+  id: string;
+  transform: { rotation: { x: number; z: number } };
+  visual: { material: CourseVisualMaterial; scale?: { y: number } };
+}) {
+  const { material } = object.visual;
+  return (
+    isCourseBaseGround(material, object.id) ||
+    ((material === "ground" || material === "lawn" || material === "verge") &&
+      !drawsCourseTopFaceOnly(object))
+  );
+}
+
 export function isCourseBaseGround(
   material: CourseVisualMaterial,
   objectId: string,

@@ -16,8 +16,8 @@ import {
 } from "./course-arc";
 import { CourseSurfaceResolver } from "./course-surface-resolver";
 import {
+  drawsCourseGrassUnlayered,
   drawsCourseTopFaceOnly,
-  isCourseBaseGround,
 } from "./course-visual-policy";
 
 export type CollisionObstacle = {
@@ -144,7 +144,7 @@ export function buildRoughCourse(
         try {
           entity = createEntity(
             projection,
-            isCourseBaseGround(projection.visual.material, projection.id)
+            drawsCourseGrassUnlayered(object)
               ? projection.visual.material === "lawn"
                 ? finishes.baseLawn
                 : finishes.baseGround
