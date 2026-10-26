@@ -59,7 +59,11 @@ revision-bound previews live in [`kart-thumbnails`](../kart-thumbnails/README.md
   per-instance roots (editor selection) and a wheel and suspension rig the race
   poses each frame with `poseKartWheelVisual`. Rig parts sit in assembly axes,
   so wheel instance rotation is not drawn, matching derivation. The steering
-  controller turns the same wheel pivots. Materials belong to the caller.
+  controller turns the same wheel pivots, and the race spins each wheel on a
+  `spin` entity under its pivot. Wheel pieces in the two wheel finishes
+  carry their lathe stations (`profile`, drawn as UV1) and get the wheel's
+  index in vertex alpha; a wheel visual without `profile` shows no tread,
+  spoke, or lettering detail. Materials belong to the caller.
   Physics never reads these entities.
 - **Part visuals:** `kart-part-visuals.ts` maps every approved `id@version`
   to code-built geometry in `kart-part-visual-geometry.ts` (one piece per

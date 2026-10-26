@@ -102,8 +102,16 @@ Materials), and so do course surfaces (see Course Surfaces).
   hue kept but their lightness clamped to about 4% (black paint) to 85%
   (white paint) reflectance. Documents keep the authored value.
 - **Parts look like real 1:10 RC parts.** Each approved part version has a
-  code-built visual that matches its registry dimensions. Wheels look the same
-  at any angle, because the physics has no wheel spin.
+  code-built visual that matches its registry dimensions.
+- **Wheels show their spin.** The physics has no wheel spin, so a wheel turns
+  as its tire implies: with its contact patch on the ground, stopped when
+  braked past its grip, and coasting down in the air. Its tread blocks,
+  printed sidewall lettering, and six spokes (machined bare between dark
+  windows) blur over the angle it turns in 1/15 s (longer if a frame shows
+  longer). That is an art choice, about four 60 fps frames, so a turning
+  wheel reads as one from a crawl: arcs, then even grey rings by a jog
+  (about 1.5 m/s). From the chase camera mostly black tread shows, which
+  looks alike moving or stopped, as on a real kart seen from behind.
 - **Authored primitives read as RC construction.** Role picks the form:
   machined plates (detail on their largest face, so upright shock towers work
   too), molded shells with vents and panel lines, ribbed bumpers, chamfered

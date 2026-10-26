@@ -104,7 +104,15 @@ import {
 import { createBalancedKartDocument } from "@/game/kart/balanced-kart-document";
 import { getApprovedKartComponent } from "@/game/kart/kart-component-registry";
 import type { KartPartFinish } from "@/game/kart/kart-part-visual-geometry";
-import { createKartVisualMaterial } from "@/game/kart/kart-visual-material";
+import {
+  createKartVisualMaterial,
+  setKartWheelSweeps,
+} from "@/game/kart/kart-visual-material";
+import {
+  getWheelShutterSeconds,
+  getWheelSpinRate,
+  type WheelSpinContact,
+} from "@/game/kart/kart-wheel-spin";
 import {
   deriveKartSnapshot,
   type PersistedResolvedKartSnapshot,
@@ -984,6 +992,12 @@ export function SoloTimeTrialCanvas({
       const wheelPresentations: Array<{
         currentHubY: number;
         previousHubY: number;
+        /** Rolling angle (rad) and rate (rad/s), positive rolling forward. */
+        currentSpinAngle: number;
+        previousSpinAngle: number;
+        currentSpinRate: number;
+        previousSpinRate: number;
+        radius: number;
         visual: KartWheelVisual;
         wheelName: string;
       }> = [];
@@ -1030,6 +1044,11 @@ export function SoloTimeTrialCanvas({
         wheelPresentations.push({
           currentHubY: initialHubY,
           previousHubY: initialHubY,
+          currentSpinAngle: 0,
+          previousSpinAngle: 0,
+          currentSpinRate: 0,
+          previousSpinRate: 0,
+          radius: station.radius,
           visual: wheelVisual,
           wheelName: name,
         });
@@ -1092,6 +1111,9 @@ export function SoloTimeTrialCanvas({
         wheelPresentations.forEach((wheel) => {
           wheel.currentHubY = initialHubY;
           wheel.previousHubY = initialHubY;
+          wheel.previousSpinAngle = wheel.currentSpinAngle;
+          wheel.currentSpinRate = 0;
+          wheel.previousSpinRate = 0;
         });
       }
 
@@ -1781,7 +1803,13 @@ export function SoloTimeTrialCanvas({
         collisionMetrics.postLinearVelocity = { ...frame.postLinearVelocity };
       }
 
-      function captureWheelPresentationState() {
+      const wheelSpinContact: WheelSpinContact = {
+        locked: false,
+        longitudinalSpeed: 0,
+        radius: 1,
+        supported: false,
+      };
+      function captureWheelPresentationState(stepSeconds: number) {
         const telemetryByName = new Map(
           kartController.state.wheelTelemetry.map((wheel) => [
             wheel.name,
@@ -1790,14 +1818,37 @@ export function SoloTimeTrialCanvas({
         );
 
         wheelPresentations.forEach((wheel) => {
+          const telemetry = telemetryByName.get(wheel.wheelName);
           wheel.previousHubY = wheel.currentHubY;
-          wheel.currentHubY =
-            telemetryByName.get(wheel.wheelName)?.assemblyHubY ?? initialHubY;
+          wheel.currentHubY = telemetry?.assemblyHubY ?? initialHubY;
+          // Keep the angle small so float precision holds over a long race.
+          const turns = Math.floor(wheel.currentSpinAngle / (2 * Math.PI));
+          wheel.previousSpinAngle =
+            wheel.currentSpinAngle - turns * 2 * Math.PI;
+          wheel.previousSpinRate = wheel.currentSpinRate;
+          wheelSpinContact.locked = telemetry?.locked ?? false;
+          wheelSpinContact.longitudinalSpeed =
+            telemetry?.longitudinalSpeed ?? 0;
+          wheelSpinContact.radius = wheel.radius;
+          wheelSpinContact.supported = telemetry?.supported ?? false;
+          wheel.currentSpinRate = getWheelSpinRate(
+            wheelSpinContact,
+            wheel.previousSpinRate,
+            stepSeconds,
+          );
+          wheel.currentSpinAngle =
+            wheel.previousSpinAngle + wheel.currentSpinRate * stepSeconds;
         });
       }
 
-      function renderWheelPresentation(accumulatorFraction: number) {
+      const wheelSweeps: number[] = [];
+      function renderWheelPresentation(
+        accumulatorFraction: number,
+        frameSeconds: number,
+      ) {
+        const shutterSeconds = getWheelShutterSeconds(frameSeconds);
         wheelPresentations.forEach((wheel) => {
+          const { axleSign, spin, spinIndex } = wheel.visual;
           poseKartWheelVisual(
             wheel.visual,
             pc.math.lerp(
@@ -1806,7 +1857,24 @@ export function SoloTimeTrialCanvas({
               accumulatorFraction,
             ),
           );
+          // Rolling forward turns a wheel backward about the assembly's +X
+          // (forward is -Z, up +Y).
+          const angle = pc.math.lerp(
+            wheel.previousSpinAngle,
+            wheel.currentSpinAngle,
+            accumulatorFraction,
+          );
+          spin.setLocalEulerAngles((-angle * 180) / Math.PI, 0, 0);
+          const rate = pc.math.lerp(
+            wheel.previousSpinRate,
+            wheel.currentSpinRate,
+            accumulatorFraction,
+          );
+          wheelSweeps[spinIndex] = -axleSign * rate * shutterSeconds;
         });
+        kartVisualMaterials.forEach((material) =>
+          setKartWheelSweeps(material, wheelSweeps),
+        );
       }
 
       function setSceneKartDevelopmentValues(
@@ -2697,7 +2765,7 @@ export function SoloTimeTrialCanvas({
         interpolatedKartVisualPosition.add(interpolatedKartPosition);
         kartVisual.setPosition(interpolatedKartVisualPosition);
         kartVisual.setRotation(interpolatedKartAssemblyRotation);
-        renderWheelPresentation(accumulatorFraction);
+        renderWheelPresentation(accumulatorFraction, frameSeconds);
         contactShadow.update(kartVisual, findGroundBelowKart);
 
         chaseCamera.update(frameSeconds, getChaseCameraSnapshot());
@@ -2743,9 +2811,9 @@ export function SoloTimeTrialCanvas({
         publishRacePresentation();
       });
 
-      app.on("update", () => {
+      app.on("update", (stepSeconds: number) => {
         captureKartPresentationState();
-        captureWheelPresentationState();
+        captureWheelPresentationState(stepSeconds);
         suspensionMetrics.maximumCompression = Math.max(
           suspensionMetrics.maximumCompression,
           ...kartController.state.wheelTelemetry.map(
