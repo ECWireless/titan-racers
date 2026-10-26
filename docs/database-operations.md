@@ -83,8 +83,8 @@ Migration `0015` adds nullable `gameplay_runs.physics_version` with an immutable
 update guard. Existing rows remain null; version-one client starts also insert
 null. New starts pin the allowlisted client physics version. Apply the additive
 migration before deploying the versioned writer. This does not rewrite course
-revisions: adopting the v3 sandbox seed separately appends and publishes a new
-rough-course revision through the guarded seed reset.
+revisions: adopting the v3 sandbox seed separately appends a new rough-course
+draft through the guarded seed reset, which an admin then publishes.
 
 Migration `0016` widens the known-course check on `gameplay_runs.course_id`
 to the official courses, `rough-course` and `agricultural-zone`. Existing rows
@@ -203,8 +203,9 @@ concurrency. It fails if another author advances the course during the reset.
 Players keep racing the current publication until an admin opens the course
 in the editor and publishes the new draft. The seed comes from the local
 checkout, so run the command from the deployed commit (normally `main`), and
-deploy a build that changes a seed's schema before resetting to it. The command uses `DATABASE_URL`, so confirm which database that variable
-targets before running it. The supplied email is used only for the
+deploy a build that changes a seed's schema before resetting to it. The
+command uses `DATABASE_URL`, so confirm which database that variable targets
+before running it. The supplied email is used only for the
 credentialed admin lookup and is never logged or stored in configuration.
 
 ## Production Migration And Preview Policy
@@ -235,7 +236,7 @@ Application traffic uses the pooled Neon `DATABASE_URL`. The direct migration
 credential should not be present in the application runtime when the hosting
 platform can keep deployment credentials separate.
 
-Ordinary `db:generate`, `db:check`, `db:migrate`, and `db:reset-course-seed` commands
-intentionally read only `DATABASE_URL`; they never fall back to
+Ordinary `db:generate`, `db:check`, `db:migrate`, and `db:reset-course-seed`
+commands intentionally read only `DATABASE_URL`; they never fall back to
 `DATABASE_MIGRATION_URL`. The production credential is consumed only by the
 explicitly named `db:migrate:production` script.

@@ -364,13 +364,15 @@ The route stays clearly lit at deep dusk (89.5°).
       forks into a jump lane and a gentle lane. A course may carry eight
       floodlights (schema v5, no migration); Falls View Park places eight
       outdoors, within the phone budget.
-- [ ] 4.4.1.1: Falls View Park seed reset and wheel motion blur. The
-      guarded seed reset (`db:reset-course-seed`) covers `falls-view-park`
-      as well as the Starter Course, so production can take the 4.4.1
-      route: reset it, then an admin publishes it. Wheels show their spin:
-      presentation-only, driven by the tire's rolling speed, with rim and
-      tread detail that blurs into a disc as they spin up, and no
-      full-screen pass.
+- [x] 4.4.1.1: Falls View Park seed reset and wheel motion blur. Shipped:
+      the guarded seed reset (`db:reset-course-seed`) covers
+      `falls-view-park` as well as the Starter Course, and production's
+      Falls View Park was reset to the 4.4.1 route. Wheels show their spin,
+      presentation-only and driven by the tire's rolling speed: tread
+      blocks, sidewall lettering, and machined spokes blur over at least
+      1/15 s (an art choice) into grey rings, with no full-screen pass. The
+      chase camera sees mostly black tread, so the blur shows best side-on.
+      Within the phone budget.
 - [ ] 4.4.2: Utility tunnel, with its own lights. Habitat light and lamps
       pass through walls today, so an interior renders as bright as outside;
       debrief the fix first. Open with a design competition between Codex

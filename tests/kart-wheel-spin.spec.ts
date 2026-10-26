@@ -37,7 +37,7 @@ test.describe("kart wheel spin", () => {
     );
   });
 
-  test("blurs over about as long as the eye blends motion", () => {
+  test("blurs over at least 1/15 s, longer if a frame shows longer", () => {
     expect(getWheelShutterSeconds(1 / 60)).toBe(1 / 15);
     expect(getWheelShutterSeconds(1 / 10)).toBe(1 / 10);
     expect(getWheelShutterSeconds(0.5)).toBe(1 / 8);
