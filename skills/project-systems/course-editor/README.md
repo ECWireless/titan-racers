@@ -152,10 +152,9 @@ owns only Resume and Exit.
   its native buttons retain normal Tab order, while Escape restores trigger
   focus and outside pointer interaction dismisses the list.
 - The protected editor edits the official courses only: the permanent
-  `rough-course` sandbox and `falls-view-park`. The sandbox seed can be
-  restored through the guarded database operation documented in
-  `docs/database-operations.md`; `falls-view-park` keeps its own document and revision
-  history.
+  `rough-course` sandbox and `falls-view-park`, each with its own document
+  and revision history. Either can be restored to its seed through the
+  guarded database operation documented in `docs/database-operations.md`.
 - Draft and Published revision state are shown separately. Publish remains
   disabled while dirty or when the saved draft is already current, uses a
   compact desktop icon and a mobile Course Actions entry, and submits the known

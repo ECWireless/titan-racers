@@ -4,8 +4,8 @@ import { and, eq, sql } from "drizzle-orm";
 
 import { db, pool } from "../src/db/client";
 import { userRoles, users } from "../src/db/schema";
-import { ROUGH_COURSE_DOCUMENT } from "../src/game/course/course-document";
-import { SANDBOX_COURSE_ID } from "../src/game/course/course-ids";
+import { BUNDLED_COURSE_DOCUMENTS } from "../src/game/course/course-document";
+import { isOfficialCourseId } from "../src/game/course/course-ids";
 import {
   loadLatestCourseRevision,
   saveCourseRevision,
@@ -22,11 +22,12 @@ function readRequiredFlag(flag: string) {
 
 async function main() {
   const email = readRequiredFlag("--email")?.toLowerCase();
-  const confirmation = readRequiredFlag("--confirm");
+  // The course ID doubles as the confirmation of which course to reset.
+  const courseId = readRequiredFlag("--confirm");
 
-  if (!email || confirmation !== SANDBOX_COURSE_ID) {
+  if (!email || !isOfficialCourseId(courseId)) {
     throw new Error(
-      "Usage: pnpm db:reset-sandbox-course --email <admin-account> --confirm rough-course",
+      "Usage: pnpm db:reset-course-seed --email <admin-account> --confirm <rough-course|falls-view-park>",
     );
   }
 
@@ -47,15 +48,15 @@ async function main() {
       );
     }
 
-    const latest = await loadLatestCourseRevision(SANDBOX_COURSE_ID);
+    const latest = await loadLatestCourseRevision(courseId);
     const reset = await saveCourseRevision({
       authorUserId: admin.id,
-      document: ROUGH_COURSE_DOCUMENT,
+      document: BUNDLED_COURSE_DOCUMENTS[courseId],
       expectedRevision: latest?.revision ?? null,
     });
 
     console.log(
-      `Sandbox course restored from the source-controlled seed at revision ${reset.revision}.`,
+      `${courseId} restored from its source-controlled seed as draft revision ${reset.revision}. Publish it in the course editor.`,
     );
   } finally {
     await pool.end();
@@ -64,7 +65,7 @@ async function main() {
 
 main().catch((error: unknown) => {
   console.error(
-    error instanceof Error ? error.message : "Sandbox course reset failed.",
+    error instanceof Error ? error.message : "Course seed reset failed.",
   );
   process.exitCode = 1;
 });

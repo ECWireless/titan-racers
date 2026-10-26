@@ -364,21 +364,33 @@ The route stays clearly lit at deep dusk (89.5°).
       forks into a jump lane and a gentle lane. A course may carry eight
       floodlights (schema v5, no migration); Falls View Park places eight
       outdoors, within the phone budget.
+- [x] 4.4.1.1: Falls View Park seed reset and wheel motion blur. Shipped:
+      the guarded seed reset (`db:reset-course-seed`) covers
+      `falls-view-park` as well as the Starter Course, and production's
+      Falls View Park was reset to the 4.4.1 route. Wheels show their spin,
+      presentation-only and driven by the tire's rolling speed: tread
+      blocks, sidewall lettering, and machined spokes blur over at least
+      1/15 s (an art choice) into grey rings, with no full-screen pass. The
+      chase camera sees mostly black tread, so the blur shows best side-on.
+      Within the phone budget.
 - [ ] 4.4.2: Utility tunnel, with its own lights. Habitat light and lamps
       pass through walls today, so an interior renders as bright as outside;
-      debrief the fix first.
+      debrief the fix first. Open with a design competition between Codex
+      and Opus for the tunnel.
 - [ ] 4.4.3: Tree nursery rows, and how their trees look.
 - [ ] 4.4.4: Stream, culvert, and levee vista, and how the water looks.
 - [ ] 4.4.5: Downhill run and spin jump. Floor markings' slope depth bias
       lets edge lines show through a ramp's thin toe from low, distant views
-      (seen in PR 4.3.4 QA); fix it with these ramps. Karts hop down a
-      steady slope at speed, because grounded heave damping acts only on
-      near-level support (seen on the 4.4.1 descent); decide whether the
-      downhill needs a versioned physics change.
+      (seen in PR 4.3.4 QA); fix it with these ramps, and check the fix on
+      the Starter Course's ramps too, since it is in the shared course
+      renderer. Karts hop down a steady slope at speed, because grounded
+      heave damping acts only on near-level support (seen on the 4.4.1
+      descent); decide whether the downhill needs a versioned physics
+      change.
 - [ ] 4.4.6: Return lane and finish: a final lighting pass, an iPhone
       `?perf=1` run on the finished route, and the route in production.
-      Falls View Park is published there, so extend the guarded seed reset
-      to `falls-view-park`, then an admin publishes it.
+      Reset Falls View Park there to the finished seed with
+      `db:reset-course-seed`, then an admin publishes it.
 
 **PR 4.5: Ambience and SFX**
 

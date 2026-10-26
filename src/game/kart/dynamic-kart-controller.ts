@@ -96,6 +96,7 @@ type DynamicKartControllerOptions = {
 };
 
 type SupportedWheelForceState = {
+  handbrakeForce: number;
   lateralForce: number;
   longitudinalForce: number;
   maximumTireForce: number;
@@ -133,6 +134,11 @@ export type DynamicWheelTelemetry = {
   /** World point on the drivable surface under the wheel. Presentation only. */
   contactPoint: pc.Vec3 | null;
   lateralSpeed: number;
+  /**
+   * Braking on the wheel exceeds its tire's grip, so a real wheel would stop
+   * turning. Presentation only.
+   */
+  locked: boolean;
   longitudinalSpeed: number;
   name: string;
   surfaceName: string | null;
@@ -379,6 +385,7 @@ export class DynamicKartController implements KartController {
         contactNormal: null,
         contactPoint: null,
         lateralSpeed: 0,
+        locked: false,
         longitudinalSpeed: 0,
         name: wheel.name,
         surfaceName: null,
@@ -588,18 +595,18 @@ export class DynamicKartController implements KartController {
         gravityPull,
       );
 
+      let handbrakeForce = 0;
       if (
         handbrakingMotion &&
         wheel.driven &&
         Math.abs(longitudinalSpeed) > BRAKE_REVERSE_TRANSITION_SPEED
       ) {
-        longitudinalForce +=
-          -Math.sign(longitudinalSpeed) *
-          (getRequestedBrakingForce(
+        handbrakeForce =
+          getRequestedBrakingForce(
             input.handbrake,
             this.physicalProfile.brakes.maximumHandbrakeForce,
-          ) /
-            this.drivenWheelCount);
+          ) / this.drivenWheelCount;
+        longitudinalForce += -Math.sign(longitudinalSpeed) * handbrakeForce;
       }
 
       const lateralForce = getRequestedLateralTireForce(
@@ -616,6 +623,7 @@ export class DynamicKartController implements KartController {
       );
 
       supportedWheelForceStates.push({
+        handbrakeForce,
         lateralForce,
         longitudinalForce,
         maximumTireForce,
@@ -660,6 +668,7 @@ export class DynamicKartController implements KartController {
 
     supportedWheelForceStates.forEach((wheelState, index) => {
       const {
+        handbrakeForce,
         lateralForce,
         maximumTireForce,
         relativePoint,
@@ -686,6 +695,8 @@ export class DynamicKartController implements KartController {
         tireForce.mulScalar(forceScale);
       }
 
+      telemetry.locked =
+        handbrakeForce + allocatedServiceBrakeForces[index] > maximumTireForce;
       telemetry.appliedLateralTireForce = lateralTireForce.dot(wheelRight);
       telemetry.appliedTireForce = tireForce.length();
       telemetry.tireForceUtilization =

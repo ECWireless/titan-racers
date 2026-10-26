@@ -8,7 +8,9 @@ export type KartPartFinish =
   | "black-oxide-steel" // dark fasteners, cap screws, set screws
   | "black-polymer" // fixed dark molded plastic, wire insulation
   | "copper" // exposed windings
-  | "rubber"; // tire compound
+  | "rubber" // molded rubber (bump stops)
+  | "tire-rubber" // tire compound, with tread drawn by its shader
+  | "authored-wheel-anodized"; // builder-chosen color, anodized wheel
 
 /** One mesh in the part's local frame, in meters. */
 export type KartPartVisualPiece = {
@@ -19,6 +21,11 @@ export type KartPartVisualPiece = {
   normals: number[];
   /** Triangles, counter-clockwise when seen from the side the normal points to. */
   indices: number[];
+  /**
+   * Wheel pieces only: each vertex's (axial, radius) lathe station before
+   * scaling, so the wheel shader draws its detail at one canonical size.
+   */
+  profile?: number[];
 };
 
 export type Vec3 = [number, number, number];
@@ -55,8 +62,14 @@ export function lathe(
   });
   const map = (a: number, u: number, v: number): Vec3 =>
     axis === "x" ? [a, u, v] : axis === "y" ? [v, a, u] : [u, v, a];
-  const add = (p: Vec3, n: Vec3) =>
-    vertex(mesh, [p[0] + center[0], p[1] + center[1], p[2] + center[2]], n);
+  const add = (p: Vec3, n: Vec3, station: [number, number]) => {
+    mesh.profile?.push(...station);
+    return vertex(
+      mesh,
+      [p[0] + center[0], p[1] + center[1], p[2] + center[2]],
+      n,
+    );
+  };
 
   for (let edge = 0; edge < count; edge++) {
     const next = (edge + 1) % count;
@@ -73,12 +86,12 @@ export function lathe(
         na /= length;
         nr /= length;
       }
-      if (r === 0) return [add(map(a, 0, 0), map(na, 0, 0))];
+      if (r === 0) return [add(map(a, 0, 0), map(na, 0, 0), [a, r])];
       return Array.from({ length: segments }, (_, i) => {
         const angle = (i * Math.PI * 2) / segments;
         const c = Math.cos(angle);
         const s = Math.sin(angle);
-        return add(map(a, r * c, r * s), map(na, nr * c, nr * s));
+        return add(map(a, r * c, r * s), map(na, nr * c, nr * s), [a, r]);
       });
     });
     const [a, b] = rings;
@@ -113,15 +126,17 @@ export function box(mesh: KartPartVisualPiece, center: Vec3, size: Vec3): void {
 }
 
 /**
- * Ribbed RC tire on a deep-dish, anodized industrial wheel.
- * All features are surfaces of revolution: no frozen spokes or hex flats.
+ * Ribbed RC tire on a deep-dish, anodized industrial wheel. The geometry is
+ * all surfaces of revolution; the tire's tread blocks and sidewall marks and
+ * the dish's six windows are drawn by the wheel shaders from each vertex's
+ * canonical lathe station, so they can blur as the wheel spins.
  * 1,584 triangles, three finishes; +X is the exposed outboard face.
  */
 export function buildWheelTire(
   radius: number,
   width: number,
 ): KartPartVisualPiece[] {
-  const tire = piece("rubber");
+  const tire: KartPartVisualPiece = { ...piece("tire-rubber"), profile: [] };
   lathe(tire, "x", [
     [-0.016, 0.034],
     [-0.020, 0.044, true],
@@ -139,7 +154,10 @@ export function buildWheelTire(
     [0.016, 0.034],
   ], 32);
 
-  const rim = piece("authored-anodized");
+  const rim: KartPartVisualPiece = {
+    ...piece("authored-wheel-anodized"),
+    profile: [],
+  };
   lathe(rim, "x", [
     [-0.016, 0.034],
     [0.016, 0.034],

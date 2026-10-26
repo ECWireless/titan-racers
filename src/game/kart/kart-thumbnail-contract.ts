@@ -3,7 +3,7 @@ import { z } from "zod";
 export const KART_THUMBNAIL_CONTENT_TYPE = "image/png";
 export const KART_THUMBNAIL_HEIGHT = 360;
 export const KART_THUMBNAIL_MAX_BYTES = 512 * 1024;
-export const KART_THUMBNAIL_RENDER_VERSION = 6;
+export const KART_THUMBNAIL_RENDER_VERSION = 7;
 export const KART_THUMBNAIL_WIDTH = 640;
 
 const MAXIMUM_BASE64_LENGTH = Math.ceil(KART_THUMBNAIL_MAX_BYTES / 3) * 4;

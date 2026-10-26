@@ -25,7 +25,12 @@ phone budget. Art direction and the budget itself live in
   unlit effects (tire marks, drift smoke) dim.
 - `src/game/kart/kart-visual-material.ts` owns the kart finishes (one
   material per finish) and the authored-color reflectance clamp that the
-  [kart visual builder](../kart-builder/README.md) uses.
+  [kart visual builder](../kart-builder/README.md) uses. Its two wheel
+  finishes draw the tread, lettering, and spoke detail from each vertex's lathe station
+  (UV1) and blur it per wheel: vertex alpha carries the wheel's index, and
+  the race writes each wheel's swept angle into the materials' shared
+  `kartWheelSweep` array every frame (`src/game/kart/kart-wheel-spin.ts`
+  sets the spin).
 - `src/game/course/course-surface-materials.ts` owns the course finishes:
   one shader program whose diffuse override samples a CPU-built grain
   texture by world position, and a second for asphalt, turf, and lawn that
@@ -142,7 +147,8 @@ course editor scenes in `src/game/editor/`, and
   neutral habitat light keeps its gain. Its CPU build counts toward the startup
   budget ([measured](../../../docs/visual-identity.md#baseline)).
 - The course finishes replace the `diffusePS` chunk (scanned finishes also
-  `normalMapPS` and `glossPS`), and the cascaded-shadow fade patches
+  `normalMapPS` and `glossPS`), the wheel finishes `diffusePS`, `glossPS`,
+  `metalnessPS`, and the `litUser*` hooks, and the cascaded-shadow fade patches
   `shadowCascadesPS` and `lightFunctionLightPS`, for chunk version 2.20; the
   fade throws if its anchor text is gone. Re-verify them, like
   the atlas, on any engine upgrade. Grain pixels and decoded scan images are
@@ -152,8 +158,9 @@ course editor scenes in `src/game/editor/`, and
   Do not switch to GPU prefiltering: it compiles extra shaders in every new
   application, and each kart thumbnail is one.
 - Every kart color is an sRGB vertex color (`vertexColorGamma`, a documented
-  option missing from the 2.20 typings), so all finishes share one shader
-  program and the race kart batches to about one draw per finish per pass.
+  option missing from the 2.20 typings), so all finishes but the two wheel
+  finishes share one shader program, and the race kart batches to about one
+  draw per finish per pass.
   Kart materials must stay free of per-part color or texture state.
 - The race kart is one dynamic batch group. Batched parts are skinned, and
   PlayCanvas skins normals without the inverse-transpose, so parts stretched

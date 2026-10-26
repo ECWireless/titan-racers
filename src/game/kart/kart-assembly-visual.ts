@@ -24,9 +24,12 @@ import {
 import { getKartFinishColor } from "./kart-visual-material";
 
 type ReadonlyComponentDefinition = DeepReadonly<ApprovedComponentDefinition>;
+// A wheel's pieces carry its index, so one batched draw can blur each
+// wheel by its own spin.
+type AssemblyPiece = KartPartVisualPiece & { wheelIndex?: number };
 type CreatePieces = (
   name: string,
-  pieces: KartPartVisualPiece[],
+  pieces: AssemblyPiece[],
   skin: KartVisualSkin,
 ) => pc.Entity;
 
@@ -76,6 +79,12 @@ export type KartWheelVisual = {
   instanceId: string;
   /** Hub pivot in assembly axes; steering rotates it about local Y. */
   pivot: pc.Entity;
+  /** Turns the wheel about the axle, the pivot's local X. */
+  spin: pc.Entity;
+  /** Index the wheel shaders read this wheel's blur by. */
+  spinIndex: number;
+  /** +1 when the wheel's own +X (outboard) is the pivot's +X, else -1. */
+  axleSign: 1 | -1;
   suspension: KartSuspensionVisual | null;
 };
 
@@ -185,7 +194,7 @@ export function createKartAssemblyVisual(
     );
   };
 
-  const wheels = wheelInstances.map(({ definition, instance }) => {
+  const wheels = wheelInstances.map(({ definition, instance }, spinIndex) => {
     const suspensionInstance = findWheelSuspension(document, instance.id);
     const wheelRoot = instanceRoots.get(instance.id)!;
     const wheelFrame = createAssemblyFrame(
@@ -197,12 +206,16 @@ export function createKartAssemblyVisual(
     const pivot = new pc.Entity(`${instance.id}-pivot`);
     pivot.setLocalPosition(hub);
     wheelFrame.addChild(pivot);
+    const spin = new pc.Entity(`${instance.id}-spin`);
+    pivot.addChild(spin);
     const visual = getKartPartVisual(instance.definition);
     const wheelVisual =
       visual?.kind === "pieces"
         ? createPieces(
             `${instance.id}-wheel`,
-            visual.build(definition),
+            visual
+              .build(definition)
+              .map((piece) => ({ ...piece, wheelIndex: spinIndex })),
             materialsFor(instance),
           )
         : createConstructionEntity(
@@ -212,13 +225,17 @@ export function createKartAssemblyVisual(
             createPieces,
           );
     // Wheel visuals face outboard toward +X; left wheels turn around.
-    if (hub.x < 0) wheelVisual.setLocalEulerAngles(0, 180, 0);
-    pivot.addChild(wheelVisual);
+    const axleSign = hub.x < 0 ? -1 : 1;
+    if (axleSign < 0) wheelVisual.setLocalEulerAngles(0, 180, 0);
+    spin.addChild(wheelVisual);
 
     const wheel: KartWheelVisual = {
+      axleSign,
       hub,
       instanceId: instance.id,
       pivot,
+      spin,
+      spinIndex,
       suspension: suspensionInstance
         ? createSuspension(suspensionInstance, hub.y)
         : null,
@@ -643,7 +660,7 @@ function createPrimitivePiece(
 
 function createPieceEntity(
   name: string,
-  pieces: KartPartVisualPiece[],
+  pieces: AssemblyPiece[],
   skin: KartVisualSkin,
   device: pc.GraphicsDevice,
 ) {
@@ -652,15 +669,21 @@ function createPieceEntity(
     meshInstances: pieces.map((piece) => {
       const hex = getKartFinishColor(piece.finish, skin.visualColor);
       const color = new pc.Color().fromString(hex);
-      const rgba = [color.r, color.g, color.b, 1].map((channel) =>
-        Math.round(channel * 255),
-      );
+      // Alpha is unused by the opaque finishes, so it carries a wheel's
+      // index for the wheel shaders.
+      const rgba = [
+        ...[color.r, color.g, color.b].map((channel) =>
+          Math.round(channel * 255),
+        ),
+        piece.wheelIndex ?? 255,
+      ];
       const mesh = new pc.Mesh(device);
       mesh.setPositions(piece.positions);
       mesh.setNormals(piece.normals);
       mesh.setColors32(
         Array.from({ length: piece.positions.length / 3 }, () => rgba).flat(),
       );
+      if (piece.profile) mesh.setUvs(1, piece.profile);
       if (piece.finish.startsWith("authored-")) {
         renderedColors.set(entity, hex);
       }
