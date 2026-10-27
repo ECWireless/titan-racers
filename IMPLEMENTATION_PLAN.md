@@ -444,7 +444,9 @@ barriers are the youth's portable race kit
       3.6 m clearance boards and its door numbers. Then an iPhone `?perf=1`
       run on the finished route, and the route in production: reset Falls
       View Park there to the finished seed with `db:reset-course-seed`, then
-      an admin publishes it.
+      an admin publishes it. If the phone run needs headroom, stop
+      spraying hedges' unseen faces (about 38% of their sprays, against the
+      ground, walls, and neighbours) and thin tree leaves at distance.
 
 **PR 4.5: Ambience and SFX**
 

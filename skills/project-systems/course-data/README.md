@@ -69,12 +69,12 @@ own editor commands or persistence UI.
   shared by the race and editor (see
   [scene lighting](../scene-lighting/README.md)) and the top-face meshes.
 - `src/game/course/course-tree-geometry.ts` builds the planted beds' trees
-  (where each stands, and its three variants' bark, leaf sprays, and stake)
-  and the hedges' leaf sprays from a validated document, deterministically;
-  `course-trees.ts` draws them (see
-  [scene lighting](../scene-lighting/README.md)) and gives each tree one
-  static box round its stem and stake, tagged `tree` so the chase camera
-  looks past it.
+  (where each stands, its three variants' bark, leaf sprays, and stake, and
+  its one collider box round stem and stake) and the hedges' leaf sprays
+  from a validated document, deterministically; `course-trees.ts` draws them
+  (see [scene lighting](../scene-lighting/README.md)) and adds the static
+  colliders, which carry no `obstacle` tag, so the chase camera looks past
+  trees.
 - `src/game/course/build-course-lighting.ts` projects the enclosure's sun
   into one shadow-casting directional light.
 - `src/game/enclosure/island-three.ts` owns the approved enclosure registry,
@@ -86,8 +86,8 @@ own editor commands or persistence UI.
   course geometry, start, collision, and lighting construction.
 - `tests/course-arc.spec.ts` owns the arc generator: segment counts, chord
   error, normals and winding, and collision boxes that meet on the outer face.
-- `tests/course-trees.spec.ts` owns tree placement, size, triangle budget,
-  winding, and hedge spray coverage.
+- `tests/course-trees.spec.ts` owns tree placement, colliders, size,
+  triangle budget, winding, and hedge spray coverage.
 - `tests/course-document.spec.ts` owns schema, seed, catalog, stable-ID,
   checkpoint-order, canonical round-trip, invalid-input, and retained-geometry
   assertions.

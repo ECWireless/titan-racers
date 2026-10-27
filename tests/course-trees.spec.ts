@@ -8,6 +8,7 @@ import {
 import {
   createCourseHedgeGeometry,
   createNurseryTreeGeometry,
+  getCourseTreeCollider,
   getCourseTreeInstances,
   NURSERY_TREE,
   NURSERY_TREE_VARIANTS,
@@ -61,6 +62,35 @@ test("plants a bed's trees in rows on its top, the same way every time", () => {
     -6.4, -5.2, -4, -2.8, -1.6,
   ]);
   expect(new Set(trees.map((tree) => tree.variant)).size).toBeGreaterThan(1);
+});
+
+test("gives each tree one box round its stem and stake", () => {
+  const { radius } = NURSERY_TREE.stake;
+  const stem = NURSERY_TREE.trunk.baseRadius;
+  for (const tree of getCourseTreeInstances(withObjects(bed))) {
+    const { halfExtents, position, yaw } = getCourseTreeCollider(tree);
+    // A point's place in the box: along its local X, and across its local Z.
+    const local = ([x, , z]: number[]) => {
+      const [dx, dz] = [x! - position[0], z! - position[2]];
+      const angle = (yaw * Math.PI) / 180;
+      return [
+        dx * Math.cos(angle) - dz * Math.sin(angle),
+        dx * Math.sin(angle) + dz * Math.cos(angle),
+      ];
+    };
+    const [stemAlong, stemAcross] = local(tree.position);
+    const [stakeAlong, stakeAcross] = local(tree.stake);
+    // The stem's far side and the stake's meet the box's ends.
+    expect(Math.abs(stemAlong!) + stem).toBeCloseTo(halfExtents[0]);
+    expect(Math.abs(stakeAlong!) + radius).toBeCloseTo(halfExtents[0]);
+    expect(Math.sign(stemAlong!)).toBe(-Math.sign(stakeAlong!));
+    expect(Math.abs(stemAcross!)).toBeLessThan(1e-9);
+    expect(Math.abs(stakeAcross!)).toBeLessThan(1e-9);
+    expect(halfExtents[2]).toBe(radius);
+    // It stands on the bed, up past the stake's top.
+    expect(position[1] - halfExtents[1]).toBeCloseTo(tree.position[1]);
+    expect(halfExtents[1] * 2).toBeGreaterThan(NURSERY_TREE.stake.height);
+  }
 });
 
 test("builds young trees at real size within a small triangle budget", () => {

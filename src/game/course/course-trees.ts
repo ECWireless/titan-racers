@@ -6,9 +6,8 @@ import {
   createCourseHedgeGeometry,
   createNurseryStakeGeometry,
   createNurseryTreeGeometry,
+  getCourseTreeCollider,
   getCourseTreeInstances,
-  NURSERY_TREE,
-  NURSERY_TREE_COLLIDER,
   NURSERY_TREE_VARIANTS,
   type TreeMeshData,
 } from "./course-tree-geometry";
@@ -24,8 +23,6 @@ export type CourseTreeMaterials = ReturnType<typeof createCourseTreeMaterials>;
 const BARK_COLOR = "#6b6254";
 // The scanned leaves, muted toward the course's olive turf.
 const LEAF_TINT = [0.95, 1, 0.85] as const;
-// A crown and its sprays reach this far beyond its stem.
-const CROWN_REACH = 1.6;
 
 /**
  * Bark, and the leaf sprays shared by trees and hedges, for one scene.
@@ -105,7 +102,11 @@ function createMesh(device: pc.GraphicsDevice, data: TreeMeshData) {
   return mesh;
 }
 
-type Placed = { at: [number, number, number]; transform: pc.Mat4 };
+type Placed = {
+  at: [number, number, number];
+  size: number;
+  transform: pc.Mat4;
+};
 
 function place(
   at: [number, number, number],
@@ -114,6 +115,7 @@ function place(
 ): Placed {
   return {
     at,
+    size,
     transform: new pc.Mat4().setTRS(
       new pc.Vec3(...at),
       new pc.Quat().setFromEulerAngles(0, yaw, 0),
@@ -127,7 +129,7 @@ function place(
  * each tree variant's bark and leaves, and every stake, as one instanced
  * draw each, culled as a whole, and the hedges' leaves as one mesh. With
  * `colliders`, each tree also gets a static box taking in its stem and
- * stake, tagged `tree` so the chase camera looks past it.
+ * stake; untagged as an obstacle, it leaves the chase camera's view clear.
  */
 export function addCourseTrees(
   app: pc.AppBase,
@@ -152,6 +154,7 @@ export function addCourseTrees(
     data: TreeMeshData,
     material: pc.Material,
     placed?: Placed[],
+    castShadows = true,
   ) => {
     if ((placed && placed.length === 0) || data.indices.length === 0) return;
     const meshInstance = new pc.MeshInstance(
@@ -172,19 +175,31 @@ export function addCourseTrees(
       );
       buffers.push(buffer);
       meshInstance.setInstancing(buffer, true);
-      // Culled as one: every instance from its foot to its crown's reach.
+      // Culled as one: every instance, turned any way, from its foot to
+      // its top and out to its widest reach.
+      let top = 0;
+      let reach = 0;
+      const { positions } = data;
+      for (let index = 0; index < positions.length; index += 3) {
+        top = Math.max(top, positions[index + 1]!);
+        reach = Math.max(
+          reach,
+          Math.hypot(positions[index]!, positions[index + 2]!),
+        );
+      }
       const min = new pc.Vec3(Infinity, Infinity, Infinity);
       const max = new pc.Vec3(-Infinity, -Infinity, -Infinity);
-      placed.forEach(({ at: [x, y, z] }) => {
-        min.min(new pc.Vec3(x - CROWN_REACH, y, z - CROWN_REACH));
-        max.max(new pc.Vec3(x + CROWN_REACH, y + 4, z + CROWN_REACH));
+      placed.forEach(({ at: [x, y, z], size }) => {
+        const out = reach * size;
+        min.min(new pc.Vec3(x - out, y, z - out));
+        max.max(new pc.Vec3(x + out, y + top * size, z + out));
       });
       bounds = new pc.BoundingBox();
       bounds.setMinMax(min, max);
     }
     const entity = new pc.Entity(name);
     entity.addComponent("render", {
-      castShadows: true,
+      castShadows,
       meshInstances: [meshInstance],
     });
     // The render component owns its mesh instances' bounds.
@@ -222,37 +237,24 @@ export function addCourseTrees(
     );
   }
   if (materials.leaves) {
+    // The hedge's box beneath already casts its shadow.
     addDraw(
       "course-hedge-leaves",
       createCourseHedgeGeometry(document),
       materials.leaves,
+      undefined,
+      false,
     );
   }
 
   if (colliders) {
-    const { height } = NURSERY_TREE_COLLIDER;
-    const stem = NURSERY_TREE.trunk.baseRadius;
-    const { radius } = NURSERY_TREE.stake;
     trees.forEach((tree, index) => {
-      const [x, y, z] = tree.position;
-      const [dx, dz] = [tree.stake[0] - x, tree.stake[2] - z];
-      const reach = Math.hypot(dx, dz);
+      const { halfExtents, position, yaw } = getCourseTreeCollider(tree);
       const collider = new pc.Entity(`course-tree-collider-${index + 1}`);
-      collider.tags.add("tree");
-      // From the stem's far side to the stake's, as thick as the stake.
-      const shift = (radius - stem) / 2 / reach;
-      collider.setPosition(
-        x + dx / 2 + dx * shift,
-        y + height / 2,
-        z + dz / 2 + dz * shift,
-      );
-      collider.setEulerAngles(0, (Math.atan2(-dz, dx) * 180) / Math.PI, 0);
+      collider.setPosition(...position);
+      collider.setEulerAngles(0, yaw, 0);
       collider.addComponent("collision", {
-        halfExtents: new pc.Vec3(
-          (reach + stem + radius) / 2,
-          height / 2,
-          radius,
-        ),
+        halfExtents: new pc.Vec3(...halfExtents),
         type: "box",
       });
       collider.addComponent("rigidbody", {

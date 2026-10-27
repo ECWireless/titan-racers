@@ -172,12 +172,8 @@ course editor scenes in `src/game/editor/`, and
   portal compiles nothing mid-race. Re-verify these against the engine on upgrade.
 - Indoor and outdoor surfaces meet edge to edge at a portal, never
   overlapping: coplanar layers lit differently would flicker.
-- An instanced draw culls as one, by the bounds its render component holds:
-  set `entity.render.customAabb` after `addComponent`. PlayCanvas 2.20.6
-  replaces a mesh instance's own bounds when the component assigns its mesh
-  instances, and `addComponent` ignores a `customAabb` passed with it.
-  Without it a draw culls by one tree's bounds at the entity's origin, and
-  distant trees vanish.
+- Each instanced tree draw culls as one, by bounds holding every instance
+  ([engine note](../../tools/playcanvas-ammo/course-editing/README.md)).
 - The environment never renders as a skybox: `applySceneLook` removes the
   skybox layer from the camera.
 - The race camera reports its frustum corners at its widest view

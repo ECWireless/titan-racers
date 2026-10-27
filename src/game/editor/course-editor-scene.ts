@@ -1145,18 +1145,28 @@ function sameSelections(
   );
 }
 
-// Editor values round to millimetres, so a smaller move changes nothing.
+// Editor values round to millimetres and thousandths of a degree, so a
+// smaller move changes nothing. Rotations compare as turns, since one turn
+// has many Euler angles.
 function changesGeometry(
   current: CourseEditorGeometry | null,
   requested: CourseEditorGeometry,
 ) {
   if (!current) return true;
-  const values = ({ position, rotation, scale }: CourseEditorGeometry) =>
-    [position, rotation, scale].flatMap((vector) =>
+  const values = ({ position, scale }: CourseEditorGeometry) =>
+    [position, scale].flatMap((vector) =>
       vector ? [vector.x, vector.y, vector.z] : [],
     );
   const before = values(current);
-  return values(requested).some(
+  const moved = values(requested).some(
     (value, index) => Math.abs(value - (before[index] ?? value)) >= 0.0005,
   );
+  const turn = ({ x, y, z }: CourseEditorGeometry["rotation"]) =>
+    new pc.Quat().setFromEulerAngles(x, y, z);
+  const [from, to] = [turn(current.rotation), turn(requested.rotation)];
+  const cosine = Math.abs(
+    from.x * to.x + from.y * to.y + from.z * to.z + from.w * to.w,
+  );
+  const angle = (2 * Math.acos(Math.min(1, cosine)) * 180) / Math.PI;
+  return moved || angle >= 0.0005;
 }

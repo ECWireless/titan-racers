@@ -31,8 +31,6 @@ export const NURSERY_TREE = {
   stake: { height: 1.2, offset: 0.06, radius: 0.02 },
   trunk: { baseRadius: 0.019, topRadius: 0.006 },
 } as const;
-/** Each tree collides as one box taking in its stem and its stake. */
-export const NURSERY_TREE_COLLIDER = { height: 2 } as const;
 export const NURSERY_TREE_VARIANTS = 3;
 const LEAF_CARD = 0.5;
 
@@ -335,6 +333,36 @@ export function getCourseTreeInstances(document: CourseDocument) {
     }
   });
   return instances;
+}
+
+// A tree's collider rises past its stake and through its stem's lower crown.
+const TREE_COLLIDER_HEIGHT = 2;
+
+/**
+ * A tree's one static box, taking in its stem and its stake: from the stem's
+ * far side to the stake's, as thick as the stake, turned (yaw, degrees, about
+ * +Y) along the line between them.
+ */
+export function getCourseTreeCollider(tree: CourseTreeInstance) {
+  const { radius } = NURSERY_TREE.stake;
+  const stem = NURSERY_TREE.trunk.baseRadius;
+  const [x, y, z] = tree.position;
+  const [dx, dz] = [tree.stake[0] - x, tree.stake[2] - z];
+  const reach = Math.hypot(dx, dz);
+  const shift = 0.5 + (radius - stem) / 2 / reach;
+  return {
+    halfExtents: [
+      (reach + stem + radius) / 2,
+      TREE_COLLIDER_HEIGHT / 2,
+      radius,
+    ] as Vec3,
+    position: [
+      x + dx * shift,
+      y + TREE_COLLIDER_HEIGHT / 2,
+      z + dz * shift,
+    ] as Vec3,
+    yaw: (Math.atan2(-dz, dx) * 180) / Math.PI,
+  };
 }
 
 function isCourseHedge(object: CourseObject): object is CoursePrimitiveObject {
