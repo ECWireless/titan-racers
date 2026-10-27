@@ -149,14 +149,22 @@ export function createKartInteriorLighting(
         meshInstance.mask = mask;
       }),
     );
-    // PlayCanvas 2.20.6 types `getBatches` as private; re-verify it on an
-    // engine upgrade. Rebuilding the batch instead would hitch each portal.
-    const batcher = app.batcher as unknown as {
-      getBatches(id: number): readonly pc.Batch[];
-    };
-    batcher.getBatches(batchGroupId).forEach(({ meshInstance }) => {
+    // Rebuilding the batch instead would hitch each portal.
+    getBatchMeshInstances(app, batchGroupId).forEach((meshInstance) => {
       meshInstance.mask = mask;
       swap(meshInstance.material);
     });
   };
+}
+
+/** The mesh instances a batch group currently draws with. */
+export function getBatchMeshInstances(app: pc.AppBase, batchGroupId: number) {
+  // PlayCanvas 2.20.6 types `getBatches` as private; re-verify it on an
+  // engine upgrade.
+  const batcher = app.batcher as unknown as {
+    getBatches(id: number): readonly pc.Batch[];
+  };
+  return batcher
+    .getBatches(batchGroupId)
+    .map(({ meshInstance }) => meshInstance);
 }

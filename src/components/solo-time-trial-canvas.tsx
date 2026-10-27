@@ -47,6 +47,7 @@ import {
   createCourseInteriorAtlas,
   createCourseInteriorTest,
   createKartInteriorLighting,
+  getBatchMeshInstances,
 } from "@/game/course/course-interior";
 import { createCourseSurfaceMaterials } from "@/game/course/course-surface-materials";
 import { loadCourseSurfaceImages } from "@/game/course/course-surface-textures";
@@ -164,7 +165,10 @@ import {
   type RaceProgressionResult,
   type RaceTransform,
 } from "@/game/race/race-session";
-import { attachSceneTestAdapter } from "@/game/testing/scene-test-adapter";
+import {
+  attachSceneTestAdapter,
+  describeKartLighting,
+} from "@/game/testing/scene-test-adapter";
 import {
   GameplayRunTelemetry,
   httpGameplayTelemetrySink,
@@ -2603,6 +2607,27 @@ export function SoloTimeTrialCanvas({
             getCollisionDebugState,
             getCollisionResponseDebugState,
             getKartDebugState,
+            getKartLightingDebugState: () => {
+              if (!interiorAtlas || !isUnderRoof || !habitatAtlas) return null;
+              const atlases = {
+                habitat: habitatAtlas,
+                interior: interiorAtlas,
+              };
+              return {
+                batched: describeKartLighting(
+                  getBatchMeshInstances(app, kartBatchGroup.id),
+                  atlases,
+                ),
+                original: describeKartLighting(
+                  kartVisual
+                    .find((node) => Boolean((node as pc.Entity).render))
+                    .flatMap(
+                      (node) => (node as pc.Entity).render!.meshInstances,
+                    ),
+                  atlases,
+                ),
+              };
+            },
             getKartScreenPoint,
             getKartVisualDebugState,
             getPresentationDebugState,
@@ -2611,6 +2636,15 @@ export function SoloTimeTrialCanvas({
               lastProgressionResult: lastRaceProgressionResult,
             }),
             getSuspensionDebugState,
+            rebuildKartBatches: () => {
+              const before = new Set(
+                getBatchMeshInstances(app, kartBatchGroup.id),
+              );
+              app.batcher.generate([kartBatchGroup.id]);
+              return getBatchMeshInstances(app, kartBatchGroup.id).every(
+                (meshInstance) => !before.has(meshInstance),
+              );
+            },
             requestRaceRecovery,
             resetKart,
             setCourseObjectDebugTransform,

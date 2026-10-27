@@ -20,6 +20,7 @@ import {
 } from "../src/game/kart/kart-reference-construction";
 import type {
   KartDebugState,
+  KartLightingDebugState,
   RaceDebugState,
 } from "../src/game/testing/scene-test-adapter";
 import { DEFAULT_FIXED_STEP_SECONDS } from "../src/game/runtime/fixed-step-clock";
@@ -316,6 +317,36 @@ async function getKartDebugState(canvas: Locator) {
             detail: {
               respond: resolve,
             },
+          }),
+        );
+      }),
+  );
+}
+
+async function getKartLightingDebugState(canvas: Locator) {
+  await waitForSceneReady(canvas);
+
+  return canvas.evaluate(
+    (element) =>
+      new Promise<KartLightingDebugState>((resolve) => {
+        element.dispatchEvent(
+          new CustomEvent("getKartLightingDebugState", {
+            detail: { respond: resolve },
+          }),
+        );
+      }),
+  );
+}
+
+async function rebuildKartBatches(canvas: Locator) {
+  await waitForSceneReady(canvas);
+
+  return canvas.evaluate(
+    (element) =>
+      new Promise<boolean>((resolve) => {
+        element.dispatchEvent(
+          new CustomEvent("rebuildKartBatches", {
+            detail: { respond: resolve },
           }),
         );
       }),
@@ -1014,6 +1045,100 @@ test.describe("home screen", () => {
       state: "finished",
     });
     await expect(page.getByRole("dialog", { name: "Finish" })).toBeVisible();
+  });
+
+  test("switches the kart between outdoor and indoor light at each portal", async ({
+    page,
+  }, testInfo) => {
+    // Software WebGL renders every stepped frame on the CPU; a small
+    // viewport keeps it quick.
+    testInfo.setTimeout(300_000);
+    test.skip(
+      testInfo.project.name !== "desktop",
+      "Kart lighting only needs to run once.",
+    );
+    await page.setViewportSize({ height: 270, width: 480 });
+    await page.route("**/api/courses/*/published", async (route) => {
+      await route.fulfill({
+        body: JSON.stringify({ error: "Published course not found." }),
+        contentType: "application/json",
+        status: 404,
+      });
+    });
+    await page.goto("/");
+    await page.getByRole("button", { name: "Solo Time Trial" }).click();
+    let canvas = page.getByTestId("solo-time-trial-canvas");
+    await advanceRaceToRacing(canvas);
+
+    const indoors = { environments: ["interior"], lightChannels: ["indoor"] };
+    const outdoors = { environments: ["habitat"], lightChannels: ["outdoor"] };
+    // Both the kart's own meshes and the batches it draws with.
+    const expectKartLight = async (light: typeof indoors) => {
+      const state = await getKartLightingDebugState(canvas);
+      expect(state?.original).toMatchObject(light);
+      expect(state?.batched).toMatchObject(light);
+    };
+    const placeKart = async ([x, z]: readonly [number, number]) => {
+      await setKartDebugPose(canvas, {
+        position: { x, y: 0.15, z },
+        rotation: { x: 0, y: 0, z: 0 },
+      });
+      await stepSimulation(canvas);
+    };
+    // Either side of the west portal (x = 10) and the north one (z = -10).
+    const crossPortals = async () => {
+      for (const [inside, outside] of [
+        [
+          [14, -45],
+          [6, -45],
+        ],
+        [
+          [81, -14],
+          [81, -6],
+        ],
+      ] as const) {
+        await placeKart(outside);
+        await expectKartLight(outdoors);
+        await placeKart(inside);
+        await expectKartLight(indoors);
+      }
+    };
+
+    // The grid is indoors.
+    await expectKartLight(indoors);
+    await crossPortals();
+
+    // A reset from outdoors returns to the grid.
+    await placeKart([81, -6]);
+    await resetKart(canvas);
+    await stepSimulation(canvas);
+    await expectKartLight(indoors);
+
+    // Recovery from indoors returns to the tunnel exit, outdoors.
+    const [tunnelExit] = FALLS_VIEW_PARK_DOCUMENT.checkpoints;
+    expect(tunnelExit.id).toBe("checkpoint-tunnel-exit");
+    await crossRaceTarget(canvas, tunnelExit);
+    await placeKart([30, -45]);
+    await expectKartLight(indoors);
+    await requestRaceRecovery(canvas);
+    await stepSimulation(canvas);
+    await expectKartLight(outdoors);
+
+    // Batches rebuilt indoors take indoor light too.
+    await placeKart([30, -45]);
+    expect(await rebuildKartBatches(canvas)).toBe(true);
+    await stepSimulation(canvas);
+    await expectKartLight(indoors);
+
+    // So does a new race, which builds its scene again.
+    await setSimulationPaused(canvas, false);
+    await page.keyboard.press("Escape");
+    await page.getByRole("button", { name: "Exit", exact: true }).click();
+    await page.getByRole("button", { name: "Solo Time Trial" }).click();
+    canvas = page.getByTestId("solo-time-trial-canvas");
+    await advanceRaceToRacing(canvas);
+    await expectKartLight(indoors);
+    await crossPortals();
   });
 
   test("constructs guest racing from the published course revision", async ({
