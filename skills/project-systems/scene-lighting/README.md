@@ -43,8 +43,20 @@ phone budget. Art direction and the budget itself live in
   and downward spot light on each `lamp` object's mast, at real brightness
   from the enclosure's lux scale and the habitat's lamp schedule, with no
   shadows, and measures the illuminance they put on the track, which the
-  race's exposure counts. The race batches the lamp parts with the static
+  race's exposure counts. Under each `lamp: "tunnel"` object, the luminaire's
+  housing, it adds a glowing lens and a downward LED spot light (8,600 cd,
+  fading out between 40° and 80° from straight down, 12 m reach) that burns day and night and reaches both indoor
+  and outdoor objects, so its light spills from a portal; tunnel lamps do not
+  count toward the exposure. The race batches the lamp parts with the static
   course; the editor shows them switched off.
+- `src/game/course/course-interior.ts` lights a course's indoors: an
+  interior environment atlas built by elevation from the light a lamp-lit
+  service tunnel's floor, walls, and ceiling give back
+  (`COURSE_INTERIOR_EXITANCE`), the test for whether a point lies beneath an
+  overhead indoor object (a roof), and the race kart's switch between outdoor
+  and indoor light. `createCourseSurfaceMaterials` builds a second set of
+  finishes lit by that atlas when given it, and `buildRoughCourse` gives them
+  to indoor objects (`keepCourseVisualIndoors`).
 - `src/game/course/build-course-lighting.ts` lights a course with its
   enclosure's sun ([Island Three](../../../docs/island-three.md)). Its
   colour carries its brightness at intensity 1, as the lamps' do, because
@@ -130,6 +142,28 @@ course editor scenes in `src/game/editor/`, and
   and the race still loads.
 - The environment atlas replaces the scene's flat ambient light, so
   `scene.ambientLight` has no visible effect.
+- Indoors and outdoors are separated by light masks. PlayCanvas 2.20.6's
+  clustered lighting honours only two channels: a mesh whose mask includes
+  `MASK_AFFECT_DYNAMIC` takes only lights flagged dynamic, any other mesh
+  only lights flagged `MASK_AFFECT_LIGHTMAPPED`; directional lights filter by
+  the bitwise mask. Outdoor meshes, the sun, and floodlights keep the default
+  dynamic mask; indoor meshes take `MASK_AFFECT_LIGHTMAPPED` and cast no sun
+  shadow; lights meant to reach both, like a tunnel's lamps, take both bits.
+  Assigning a render component's mesh instances resets their masks
+  (`setLightmapped`), so masks are set after the visual exists. A mask is
+  part of the shader variant.
+- A material's own `envAtlas` bypasses the scene's `skyboxIntensity`, so the
+  interior atlas, stored brightened by the adaptation like the habitat's,
+  is scaled back by the material's `ambient` (a linear gain, stored as sRGB)
+  and `reflectivity` (`applyAdaptedEnvironmentAtlas`). On a course with an
+  inside, the race kart's finishes hold the habitat's atlas themselves the
+  same way, so crossing a portal swaps only the atlas texture and the mask. The kart is a dynamic batch, whose batches clone their materials and
+  copy masks when built, so the switch changes the originals and the current
+  batches (`BatchManager.getBatches`, typed private in 2.20.6). While the
+  loading screen covers it, its first frames light it both ways once, so a
+  portal compiles nothing mid-race. Re-verify these against the engine on upgrade.
+- Indoor and outdoor surfaces meet edge to edge at a portal, never
+  overlapping: coplanar layers lit differently would flicker.
 - The environment never renders as a skybox: `applySceneLook` removes the
   skybox layer from the camera.
 - The race camera reports its frustum corners at its widest view
@@ -196,3 +230,9 @@ course editor scenes in `src/game/editor/`, and
   mid-gloss finishes reflect a little sharply. Matching the engine would
   change every kart thumbnail.
 - GPU time is not measured; shadow and fill cost show only through frame time.
+- One exposure serves the whole race, set for the outdoor course: by day an
+  interior lit like a dusk tunnel is several stops darker than the sunlit
+  course. Unlit effects (tire marks, drift smoke) keep the outdoor light level
+  indoors.
+- Indoor surfaces never take sunlight, so a low sun cannot reach the first
+  metres inside a portal.

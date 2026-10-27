@@ -1,6 +1,6 @@
 # Course Data System
 
-**Maturity:** Validated (PR 2.3.1, extended by PR 2.4.2).
+**Maturity:** Validated (PR 2.3.1, extended by PRs 2.4.2 and 4.4.2).
 
 ## Purpose And Scope
 
@@ -25,7 +25,7 @@ own editor commands or persistence UI.
 ## Source Ownership
 
 - `src/game/course/course-document.ts` defines strict Zod legacy schemas and the
-  canonical version-four schema, deterministic legacy normalization,
+  canonical version-six schema, deterministic legacy normalization,
   cross-document ID and checkpoint-order refinements, gate-face direction
   alignment, canonical sorting, serialization, inferred TypeScript types, and
   validated seed export.
@@ -33,25 +33,29 @@ own editor commands or persistence UI.
   courses with bundled seeds, and the guest solo course (`falls-view-park`)
   explicit; `course-publication.ts`
   validates protected publication and privacy-minimized public runtime shapes.
-- `src/game/course/rough-course.v5.json` is the canonical portable rough-course
+- `src/game/course/rough-course.v6.json` is the canonical portable rough-course
   sandbox seed. It contains the start/finish gate, three ordered checkpoints
   whose gates reach from the infield into the grass, with directed gate and
   recovery data, an infield barrier, ordinary surfaces and objects, camera
   fixtures, and opt-in collision fixtures.
   It permanently restores only course ID `rough-course`; the official
   Falls View Park document uses the distinct ID `falls-view-park`, seeded by
-  `falls-view-park.v5.json`: a walled two-lap circuit of about 550 m, with
+  `falls-view-park.v6.json`: a walled two-lap circuit of about 550 m, with
   4.5 m lanes for four karts abreast, from a utility tunnel through nursery
   rows and a culvert, up onto a levee crest facing the falls, down an
   anti-spinward descent that forks into a jump lane and a gentle lane, and
   back along a return lane, placed in another valley 2.5 km from the
-  sunward end cap, at deep dusk (mirror 89.5°) under floodlights. Its
-  sections are plain track, not yet dressed.
+  sunward end cap, at deep dusk (mirror 89.5°) under floodlights. Its start
+  sits in a roofed, lamp-lit, and dressed utility tunnel under an earth berm;
+  the sections after it are plain track, not yet dressed.
   `BUNDLED_COURSE_DOCUMENTS` maps each official course to its seed.
 - `src/game/course/build-rough-course.ts` projects a validated document into
   PlayCanvas visual, collision, rigid-body, tag, group, and mask state. It
   returns stable-ID entity maps plus two explicit sandbox obstacle lookups used
   by reset-clearance checks and the non-production scene test adapter.
+- `src/game/course/course-arc.ts` generates an arc's smooth surface and its
+  collision boxes from its dimensions, at 3 mm visual and 5 mm collision
+  tolerance; the builder turns them into a render mesh and static box bodies.
 - `src/game/course/course-visual-policy.ts` owns the depth-bias tiers that
   order coplanar surface layers, maps material keys to them, and decides which
   thin layers draw only their top face.
@@ -67,6 +71,8 @@ own editor commands or persistence UI.
   accepts a validated course document, passes repository-owned material
   instances to the builder, and projects the same published document through
   course geometry, start, collision, and lighting construction.
+- `tests/course-arc.spec.ts` owns the arc generator: segment counts, chord
+  error, normals and winding, and collision boxes that meet on the outer face.
 - `tests/course-document.spec.ts` owns schema, seed, catalog, stable-ID,
   checkpoint-order, canonical round-trip, invalid-input, and retained-geometry
   assertions.
@@ -75,10 +81,10 @@ own editor commands or persistence UI.
 
 ## Document Contract
 
-Canonical version five is strict JSON using metres, Y-up positions, and Euler
+Canonical version six is strict JSON using metres, Y-up positions, and Euler
 degrees. It contains:
 
-- literal schema version `5`;
+- literal schema version `6`;
 - a stable course ID and name;
 - one stable start ID, transform (the start/finish gate), bounded start-gate
   half-extents, and a spawn distance (0–10 m) placing the kart behind the gate
@@ -103,7 +109,26 @@ cylinder shape, local transform, physical dimensions, semantic role, friction,
 restitution, and a versioned `surfaceMaterial` reference. Visual material never
 selects tire grip. An object marked `lamp: "floodlight"` is a floodlight's mast:
 `course-lamps.ts` adds the arm, luminaire, and spot light on its top, reaching
-along its local -Z. A course has at most eight lamps (`COURSE_LAMP_LIMIT`).
+along its local -Z. A course has at most eight floodlights
+(`COURSE_LAMP_LIMIT`). An object marked `lamp: "tunnel"` is a tunnel
+luminaire's housing, with its lens and downward light beneath it; a course
+has at most sixteen (`COURSE_TUNNEL_LAMP_LIMIT`), counted apart from the
+floodlights. Version six also adds `indoors: true`, for objects lit only by
+indoor light (tunnel lamps stand indoors and floodlights outdoors), and
+`overhead: true`, for roofs and the earthworks over them, which the editor
+can cut away and which never support a kart; a kart beneath an object that
+is both counts as indoors.
+
+Version six adds arcs. An arc's visual has no scale: `visual.arc` holds its
+inner radius (≥ 0.05 m), width (≥ 0.1 m), height, and sweep (up to 360°), with
+an outer radius of at most 200 m and a width of at most 16 times its inner
+radius (which bounds its collision boxes). It sweeps about the object's origin, at its
+base, from local +X toward local −Z, so bends that share a centre share a
+position. Its collision is `{ shape: "arc" }` with friction, restitution, a
+surface material, and the solid-obstacle role only; arcs and only arcs collide
+as arcs, and lamps never stand on them. Segment counts and collision boxes are
+derived at build time, never stored. `isCoursePrimitiveObject` narrows to the
+box and cylinder objects that have a scale.
 
 Coordinates and dimensions are finite and bounded to the accepted authoring
 envelope. Unknown fields and unsupported enum values fail rather than being
@@ -112,9 +137,10 @@ silently stripped. The complete document validates before scene construction.
 ## Legacy Normalization
 
 Stored revisions are immutable, so `parseCourseDocument` keeps strict
-version-one to version-four schemas and normalizes them in memory to version
-five; canonical serialization and every new save use version five. Version
-four allows mirror angles only up to 85° and no lamps; it upgrades unchanged.
+version-one to version-five schemas and normalizes them in memory to version
+six; canonical serialization and every new save use version six. Version
+four allows mirror angles only up to 85° and no lamps, and version five no
+indoor, overhead, or arc objects and no tunnel lamps; both upgrade unchanged.
 Version two adds
 `start.gateHalfExtents`, `checkpoints[].forward`, and
 `checkpoints[].recovery`.
@@ -134,7 +160,7 @@ Version two adds
 - Degenerate coincident anchors or directions that cannot identify a face are
   rejected rather than invented.
 - A loaded version-one row is normalized in memory, and its next save creates a
-  new version-five revision. Persistence responses report the normalized schema
+  new version-six revision. Persistence responses report the normalized schema
   version consistently.
 
 Every legacy collider normalizes to `surface.standard-course@1`, including
@@ -185,6 +211,18 @@ exposed in the UI.
   infield turf, lawn, paint), never by separating their heights. Thin, level layers draw only
   their top face, so the slope-scaled bias cannot pull hidden side faces
   through as seams.
+- Thick grass (earthworks such as a berm) draws unbiased, like the base
+  ground. `line` and `hazard` keep their bias at any thickness, and seen at a
+  grazing angle it pulls a box forward by centimetres to decimetres: never
+  place one directly behind unbiased detail (a door frame behind its door, a
+  painted board behind dark chevrons). Put the biased finish in front, or
+  beside, instead.
+- Earthworks built from tilted slabs fill concave corners correctly (the
+  surface is the highest slope), but a convex corner needs the lowest, and
+  overlapping slabs leave lips that show as dark lines. Plan visible
+  earthworks with concave corners only (Falls View Park's chamber has a
+  chamfered inner wall for this), and keep any convex corner, such as the
+  berm's far corner fan, out of the main sightlines.
 - Objects without collision data receive no collision or rigid-body component.
 - Diagnostic collision fixtures cannot appear in production or ordinary play.
 - Checkpoint data is projected into plain directed swept gates by the separate
@@ -211,9 +249,10 @@ exposed in the UI.
 
 - The runtime test adapter keeps two explicit barrel IDs for collision-transform
   fixtures.
-- Box and cylinder are the only approved primitives; ramps and other palette
-  entries are presets over them. New primitive kinds need runtime, collision,
-  and round-trip evidence.
+- Box, cylinder, and arc are the approved primitives; ramps and other palette
+  entries are presets over them. Arcs are walls only: curved decks, rising and
+  banked arcs are not yet supported. New primitive kinds need runtime,
+  collision, and round-trip evidence.
 - Arbitrary placeable lights, skyboxes, fog, and post-processing are deferred.
 - Wheel contacts jitter at speed on long elevated decks, so drivable decks
   and roads come in pieces of at most about 20 m.

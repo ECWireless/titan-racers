@@ -85,7 +85,7 @@ owns only Resume and Exit.
   a portable document and enters history as one coherent command.
 - Runtime entities, selection outlines, checkpoint markers, gizmos, and
   collision wireframes remain disposable projections of stable document IDs.
-- The protected editor accepts at most 500 course objects and 256 checkpoints,
+- The protected editor accepts at most 1,000 course objects and 256 checkpoints,
   disables creation at either limit, retains issued IDs as session tombstones,
   and creates collision diagnostics only while visible.
 - Box and checkpoint axes scale independently; cylinder height is independent
@@ -94,6 +94,19 @@ owns only Resume and Exit.
   diagnostics never participate in physics.
 - Snapping is an explicit toolbar state backed by the maintained PlayCanvas
   transform-gizmo APIs; object labels never replace or mutate stable IDs.
+- Cut away roofs hides every `overhead` object (a tunnel's roof slabs and
+  the earth berm over them) and its collision diagnostics, so what lies
+  beneath can be seen and picked; it defaults off and changes no data.
+- The inspector's Placement checkboxes set an object's `indoors` and
+  `overhead` flags within the schema's rules
+  ([course data](../course-data/README.md)); an edit that breaks one leaves
+  the course unchanged.
+- The palette shows the `lamp` preset as "floodlight" beside a "tunnel lamp"
+  preset hung from a 3.6 m roof; each kind stops at its own limit.
+- Arcs (the `curve` preset) keep the move and rotate gizmos at the arc's
+  centre and have no Scale tool; the inspector steps their dimensions, and an
+  edit that changes nothing or breaks the schema records no step. Their
+  selection outline is their own surface grown 2 cm.
 - Collision diagnostics default hidden. The compact icon toolbar retains
   accessible action names, explanatory tooltips, active-state styling, and an
   in-product mouse/touch camera-control reference.

@@ -1,6 +1,12 @@
 import { expect, test } from "@playwright/test";
 
-import { COURSE_LAMP_LIMIT, ROUGH_COURSE_DOCUMENT, parseCourseDocument, serializeCourseDocument } from "../src/game/course/course-document";
+import {
+  COURSE_LAMP_LIMIT,
+  COURSE_TUNNEL_LAMP_LIMIT,
+  ROUGH_COURSE_DOCUMENT,
+  parseCourseDocument,
+  serializeCourseDocument,
+} from "../src/game/course/course-document";
 import {
   COURSE_EDITOR_CHECKPOINT_LIMIT,
   addCourseCheckpoint,
@@ -17,7 +23,10 @@ import {
   updateCourseEditorSelections,
   updateMirrorAngle,
   updateObjectSelectionPositions,
+  coursePresetLimitReached,
+  updateSelectionArc,
   updateSelectionGeometry,
+  updateSelectionPlacement,
 } from "../src/game/editor/course-editor-document";
 
 function courseAtCheckpointLimit() {
@@ -143,7 +152,7 @@ test.describe("course editor document commands", () => {
     });
     const object = scaled.objects.at(-1);
 
-    expect(object?.visual.scale).toEqual({ x: 4, y: 2, z: 4 });
+    expect(object?.visual).toMatchObject({ scale: { x: 4, y: 2, z: 4 } });
     expect(object?.collision).toMatchObject({
       halfExtents: { x: 2, y: 1, z: 2 },
       shape: "box",
@@ -368,6 +377,76 @@ test.describe("course editor document commands", () => {
     });
   });
 
+  test("hangs tunnel lamps from the roof, up to their own limit", () => {
+    let document = structuredClone(ROUGH_COURSE_DOCUMENT);
+    for (let count = 0; count <= COURSE_TUNNEL_LAMP_LIMIT; count += 1) {
+      document = addCourseObjectPreset(document, "tunnel-lamp");
+    }
+    const lamps = document.objects.filter(
+      (object) => object.lamp === "tunnel",
+    );
+
+    expect(lamps).toHaveLength(COURSE_TUNNEL_LAMP_LIMIT);
+    expect(lamps[0]).toMatchObject({
+      collision: null,
+      id: "tunnel-lamp-1",
+      indoors: true,
+      transform: { position: { y: 3.54 } },
+      visual: { material: "steel", scale: { x: 1.2, y: 0.12, z: 0.36 } },
+    });
+    expect(coursePresetLimitReached(document, "tunnel-lamp")).toBe(
+      COURSE_TUNNEL_LAMP_LIMIT,
+    );
+    // Floodlights keep their own limit beside them.
+    expect(coursePresetLimitReached(document, "lamp")).toBeNull();
+    expect(addCourseObjectPreset(document, "lamp").objects).toHaveLength(
+      document.objects.length + 1,
+    );
+  });
+
+  test("marks objects indoors or overhead within the course's rules", () => {
+    let document = addCourseObjectPreset(
+      structuredClone(ROUGH_COURSE_DOCUMENT),
+      "block",
+    );
+    document = addCourseObjectPreset(document, "lamp");
+    document = addCourseObjectPreset(document, "platform");
+    const block = { id: "block-1", kind: "object" } as const;
+    const find = (id: string, next = document) =>
+      next.objects.find((object) => object.id === id)!;
+
+    const roofed = updateSelectionPlacement(document, block, {
+      indoors: true,
+      overhead: true,
+    });
+    expect(find("block-1", roofed)).toMatchObject({
+      indoors: true,
+      overhead: true,
+    });
+    const cleared = updateSelectionPlacement(roofed, block, {
+      indoors: false,
+      overhead: false,
+    });
+    expect(find("block-1", cleared)).not.toHaveProperty("indoors");
+    expect(find("block-1", cleared)).not.toHaveProperty("overhead");
+
+    // Floodlights stand outdoors, and karts never drive on a roof.
+    expect(
+      updateSelectionPlacement(
+        document,
+        { id: "lamp-1", kind: "object" },
+        { indoors: true, overhead: false },
+      ),
+    ).toBe(document);
+    expect(
+      updateSelectionPlacement(
+        document,
+        { id: "platform-1", kind: "object" },
+        { indoors: false, overhead: true },
+      ),
+    ).toBe(document);
+  });
+
   test("sets the time of day through the enclosure mirror angle", () => {
     const document = structuredClone(ROUGH_COURSE_DOCUMENT);
     const evening = updateMirrorAngle(document, 80);
@@ -376,5 +455,54 @@ test.describe("course editor document commands", () => {
     expect(evening.objects).toEqual(document.objects);
     expect(updateMirrorAngle(document, 90).enclosure.mirrorAngle).toBe(90);
     expect(() => updateMirrorAngle(document, 90.5)).toThrow();
+  });
+
+  test("adds a smooth curved barrier and sizes it by its arc", () => {
+    const document = addCourseObjectPreset(
+      structuredClone(ROUGH_COURSE_DOCUMENT),
+      "curve",
+    );
+    const selection = { id: "curve-1", kind: "object" } as const;
+    const curve = document.objects.at(-1)!;
+    expect(curve).toMatchObject({
+      collision: { role: "solid-obstacle", shape: "arc" },
+      id: "curve-1",
+      visual: {
+        arc: { height: 0.5, innerRadius: 4, sweep: 90, width: 0.3 },
+        shape: "arc",
+      },
+    });
+    // An arc stands on its base and has no scale to edit.
+    expect(curve.transform.position.y).toBe(0);
+    expect(getSelectionGeometry(document, selection)?.scale).toBeUndefined();
+    expect(scaleSelectionAxis(document, selection, "x", 2)).toBe(document);
+    expect(scaleSelectionUniformly(document, selection, 2)).toBe(document);
+
+    const arc = { height: 0.6, innerRadius: 6.12345, sweep: 120, width: 0.4 };
+    const resized = updateSelectionArc(document, selection, arc);
+    expect(resized.objects.at(-1)!.visual).toMatchObject({
+      arc: { ...arc, innerRadius: 6.123 },
+    });
+    // An edit that changes nothing, such as a step held at a minimum, or
+    // dimensions outside the schema's range leave the arc unchanged.
+    expect(
+      updateSelectionArc(resized, selection, { ...arc, innerRadius: 6.123 }),
+    ).toBe(resized);
+    expect(
+      updateSelectionArc(resized, selection, { ...arc, width: 0.05 }),
+    ).toBe(resized);
+    expect(updateSelectionArc(resized, selection, { ...arc, sweep: 365 })).toBe(
+      resized,
+    );
+
+    // Moving and turning it keep its dimensions.
+    const moved = updateSelectionGeometry(resized, selection, {
+      position: { x: 1, y: 0, z: 2 },
+      rotation: { x: 0, y: 30, z: 0 },
+    });
+    expect(moved.objects.at(-1)).toMatchObject({
+      transform: { position: { x: 1, y: 0, z: 2 }, rotation: { y: 30 } },
+      visual: resized.objects.at(-1)!.visual,
+    });
   });
 });

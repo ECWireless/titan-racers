@@ -356,6 +356,15 @@ habitat step by step, and each beat is one moment the route shows:
 
 The route stays clearly lit at deep dusk (89.5°).
 
+In-world, the youth borrow the park's maintenance network after hours and
+stitch it into a loop: the tunnel is the park's service road, the nursery
+rows its access lanes, the culvert a link only a kart can take, the levee
+crest its inspection track, the downhill its access ramp (the jump is the
+youth's own), and the return lane a service lane. Everything permanent is the
+park's, at full size; the timing portal, grid tape, jump, and improvised
+barriers are the youth's portable race kit
+([visual identity](docs/visual-identity.md#course-surfaces)).
+
 - [x] 4.4.1: Carry-overs from PR 4.3.5, then the route layout. Shipped:
       the sun renders at the habitat model's brightness, and the
       lost-WebGL-context tests allow for the software renderer's slow dusk
@@ -373,11 +382,36 @@ The route stays clearly lit at deep dusk (89.5°).
       1/15 s (an art choice) into grey rings, with no full-screen pass. The
       chase camera sees mostly black tread, so the blur shows best side-on.
       Within the phone budget.
-- [ ] 4.4.2: Utility tunnel, with its own lights. Habitat light and lamps
-      pass through walls today, so an interior renders as bright as outside;
-      debrief the fix first. Open with a design competition between Codex
-      and Opus for the tunnel.
-- [ ] 4.4.3: Tree nursery rows, and how their trees look.
+- [x] 4.4.2: Utility tunnel, with its own lights. Shipped: the
+      start/finish sits in a cut-and-cover service
+      road under an earth berm: 4.5 m lane, 3.6 m clear height, a pipe bay
+      behind a kerb bench, and a junction chamber at the right-hander, where
+      the bend's barriers are smooth arcs, a new course primitive drawn
+      within 3 mm of a true circle. Indoor objects take only indoor light
+      (a second light channel and an interior environment), so habitat
+      light and floodlights no longer pass through the roof, and the kart
+      switches light at the portals. Twelve 8,600 cd ceiling lamps and the
+      youth's work light over the start light it, and the tunnel is dressed
+      at full size: mains, numbered doors, cabinets, trays, centre line,
+      chevrons, sump and valves, and finished portals. The editor cuts away
+      roofs, marks objects indoors or overhead, places tunnel lamps (16 per
+      course beside 8 floodlights), and takes up to 1,000 objects. Course
+      schema v6, no migration. Within the phone budget, frame and CPU time
+      unchanged.
+- [ ] 4.4.3: Tree nursery rows and the service-road bypass, and how their
+      trees look. Past the tunnel's north portal the park's service road
+      carries on toward the levee the long way, about 250–300 m with no
+      barricade, while the nursery rows cut through; drivers who take the
+      road learn the nursery is quicker. Tune both routes against each other
+      by driving them. The race keeps the tunnel exit and levee crest
+      checkpoints and drops the nursery and culvert ones, as the downhill
+      fork does, so a crash in between recovers at the tunnel exit. Both
+      routes stay clearly lit at dusk; all eight floodlights are placed, so
+      decide how the road is lit. Also add the engine-backed lighting test
+      deferred from PR 4.4.2: through the scene test adapter, check that the
+      kart switches light channel and environment at each portal, on both its
+      original and its batched meshes, and again after a reset and a course
+      rebuild.
 - [ ] 4.4.4: Stream, culvert, and levee vista, and how the water looks.
 - [ ] 4.4.5: Downhill run and spin jump. Floor markings' slope depth bias
       lets edge lines show through a ramp's thin toe from low, distant views
@@ -387,10 +421,16 @@ The route stays clearly lit at deep dusk (89.5°).
       heave damping acts only on near-level support (seen on the 4.4.1
       descent); decide whether the downhill needs a versioned physics
       change.
-- [ ] 4.4.6: Return lane and finish: a final lighting pass, an iPhone
-      `?perf=1` run on the finished route, and the route in production.
-      Reset Falls View Park there to the finished seed with
-      `db:reset-course-seed`, then an admin publishes it.
+- [ ] 4.4.6: Return lane and finish: a final lighting pass.
+- [ ] 4.4.7: Detail pass, once the whole route is built. The finishes are
+      flat colour with a fine grain, so pieces read as basic shapes: give
+      concrete, steel, and paint real textures; bevel or detail the models
+      whose silhouettes show (pipe flanges, door leaves, valve wheels,
+      coping); and letter signs through textures, such as the tunnel's
+      3.6 m clearance boards and its door numbers. Then an iPhone `?perf=1`
+      run on the finished route, and the route in production: reset Falls
+      View Park there to the finished seed with `db:reset-course-seed`, then
+      an admin publishes it.
 
 **PR 4.5: Ambience and SFX**
 

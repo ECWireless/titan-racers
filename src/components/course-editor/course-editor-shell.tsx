@@ -5,7 +5,6 @@ import { useEffect, useId, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
 import {
-  COURSE_LAMP_LIMIT,
   type CourseDocument,
   serializeCourseDocument,
 } from "@/game/course/course-document";
@@ -33,7 +32,8 @@ import {
   addCourseCheckpoint,
   addCourseObjectPreset,
   collectCourseDocumentIds,
-  courseLampLimitReached,
+  COURSE_OBJECT_PRESET_LABELS,
+  coursePresetLimitReached,
   deleteCourseSelection,
   getSelectionGeometry,
   nudgeObjectSelections,
@@ -43,7 +43,10 @@ import {
   scaleSelectionAxis,
   updateCourseEditorSelections,
   updateMirrorAngle,
+  updateSelectionArc,
+  updateSelectionPlacement,
 } from "@/game/editor/course-editor-document";
+import type { CourseArc } from "@/game/course/course-arc";
 import type { CourseEditorTool } from "@/game/editor/course-editor-scene";
 import { CommandHistory } from "@/game/editor/command-history";
 import { useEditorController } from "@/game/input/use-editor-controller";
@@ -131,9 +134,10 @@ export function CourseEditorShell({
   ]);
   const [additiveSelectionEnabled, setAdditiveSelectionEnabled] =
     useState(false);
-  const [tool, setTool] = useState<CourseEditorTool>("translate");
+  const [chosenTool, setTool] = useState<CourseEditorTool>("translate");
   const [snapEnabled, setSnapEnabled] = useState(true);
   const [collisionVisible, setCollisionVisible] = useState(false);
+  const [roofsHidden, setRoofsHidden] = useState(false);
   const [cameraHelpOpen, setCameraHelpOpen] = useState(false);
   const [mobilePanel, setMobilePanel] = useState<MobilePanel>(null);
   const [controllerAxis, setControllerAxis] = useState<"x" | "y" | "z">("x");
@@ -445,6 +449,37 @@ export function CourseEditorShell({
     commitDocument(
       `Scale ${selection.id}`,
       scaleSelectionAxis(document, selection, axis, multiplier),
+    );
+  }
+
+  // The start has no size, and a curve is sized by its Arc controls.
+  const curveSelected = selectedObject?.visual.shape === "arc";
+  const scaleUnavailable = selection.kind === "start" || curveSelected;
+  // Scale falls back to Move while it is unavailable rather than stranding
+  // the selection without handles.
+  const tool =
+    scaleUnavailable && chosenTool === "scale" ? "translate" : chosenTool;
+  const selectedPlacement = selectedObject
+    ? {
+        indoors: Boolean(selectedObject.indoors),
+        lamp: selectedObject.lamp ?? null,
+        overhead: Boolean(selectedObject.overhead),
+        boxShaped: selectedObject.visual.shape === "box",
+        supportsKarts: selectedObject.collision?.role === "drivable-surface",
+      }
+    : null;
+
+  function placeObject(placement: { indoors: boolean; overhead: boolean }) {
+    commitDocument(
+      `Place ${selection.id}`,
+      updateSelectionPlacement(document, selection, placement),
+    );
+  }
+
+  function resizeArc(arc: CourseArc) {
+    commitDocument(
+      `Resize ${selection.id}`,
+      updateSelectionArc(document, selection, arc),
     );
   }
 
@@ -815,7 +850,7 @@ export function CourseEditorShell({
     onToolCycle: (direction) => {
       const tools: CourseEditorTool[] = multipleObjectsSelected
         ? ["translate"]
-        : selection.kind === "start"
+        : scaleUnavailable
           ? ["translate", "rotate"]
           : ["translate", "rotate", "scale"];
       setTool((current) => {
@@ -836,7 +871,7 @@ export function CourseEditorShell({
       } else if (
         tool === "scale" &&
         !multipleObjectsSelected &&
-        selection.kind !== "start"
+        !scaleUnavailable
       ) {
         const grow = direction === "right" || direction === "up";
         scaleAxis(controllerAxis, grow ? 1.1 : 1 / 1.1);
@@ -900,7 +935,7 @@ export function CourseEditorShell({
         unmodifiedShortcut &&
         event.key === "3" &&
         !multipleObjectsSelected &&
-        selection.kind !== "start"
+        !scaleUnavailable
       ) {
         setTool("scale");
         return;
@@ -1115,6 +1150,7 @@ export function CourseEditorShell({
         <EditorToolbar
           additiveSelectionEnabled={additiveSelectionEnabled}
           collisionVisible={collisionVisible}
+          curveSelected={curveSelected}
           cameraHelpOpen={cameraHelpOpen}
           controllerAxis={controllerAxis}
           controllerConnected={controllerConnected}
@@ -1122,7 +1158,9 @@ export function CourseEditorShell({
           selection={selection}
           snapEnabled={snapEnabled}
           tool={tool}
+          roofsHidden={roofsHidden}
           onCollisionToggle={() => setCollisionVisible((visible) => !visible)}
+          onRoofsToggle={() => setRoofsHidden((hidden) => !hidden)}
           onCameraHelpToggle={() => setCameraHelpOpen((open) => !open)}
           onAdditiveSelectionToggle={() =>
             setAdditiveSelectionEnabled((enabled) => !enabled)
@@ -1169,6 +1207,7 @@ export function CourseEditorShell({
             collisionVisible={collisionVisible}
             document={document}
             frameRequest={frameRequest}
+            roofsHidden={roofsHidden}
             selections={selections}
             snapEnabled={snapEnabled}
             tool={tool}
@@ -1277,6 +1316,12 @@ export function CourseEditorShell({
             canDelete={canDelete}
             geometry={selectedGeometry}
             objectName={selectedObject?.label ?? selectedObject?.id ?? null}
+            placement={selectedPlacement}
+            arc={
+              selectedObject?.visual.shape === "arc"
+                ? selectedObject.visual.arc
+                : null
+            }
             scaleShape={selectedObject?.visual.shape ?? "box"}
             selection={selection}
             selectionCount={selections.length}
@@ -1284,6 +1329,8 @@ export function CourseEditorShell({
             sectionOpen={sectionOpen}
             onDelete={deleteSelection}
             onNudge={nudge}
+            onArc={resizeArc}
+            onPlace={placeObject}
             onRename={renameObject}
             onScale={scaleAxis}
             onSectionToggle={toggleSection}
@@ -1330,6 +1377,12 @@ export function CourseEditorShell({
                 canDelete={canDelete}
                 geometry={selectedGeometry}
                 objectName={selectedObject?.label ?? selectedObject?.id ?? null}
+                placement={selectedPlacement}
+                arc={
+                  selectedObject?.visual.shape === "arc"
+                    ? selectedObject.visual.arc
+                    : null
+                }
                 scaleShape={selectedObject?.visual.shape ?? "box"}
                 selection={selection}
                 selectionCount={selections.length}
@@ -1337,6 +1390,8 @@ export function CourseEditorShell({
                 sectionOpen={sectionOpen}
                 onDelete={deleteSelection}
                 onNudge={nudge}
+                onArc={resizeArc}
+                onPlace={placeObject}
                 onRename={renameObject}
                 onScale={scaleAxis}
                 onSectionToggle={toggleSection}
@@ -1681,13 +1736,16 @@ function EditorToolbar({
   collisionVisible,
   controllerAxis,
   controllerConnected,
+  curveSelected,
   multipleObjectsSelected,
   onAdditiveSelectionToggle,
   onCameraHelpToggle,
   onCollisionToggle,
   onFrame,
+  onRoofsToggle,
   onSnapToggle,
   onToolChange,
+  roofsHidden,
   selection,
   snapEnabled,
   tool,
@@ -1697,13 +1755,16 @@ function EditorToolbar({
   collisionVisible: boolean;
   controllerAxis: "x" | "y" | "z";
   controllerConnected: boolean;
+  curveSelected: boolean;
   multipleObjectsSelected: boolean;
   onAdditiveSelectionToggle: () => void;
   onCameraHelpToggle: () => void;
   onCollisionToggle: () => void;
   onFrame: () => void;
+  onRoofsToggle: () => void;
   onSnapToggle: () => void;
   onToolChange: (tool: CourseEditorTool) => void;
+  roofsHidden: boolean;
   selection: CourseEditorSelection;
   snapEnabled: boolean;
   tool: CourseEditorTool;
@@ -1715,7 +1776,8 @@ function EditorToolbar({
           active={tool === candidate}
           disabled={
             (multipleObjectsSelected && candidate !== "translate") ||
-            (candidate === "scale" && selection.kind === "start")
+            (candidate === "scale" &&
+              (selection.kind === "start" || curveSelected))
           }
           key={candidate}
           label={
@@ -1732,7 +1794,9 @@ function EditorToolbar({
                 ? "Rotate selection (2)"
                 : selection.kind === "start"
                   ? "Scale is unavailable for the start position"
-                  : "Scale selection by axis (3)"
+                  : curveSelected
+                    ? "Size a curve with its Arc controls in the inspector"
+                    : "Scale selection by axis (3)"
           }
           onClick={() => onToolChange(candidate)}
         >
@@ -1791,6 +1855,19 @@ function EditorToolbar({
         onClick={onCollisionToggle}
       >
         <EditorToolbarIcon name="collision" />
+      </ToolbarIconButton>
+      <ToolbarIconButton
+        active={roofsHidden}
+        activeClassName="border-titan-orange/60 text-titan-orange"
+        label={roofsHidden ? "Show roofs" : "Cut away roofs"}
+        tooltip={
+          roofsHidden
+            ? "Show the roofs and other overhead objects again"
+            : "Hide roofs and other overhead objects to edit beneath them"
+        }
+        onClick={onRoofsToggle}
+      >
+        <EditorToolbarIcon name="cutaway" />
       </ToolbarIconButton>
       <ToolbarIconButton
         label="Frame selection"
@@ -1993,8 +2070,16 @@ function CoursePanel({
   const objectLimitReached =
     document.objects.length >= COURSE_EDITOR_OBJECT_LIMIT;
   const objectLimitMessageId = useId();
-  const lampLimitReached = courseLampLimitReached(document);
-  const lampLimitMessageId = useId();
+  const presetLimits = COURSE_OBJECT_PRESETS.map(
+    (preset) => [preset, coursePresetLimitReached(document, preset)] as const,
+  );
+  const reachedLimits = presetLimits.flatMap(([preset, limit]) =>
+    limit === null
+      ? []
+      : [`${COURSE_OBJECT_PRESET_LABELS[preset]} limit reached (${limit})`],
+  );
+  const presetLimitReached = reachedLimits.length > 0;
+  const presetLimitMessageId = useId();
   const checkpointLimitReached =
     document.checkpoints.length >= COURSE_EDITOR_CHECKPOINT_LIMIT;
   const checkpointLimitMessageId = useId();
@@ -2006,31 +2091,32 @@ function CoursePanel({
         onToggle={() => onSectionToggle("course-add")}
       >
         <div className="grid min-w-0 grid-cols-2 gap-2">
-          {COURSE_OBJECT_PRESETS.map((preset) => {
-            const lampBlocked = preset === "lamp" && lampLimitReached;
+          {presetLimits.map(([preset, presetLimit]) => {
+            const presetBlocked = presetLimit !== null;
+            const label = COURSE_OBJECT_PRESET_LABELS[preset];
             return (
               <button
                 aria-describedby={
                   objectLimitReached
                     ? objectLimitMessageId
-                    : lampBlocked
-                      ? lampLimitMessageId
+                    : presetBlocked
+                      ? presetLimitMessageId
                       : undefined
                 }
                 className="min-h-11 border border-titan-ice/15 bg-titan-black/24 px-2 py-2 font-bold uppercase tracking-[0.08em] text-titan-ice/78 hover:border-titan-hazard hover:text-titan-hazard focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-titan-hazard disabled:cursor-not-allowed disabled:opacity-35"
-                disabled={objectLimitReached || lampBlocked}
+                disabled={objectLimitReached || presetBlocked}
                 key={preset}
                 title={
                   objectLimitReached
                     ? `Editor object limit reached (${COURSE_EDITOR_OBJECT_LIMIT})`
-                    : lampBlocked
-                      ? `Lamp limit reached (${COURSE_LAMP_LIMIT})`
-                      : `Add ${preset}`
+                    : presetBlocked
+                      ? `${label} limit reached (${presetLimit})`
+                      : `Add ${label}`
                 }
                 type="button"
                 onClick={() => onAddPreset(preset)}
               >
-                {preset}
+                {label}
               </button>
             );
           })}
@@ -2044,13 +2130,13 @@ function CoursePanel({
             Editor object limit reached ({COURSE_EDITOR_OBJECT_LIMIT})
           </p>
         ) : null}
-        {!objectLimitReached && lampLimitReached ? (
+        {!objectLimitReached && presetLimitReached ? (
           <p
             className="text-[0.65rem] font-bold uppercase tracking-[0.08em] text-titan-muted"
-            id={lampLimitMessageId}
+            id={presetLimitMessageId}
             role="status"
           >
-            Lamp limit reached ({COURSE_LAMP_LIMIT})
+            {reachedLimits.join(" · ")}
           </p>
         ) : null}
         <button
@@ -2269,20 +2355,25 @@ function SelectionRow({
 }
 
 function Inspector({
+  arc,
   canDelete,
   geometry,
   groupPosition,
   objectName,
+  onArc,
   onDelete,
   onNudge,
+  onPlace,
   onRename,
   onScale,
   onSectionToggle,
+  placement,
   scaleShape,
   sectionOpen,
   selection,
   selectionCount,
 }: {
+  arc: CourseArc | null;
   canDelete: boolean;
   geometry: ReturnType<typeof getSelectionGeometry>;
   groupPosition: { x: number; y: number; z: number } | null;
@@ -2293,10 +2384,13 @@ function Inspector({
     axis: "x" | "y" | "z",
     delta: number,
   ) => void;
+  onArc: (arc: CourseArc) => void;
+  onPlace: (placement: { indoors: boolean; overhead: boolean }) => void;
   onRename: (label: string) => void;
   onScale: (axis: "x" | "y" | "z", multiplier: number) => void;
   onSectionToggle: (section: EditorSection) => void;
-  scaleShape: "box" | "cylinder";
+  placement: ObjectPlacement | null;
+  scaleShape: "arc" | "box" | "cylinder";
   sectionOpen: Record<EditorSection, boolean>;
   selection: CourseEditorSelection;
   selectionCount: number;
@@ -2369,6 +2463,9 @@ function Inspector({
           onRename={onRename}
         />
       ) : null}
+      {selection.kind === "object" && placement ? (
+        <ObjectPlacementControl placement={placement} onPlace={onPlace} />
+      ) : null}
       </CollapsibleSection>
       <CollapsibleSection
         open={sectionOpen["inspector-position"]}
@@ -2394,6 +2491,15 @@ function Inspector({
         onNudge={(axis, delta) => onNudge("rotation", axis, delta)}
       />
       </CollapsibleSection>
+      {arc ? (
+        <CollapsibleSection
+          open={sectionOpen["inspector-scale"]}
+          title="Arc"
+          onToggle={() => onSectionToggle("inspector-scale")}
+        >
+          <ArcFields arc={arc} onArc={onArc} />
+        </CollapsibleSection>
+      ) : null}
       {geometry.scale ? (
         <CollapsibleSection
           open={sectionOpen["inspector-scale"]}
@@ -2457,6 +2563,150 @@ function Inspector({
       </button>
       </CollapsibleSection>
     </div>
+  );
+}
+
+type ObjectPlacement = {
+  boxShaped: boolean;
+  indoors: boolean;
+  lamp: "floodlight" | "tunnel" | null;
+  overhead: boolean;
+  supportsKarts: boolean;
+};
+
+// Indoors objects take only indoor light in the race; overhead objects are
+// roofs, cut away in the editor and counting karts beneath them as indoors.
+function ObjectPlacementControl({
+  onPlace,
+  placement,
+}: {
+  onPlace: (placement: { indoors: boolean; overhead: boolean }) => void;
+  placement: ObjectPlacement;
+}) {
+  const { boxShaped, indoors, lamp, overhead, supportsKarts } = placement;
+  // Only a box can be an indoor roof.
+  const options = [
+    {
+      checked: indoors,
+      hint: lamp
+        ? lamp === "tunnel"
+          ? "Tunnel lamps stand indoors."
+          : "Floodlights stand outdoors."
+        : overhead && !boxShaped
+          ? "Indoor roofs are boxes."
+          : "Lit only by indoor light in the race.",
+      label: "Indoors",
+      locked: lamp !== null || (overhead && !boxShaped),
+      next: { indoors: !indoors, overhead },
+    },
+    {
+      checked: overhead,
+      hint: supportsKarts
+        ? "Surfaces karts drive on cannot be roofs."
+        : indoors && !boxShaped
+          ? "Indoor roofs are boxes."
+          : "A roof: cut away in the editor; karts beneath an indoor roof count as indoors.",
+      label: "Overhead",
+      locked: supportsKarts || (indoors && !boxShaped),
+      next: { indoors, overhead: !overhead },
+    },
+  ];
+  return (
+    <fieldset className="grid gap-2">
+      <legend className="mb-1 font-bold uppercase tracking-[0.12em] text-titan-muted">
+        Placement
+      </legend>
+      {options.map(({ checked, hint, label, locked, next }) => (
+        <label
+          className="flex min-h-10 items-start gap-2 text-titan-ice/86"
+          key={label}
+        >
+          <input
+            checked={checked}
+            className="mt-0.5 h-4 w-4 accent-titan-hazard disabled:opacity-35"
+            disabled={locked}
+            type="checkbox"
+            onChange={() => onPlace(next)}
+          />
+          <span className="grid gap-0.5">
+            <span className="font-bold uppercase tracking-[0.1em]">
+              {label}
+            </span>
+            <span className="text-[0.62rem] leading-relaxed text-titan-muted">
+              {hint}
+            </span>
+          </span>
+        </label>
+      ))}
+    </fieldset>
+  );
+}
+
+// An arc's dimensions, each stepped in its own unit down to its minimum.
+const ARC_FIELDS = [
+  {
+    field: "innerRadius",
+    label: "Inner radius",
+    min: 0.05,
+    step: 0.25,
+    unit: "m",
+  },
+  { field: "width", label: "Width", min: 0.1, step: 0.05, unit: "m" },
+  { field: "height", label: "Height", min: 0.05, step: 0.1, unit: "m" },
+  { field: "sweep", label: "Sweep", min: 5, step: 5, unit: "°" },
+] as const;
+
+function ArcFields({
+  arc,
+  onArc,
+}: {
+  arc: CourseArc;
+  onArc: (arc: CourseArc) => void;
+}) {
+  return (
+    <fieldset className="grid gap-2">
+      <legend className="mb-1 font-bold uppercase tracking-[0.12em] text-titan-muted">
+        Dimensions
+      </legend>
+      {ARC_FIELDS.map(({ field, label, min, step, unit }) => (
+        <div
+          className="grid grid-cols-[5.5rem_1fr_2.75rem_2.75rem] items-center gap-2"
+          key={field}
+        >
+          <span className="font-bold uppercase text-titan-muted">{label}</span>
+          <output
+            className="truncate text-right text-titan-ice/86"
+            data-testid={`arc-${field}-value`}
+          >
+            {field === "sweep"
+              ? `${Math.round(arc.sweep)}°`
+              : `${arc[field].toFixed(2)} ${unit}`}
+          </output>
+          <button
+            aria-label={`${label} decrease`}
+            className="h-10 border border-titan-ice/18 text-base hover:border-titan-hazard hover:text-titan-hazard"
+            type="button"
+            onClick={() =>
+              onArc({ ...arc, [field]: Math.max(min, arc[field] - step) })
+            }
+          >
+            −
+          </button>
+          <button
+            aria-label={`${label} increase`}
+            className="h-10 border border-titan-ice/18 text-base hover:border-titan-hazard hover:text-titan-hazard"
+            type="button"
+            onClick={() => onArc({ ...arc, [field]: arc[field] + step })}
+          >
+            +
+          </button>
+        </div>
+      ))}
+      <p className="text-[0.62rem] leading-relaxed text-titan-muted">
+        The curve bends around its centre point, where its move and rotate
+        handles sit; karts hit exactly the wall you see.
+      </p>
+    </fieldset>
   );
 }
 

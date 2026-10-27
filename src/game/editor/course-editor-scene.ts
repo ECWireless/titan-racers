@@ -6,9 +6,15 @@ import { applySceneLook, applyShadowPolicy } from "../render/scene-look";
 import {
   addCourseVisual,
   buildRoughCourse,
+  createCourseArcMesh,
   type CourseObjectProjection,
   type RoughCourseMaterials,
 } from "../course/build-rough-course";
+import {
+  type CourseArc,
+  getCourseArcCollisionBoxes,
+  getCourseArcMidpoint,
+} from "../course/course-arc";
 import type { CourseDocument } from "../course/course-document";
 import { createCourseSurfaceMaterials } from "../course/course-surface-materials";
 import type { CourseSurfaceImages } from "../course/course-surface-textures";
@@ -98,6 +104,7 @@ export class CourseEditorScene {
   private activeTransformDocument: CourseDocument | null = null;
   private canvas: HTMLCanvasElement;
   private collisionVisible = false;
+  private roofsHidden = false;
   private currentDocument: CourseDocument;
   private documentEntities = new Map<string, pc.Entity>();
   private readonly editorCamera = new EditorOrbitCamera({
@@ -231,7 +238,19 @@ export class CourseEditorScene {
       return null;
     }
 
-    const screen = cameraComponent.worldToScreen(entity.getPosition());
+    // An arc turns about an origin off its surface; aim at its top instead.
+    const visual =
+      selection.kind === "object"
+        ? this.currentDocument.objects.find(({ id }) => id === selection.id)
+            ?.visual
+        : undefined;
+    const middle = visual?.shape === "arc" && getCourseArcMidpoint(visual.arc);
+    const point = middle
+      ? entity
+          .getWorldTransform()
+          .transformPoint(new pc.Vec3(middle.x, middle.y, middle.z))
+      : entity.getPosition();
+    const screen = cameraComponent.worldToScreen(point);
     const rect = this.canvas.getBoundingClientRect();
     return {
       x: screen.x / (this.canvas.width / rect.width),
@@ -282,6 +301,42 @@ export class CourseEditorScene {
     collisionVisuals.forEach((entity) => {
       this.selectionByNode.delete(entity);
       entity.destroy();
+    });
+  }
+
+  /**
+   * Cuts away overhead objects, such as a tunnel's roof, and their collision
+   * shapes, so what lies beneath them can be seen and picked.
+   */
+  setRoofsHidden(hidden: boolean) {
+    if (this.roofsHidden === hidden) {
+      return;
+    }
+
+    this.roofsHidden = hidden;
+    this.showRoofs();
+    this.refreshSelectionPresentation();
+    if (this.collisionVisible && this.activeDocumentRoot) {
+      this.activeDocumentRoot
+        .findByTag("collision-visual")
+        .forEach((entity) => {
+          this.selectionByNode.delete(entity);
+          entity.destroy();
+        });
+      this.createCollisionVisuals(
+        this.activeDocumentRoot,
+        this.currentDocument,
+      );
+    }
+  }
+
+  private showRoofs() {
+    this.currentDocument.objects.forEach((object) => {
+      if (!object.overhead) return;
+      const entity = this.documentEntities.get(
+        selectionKey({ id: object.id, kind: "object" }),
+      );
+      if (entity) entity.enabled = !this.roofsHidden;
     });
   }
 
@@ -524,7 +579,7 @@ export class CourseEditorScene {
   ) {
     document.objects.forEach((object) => {
       const collision = object.collision;
-      if (!collision) {
+      if (!collision || (object.overhead && this.roofsHidden)) {
         return;
       }
 
@@ -548,6 +603,23 @@ export class CourseEditorScene {
         });
       }
       root.addChild(transformRoot);
+
+      if (collision.shape === "arc") {
+        if (object.visual.shape !== "arc") return;
+        getCourseArcCollisionBoxes(object.visual.arc).forEach((box, index) => {
+          const part = createVisualEntity(
+            "box",
+            `${object.id}-collision-shape-${index + 1}`,
+            boxSize(box.halfExtents),
+            this.collisionMaterial,
+            true,
+          );
+          part.setLocalPosition(box.center.x, box.center.y, box.center.z);
+          part.setLocalEulerAngles(0, box.yaw, 0);
+          transformRoot.addChild(part);
+        });
+        return;
+      }
 
       const offset = new pc.Entity(`${object.id}-collision-offset`);
       offset.setLocalPosition(
@@ -717,6 +789,7 @@ export class CourseEditorScene {
         this.selectionByNode.set(entity, selection);
       }
     });
+    this.showRoofs();
     const lights = buildCourseLighting(this.app, { document: this.currentDocument });
     lights.forEach((entity) => {
       if (entity.light?.castShadows) applyShadowPolicy(entity.light);
@@ -742,9 +815,10 @@ export class CourseEditorScene {
     this.translateGizmo.detach();
     this.rotateGizmo.detach();
     this.scaleGizmo.detach();
+    // A roof cut away is not handled in the viewport.
     const entities = this.selections
       .map((selection) => this.entityForSelection(selection))
-      .filter((entity): entity is pc.Entity => Boolean(entity));
+      .filter((entity): entity is pc.Entity => Boolean(entity?.enabled));
     if (entities.length !== this.selections.length) {
       return;
     }
@@ -755,19 +829,26 @@ export class CourseEditorScene {
       return;
     } else if (this.tool === "rotate") {
       this.rotateGizmo.attach(entities);
-    } else if (this.primarySelection.kind !== "start") {
+    } else if (
+      this.primarySelection.kind !== "start" &&
+      // Arcs resize by their dimensions in the inspector instead.
+      this.selectedObject()?.visual.shape !== "arc"
+    ) {
       this.configureScaleGizmo();
       this.scaleGizmo.attach(entities);
     }
   }
 
+  private selectedObject() {
+    return this.primarySelection.kind === "object"
+      ? this.currentDocument.objects.find(
+          ({ id }) => id === this.primarySelection.id,
+        )
+      : null;
+  }
+
   private configureScaleGizmo() {
-    const selectedObject =
-      this.primarySelection.kind === "object"
-        ? this.currentDocument.objects.find(
-            ({ id }) => id === this.primarySelection.id,
-          )
-        : null;
+    const selectedObject = this.selectedObject();
     const cylinderAxis =
       selectedObject?.collision?.shape === "cylinder"
         ? selectedObject.collision.axis
@@ -791,23 +872,26 @@ export class CourseEditorScene {
     this.selections.forEach((selection) => {
       const entity = this.entityForSelection(selection);
       const geometry = getSelectionGeometry(this.currentDocument, selection);
-      if (!entity || !geometry) {
+      if (!entity?.enabled || !geometry) {
         return;
       }
 
-      const sourceShape =
+      const sourceVisual =
         selection.kind === "object"
           ? this.currentDocument.objects.find(({ id }) => id === selection.id)
-              ?.visual.shape ?? "box"
-          : "box";
+              ?.visual
+          : undefined;
       const scale = geometry.scale ?? { x: 1.9, y: 0.22, z: 2.7 };
-      const outline = createVisualEntity(
-        sourceShape,
-        `course-editor-selection-${selection.id}`,
-        { x: scale.x * 1.04, y: scale.y * 1.04, z: scale.z * 1.04 },
-        this.selectionMaterial,
-        true,
-      );
+      const outline =
+        sourceVisual?.shape === "arc"
+          ? this.createArcOutline(selection.id, sourceVisual.arc)
+          : createVisualEntity(
+              sourceVisual?.shape ?? "box",
+              `course-editor-selection-${selection.id}`,
+              { x: scale.x * 1.04, y: scale.y * 1.04, z: scale.z * 1.04 },
+              this.selectionMaterial,
+              true,
+            );
       outline.setPosition(
         geometry.position.x,
         geometry.position.y,
@@ -822,6 +906,35 @@ export class CourseEditorScene {
       this.selectionEntities.push(outline);
     });
     this.refreshGizmo();
+  }
+
+  // An arc's outline is its own surface, grown 2 cm all round, its ends
+  // included, so no line lies on the arc's own faces.
+  private createArcOutline(id: string, arc: CourseArc) {
+    const outline = new pc.Entity(`course-editor-selection-${id}`);
+    const grown = new pc.Entity(`course-editor-selection-${id}-arc`);
+    const extra =
+      (0.02 / (arc.innerRadius + arc.width + 0.02)) * (180 / Math.PI);
+    const sweep = Math.min(360, arc.sweep + 2 * extra);
+    grown.setLocalEulerAngles(0, -(sweep - arc.sweep) / 2, 0);
+    grown.addComponent("render", {
+      castShadows: false,
+      meshInstances: [
+        new pc.MeshInstance(
+          createCourseArcMesh(this.app.graphicsDevice, {
+            height: arc.height + 0.02,
+            innerRadius: arc.innerRadius - 0.02,
+            sweep,
+            width: arc.width + 0.04,
+          }),
+          this.selectionMaterial,
+        ),
+      ],
+      // The component applies its style to the instances it is given.
+      renderStyle: pc.RENDERSTYLE_WIREFRAME,
+    });
+    outline.addChild(grown);
+    return outline;
   }
 
   private rememberTouchGesture() {
@@ -929,15 +1042,14 @@ function createMaterial(
 function createProjectionEntity(
   projection: CourseObjectProjection,
   material: pc.StandardMaterial,
-  topFace?: pc.Mesh,
+  mesh?: pc.Mesh,
 ) {
   const entity = new pc.Entity(projection.id);
-  addCourseVisual(entity, projection.visual.shape, material, topFace);
-  entity.setLocalScale(
-    projection.visual.scale.x,
-    projection.visual.scale.y,
-    projection.visual.scale.z,
-  );
+  const { visual } = projection;
+  addCourseVisual(entity, visual.shape, material, mesh);
+  if (visual.shape !== "arc") {
+    entity.setLocalScale(visual.scale.x, visual.scale.y, visual.scale.z);
+  }
   entity.setPosition(
     projection.transform.position.x,
     projection.transform.position.y,
@@ -968,6 +1080,14 @@ function createVisualEntity(
     }
   });
   return entity;
+}
+
+function boxSize(halfExtents: { x: number; y: number; z: number }) {
+  return {
+    x: halfExtents.x * 2,
+    y: halfExtents.y * 2,
+    z: halfExtents.z * 2,
+  };
 }
 
 function selectionKey(selection: CourseEditorSelection) {

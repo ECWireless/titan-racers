@@ -7,9 +7,10 @@ import {
   MIRROR_ANGLE_LIMITS,
 } from "../enclosure/island-three";
 import { getApprovedSurfaceMaterial } from "../kart/kart-material-registry";
-import fallsViewParkDocumentJson from "./falls-view-park.v5.json";
+import { COURSE_ARC_MAXIMUM_WIDTH_RATIO } from "./course-arc";
+import fallsViewParkDocumentJson from "./falls-view-park.v6.json";
 import type { OfficialCourseId } from "./course-ids";
-import roughCourseDocumentJson from "./rough-course.v5.json";
+import roughCourseDocumentJson from "./rough-course.v6.json";
 
 export const courseIdSchema = z
   .string()
@@ -109,6 +110,42 @@ const courseObjectSchema = courseObjectV2Schema.extend({
     .nullable(),
 });
 
+// An arc sweeps a rectangular section about its object's origin; see
+// course-arc.ts. Its outer edge stays within the course's ±200 m.
+const arcSchema = z
+  .strictObject({
+    height: z.number().finite().positive().max(100),
+    innerRadius: z.number().finite().min(0.05).max(200),
+    sweep: z.number().finite().positive().max(360),
+    width: z.number().finite().min(0.1).max(100),
+  })
+  .refine((arc) => arc.innerRadius + arc.width <= 200, {
+    message: "An arc's outer radius is at most 200 m",
+    path: ["width"],
+  })
+  .refine(
+    (arc) => arc.width <= COURSE_ARC_MAXIMUM_WIDTH_RATIO * arc.innerRadius,
+    {
+      message: `An arc is at most ${COURSE_ARC_MAXIMUM_WIDTH_RATIO} times as wide as its inner radius`,
+      path: ["width"],
+    },
+  );
+
+const arcVisualSchema = z.strictObject({
+  arc: arcSchema,
+  material: visualSchema.shape.material,
+  shape: z.literal("arc"),
+});
+
+// Arcs collide only as walls: their boxes never support a kart.
+const arcCollisionSchema = z.strictObject({
+  friction: collisionBaseSchema.shape.friction,
+  restitution: collisionBaseSchema.shape.restitution,
+  role: z.literal("solid-obstacle"),
+  shape: z.literal("arc"),
+  surfaceMaterial: surfaceMaterialSchema,
+});
+
 const courseStartV1Schema = transformSchema.extend({
   id: courseIdSchema,
 });
@@ -147,10 +184,16 @@ const lightingSchema = z.strictObject({
 });
 
 export const COURSE_CHECKPOINT_LIMIT = 256;
-/** Course lamps each add a light, so a course has at most this many. */
+/** Course lamps each add a light, so a course has at most this many floodlights. */
 export const COURSE_LAMP_LIMIT = 8;
-export function countCourseLamps(document: { objects: { lamp?: string }[] }) {
-  return document.objects.filter((object) => object.lamp).length;
+/** Tunnel lamps light only indoor objects, and have their own limit. */
+export const COURSE_TUNNEL_LAMP_LIMIT = 16;
+export type CourseLampKind = "floodlight" | "tunnel";
+export function countCourseLamps(
+  document: { objects: { lamp?: string }[] },
+  kind: CourseLampKind,
+) {
+  return document.objects.filter((object) => object.lamp === kind).length;
 }
 // Courses before schema version five opened their mirrors at most this far.
 const LEGACY_MIRROR_ANGLE_MAX = 85;
@@ -316,29 +359,118 @@ const courseDocumentV4Schema =
 
 // Version five adds course lamps, a light on a full-size mast, and lets a
 // mirror open fully for night.
-export const courseDocumentSchema = courseDocumentV4BaseSchema
-  .extend({
-    enclosure: enclosureSchema(MIRROR_ANGLE_LIMITS.max),
-    objects: courseDocumentV3BaseSchema.shape.objects.element
-      .extend({
-        // A floodlight: its luminaire and light stand on top of the object,
-        // reaching along its local -Z.
-        lamp: z.literal("floodlight").optional(),
-      })
-      .array()
-      .min(1)
-      .max(5_000),
-    schemaVersion: z.literal(5),
-  })
-  .superRefine((document, context) => {
+const courseDocumentV5BaseSchema = courseDocumentV4BaseSchema.extend({
+  enclosure: enclosureSchema(MIRROR_ANGLE_LIMITS.max),
+  objects: courseDocumentV3BaseSchema.shape.objects.element
+    .extend({
+      // A floodlight: its luminaire and light stand on top of the object,
+      // reaching along its local -Z.
+      lamp: z.literal("floodlight").optional(),
+    })
+    .array()
+    .min(1)
+    .max(5_000),
+  schemaVersion: z.literal(5),
+});
+
+const courseDocumentV5Schema = courseDocumentV5BaseSchema.superRefine(
+  (document, context) => {
     validateCourseRoute(document, context);
-    if (countCourseLamps(document) > COURSE_LAMP_LIMIT) {
+    if (countCourseLamps(document, "floodlight") > COURSE_LAMP_LIMIT) {
       context.addIssue({
         code: "custom",
         message: `A course has at most ${COURSE_LAMP_LIMIT} lamps`,
         path: ["objects"],
       });
     }
+  },
+);
+
+// Version six adds indoor objects, lit only by tunnel lamps and an interior
+// environment, overhead objects the editor can cut away, tunnel lamps, and
+// smooth arcs.
+export const courseDocumentSchema = courseDocumentV5BaseSchema
+  .extend({
+    objects: courseDocumentV3BaseSchema.shape.objects.element
+      .extend({
+        collision: z
+          .discriminatedUnion("shape", [
+            ...courseObjectSchema.shape.collision.unwrap().options,
+            arcCollisionSchema,
+          ])
+          .nullable(),
+        indoors: z.literal(true).optional(),
+        // A tunnel lamp's luminaire and light hang beneath the object.
+        lamp: z.enum(["floodlight", "tunnel"]).optional(),
+        overhead: z.literal(true).optional(),
+        visual: z.discriminatedUnion("shape", [visualSchema, arcVisualSchema]),
+      })
+      .array()
+      .min(1)
+      .max(5_000),
+    schemaVersion: z.literal(6),
+  })
+  .superRefine((document, context) => {
+    validateCourseRoute(document, context);
+    if (countCourseLamps(document, "floodlight") > COURSE_LAMP_LIMIT) {
+      context.addIssue({
+        code: "custom",
+        message: `A course has at most ${COURSE_LAMP_LIMIT} floodlights`,
+        path: ["objects"],
+      });
+    }
+    if (countCourseLamps(document, "tunnel") > COURSE_TUNNEL_LAMP_LIMIT) {
+      context.addIssue({
+        code: "custom",
+        message: `A course has at most ${COURSE_TUNNEL_LAMP_LIMIT} tunnel lamps`,
+        path: ["objects"],
+      });
+    }
+    document.objects.forEach((object, index) => {
+      if (
+        object.lamp &&
+        (object.lamp === "tunnel") !== Boolean(object.indoors)
+      ) {
+        context.addIssue({
+          code: "custom",
+          message: "Tunnel lamps stand indoors and floodlights outdoors",
+          path: ["objects", index, "indoors"],
+        });
+      }
+      // A drivable roof would catch karts and checkpoint recovery above it.
+      if (object.overhead && object.collision?.role === "drivable-surface") {
+        context.addIssue({
+          code: "custom",
+          message: "Overhead objects collide only as solid obstacles",
+          path: ["objects", index, "collision", "role"],
+        });
+      }
+      if (
+        object.collision &&
+        (object.collision.shape === "arc") !== (object.visual.shape === "arc")
+      ) {
+        context.addIssue({
+          code: "custom",
+          message: "Arcs collide as arcs, and only arcs do",
+          path: ["objects", index, "collision", "shape"],
+        });
+      }
+      // The race finds a kart indoors beneath an indoor roof's rectangle.
+      if (object.overhead && object.indoors && object.visual.shape !== "box") {
+        context.addIssue({
+          code: "custom",
+          message: "Indoor roofs are boxes",
+          path: ["objects", index, "visual", "shape"],
+        });
+      }
+      if (object.lamp && object.visual.shape === "arc") {
+        context.addIssue({
+          code: "custom",
+          message: "Lamps stand on boxes or cylinders",
+          path: ["objects", index, "visual", "shape"],
+        });
+      }
+    });
   });
 
 export type CourseDocumentV1 = z.infer<typeof courseDocumentV1Schema>;
@@ -347,6 +479,17 @@ type CourseDocumentV4 = z.infer<typeof courseDocumentV4Schema>;
 export type CourseDocument = z.infer<typeof courseDocumentSchema>;
 export type CourseObject = CourseDocument["objects"][number];
 export type CourseVisualMaterial = CourseObject["visual"]["material"];
+/** A box or cylinder, scaled from a unit primitive; arcs are built to size. */
+export type CoursePrimitiveObject = CourseObject & {
+  collision: Exclude<CourseObject["collision"], { shape: "arc" }>;
+  visual: Exclude<CourseObject["visual"], { shape: "arc" }>;
+};
+
+export function isCoursePrimitiveObject(
+  object: CourseObject,
+): object is CoursePrimitiveObject {
+  return object.visual.shape !== "arc" && object.collision?.shape !== "arc";
+}
 
 const DEFAULT_START_GATE_HALF_EXTENTS = {
   x: 4,
@@ -656,16 +799,23 @@ export function parseCourseDocument(input: unknown): CourseDocument {
   }
 
   if (hasSchemaVersion(input, 2) || hasSchemaVersion(input, 3)) {
-    return courseDocumentSchema.parse({
-      ...upgradeCourseDocumentV3(parseCourseDocumentV3(input)),
-      schemaVersion: 5,
-    });
+    return parseCourseDocument(
+      upgradeCourseDocumentV3(parseCourseDocumentV3(input)),
+    );
   }
 
   if (hasSchemaVersion(input, 4)) {
     return parseCourseDocument({
       ...courseDocumentV4Schema.parse(input),
       schemaVersion: 5,
+    });
+  }
+
+  // Version five upgrades unchanged.
+  if (hasSchemaVersion(input, 5)) {
+    return parseCourseDocument({
+      ...courseDocumentV5Schema.parse(input),
+      schemaVersion: 6,
     });
   }
 

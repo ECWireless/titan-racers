@@ -43,6 +43,11 @@ import {
   ENCLOSURE_SUN_ID,
 } from "@/game/course/build-course-lighting";
 import { buildRoughCourse } from "@/game/course/build-rough-course";
+import {
+  createCourseInteriorAtlas,
+  createCourseInteriorTest,
+  createKartInteriorLighting,
+} from "@/game/course/course-interior";
 import { createCourseSurfaceMaterials } from "@/game/course/course-surface-materials";
 import { loadCourseSurfaceImages } from "@/game/course/course-surface-textures";
 import {
@@ -55,6 +60,7 @@ import {
   drawsEnclosure,
 } from "@/game/enclosure/enclosure-view";
 import { getHabitatLight } from "@/game/enclosure/habitat-light";
+import { getApprovedEnclosure, sceneLux } from "@/game/enclosure/island-three";
 import { addCourseLamps, courseLampLux } from "@/game/course/course-lamps";
 import { PlayerInputManager } from "@/game/input/player-input-manager";
 import { isEditableKeyboardTarget } from "@/game/input/keyboard-input";
@@ -773,7 +779,31 @@ export function SoloTimeTrialCanvas({
       runtime.addCleanup(() =>
         kartVisualMaterials.forEach((material) => material.destroy()),
       );
-      const courseSurfaces = createCourseSurfaceMaterials(app.graphicsDevice);
+      const habitatLight = getHabitatLight(
+        COURSE_DOCUMENT.enclosure,
+        courseLampLux(COURSE_DOCUMENT),
+      );
+      // Indoor objects are lit as a lit interior surrounds them, not by the
+      // habitat; the kart follows them in under a roof.
+      const enclosureDefinition = getApprovedEnclosure(
+        COURSE_DOCUMENT.enclosure,
+      );
+      const interiorAtlas =
+        enclosureDefinition &&
+        COURSE_DOCUMENT.objects.some((object) => object.indoors)
+          ? createCourseInteriorAtlas(
+              app.graphicsDevice,
+              sceneLux(enclosureDefinition),
+              habitatLight.adaptation,
+            )
+          : null;
+      if (interiorAtlas) runtime.addCleanup(() => interiorAtlas.destroy());
+      const courseSurfaces = createCourseSurfaceMaterials(
+        app.graphicsDevice,
+        interiorAtlas
+          ? { adaptation: habitatLight.adaptation, atlas: interiorAtlas }
+          : undefined,
+      );
       runtime.addCleanup(() => courseSurfaces.destroy());
       if (courseSurfaceImages) courseSurfaces.useScans(courseSurfaceImages);
       const obstacleBarrelMaterial = courseSurfaces.materials.obstacleBarrel;
@@ -831,6 +861,7 @@ export function SoloTimeTrialCanvas({
         rampEntities,
         surfaceResolver,
       } = buildRoughCourse(app, {
+        indoorMaterials: courseSurfaces.indoorMaterials,
         materials: courseSurfaces.materials,
         topFaces: courseSurfaces.topFaces,
         document: COURSE_DOCUMENT,
@@ -842,14 +873,11 @@ export function SoloTimeTrialCanvas({
             )),
       });
 
-      const habitatLight = getHabitatLight(
-        COURSE_DOCUMENT.enclosure,
-        courseLampLux(COURSE_DOCUMENT),
-      );
       runtime.addCleanup(
         addCourseLamps(courseEntities, COURSE_DOCUMENT, {
           lampsOn: habitatLight.lampsOn,
           steel: courseSurfaces.materials.steel,
+          tunnelLampsOn: true,
         }),
       );
 
@@ -1159,6 +1187,31 @@ export function SoloTimeTrialCanvas({
         if (entity.light?.castShadows) applyShadowPolicy(entity.light);
       });
       runtime.addCleanup(applySceneLook(app, camera.camera!, habitatLight));
+      const isUnderRoof = createCourseInteriorTest(COURSE_DOCUMENT);
+      const habitatAtlas = app.scene.envAtlas;
+      if (interiorAtlas && isUnderRoof && habitatAtlas) {
+        const setKartIndoors = createKartInteriorLighting(app, {
+          adaptation: habitatLight.adaptation,
+          batchGroupId: kartBatchGroup.id,
+          habitatAtlas,
+          interiorAtlas,
+          materials: [...kartVisualMaterials.values()],
+          root: kartVisual,
+        });
+        // While the loading screen still covers it, its first frames light
+        // it both ways once, so crossing a portal compiles nothing mid-race.
+        let warmFrames = 2;
+        runtime.onRender(() => {
+          let indoors = isUnderRoof(kart.getPosition());
+          if (warmFrames > 0) {
+            if (warmFrames === 1 && countdownHeldRef.current) {
+              indoors = !indoors;
+            }
+            warmFrames -= 1;
+          }
+          setKartIndoors(indoors);
+        });
+      }
       if (drawsEnclosure()) {
         runtime.addCleanup(
           createEnclosureView(

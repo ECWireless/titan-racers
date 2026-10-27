@@ -75,6 +75,24 @@ export function applySceneLook(
 }
 
 /**
+ * Lights a material with its own environment atlas stored brightened by the
+ * adaptation. A material's atlas bypasses the scene's `skyboxIntensity`, so
+ * its ambient and reflections are scaled back here instead.
+ */
+export function applyAdaptedEnvironmentAtlas(
+  material: pc.StandardMaterial,
+  atlas: pc.Texture,
+  adaptation: number,
+) {
+  material.envAtlas = atlas;
+  const gain = 1 / adaptation;
+  // Colours are stored in sRGB; this one is a linear gain.
+  material.ambient = new pc.Color(gain, gain, gain).gamma();
+  material.reflectivity = gain;
+  material.update();
+}
+
+/**
  * Fades cascaded directional shadows out toward their distance, where the
  * engine otherwise cuts them off and they pop in as the camera nears. Only
  * lights with cascades (the course sun) change. Patches the PlayCanvas 2.20

@@ -4,6 +4,7 @@ import {
   FALLS_VIEW_PARK_DOCUMENT,
   ROUGH_COURSE_DOCUMENT,
 } from "../src/game/course/course-document";
+import { COURSE_EDITOR_OBJECT_LIMIT } from "../src/game/editor/course-editor-document";
 import {
   disconnectStandardTestGamepad,
   installStandardGamepadFixture,
@@ -149,10 +150,13 @@ test.describe("protected course editor access", () => {
     const template = ROUGH_COURSE_DOCUMENT.objects[0];
     const oversizedDocument = {
       ...ROUGH_COURSE_DOCUMENT,
-      objects: Array.from({ length: 501 }, (_, index) => ({
-        ...structuredClone(template),
-        id: `editor-budget-${index + 1}`,
-      })),
+      objects: Array.from(
+        { length: COURSE_EDITOR_OBJECT_LIMIT + 1 },
+        (_, index) => ({
+          ...structuredClone(template),
+          id: `editor-budget-${index + 1}`,
+        }),
+      ),
     };
     await page.route(courseApiPattern, async (route) => {
       await route.fulfill({
@@ -294,7 +298,7 @@ test.describe("protected course editor access", () => {
 
     await expect(page.getByTestId("course-editor-shell")).toBeVisible();
     expect(savePayload).toMatchObject({
-      document: { courseId: "rough-course", schemaVersion: 5 },
+      document: { courseId: "rough-course", schemaVersion: 6 },
       expectedRevision: null,
     });
   });
@@ -352,7 +356,7 @@ test.describe("protected course editor access", () => {
       page.getByText("Falls View Park Circuit"),
     ).toBeVisible();
     expect(parkSave).toMatchObject({
-      document: { courseId: "falls-view-park", schemaVersion: 5 },
+      document: { courseId: "falls-view-park", schemaVersion: 6 },
       expectedRevision: null,
     });
   });
@@ -1100,6 +1104,131 @@ test.describe("protected course editor access", () => {
       .getByRole("button", { name: "Exit editor" })
       .click();
     await expect(page).toHaveURL(/\/$/);
+  });
+
+  test("adds a smooth curved barrier and edits its arc", async ({
+    page,
+  }, testInfo) => {
+    test.skip(testInfo.project.name !== "desktop", "Arc editing runs once.");
+    // Scanned course finishes render slowly in the software-rendered browser.
+    testInfo.setTimeout(90_000);
+    await page.route(courseApiPattern, async (route) => {
+      await route.fulfill({
+        body: JSON.stringify({
+          authorUserId: "admin-test-user",
+          courseId: ROUGH_COURSE_DOCUMENT.courseId,
+          createdAt: new Date("2026-07-12T00:00:00.000Z").toISOString(),
+          document: ROUGH_COURSE_DOCUMENT,
+          revision: 3,
+          schemaVersion: ROUGH_COURSE_DOCUMENT.schemaVersion,
+        }),
+        contentType: "application/json",
+        status: 200,
+      });
+    });
+
+    await page.goto("/admin/courses/rough-course");
+    const canvas = page.getByTestId("course-editor-canvas");
+    await waitForEditorScene(canvas);
+    await page.getByRole("button", { name: "block" }).click();
+    const scaleTool = page
+      .getByTestId("editor-toolbar-shell")
+      .getByRole("button", { exact: true, name: "Scale" });
+    await scaleTool.click();
+    await expect(canvas).toHaveAttribute("data-tool", "scale");
+    await page.getByRole("button", { name: "curve" }).click();
+    await expect(canvas).toHaveAttribute("data-selected-id", "curve-1");
+
+    // An arc is sized by its dimensions, not by scale, so Scale gives way to
+    // Move.
+    await expect(scaleTool).toHaveAttribute("aria-disabled", "true");
+    await expect(scaleTool).toHaveAccessibleDescription(
+      "Size a curve with its Arc controls in the inspector",
+    );
+    await expect(canvas).toHaveAttribute("data-tool", "translate");
+    const inspector = page.getByRole("complementary", { name: "Inspector" });
+    await expect(inspector.getByTestId("scale-x-value")).toHaveCount(0);
+    await expect(inspector.getByTestId("arc-innerRadius-value")).toHaveText(
+      "4.00 m",
+    );
+    await inspector
+      .getByRole("button", { name: "Inner radius increase" })
+      .click();
+    await expect(inspector.getByTestId("arc-innerRadius-value")).toHaveText(
+      "4.25 m",
+    );
+    await inspector.getByRole("button", { name: "Sweep decrease" }).click();
+    await expect(inspector.getByTestId("arc-sweep-value")).toHaveText("85°");
+
+    // Its generated surface picks like any primitive.
+    await page.getByRole("button", { name: "Start Spawn" }).click();
+    await expect(canvas).toHaveAttribute("data-selected-id", "start-position");
+    const curvePoint = await getCourseEditorSelectionPoint(canvas, {
+      id: "curve-1",
+      kind: "object",
+    });
+    expect(curvePoint).not.toBeNull();
+    await canvas.click({ position: curvePoint! });
+    await expect(canvas).toHaveAttribute("data-selected-id", "curve-1");
+  });
+
+  test("adds tunnel lamps and cuts away roofs", async ({ page }, testInfo) => {
+    test.skip(
+      testInfo.project.name !== "desktop",
+      "Cutaway editing runs once.",
+    );
+    // Scanned course finishes render slowly in the software-rendered browser.
+    testInfo.setTimeout(90_000);
+    await page.route(courseApiPattern, async (route) => {
+      await route.fulfill({
+        body: JSON.stringify({
+          authorUserId: "admin-test-user",
+          courseId: ROUGH_COURSE_DOCUMENT.courseId,
+          createdAt: new Date("2026-07-12T00:00:00.000Z").toISOString(),
+          document: ROUGH_COURSE_DOCUMENT,
+          revision: 3,
+          schemaVersion: ROUGH_COURSE_DOCUMENT.schemaVersion,
+        }),
+        contentType: "application/json",
+        status: 200,
+      });
+    });
+
+    await page.goto("/admin/courses/rough-course");
+    const canvas = page.getByTestId("course-editor-canvas");
+    await waitForEditorScene(canvas);
+    const inspector = page.getByRole("complementary", { name: "Inspector" });
+
+    // A tunnel lamp always stands indoors.
+    await page.getByRole("button", { name: "tunnel lamp" }).click();
+    await expect(canvas).toHaveAttribute("data-selected-id", "tunnel-lamp-1");
+    const indoors = inspector.getByRole("checkbox", { name: /Indoors/ });
+    await expect(indoors).toBeChecked();
+    await expect(indoors).toBeDisabled();
+
+    // A block made a roof disappears, and stops being picked, when roofs
+    // are cut away.
+    await page.getByRole("button", { name: "block" }).click();
+    await expect(canvas).toHaveAttribute("data-selected-id", "block-1");
+    await inspector.getByRole("checkbox", { name: /Overhead/ }).check();
+    await expect(
+      inspector.getByRole("checkbox", { name: /Overhead/ }),
+    ).toBeChecked();
+    const blockPoint = await getCourseEditorSelectionPoint(canvas, {
+      id: "block-1",
+      kind: "object",
+    });
+    expect(blockPoint).not.toBeNull();
+    await page.getByRole("button", { name: "Cut away roofs" }).click();
+    await expect(canvas).toHaveAttribute("data-roofs-hidden", "true");
+    await page.getByRole("button", { name: "Start Spawn" }).click();
+    await canvas.click({ position: blockPoint! });
+    await expect(canvas).not.toHaveAttribute("data-selected-id", "block-1");
+
+    await page.getByRole("button", { name: "Show roofs" }).click();
+    await expect(canvas).toHaveAttribute("data-roofs-hidden", "false");
+    await canvas.click({ position: blockPoint! });
+    await expect(canvas).toHaveAttribute("data-selected-id", "block-1");
   });
 
   test("selects and authors course objects across desktop and mobile controls", async ({

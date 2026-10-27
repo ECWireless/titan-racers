@@ -4,6 +4,7 @@ export type EditorToolbarIconName =
   | EditorTransformTool
   | "attach"
   | "collision"
+  | "cutaway"
   | "delete"
   | "detach"
   | "frame"
@@ -112,6 +113,13 @@ export function EditorToolbarIcon({ name }: { name: EditorToolbarIconName }) {
     return (
       <svg {...common}>
         <path d="m12 3 8 4.5v9L12 21l-8-4.5v-9L12 3ZM4 7.5l8 4.5 8-4.5M12 12v9" />
+      </svg>
+    );
+  }
+  if (name === "cutaway") {
+    return (
+      <svg {...common}>
+        <path d="M5 21v-9M19 21v-9M3 21h18M4 8h16M8 5l4-3 4 3" />
       </svg>
     );
   }

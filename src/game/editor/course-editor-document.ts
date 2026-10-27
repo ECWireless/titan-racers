@@ -1,9 +1,14 @@
+import type { CourseArc } from "../course/course-arc";
 import {
   COURSE_CHECKPOINT_LIMIT,
   COURSE_LAMP_LIMIT,
+  COURSE_TUNNEL_LAMP_LIMIT,
   countCourseLamps,
   type CourseDocument,
+  courseDocumentSchema,
   type CourseObject,
+  type CoursePrimitiveObject,
+  isCoursePrimitiveObject,
   parseCourseDocument,
   rotateCourseDirection,
 } from "../course/course-document";
@@ -11,15 +16,28 @@ import {
 export const COURSE_OBJECT_PRESETS = [
   "block",
   "barrier",
+  "curve",
   "barrel",
   "ramp",
   "platform",
   "lamp",
+  "tunnel-lamp",
 ] as const;
-export const COURSE_EDITOR_OBJECT_LIMIT = 500;
+export const COURSE_EDITOR_OBJECT_LIMIT = 1_000;
 export const COURSE_EDITOR_CHECKPOINT_LIMIT = COURSE_CHECKPOINT_LIMIT;
 
 export type CourseObjectPreset = (typeof COURSE_OBJECT_PRESETS)[number];
+
+export const COURSE_OBJECT_PRESET_LABELS: Record<CourseObjectPreset, string> = {
+  barrel: "barrel",
+  barrier: "barrier",
+  block: "block",
+  curve: "curve",
+  lamp: "floodlight",
+  platform: "platform",
+  ramp: "ramp",
+  "tunnel-lamp": "tunnel lamp",
+};
 
 export type CourseEditorSelection =
   | { id: string; kind: "checkpoint" }
@@ -136,6 +154,24 @@ const PRESET_OBJECTS: Record<
       shape: "box",
     },
   },
+  // A quarter-circle 0.5 m race barrier, smooth and sized by its arc.
+  curve: {
+    availability: "standard",
+    category: "obstacle",
+    collision: {
+      surfaceMaterial: { id: "surface.standard-course", version: 1 },
+      friction: 0.8,
+      restitution: 0,
+      role: "solid-obstacle",
+      shape: "arc",
+    },
+    editable: true,
+    visual: {
+      arc: { height: 0.5, innerRadius: 4, sweep: 90, width: 0.3 },
+      material: "obstacleBlock",
+      shape: "arc",
+    },
+  },
   barrel: {
     availability: "standard",
     category: "obstacle",
@@ -208,6 +244,21 @@ const PRESET_OBJECTS: Record<
       shape: "cylinder",
     },
   },
+  // A tunnel's LED luminaire housing; the race hangs its lens and light
+  // beneath it. Tunnel lamps stand indoors.
+  "tunnel-lamp": {
+    availability: "standard",
+    category: "feature",
+    collision: null,
+    editable: true,
+    indoors: true,
+    lamp: "tunnel",
+    visual: {
+      material: "steel",
+      scale: { x: 1.2, y: 0.12, z: 0.36 },
+      shape: "box",
+    },
+  },
   platform: {
     availability: "standard",
     category: "surface",
@@ -239,7 +290,7 @@ export function addCourseObjectPreset(
 ) {
   if (
     document.objects.length >= COURSE_EDITOR_OBJECT_LIMIT ||
-    (preset === "lamp" && courseLampLimitReached(document))
+    coursePresetLimitReached(document, preset)
   ) {
     return document;
   }
@@ -249,10 +300,16 @@ export function addCourseObjectPreset(
     object.id.startsWith(`${preset}-`),
   ).length;
   const template = PRESET_OBJECTS[preset];
+  // Boxes and cylinders stand on their centres, arcs on their bases; a
+  // tunnel lamp hangs from a 3.6 m tunnel's roof.
   const y =
-    template.collision?.shape === "box"
-      ? template.collision.halfExtents.y
-      : (template.collision?.height ?? 1) / 2;
+    preset === "tunnel-lamp"
+      ? 3.6 - 0.06
+      : template.collision?.shape === "box"
+        ? template.collision.halfExtents.y
+        : template.collision?.shape === "cylinder"
+          ? template.collision.height / 2
+          : 0;
   const object: CourseObject = {
     ...structuredClone(template),
     id,
@@ -274,8 +331,64 @@ export function addCourseObjectPreset(
   });
 }
 
-export function courseLampLimitReached(document: CourseDocument) {
-  return countCourseLamps(document) >= COURSE_LAMP_LIMIT;
+/** The lamp limit a preset has reached, if any. */
+export function coursePresetLimitReached(
+  document: CourseDocument,
+  preset: CourseObjectPreset,
+) {
+  if (
+    preset === "lamp" &&
+    countCourseLamps(document, "floodlight") >= COURSE_LAMP_LIMIT
+  ) {
+    return COURSE_LAMP_LIMIT;
+  }
+  if (
+    preset === "tunnel-lamp" &&
+    countCourseLamps(document, "tunnel") >= COURSE_TUNNEL_LAMP_LIMIT
+  ) {
+    return COURSE_TUNNEL_LAMP_LIMIT;
+  }
+  return null;
+}
+
+/**
+ * Marks an object indoors (lit only by indoor light) or overhead (a roof the
+ * editor can cut away; beneath an indoor one, the race counts a kart
+ * indoors). The schema's rules hold: tunnel lamps stand indoors and
+ * floodlights outdoors, and an overhead object never supports a kart. A
+ * change that breaks one leaves the course unchanged.
+ */
+export function updateSelectionPlacement(
+  document: CourseDocument,
+  selection: CourseEditorSelection,
+  { indoors, overhead }: { indoors: boolean; overhead: boolean },
+) {
+  const object =
+    selection.kind === "object"
+      ? document.objects.find(({ id }) => id === selection.id)
+      : undefined;
+  if (
+    !object ||
+    (Boolean(object.indoors) === indoors &&
+      Boolean(object.overhead) === overhead)
+  ) {
+    return document;
+  }
+  const next = courseDocumentSchema.safeParse({
+    ...document,
+    objects: document.objects.map((candidate) => {
+      if (candidate.id !== selection.id) {
+        return candidate;
+      }
+      const placed = { ...candidate };
+      delete placed.indoors;
+      delete placed.overhead;
+      if (indoors) placed.indoors = true;
+      if (overhead) placed.overhead = true;
+      return placed;
+    }),
+  });
+  return next.success ? parseCourseDocument(next.data) : document;
 }
 
 export function addCourseCheckpoint(
@@ -377,13 +490,50 @@ export function getSelectionGeometry(
   }
 
   const object = document.objects.find(({ id }) => id === selection.id);
-  return object
-    ? {
-        position: { ...object.transform.position },
-        rotation: { ...object.transform.rotation },
-        scale: { ...object.visual.scale },
-      }
-    : null;
+  if (!object) return null;
+  return {
+    position: { ...object.transform.position },
+    rotation: { ...object.transform.rotation },
+    ...(object.visual.shape === "arc"
+      ? {}
+      : { scale: { ...object.visual.scale } }),
+  };
+}
+
+/**
+ * Resizes an arc wall. Its collision boxes follow from these dimensions, and
+ * the schema keeps them in range: an edit beyond it leaves the arc unchanged.
+ */
+export function updateSelectionArc(
+  document: CourseDocument,
+  selection: CourseEditorSelection,
+  arc: CourseArc,
+) {
+  const rounded = {
+    height: roundEditorValue(arc.height),
+    innerRadius: roundEditorValue(arc.innerRadius),
+    sweep: roundEditorValue(arc.sweep),
+    width: roundEditorValue(arc.width),
+  };
+  const current = document.objects.find(({ id }) => id === selection.id);
+  const visual = current?.visual;
+  if (
+    visual?.shape !== "arc" ||
+    (Object.keys(rounded) as (keyof CourseArc)[]).every(
+      (key) => visual.arc[key] === rounded[key],
+    )
+  ) {
+    return document;
+  }
+  const next = courseDocumentSchema.safeParse({
+    ...document,
+    objects: document.objects.map((object) =>
+      object === current
+        ? { ...object, visual: { ...visual, arc: rounded } }
+        : object,
+    ),
+  });
+  return next.success ? parseCourseDocument(next.data) : document;
 }
 
 export function updateSelectionGeometry(
@@ -451,6 +601,10 @@ export function updateSelectionGeometry(
     objects: document.objects.map((object) => {
       if (object.id !== selection.id) {
         return object;
+      }
+      // An arc is sized by its own dimensions; see updateSelectionArc.
+      if (!isCoursePrimitiveObject(object)) {
+        return { ...object, transform: { position, rotation } };
       }
 
       const requestedScale = geometry.scale
@@ -748,7 +902,7 @@ function radialAxes(axis: 0 | 1 | 2) {
 }
 
 function normalizeCylinderScale(
-  object: CourseObject,
+  object: CoursePrimitiveObject,
   requestedScale: { x: number; y: number; z: number },
 ) {
   if (object.collision?.shape !== "cylinder") {

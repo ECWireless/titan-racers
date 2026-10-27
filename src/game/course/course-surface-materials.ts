@@ -15,6 +15,7 @@ import type {
   CourseScannedSurface,
   CourseSurfaceImages,
 } from "./course-surface-textures";
+import { applyAdaptedEnvironmentAtlas } from "../render/scene-look";
 
 // Retained CPU pixels are shared by page mounts and re-upload after context
 // restoration. GPU textures belong to one scene and are released with it.
@@ -129,8 +130,15 @@ const SCANNED_SURFACES: Record<
   turf: { metres: 0.8, normal: 0.8, tint: 0.35, roughness: 0.263 },
 };
 
-/** Shared race/editor finishes. The caller must destroy the returned bundle. */
-export function createCourseSurfaceMaterials(device: pc.GraphicsDevice) {
+/**
+ * Shared race/editor finishes. Given an interior's light, a second set of the
+ * same finishes for indoor objects takes its environment instead of the
+ * habitat's. The caller must destroy the returned bundle.
+ */
+export function createCourseSurfaceMaterials(
+  device: pc.GraphicsDevice,
+  interior?: { adaptation: number; atlas: pc.Texture },
+) {
   const grain = new pc.Texture(device, {
     name: "course-world-grain",
     width: GRAIN_SIZE,
@@ -174,7 +182,7 @@ export function createCourseSurfaceMaterials(device: pc.GraphicsDevice) {
   const turf = () => hex(COURSE_TURF_COLOR);
   // Uncut lawn has stronger broad patches and no stripes.
   const lawn = () => hex(COURSE_LAWN_COLOR);
-  const materials = {
+  const createFinishes = (): RoughCourseMaterials => ({
     asphalt: finish(new pc.Color(...COURSE_ASPHALT_COLOR), 0.18, [0.65, 0.28, 0], "asphalt", "asphalt"),
     baseGround: finish(turf(), 0.08, [0.45, 0.3, 0.035], undefined, "turf"),
     baseLawn: finish(lawn(), 0.05, [0.55, 0.42, 0], undefined, "lawn"),
@@ -187,12 +195,24 @@ export function createCourseSurfaceMaterials(device: pc.GraphicsDevice) {
     obstacleBarrel: finish(hex("#bd482d"), 0.3, [0.12, 0.08, 0]),
     obstacleBlock: finish(hex("#a9a393"), 0.16, [0.3, 0.16, 0]),
     ramp: finish(hex("#54646b"), 0.26, [0.25, 0.12, 0]),
-  } satisfies RoughCourseMaterials;
+  });
+  const materials = createFinishes();
+  const indoorMaterials = interior ? createFinishes() : null;
+  if (indoorMaterials && interior) {
+    Object.values(indoorMaterials).forEach((material) =>
+      applyAdaptedEnvironmentAtlas(
+        material,
+        interior.atlas,
+        interior.adaptation,
+      ),
+    );
+  }
   const topFaces = {
     box: createTopFaceMesh(device, "box"),
     cylinder: createTopFaceMesh(device, "cylinder"),
   } satisfies CourseTopFaceMeshes;
   return {
+    indoorMaterials,
     materials,
     topFaces,
     /**
@@ -247,7 +267,9 @@ export function createCourseSurfaceMaterials(device: pc.GraphicsDevice) {
       }
     },
     destroy() {
-      Object.values(materials).forEach((material) => material.destroy());
+      [materials, indoorMaterials].forEach((finishes) =>
+        Object.values(finishes ?? {}).forEach((material) => material.destroy()),
+      );
       Object.values(topFaces).forEach(releaseTopFaceMesh);
       grain.destroy();
       scanTextures.forEach((texture) => texture.destroy());

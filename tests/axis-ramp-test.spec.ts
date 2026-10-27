@@ -2,14 +2,19 @@ import { expect, test } from "@playwright/test";
 
 import { withAxisRampTest } from "../src/game/course/axis-ramp-test";
 import { getEnclosureFrame } from "../src/game/enclosure/island-three";
-import { ROUGH_COURSE_DOCUMENT } from "../src/game/course/course-document";
+import {
+  isCoursePrimitiveObject,
+  ROUGH_COURSE_DOCUMENT,
+} from "../src/game/course/course-document";
 
 test("opens the Starter Course wall where the open ramp leaves it", () => {
   const course = withAxisRampTest(ROUGH_COURSE_DOCUMENT);
   const ids = course.objects.map((object) => object.id);
   expect(ids).not.toContain("perimeter-wall-north");
   const [west, east] = ["a", "b"].map((suffix) =>
-    course.objects.find((o) => o.id === `perimeter-wall-north-${suffix}`)!,
+    course.objects
+      .filter(isCoursePrimitiveObject)
+      .find((o) => o.id === `perimeter-wall-north-${suffix}`)!,
   );
   // The gap straddles where the ramp's centreline (sunward through the
   // origin) meets the wall, wider than the 8 m ramp.

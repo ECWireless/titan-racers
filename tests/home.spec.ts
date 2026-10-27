@@ -958,12 +958,14 @@ test.describe("home screen", () => {
     page,
   }, testInfo) => {
     // Software WebGL renders every stepped frame on the CPU, under all of
-    // the course's floodlights.
+    // the course's floodlights and through the tunnel's berm; a small
+    // viewport keeps it quick.
     testInfo.setTimeout(300_000);
     test.skip(
       testInfo.project.name !== "desktop",
       "Solo course progression only needs to run once.",
     );
+    await page.setViewportSize({ height: 270, width: 480 });
     const requested: string[] = [];
     await page.route("**/api/courses/*/published", async (route) => {
       requested.push(new URL(route.request().url()).pathname);
