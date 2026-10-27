@@ -87,7 +87,7 @@ test.describe("course persistence and authorization", () => {
       authorUserId: userId,
       courseId,
       revision: 1,
-      schemaVersion: 6,
+      schemaVersion: 7,
     });
 
     const secondDocument = structuredClone(document);
@@ -126,7 +126,7 @@ test.describe("course persistence and authorization", () => {
       authorUserId: userId,
       courseId,
       revision: 3,
-      schemaVersion: 6,
+      schemaVersion: 7,
     });
 
     let immutableRevisionError: unknown;
@@ -213,9 +213,9 @@ test.describe("course persistence and authorization", () => {
       document: {
         checkpoints: [{ forward: { x: -1, y: 0, z: 0 } }],
         enclosure: ROUGH_COURSE_DOCUMENT.enclosure,
-        schemaVersion: 6,
+        schemaVersion: 7,
       },
-      schemaVersion: 6,
+      schemaVersion: 7,
     });
 
     await publishCourseRevision({
@@ -226,9 +226,9 @@ test.describe("course persistence and authorization", () => {
     });
     const published = await loadLatestCoursePublication(courseId);
     expect(published).toMatchObject({
-      document: { schemaVersion: 6 },
+      document: { schemaVersion: 7 },
       revision: 1,
-      schemaVersion: 6,
+      schemaVersion: 7,
     });
 
     const [stored] = await db

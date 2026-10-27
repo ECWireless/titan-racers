@@ -2046,6 +2046,16 @@ function CollapsibleSection({
   );
 }
 
+// The tree and hedge limits count trees and leaf sprays, not presets.
+const PRESET_LIMIT_UNITS: Partial<Record<CourseObjectPreset, string>> = {
+  hedge: " leaf sprays",
+  "tree-bed": " trees",
+};
+
+function presetLimitMessage(preset: CourseObjectPreset, limit: number) {
+  return `${COURSE_OBJECT_PRESET_LABELS[preset]} limit reached (${limit}${PRESET_LIMIT_UNITS[preset] ?? ""})`;
+}
+
 function CoursePanel({
   document,
   onAddCheckpoint,
@@ -2076,7 +2086,7 @@ function CoursePanel({
   const reachedLimits = presetLimits.flatMap(([preset, limit]) =>
     limit === null
       ? []
-      : [`${COURSE_OBJECT_PRESET_LABELS[preset]} limit reached (${limit})`],
+      : [presetLimitMessage(preset, limit)],
   );
   const presetLimitReached = reachedLimits.length > 0;
   const presetLimitMessageId = useId();
@@ -2110,7 +2120,7 @@ function CoursePanel({
                   objectLimitReached
                     ? `Editor object limit reached (${COURSE_EDITOR_OBJECT_LIMIT})`
                     : presetBlocked
-                      ? `${label} limit reached (${presetLimit})`
+                      ? presetLimitMessage(preset, presetLimit)
                       : `Add ${label}`
                 }
                 type="button"

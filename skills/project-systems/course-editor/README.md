@@ -103,6 +103,11 @@ owns only Resume and Exit.
   the course unchanged.
 - The palette shows the `lamp` preset as "floodlight" beside a "tunnel lamp"
   preset hung from a 3.6 m roof; each kind stops at its own limit.
+- The "tree bed" preset (a 6 m mulch bed planted 1.5 m by 1.2 m) and the
+  "hedge" preset (1.2 × 2.4 × 6 m) stop at the course's tree and hedge
+  spray limits. Trees and hedge leaves draw but never take a pick, so a
+  click passes through them to what lies behind, such as the hedge itself.
+  A move, rotate, or scale that breaks the course's rules snaps back.
 - Arcs (the `curve` preset) keep the move and rotate gizmos at the arc's
   centre and have no Scale tool; the inspector steps their dimensions, and an
   edit that changes nothing or breaks the schema records no step. Their

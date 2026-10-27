@@ -39,6 +39,14 @@ phone budget. Art direction and the budget itself live in
   screen starts it, the race waits for it before its first frame, and the
   course editor switches to the scans when they arrive. If they fail, those
   surfaces keep the grain finish.
+- `src/game/course/course-trees.ts` draws a course's trees and hedges
+  ([visual identity](../../../docs/visual-identity.md#leaf-sprays)):
+  smooth grey-brown bark, and leaf sprays alpha-tested from the baked
+  coverage (alpha to coverage under MSAA), two-sided, and shaded by vertex
+  colour. Each tree variant's bark and leaves, and the stakes, are one
+  hardware-instanced draw each; all hedges' sprays are one mesh. The leaf
+  images load with the surface scans; without them trees stand bare and
+  hedges show their plain box.
 - `src/game/course/course-lamps.ts` puts a floodlight's arm, luminaire,
   and downward spot light on each `lamp` object's mast, at real brightness
   from the enclosure's lux scale and the habitat's lamp schedule, with no
@@ -164,6 +172,8 @@ course editor scenes in `src/game/editor/`, and
   portal compiles nothing mid-race. Re-verify these against the engine on upgrade.
 - Indoor and outdoor surfaces meet edge to edge at a portal, never
   overlapping: coplanar layers lit differently would flicker.
+- Each instanced tree draw culls as one, by bounds holding every instance
+  ([engine note](../../tools/playcanvas-ammo/course-editing/README.md)).
 - The environment never renders as a skybox: `applySceneLook` removes the
   skybox layer from the camera.
 - The race camera reports its frustum corners at its widest view

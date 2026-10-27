@@ -208,6 +208,13 @@ wireframe drawn from a generated mesh must pass `renderStyle` in the render
 component's data: assigning `meshInstances` resets each instance's style to
 the component's.
 
+An instanced draw culls by its render component's bounds, so set
+`entity.render.customAabb` after `addComponent`: PlayCanvas 2.20.6 replaces a
+mesh instance's own bounds when the component assigns its mesh instances, and
+`addComponent` ignores a `customAabb` passed with it. Without it the draw
+culls by one instance's bounds at the entity's origin, and distant instances
+vanish.
+
 ## Verification
 
 1. Every seed object produces the expected entity name, transform, material,

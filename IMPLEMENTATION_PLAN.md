@@ -398,31 +398,45 @@ barriers are the youth's portable race kit
       course beside 8 floodlights), and takes up to 1,000 objects. Course
       schema v6, no migration. Within the phone budget, frame and CPU time
       unchanged.
-- [ ] 4.4.3: Tree nursery rows and the service-road bypass, and how their
-      trees look. Past the tunnel's north portal the park's service road
-      carries on toward the levee the long way, about 250–300 m with no
-      barricade, while the nursery rows cut through; drivers who take the
-      road learn the nursery is quicker. Tune both routes against each other
-      by driving them. The race keeps the tunnel exit and levee crest
-      checkpoints and drops the nursery and culvert ones, as the downhill
-      fork does, so a crash in between recovers at the tunnel exit. Both
-      routes stay clearly lit at dusk; all eight floodlights are placed, so
-      decide how the road is lit. Also add the engine-backed lighting test
-      deferred from PR 4.4.2: through the scene test adapter, check that the
-      kart switches light channel and environment at each portal, on both its
-      original and its batched meshes, and again after a reset and a course
-      rebuild.
+- [x] 4.4.3: Tree nursery rows and the service-road bypass, and how their
+      trees look. Shipped: the nursery is raised, mulched, timber-edged
+      beds of young trees at real size (3.2 m nursery standards on stakes,
+      leaf sprays baked from a CC0 scan) with turf alleys through its
+      hairpins. The service road swoops south behind windbreak and screen
+      hedges, which keep the east view for the climb out of the nursery,
+      then climbs an access ramp onto the levee crest: tight hairpins or a
+      longer, faster sweep. Four more floodlights light the road at dusk,
+      raising the course limit to twelve. The race drops the nursery and
+      culvert checkpoints. The park stands 0.9 m off the habitat floor, so
+      the floor's curve stays below the chase camera.
+      The engine-backed lighting test checks the kart's light switch at
+      each portal, on both meshes, after a reset, a batch rebuild, and a
+      new race. Course schema v7 (planted beds, hedges), no migration.
+      Within the phone budget; CPU work rose about 1 ms.
 - [ ] 4.4.4: Stream, culvert, and levee vista, and how the water looks.
+      Site the stream's outfall where water would really leave the park,
+      with room beside it for the storm drain that 4.4.7 opens. Consider
+      something to dodge on the levee crest after the vista, so its long
+      straight stays interesting.
 - [ ] 4.4.5: Downhill run and spin jump. Floor markings' slope depth bias
       lets edge lines show through a ramp's thin toe from low, distant views
       (seen in PR 4.3.4 QA); fix it with these ramps, and check the fix on
-      the Starter Course's ramps too, since it is in the shared course
-      renderer. Karts hop down a steady slope at speed, because grounded
-      heave damping acts only on near-level support (seen on the 4.4.1
-      descent); decide whether the downhill needs a versioned physics
-      change.
+      the Starter Course's ramps and the service road's levee access ramp
+      too, since it is in the shared course renderer. Karts hop down a
+      steady slope at speed, because grounded heave damping acts only on
+      near-level support (seen on the 4.4.1 descent); decide whether the
+      downhill needs a versioned physics change.
 - [ ] 4.4.6: Return lane and finish: a final lighting pass.
-- [ ] 4.4.7: Detail pass, once the whole route is built. The finishes are
+- [ ] 4.4.7: Off-track clearing. A storm drain through the perimeter wall,
+      about 30 cm across (a kart fits, a car would not), sited where a real
+      drain would be, lets a kart leave the track and roam the park's mown
+      clearing, about 220 m in radius, out to a park fence before the belt
+      of trees. The ground beyond the walls follows the habitat floor's
+      real curve, rising about 5 m by the clearing's edge around the axis,
+      as drivable physics and near detail. No off-track marker: a racer may
+      have found a shortcut. Check colliders out there, shadow reach, dusk
+      light, and the phone budget.
+- [ ] 4.4.8: Detail pass, once the whole route is built. The finishes are
       flat colour with a fine grain, so pieces read as basic shapes: give
       concrete, steel, and paint real textures; bevel or detail the models
       whose silhouettes show (pipe flanges, door leaves, valve wheels,
@@ -430,7 +444,9 @@ barriers are the youth's portable race kit
       3.6 m clearance boards and its door numbers. Then an iPhone `?perf=1`
       run on the finished route, and the route in production: reset Falls
       View Park there to the finished seed with `db:reset-course-seed`, then
-      an admin publishes it.
+      an admin publishes it. If the phone run needs headroom, stop
+      spraying hedges' unseen faces (about 38% of their sprays, against the
+      ground, walls, and neighbours) and thin tree leaves at distance.
 
 **PR 4.5: Ambience and SFX**
 
@@ -458,7 +474,8 @@ barriers are the youth's portable race kit
       that never becomes the canonical user ID.
 - [ ] Login-gated global solo leaderboard. Official karts are eligible;
       community karts stay casual until their balance is validated.
-      Multiplayer results stay room-only.
+      Multiplayer results stay room-only. Decide whether runs that leave
+      the track through Falls View Park's storm drain stay eligible.
 - [ ] Progression tiers from Falls View Park best-time medals: a finish tier,
       then bronze, silver, and gold. Tiers do not unlock kart-assembly parts.
 - [ ] Guests keep racing freely without progression.

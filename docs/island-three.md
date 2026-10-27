@@ -139,7 +139,7 @@ flat local ground with four values:
 | `axial` | Metres along the axis from the midpoint, positive toward the sunward end cap. Courses stay 1200 m clear of the caps, beyond their terraces. |
 | `azimuth` | Degrees around the axis, increasing spinward. Valley *k* is centred at 120 *k*°, and courses stay 1.5° clear of the windows. |
 | `heading` | Yaw in degrees from the course's −Z to the sunward axis. |
-| `height` | Metres above the floor, at least 100 m clear of the axis. Floor courses use 0. |
+| `height` | Metres above the floor, at least 100 m clear of the axis. Floor courses use 0, or enough to keep the floor below a kart's eye where it curves up around the axis (about 1.3 m 100 m out); Falls View Park uses 0.9. |
 
 The course origin sits on the placement with +Y toward the axis. The cylinder
 spins right-handed about the sunward axis, so spinward = up × sunward. Course
@@ -212,11 +212,12 @@ toward the window darkens the habitat the same way.
   beacons on its towers; a few floodlit sports fields up the valley sides
   and across the cylinder; and the falls themselves, floodlit to about
   300 lux like a landmark (`src/game/enclosure/distant-lights.ts`).
-- A course's own lamps (at most eight) are floodlights, as a lit circuit
+- A course's own lamps (at most twelve) are floodlights, as a lit circuit
   has: 12 m masts with a sports floodlight of about 250,000 cd in neutral
   white (about 4500 K) shining down, on the habitat's lamp schedule, with no
-  shadows. Falls View Park races at deep dusk (89.5°) under eight, placed
-  along its outdoor sections; the habitat gives about 400 lux everywhere.
+  shadows. Falls View Park races at deep dusk (89.5°) under twelve, placed
+  along its outdoor sections and its service road; the habitat gives about
+  400 lux everywhere.
 
 Everything rotates together, so the light holds still for a whole race. The
 sun is the course's only shadow-casting light.

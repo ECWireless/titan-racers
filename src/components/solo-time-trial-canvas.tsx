@@ -47,6 +47,7 @@ import {
   createCourseInteriorAtlas,
   createCourseInteriorTest,
   createKartInteriorLighting,
+  getBatchMeshInstances,
 } from "@/game/course/course-interior";
 import { createCourseSurfaceMaterials } from "@/game/course/course-surface-materials";
 import { loadCourseSurfaceImages } from "@/game/course/course-surface-textures";
@@ -62,6 +63,10 @@ import {
 import { getHabitatLight } from "@/game/enclosure/habitat-light";
 import { getApprovedEnclosure, sceneLux } from "@/game/enclosure/island-three";
 import { addCourseLamps, courseLampLux } from "@/game/course/course-lamps";
+import {
+  addCourseTrees,
+  createCourseTreeMaterials,
+} from "@/game/course/course-trees";
 import { PlayerInputManager } from "@/game/input/player-input-manager";
 import { isEditableKeyboardTarget } from "@/game/input/keyboard-input";
 import { useControllerMenuNavigation } from "@/game/input/use-controller-menu-navigation";
@@ -164,7 +169,10 @@ import {
   type RaceProgressionResult,
   type RaceTransform,
 } from "@/game/race/race-session";
-import { attachSceneTestAdapter } from "@/game/testing/scene-test-adapter";
+import {
+  attachSceneTestAdapter,
+  describeKartLighting,
+} from "@/game/testing/scene-test-adapter";
 import {
   GameplayRunTelemetry,
   httpGameplayTelemetrySink,
@@ -880,6 +888,17 @@ export function SoloTimeTrialCanvas({
           tunnelLampsOn: true,
         }),
       );
+      const treeMaterials = createCourseTreeMaterials(
+        app.graphicsDevice,
+        courseSurfaceImages?.leaves ?? null,
+      );
+      runtime.addCleanup(() => treeMaterials.destroy());
+      const trees = addCourseTrees(app, COURSE_DOCUMENT, {
+        colliders: true,
+        materials: treeMaterials,
+        timber: courseSurfaces.materials.timber,
+      });
+      runtime.addCleanup(() => trees.destroy());
 
       // Static course visuals batch by finish. Authored entities and colliders
       // remain intact; the test-adapter barrels stay movable, and the editor
@@ -2603,6 +2622,27 @@ export function SoloTimeTrialCanvas({
             getCollisionDebugState,
             getCollisionResponseDebugState,
             getKartDebugState,
+            getKartLightingDebugState: () => {
+              if (!interiorAtlas || !isUnderRoof || !habitatAtlas) return null;
+              const atlases = {
+                habitat: habitatAtlas,
+                interior: interiorAtlas,
+              };
+              return {
+                batched: describeKartLighting(
+                  getBatchMeshInstances(app, kartBatchGroup.id),
+                  atlases,
+                ),
+                original: describeKartLighting(
+                  kartVisual
+                    .find((node) => Boolean((node as pc.Entity).render))
+                    .flatMap(
+                      (node) => (node as pc.Entity).render!.meshInstances,
+                    ),
+                  atlases,
+                ),
+              };
+            },
             getKartScreenPoint,
             getKartVisualDebugState,
             getPresentationDebugState,
@@ -2611,6 +2651,15 @@ export function SoloTimeTrialCanvas({
               lastProgressionResult: lastRaceProgressionResult,
             }),
             getSuspensionDebugState,
+            rebuildKartBatches: () => {
+              const before = new Set(
+                getBatchMeshInstances(app, kartBatchGroup.id),
+              );
+              app.batcher.generate([kartBatchGroup.id]);
+              return getBatchMeshInstances(app, kartBatchGroup.id).every(
+                (meshInstance) => !before.has(meshInstance),
+              );
+            },
             requestRaceRecovery,
             resetKart,
             setCourseObjectDebugTransform,

@@ -1,3 +1,5 @@
+import * as pc from "playcanvas";
+
 import type { CourseTestObstacleId, Position3 } from "../contracts";
 import type {
   KartDevelopmentValueMetadata,
@@ -105,6 +107,18 @@ export type KartDebugPose = {
   rotation: Position3;
 };
 
+/** The light a set of kart meshes takes: each distinct value among them. */
+export type KartLightingSample = {
+  environments: Array<"habitat" | "interior" | "other">;
+  lightChannels: Array<"indoor" | "outdoor" | "other">;
+};
+
+/** Null on a course without an inside. */
+export type KartLightingDebugState = {
+  batched: KartLightingSample;
+  original: KartLightingSample;
+} | null;
+
 export type KartVisualDebugState = {
   component: Position3 | null;
   primitive: Position3 | null;
@@ -145,11 +159,14 @@ export type SceneTestApi = {
   getCollisionDebugState: () => CollisionDebugState;
   getCollisionResponseDebugState: () => CollisionResponseDebugState;
   getKartDebugState: () => KartDebugState;
+  getKartLightingDebugState: () => KartLightingDebugState;
   getKartScreenPoint: () => CanvasPoint;
   getKartVisualDebugState: () => KartVisualDebugState;
   getPresentationDebugState: () => PresentationDebugState;
   getRaceDebugState: () => RaceDebugState;
   getSuspensionDebugState: () => SuspensionDebugState;
+  /** Whether every batch was replaced. */
+  rebuildKartBatches: () => boolean;
   requestRaceRecovery: () => void;
   resetKart: () => void;
   setCourseObjectDebugTransform: (
@@ -169,6 +186,36 @@ export type SceneTestApi = {
   stepSimulation: (steps: number) => void;
   stepSimulationWithKartSamples: (steps: number) => KartDebugState[];
 };
+
+export function describeKartLighting(
+  meshInstances: readonly pc.MeshInstance[],
+  atlases: { habitat: pc.Texture; interior: pc.Texture },
+): KartLightingSample {
+  const distinct = <T extends string>(values: T[]) =>
+    [...new Set(values)].sort();
+  return {
+    environments: distinct(
+      meshInstances.map(({ material }) => {
+        const atlas =
+          material instanceof pc.StandardMaterial ? material.envAtlas : null;
+        return atlas === atlases.interior
+          ? "interior"
+          : atlas === atlases.habitat
+            ? "habitat"
+            : "other";
+      }),
+    ),
+    lightChannels: distinct(
+      meshInstances.map(({ mask }) =>
+        mask === pc.MASK_AFFECT_LIGHTMAPPED
+          ? "indoor"
+          : mask === pc.MASK_AFFECT_DYNAMIC
+            ? "outdoor"
+            : "other",
+      ),
+    ),
+  };
+}
 
 export function attachSceneTestAdapter(
   canvas: HTMLCanvasElement,
@@ -213,6 +260,16 @@ export function attachSceneTestAdapter(
         }>,
       ) => {
         event.detail.respond(api.getKartDebugState());
+      }) as EventListener,
+    ],
+    [
+      "getKartLightingDebugState",
+      ((
+        event: CustomEvent<{
+          respond: (state: KartLightingDebugState) => void;
+        }>,
+      ) => {
+        event.detail.respond(api.getKartLightingDebugState());
       }) as EventListener,
     ],
     [
@@ -263,6 +320,12 @@ export function attachSceneTestAdapter(
         }>,
       ) => {
         event.detail.respond(api.getSuspensionDebugState());
+      }) as EventListener,
+    ],
+    [
+      "rebuildKartBatches",
+      ((event: CustomEvent<{ respond: (rebuilt: boolean) => void }>) => {
+        event.detail.respond(api.rebuildKartBatches());
       }) as EventListener,
     ],
     [

@@ -75,7 +75,7 @@ Orange and hazard are signals. Use them sparingly so they stay readable.
   flat clear colors.
 - **Lamps at real brightness.** At dusk, warm white street lamps light
   across the habitat, and a course is floodlit like a lit circuit: up to
-  eight neutral white floodlights on full-size masts, with no shadows. The
+  twelve neutral white floodlights on full-size masts, with no shadows. The
   falls are floodlit, and the falls bridge and distant sports fields carry
   their lights through the haze
   ([dusk and night](island-three.md#dusk-and-night)).
@@ -168,6 +168,13 @@ Materials), and so do course surfaces (see Course Surfaces).
   on grass. Wheels on turf and lawn throw real-size clippings, more when they
   slide, which fly under real gravity. All follow the actual tire contact and
   slip.
+- **Planting is a working nursery's.** Young trees stand in rows on raised,
+  mulched beds edged with timber, as three-year nursery standards at real
+  size: a 3.2 m leader on a 1.8 m clear stem, tied to a 1.2 m stake, with a
+  crown of leaf sprays. Three variants, turned and sized a little apiece,
+  keep rows from repeating. Hedges are clipped boxes covered in the same
+  sprays. Trunks and stakes collide; leaves do not, and the chase camera
+  looks past trees.
 
 ### Surface Scans
 
@@ -191,6 +198,15 @@ in `src/game/enclosure/tree-textures/`: an opaque colour atlas, and a shape
 atlas of view-space normals and the leaves' coverage, so the habitat's sun
 lights each tree from its side. Firs are darkened toward needles in the
 race.
+
+### Leaf Sprays
+
+Course trees and hedges share four leaf sprays, 0.5 m cards baked by
+`scripts/bake-leaf-sprays.ts` from Island Tree 01's scanned leaves (Poly
+Haven, CC0) at about 1 mm a pixel: a twig carrying 9–13.5 cm leaves, in a
+2 × 2 atlas of colour and coverage in `src/game/course/tree-textures/`.
+They draw alpha-tested and two-sided, darkened by vertex colour the deeper
+they sit in a tree's crown or a hedge.
 
 ## Phone Performance Budget
 
@@ -225,12 +241,12 @@ CPU work and draw calls are the headroom signals.
 
 ### Baseline
 
-| Measure | Before lighting (PR 4.1.2 start) | After lighting baseline | Part visuals (PR 4.1.3) | Authored primitives (PR 4.1.4) | Sandbox surfaces (PR 4.2.1) | Surface physics (PR 4.2.2) | Collision substeps (PR 4.2.3) | Surface effects (PR 4.2.4) | Surface scans (PR 4.2.5) | Handbrake clutch (PR 4.2.6) | Island Three (PR 4.3.1) | Habitat physics (PR 4.3.2) | Loading screen (PR 4.3.3) | Valley structures (PR 4.3.4) | Dusk and night (PR 4.3.5) | Falls View Park route (PR 4.4.1) | Wheel blur (PR 4.4.1.1) | Utility tunnel (PR 4.4.2) |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| Frame p50 / p95 | 17.0 / 18.0 ms | 17.0 / 18.0 ms | 17.0 / 18.0 ms | 17.0 / 18.0–19.0 ms | 17.0 / 18.0 ms | 17.0 / 18.0 ms | 17.0 / 18.0 ms | 17.0 / 18.0 ms | 17.0 / 18.0 ms | 17.0 / 18.0 ms | 17.0 / 18.0 ms | 17.0 / 18.0 ms | 17.0 / 18.0 ms | 17.0 / 18.0 ms | 17.0 / 18.0 ms | 17.0 / 18.0 ms | 17.0 / 18.0 ms | 17.0 / 18.0 ms |
-| CPU p50 / p95 | 3 / 4 ms | 3 / 4 ms | 2 / 3 ms | 2 / 3 ms | 2 / 3–4 ms | 2 / 3 ms | 3 / 4 ms | 2 / 3–4 ms | 2–3 / 4 ms | 2 / 3 ms | 2 / 3 ms | 2 / 3–4 ms | 2 / 3 ms | 3 / 4 ms | 2–3 / 3–4 ms | 3 / 4 ms | 3 / 4 ms | 3 / 4 ms |
-| Draw calls p50 / max | 212 / 226 | 213 / 226 | 38–39 / 55 | 38–39 / 51 | 34 / 45–46 | 35 / 48–49 | 35–36 / 46–49 | 36–37 / 49–51 | 37–39 / 49–51 | 36–37 / 49–50 | 30–31 / 41 | 31–32 / 41–42 | 30–32 / 41 | 44–45 / 55–58 | 31 / 43–44 | 24 / 37–39 | 27 / 42 | 32 / 52 |
-| First frame (warm) | 63–136 ms | 107–278 ms | 121–128 ms | 132–191 ms | 335–392 ms | 133–207 ms | 136–282 ms | 147–230 ms | 240–243 ms | Not measured | 259 ms | 352–433 ms | 289–295 ms | 302–575 ms | 265–281 ms | 305–321 ms | 300 ms | 302 ms |
+| Measure | Before lighting (PR 4.1.2 start) | After lighting baseline | Part visuals (PR 4.1.3) | Authored primitives (PR 4.1.4) | Sandbox surfaces (PR 4.2.1) | Surface physics (PR 4.2.2) | Collision substeps (PR 4.2.3) | Surface effects (PR 4.2.4) | Surface scans (PR 4.2.5) | Handbrake clutch (PR 4.2.6) | Island Three (PR 4.3.1) | Habitat physics (PR 4.3.2) | Loading screen (PR 4.3.3) | Valley structures (PR 4.3.4) | Dusk and night (PR 4.3.5) | Falls View Park route (PR 4.4.1) | Wheel blur (PR 4.4.1.1) | Utility tunnel (PR 4.4.2) | Nursery and service road (PR 4.4.3) |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| Frame p50 / p95 | 17.0 / 18.0 ms | 17.0 / 18.0 ms | 17.0 / 18.0 ms | 17.0 / 18.0–19.0 ms | 17.0 / 18.0 ms | 17.0 / 18.0 ms | 17.0 / 18.0 ms | 17.0 / 18.0 ms | 17.0 / 18.0 ms | 17.0 / 18.0 ms | 17.0 / 18.0 ms | 17.0 / 18.0 ms | 17.0 / 18.0 ms | 17.0 / 18.0 ms | 17.0 / 18.0 ms | 17.0 / 18.0 ms | 17.0 / 18.0 ms | 17.0 / 18.0 ms | 17.0 / 18.0 ms |
+| CPU p50 / p95 | 3 / 4 ms | 3 / 4 ms | 2 / 3 ms | 2 / 3 ms | 2 / 3–4 ms | 2 / 3 ms | 3 / 4 ms | 2 / 3–4 ms | 2–3 / 4 ms | 2 / 3 ms | 2 / 3 ms | 2 / 3–4 ms | 2 / 3 ms | 3 / 4 ms | 2–3 / 3–4 ms | 3 / 4 ms | 3 / 4 ms | 3 / 4 ms | 4 / 5 ms |
+| Draw calls p50 / max | 212 / 226 | 213 / 226 | 38–39 / 55 | 38–39 / 51 | 34 / 45–46 | 35 / 48–49 | 35–36 / 46–49 | 36–37 / 49–51 | 37–39 / 49–51 | 36–37 / 49–50 | 30–31 / 41 | 31–32 / 41–42 | 30–32 / 41 | 44–45 / 55–58 | 31 / 43–44 | 24 / 37–39 | 27 / 42 | 32 / 52 | 40–41 / 65–69 |
+| First frame (warm) | 63–136 ms | 107–278 ms | 121–128 ms | 132–191 ms | 335–392 ms | 133–207 ms | 136–282 ms | 147–230 ms | 240–243 ms | Not measured | 259 ms | 352–433 ms | 289–295 ms | 302–575 ms | 265–281 ms | 305–321 ms | 300 ms | 302 ms | 421 ms |
 
 PR 4.1.4 was measured with one race on each official kart rather than three
 Balanced races. Each official kart is 15.3–15.5k triangles: 11.6k of part
@@ -321,3 +337,10 @@ finishes and interior environment, and 131 dressing objects add about five
 draws; frame time and CPU work are unchanged, and the race was ready after
 414 ms. Crossing the portals compiles nothing: the kart lit both ways
 behind the loading screen. The first load after a new build took 1,259 ms.
+
+PR 4.4.3 was measured with two races on Falls View Park at deep dusk: the
+first load after a new build (970 ms, one hitch), then a second with no
+hitches. The nursery's 355 trees (each variant's bark and leaves, and the
+stakes, one instanced draw each) and the hedges add about eight draws, and
+CPU work rises about 1 ms, to a 4 ms median within the 5 ms budget; frame
+time is unchanged. Watch CPU work as the rest of the route is dressed.

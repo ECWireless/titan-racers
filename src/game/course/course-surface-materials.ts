@@ -195,6 +195,11 @@ export function createCourseSurfaceMaterials(
     obstacleBarrel: finish(hex("#bd482d"), 0.3, [0.12, 0.08, 0]),
     obstacleBlock: finish(hex("#a9a393"), 0.16, [0.3, 0.16, 0]),
     ramp: finish(hex("#54646b"), 0.26, [0.25, 0.12, 0]),
+    // The nursery: weathered treated softwood, dark bark mulch, and the
+    // shaded inside of a clipped hedge, behind its leaves.
+    timber: finish(hex("#857661"), 0.14, [0.3, 0.18, 0]),
+    mulch: finish(hex("#3e3025"), 0.06, [0.7, 0.35, 0]),
+    hedge: finish(hex("#46522f"), 0.08, [0.35, 0.25, 0]),
   });
   const materials = createFinishes();
   const indoorMaterials = interior ? createFinishes() : null;
@@ -241,8 +246,11 @@ export function createCourseSurfaceMaterials(
         scanTextures.push(result);
         return result;
       };
+      const scans = (["asphalt", "lawn", "turf"] as const).map(
+        (surface) => [surface, images[surface]] as const,
+      );
       const textures = Object.fromEntries(
-        Object.entries(images).map(([surface, image]) => [
+        scans.map(([surface, image]) => [
           surface,
           {
             albedo: texture(`course-${surface}-albedo`, image.albedo, pc.PIXELFORMAT_SRGBA8),
