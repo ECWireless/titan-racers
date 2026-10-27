@@ -1,6 +1,6 @@
 # Course Data System
 
-**Maturity:** Validated (PR 2.3.1, extended by PRs 2.4.2 and 4.4.2).
+**Maturity:** Validated (PR 2.3.1, extended by PRs 2.4.2, 4.4.2, and 4.4.3).
 
 ## Purpose And Scope
 
@@ -25,7 +25,7 @@ own editor commands or persistence UI.
 ## Source Ownership
 
 - `src/game/course/course-document.ts` defines strict Zod legacy schemas and the
-  canonical version-six schema, deterministic legacy normalization,
+  canonical version-seven schema, deterministic legacy normalization,
   cross-document ID and checkpoint-order refinements, gate-face direction
   alignment, canonical sorting, serialization, inferred TypeScript types, and
   validated seed export.
@@ -33,21 +33,27 @@ own editor commands or persistence UI.
   courses with bundled seeds, and the guest solo course (`falls-view-park`)
   explicit; `course-publication.ts`
   validates protected publication and privacy-minimized public runtime shapes.
-- `src/game/course/rough-course.v6.json` is the canonical portable rough-course
+- `src/game/course/rough-course.v7.json` is the canonical portable rough-course
   sandbox seed. It contains the start/finish gate, three ordered checkpoints
   whose gates reach from the infield into the grass, with directed gate and
   recovery data, an infield barrier, ordinary surfaces and objects, camera
   fixtures, and opt-in collision fixtures.
   It permanently restores only course ID `rough-course`; the official
   Falls View Park document uses the distinct ID `falls-view-park`, seeded by
-  `falls-view-park.v6.json`: a walled two-lap circuit of about 550 m, with
+  `falls-view-park.v7.json`: a walled two-lap circuit of about 550 m, with
   4.5 m lanes for four karts abreast, from a utility tunnel through nursery
   rows and a culvert, up onto a levee crest facing the falls, down an
   anti-spinward descent that forks into a jump lane and a gentle lane, and
   back along a return lane, placed in another valley 2.5 km from the
   sunward end cap, at deep dusk (mirror 89.5°) under floodlights. Its start
-  sits in a roofed, lamp-lit, and dressed utility tunnel under an earth berm;
-  the sections after it are plain track, not yet dressed.
+  sits in a roofed, lamp-lit, and dressed utility tunnel under an earth berm.
+  Past the tunnel the route forks: turf alleys between planted beds take the
+  nursery hairpins, or the service road swoops south behind hedges and climbs
+  an access ramp to the levee crest; both rejoin before the crest checkpoint.
+  The sections after the crest are plain track, not yet dressed. It stands
+  0.9 m above the habitat floor (`enclosure.placement.height`), so the
+  floor, which curves up around the axis across its 164 m north–south span,
+  stays below the chase camera at every wall.
   `BUNDLED_COURSE_DOCUMENTS` maps each official course to its seed.
 - `src/game/course/build-rough-course.ts` projects a validated document into
   PlayCanvas visual, collision, rigid-body, tag, group, and mask state. It
@@ -62,6 +68,13 @@ own editor commands or persistence UI.
 - `src/game/course/course-surface-materials.ts` creates the course finishes
   shared by the race and editor (see
   [scene lighting](../scene-lighting/README.md)) and the top-face meshes.
+- `src/game/course/course-tree-geometry.ts` builds the planted beds' trees
+  (where each stands, and its three variants' bark, leaf sprays, and stake)
+  and the hedges' leaf sprays from a validated document, deterministically;
+  `course-trees.ts` draws them (see
+  [scene lighting](../scene-lighting/README.md)) and gives each tree one
+  static box round its stem and stake, tagged `tree` so the chase camera
+  looks past it.
 - `src/game/course/build-course-lighting.ts` projects the enclosure's sun
   into one shadow-casting directional light.
 - `src/game/enclosure/island-three.ts` owns the approved enclosure registry,
@@ -73,6 +86,8 @@ own editor commands or persistence UI.
   course geometry, start, collision, and lighting construction.
 - `tests/course-arc.spec.ts` owns the arc generator: segment counts, chord
   error, normals and winding, and collision boxes that meet on the outer face.
+- `tests/course-trees.spec.ts` owns tree placement, size, triangle budget,
+  winding, and hedge spray coverage.
 - `tests/course-document.spec.ts` owns schema, seed, catalog, stable-ID,
   checkpoint-order, canonical round-trip, invalid-input, and retained-geometry
   assertions.
@@ -81,10 +96,10 @@ own editor commands or persistence UI.
 
 ## Document Contract
 
-Canonical version six is strict JSON using metres, Y-up positions, and Euler
+Canonical version seven is strict JSON using metres, Y-up positions, and Euler
 degrees. It contains:
 
-- literal schema version `6`;
+- literal schema version `7`;
 - a stable course ID and name;
 - one stable start ID, transform (the start/finish gate), bounded start-gate
   half-extents, and a spawn distance (0–10 m) placing the kart behind the gate
@@ -109,7 +124,7 @@ cylinder shape, local transform, physical dimensions, semantic role, friction,
 restitution, and a versioned `surfaceMaterial` reference. Visual material never
 selects tire grip. An object marked `lamp: "floodlight"` is a floodlight's mast:
 `course-lamps.ts` adds the arm, luminaire, and spot light on its top, reaching
-along its local -Z. A course has at most eight floodlights
+along its local -Z. A course has at most twelve floodlights
 (`COURSE_LAMP_LIMIT`). An object marked `lamp: "tunnel"` is a tunnel
 luminaire's housing, with its lens and downward light beneath it; a course
 has at most sixteen (`COURSE_TUNNEL_LAMP_LIMIT`), counted apart from the
@@ -130,6 +145,15 @@ as arcs, and lamps never stand on them. Segment counts and collision boxes are
 derived at build time, never stored. `isCoursePrimitiveObject` narrows to the
 box and cylinder objects that have a scale.
 
+Version seven adds the `timber`, `mulch`, and `hedge` finishes and planted
+beds. `planting: { along, across }` (0.5–20 m) on an outdoor box that is not
+a lamp or roof grows young trees on its top, in rows along its local X
+`along` apart, the rows `across` apart along its local Z
+(`getCoursePlantingGrid`). A `hedge` finish must also be an outdoor box that
+is not a lamp or roof; its sides and top carry 24 leaf sprays a square
+metre. A course holds at most 2,000 trees (`COURSE_TREE_LIMIT`) and 40,000
+hedge sprays (`COURSE_HEDGE_SPRAY_LIMIT`).
+
 Coordinates and dimensions are finite and bounded to the accepted authoring
 envelope. Unknown fields and unsupported enum values fail rather than being
 silently stripped. The complete document validates before scene construction.
@@ -137,10 +161,11 @@ silently stripped. The complete document validates before scene construction.
 ## Legacy Normalization
 
 Stored revisions are immutable, so `parseCourseDocument` keeps strict
-version-one to version-five schemas and normalizes them in memory to version
-six; canonical serialization and every new save use version six. Version
-four allows mirror angles only up to 85° and no lamps, and version five no
-indoor, overhead, or arc objects and no tunnel lamps; both upgrade unchanged.
+version-one to version-six schemas and normalizes them in memory to version
+seven; canonical serialization and every new save use version seven. Version
+four allows mirror angles only up to 85° and no lamps, version five no
+indoor, overhead, or arc objects and no tunnel lamps, and version six no
+planting or hedges and at most eight floodlights; all upgrade unchanged.
 Version two adds
 `start.gateHalfExtents`, `checkpoints[].forward`, and
 `checkpoints[].recovery`.
@@ -160,7 +185,7 @@ Version two adds
 - Degenerate coincident anchors or directions that cannot identify a face are
   rejected rather than invented.
 - A loaded version-one row is normalized in memory, and its next save creates a
-  new version-six revision. Persistence responses report the normalized schema
+  new version-seven revision. Persistence responses report the normalized schema
   version consistently.
 
 Every legacy collider normalizes to `surface.standard-course@1`, including

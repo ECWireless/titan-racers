@@ -212,11 +212,12 @@ toward the window darkens the habitat the same way.
   beacons on its towers; a few floodlit sports fields up the valley sides
   and across the cylinder; and the falls themselves, floodlit to about
   300 lux like a landmark (`src/game/enclosure/distant-lights.ts`).
-- A course's own lamps (at most eight) are floodlights, as a lit circuit
+- A course's own lamps (at most twelve) are floodlights, as a lit circuit
   has: 12 m masts with a sports floodlight of about 250,000 cd in neutral
   white (about 4500 K) shining down, on the habitat's lamp schedule, with no
-  shadows. Falls View Park races at deep dusk (89.5°) under eight, placed
-  along its outdoor sections; the habitat gives about 400 lux everywhere.
+  shadows. Falls View Park races at deep dusk (89.5°) under twelve, placed
+  along its outdoor sections and its service road; the habitat gives about
+  400 lux everywhere.
 
 Everything rotates together, so the light holds still for a whole race. The
 sun is the course's only shadow-casting light.
