@@ -23,6 +23,20 @@ function cloneSeed() {
   return structuredClone(ROUGH_COURSE_DOCUMENT);
 }
 
+// Falls View Park as a version-six course could hold it: no nursery
+// finishes or beds, and eight floodlights.
+function versionSixFallsViewPark() {
+  const document = structuredClone(FALLS_VIEW_PARK_DOCUMENT);
+  let floodlights = 0;
+  document.objects = document.objects.filter(
+    (object) =>
+      !object.planting &&
+      !["hedge", "mulch", "timber"].includes(object.visual.material) &&
+      (object.lamp !== "floodlight" || ++floodlights <= 8),
+  );
+  return document;
+}
+
 // The rough course's authored lights before it moved into Island Three.
 const LEGACY_LIGHTING = {
   ambient: { color: { b: 0.46, g: 0.39, r: 0.34 }, intensity: 1 },
@@ -230,7 +244,7 @@ test("adds course lamps and night mirrors from schema version five", () => {
     FALLS_VIEW_PARK_DOCUMENT.objects.filter(
       (object) => object.lamp === "floodlight",
     ),
-  ).toHaveLength(8);
+  ).toHaveLength(12);
 
   // Version four upgrades unchanged, but keeps its 85° mirrors and no lamps.
   expect(parseCourseDocument({ ...cloneSeed(), schemaVersion: 4 })).toEqual(
@@ -241,7 +255,7 @@ test("adds course lamps and night mirrors from schema version five", () => {
   expect(courseDocumentSchema.safeParse(night).success).toBe(true);
   expect(() => parseCourseDocument({ ...night, schemaVersion: 4 })).toThrow();
   const lampsInVersionFour = {
-    ...structuredClone(FALLS_VIEW_PARK_DOCUMENT),
+    ...versionSixFallsViewPark(),
     enclosure: { ...FALLS_VIEW_PARK_DOCUMENT.enclosure, mirrorAngle: 80 },
     schemaVersion: 4,
   };
@@ -249,7 +263,7 @@ test("adds course lamps and night mirrors from schema version five", () => {
 
   // Versions five and six hold eight floodlights; seven holds twelve.
   const withLamps = (count: number) => {
-    const document = structuredClone(FALLS_VIEW_PARK_DOCUMENT);
+    const document = versionSixFallsViewPark();
     const mast = document.objects.find((object) => object.lamp === "floodlight")!;
     for (let index = 8; index < count; index++) {
       document.objects.push({ ...structuredClone(mast), id: `lamp-extra-${index}` });
@@ -265,7 +279,7 @@ test("adds course lamps and night mirrors from schema version five", () => {
 
 test("adds indoor objects, overhead objects, and tunnel lamps from schema version six", () => {
   // Version five upgrades unchanged, but has no tunnel lamps, indoors or arcs.
-  const outdoors = structuredClone(FALLS_VIEW_PARK_DOCUMENT);
+  const outdoors = versionSixFallsViewPark();
   outdoors.objects = outdoors.objects
     .filter(isCoursePrimitiveObject)
     .filter((object) => object.lamp !== "tunnel");
@@ -493,7 +507,7 @@ test("adds smooth arcs in schema version six", () => {
   expect(courseDocumentSchema.safeParse(boxAsArc).success).toBe(false);
   // Version five has no arcs: without its other version-six fields, the
   // seed fails as version five only while it keeps them.
-  const versionFive = structuredClone(FALLS_VIEW_PARK_DOCUMENT);
+  const versionFive = versionSixFallsViewPark();
   versionFive.objects = versionFive.objects.filter(
     (object) => object.lamp !== "tunnel",
   );
@@ -936,9 +950,10 @@ test("rejects missing and unsupported v3 surface identities", () => {
 
 test("adds the nursery's finishes and planted beds in schema version seven", () => {
   // Version six upgrades unchanged.
-  expect(
-    parseCourseDocument({ ...structuredClone(FALLS_VIEW_PARK_DOCUMENT), schemaVersion: 6 }),
-  ).toEqual(FALLS_VIEW_PARK_DOCUMENT);
+  const versionSix = versionSixFallsViewPark();
+  expect(parseCourseDocument({ ...versionSix, schemaVersion: 6 })).toEqual(
+    versionSix,
+  );
 
   const block = FALLS_VIEW_PARK_DOCUMENT.objects
     .filter(isCoursePrimitiveObject)
@@ -949,7 +964,7 @@ test("adds the nursery's finishes and planted beds in schema version seven", () 
     planting: { across: 1.5, along: 1.2 },
     visual: { material: "mulch" as const, scale: { x: 6, y: 0.2, z: 6 }, shape: "box" as const },
   };
-  const planted = structuredClone(FALLS_VIEW_PARK_DOCUMENT);
+  const planted = structuredClone(versionSix);
   planted.objects.push(bed, {
     ...structuredClone(block),
     id: "nursery-hedge",
