@@ -4,7 +4,11 @@ import { join } from "node:path";
 import { expect, test } from "@playwright/test";
 
 import {
+  COURSE_HEDGE_SPRAY_LIMIT,
   COURSE_LAMP_LIMIT,
+  COURSE_TREE_LIMIT,
+  countCourseHedgeSprays,
+  countCourseTrees,
   type CourseDocument,
   courseDocumentSchema,
   FALLS_VIEW_PARK_DOCUMENT,
@@ -98,7 +102,7 @@ function findObject(id: string) {
 }
 
 test("parses the versioned rough course with stable IDs and ordered checkpoints", () => {
-  expect(ROUGH_COURSE_DOCUMENT.schemaVersion).toBe(6);
+  expect(ROUGH_COURSE_DOCUMENT.schemaVersion).toBe(7);
   expect(ROUGH_COURSE_DOCUMENT.units).toBe("meters");
   expect(ROUGH_COURSE_DOCUMENT.start.id).toBe("start-position");
   expect(ROUGH_COURSE_DOCUMENT.checkpoints).toHaveLength(3);
@@ -226,7 +230,7 @@ test("adds course lamps and night mirrors from schema version five", () => {
     FALLS_VIEW_PARK_DOCUMENT.objects.filter(
       (object) => object.lamp === "floodlight",
     ),
-  ).toHaveLength(COURSE_LAMP_LIMIT);
+  ).toHaveLength(8);
 
   // Version four upgrades unchanged, but keeps its 85° mirrors and no lamps.
   expect(parseCourseDocument({ ...cloneSeed(), schemaVersion: 4 })).toEqual(
@@ -243,14 +247,20 @@ test("adds course lamps and night mirrors from schema version five", () => {
   };
   expect(() => parseCourseDocument(lampsInVersionFour)).toThrow();
 
-  const extraLamp = structuredClone(FALLS_VIEW_PARK_DOCUMENT);
-  extraLamp.objects.push({
-    ...extraLamp.objects.find((object) => object.lamp === "floodlight")!,
-    id: "lamp-extra",
-  });
-  expect(courseDocumentSchema.safeParse(extraLamp).error?.issues).toContainEqual(
-    expect.objectContaining({ path: ["objects"] }),
-  );
+  // Versions five and six hold eight floodlights; seven holds twelve.
+  const withLamps = (count: number) => {
+    const document = structuredClone(FALLS_VIEW_PARK_DOCUMENT);
+    const mast = document.objects.find((object) => object.lamp === "floodlight")!;
+    for (let index = 8; index < count; index++) {
+      document.objects.push({ ...structuredClone(mast), id: `lamp-extra-${index}` });
+    }
+    return document;
+  };
+  expect(courseDocumentSchema.safeParse(withLamps(COURSE_LAMP_LIMIT)).success).toBe(true);
+  expect(
+    courseDocumentSchema.safeParse(withLamps(COURSE_LAMP_LIMIT + 1)).error?.issues,
+  ).toContainEqual(expect.objectContaining({ path: ["objects"] }));
+  expect(() => parseCourseDocument({ ...withLamps(9), schemaVersion: 6 })).toThrow();
 });
 
 test("adds indoor objects, overhead objects, and tunnel lamps from schema version six", () => {
@@ -656,7 +666,7 @@ function toObjectFrame(
 }
 
 test("serializes the seeds deterministically and round trips without changes", () => {
-  for (const seed of ["rough-course.v6.json", "falls-view-park.v6.json"]) {
+  for (const seed of ["rough-course.v7.json", "falls-view-park.v7.json"]) {
     const source = readFileSync(
       join(process.cwd(), "src/game/course", seed),
       "utf8",
@@ -668,7 +678,7 @@ test("serializes the seeds deterministically and round trips without changes", (
   }
   expect(serializeCourseDocument(ROUGH_COURSE_DOCUMENT)).toBe(
     readFileSync(
-      join(process.cwd(), "src/game/course/rough-course.v6.json"),
+      join(process.cwd(), "src/game/course/rough-course.v7.json"),
       "utf8",
     ),
   );
@@ -701,7 +711,7 @@ test("normalizes version-one course data without mutating the stored input", () 
   expect(withoutDerived(normalized)).toEqual(
     withoutDerived(ROUGH_COURSE_DOCUMENT),
   );
-  expect(normalized.schemaVersion).toBe(6);
+  expect(normalized.schemaVersion).toBe(7);
 });
 
 test("normalizes a valid one-checkpoint version-one course", () => {
@@ -896,7 +906,7 @@ test("normalizes v2 to standard surfaces without inferring physics from visuals"
   const input = createVersionTwoSeed();
   const stored = structuredClone(input);
   const normalized = parseCourseDocument(input);
-  expect(normalized.schemaVersion).toBe(6);
+  expect(normalized.schemaVersion).toBe(7);
   // Legacy karts keep spawning on the start gate.
   expect(normalized.start.spawnDistance).toBe(0);
   for (const object of normalized.objects) {
@@ -922,4 +932,81 @@ test("rejects missing and unsupported v3 surface identities", () => {
     Object.assign(input.objects[0].collision!, { surfaceMaterial });
     expect(courseDocumentSchema.safeParse(input).success).toBe(false);
   }
+});
+
+test("adds the nursery's finishes and planted beds in schema version seven", () => {
+  // Version six upgrades unchanged.
+  expect(
+    parseCourseDocument({ ...structuredClone(FALLS_VIEW_PARK_DOCUMENT), schemaVersion: 6 }),
+  ).toEqual(FALLS_VIEW_PARK_DOCUMENT);
+
+  const block = FALLS_VIEW_PARK_DOCUMENT.objects
+    .filter(isCoursePrimitiveObject)
+    .find((object) => object.collision?.role === "solid-obstacle")!;
+  const bed = {
+    ...structuredClone(block),
+    id: "nursery-bed",
+    planting: { across: 1.5, along: 1.2 },
+    visual: { material: "mulch" as const, scale: { x: 6, y: 0.2, z: 6 }, shape: "box" as const },
+  };
+  const planted = structuredClone(FALLS_VIEW_PARK_DOCUMENT);
+  planted.objects.push(bed, {
+    ...structuredClone(block),
+    id: "nursery-hedge",
+    visual: { material: "hedge", scale: { x: 1.2, y: 2.4, z: 6 }, shape: "box" },
+  });
+  expect(parseCourseDocument(planted)).toEqual(planted);
+  expect(
+    parseCourseDocument(JSON.parse(serializeCourseDocument(planted))),
+  ).toEqual(planted);
+  // Rows of five 1.2 m apart, four rows 1.5 m apart.
+  expect(countCourseTrees(planted)).toBe(20);
+  // The new finishes and planting are version seven's.
+  expect(() => parseCourseDocument({ ...planted, schemaVersion: 6 })).toThrow();
+
+  const issuePath = (document: CourseDocument) =>
+    courseDocumentSchema
+      .safeParse(document)
+      .error?.issues.map(({ path }) => path);
+  const index = planted.objects.length - 2;
+  for (const mutate of [
+    (object: CourseDocument["objects"][number]) => (object.lamp = "floodlight"),
+    (object: CourseDocument["objects"][number]) => (object.indoors = true),
+    (object: CourseDocument["objects"][number]) => (object.overhead = true),
+    (object: CourseDocument["objects"][number]) =>
+      (object.visual = { ...bed.visual, shape: "cylinder" }),
+  ]) {
+    const invalid = structuredClone(planted);
+    mutate(invalid.objects[index]!);
+    expect(issuePath(invalid)).toContainEqual(["objects", index, "planting"]);
+  }
+
+  // A course holds at most two thousand trees.
+  const crowded = structuredClone(planted);
+  crowded.objects[index]!.planting = { across: 0.5, along: 0.5 };
+  crowded.objects[index]!.visual = {
+    ...bed.visual,
+    scale: { x: 30, y: 0.2, z: 20 },
+  };
+  expect(countCourseTrees(crowded)).toBeGreaterThan(COURSE_TREE_LIMIT);
+  expect(issuePath(crowded)).toContainEqual(["objects"]);
+
+  // Hedges are outdoor boxes, and their leaves are bounded.
+  const hedgeIndex = planted.objects.length - 1;
+  const indoorHedge = structuredClone(planted);
+  indoorHedge.objects[hedgeIndex]!.indoors = true;
+  expect(issuePath(indoorHedge)).toContainEqual([
+    "objects",
+    hedgeIndex,
+    "visual",
+    "material",
+  ]);
+  const vastHedge = structuredClone(planted);
+  vastHedge.objects[hedgeIndex]!.visual = {
+    material: "hedge",
+    scale: { x: 1.2, y: 5, z: 300 },
+    shape: "box",
+  };
+  expect(countCourseHedgeSprays(vastHedge)).toBeGreaterThan(COURSE_HEDGE_SPRAY_LIMIT);
+  expect(issuePath(vastHedge)).toContainEqual(["objects"]);
 });

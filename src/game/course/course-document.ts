@@ -8,9 +8,9 @@ import {
 } from "../enclosure/island-three";
 import { getApprovedSurfaceMaterial } from "../kart/kart-material-registry";
 import { COURSE_ARC_MAXIMUM_WIDTH_RATIO } from "./course-arc";
-import fallsViewParkDocumentJson from "./falls-view-park.v6.json";
+import fallsViewParkDocumentJson from "./falls-view-park.v7.json";
 import type { OfficialCourseId } from "./course-ids";
-import roughCourseDocumentJson from "./rough-course.v6.json";
+import roughCourseDocumentJson from "./rough-course.v7.json";
 
 export const courseIdSchema = z
   .string()
@@ -185,7 +185,11 @@ const lightingSchema = z.strictObject({
 
 export const COURSE_CHECKPOINT_LIMIT = 256;
 /** Course lamps each add a light, so a course has at most this many floodlights. */
-export const COURSE_LAMP_LIMIT = 8;
+export const COURSE_LAMP_LIMIT = 12;
+// Courses before schema version seven had at most this many floodlights.
+const LEGACY_COURSE_LAMP_LIMIT = 8;
+/** Planted beds' trees are drawn and collide, so a course has at most this many. */
+export const COURSE_TREE_LIMIT = 2_000;
 /** Tunnel lamps light only indoor objects, and have their own limit. */
 export const COURSE_TUNNEL_LAMP_LIMIT = 16;
 export type CourseLampKind = "floodlight" | "tunnel";
@@ -376,10 +380,10 @@ const courseDocumentV5BaseSchema = courseDocumentV4BaseSchema.extend({
 const courseDocumentV5Schema = courseDocumentV5BaseSchema.superRefine(
   (document, context) => {
     validateCourseRoute(document, context);
-    if (countCourseLamps(document, "floodlight") > COURSE_LAMP_LIMIT) {
+    if (countCourseLamps(document, "floodlight") > LEGACY_COURSE_LAMP_LIMIT) {
       context.addIssue({
         code: "custom",
-        message: `A course has at most ${COURSE_LAMP_LIMIT} lamps`,
+        message: `A course has at most ${LEGACY_COURSE_LAMP_LIMIT} lamps`,
         path: ["objects"],
       });
     }
@@ -389,85 +393,235 @@ const courseDocumentV5Schema = courseDocumentV5BaseSchema.superRefine(
 // Version six adds indoor objects, lit only by tunnel lamps and an interior
 // environment, overhead objects the editor can cut away, tunnel lamps, and
 // smooth arcs.
-export const courseDocumentSchema = courseDocumentV5BaseSchema
+const courseDocumentV6BaseSchema = courseDocumentV5BaseSchema.extend({
+  objects: courseDocumentV3BaseSchema.shape.objects.element
+    .extend({
+      collision: z
+        .discriminatedUnion("shape", [
+          ...courseObjectSchema.shape.collision.unwrap().options,
+          arcCollisionSchema,
+        ])
+        .nullable(),
+      indoors: z.literal(true).optional(),
+      // A tunnel lamp's luminaire and light hang beneath the object.
+      lamp: z.enum(["floodlight", "tunnel"]).optional(),
+      overhead: z.literal(true).optional(),
+      visual: z.discriminatedUnion("shape", [visualSchema, arcVisualSchema]),
+    })
+    .array()
+    .min(1)
+    .max(5_000),
+  schemaVersion: z.literal(6),
+});
+
+function validateCourseObjectsV6(
+  document: Omit<Parameters<typeof validateCourseRoute>[0], "objects"> & {
+    objects: Array<{
+      id: string;
+      collision: { role: string; shape: string } | null;
+      indoors?: true;
+      lamp?: CourseLampKind;
+      overhead?: true;
+      visual: { shape: string };
+    }>;
+  },
+  context: z.RefinementCtx,
+  lampLimit: number,
+) {
+  validateCourseRoute(document, context);
+  if (countCourseLamps(document, "floodlight") > lampLimit) {
+    context.addIssue({
+      code: "custom",
+      message: `A course has at most ${lampLimit} floodlights`,
+      path: ["objects"],
+    });
+  }
+  if (countCourseLamps(document, "tunnel") > COURSE_TUNNEL_LAMP_LIMIT) {
+    context.addIssue({
+      code: "custom",
+      message: `A course has at most ${COURSE_TUNNEL_LAMP_LIMIT} tunnel lamps`,
+      path: ["objects"],
+    });
+  }
+  document.objects.forEach((object, index) => {
+    if (
+      object.lamp &&
+      (object.lamp === "tunnel") !== Boolean(object.indoors)
+    ) {
+      context.addIssue({
+        code: "custom",
+        message: "Tunnel lamps stand indoors and floodlights outdoors",
+        path: ["objects", index, "indoors"],
+      });
+    }
+    // A drivable roof would catch karts and checkpoint recovery above it.
+    if (object.overhead && object.collision?.role === "drivable-surface") {
+      context.addIssue({
+        code: "custom",
+        message: "Overhead objects collide only as solid obstacles",
+        path: ["objects", index, "collision", "role"],
+      });
+    }
+    if (
+      object.collision &&
+      (object.collision.shape === "arc") !== (object.visual.shape === "arc")
+    ) {
+      context.addIssue({
+        code: "custom",
+        message: "Arcs collide as arcs, and only arcs do",
+        path: ["objects", index, "collision", "shape"],
+      });
+    }
+    // The race finds a kart indoors beneath an indoor roof's rectangle.
+    if (object.overhead && object.indoors && object.visual.shape !== "box") {
+      context.addIssue({
+        code: "custom",
+        message: "Indoor roofs are boxes",
+        path: ["objects", index, "visual", "shape"],
+      });
+    }
+    if (object.lamp && object.visual.shape === "arc") {
+      context.addIssue({
+        code: "custom",
+        message: "Lamps stand on boxes or cylinders",
+        path: ["objects", index, "visual", "shape"],
+      });
+    }
+  });
+}
+
+const courseDocumentV6Schema = courseDocumentV6BaseSchema.superRefine(
+  (document, context) =>
+    validateCourseObjectsV6(document, context, LEGACY_COURSE_LAMP_LIMIT),
+);
+
+// Version seven adds the nursery's finishes, planted beds of young trees,
+// and twelve floodlights.
+const visualMaterialV7Schema = z.enum([
+  ...visualSchema.shape.material.options,
+  "hedge",
+  "mulch",
+  "timber",
+]);
+
+// A planted bed: young trees stand on its top in rows along its local X,
+// `along` apart, the rows `across` apart along its local Z.
+const plantingSchema = z.strictObject({
+  across: z.number().finite().min(0.5).max(20),
+  along: z.number().finite().min(0.5).max(20),
+});
+
+/** A planted bed's trees: how many along its rows, and how many rows. */
+export function getCoursePlantingGrid(object: {
+  planting?: { across: number; along: number };
+  visual: { scale?: { x: number; z: number }; shape: string };
+}) {
+  const { planting, visual } = object;
+  if (!planting || !visual.scale) return { across: 0, along: 0 };
+  // A sliver over whole rows still fits them: 4.8 / 0.8 is 5.999….
+  const fit = (size: number, spacing: number) =>
+    Math.max(1, Math.floor(size / spacing + 1e-6));
+  return {
+    across: fit(visual.scale.z, planting.across),
+    along: fit(visual.scale.x, planting.along),
+  };
+}
+
+export function countCourseTrees(document: {
+  objects: Parameters<typeof getCoursePlantingGrid>[0][];
+}) {
+  return document.objects.reduce((total, object) => {
+    const grid = getCoursePlantingGrid(object);
+    return total + grid.across * grid.along;
+  }, 0);
+}
+
+// A clipped hedge's sides and top carry leaf sprays by area.
+const HEDGE_SPRAYS_PER_SQUARE_METRE = 24;
+/** Hedge leaves are drawn, so a course has at most this many sprays. */
+export const COURSE_HEDGE_SPRAY_LIMIT = 40_000;
+
+/** A hedge box's sprays on its +X, -X, +Z, and -Z sides and its top. */
+export function getCourseHedgeSprayCounts(size: { x: number; y: number; z: number }) {
+  return [
+    size.z * size.y,
+    size.z * size.y,
+    size.x * size.y,
+    size.x * size.y,
+    size.x * size.z,
+  ].map((area) => Math.round(area * HEDGE_SPRAYS_PER_SQUARE_METRE));
+}
+
+export function countCourseHedgeSprays(document: {
+  objects: Array<{ visual: { material: string; scale?: { x: number; y: number; z: number }; shape: string } }>;
+}) {
+  return document.objects.reduce(
+    (total, { visual }) =>
+      visual.material === "hedge" && visual.shape === "box" && visual.scale
+        ? total + getCourseHedgeSprayCounts(visual.scale).reduce((sum, count) => sum + count, 0)
+        : total,
+    0,
+  );
+}
+
+export const courseDocumentSchema = courseDocumentV6BaseSchema
   .extend({
-    objects: courseDocumentV3BaseSchema.shape.objects.element
+    objects: courseDocumentV6BaseSchema.shape.objects.element
       .extend({
-        collision: z
-          .discriminatedUnion("shape", [
-            ...courseObjectSchema.shape.collision.unwrap().options,
-            arcCollisionSchema,
-          ])
-          .nullable(),
-        indoors: z.literal(true).optional(),
-        // A tunnel lamp's luminaire and light hang beneath the object.
-        lamp: z.enum(["floodlight", "tunnel"]).optional(),
-        overhead: z.literal(true).optional(),
-        visual: z.discriminatedUnion("shape", [visualSchema, arcVisualSchema]),
+        planting: plantingSchema.optional(),
+        visual: z.discriminatedUnion("shape", [
+          visualSchema.extend({ material: visualMaterialV7Schema }),
+          arcVisualSchema.extend({ material: visualMaterialV7Schema }),
+        ]),
       })
       .array()
       .min(1)
       .max(5_000),
-    schemaVersion: z.literal(6),
+    schemaVersion: z.literal(7),
   })
   .superRefine((document, context) => {
-    validateCourseRoute(document, context);
-    if (countCourseLamps(document, "floodlight") > COURSE_LAMP_LIMIT) {
+    validateCourseObjectsV6(document, context, COURSE_LAMP_LIMIT);
+    if (countCourseTrees(document) > COURSE_TREE_LIMIT) {
       context.addIssue({
         code: "custom",
-        message: `A course has at most ${COURSE_LAMP_LIMIT} floodlights`,
+        message: `A course has at most ${COURSE_TREE_LIMIT} trees`,
         path: ["objects"],
       });
     }
-    if (countCourseLamps(document, "tunnel") > COURSE_TUNNEL_LAMP_LIMIT) {
+    if (countCourseHedgeSprays(document) > COURSE_HEDGE_SPRAY_LIMIT) {
       context.addIssue({
         code: "custom",
-        message: `A course has at most ${COURSE_TUNNEL_LAMP_LIMIT} tunnel lamps`,
+        message: "A course's hedges are too large",
         path: ["objects"],
       });
     }
     document.objects.forEach((object, index) => {
+      // Trees stand outdoors on a bed's flat top.
       if (
-        object.lamp &&
-        (object.lamp === "tunnel") !== Boolean(object.indoors)
+        object.planting &&
+        (object.visual.shape !== "box" ||
+          object.indoors ||
+          object.overhead ||
+          object.lamp)
       ) {
         context.addIssue({
           code: "custom",
-          message: "Tunnel lamps stand indoors and floodlights outdoors",
-          path: ["objects", index, "indoors"],
+          message: "Trees grow on outdoor boxes that are not lamps or roofs",
+          path: ["objects", index, "planting"],
         });
       }
-      // A drivable roof would catch karts and checkpoint recovery above it.
-      if (object.overhead && object.collision?.role === "drivable-surface") {
-        context.addIssue({
-          code: "custom",
-          message: "Overhead objects collide only as solid obstacles",
-          path: ["objects", index, "collision", "role"],
-        });
-      }
+      // Hedges are outdoor boxes, which their leaves cover.
       if (
-        object.collision &&
-        (object.collision.shape === "arc") !== (object.visual.shape === "arc")
+        object.visual.material === "hedge" &&
+        (object.visual.shape !== "box" ||
+          object.indoors ||
+          object.overhead ||
+          object.lamp)
       ) {
         context.addIssue({
           code: "custom",
-          message: "Arcs collide as arcs, and only arcs do",
-          path: ["objects", index, "collision", "shape"],
-        });
-      }
-      // The race finds a kart indoors beneath an indoor roof's rectangle.
-      if (object.overhead && object.indoors && object.visual.shape !== "box") {
-        context.addIssue({
-          code: "custom",
-          message: "Indoor roofs are boxes",
-          path: ["objects", index, "visual", "shape"],
-        });
-      }
-      if (object.lamp && object.visual.shape === "arc") {
-        context.addIssue({
-          code: "custom",
-          message: "Lamps stand on boxes or cylinders",
-          path: ["objects", index, "visual", "shape"],
+          message: "Hedges are outdoor boxes that are not lamps or roofs",
+          path: ["objects", index, "visual", "material"],
         });
       }
     });
@@ -811,11 +965,18 @@ export function parseCourseDocument(input: unknown): CourseDocument {
     });
   }
 
-  // Version five upgrades unchanged.
+  // Versions five and six upgrade unchanged.
   if (hasSchemaVersion(input, 5)) {
     return parseCourseDocument({
       ...courseDocumentV5Schema.parse(input),
       schemaVersion: 6,
+    });
+  }
+
+  if (hasSchemaVersion(input, 6)) {
+    return parseCourseDocument({
+      ...courseDocumentV6Schema.parse(input),
+      schemaVersion: 7,
     });
   }
 

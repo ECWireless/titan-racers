@@ -2,6 +2,11 @@ import * as pc from "playcanvas";
 
 import { buildCourseLighting } from "../course/build-course-lighting";
 import { addCourseLamps } from "../course/course-lamps";
+import {
+  addCourseTrees,
+  createCourseTreeMaterials,
+  type CourseTreeMaterials,
+} from "../course/course-trees";
 import { applySceneLook, applyShadowPolicy } from "../render/scene-look";
 import {
   addCourseVisual,
@@ -119,6 +124,8 @@ export class CourseEditorScene {
   private options: CourseEditorSceneOptions;
   private pointerCleanup: (() => void) | null = null;
   private lampCleanup: (() => void) | null = null;
+  private treeMaterials: CourseTreeMaterials;
+  private trees: ReturnType<typeof addCourseTrees> | null = null;
   private selections: CourseEditorSelections;
   private selectionEntities: pc.Entity[] = [];
   private tool: CourseEditorTool = "translate";
@@ -149,6 +156,8 @@ export class CourseEditorScene {
 
     this.courseSurfaces = createCourseSurfaceMaterials(this.app.graphicsDevice);
     this.materials = this.courseSurfaces.materials;
+    // Trees stand bare until the leaf sprays load with the scans.
+    this.treeMaterials = createCourseTreeMaterials(this.app.graphicsDevice, null);
     this.gizmoLayer = pc.Gizmo.createLayer(this.app, "Course Editor Gizmos");
     const cameraComponent = this.camera.camera;
     if (!cameraComponent) {
@@ -188,6 +197,9 @@ export class CourseEditorScene {
     this.pointerCleanup = null;
     this.lampCleanup?.();
     this.lampCleanup = null;
+    this.trees?.destroy();
+    this.trees = null;
+    this.treeMaterials.destroy();
     this.translateGizmo.destroy();
     this.rotateGizmo.destroy();
     this.scaleGizmo.destroy();
@@ -342,6 +354,22 @@ export class CourseEditorScene {
 
   useCourseSurfaceScans(images: CourseSurfaceImages) {
     this.courseSurfaces.useScans(images);
+    this.trees?.destroy();
+    this.treeMaterials.destroy();
+    this.treeMaterials = createCourseTreeMaterials(
+      this.app.graphicsDevice,
+      images.leaves,
+    );
+    this.plantTrees();
+  }
+
+  private plantTrees() {
+    this.trees?.destroy();
+    this.trees = addCourseTrees(this.app, this.currentDocument, {
+      colliders: false,
+      materials: this.treeMaterials,
+      timber: this.materials.timber,
+    });
   }
 
   setDocument(document: CourseDocument) {
@@ -570,6 +598,12 @@ export class CourseEditorScene {
     const next = updateSelectionGeometry(before, selection, geometry);
     if (JSON.stringify(before) !== JSON.stringify(next)) {
       this.options.onDocumentChange(`Transform ${selection.id}`, next);
+    } else if (
+      changesGeometry(getSelectionGeometry(before, selection), geometry)
+    ) {
+      // A transform the course's rules refuse, such as one planting too
+      // many trees, snaps back.
+      this.rebuildDocument();
     }
   }
 
@@ -743,7 +777,10 @@ export class CourseEditorScene {
       return;
     }
 
+    // Trees and hedge leaves are drawn, not picked: their beds and hedges are.
+    if (this.trees) this.trees.root.enabled = false;
     this.picker.prepare(cameraComponent, this.app.scene);
+    if (this.trees) this.trees.root.enabled = true;
     const picked = this.picker.getSelection(x, y);
     for (const meshInstance of picked) {
       if (!("node" in meshInstance)) {
@@ -781,6 +818,7 @@ export class CourseEditorScene {
       lampsOn: 0,
       steel: this.materials.steel,
     });
+    this.plantTrees();
     courseEntities.forEach((entity, id) => {
       const selection = { id, kind: "object" } as const;
       this.activeDocumentRoot?.addChild(entity);
@@ -1104,5 +1142,21 @@ function sameSelections(
       (selection, index) =>
         selection.kind === right[index].kind && selection.id === right[index].id,
     )
+  );
+}
+
+// Editor values round to millimetres, so a smaller move changes nothing.
+function changesGeometry(
+  current: CourseEditorGeometry | null,
+  requested: CourseEditorGeometry,
+) {
+  if (!current) return true;
+  const values = ({ position, rotation, scale }: CourseEditorGeometry) =>
+    [position, rotation, scale].flatMap((vector) =>
+      vector ? [vector.x, vector.y, vector.z] : [],
+    );
+  const before = values(current);
+  return values(requested).some(
+    (value, index) => Math.abs(value - (before[index] ?? value)) >= 0.0005,
   );
 }

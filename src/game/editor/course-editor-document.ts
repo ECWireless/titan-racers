@@ -2,6 +2,10 @@ import type { CourseArc } from "../course/course-arc";
 import {
   COURSE_CHECKPOINT_LIMIT,
   COURSE_LAMP_LIMIT,
+  COURSE_HEDGE_SPRAY_LIMIT,
+  COURSE_TREE_LIMIT,
+  countCourseHedgeSprays,
+  countCourseTrees,
   COURSE_TUNNEL_LAMP_LIMIT,
   countCourseLamps,
   type CourseDocument,
@@ -22,6 +26,8 @@ export const COURSE_OBJECT_PRESETS = [
   "platform",
   "lamp",
   "tunnel-lamp",
+  "tree-bed",
+  "hedge",
 ] as const;
 export const COURSE_EDITOR_OBJECT_LIMIT = 1_000;
 export const COURSE_EDITOR_CHECKPOINT_LIMIT = COURSE_CHECKPOINT_LIMIT;
@@ -37,6 +43,8 @@ export const COURSE_OBJECT_PRESET_LABELS: Record<CourseObjectPreset, string> = {
   platform: "platform",
   ramp: "ramp",
   "tunnel-lamp": "tunnel lamp",
+  "tree-bed": "tree bed",
+  hedge: "hedge",
 };
 
 export type CourseEditorSelection =
@@ -281,6 +289,53 @@ const PRESET_OBJECTS: Record<
       shape: "box",
     },
   },
+  // A raised bed of young trees, mulched, four rows of five.
+  "tree-bed": {
+    availability: "standard",
+    category: "feature",
+    collision: {
+      surfaceMaterial: { id: "surface.standard-course", version: 1 },
+      friction: 0.8,
+      halfExtents: { x: 3, y: 0.1, z: 3 },
+      offset: {
+        position: { x: 0, y: 0, z: 0 },
+        rotation: { x: 0, y: 0, z: 0 },
+      },
+      restitution: 0,
+      role: "solid-obstacle",
+      shape: "box",
+    },
+    editable: true,
+    planting: { across: 1.5, along: 1.2 },
+    visual: {
+      material: "mulch",
+      scale: { x: 6, y: 0.2, z: 6 },
+      shape: "box",
+    },
+  },
+  // A clipped windbreak hedge, at head height.
+  hedge: {
+    availability: "standard",
+    category: "obstacle",
+    collision: {
+      surfaceMaterial: { id: "surface.standard-course", version: 1 },
+      friction: 0.8,
+      halfExtents: { x: 0.6, y: 1.2, z: 3 },
+      offset: {
+        position: { x: 0, y: 0, z: 0 },
+        rotation: { x: 0, y: 0, z: 0 },
+      },
+      restitution: 0,
+      role: "solid-obstacle",
+      shape: "box",
+    },
+    editable: true,
+    visual: {
+      material: "hedge",
+      scale: { x: 1.2, y: 2.4, z: 6 },
+      shape: "box",
+    },
+  },
 };
 
 export function addCourseObjectPreset(
@@ -331,7 +386,7 @@ export function addCourseObjectPreset(
   });
 }
 
-/** The lamp limit a preset has reached, if any. */
+/** The lamp, tree, or hedge limit a preset has reached, if any. */
 export function coursePresetLimitReached(
   document: CourseDocument,
   preset: CourseObjectPreset,
@@ -347,6 +402,22 @@ export function coursePresetLimitReached(
     countCourseLamps(document, "tunnel") >= COURSE_TUNNEL_LAMP_LIMIT
   ) {
     return COURSE_TUNNEL_LAMP_LIMIT;
+  }
+  if (
+    preset === "hedge" &&
+    countCourseHedgeSprays(document) +
+      countCourseHedgeSprays({ objects: [PRESET_OBJECTS.hedge] }) >
+      COURSE_HEDGE_SPRAY_LIMIT
+  ) {
+    return COURSE_HEDGE_SPRAY_LIMIT;
+  }
+  if (
+    preset === "tree-bed" &&
+    countCourseTrees(document) +
+      countCourseTrees({ objects: [PRESET_OBJECTS["tree-bed"]] }) >
+      COURSE_TREE_LIMIT
+  ) {
+    return COURSE_TREE_LIMIT;
   }
   return null;
 }
@@ -596,7 +667,9 @@ export function updateSelectionGeometry(
     });
   }
 
-  return parseCourseDocument({
+  // A scale that breaks a course rule, such as its tree limit, changes
+  // nothing.
+  const next = courseDocumentSchema.safeParse({
     ...document,
     objects: document.objects.map((object) => {
       if (object.id !== selection.id) {
@@ -656,6 +729,7 @@ export function updateSelectionGeometry(
       };
     }),
   });
+  return next.success ? parseCourseDocument(next.data) : document;
 }
 
 export function nudgeSelection(

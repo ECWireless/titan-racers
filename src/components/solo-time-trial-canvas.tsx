@@ -63,6 +63,10 @@ import {
 import { getHabitatLight } from "@/game/enclosure/habitat-light";
 import { getApprovedEnclosure, sceneLux } from "@/game/enclosure/island-three";
 import { addCourseLamps, courseLampLux } from "@/game/course/course-lamps";
+import {
+  addCourseTrees,
+  createCourseTreeMaterials,
+} from "@/game/course/course-trees";
 import { PlayerInputManager } from "@/game/input/player-input-manager";
 import { isEditableKeyboardTarget } from "@/game/input/keyboard-input";
 import { useControllerMenuNavigation } from "@/game/input/use-controller-menu-navigation";
@@ -884,6 +888,17 @@ export function SoloTimeTrialCanvas({
           tunnelLampsOn: true,
         }),
       );
+      const treeMaterials = createCourseTreeMaterials(
+        app.graphicsDevice,
+        courseSurfaceImages?.leaves ?? null,
+      );
+      runtime.addCleanup(() => treeMaterials.destroy());
+      const trees = addCourseTrees(app, COURSE_DOCUMENT, {
+        colliders: true,
+        materials: treeMaterials,
+        timber: courseSurfaces.materials.timber,
+      });
+      runtime.addCleanup(() => trees.destroy());
 
       // Static course visuals batch by finish. Authored entities and colliders
       // remain intact; the test-adapter barrels stay movable, and the editor

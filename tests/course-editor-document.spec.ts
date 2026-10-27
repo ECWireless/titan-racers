@@ -2,7 +2,9 @@ import { expect, test } from "@playwright/test";
 
 import {
   COURSE_LAMP_LIMIT,
+  COURSE_TREE_LIMIT,
   COURSE_TUNNEL_LAMP_LIMIT,
+  countCourseTrees,
   ROUGH_COURSE_DOCUMENT,
   parseCourseDocument,
   serializeCourseDocument,
@@ -402,6 +404,35 @@ test.describe("course editor document commands", () => {
     expect(addCourseObjectPreset(document, "lamp").objects).toHaveLength(
       document.objects.length + 1,
     );
+  });
+
+  test("adds tree beds up to the course's tree limit, and hedges", () => {
+    let document = addCourseObjectPreset(
+      structuredClone(ROUGH_COURSE_DOCUMENT),
+      "tree-bed",
+    );
+    document = addCourseObjectPreset(document, "hedge");
+    expect(document.objects.at(-2)).toMatchObject({
+      collision: { halfExtents: { y: 0.1 }, role: "solid-obstacle" },
+      id: "tree-bed-1",
+      planting: { across: 1.5, along: 1.2 },
+      transform: { position: { y: 0.1 } },
+      visual: { material: "mulch", scale: { x: 6, y: 0.2, z: 6 } },
+    });
+    expect(document.objects.at(-1)).toMatchObject({
+      id: "hedge-1",
+      transform: { position: { y: 1.2 } },
+      visual: { material: "hedge" },
+    });
+
+    // Twenty trees a bed: a hundred beds fill the course's two thousand.
+    let full = document;
+    while (coursePresetLimitReached(full, "tree-bed") === null) {
+      full = addCourseObjectPreset(full, "tree-bed");
+    }
+    expect(countCourseTrees(full)).toBe(COURSE_TREE_LIMIT);
+    expect(coursePresetLimitReached(full, "tree-bed")).toBe(COURSE_TREE_LIMIT);
+    expect(addCourseObjectPreset(full, "tree-bed")).toBe(full);
   });
 
   test("marks objects indoors or overhead within the course's rules", () => {
