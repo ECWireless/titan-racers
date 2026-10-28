@@ -36316,6 +36316,64 @@
         },
         "shape": "cylinder"
       }
+    },
+    {
+      "availability": "standard",
+      "bicycle": "hardtail",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "levee-bicycle-hardtail",
+      "transform": {
+        "position": {
+          "x": 9,
+          "y": 3.545,
+          "z": 32.35
+        },
+        "rotation": {
+          "x": 0,
+          "y": 70,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "steel",
+        "scale": {
+          "x": 1.71,
+          "y": 1.09,
+          "z": 0.65
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "bicycle": "bmx",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "levee-bicycle-bmx",
+      "transform": {
+        "position": {
+          "x": -5,
+          "y": 3.3575,
+          "z": 33.65
+        },
+        "rotation": {
+          "x": 0,
+          "y": -25,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "steel",
+        "scale": {
+          "x": 1.375,
+          "y": 0.715,
+          "z": 1.055
+        },
+        "shape": "box"
+      }
     }
   ],
   "schemaVersion": 8,

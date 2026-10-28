@@ -771,16 +771,36 @@ export class CourseEditorScene {
     this.updateCamera();
   }
 
+  /** The visual of each bicycle's box. */
+  private bicycleBoxes() {
+    return this.currentDocument.objects.flatMap((object) => {
+      const entity = object.bicycle
+        ? this.documentEntities.get(
+            selectionKey({ id: object.id, kind: "object" }),
+          )
+        : undefined;
+      const visual = entity?.render ?? entity?.model;
+      return visual ? [visual] : [];
+    });
+  }
+
   private pickSelection(x: number, y: number, additive: boolean) {
     const cameraComponent = this.camera.camera;
     if (!cameraComponent) {
       return;
     }
 
-    // Trees and hedge leaves are drawn, not picked: their beds and hedges are.
+    // Trees, hedge leaves, and bicycles are drawn, not picked: their beds,
+    // hedges, and the bicycles' unseen boxes are.
+    const bicycleBoxes = this.bicycleBoxes();
     if (this.trees) this.trees.root.enabled = false;
-    this.picker.prepare(cameraComponent, this.app.scene);
-    if (this.trees) this.trees.root.enabled = true;
+    bicycleBoxes.forEach((box) => (box.enabled = true));
+    try {
+      this.picker.prepare(cameraComponent, this.app.scene);
+    } finally {
+      bicycleBoxes.forEach((box) => (box.enabled = false));
+      if (this.trees) this.trees.root.enabled = true;
+    }
     const picked = this.picker.getSelection(x, y);
     for (const meshInstance of picked) {
       if (!("node" in meshInstance)) {
@@ -827,6 +847,16 @@ export class CourseEditorScene {
         this.selectionByNode.set(entity, selection);
       }
     });
+    // The builder leaves a bicycle's box out; here it stays present to
+    // select and move, but unseen, as the bicycle is drawn in its place.
+    this.currentDocument.objects.forEach((object) => {
+      if (!object.bicycle) return;
+      const entity = this.documentEntities.get(
+        selectionKey({ id: object.id, kind: "object" }),
+      );
+      if (entity) entity.enabled = true;
+    });
+    this.bicycleBoxes().forEach((box) => (box.enabled = false));
     this.showRoofs();
     const lights = buildCourseLighting(this.app, { document: this.currentDocument });
     lights.forEach((entity) => {
@@ -869,8 +899,10 @@ export class CourseEditorScene {
       this.rotateGizmo.attach(entities);
     } else if (
       this.primarySelection.kind !== "start" &&
-      // Arcs resize by their dimensions in the inspector instead.
-      this.selectedObject()?.visual.shape !== "arc"
+      // Arcs resize by their dimensions in the inspector instead, and a
+      // bicycle keeps its real size.
+      this.selectedObject()?.visual.shape !== "arc" &&
+      !this.selectedObject()?.bicycle
     ) {
       this.configureScaleGizmo();
       this.scaleGizmo.attach(entities);

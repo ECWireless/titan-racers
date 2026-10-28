@@ -172,6 +172,9 @@ export function buildRoughCourse(
         }
 
         if (indoors) keepCourseVisualIndoors(entity);
+        // A bicycle is drawn with the trees, in place of its box, which
+        // only the editor keeps, unseen, to select.
+        if (object.bicycle) entity.enabled = false;
         stagedEntities.push(entity);
         courseEntities.set(object.id, entity);
 

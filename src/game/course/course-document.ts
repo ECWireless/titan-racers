@@ -199,6 +199,8 @@ export const COURSE_INDOOR_LAMP_LIMIT = 20;
 const LEGACY_COURSE_INDOOR_LAMP_LIMIT = 16;
 export type CourseLampKind = "floodlight" | "tunnel" | "work";
 export const COURSE_INDOOR_LAMP_KINDS = ["tunnel", "work"] as const;
+/** Parked bicycles, in the order of their geometry's variants. */
+export const COURSE_BICYCLES = ["hardtail", "bmx"] as const;
 export function countCourseLamps(
   document: { objects: { lamp?: string }[] },
   kind: CourseLampKind,
@@ -666,10 +668,10 @@ const courseDocumentV7Schema = courseDocumentV7BaseSchema.superRefine(
   (document, context) => validateCourseObjectsV7(document, context),
 );
 
-// Version eight adds water, its river-gravel bed, brushed concrete, and the
-// youth's work lights:
-// battery LED lamps they bring for places the park never lit, such as a
-// culvert, with room for twenty indoor lamps.
+// Version eight adds water, its river-gravel bed, brushed concrete, the
+// youth's work lights, and their parked bicycles. Work lights are battery
+// LED lamps they bring for places the park never lit, such as a culvert,
+// with room for twenty indoor lamps.
 const visualMaterialV8Schema = z.enum([
   ...visualMaterialV7Schema.options,
   "concrete",
@@ -681,6 +683,8 @@ export const courseDocumentSchema = courseDocumentV7BaseSchema
   .extend({
     objects: courseDocumentV7BaseSchema.shape.objects.element
       .extend({
+        // A parked bicycle stands centred in its box, on its floor.
+        bicycle: z.enum(COURSE_BICYCLES).optional(),
         lamp: z.enum(["floodlight", "tunnel", "work"]).optional(),
         visual: z.discriminatedUnion("shape", [
           visualSchema.extend({ material: visualMaterialV8Schema }),
@@ -712,6 +716,28 @@ export const courseDocumentSchema = courseDocumentV7BaseSchema
           message:
             "Water is an outdoor box without collision that is not a lamp, roof, or bed",
           path: ["objects", index, "visual", "material"],
+        });
+      }
+      // A bicycle's box is upright, outdoors, and never collides: in a race
+      // the bicycle collides as its own shape.
+      if (
+        object.bicycle &&
+        (object.visual.shape !== "box" ||
+          object.visual.material === "water" ||
+          object.visual.material === "hedge" ||
+          object.collision !== null ||
+          object.transform.rotation.x !== 0 ||
+          object.transform.rotation.z !== 0 ||
+          object.indoors ||
+          object.overhead ||
+          object.lamp ||
+          object.planting)
+      ) {
+        context.addIssue({
+          code: "custom",
+          message:
+            "A bicycle is an upright outdoor box without collision that is not a lamp, roof, bed, hedge, or water",
+          path: ["objects", index, "bicycle"],
         });
       }
     });

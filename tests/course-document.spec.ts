@@ -29,13 +29,16 @@ function cloneSeed() {
   return structuredClone(ROUGH_COURSE_DOCUMENT);
 }
 
-// Falls View Park as a version-seven course could hold it: no water or
-// work lights, turf where its lanes are concrete, and block where its stream
-// bed is gravel.
+// Falls View Park as a version-seven course could hold it: no water, work
+// lights, or bicycles, turf where its lanes are concrete, and block where
+// its stream bed is gravel.
 function versionSevenFallsViewPark() {
   const document = structuredClone(FALLS_VIEW_PARK_DOCUMENT);
   document.objects = document.objects.filter(
-    (object) => object.visual.material !== "water" && object.lamp !== "work",
+    (object) =>
+      object.visual.material !== "water" &&
+      object.lamp !== "work" &&
+      !object.bicycle,
   );
   for (const object of document.objects) {
     if (object.visual.material === "concrete") object.visual.material = "verge";
@@ -1143,5 +1146,84 @@ test("adds water and work lights in schema version eight", () => {
     const invalid = structuredClone(wet);
     mutate(invalid.objects[waterIndex]!);
     expect(issuePath(invalid)).toContainEqual(["objects", waterIndex, "visual", "material"]);
+  }
+});
+
+test("leaves bicycles in the levee crest's lane in schema version eight", () => {
+  const bicycles = FALLS_VIEW_PARK_DOCUMENT.objects.filter(
+    (object) => object.bicycle,
+  );
+  expect(bicycles.map(({ bicycle }) => bicycle).sort()).toEqual([
+    "bmx",
+    "hardtail",
+  ]);
+  // Each rests on the crest's deck, its box wholly in the lane between the
+  // north kerb and the crest wall, one either side of the lane's middle.
+  const byId = (id: string) =>
+    FALLS_VIEW_PARK_DOCUMENT.objects.find((object) => object.id === id)!;
+  const deck = byId("levee-crest-5");
+  const kerb = byId("levee-crest-kerb-north");
+  const crestWall = byId("levee-crest-wall-l");
+  if (
+    deck.visual.shape !== "box" ||
+    kerb.visual.shape !== "box" ||
+    crestWall.visual.shape !== "box"
+  ) {
+    throw new Error("The crest is built of boxes");
+  }
+  const lane = [
+    kerb.transform.position.z + kerb.visual.scale.z / 2,
+    crestWall.transform.position.z - crestWall.visual.scale.z / 2,
+  ];
+  const sides = new Set<boolean>();
+  for (const { id, transform, visual } of bicycles) {
+    if (visual.shape !== "box") throw new Error("A bicycle is a box");
+    const yaw = (transform.rotation.y * Math.PI) / 180;
+    const [cos, sin] = [Math.abs(Math.cos(yaw)), Math.abs(Math.sin(yaw))];
+    const across = sin * (visual.scale.x / 2) + cos * (visual.scale.z / 2);
+    const along = cos * (visual.scale.x / 2) + sin * (visual.scale.z / 2);
+    expect(transform.position.z - across, id).toBeGreaterThan(lane[0]!);
+    expect(transform.position.z + across, id).toBeLessThan(lane[1]!);
+    expect(
+      Math.abs(transform.position.x - deck.transform.position.x) + along,
+      id,
+    ).toBeLessThan(deck.visual.scale.x / 2);
+    expect(transform.position.y - visual.scale.y / 2).toBeCloseTo(
+      deck.transform.position.y + deck.visual.scale.y / 2,
+      6,
+    );
+    sides.add(transform.position.z > (lane[0]! + lane[1]!) / 2);
+  }
+  expect(sides.size).toBe(2);
+
+  // Bicycles are version eight's.
+  const versionSeven = versionSevenFallsViewPark();
+  const parked = structuredClone(versionSeven);
+  parked.objects.push(structuredClone(bicycles[0]!));
+  expect(parseCourseDocument(parked)).toEqual(parked);
+  expect(() => parseCourseDocument({ ...parked, schemaVersion: 7 })).toThrow();
+
+  // A bicycle is an upright outdoor box, which itself never collides.
+  const index = parked.objects.length - 1;
+  const wall = FALLS_VIEW_PARK_DOCUMENT.objects.find(
+    ({ collision }) => collision?.shape === "box",
+  )!;
+  for (const mutate of [
+    (object: CourseDocument["objects"][number]) =>
+      (object.collision = structuredClone(wall.collision)),
+    (object: CourseDocument["objects"][number]) =>
+      (object.transform.rotation.z = 10),
+    (object: CourseDocument["objects"][number]) => (object.indoors = true),
+    (object: CourseDocument["objects"][number]) => (object.lamp = "floodlight"),
+    (object: CourseDocument["objects"][number]) =>
+      (object.visual.material = "hedge"),
+  ]) {
+    const invalid = structuredClone(parked);
+    mutate(invalid.objects[index]!);
+    expect(
+      courseDocumentSchema
+        .safeParse(invalid)
+        .error?.issues.map(({ path }) => path),
+    ).toContainEqual(["objects", index, "bicycle"]);
   }
 });

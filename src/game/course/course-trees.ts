@@ -1,7 +1,8 @@
 import * as pc from "playcanvas";
 
 import { PHYSICS_GROUP, PHYSICS_MASK } from "../physics/collision-groups";
-import type { CourseDocument } from "./course-document";
+import { createBicycleGeometry } from "./course-bicycle-geometry";
+import { COURSE_BICYCLES, type CourseDocument } from "./course-document";
 import {
   createCourseHedgeGeometry,
   createNurseryStakeGeometry,
@@ -25,9 +26,9 @@ const BARK_COLOR = "#6b6254";
 const LEAF_TINT = [0.95, 1, 0.85] as const;
 
 /**
- * Bark, and the leaf sprays shared by trees and hedges, for one scene.
- * Without the leaf images there are no leaves, and trees stand bare. The
- * caller destroys them.
+ * Bark, the leaf sprays shared by trees and hedges, and the parked
+ * bicycles' two finishes, for one scene. Without the leaf images there are
+ * no leaves, and trees stand bare. The caller destroys them.
  */
 export function createCourseTreeMaterials(
   device: pc.GraphicsDevice,
@@ -80,11 +81,28 @@ export function createCourseTreeMaterials(
     leaves.gloss = 0.3;
     leaves.update();
   }
+  // A bicycle's coated and rubber parts, and its bare metal, coloured per
+  // vertex in linear albedo (see course-bicycle-geometry.ts).
+  const bicycle = (metal: boolean) => {
+    const material = new pc.StandardMaterial();
+    material.diffuseVertexColor = true;
+    material.useMetalness = true;
+    material.metalness = metal ? 1 : 0;
+    material.gloss = metal ? 0.65 : 0.4;
+    material.update();
+    return material;
+  };
+  const bicycleCoat = bicycle(false);
+  const bicycleMetal = bicycle(true);
   return {
     bark,
+    bicycleCoat,
+    bicycleMetal,
     leaves,
     destroy() {
       bark.destroy();
+      bicycleCoat.destroy();
+      bicycleMetal.destroy();
       leaves?.destroy();
       textures.forEach((texture) => texture.destroy());
     },
@@ -124,12 +142,221 @@ function place(
   };
 }
 
+// A bicycle collides only as high as a kart reaches, even a bouncing one.
+const BICYCLE_COLLIDER_HEIGHT = 0.35;
+// Its colliders: a box around what lies in each cell of a grid over its
+// footprint, along and across it, so they follow its outline.
+const BICYCLE_COLLIDER_CELLS = 3;
+// Points taken along each mesh edge, so a long tube fills every cell it
+// crosses.
+const BICYCLE_COLLIDER_SPACING = 0.05;
+// No collider is thinner than the kart's substeps allow for (0.1 m).
+const BICYCLE_COLLIDER_MIN_HALF = 0.05;
+
+type Vec3 = [number, number, number];
+type BicyclePart = { centre: Vec3; halfExtents: Vec3 };
+
+function span(values: number[]) {
+  let [low, high] = [Infinity, -Infinity];
+  for (const value of values) {
+    low = Math.min(low, value);
+    high = Math.max(high, value);
+  }
+  return [low, high] as const;
+}
+
+// What a kart can hit of a bicycle, as boxes about its footprint's centre.
+function getBicycleParts(
+  meshes: TreeMeshData[],
+  centre: [number, number],
+): BicyclePart[] {
+  const points: Vec3[] = [];
+  for (const { indices, positions } of meshes) {
+    const corner = (k: number): Vec3 => [
+      positions[k * 3]!,
+      positions[k * 3 + 1]!,
+      positions[k * 3 + 2]!,
+    ];
+    for (let index = 0; index < indices.length; index += 3) {
+      for (let side = 0; side < 3; side++) {
+        const a = corner(indices[index + side]!);
+        const b = corner(indices[index + ((side + 1) % 3)]!);
+        if (Math.min(a[1], b[1]) >= BICYCLE_COLLIDER_HEIGHT) continue;
+        const steps = Math.ceil(
+          Math.hypot(b[0] - a[0], b[1] - a[1], b[2] - a[2]) /
+            BICYCLE_COLLIDER_SPACING,
+        );
+        for (let step = 0; step <= steps; step++) {
+          const t = step / Math.max(steps, 1);
+          const point: Vec3 = [
+            a[0] + (b[0] - a[0]) * t,
+            a[1] + (b[1] - a[1]) * t,
+            a[2] + (b[2] - a[2]) * t,
+          ];
+          if (point[1] < BICYCLE_COLLIDER_HEIGHT) points.push(point);
+        }
+      }
+    }
+  }
+  const [left, right] = span(points.map(([x]) => x));
+  const [near, far] = span(points.map(([, , z]) => z));
+  const cell = (value: number, low: number, high: number) =>
+    Math.min(
+      Math.floor(((value - low) / (high - low)) * BICYCLE_COLLIDER_CELLS),
+      BICYCLE_COLLIDER_CELLS - 1,
+    );
+  const cells = new Map<number, Vec3[]>();
+  for (const point of points) {
+    const key =
+      cell(point[0], left, right) * BICYCLE_COLLIDER_CELLS +
+      cell(point[2], near, far);
+    const inCell = cells.get(key);
+    if (inCell) inCell.push(point);
+    else cells.set(key, [point]);
+  }
+  const half = ([a, b]: readonly [number, number]) =>
+    Math.max((b - a) / 2, BICYCLE_COLLIDER_MIN_HALF);
+  return [...cells.keys()]
+    .sort((a, b) => a - b)
+    .map((key) => {
+      const inCell = cells.get(key)!;
+      const xs = span(inCell.map(([x]) => x));
+      const top = span(inCell.map(([, y]) => y))[1];
+      const zs = span(inCell.map(([, , z]) => z));
+      return {
+        centre: [
+          (xs[0] + xs[1]) / 2 - centre[0],
+          top / 2,
+          (zs[0] + zs[1]) / 2 - centre[1],
+        ] as Vec3,
+        halfExtents: [
+          half(xs),
+          Math.max(top / 2, BICYCLE_COLLIDER_MIN_HALF),
+          half(zs),
+        ] as Vec3,
+      };
+    });
+}
+
+// Each bicycle variant's geometry, built once (it takes 5 to 40 ms) and
+// only for the variants a course parks, with its footprint's centre; its
+// colliders about that centre are worked out only when a race asks.
+const bicycleGeometry = new Map<
+  number,
+  ReturnType<typeof createBicycleGeometry> & {
+    centre: [number, number];
+    parts?: BicyclePart[];
+  }
+>();
+function getBicycleGeometry(variant: number) {
+  let geometry = bicycleGeometry.get(variant);
+  if (!geometry) {
+    const built = createBicycleGeometry(variant);
+    const meshes = [built.dielectric, built.metal];
+    const along = (axis: number) =>
+      span(
+        meshes.flatMap(({ positions }) =>
+          positions.filter((_, index) => index % 3 === axis),
+        ),
+      );
+    const [left, right] = along(0);
+    const [near, far] = along(2);
+    const centre: [number, number] = [(left + right) / 2, (near + far) / 2];
+    geometry = { ...built, centre };
+    bicycleGeometry.set(variant, geometry);
+  }
+  return geometry;
+}
+
 /**
- * Plants the course's trees and dresses its hedges under one root entity:
- * each tree variant's bark and leaves, and every stake, as one instanced
- * draw each, culled as a whole, and the hedges' leaves as one mesh. With
+ * Every bicycle's colliders in course space, as static boxes: one around
+ * what a kart can reach in each cell of a grid over it, turned with it.
+ */
+export function getCourseBicycleColliders(document: CourseDocument) {
+  return document.objects.flatMap(({ bicycle, transform, visual }) => {
+    if (!bicycle || visual.shape !== "box") return [];
+    const bike = getBicycleGeometry(COURSE_BICYCLES.indexOf(bicycle));
+    bike.parts ??= getBicycleParts([bike.dielectric, bike.metal], bike.centre);
+    const { parts } = bike;
+    const yaw = (transform.rotation.y * Math.PI) / 180;
+    const [cos, sin] = [Math.cos(yaw), Math.sin(yaw)];
+    const floor = transform.position.y - visual.scale.y / 2;
+    return parts.map(({ centre: [x, y, z], halfExtents }) => ({
+      halfExtents,
+      position: [
+        transform.position.x + x * cos + z * sin,
+        floor + y,
+        transform.position.z - x * sin + z * cos,
+      ] as Vec3,
+      yaw: transform.rotation.y,
+    }));
+  });
+}
+
+/**
+ * Both finishes of every parked bicycle, each merged into one mesh in course
+ * space: a bicycle stands centred in its box, on its floor, turned with it.
+ */
+export function createCourseBicycleGeometry(document: CourseDocument) {
+  const merged = {
+    coat: {
+      colors: [],
+      indices: [],
+      normals: [],
+      positions: [],
+    } as TreeMeshData,
+    metal: {
+      colors: [],
+      indices: [],
+      normals: [],
+      positions: [],
+    } as TreeMeshData,
+  };
+  document.objects.forEach(({ bicycle, transform, visual }) => {
+    if (!bicycle || visual.shape !== "box") return;
+    const bike = getBicycleGeometry(COURSE_BICYCLES.indexOf(bicycle));
+    const [cx, cz] = bike.centre;
+    const yaw = (transform.rotation.y * Math.PI) / 180;
+    const [cos, sin] = [Math.cos(yaw), Math.sin(yaw)];
+    const { x, z } = transform.position;
+    const y = transform.position.y - visual.scale.y / 2;
+    for (const [part, data] of [
+      [merged.coat, bike.dielectric],
+      [merged.metal, bike.metal],
+    ] as const) {
+      const first = part.positions.length / 3;
+      const { colors, indices, normals, positions } = data;
+      for (let index = 0; index < positions.length; index += 3) {
+        const px = positions[index]! - cx;
+        const pz = positions[index + 2]! - cz;
+        const [nx, nz] = [normals[index]!, normals[index + 2]!];
+        // A turn about +Y by the yaw, as the engine's Euler angles turn.
+        part.positions.push(
+          x + px * cos + pz * sin,
+          y + positions[index + 1]!,
+          z - px * sin + pz * cos,
+        );
+        part.normals.push(
+          nx * cos + nz * sin,
+          normals[index + 1]!,
+          -nx * sin + nz * cos,
+        );
+      }
+      for (const value of colors!) part.colors!.push(value);
+      for (const corner of indices) part.indices.push(corner + first);
+    }
+  });
+  return merged;
+}
+
+/**
+ * Plants the course's trees, dresses its hedges, and parks its bicycles
+ * under one root entity: each tree variant's bark and leaves, and every
+ * stake, as one instanced draw each, culled as a whole, the hedges' leaves
+ * as one mesh, and the bicycles' two finishes as one mesh each. With
  * `colliders`, each tree also gets a static box taking in its stem and
- * stake; untagged as an obstacle, it leaves the chase camera's view clear.
+ * stake, and each bicycle boxes around what a kart can reach of it;
+ * untagged as obstacles, they leave the chase camera's view clear.
  */
 export function addCourseTrees(
   app: pc.AppBase,
@@ -236,6 +463,16 @@ export function addCourseTrees(
       trees.map((tree) => place(tree.stake, 0, 1)),
     );
   }
+  const bicycles = createCourseBicycleGeometry(document);
+  addDraw("course-bicycle-coat", bicycles.coat, materials.bicycleCoat);
+  // Spokes and chain are too fine for a shadow map to draw.
+  addDraw(
+    "course-bicycle-metal",
+    bicycles.metal,
+    materials.bicycleMetal,
+    undefined,
+    false,
+  );
   if (materials.leaves) {
     // The hedge's box beneath already casts its shadow.
     addDraw(
@@ -248,6 +485,25 @@ export function addCourseTrees(
   }
 
   if (colliders) {
+    getCourseBicycleColliders(document).forEach(
+      ({ halfExtents, position, yaw }, index) => {
+        const collider = new pc.Entity(`course-bicycle-collider-${index + 1}`);
+        collider.setPosition(...position);
+        collider.setEulerAngles(0, yaw, 0);
+        collider.addComponent("collision", {
+          halfExtents: new pc.Vec3(...halfExtents),
+          type: "box",
+        });
+        collider.addComponent("rigidbody", {
+          friction: 0.6,
+          group: PHYSICS_GROUP.solidObstacle,
+          mask: PHYSICS_MASK.solidObstacle,
+          restitution: 0,
+          type: pc.BODYTYPE_STATIC,
+        });
+        root.addChild(collider);
+      },
+    );
     trees.forEach((tree, index) => {
       const { halfExtents, position, yaw } = getCourseTreeCollider(tree);
       const collider = new pc.Entity(`course-tree-collider-${index + 1}`);
