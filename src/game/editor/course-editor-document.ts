@@ -272,8 +272,8 @@ const PRESET_OBJECTS: Record<
       shape: "box",
     },
   },
-  // The youth's battery LED work light, about 1,800 lm, taped up where the
-  // park has no lamps; the race hangs its lens and light beneath it.
+  // The youth's battery LED work light, about 4,700 lm, hung where the park
+  // has no lamps; the race hangs its lens and light beneath it.
   "work-light": {
     availability: "standard",
     category: "feature",

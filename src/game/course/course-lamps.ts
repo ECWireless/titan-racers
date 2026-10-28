@@ -34,10 +34,10 @@ const SPOT = { inner: 50, outer: 75, range: 80 };
 const TUNNEL_LAMP = { candela: 8_600, inner: 40, outer: 80, range: 12 };
 // Its lens fills most of the housing's underside.
 const TUNNEL_LENS = { x: 0.92, y: 0.01, z: 0.78 };
-// The youth's battery LED work light, about 1,800 lm from a near-Lambertian
-// panel (Φ/π ≈ 600 cd), so it lights a culvert's floor about a metre below
-// as a tunnel lamp lights a road.
-const WORK_LAMP = { candela: 600, inner: 40, outer: 80, range: 6 };
+// The youth's battery LED work light, about 4,700 lm from a near-Lambertian
+// panel (Φ/π ≈ 1,500 cd). Hung every few metres along a low culvert, a string
+// of them lights its floor about as brightly as the floodlit track outside.
+const WORK_LAMP = { candela: 1_500, inner: 40, outer: 80, range: 6 };
 const WORK_LENS = { x: 0.85, y: 0.005, z: 0.8 };
 const INDOOR_LAMPS = {
   tunnel: { lens: TUNNEL_LENS, spot: TUNNEL_LAMP },

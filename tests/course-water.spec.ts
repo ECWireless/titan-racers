@@ -13,6 +13,7 @@ import {
 // A 0.3 m deep stream 10 m long, turned 90° so it flows toward -Z.
 function withStream() {
   const document = structuredClone(FALLS_VIEW_PARK_DOCUMENT);
+  document.objects = document.objects.filter(({ visual }) => visual.material !== "water");
   document.objects.push({
     availability: "standard",
     category: "feature",

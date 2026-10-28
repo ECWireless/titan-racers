@@ -194,7 +194,9 @@ export const COURSE_TREE_LIMIT = 2_000;
  * Indoor lamps (tunnel luminaires and, from schema version eight, the
  * youth's work lights) light only indoor objects, and share their own limit.
  */
-export const COURSE_INDOOR_LAMP_LIMIT = 16;
+export const COURSE_INDOOR_LAMP_LIMIT = 20;
+// Courses before schema version eight had at most this many tunnel lamps.
+const LEGACY_COURSE_INDOOR_LAMP_LIMIT = 16;
 export type CourseLampKind = "floodlight" | "tunnel" | "work";
 export const COURSE_INDOOR_LAMP_KINDS = ["tunnel", "work"] as const;
 export function countCourseLamps(
@@ -437,6 +439,7 @@ function validateCourseObjectsV6(
   },
   context: z.RefinementCtx,
   lampLimit: number,
+  indoorLampLimit: number,
 ) {
   validateCourseRoute(document, context);
   if (countCourseLamps(document, "floodlight") > lampLimit) {
@@ -446,10 +449,10 @@ function validateCourseObjectsV6(
       path: ["objects"],
     });
   }
-  if (countCourseIndoorLamps(document) > COURSE_INDOOR_LAMP_LIMIT) {
+  if (countCourseIndoorLamps(document) > indoorLampLimit) {
     context.addIssue({
       code: "custom",
-      message: `A course has at most ${COURSE_INDOOR_LAMP_LIMIT} tunnel and work lamps`,
+      message: `A course has at most ${indoorLampLimit} tunnel and work lamps`,
       path: ["objects"],
     });
   }
@@ -503,7 +506,12 @@ function validateCourseObjectsV6(
 
 const courseDocumentV6Schema = courseDocumentV6BaseSchema.superRefine(
   (document, context) =>
-    validateCourseObjectsV6(document, context, LEGACY_COURSE_LAMP_LIMIT),
+    validateCourseObjectsV6(
+      document,
+      context,
+      LEGACY_COURSE_LAMP_LIMIT,
+      LEGACY_COURSE_INDOOR_LAMP_LIMIT,
+    ),
 );
 
 // Version seven adds the nursery's finishes, planted beds of young trees,
@@ -605,8 +613,9 @@ function validateCourseObjectsV7(
     >;
   },
   context: z.RefinementCtx,
+  indoorLampLimit = LEGACY_COURSE_INDOOR_LAMP_LIMIT,
 ) {
-  validateCourseObjectsV6(document, context, COURSE_LAMP_LIMIT);
+  validateCourseObjectsV6(document, context, COURSE_LAMP_LIMIT, indoorLampLimit);
   if (countCourseTrees(document) > COURSE_TREE_LIMIT) {
     context.addIssue({
       code: "custom",
@@ -654,11 +663,12 @@ function validateCourseObjectsV7(
 }
 
 const courseDocumentV7Schema = courseDocumentV7BaseSchema.superRefine(
-  validateCourseObjectsV7,
+  (document, context) => validateCourseObjectsV7(document, context),
 );
 
 // Version eight adds water and the youth's work lights: battery LED lamps
-// they bring for places the park never lit, such as a culvert.
+// they bring for places the park never lit, such as a culvert, with room
+// for twenty indoor lamps.
 const visualMaterialV8Schema = z.enum([
   ...visualMaterialV7Schema.options,
   "water",
@@ -680,7 +690,7 @@ export const courseDocumentSchema = courseDocumentV7BaseSchema
     schemaVersion: z.literal(8),
   })
   .superRefine((document, context) => {
-    validateCourseObjectsV7(document, context);
+    validateCourseObjectsV7(document, context, COURSE_INDOOR_LAMP_LIMIT);
     document.objects.forEach((object, index) => {
       // Water is a level box of open water under the sky: its top is the
       // surface and its volume the water a kart can drown in. Karts pass

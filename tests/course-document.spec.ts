@@ -9,7 +9,7 @@ import {
   COURSE_LAMP_LIMIT,
   COURSE_TREE_LIMIT,
   countCourseHedgeSprays,
-  countCourseLamps,
+  countCourseIndoorLamps,
   countCourseTrees,
   type CourseDocument,
   courseDocumentSchema,
@@ -20,15 +20,29 @@ import {
   ROUGH_COURSE_DOCUMENT,
   serializeCourseDocument,
 } from "../src/game/course/course-document";
+import {
+  getCourseWaterVolumes,
+  isUnderCourseWater,
+} from "../src/game/course/course-water";
 
 function cloneSeed() {
   return structuredClone(ROUGH_COURSE_DOCUMENT);
 }
 
+// Falls View Park as a version-seven course could hold it: no water or
+// work lights.
+function versionSevenFallsViewPark() {
+  const document = structuredClone(FALLS_VIEW_PARK_DOCUMENT);
+  document.objects = document.objects.filter(
+    (object) => object.visual.material !== "water" && object.lamp !== "work",
+  );
+  return document;
+}
+
 // Falls View Park as a version-six course could hold it: no nursery
 // finishes or beds, and eight floodlights.
 function versionSixFallsViewPark() {
-  const document = structuredClone(FALLS_VIEW_PARK_DOCUMENT);
+  const document = versionSevenFallsViewPark();
   let floodlights = 0;
   document.objects = document.objects.filter(
     (object) =>
@@ -305,11 +319,13 @@ test("adds indoor objects, overhead objects, and tunnel lamps from schema versio
     indoors: true as const,
     lamp: "tunnel" as const,
   });
-  // The seed's own tunnel lamps make way for a full set of sixteen.
+  // The seed's own indoor lamps make way for a full set of tunnel lamps.
   const tunnel = structuredClone(FALLS_VIEW_PARK_DOCUMENT);
-  tunnel.objects = tunnel.objects.filter((object) => object.lamp !== "tunnel");
+  tunnel.objects = tunnel.objects.filter(
+    (object) => object.lamp !== "tunnel" && object.lamp !== "work",
+  );
   tunnel.objects.push(
-    ...Array.from({ length: 16 }, (_, index) => tunnelLamp(index)),
+    ...Array.from({ length: COURSE_INDOOR_LAMP_LIMIT }, (_, index) => tunnelLamp(index)),
     {
       ...structuredClone(tunnel.objects[0]!),
       collision: null,
@@ -329,7 +345,7 @@ test("adds indoor objects, overhead objects, and tunnel lamps from schema versio
       .safeParse(document)
       .error?.issues.map(({ path }) => path);
   const extraTunnelLamp = structuredClone(tunnel);
-  extraTunnelLamp.objects.push(tunnelLamp(16));
+  extraTunnelLamp.objects.push(tunnelLamp(COURSE_INDOOR_LAMP_LIMIT));
   expect(
     courseDocumentSchema.safeParse(extraTunnelLamp).error?.issues,
   ).toContainEqual(
@@ -606,7 +622,7 @@ function expectMarkingsRestOnSurfaces(document: CourseDocument) {
   }
 }
 
-test("keeps every start and recovery pose clear of solid obstacles", () => {
+test("keeps every start and recovery pose clear of solid obstacles and water", () => {
   for (const document of [ROUGH_COURSE_DOCUMENT, FALLS_VIEW_PARK_DOCUMENT]) {
     const poses = [
       { id: document.start.id, ...document.start.position },
@@ -615,6 +631,14 @@ test("keeps every start and recovery pose clear of solid obstacles", () => {
         ...recovery.position,
       })),
     ];
+    // A kart recovered into water would drown again at once.
+    const water = getCourseWaterVolumes(document);
+    for (const pose of poses) {
+      expect(
+        isUnderCourseWater(water, { ...pose, y: pose.y + 0.15 }),
+        `${pose.id} under water`,
+      ).toBe(false);
+    }
     for (const object of document.objects) {
       const { collision, visual } = object;
       if (collision?.shape === "arc" && visual.shape === "arc") {
@@ -1030,9 +1054,8 @@ test("adds the nursery's finishes and planted beds in schema version seven", () 
 
 test("adds water and work lights in schema version eight", () => {
   // Version seven upgrades unchanged.
-  expect(
-    parseCourseDocument({ ...structuredClone(FALLS_VIEW_PARK_DOCUMENT), schemaVersion: 7 }),
-  ).toEqual(FALLS_VIEW_PARK_DOCUMENT);
+  const versionSeven = versionSevenFallsViewPark();
+  expect(parseCourseDocument({ ...versionSeven, schemaVersion: 7 })).toEqual(versionSeven);
 
   const housing = FALLS_VIEW_PARK_DOCUMENT.objects.find(
     (object) => object.lamp === "tunnel",
@@ -1045,12 +1068,13 @@ test("adds water and work lights in schema version eight", () => {
   const water = {
     ...structuredClone(housing),
     collision: null,
-    id: "stream-water",
+    id: "test-water",
     visual: { material: "water" as const, scale: { x: 6, y: 0.3, z: 3 }, shape: "box" as const },
   };
   delete water.indoors;
   delete water.lamp;
-  const wet = structuredClone(FALLS_VIEW_PARK_DOCUMENT);
+  // Falls View Park without its own water and work lights, given new ones.
+  const wet = versionSevenFallsViewPark();
   wet.objects.push(workLight(1), water);
   expect(parseCourseDocument(wet)).toEqual(wet);
   expect(parseCourseDocument(JSON.parse(serializeCourseDocument(wet)))).toEqual(wet);
@@ -1067,16 +1091,35 @@ test("adds water and work lights in schema version eight", () => {
   const lightIndex = wet.objects.length - 2;
   delete outdoorWorkLight.objects[lightIndex]!.indoors;
   expect(issuePath(outdoorWorkLight)).toContainEqual(["objects", lightIndex, "indoors"]);
-  const tunnelLamps = countCourseLamps(FALLS_VIEW_PARK_DOCUMENT, "tunnel");
-  const crowded = structuredClone(FALLS_VIEW_PARK_DOCUMENT);
+  const crowded = versionSevenFallsViewPark();
+  const indoorLamps = countCourseIndoorLamps(crowded);
   crowded.objects.push(
-    ...Array.from({ length: COURSE_INDOOR_LAMP_LIMIT - tunnelLamps }, (_, index) =>
+    ...Array.from({ length: COURSE_INDOOR_LAMP_LIMIT - indoorLamps }, (_, index) =>
       workLight(index),
     ),
   );
   expect(courseDocumentSchema.safeParse(crowded).success).toBe(true);
   crowded.objects.push(workLight(99));
   expect(issuePath(crowded)).toContainEqual(["objects"]);
+  // Version eight makes room for twenty indoor lamps; earlier versions keep
+  // sixteen.
+  const seventeen = versionSevenFallsViewPark();
+  seventeen.objects.push(
+    ...Array.from({ length: 17 - countCourseIndoorLamps(seventeen) }, (_, index) => ({
+      ...structuredClone(housing),
+      id: `extra-tunnel-lamp-${index}`,
+    })),
+  );
+  expect(parseCourseDocument(seventeen)).toEqual(seventeen);
+  expect(() => parseCourseDocument({ ...seventeen, schemaVersion: 7 })).toThrow(
+    "16 tunnel and work lamps",
+  );
+  const versionSix = versionSixFallsViewPark();
+  versionSix.objects.push(...seventeen.objects.filter(({ id }) => id.startsWith("extra-tunnel-lamp-")));
+  expect(countCourseIndoorLamps(versionSix)).toBe(17);
+  expect(() => parseCourseDocument({ ...versionSix, schemaVersion: 6 })).toThrow(
+    "16 tunnel and work lamps",
+  );
 
   // Water is an outdoor box that never collides.
   const waterIndex = wet.objects.length - 1;
