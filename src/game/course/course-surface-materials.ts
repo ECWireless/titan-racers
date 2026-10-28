@@ -250,11 +250,15 @@ const SCANNED_SURFACE_NORMAL = `
 void getNormal() {
     vec2 slope = (courseScanSample.rg * 2.0 - 1.0) * courseScan.y;
     float up = sqrt(max(0.0, 1.0 - dot(slope, slope)));
-    // Texture u follows world +x and the image's up (OpenGL green) world -z.
-    // Only upward faces carry the scan's relief.
-    dNormalW = dVertexNormalW.y > 0.99
-        ? normalize(vec3(slope.x, up, -slope.y))
-        : dVertexNormalW;
+    // Texture u follows world +x and the image's up (OpenGL green) world -z,
+    // laid onto the face: a ramp's relief tilts with it. Only faces turned
+    // up, at most about 25 degrees from level, carry the scan's relief.
+    vec3 n = dVertexNormalW;
+    vec3 across = normalize(vec3(1.0, 0.0, 0.0) - n * n.x);
+    vec3 along = normalize(vec3(0.0, 0.0, 1.0) - n * n.z);
+    dNormalW = n.y > 0.9
+        ? normalize(across * slope.x + n * up - along * slope.y)
+        : n;
 }
 `;
 
@@ -381,6 +385,7 @@ export function createCourseSurfaceMaterials(
   const lawn = () => hex(COURSE_LAWN_COLOR);
   const createFinishes = (): RoughCourseMaterials => ({
     asphalt: finish(new pc.Color(...COURSE_ASPHALT_COLOR), 0.18, [0.65, 0.28, 0], "asphalt", "asphalt"),
+    baseAsphalt: finish(new pc.Color(...COURSE_ASPHALT_COLOR), 0.18, [0.65, 0.28, 0], undefined, "asphalt"),
     baseGround: finish(turf(), 0.08, [0.45, 0.3, 0.035], undefined, "turf"),
     baseLawn: finish(lawn(), 0.05, [0.55, 0.42, 0], undefined, "lawn"),
     ground: finish(turf(), 0.08, [0.45, 0.3, 0.035], "ground", "turf"),

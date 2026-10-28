@@ -20,6 +20,7 @@ import {
   isCourseWater,
 } from "./course-water";
 import {
+  drawsCourseAsphaltUnlayered,
   drawsCourseGrassUnlayered,
   drawsCourseTopFaceOnly,
 } from "./course-visual-policy";
@@ -38,6 +39,8 @@ export type RoughCourseMaterials = Record<
   // The base ground draws under every coplanar surface layer.
   baseGround: pc.StandardMaterial;
   baseLawn: pc.StandardMaterial;
+  // Solid asphalt decks, which draw with no layer bias.
+  baseAsphalt: pc.StandardMaterial;
 };
 
 export type CourseTopFaceMeshes = Record<"box" | "cylinder", pc.Mesh>;
@@ -154,7 +157,9 @@ export function buildRoughCourse(
               ? projection.visual.material === "lawn"
                 ? finishes.baseLawn
                 : finishes.baseGround
-              : finishes[projection.visual.material],
+              : drawsCourseAsphaltUnlayered(object)
+                ? finishes.baseAsphalt
+                : finishes[projection.visual.material],
             generatedMesh ??
               (object.visual.shape !== "arc" && drawsCourseTopFaceOnly(object)
                 ? topFaces?.[object.visual.shape]

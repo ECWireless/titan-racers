@@ -87,6 +87,21 @@ export function drawsCourseGrassUnlayered(object: {
   );
 }
 
+/**
+ * Whether asphalt draws with no layer bias: a solid deck, such as a levee's
+ * road or a ramp, rather than a thin layer on the ground. As with earthworks,
+ * the bias would pull its side faces through the walls beside it.
+ */
+export function drawsCourseAsphaltUnlayered(object: {
+  id: string;
+  transform: { rotation: { x: number; z: number } };
+  visual: { material: CourseVisualMaterial; scale?: { y: number } };
+}) {
+  return (
+    object.visual.material === "asphalt" && !drawsCourseTopFaceOnly(object)
+  );
+}
+
 export function isCourseBaseGround(
   material: CourseVisualMaterial,
   objectId: string,
