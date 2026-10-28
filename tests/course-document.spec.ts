@@ -30,7 +30,8 @@ function cloneSeed() {
 }
 
 // Falls View Park as a version-seven course could hold it: no water or
-// work lights, and turf where its lanes are concrete.
+// work lights, turf where its lanes are concrete, and block where its stream
+// bed is gravel.
 function versionSevenFallsViewPark() {
   const document = structuredClone(FALLS_VIEW_PARK_DOCUMENT);
   document.objects = document.objects.filter(
@@ -38,6 +39,8 @@ function versionSevenFallsViewPark() {
   );
   for (const object of document.objects) {
     if (object.visual.material === "concrete") object.visual.material = "verge";
+    if (object.visual.material === "gravel")
+      object.visual.material = "obstacleBlock";
   }
   return document;
 }

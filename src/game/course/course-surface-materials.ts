@@ -140,6 +140,74 @@ void getNormal() {
 }
 `;
 
+// Clear water seen from above: the bed shows through the light the surface
+// does not reflect, less what the water absorbs and what the bed loses to
+// being wet, and the surface adds its reflection (Fresnel-weighted already)
+// and the faint blue-green the water scatters back in place of what it
+// absorbed. The bed's share follows the stream's level surface, not each
+// ripple: the ripples show in the reflection itself, and at grazing views
+// their Fresnel term would otherwise speckle the bed.
+const WATER_COMBINE = `
+// x: the water's own transmission, y: the wet bed's darkening.
+uniform vec2 courseWaterTransmission;
+// The stream bed's colour, linear.
+uniform vec3 courseWaterBedAlbedo;
+float courseWaterBed;
+vec3 combineColor(vec3 albedo, vec3 sheenSpecularity, float clearcoatSpecularity) {
+    float facing = clamp(dot(dVertexNormalW, dViewDirW), 0.0, 1.0);
+    float fresnel = 0.02 + 0.98 * pow(1.0 - facing, 5.0);
+    courseWaterBed = (1.0 - fresnel)
+        * courseWaterTransmission.x * courseWaterTransmission.y;
+    vec3 surface = (1.0 - fresnel) * (1.0 - courseWaterTransmission.x)
+        * albedo * dDiffuseLight;
+#ifdef LIT_SPECULAR
+    surface += dSpecularLight;
+#endif
+#ifdef LIT_REFLECTIONS
+    surface += dReflection.rgb * dReflection.a;
+#endif
+    return surface;
+}
+`;
+// Blending mixes the water's colour over the bed by its alpha, on the
+// gamma-encoded screen. The alpha passes the bed's share; the colour is what
+// makes the mix come out as the surface's light added to the bed's share,
+// for a bed of the stream bed's colour in the light that reaches the water.
+// Where even a full colour cannot reach that, as at a bright glint, the alpha
+// rises and the glint covers the bed, as it does on real water.
+const WATER_END = `
+    vec3 waterSurface = combineColor(litArgs_albedo, litArgs_sheen_specularity, litArgs_clearcoat_specularity)
+        + litArgs_emission;
+    vec3 waterBedLight = courseWaterBedAlbedo * dDiffuseLight;
+    vec3 waterSeen = gammaCorrectOutput(toneMap(addFog(
+        waterSurface + courseWaterBed * waterBedLight)));
+    vec3 waterBed = gammaCorrectOutput(toneMap(addFog(waterBedLight)));
+    // The most the colour can add, and, in dim light, where the tone curve's
+    // toe dims the bed's share below its encoded share, the least.
+    vec3 waterNeed = (waterSeen - waterBed) / max(1.0 - waterBed, 0.001);
+    vec3 waterShare = waterSeen / max(waterBed, 0.001);
+    float courseWaterAlpha = clamp(max(max(
+        1.0 - pow(courseWaterBed, 1.0 / 2.2),
+        max(waterNeed.r, max(waterNeed.g, waterNeed.b))),
+        1.0 - min(waterShare.r, min(waterShare.g, waterShare.b))), 0.001, 1.0);
+    gl_FragColor.rgb = clamp(
+        (waterSeen - (1.0 - courseWaterAlpha) * waterBed) / courseWaterAlpha,
+        0.0, 1.0);
+`;
+// Reads the alpha the water's end chunk sets just before it in main.
+const WATER_OUTPUT_ALPHA = `
+gl_FragColor.a = courseWaterAlpha;
+`;
+// The share of the bed's light clear water passes down through a 0.3 m
+// stream and back up: it takes about a quarter of the red and almost none of
+// the green and blue, applied here as one share weighted by brightness, with
+// the scattered blue-green giving the tint. Water filling a wet surface's
+// pores lets less of its light back out, so a submerged bed shows about 70%
+// as bright as it is dry.
+const WATER_TRANSMISSION = [0.93, 0.7];
+// Clean river gravel of pale granite and limestone, a light, cool grey.
+const GRAVEL_COLOR = "#a4a7a7";
+
 // Scanned finishes (CC0 ambientCG scans, see docs/visual-identity.md). The
 // albedo image stores each texel's colour as a quarter of its ratio to the
 // scan's mean, so the finish keeps the palette's average colour while the scan
@@ -209,6 +277,9 @@ const SCANNED_SURFACES: Record<
   // A coarse broom finish, its ridges about 2 cm apart, brushed across the
   // nursery's lanes.
   concrete: { metres: 2, normal: 0.6, tint: 0.12, roughness: 0.608 },
+  // Rounded river pebbles a few centimetres across, on a 0.5 m scan; their
+  // mixed greys keep more of the scan's hue.
+  gravel: { metres: 0.5, normal: 1, tint: 0.35, roughness: 0.56 },
   lawn: { metres: 1.4, normal: 1, tint: 0.35, roughness: 0.544 },
   // A 1.4 m scan drawn smaller, so its blades read as clipped.
   turf: { metres: 0.8, normal: 0.8, tint: 0.35, roughness: 0.263 },
@@ -252,12 +323,15 @@ export function createCourseSurfaceMaterials(
     addressU: pc.ADDRESS_REPEAT,
     addressV: pc.ADDRESS_REPEAT,
   });
-  // Murky stream water: the light it scatters back from below is a few
-  // percent, and its surface reflects as water does (index 1.333, so 2%
-  // straight down, rising toward grazing views). It shows no bed.
+  // Clear stream water: its surface reflects as water does (index 1.333, so
+  // 2% straight down, rising toward grazing views), and where it does not,
+  // the bed shows through. Its diffuse colour is the blue-green it scatters
+  // back.
   const water = () => {
     const material = new pc.StandardMaterial();
-    material.diffuse = new pc.Color(0.028, 0.032, 0.022).gamma();
+    material.diffuse = new pc.Color(0.02, 0.18, 0.2).gamma();
+    material.blendType = pc.BLEND_NORMAL;
+    material.depthWrite = false;
     material.useMetalness = true;
     material.metalness = 0;
     material.refractionIndex = 1 / 1.333;
@@ -267,7 +341,13 @@ export function createCourseSurfaceMaterials(
     material.normalMap = ripples;
     material.shaderChunks.version = "2.20";
     material.shaderChunks.glsl.set("normalMapPS", WATER_NORMAL);
+    material.shaderChunks.glsl.set("combinePS", WATER_COMBINE);
+    material.shaderChunks.glsl.set("endPS", WATER_END);
+    material.shaderChunks.glsl.set("outputAlphaPS", WATER_OUTPUT_ALPHA);
     material.setParameter("courseWaterFlow", [0, 0]);
+    material.setParameter("courseWaterTransmission", WATER_TRANSMISSION);
+    const bed = new pc.Color().fromString(GRAVEL_COLOR).linear();
+    material.setParameter("courseWaterBedAlbedo", [bed.r, bed.g, bed.b]);
     material.update();
     return material;
   };
@@ -320,6 +400,8 @@ export function createCourseSurfaceMaterials(
     // A working nursery's brushed-concrete trolley lanes, weathered to about
     // 30% reflectance.
     concrete: finish(hex("#8e8d88"), 0.16, [0.3, 0.2, 0], "verge", "concrete"),
+    // The stream's bed of clean river gravel, under the water.
+    gravel: finish(hex(GRAVEL_COLOR), 0.2, [0.2, 0.1, 0], undefined, "gravel"),
     water: water(),
   });
   const materials = createFinishes();
@@ -382,7 +464,7 @@ export function createCourseSurfaceMaterials(
         scanTextures.push(result);
         return result;
       };
-      const scans = (["asphalt", "concrete", "lawn", "turf"] as const).map(
+      const scans = (["asphalt", "concrete", "gravel", "lawn", "turf"] as const).map(
         (surface) => [surface, images[surface]] as const,
       );
       const textures = Object.fromEntries(

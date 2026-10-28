@@ -179,7 +179,8 @@ Materials), and so do course surfaces (see Course Surfaces).
 ### Surface Scans
 
 From [ambientCG](https://ambientcg.com) (CC0), 1K sets in
-`src/game/course/surface-textures/`, each packed into two JPEGs: colour as a
+`src/game/course/surface-textures/` (the gravel halved to 512², 1 mm a
+texel), each packed into two JPEGs: colour as a
 ratio to the scan's mean with 80% of its ambient occlusion baked in, and the
 OpenGL normal's x and y with roughness.
 
@@ -188,6 +189,8 @@ OpenGL normal's x and y with roughness.
 | Asphalt | Asphalt030 | 2.2 m |
 | Uncut lawn | Grass001 | 1.4 m |
 | Turf | Grass004 | 0.8 m (scanned at 1.4 m) |
+| Brushed concrete | Concrete048 | 2 m, its broom ridges across the lanes |
+| River gravel (stream bed) | Rocks022 | 0.5 m |
 
 ### Tree Billboards
 

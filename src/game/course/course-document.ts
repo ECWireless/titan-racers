@@ -666,12 +666,14 @@ const courseDocumentV7Schema = courseDocumentV7BaseSchema.superRefine(
   (document, context) => validateCourseObjectsV7(document, context),
 );
 
-// Version eight adds water, brushed concrete, and the youth's work lights:
+// Version eight adds water, its river-gravel bed, brushed concrete, and the
+// youth's work lights:
 // battery LED lamps they bring for places the park never lit, such as a
 // culvert, with room for twenty indoor lamps.
 const visualMaterialV8Schema = z.enum([
   ...visualMaterialV7Schema.options,
   "concrete",
+  "gravel",
   "water",
 ]);
 

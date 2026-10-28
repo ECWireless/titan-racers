@@ -33651,7 +33651,7 @@
         }
       },
       "visual": {
-        "material": "obstacleBlock",
+        "material": "gravel",
         "scale": {
           "x": 129.35,
           "y": 1.4,
@@ -33705,10 +33705,38 @@
         }
       },
       "visual": {
-        "material": "obstacleBlock",
+        "material": "gravel",
         "scale": {
           "x": 19.2,
           "y": 1.4,
+          "z": 6.5
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "stream-bed-culvert",
+      "transform": {
+        "position": {
+          "x": 59,
+          "y": 1.405,
+          "z": 25.75
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "gravel",
+        "scale": {
+          "x": 3.6,
+          "y": 0.01,
           "z": 6.5
         },
         "shape": "box"

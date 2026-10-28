@@ -3,6 +3,8 @@ import asphaltAlbedo from "./surface-textures/asphalt-albedo.jpg";
 import asphaltSurface from "./surface-textures/asphalt-surface.jpg";
 import concreteAlbedo from "./surface-textures/concrete-albedo.jpg";
 import concreteSurface from "./surface-textures/concrete-surface.jpg";
+import gravelAlbedo from "./surface-textures/gravel-albedo.jpg";
+import gravelSurface from "./surface-textures/gravel-surface.jpg";
 import lawnAlbedo from "./surface-textures/lawn-albedo.jpg";
 import lawnSurface from "./surface-textures/lawn-surface.jpg";
 import turfAlbedo from "./surface-textures/turf-albedo.jpg";
@@ -11,7 +13,12 @@ import leafColour from "./tree-textures/leaf-sprays-colour.jpg";
 import leafCoverage from "./tree-textures/leaf-sprays-coverage.png";
 import type { CourseLeafImages } from "./course-trees";
 
-export type CourseScannedSurface = "asphalt" | "concrete" | "lawn" | "turf";
+export type CourseScannedSurface =
+  | "asphalt"
+  | "concrete"
+  | "gravel"
+  | "lawn"
+  | "turf";
 
 export type CourseSurfaceImages = Record<
   CourseScannedSurface,
@@ -21,6 +28,7 @@ export type CourseSurfaceImages = Record<
 const SOURCES = {
   asphalt: { albedo: asphaltAlbedo, surface: asphaltSurface },
   concrete: { albedo: concreteAlbedo, surface: concreteSurface },
+  gravel: { albedo: gravelAlbedo, surface: gravelSurface },
   lawn: { albedo: lawnAlbedo, surface: lawnSurface },
   turf: { albedo: turfAlbedo, surface: turfSurface },
 } satisfies Record<CourseScannedSurface, Record<"albedo" | "surface", { src: string }>>;
