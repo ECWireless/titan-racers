@@ -6,7 +6,8 @@ import {
   COURSE_TREE_LIMIT,
   countCourseHedgeSprays,
   countCourseTrees,
-  COURSE_TUNNEL_LAMP_LIMIT,
+  COURSE_INDOOR_LAMP_LIMIT,
+  countCourseIndoorLamps,
   countCourseLamps,
   type CourseDocument,
   courseDocumentSchema,
@@ -26,8 +27,10 @@ export const COURSE_OBJECT_PRESETS = [
   "platform",
   "lamp",
   "tunnel-lamp",
+  "work-light",
   "tree-bed",
   "hedge",
+  "water",
 ] as const;
 export const COURSE_EDITOR_OBJECT_LIMIT = 1_000;
 export const COURSE_EDITOR_CHECKPOINT_LIMIT = COURSE_CHECKPOINT_LIMIT;
@@ -43,8 +46,10 @@ export const COURSE_OBJECT_PRESET_LABELS: Record<CourseObjectPreset, string> = {
   platform: "platform",
   ramp: "ramp",
   "tunnel-lamp": "tunnel lamp",
+  "work-light": "work light",
   "tree-bed": "tree bed",
   hedge: "hedge",
+  water: "water",
 };
 
 export type CourseEditorSelection =
@@ -267,6 +272,21 @@ const PRESET_OBJECTS: Record<
       shape: "box",
     },
   },
+  // The youth's battery LED work light, about 1,800 lm, taped up where the
+  // park has no lamps; the race hangs its lens and light beneath it.
+  "work-light": {
+    availability: "standard",
+    category: "feature",
+    collision: null,
+    editable: true,
+    indoors: true,
+    lamp: "work",
+    visual: {
+      material: "hazard",
+      scale: { x: 0.22, y: 0.06, z: 0.16 },
+      shape: "box",
+    },
+  },
   platform: {
     availability: "standard",
     category: "surface",
@@ -336,6 +356,18 @@ const PRESET_OBJECTS: Record<
       shape: "box",
     },
   },
+  // Water 0.3 m deep, flowing along its length (local +X).
+  water: {
+    availability: "standard",
+    category: "feature",
+    collision: null,
+    editable: true,
+    visual: {
+      material: "water",
+      scale: { x: 6, y: 0.3, z: 3 },
+      shape: "box",
+    },
+  },
 };
 
 export function addCourseObjectPreset(
@@ -356,15 +388,20 @@ export function addCourseObjectPreset(
   ).length;
   const template = PRESET_OBJECTS[preset];
   // Boxes and cylinders stand on their centres, arcs on their bases; a
-  // tunnel lamp hangs from a 3.6 m tunnel's roof.
+  // tunnel lamp hangs from a 3.6 m tunnel's roof, a work light from a 1.2 m
+  // culvert's, and water fills to its surface from the ground.
   const y =
     preset === "tunnel-lamp"
       ? 3.6 - 0.06
-      : template.collision?.shape === "box"
-        ? template.collision.halfExtents.y
-        : template.collision?.shape === "cylinder"
-          ? template.collision.height / 2
-          : 0;
+      : preset === "work-light"
+        ? 1.2 - 0.03
+        : preset === "water"
+          ? 0.15
+          : template.collision?.shape === "box"
+            ? template.collision.halfExtents.y
+            : template.collision?.shape === "cylinder"
+              ? template.collision.height / 2
+              : 0;
   const object: CourseObject = {
     ...structuredClone(template),
     id,
@@ -398,10 +435,10 @@ export function coursePresetLimitReached(
     return COURSE_LAMP_LIMIT;
   }
   if (
-    preset === "tunnel-lamp" &&
-    countCourseLamps(document, "tunnel") >= COURSE_TUNNEL_LAMP_LIMIT
+    (preset === "tunnel-lamp" || preset === "work-light") &&
+    countCourseIndoorLamps(document) >= COURSE_INDOOR_LAMP_LIMIT
   ) {
-    return COURSE_TUNNEL_LAMP_LIMIT;
+    return COURSE_INDOOR_LAMP_LIMIT;
   }
   if (
     preset === "hedge" &&
@@ -425,8 +462,8 @@ export function coursePresetLimitReached(
 /**
  * Marks an object indoors (lit only by indoor light) or overhead (a roof the
  * editor can cut away; beneath an indoor one, the race counts a kart
- * indoors). The schema's rules hold: tunnel lamps stand indoors and
- * floodlights outdoors, and an overhead object never supports a kart. A
+ * indoors). The schema's rules hold: tunnel and work lamps stand indoors
+ * and floodlights outdoors, and an overhead object never supports a kart. A
  * change that breaks one leaves the course unchanged.
  */
 export function updateSelectionPlacement(

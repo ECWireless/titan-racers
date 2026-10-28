@@ -6,6 +6,7 @@ import { createPortal } from "react-dom";
 
 import {
   type CourseDocument,
+  type CourseLampKind,
   serializeCourseDocument,
 } from "@/game/course/course-document";
 import type { EditorControllerViewportHandle } from "@/game/editor/editor-controller-viewport";
@@ -2046,10 +2047,13 @@ function CollapsibleSection({
   );
 }
 
-// The tree and hedge limits count trees and leaf sprays, not presets.
+// The tree and hedge limits count trees and leaf sprays, not presets, and
+// tunnel and work lamps share one limit.
 const PRESET_LIMIT_UNITS: Partial<Record<CourseObjectPreset, string>> = {
   hedge: " leaf sprays",
   "tree-bed": " trees",
+  "tunnel-lamp": " indoor lamps",
+  "work-light": " indoor lamps",
 };
 
 function presetLimitMessage(preset: CourseObjectPreset, limit: number) {
@@ -2579,7 +2583,7 @@ function Inspector({
 type ObjectPlacement = {
   boxShaped: boolean;
   indoors: boolean;
-  lamp: "floodlight" | "tunnel" | null;
+  lamp: CourseLampKind | null;
   overhead: boolean;
   supportsKarts: boolean;
 };
@@ -2599,9 +2603,9 @@ function ObjectPlacementControl({
     {
       checked: indoors,
       hint: lamp
-        ? lamp === "tunnel"
-          ? "Tunnel lamps stand indoors."
-          : "Floodlights stand outdoors."
+        ? lamp === "floodlight"
+          ? "Floodlights stand outdoors."
+          : "Tunnel and work lamps stand indoors."
         : overhead && !boxShaped
           ? "Indoor roofs are boxes."
           : "Lit only by indoor light in the race.",

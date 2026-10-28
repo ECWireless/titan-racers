@@ -8,9 +8,9 @@ import {
 } from "../enclosure/island-three";
 import { getApprovedSurfaceMaterial } from "../kart/kart-material-registry";
 import { COURSE_ARC_MAXIMUM_WIDTH_RATIO } from "./course-arc";
-import fallsViewParkDocumentJson from "./falls-view-park.v7.json";
+import fallsViewParkDocumentJson from "./falls-view-park.v8.json";
 import type { OfficialCourseId } from "./course-ids";
-import roughCourseDocumentJson from "./rough-course.v7.json";
+import roughCourseDocumentJson from "./rough-course.v8.json";
 
 export const courseIdSchema = z
   .string()
@@ -190,14 +190,24 @@ export const COURSE_LAMP_LIMIT = 12;
 const LEGACY_COURSE_LAMP_LIMIT = 8;
 /** Planted beds' trees are drawn and collide, so a course has at most this many. */
 export const COURSE_TREE_LIMIT = 2_000;
-/** Tunnel lamps light only indoor objects, and have their own limit. */
-export const COURSE_TUNNEL_LAMP_LIMIT = 16;
-export type CourseLampKind = "floodlight" | "tunnel";
+/**
+ * Indoor lamps (tunnel luminaires and, from schema version eight, the
+ * youth's work lights) light only indoor objects, and share their own limit.
+ */
+export const COURSE_INDOOR_LAMP_LIMIT = 16;
+export type CourseLampKind = "floodlight" | "tunnel" | "work";
+export const COURSE_INDOOR_LAMP_KINDS = ["tunnel", "work"] as const;
 export function countCourseLamps(
   document: { objects: { lamp?: string }[] },
   kind: CourseLampKind,
 ) {
   return document.objects.filter((object) => object.lamp === kind).length;
+}
+export function countCourseIndoorLamps(document: { objects: { lamp?: string }[] }) {
+  return COURSE_INDOOR_LAMP_KINDS.reduce(
+    (total, kind) => total + countCourseLamps(document, kind),
+    0,
+  );
 }
 // Courses before schema version five opened their mirrors at most this far.
 const LEGACY_MIRROR_ANGLE_MAX = 85;
@@ -436,21 +446,22 @@ function validateCourseObjectsV6(
       path: ["objects"],
     });
   }
-  if (countCourseLamps(document, "tunnel") > COURSE_TUNNEL_LAMP_LIMIT) {
+  if (countCourseIndoorLamps(document) > COURSE_INDOOR_LAMP_LIMIT) {
     context.addIssue({
       code: "custom",
-      message: `A course has at most ${COURSE_TUNNEL_LAMP_LIMIT} tunnel lamps`,
+      message: `A course has at most ${COURSE_INDOOR_LAMP_LIMIT} tunnel and work lamps`,
       path: ["objects"],
     });
   }
   document.objects.forEach((object, index) => {
     if (
       object.lamp &&
-      (object.lamp === "tunnel") !== Boolean(object.indoors)
+      (COURSE_INDOOR_LAMP_KINDS as readonly string[]).includes(object.lamp) !==
+        Boolean(object.indoors)
     ) {
       context.addIssue({
         code: "custom",
-        message: "Tunnel lamps stand indoors and floodlights outdoors",
+        message: "Tunnel and work lamps stand indoors and floodlights outdoors",
         path: ["objects", index, "indoors"],
       });
     }
@@ -564,7 +575,7 @@ export function countCourseHedgeSprays(document: {
   );
 }
 
-export const courseDocumentSchema = courseDocumentV6BaseSchema
+const courseDocumentV7BaseSchema = courseDocumentV6BaseSchema
   .extend({
     objects: courseDocumentV6BaseSchema.shape.objects.element
       .extend({
@@ -578,49 +589,115 @@ export const courseDocumentSchema = courseDocumentV6BaseSchema
       .min(1)
       .max(5_000),
     schemaVersion: z.literal(7),
+  });
+
+function validateCourseObjectsV7(
+  document: Omit<Parameters<typeof validateCourseObjectsV6>[0], "objects"> & {
+    objects: Array<
+      Parameters<typeof validateCourseObjectsV6>[0]["objects"][number] & {
+        planting?: { across: number; along: number };
+        visual: {
+          material: string;
+          scale?: { x: number; y: number; z: number };
+          shape: string;
+        };
+      }
+    >;
+  },
+  context: z.RefinementCtx,
+) {
+  validateCourseObjectsV6(document, context, COURSE_LAMP_LIMIT);
+  if (countCourseTrees(document) > COURSE_TREE_LIMIT) {
+    context.addIssue({
+      code: "custom",
+      message: `A course has at most ${COURSE_TREE_LIMIT} trees`,
+      path: ["objects"],
+    });
+  }
+  if (countCourseHedgeSprays(document) > COURSE_HEDGE_SPRAY_LIMIT) {
+    context.addIssue({
+      code: "custom",
+      message: "A course's hedges are too large",
+      path: ["objects"],
+    });
+  }
+  document.objects.forEach((object, index) => {
+    // Trees stand outdoors on a bed's flat top.
+    if (
+      object.planting &&
+      (object.visual.shape !== "box" ||
+        object.indoors ||
+        object.overhead ||
+        object.lamp)
+    ) {
+      context.addIssue({
+        code: "custom",
+        message: "Trees grow on outdoor boxes that are not lamps or roofs",
+        path: ["objects", index, "planting"],
+      });
+    }
+    // Hedges are outdoor boxes, which their leaves cover.
+    if (
+      object.visual.material === "hedge" &&
+      (object.visual.shape !== "box" ||
+        object.indoors ||
+        object.overhead ||
+        object.lamp)
+    ) {
+      context.addIssue({
+        code: "custom",
+        message: "Hedges are outdoor boxes that are not lamps or roofs",
+        path: ["objects", index, "visual", "material"],
+      });
+    }
+  });
+}
+
+const courseDocumentV7Schema = courseDocumentV7BaseSchema.superRefine(
+  validateCourseObjectsV7,
+);
+
+// Version eight adds water and the youth's work lights: battery LED lamps
+// they bring for places the park never lit, such as a culvert.
+const visualMaterialV8Schema = z.enum([
+  ...visualMaterialV7Schema.options,
+  "water",
+]);
+
+export const courseDocumentSchema = courseDocumentV7BaseSchema
+  .extend({
+    objects: courseDocumentV7BaseSchema.shape.objects.element
+      .extend({
+        lamp: z.enum(["floodlight", "tunnel", "work"]).optional(),
+        visual: z.discriminatedUnion("shape", [
+          visualSchema.extend({ material: visualMaterialV8Schema }),
+          arcVisualSchema.extend({ material: visualMaterialV8Schema }),
+        ]),
+      })
+      .array()
+      .min(1)
+      .max(5_000),
+    schemaVersion: z.literal(8),
   })
   .superRefine((document, context) => {
-    validateCourseObjectsV6(document, context, COURSE_LAMP_LIMIT);
-    if (countCourseTrees(document) > COURSE_TREE_LIMIT) {
-      context.addIssue({
-        code: "custom",
-        message: `A course has at most ${COURSE_TREE_LIMIT} trees`,
-        path: ["objects"],
-      });
-    }
-    if (countCourseHedgeSprays(document) > COURSE_HEDGE_SPRAY_LIMIT) {
-      context.addIssue({
-        code: "custom",
-        message: "A course's hedges are too large",
-        path: ["objects"],
-      });
-    }
+    validateCourseObjectsV7(document, context);
     document.objects.forEach((object, index) => {
-      // Trees stand outdoors on a bed's flat top.
+      // Water is a level box of open water under the sky: its top is the
+      // surface and its volume the water a kart can drown in. Karts pass
+      // through it to the bed beneath, which collides.
       if (
-        object.planting &&
+        object.visual.material === "water" &&
         (object.visual.shape !== "box" ||
+          object.collision !== null ||
           object.indoors ||
           object.overhead ||
-          object.lamp)
+          object.lamp ||
+          object.planting)
       ) {
         context.addIssue({
           code: "custom",
-          message: "Trees grow on outdoor boxes that are not lamps or roofs",
-          path: ["objects", index, "planting"],
-        });
-      }
-      // Hedges are outdoor boxes, which their leaves cover.
-      if (
-        object.visual.material === "hedge" &&
-        (object.visual.shape !== "box" ||
-          object.indoors ||
-          object.overhead ||
-          object.lamp)
-      ) {
-        context.addIssue({
-          code: "custom",
-          message: "Hedges are outdoor boxes that are not lamps or roofs",
+          message:
+            "Water is an outdoor box without collision that is not a lamp, roof, or bed",
           path: ["objects", index, "visual", "material"],
         });
       }
@@ -977,6 +1054,14 @@ export function parseCourseDocument(input: unknown): CourseDocument {
     return parseCourseDocument({
       ...courseDocumentV6Schema.parse(input),
       schemaVersion: 7,
+    });
+  }
+
+  // Versions seven and eight upgrade unchanged.
+  if (hasSchemaVersion(input, 7)) {
+    return parseCourseDocument({
+      ...courseDocumentV7Schema.parse(input),
+      schemaVersion: 8,
     });
   }
 

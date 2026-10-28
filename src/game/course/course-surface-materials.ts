@@ -15,6 +15,7 @@ import type {
   CourseScannedSurface,
   CourseSurfaceImages,
 } from "./course-surface-textures";
+import { COURSE_WATER_FLOW_SPEED } from "./course-water";
 import { applyAdaptedEnvironmentAtlas } from "../render/scene-look";
 
 // Retained CPU pixels are shared by page mounts and re-upload after context
@@ -56,6 +57,86 @@ void getAlbedo() {
     float variation = (grain - 0.25) * courseFinish.x + (broad - 0.5) * courseFinish.y;
     float mowing = sin(world.y * 1.5707963) * courseFinish.z;
     dAlbedo = material_diffuse * (1.0 + variation + mowing);
+}
+`;
+
+// Water ripples at real size: a seamless 1 m tile of capillary and small
+// gravity ripples, 5–12 cm long with the same steepness, stored as normals.
+// Integer wave counts per tile keep it seamless; mipmaps average it out at a
+// distance.
+let ripplePixels: Uint8Array | undefined;
+const RIPPLE_SIZE = 128;
+const RIPPLE_WAVES = 24;
+const RIPPLE_SLOPE = 0.035;
+
+function getRipplePixels() {
+  if (ripplePixels) return ripplePixels;
+  let seed = 90127;
+  const random = () => {
+    seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0;
+    return seed / 2 ** 32;
+  };
+  const waves = Array.from({ length: RIPPLE_WAVES }, () => {
+    const cycles = 8 + random() * 12;
+    const angle = random() * Math.PI * 2;
+    const kx = Math.round(cycles * Math.cos(angle));
+    const ky = Math.round(cycles * Math.sin(angle));
+    const k = Math.hypot(kx, ky);
+    const phase = random() * Math.PI * 2;
+    // cos(a + b) from per-row and per-column tables, rather than a cosine
+    // per texel.
+    const table = (cycles: number, offset: number) => {
+      const angles = Array.from(
+        { length: RIPPLE_SIZE },
+        (_, index) => (2 * Math.PI * cycles * index) / RIPPLE_SIZE + offset,
+      );
+      return { cos: angles.map(Math.cos), sin: angles.map(Math.sin) };
+    };
+    // Every wave is equally steep, whatever its length.
+    return { dx: kx / k, dy: ky / k, x: table(kx, phase), y: table(ky, 0) };
+  });
+  const pixels = new Uint8Array(RIPPLE_SIZE * RIPPLE_SIZE * 4);
+  for (let y = 0; y < RIPPLE_SIZE; y++) {
+    for (let x = 0; x < RIPPLE_SIZE; x++) {
+      let dx = 0;
+      let dy = 0;
+      for (const wave of waves) {
+        const slope =
+          RIPPLE_SLOPE *
+          (wave.x.cos[x]! * wave.y.cos[y]! - wave.x.sin[x]! * wave.y.sin[y]!);
+        dx += slope * wave.dx;
+        dy += slope * wave.dy;
+      }
+      const length = Math.hypot(dx, dy, 1);
+      const offset = (y * RIPPLE_SIZE + x) * 4;
+      pixels[offset] = Math.round((0.5 - dx / length / 2) * 255);
+      pixels[offset + 1] = Math.round((0.5 - dy / length / 2) * 255);
+      pixels[offset + 2] = Math.round((0.5 + 0.5 / length) * 255);
+      pixels[offset + 3] = 255;
+    }
+  }
+  ripplePixels = pixels;
+  return pixels;
+}
+
+// The ripple tile drifts downstream (u) with the surface, once at its own
+// 1 m size and once four times larger, turned by a 3-4-5 angle, and half as
+// steep, for longer swells, so the two never line up into a visible repeat.
+// Each layer's drift is in metres; the turned layer repeats every 20 m.
+const WATER_RIPPLE_LAYERS = { broad: 4, broadRepeat: 20, fine: 1 };
+const WATER_NORMAL = `
+uniform vec2 courseWaterFlow;
+void getNormal() {
+    vec2 uv = {STD_NORMAL_TEXTURE_UV};
+    vec3 fine = texture2D({STD_NORMAL_TEXTURE_NAME},
+        (uv - vec2(courseWaterFlow.x, 0.0)) / ${WATER_RIPPLE_LAYERS.fine.toFixed(1)}).xyz * 2.0 - 1.0;
+    mat2 turn = mat2(0.8, 0.6, -0.6, 0.8);
+    vec3 broad = texture2D({STD_NORMAL_TEXTURE_NAME},
+        turn * (uv - vec2(courseWaterFlow.y, 0.0)) / ${WATER_RIPPLE_LAYERS.broad.toFixed(1)}).xyz * 2.0 - 1.0;
+    // Slopes add; the turned layer's turn back into the surface's frame.
+    vec2 slope = fine.xy / max(fine.z, 0.2)
+        + 0.5 * (transpose(turn) * broad.xy) / max(broad.z, 0.2);
+    dNormalW = normalize(dTBN * vec3(slope, 1.0));
 }
 `;
 
@@ -154,6 +235,39 @@ export function createCourseSurfaceMaterials(
     addressU: pc.ADDRESS_REPEAT,
     addressV: pc.ADDRESS_REPEAT,
   });
+  const ripples = new pc.Texture(device, {
+    name: "course-water-ripples",
+    width: RIPPLE_SIZE,
+    height: RIPPLE_SIZE,
+    format: pc.PIXELFORMAT_RGBA8,
+    levels: [getRipplePixels()],
+    mipmaps: true,
+    minFilter: pc.FILTER_LINEAR_MIPMAP_LINEAR,
+    magFilter: pc.FILTER_LINEAR,
+    // The chase camera sees water at grazing angles, where ripples stretch.
+    anisotropy: 4,
+    addressU: pc.ADDRESS_REPEAT,
+    addressV: pc.ADDRESS_REPEAT,
+  });
+  // Murky stream water: the light it scatters back from below is a few
+  // percent, and its surface reflects as water does (index 1.333, so 2%
+  // straight down, rising toward grazing views). It shows no bed.
+  const water = () => {
+    const material = new pc.StandardMaterial();
+    material.diffuse = new pc.Color(0.028, 0.032, 0.022).gamma();
+    material.useMetalness = true;
+    material.metalness = 0;
+    material.refractionIndex = 1 / 1.333;
+    material.gloss = 0.94;
+    // The ripple chunk replaces the normal map's sampling; setting the map
+    // gives the shader its UVs and a tangent frame from them.
+    material.normalMap = ripples;
+    material.shaderChunks.version = "2.20";
+    material.shaderChunks.glsl.set("normalMapPS", WATER_NORMAL);
+    material.setParameter("courseWaterFlow", [0, 0]);
+    material.update();
+    return material;
+  };
   const finish = (
     color: pc.Color,
     gloss: number,
@@ -200,6 +314,7 @@ export function createCourseSurfaceMaterials(
     timber: finish(hex("#857661"), 0.14, [0.3, 0.18, 0]),
     mulch: finish(hex("#3e3025"), 0.06, [0.7, 0.35, 0]),
     hedge: finish(hex("#46522f"), 0.08, [0.35, 0.25, 0]),
+    water: water(),
   });
   const materials = createFinishes();
   const indoorMaterials = interior ? createFinishes() : null;
@@ -216,7 +331,22 @@ export function createCourseSurfaceMaterials(
     box: createTopFaceMesh(device, "box"),
     cylinder: createTopFaceMesh(device, "cylinder"),
   } satisfies CourseTopFaceMeshes;
+  let waterSeconds = 0;
   return {
+    /** Moves the water's ripples downstream by a frame's time. */
+    advanceWater(seconds: number) {
+      waterSeconds += seconds;
+      const drift = waterSeconds * COURSE_WATER_FLOW_SPEED;
+      // Wrapped where each layer repeats, so the drift keeps its precision.
+      const flow = [
+        drift % WATER_RIPPLE_LAYERS.fine,
+        // Longer swells ride a little slower than the surface.
+        (drift * 0.8) % WATER_RIPPLE_LAYERS.broadRepeat,
+      ];
+      [materials, indoorMaterials].forEach((finishes) =>
+        finishes?.water.setParameter("courseWaterFlow", flow),
+      );
+    },
     indoorMaterials,
     materials,
     topFaces,
@@ -280,6 +410,7 @@ export function createCourseSurfaceMaterials(
       );
       Object.values(topFaces).forEach(releaseTopFaceMesh);
       grain.destroy();
+      ripples.destroy();
       scanTextures.forEach((texture) => texture.destroy());
     },
   };

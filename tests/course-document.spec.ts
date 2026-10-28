@@ -5,9 +5,11 @@ import { expect, test } from "@playwright/test";
 
 import {
   COURSE_HEDGE_SPRAY_LIMIT,
+  COURSE_INDOOR_LAMP_LIMIT,
   COURSE_LAMP_LIMIT,
   COURSE_TREE_LIMIT,
   countCourseHedgeSprays,
+  countCourseLamps,
   countCourseTrees,
   type CourseDocument,
   courseDocumentSchema,
@@ -116,7 +118,7 @@ function findObject(id: string) {
 }
 
 test("parses the versioned rough course with stable IDs and ordered checkpoints", () => {
-  expect(ROUGH_COURSE_DOCUMENT.schemaVersion).toBe(7);
+  expect(ROUGH_COURSE_DOCUMENT.schemaVersion).toBe(8);
   expect(ROUGH_COURSE_DOCUMENT.units).toBe("meters");
   expect(ROUGH_COURSE_DOCUMENT.start.id).toBe("start-position");
   expect(ROUGH_COURSE_DOCUMENT.checkpoints).toHaveLength(3);
@@ -332,7 +334,7 @@ test("adds indoor objects, overhead objects, and tunnel lamps from schema versio
     courseDocumentSchema.safeParse(extraTunnelLamp).error?.issues,
   ).toContainEqual(
     expect.objectContaining({
-      message: expect.stringContaining("tunnel lamps"),
+      message: expect.stringContaining("tunnel and work lamps"),
       path: ["objects"],
     }),
   );
@@ -680,7 +682,7 @@ function toObjectFrame(
 }
 
 test("serializes the seeds deterministically and round trips without changes", () => {
-  for (const seed of ["rough-course.v7.json", "falls-view-park.v7.json"]) {
+  for (const seed of ["rough-course.v8.json", "falls-view-park.v8.json"]) {
     const source = readFileSync(
       join(process.cwd(), "src/game/course", seed),
       "utf8",
@@ -692,7 +694,7 @@ test("serializes the seeds deterministically and round trips without changes", (
   }
   expect(serializeCourseDocument(ROUGH_COURSE_DOCUMENT)).toBe(
     readFileSync(
-      join(process.cwd(), "src/game/course/rough-course.v7.json"),
+      join(process.cwd(), "src/game/course/rough-course.v8.json"),
       "utf8",
     ),
   );
@@ -725,7 +727,7 @@ test("normalizes version-one course data without mutating the stored input", () 
   expect(withoutDerived(normalized)).toEqual(
     withoutDerived(ROUGH_COURSE_DOCUMENT),
   );
-  expect(normalized.schemaVersion).toBe(7);
+  expect(normalized.schemaVersion).toBe(8);
 });
 
 test("normalizes a valid one-checkpoint version-one course", () => {
@@ -920,7 +922,7 @@ test("normalizes v2 to standard surfaces without inferring physics from visuals"
   const input = createVersionTwoSeed();
   const stored = structuredClone(input);
   const normalized = parseCourseDocument(input);
-  expect(normalized.schemaVersion).toBe(7);
+  expect(normalized.schemaVersion).toBe(8);
   // Legacy karts keep spawning on the start gate.
   expect(normalized.start.spawnDistance).toBe(0);
   for (const object of normalized.objects) {
@@ -1024,4 +1026,73 @@ test("adds the nursery's finishes and planted beds in schema version seven", () 
   };
   expect(countCourseHedgeSprays(vastHedge)).toBeGreaterThan(COURSE_HEDGE_SPRAY_LIMIT);
   expect(issuePath(vastHedge)).toContainEqual(["objects"]);
+});
+
+test("adds water and work lights in schema version eight", () => {
+  // Version seven upgrades unchanged.
+  expect(
+    parseCourseDocument({ ...structuredClone(FALLS_VIEW_PARK_DOCUMENT), schemaVersion: 7 }),
+  ).toEqual(FALLS_VIEW_PARK_DOCUMENT);
+
+  const housing = FALLS_VIEW_PARK_DOCUMENT.objects.find(
+    (object) => object.lamp === "tunnel",
+  )!;
+  const workLight = (index: number) => ({
+    ...structuredClone(housing),
+    id: `work-light-${index}`,
+    lamp: "work" as const,
+  });
+  const water = {
+    ...structuredClone(housing),
+    collision: null,
+    id: "stream-water",
+    visual: { material: "water" as const, scale: { x: 6, y: 0.3, z: 3 }, shape: "box" as const },
+  };
+  delete water.indoors;
+  delete water.lamp;
+  const wet = structuredClone(FALLS_VIEW_PARK_DOCUMENT);
+  wet.objects.push(workLight(1), water);
+  expect(parseCourseDocument(wet)).toEqual(wet);
+  expect(parseCourseDocument(JSON.parse(serializeCourseDocument(wet)))).toEqual(wet);
+  // Water and work lights are version eight's.
+  expect(() => parseCourseDocument({ ...wet, schemaVersion: 7 })).toThrow();
+
+  const issuePath = (document: CourseDocument) =>
+    courseDocumentSchema
+      .safeParse(document)
+      .error?.issues.map(({ path }) => path);
+
+  // Work lights stand indoors, and share the tunnel lamps' limit.
+  const outdoorWorkLight = structuredClone(wet);
+  const lightIndex = wet.objects.length - 2;
+  delete outdoorWorkLight.objects[lightIndex]!.indoors;
+  expect(issuePath(outdoorWorkLight)).toContainEqual(["objects", lightIndex, "indoors"]);
+  const tunnelLamps = countCourseLamps(FALLS_VIEW_PARK_DOCUMENT, "tunnel");
+  const crowded = structuredClone(FALLS_VIEW_PARK_DOCUMENT);
+  crowded.objects.push(
+    ...Array.from({ length: COURSE_INDOOR_LAMP_LIMIT - tunnelLamps }, (_, index) =>
+      workLight(index),
+    ),
+  );
+  expect(courseDocumentSchema.safeParse(crowded).success).toBe(true);
+  crowded.objects.push(workLight(99));
+  expect(issuePath(crowded)).toContainEqual(["objects"]);
+
+  // Water is an outdoor box that never collides.
+  const waterIndex = wet.objects.length - 1;
+  for (const mutate of [
+    (object: CourseDocument["objects"][number]) =>
+      (object.collision = structuredClone(
+        FALLS_VIEW_PARK_DOCUMENT.objects.find(({ collision }) => collision?.shape === "box")!
+          .collision,
+      )),
+    (object: CourseDocument["objects"][number]) => (object.indoors = true),
+    (object: CourseDocument["objects"][number]) => (object.overhead = true),
+    (object: CourseDocument["objects"][number]) =>
+      (object.visual = { ...water.visual, shape: "cylinder" }),
+  ]) {
+    const invalid = structuredClone(wet);
+    mutate(invalid.objects[waterIndex]!);
+    expect(issuePath(invalid)).toContainEqual(["objects", waterIndex, "visual", "material"]);
+  }
 });

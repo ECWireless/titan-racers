@@ -16,6 +16,10 @@ import {
 } from "./course-arc";
 import { CourseSurfaceResolver } from "./course-surface-resolver";
 import {
+  createCourseWaterSurfaceGeometry,
+  isCourseWater,
+} from "./course-water";
+import {
   drawsCourseGrassUnlayered,
   drawsCourseTopFaceOnly,
 } from "./course-visual-policy";
@@ -136,10 +140,12 @@ export function buildRoughCourse(
         const projection = projectCourseObject(object);
         const finishes = (object.indoors && indoorMaterials) || materials;
         const indoors = finishes !== materials;
-        const arcMesh =
+        const generatedMesh =
           object.visual.shape === "arc"
             ? createCourseArcMesh(app.graphicsDevice, object.visual.arc)
-            : undefined;
+            : isCourseWater(object)
+              ? createCourseWaterMesh(app.graphicsDevice, object.visual.scale)
+              : undefined;
         let entity: pc.Entity;
         try {
           entity = createEntity(
@@ -149,14 +155,14 @@ export function buildRoughCourse(
                 ? finishes.baseLawn
                 : finishes.baseGround
               : finishes[projection.visual.material],
-            arcMesh ??
+            generatedMesh ??
               (object.visual.shape !== "arc" && drawsCourseTopFaceOnly(object)
                 ? topFaces?.[object.visual.shape]
                 : undefined),
           );
         } catch (error) {
           // Free the mesh the entity never took; destroying it twice is safe.
-          arcMesh?.destroy();
+          generatedMesh?.destroy();
           throw error;
         }
 
@@ -310,6 +316,24 @@ export function addCourseVisual(
   entity.model?.meshInstances?.forEach((meshInstance) => {
     meshInstance.material = material;
   });
+}
+
+/**
+ * A water object's surface, with UVs in metres along its flow so its ripples
+ * keep their size; its mesh instance frees it on destroy.
+ */
+function createCourseWaterMesh(
+  device: pc.GraphicsDevice,
+  scale: { x: number; y: number; z: number },
+) {
+  const geometry = createCourseWaterSurfaceGeometry(scale);
+  const mesh = new pc.Mesh(device);
+  mesh.setPositions(geometry.positions);
+  mesh.setNormals(geometry.normals);
+  mesh.setUvs(0, geometry.uvs);
+  mesh.setIndices(geometry.indices);
+  mesh.update();
+  return mesh;
 }
 
 /**

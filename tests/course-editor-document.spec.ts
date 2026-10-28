@@ -3,7 +3,7 @@ import { expect, test } from "@playwright/test";
 import {
   COURSE_LAMP_LIMIT,
   COURSE_TREE_LIMIT,
-  COURSE_TUNNEL_LAMP_LIMIT,
+  COURSE_INDOOR_LAMP_LIMIT,
   countCourseTrees,
   ROUGH_COURSE_DOCUMENT,
   parseCourseDocument,
@@ -381,14 +381,14 @@ test.describe("course editor document commands", () => {
 
   test("hangs tunnel lamps from the roof, up to their own limit", () => {
     let document = structuredClone(ROUGH_COURSE_DOCUMENT);
-    for (let count = 0; count <= COURSE_TUNNEL_LAMP_LIMIT; count += 1) {
+    for (let count = 0; count <= COURSE_INDOOR_LAMP_LIMIT; count += 1) {
       document = addCourseObjectPreset(document, "tunnel-lamp");
     }
     const lamps = document.objects.filter(
       (object) => object.lamp === "tunnel",
     );
 
-    expect(lamps).toHaveLength(COURSE_TUNNEL_LAMP_LIMIT);
+    expect(lamps).toHaveLength(COURSE_INDOOR_LAMP_LIMIT);
     expect(lamps[0]).toMatchObject({
       collision: null,
       id: "tunnel-lamp-1",
@@ -397,7 +397,7 @@ test.describe("course editor document commands", () => {
       visual: { material: "steel", scale: { x: 1.2, y: 0.12, z: 0.36 } },
     });
     expect(coursePresetLimitReached(document, "tunnel-lamp")).toBe(
-      COURSE_TUNNEL_LAMP_LIMIT,
+      COURSE_INDOOR_LAMP_LIMIT,
     );
     // Floodlights keep their own limit beside them.
     expect(coursePresetLimitReached(document, "lamp")).toBeNull();
