@@ -803,7 +803,7 @@
         "role": "drivable-surface",
         "shape": "box",
         "surfaceMaterial": {
-          "id": "surface.short-grass",
+          "id": "surface.standard-course",
           "version": 1
         }
       },
@@ -822,7 +822,7 @@
         }
       },
       "visual": {
-        "material": "verge",
+        "material": "concrete",
         "scale": {
           "x": 2.91,
           "y": 0.002,
@@ -857,7 +857,7 @@
         "role": "drivable-surface",
         "shape": "box",
         "surfaceMaterial": {
-          "id": "surface.short-grass",
+          "id": "surface.standard-course",
           "version": 1
         }
       },
@@ -876,7 +876,7 @@
         }
       },
       "visual": {
-        "material": "verge",
+        "material": "concrete",
         "scale": {
           "x": 11.02,
           "y": 0.002,
@@ -911,7 +911,7 @@
         "role": "drivable-surface",
         "shape": "box",
         "surfaceMaterial": {
-          "id": "surface.short-grass",
+          "id": "surface.standard-course",
           "version": 1
         }
       },
@@ -930,7 +930,7 @@
         }
       },
       "visual": {
-        "material": "verge",
+        "material": "concrete",
         "scale": {
           "x": 1.48016,
           "y": 0.002,
@@ -965,7 +965,7 @@
         "role": "drivable-surface",
         "shape": "box",
         "surfaceMaterial": {
-          "id": "surface.short-grass",
+          "id": "surface.standard-course",
           "version": 1
         }
       },
@@ -984,7 +984,7 @@
         }
       },
       "visual": {
-        "material": "verge",
+        "material": "concrete",
         "scale": {
           "x": 1.48016,
           "y": 0.002,
@@ -1019,7 +1019,7 @@
         "role": "drivable-surface",
         "shape": "box",
         "surfaceMaterial": {
-          "id": "surface.short-grass",
+          "id": "surface.standard-course",
           "version": 1
         }
       },
@@ -1038,7 +1038,7 @@
         }
       },
       "visual": {
-        "material": "verge",
+        "material": "concrete",
         "scale": {
           "x": 1.48016,
           "y": 0.002,
@@ -1073,7 +1073,7 @@
         "role": "drivable-surface",
         "shape": "box",
         "surfaceMaterial": {
-          "id": "surface.short-grass",
+          "id": "surface.standard-course",
           "version": 1
         }
       },
@@ -1092,7 +1092,7 @@
         }
       },
       "visual": {
-        "material": "verge",
+        "material": "concrete",
         "scale": {
           "x": 1.48016,
           "y": 0.002,
@@ -1127,7 +1127,7 @@
         "role": "drivable-surface",
         "shape": "box",
         "surfaceMaterial": {
-          "id": "surface.short-grass",
+          "id": "surface.standard-course",
           "version": 1
         }
       },
@@ -1146,7 +1146,7 @@
         }
       },
       "visual": {
-        "material": "verge",
+        "material": "concrete",
         "scale": {
           "x": 1.48016,
           "y": 0.002,
@@ -1181,7 +1181,7 @@
         "role": "drivable-surface",
         "shape": "box",
         "surfaceMaterial": {
-          "id": "surface.short-grass",
+          "id": "surface.standard-course",
           "version": 1
         }
       },
@@ -1200,7 +1200,7 @@
         }
       },
       "visual": {
-        "material": "verge",
+        "material": "concrete",
         "scale": {
           "x": 1.48016,
           "y": 0.002,
@@ -1235,7 +1235,7 @@
         "role": "drivable-surface",
         "shape": "box",
         "surfaceMaterial": {
-          "id": "surface.short-grass",
+          "id": "surface.standard-course",
           "version": 1
         }
       },
@@ -1254,7 +1254,7 @@
         }
       },
       "visual": {
-        "material": "verge",
+        "material": "concrete",
         "scale": {
           "x": 1.48016,
           "y": 0.002,
@@ -1289,7 +1289,7 @@
         "role": "drivable-surface",
         "shape": "box",
         "surfaceMaterial": {
-          "id": "surface.short-grass",
+          "id": "surface.standard-course",
           "version": 1
         }
       },
@@ -1308,7 +1308,7 @@
         }
       },
       "visual": {
-        "material": "verge",
+        "material": "concrete",
         "scale": {
           "x": 1.48016,
           "y": 0.002,
@@ -1343,7 +1343,7 @@
         "role": "drivable-surface",
         "shape": "box",
         "surfaceMaterial": {
-          "id": "surface.short-grass",
+          "id": "surface.standard-course",
           "version": 1
         }
       },
@@ -1362,7 +1362,7 @@
         }
       },
       "visual": {
-        "material": "verge",
+        "material": "concrete",
         "scale": {
           "x": 1.48016,
           "y": 0.002,
@@ -1397,7 +1397,7 @@
         "role": "drivable-surface",
         "shape": "box",
         "surfaceMaterial": {
-          "id": "surface.short-grass",
+          "id": "surface.standard-course",
           "version": 1
         }
       },
@@ -1416,7 +1416,7 @@
         }
       },
       "visual": {
-        "material": "verge",
+        "material": "concrete",
         "scale": {
           "x": 1.48016,
           "y": 0.002,
@@ -1451,7 +1451,7 @@
         "role": "drivable-surface",
         "shape": "box",
         "surfaceMaterial": {
-          "id": "surface.short-grass",
+          "id": "surface.standard-course",
           "version": 1
         }
       },
@@ -1470,7 +1470,7 @@
         }
       },
       "visual": {
-        "material": "verge",
+        "material": "concrete",
         "scale": {
           "x": 1.48016,
           "y": 0.002,
@@ -1505,7 +1505,7 @@
         "role": "drivable-surface",
         "shape": "box",
         "surfaceMaterial": {
-          "id": "surface.short-grass",
+          "id": "surface.standard-course",
           "version": 1
         }
       },
@@ -1524,7 +1524,7 @@
         }
       },
       "visual": {
-        "material": "verge",
+        "material": "concrete",
         "scale": {
           "x": 1.48016,
           "y": 0.002,
@@ -1559,7 +1559,7 @@
         "role": "drivable-surface",
         "shape": "box",
         "surfaceMaterial": {
-          "id": "surface.short-grass",
+          "id": "surface.standard-course",
           "version": 1
         }
       },
@@ -1578,7 +1578,7 @@
         }
       },
       "visual": {
-        "material": "verge",
+        "material": "concrete",
         "scale": {
           "x": 1.48016,
           "y": 0.002,
@@ -1613,7 +1613,7 @@
         "role": "drivable-surface",
         "shape": "box",
         "surfaceMaterial": {
-          "id": "surface.short-grass",
+          "id": "surface.standard-course",
           "version": 1
         }
       },
@@ -1632,7 +1632,7 @@
         }
       },
       "visual": {
-        "material": "verge",
+        "material": "concrete",
         "scale": {
           "x": 1.48016,
           "y": 0.002,
@@ -1667,7 +1667,7 @@
         "role": "drivable-surface",
         "shape": "box",
         "surfaceMaterial": {
-          "id": "surface.short-grass",
+          "id": "surface.standard-course",
           "version": 1
         }
       },
@@ -1686,7 +1686,7 @@
         }
       },
       "visual": {
-        "material": "verge",
+        "material": "concrete",
         "scale": {
           "x": 1.48016,
           "y": 0.002,
@@ -1721,7 +1721,7 @@
         "role": "drivable-surface",
         "shape": "box",
         "surfaceMaterial": {
-          "id": "surface.short-grass",
+          "id": "surface.standard-course",
           "version": 1
         }
       },
@@ -1740,7 +1740,7 @@
         }
       },
       "visual": {
-        "material": "verge",
+        "material": "concrete",
         "scale": {
           "x": 1.48016,
           "y": 0.002,
@@ -1775,7 +1775,7 @@
         "role": "drivable-surface",
         "shape": "box",
         "surfaceMaterial": {
-          "id": "surface.short-grass",
+          "id": "surface.standard-course",
           "version": 1
         }
       },
@@ -1794,7 +1794,7 @@
         }
       },
       "visual": {
-        "material": "verge",
+        "material": "concrete",
         "scale": {
           "x": 1.48016,
           "y": 0.002,
@@ -1829,7 +1829,7 @@
         "role": "drivable-surface",
         "shape": "box",
         "surfaceMaterial": {
-          "id": "surface.short-grass",
+          "id": "surface.standard-course",
           "version": 1
         }
       },
@@ -1848,7 +1848,7 @@
         }
       },
       "visual": {
-        "material": "verge",
+        "material": "concrete",
         "scale": {
           "x": 12.02,
           "y": 0.002,
@@ -1883,7 +1883,7 @@
         "role": "drivable-surface",
         "shape": "box",
         "surfaceMaterial": {
-          "id": "surface.short-grass",
+          "id": "surface.standard-course",
           "version": 1
         }
       },
@@ -1902,7 +1902,7 @@
         }
       },
       "visual": {
-        "material": "verge",
+        "material": "concrete",
         "scale": {
           "x": 1.48016,
           "y": 0.002,
@@ -1937,7 +1937,7 @@
         "role": "drivable-surface",
         "shape": "box",
         "surfaceMaterial": {
-          "id": "surface.short-grass",
+          "id": "surface.standard-course",
           "version": 1
         }
       },
@@ -1956,7 +1956,7 @@
         }
       },
       "visual": {
-        "material": "verge",
+        "material": "concrete",
         "scale": {
           "x": 1.48016,
           "y": 0.002,
@@ -1991,7 +1991,7 @@
         "role": "drivable-surface",
         "shape": "box",
         "surfaceMaterial": {
-          "id": "surface.short-grass",
+          "id": "surface.standard-course",
           "version": 1
         }
       },
@@ -2010,7 +2010,7 @@
         }
       },
       "visual": {
-        "material": "verge",
+        "material": "concrete",
         "scale": {
           "x": 1.48016,
           "y": 0.002,
@@ -2045,7 +2045,7 @@
         "role": "drivable-surface",
         "shape": "box",
         "surfaceMaterial": {
-          "id": "surface.short-grass",
+          "id": "surface.standard-course",
           "version": 1
         }
       },
@@ -2064,7 +2064,7 @@
         }
       },
       "visual": {
-        "material": "verge",
+        "material": "concrete",
         "scale": {
           "x": 1.48016,
           "y": 0.002,
@@ -2099,7 +2099,7 @@
         "role": "drivable-surface",
         "shape": "box",
         "surfaceMaterial": {
-          "id": "surface.short-grass",
+          "id": "surface.standard-course",
           "version": 1
         }
       },
@@ -2118,7 +2118,7 @@
         }
       },
       "visual": {
-        "material": "verge",
+        "material": "concrete",
         "scale": {
           "x": 1.48016,
           "y": 0.002,
@@ -2153,7 +2153,7 @@
         "role": "drivable-surface",
         "shape": "box",
         "surfaceMaterial": {
-          "id": "surface.short-grass",
+          "id": "surface.standard-course",
           "version": 1
         }
       },
@@ -2172,7 +2172,7 @@
         }
       },
       "visual": {
-        "material": "verge",
+        "material": "concrete",
         "scale": {
           "x": 1.48016,
           "y": 0.002,
@@ -2207,7 +2207,7 @@
         "role": "drivable-surface",
         "shape": "box",
         "surfaceMaterial": {
-          "id": "surface.short-grass",
+          "id": "surface.standard-course",
           "version": 1
         }
       },
@@ -2226,7 +2226,7 @@
         }
       },
       "visual": {
-        "material": "verge",
+        "material": "concrete",
         "scale": {
           "x": 1.48016,
           "y": 0.002,
@@ -2261,7 +2261,7 @@
         "role": "drivable-surface",
         "shape": "box",
         "surfaceMaterial": {
-          "id": "surface.short-grass",
+          "id": "surface.standard-course",
           "version": 1
         }
       },
@@ -2280,7 +2280,7 @@
         }
       },
       "visual": {
-        "material": "verge",
+        "material": "concrete",
         "scale": {
           "x": 1.48016,
           "y": 0.002,
@@ -2315,7 +2315,7 @@
         "role": "drivable-surface",
         "shape": "box",
         "surfaceMaterial": {
-          "id": "surface.short-grass",
+          "id": "surface.standard-course",
           "version": 1
         }
       },
@@ -2334,7 +2334,7 @@
         }
       },
       "visual": {
-        "material": "verge",
+        "material": "concrete",
         "scale": {
           "x": 1.48016,
           "y": 0.002,
@@ -2369,7 +2369,7 @@
         "role": "drivable-surface",
         "shape": "box",
         "surfaceMaterial": {
-          "id": "surface.short-grass",
+          "id": "surface.standard-course",
           "version": 1
         }
       },
@@ -2388,7 +2388,7 @@
         }
       },
       "visual": {
-        "material": "verge",
+        "material": "concrete",
         "scale": {
           "x": 1.48016,
           "y": 0.002,
@@ -2423,7 +2423,7 @@
         "role": "drivable-surface",
         "shape": "box",
         "surfaceMaterial": {
-          "id": "surface.short-grass",
+          "id": "surface.standard-course",
           "version": 1
         }
       },
@@ -2442,7 +2442,7 @@
         }
       },
       "visual": {
-        "material": "verge",
+        "material": "concrete",
         "scale": {
           "x": 1.48016,
           "y": 0.002,
@@ -2477,7 +2477,7 @@
         "role": "drivable-surface",
         "shape": "box",
         "surfaceMaterial": {
-          "id": "surface.short-grass",
+          "id": "surface.standard-course",
           "version": 1
         }
       },
@@ -2496,7 +2496,7 @@
         }
       },
       "visual": {
-        "material": "verge",
+        "material": "concrete",
         "scale": {
           "x": 1.48016,
           "y": 0.002,
@@ -2531,7 +2531,7 @@
         "role": "drivable-surface",
         "shape": "box",
         "surfaceMaterial": {
-          "id": "surface.short-grass",
+          "id": "surface.standard-course",
           "version": 1
         }
       },
@@ -2550,7 +2550,7 @@
         }
       },
       "visual": {
-        "material": "verge",
+        "material": "concrete",
         "scale": {
           "x": 1.48016,
           "y": 0.002,
@@ -2585,7 +2585,7 @@
         "role": "drivable-surface",
         "shape": "box",
         "surfaceMaterial": {
-          "id": "surface.short-grass",
+          "id": "surface.standard-course",
           "version": 1
         }
       },
@@ -2604,7 +2604,7 @@
         }
       },
       "visual": {
-        "material": "verge",
+        "material": "concrete",
         "scale": {
           "x": 1.48016,
           "y": 0.002,
@@ -2639,7 +2639,7 @@
         "role": "drivable-surface",
         "shape": "box",
         "surfaceMaterial": {
-          "id": "surface.short-grass",
+          "id": "surface.standard-course",
           "version": 1
         }
       },
@@ -2658,7 +2658,7 @@
         }
       },
       "visual": {
-        "material": "verge",
+        "material": "concrete",
         "scale": {
           "x": 1.48016,
           "y": 0.002,
@@ -2693,7 +2693,7 @@
         "role": "drivable-surface",
         "shape": "box",
         "surfaceMaterial": {
-          "id": "surface.short-grass",
+          "id": "surface.standard-course",
           "version": 1
         }
       },
@@ -2712,7 +2712,7 @@
         }
       },
       "visual": {
-        "material": "verge",
+        "material": "concrete",
         "scale": {
           "x": 1.48016,
           "y": 0.002,
@@ -2747,7 +2747,7 @@
         "role": "drivable-surface",
         "shape": "box",
         "surfaceMaterial": {
-          "id": "surface.short-grass",
+          "id": "surface.standard-course",
           "version": 1
         }
       },
@@ -2766,7 +2766,7 @@
         }
       },
       "visual": {
-        "material": "verge",
+        "material": "concrete",
         "scale": {
           "x": 1.48016,
           "y": 0.002,
@@ -2801,7 +2801,7 @@
         "role": "drivable-surface",
         "shape": "box",
         "surfaceMaterial": {
-          "id": "surface.short-grass",
+          "id": "surface.standard-course",
           "version": 1
         }
       },
@@ -2820,7 +2820,7 @@
         }
       },
       "visual": {
-        "material": "verge",
+        "material": "concrete",
         "scale": {
           "x": 19.02,
           "y": 0.002,
@@ -23874,7 +23874,7 @@
         "position": {
           "x": 64.5,
           "y": 0.11,
-          "z": 18.45
+          "z": 18.55
         },
         "rotation": {
           "x": 0,
@@ -33884,7 +33884,7 @@
         "halfExtents": {
           "x": 11.35,
           "y": 1,
-          "z": 1.2
+          "z": 1.25
         },
         "offset": {
           "position": {
@@ -33912,7 +33912,7 @@
         "position": {
           "x": -63.35,
           "y": 1,
-          "z": 27.8
+          "z": 27.85
         },
         "rotation": {
           "x": 0,
@@ -33925,7 +33925,7 @@
         "scale": {
           "x": 22.7,
           "y": 2,
-          "z": 2.4
+          "z": 2.5
         },
         "shape": "box"
       }

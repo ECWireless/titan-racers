@@ -43,6 +43,8 @@ function getCourseSurfaceLayer(
   objectId: string,
 ): CourseSurfaceLayer | null {
   if (material === "asphalt" || material === "verge") return material;
+  // Paving edges the road from beneath, as verge turf does.
+  if (material === "concrete") return "verge";
   if (material === "ground" || material === "lawn") {
     return isCourseBaseGround(material, objectId) ? null : material;
   }

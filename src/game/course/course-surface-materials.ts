@@ -206,6 +206,9 @@ const SCANNED_SURFACES: Record<
   { metres: number; normal: number; tint: number; roughness: number }
 > = {
   asphalt: { metres: 2.2, normal: 1, tint: 0.12, roughness: 0.612 },
+  // A coarse broom finish, its ridges about 2 cm apart, brushed across the
+  // nursery's lanes.
+  concrete: { metres: 2, normal: 0.6, tint: 0.12, roughness: 0.608 },
   lawn: { metres: 1.4, normal: 1, tint: 0.35, roughness: 0.544 },
   // A 1.4 m scan drawn smaller, so its blades read as clipped.
   turf: { metres: 0.8, normal: 0.8, tint: 0.35, roughness: 0.263 },
@@ -314,6 +317,9 @@ export function createCourseSurfaceMaterials(
     timber: finish(hex("#857661"), 0.14, [0.3, 0.18, 0]),
     mulch: finish(hex("#3e3025"), 0.06, [0.7, 0.35, 0]),
     hedge: finish(hex("#46522f"), 0.08, [0.35, 0.25, 0]),
+    // A working nursery's brushed-concrete trolley lanes, weathered to about
+    // 30% reflectance.
+    concrete: finish(hex("#8e8d88"), 0.16, [0.3, 0.2, 0], "verge", "concrete"),
     water: water(),
   });
   const materials = createFinishes();
@@ -351,7 +357,7 @@ export function createCourseSurfaceMaterials(
     materials,
     topFaces,
     /**
-     * Switches asphalt, turf, and lawn to their scanned finishes. Until then
+     * Switches asphalt, concrete, turf, and lawn to their scanned finishes. Until then
      * (or if the scans never load) they keep the code-built grain.
      */
     useScans(images: CourseSurfaceImages) {
@@ -376,7 +382,7 @@ export function createCourseSurfaceMaterials(
         scanTextures.push(result);
         return result;
       };
-      const scans = (["asphalt", "lawn", "turf"] as const).map(
+      const scans = (["asphalt", "concrete", "lawn", "turf"] as const).map(
         (surface) => [surface, images[surface]] as const,
       );
       const textures = Object.fromEntries(
