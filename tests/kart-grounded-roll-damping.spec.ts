@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 
 import {
-  getFlatGroundedHeaveDampingImpulse,
+  getGroundedHeaveDampingImpulse,
   getGroundedRollDampingLocalTorqueImpulse,
   KART_GROUNDED_ROLL_DAMPING_POLICY,
 } from "../src/game/kart/kart-grounded-roll-damping";
@@ -93,62 +93,58 @@ test.describe("kart grounded turn damping", () => {
     expect(impulse.z).toBeLessThan(0);
   });
 
-  test("opposes flat-ground heave with an impulse derived from mass", () => {
-    const lightImpulse = getFlatGroundedHeaveDampingImpulse(
-      -0.2,
+  const slope = (degrees: number) => {
+    const radians = (degrees * Math.PI) / 180;
+    return { x: 0, y: Math.cos(radians), z: -Math.sin(radians) };
+  };
+  const along = (degrees: number, speed: number) => {
+    const radians = (degrees * Math.PI) / 180;
+    return { x: 0, y: -Math.sin(radians) * speed, z: -Math.cos(radians) * speed };
+  };
+  const four = (normal: { x: number; y: number; z: number }) => [
+    normal,
+    normal,
+    normal,
+    normal,
+  ];
+
+  test("leaves steady driving down a slope undamped", () => {
+    const impulse = getGroundedHeaveDampingImpulse(
+      along(7.5, 13),
+      four(slope(7.5)),
+      slope(7.5),
       2,
-      4,
-      1,
-      1,
-      1 / 120,
-    );
-    const heavyImpulse = getFlatGroundedHeaveDampingImpulse(
-      -0.2,
-      4,
-      4,
-      1,
-      1,
       1 / 120,
     );
 
-    expect(lightImpulse).toBeGreaterThan(0);
-    expect(heavyImpulse).toBeCloseTo(lightImpulse * 2);
+    expect(Math.hypot(impulse.x, impulse.y, impulse.z)).toBeLessThan(1e-9);
   });
 
-  test("does not damp heave on a ramp, while tilted, or with one support", () => {
-    const values = [
-      getFlatGroundedHeaveDampingImpulse(
-        -0.2,
-        2,
-        4,
-        0.9,
-        1,
-        1 / 120,
-      ),
-      getFlatGroundedHeaveDampingImpulse(
-        -0.2,
-        2,
-        4,
-        1,
-        0.9,
-        1 / 120,
-      ),
-      getFlatGroundedHeaveDampingImpulse(
-        -0.2,
-        2,
-        1,
-        1,
-        1,
-        1 / 120,
-      ),
-    ];
+  test("opposes heave off the support along its normal, derived from mass", () => {
+    const normal = slope(7.5);
+    const hop = { x: normal.x * 0.4, y: normal.y * 0.4, z: normal.z * 0.4 };
+    const light = getGroundedHeaveDampingImpulse(hop, four(normal), normal, 2, 1 / 120);
+    const heavy = getGroundedHeaveDampingImpulse(hop, four(normal), normal, 4, 1 / 120);
 
-    expect(values).toEqual([0, 0, 0]);
+    const lightAlongNormal =
+      light.x * normal.x + light.y * normal.y + light.z * normal.z;
+    expect(lightAlongNormal).toBeLessThan(0);
+    expect(Math.hypot(light.x, light.y, light.z)).toBeCloseTo(
+      Math.abs(lightAlongNormal),
+    );
+    expect(heavy.y).toBeCloseTo(light.y * 2);
   });
 
-  test("keeps shared heave damping active during flat supported impacts", () => {
-    expect(
-      getFlatGroundedHeaveDampingImpulse(-3, 2, 2, 1, 1, 1 / 120),
-    ).toBeGreaterThan(0);
+  test("damps a faceted curve's gentle joins but not a ramp toe, a tilted body, or one wheel", () => {
+    const hop = { x: 0, y: -0.5, z: 0 };
+    const damped = (
+      normals: Array<{ x: number; y: number; z: number }>,
+      bodyUp = slope(0),
+    ) => getGroundedHeaveDampingImpulse(hop, normals, bodyUp, 2, 1 / 120).y > 0;
+
+    expect(damped([slope(0), slope(0), slope(2.1), slope(2.1)])).toBe(true);
+    expect(damped([slope(0), slope(0), slope(4.3), slope(4.3)])).toBe(false);
+    expect(damped(four(slope(0)), slope(15))).toBe(false);
+    expect(damped([slope(0)])).toBe(false);
   });
 });

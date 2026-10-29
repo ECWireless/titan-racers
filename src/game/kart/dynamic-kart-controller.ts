@@ -29,7 +29,7 @@ import {
 } from "./kart-brake-model";
 import { getSuspensionLoad } from "./kart-suspension-model";
 import {
-  getFlatGroundedHeaveDampingImpulse,
+  getGroundedHeaveDampingImpulse,
   getGroundedRollDampingLocalTorqueImpulse,
 } from "./kart-grounded-roll-damping";
 import {
@@ -772,22 +772,22 @@ export class DynamicKartController implements KartController {
       worldRollDampingImpulse.y,
       worldRollDampingImpulse.z,
     );
-    const minimumSupportAlignment = this.state.wheelTelemetry.reduce(
-      (minimum, wheel) =>
-        wheel.supported && wheel.contactNormal
-          ? Math.min(minimum, wheel.contactNormal.dot(localUp))
-          : minimum,
-      1,
-    );
-    const heaveDampingImpulse = getFlatGroundedHeaveDampingImpulse(
-      levelLinearVelocity.y,
+    const heaveDampingImpulse = getGroundedHeaveDampingImpulse(
+      linearVelocity,
+      this.state.wheelTelemetry.flatMap((wheel) =>
+        wheel.supported && wheel.contactNormal ? [wheel.contactNormal] : [],
+      ),
+      this.options.assemblyFrame.up,
       this.options.mass,
-      this.state.supportCount,
-      minimumSupportAlignment,
-      this.options.assemblyFrame.up.dot(localUp),
       deltaSeconds,
     );
-    rigidBody.applyImpulse(localUp.clone().mulScalar(heaveDampingImpulse));
+    rigidBody.applyImpulse(
+      new pc.Vec3(
+        heaveDampingImpulse.x,
+        heaveDampingImpulse.y,
+        heaveDampingImpulse.z,
+      ),
+    );
 
     if (isRestingWithoutInput) {
       // Finite wheel sweeps can alternate between coplanar course primitives at
