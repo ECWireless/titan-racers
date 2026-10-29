@@ -5,6 +5,7 @@ import {
   COURSE_TREE_LIMIT,
   COURSE_INDOOR_LAMP_LIMIT,
   countCourseTrees,
+  FALLS_VIEW_PARK_DOCUMENT,
   ROUGH_COURSE_DOCUMENT,
   parseCourseDocument,
   serializeCourseDocument,
@@ -508,6 +509,18 @@ test.describe("course editor document commands", () => {
     expect(getSelectionGeometry(document, selection)?.scale).toBeUndefined();
     expect(scaleSelectionAxis(document, selection, "x", 2)).toBe(document);
     expect(scaleSelectionUniformly(document, selection, 2)).toBe(document);
+
+    // Nor does a bicycle, which keeps its real size.
+    const bicycle = {
+      id: FALLS_VIEW_PARK_DOCUMENT.objects.find(({ bicycle }) => bicycle)!.id,
+      kind: "object",
+    } as const;
+    expect(
+      scaleSelectionAxis(FALLS_VIEW_PARK_DOCUMENT, bicycle, "y", 1.1),
+    ).toBe(FALLS_VIEW_PARK_DOCUMENT);
+    expect(scaleSelectionUniformly(FALLS_VIEW_PARK_DOCUMENT, bicycle, 2)).toBe(
+      FALLS_VIEW_PARK_DOCUMENT,
+    );
 
     const arc = { height: 0.6, innerRadius: 6.12345, sweep: 120, width: 0.4 };
     const resized = updateSelectionArc(document, selection, arc);

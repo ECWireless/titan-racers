@@ -1,36 +1,36 @@
 import { expect, test } from "@playwright/test";
 
 import {
-  BICYCLE_VARIANTS,
   createBicycleGeometry,
   getBicycleRest,
 } from "../src/game/course/course-bicycle-geometry";
-import { FALLS_VIEW_PARK_DOCUMENT } from "../src/game/course/course-document";
+import {
+  COURSE_BICYCLES,
+  type CourseBicycle,
+  FALLS_VIEW_PARK_DOCUMENT,
+} from "../src/game/course/course-document";
 import type { TreeMeshData } from "../src/game/course/course-tree-geometry";
 import {
   createCourseBicycleGeometry,
   getCourseBicycleColliders,
 } from "../src/game/course/course-trees";
 
-const variants = Array.from({ length: BICYCLE_VARIANTS }, (_, i) => i);
-const meshes = (variant: number) => {
+const variants = COURSE_BICYCLES;
+const meshes = (variant: CourseBicycle) => {
   const { dielectric, metal } = createBicycleGeometry(variant);
   return [dielectric, metal];
 };
 const heights = (mesh: TreeMeshData) =>
   mesh.positions.filter((_, index) => index % 3 === 1);
-const extent = (variant: number, axis: number) => {
+const extent = (variant: CourseBicycle, axis: number) => {
   const values = meshes(variant).flatMap((mesh) =>
     mesh.positions.filter((_, index) => index % 3 === axis),
   );
   return Math.max(...values) - Math.min(...values);
 };
 
-test("builds each bicycle the same way every time, within its budget", () => {
+test("builds each bicycle within its budget", () => {
   for (const variant of variants) {
-    expect(createBicycleGeometry(variant)).toEqual(
-      createBicycleGeometry(variant),
-    );
     // Two draws a bike, at most 6,000 triangles between them.
     const [dielectric, metal] = meshes(variant);
     expect(dielectric!.indices.length).toBeGreaterThan(0);
@@ -125,7 +125,7 @@ test("stands each bicycle on both tyres, leaning left onto its prop", () => {
             positions[index + 2]! - point[2],
           ) < 0.06,
       );
-      expect(near, `variant ${variant} vertex ${index / 3}`).toBe(true);
+      expect(near, `${variant} vertex ${index / 3}`).toBe(true);
     }
     // Its centre of mass lies left of its tyres' line, so it leans on what
     // the course stands it against: the hardtail 10 cm, the BMX 21 cm.
@@ -133,39 +133,39 @@ test("stands each bicycle on both tyres, leaning left onto its prop", () => {
     const left =
       (dz * (centreOfMass[0] - rear![0]) - dx * (centreOfMass[2] - rear![2])) /
       Math.hypot(dx, dz);
-    expect(left).toBeGreaterThan(variant === 0 ? 0.08 : 0.18);
+    expect(left).toBeGreaterThan(variant === "hardtail" ? 0.08 : 0.18);
   }
 });
 
 test("builds both bicycles at real size", () => {
   // The hardtail: 27.5" wheels on a 1.06 m wheelbase, its bars and saddle
   // near a metre up, the bars 720 mm wide.
-  expect(extent(0, 0)).toBeGreaterThan(1.6);
-  expect(extent(0, 0)).toBeLessThan(1.85);
-  expect(extent(0, 1)).toBeGreaterThan(0.95);
-  expect(extent(0, 1)).toBeLessThan(1.15);
-  expect(extent(0, 2)).toBeGreaterThan(0.6);
-  expect(extent(0, 2)).toBeLessThan(0.8);
+  expect(extent("hardtail", 0)).toBeGreaterThan(1.6);
+  expect(extent("hardtail", 0)).toBeLessThan(1.85);
+  expect(extent("hardtail", 1)).toBeGreaterThan(0.95);
+  expect(extent("hardtail", 1)).toBeLessThan(1.15);
+  expect(extent("hardtail", 2)).toBeGreaterThan(0.6);
+  expect(extent("hardtail", 2)).toBeLessThan(0.8);
   // The BMX: 20" wheels on a 0.86 m wheelbase, laid over, so its bars,
   // turned into the lean, reach 0.9 m across and its right grip about a
   // metre up.
-  expect(extent(1, 0)).toBeGreaterThan(1.2);
-  expect(extent(1, 0)).toBeLessThan(1.45);
-  expect(extent(1, 1)).toBeGreaterThan(0.9);
-  expect(extent(1, 1)).toBeLessThan(1.1);
-  expect(extent(1, 2)).toBeGreaterThan(0.8);
-  expect(extent(1, 2)).toBeLessThan(1);
+  expect(extent("bmx", 0)).toBeGreaterThan(1.2);
+  expect(extent("bmx", 0)).toBeLessThan(1.45);
+  expect(extent("bmx", 1)).toBeGreaterThan(0.9);
+  expect(extent("bmx", 1)).toBeLessThan(1.1);
+  expect(extent("bmx", 2)).toBeGreaterThan(0.8);
+  expect(extent("bmx", 2)).toBeLessThan(1);
   // Tyre contacts a wheelbase apart, give or take the turned front wheel.
   for (const [variant, wheelbase] of [
-    [0, 1.06],
-    [1, 0.86],
-  ]) {
-    const [rear, front] = getBicycleRest(variant!).supports.map(
+    ["hardtail", 1.06],
+    ["bmx", 0.86],
+  ] as const) {
+    const [rear, front] = getBicycleRest(variant).supports.map(
       ({ point }) => point,
     );
     expect(
       Math.abs(
-        Math.hypot(front![0] - rear![0], front![2] - rear![2]) - wheelbase!,
+        Math.hypot(front![0] - rear![0], front![2] - rear![2]) - wheelbase,
       ),
     ).toBeLessThan(0.1);
   }

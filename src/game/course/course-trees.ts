@@ -2,7 +2,7 @@ import * as pc from "playcanvas";
 
 import { PHYSICS_GROUP, PHYSICS_MASK } from "../physics/collision-groups";
 import { createBicycleGeometry } from "./course-bicycle-geometry";
-import { COURSE_BICYCLES, type CourseDocument } from "./course-document";
+import type { CourseBicycle, CourseDocument } from "./course-document";
 import {
   createCourseHedgeGeometry,
   createNurseryStakeGeometry,
@@ -142,19 +142,39 @@ function place(
   };
 }
 
-// A bicycle collides only as high as a kart reaches, even a bouncing one.
-const BICYCLE_COLLIDER_HEIGHT = 0.35;
-// Its colliders: a box around what lies in each cell of a grid over its
-// footprint, along and across it, so they follow its outline.
-const BICYCLE_COLLIDER_CELLS = 3;
-// Points taken along each mesh edge, so a long tube fills every cell it
-// crosses.
-const BICYCLE_COLLIDER_SPACING = 0.05;
-// No collider is thinner than the kart's substeps allow for (0.1 m).
-const BICYCLE_COLLIDER_MIN_HALF = 0.05;
-
 type Vec3 = [number, number, number];
 type BicyclePart = { centre: Vec3; halfExtents: Vec3 };
+
+// What a kart can hit of each bicycle, as boxes about its footprint's
+// centre, on its floor: one around what lies below 0.35 m (as high as even a
+// bouncing kart reaches) in each cell of a 3 x 3 grid over its footprint,
+// none thinner than the kart's substeps allow for (0.1 m). Worked out once,
+// offline, from points every 5 cm along its mesh edges, so a race builds
+// none; the spec checks they still hold every vertex below 0.35 m.
+const BICYCLE_PARTS: Record<CourseBicycle, BicyclePart[]> = {
+  hardtail: [
+    { centre: [-0.464, 0.175, 0.027], halfExtents: [0.149, 0.176, 0.063] },
+    { centre: [-0.584, 0.175, 0.149], halfExtents: [0.294, 0.176, 0.063] },
+    { centre: [-0.519, 0.173, 0.221], halfExtents: [0.228, 0.174, 0.051] },
+    { centre: [-0.19, 0.149, 0.027], halfExtents: [0.103, 0.15, 0.063] },
+    { centre: [-0.001, 0.175, 0.149], halfExtents: [0.292, 0.176, 0.063] },
+    { centre: [-0.066, 0.164, 0.272], halfExtents: [0.181, 0.165, 0.063] },
+    { centre: [0.53, 0.171, 0.074], halfExtents: [0.051, 0.172, 0.051] },
+    { centre: [0.585, 0.175, 0.15], halfExtents: [0.293, 0.176, 0.062] },
+    { centre: [0.532, 0.056, 0.221], halfExtents: [0.215, 0.057, 0.051] },
+  ],
+  bmx: [
+    { centre: [-0.409, 0.175, 0.085], halfExtents: [0.189, 0.176, 0.051] },
+    { centre: [-0.442, 0.175, 0.194], halfExtents: [0.223, 0.176, 0.089] },
+    { centre: [-0.433, 0.081, 0.336], halfExtents: [0.206, 0.082, 0.056] },
+    { centre: [-0.055, 0.175, 0.018], halfExtents: [0.168, 0.176, 0.088] },
+    { centre: [-0.052, 0.175, 0.193], halfExtents: [0.169, 0.176, 0.088] },
+    { centre: [-0.124, 0.115, 0.373], halfExtents: [0.096, 0.116, 0.086] },
+    { centre: [0.496, 0.174, 0.047], halfExtents: [0.166, 0.176, 0.06] },
+    { centre: [0.447, 0.175, 0.194], halfExtents: [0.218, 0.176, 0.089] },
+    { centre: [0.415, 0.168, 0.353], halfExtents: [0.187, 0.17, 0.073] },
+  ],
+};
 
 function span(values: number[]) {
   let [low, high] = [Infinity, -Infinity];
@@ -165,93 +185,16 @@ function span(values: number[]) {
   return [low, high] as const;
 }
 
-// What a kart can hit of a bicycle, as boxes about its footprint's centre.
-function getBicycleParts(
-  meshes: TreeMeshData[],
-  centre: [number, number],
-): BicyclePart[] {
-  const points: Vec3[] = [];
-  for (const { indices, positions } of meshes) {
-    const corner = (k: number): Vec3 => [
-      positions[k * 3]!,
-      positions[k * 3 + 1]!,
-      positions[k * 3 + 2]!,
-    ];
-    for (let index = 0; index < indices.length; index += 3) {
-      for (let side = 0; side < 3; side++) {
-        const a = corner(indices[index + side]!);
-        const b = corner(indices[index + ((side + 1) % 3)]!);
-        if (Math.min(a[1], b[1]) >= BICYCLE_COLLIDER_HEIGHT) continue;
-        const steps = Math.ceil(
-          Math.hypot(b[0] - a[0], b[1] - a[1], b[2] - a[2]) /
-            BICYCLE_COLLIDER_SPACING,
-        );
-        for (let step = 0; step <= steps; step++) {
-          const t = step / Math.max(steps, 1);
-          const point: Vec3 = [
-            a[0] + (b[0] - a[0]) * t,
-            a[1] + (b[1] - a[1]) * t,
-            a[2] + (b[2] - a[2]) * t,
-          ];
-          if (point[1] < BICYCLE_COLLIDER_HEIGHT) points.push(point);
-        }
-      }
-    }
-  }
-  const [left, right] = span(points.map(([x]) => x));
-  const [near, far] = span(points.map(([, , z]) => z));
-  const cell = (value: number, low: number, high: number) =>
-    Math.min(
-      Math.floor(((value - low) / (high - low)) * BICYCLE_COLLIDER_CELLS),
-      BICYCLE_COLLIDER_CELLS - 1,
-    );
-  const cells = new Map<number, Vec3[]>();
-  for (const point of points) {
-    const key =
-      cell(point[0], left, right) * BICYCLE_COLLIDER_CELLS +
-      cell(point[2], near, far);
-    const inCell = cells.get(key);
-    if (inCell) inCell.push(point);
-    else cells.set(key, [point]);
-  }
-  const half = ([a, b]: readonly [number, number]) =>
-    Math.max((b - a) / 2, BICYCLE_COLLIDER_MIN_HALF);
-  return [...cells.keys()]
-    .sort((a, b) => a - b)
-    .map((key) => {
-      const inCell = cells.get(key)!;
-      const xs = span(inCell.map(([x]) => x));
-      const top = span(inCell.map(([, y]) => y))[1];
-      const zs = span(inCell.map(([, , z]) => z));
-      return {
-        centre: [
-          (xs[0] + xs[1]) / 2 - centre[0],
-          top / 2,
-          (zs[0] + zs[1]) / 2 - centre[1],
-        ] as Vec3,
-        halfExtents: [
-          half(xs),
-          Math.max(top / 2, BICYCLE_COLLIDER_MIN_HALF),
-          half(zs),
-        ] as Vec3,
-      };
-    });
-}
-
 // Each bicycle variant's geometry, built once (it takes 5 to 40 ms) and
-// only for the variants a course parks, with its footprint's centre; its
-// colliders about that centre are worked out only when a race asks.
+// only for the variants a course parks, with its footprint's centre.
 const bicycleGeometry = new Map<
-  number,
-  ReturnType<typeof createBicycleGeometry> & {
-    centre: [number, number];
-    parts?: BicyclePart[];
-  }
+  CourseBicycle,
+  ReturnType<typeof createBicycleGeometry> & { centre: [number, number] }
 >();
-function getBicycleGeometry(variant: number) {
-  let geometry = bicycleGeometry.get(variant);
+function getBicycleGeometry(bicycle: CourseBicycle) {
+  let geometry = bicycleGeometry.get(bicycle);
   if (!geometry) {
-    const built = createBicycleGeometry(variant);
+    const built = createBicycleGeometry(bicycle);
     const meshes = [built.dielectric, built.metal];
     const along = (axis: number) =>
       span(
@@ -263,7 +206,7 @@ function getBicycleGeometry(variant: number) {
     const [near, far] = along(2);
     const centre: [number, number] = [(left + right) / 2, (near + far) / 2];
     geometry = { ...built, centre };
-    bicycleGeometry.set(variant, geometry);
+    bicycleGeometry.set(bicycle, geometry);
   }
   return geometry;
 }
@@ -275,9 +218,7 @@ function getBicycleGeometry(variant: number) {
 export function getCourseBicycleColliders(document: CourseDocument) {
   return document.objects.flatMap(({ bicycle, transform, visual }) => {
     if (!bicycle || visual.shape !== "box") return [];
-    const bike = getBicycleGeometry(COURSE_BICYCLES.indexOf(bicycle));
-    bike.parts ??= getBicycleParts([bike.dielectric, bike.metal], bike.centre);
-    const { parts } = bike;
+    const parts = BICYCLE_PARTS[bicycle];
     const yaw = (transform.rotation.y * Math.PI) / 180;
     const [cos, sin] = [Math.cos(yaw), Math.sin(yaw)];
     const floor = transform.position.y - visual.scale.y / 2;
@@ -314,7 +255,7 @@ export function createCourseBicycleGeometry(document: CourseDocument) {
   };
   document.objects.forEach(({ bicycle, transform, visual }) => {
     if (!bicycle || visual.shape !== "box") return;
-    const bike = getBicycleGeometry(COURSE_BICYCLES.indexOf(bicycle));
+    const bike = getBicycleGeometry(bicycle);
     const [cx, cz] = bike.centre;
     const yaw = (transform.rotation.y * Math.PI) / 180;
     const [cos, sin] = [Math.cos(yaw), Math.sin(yaw)];
@@ -485,28 +426,11 @@ export function addCourseTrees(
   }
 
   if (colliders) {
-    getCourseBicycleColliders(document).forEach(
-      ({ halfExtents, position, yaw }, index) => {
-        const collider = new pc.Entity(`course-bicycle-collider-${index + 1}`);
-        collider.setPosition(...position);
-        collider.setEulerAngles(0, yaw, 0);
-        collider.addComponent("collision", {
-          halfExtents: new pc.Vec3(...halfExtents),
-          type: "box",
-        });
-        collider.addComponent("rigidbody", {
-          friction: 0.6,
-          group: PHYSICS_GROUP.solidObstacle,
-          mask: PHYSICS_MASK.solidObstacle,
-          restitution: 0,
-          type: pc.BODYTYPE_STATIC,
-        });
-        root.addChild(collider);
-      },
-    );
-    trees.forEach((tree, index) => {
-      const { halfExtents, position, yaw } = getCourseTreeCollider(tree);
-      const collider = new pc.Entity(`course-tree-collider-${index + 1}`);
+    const addCollider = (
+      name: string,
+      { halfExtents, position, yaw }: ReturnType<typeof getCourseTreeCollider>,
+    ) => {
+      const collider = new pc.Entity(name);
       collider.setPosition(...position);
       collider.setEulerAngles(0, yaw, 0);
       collider.addComponent("collision", {
@@ -521,7 +445,16 @@ export function addCourseTrees(
         type: pc.BODYTYPE_STATIC,
       });
       root.addChild(collider);
-    });
+    };
+    getCourseBicycleColliders(document).forEach((box, index) =>
+      addCollider(`course-bicycle-collider-${index + 1}`, box),
+    );
+    trees.forEach((tree, index) =>
+      addCollider(
+        `course-tree-collider-${index + 1}`,
+        getCourseTreeCollider(tree),
+      ),
+    );
   }
 
   app.root.addChild(root);

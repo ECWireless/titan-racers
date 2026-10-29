@@ -444,8 +444,9 @@ export function createCourseSurfaceMaterials(
     materials,
     topFaces,
     /**
-     * Switches asphalt, concrete, turf, and lawn to their scanned finishes. Until then
-     * (or if the scans never load) they keep the code-built grain.
+     * Switches asphalt, concrete, gravel, turf, and lawn to their scanned
+     * finishes. Until then (or if the scans never load) they keep the
+     * code-built grain.
      */
     useScans(images: CourseSurfaceImages) {
       if (scanTextures.length > 0) return;

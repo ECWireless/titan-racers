@@ -918,8 +918,8 @@ export function scaleSelectionUniformly(
   selection: CourseEditorSelection,
   multiplier: number,
 ) {
-  const geometry = getSelectionGeometry(document, selection);
-  if (!geometry?.scale || selection.kind === "start") {
+  const geometry = getScalableGeometry(document, selection);
+  if (!geometry?.scale) {
     return document;
   }
 
@@ -929,14 +929,28 @@ export function scaleSelectionUniformly(
   });
 }
 
+// What a scale can change: not the start, which has no size, nor a bicycle,
+// which keeps its real size.
+function getScalableGeometry(
+  document: CourseDocument,
+  selection: CourseEditorSelection,
+) {
+  const bicycle =
+    selection.kind === "object" &&
+    document.objects.some(({ bicycle, id }) => bicycle && id === selection.id);
+  return selection.kind === "start" || bicycle
+    ? null
+    : getSelectionGeometry(document, selection);
+}
+
 export function scaleSelectionAxis(
   document: CourseDocument,
   selection: CourseEditorSelection,
   axis: "x" | "y" | "z",
   multiplier: number,
 ) {
-  const geometry = getSelectionGeometry(document, selection);
-  if (!geometry?.scale || selection.kind === "start") {
+  const geometry = getScalableGeometry(document, selection);
+  if (!geometry?.scale) {
     return document;
   }
 

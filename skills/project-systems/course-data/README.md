@@ -175,7 +175,8 @@ hedge sprays (`COURSE_HEDGE_SPRAY_LIMIT`).
 Version eight adds the `concrete`, `gravel`, and `water` finishes, work
 lamps, and parked bicycles. Water is an outdoor box without collision that
 is not a lamp, roof, or bed: its top is the surface, its volume the water a
-kart drowns in, and the bed beneath is its own colliding object.
+kart drowns in, and the bed beneath is its own colliding object, drawn in
+`gravel` (the water blends over gravel's colour).
 `bicycle: "hardtail" | "bmx"` (`COURSE_BICYCLES`) marks an upright outdoor
 box without collision as a parked bicycle, drawn centred in it on its floor;
 in a race the box is disabled, and the bicycle draws and collides as its

@@ -199,8 +199,9 @@ export const COURSE_INDOOR_LAMP_LIMIT = 20;
 const LEGACY_COURSE_INDOOR_LAMP_LIMIT = 16;
 export type CourseLampKind = "floodlight" | "tunnel" | "work";
 export const COURSE_INDOOR_LAMP_KINDS = ["tunnel", "work"] as const;
-/** Parked bicycles, in the order of their geometry's variants. */
+/** The bicycles a course can park. */
 export const COURSE_BICYCLES = ["hardtail", "bmx"] as const;
+export type CourseBicycle = (typeof COURSE_BICYCLES)[number];
 export function countCourseLamps(
   document: { objects: { lamp?: string }[] },
   kind: CourseLampKind,

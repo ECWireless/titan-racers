@@ -453,9 +453,12 @@ export function CourseEditorShell({
     );
   }
 
-  // The start has no size, and a curve is sized by its Arc controls.
+  // The start has no size, a curve is sized by its Arc controls, and a
+  // bicycle keeps its real size.
   const curveSelected = selectedObject?.visual.shape === "arc";
-  const scaleUnavailable = selection.kind === "start" || curveSelected;
+  const bicycleSelected = Boolean(selectedObject?.bicycle);
+  const scaleUnavailable =
+    selection.kind === "start" || curveSelected || bicycleSelected;
   // Scale falls back to Move while it is unavailable rather than stranding
   // the selection without handles.
   const tool =
@@ -1150,6 +1153,7 @@ export function CourseEditorShell({
       >
         <EditorToolbar
           additiveSelectionEnabled={additiveSelectionEnabled}
+          bicycleSelected={bicycleSelected}
           collisionVisible={collisionVisible}
           curveSelected={curveSelected}
           cameraHelpOpen={cameraHelpOpen}
@@ -1323,6 +1327,7 @@ export function CourseEditorShell({
                 ? selectedObject.visual.arc
                 : null
             }
+            scalable={!bicycleSelected}
             scaleShape={selectedObject?.visual.shape ?? "box"}
             selection={selection}
             selectionCount={selections.length}
@@ -1384,6 +1389,7 @@ export function CourseEditorShell({
                     ? selectedObject.visual.arc
                     : null
                 }
+                scalable={!bicycleSelected}
                 scaleShape={selectedObject?.visual.shape ?? "box"}
                 selection={selection}
                 selectionCount={selections.length}
@@ -1733,6 +1739,7 @@ function RecoveryDialog({
 
 function EditorToolbar({
   additiveSelectionEnabled,
+  bicycleSelected,
   cameraHelpOpen,
   collisionVisible,
   controllerAxis,
@@ -1752,6 +1759,7 @@ function EditorToolbar({
   tool,
 }: {
   additiveSelectionEnabled: boolean;
+  bicycleSelected: boolean;
   cameraHelpOpen: boolean;
   collisionVisible: boolean;
   controllerAxis: "x" | "y" | "z";
@@ -1778,7 +1786,7 @@ function EditorToolbar({
           disabled={
             (multipleObjectsSelected && candidate !== "translate") ||
             (candidate === "scale" &&
-              (selection.kind === "start" || curveSelected))
+              (selection.kind === "start" || curveSelected || bicycleSelected))
           }
           key={candidate}
           label={
@@ -1797,7 +1805,9 @@ function EditorToolbar({
                   ? "Scale is unavailable for the start position"
                   : curveSelected
                     ? "Size a curve with its Arc controls in the inspector"
-                    : "Scale selection by axis (3)"
+                    : bicycleSelected
+                      ? "A bicycle keeps its real size"
+                      : "Scale selection by axis (3)"
           }
           onClick={() => onToolChange(candidate)}
         >
@@ -2382,6 +2392,7 @@ function Inspector({
   onScale,
   onSectionToggle,
   placement,
+  scalable,
   scaleShape,
   sectionOpen,
   selection,
@@ -2404,6 +2415,7 @@ function Inspector({
   onScale: (axis: "x" | "y" | "z", multiplier: number) => void;
   onSectionToggle: (section: EditorSection) => void;
   placement: ObjectPlacement | null;
+  scalable: boolean;
   scaleShape: "arc" | "box" | "cylinder";
   sectionOpen: Record<EditorSection, boolean>;
   selection: CourseEditorSelection;
@@ -2514,7 +2526,7 @@ function Inspector({
           <ArcFields arc={arc} onArc={onArc} />
         </CollapsibleSection>
       ) : null}
-      {geometry.scale ? (
+      {geometry.scale && scalable ? (
         <CollapsibleSection
           open={sectionOpen["inspector-scale"]}
           title="Scale"

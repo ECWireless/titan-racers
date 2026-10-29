@@ -35,11 +35,10 @@ phone budget. Art direction and the budget itself live in
   one shader program whose diffuse override samples a CPU-built grain
   texture by world position, and a second for asphalt, turf, lawn, brushed
   concrete, and river gravel that samples their photo scans (colour, normal,
-  and roughness) the same way. Water is a third: clear, 0.3 m deep, its
-  surface reflecting by water's Fresnel term (index 1.333) through
-  code-built ripples that drift downstream with the box's local +X, and
-  blended over the bed beneath, which shows through less what the water
-  absorbs and what a wet bed loses.
+  and roughness) the same way. Water is a third
+  ([visual identity](../../../docs/visual-identity.md#course-surfaces)): its
+  ripples drift along the box's local +X, and it blends over a river-gravel
+  bed's colour, so a water box belongs over a `gravel` bed.
   `course-surface-textures.ts` decodes the scans once per page; the home
   screen starts it, the race waits for it before its first frame, and the
   course editor switches to the scans when they arrive. If they fail, those

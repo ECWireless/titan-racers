@@ -34,10 +34,8 @@ type Radius = number | [number, number];
 
 const DEG = Math.PI / 180;
 
-export const BICYCLE_VARIANTS = 2;
-
 /** Each variant's real dimensions, in metres and degrees. */
-export const BICYCLE = [
+const BICYCLE = [
   {
     name: "hardtail",
     wheel: {
@@ -115,6 +113,7 @@ export const BICYCLE = [
 ] as const;
 
 type BicycleSpec = (typeof BICYCLE)[number];
+type Bicycle = BicycleSpec["name"];
 
 // Colours: site palette hex in linear light, lightness held to 4–85%.
 function paint(hex: string): Colour {
@@ -1883,7 +1882,7 @@ function kickstand(draft: Draft, plate: Vec3, mount: Vec3, foot: Vec3) {
   });
 }
 
-function buildBicycle(variant: number, rest?: Pose) {
+function buildBicycle(bicycle: Bicycle) {
   const draft: Draft = {
     indices: [],
     normals: [],
@@ -1891,11 +1890,8 @@ function buildBicycle(variant: number, rest?: Pose) {
     style: { colour: COLOUR.black, metal: false, steered: false, tag: "" },
     styles: [],
   };
-  const index = Math.min(
-    Math.max(Math.floor(variant), 0),
-    BICYCLE_VARIANTS - 1,
-  );
-  const pose = rest ?? REST[index]!;
+  const index = BICYCLE.findIndex(({ name }) => name === bicycle);
+  const pose = REST[index]!;
   const built =
     index === 0 ? buildHardtail(draft, pose) : buildBmx(draft, pose);
   const { geometry } = built;
@@ -1944,8 +1940,8 @@ function buildBicycle(variant: number, rest?: Pose) {
  * One parked bicycle, standing at the origin: its coated and rubber parts
  * (dielectric) and its bare metal (metal), each coloured per vertex.
  */
-export function createBicycleGeometry(variant: number) {
-  const { draft } = buildBicycle(variant);
+export function createBicycleGeometry(bicycle: Bicycle) {
+  const { draft } = buildBicycle(bicycle);
   const groups = {
     dielectric: {
       colors: [],
@@ -1988,7 +1984,7 @@ export function createBicycleGeometry(variant: number) {
  * Where a parked bicycle rests: each tyre's lowest point, its estimated
  * centre of mass, and its resting pose (radians and metres).
  */
-export function getBicycleRest(variant: number) {
-  const { centreOfMass, pose, supports } = buildBicycle(variant);
+export function getBicycleRest(bicycle: Bicycle) {
+  const { centreOfMass, pose, supports } = buildBicycle(bicycle);
   return { centreOfMass, pose, supports };
 }
