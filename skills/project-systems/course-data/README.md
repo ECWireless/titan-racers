@@ -43,8 +43,8 @@ own editor commands or persistence UI.
   Falls View Park document uses the distinct ID `falls-view-park`, seeded by
   `falls-view-park.v8.json`: a walled two-lap circuit of about 550 m, with
   4.5 m lanes for four karts abreast, from a utility tunnel through nursery
-  rows and a culvert, up onto a levee crest facing the falls, down an
-  anti-spinward descent that forks into a jump lane and a gentle lane, and
+  rows and a culvert, up onto a levee crest facing the falls, down the
+  levee's anti-spinward access ramp or the youth's jump beside it, and
   back along a return lane, placed in another valley 2.5 km from the
   sunward end cap, at deep dusk (mirror 89.5°) under floodlights. Its start
   sits in a roofed, lamp-lit, and dressed utility tunnel under an earth berm.
@@ -55,8 +55,14 @@ own editor commands or persistence UI.
   youth's work lights, under a perched stream and the levee; the stream
   drains west to an outfall at the perimeter wall, with room beside it for
   4.4.7's storm drain. Two of the youth's bicycles lean at the crest's
-  handrail and wall. The sections after the crest are plain track, not yet
-  dressed. It stands
+  handrail and wall. Past the crest the track crosses the stream on a bridge
+  and comes 3 m down to the park on an asphalt S-bend ramp over concrete
+  fill, with kerbs. The youth's plywood kicker at its left edge sends a
+  shortcut straight on, anti-spinward, over the S's inside onto their
+  plywood landing deck on timber, which tucks banked under the road's edge
+  at its start and ends on level ground beside the road; their steel crowd
+  barriers, a plank along each foot, fence both sides down to the return
+  lane. The return lane is plain track, not yet dressed. It stands
   0.9 m above the habitat floor (`enclosure.placement.height`), so the
   floor, which curves up around the axis across its 164 m north–south span,
   stays below the chase camera at every wall.
@@ -274,6 +280,12 @@ exposed in the UI.
   never place one directly behind unbiased detail (a door frame behind its
   door, a painted board behind dark chevrons). Put the biased finish in
   front, or beside, instead.
+- A road that curves while it slopes twists, so flat boxes along it meet
+  with lips at its edges, and even millimetre lips show as dark lines across
+  it. Build such a road from 0.3 m pieces whose drivable top is a 0.2 mm
+  skin carrying the collider, over a visual slab 1 cm below that reaches
+  under its fill's level tops, the fill set back 2 cm (Falls View Park's
+  downhill).
 - Earthworks built from tilted slabs fill concave corners correctly (the
   surface is the highest slope), but a convex corner needs the lowest, and
   overlapping slabs leave lips that show as dark lines. Plan visible

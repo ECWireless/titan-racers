@@ -437,14 +437,21 @@ barriers are the youth's portable race kit
       4 ms median, p95 5–6 ms), and draws (about six more) stay within the
       phone budget, but startup does not: the first frame takes 465–549 ms
       warm, against about 436 ms allowed, deferred to 4.4.8.
-- [ ] 4.4.5: Downhill run and spin jump. Floor markings' slope depth bias
-      lets edge lines show through a ramp's thin toe from low, distant views
-      (seen in PR 4.3.4 QA); fix it with these ramps, and check the fix on
-      the Starter Course's ramps and the service road's levee access ramp
-      too, since it is in the shared course renderer. Karts hop down a
-      steady slope at speed, because grounded heave damping acts only on
-      near-level support (seen on the 4.4.1 descent); decide whether the
-      downhill needs a versioned physics change.
+- [x] 4.4.5: Downhill run and spin jump. Shipped: past the crest the
+      levee's track crosses the stream on a bridge and comes 3 m down to
+      the park on an asphalt S-bend ramp over concrete fill, with kerbs.
+      The youth's jump is a shortcut: a plywood kicker at the ramp's left
+      edge sends karts straight on, anti-spinward, over the S's inside onto
+      their plywood landing deck on timber, taped every 2 m, which ends on
+      level ground beside the road; their steel crowd barriers fence both
+      sides. In test flights every official kart landed it upright, straight
+      on, from the 8 m/s the Handling Kart tops out at to 16 m/s; a launch
+      turned 8° west misses the deck and lands inside the barriers. Course layers' slope depth bias is a quarter of a pixel a
+      layer, so markings no longer draw over a ramp's thin toe. Karts
+      hopped down slopes because grounded heave damping slowed motion along
+      habitat up, lifting a kart that rolls steadily downhill; it now damps
+      motion off the surface the wheels are on, under physics version
+      `support-heave-v1`. Course schema v8, no migration.
 - [ ] 4.4.6: Return lane and finish: a final lighting pass.
 - [ ] 4.4.7: Off-track clearing. A storm drain through the perimeter wall,
       about 30 cm across (a kart fits, a car would not), sited where a real

@@ -145,8 +145,9 @@ Materials), and so do course surfaces (see Course Surfaces).
   to its trade: service roads, mains, doors, lamps, road markings, and signs.
   The youth's race kit is portable and improvised: the timing portal and the
   work light clamped to it, taped grid slots, the battery work lights strung
-  through the culvert, the bicycles they rode there, and later the jump and
-  makeshift barriers, in steel, hazard paint, and tape. Every new section
+  through the culvert, the bicycles they rode there, the plywood kicker and
+  landing deck of their jump, and the steel crowd barriers they fence it
+  with, in plywood, steel, hazard paint, and tape. Every new section
   follows the rule, so the route reads as kids racing through a working
   park.
 - **Service-yard finishes.** Aged mineral-grey asphalt (about 13%

@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
 import { expect, test } from "@playwright/test";
+import type * as pc from "playcanvas";
 
 import {
   COURSE_HEDGE_SPRAY_LIMIT,
@@ -631,7 +632,8 @@ function expectMarkingsRestOnSurfaces(document: CourseDocument) {
   }
 }
 
-test("keeps every start and recovery pose clear of solid obstacles and water", () => {
+test("keeps every start and recovery pose clear of solid obstacles and water", async () => {
+  const engine = await import("playcanvas/build/playcanvas/src/index.js");
   for (const document of [ROUGH_COURSE_DOCUMENT, FALLS_VIEW_PARK_DOCUMENT]) {
     const poses = [
       { id: document.start.id, ...document.start.position },
@@ -652,7 +654,7 @@ test("keeps every start and recovery pose clear of solid obstacles and water", (
       const { collision, visual } = object;
       if (collision?.shape === "arc" && visual.shape === "arc") {
         for (const pose of poses) {
-          const local = toObjectFrame(object, { ...pose, y: pose.y + 0.15 });
+          const local = toObjectFrame(engine, object, { ...pose, y: pose.y + 0.15 });
           const radius = Math.hypot(local.x, local.z);
           const angle =
             (Math.atan2(-local.z, local.x) + 2 * Math.PI) % (2 * Math.PI);
@@ -670,14 +672,9 @@ test("keeps every start and recovery pose clear of solid obstacles and water", (
       if (collision?.role !== "solid-obstacle" || collision.shape !== "box") {
         continue;
       }
-      const { rotation } = object.transform;
-      expect(
-        [rotation.x, rotation.y, rotation.z].filter(Boolean).length,
-        `${object.id} turns about one axis`,
-      ).toBeLessThanOrEqual(1);
       for (const pose of poses) {
         // A kart's body sits just above its pose.
-        const local = toObjectFrame(object, { ...pose, y: pose.y + 0.15 });
+        const local = toObjectFrame(engine, object, { ...pose, y: pose.y + 0.15 });
         const inside = (["x", "y", "z"] as const).every(
           (axis) =>
             Math.abs(local[axis] - collision.offset.position[axis]) <
@@ -689,29 +686,23 @@ test("keeps every start and recovery pose clear of solid obstacles and water", (
   }
 });
 
-// Seeds turn obstacles about a single axis, so the order of the inverse
-// rotations does not matter.
 function toObjectFrame(
+  engine: Pick<typeof pc, "Quat" | "Vec3">,
   object: CourseDocument["objects"][number],
   point: { x: number; y: number; z: number },
 ) {
   const { position, rotation } = object.transform;
-  let { x, y, z } = {
-    x: point.x - position.x,
-    y: point.y - position.y,
-    z: point.z - position.z,
-  };
-  const turn = (degrees: number) => {
-    const radians = (-degrees * Math.PI) / 180;
-    return [Math.cos(radians), Math.sin(radians)] as const;
-  };
-  let [cos, sin] = turn(rotation.x);
-  [y, z] = [y * cos - z * sin, y * sin + z * cos];
-  [cos, sin] = turn(rotation.y);
-  [x, z] = [x * cos + z * sin, -x * sin + z * cos];
-  [cos, sin] = turn(rotation.z);
-  [x, y] = [x * cos - y * sin, x * sin + y * cos];
-  return { x, y, z };
+  const local = new engine.Quat()
+    .setFromEulerAngles(rotation.x, rotation.y, rotation.z)
+    .invert()
+    .transformVector(
+      new engine.Vec3(
+        point.x - position.x,
+        point.y - position.y,
+        point.z - position.z,
+      ),
+    );
+  return { x: local.x, y: local.y, z: local.z };
 }
 
 test("serializes the seeds deterministically and round trips without changes", () => {
