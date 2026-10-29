@@ -33,8 +33,13 @@ phone budget. Art direction and the budget itself live in
   sets the spin).
 - `src/game/course/course-surface-materials.ts` owns the course finishes:
   one shader program whose diffuse override samples a CPU-built grain
-  texture by world position, and a second for asphalt, turf, and lawn that
-  samples their photo scans (colour, normal, and roughness) the same way.
+  texture by world position, and a second for asphalt, turf, lawn, brushed
+  concrete, and river gravel that samples their photo scans (colour, normal,
+  and roughness) the same way. Water is a third: clear, 0.3 m deep, its
+  surface reflecting by water's Fresnel term (index 1.333) through
+  code-built ripples that drift downstream with the box's local +X, and
+  blended over the bed beneath, which shows through less what the water
+  absorbs and what a wet bed loses.
   `course-surface-textures.ts` decodes the scans once per page; the home
   screen starts it, the race waits for it before its first frame, and the
   course editor switches to the scans when they arrive. If they fail, those
@@ -46,7 +51,9 @@ phone budget. Art direction and the budget itself live in
   colour. Each tree variant's bark and leaves, and the stakes, are one
   hardware-instanced draw each; all hedges' sprays are one mesh. The leaf
   images load with the surface scans; without them trees stand bare and
-  hedges show their plain box.
+  hedges show their plain box. It also draws the parked bicycles: all
+  bikes' coated and rubber parts as one merged mesh, which casts shadows,
+  and their bare metal as another, which does not.
 - `src/game/course/course-lamps.ts` puts a floodlight's arm, luminaire,
   and downward spot light on each `lamp` object's mast, at real brightness
   from the enclosure's lux scale and the habitat's lamp schedule, with no
@@ -55,7 +62,9 @@ phone budget. Art direction and the budget itself live in
   housing, it adds a glowing lens and a downward LED spot light (8,600 cd,
   fading out between 40° and 80° from straight down, 12 m reach) that burns day and night and reaches both indoor
   and outdoor objects, so its light spills from a portal; tunnel lamps do not
-  count toward the exposure. The race batches the lamp parts with the static
+  count toward the exposure. A `lamp: "work"` object, the youth's battery
+  work light, adds a lens and a dimmer spot light (1,500 cd, 6 m reach) the
+  same way. The race batches the lamp parts with the static
   course; the editor shows them switched off.
 - `src/game/course/course-interior.ts` lights a course's indoors: an
   interior environment atlas built by elevation from the light a lamp-lit

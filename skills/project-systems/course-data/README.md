@@ -1,6 +1,7 @@
 # Course Data System
 
-**Maturity:** Validated (PR 2.3.1, extended by PRs 2.4.2, 4.4.2, and 4.4.3).
+**Maturity:** Validated (PR 2.3.1, extended by PRs 2.4.2, 4.4.2, 4.4.3, and
+4.4.4).
 
 ## Purpose And Scope
 
@@ -25,7 +26,7 @@ own editor commands or persistence UI.
 ## Source Ownership
 
 - `src/game/course/course-document.ts` defines strict Zod legacy schemas and the
-  canonical version-seven schema, deterministic legacy normalization,
+  canonical version-eight schema, deterministic legacy normalization,
   cross-document ID and checkpoint-order refinements, gate-face direction
   alignment, canonical sorting, serialization, inferred TypeScript types, and
   validated seed export.
@@ -50,7 +51,12 @@ own editor commands or persistence UI.
   Past the tunnel the route forks: turf alleys between planted beds take the
   nursery hairpins, or the service road swoops south behind hedges and climbs
   an access ramp to the levee crest; both rejoin before the crest checkpoint.
-  The sections after the crest are plain track, not yet dressed. It stands
+  The nursery route leaves through the culvert, a precast box lit by the
+  youth's work lights, under a perched stream and the levee; the stream
+  drains west to an outfall at the perimeter wall, with room beside it for
+  4.4.7's storm drain. Two of the youth's bicycles lean at the crest's
+  handrail and wall. The sections after the crest are plain track, not yet
+  dressed. It stands
   0.9 m above the habitat floor (`enclosure.placement.height`), so the
   floor, which curves up around the axis across its 164 m north–south span,
   stays below the chase camera at every wall.
@@ -75,6 +81,13 @@ own editor commands or persistence UI.
   (see [scene lighting](../scene-lighting/README.md)) and adds the static
   colliders, which carry no `obstacle` tag, so the chase camera looks past
   trees.
+- `src/game/course/course-water.ts` finds a document's water boxes and their
+  flow, and tells the race when a kart's centre of mass is under water, so
+  it is drowned and recovered.
+- `src/game/course/course-bicycle-geometry.ts` builds the two parked
+  bicycles at real size in precomputed leaning poses; `course-trees.ts`
+  draws them in place of their boxes and adds static colliders built from
+  their geometry below 0.35 m, untagged like the trees'.
 - `src/game/course/build-course-lighting.ts` projects the enclosure's sun
   into one shadow-casting directional light.
 - `src/game/enclosure/island-three.ts` owns the approved enclosure registry,
@@ -88,6 +101,9 @@ own editor commands or persistence UI.
   error, normals and winding, and collision boxes that meet on the outer face.
 - `tests/course-trees.spec.ts` owns tree placement, colliders, size,
   triangle budget, winding, and hedge spray coverage.
+- `tests/course-water.spec.ts` owns water volumes and drowning;
+  `tests/course-bicycle-geometry.spec.ts` owns the bicycles' build, poses,
+  colliders, and their contact with the crest's rail and wall.
 - `tests/course-document.spec.ts` owns schema, seed, catalog, stable-ID,
   checkpoint-order, canonical round-trip, invalid-input, and retained-geometry
   assertions.
@@ -96,10 +112,10 @@ own editor commands or persistence UI.
 
 ## Document Contract
 
-Canonical version seven is strict JSON using metres, Y-up positions, and Euler
+Canonical version eight is strict JSON using metres, Y-up positions, and Euler
 degrees. It contains:
 
-- literal schema version `7`;
+- literal schema version `8`;
 - a stable course ID and name;
 - one stable start ID, transform (the start/finish gate), bounded start-gate
   half-extents, and a spawn distance (0–10 m) placing the kart behind the gate
@@ -126,9 +142,11 @@ selects tire grip. An object marked `lamp: "floodlight"` is a floodlight's mast:
 `course-lamps.ts` adds the arm, luminaire, and spot light on its top, reaching
 along its local -Z. A course has at most twelve floodlights
 (`COURSE_LAMP_LIMIT`). An object marked `lamp: "tunnel"` is a tunnel
-luminaire's housing, with its lens and downward light beneath it; a course
-has at most sixteen (`COURSE_TUNNEL_LAMP_LIMIT`), counted apart from the
-floodlights. Version six also adds `indoors: true`, for objects lit only by
+luminaire's housing, with its lens and downward light beneath it, and
+version eight's `lamp: "work"` is the youth's battery work light, hung
+the same way. Tunnel and work lamps are indoor lamps: a course has at most
+twenty (`COURSE_INDOOR_LAMP_LIMIT`; sixteen before version eight), counted
+apart from the floodlights. Version six also adds `indoors: true`, for objects lit only by
 indoor light (tunnel lamps stand indoors and floodlights outdoors), and
 `overhead: true`, for roofs and the earthworks over them, which the editor
 can cut away and which never support a kart; a kart beneath an object that
@@ -154,6 +172,16 @@ is not a lamp or roof; its sides and top carry 24 leaf sprays a square
 metre. A course holds at most 2,000 trees (`COURSE_TREE_LIMIT`) and 40,000
 hedge sprays (`COURSE_HEDGE_SPRAY_LIMIT`).
 
+Version eight adds the `concrete`, `gravel`, and `water` finishes, work
+lamps, and parked bicycles. Water is an outdoor box without collision that
+is not a lamp, roof, or bed: its top is the surface, its volume the water a
+kart drowns in, and the bed beneath is its own colliding object.
+`bicycle: "hardtail" | "bmx"` (`COURSE_BICYCLES`) marks an upright outdoor
+box without collision as a parked bicycle, drawn centred in it on its floor;
+in a race the box is disabled, and the bicycle draws and collides as its
+own shape. Each bicycle's pose leans on what the seed stands it against, so
+it only rests naturally there.
+
 Coordinates and dimensions are finite and bounded to the accepted authoring
 envelope. Unknown fields and unsupported enum values fail rather than being
 silently stripped. The complete document validates before scene construction.
@@ -161,11 +189,13 @@ silently stripped. The complete document validates before scene construction.
 ## Legacy Normalization
 
 Stored revisions are immutable, so `parseCourseDocument` keeps strict
-version-one to version-six schemas and normalizes them in memory to version
-seven; canonical serialization and every new save use version seven. Version
+version-one to version-seven schemas and normalizes them in memory to version
+eight; canonical serialization and every new save use version eight. Version
 four allows mirror angles only up to 85° and no lamps, version five no
 indoor, overhead, or arc objects and no tunnel lamps, and version six no
-planting or hedges and at most eight floodlights; all upgrade unchanged.
+planting or hedges and at most eight floodlights, and version seven no
+water, gravel, concrete, work lamps, or bicycles and at most sixteen indoor
+lamps; all upgrade unchanged.
 Version two adds
 `start.gateHalfExtents`, `checkpoints[].forward`, and
 `checkpoints[].recovery`.
@@ -185,7 +215,7 @@ Version two adds
 - Degenerate coincident anchors or directions that cannot identify a face are
   rejected rather than invented.
 - A loaded version-one row is normalized in memory, and its next save creates a
-  new version-seven revision. Persistence responses report the normalized schema
+  new version-eight revision. Persistence responses report the normalized schema
   version consistently.
 
 Every legacy collider normalizes to `surface.standard-course@1`, including

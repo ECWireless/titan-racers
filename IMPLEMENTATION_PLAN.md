@@ -413,11 +413,29 @@ barriers are the youth's portable race kit
       each portal, on both meshes, after a reset, a batch rebuild, and a
       new race. Course schema v7 (planted beds, hedges), no migration.
       Within the phone budget; CPU work rose about 1 ms.
-- [ ] 4.4.4: Stream, culvert, and levee vista, and how the water looks.
-      Site the stream's outfall where water would really leave the park,
-      with room beside it for the storm drain that 4.4.7 opens. Consider
-      something to dodge on the levee crest after the vista, so its long
-      straight stays interesting.
+- [x] 4.4.4: Stream, culvert, and levee vista, and how the water looks.
+      Shipped: the stream runs perched between the levee and a
+      concrete-faced bank, 0.3 m of clear water over a river-gravel bed,
+      falling 1 in 3,000 west to a weir and an outfall chamber at the
+      perimeter wall, where water would really leave the park; the wall
+      stays clear beside it for 4.4.7's storm drain. The water reflects as
+      water does, its ripples drift downstream, and a kart that goes under
+      drowns and is recovered. The culvert is a precast 1.5 × 1.2 m box
+      under the bank, stream, and levee, lit by a string of six of the
+      youth's battery work lights. The levee's riverside is a grass slope
+      and the crest's stream side a kerb and tubular handrail, so the stream
+      shows from the crest. The nursery's trolley lanes are brushed
+      concrete and its hairpin edges round. The levee's curved walls are
+      true arcs and its route is asphalt drawn without a layer bias, so no
+      side faces flicker through the walls; the climb's wall slits are
+      closed, and the hairpin merge is marked with arrows and chevron
+      boards. To dodge after the vista, two of the youth's bicycles stand
+      at the crest's edges, built at real size and colliding as their own
+      shapes: a hardtail leaning on the handrail and a BMX laid over against
+      the wall. Course schema v8 (water, concrete, gravel, work lamps, and
+      bicycles; twenty indoor lamps), no migration. Within the phone budget:
+      CPU work holds a 4 ms median, its p95 up from 5 to 6 ms, with about
+      six more draws.
 - [ ] 4.4.5: Downhill run and spin jump. Floor markings' slope depth bias
       lets edge lines show through a ramp's thin toe from low, distant views
       (seen in PR 4.3.4 QA); fix it with these ramps, and check the fix on
@@ -447,6 +465,11 @@ barriers are the youth's portable race kit
       an admin publishes it. If the phone run needs headroom, stop
       spraying hedges' unseen faces (about 38% of their sprays, against the
       ground, walls, and neighbours) and thin tree leaves at distance.
+      Also steady the habitat's far-side street lamps (`lampLight` in
+      `src/game/enclosure/habitat-glsl.ts`, PR 4.3.5), which draw as a
+      crosshatch overhead and shimmer while driving, seen most clearly from
+      Falls View Park's service ramp and levee climb, where the chase camera
+      tilts up.
 
 **PR 4.5: Ambience and SFX**
 

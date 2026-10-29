@@ -82,7 +82,10 @@ Orange and hazard are signals. Use them sparingly so they stay readable.
 - **Indoors is lit from indoors.** Habitat light, the sun, and floodlights
   never pass through a roof. An interior takes only its own lamps, such as a
   tunnel's 8,600 cd ceiling luminaires, and the light its floor, walls, and
-  ceiling bounce back; its lamps spill out of a portal onto the approach.
+  ceiling bounce back; its lamps spill out of a portal onto the approach. A
+  place the park never lit, such as the culvert, takes the youth's battery
+  LED work lights (about 4,700 lm each), strung every few metres so its
+  floor is about as bright as the floodlit track outside.
   One exposure serves the race, set for the outdoor course, so a dusk tunnel
   sits a little below the floodlit track, but by day a tunnel's start is
   near-black: courses with a tunnel race at dusk or later.
@@ -141,7 +144,8 @@ Materials), and so do course surfaces (see Course Surfaces).
   of two things. The park's infrastructure is permanent, full-size, and built
   to its trade: service roads, mains, doors, lamps, road markings, and signs.
   The youth's race kit is portable and improvised: the timing portal and the
-  work light clamped to it, taped grid slots, and later the jump and
+  work light clamped to it, taped grid slots, the battery work lights strung
+  through the culvert, the bicycles they rode there, and later the jump and
   makeshift barriers, in steel, hazard paint, and tape. Every new section
   follows the rule, so the route reads as kids racing through a working
   park.
@@ -168,6 +172,13 @@ Materials), and so do course surfaces (see Course Surfaces).
   on grass. Wheels on turf and lawn throw real-size clippings, more when they
   slide, which fly under real gravity. All follow the actual tire contact and
   slip.
+- **Water is clear and shallow.** The stream is 0.3 m of clear water over
+  clean river gravel. Its surface reflects as water does (index 1.333),
+  most strongly at a grazing angle, through real-size ripples that drift
+  downstream at a slow stream's 0.3 m/s; elsewhere the bed shows through,
+  less what the water absorbs and what a wet bed loses. Karts never float:
+  a 1:10 kart in it is under entirely, so one that goes in is drowned and
+  recovered.
 - **Planting is a working nursery's.** Young trees stand in rows on raised,
   mulched beds edged with timber, as three-year nursery standards at real
   size: a 3.2 m leader on a 1.8 m clear stem, tied to a 1.2 m stake, with a
@@ -244,12 +255,12 @@ CPU work and draw calls are the headroom signals.
 
 ### Baseline
 
-| Measure | Before lighting (PR 4.1.2 start) | After lighting baseline | Part visuals (PR 4.1.3) | Authored primitives (PR 4.1.4) | Sandbox surfaces (PR 4.2.1) | Surface physics (PR 4.2.2) | Collision substeps (PR 4.2.3) | Surface effects (PR 4.2.4) | Surface scans (PR 4.2.5) | Handbrake clutch (PR 4.2.6) | Island Three (PR 4.3.1) | Habitat physics (PR 4.3.2) | Loading screen (PR 4.3.3) | Valley structures (PR 4.3.4) | Dusk and night (PR 4.3.5) | Falls View Park route (PR 4.4.1) | Wheel blur (PR 4.4.1.1) | Utility tunnel (PR 4.4.2) | Nursery and service road (PR 4.4.3) |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| Frame p50 / p95 | 17.0 / 18.0 ms | 17.0 / 18.0 ms | 17.0 / 18.0 ms | 17.0 / 18.0–19.0 ms | 17.0 / 18.0 ms | 17.0 / 18.0 ms | 17.0 / 18.0 ms | 17.0 / 18.0 ms | 17.0 / 18.0 ms | 17.0 / 18.0 ms | 17.0 / 18.0 ms | 17.0 / 18.0 ms | 17.0 / 18.0 ms | 17.0 / 18.0 ms | 17.0 / 18.0 ms | 17.0 / 18.0 ms | 17.0 / 18.0 ms | 17.0 / 18.0 ms | 17.0 / 18.0 ms |
-| CPU p50 / p95 | 3 / 4 ms | 3 / 4 ms | 2 / 3 ms | 2 / 3 ms | 2 / 3–4 ms | 2 / 3 ms | 3 / 4 ms | 2 / 3–4 ms | 2–3 / 4 ms | 2 / 3 ms | 2 / 3 ms | 2 / 3–4 ms | 2 / 3 ms | 3 / 4 ms | 2–3 / 3–4 ms | 3 / 4 ms | 3 / 4 ms | 3 / 4 ms | 4 / 5 ms |
-| Draw calls p50 / max | 212 / 226 | 213 / 226 | 38–39 / 55 | 38–39 / 51 | 34 / 45–46 | 35 / 48–49 | 35–36 / 46–49 | 36–37 / 49–51 | 37–39 / 49–51 | 36–37 / 49–50 | 30–31 / 41 | 31–32 / 41–42 | 30–32 / 41 | 44–45 / 55–58 | 31 / 43–44 | 24 / 37–39 | 27 / 42 | 32 / 52 | 40–41 / 65–69 |
-| First frame (warm) | 63–136 ms | 107–278 ms | 121–128 ms | 132–191 ms | 335–392 ms | 133–207 ms | 136–282 ms | 147–230 ms | 240–243 ms | Not measured | 259 ms | 352–433 ms | 289–295 ms | 302–575 ms | 265–281 ms | 305–321 ms | 300 ms | 302 ms | 421 ms |
+| Measure | Before lighting (PR 4.1.2 start) | After lighting baseline | Part visuals (PR 4.1.3) | Authored primitives (PR 4.1.4) | Sandbox surfaces (PR 4.2.1) | Surface physics (PR 4.2.2) | Collision substeps (PR 4.2.3) | Surface effects (PR 4.2.4) | Surface scans (PR 4.2.5) | Handbrake clutch (PR 4.2.6) | Island Three (PR 4.3.1) | Habitat physics (PR 4.3.2) | Loading screen (PR 4.3.3) | Valley structures (PR 4.3.4) | Dusk and night (PR 4.3.5) | Falls View Park route (PR 4.4.1) | Wheel blur (PR 4.4.1.1) | Utility tunnel (PR 4.4.2) | Nursery and service road (PR 4.4.3) | Stream and levee (PR 4.4.4) |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| Frame p50 / p95 | 17.0 / 18.0 ms | 17.0 / 18.0 ms | 17.0 / 18.0 ms | 17.0 / 18.0–19.0 ms | 17.0 / 18.0 ms | 17.0 / 18.0 ms | 17.0 / 18.0 ms | 17.0 / 18.0 ms | 17.0 / 18.0 ms | 17.0 / 18.0 ms | 17.0 / 18.0 ms | 17.0 / 18.0 ms | 17.0 / 18.0 ms | 17.0 / 18.0 ms | 17.0 / 18.0 ms | 17.0 / 18.0 ms | 17.0 / 18.0 ms | 17.0 / 18.0 ms | 17.0 / 18.0 ms | 17.0 / 18.0 ms |
+| CPU p50 / p95 | 3 / 4 ms | 3 / 4 ms | 2 / 3 ms | 2 / 3 ms | 2 / 3–4 ms | 2 / 3 ms | 3 / 4 ms | 2 / 3–4 ms | 2–3 / 4 ms | 2 / 3 ms | 2 / 3 ms | 2 / 3–4 ms | 2 / 3 ms | 3 / 4 ms | 2–3 / 3–4 ms | 3 / 4 ms | 3 / 4 ms | 3 / 4 ms | 4 / 5 ms | 4 / 6 ms |
+| Draw calls p50 / max | 212 / 226 | 213 / 226 | 38–39 / 55 | 38–39 / 51 | 34 / 45–46 | 35 / 48–49 | 35–36 / 46–49 | 36–37 / 49–51 | 37–39 / 49–51 | 36–37 / 49–50 | 30–31 / 41 | 31–32 / 41–42 | 30–32 / 41 | 44–45 / 55–58 | 31 / 43–44 | 24 / 37–39 | 27 / 42 | 32 / 52 | 40–41 / 65–69 | 47 / 66–68 |
+| First frame (warm) | 63–136 ms | 107–278 ms | 121–128 ms | 132–191 ms | 335–392 ms | 133–207 ms | 136–282 ms | 147–230 ms | 240–243 ms | Not measured | 259 ms | 352–433 ms | 289–295 ms | 302–575 ms | 265–281 ms | 305–321 ms | 300 ms | 302 ms | 421 ms | 455–552 ms |
 
 PR 4.1.4 was measured with one race on each official kart rather than three
 Balanced races. Each official kart is 15.3–15.5k triangles: 11.6k of part
@@ -347,3 +358,9 @@ hitches. The nursery's 355 trees (each variant's bark and leaves, and the
 stakes, one instanced draw each) and the hedges add about eight draws, and
 CPU work rises about 1 ms, to a 4 ms median within the 5 ms budget; frame
 time is unchanged. Watch CPU work as the rest of the route is dressed.
+
+PR 4.4.4 was measured with two Balanced races on reloads on Falls View
+Park at deep dusk, one with a single hitch and one with none. The stream,
+culvert and its six work lights, outfall, and bicycles add about six draws;
+CPU work holds its 4 ms median, its p95 up from 5 to 6 ms, and frame time is
+unchanged. The race was ready after 561–677 ms.
