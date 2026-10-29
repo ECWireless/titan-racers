@@ -28,6 +28,13 @@ const COURSE_SURFACE_LAYERS = [
 ] as const;
 const COURSE_SURFACE_OVERLAY_MAX_THICKNESS = 0.01;
 const COURSE_SURFACE_LAYER_DEPTH_BIAS_STEP = -1;
+// The slope term pulls a layer toward the camera by `step × layer` pixels'
+// worth of its own depth change, which on ground seen low and far is metres.
+// Any solid shallower than about `step × layer × distance / focal length` in
+// front of it, such as a ramp's thin toe or low side, is drawn over. A
+// quarter pixel a layer still outruns the rasterizer's sub-pixel error
+// between coplanar layers.
+const COURSE_SURFACE_LAYER_SLOPE_DEPTH_BIAS_STEP = -0.25;
 
 export type CourseSurfaceLayer = (typeof COURSE_SURFACE_LAYERS)[number];
 
@@ -35,6 +42,15 @@ export function getCourseSurfaceLayerDepthBias(layer: CourseSurfaceLayer) {
   return (
     (COURSE_SURFACE_LAYERS.indexOf(layer) + 1) *
     COURSE_SURFACE_LAYER_DEPTH_BIAS_STEP
+  );
+}
+
+export function getCourseSurfaceLayerSlopeDepthBias(
+  layer: CourseSurfaceLayer,
+) {
+  return (
+    (COURSE_SURFACE_LAYERS.indexOf(layer) + 1) *
+    COURSE_SURFACE_LAYER_SLOPE_DEPTH_BIAS_STEP
   );
 }
 

@@ -6,22 +6,31 @@ import {
   drawsCourseAsphaltUnlayered,
   drawsCourseGrassUnlayered,
   getCourseSurfaceLayerDepthBias,
+  getCourseSurfaceLayerSlopeDepthBias,
   isCourseBaseGround,
 } from "../src/game/course/course-visual-policy";
 
 test("orders coplanar surface layers above the unbiased base ground", () => {
-  const order = [
-    0,
-    getCourseSurfaceLayerDepthBias("asphalt"),
-    getCourseSurfaceLayerDepthBias("ground"),
-    getCourseSurfaceLayerDepthBias("line"),
-    getCourseSurfaceLayerDepthBias("tireMark"),
-    getCourseSurfaceLayerDepthBias("contactShadow"),
-  ];
-
-  order.slice(1).forEach((bias, index) => {
-    expect(bias).toBeLessThan(order[index]);
-  });
+  const layers = [
+    "asphalt",
+    "ground",
+    "line",
+    "tireMark",
+    "contactShadow",
+  ] as const;
+  for (const getBias of [
+    getCourseSurfaceLayerDepthBias,
+    getCourseSurfaceLayerSlopeDepthBias,
+  ]) {
+    const order = [0, ...layers.map((layer) => getBias(layer))];
+    order.slice(1).forEach((bias, index) => {
+      expect(bias).toBeLessThan(order[index]);
+    });
+  }
+  // Within a pixel or two of slope, so paint cannot show through a ramp's toe.
+  expect(getCourseSurfaceLayerSlopeDepthBias("line")).toBeGreaterThanOrEqual(
+    -1.5,
+  );
 });
 
 test("reserves enough course-editor depth precision for distant surfaces", () => {

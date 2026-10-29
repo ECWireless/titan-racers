@@ -264,15 +264,16 @@ exposed in the UI.
 - A drivable surface draws its top exactly at its collision top, and a
   visual-only marking rests on the highest surface beneath it. Layers at the
   same height are ordered by depth bias (base ground, turf verge, asphalt,
-  infield turf, lawn, paint), never by separating their heights. Thin, level layers draw only
-  their top face, so the slope-scaled bias cannot pull hidden side faces
-  through as seams.
+  infield turf, lawn, paint), never by separating their heights; the bias's
+  slope term stays small so a layer cannot draw over a ramp's thin toe.
+  Thin, level layers draw only their top face, so the slope-scaled bias
+  cannot pull hidden side faces through as seams.
 - Thick grass (earthworks such as a berm) draws unbiased, like the base
   ground. `line` and `hazard` keep their bias at any thickness, and seen at a
-  grazing angle it pulls a box forward by centimetres to decimetres: never
-  place one directly behind unbiased detail (a door frame behind its door, a
-  painted board behind dark chevrons). Put the biased finish in front, or
-  beside, instead.
+  grazing angle it pulls a box forward by centimetres, more at a distance:
+  never place one directly behind unbiased detail (a door frame behind its
+  door, a painted board behind dark chevrons). Put the biased finish in
+  front, or beside, instead.
 - Earthworks built from tilted slabs fill concave corners correctly (the
   surface is the highest slope), but a convex corner needs the lowest, and
   overlapping slabs leave lips that show as dark lines. Plan visible
