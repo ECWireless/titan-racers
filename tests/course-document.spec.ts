@@ -1149,7 +1149,7 @@ test("adds water and work lights in schema version eight", () => {
   }
 });
 
-test("leaves bicycles in the levee crest's lane in schema version eight", () => {
+test("leans bicycles on the levee crest's rail and wall in schema version eight", () => {
   const bicycles = FALLS_VIEW_PARK_DOCUMENT.objects.filter(
     (object) => object.bicycle,
   );
@@ -1157,8 +1157,9 @@ test("leaves bicycles in the levee crest's lane in schema version eight", () => 
     "bmx",
     "hardtail",
   ]);
-  // Each rests on the crest's deck, its box wholly in the lane between the
-  // north kerb and the crest wall, one either side of the lane's middle.
+  // Each stands on the crest's deck, the hardtail against the north kerb's
+  // handrail and the BMX against the crest wall, its box reaching over the
+  // edge of the lane it stands at.
   const byId = (id: string) =>
     FALLS_VIEW_PARK_DOCUMENT.objects.find((object) => object.id === id)!;
   const deck = byId("levee-crest-5");
@@ -1171,19 +1172,19 @@ test("leaves bicycles in the levee crest's lane in schema version eight", () => 
   ) {
     throw new Error("The crest is built of boxes");
   }
-  const lane = [
-    kerb.transform.position.z + kerb.visual.scale.z / 2,
-    crestWall.transform.position.z - crestWall.visual.scale.z / 2,
-  ];
-  const sides = new Set<boolean>();
-  for (const { id, transform, visual } of bicycles) {
+  const edges = {
+    bmx: crestWall.transform.position.z - crestWall.visual.scale.z / 2,
+    hardtail: kerb.transform.position.z + kerb.visual.scale.z / 2,
+  };
+  for (const { bicycle, id, transform, visual } of bicycles) {
     if (visual.shape !== "box") throw new Error("A bicycle is a box");
     const yaw = (transform.rotation.y * Math.PI) / 180;
     const [cos, sin] = [Math.abs(Math.cos(yaw)), Math.abs(Math.sin(yaw))];
     const across = sin * (visual.scale.x / 2) + cos * (visual.scale.z / 2);
     const along = cos * (visual.scale.x / 2) + sin * (visual.scale.z / 2);
-    expect(transform.position.z - across, id).toBeGreaterThan(lane[0]!);
-    expect(transform.position.z + across, id).toBeLessThan(lane[1]!);
+    const edge = edges[bicycle!];
+    expect(transform.position.z - across, id).toBeLessThan(edge);
+    expect(transform.position.z + across, id).toBeGreaterThan(edge);
     expect(
       Math.abs(transform.position.x - deck.transform.position.x) + along,
       id,
@@ -1192,9 +1193,7 @@ test("leaves bicycles in the levee crest's lane in schema version eight", () => 
       deck.transform.position.y + deck.visual.scale.y / 2,
       6,
     );
-    sides.add(transform.position.z > (lane[0]! + lane[1]!) / 2);
   }
-  expect(sides.size).toBe(2);
 
   // Bicycles are version eight's.
   const versionSeven = versionSevenFallsViewPark();

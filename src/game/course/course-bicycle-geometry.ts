@@ -1,9 +1,9 @@
 // Two bicycles left on the levee, built at real size in metres: the bikes
 // the park's youth rode there before racing their RC karts. Variant 0 is a
-// teenager's 27.5" hardtail on its kickstand; variant 1 is a 20" BMX dropped
-// on its left side, as riders leave them. Each rests in a precomputed pose
-// (REST) where its supports touch the ground together and its centre of mass
-// lies over them.
+// teenager's 27.5" hardtail leaning nearly upright on the crest's handrail;
+// variant 1 is a 20" BMX laid over against the crest wall, its grip on the
+// wall's top. Each rests in a precomputed pose (REST), both tyres on the
+// ground, leaning left onto what the course stands it against.
 //
 // Local frame: Y up, ground at y = 0, the bike's length along +X (front wheel
 // toward +X), its right (drive) side toward +Z, and the origin on the ground
@@ -71,11 +71,9 @@ export const BICYCLE = [
     saddleHeight: 0.66,
     // 720 mm riser bar, 20 mm rise, on a 60 mm +6° stem: grips about 0.96 m up.
     bar: { rise: 0.02, stem: 0.06, stemAngle: 6, width: 0.72 },
-    // On a centre-mount kickstand behind the BB, leaning 10° onto it, the
-    // front wheel flopped 30° toward the lean (held by tyre scrub and
-    // headset friction).
-    lean: 10,
-    steer: 30,
+    // Leaning 12.5° onto a handrail post with its saddle, the brake housing
+    // on its left fork leg against the rail below, so the bars stay
+    // straight; the centre-mount kickstand folded up.
   },
   {
     name: "bmx",
@@ -110,9 +108,9 @@ export const BICYCLE = [
     saddleHeight: 0.4,
     // 29" (737 mm) wide, 8.75" (222 mm) rise two-piece bars on a top-load stem.
     bar: { rise: 0.222, stem: 0.045, stemAngle: 0, width: 0.737 },
-    // Dropped on its left side, bars straight and cranks upright: it rolls
-    // 69.5° onto its left bar end and both tyres' shoulders, its left pedal
-    // 2 mm off the ground, its centre of mass 16 cm up.
+    // Laid over 39.3° to its left against a 0.5 m wall, tyres 0.62 m out,
+    // the bars flopped 35° into the lean until the left grip rests on the
+    // wall's top, cranks upright.
   },
 ] as const;
 
@@ -948,7 +946,7 @@ type Pose = {
   crank: number;
   /** The left pedal's turn on its spindle. */
   pedal: number;
-  /** Lift and shift after turning, setting the supports on y = 0. */
+  /** Lift and shift after turning, setting the tyres on y = 0. */
   offset: Vec3;
   pitch: number;
   roll: number;
@@ -956,31 +954,30 @@ type Pose = {
 };
 
 // Each variant's resting pose, in radians and metres, so nothing is solved
-// at load. Found once, offline, in a throwaway harness. The hardtail's: with
-// the steer, crank, and pedal chosen, a Newton solve moved roll and pitch
-// until every support's lowest vertex sat at one height. The BMX's, as a
-// dropped bike settles: a scan of steer and crank, and a search of roll and
-// pitch, for the pose that holds its centre of mass lowest. Each offset then
-// lifts the supports to y = 0 and centres the bike between its tyre
-// contacts.
-// The spec confirms the supports touch within 2 mm and the centre of mass
-// stands over them.
+// at load. Found once, offline, in a throwaway harness that stood each bike
+// beside the crest's rail or wall, levelled both tyres by pitch, and rolled
+// it over until it touched: the hardtail until its saddle met a post just
+// as its fork's brake housing met the mid rail, the BMX until its grip met
+// the wall's top. Each offset then lifts the tyres to y = 0 and centres the
+// bike between their contacts. So each pose stands only where the seed
+// places it; the spec confirms, there, that each bike touches what it leans
+// on, within 2 mm, and passes through nothing.
 const REST: Pose[] = [
   {
-    crank: -0.6108652,
-    offset: [-0.563693, 0, -0.005268],
+    crank: 0,
+    offset: [-0.532332, 0, 0],
     pedal: 0,
-    pitch: -0.0073771,
-    roll: -0.1745329,
-    steer: 0.5235988,
+    pitch: 0,
+    roll: -0.2181662,
+    steer: 0,
   },
   {
     crank: 4.712389,
-    offset: [-0.429414, 0.01724, 0.018015],
+    offset: [-0.476596, 0.005835, 0.050959],
     pedal: 0,
-    pitch: 0,
-    roll: -1.2129657,
-    steer: 0,
+    pitch: 0.0116677,
+    roll: -0.6857799,
+    steer: 0.6108652,
   },
 ];
 
@@ -1389,8 +1386,8 @@ function buildHardtail(draft: Draft, pose: Pose): BuiltBicycle {
     cylinder(draft, centre, [0, 0, 1], 0.026, -0.0035, 0.0035, 8, 0.006),
   );
   mass(0.9, add(rearAxle, [0, -0.05, 0.05]));
-  // The kickstand.
-  mass(0.4, add(bb, [-0.15, -0.15, -0.1]));
+  // The kickstand, folded.
+  mass(0.4, add(bb, [-0.21, 0, -0.055]));
   setStyle(draft, { colour: COLOUR.chain, metal: true, tag: "chain" });
   const chain = chainPath([
     {
@@ -1828,7 +1825,6 @@ function buildBmx(draft: Draft, pose: Pose): BuiltBicycle {
     supports: [
       { name: "rear tyre", test: (i) => draft.styles[i]!.tag === "tyreR" },
       { name: "front tyre", test: (i) => draft.styles[i]!.tag === "tyreF" },
-      { name: "left bar end", test: (i) => draft.styles[i]!.tag === "bars" },
     ],
   };
 }
@@ -1859,16 +1855,11 @@ function poser(geometry: FrameGeometry, pose: Pose) {
   };
 }
 
-// The hardtail's kickstand, built in the final frame: an adjustable alloy
-// leg from the plate behind the BB, cut so its rubber foot meets the
-// ground.
-function kickstand(draft: Draft, plate: Vec3, mount: Vec3, direction: Vec3) {
-  const footRadius = 0.011;
-  // A tilted ring's lowest point sits r·sin(tilt) below its centre.
-  const footY = footRadius * Math.sqrt(1 - direction[1] ** 2);
-  const length = (mount[1] - footY) / -direction[1];
-  const foot = along(mount, direction, length);
-  const down = normalize(sub([0, -1, 0], scale(direction, -direction[1])));
+// The hardtail's kickstand, built in the final frame and folded up under
+// the left chainstay: an adjustable alloy leg from the plate behind the BB,
+// its rubber foot toward the rear axle.
+function kickstand(draft: Draft, plate: Vec3, mount: Vec3, foot: Vec3) {
+  const direction = normalize(sub(foot, mount));
   setStyle(draft, {
     colour: COLOUR.black,
     metal: false,
@@ -1879,19 +1870,17 @@ function kickstand(draft: Draft, plate: Vec3, mount: Vec3, direction: Vec3) {
     draft,
     plate,
     basis(normalize(sub(mount, plate)), [0, 1, 0]),
-    [0.045, 0.012, 0.022],
+    [0.04, 0.012, 0.022],
   );
   setStyle(draft, { colour: COLOUR.alloy, metal: true });
   tube(draft, [mount, along(foot, direction, -0.03)], [0.0095, 0.0075], 8, {
     u: [1, 0, 0],
   });
-  // The foot's ring puts a vertex at its lowest point.
   setStyle(draft, { colour: COLOUR.rubber, metal: false });
-  tube(draft, [along(foot, direction, -0.034), foot], footRadius, 8, {
+  tube(draft, [along(foot, direction, -0.034), foot], 0.011, 8, {
     caps: true,
-    u: down,
+    u: [0, 1, 0],
   });
-  return along(foot, down, footRadius);
 }
 
 function buildBicycle(variant: number, rest?: Pose) {
@@ -1934,16 +1923,12 @@ function buildBicycle(variant: number, rest?: Pose) {
     return { name: support.name, point: lowest! as Vec3 };
   });
   if (index === 0) {
-    const plate = add(geometry.bb, [-0.075, -0.03, -0.012]);
-    const mount = add(geometry.bb, [-0.09, -0.032, -0.04]);
-    const direction = normalize([-0.15, -1, -0.65]);
-    const foot = kickstand(
+    kickstand(
       draft,
-      place(plate, false),
-      place(mount, false),
-      normalize(point(direction, false)),
+      place(add(geometry.bb, [-0.045, -0.03, -0.012]), false),
+      place(add(geometry.bb, [-0.09, -0.032, -0.04]), false),
+      place(add(geometry.rearAxle, [0.09, -0.032, -0.07]), false),
     );
-    supports.push({ name: "kickstand", point: foot });
   }
   const totalMass = built.masses.reduce((sum, mass) => sum + mass.kg, 0);
   const centreOfMass = built.masses
@@ -2000,7 +1985,7 @@ export function createBicycleGeometry(variant: number) {
 }
 
 /**
- * Where a parked bicycle rests: each support's lowest point, its estimated
+ * Where a parked bicycle rests: each tyre's lowest point, its estimated
  * centre of mass, and its resting pose (radians and metres).
  */
 export function getBicycleRest(variant: number) {

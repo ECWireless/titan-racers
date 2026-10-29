@@ -90,15 +90,19 @@ test("gives every triangle valid corners, unit normals, and outward winding", ()
   }
 });
 
-test("rests each bicycle on the ground, its supports touching and stable", () => {
+test("stands each bicycle on both tyres, leaning left onto its prop", () => {
   for (const variant of variants) {
+    const positions = meshes(variant).flatMap((mesh) => mesh.positions);
     const lowest = Math.min(...meshes(variant).flatMap(heights));
     expect(Math.abs(lowest)).toBeLessThan(0.002);
     const { centreOfMass, supports } = getBicycleRest(variant);
-    const touching = supports.filter(({ point }) => point[1] < 0.002);
-    // Every support is a real vertex of the bike.
-    const positions = meshes(variant).flatMap((mesh) => mesh.positions);
+    expect(supports.map(({ name }) => name)).toEqual([
+      "rear tyre",
+      "front tyre",
+    ]);
+    // Both tyres touch, at real vertices of the bike.
     for (const { point } of supports) {
+      expect(point[1]).toBeLessThan(0.002);
       const found = positions.some(
         (_, index) =>
           index % 3 === 0 &&
@@ -110,33 +114,26 @@ test("rests each bicycle on the ground, its supports touching and stable", () =>
       );
       expect(found).toBe(true);
     }
-    // The hardtail stands on both tyres and its kickstand; the BMX lies on
-    // both tyres and its left bar end.
-    expect(touching.map(({ name }) => name)).toEqual([
-      "rear tyre",
-      "front tyre",
-      variant === 0 ? "kickstand" : "left bar end",
-    ]);
-    // Its centre of mass lies over the polygon its touching supports span,
-    // at least 2 cm inside it, more than the weight estimate's error.
-    const points = touching.map(({ point }) => [point[0], point[2]]);
-    const middle = [0, 1].map(
-      (k) => points.reduce((sum, p) => sum + p[k]!, 0) / points.length,
-    );
-    points.sort(
-      (a, b) =>
-        Math.atan2(a[1]! - middle[1]!, a[0]! - middle[0]!) -
-        Math.atan2(b[1]! - middle[1]!, b[0]! - middle[0]!),
-    );
-    points.forEach((a, index) => {
-      const b = points[(index + 1) % points.length]!;
-      const inside =
-        (b[0]! - a[0]!) * (centreOfMass[2] - a[1]!) -
-        (b[1]! - a[1]!) * (centreOfMass[0] - a[0]!);
-      expect(inside / Math.hypot(b[0]! - a[0]!, b[1]! - a[1]!)).toBeGreaterThan(
-        0.02,
+    // Nothing but the tyres reaches the ground.
+    const [rear, front] = supports.map(({ point }) => point);
+    for (let index = 0; index < positions.length; index += 3) {
+      if (positions[index + 1]! >= 0.01) continue;
+      const near = [rear!, front!].some(
+        (point) =>
+          Math.hypot(
+            positions[index]! - point[0],
+            positions[index + 2]! - point[2],
+          ) < 0.06,
       );
-    });
+      expect(near, `variant ${variant} vertex ${index / 3}`).toBe(true);
+    }
+    // Its centre of mass lies left of its tyres' line, so it leans on what
+    // the course stands it against: the hardtail 10 cm, the BMX 21 cm.
+    const [dx, dz] = [front![0] - rear![0], front![2] - rear![2]];
+    const left =
+      (dz * (centreOfMass[0] - rear![0]) - dx * (centreOfMass[2] - rear![2])) /
+      Math.hypot(dx, dz);
+    expect(left).toBeGreaterThan(variant === 0 ? 0.08 : 0.18);
   }
 });
 
@@ -149,15 +146,15 @@ test("builds both bicycles at real size", () => {
   expect(extent(0, 1)).toBeLessThan(1.15);
   expect(extent(0, 2)).toBeGreaterThan(0.6);
   expect(extent(0, 2)).toBeLessThan(0.8);
-  // The BMX: 20" wheels on a 0.86 m wheelbase, lying on its side, so its
-  // bars and seat, a metre up when it stands, reach out across the ground
-  // and its right side stands about 0.7 m up.
+  // The BMX: 20" wheels on a 0.86 m wheelbase, laid over, so its bars,
+  // turned into the lean, reach 0.9 m across and its right grip about a
+  // metre up.
   expect(extent(1, 0)).toBeGreaterThan(1.2);
   expect(extent(1, 0)).toBeLessThan(1.45);
-  expect(extent(1, 1)).toBeGreaterThan(0.6);
-  expect(extent(1, 1)).toBeLessThan(0.8);
-  expect(extent(1, 2)).toBeGreaterThan(0.95);
-  expect(extent(1, 2)).toBeLessThan(1.15);
+  expect(extent(1, 1)).toBeGreaterThan(0.9);
+  expect(extent(1, 1)).toBeLessThan(1.1);
+  expect(extent(1, 2)).toBeGreaterThan(0.8);
+  expect(extent(1, 2)).toBeLessThan(1);
   // Tyre contacts a wheelbase apart, give or take the turned front wheel.
   for (const [variant, wheelbase] of [
     [0, 1.06],
@@ -170,7 +167,7 @@ test("builds both bicycles at real size", () => {
       Math.abs(
         Math.hypot(front![0] - rear![0], front![2] - rear![2]) - wheelbase!,
       ),
-    ).toBeLessThan(0.08);
+    ).toBeLessThan(0.1);
   }
 });
 
@@ -258,6 +255,114 @@ test("collides with every part of a bicycle a kart can reach", () => {
         });
         expect(inside, `${object.id} vertex ${index / 3}`).toBe(true);
       }
+    }
+  }
+});
+
+test("leans the hardtail on the crest's handrail and the BMX on its wall", () => {
+  const objects = FALLS_VIEW_PARK_DOCUMENT.objects;
+  const byId = (id: string) => objects.find((object) => object.id === id)!;
+  const deckTop = (() => {
+    const { transform, visual } = byId("levee-crest-5");
+    return (
+      transform.position.y + (visual.shape === "box" ? visual.scale.y / 2 : 0)
+    );
+  })();
+  // What the crest builds beside its lane, each a signed distance from a
+  // point: the kerb and wall are level boxes, the rails run along X, the
+  // posts stand up Y.
+  type Point = [number, number, number];
+  const props = objects
+    .filter(({ id }) => /^levee-crest-(kerb-north|wall-l|rail-|post-)/.test(id))
+    .map(({ id, transform: { position: c }, visual }) => {
+      if (visual.shape === "box") {
+        const half = [
+          visual.scale.x / 2,
+          visual.scale.y / 2,
+          visual.scale.z / 2,
+        ];
+        return {
+          distance: ([x, y, z]: Point) => {
+            const q = [x - c.x, y - c.y, z - c.z].map(
+              (value, axis) => Math.abs(value) - half[axis]!,
+            );
+            const outside = Math.hypot(...q.map((value) => Math.max(value, 0)));
+            return outside + Math.min(Math.max(...q), 0);
+          },
+          id,
+        };
+      }
+      if (visual.shape === "arc") throw new Error("The crest has no arcs");
+      const radius = visual.scale.x / 2;
+      const along = id.includes("rail") ? 0 : 1;
+      const length = visual.scale.y / 2;
+      return {
+        distance: ([x, y, z]: Point) => {
+          const offset = [x - c.x, y - c.y, z - c.z];
+          if (Math.abs(offset[along]!) > length) return Infinity;
+          offset[along] = 0;
+          return Math.hypot(...offset) - radius;
+        },
+        id,
+      };
+    });
+  for (const [bicycle, touches] of [
+    ["hardtail", [/rail-mid/, /post-/]],
+    ["bmx", [/wall-l/]],
+  ] as const) {
+    const object = objects.find((candidate) => candidate.bicycle === bicycle)!;
+    const { coat, metal } = createCourseBicycleGeometry({
+      ...FALLS_VIEW_PARK_DOCUMENT,
+      objects: [object],
+    });
+    // Points every 5 mm along each triangle's edges, so a thin rail cannot
+    // pass between a long tube's corners.
+    const points: Point[] = [];
+    for (const { indices, positions } of [coat, metal]) {
+      const corner = (k: number): Point => [
+        positions[k * 3]!,
+        positions[k * 3 + 1]!,
+        positions[k * 3 + 2]!,
+      ];
+      for (let index = 0; index < indices.length; index += 3) {
+        for (let edge = 0; edge < 3; edge++) {
+          const a = corner(indices[index + edge]!);
+          const b = corner(indices[index + ((edge + 1) % 3)]!);
+          const steps = Math.ceil(
+            Math.hypot(...a.map((v, k) => b[k]! - v)) / 0.005,
+          );
+          for (let step = 0; step < steps; step++) {
+            points.push(
+              a.map((v, k) => v + ((b[k]! - v) * step) / steps) as Point,
+            );
+          }
+        }
+      }
+    }
+    const { x, y, z } = object.transform.position;
+    const nearby = props.filter(({ distance }) => distance([x, y, z]) < 2);
+    const closest = new Map<string, number>();
+    let lowest = Infinity;
+    for (const point of points) {
+      lowest = Math.min(lowest, point[1]);
+      for (const { distance, id } of nearby) {
+        const gap = distance(point);
+        if (gap < (closest.get(id) ?? Infinity)) closest.set(id, gap);
+      }
+    }
+    // It stands on the deck and passes through nothing.
+    expect(lowest, bicycle).toBeGreaterThan(deckTop - 0.002);
+    for (const [id, gap] of closest) {
+      expect(gap, `${bicycle} in ${id}`).toBeGreaterThan(-0.002);
+    }
+    // And it touches, within 2 mm, each thing it leans on.
+    for (const pattern of touches) {
+      const gap = Math.min(
+        ...[...closest]
+          .filter(([id]) => pattern.test(id))
+          .map(([, gap]) => gap),
+      );
+      expect(gap, `${bicycle} on ${pattern}`).toBeLessThan(0.002);
     }
   }
 });
