@@ -94,8 +94,9 @@ that supports tire/surface dependence, not the exact grip estimates here.
 
 `CURRENT_PHYSICS_VERSION` in `src/game/physics/physics-version.ts` identifies the
 complete shipped solver, environment, and gameplay-policy combination, currently
-`support-heave-v1` (grounded heave damped relative to the support rather
-than local up, so karts hold a steady slope).
+`support-heave-v1`: `rotating-habitat-v1`'s habitat gravity, Coriolis, and
+Island Three air, with grounded heave damped relative to the support rather
+than local up, so karts hold a steady slope.
 `ACCEPTED_PHYSICS_VERSIONS` lists every identity
 telemetry still accepts, because open tabs keep reporting their build's
 version until reloaded. Telemetry pins the client build's identity when a run

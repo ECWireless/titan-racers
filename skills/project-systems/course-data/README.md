@@ -55,14 +55,9 @@ own editor commands or persistence UI.
   youth's work lights, under a perched stream and the levee; the stream
   drains west to an outfall at the perimeter wall, with room beside it for
   4.4.7's storm drain. Two of the youth's bicycles lean at the crest's
-  handrail and wall. Past the crest the track crosses the stream on a bridge
-  and comes 3 m down to the park on an asphalt S-bend ramp over concrete
-  fill, with kerbs. The youth's plywood kicker at its left edge sends a
-  shortcut straight on, anti-spinward, over the S's inside onto their
-  plywood landing deck on timber, which tucks banked under the road's edge
-  at its start and ends on level ground beside the road; their steel crowd
-  barriers, a plank along each foot, fence both sides down to the return
-  lane. The return lane is plain track, not yet dressed. It stands
+  handrail and wall. Past the crest an S-bend ramp comes down to the park,
+  with the youth's jump straight across its inside (PR 4.4.5 in the plan).
+  The return lane is plain track, not yet dressed. It stands
   0.9 m above the habitat floor (`enclosure.placement.height`), so the
   floor, which curves up around the axis across its 164 m north–south span,
   stays below the chase camera at every wall.

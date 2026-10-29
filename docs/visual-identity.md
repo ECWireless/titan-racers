@@ -366,3 +366,11 @@ lights, outfall, and bicycles add about six draws; CPU work holds its 4 ms
 median, its p95 5–6 ms, and frame time is unchanged. Startup is over
 budget: the first frame took 465–549 ms, against about 436 ms allowed, and
 the race was ready after 599–709 ms. PR 4.4.8 brings it back.
+
+PR 4.4.5 was measured with two Balanced races on reloads on Falls View
+Park at deep dusk, with no hitches. The downhill doubles the course's
+objects to about 1,640, mostly the crowd barriers' parts, but static
+batching keeps draws at a 45–46 median (66–67 at most); frame time holds
+(17 ms median, p95 18–19 ms), and CPU work sits at the budget's top, a
+4–5 ms median with p95 6 ms. Startup is unchanged and still over budget:
+the first frame took 469–510 ms and the race was ready after 592–674 ms.

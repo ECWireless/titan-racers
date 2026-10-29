@@ -24470,6 +24470,34 @@
       "category": "feature",
       "collision": null,
       "editable": true,
+      "id": "downhill-kicker-edge-tape",
+      "transform": {
+        "position": {
+          "x": -57.03,
+          "y": 2.550091,
+          "z": 10.170009
+        },
+        "rotation": {
+          "x": 0.50114,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "hazard",
+        "scale": {
+          "x": 0.05,
+          "y": 0.002,
+          "z": 2.340093
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
       "id": "downhill-kicker-lip-tape",
       "transform": {
         "position": {

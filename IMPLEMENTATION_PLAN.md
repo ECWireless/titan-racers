@@ -446,12 +446,15 @@ barriers are the youth's portable race kit
       level ground beside the road; their steel crowd barriers fence both
       sides. In test flights every official kart landed it upright, straight
       on, from the 8 m/s the Handling Kart tops out at to 16 m/s; a launch
-      turned 8° west misses the deck and lands inside the barriers. Course layers' slope depth bias is a quarter of a pixel a
+      turned 8° west misses the deck and lands, often upside down, inside
+      the barriers. Course layers' slope depth bias is a quarter of a pixel a
       layer, so markings no longer draw over a ramp's thin toe. Karts
       hopped down slopes because grounded heave damping slowed motion along
       habitat up, lifting a kart that rolls steadily downhill; it now damps
       motion off the surface the wheels are on, under physics version
-      `support-heave-v1`. Course schema v8, no migration.
+      `support-heave-v1`. Course schema v8, no migration. Frame time and
+      draws stay within the phone budget and CPU work at its 5 ms top;
+      startup is unchanged, still over budget for 4.4.8.
 - [ ] 4.4.6: Return lane and finish: a final lighting pass.
 - [ ] 4.4.7: Off-track clearing. A storm drain through the perimeter wall,
       about 30 cm across (a kart fits, a car would not), sited where a real
@@ -477,6 +480,10 @@ barriers are the youth's portable race kit
       465–549 ms warm, about 30–110 ms over. Its new scans (concrete,
       gravel), decoded before the first frame, and the water and bicycle
       programs are the likely costs; measure before cutting.
+      The downhill's crowd barriers are 583 of its objects and grow the
+      bundled seed from 0.74 to 1.34 MB: merge each panel into fewer parts.
+      Brace the landing deck's tall posts, and even out its banked rows'
+      joints and the fill's seams beside it.
       Also steady the habitat's far-side street lamps (`lampLight` in
       `src/game/enclosure/habitat-glsl.ts`, PR 4.3.5), which draw as a
       crosshatch overhead and shimmer while driving, seen most clearly from

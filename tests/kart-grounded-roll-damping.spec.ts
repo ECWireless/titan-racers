@@ -147,4 +147,16 @@ test.describe("kart grounded turn damping", () => {
     expect(damped(four(slope(0)), slope(15))).toBe(false);
     expect(damped([slope(0)])).toBe(false);
   });
+
+  test("keeps shared heave damping active during supported impacts", () => {
+    const flat = slope(0);
+    const impulse = getGroundedHeaveDampingImpulse(
+      { x: 0, y: -3, z: 0 },
+      [flat, flat],
+      flat,
+      2,
+      1 / 120,
+    );
+    expect(impulse.y).toBeGreaterThan(0);
+  });
 });
