@@ -5,6 +5,10 @@ import {
   getCourseStartTransform,
   ROUGH_COURSE_DOCUMENT,
 } from "../src/game/course/course-document";
+import {
+  getCourseWaterVolumes,
+  isUnderCourseWater,
+} from "../src/game/course/course-water";
 import { deriveKartCcdConfiguration } from "../src/game/collision/kart-collision-model";
 import { createKartDevelopmentValues } from "../src/game/kart/kart-development-values";
 import { createBalancedKartDocument } from "../src/game/kart/balanced-kart-document";
@@ -1052,7 +1056,7 @@ test.describe("home screen", () => {
   }, testInfo) => {
     // Software WebGL renders every stepped frame on the CPU; a small
     // viewport keeps it quick.
-    testInfo.setTimeout(300_000);
+    testInfo.setTimeout(600_000);
     test.skip(
       testInfo.project.name !== "desktop",
       "Kart lighting only needs to run once.",
@@ -1085,7 +1089,8 @@ test.describe("home screen", () => {
       });
       await stepSimulation(canvas);
     };
-    // Either side of the west portal (x = 10) and the north one (z = -10).
+    // Either side of the tunnel's west portal (x = 10) and north one
+    // (z = -10), and the culvert's mouth (z = 20.5) and outlet (z = 37).
     const crossPortals = async () => {
       for (const [inside, outside] of [
         [
@@ -1095,6 +1100,14 @@ test.describe("home screen", () => {
         [
           [81, -14],
           [81, -6],
+        ],
+        [
+          [59, 23],
+          [59, 18.5],
+        ],
+        [
+          [59, 34],
+          [59, 39],
         ],
       ] as const) {
         await placeKart(outside);
@@ -1139,6 +1152,44 @@ test.describe("home screen", () => {
     await advanceRaceToRacing(canvas);
     await expectKartLight(indoors);
     await crossPortals();
+  });
+
+  test("recovers a kart that drives into Falls View Park's stream", async ({
+    page,
+  }, testInfo) => {
+    // Software WebGL renders every stepped frame on the CPU; a small
+    // viewport keeps it quick.
+    testInfo.setTimeout(300_000);
+    test.skip(
+      testInfo.project.name !== "desktop",
+      "Drowning only needs to run once.",
+    );
+    await page.setViewportSize({ height: 270, width: 480 });
+    await page.route("**/api/courses/*/published", async (route) => {
+      await route.fulfill({
+        body: JSON.stringify({ error: "Published course not found." }),
+        contentType: "application/json",
+        status: 404,
+      });
+    });
+    await page.goto("/");
+    await page.getByRole("button", { name: "Solo Time Trial" }).click();
+    const canvas = page.getByTestId("solo-time-trial-canvas");
+    await advanceRaceToRacing(canvas);
+
+    // On the stream's bed, under 0.3 m of water, a 1:10 kart is drowned.
+    await setKartDebugPose(canvas, {
+      position: { x: 20, y: 1.45, z: 24.6 },
+      rotation: { x: 0, y: 90, z: 0 },
+    });
+    await stepSimulation(canvas);
+    expect(await getRaceDebugState(canvas)).toMatchObject({
+      activeRecovery: { id: FALLS_VIEW_PARK_DOCUMENT.start.id },
+      state: "recovering",
+    });
+    const water = getCourseWaterVolumes(FALLS_VIEW_PARK_DOCUMENT);
+    const kart = await getKartDebugState(canvas);
+    expect(isUnderCourseWater(water, { x: kart.x, y: kart.y, z: kart.z })).toBe(false);
   });
 
   test("constructs guest racing from the published course revision", async ({

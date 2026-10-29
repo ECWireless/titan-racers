@@ -50,6 +50,10 @@ import {
   getBatchMeshInstances,
 } from "@/game/course/course-interior";
 import { createCourseSurfaceMaterials } from "@/game/course/course-surface-materials";
+import {
+  getCourseWaterVolumes,
+  isUnderCourseWater,
+} from "@/game/course/course-water";
 import { loadCourseSurfaceImages } from "@/game/course/course-surface-textures";
 import {
   type CourseDocument,
@@ -814,6 +818,7 @@ export function SoloTimeTrialCanvas({
       );
       runtime.addCleanup(() => courseSurfaces.destroy());
       if (courseSurfaceImages) courseSurfaces.useScans(courseSurfaceImages);
+      const courseWater = getCourseWaterVolumes(COURSE_DOCUMENT);
       const obstacleBarrelMaterial = courseSurfaces.materials.obstacleBarrel;
 
       function createChildCollisionBox(
@@ -2800,6 +2805,14 @@ export function SoloTimeTrialCanvas({
           }
         }
         previousRacePosition.copy(currentRacePosition);
+        // A 1:10 kart whose centre of mass goes under water is drowned, as a
+        // real one would be; recover it as if the player had reset.
+        if (
+          raceSession.acceptsDriving &&
+          isUnderCourseWater(courseWater, currentRacePosition)
+        ) {
+          requestRaceRecovery();
+        }
 
         if (pauseAfterFixedStep) {
           const paused = raceSession.pause();
@@ -2914,6 +2927,7 @@ export function SoloTimeTrialCanvas({
       });
 
       app.on("update", (stepSeconds: number) => {
+        courseSurfaces.advanceWater(stepSeconds);
         captureKartPresentationState();
         captureWheelPresentationState(stepSeconds);
         suspensionMetrics.maximumCompression = Math.max(

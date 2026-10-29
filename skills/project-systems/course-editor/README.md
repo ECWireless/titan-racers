@@ -102,7 +102,13 @@ owns only Resume and Exit.
   ([course data](../course-data/README.md)); an edit that breaks one leaves
   the course unchanged.
 - The palette shows the `lamp` preset as "floodlight" beside a "tunnel lamp"
-  preset hung from a 3.6 m roof; each kind stops at its own limit.
+  preset hung from a 3.6 m roof and a "work light" hung from a 1.2 m
+  culvert's; each kind stops at its own limit, tunnel and work lamps
+  sharing one. The "water" preset is a 6 × 3 m box 0.3 m deep, filled from
+  the ground and flowing along its length.
+- A parked bicycle draws in place of its box, which the editor keeps
+  unseen but pickable, so the bike selects and moves as its box; it has no
+  Scale tool.
 - The "tree bed" preset (a 6 m mulch bed planted 1.5 m by 1.2 m) and the
   "hedge" preset (1.2 × 2.4 × 6 m) stop at the course's tree and hedge
   spray limits. Trees and hedge leaves draw but never take a pick, so a

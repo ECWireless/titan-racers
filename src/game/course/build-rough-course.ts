@@ -16,6 +16,11 @@ import {
 } from "./course-arc";
 import { CourseSurfaceResolver } from "./course-surface-resolver";
 import {
+  createCourseWaterSurfaceGeometry,
+  isCourseWater,
+} from "./course-water";
+import {
+  drawsCourseAsphaltUnlayered,
   drawsCourseGrassUnlayered,
   drawsCourseTopFaceOnly,
 } from "./course-visual-policy";
@@ -34,6 +39,8 @@ export type RoughCourseMaterials = Record<
   // The base ground draws under every coplanar surface layer.
   baseGround: pc.StandardMaterial;
   baseLawn: pc.StandardMaterial;
+  // Solid asphalt decks, which draw with no layer bias.
+  baseAsphalt: pc.StandardMaterial;
 };
 
 export type CourseTopFaceMeshes = Record<"box" | "cylinder", pc.Mesh>;
@@ -136,10 +143,12 @@ export function buildRoughCourse(
         const projection = projectCourseObject(object);
         const finishes = (object.indoors && indoorMaterials) || materials;
         const indoors = finishes !== materials;
-        const arcMesh =
+        const generatedMesh =
           object.visual.shape === "arc"
             ? createCourseArcMesh(app.graphicsDevice, object.visual.arc)
-            : undefined;
+            : isCourseWater(object)
+              ? createCourseWaterMesh(app.graphicsDevice, object.visual.scale)
+              : undefined;
         let entity: pc.Entity;
         try {
           entity = createEntity(
@@ -148,19 +157,24 @@ export function buildRoughCourse(
               ? projection.visual.material === "lawn"
                 ? finishes.baseLawn
                 : finishes.baseGround
-              : finishes[projection.visual.material],
-            arcMesh ??
+              : drawsCourseAsphaltUnlayered(object)
+                ? finishes.baseAsphalt
+                : finishes[projection.visual.material],
+            generatedMesh ??
               (object.visual.shape !== "arc" && drawsCourseTopFaceOnly(object)
                 ? topFaces?.[object.visual.shape]
                 : undefined),
           );
         } catch (error) {
           // Free the mesh the entity never took; destroying it twice is safe.
-          arcMesh?.destroy();
+          generatedMesh?.destroy();
           throw error;
         }
 
         if (indoors) keepCourseVisualIndoors(entity);
+        // A bicycle is drawn with the trees, in place of its box, which
+        // only the editor keeps, unseen, to select.
+        if (object.bicycle) entity.enabled = false;
         stagedEntities.push(entity);
         courseEntities.set(object.id, entity);
 
@@ -310,6 +324,24 @@ export function addCourseVisual(
   entity.model?.meshInstances?.forEach((meshInstance) => {
     meshInstance.material = material;
   });
+}
+
+/**
+ * A water object's surface, with UVs in metres along its flow so its ripples
+ * keep their size; its mesh instance frees it on destroy.
+ */
+function createCourseWaterMesh(
+  device: pc.GraphicsDevice,
+  scale: { x: number; y: number; z: number },
+) {
+  const geometry = createCourseWaterSurfaceGeometry(scale);
+  const mesh = new pc.Mesh(device);
+  mesh.setPositions(geometry.positions);
+  mesh.setNormals(geometry.normals);
+  mesh.setUvs(0, geometry.uvs);
+  mesh.setIndices(geometry.indices);
+  mesh.update();
+  return mesh;
 }
 
 /**

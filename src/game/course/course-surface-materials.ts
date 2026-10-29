@@ -15,6 +15,7 @@ import type {
   CourseScannedSurface,
   CourseSurfaceImages,
 } from "./course-surface-textures";
+import { COURSE_WATER_FLOW_SPEED } from "./course-water";
 import { applyAdaptedEnvironmentAtlas } from "../render/scene-look";
 
 // Retained CPU pixels are shared by page mounts and re-upload after context
@@ -59,6 +60,154 @@ void getAlbedo() {
 }
 `;
 
+// Water ripples at real size: a seamless 1 m tile of capillary and small
+// gravity ripples, 5–12 cm long with the same steepness, stored as normals.
+// Integer wave counts per tile keep it seamless; mipmaps average it out at a
+// distance.
+let ripplePixels: Uint8Array | undefined;
+const RIPPLE_SIZE = 128;
+const RIPPLE_WAVES = 24;
+const RIPPLE_SLOPE = 0.035;
+
+function getRipplePixels() {
+  if (ripplePixels) return ripplePixels;
+  let seed = 90127;
+  const random = () => {
+    seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0;
+    return seed / 2 ** 32;
+  };
+  const waves = Array.from({ length: RIPPLE_WAVES }, () => {
+    const cycles = 8 + random() * 12;
+    const angle = random() * Math.PI * 2;
+    const kx = Math.round(cycles * Math.cos(angle));
+    const ky = Math.round(cycles * Math.sin(angle));
+    const k = Math.hypot(kx, ky);
+    const phase = random() * Math.PI * 2;
+    // cos(a + b) from per-row and per-column tables, rather than a cosine
+    // per texel.
+    const table = (cycles: number, offset: number) => {
+      const angles = Array.from(
+        { length: RIPPLE_SIZE },
+        (_, index) => (2 * Math.PI * cycles * index) / RIPPLE_SIZE + offset,
+      );
+      return { cos: angles.map(Math.cos), sin: angles.map(Math.sin) };
+    };
+    // Every wave is equally steep, whatever its length.
+    return { dx: kx / k, dy: ky / k, x: table(kx, phase), y: table(ky, 0) };
+  });
+  const pixels = new Uint8Array(RIPPLE_SIZE * RIPPLE_SIZE * 4);
+  for (let y = 0; y < RIPPLE_SIZE; y++) {
+    for (let x = 0; x < RIPPLE_SIZE; x++) {
+      let dx = 0;
+      let dy = 0;
+      for (const wave of waves) {
+        const slope =
+          RIPPLE_SLOPE *
+          (wave.x.cos[x]! * wave.y.cos[y]! - wave.x.sin[x]! * wave.y.sin[y]!);
+        dx += slope * wave.dx;
+        dy += slope * wave.dy;
+      }
+      const length = Math.hypot(dx, dy, 1);
+      const offset = (y * RIPPLE_SIZE + x) * 4;
+      pixels[offset] = Math.round((0.5 - dx / length / 2) * 255);
+      pixels[offset + 1] = Math.round((0.5 - dy / length / 2) * 255);
+      pixels[offset + 2] = Math.round((0.5 + 0.5 / length) * 255);
+      pixels[offset + 3] = 255;
+    }
+  }
+  ripplePixels = pixels;
+  return pixels;
+}
+
+// The ripple tile drifts downstream (u) with the surface, once at its own
+// 1 m size and once four times larger, turned by a 3-4-5 angle, and half as
+// steep, for longer swells, so the two never line up into a visible repeat.
+// Each layer's drift is in metres; the turned layer repeats every 20 m.
+const WATER_RIPPLE_LAYERS = { broad: 4, broadRepeat: 20, fine: 1 };
+const WATER_NORMAL = `
+uniform vec2 courseWaterFlow;
+void getNormal() {
+    vec2 uv = {STD_NORMAL_TEXTURE_UV};
+    vec3 fine = texture2D({STD_NORMAL_TEXTURE_NAME},
+        (uv - vec2(courseWaterFlow.x, 0.0)) / ${WATER_RIPPLE_LAYERS.fine.toFixed(1)}).xyz * 2.0 - 1.0;
+    mat2 turn = mat2(0.8, 0.6, -0.6, 0.8);
+    vec3 broad = texture2D({STD_NORMAL_TEXTURE_NAME},
+        turn * (uv - vec2(courseWaterFlow.y, 0.0)) / ${WATER_RIPPLE_LAYERS.broad.toFixed(1)}).xyz * 2.0 - 1.0;
+    // Slopes add; the turned layer's turn back into the surface's frame.
+    vec2 slope = fine.xy / max(fine.z, 0.2)
+        + 0.5 * (transpose(turn) * broad.xy) / max(broad.z, 0.2);
+    dNormalW = normalize(dTBN * vec3(slope, 1.0));
+}
+`;
+
+// Clear water seen from above: the bed shows through the light the surface
+// does not reflect, less what the water absorbs and what the bed loses to
+// being wet, and the surface adds its reflection (Fresnel-weighted already)
+// and the faint blue-green the water scatters back in place of what it
+// absorbed. The bed's share follows the stream's level surface, not each
+// ripple: the ripples show in the reflection itself, and at grazing views
+// their Fresnel term would otherwise speckle the bed.
+const WATER_COMBINE = `
+// x: the water's own transmission, y: the wet bed's darkening.
+uniform vec2 courseWaterTransmission;
+// The stream bed's colour, linear.
+uniform vec3 courseWaterBedAlbedo;
+float courseWaterBed;
+vec3 combineColor(vec3 albedo, vec3 sheenSpecularity, float clearcoatSpecularity) {
+    float facing = clamp(dot(dVertexNormalW, dViewDirW), 0.0, 1.0);
+    float fresnel = 0.02 + 0.98 * pow(1.0 - facing, 5.0);
+    courseWaterBed = (1.0 - fresnel)
+        * courseWaterTransmission.x * courseWaterTransmission.y;
+    vec3 surface = (1.0 - fresnel) * (1.0 - courseWaterTransmission.x)
+        * albedo * dDiffuseLight;
+#ifdef LIT_SPECULAR
+    surface += dSpecularLight;
+#endif
+#ifdef LIT_REFLECTIONS
+    surface += dReflection.rgb * dReflection.a;
+#endif
+    return surface;
+}
+`;
+// Blending mixes the water's colour over the bed by its alpha, on the
+// gamma-encoded screen. The alpha passes the bed's share; the colour is what
+// makes the mix come out as the surface's light added to the bed's share,
+// for a bed of the stream bed's colour in the light that reaches the water.
+// Where even a full colour cannot reach that, as at a bright glint, the alpha
+// rises and the glint covers the bed, as it does on real water.
+const WATER_END = `
+    vec3 waterSurface = combineColor(litArgs_albedo, litArgs_sheen_specularity, litArgs_clearcoat_specularity)
+        + litArgs_emission;
+    vec3 waterBedLight = courseWaterBedAlbedo * dDiffuseLight;
+    vec3 waterSeen = gammaCorrectOutput(toneMap(addFog(
+        waterSurface + courseWaterBed * waterBedLight)));
+    vec3 waterBed = gammaCorrectOutput(toneMap(addFog(waterBedLight)));
+    // The most the colour can add, and, in dim light, where the tone curve's
+    // toe dims the bed's share below its encoded share, the least.
+    vec3 waterNeed = (waterSeen - waterBed) / max(1.0 - waterBed, 0.001);
+    vec3 waterShare = waterSeen / max(waterBed, 0.001);
+    float courseWaterAlpha = clamp(max(max(
+        1.0 - pow(courseWaterBed, 1.0 / 2.2),
+        max(waterNeed.r, max(waterNeed.g, waterNeed.b))),
+        1.0 - min(waterShare.r, min(waterShare.g, waterShare.b))), 0.001, 1.0);
+    gl_FragColor.rgb = clamp(
+        (waterSeen - (1.0 - courseWaterAlpha) * waterBed) / courseWaterAlpha,
+        0.0, 1.0);
+`;
+// Reads the alpha the water's end chunk sets just before it in main.
+const WATER_OUTPUT_ALPHA = `
+gl_FragColor.a = courseWaterAlpha;
+`;
+// The share of the bed's light clear water passes down through a 0.3 m
+// stream and back up: it takes about a quarter of the red and almost none of
+// the green and blue, applied here as one share weighted by brightness, with
+// the scattered blue-green giving the tint. Water filling a wet surface's
+// pores lets less of its light back out, so a submerged bed shows about 70%
+// as bright as it is dry.
+const WATER_TRANSMISSION = [0.93, 0.7];
+// Clean river gravel of pale granite and limestone, a light, cool grey.
+const GRAVEL_COLOR = "#a4a7a7";
+
 // Scanned finishes (CC0 ambientCG scans, see docs/visual-identity.md). The
 // albedo image stores each texel's colour as a quarter of its ratio to the
 // scan's mean, so the finish keeps the palette's average colour while the scan
@@ -101,11 +250,15 @@ const SCANNED_SURFACE_NORMAL = `
 void getNormal() {
     vec2 slope = (courseScanSample.rg * 2.0 - 1.0) * courseScan.y;
     float up = sqrt(max(0.0, 1.0 - dot(slope, slope)));
-    // Texture u follows world +x and the image's up (OpenGL green) world -z.
-    // Only upward faces carry the scan's relief.
-    dNormalW = dVertexNormalW.y > 0.99
-        ? normalize(vec3(slope.x, up, -slope.y))
-        : dVertexNormalW;
+    // Texture u follows world +x and the image's up (OpenGL green) world -z,
+    // laid onto the face: a ramp's relief tilts with it. Only faces turned
+    // up, at most about 25 degrees from level, carry the scan's relief.
+    vec3 n = dVertexNormalW;
+    vec3 across = normalize(vec3(1.0, 0.0, 0.0) - n * n.x);
+    vec3 along = normalize(vec3(0.0, 0.0, 1.0) - n * n.z);
+    dNormalW = n.y > 0.9
+        ? normalize(across * slope.x + n * up - along * slope.y)
+        : n;
 }
 `;
 
@@ -125,6 +278,12 @@ const SCANNED_SURFACES: Record<
   { metres: number; normal: number; tint: number; roughness: number }
 > = {
   asphalt: { metres: 2.2, normal: 1, tint: 0.12, roughness: 0.612 },
+  // A coarse broom finish, its ridges about 2 cm apart, brushed across the
+  // nursery's lanes.
+  concrete: { metres: 2, normal: 0.6, tint: 0.12, roughness: 0.608 },
+  // Rounded river pebbles a few centimetres across, on a 0.5 m scan; their
+  // mixed greys keep more of the scan's hue.
+  gravel: { metres: 0.5, normal: 1, tint: 0.35, roughness: 0.56 },
   lawn: { metres: 1.4, normal: 1, tint: 0.35, roughness: 0.544 },
   // A 1.4 m scan drawn smaller, so its blades read as clipped.
   turf: { metres: 0.8, normal: 0.8, tint: 0.35, roughness: 0.263 },
@@ -154,6 +313,48 @@ export function createCourseSurfaceMaterials(
     addressU: pc.ADDRESS_REPEAT,
     addressV: pc.ADDRESS_REPEAT,
   });
+  const ripples = new pc.Texture(device, {
+    name: "course-water-ripples",
+    width: RIPPLE_SIZE,
+    height: RIPPLE_SIZE,
+    format: pc.PIXELFORMAT_RGBA8,
+    levels: [getRipplePixels()],
+    mipmaps: true,
+    minFilter: pc.FILTER_LINEAR_MIPMAP_LINEAR,
+    magFilter: pc.FILTER_LINEAR,
+    // The chase camera sees water at grazing angles, where ripples stretch.
+    anisotropy: 4,
+    addressU: pc.ADDRESS_REPEAT,
+    addressV: pc.ADDRESS_REPEAT,
+  });
+  // Clear stream water: its surface reflects as water does (index 1.333, so
+  // 2% straight down, rising toward grazing views), and where it does not,
+  // the bed shows through. Its diffuse colour is the blue-green it scatters
+  // back.
+  const water = () => {
+    const material = new pc.StandardMaterial();
+    material.diffuse = new pc.Color(0.02, 0.18, 0.2).gamma();
+    material.blendType = pc.BLEND_NORMAL;
+    material.depthWrite = false;
+    material.useMetalness = true;
+    material.metalness = 0;
+    material.refractionIndex = 1 / 1.333;
+    material.gloss = 0.94;
+    // The ripple chunk replaces the normal map's sampling; setting the map
+    // gives the shader its UVs and a tangent frame from them.
+    material.normalMap = ripples;
+    material.shaderChunks.version = "2.20";
+    material.shaderChunks.glsl.set("normalMapPS", WATER_NORMAL);
+    material.shaderChunks.glsl.set("combinePS", WATER_COMBINE);
+    material.shaderChunks.glsl.set("endPS", WATER_END);
+    material.shaderChunks.glsl.set("outputAlphaPS", WATER_OUTPUT_ALPHA);
+    material.setParameter("courseWaterFlow", [0, 0]);
+    material.setParameter("courseWaterTransmission", WATER_TRANSMISSION);
+    const bed = new pc.Color().fromString(GRAVEL_COLOR).linear();
+    material.setParameter("courseWaterBedAlbedo", [bed.r, bed.g, bed.b]);
+    material.update();
+    return material;
+  };
   const finish = (
     color: pc.Color,
     gloss: number,
@@ -184,6 +385,7 @@ export function createCourseSurfaceMaterials(
   const lawn = () => hex(COURSE_LAWN_COLOR);
   const createFinishes = (): RoughCourseMaterials => ({
     asphalt: finish(new pc.Color(...COURSE_ASPHALT_COLOR), 0.18, [0.65, 0.28, 0], "asphalt", "asphalt"),
+    baseAsphalt: finish(new pc.Color(...COURSE_ASPHALT_COLOR), 0.18, [0.65, 0.28, 0], undefined, "asphalt"),
     baseGround: finish(turf(), 0.08, [0.45, 0.3, 0.035], undefined, "turf"),
     baseLawn: finish(lawn(), 0.05, [0.55, 0.42, 0], undefined, "lawn"),
     ground: finish(turf(), 0.08, [0.45, 0.3, 0.035], "ground", "turf"),
@@ -200,6 +402,12 @@ export function createCourseSurfaceMaterials(
     timber: finish(hex("#857661"), 0.14, [0.3, 0.18, 0]),
     mulch: finish(hex("#3e3025"), 0.06, [0.7, 0.35, 0]),
     hedge: finish(hex("#46522f"), 0.08, [0.35, 0.25, 0]),
+    // A working nursery's brushed-concrete trolley lanes, weathered to about
+    // 30% reflectance.
+    concrete: finish(hex("#8e8d88"), 0.16, [0.3, 0.2, 0], "verge", "concrete"),
+    // The stream's bed of clean river gravel, under the water.
+    gravel: finish(hex(GRAVEL_COLOR), 0.2, [0.2, 0.1, 0], undefined, "gravel"),
+    water: water(),
   });
   const materials = createFinishes();
   const indoorMaterials = interior ? createFinishes() : null;
@@ -216,13 +424,29 @@ export function createCourseSurfaceMaterials(
     box: createTopFaceMesh(device, "box"),
     cylinder: createTopFaceMesh(device, "cylinder"),
   } satisfies CourseTopFaceMeshes;
+  let waterSeconds = 0;
   return {
+    /** Moves the water's ripples downstream by a frame's time. */
+    advanceWater(seconds: number) {
+      waterSeconds += seconds;
+      const drift = waterSeconds * COURSE_WATER_FLOW_SPEED;
+      // Wrapped where each layer repeats, so the drift keeps its precision.
+      const flow = [
+        drift % WATER_RIPPLE_LAYERS.fine,
+        // Longer swells ride a little slower than the surface.
+        (drift * 0.8) % WATER_RIPPLE_LAYERS.broadRepeat,
+      ];
+      [materials, indoorMaterials].forEach((finishes) =>
+        finishes?.water.setParameter("courseWaterFlow", flow),
+      );
+    },
     indoorMaterials,
     materials,
     topFaces,
     /**
-     * Switches asphalt, turf, and lawn to their scanned finishes. Until then
-     * (or if the scans never load) they keep the code-built grain.
+     * Switches asphalt, concrete, gravel, turf, and lawn to their scanned
+     * finishes. Until then (or if the scans never load) they keep the
+     * code-built grain.
      */
     useScans(images: CourseSurfaceImages) {
       if (scanTextures.length > 0) return;
@@ -246,7 +470,7 @@ export function createCourseSurfaceMaterials(
         scanTextures.push(result);
         return result;
       };
-      const scans = (["asphalt", "lawn", "turf"] as const).map(
+      const scans = (["asphalt", "concrete", "gravel", "lawn", "turf"] as const).map(
         (surface) => [surface, images[surface]] as const,
       );
       const textures = Object.fromEntries(
@@ -280,6 +504,7 @@ export function createCourseSurfaceMaterials(
       );
       Object.values(topFaces).forEach(releaseTopFaceMesh);
       grain.destroy();
+      ripples.destroy();
       scanTextures.forEach((texture) => texture.destroy());
     },
   };

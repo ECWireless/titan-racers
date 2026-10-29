@@ -3,6 +3,7 @@ import { expect, test } from "@playwright/test";
 import {
   COURSE_ASPHALT_COLOR,
   COURSE_EDITOR_CAMERA_NEAR_CLIP,
+  drawsCourseAsphaltUnlayered,
   drawsCourseGrassUnlayered,
   getCourseSurfaceLayerDepthBias,
   isCourseBaseGround,
@@ -58,6 +59,21 @@ test("draws solid earthworks, unlike thin grass layers, without layer bias", () 
   );
   expect(drawsCourseGrassUnlayered(grass("verge", "verge", 0.002))).toBe(false);
   expect(drawsCourseGrassUnlayered(grass("deck", "asphalt", 0.3))).toBe(false);
+});
+
+test("draws solid and sloping asphalt decks without a layer bias", () => {
+  const deck = (material: "asphalt" | "lawn", thickness: number, tilt = 0) => ({
+    id: "deck",
+    transform: { rotation: { x: tilt, z: 0 } },
+    visual: { material, scale: { y: thickness } },
+  });
+  // A levee's road and its climb, solid or thin, draw unbiased.
+  expect(drawsCourseAsphaltUnlayered(deck("asphalt", 0.1))).toBe(true);
+  expect(drawsCourseAsphaltUnlayered(deck("asphalt", 0.3, 9.5))).toBe(true);
+  expect(drawsCourseAsphaltUnlayered(deck("asphalt", 0.002, 9.5))).toBe(true);
+  // Road surfacing on the ground keeps its layer; grass is not asphalt.
+  expect(drawsCourseAsphaltUnlayered(deck("asphalt", 0.002))).toBe(false);
+  expect(drawsCourseAsphaltUnlayered(deck("lawn", 0.65))).toBe(false);
 });
 
 test("keeps the asphalt visibly lighter than near-black kart tires", () => {

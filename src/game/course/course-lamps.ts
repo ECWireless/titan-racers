@@ -7,7 +7,9 @@ import {
 } from "../enclosure/island-three";
 import { keepCourseVisualIndoors } from "./build-rough-course";
 import {
+  COURSE_INDOOR_LAMP_KINDS,
   type CourseDocument,
+  type CourseLampKind,
   type CourseObject,
   type CoursePrimitiveObject,
   isCoursePrimitiveObject,
@@ -32,9 +34,18 @@ const SPOT = { inner: 50, outer: 75, range: 80 };
 const TUNNEL_LAMP = { candela: 8_600, inner: 40, outer: 80, range: 12 };
 // Its lens fills most of the housing's underside.
 const TUNNEL_LENS = { x: 0.92, y: 0.01, z: 0.78 };
+// The youth's battery LED work light, about 4,700 lm from a near-Lambertian
+// panel (Φ/π ≈ 1,500 cd). Hung every few metres along a low culvert, a string
+// of them lights its floor about as brightly as the floodlit track outside.
+const WORK_LAMP = { candela: 1_500, inner: 40, outer: 80, range: 6 };
+const WORK_LENS = { x: 0.85, y: 0.005, z: 0.8 };
+const INDOOR_LAMPS = {
+  tunnel: { lens: TUNNEL_LENS, spot: TUNNEL_LAMP },
+  work: { lens: WORK_LENS, spot: WORK_LAMP },
+} as const;
 
 // Lamps stand on boxes or cylinders, never arcs.
-function isLamp(kind: "floodlight" | "tunnel") {
+function isLamp(kind: CourseLampKind) {
   return (object: CourseObject): object is CoursePrimitiveObject =>
     object.lamp === kind && isCoursePrimitiveObject(object);
 }
@@ -126,7 +137,8 @@ export function courseLampLux(document: CourseDocument) {
  * floodlight object, at the top of its mast and reaching along its local
  * -Z. Lamps shine at real brightness, scaled by how far the habitat's lamps
  * are on, so they are dark by day and their pools show only once the habitat
- * is dim. They cast no shadows. Tunnel lamps light too when `tunnelLampsOn`.
+ * is dim. They cast no shadows. Tunnel and work lamps light too when
+ * `tunnelLampsOn`.
  * Returns a cleanup for the lens materials.
  */
 export function addCourseLamps(
@@ -140,11 +152,11 @@ export function addCourseLamps(
 ) {
   const definition = getApprovedEnclosure(document.enclosure);
   if (!definition) return () => {};
-  const releaseTunnelLamps = addTunnelLamps(entities, document, {
+  const releaseIndoorLamps = addIndoorLamps(entities, document, {
     lux: tunnelLampsOn ? sceneLux(definition) : 0,
   });
   const lamps = document.objects.filter(isFloodlight);
-  if (lamps.length === 0) return releaseTunnelLamps;
+  if (lamps.length === 0) return releaseIndoorLamps;
 
   // Scene illuminance of the lamp, per candela at 1 m, while it is on.
   const lux = sceneLux(definition) * lampsOn;
@@ -193,24 +205,28 @@ export function addCourseLamps(
 
   return () => {
     lens.destroy();
-    releaseTunnelLamps();
+    releaseIndoorLamps();
   };
 }
 
 /**
- * Adds a glowing lens and a downward spot light under each tunnel lamp
- * object, which is the luminaire's housing. Tunnel lamps light both the
+ * Adds a glowing lens and a downward spot light under each tunnel and work
+ * lamp object, which is the luminaire's housing. Indoor lamps light both the
  * inside and, through a portal, the outside, and burn day and night; `lux`
  * is the scene light per lux, or 0 to show them off. Returns a cleanup for
  * the lens materials.
  */
-function addTunnelLamps(
+function addIndoorLamps(
   entities: ReadonlyMap<string, pc.Entity>,
   document: CourseDocument,
   { lux }: { lux: number },
 ) {
   const lenses = new Map<string, pc.StandardMaterial>();
-  document.objects.filter(isLamp("tunnel")).forEach((object) => {
+  const lamps = COURSE_INDOOR_LAMP_KINDS.flatMap((kind) =>
+    document.objects.filter(isLamp(kind)).map((object) => ({ kind, object })),
+  );
+  lamps.forEach(({ kind, object }) => {
+    const { lens: lensShare, spot } = INDOOR_LAMPS[kind];
     const housing = entities.get(object.id);
     if (!housing) return;
     const { x, y, z } = object.visual.scale;
@@ -221,14 +237,14 @@ function addTunnelLamps(
     housing.addChild(underside);
 
     const size = {
-      x: x * TUNNEL_LENS.x,
-      y: TUNNEL_LENS.y,
-      z: z * TUNNEL_LENS.z,
+      x: x * lensShare.x,
+      y: lensShare.y,
+      z: z * lensShare.z,
     };
-    const key = `${size.x}:${size.z}`;
+    const key = `${kind}:${size.x}:${size.z}`;
     let material = lenses.get(key);
     if (!material) {
-      material = createLensMaterial(TUNNEL_LAMP.candela, size.x * size.z, lux);
+      material = createLensMaterial(spot.candela, size.x * size.z, lux);
       lenses.set(key, material);
     }
     const lens = new pc.Entity(`${object.id}-lens`);
@@ -236,7 +252,7 @@ function addTunnelLamps(
     lens.setLocalPosition(0, -size.y / 2, 0);
     lens.setLocalScale(size.x, size.y, size.z);
     underside.addChild(lens);
-    // Tunnel lamps always stand indoors.
+    // Indoor lamps always stand indoors.
     keepCourseVisualIndoors(lens);
 
     if (lux <= 0) return;
@@ -244,7 +260,7 @@ function addTunnelLamps(
       underside,
       `${object.id}-light`,
       [0, -size.y, 0],
-      TUNNEL_LAMP,
+      spot,
       lux,
       true,
     );
