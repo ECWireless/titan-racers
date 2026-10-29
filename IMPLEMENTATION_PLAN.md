@@ -433,9 +433,10 @@ barriers are the youth's portable race kit
       at the crest's edges, built at real size and colliding as their own
       shapes: a hardtail leaning on the handrail and a BMX laid over against
       the wall. Course schema v8 (water, concrete, gravel, work lamps, and
-      bicycles; twenty indoor lamps), no migration. Within the phone budget:
-      CPU work holds a 4 ms median, its p95 up from 5 to 6 ms, with about
-      six more draws.
+      bicycles; twenty indoor lamps), no migration. Frame time, CPU work (a
+      4 ms median, p95 5–6 ms), and draws (about six more) stay within the
+      phone budget, but startup does not: the first frame takes 465–549 ms
+      warm, against about 436 ms allowed, deferred to 4.4.8.
 - [ ] 4.4.5: Downhill run and spin jump. Floor markings' slope depth bias
       lets edge lines show through a ramp's thin toe from low, distant views
       (seen in PR 4.3.4 QA); fix it with these ramps, and check the fix on
@@ -465,6 +466,10 @@ barriers are the youth's portable race kit
       an admin publishes it. If the phone run needs headroom, stop
       spraying hedges' unseen faces (about 38% of their sprays, against the
       ground, walls, and neighbours) and thin tree leaves at distance.
+      Bring startup back within budget: PR 4.4.4's first frame is
+      465–549 ms warm, about 30–110 ms over. Its new scans (concrete,
+      gravel), decoded before the first frame, and the water and bicycle
+      programs are the likely costs; measure before cutting.
       Also steady the habitat's far-side street lamps (`lampLight` in
       `src/game/enclosure/habitat-glsl.ts`, PR 4.3.5), which draw as a
       crosshatch overhead and shimmer while driving, seen most clearly from
