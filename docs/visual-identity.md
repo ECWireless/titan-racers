@@ -145,8 +145,9 @@ Materials), and so do course surfaces (see Course Surfaces).
   to its trade: service roads, mains, doors, lamps, road markings, and signs.
   The youth's race kit is portable and improvised: the timing portal and the
   work light clamped to it, taped grid slots, the battery work lights strung
-  through the culvert, the bicycles they rode there, and later the jump and
-  makeshift barriers, in steel, hazard paint, and tape. Every new section
+  through the culvert, the bicycles they rode there, the plywood kicker and
+  landing deck of their jump, and the steel crowd barriers they fence it
+  with, in plywood, steel, hazard paint, and tape. Every new section
   follows the rule, so the route reads as kids racing through a working
   park.
 - **Service-yard finishes.** Aged mineral-grey asphalt (about 13%
@@ -365,3 +366,11 @@ lights, outfall, and bicycles add about six draws; CPU work holds its 4 ms
 median, its p95 5–6 ms, and frame time is unchanged. Startup is over
 budget: the first frame took 465–549 ms, against about 436 ms allowed, and
 the race was ready after 599–709 ms. PR 4.4.8 brings it back.
+
+PR 4.4.5 was measured with two Balanced races on reloads on Falls View
+Park at deep dusk, with no hitches. The downhill doubles the course's
+objects to about 1,640, mostly the crowd barriers' parts, but static
+batching keeps draws at a 45–46 median (66–67 at most); frame time holds
+(17 ms median, p95 18–19 ms), and CPU work sits at the budget's top, a
+4–5 ms median with p95 6 ms. Startup is unchanged and still over budget:
+the first frame took 469–510 ms and the race was ready after 592–674 ms.

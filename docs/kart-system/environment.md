@@ -24,9 +24,9 @@ course's enclosure placement, following the
 - centrifugal gravity `ω² r⊥` at the kart's center of mass, away from the
   axis, with `ω = √(9.81 / R)`;
 - Coriolis `−2ω × v` on the kart's velocity relative to the course; and
-- local up toward the axis, which the controller, rest settling, heave
-  damping, manual righting, the chase camera's height and look-at, and grass
-  clippings use instead of course +Y.
+- local up toward the axis, which the controller, rest settling, manual
+  righting, the chase camera's height and look-at, and grass clippings use
+  instead of course +Y.
 
 Each fixed step the controller points the solver's gravity at the field and
 applies Coriolis as a central force. Tire load sensitivity keeps its fixed
@@ -94,7 +94,9 @@ that supports tire/surface dependence, not the exact grip estimates here.
 
 `CURRENT_PHYSICS_VERSION` in `src/game/physics/physics-version.ts` identifies the
 complete shipped solver, environment, and gameplay-policy combination, currently
-`rotating-habitat-v1` (habitat gravity, Coriolis, and Island Three air).
+`support-heave-v1`: `rotating-habitat-v1`'s habitat gravity, Coriolis, and
+Island Three air, with grounded heave damped relative to the support rather
+than local up, so karts hold a steady slope.
 `ACCEPTED_PHYSICS_VERSIONS` lists every identity
 telemetry still accepts, because open tabs keep reporting their build's
 version until reloaded. Telemetry pins the client build's identity when a run

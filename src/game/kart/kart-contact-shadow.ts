@@ -1,6 +1,9 @@
 import * as pc from "playcanvas";
 
-import { getCourseSurfaceLayerDepthBias } from "../course/course-visual-policy";
+import {
+  getCourseSurfaceLayerDepthBias,
+  getCourseSurfaceLayerSlopeDepthBias,
+} from "../course/course-visual-policy";
 
 // The habitat light comes from the whole environment, and the renderer does
 // not occlude it. The kart darkens the ground beneath it here instead, the way
@@ -102,7 +105,8 @@ export class KartContactShadow {
     this.material.blendType = pc.BLEND_NORMAL;
     this.material.depthWrite = false;
     this.material.depthBias = getCourseSurfaceLayerDepthBias("contactShadow");
-    this.material.slopeDepthBias = this.material.depthBias;
+    this.material.slopeDepthBias =
+      getCourseSurfaceLayerSlopeDepthBias("contactShadow");
     this.material.update();
 
     const mesh = pc.Mesh.fromGeometry(

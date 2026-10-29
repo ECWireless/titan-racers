@@ -35,12 +35,16 @@ Current policy families include:
 - grounded rest settling uses shared eligibility/timing and derives corrective
   impulse from each kart's inertia;
 - grounded motion stabilization continuously damps only chassis-local roll
-  whenever at least two wheels are supported, plus heave along local up only
-  while the kart and every contacted support are nearly upright. Its shared
-  0.10/0.08-second responses derive torque/linear impulse from each kart's
-  inertia/mass. This deliberately suppresses finite-sweep hopping during hard
-  turns and flat landings without damping pitch, yaw, ramps, single-wheel
-  contact, or airborne motion;
+  whenever at least two wheels are supported, plus heave relative to the
+  support: velocity along the mean contact normal, only while the kart's body
+  lies within about 11° of it and every contact within about 1.8° (planes
+  within 2.4–3.6°, such as a faceted curve's joins). Steady driving on any slope
+  leaves that velocity at zero, so only hops and landings are damped. Its
+  shared 0.10/0.08-second responses derive torque/linear impulse from each
+  kart's inertia/mass. This deliberately suppresses finite-sweep hopping
+  during hard turns, landings, and descents without damping pitch, yaw,
+  single-wheel contact, a kart across a ramp's toe or lip, or airborne
+  motion;
 - manual righting uses shared eligibility, clearance, timing, and contact-loss
   allowance while deriving impulses from mass and inertia, with enough lift
   for the collision hull (wheel guard included) to clear the ground throughout
@@ -53,10 +57,10 @@ Current policy families include:
   four-wheel landing; and
 - collision numerical damping and CCD ratios are shared solver policy.
 
-Policies written for a Y-up world (rest settling, heave damping, and manual
-righting) run on vectors turned into the level frame, where local habitat up
-is +Y, so they behave the same anywhere in the habitat; righting lifts along
-local up and sizes its lift from local gravity.
+Policies written for a Y-up world (rest settling and manual righting) run on
+vectors turned into the level frame, where local habitat up is +Y, so they
+behave the same anywhere in the habitat; righting lifts along local up and
+sizes its lift from local gravity.
 
 Construction, mass distribution, geometry, suspension load, and the shared
 tire/contact model still determine the physical balance. The trailing-axle

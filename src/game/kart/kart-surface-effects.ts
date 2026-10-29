@@ -4,6 +4,7 @@ import {
   COURSE_LAWN_CLIPPING_COLOR,
   COURSE_TURF_CLIPPING_COLOR,
   getCourseSurfaceLayerDepthBias,
+  getCourseSurfaceLayerSlopeDepthBias,
 } from "../course/course-visual-policy";
 import { HABITAT_WORLD_ENVIRONMENT } from "../physics/world-environment";
 import type { DynamicWheelTelemetry } from "./dynamic-kart-controller";
@@ -522,7 +523,8 @@ export class KartSurfaceEffects {
       material.depthWrite = false;
       material.cull = pc.CULLFACE_NONE;
       material.depthBias = getCourseSurfaceLayerDepthBias("tireMark");
-      material.slopeDepthBias = material.depthBias;
+      material.slopeDepthBias =
+        getCourseSurfaceLayerSlopeDepthBias("tireMark");
       material.update();
       return {
         ...createQuadMesh(

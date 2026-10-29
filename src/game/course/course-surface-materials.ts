@@ -9,6 +9,7 @@ import {
   COURSE_LAWN_COLOR,
   COURSE_TURF_COLOR,
   getCourseSurfaceLayerDepthBias,
+  getCourseSurfaceLayerSlopeDepthBias,
   type CourseSurfaceLayer,
 } from "./course-visual-policy";
 import type {
@@ -368,7 +369,9 @@ export function createCourseSurfaceMaterials(
     material.metalness = 0;
     material.gloss = gloss;
     material.depthBias = layer ? getCourseSurfaceLayerDepthBias(layer) : 0;
-    material.slopeDepthBias = material.depthBias;
+    material.slopeDepthBias = layer
+      ? getCourseSurfaceLayerSlopeDepthBias(layer)
+      : 0;
     material.shaderChunks.version = "2.20";
     material.shaderChunks.glsl.set("diffusePS", SURFACE_ALBEDO);
     material.setParameter("courseGrain", grain);

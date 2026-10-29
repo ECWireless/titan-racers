@@ -517,8 +517,11 @@ async function advanceRaceToRacing(canvas: Locator) {
     ) + 1;
 
   await stepSimulation(canvas, steps);
+  // Software WebGL steps a full course's countdown slowly.
   await expect
-    .poll(async () => (await getRaceDebugState(canvas)).state)
+    .poll(async () => (await getRaceDebugState(canvas)).state, {
+      timeout: 30_000,
+    })
     .toBe("racing");
 }
 

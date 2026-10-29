@@ -159,9 +159,7 @@ most near the axis. `?axisRamp=<height>` starts the kart that many metres up,
 at most 10 m below the axis. The pad and axis lie 10–11 km from the course
 origin, where single-precision physics positions step by about 1 mm, so
 motion slower than about 0.1 m/s there is coarse or rounded away. A kart parked on
-the ramp rolls back, as a free-rolling kart does on a 20° slope; in weak
-gravity, finite wheel sweeps also hop on the slopes because grounded heave
-damping only acts on near-level support.
+the ramp rolls back, as a free-rolling kart does on a 20° slope.
 
 ## Sunlight
 
