@@ -1195,7 +1195,7 @@ test.describe("home screen", () => {
     expect(isUnderCourseWater(water, { x: kart.x, y: kart.y, z: kart.z })).toBe(false);
   });
 
-  test("drives on the habitat floor of Falls View Park's clearing", async ({
+  test("drives on the habitat floor of Falls View Park's clearing, inside its fence", async ({
     page,
   }, testInfo) => {
     testInfo.setTimeout(300_000);
@@ -1220,6 +1220,7 @@ test.describe("home screen", () => {
     // where the floor has risen about 3 m and tilted 2.6°.
     const radius = 4_000;
     const height = FALLS_VIEW_PARK_DOCUMENT.enclosure.placement.height;
+    const floorYAt = (z: number) => radius - height - Math.sqrt(radius ** 2 - z ** 2);
     for (const { x, z } of [
       { x: -80, z: 19 },
       { x: -200, z: 0 },
@@ -1227,7 +1228,7 @@ test.describe("home screen", () => {
     ]) {
       // The floor faces the axis, so it leans back toward z = 0.
       const tilt = -Math.asin(z / radius);
-      const floorY = radius - height - Math.sqrt(radius ** 2 - z ** 2);
+      const floorY = floorYAt(z);
       await setKartDebugPose(canvas, {
         position: { x, y: floorY + 0.1, z },
         rotation: { x: (tilt * 180) / Math.PI, y: 90, z: 0 },
@@ -1248,6 +1249,20 @@ test.describe("home screen", () => {
       expect(Math.abs(kart.y - floorY), evidence).toBeLessThan(0.2);
       expect(kart.speed, evidence).toBeLessThan(0.05);
     }
+
+    // Driven at the park fence, out toward the falls, the kart stops at it.
+    await setKartDebugPose(canvas, {
+      linearVelocity: { x: -10, y: 0, z: 0 },
+      position: { x: -205, y: floorYAt(0) + 0.1, z: 0 },
+      rotation: { x: 0, y: 90, z: 0 },
+    });
+    await stepSimulation(canvas, 240);
+    const stopped = await getKartDebugState(canvas);
+    const fenceEvidence = JSON.stringify([stopped.x, stopped.y, stopped.z, stopped.speed]);
+    // At rest against the fence's inner face (214.95 m out), not in it.
+    expect(stopped.x, fenceEvidence).toBeGreaterThan(-214.8);
+    expect(stopped.x, fenceEvidence).toBeLessThan(-213.5);
+    expect(stopped.speed, fenceEvidence).toBeLessThan(0.1);
   });
 
   test("constructs guest racing from the published course revision", async ({

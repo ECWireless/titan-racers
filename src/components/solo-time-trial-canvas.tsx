@@ -923,13 +923,19 @@ export function SoloTimeTrialCanvas({
           if (visual) visual.batchGroupId = courseBatch.id;
         });
       });
-      // The habitat floor around the course, in its clearing, batches with
-      // the course's lawn.
+      // The habitat floor around the course, in its clearing, and its
+      // fence; the ground and posts batch with the course's finishes.
       const clearing = addCourseClearing(app, COURSE_DOCUMENT, {
-        material: courseSurfaces.materials.baseLawn,
+        lawn: courseSurfaces.materials.baseLawn,
+        steel: courseSurfaces.materials.steel,
         surfaceResolver,
       });
-      if (clearing?.render) clearing.render.batchGroupId = courseBatch.id;
+      if (clearing) {
+        runtime.addCleanup(() => clearing.destroy());
+        clearing.batched.forEach((entity) => {
+          if (entity.render) entity.render.batchGroupId = courseBatch.id;
+        });
+      }
 
       function syncObstacleCollision(
         id: CourseTestObstacleId,

@@ -32,6 +32,7 @@ type CourseClearingPiece = {
   up: Vector3;
 };
 
+const add3 = (a: Vector3, b: Vector3) => ({ x: a.x + b.x, y: a.y + b.y, z: a.z + b.z });
 const sub = (a: Vector3, b: Vector3) => ({ x: a.x - b.x, y: a.y - b.y, z: a.z - b.z });
 const dot = (a: Vector3, b: Vector3) => a.x * b.x + a.y * b.y + a.z * b.z;
 const length = (a: Vector3) => Math.sqrt(dot(a, a));
@@ -58,19 +59,31 @@ function breaks(from: number, to: number, step: number, stops: number[]) {
 }
 
 /**
+ * The habitat floor in clearing coordinates (a, s): metres along the axis,
+ * sunward, and around the floor, spinward, from the clearing's centre at
+ * the placement; and the floor's up there, toward the axis.
+ */
+function getClearingFloor(enclosure: CourseDocument["enclosure"]) {
+  const frame = getEnclosureFrame(enclosure);
+  const { radius } = frame.definition;
+  const { axial, azimuth } = enclosure.placement;
+  const floor = (a: number, s: number) =>
+    frame.point(axial + a, azimuth + ((s / radius) * 180) / Math.PI, radius);
+  const up = (a: number, s: number) => {
+    const toAxis = sub(frame.point(axial + a, azimuth, 0), floor(a, s));
+    return scale(toAxis, 1 / length(toAxis));
+  };
+  return { floor, frame, radius, up };
+}
+
+/**
  * The floor of a course's clearing outside its footprint, from the habitat
  * model: the colliding slabs, and the mesh of their tops clipped to the
  * clearing's edge, in course coordinates. Null for a course without one.
  */
 export function getCourseClearingGround(enclosure: CourseDocument["enclosure"]) {
   if (!enclosure.clearing) return null;
-  const frame = getEnclosureFrame(enclosure);
-  const { radius } = frame.definition;
-  const { axial, azimuth } = enclosure.placement;
-  // (a, s): metres along the axis, sunward, and around the floor,
-  // spinward, from the clearing's centre at the placement.
-  const floor = (a: number, s: number) =>
-    frame.point(axial + a, azimuth + ((s / radius) * 180) / Math.PI, radius);
+  const { floor, frame, radius } = getClearingFloor(enclosure);
   const { spinward, sunward } = frame;
   const { max, min } = enclosure.clearing.footprint;
   const corners = [min.x, max.x].flatMap((x) =>
@@ -164,4 +177,172 @@ export function getCourseClearingGround(enclosure: CourseDocument["enclosure"]) 
   }
 
   return { indices, normals, pieces, positions, uvs };
+}
+
+/**
+ * The park fence ringing the clearing inside its belt of trees: galvanised
+ * weld-mesh panels between square posts, standing plumb to the floor.
+ * Colliders span `colliderPanels` panels each, as thick as the thinnest
+ * solid obstacle, from the floor to the posts' tops.
+ */
+export const COURSE_CLEARING_FENCE = {
+  colliderPanels: 2,
+  colliderThickness: 0.1,
+  // Panels stand clear of the grass.
+  panelBottom: 0.05,
+  panelTop: 1.2,
+  post: 0.06,
+  postHeight: 1.25,
+  postSpacing: 2.5,
+  radius: 215,
+} as const;
+
+/** The weld mesh's repeat: 200 mm square, wires 50 mm apart across it. */
+export const COURSE_FENCE_MESH = { cells: 4, size: 0.2, texels: 128, wire: 3 } as const;
+
+/**
+ * The weld mesh's coverage over one repeat: vertical wires every 50 mm and
+ * one horizontal wire along its top, each about 4.7 mm thick.
+ */
+export function getCourseFenceMeshCoverage() {
+  const { cells, texels, wire } = COURSE_FENCE_MESH;
+  const pixels = new Uint8Array(texels * texels * 4);
+  const cell = texels / cells;
+  for (let y = 0; y < texels; y++) {
+    for (let x = 0; x < texels; x++) {
+      const on = x % cell < wire || y < wire ? 255 : 0;
+      pixels.set([on, on, on, 255], (y * texels + x) * 4);
+    }
+  }
+  return pixels;
+}
+
+export type CourseClearingGeometry = { indices: number[]; normals: number[]; positions: number[]; uvs: number[] };
+const geometry = (): CourseClearingGeometry => ({ indices: [], normals: [], positions: [], uvs: [] });
+
+/** A planar quad, wound to face `normal`, with its own UVs. */
+function addQuad(
+  target: CourseClearingGeometry,
+  corners: [Vector3, Vector3, Vector3, Vector3],
+  normal: Vector3,
+  uvs: [number, number][] = [[0, 0], [0, 0], [0, 0], [0, 0]],
+) {
+  const first = target.positions.length / 3;
+  corners.forEach((corner, index) => {
+    target.positions.push(corner.x, corner.y, corner.z);
+    target.normals.push(normal.x, normal.y, normal.z);
+    target.uvs.push(...uvs[index]!);
+  });
+  const facing = dot(cross(sub(corners[1], corners[0]), sub(corners[2], corners[0])), normal);
+  target.indices.push(
+    ...(facing >= 0
+      ? [first, first + 1, first + 2, first, first + 2, first + 3]
+      : [first, first + 2, first + 1, first, first + 3, first + 2]),
+  );
+}
+
+/**
+ * A course's clearing fence, from the habitat model: its posts' and mesh
+ * panels' geometry, in course coordinates, and its colliders. Null for a
+ * course without a clearing.
+ */
+export function getCourseClearingFence(enclosure: CourseDocument["enclosure"]) {
+  if (!enclosure.clearing) return null;
+  const { floor, up } = getClearingFloor(enclosure);
+  const fence = COURSE_CLEARING_FENCE;
+  // An even count, so colliders span whole pairs of panels.
+  const count =
+    fence.colliderPanels *
+    Math.round((2 * Math.PI * fence.radius) / fence.postSpacing / fence.colliderPanels);
+  const stations = Array.from({ length: count }, (_, index) => {
+    const angle = (2 * Math.PI * index) / count;
+    const a = fence.radius * Math.cos(angle);
+    const s = fence.radius * Math.sin(angle);
+    return { base: floor(a, s), up: up(a, s) };
+  });
+  const station = (index: number) => stations[index % count]!;
+  const at = (point: Vector3, direction: Vector3, distance: number) =>
+    add3(point, scale(direction, distance));
+
+  const posts = geometry();
+  const panels = geometry();
+  const colliders: CourseClearingPiece[] = [];
+  stations.forEach(({ base, up: postUp }, index) => {
+    // A square post, its faces along and across the fence.
+    const next = station(index + 1);
+    const along = sub(next.base, station(index + count - 1).base);
+    const tangent = scale(along, 1 / length(along));
+    const across = cross(tangent, postUp);
+    const half = fence.post / 2;
+    const corner = (x: number, z: number, height: number) =>
+      at(at(at(base, tangent, x), across, z), postUp, height);
+    const sides: [number, number][] = [[-1, -1], [1, -1], [1, 1], [-1, 1]];
+    sides.forEach(([x0, z0], side) => {
+      const [x1, z1] = sides[(side + 1) % 4]!;
+      const normal = scale(add3(scale(tangent, x0 + x1), scale(across, z0 + z1)), 0.5);
+      addQuad(
+        posts,
+        [
+          corner(x0 * half, z0 * half, 0),
+          corner(x1 * half, z1 * half, 0),
+          corner(x1 * half, z1 * half, fence.postHeight),
+          corner(x0 * half, z0 * half, fence.postHeight),
+        ],
+        normal,
+      );
+    });
+    addQuad(
+      posts,
+      [
+        corner(-half, -half, fence.postHeight),
+        corner(half, -half, fence.postHeight),
+        corner(half, half, fence.postHeight),
+        corner(-half, half, fence.postHeight),
+      ],
+      postUp,
+    );
+
+    // The mesh panel to the next post, its UVs in mesh repeats down from
+    // its top wire.
+    const span = length(sub(next.base, base));
+    const normal = cross(scale(sub(next.base, base), 1 / span), postUp);
+    const repeat = COURSE_FENCE_MESH.size;
+    addQuad(
+      panels,
+      [
+        at(base, postUp, fence.panelBottom),
+        at(next.base, next.up, fence.panelBottom),
+        at(next.base, next.up, fence.panelTop),
+        at(base, postUp, fence.panelTop),
+      ],
+      normal,
+      [
+        [0, (fence.panelTop - fence.panelBottom) / repeat],
+        [span / repeat, (fence.panelTop - fence.panelBottom) / repeat],
+        [span / repeat, 0],
+        [0, 0],
+      ],
+    );
+
+    if (index % fence.colliderPanels === 0) {
+      const end = station(index + fence.colliderPanels);
+      const chord = sub(end.base, base);
+      const right = scale(chord, 1 / length(chord));
+      const middleUp = add3(postUp, end.up);
+      const colliderUp = sub(middleUp, scale(right, dot(middleUp, right)));
+      const unitUp = scale(colliderUp, 1 / length(colliderUp));
+      colliders.push({
+        center: at(at(base, chord, 0.5), unitUp, fence.postHeight / 2),
+        forward: cross(right, unitUp),
+        halfExtents: {
+          x: length(chord) / 2,
+          y: fence.postHeight / 2,
+          z: fence.colliderThickness / 2,
+        },
+        right,
+        up: unitUp,
+      });
+    }
+  });
+  return { colliders, panels, posts };
 }

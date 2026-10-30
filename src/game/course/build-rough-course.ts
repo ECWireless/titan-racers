@@ -16,7 +16,11 @@ import {
 } from "./course-arc";
 import {
   COURSE_CLEARING_SURFACE,
+  COURSE_FENCE_MESH,
+  type CourseClearingGeometry,
+  getCourseClearingFence,
   getCourseClearingGround,
+  getCourseFenceMeshCoverage,
 } from "./course-clearing";
 import { CourseSurfaceResolver } from "./course-surface-resolver";
 import {
@@ -392,34 +396,120 @@ function addCourseArcCollision(
 }
 
 /**
- * The habitat floor of a course's clearing, outside its footprint: one lawn
- * mesh, and a static slab for each piece, which supports karts as lawn and
- * resolves straight to it. Null for a course without a clearing.
+ * The habitat floor of a course's clearing outside its footprint, and the
+ * park fence ringing it. The ground is one lawn mesh, with a static slab
+ * for each piece, which supports karts as lawn and resolves straight to it.
+ * The fence's posts are one steel mesh and its weld-mesh panels one
+ * see-through mesh, with static obstacle colliders. `batched` lists the
+ * entities drawn in course finishes, to join their static batch. Null for
+ * a course without a clearing.
  */
 export function addCourseClearing(
   app: pc.Application,
   document: CourseDocument,
   {
-    material,
+    lawn,
+    steel,
     surfaceResolver,
-  }: { material: pc.Material; surfaceResolver: CourseSurfaceResolver },
+  }: {
+    lawn: pc.Material;
+    steel: pc.StandardMaterial;
+    surfaceResolver: CourseSurfaceResolver;
+  },
 ) {
   const ground = getCourseClearingGround(document.enclosure);
-  if (!ground) return null;
+  const fence = getCourseClearingFence(document.enclosure);
+  if (!ground || !fence) return null;
   const root = new pc.Entity("course-clearing");
-  try {
+  const meshTexture = new pc.Texture(app.graphicsDevice, {
+    addressU: pc.ADDRESS_REPEAT,
+    addressV: pc.ADDRESS_REPEAT,
+    format: pc.PIXELFORMAT_RGBA8,
+    height: COURSE_FENCE_MESH.texels,
+    levels: [getCourseFenceMeshCoverage()],
+    magFilter: pc.FILTER_LINEAR,
+    minFilter: pc.FILTER_LINEAR_MIPMAP_LINEAR,
+    mipmaps: true,
+    name: "course-fence-mesh",
+    width: COURSE_FENCE_MESH.texels,
+  });
+  // Galvanised wire in the posts' finish, seen from either side.
+  const meshMaterial = new pc.StandardMaterial();
+  meshMaterial.diffuse = steel.diffuse.clone();
+  meshMaterial.useMetalness = true;
+  meshMaterial.metalness = 0;
+  meshMaterial.gloss = steel.gloss;
+  meshMaterial.opacityMap = meshTexture;
+  meshMaterial.opacityMapChannel = "r";
+  // Wire covers about a ninth of a panel; a low threshold lets alpha to
+  // coverage thin it to a haze at distance rather than cut it off.
+  meshMaterial.alphaTest = 0.05;
+  meshMaterial.alphaToCoverage = true;
+  meshMaterial.cull = pc.CULLFACE_NONE;
+  meshMaterial.twoSidedLighting = true;
+  meshMaterial.update();
+  const destroy = () => {
+    root.destroy();
+    meshMaterial.destroy();
+    meshTexture.destroy();
+  };
+
+  const addMesh = (
+    name: string,
+    geometry: CourseClearingGeometry,
+    material: pc.Material,
+    castShadows = false,
+  ) => {
     const mesh = new pc.Mesh(app.graphicsDevice);
-    mesh.setPositions(ground.positions);
-    mesh.setNormals(ground.normals);
-    // The box primitive's streams, so it joins the lawn's static batch.
-    mesh.setUvs(0, ground.uvs);
-    mesh.setUvs(1, ground.uvs);
-    mesh.setIndices(ground.indices);
+    mesh.setPositions(geometry.positions);
+    mesh.setNormals(geometry.normals);
+    // The box primitive's streams, so it can join a finish's static batch.
+    mesh.setUvs(0, geometry.uvs);
+    mesh.setUvs(1, geometry.uvs);
+    mesh.setIndices(geometry.indices);
     mesh.update();
-    root.addComponent("render", {
-      castShadows: false,
+    const entity = new pc.Entity(name);
+    entity.addComponent("render", {
+      castShadows,
       meshInstances: [new pc.MeshInstance(mesh, material)],
     });
+    root.addChild(entity);
+    return entity;
+  };
+  const axes = new pc.Mat4();
+  const addSlab = (
+    name: string,
+    { center, forward, halfExtents, right, up }: (typeof ground.pieces)[number],
+    physics: { friction: number; group: number; mask: number; restitution: number; tag: string },
+  ) => {
+    const entity = new pc.Entity(name);
+    axes.data.set([right.x, right.y, right.z, 0, up.x, up.y, up.z, 0, forward.x, forward.y, forward.z, 0, 0, 0, 0, 1]);
+    entity.setPosition(center.x, center.y, center.z);
+    entity.setRotation(new pc.Quat().setFromMat4(axes));
+    entity.tags.add(physics.tag);
+    entity.addComponent("collision", {
+      halfExtents: toVec3(halfExtents),
+      type: "box",
+    });
+    entity.addComponent("rigidbody", {
+      friction: physics.friction,
+      group: physics.group,
+      mask: physics.mask,
+      restitution: physics.restitution,
+      type: pc.BODYTYPE_STATIC,
+    });
+    root.addChild(entity);
+    return entity;
+  };
+
+  try {
+    const batched = [
+      addMesh("course-clearing-ground", ground, lawn),
+      // Posts cast shadows, as the course's other steel does, so they
+      // share its batch.
+      addMesh("course-clearing-fence-posts", fence.posts, steel, true),
+    ];
+    addMesh("course-clearing-fence-mesh", fence.panels, meshMaterial);
 
     const zero = { x: 0, y: 0, z: 0 };
     // Every slab resolves to the one lawn surface; no authored layer lies
@@ -438,41 +528,37 @@ export function addCourseClearing(
       normal: { x: 0, y: 1, z: 0 },
       right: { x: 1, y: 0, z: 0 },
     } as const;
-    const axes = new pc.Mat4();
     ground.pieces.forEach((piece, index) => {
       const name = `course-clearing-ground-${index + 1}`;
-      const entity = new pc.Entity(name);
-      const { center, forward, halfExtents, right, up } = piece;
-      axes.data.set([right.x, right.y, right.z, 0, up.x, up.y, up.z, 0, forward.x, forward.y, forward.z, 0, 0, 0, 0, 1]);
-      entity.setPosition(center.x, center.y, center.z);
-      entity.setRotation(new pc.Quat().setFromMat4(axes));
-      entity.tags.add("drivable-surface");
+      const entity = addSlab(name, piece, {
+        ...COURSE_CLEARING_SURFACE,
+        group: PHYSICS_GROUP.drivableSurface,
+        mask: PHYSICS_MASK.drivableSurface,
+        tag: "drivable-surface",
+      });
       registerDrivableSurfaceSupportShape(entity, {
         angularOffset: zero,
-        halfExtents,
+        halfExtents: piece.halfExtents,
         linearOffset: zero,
         shape: "box",
       });
-      entity.addComponent("collision", {
-        halfExtents: toVec3(halfExtents),
-        type: "box",
-      });
-      entity.addComponent("rigidbody", {
-        friction: COURSE_CLEARING_SURFACE.friction,
-        group: PHYSICS_GROUP.drivableSurface,
-        mask: PHYSICS_MASK.drivableSurface,
-        restitution: COURSE_CLEARING_SURFACE.restitution,
-        type: pc.BODYTYPE_STATIC,
-      });
-      root.addChild(entity);
       surfaceResolver.addStandaloneSurface(name, surface);
     });
+    fence.colliders.forEach((collider, index) =>
+      addSlab(`course-clearing-fence-${index + 1}`, collider, {
+        friction: 0.6,
+        group: PHYSICS_GROUP.solidObstacle,
+        mask: PHYSICS_MASK.solidObstacle,
+        restitution: 0,
+        tag: "obstacle",
+      }),
+    );
     app.root.addChild(root);
+    return { batched, destroy };
   } catch (error) {
-    root.destroy();
+    destroy();
     throw error;
   }
-  return root;
 }
 
 /**

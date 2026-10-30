@@ -1,7 +1,9 @@
 import { expect, test } from "@playwright/test";
 
 import {
+  COURSE_CLEARING_FENCE,
   COURSE_CLEARING_GROUND,
+  getCourseClearingFence,
   getCourseClearingGround,
 } from "../src/game/course/course-clearing";
 import {
@@ -45,6 +47,7 @@ const tops = ground.pieces.map((piece) => along(piece.center, piece.up, piece.ha
 
 test("leaves courses without a clearing as they were", () => {
   expect(getCourseClearingGround(ROUGH_COURSE_DOCUMENT.enclosure)).toBeNull();
+  expect(getCourseClearingFence(ROUGH_COURSE_DOCUMENT.enclosure)).toBeNull();
 });
 
 test("draws the clearing on the habitat floor, facing the axis, out to its edge", () => {
@@ -97,6 +100,56 @@ test("supports the floor everywhere in the clearing outside the park", () => {
         );
       });
       expect(supported, `floor at a=${a}, s=${s}`).toBe(true);
+    }
+  }
+});
+
+test("closes the clearing with a fence standing on the floor", () => {
+  const fence = getCourseClearingFence(enclosure)!;
+  const { colliders, panels } = fence;
+  const corner = (
+    piece: (typeof colliders)[number],
+    x: number,
+    y: number,
+    z: number,
+  ) =>
+    along(
+      along(along(piece.center, piece.right, x * piece.halfExtents.x), piece.up, y * piece.halfExtents.y),
+      piece.forward,
+      z * piece.halfExtents.z,
+    );
+  const local = (piece: (typeof colliders)[number], point: Vector3) => {
+    const offset = sub(point, piece.center);
+    return [dot(offset, piece.right), dot(offset, piece.up), dot(offset, piece.forward)];
+  };
+  // Each collider stands on the floor from end to end, and meets the next
+  // one along its centreline, so no gap opens between them.
+  colliders.forEach((piece, index) => {
+    for (const x of [-1, 1]) {
+      expect(Math.abs(fromAxis(corner(piece, x, -1, 0)) - radius)).toBeLessThan(1e-6);
+    }
+    const next = colliders[(index + 1) % colliders.length]!;
+    const gap = sub(corner(piece, 1, -1, 0), corner(next, -1, -1, 0));
+    expect(Math.sqrt(dot(gap, gap))).toBeLessThan(1e-6);
+  });
+  // Every mesh panel lies within a collider.
+  for (let quad = 0; quad < panels.positions.length / 12; quad++) {
+    const points = [0, 1, 2, 3].map((k) => {
+      const v = quad * 12 + k * 3;
+      return { x: panels.positions[v]!, y: panels.positions[v + 1]!, z: panels.positions[v + 2]! };
+    });
+    const holder = colliders[Math.floor(quad / COURSE_CLEARING_FENCE.colliderPanels)]!;
+    for (const point of points) {
+      const [x, y, z] = local(holder, point);
+      expect(Math.abs(x!)).toBeLessThanOrEqual(holder.halfExtents.x + 1e-6);
+      expect(Math.abs(y!)).toBeLessThanOrEqual(holder.halfExtents.y + 1e-6);
+      expect(Math.abs(z!)).toBeLessThanOrEqual(holder.halfExtents.z);
+    }
+  }
+  // The fence stands clear of the park.
+  for (const x of [footprint.min.x, footprint.max.x]) {
+    for (const z of [footprint.min.z, footprint.max.z]) {
+      expect(Math.hypot(x, z)).toBeLessThan(COURSE_CLEARING_FENCE.radius - 10);
     }
   }
 });

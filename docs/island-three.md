@@ -67,7 +67,8 @@ own:
   by clumps of real trees that open toward the sunward cap. A course that
   names its footprint draws the clearing's floor around it as its own
   drivable lawn, following the floor's curve out to the clearing's edge,
-  where the habitat's painted lawn takes over
+  where the habitat's painted lawn takes over. A park fence closes it 215 m
+  out
   ([course data](../skills/project-systems/course-data/README.md)). Within 750 m of
   the course the woods and park trees are real trees, 10–24 m tall: three
   broadleaves and a fir, each a billboard baked from a scanned tree that

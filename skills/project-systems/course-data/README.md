@@ -72,11 +72,18 @@ own editor commands or persistence UI.
   the clearing's 220 m edge, strips across the curve at most 10 m wide (their
   chords sag at most 3.1 mm) cut into pieces at most 20 m long along the
   axis, each a 0.5 m slab whose top is the drawn ground; at the edge the
-  slabs run a little past it, under ground the fence closes off.
-  `addCourseClearing` (in `build-rough-course.ts`) draws the tops as one lawn
-  mesh in the race's static lawn batch and adds a static body per slab, which
-  supports karts as lawn grass and resolves straight to it, so the surface
-  lookup never scans the clearing's slabs. The editor does not draw it.
+  slabs run a little past it, under ground the fence closes off. It also
+  builds the park fence ringing the clearing 215 m out, inside the belt of
+  trees: weld-mesh panels 1.2 m high between 60 mm posts every 2.5 m, plumb
+  to the floor, with a 0.1 m collider (the thinnest solid obstacle) for each
+  pair of panels, from the floor to the posts' tops.
+  `addCourseClearing` (in `build-rough-course.ts`) draws the ground as one
+  lawn mesh and the posts as one steel mesh, both in the race's static
+  batch, and the panels as one see-through mesh
+  ([scene lighting](../scene-lighting/README.md)). It adds a static body per
+  slab, which supports karts as lawn grass and resolves straight to it, so
+  the surface lookup never scans the clearing's slabs, and a static obstacle
+  per fence collider. The editor draws neither.
 - `src/game/course/build-rough-course.ts` projects a validated document into
   PlayCanvas visual, collision, rigid-body, tag, group, and mask state. It
   returns stable-ID entity maps plus two explicit sandbox obstacle lookups used
@@ -117,9 +124,10 @@ own editor commands or persistence UI.
   error, normals and winding, and collision boxes that meet on the outer face.
 - `tests/course-trees.spec.ts` owns tree placement, colliders, size,
   triangle budget, winding, and hedge spray coverage.
-- `tests/course-clearing.spec.ts` owns the clearing's floor: every vertex on
-  the habitat floor, slab tops within the sagitta, no ground inside the
-  footprint, and support everywhere outside it.
+- `tests/course-clearing.spec.ts` owns the clearing's floor and fence: every
+  vertex on the habitat floor, slab tops within the sagitta, no ground inside
+  the footprint, support everywhere outside it, and a closed fence whose
+  colliders stand on the floor and hold its panels.
 - `tests/course-water.spec.ts` owns water volumes and drowning;
   `tests/course-bicycle-geometry.spec.ts` owns the bicycles' build, poses,
   colliders, and their contact with the crest's rail and wall.
