@@ -2615,8 +2615,8 @@ function ObjectPlacementControl({
     {
       checked: indoors,
       hint: lamp
-        ? lamp === "floodlight"
-          ? "Floodlights stand outdoors."
+        ? (lamp === "floodlight" || lamp === "street")
+          ? "Floodlights and street lamps stand outdoors."
           : "Tunnel and work lamps stand indoors."
         : overhead && !boxShaped
           ? "Indoor roofs are boxes."

@@ -30,7 +30,7 @@ progression.
   contact point, normal, approach speed, impulse, and pre/post velocity data.
 - `src/game/kart/dynamic-kart-controller.ts` remains the owner of supported
   wheel count and authoritative vertical velocity.
-- `src/game/course/rough-course.v8.json` defines the visible off-loop camera
+- `src/game/course/rough-course.v9.json` defines the visible off-loop camera
   test bay: one large wall and a shortened L-corner outside the established
   maximum-speed lane.
 - `src/game/course/build-rough-course.ts` creates those fixtures as ordinary

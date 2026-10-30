@@ -2,6 +2,7 @@ import type { CourseArc } from "../course/course-arc";
 import {
   COURSE_CHECKPOINT_LIMIT,
   COURSE_LAMP_LIMIT,
+  COURSE_STREET_LAMP_LIMIT,
   COURSE_HEDGE_SPRAY_LIMIT,
   COURSE_TREE_LIMIT,
   countCourseHedgeSprays,
@@ -26,6 +27,7 @@ export const COURSE_OBJECT_PRESETS = [
   "ramp",
   "platform",
   "lamp",
+  "street-lamp",
   "tunnel-lamp",
   "work-light",
   "tree-bed",
@@ -43,6 +45,7 @@ export const COURSE_OBJECT_PRESET_LABELS: Record<CourseObjectPreset, string> = {
   block: "block",
   curve: "curve",
   lamp: "floodlight",
+  "street-lamp": "street lamp",
   platform: "platform",
   ramp: "ramp",
   "tunnel-lamp": "tunnel lamp",
@@ -257,6 +260,31 @@ const PRESET_OBJECTS: Record<
       shape: "cylinder",
     },
   },
+  "street-lamp": {
+    availability: "standard",
+    category: "obstacle",
+    collision: {
+      surfaceMaterial: { id: "surface.standard-course", version: 1 },
+      axis: 1,
+      friction: 0.5,
+      height: 6,
+      offset: {
+        position: { x: 0, y: 0, z: 0 },
+        rotation: { x: 0, y: 0, z: 0 },
+      },
+      radius: 0.075,
+      restitution: 0,
+      role: "solid-obstacle",
+      shape: "cylinder",
+    },
+    editable: true,
+    lamp: "street",
+    visual: {
+      material: "steel",
+      scale: { x: 0.15, y: 6, z: 0.15 },
+      shape: "cylinder",
+    },
+  },
   // A tunnel's LED luminaire housing; the race hangs its lens and light
   // beneath it. Tunnel lamps stand indoors.
   "tunnel-lamp": {
@@ -434,6 +462,7 @@ export function coursePresetLimitReached(
   ) {
     return COURSE_LAMP_LIMIT;
   }
+  if (preset === "street-lamp" && countCourseLamps(document, "street") >= COURSE_STREET_LAMP_LIMIT) return COURSE_STREET_LAMP_LIMIT;
   if (
     (preset === "tunnel-lamp" || preset === "work-light") &&
     countCourseIndoorLamps(document) >= COURSE_INDOOR_LAMP_LIMIT

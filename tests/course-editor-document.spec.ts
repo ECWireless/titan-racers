@@ -2,6 +2,7 @@ import { expect, test } from "@playwright/test";
 
 import {
   COURSE_LAMP_LIMIT,
+  COURSE_STREET_LAMP_LIMIT,
   COURSE_TREE_LIMIT,
   COURSE_INDOOR_LAMP_LIMIT,
   countCourseTrees,
@@ -549,4 +550,22 @@ test.describe("course editor document commands", () => {
       visual: resized.objects.at(-1)!.visual,
     });
   });
+});
+
+
+test("places full-size street columns up to their independent budget", () => {
+  let document = structuredClone(ROUGH_COURSE_DOCUMENT);
+  for (let i = 0; i < COURSE_STREET_LAMP_LIMIT; i++)
+    document = addCourseObjectPreset(document, "street-lamp");
+  const street = document.objects.filter((o) => o.lamp === "street");
+  expect(street).toHaveLength(COURSE_STREET_LAMP_LIMIT);
+  expect(street[0]).toMatchObject({
+    transform: { position: { y: 3 } },
+    visual: { shape: "cylinder", scale: { y: 6 } },
+    collision: { height: 6, radius: 0.075 },
+  });
+  expect(coursePresetLimitReached(document, "street-lamp")).toBe(8);
+  expect(addCourseObjectPreset(document, "street-lamp")).toBe(document);
+  expect(coursePresetLimitReached(document, "lamp")).toBeNull();
+  expect(coursePresetLimitReached(document, "tunnel-lamp")).toBeNull();
 });
