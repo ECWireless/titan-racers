@@ -1195,6 +1195,61 @@ test.describe("home screen", () => {
     expect(isUnderCourseWater(water, { x: kart.x, y: kart.y, z: kart.z })).toBe(false);
   });
 
+  test("drives on the habitat floor of Falls View Park's clearing", async ({
+    page,
+  }, testInfo) => {
+    testInfo.setTimeout(300_000);
+    test.skip(
+      testInfo.project.name !== "desktop",
+      "The clearing's floor only needs to run once.",
+    );
+    await page.setViewportSize({ height: 270, width: 480 });
+    await page.route("**/api/courses/*/published", async (route) => {
+      await route.fulfill({
+        body: JSON.stringify({ error: "Published course not found." }),
+        contentType: "application/json",
+        status: 404,
+      });
+    });
+    await page.goto("/");
+    await page.getByRole("button", { name: "Solo Time Trial" }).click();
+    const canvas = page.getByTestId("solo-time-trial-canvas");
+    await advanceRaceToRacing(canvas);
+
+    // Outside the west wall, out toward the falls, and across the curve
+    // where the floor has risen about 3 m and tilted 2.6°.
+    const radius = 4_000;
+    const height = FALLS_VIEW_PARK_DOCUMENT.enclosure.placement.height;
+    for (const { x, z } of [
+      { x: -80, z: 19 },
+      { x: -200, z: 0 },
+      { x: 20, z: -180 },
+    ]) {
+      // The floor faces the axis, so it leans back toward z = 0.
+      const tilt = -Math.asin(z / radius);
+      const floorY = radius - height - Math.sqrt(radius ** 2 - z ** 2);
+      await setKartDebugPose(canvas, {
+        position: { x, y: floorY + 0.1, z },
+        rotation: { x: (tilt * 180) / Math.PI, y: 90, z: 0 },
+      });
+      await stepSimulation(canvas, 240);
+      const kart = await getKartDebugState(canvas);
+      const evidence = JSON.stringify({ x, z, kart: [kart.x, kart.y, kart.z], up: kart.up });
+      expect(kart.supportCount, evidence).toBe(4);
+      expect(
+        kart.supportEntityNames.every((name) => name.startsWith("course-clearing-ground-")),
+        evidence,
+      ).toBe(true);
+      for (const material of Object.values(kart.wheelSurfaceMaterials)) {
+        expect(material).toEqual({ id: "surface.lawn-grass", version: 1 });
+      }
+      // Upright on the floor, square to the habitat's local up.
+      expect(kart.up.y * Math.cos(tilt) + kart.up.z * Math.sin(tilt), evidence).toBeGreaterThan(0.999);
+      expect(Math.abs(kart.y - floorY), evidence).toBeLessThan(0.2);
+      expect(kart.speed, evidence).toBeLessThan(0.05);
+    }
+  });
+
   test("constructs guest racing from the published course revision", async ({
     page,
   }) => {

@@ -14,6 +14,10 @@ import {
   createCourseArcGeometry,
   getCourseArcCollisionBoxes,
 } from "./course-arc";
+import {
+  COURSE_CLEARING_SURFACE,
+  getCourseClearingGround,
+} from "./course-clearing";
 import { CourseSurfaceResolver } from "./course-surface-resolver";
 import {
   createCourseWaterSurfaceGeometry,
@@ -385,6 +389,90 @@ function addCourseArcCollision(
     });
     entity.addChild(part);
   });
+}
+
+/**
+ * The habitat floor of a course's clearing, outside its footprint: one lawn
+ * mesh, and a static slab for each piece, which supports karts as lawn and
+ * resolves straight to it. Null for a course without a clearing.
+ */
+export function addCourseClearing(
+  app: pc.Application,
+  document: CourseDocument,
+  {
+    material,
+    surfaceResolver,
+  }: { material: pc.Material; surfaceResolver: CourseSurfaceResolver },
+) {
+  const ground = getCourseClearingGround(document.enclosure);
+  if (!ground) return null;
+  const root = new pc.Entity("course-clearing");
+  try {
+    const mesh = new pc.Mesh(app.graphicsDevice);
+    mesh.setPositions(ground.positions);
+    mesh.setNormals(ground.normals);
+    // The box primitive's streams, so it joins the lawn's static batch.
+    mesh.setUvs(0, ground.uvs);
+    mesh.setUvs(1, ground.uvs);
+    mesh.setIndices(ground.indices);
+    mesh.update();
+    root.addComponent("render", {
+      castShadows: false,
+      meshInstances: [new pc.MeshInstance(mesh, material)],
+    });
+
+    const zero = { x: 0, y: 0, z: 0 };
+    // Every slab resolves to the one lawn surface; no authored layer lies
+    // on the clearing.
+    const surface = {
+      center: zero,
+      collision: {
+        ...COURSE_CLEARING_SURFACE,
+        halfExtents: zero,
+        offset: { position: zero, rotation: zero },
+        role: "drivable-surface",
+        shape: "box",
+      },
+      forward: { x: 0, y: 0, z: 1 },
+      name: "course-clearing",
+      normal: { x: 0, y: 1, z: 0 },
+      right: { x: 1, y: 0, z: 0 },
+    } as const;
+    const axes = new pc.Mat4();
+    ground.pieces.forEach((piece, index) => {
+      const name = `course-clearing-ground-${index + 1}`;
+      const entity = new pc.Entity(name);
+      const { center, forward, halfExtents, right, up } = piece;
+      axes.data.set([right.x, right.y, right.z, 0, up.x, up.y, up.z, 0, forward.x, forward.y, forward.z, 0, 0, 0, 0, 1]);
+      entity.setPosition(center.x, center.y, center.z);
+      entity.setRotation(new pc.Quat().setFromMat4(axes));
+      entity.tags.add("drivable-surface");
+      registerDrivableSurfaceSupportShape(entity, {
+        angularOffset: zero,
+        halfExtents,
+        linearOffset: zero,
+        shape: "box",
+      });
+      entity.addComponent("collision", {
+        halfExtents: toVec3(halfExtents),
+        type: "box",
+      });
+      entity.addComponent("rigidbody", {
+        friction: COURSE_CLEARING_SURFACE.friction,
+        group: PHYSICS_GROUP.drivableSurface,
+        mask: PHYSICS_MASK.drivableSurface,
+        restitution: COURSE_CLEARING_SURFACE.restitution,
+        type: pc.BODYTYPE_STATIC,
+      });
+      root.addChild(entity);
+      surfaceResolver.addStandaloneSurface(name, surface);
+    });
+    app.root.addChild(root);
+  } catch (error) {
+    root.destroy();
+    throw error;
+  }
+  return root;
 }
 
 /**

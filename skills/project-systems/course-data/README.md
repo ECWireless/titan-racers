@@ -26,7 +26,7 @@ own editor commands or persistence UI.
 ## Source Ownership
 
 - `src/game/course/course-document.ts` defines strict Zod legacy schemas and the
-  canonical version-nine schema, deterministic legacy normalization,
+  canonical version-ten schema, deterministic legacy normalization,
   cross-document ID and checkpoint-order refinements, gate-face direction
   alignment, canonical sorting, serialization, inferred TypeScript types, and
   validated seed export.
@@ -34,14 +34,14 @@ own editor commands or persistence UI.
   courses with bundled seeds, and the guest solo course (`falls-view-park`)
   explicit; `course-publication.ts`
   validates protected publication and privacy-minimized public runtime shapes.
-- `src/game/course/rough-course.v9.json` is the canonical portable rough-course
+- `src/game/course/rough-course.v10.json` is the canonical portable rough-course
   sandbox seed. It contains the start/finish gate, three ordered checkpoints
   whose gates reach from the infield into the grass, with directed gate and
   recovery data, an infield barrier, ordinary surfaces and objects, camera
   fixtures, and opt-in collision fixtures.
   It permanently restores only course ID `rough-course`; the official
   Falls View Park document uses the distinct ID `falls-view-park`, seeded by
-  `falls-view-park.v9.json`: a walled two-lap circuit of about 550 m, with
+  `falls-view-park.v10.json`: a walled two-lap circuit of about 550 m, with
   4.5 m lanes for four karts abreast, from a utility tunnel through nursery
   rows and a culvert, up onto a levee crest facing the falls, down the
   levee's anti-spinward access ramp or the youth's jump beside it, and
@@ -61,8 +61,22 @@ own editor commands or persistence UI.
   street lamps along its anti-sunward run. It stands
   0.9 m above the habitat floor (`enclosure.placement.height`), so the
   floor, which curves up around the axis across its 164 m north–south span,
-  stays below the chase camera at every wall.
+  stays below the chase camera at every wall. Its perimeter walls reach 1 m
+  below the park's ground, to the floor of its clearing outside them, which
+  follows the floor's curve: from 0.9 m below the park's ground beside its
+  west and east walls to 0.4 m above it at the south wall, rising about
+  5 m by the clearing's edge around the axis.
   `BUNDLED_COURSE_DOCUMENTS` maps each official course to its seed.
+- `src/game/course/course-clearing.ts` builds the habitat floor of a course's
+  clearing from the enclosure model: outside the course's footprint, out to
+  the clearing's 220 m edge, strips across the curve at most 10 m wide (their
+  chords sag at most 3.1 mm) cut into pieces at most 20 m long along the
+  axis, each a 0.5 m slab whose top is the drawn ground; at the edge the
+  slabs run a little past it, under ground the fence closes off.
+  `addCourseClearing` (in `build-rough-course.ts`) draws the tops as one lawn
+  mesh in the race's static lawn batch and adds a static body per slab, which
+  supports karts as lawn grass and resolves straight to it, so the surface
+  lookup never scans the clearing's slabs. The editor does not draw it.
 - `src/game/course/build-rough-course.ts` projects a validated document into
   PlayCanvas visual, collision, rigid-body, tag, group, and mask state. It
   returns stable-ID entity maps plus two explicit sandbox obstacle lookups used
@@ -103,6 +117,9 @@ own editor commands or persistence UI.
   error, normals and winding, and collision boxes that meet on the outer face.
 - `tests/course-trees.spec.ts` owns tree placement, colliders, size,
   triangle budget, winding, and hedge spray coverage.
+- `tests/course-clearing.spec.ts` owns the clearing's floor: every vertex on
+  the habitat floor, slab tops within the sagitta, no ground inside the
+  footprint, and support everywhere outside it.
 - `tests/course-water.spec.ts` owns water volumes and drowning;
   `tests/course-bicycle-geometry.spec.ts` owns the bicycles' build, poses,
   colliders, and their contact with the crest's rail and wall.
@@ -114,10 +131,10 @@ own editor commands or persistence UI.
 
 ## Document Contract
 
-Canonical version nine is strict JSON using metres, Y-up positions, and Euler
+Canonical version ten is strict JSON using metres, Y-up positions, and Euler
 degrees. It contains:
 
-- literal schema version `9`;
+- literal schema version `10`;
 - a stable course ID and name;
 - one stable start ID, transform (the start/finish gate), bounded start-gate
   half-extents, and a spawn distance (0–10 m) placing the kart behind the gate
@@ -193,6 +210,16 @@ warm-white light are owned by [scene lighting](../scene-lighting/README.md).
 Version-eight documents upgrade unchanged in memory; stored revisions stay
 immutable. The schema change needs no database migration.
 
+Version ten adds `enclosure.clearing.footprint`, the course's own footprint
+(`min` and `max` corners in course x and z). With it, the habitat floor of
+the course's clearing is drawn and drivable outside the footprint
+(`course-clearing.ts`); without it, nothing outside the course exists. The
+footprint stays within 200 m of the placement,
+and the course must be turned square to
+the axis, so the footprint meets the floor along straight edges. Falls View
+Park's footprint is its perimeter walls' outer faces. Version-nine documents
+upgrade unchanged.
+
 Coordinates and dimensions are finite and bounded to the accepted authoring
 envelope. Unknown fields and unsupported enum values fail rather than being
 silently stripped. The complete document validates before scene construction.
@@ -200,13 +227,14 @@ silently stripped. The complete document validates before scene construction.
 ## Legacy Normalization
 
 Stored revisions are immutable, so `parseCourseDocument` keeps strict
-version-one to version-eight schemas and normalizes them in memory to version
-nine; canonical serialization and every new save use version nine. Version
+version-one to version-nine schemas and normalizes them in memory to version
+ten; canonical serialization and every new save use version ten. Version
 four allows mirror angles only up to 85° and no lamps, version five no
 indoor, overhead, or arc objects and no tunnel lamps, and version six no
 planting or hedges and at most eight floodlights, and version seven no
 water, gravel, concrete, work lamps, or bicycles and at most sixteen indoor
-lamps, and version eight no street lamps; all upgrade unchanged.
+lamps, and version eight no street lamps, and version nine no clearing; all
+upgrade unchanged.
 Version two adds
 `start.gateHalfExtents`, `checkpoints[].forward`, and
 `checkpoints[].recovery`.
@@ -226,7 +254,7 @@ Version two adds
 - Degenerate coincident anchors or directions that cannot identify a face are
   rejected rather than invented.
 - A loaded version-one row is normalized in memory, and its next save creates a
-  new version-nine revision. Persistence responses report the normalized schema
+  new version-ten revision. Persistence responses report the normalized schema
   version consistently.
 
 Every legacy collider normalizes to `surface.standard-course@1`, including

@@ -1,7 +1,7 @@
 import type { Position3 } from "../contracts";
 import { rotateCourseDirection, type CourseObject } from "./course-document";
 
-type Surface = {
+export type CourseSurface = {
   // Arcs only ever collide as walls.
   collision: Exclude<NonNullable<CourseObject["collision"]>, { shape: "arc" }>;
   center: Position3;
@@ -16,8 +16,9 @@ const COPLANAR_TOLERANCE = 0.000001;
 
 /** Static collision geometry only: render scale and material never select grip. */
 export class CourseSurfaceResolver {
-  private readonly surfaces: Surface[] = [];
-  private readonly byName = new Map<string, Surface>();
+  private readonly surfaces: CourseSurface[] = [];
+  private readonly byName = new Map<string, CourseSurface>();
+  private readonly standalone = new Map<string, CourseSurface>();
 
   constructor(objects: readonly CourseObject[]) {
     for (const object of objects) {
@@ -58,7 +59,17 @@ export class CourseSurfaceResolver {
     }
   }
 
+  /**
+   * Generated ground that no authored layer lies on, such as a clearing's
+   * floor, resolves straight to its own surface.
+   */
+  addStandaloneSurface(name: string, surface: CourseSurface) {
+    this.standalone.set(name, surface);
+  }
+
   resolve(hitName: string, point: Position3, normal: Position3) {
+    const standalone = this.standalone.get(hitName);
+    if (standalone) return standalone;
     let selected = this.byName.get(hitName);
     // Collision angular offsets affect layer alignment independently of the
     // entity-up normal retained by the force solver.
