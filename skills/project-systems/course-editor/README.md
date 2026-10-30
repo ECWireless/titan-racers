@@ -104,7 +104,9 @@ owns only Resume and Exit.
 - The palette shows the `lamp` preset as "floodlight" beside a "tunnel lamp"
   preset hung from a 3.6 m roof and a "work light" hung from a 1.2 m
   culvert's; each kind stops at its own limit, tunnel and work lamps
-  sharing one. The "water" preset is a 6 × 3 m box 0.3 m deep, filled from
+  sharing one. A "street lamp" preset places a 6 m outdoor column with its
+  own eight-lamp budget, independent of the floodlights and indoor lamps.
+  The "water" preset is a 6 × 3 m box 0.3 m deep, filled from
   the ground and flowing along its length.
 - A parked bicycle draws in place of its box, which the editor keeps
   unseen but pickable, so the bike selects and moves as its box; it has no

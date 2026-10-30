@@ -8,6 +8,7 @@ import {
   COURSE_HEDGE_SPRAY_LIMIT,
   COURSE_INDOOR_LAMP_LIMIT,
   COURSE_LAMP_LIMIT,
+  COURSE_STREET_LAMP_LIMIT,
   COURSE_TREE_LIMIT,
   countCourseHedgeSprays,
   countCourseIndoorLamps,
@@ -18,6 +19,7 @@ import {
   getCourseStartTransform,
   isCoursePrimitiveObject,
   parseCourseDocument,
+  rotateCourseDirection,
   ROUGH_COURSE_DOCUMENT,
   serializeCourseDocument,
 } from "../src/game/course/course-document";
@@ -38,6 +40,7 @@ function versionSevenFallsViewPark() {
   document.objects = document.objects.filter(
     (object) =>
       object.visual.material !== "water" &&
+      object.lamp !== "street" &&
       object.lamp !== "work" &&
       !object.bicycle,
   );
@@ -142,7 +145,7 @@ function findObject(id: string) {
 }
 
 test("parses the versioned rough course with stable IDs and ordered checkpoints", () => {
-  expect(ROUGH_COURSE_DOCUMENT.schemaVersion).toBe(8);
+  expect(ROUGH_COURSE_DOCUMENT.schemaVersion).toBe(9);
   expect(ROUGH_COURSE_DOCUMENT.units).toBe("meters");
   expect(ROUGH_COURSE_DOCUMENT.start.id).toBe("start-position");
   expect(ROUGH_COURSE_DOCUMENT.checkpoints).toHaveLength(3);
@@ -706,7 +709,7 @@ function toObjectFrame(
 }
 
 test("serializes the seeds deterministically and round trips without changes", () => {
-  for (const seed of ["rough-course.v8.json", "falls-view-park.v8.json"]) {
+  for (const seed of ["rough-course.v9.json", "falls-view-park.v9.json"]) {
     const source = readFileSync(
       join(process.cwd(), "src/game/course", seed),
       "utf8",
@@ -718,7 +721,7 @@ test("serializes the seeds deterministically and round trips without changes", (
   }
   expect(serializeCourseDocument(ROUGH_COURSE_DOCUMENT)).toBe(
     readFileSync(
-      join(process.cwd(), "src/game/course/rough-course.v8.json"),
+      join(process.cwd(), "src/game/course/rough-course.v9.json"),
       "utf8",
     ),
   );
@@ -751,7 +754,7 @@ test("normalizes version-one course data without mutating the stored input", () 
   expect(withoutDerived(normalized)).toEqual(
     withoutDerived(ROUGH_COURSE_DOCUMENT),
   );
-  expect(normalized.schemaVersion).toBe(8);
+  expect(normalized.schemaVersion).toBe(9);
 });
 
 test("normalizes a valid one-checkpoint version-one course", () => {
@@ -946,7 +949,7 @@ test("normalizes v2 to standard surfaces without inferring physics from visuals"
   const input = createVersionTwoSeed();
   const stored = structuredClone(input);
   const normalized = parseCourseDocument(input);
-  expect(normalized.schemaVersion).toBe(8);
+  expect(normalized.schemaVersion).toBe(9);
   // Legacy karts keep spawning on the start gate.
   expect(normalized.start.spawnDistance).toBe(0);
   for (const object of normalized.objects) {
@@ -983,7 +986,7 @@ test("adds the nursery's finishes and planted beds in schema version seven", () 
 
   const block = FALLS_VIEW_PARK_DOCUMENT.objects
     .filter(isCoursePrimitiveObject)
-    .find((object) => object.collision?.role === "solid-obstacle")!;
+    .find((object) => object.collision?.role === "solid-obstacle" && !object.lamp && !object.indoors && !object.overhead)!;
   const bed = {
     ...structuredClone(block),
     id: "nursery-bed",
@@ -1178,5 +1181,75 @@ test("parks bicycles only in schema version eight, as upright boxes", () => {
         .safeParse(invalid)
         .error?.issues.map(({ path }) => path),
     ).toContainEqual(["objects", index, "bicycle"]);
+  }
+});
+
+
+test("upgrades v8 unchanged and bounds outdoor street lamps in v9", () => {
+  const legacy = structuredClone(FALLS_VIEW_PARK_DOCUMENT);
+  legacy.objects = legacy.objects.filter((o) => o.lamp !== "street");
+  expect(parseCourseDocument({ ...legacy, schemaVersion: 8 })).toEqual(legacy);
+  const street = FALLS_VIEW_PARK_DOCUMENT.objects.find(
+    (o) => o.lamp === "street",
+  )!;
+  expect(() =>
+    parseCourseDocument({ ...FALLS_VIEW_PARK_DOCUMENT, schemaVersion: 8 }),
+  ).toThrow();
+  const full = structuredClone(legacy);
+  for (let i = 0; i < COURSE_STREET_LAMP_LIMIT; i++)
+    full.objects.push({ ...structuredClone(street), id: `street-${i}` });
+  expect(parseCourseDocument(full)).toEqual(full);
+  expect(() =>
+    parseCourseDocument({
+      ...full,
+      objects: [...full.objects, { ...street, id: "street-extra" }],
+    }),
+  ).toThrow("8 street lamps");
+  for (const change of [
+    { indoors: true },
+    { overhead: true },
+    { visual: { ...street.visual, shape: "box" } },
+  ]) {
+    expect(() =>
+      parseCourseDocument({
+        ...legacy,
+        objects: [...legacy.objects, { ...street, ...change }],
+      }),
+    ).toThrow();
+  }
+});
+
+
+test("connects both return-turn kerbs to the downhill and return straight", () => {
+  for (const [side, start, end] of [
+    ["outer", [-49, -47.325], [-58.325, -38]],
+    ["inner", [-49, -42.675], [-53.675, -38]],
+  ] as const) {
+    const object = FALLS_VIEW_PARK_DOCUMENT.objects.find(
+      (o) => o.id === `return-turn-kerb-${side}`,
+    )!;
+    if (object.visual.shape !== "arc")
+      throw new Error("Expected a curved kerb");
+    const { innerRadius, width, sweep } = object.visual.arc;
+    const radius = innerRadius + width / 2;
+    for (const [angle, expected] of [
+      [0, start],
+      [sweep, end],
+    ] as const) {
+      const radians = (angle * Math.PI) / 180;
+      const offset = rotateCourseDirection(
+        { x: radius * Math.cos(radians), y: 0, z: -radius * Math.sin(radians) },
+        { x: 0, y: 0, z: 0 },
+        object.transform.rotation,
+      );
+      expect(object.transform.position.x + offset.x).toBeCloseTo(
+        expected[0],
+        5,
+      );
+      expect(object.transform.position.z + offset.z).toBeCloseTo(
+        expected[1],
+        5,
+      );
+    }
   }
 });

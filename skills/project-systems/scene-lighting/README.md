@@ -63,7 +63,12 @@ phone budget. Art direction and the budget itself live in
   and outdoor objects, so its light spills from a portal; tunnel lamps do not
   count toward the exposure. A `lamp: "work"` object, the youth's battery
   work light, adds a lens and a dimmer spot light (1,500 cd, 6 m reach) the
-  same way. The race batches the lamp parts with the static
+  same way. Outdoor `lamp: "street"` objects carry a short bracket and flat
+  lantern on their column: a 1,000 cd warm-white downward spot (40–80°,
+  24 m reach), on the habitat's lamp schedule, with no shadows and no
+  contribution to exposure. Falls View Park uses 6 m columns every 20 m
+  along its return straight, plus one outside the turn. The race batches
+  the lamp parts with the static
   course; the editor shows them switched off.
 - `src/game/course/course-interior.ts` lights a course's indoors: an
   interior environment atlas built by elevation from the light a lamp-lit

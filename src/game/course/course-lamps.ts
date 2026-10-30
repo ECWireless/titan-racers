@@ -3,6 +3,7 @@ import * as pc from "playcanvas";
 import {
   getApprovedEnclosure,
   NEUTRAL_WHITE,
+  WARM_WHITE,
   sceneLux,
 } from "../enclosure/island-three";
 import { keepCourseVisualIndoors } from "./build-rough-course";
@@ -18,7 +19,6 @@ import {
 // A sports floodlight, about 250,000 cd: a circuit is lit to over 1,000 lux.
 const LAMP_CANDELA = 250_000;
 const LAMP_TINT = NEUTRAL_WHITE;
-const LAMP_TINT_PEAK = Math.max(...LAMP_TINT);
 // A short arm carries the floodlight's housing and downward lens.
 const ARM = { length: 0.6, thickness: 0.12 };
 const HOUSING = { x: 0.7, y: 0.18, z: 0.7 };
@@ -52,16 +52,18 @@ function isLamp(kind: CourseLampKind) {
 const isFloodlight = isLamp("floodlight");
 
 /** A lens glowing with a lamp's light spread over its area. */
-function createLensMaterial(candela: number, area: number, lux: number) {
+function createLensMaterial(
+  candela: number,
+  area: number,
+  lux: number,
+  tint: readonly number[] = LAMP_TINT,
+) {
   const lens = new pc.StandardMaterial();
   lens.diffuse = new pc.Color(0, 0, 0);
-  const [r, g, b] = LAMP_TINT;
-  lens.emissive = new pc.Color(
-    r / LAMP_TINT_PEAK,
-    g / LAMP_TINT_PEAK,
-    b / LAMP_TINT_PEAK,
-  ).gamma();
-  lens.emissiveIntensity = (candela / area) * Math.PI * lux * LAMP_TINT_PEAK;
+  const [r, g, b] = tint;
+  const peak = Math.max(...tint);
+  lens.emissive = new pc.Color(r / peak, g / peak, b / peak).gamma();
+  lens.emissiveIntensity = (candela / area) * Math.PI * lux * peak;
   lens.update();
   return lens;
 }
@@ -78,10 +80,11 @@ function addSpotLight(
   spot: { candela: number; inner: number; outer: number; range: number },
   lux: number,
   reachesIndoors: boolean,
+  tint: readonly number[] = LAMP_TINT,
 ) {
   const light = new pc.Entity(name);
   light.setLocalPosition(...position);
-  const linear = LAMP_TINT.map(
+  const linear = tint.map(
     (channel) => (channel * spot.candela * lux) / FALLOFF_SCALE,
   ) as [number, number, number];
   light.addComponent("light", {
@@ -133,8 +136,8 @@ export function courseLampLux(document: CourseDocument) {
 }
 
 /**
- * Adds a floodlight's arm, luminaire, and downward spot light to each course
- * floodlight object, at the top of its mast and reaching along its local
+ * Adds an arm, luminaire, and downward spot light to each outdoor
+ * floodlight or street lamp object, at the top of its mast and reaching along its local
  * -Z. Lamps shine at real brightness, scaled by how far the habitat's lamps
  * are on, so they are dark by day and their pools show only once the habitat
  * is dim. They cast no shadows. Tunnel and work lamps light too when
@@ -155,16 +158,32 @@ export function addCourseLamps(
   const releaseIndoorLamps = addIndoorLamps(entities, document, {
     lux: tunnelLampsOn ? sceneLux(definition) : 0,
   });
-  const lamps = document.objects.filter(isFloodlight);
+  const lamps = document.objects.filter(
+    (object): object is CoursePrimitiveObject =>
+      (object.lamp === "floodlight" || object.lamp === "street") &&
+      isCoursePrimitiveObject(object),
+  );
   if (lamps.length === 0) return releaseIndoorLamps;
 
   // Scene illuminance of the lamp, per candela at 1 m, while it is on.
   const lux = sceneLux(definition) * lampsOn;
+  const streetHousing = { x: 0.28, y: 0.07, z: 0.6 };
+  const streetLens = { x: 0.24, y: 0.01, z: 0.5 };
   const lens = createLensMaterial(LAMP_CANDELA, LENS.x * LENS.z, lux);
+  const streetMaterial = createLensMaterial(
+    1_000,
+    streetLens.x * streetLens.z,
+    lux,
+    WARM_WHITE,
+  );
 
   lamps.forEach((object) => {
     const mast = entities.get(object.id);
     if (!mast) return;
+    const street = object.lamp === "street";
+    const arm = street ? { length: 0.8, thickness: 0.06 } : ARM;
+    const housing = street ? streetHousing : HOUSING;
+    const lensSize = street ? streetLens : LENS;
     const { x, y, z } = object.visual.scale;
     // The mast is scaled to its visual size; the head undoes it.
     const head = new pc.Entity(`${object.id}-head`);
@@ -184,27 +203,35 @@ export function addCourseLamps(
       part.setLocalScale(size.x, size.y, size.z);
       head.addChild(part);
     };
-    box("arm", steel, { x: ARM.thickness, y: ARM.thickness, z: ARM.length }, [
+    box("arm", steel, { x: arm.thickness, y: arm.thickness, z: arm.length }, [
       0,
-      -ARM.thickness / 2,
-      -ARM.length / 2,
+      -arm.thickness / 2,
+      -arm.length / 2,
     ]);
-    box("housing", steel, HOUSING, [0, -HOUSING.y / 2, -ARM.length]);
-    box("lens", lens, LENS, [0, -HOUSING.y - LENS.y / 2, -ARM.length]);
+    box("housing", steel, housing, [0, -housing.y / 2, -arm.length]);
+    box("lens", street ? streetMaterial : lens, lensSize, [
+      0,
+      -housing.y - lensSize.y / 2,
+      -arm.length,
+    ]);
 
     if (lampsOn <= 0) return;
     addSpotLight(
       head,
       `${object.id}-light`,
-      [0, -HOUSING.y - LENS.y, -ARM.length],
-      { candela: LAMP_CANDELA, ...SPOT },
+      [0, -housing.y - lensSize.y, -arm.length],
+      street
+        ? { candela: 1_000, inner: 40, outer: 80, range: 24 }
+        : { candela: LAMP_CANDELA, ...SPOT },
       lux,
       false,
+      street ? WARM_WHITE : LAMP_TINT,
     );
   });
 
   return () => {
     lens.destroy();
+    streetMaterial.destroy();
     releaseIndoorLamps();
   };
 }

@@ -5859,114 +5859,6 @@
       "collision": {
         "friction": 0.7,
         "halfExtents": {
-          "x": 29.5,
-          "y": 0.25,
-          "z": 0.15
-        },
-        "offset": {
-          "position": {
-            "x": 0,
-            "y": 0,
-            "z": 0
-          },
-          "rotation": {
-            "x": 0,
-            "y": 0,
-            "z": 0
-          }
-        },
-        "restitution": 0,
-        "role": "solid-obstacle",
-        "shape": "box",
-        "surfaceMaterial": {
-          "id": "surface.standard-course",
-          "version": 1
-        }
-      },
-      "editable": true,
-      "id": "return-lane-wall-l",
-      "transform": {
-        "position": {
-          "x": -19.5,
-          "y": 0.25,
-          "z": -47.4
-        },
-        "rotation": {
-          "x": 0,
-          "y": 0,
-          "z": 0
-        }
-      },
-      "visual": {
-        "material": "obstacleBlock",
-        "scale": {
-          "x": 59,
-          "y": 0.5,
-          "z": 0.3
-        },
-        "shape": "box"
-      }
-    },
-    {
-      "availability": "standard",
-      "category": "obstacle",
-      "collision": {
-        "friction": 0.7,
-        "halfExtents": {
-          "x": 29.5,
-          "y": 0.25,
-          "z": 0.15
-        },
-        "offset": {
-          "position": {
-            "x": 0,
-            "y": 0,
-            "z": 0
-          },
-          "rotation": {
-            "x": 0,
-            "y": 0,
-            "z": 0
-          }
-        },
-        "restitution": 0,
-        "role": "solid-obstacle",
-        "shape": "box",
-        "surfaceMaterial": {
-          "id": "surface.standard-course",
-          "version": 1
-        }
-      },
-      "editable": true,
-      "id": "return-lane-wall-r",
-      "transform": {
-        "position": {
-          "x": -19.5,
-          "y": 0.25,
-          "z": -42.6
-        },
-        "rotation": {
-          "x": 0,
-          "y": 0,
-          "z": 0
-        }
-      },
-      "visual": {
-        "material": "obstacleBlock",
-        "scale": {
-          "x": 59,
-          "y": 0.5,
-          "z": 0.3
-        },
-        "shape": "box"
-      }
-    },
-    {
-      "availability": "standard",
-      "category": "obstacle",
-      "collision": {
-        "friction": 0.7,
-        "halfExtents": {
           "x": 36.775,
           "y": 1.8,
           "z": 0.15
@@ -7099,6 +6991,37 @@
         "rotation": {
           "x": 0,
           "y": -45,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "steel",
+        "scale": {
+          "x": 1.2,
+          "y": 0.12,
+          "z": 0.36
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-lamp-13",
+      "indoors": true,
+      "label": "Junction chamber lamp",
+      "lamp": "tunnel",
+      "transform": {
+        "position": {
+          "x": 76.5,
+          "y": 3.54,
+          "z": -45
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
           "z": 0
         }
       },
@@ -47545,1086 +47468,6 @@
       "collision": {
         "friction": 0.7,
         "halfExtents": {
-          "x": 0.759284,
-          "y": 0.25,
-          "z": 0.15
-        },
-        "offset": {
-          "position": {
-            "x": 0,
-            "y": 0,
-            "z": 0
-          },
-          "rotation": {
-            "x": 0,
-            "y": 0,
-            "z": 0
-          }
-        },
-        "restitution": 0,
-        "role": "solid-obstacle",
-        "shape": "box",
-        "surfaceMaterial": {
-          "id": "surface.standard-course",
-          "version": 1
-        }
-      },
-      "editable": true,
-      "id": "return-turn-wall-o-1",
-      "transform": {
-        "position": {
-          "x": -58.371023,
-          "y": 0.25,
-          "z": -38.737515
-        },
-        "rotation": {
-          "x": 0,
-          "y": -274.5,
-          "z": 0
-        }
-      },
-      "visual": {
-        "material": "obstacleBlock",
-        "scale": {
-          "x": 1.518569,
-          "y": 0.5,
-          "z": 0.3
-        },
-        "shape": "box"
-      }
-    },
-    {
-      "availability": "standard",
-      "category": "obstacle",
-      "collision": {
-        "friction": 0.7,
-        "halfExtents": {
-          "x": 0.359143,
-          "y": 0.25,
-          "z": 0.15
-        },
-        "offset": {
-          "position": {
-            "x": 0,
-            "y": 0,
-            "z": 0
-          },
-          "rotation": {
-            "x": 0,
-            "y": 0,
-            "z": 0
-          }
-        },
-        "restitution": 0,
-        "role": "solid-obstacle",
-        "shape": "box",
-        "surfaceMaterial": {
-          "id": "surface.standard-course",
-          "version": 1
-        }
-      },
-      "editable": true,
-      "id": "return-turn-wall-i-1",
-      "transform": {
-        "position": {
-          "x": -53.58582,
-          "y": 0.25,
-          "z": -38.360912
-        },
-        "rotation": {
-          "x": 0,
-          "y": -274.5,
-          "z": 0
-        }
-      },
-      "visual": {
-        "material": "obstacleBlock",
-        "scale": {
-          "x": 0.718286,
-          "y": 0.5,
-          "z": 0.3
-        },
-        "shape": "box"
-      }
-    },
-    {
-      "availability": "standard",
-      "category": "obstacle",
-      "collision": {
-        "friction": 0.7,
-        "halfExtents": {
-          "x": 0.759284,
-          "y": 0.25,
-          "z": 0.15
-        },
-        "offset": {
-          "position": {
-            "x": 0,
-            "y": 0,
-            "z": 0
-          },
-          "rotation": {
-            "x": 0,
-            "y": 0,
-            "z": 0
-          }
-        },
-        "restitution": 0,
-        "role": "solid-obstacle",
-        "shape": "box",
-        "surfaceMaterial": {
-          "id": "surface.standard-course",
-          "version": 1
-        }
-      },
-      "editable": true,
-      "id": "return-turn-wall-o-2",
-      "transform": {
-        "position": {
-          "x": -58.140277,
-          "y": 0.25,
-          "z": -40.194386
-        },
-        "rotation": {
-          "x": 0,
-          "y": -283.5,
-          "z": 0
-        }
-      },
-      "visual": {
-        "material": "obstacleBlock",
-        "scale": {
-          "x": 1.518569,
-          "y": 0.5,
-          "z": 0.3
-        },
-        "shape": "box"
-      }
-    },
-    {
-      "availability": "standard",
-      "category": "obstacle",
-      "collision": {
-        "friction": 0.7,
-        "halfExtents": {
-          "x": 0.359143,
-          "y": 0.25,
-          "z": 0.15
-        },
-        "offset": {
-          "position": {
-            "x": 0,
-            "y": 0,
-            "z": 0
-          },
-          "rotation": {
-            "x": 0,
-            "y": 0,
-            "z": 0
-          }
-        },
-        "restitution": 0,
-        "role": "solid-obstacle",
-        "shape": "box",
-        "surfaceMaterial": {
-          "id": "surface.standard-course",
-          "version": 1
-        }
-      },
-      "editable": true,
-      "id": "return-turn-wall-i-2",
-      "transform": {
-        "position": {
-          "x": -53.472902,
-          "y": 0.25,
-          "z": -39.073849
-        },
-        "rotation": {
-          "x": 0,
-          "y": -283.5,
-          "z": 0
-        }
-      },
-      "visual": {
-        "material": "obstacleBlock",
-        "scale": {
-          "x": 0.718286,
-          "y": 0.5,
-          "z": 0.3
-        },
-        "shape": "box"
-      }
-    },
-    {
-      "availability": "standard",
-      "category": "obstacle",
-      "collision": {
-        "friction": 0.7,
-        "halfExtents": {
-          "x": 0.759284,
-          "y": 0.25,
-          "z": 0.15
-        },
-        "offset": {
-          "position": {
-            "x": 0,
-            "y": 0,
-            "z": 0
-          },
-          "rotation": {
-            "x": 0,
-            "y": 0,
-            "z": 0
-          }
-        },
-        "restitution": 0,
-        "role": "solid-obstacle",
-        "shape": "box",
-        "surfaceMaterial": {
-          "id": "surface.standard-course",
-          "version": 1
-        }
-      },
-      "editable": true,
-      "id": "return-turn-wall-o-3",
-      "transform": {
-        "position": {
-          "x": -57.684468,
-          "y": 0.25,
-          "z": -41.597224
-        },
-        "rotation": {
-          "x": 0,
-          "y": -292.5,
-          "z": 0
-        }
-      },
-      "visual": {
-        "material": "obstacleBlock",
-        "scale": {
-          "x": 1.518569,
-          "y": 0.5,
-          "z": 0.3
-        },
-        "shape": "box"
-      }
-    },
-    {
-      "availability": "standard",
-      "category": "obstacle",
-      "collision": {
-        "friction": 0.7,
-        "halfExtents": {
-          "x": 0.359143,
-          "y": 0.25,
-          "z": 0.15
-        },
-        "offset": {
-          "position": {
-            "x": 0,
-            "y": 0,
-            "z": 0
-          },
-          "rotation": {
-            "x": 0,
-            "y": 0,
-            "z": 0
-          }
-        },
-        "restitution": 0,
-        "role": "solid-obstacle",
-        "shape": "box",
-        "surfaceMaterial": {
-          "id": "surface.standard-course",
-          "version": 1
-        }
-      },
-      "editable": true,
-      "id": "return-turn-wall-i-3",
-      "transform": {
-        "position": {
-          "x": -53.249846,
-          "y": 0.25,
-          "z": -39.760344
-        },
-        "rotation": {
-          "x": 0,
-          "y": -292.5,
-          "z": 0
-        }
-      },
-      "visual": {
-        "material": "obstacleBlock",
-        "scale": {
-          "x": 0.718286,
-          "y": 0.5,
-          "z": 0.3
-        },
-        "shape": "box"
-      }
-    },
-    {
-      "availability": "standard",
-      "category": "obstacle",
-      "collision": {
-        "friction": 0.7,
-        "halfExtents": {
-          "x": 0.759284,
-          "y": 0.25,
-          "z": 0.15
-        },
-        "offset": {
-          "position": {
-            "x": 0,
-            "y": 0,
-            "z": 0
-          },
-          "rotation": {
-            "x": 0,
-            "y": 0,
-            "z": 0
-          }
-        },
-        "restitution": 0,
-        "role": "solid-obstacle",
-        "shape": "box",
-        "surfaceMaterial": {
-          "id": "surface.standard-course",
-          "version": 1
-        }
-      },
-      "editable": true,
-      "id": "return-turn-wall-o-4",
-      "transform": {
-        "position": {
-          "x": -57.014818,
-          "y": 0.25,
-          "z": -42.911487
-        },
-        "rotation": {
-          "x": 0,
-          "y": -301.5,
-          "z": 0
-        }
-      },
-      "visual": {
-        "material": "obstacleBlock",
-        "scale": {
-          "x": 1.518569,
-          "y": 0.5,
-          "z": 0.3
-        },
-        "shape": "box"
-      }
-    },
-    {
-      "availability": "standard",
-      "category": "obstacle",
-      "collision": {
-        "friction": 0.7,
-        "halfExtents": {
-          "x": 0.359143,
-          "y": 0.25,
-          "z": 0.15
-        },
-        "offset": {
-          "position": {
-            "x": 0,
-            "y": 0,
-            "z": 0
-          },
-          "rotation": {
-            "x": 0,
-            "y": 0,
-            "z": 0
-          }
-        },
-        "restitution": 0,
-        "role": "solid-obstacle",
-        "shape": "box",
-        "surfaceMaterial": {
-          "id": "surface.standard-course",
-          "version": 1
-        }
-      },
-      "editable": true,
-      "id": "return-turn-wall-i-4",
-      "transform": {
-        "position": {
-          "x": -52.922145,
-          "y": 0.25,
-          "z": -40.403493
-        },
-        "rotation": {
-          "x": 0,
-          "y": -301.5,
-          "z": 0
-        }
-      },
-      "visual": {
-        "material": "obstacleBlock",
-        "scale": {
-          "x": 0.718286,
-          "y": 0.5,
-          "z": 0.3
-        },
-        "shape": "box"
-      }
-    },
-    {
-      "availability": "standard",
-      "category": "obstacle",
-      "collision": {
-        "friction": 0.7,
-        "halfExtents": {
-          "x": 0.759284,
-          "y": 0.25,
-          "z": 0.15
-        },
-        "offset": {
-          "position": {
-            "x": 0,
-            "y": 0,
-            "z": 0
-          },
-          "rotation": {
-            "x": 0,
-            "y": 0,
-            "z": 0
-          }
-        },
-        "restitution": 0,
-        "role": "solid-obstacle",
-        "shape": "box",
-        "surfaceMaterial": {
-          "id": "surface.standard-course",
-          "version": 1
-        }
-      },
-      "editable": true,
-      "id": "return-turn-wall-o-5",
-      "transform": {
-        "position": {
-          "x": -56.147816,
-          "y": 0.25,
-          "z": -44.104812
-        },
-        "rotation": {
-          "x": 0,
-          "y": -310.5,
-          "z": 0
-        }
-      },
-      "visual": {
-        "material": "obstacleBlock",
-        "scale": {
-          "x": 1.518569,
-          "y": 0.5,
-          "z": 0.3
-        },
-        "shape": "box"
-      }
-    },
-    {
-      "availability": "standard",
-      "category": "obstacle",
-      "collision": {
-        "friction": 0.7,
-        "halfExtents": {
-          "x": 0.359143,
-          "y": 0.25,
-          "z": 0.15
-        },
-        "offset": {
-          "position": {
-            "x": 0,
-            "y": 0,
-            "z": 0
-          },
-          "rotation": {
-            "x": 0,
-            "y": 0,
-            "z": 0
-          }
-        },
-        "restitution": 0,
-        "role": "solid-obstacle",
-        "shape": "box",
-        "surfaceMaterial": {
-          "id": "surface.standard-course",
-          "version": 1
-        }
-      },
-      "editable": true,
-      "id": "return-turn-wall-i-5",
-      "transform": {
-        "position": {
-          "x": -52.497867,
-          "y": 0.25,
-          "z": -40.987461
-        },
-        "rotation": {
-          "x": 0,
-          "y": -310.5,
-          "z": 0
-        }
-      },
-      "visual": {
-        "material": "obstacleBlock",
-        "scale": {
-          "x": 0.718286,
-          "y": 0.5,
-          "z": 0.3
-        },
-        "shape": "box"
-      }
-    },
-    {
-      "availability": "standard",
-      "category": "obstacle",
-      "collision": {
-        "friction": 0.7,
-        "halfExtents": {
-          "x": 0.759284,
-          "y": 0.25,
-          "z": 0.15
-        },
-        "offset": {
-          "position": {
-            "x": 0,
-            "y": 0,
-            "z": 0
-          },
-          "rotation": {
-            "x": 0,
-            "y": 0,
-            "z": 0
-          }
-        },
-        "restitution": 0,
-        "role": "solid-obstacle",
-        "shape": "box",
-        "surfaceMaterial": {
-          "id": "surface.standard-course",
-          "version": 1
-        }
-      },
-      "editable": true,
-      "id": "return-turn-wall-o-6",
-      "transform": {
-        "position": {
-          "x": -55.104812,
-          "y": 0.25,
-          "z": -45.147816
-        },
-        "rotation": {
-          "x": 0,
-          "y": -319.5,
-          "z": 0
-        }
-      },
-      "visual": {
-        "material": "obstacleBlock",
-        "scale": {
-          "x": 1.518569,
-          "y": 0.5,
-          "z": 0.3
-        },
-        "shape": "box"
-      }
-    },
-    {
-      "availability": "standard",
-      "category": "obstacle",
-      "collision": {
-        "friction": 0.7,
-        "halfExtents": {
-          "x": 0.359143,
-          "y": 0.25,
-          "z": 0.15
-        },
-        "offset": {
-          "position": {
-            "x": 0,
-            "y": 0,
-            "z": 0
-          },
-          "rotation": {
-            "x": 0,
-            "y": 0,
-            "z": 0
-          }
-        },
-        "restitution": 0,
-        "role": "solid-obstacle",
-        "shape": "box",
-        "surfaceMaterial": {
-          "id": "surface.standard-course",
-          "version": 1
-        }
-      },
-      "editable": true,
-      "id": "return-turn-wall-i-6",
-      "transform": {
-        "position": {
-          "x": -51.987461,
-          "y": 0.25,
-          "z": -41.497867
-        },
-        "rotation": {
-          "x": 0,
-          "y": -319.5,
-          "z": 0
-        }
-      },
-      "visual": {
-        "material": "obstacleBlock",
-        "scale": {
-          "x": 0.718286,
-          "y": 0.5,
-          "z": 0.3
-        },
-        "shape": "box"
-      }
-    },
-    {
-      "availability": "standard",
-      "category": "obstacle",
-      "collision": {
-        "friction": 0.7,
-        "halfExtents": {
-          "x": 0.759284,
-          "y": 0.25,
-          "z": 0.15
-        },
-        "offset": {
-          "position": {
-            "x": 0,
-            "y": 0,
-            "z": 0
-          },
-          "rotation": {
-            "x": 0,
-            "y": 0,
-            "z": 0
-          }
-        },
-        "restitution": 0,
-        "role": "solid-obstacle",
-        "shape": "box",
-        "surfaceMaterial": {
-          "id": "surface.standard-course",
-          "version": 1
-        }
-      },
-      "editable": true,
-      "id": "return-turn-wall-o-7",
-      "transform": {
-        "position": {
-          "x": -53.911487,
-          "y": 0.25,
-          "z": -46.014818
-        },
-        "rotation": {
-          "x": 0,
-          "y": -328.5,
-          "z": 0
-        }
-      },
-      "visual": {
-        "material": "obstacleBlock",
-        "scale": {
-          "x": 1.518569,
-          "y": 0.5,
-          "z": 0.3
-        },
-        "shape": "box"
-      }
-    },
-    {
-      "availability": "standard",
-      "category": "obstacle",
-      "collision": {
-        "friction": 0.7,
-        "halfExtents": {
-          "x": 0.359143,
-          "y": 0.25,
-          "z": 0.15
-        },
-        "offset": {
-          "position": {
-            "x": 0,
-            "y": 0,
-            "z": 0
-          },
-          "rotation": {
-            "x": 0,
-            "y": 0,
-            "z": 0
-          }
-        },
-        "restitution": 0,
-        "role": "solid-obstacle",
-        "shape": "box",
-        "surfaceMaterial": {
-          "id": "surface.standard-course",
-          "version": 1
-        }
-      },
-      "editable": true,
-      "id": "return-turn-wall-i-7",
-      "transform": {
-        "position": {
-          "x": -51.403493,
-          "y": 0.25,
-          "z": -41.922145
-        },
-        "rotation": {
-          "x": 0,
-          "y": -328.5,
-          "z": 0
-        }
-      },
-      "visual": {
-        "material": "obstacleBlock",
-        "scale": {
-          "x": 0.718286,
-          "y": 0.5,
-          "z": 0.3
-        },
-        "shape": "box"
-      }
-    },
-    {
-      "availability": "standard",
-      "category": "obstacle",
-      "collision": {
-        "friction": 0.7,
-        "halfExtents": {
-          "x": 0.759284,
-          "y": 0.25,
-          "z": 0.15
-        },
-        "offset": {
-          "position": {
-            "x": 0,
-            "y": 0,
-            "z": 0
-          },
-          "rotation": {
-            "x": 0,
-            "y": 0,
-            "z": 0
-          }
-        },
-        "restitution": 0,
-        "role": "solid-obstacle",
-        "shape": "box",
-        "surfaceMaterial": {
-          "id": "surface.standard-course",
-          "version": 1
-        }
-      },
-      "editable": true,
-      "id": "return-turn-wall-o-8",
-      "transform": {
-        "position": {
-          "x": -52.597224,
-          "y": 0.25,
-          "z": -46.684468
-        },
-        "rotation": {
-          "x": 0,
-          "y": -337.5,
-          "z": 0
-        }
-      },
-      "visual": {
-        "material": "obstacleBlock",
-        "scale": {
-          "x": 1.518569,
-          "y": 0.5,
-          "z": 0.3
-        },
-        "shape": "box"
-      }
-    },
-    {
-      "availability": "standard",
-      "category": "obstacle",
-      "collision": {
-        "friction": 0.7,
-        "halfExtents": {
-          "x": 0.359143,
-          "y": 0.25,
-          "z": 0.15
-        },
-        "offset": {
-          "position": {
-            "x": 0,
-            "y": 0,
-            "z": 0
-          },
-          "rotation": {
-            "x": 0,
-            "y": 0,
-            "z": 0
-          }
-        },
-        "restitution": 0,
-        "role": "solid-obstacle",
-        "shape": "box",
-        "surfaceMaterial": {
-          "id": "surface.standard-course",
-          "version": 1
-        }
-      },
-      "editable": true,
-      "id": "return-turn-wall-i-8",
-      "transform": {
-        "position": {
-          "x": -50.760344,
-          "y": 0.25,
-          "z": -42.249846
-        },
-        "rotation": {
-          "x": 0,
-          "y": -337.5,
-          "z": 0
-        }
-      },
-      "visual": {
-        "material": "obstacleBlock",
-        "scale": {
-          "x": 0.718286,
-          "y": 0.5,
-          "z": 0.3
-        },
-        "shape": "box"
-      }
-    },
-    {
-      "availability": "standard",
-      "category": "obstacle",
-      "collision": {
-        "friction": 0.7,
-        "halfExtents": {
-          "x": 0.759284,
-          "y": 0.25,
-          "z": 0.15
-        },
-        "offset": {
-          "position": {
-            "x": 0,
-            "y": 0,
-            "z": 0
-          },
-          "rotation": {
-            "x": 0,
-            "y": 0,
-            "z": 0
-          }
-        },
-        "restitution": 0,
-        "role": "solid-obstacle",
-        "shape": "box",
-        "surfaceMaterial": {
-          "id": "surface.standard-course",
-          "version": 1
-        }
-      },
-      "editable": true,
-      "id": "return-turn-wall-o-9",
-      "transform": {
-        "position": {
-          "x": -51.194386,
-          "y": 0.25,
-          "z": -47.140277
-        },
-        "rotation": {
-          "x": 0,
-          "y": -346.5,
-          "z": 0
-        }
-      },
-      "visual": {
-        "material": "obstacleBlock",
-        "scale": {
-          "x": 1.518569,
-          "y": 0.5,
-          "z": 0.3
-        },
-        "shape": "box"
-      }
-    },
-    {
-      "availability": "standard",
-      "category": "obstacle",
-      "collision": {
-        "friction": 0.7,
-        "halfExtents": {
-          "x": 0.359143,
-          "y": 0.25,
-          "z": 0.15
-        },
-        "offset": {
-          "position": {
-            "x": 0,
-            "y": 0,
-            "z": 0
-          },
-          "rotation": {
-            "x": 0,
-            "y": 0,
-            "z": 0
-          }
-        },
-        "restitution": 0,
-        "role": "solid-obstacle",
-        "shape": "box",
-        "surfaceMaterial": {
-          "id": "surface.standard-course",
-          "version": 1
-        }
-      },
-      "editable": true,
-      "id": "return-turn-wall-i-9",
-      "transform": {
-        "position": {
-          "x": -50.073849,
-          "y": 0.25,
-          "z": -42.472902
-        },
-        "rotation": {
-          "x": 0,
-          "y": -346.5,
-          "z": 0
-        }
-      },
-      "visual": {
-        "material": "obstacleBlock",
-        "scale": {
-          "x": 0.718286,
-          "y": 0.5,
-          "z": 0.3
-        },
-        "shape": "box"
-      }
-    },
-    {
-      "availability": "standard",
-      "category": "obstacle",
-      "collision": {
-        "friction": 0.7,
-        "halfExtents": {
-          "x": 0.759284,
-          "y": 0.25,
-          "z": 0.15
-        },
-        "offset": {
-          "position": {
-            "x": 0,
-            "y": 0,
-            "z": 0
-          },
-          "rotation": {
-            "x": 0,
-            "y": 0,
-            "z": 0
-          }
-        },
-        "restitution": 0,
-        "role": "solid-obstacle",
-        "shape": "box",
-        "surfaceMaterial": {
-          "id": "surface.standard-course",
-          "version": 1
-        }
-      },
-      "editable": true,
-      "id": "return-turn-wall-o-10",
-      "transform": {
-        "position": {
-          "x": -49.737515,
-          "y": 0.25,
-          "z": -47.371023
-        },
-        "rotation": {
-          "x": 0,
-          "y": -355.5,
-          "z": 0
-        }
-      },
-      "visual": {
-        "material": "obstacleBlock",
-        "scale": {
-          "x": 1.518569,
-          "y": 0.5,
-          "z": 0.3
-        },
-        "shape": "box"
-      }
-    },
-    {
-      "availability": "standard",
-      "category": "obstacle",
-      "collision": {
-        "friction": 0.7,
-        "halfExtents": {
-          "x": 0.359143,
-          "y": 0.25,
-          "z": 0.15
-        },
-        "offset": {
-          "position": {
-            "x": 0,
-            "y": 0,
-            "z": 0
-          },
-          "rotation": {
-            "x": 0,
-            "y": 0,
-            "z": 0
-          }
-        },
-        "restitution": 0,
-        "role": "solid-obstacle",
-        "shape": "box",
-        "surfaceMaterial": {
-          "id": "surface.standard-course",
-          "version": 1
-        }
-      },
-      "editable": true,
-      "id": "return-turn-wall-i-10",
-      "transform": {
-        "position": {
-          "x": -49.360912,
-          "y": 0.25,
-          "z": -42.58582
-        },
-        "rotation": {
-          "x": 0,
-          "y": -355.5,
-          "z": 0
-        }
-      },
-      "visual": {
-        "material": "obstacleBlock",
-        "scale": {
-          "x": 0.718286,
-          "y": 0.5,
-          "z": 0.3
-        },
-        "shape": "box"
-      }
-    },
-    {
-      "availability": "standard",
-      "category": "obstacle",
-      "collision": {
-        "friction": 0.7,
-        "halfExtents": {
           "x": 109,
           "y": 0.5,
           "z": 0.15
@@ -65798,9 +64641,739 @@
         },
         "shape": "box"
       }
+    },
+    {
+      "availability": "standard",
+      "category": "obstacle",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 29.35,
+          "y": 0.075,
+          "z": 0.075
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "solid-obstacle",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.standard-course",
+          "version": 1
+        }
+      },
+      "editable": true,
+      "id": "return-lane-kerb-north",
+      "transform": {
+        "position": {
+          "x": -19.65,
+          "y": 0.075,
+          "z": -47.325
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "obstacleBlock",
+        "scale": {
+          "x": 58.7,
+          "y": 0.15,
+          "z": 0.15
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "return-lane-line-north",
+      "transform": {
+        "position": {
+          "x": -19.65,
+          "y": -0.001,
+          "z": -47.05
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "line",
+        "scale": {
+          "x": 58.7,
+          "y": 0.002,
+          "z": 0.1
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "obstacle",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 29.35,
+          "y": 0.075,
+          "z": 0.075
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "solid-obstacle",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.standard-course",
+          "version": 1
+        }
+      },
+      "editable": true,
+      "id": "return-lane-kerb-south",
+      "transform": {
+        "position": {
+          "x": -19.65,
+          "y": 0.075,
+          "z": -42.675
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "obstacleBlock",
+        "scale": {
+          "x": 58.7,
+          "y": 0.15,
+          "z": 0.15
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "return-lane-line-south",
+      "transform": {
+        "position": {
+          "x": -19.65,
+          "y": -0.001,
+          "z": -42.95
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "line",
+        "scale": {
+          "x": 58.7,
+          "y": 0.002,
+          "z": 0.1
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "obstacle",
+      "collision": {
+        "friction": 0.7,
+        "restitution": 0,
+        "role": "solid-obstacle",
+        "shape": "arc",
+        "surfaceMaterial": {
+          "id": "surface.standard-course",
+          "version": 1
+        }
+      },
+      "editable": true,
+      "id": "return-turn-kerb-inner",
+      "transform": {
+        "position": {
+          "x": -49,
+          "y": 0,
+          "z": -38
+        },
+        "rotation": {
+          "x": 0,
+          "y": 90,
+          "z": 0
+        }
+      },
+      "visual": {
+        "arc": {
+          "height": 0.15,
+          "innerRadius": 4.6,
+          "sweep": 90,
+          "width": 0.15
+        },
+        "material": "obstacleBlock",
+        "shape": "arc"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "return-turn-line-inner",
+      "transform": {
+        "position": {
+          "x": -49,
+          "y": -0.002,
+          "z": -38
+        },
+        "rotation": {
+          "x": 0,
+          "y": 90,
+          "z": 0
+        }
+      },
+      "visual": {
+        "arc": {
+          "height": 0.002,
+          "innerRadius": 4.9,
+          "sweep": 90,
+          "width": 0.1
+        },
+        "material": "line",
+        "shape": "arc"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "obstacle",
+      "collision": {
+        "friction": 0.7,
+        "restitution": 0,
+        "role": "solid-obstacle",
+        "shape": "arc",
+        "surfaceMaterial": {
+          "id": "surface.standard-course",
+          "version": 1
+        }
+      },
+      "editable": true,
+      "id": "return-turn-kerb-outer",
+      "transform": {
+        "position": {
+          "x": -49,
+          "y": 0,
+          "z": -38
+        },
+        "rotation": {
+          "x": 0,
+          "y": 90,
+          "z": 0
+        }
+      },
+      "visual": {
+        "arc": {
+          "height": 0.15,
+          "innerRadius": 9.25,
+          "sweep": 90,
+          "width": 0.15
+        },
+        "material": "obstacleBlock",
+        "shape": "arc"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "return-turn-line-outer",
+      "transform": {
+        "position": {
+          "x": -49,
+          "y": -0.002,
+          "z": -38
+        },
+        "rotation": {
+          "x": 0,
+          "y": 90,
+          "z": 0
+        }
+      },
+      "visual": {
+        "arc": {
+          "height": 0.002,
+          "innerRadius": 9,
+          "sweep": 90,
+          "width": 0.1
+        },
+        "material": "line",
+        "shape": "arc"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "obstacle",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 0.075,
+          "y": 0.075,
+          "z": 0.15
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "solid-obstacle",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.standard-course",
+          "version": 1
+        }
+      },
+      "editable": true,
+      "id": "return-turn-join-outer",
+      "transform": {
+        "position": {
+          "x": -58.325,
+          "y": 0.075,
+          "z": -37.85
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "obstacleBlock",
+        "scale": {
+          "x": 0.15,
+          "y": 0.15,
+          "z": 0.3
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "obstacle",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 0.18749999999999717,
+          "y": 0.075,
+          "z": 0.075
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "solid-obstacle",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.standard-course",
+          "version": 1
+        }
+      },
+      "editable": true,
+      "id": "return-turn-seal-outer",
+      "transform": {
+        "position": {
+          "x": -58.4375,
+          "y": 0.075,
+          "z": -38.12
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "obstacleBlock",
+        "scale": {
+          "x": 0.37499999999999434,
+          "y": 0.15,
+          "z": 0.15
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "obstacle",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 0.075,
+          "y": 0.075,
+          "z": 0.15
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "solid-obstacle",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.standard-course",
+          "version": 1
+        }
+      },
+      "editable": true,
+      "id": "return-turn-join-inner",
+      "transform": {
+        "position": {
+          "x": -53.675,
+          "y": 0.075,
+          "z": -37.85
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "obstacleBlock",
+        "scale": {
+          "x": 0.15,
+          "y": 0.15,
+          "z": 0.3
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "obstacle",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 0.18749999999999717,
+          "y": 0.075,
+          "z": 0.075
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "solid-obstacle",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.standard-course",
+          "version": 1
+        }
+      },
+      "editable": true,
+      "id": "return-turn-seal-inner",
+      "transform": {
+        "position": {
+          "x": -53.5625,
+          "y": 0.075,
+          "z": -38.12
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "obstacleBlock",
+        "scale": {
+          "x": 0.37499999999999434,
+          "y": 0.15,
+          "z": 0.15
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "obstacle",
+      "collision": {
+        "axis": 1,
+        "friction": 0.5,
+        "height": 6,
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "radius": 0.075,
+        "restitution": 0,
+        "role": "solid-obstacle",
+        "shape": "cylinder",
+        "surfaceMaterial": {
+          "id": "surface.standard-course",
+          "version": 1
+        }
+      },
+      "editable": true,
+      "id": "return-street-lamp-1",
+      "label": "Park street lamp 1",
+      "lamp": "street",
+      "transform": {
+        "position": {
+          "x": -42,
+          "y": 3,
+          "z": -48.3
+        },
+        "rotation": {
+          "x": 0,
+          "y": 180,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "steel",
+        "scale": {
+          "x": 0.15,
+          "y": 6,
+          "z": 0.15
+        },
+        "shape": "cylinder"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "obstacle",
+      "collision": {
+        "axis": 1,
+        "friction": 0.5,
+        "height": 6,
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "radius": 0.075,
+        "restitution": 0,
+        "role": "solid-obstacle",
+        "shape": "cylinder",
+        "surfaceMaterial": {
+          "id": "surface.standard-course",
+          "version": 1
+        }
+      },
+      "editable": true,
+      "id": "return-street-lamp-2",
+      "label": "Park street lamp 2",
+      "lamp": "street",
+      "transform": {
+        "position": {
+          "x": -22,
+          "y": 3,
+          "z": -48.3
+        },
+        "rotation": {
+          "x": 0,
+          "y": 180,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "steel",
+        "scale": {
+          "x": 0.15,
+          "y": 6,
+          "z": 0.15
+        },
+        "shape": "cylinder"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "obstacle",
+      "collision": {
+        "axis": 1,
+        "friction": 0.5,
+        "height": 6,
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "radius": 0.075,
+        "restitution": 0,
+        "role": "solid-obstacle",
+        "shape": "cylinder",
+        "surfaceMaterial": {
+          "id": "surface.standard-course",
+          "version": 1
+        }
+      },
+      "editable": true,
+      "id": "return-street-lamp-3",
+      "label": "Park street lamp 3",
+      "lamp": "street",
+      "transform": {
+        "position": {
+          "x": -2,
+          "y": 3,
+          "z": -48.3
+        },
+        "rotation": {
+          "x": 0,
+          "y": 180,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "steel",
+        "scale": {
+          "x": 0.15,
+          "y": 6,
+          "z": 0.15
+        },
+        "shape": "cylinder"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "obstacle",
+      "collision": {
+        "axis": 1,
+        "friction": 0.5,
+        "height": 6,
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "radius": 0.075,
+        "restitution": 0,
+        "role": "solid-obstacle",
+        "shape": "cylinder",
+        "surfaceMaterial": {
+          "id": "surface.standard-course",
+          "version": 1
+        }
+      },
+      "editable": true,
+      "id": "return-street-lamp-4",
+      "label": "Park street lamp 4",
+      "lamp": "street",
+      "transform": {
+        "position": {
+          "x": -59.4,
+          "y": 3,
+          "z": -41
+        },
+        "rotation": {
+          "x": 0,
+          "y": 270,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "steel",
+        "scale": {
+          "x": 0.15,
+          "y": 6,
+          "z": 0.15
+        },
+        "shape": "cylinder"
+      }
     }
   ],
-  "schemaVersion": 8,
+  "schemaVersion": 9,
   "start": {
     "gateHalfExtents": {
       "x": 2.85,

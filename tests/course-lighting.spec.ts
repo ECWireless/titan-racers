@@ -5,7 +5,7 @@ import {
   buildCourseLighting,
   projectCourseLighting,
 } from "../src/game/course/build-course-lighting";
-import { ROUGH_COURSE_DOCUMENT } from "../src/game/course/course-document";
+import { FALLS_VIEW_PARK_DOCUMENT, ROUGH_COURSE_DOCUMENT } from "../src/game/course/course-document";
 
 test("projects the enclosure sun from the course's mirror angle", () => {
   const [sun] = projectCourseLighting(ROUGH_COURSE_DOCUMENT).directionalLights;
@@ -85,4 +85,16 @@ test("attaches nothing when the sun cannot be created", () => {
   });
   expect([...entities.keys()]).toEqual(["enclosure-sun"]);
   expect(attached).toEqual(["enclosure-sun"]);
+});
+
+
+test("street lamps leave the floodlight exposure key unchanged", async () => {
+  const { courseLampLux } = await import("../src/game/course/course-lamps");
+  const document = structuredClone(FALLS_VIEW_PARK_DOCUMENT);
+  const key = courseLampLux(document);
+  expect(key).toBeGreaterThan(0);
+  document.objects = document.objects.filter((o) => o.lamp !== "street");
+  expect(courseLampLux(document)).toBe(key);
+  document.objects = document.objects.filter((o) => o.lamp !== "floodlight");
+  expect(courseLampLux(document)).toBe(0);
 });

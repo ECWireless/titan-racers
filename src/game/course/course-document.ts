@@ -8,9 +8,9 @@ import {
 } from "../enclosure/island-three";
 import { getApprovedSurfaceMaterial } from "../kart/kart-material-registry";
 import { COURSE_ARC_MAXIMUM_WIDTH_RATIO } from "./course-arc";
-import fallsViewParkDocumentJson from "./falls-view-park.v8.json";
+import fallsViewParkDocumentJson from "./falls-view-park.v9.json";
 import type { OfficialCourseId } from "./course-ids";
-import roughCourseDocumentJson from "./rough-course.v8.json";
+import roughCourseDocumentJson from "./rough-course.v9.json";
 
 export const courseIdSchema = z
   .string()
@@ -197,7 +197,8 @@ export const COURSE_TREE_LIMIT = 2_000;
 export const COURSE_INDOOR_LAMP_LIMIT = 20;
 // Courses before schema version eight had at most this many tunnel lamps.
 const LEGACY_COURSE_INDOOR_LAMP_LIMIT = 16;
-export type CourseLampKind = "floodlight" | "tunnel" | "work";
+export const COURSE_STREET_LAMP_LIMIT = 8;
+export type CourseLampKind = "floodlight" | "tunnel" | "work" | "street";
 export const COURSE_INDOOR_LAMP_KINDS = ["tunnel", "work"] as const;
 /** The bicycles a course can park. */
 export const COURSE_BICYCLES = ["hardtail", "bmx"] as const;
@@ -680,7 +681,7 @@ const visualMaterialV8Schema = z.enum([
   "water",
 ]);
 
-export const courseDocumentSchema = courseDocumentV7BaseSchema
+const courseDocumentV8BaseSchema = courseDocumentV7BaseSchema
   .extend({
     objects: courseDocumentV7BaseSchema.shape.objects.element
       .extend({
@@ -696,53 +697,99 @@ export const courseDocumentSchema = courseDocumentV7BaseSchema
       .min(1)
       .max(5_000),
     schemaVersion: z.literal(8),
-  })
-  .superRefine((document, context) => {
-    validateCourseObjectsV7(document, context, COURSE_INDOOR_LAMP_LIMIT);
+  });
+
+const courseDocumentV9BaseSchema = courseDocumentV8BaseSchema.extend({
+  schemaVersion: z.literal(9),
+  objects: courseDocumentV8BaseSchema.shape.objects.element
+    .extend({
+      lamp: z.enum(["floodlight", "tunnel", "work", "street"]).optional(),
+    })
+    .array()
+    .min(1)
+    .max(5_000),
+});
+
+function validateCourseObjectsV8(
+  document: Omit<z.infer<typeof courseDocumentV9BaseSchema>, "schemaVersion">,
+  context: z.RefinementCtx,
+) {
+  validateCourseObjectsV7(document, context, COURSE_INDOOR_LAMP_LIMIT);
+  document.objects.forEach((object, index) => {
+    // Water is a level box of open water under the sky: its top is the
+    // surface and its volume the water a kart can drown in. Karts pass
+    // through it to the bed beneath, which collides.
+    if (
+      object.visual.material === "water" &&
+      (object.visual.shape !== "box" ||
+        object.collision !== null ||
+        object.indoors ||
+        object.overhead ||
+        object.lamp ||
+        object.planting)
+    ) {
+      context.addIssue({
+        code: "custom",
+        message:
+          "Water is an outdoor box without collision that is not a lamp, roof, or bed",
+        path: ["objects", index, "visual", "material"],
+      });
+    }
+    // A bicycle's box is upright, outdoors, and never collides: in a race
+    // the bicycle collides as its own shape.
+    if (
+      object.bicycle &&
+      (object.visual.shape !== "box" ||
+        object.visual.material === "water" ||
+        object.visual.material === "hedge" ||
+        object.collision !== null ||
+        object.transform.rotation.x !== 0 ||
+        object.transform.rotation.z !== 0 ||
+        object.indoors ||
+        object.overhead ||
+        object.lamp ||
+        object.planting)
+    ) {
+      context.addIssue({
+        code: "custom",
+        message:
+          "A bicycle is an upright outdoor box without collision that is not a lamp, roof, bed, hedge, or water",
+        path: ["objects", index, "bicycle"],
+      });
+    }
+  });
+}
+
+const courseDocumentV8Schema = courseDocumentV8BaseSchema.superRefine(
+  validateCourseObjectsV8,
+);
+
+// Park street lamps have their own bounded outdoor light budget.
+export const courseDocumentSchema = courseDocumentV9BaseSchema.superRefine(
+  (document, context) => {
+    validateCourseObjectsV8(document, context);
+    if (countCourseLamps(document, "street") > COURSE_STREET_LAMP_LIMIT) {
+      context.addIssue({
+        code: "custom",
+        message: `A course has at most ${COURSE_STREET_LAMP_LIMIT} street lamps`,
+        path: ["objects"],
+      });
+    }
     document.objects.forEach((object, index) => {
-      // Water is a level box of open water under the sky: its top is the
-      // surface and its volume the water a kart can drown in. Karts pass
-      // through it to the bed beneath, which collides.
       if (
-        object.visual.material === "water" &&
-        (object.visual.shape !== "box" ||
-          object.collision !== null ||
-          object.indoors ||
-          object.overhead ||
-          object.lamp ||
-          object.planting)
+        object.lamp === "street" &&
+        (object.visual.shape !== "cylinder" || object.overhead)
       ) {
         context.addIssue({
           code: "custom",
           message:
-            "Water is an outdoor box without collision that is not a lamp, roof, or bed",
-          path: ["objects", index, "visual", "material"],
-        });
-      }
-      // A bicycle's box is upright, outdoors, and never collides: in a race
-      // the bicycle collides as its own shape.
-      if (
-        object.bicycle &&
-        (object.visual.shape !== "box" ||
-          object.visual.material === "water" ||
-          object.visual.material === "hedge" ||
-          object.collision !== null ||
-          object.transform.rotation.x !== 0 ||
-          object.transform.rotation.z !== 0 ||
-          object.indoors ||
-          object.overhead ||
-          object.lamp ||
-          object.planting)
-      ) {
-        context.addIssue({
-          code: "custom",
-          message:
-            "A bicycle is an upright outdoor box without collision that is not a lamp, roof, bed, hedge, or water",
-          path: ["objects", index, "bicycle"],
+            "Street lamps stand on outdoor cylinder columns, never roofs",
+          path: ["objects", index, "lamp"],
         });
       }
     });
-  });
+  },
+);
 
 export type CourseDocumentV1 = z.infer<typeof courseDocumentV1Schema>;
 type CourseDocumentV3 = z.infer<typeof courseDocumentV3Schema>;
@@ -1097,12 +1144,16 @@ export function parseCourseDocument(input: unknown): CourseDocument {
     });
   }
 
-  // Versions seven and eight upgrade unchanged.
+  // Versions seven and eight upgrade unchanged to the current schema.
   if (hasSchemaVersion(input, 7)) {
     return parseCourseDocument({
       ...courseDocumentV7Schema.parse(input),
       schemaVersion: 8,
     });
+  }
+
+  if (hasSchemaVersion(input, 8)) {
+    return parseCourseDocument({ ...courseDocumentV8Schema.parse(input), schemaVersion: 9 });
   }
 
   const document = courseDocumentSchema.parse(input);
