@@ -75,7 +75,11 @@ Orange and hazard are signals. Use them sparingly so they stay readable.
   flat clear colors.
 - **Lamps at real brightness.** At dusk, warm white street lamps light
   across the habitat, and a course is floodlit like a lit circuit: up to
-  twelve neutral white floodlights on full-size masts, with no shadows. The
+  twelve neutral white floodlights on full-size masts, with no shadows.
+  Park service lanes can also carry up to eight warm-white street lamps:
+  1,000 cd lanterns on real-size columns, on the habitat's dusk schedule,
+  without shadows or a change to exposure. Falls View Park's return lane
+  uses four 6 m columns, three at 20 m spacing and one outside the turn. The
   falls are floodlit, and the falls bridge and distant sports fields carry
   their lights through the haze
   ([dusk and night](island-three.md#dusk-and-night)).
@@ -244,8 +248,9 @@ its measurements against it.
 
 1. Serve a production build (`pnpm build` and `pnpm start`) and open the race
    with `?perf=1`.
-2. On the reference iPhone, race the Balanced kart through a full two-lap race
-   on the sandbox course, three times.
+2. On the reference iPhone, ignore the first cold load, reload, and race the
+   Balanced kart through one full two-lap race on the changed course. Run a
+   second warm race only if a value is borderline.
 3. Read the overlay on the results screen. It records only the racing state
    and sends nothing anywhere.
 4. Measure startup with page reloads rather than **Race again**, and ignore
@@ -256,12 +261,12 @@ CPU work and draw calls are the headroom signals.
 
 ### Baseline
 
-| Measure | Before lighting (PR 4.1.2 start) | After lighting baseline | Part visuals (PR 4.1.3) | Authored primitives (PR 4.1.4) | Sandbox surfaces (PR 4.2.1) | Surface physics (PR 4.2.2) | Collision substeps (PR 4.2.3) | Surface effects (PR 4.2.4) | Surface scans (PR 4.2.5) | Handbrake clutch (PR 4.2.6) | Island Three (PR 4.3.1) | Habitat physics (PR 4.3.2) | Loading screen (PR 4.3.3) | Valley structures (PR 4.3.4) | Dusk and night (PR 4.3.5) | Falls View Park route (PR 4.4.1) | Wheel blur (PR 4.4.1.1) | Utility tunnel (PR 4.4.2) | Nursery and service road (PR 4.4.3) | Stream and levee (PR 4.4.4) |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| Frame p50 / p95 | 17.0 / 18.0 ms | 17.0 / 18.0 ms | 17.0 / 18.0 ms | 17.0 / 18.0–19.0 ms | 17.0 / 18.0 ms | 17.0 / 18.0 ms | 17.0 / 18.0 ms | 17.0 / 18.0 ms | 17.0 / 18.0 ms | 17.0 / 18.0 ms | 17.0 / 18.0 ms | 17.0 / 18.0 ms | 17.0 / 18.0 ms | 17.0 / 18.0 ms | 17.0 / 18.0 ms | 17.0 / 18.0 ms | 17.0 / 18.0 ms | 17.0 / 18.0 ms | 17.0 / 18.0 ms | 17.0 / 18.0–19.0 ms |
-| CPU p50 / p95 | 3 / 4 ms | 3 / 4 ms | 2 / 3 ms | 2 / 3 ms | 2 / 3–4 ms | 2 / 3 ms | 3 / 4 ms | 2 / 3–4 ms | 2–3 / 4 ms | 2 / 3 ms | 2 / 3 ms | 2 / 3–4 ms | 2 / 3 ms | 3 / 4 ms | 2–3 / 3–4 ms | 3 / 4 ms | 3 / 4 ms | 3 / 4 ms | 4 / 5 ms | 4 / 5–6 ms |
-| Draw calls p50 / max | 212 / 226 | 213 / 226 | 38–39 / 55 | 38–39 / 51 | 34 / 45–46 | 35 / 48–49 | 35–36 / 46–49 | 36–37 / 49–51 | 37–39 / 49–51 | 36–37 / 49–50 | 30–31 / 41 | 31–32 / 41–42 | 30–32 / 41 | 44–45 / 55–58 | 31 / 43–44 | 24 / 37–39 | 27 / 42 | 32 / 52 | 40–41 / 65–69 | 45–48 / 67–68 |
-| First frame (warm) | 63–136 ms | 107–278 ms | 121–128 ms | 132–191 ms | 335–392 ms | 133–207 ms | 136–282 ms | 147–230 ms | 240–243 ms | Not measured | 259 ms | 352–433 ms | 289–295 ms | 302–575 ms | 265–281 ms | 305–321 ms | 300 ms | 302 ms | 421 ms | 465–549 ms |
+| Measure | Before lighting (PR 4.1.2 start) | After lighting baseline | Part visuals (PR 4.1.3) | Authored primitives (PR 4.1.4) | Sandbox surfaces (PR 4.2.1) | Surface physics (PR 4.2.2) | Collision substeps (PR 4.2.3) | Surface effects (PR 4.2.4) | Surface scans (PR 4.2.5) | Handbrake clutch (PR 4.2.6) | Island Three (PR 4.3.1) | Habitat physics (PR 4.3.2) | Loading screen (PR 4.3.3) | Valley structures (PR 4.3.4) | Dusk and night (PR 4.3.5) | Falls View Park route (PR 4.4.1) | Wheel blur (PR 4.4.1.1) | Utility tunnel (PR 4.4.2) | Nursery and service road (PR 4.4.3) | Stream and levee (PR 4.4.4) | Return lane and finish (PR 4.4.6) |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| Frame p50 / p95 | 17.0 / 18.0 ms | 17.0 / 18.0 ms | 17.0 / 18.0 ms | 17.0 / 18.0–19.0 ms | 17.0 / 18.0 ms | 17.0 / 18.0 ms | 17.0 / 18.0 ms | 17.0 / 18.0 ms | 17.0 / 18.0 ms | 17.0 / 18.0 ms | 17.0 / 18.0 ms | 17.0 / 18.0 ms | 17.0 / 18.0 ms | 17.0 / 18.0 ms | 17.0 / 18.0 ms | 17.0 / 18.0 ms | 17.0 / 18.0 ms | 17.0 / 18.0 ms | 17.0 / 18.0 ms | 17.0 / 18.0–19.0 ms | 17.0 / 18.0–19.0 ms |
+| CPU p50 / p95 | 3 / 4 ms | 3 / 4 ms | 2 / 3 ms | 2 / 3 ms | 2 / 3–4 ms | 2 / 3 ms | 3 / 4 ms | 2 / 3–4 ms | 2–3 / 4 ms | 2 / 3 ms | 2 / 3 ms | 2 / 3–4 ms | 2 / 3 ms | 3 / 4 ms | 2–3 / 3–4 ms | 3 / 4 ms | 3 / 4 ms | 3 / 4 ms | 4 / 5 ms | 4 / 5–6 ms | 5 / 6 ms |
+| Draw calls p50 / max | 212 / 226 | 213 / 226 | 38–39 / 55 | 38–39 / 51 | 34 / 45–46 | 35 / 48–49 | 35–36 / 46–49 | 36–37 / 49–51 | 37–39 / 49–51 | 36–37 / 49–50 | 30–31 / 41 | 31–32 / 41–42 | 30–32 / 41 | 44–45 / 55–58 | 31 / 43–44 | 24 / 37–39 | 27 / 42 | 32 / 52 | 40–41 / 65–69 | 45–48 / 67–68 | 46–47 / 68–70 |
+| First frame (warm) | 63–136 ms | 107–278 ms | 121–128 ms | 132–191 ms | 335–392 ms | 133–207 ms | 136–282 ms | 147–230 ms | 240–243 ms | Not measured | 259 ms | 352–433 ms | 289–295 ms | 302–575 ms | 265–281 ms | 305–321 ms | 300 ms | 302 ms | 421 ms | 465–549 ms | 464–495 ms (reported) |
 
 PR 4.1.4 was measured with one race on each official kart rather than three
 Balanced races. Each official kart is 15.3–15.5k triangles: 11.6k of part
@@ -374,3 +379,9 @@ batching keeps draws at a 45–46 median (66–67 at most); frame time holds
 (17 ms median, p95 18–19 ms), and CPU work sits at the budget's top, a
 4–5 ms median with p95 6 ms. Startup is unchanged and still over budget:
 the first frame took 469–510 ms and the race was ready after 592–674 ms.
+
+PR 4.4.6 was measured with two iPhone races on the final production preview,
+with no hitches. Frame time and draw calls stay within budget; CPU work
+holds at its 5 ms median limit, with p95 6 ms. Reported first frames took
+464–495 ms and races were ready after 592–673 ms; the screenshots do not
+identify cold versus warm loads. Startup remains over budget for PR 4.4.8.

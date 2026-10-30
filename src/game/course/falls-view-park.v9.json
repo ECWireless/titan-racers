@@ -7009,6 +7009,37 @@
       "category": "feature",
       "collision": null,
       "editable": true,
+      "id": "tunnel-lamp-13",
+      "indoors": true,
+      "label": "Junction chamber lamp",
+      "lamp": "tunnel",
+      "transform": {
+        "position": {
+          "x": 76.5,
+          "y": 3.54,
+          "z": -45
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "steel",
+        "scale": {
+          "x": 1.2,
+          "y": 0.12,
+          "z": 0.36
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
       "id": "tunnel-lamp-9",
       "indoors": true,
       "lamp": "tunnel",

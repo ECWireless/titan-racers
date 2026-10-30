@@ -455,7 +455,17 @@ barriers are the youth's portable race kit
       `support-heave-v1`. Course schema v8, no migration. Frame time and
       draws stay within the phone budget and CPU work at its 5 ms top;
       startup is unchanged, still over budget for 4.4.8.
-- [ ] 4.4.6: Return lane and finish: a final lighting pass.
+- [x] 4.4.6: Return lane and finish. Shipped: the park's return
+      service lane has 150 mm kerbs, true arcs at its turn, ice edge lines,
+      and four 6 m street-lamp columns leading anti-sunward to the tunnel;
+      the crowd barriers still seal the downhill's infield. The dusk pass
+      adds one ceiling lamp at the junction chamber's approach, within
+      twelve floodlights, twenty indoor lamps, and four of eight street
+      lamps. Course schema v9 adds the outdoor street-lamp kind and editor
+      preset; v8 documents upgrade in memory, with no database migration.
+      Two iPhone races keep frame time and draws within budget, with CPU
+      work at its 5 ms median limit and no hitches. Startup remains over
+      budget for 4.4.8. Production stays on its earlier seed until 4.4.8.
 - [ ] 4.4.7: Off-track clearing. A storm drain through the perimeter wall,
       about 30 cm across (a kart fits, a car would not), sited where a real
       drain would be, lets a kart leave the track and roam the park's mown
