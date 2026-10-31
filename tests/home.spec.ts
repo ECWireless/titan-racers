@@ -1216,9 +1216,8 @@ test.describe("home screen", () => {
     const canvas = page.getByTestId("solo-time-trial-canvas");
     await advanceRaceToRacing(canvas);
 
-    // Outside the west wall beside the drain's chute, out toward the falls,
-    // and across the curve where the floor has risen about 3 m and tilted
-    // 2.6°.
+    // Outside the west wall, out toward the falls, and across the curve
+    // where the floor has risen about 3 m and tilted 2.6°.
     const radius = 4_000;
     const height = FALLS_VIEW_PARK_DOCUMENT.enclosure.placement.height;
     const floorYAt = (z: number) => radius - height - Math.sqrt(radius ** 2 - z ** 2);
@@ -1346,12 +1345,17 @@ test.describe("home screen", () => {
     ).toBe(true);
     expect(Math.min(...climb.map(({ up }) => up.y)), bermEvidence).toBeGreaterThan(0.85);
 
-    // From the crest, the portal's headwall stands flush, so a kart can
-    // drive off it and drop to the return lane in front of the tunnel.
-    const drop = await drive({ x: 14, y: 4.6, z: -45.45 }, 90, 4);
+    // Along the crest, across a joint between its pieces, the ride stays
+    // smooth; the portal's headwall stands flush, so the kart drives off
+    // the end and drops to the return lane in front of the tunnel.
+    const drop = await drive({ x: 40, y: 4.6, z: -45.45 }, 90, 7);
     const landed = drop.at(-1)!;
     const dropEvidence = JSON.stringify([landed.x, landed.y, landed.z, landed.supportEntityNames]);
-    expect(Math.max(...drop.slice(0, 30).map(({ y }) => y)), dropEvidence).toBeGreaterThan(4.5);
+    const crest = drop.slice(30).filter(({ x }) => x > 10.5);
+    expect(Math.min(...crest.map(({ x }) => x)), dropEvidence).toBeLessThan(26);
+    // A piece joint may miss a wheel for a step, never a bounce.
+    expect(crest.every(({ supportCount }) => supportCount >= 2), dropEvidence).toBe(true);
+    expect(Math.max(...crest.map(({ verticalVelocity }) => Math.abs(verticalVelocity))), dropEvidence).toBeLessThan(0.15);
     expect(landed.x, dropEvidence).toBeLessThan(9.5);
     expect(landed.y, dropEvidence).toBeLessThan(0.5);
   });

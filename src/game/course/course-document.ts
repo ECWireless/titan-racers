@@ -1248,7 +1248,7 @@ export function parseCourseDocument(input: unknown): CourseDocument {
     });
   }
 
-  // Versions eight, nine, and ten upgrade unchanged.
+  // Versions eight and nine upgrade unchanged.
   if (hasSchemaVersion(input, 8)) {
     return parseCourseDocument({ ...courseDocumentV8Schema.parse(input), schemaVersion: 9 });
   }

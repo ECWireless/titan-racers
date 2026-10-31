@@ -478,10 +478,10 @@ barriers are the youth's portable race kit
       youth's last crowd barrier on the downhill's west side stands swung
       open onto the lawn inside the park's walls, and behind the tunnel's
       berm, out of sight of the route, a storm drain runs through the
-      north wall: a 600 × 450 mm precast box culvert, the smallest standard
-      box the widest official kart (0.46 m) fits through, with wingwalls
-      and a 1 m chute falling 1:8 to the floor, lit by two park street
-      lamps. Opening the lawn made the park's ground 20 m tiles (one 218 m
+      north wall: a 600 × 450 mm precast box culvert, the narrowest
+      standard width the widest official kart (0.46 m) fits through, with
+      wingwalls and a 1 m-wide chute falling 1:8 to the floor, lit by two
+      park street lamps. Opening the lawn made the park's ground 20 m tiles (one 218 m
       slab bounced wheels) and the berm's grass drivable (v10 lets outdoor
       earthworks over a roof support karts), with the portals' headwalls
       flush with its crest, so karts can drive off it onto the road. v9

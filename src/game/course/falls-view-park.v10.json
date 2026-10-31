@@ -16264,7 +16264,7 @@
       "collision": {
         "friction": 0.7,
         "halfExtents": {
-          "x": 36.925,
+          "x": 9.23125,
           "y": 0.325,
           "z": 3
         },
@@ -16289,11 +16289,11 @@
         }
       },
       "editable": true,
-      "id": "tunnel-berm-crest-west",
+      "id": "tunnel-berm-crest-west-1",
       "overhead": true,
       "transform": {
         "position": {
-          "x": 46.63,
+          "x": 18.9363,
           "y": 4.275,
           "z": -45.45
         },
@@ -16306,7 +16306,172 @@
       "visual": {
         "material": "lawn",
         "scale": {
-          "x": 73.84,
+          "x": 18.4525,
+          "y": 0.65,
+          "z": 6
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 9.23125,
+          "y": 0.325,
+          "z": 3
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "drivable-surface",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.lawn-grass",
+          "version": 1
+        }
+      },
+      "editable": true,
+      "id": "tunnel-berm-crest-west-2",
+      "overhead": true,
+      "transform": {
+        "position": {
+          "x": 37.3937,
+          "y": 4.275,
+          "z": -45.45
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "lawn",
+        "scale": {
+          "x": 18.4625,
+          "y": 0.65,
+          "z": 6
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 9.23125,
+          "y": 0.325,
+          "z": 3
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "drivable-surface",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.lawn-grass",
+          "version": 1
+        }
+      },
+      "editable": true,
+      "id": "tunnel-berm-crest-west-3",
+      "overhead": true,
+      "transform": {
+        "position": {
+          "x": 55.8563,
+          "y": 4.275,
+          "z": -45.45
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "lawn",
+        "scale": {
+          "x": 18.4625,
+          "y": 0.65,
+          "z": 6
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 9.23125,
+          "y": 0.325,
+          "z": 3
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "drivable-surface",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.lawn-grass",
+          "version": 1
+        }
+      },
+      "editable": true,
+      "id": "tunnel-berm-crest-west-4",
+      "overhead": true,
+      "transform": {
+        "position": {
+          "x": 74.3187,
+          "y": 4.275,
+          "z": -45.45
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "lawn",
+        "scale": {
+          "x": 18.4625,
           "y": 0.65,
           "z": 6
         },
@@ -16376,7 +16541,62 @@
         "halfExtents": {
           "x": 2.55,
           "y": 0.325,
+          "z": 8.1875
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "drivable-surface",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.lawn-grass",
+          "version": 1
+        }
+      },
+      "editable": true,
+      "id": "tunnel-berm-crest-north-1",
+      "overhead": true,
+      "transform": {
+        "position": {
+          "x": 81,
+          "y": 4.275,
+          "z": -34.2625
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "lawn",
+        "scale": {
+          "x": 5.1,
+          "y": 0.65,
           "z": 16.375
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 2.55,
+          "y": 0.325,
+          "z": 8.1875
         },
         "offset": {
           "position": {
@@ -16399,13 +16619,13 @@
         }
       },
       "editable": true,
-      "id": "tunnel-berm-crest-north",
+      "id": "tunnel-berm-crest-north-2",
       "overhead": true,
       "transform": {
         "position": {
           "x": 81,
           "y": 4.275,
-          "z": -26.08
+          "z": -17.8925
         },
         "rotation": {
           "x": 0,
@@ -16418,7 +16638,7 @@
         "scale": {
           "x": 5.1,
           "y": 0.65,
-          "z": 32.74
+          "z": 16.365
         },
         "shape": "box"
       }
@@ -16429,7 +16649,7 @@
       "collision": {
         "friction": 0.7,
         "halfExtents": {
-          "x": 36.775,
+          "x": 9.19375,
           "y": 0.4,
           "z": 5.1429565
         },
@@ -16454,13 +16674,13 @@
         }
       },
       "editable": true,
-      "id": "tunnel-berm-south",
+      "id": "tunnel-berm-south-1",
       "overhead": true,
       "transform": {
         "position": {
-          "x": 46.775,
+          "x": 19.1938,
           "y": 1.942229,
-          "z": -52.871115
+          "z": -52.8711
         },
         "rotation": {
           "x": -26.565051,
@@ -16471,7 +16691,7 @@
       "visual": {
         "material": "lawn",
         "scale": {
-          "x": 73.55,
+          "x": 18.3875,
           "y": 0.8,
           "z": 10.285913
         },
@@ -16484,7 +16704,7 @@
       "collision": {
         "friction": 0.7,
         "halfExtents": {
-          "x": 32,
+          "x": 9.19375,
           "y": 0.4,
           "z": 5.1429565
         },
@@ -16509,13 +16729,178 @@
         }
       },
       "editable": true,
-      "id": "tunnel-berm-inner-west",
+      "id": "tunnel-berm-south-2",
       "overhead": true,
       "transform": {
         "position": {
-          "x": 42,
+          "x": 37.5812,
           "y": 1.942229,
-          "z": -38.028885
+          "z": -52.8711
+        },
+        "rotation": {
+          "x": -26.565051,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "lawn",
+        "scale": {
+          "x": 18.3875,
+          "y": 0.8,
+          "z": 10.285913
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 9.19375,
+          "y": 0.4,
+          "z": 5.1429565
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "drivable-surface",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.lawn-grass",
+          "version": 1
+        }
+      },
+      "editable": true,
+      "id": "tunnel-berm-south-3",
+      "overhead": true,
+      "transform": {
+        "position": {
+          "x": 55.9688,
+          "y": 1.942229,
+          "z": -52.8711
+        },
+        "rotation": {
+          "x": -26.565051,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "lawn",
+        "scale": {
+          "x": 18.3875,
+          "y": 0.8,
+          "z": 10.285913
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 9.19375,
+          "y": 0.4,
+          "z": 5.1429565
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "drivable-surface",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.lawn-grass",
+          "version": 1
+        }
+      },
+      "editable": true,
+      "id": "tunnel-berm-south-4",
+      "overhead": true,
+      "transform": {
+        "position": {
+          "x": 74.3563,
+          "y": 1.942229,
+          "z": -52.8711
+        },
+        "rotation": {
+          "x": -26.565051,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "lawn",
+        "scale": {
+          "x": 18.3875,
+          "y": 0.8,
+          "z": 10.285913
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 8,
+          "y": 0.4,
+          "z": 5.1429565
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "drivable-surface",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.lawn-grass",
+          "version": 1
+        }
+      },
+      "editable": true,
+      "id": "tunnel-berm-inner-west-1",
+      "overhead": true,
+      "transform": {
+        "position": {
+          "x": 66,
+          "y": 1.942229,
+          "z": -38.0289
         },
         "rotation": {
           "x": -26.565051,
@@ -16526,7 +16911,172 @@
       "visual": {
         "material": "lawn",
         "scale": {
-          "x": 64,
+          "x": 16,
+          "y": 0.8,
+          "z": 10.285913
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 8,
+          "y": 0.4,
+          "z": 5.1429565
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "drivable-surface",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.lawn-grass",
+          "version": 1
+        }
+      },
+      "editable": true,
+      "id": "tunnel-berm-inner-west-2",
+      "overhead": true,
+      "transform": {
+        "position": {
+          "x": 50,
+          "y": 1.942229,
+          "z": -38.0289
+        },
+        "rotation": {
+          "x": -26.565051,
+          "y": -180,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "lawn",
+        "scale": {
+          "x": 16,
+          "y": 0.8,
+          "z": 10.285913
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 8,
+          "y": 0.4,
+          "z": 5.1429565
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "drivable-surface",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.lawn-grass",
+          "version": 1
+        }
+      },
+      "editable": true,
+      "id": "tunnel-berm-inner-west-3",
+      "overhead": true,
+      "transform": {
+        "position": {
+          "x": 34,
+          "y": 1.942229,
+          "z": -38.0289
+        },
+        "rotation": {
+          "x": -26.565051,
+          "y": -180,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "lawn",
+        "scale": {
+          "x": 16,
+          "y": 0.8,
+          "z": 10.285913
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 8,
+          "y": 0.4,
+          "z": 5.1429565
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "drivable-surface",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.lawn-grass",
+          "version": 1
+        }
+      },
+      "editable": true,
+      "id": "tunnel-berm-inner-west-4",
+      "overhead": true,
+      "transform": {
+        "position": {
+          "x": 18,
+          "y": 1.942229,
+          "z": -38.0289
+        },
+        "rotation": {
+          "x": -26.565051,
+          "y": -180,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "lawn",
+        "scale": {
+          "x": 16,
           "y": 0.8,
           "z": 10.285913
         },
@@ -16594,7 +17144,7 @@
       "collision": {
         "friction": 0.7,
         "halfExtents": {
-          "x": 14,
+          "x": 7,
           "y": 0.4,
           "z": 5.1429565
         },
@@ -16619,13 +17169,13 @@
         }
       },
       "editable": true,
-      "id": "tunnel-berm-inner-north",
+      "id": "tunnel-berm-inner-north-1",
       "overhead": true,
       "transform": {
         "position": {
-          "x": 74.028885,
+          "x": 74.0289,
           "y": 1.942229,
-          "z": -24
+          "z": -17
         },
         "rotation": {
           "x": -26.565051,
@@ -16636,7 +17186,7 @@
       "visual": {
         "material": "lawn",
         "scale": {
-          "x": 28,
+          "x": 14,
           "y": 0.8,
           "z": 10.285913
         },
@@ -16649,7 +17199,7 @@
       "collision": {
         "friction": 0.7,
         "halfExtents": {
-          "x": 19.225,
+          "x": 7,
           "y": 0.4,
           "z": 5.1429565
         },
@@ -16674,13 +17224,68 @@
         }
       },
       "editable": true,
-      "id": "tunnel-berm-east",
+      "id": "tunnel-berm-inner-north-2",
       "overhead": true,
       "transform": {
         "position": {
-          "x": 87.971115,
+          "x": 74.0289,
           "y": 1.942229,
-          "z": -29.225
+          "z": -31
+        },
+        "rotation": {
+          "x": -26.565051,
+          "y": 90,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "lawn",
+        "scale": {
+          "x": 14,
+          "y": 0.8,
+          "z": 10.285913
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 9.6125,
+          "y": 0.4,
+          "z": 5.1429565
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "drivable-surface",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.lawn-grass",
+          "version": 1
+        }
+      },
+      "editable": true,
+      "id": "tunnel-berm-east-1",
+      "overhead": true,
+      "transform": {
+        "position": {
+          "x": 87.9711,
+          "y": 1.942229,
+          "z": -38.8375
         },
         "rotation": {
           "x": -26.565051,
@@ -16691,7 +17296,62 @@
       "visual": {
         "material": "lawn",
         "scale": {
-          "x": 38.45,
+          "x": 19.225,
+          "y": 0.8,
+          "z": 10.285913
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 9.6125,
+          "y": 0.4,
+          "z": 5.1429565
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "drivable-surface",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.lawn-grass",
+          "version": 1
+        }
+      },
+      "editable": true,
+      "id": "tunnel-berm-east-2",
+      "overhead": true,
+      "transform": {
+        "position": {
+          "x": 87.9711,
+          "y": 1.942229,
+          "z": -19.6125
+        },
+        "rotation": {
+          "x": -26.565051,
+          "y": -90,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "lawn",
+        "scale": {
+          "x": 19.225,
           "y": 0.8,
           "z": 10.285913
         },

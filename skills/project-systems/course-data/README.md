@@ -60,8 +60,8 @@ own editor commands or persistence UI.
   jump's infield to the lawn inside the park's walls, all off the route.
   The tunnel's berm, whose portals' headwalls stand flush with its crest,
   hides a storm drain through the north wall in the narrow lawn behind it:
-  a 600 × 450 mm precast box culvert, the smallest standard box every
-  official kart fits through. Wingwalls flare from it to a 1 m
+  a 600 × 450 mm precast box culvert, the narrowest standard width every
+  official kart fits through. Wingwalls flare from it to a 1 m-wide
   concrete chute that falls 1:8 to the floor of the clearing, and two park
   street lamps light its inlet and the chute's foot. Two of the youth's
   bicycles lean at the levee crest's handrail and wall. Past the crest an
@@ -87,10 +87,8 @@ own editor commands or persistence UI.
   trees: weld-mesh panels 1.2 m high between 60 mm posts every 2.5 m, plumb
   to the floor, with a 0.1 m collider (the thinnest solid obstacle) for each
   pair of panels, from the floor to the posts' tops.
-  `addCourseClearing` (in `build-rough-course.ts`) draws the ground as one
-  lawn mesh and the posts as one steel mesh, both in the race's static
-  batch, and the panels as one see-through mesh
-  ([scene lighting](../scene-lighting/README.md)). It adds a static body per
+  `addCourseClearing` (in `build-rough-course.ts`) draws them
+  ([scene lighting](../scene-lighting/README.md)) and adds a static body per
   slab, which supports karts as lawn grass and resolves straight to it, so
   the surface lookup never scans the clearing's slabs, and a static obstacle
   per fence collider. The editor draws neither.
@@ -375,6 +373,5 @@ exposed in the UI.
   banked arcs are not yet supported. New primitive kinds need runtime,
   collision, and round-trip evidence.
 - Arbitrary placeable lights, skyboxes, fog, and post-processing are deferred.
-- Wheel contacts jitter on long drivable boxes (a 140 m deck at speed; a
-  218 m, 0.1 m ground slab bounced karts on lawn), so decks, roads, and
-  ground come in pieces of at most about 20 m.
+- Wheel contacts jitter on long drivable boxes, so decks, roads, ground,
+  and earthworks come in pieces of at most about 20 m.

@@ -1,5 +1,12 @@
 import { CLEARING_RADIUS } from "../enclosure/habitat-land";
-import { getEnclosureFrame, type Vector3 } from "../enclosure/island-three";
+import {
+  add,
+  cross,
+  dot,
+  getEnclosureFrame,
+  scaled,
+  type Vector3,
+} from "../enclosure/island-three";
 import type { CourseDocument } from "./course-document";
 
 /**
@@ -32,16 +39,8 @@ type CourseClearingPiece = {
   up: Vector3;
 };
 
-const add3 = (a: Vector3, b: Vector3) => ({ x: a.x + b.x, y: a.y + b.y, z: a.z + b.z });
-const sub = (a: Vector3, b: Vector3) => ({ x: a.x - b.x, y: a.y - b.y, z: a.z - b.z });
-const dot = (a: Vector3, b: Vector3) => a.x * b.x + a.y * b.y + a.z * b.z;
-const length = (a: Vector3) => Math.sqrt(dot(a, a));
-const scale = (a: Vector3, s: number) => ({ x: a.x * s, y: a.y * s, z: a.z * s });
-const cross = (a: Vector3, b: Vector3) => ({
-  x: a.y * b.z - a.z * b.y,
-  y: a.z * b.x - a.x * b.z,
-  z: a.x * b.y - a.y * b.x,
-});
+const sub = (a: Vector3, b: Vector3) => add(a, b, -1);
+const length = (a: Vector3) => Math.hypot(a.x, a.y, a.z);
 
 /**
  * Even steps from `from` to `to`, at most `step` apart, that also stop at
@@ -71,7 +70,7 @@ function getClearingFloor(enclosure: CourseDocument["enclosure"]) {
     frame.point(axial + a, azimuth + ((s / radius) * 180) / Math.PI, radius);
   const up = (a: number, s: number) => {
     const toAxis = sub(frame.point(axial + a, azimuth, 0), floor(a, s));
-    return scale(toAxis, 1 / length(toAxis));
+    return scaled(toAxis, 1 / length(toAxis));
   };
   return { floor, frame, radius, up };
 }
@@ -132,20 +131,20 @@ export function getCourseClearingGround(enclosure: CourseDocument["enclosure"]) 
       const p10 = floor(aTo, sFrom);
       const p01 = floor(aFrom, sTo);
       const p11 = floor(aTo, sTo);
-      let right = scale(sub(p10, p00), 1 / length(sub(p10, p00)));
-      const forward = scale(sub(p01, p00), 1 / length(sub(p01, p00)));
+      let right = scaled(sub(p10, p00), 1 / length(sub(p10, p00)));
+      const forward = scaled(sub(p01, p00), 1 / length(sub(p01, p00)));
       let up = cross(forward, right);
       // Up faces the axis; flip the frame to keep it right-handed.
       if (up.y < 0) {
-        right = scale(right, -1);
-        up = scale(up, -1);
+        right = scaled(right, -1);
+        up = scaled(up, -1);
       }
-      const top = scale(
+      const top = scaled(
         { x: p00.x + p10.x + p01.x + p11.x, y: p00.y + p10.y + p01.y + p11.y, z: p00.z + p10.z + p01.z + p11.z },
         0.25,
       );
       pieces.push({
-        center: sub(top, scale(up, depth / 2)),
+        center: sub(top, scaled(up, depth / 2)),
         forward,
         halfExtents: {
           x: length(sub(p10, p00)) / 2,
@@ -262,7 +261,7 @@ export function getCourseClearingFence(enclosure: CourseDocument["enclosure"]) {
   });
   const station = (index: number) => stations[index % count]!;
   const at = (point: Vector3, direction: Vector3, distance: number) =>
-    add3(point, scale(direction, distance));
+    add(point, scaled(direction, distance));
 
   const posts = geometry();
   const panels = geometry();
@@ -271,7 +270,7 @@ export function getCourseClearingFence(enclosure: CourseDocument["enclosure"]) {
     // A square post, its faces along and across the fence.
     const next = station(index + 1);
     const along = sub(next.base, station(index + count - 1).base);
-    const tangent = scale(along, 1 / length(along));
+    const tangent = scaled(along, 1 / length(along));
     const across = cross(tangent, postUp);
     const half = fence.post / 2;
     const corner = (x: number, z: number, height: number) =>
@@ -279,7 +278,7 @@ export function getCourseClearingFence(enclosure: CourseDocument["enclosure"]) {
     const sides: [number, number][] = [[-1, -1], [1, -1], [1, 1], [-1, 1]];
     sides.forEach(([x0, z0], side) => {
       const [x1, z1] = sides[(side + 1) % 4]!;
-      const normal = scale(add3(scale(tangent, x0 + x1), scale(across, z0 + z1)), 0.5);
+      const normal = scaled(add(scaled(tangent, x0 + x1), scaled(across, z0 + z1)), 0.5);
       addQuad(
         posts,
         [
@@ -305,7 +304,7 @@ export function getCourseClearingFence(enclosure: CourseDocument["enclosure"]) {
     // The mesh panel to the next post, its UVs in mesh repeats down from
     // its top wire.
     const span = length(sub(next.base, base));
-    const normal = cross(scale(sub(next.base, base), 1 / span), postUp);
+    const normal = cross(scaled(sub(next.base, base), 1 / span), postUp);
     const repeat = COURSE_FENCE_MESH.size;
     addQuad(
       panels,
@@ -327,10 +326,10 @@ export function getCourseClearingFence(enclosure: CourseDocument["enclosure"]) {
     if (index % fence.colliderPanels === 0) {
       const end = station(index + fence.colliderPanels);
       const chord = sub(end.base, base);
-      const right = scale(chord, 1 / length(chord));
-      const middleUp = add3(postUp, end.up);
-      const colliderUp = sub(middleUp, scale(right, dot(middleUp, right)));
-      const unitUp = scale(colliderUp, 1 / length(colliderUp));
+      const right = scaled(chord, 1 / length(chord));
+      const middleUp = add(postUp, end.up);
+      const colliderUp = sub(middleUp, scaled(right, dot(middleUp, right)));
+      const unitUp = scaled(colliderUp, 1 / length(colliderUp));
       colliders.push({
         center: at(at(base, chord, 0.5), unitUp, fence.postHeight / 2),
         forward: cross(right, unitUp),

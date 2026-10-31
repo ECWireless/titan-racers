@@ -71,11 +71,13 @@ phone budget. Art direction and the budget itself live in
   storm drain, over the inlet and the chute's foot. The race batches
   the lamp parts with the static
   course; the editor shows them switched off.
-- `addCourseClearing` (`src/game/course/build-rough-course.ts`) draws the
-  clearing's park fence: its weld mesh is one two-sided, alpha-tested mesh
+- `addCourseClearing` (`src/game/course/build-rough-course.ts`) draws a
+  clearing's ground as one lawn mesh and its fence posts as one steel mesh,
+  both in the race's static batch; the posts cast shadows, the ground does
+  not. The fence's weld mesh is one two-sided, alpha-tested mesh
   in the posts' steel colour, from a coverage texture built on the CPU. Its
   threshold is low, so alpha to coverage (under MSAA) thins it to a haze at
-  distance, as wire fencing looks. The mesh casts no shadows; the posts do.
+  distance, as wire fencing looks, and casts no shadows.
 - `src/game/course/course-interior.ts` lights a course's indoors: an
   interior environment atlas built by elevation from the light a lamp-lit
   service tunnel's floor, walls, and ceiling give back
