@@ -11,10 +11,14 @@ import lawnAlbedo from "./surface-textures/lawn-albedo.jpg";
 import lawnSurface from "./surface-textures/lawn-surface.jpg";
 import smoothConcreteAlbedo from "./surface-textures/smooth-concrete-albedo.jpg";
 import smoothConcreteSurface from "./surface-textures/smooth-concrete-surface.jpg";
+import soilAlbedo from "./surface-textures/soil-albedo.jpg";
+import soilSurface from "./surface-textures/soil-surface.jpg";
 import steelAlbedo from "./surface-textures/steel-albedo.jpg";
 import steelSurface from "./surface-textures/steel-surface.jpg";
 import turfAlbedo from "./surface-textures/turf-albedo.jpg";
 import turfSurface from "./surface-textures/turf-surface.jpg";
+import woodAlbedo from "./surface-textures/wood-albedo.jpg";
+import woodSurface from "./surface-textures/wood-surface.jpg";
 import leafColour from "./tree-textures/leaf-sprays-colour.jpg";
 import leafCoverage from "./tree-textures/leaf-sprays-coverage.png";
 import type { CourseLeafImages } from "./course-trees";
@@ -26,8 +30,10 @@ export const COURSE_SCANNED_SURFACES = [
   "gravel",
   "lawn",
   "smoothConcrete",
+  "soil",
   "steel",
   "turf",
+  "wood",
 ] as const;
 export type CourseScannedSurface = (typeof COURSE_SCANNED_SURFACES)[number];
 
@@ -43,8 +49,10 @@ const SOURCES = {
   gravel: { albedo: gravelAlbedo, surface: gravelSurface },
   lawn: { albedo: lawnAlbedo, surface: lawnSurface },
   smoothConcrete: { albedo: smoothConcreteAlbedo, surface: smoothConcreteSurface },
+  soil: { albedo: soilAlbedo, surface: soilSurface },
   steel: { albedo: steelAlbedo, surface: steelSurface },
   turf: { albedo: turfAlbedo, surface: turfSurface },
+  wood: { albedo: woodAlbedo, surface: woodSurface },
 } satisfies Record<CourseScannedSurface, Record<"albedo" | "surface", { src: string }>>;
 
 let loading: Promise<CourseSurfaceImages | null> | undefined;

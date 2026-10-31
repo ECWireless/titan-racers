@@ -283,18 +283,31 @@ export function createNurseryStakeGeometry(): TreeMeshData {
   return (nurseryStake ??= buildNurseryStakeGeometry());
 }
 
+// The stake's UVs are metres up it (u, along its grain) and around it, its
+// seam's vertices doubled so no face squeezes the whole wood between them;
+// the wood steps at the seam, along its grain.
 function buildNurseryStakeGeometry(): TreeMeshData {
-  const stake: TreeMeshData = { indices: [], normals: [], positions: [] };
   const { height, radius } = NURSERY_TREE.stake;
-  addTube(
-    stake,
-    [
-      [0, 0, 0],
-      [0, height, 0],
-    ],
-    [radius, radius],
-    8,
-  );
+  const sides = 8;
+  const stake = {
+    indices: [] as number[],
+    normals: [] as number[],
+    positions: [] as number[],
+    uvs: [] as number[],
+  };
+  for (let side = 0; side <= sides; side++) {
+    const angle = (side / sides) * Math.PI * 2;
+    const normal: Vec3 = [-Math.sin(angle), 0, -Math.cos(angle)];
+    for (const y of [0, height]) {
+      stake.positions.push(normal[0] * radius, y, normal[2] * radius);
+      stake.normals.push(...normal);
+      stake.uvs.push(y, angle * radius);
+    }
+  }
+  for (let side = 0; side < sides; side++) {
+    const bottom = side * 2;
+    stake.indices.push(bottom, bottom + 2, bottom + 1, bottom + 2, bottom + 3, bottom + 1);
+  }
   return stake;
 }
 

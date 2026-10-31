@@ -28,6 +28,7 @@ import {
   getCourseKit,
 } from "./course-kits";
 import { CourseSurfaceResolver } from "./course-surface-resolver";
+import { createCourseTimberGeometry } from "./course-timber";
 import {
   createCourseWaterSurfaceGeometry,
   isCourseWater,
@@ -62,8 +63,9 @@ export type CourseObjectProjection = ReturnType<typeof projectCourseObject>;
 
 // Custom factories must return an unattached entity. The builder owns scene
 // attachment so the complete course batch can be committed atomically. A
-// generated mesh replaces the visual primitive: an arc's surface, or the top
-// face of a thin surface layer.
+// generated mesh replaces the visual primitive: an arc's surface, a timber
+// box or round with its grain laid along it, a water surface, or the top face
+// of a thin surface layer.
 type CourseEntityFactory = (
   projection: CourseObjectProjection,
   material: pc.StandardMaterial,
@@ -161,7 +163,14 @@ export function buildRoughCourse(
             ? createCourseArcMesh(app.graphicsDevice, object.visual.arc)
             : isCourseWater(object)
               ? createCourseWaterMesh(app.graphicsDevice, object.visual.scale)
-              : undefined;
+              : object.visual.material === "timber"
+                ? createCourseTimberMesh(
+                    app.graphicsDevice,
+                    object.visual.shape,
+                    object.visual.scale,
+                    object.transform,
+                  )
+                : undefined;
         let entity: pc.Entity;
         try {
           entity = createEntity(
@@ -184,6 +193,8 @@ export function buildRoughCourse(
           throw error;
         }
 
+        // Staged first, so a kit that fails to build is freed with it.
+        stagedEntities.push(entity);
         const kit = getCourseKit(object);
         if (kit) {
           const frame = addCourseKit(
@@ -199,7 +210,6 @@ export function buildRoughCourse(
         // A bicycle is drawn with the trees, in place of its box, which
         // only the editor keeps, unseen, to select.
         if (object.bicycle) entity.enabled = false;
-        stagedEntities.push(entity);
         courseEntities.set(object.id, entity);
 
         if (object.availability === "collision-test") {
@@ -269,7 +279,7 @@ function configureCourseEntity(
   mesh?: pc.Mesh,
 ) {
   const { visual } = projection;
-  addCourseVisual(entity, visual.shape, material, mesh);
+  addCourseVisual(entity, visual, material, mesh);
   entity.setPosition(toVec3(projection.transform.position));
   entity.setEulerAngles(toVec3(projection.transform.rotation));
   // An arc's mesh is built to size.
@@ -331,14 +341,15 @@ function configureCourseEntity(
 
 export function addCourseVisual(
   entity: pc.Entity,
-  shape: "arc" | "box" | "cylinder",
+  { material: finish, shape }: Pick<CourseObject["visual"], "material" | "shape">,
   material: pc.StandardMaterial,
   mesh?: pc.Mesh,
 ) {
   if (mesh) {
     entity.addComponent("render", {
-      // A thin layer's top face casts no shadow; an arc casts like a box.
-      castShadows: shape === "arc",
+      // A thin layer's top face and a water surface cast no shadow; an arc
+      // and timber cast as a box does.
+      castShadows: shape === "arc" || finish === "timber",
       meshInstances: [new pc.MeshInstance(mesh, material)],
     });
     return;
@@ -377,6 +388,28 @@ function addCourseKit(
   });
   entity.addChild(frame);
   return frame;
+}
+
+/**
+ * A timber box or round, with UVs in metres along its grain; its mesh
+ * instance frees it on destroy.
+ */
+function createCourseTimberMesh(
+  device: pc.GraphicsDevice,
+  shape: "box" | "cylinder",
+  scale: { x: number; y: number; z: number },
+  transform: CourseObject["transform"],
+) {
+  const geometry = createCourseTimberGeometry(shape, scale, transform);
+  const mesh = new pc.Mesh(device);
+  mesh.setPositions(geometry.positions);
+  mesh.setNormals(geometry.normals);
+  // The engine primitives' streams, so it joins its finish's static batch.
+  mesh.setUvs(0, geometry.uvs);
+  mesh.setUvs(1, geometry.uvs);
+  mesh.setIndices(geometry.indices);
+  mesh.update();
+  return mesh;
 }
 
 /**

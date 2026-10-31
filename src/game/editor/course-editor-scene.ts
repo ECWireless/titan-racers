@@ -1122,7 +1122,7 @@ function createProjectionEntity(
 ) {
   const entity = new pc.Entity(projection.id);
   const { visual } = projection;
-  addCourseVisual(entity, visual.shape, material, mesh);
+  addCourseVisual(entity, visual, material, mesh);
   if (visual.shape !== "arc") {
     entity.setLocalScale(visual.scale.x, visual.scale.y, visual.scale.z);
   }

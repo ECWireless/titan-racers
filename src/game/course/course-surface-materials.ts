@@ -350,6 +350,37 @@ void getAlbedo() {
 }
 `;
 
+// Sawn timber: its mesh's UVs are metres with u along each piece's grain,
+// where the wood scan's grain runs. The normal map's UVs give the shader
+// those UVs and a tangent frame from them; the map itself is never sampled.
+const GRAIN_SURFACE_ALBEDO = `
+uniform vec3 material_diffuse;
+uniform sampler2D courseGrain;
+uniform vec3 courseFinish;
+uniform sampler2D courseScanAlbedo;
+uniform sampler2D courseScanSurface;
+uniform vec4 courseScan;
+vec4 courseScanSample;
+void getAlbedo() {
+    vec2 uv = {STD_NORMAL_TEXTURE_UV} * courseScan.x;
+    vec3 ratio = texture2D(courseScanAlbedo, uv).rgb * 4.0;
+    courseScanSample = texture2D(courseScanSurface, uv);
+    float broad = texture2D(courseGrain, mat2(0.8, -0.6, 0.6, 0.8) * vPositionW.xz / 48.0).g;
+    float brightness = dot(ratio, vec3(0.2126, 0.7152, 0.0722));
+    vec3 tint = mix(vec3(1.0), ratio / max(brightness, 0.002), courseScan.z);
+    dAlbedo = material_diffuse * brightness * tint * (1.0 + (broad - 0.5) * courseFinish.y);
+}
+`;
+
+// The scan's relief, in the frame of the UVs: x along the grain, and the
+// image's up (OpenGL green) toward falling v.
+const GRAIN_SURFACE_NORMAL = `
+void getNormal() {
+    vec2 slope = (courseScanSample.rg * 2.0 - 1.0) * courseScan.y;
+    dNormalW = normalize(dTBN * vec3(slope, sqrt(max(0.0, 1.0 - dot(slope, slope)))));
+}
+`;
+
 // Each finish keeps its tuned gloss on average; the scan's roughness only
 // varies it, because scanned roughness levels differ between sources.
 const SCANNED_SURFACE_GLOSS = `
@@ -367,8 +398,10 @@ type ScannedFinish =
   | "gravel"
   | "kerb"
   | "lawn"
+  | "mulch"
   | "paint"
   | "steel"
+  | "timber"
   | "turf";
 
 type ScanLayer = {
@@ -382,8 +415,9 @@ type ScanLayer = {
 const SCANNED_SURFACES: Record<
   ScannedFinish,
   ScanLayer & {
-    // How the scan is laid: from above, along each axis, or as road paint.
-    projection: "paint" | "top" | "triplanar";
+    // How the scan is laid: from above, along each axis, along a timber
+    // piece's grain, or as road paint.
+    projection: "grain" | "paint" | "top" | "triplanar";
     tint: number;
     // A triplanar finish's faces turned up or down: their own scan, keeping
     // its whole variation; without one, a softened share of the sides'.
@@ -413,16 +447,32 @@ const SCANNED_SURFACES: Record<
     top: { image: "concrete", metres: 2, normal: 0.6, roughness: 0.608 },
   },
   lawn: { image: "lawn", projection: "top", metres: 1.4, normal: 1, tint: 0.35, roughness: 0.544 },
+  // The nursery beds' composted soil, with bark and twigs a few centimetres
+  // long through it, on a 1 m scan, the same on a bed's top and on its sides
+  // where no edging covers them.
+  mulch: {
+    image: "soil",
+    projection: "triplanar",
+    metres: 1,
+    normal: 1,
+    tint: 0.35,
+    roughness: 0.669,
+    top: { image: "soil", metres: 1, normal: 1, roughness: 0.669 },
+  },
   // Road paint over the asphalt's scan.
   paint: { image: "asphalt", projection: "paint", metres: 2.2, normal: 0.9, tint: 0, roughness: 0.612 },
   // Powder-coated or painted steel's fine orange peel, on a 512² scan
   // (about 1 mm a texel).
   steel: { image: "steel", projection: "triplanar", metres: 0.6, normal: 0.5, tint: 0, roughness: 0.298 },
+  // Rough-sawn softwood's open grain, on a 512² scan (about 1 mm a texel),
+  // weathered: the finish keeps little of the fresh wood's warm hue.
+  timber: { image: "wood", projection: "grain", metres: 0.6, normal: 0.6, tint: 0.15, roughness: 0.405 },
   // A 1.4 m scan drawn smaller, so its blades read as clipped.
   turf: { image: "turf", projection: "top", metres: 0.8, normal: 0.8, tint: 0.35, roughness: 0.263 },
 };
 
 const SCANNED_CHUNKS = {
+  grain: { diffusePS: GRAIN_SURFACE_ALBEDO, normalMapPS: GRAIN_SURFACE_NORMAL },
   paint: { diffusePS: PAINT_SURFACE_ALBEDO, normalMapPS: SCANNED_SURFACE_NORMAL },
   top: { diffusePS: SCANNED_SURFACE_ALBEDO, normalMapPS: SCANNED_SURFACE_NORMAL },
   triplanar: { diffusePS: TRIPLANAR_SURFACE_ALBEDO, normalMapPS: TRIPLANAR_SURFACE_NORMAL },
@@ -543,10 +593,11 @@ export function createCourseSurfaceMaterials(
     // Sidewalk concrete, weathered to a light buff grey (about 35%).
     kerb: finish(hex("#a9a395"), 0.16, [0.3, 0.16, 0], undefined, "kerb"),
     ramp: finish(hex("#54646b"), 0.26, [0.25, 0.12, 0], undefined, "steel"),
-    // The nursery: weathered treated softwood, dark bark mulch, and the
-    // shaded inside of a clipped hedge, behind its leaves.
-    timber: finish(hex("#857661"), 0.14, [0.3, 0.18, 0]),
-    mulch: finish(hex("#3e3025"), 0.06, [0.7, 0.35, 0]),
+    // The nursery: weathered treated softwood, its beds' moist, dark brown
+    // soil (about 5%), and the shaded inside of a clipped hedge, behind its
+    // leaves.
+    timber: finish(hex("#857661"), 0.14, [0.3, 0.18, 0], undefined, "timber"),
+    mulch: finish(hex("#4d4136"), 0.06, [0.7, 0.35, 0], undefined, "mulch"),
     hedge: finish(hex("#46522f"), 0.08, [0.35, 0.25, 0]),
     // A working nursery's brushed-concrete trolley lanes, weathered to about
     // 30% reflectance.
@@ -591,8 +642,9 @@ export function createCourseSurfaceMaterials(
     topFaces,
     /**
      * Switches the scanned finishes (asphalt, cast and brushed concrete,
-     * kerbs, gravel, turf, lawn, steel, and road paint) to their scans. Until then (or if the
-     * scans never load) they keep the code-built grain.
+     * kerbs, gravel, turf, lawn, soil, steel, timber, and road paint) to
+     * their scans. Until then (or if the scans never load) they keep the
+     * code-built grain.
      */
     useScans(images: CourseSurfaceImages) {
       if (scanTextures.length > 0) return;
@@ -636,6 +688,9 @@ export function createCourseSurfaceMaterials(
         material.shaderChunks.glsl.set("glossPS", SCANNED_SURFACE_GLOSS);
         material.setParameter("courseScanAlbedo", textures[scan.image].albedo);
         material.setParameter("courseScanSurface", textures[scan.image].surface);
+        if (scan.projection === "grain") {
+          material.normalMap = textures[scan.image].surface;
+        }
         if (scan.projection === "triplanar") {
           const top = scan.top ?? { ...scan, normal: scan.normal * 0.4 };
           material.setParameter("courseScanTopAlbedo", textures[top.image].albedo);

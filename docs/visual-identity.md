@@ -173,8 +173,12 @@ Materials), and so do course surfaces (see Course Surfaces).
   layouts stay continuous. Concrete and steel take their scans along
   whichever axis each face turns toward, a wall's top trowel-smooth and a
   kerb's broom-finished; road paint shows the asphalt's grain beneath it on
-  faces turned up. Timber and the remaining finishes
-  keep a fine code-built grain.
+  faces turned up; the nursery beds' soil covers their tops and sides alike.
+  Timber's grain runs the length of each piece instead (up a post, along a
+  brace's slope, around a bed's curved edging). A straight piece's wood is
+  anchored to the world along and across its grain, so boards lying in
+  exactly one plane with their grain the same way show the same wood where
+  they overlap. The remaining finishes keep a fine code-built grain.
 - **Flat where karts roll flat.** No raised grass blades, gravel, or bumps the
   physics does not have; grass relief is shading on the flat surface. Anything
   raised, such as a bridge, kicker, or table, is solid geometry with collision
@@ -191,8 +195,9 @@ Materials), and so do course surfaces (see Course Surfaces).
   less what the water absorbs and what a wet bed loses. Karts never float:
   a 1:10 kart in it is under entirely, so one that goes in is drowned and
   recovered.
-- **Planting is a working nursery's.** Young trees stand in rows on raised,
-  mulched beds edged with timber, as three-year nursery standards at real
+- **Planting is a working nursery's.** Young trees stand in rows on raised
+  beds of moist, dark brown soil (about 5%) edged with weathered timber, as
+  three-year nursery standards at real
   size: a 3.2 m leader on a 1.8 m clear stem, tied to a 1.2 m stake, with a
   crown of leaf sprays. Three variants, turned and sized a little apiece,
   keep rows from repeating. Hedges are clipped boxes covered in the same
@@ -202,8 +207,8 @@ Materials), and so do course surfaces (see Course Surfaces).
 ### Surface Scans
 
 From [ambientCG](https://ambientcg.com) (CC0), 1K sets in
-`src/game/course/surface-textures/` (the gravel halved to 512², 1 mm a
-texel), each packed into two JPEGs: colour as a
+`src/game/course/surface-textures/` (those marked halved to 512²; the gravel
+is 1 mm a texel), each packed into two JPEGs: colour as a
 ratio to the scan's mean with 80% of its ambient occlusion baked in, and the
 OpenGL normal's x and y with roughness.
 
@@ -213,11 +218,13 @@ OpenGL normal's x and y with roughness.
 | Uncut lawn | Grass001 | 1.4 m |
 | Turf | Grass004 | 0.8 m (scanned at 1.4 m) |
 | Brushed concrete | Concrete048 | 2 m, its broom ridges across the lanes |
-| River gravel (stream bed) | Rocks022 | 0.5 m |
+| River gravel (stream bed) | Rocks022 (halved to 512²) | 0.5 m |
 | Cast concrete, formwork panels (walls, tunnels, fill) | Concrete031 | 4.8 m (1.2 m panels) |
 | Kerb faces | Concrete016 (halved to 512²) | 1 m |
 | Kerb tops | Concrete048 (the brushed concrete) | 2 m |
 | Powder-coated steel | Metal028 (halved to 512²) | 0.6 m |
+| Nursery bed soil | Ground048 (halved to 512²) | 1 m |
+| Sawn timber | Wood061 (halved to 512²) | 0.6 m, along each piece's grain |
 
 ### Tree Billboards
 
