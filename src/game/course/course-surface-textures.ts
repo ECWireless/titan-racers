@@ -1,24 +1,35 @@
 import { decodeImage } from "../render/decode-image";
 import asphaltAlbedo from "./surface-textures/asphalt-albedo.jpg";
 import asphaltSurface from "./surface-textures/asphalt-surface.jpg";
+import castConcreteAlbedo from "./surface-textures/cast-concrete-albedo.jpg";
+import castConcreteSurface from "./surface-textures/cast-concrete-surface.jpg";
 import concreteAlbedo from "./surface-textures/concrete-albedo.jpg";
 import concreteSurface from "./surface-textures/concrete-surface.jpg";
 import gravelAlbedo from "./surface-textures/gravel-albedo.jpg";
 import gravelSurface from "./surface-textures/gravel-surface.jpg";
 import lawnAlbedo from "./surface-textures/lawn-albedo.jpg";
 import lawnSurface from "./surface-textures/lawn-surface.jpg";
+import smoothConcreteAlbedo from "./surface-textures/smooth-concrete-albedo.jpg";
+import smoothConcreteSurface from "./surface-textures/smooth-concrete-surface.jpg";
+import steelAlbedo from "./surface-textures/steel-albedo.jpg";
+import steelSurface from "./surface-textures/steel-surface.jpg";
 import turfAlbedo from "./surface-textures/turf-albedo.jpg";
 import turfSurface from "./surface-textures/turf-surface.jpg";
 import leafColour from "./tree-textures/leaf-sprays-colour.jpg";
 import leafCoverage from "./tree-textures/leaf-sprays-coverage.png";
 import type { CourseLeafImages } from "./course-trees";
 
-export type CourseScannedSurface =
-  | "asphalt"
-  | "concrete"
-  | "gravel"
-  | "lawn"
-  | "turf";
+export const COURSE_SCANNED_SURFACES = [
+  "asphalt",
+  "castConcrete",
+  "concrete",
+  "gravel",
+  "lawn",
+  "smoothConcrete",
+  "steel",
+  "turf",
+] as const;
+export type CourseScannedSurface = (typeof COURSE_SCANNED_SURFACES)[number];
 
 export type CourseSurfaceImages = Record<
   CourseScannedSurface,
@@ -27,9 +38,12 @@ export type CourseSurfaceImages = Record<
 
 const SOURCES = {
   asphalt: { albedo: asphaltAlbedo, surface: asphaltSurface },
+  castConcrete: { albedo: castConcreteAlbedo, surface: castConcreteSurface },
   concrete: { albedo: concreteAlbedo, surface: concreteSurface },
   gravel: { albedo: gravelAlbedo, surface: gravelSurface },
   lawn: { albedo: lawnAlbedo, surface: lawnSurface },
+  smoothConcrete: { albedo: smoothConcreteAlbedo, surface: smoothConcreteSurface },
+  steel: { albedo: steelAlbedo, surface: steelSurface },
   turf: { albedo: turfAlbedo, surface: turfSurface },
 } satisfies Record<CourseScannedSurface, Record<"albedo" | "surface", { src: string }>>;
 

@@ -33,9 +33,11 @@ phone budget. Art direction and the budget itself live in
   sets the spin).
 - `src/game/course/course-surface-materials.ts` owns the course finishes:
   one shader program whose diffuse override samples a CPU-built grain
-  texture by world position, and a second for asphalt, turf, lawn, brushed
-  concrete, and river gravel that samples their photo scans (colour, normal,
-  and roughness) the same way. Water is a third
+  texture by world position, and others that sample photo scans (colour,
+  normal, and roughness) the same way: from above for asphalt, turf, lawn,
+  brushed concrete, and river gravel; along each face's axis (triplanar)
+  for cast concrete, kerbs (their tops in the brushed concrete), and steel;
+  and as road paint, over the asphalt's scan on faces turned up. Water is another
   ([visual identity](../../../docs/visual-identity.md#course-surfaces)): its
   ripples drift along the box's local +X, and it blends over a river-gravel
   bed's colour, so a water box belongs over a `gravel` bed.

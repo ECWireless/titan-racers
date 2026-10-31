@@ -39,10 +39,14 @@ function cloneSeed() {
   return structuredClone(ROUGH_COURSE_DOCUMENT);
 }
 
-// Falls View Park as a version-ten course could hold it: no kits.
+// Falls View Park as a version-ten course could hold it: no kits, and its
+// kerbs in the walls' concrete.
 function versionTenFallsViewPark() {
   const document = structuredClone(FALLS_VIEW_PARK_DOCUMENT);
-  for (const object of document.objects) delete object.kit;
+  for (const object of document.objects) {
+    delete object.kit;
+    if (object.visual.material === "kerb") object.visual.material = "obstacleBlock";
+  }
   return document;
 }
 
@@ -1362,6 +1366,12 @@ test("upgrades v10 unchanged and draws each crowd barrier as one kit in v11", ()
   expect(() =>
     parseCourseDocument({ ...FALLS_VIEW_PARK_DOCUMENT, schemaVersion: 10 }),
   ).toThrow();
+  // Version eleven also adds the kerb finish.
+  const kerbs = FALLS_VIEW_PARK_DOCUMENT.objects.filter((o) => o.visual.material === "kerb");
+  expect(kerbs.length).toBeGreaterThan(0);
+  const legacyKerb = versionTenFallsViewPark();
+  legacyKerb.objects.find((o) => o.id === kerbs[0]!.id)!.visual.material = "kerb";
+  expect(() => parseCourseDocument({ ...legacyKerb, schemaVersion: 10 })).toThrow();
 
   // Each of the downhill's 53 panels is its kick plank, which collides for
   // the whole panel, with its frame drawn about it.

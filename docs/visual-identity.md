@@ -157,8 +157,12 @@ Materials), and so do course surfaces (see Course Surfaces).
 - **Service-yard finishes.** Aged mineral-grey asphalt (about 13%
   reflectance), clipped muted-olive turf bordering the road, darker and
   patchier uncut lawn beyond it, ice road paint for edge and start
-  lines, hazard paint for kerbs, apexes, and grid accents, and steel for posts
-  and cabinets.
+  lines, hazard paint for apexes and grid accents, and steel for posts
+  and cabinets. Walls, tunnels, and fill are cast-in-place concrete, a
+  neutral mid grey (about 25% reflectance) poured against 1.2 m formwork
+  panels, grimier at ground level; kerbs are sidewalk concrete, a light
+  buff grey (about 35%), smooth-faced under a broom-finished top. Posts,
+  pipes, cabinets, and valves are painted or powder-coated steel.
 - **Asphalt and grass are photo scans at true size.** CC0 scans give their
   aggregate, blades, relief, and roughness variation, recoloured and re-glossed
   so each surface keeps its palette colour and sheen on average. Turf mowing stripes depend on viewing
@@ -166,8 +170,11 @@ Materials), and so do course surfaces (see Course Surfaces).
   from the viewer.
 - **Texture follows the world, not the piece.** Scans and a code-built broad
   variation are anchored to world position, so overlapping pieces and edited
-  layouts stay continuous. Paint, steel, and other finishes keep a fine
-  code-built grain.
+  layouts stay continuous. Concrete and steel take their scans along
+  whichever axis each face turns toward, a wall's top trowel-smooth and a
+  kerb's broom-finished; road paint shows the asphalt's grain beneath it on
+  faces turned up. Timber and the remaining finishes
+  keep a fine code-built grain.
 - **Flat where karts roll flat.** No raised grass blades, gravel, or bumps the
   physics does not have; grass relief is shading on the flat surface. Anything
   raised, such as a bridge, kicker, or table, is solid geometry with collision
@@ -207,6 +214,10 @@ OpenGL normal's x and y with roughness.
 | Turf | Grass004 | 0.8 m (scanned at 1.4 m) |
 | Brushed concrete | Concrete048 | 2 m, its broom ridges across the lanes |
 | River gravel (stream bed) | Rocks022 | 0.5 m |
+| Cast concrete, formwork panels (walls, tunnels, fill) | Concrete031 | 4.8 m (1.2 m panels) |
+| Kerb faces | Concrete016 (halved to 512²) | 1 m |
+| Kerb tops | Concrete048 (the brushed concrete) | 2 m |
+| Powder-coated steel | Metal028 (halved to 512²) | 0.6 m |
 
 ### Tree Billboards
 

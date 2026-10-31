@@ -15605,7 +15605,7 @@
         }
       },
       "visual": {
-        "material": "obstacleBlock",
+        "material": "kerb",
         "scale": {
           "x": 0.4,
           "y": 0.1,
@@ -15633,7 +15633,7 @@
         }
       },
       "visual": {
-        "material": "obstacleBlock",
+        "material": "kerb",
         "scale": {
           "x": 0.4,
           "y": 0.1,
@@ -15661,7 +15661,7 @@
         }
       },
       "visual": {
-        "material": "obstacleBlock",
+        "material": "kerb",
         "scale": {
           "x": 0.4,
           "y": 0.1,
@@ -15941,7 +15941,7 @@
         }
       },
       "visual": {
-        "material": "obstacleBlock",
+        "material": "kerb",
         "scale": {
           "x": 14.4,
           "y": 0.1,
@@ -15969,7 +15969,7 @@
         }
       },
       "visual": {
-        "material": "obstacleBlock",
+        "material": "kerb",
         "scale": {
           "x": 4.65,
           "y": 0.1,
@@ -15997,7 +15997,7 @@
         }
       },
       "visual": {
-        "material": "obstacleBlock",
+        "material": "kerb",
         "scale": {
           "x": 4.65,
           "y": 0.1,
@@ -37315,7 +37315,7 @@
         }
       },
       "visual": {
-        "material": "obstacleBlock",
+        "material": "kerb",
         "scale": {
           "x": 0.15,
           "y": 0.15,
@@ -37369,7 +37369,7 @@
         }
       },
       "visual": {
-        "material": "obstacleBlock",
+        "material": "kerb",
         "scale": {
           "x": 0.15,
           "y": 0.15,
@@ -37423,7 +37423,7 @@
         }
       },
       "visual": {
-        "material": "obstacleBlock",
+        "material": "kerb",
         "scale": {
           "x": 0.15,
           "y": 0.15,
@@ -37477,7 +37477,7 @@
         }
       },
       "visual": {
-        "material": "obstacleBlock",
+        "material": "kerb",
         "scale": {
           "x": 0.15,
           "y": 0.15,
@@ -37531,7 +37531,7 @@
         }
       },
       "visual": {
-        "material": "obstacleBlock",
+        "material": "kerb",
         "scale": {
           "x": 0.15,
           "y": 0.15,
@@ -37585,7 +37585,7 @@
         }
       },
       "visual": {
-        "material": "obstacleBlock",
+        "material": "kerb",
         "scale": {
           "x": 0.15,
           "y": 0.15,
@@ -37639,7 +37639,7 @@
         }
       },
       "visual": {
-        "material": "obstacleBlock",
+        "material": "kerb",
         "scale": {
           "x": 0.15,
           "y": 0.15,
@@ -37693,7 +37693,7 @@
         }
       },
       "visual": {
-        "material": "obstacleBlock",
+        "material": "kerb",
         "scale": {
           "x": 0.15,
           "y": 0.15,
@@ -37747,7 +37747,7 @@
         }
       },
       "visual": {
-        "material": "obstacleBlock",
+        "material": "kerb",
         "scale": {
           "x": 0.15,
           "y": 0.15,
@@ -37801,7 +37801,7 @@
         }
       },
       "visual": {
-        "material": "obstacleBlock",
+        "material": "kerb",
         "scale": {
           "x": 0.15,
           "y": 0.15,
@@ -37855,7 +37855,7 @@
         }
       },
       "visual": {
-        "material": "obstacleBlock",
+        "material": "kerb",
         "scale": {
           "x": 0.15,
           "y": 0.15,
@@ -37909,7 +37909,7 @@
         }
       },
       "visual": {
-        "material": "obstacleBlock",
+        "material": "kerb",
         "scale": {
           "x": 0.15,
           "y": 0.15,
@@ -37963,7 +37963,7 @@
         }
       },
       "visual": {
-        "material": "obstacleBlock",
+        "material": "kerb",
         "scale": {
           "x": 0.15,
           "y": 0.15,
@@ -38017,7 +38017,7 @@
         }
       },
       "visual": {
-        "material": "obstacleBlock",
+        "material": "kerb",
         "scale": {
           "x": 0.15,
           "y": 0.15,
@@ -38071,7 +38071,7 @@
         }
       },
       "visual": {
-        "material": "obstacleBlock",
+        "material": "kerb",
         "scale": {
           "x": 0.15,
           "y": 0.15,
@@ -38125,7 +38125,7 @@
         }
       },
       "visual": {
-        "material": "obstacleBlock",
+        "material": "kerb",
         "scale": {
           "x": 0.15,
           "y": 0.15,
@@ -38179,7 +38179,7 @@
         }
       },
       "visual": {
-        "material": "obstacleBlock",
+        "material": "kerb",
         "scale": {
           "x": 0.15,
           "y": 0.15,
@@ -38233,7 +38233,7 @@
         }
       },
       "visual": {
-        "material": "obstacleBlock",
+        "material": "kerb",
         "scale": {
           "x": 0.15,
           "y": 0.15,
@@ -38287,7 +38287,7 @@
         }
       },
       "visual": {
-        "material": "obstacleBlock",
+        "material": "kerb",
         "scale": {
           "x": 0.15,
           "y": 0.15,
@@ -38341,7 +38341,7 @@
         }
       },
       "visual": {
-        "material": "obstacleBlock",
+        "material": "kerb",
         "scale": {
           "x": 0.15,
           "y": 0.15,
@@ -38395,7 +38395,7 @@
         }
       },
       "visual": {
-        "material": "obstacleBlock",
+        "material": "kerb",
         "scale": {
           "x": 0.15,
           "y": 0.15,
@@ -38449,7 +38449,7 @@
         }
       },
       "visual": {
-        "material": "obstacleBlock",
+        "material": "kerb",
         "scale": {
           "x": 0.15,
           "y": 0.15,
@@ -38503,7 +38503,7 @@
         }
       },
       "visual": {
-        "material": "obstacleBlock",
+        "material": "kerb",
         "scale": {
           "x": 0.15,
           "y": 0.15,
@@ -38557,7 +38557,7 @@
         }
       },
       "visual": {
-        "material": "obstacleBlock",
+        "material": "kerb",
         "scale": {
           "x": 0.15,
           "y": 0.15,
@@ -38611,7 +38611,7 @@
         }
       },
       "visual": {
-        "material": "obstacleBlock",
+        "material": "kerb",
         "scale": {
           "x": 0.15,
           "y": 0.15,
@@ -38665,7 +38665,7 @@
         }
       },
       "visual": {
-        "material": "obstacleBlock",
+        "material": "kerb",
         "scale": {
           "x": 0.15,
           "y": 0.15,
@@ -38719,7 +38719,7 @@
         }
       },
       "visual": {
-        "material": "obstacleBlock",
+        "material": "kerb",
         "scale": {
           "x": 0.15,
           "y": 0.15,
@@ -38773,7 +38773,7 @@
         }
       },
       "visual": {
-        "material": "obstacleBlock",
+        "material": "kerb",
         "scale": {
           "x": 0.15,
           "y": 0.15,
@@ -38827,7 +38827,7 @@
         }
       },
       "visual": {
-        "material": "obstacleBlock",
+        "material": "kerb",
         "scale": {
           "x": 0.15,
           "y": 0.15,
@@ -38881,7 +38881,7 @@
         }
       },
       "visual": {
-        "material": "obstacleBlock",
+        "material": "kerb",
         "scale": {
           "x": 0.15,
           "y": 0.15,
@@ -38935,7 +38935,7 @@
         }
       },
       "visual": {
-        "material": "obstacleBlock",
+        "material": "kerb",
         "scale": {
           "x": 0.15,
           "y": 0.15,
@@ -38989,7 +38989,7 @@
         }
       },
       "visual": {
-        "material": "obstacleBlock",
+        "material": "kerb",
         "scale": {
           "x": 0.15,
           "y": 0.15,
@@ -39043,7 +39043,7 @@
         }
       },
       "visual": {
-        "material": "obstacleBlock",
+        "material": "kerb",
         "scale": {
           "x": 0.15,
           "y": 0.15,
@@ -39097,7 +39097,7 @@
         }
       },
       "visual": {
-        "material": "obstacleBlock",
+        "material": "kerb",
         "scale": {
           "x": 0.15,
           "y": 0.15,
@@ -39151,7 +39151,7 @@
         }
       },
       "visual": {
-        "material": "obstacleBlock",
+        "material": "kerb",
         "scale": {
           "x": 0.15,
           "y": 0.15,
@@ -39205,7 +39205,7 @@
         }
       },
       "visual": {
-        "material": "obstacleBlock",
+        "material": "kerb",
         "scale": {
           "x": 0.15,
           "y": 0.15,
@@ -39259,7 +39259,7 @@
         }
       },
       "visual": {
-        "material": "obstacleBlock",
+        "material": "kerb",
         "scale": {
           "x": 0.15,
           "y": 0.15,
@@ -39313,7 +39313,7 @@
         }
       },
       "visual": {
-        "material": "obstacleBlock",
+        "material": "kerb",
         "scale": {
           "x": 0.15,
           "y": 0.15,
@@ -39367,7 +39367,7 @@
         }
       },
       "visual": {
-        "material": "obstacleBlock",
+        "material": "kerb",
         "scale": {
           "x": 0.15,
           "y": 0.15,
@@ -39421,7 +39421,7 @@
         }
       },
       "visual": {
-        "material": "obstacleBlock",
+        "material": "kerb",
         "scale": {
           "x": 0.15,
           "y": 0.15,
@@ -39475,7 +39475,7 @@
         }
       },
       "visual": {
-        "material": "obstacleBlock",
+        "material": "kerb",
         "scale": {
           "x": 0.15,
           "y": 0.15,
@@ -39529,7 +39529,7 @@
         }
       },
       "visual": {
-        "material": "obstacleBlock",
+        "material": "kerb",
         "scale": {
           "x": 0.15,
           "y": 0.15,
@@ -39583,7 +39583,7 @@
         }
       },
       "visual": {
-        "material": "obstacleBlock",
+        "material": "kerb",
         "scale": {
           "x": 0.15,
           "y": 0.15,
@@ -39637,7 +39637,7 @@
         }
       },
       "visual": {
-        "material": "obstacleBlock",
+        "material": "kerb",
         "scale": {
           "x": 0.15,
           "y": 0.15,
@@ -39691,7 +39691,7 @@
         }
       },
       "visual": {
-        "material": "obstacleBlock",
+        "material": "kerb",
         "scale": {
           "x": 0.15,
           "y": 0.15,
@@ -44737,7 +44737,7 @@
         }
       },
       "visual": {
-        "material": "obstacleBlock",
+        "material": "kerb",
         "scale": {
           "x": 7.55,
           "y": 0.15,
@@ -45564,7 +45564,7 @@
           "sweep": 90,
           "width": 0.15
         },
-        "material": "obstacleBlock",
+        "material": "kerb",
         "shape": "arc"
       }
     },
@@ -45602,7 +45602,7 @@
           "sweep": 43.173551,
           "width": 0.15
         },
-        "material": "obstacleBlock",
+        "material": "kerb",
         "shape": "arc"
       }
     },
@@ -45817,7 +45817,7 @@
         }
       },
       "visual": {
-        "material": "obstacleBlock",
+        "material": "kerb",
         "scale": {
           "x": 27,
           "y": 0.15,
@@ -45899,7 +45899,7 @@
         }
       },
       "visual": {
-        "material": "obstacleBlock",
+        "material": "kerb",
         "scale": {
           "x": 27,
           "y": 0.15,
@@ -46726,7 +46726,7 @@
           "sweep": 90,
           "width": 0.15
         },
-        "material": "obstacleBlock",
+        "material": "kerb",
         "shape": "arc"
       }
     },
@@ -46764,7 +46764,7 @@
           "sweep": 90,
           "width": 0.15
         },
-        "material": "obstacleBlock",
+        "material": "kerb",
         "shape": "arc"
       }
     },
@@ -47087,7 +47087,7 @@
         }
       },
       "visual": {
-        "material": "obstacleBlock",
+        "material": "kerb",
         "scale": {
           "x": 61,
           "y": 0.15,
@@ -47169,7 +47169,7 @@
         }
       },
       "visual": {
-        "material": "obstacleBlock",
+        "material": "kerb",
         "scale": {
           "x": 61,
           "y": 0.15,
@@ -47996,7 +47996,7 @@
           "sweep": 90,
           "width": 0.15
         },
-        "material": "obstacleBlock",
+        "material": "kerb",
         "shape": "arc"
       }
     },
@@ -48034,7 +48034,7 @@
           "sweep": 90,
           "width": 0.15
         },
-        "material": "obstacleBlock",
+        "material": "kerb",
         "shape": "arc"
       }
     },
@@ -48195,7 +48195,7 @@
         }
       },
       "visual": {
-        "material": "obstacleBlock",
+        "material": "kerb",
         "scale": {
           "x": 12.5,
           "y": 0.15,
@@ -48277,7 +48277,7 @@
         }
       },
       "visual": {
-        "material": "obstacleBlock",
+        "material": "kerb",
         "scale": {
           "x": 12.5,
           "y": 0.15,
@@ -49104,7 +49104,7 @@
           "sweep": 90,
           "width": 0.15
         },
-        "material": "obstacleBlock",
+        "material": "kerb",
         "shape": "arc"
       }
     },
@@ -49142,7 +49142,7 @@
           "sweep": 90,
           "width": 0.15
         },
-        "material": "obstacleBlock",
+        "material": "kerb",
         "shape": "arc"
       }
     },
@@ -49303,7 +49303,7 @@
         }
       },
       "visual": {
-        "material": "obstacleBlock",
+        "material": "kerb",
         "scale": {
           "x": 0.15,
           "y": 0.15,
@@ -49385,7 +49385,7 @@
         }
       },
       "visual": {
-        "material": "obstacleBlock",
+        "material": "kerb",
         "scale": {
           "x": 0.15,
           "y": 0.15,
@@ -49521,7 +49521,7 @@
         }
       },
       "visual": {
-        "material": "obstacleBlock",
+        "material": "kerb",
         "scale": {
           "x": 0.15,
           "y": 0.15,
@@ -49603,7 +49603,7 @@
         }
       },
       "visual": {
-        "material": "obstacleBlock",
+        "material": "kerb",
         "scale": {
           "x": 0.15,
           "y": 0.15,
@@ -49739,7 +49739,7 @@
         }
       },
       "visual": {
-        "material": "obstacleBlock",
+        "material": "kerb",
         "scale": {
           "x": 0.15,
           "y": 0.15,
@@ -49821,7 +49821,7 @@
         }
       },
       "visual": {
-        "material": "obstacleBlock",
+        "material": "kerb",
         "scale": {
           "x": 0.15,
           "y": 0.15,
@@ -49957,7 +49957,7 @@
         }
       },
       "visual": {
-        "material": "obstacleBlock",
+        "material": "kerb",
         "scale": {
           "x": 0.15,
           "y": 0.15,
@@ -50039,7 +50039,7 @@
         }
       },
       "visual": {
-        "material": "obstacleBlock",
+        "material": "kerb",
         "scale": {
           "x": 0.15,
           "y": 0.15,
@@ -50229,7 +50229,7 @@
         }
       },
       "visual": {
-        "material": "obstacleBlock",
+        "material": "kerb",
         "scale": {
           "x": 0.15,
           "y": 0.15,
@@ -50311,7 +50311,7 @@
         }
       },
       "visual": {
-        "material": "obstacleBlock",
+        "material": "kerb",
         "scale": {
           "x": 0.15,
           "y": 0.15,
@@ -50501,7 +50501,7 @@
         }
       },
       "visual": {
-        "material": "obstacleBlock",
+        "material": "kerb",
         "scale": {
           "x": 0.15,
           "y": 0.15,
@@ -50583,7 +50583,7 @@
         }
       },
       "visual": {
-        "material": "obstacleBlock",
+        "material": "kerb",
         "scale": {
           "x": 0.15,
           "y": 0.15,
@@ -50773,7 +50773,7 @@
         }
       },
       "visual": {
-        "material": "obstacleBlock",
+        "material": "kerb",
         "scale": {
           "x": 0.15,
           "y": 0.15,
@@ -50855,7 +50855,7 @@
         }
       },
       "visual": {
-        "material": "obstacleBlock",
+        "material": "kerb",
         "scale": {
           "x": 0.15,
           "y": 0.15,
@@ -51045,7 +51045,7 @@
         }
       },
       "visual": {
-        "material": "obstacleBlock",
+        "material": "kerb",
         "scale": {
           "x": 0.15,
           "y": 0.5,
@@ -51127,7 +51127,7 @@
         }
       },
       "visual": {
-        "material": "obstacleBlock",
+        "material": "kerb",
         "scale": {
           "x": 0.15,
           "y": 0.5,
@@ -51317,7 +51317,7 @@
         }
       },
       "visual": {
-        "material": "obstacleBlock",
+        "material": "kerb",
         "scale": {
           "x": 0.15,
           "y": 0.5,
@@ -51399,7 +51399,7 @@
         }
       },
       "visual": {
-        "material": "obstacleBlock",
+        "material": "kerb",
         "scale": {
           "x": 0.15,
           "y": 0.5,
@@ -51589,7 +51589,7 @@
         }
       },
       "visual": {
-        "material": "obstacleBlock",
+        "material": "kerb",
         "scale": {
           "x": 0.15,
           "y": 0.5,
@@ -51671,7 +51671,7 @@
         }
       },
       "visual": {
-        "material": "obstacleBlock",
+        "material": "kerb",
         "scale": {
           "x": 0.15,
           "y": 0.5,
@@ -51861,7 +51861,7 @@
         }
       },
       "visual": {
-        "material": "obstacleBlock",
+        "material": "kerb",
         "scale": {
           "x": 0.15,
           "y": 0.5,
@@ -51943,7 +51943,7 @@
         }
       },
       "visual": {
-        "material": "obstacleBlock",
+        "material": "kerb",
         "scale": {
           "x": 0.15,
           "y": 0.5,
@@ -52133,7 +52133,7 @@
         }
       },
       "visual": {
-        "material": "obstacleBlock",
+        "material": "kerb",
         "scale": {
           "x": 0.15,
           "y": 0.5,
@@ -52215,7 +52215,7 @@
         }
       },
       "visual": {
-        "material": "obstacleBlock",
+        "material": "kerb",
         "scale": {
           "x": 0.15,
           "y": 0.5,
@@ -52405,7 +52405,7 @@
         }
       },
       "visual": {
-        "material": "obstacleBlock",
+        "material": "kerb",
         "scale": {
           "x": 0.15,
           "y": 0.5,
@@ -52487,7 +52487,7 @@
         }
       },
       "visual": {
-        "material": "obstacleBlock",
+        "material": "kerb",
         "scale": {
           "x": 0.15,
           "y": 0.5,
@@ -52677,7 +52677,7 @@
         }
       },
       "visual": {
-        "material": "obstacleBlock",
+        "material": "kerb",
         "scale": {
           "x": 0.15,
           "y": 0.5,
@@ -52759,7 +52759,7 @@
         }
       },
       "visual": {
-        "material": "obstacleBlock",
+        "material": "kerb",
         "scale": {
           "x": 0.15,
           "y": 0.5,
@@ -52949,7 +52949,7 @@
         }
       },
       "visual": {
-        "material": "obstacleBlock",
+        "material": "kerb",
         "scale": {
           "x": 0.15,
           "y": 0.5,
@@ -53031,7 +53031,7 @@
         }
       },
       "visual": {
-        "material": "obstacleBlock",
+        "material": "kerb",
         "scale": {
           "x": 0.15,
           "y": 0.5,
@@ -53221,7 +53221,7 @@
         }
       },
       "visual": {
-        "material": "obstacleBlock",
+        "material": "kerb",
         "scale": {
           "x": 0.15,
           "y": 0.5,
@@ -53303,7 +53303,7 @@
         }
       },
       "visual": {
-        "material": "obstacleBlock",
+        "material": "kerb",
         "scale": {
           "x": 0.15,
           "y": 0.5,
@@ -53493,7 +53493,7 @@
         }
       },
       "visual": {
-        "material": "obstacleBlock",
+        "material": "kerb",
         "scale": {
           "x": 0.15,
           "y": 0.5,
@@ -53575,7 +53575,7 @@
         }
       },
       "visual": {
-        "material": "obstacleBlock",
+        "material": "kerb",
         "scale": {
           "x": 0.15,
           "y": 0.5,
@@ -53765,7 +53765,7 @@
         }
       },
       "visual": {
-        "material": "obstacleBlock",
+        "material": "kerb",
         "scale": {
           "x": 0.15,
           "y": 0.5,
@@ -53847,7 +53847,7 @@
         }
       },
       "visual": {
-        "material": "obstacleBlock",
+        "material": "kerb",
         "scale": {
           "x": 0.15,
           "y": 0.5,
@@ -54595,7 +54595,7 @@
         }
       },
       "visual": {
-        "material": "obstacleBlock",
+        "material": "kerb",
         "scale": {
           "x": 0.15,
           "y": 0.5,
@@ -57668,7 +57668,7 @@
         }
       },
       "visual": {
-        "material": "obstacleBlock",
+        "material": "kerb",
         "scale": {
           "x": 140,
           "y": 0.25,
@@ -60848,7 +60848,7 @@
         }
       },
       "visual": {
-        "material": "obstacleBlock",
+        "material": "kerb",
         "scale": {
           "x": 58.7,
           "y": 0.15,
@@ -60930,7 +60930,7 @@
         }
       },
       "visual": {
-        "material": "obstacleBlock",
+        "material": "kerb",
         "scale": {
           "x": 58.7,
           "y": 0.15,
@@ -61001,7 +61001,7 @@
           "sweep": 90,
           "width": 0.15
         },
-        "material": "obstacleBlock",
+        "material": "kerb",
         "shape": "arc"
       }
     },
@@ -61068,7 +61068,7 @@
           "sweep": 90,
           "width": 0.15
         },
-        "material": "obstacleBlock",
+        "material": "kerb",
         "shape": "arc"
       }
     },
@@ -61146,7 +61146,7 @@
         }
       },
       "visual": {
-        "material": "obstacleBlock",
+        "material": "kerb",
         "scale": {
           "x": 0.15,
           "y": 0.15,
@@ -61200,7 +61200,7 @@
         }
       },
       "visual": {
-        "material": "obstacleBlock",
+        "material": "kerb",
         "scale": {
           "x": 0.37499999999999434,
           "y": 0.15,
@@ -61254,7 +61254,7 @@
         }
       },
       "visual": {
-        "material": "obstacleBlock",
+        "material": "kerb",
         "scale": {
           "x": 0.15,
           "y": 0.15,
@@ -61308,7 +61308,7 @@
         }
       },
       "visual": {
-        "material": "obstacleBlock",
+        "material": "kerb",
         "scale": {
           "x": 0.37499999999999434,
           "y": 0.15,

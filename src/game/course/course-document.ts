@@ -902,17 +902,32 @@ function isUpright(rotation: { x: number; y: number; z: number }) {
 // Version eleven adds kits: equipment drawn around an object. A crowd
 // barrier is its kick plank, which collides for the whole panel; the
 // barrier's steel frame stands on the plank's base, as long as the plank.
+// It also adds the `kerb` finish: sidewalk-grade concrete, lighter than the
+// cast concrete of walls and tunnels.
+const visualMaterialV11Schema = z.enum([...visualMaterialV8Schema.options, "kerb"]);
+
 export const courseDocumentSchema = courseDocumentV10BaseSchema
   .extend({
     objects: courseDocumentV10BaseSchema.shape.objects.element
-      .extend({ kit: z.enum(COURSE_KITS).optional() })
+      .extend({
+        kit: z.enum(COURSE_KITS).optional(),
+        visual: z.discriminatedUnion("shape", [
+          visualSchema.extend({ material: visualMaterialV11Schema }),
+          arcVisualSchema.extend({ material: visualMaterialV11Schema }),
+        ]),
+      })
       .array()
       .min(1)
       .max(5_000),
     schemaVersion: z.literal(11),
   })
   .superRefine((document, context) => {
-    validateCourseObjectsV9(document, context, true);
+    // The earlier rules read no finish that version eleven adds.
+    validateCourseObjectsV9(
+      document as unknown as Parameters<typeof validateCourseObjectsV9>[0],
+      context,
+      true,
+    );
     document.objects.forEach((object, index) => {
       if (
         object.kit === "crowd-barrier" &&

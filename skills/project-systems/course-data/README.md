@@ -247,7 +247,9 @@ Version eleven adds `kit: "crowd-barrier"` (`COURSE_KITS`), equipment
 drawn about an upright box that is not a lamp, roof, bed, bicycle, hedge,
 or water. A crowd barrier's box is its kick plank, whose collider holds
 the whole panel; its steel frame (`course-kits.ts`) stands on the plank's
-base, as long as the plank. Version-ten documents upgrade unchanged.
+base, as long as the plank. It also adds the `kerb` finish, sidewalk
+concrete apart from walls' cast concrete. Version-ten documents upgrade
+unchanged.
 
 Coordinates and dimensions are finite and bounded to the accepted authoring
 envelope. Unknown fields and unsupported enum values fail rather than being
