@@ -7,6 +7,7 @@ import {
   createCourseTreeMaterials,
   type CourseTreeMaterials,
 } from "../course/course-trees";
+import { createRenderOnlyApplication } from "../render/render-only-application";
 import { applySceneLook, applyShadowPolicy } from "../render/scene-look";
 import {
   addCourseVisual,
@@ -72,7 +73,7 @@ type PointerState = {
 const POINTER_MOVE_THRESHOLD = 5;
 
 export class CourseEditorScene {
-  private readonly app: pc.Application;
+  private readonly app: pc.AppBase;
   private readonly camera: pc.Entity;
   private readonly releaseSceneLook: () => void;
   private readonly collisionMaterial = createMaterial(
@@ -140,9 +141,8 @@ export class CourseEditorScene {
     this.currentDocument = document;
     this.selections = selections;
     this.options = options;
-    this.app = new pc.Application(canvas, {
-      graphicsDeviceOptions: { alpha: false, antialias: true },
-    });
+    // Editors draw only; a kart test drive races in its own application.
+    this.app = createRenderOnlyApplication(canvas, { alpha: false, antialias: true });
     this.app.setCanvasResolution(pc.RESOLUTION_AUTO);
     this.app.setCanvasFillMode(pc.FILLMODE_NONE);
 

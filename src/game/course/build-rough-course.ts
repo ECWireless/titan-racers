@@ -130,7 +130,7 @@ export function projectCourseObject(object: CourseObject) {
 }
 
 export function buildRoughCourse(
-  app: pc.Application,
+  app: pc.AppBase,
   {
     createEntity = createCourseEntity,
     document = ROUGH_COURSE_DOCUMENT,
@@ -450,7 +450,7 @@ function addCourseArcCollision(
  * a course without a clearing.
  */
 export function addCourseClearing(
-  app: pc.Application,
+  app: pc.AppBase,
   document: CourseDocument,
   {
     lawn,

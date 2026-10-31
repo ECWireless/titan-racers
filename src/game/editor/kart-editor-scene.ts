@@ -8,6 +8,7 @@ import {
 import type { KartAssemblyDocument } from "../kart/kart-assembly-document";
 import type { KartPartFinish } from "../kart/kart-part-visual-geometry";
 import { createKartVisualMaterial } from "../kart/kart-visual-material";
+import { createRenderOnlyApplication } from "../render/render-only-application";
 import { applySceneLook, applyShadowPolicy } from "../render/scene-look";
 import { validateKartAssembly } from "../kart/kart-assembly-validation";
 import {
@@ -67,7 +68,7 @@ export function shouldTrackKartEditorPointerDown({
 }
 
 export class KartEditorScene {
-  private readonly app: pc.Application;
+  private readonly app: pc.AppBase;
   private readonly camera: pc.Entity;
   private readonly documentRoot: pc.Entity;
   private readonly editorCamera = new EditorOrbitCamera({
@@ -114,9 +115,8 @@ export class KartEditorScene {
     this.currentDocument = document;
     this.selection = selection;
     this.options = options;
-    this.app = new pc.Application(canvas, {
-      graphicsDeviceOptions: { alpha: false, antialias: true },
-    });
+    // Editors draw only; a kart test drive races in its own application.
+    this.app = createRenderOnlyApplication(canvas, { alpha: false, antialias: true });
     this.documentRoot = new pc.Entity("kart-editor-document");
     this.app.setCanvasResolution(pc.RESOLUTION_AUTO);
     this.app.setCanvasFillMode(pc.FILLMODE_NONE);

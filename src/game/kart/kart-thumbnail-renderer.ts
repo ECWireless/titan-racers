@@ -2,6 +2,7 @@
 
 import * as pc from "playcanvas";
 
+import { createRenderOnlyApplication } from "../render/render-only-application";
 import { applySceneLook, applyShadowPolicy } from "../render/scene-look";
 import type { KartAssemblyDocument } from "./kart-assembly-document";
 import {
@@ -83,12 +84,10 @@ async function renderKartThumbnailImmediately(document: KartAssemblyDocument) {
   const canvas = window.document.createElement("canvas");
   canvas.height = KART_THUMBNAIL_HEIGHT;
   canvas.width = KART_THUMBNAIL_WIDTH;
-  const app = new pc.Application(canvas, {
-    graphicsDeviceOptions: {
-      alpha: false,
-      antialias: true,
-      preserveDrawingBuffer: true,
-    },
+  const app = createRenderOnlyApplication(canvas, {
+    alpha: false,
+    antialias: true,
+    preserveDrawingBuffer: true,
   });
   const materials = new Map<KartPartFinish, pc.StandardMaterial>();
   const { root } = createKartAssemblyVisual(
