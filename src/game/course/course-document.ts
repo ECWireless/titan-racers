@@ -8,9 +8,9 @@ import {
 } from "../enclosure/island-three";
 import { getApprovedSurfaceMaterial } from "../kart/kart-material-registry";
 import { COURSE_ARC_MAXIMUM_WIDTH_RATIO } from "./course-arc";
-import fallsViewParkDocumentJson from "./falls-view-park.v10.json";
+import fallsViewParkDocumentJson from "./falls-view-park.v11.json";
 import type { OfficialCourseId } from "./course-ids";
-import roughCourseDocumentJson from "./rough-course.v10.json";
+import roughCourseDocumentJson from "./rough-course.v11.json";
 
 export const courseIdSchema = z
   .string()
@@ -206,6 +206,9 @@ export const COURSE_INDOOR_LAMP_KINDS = ["tunnel", "work"] as const;
 /** The bicycles a course can park. */
 export const COURSE_BICYCLES = ["hardtail", "bmx"] as const;
 export type CourseBicycle = (typeof COURSE_BICYCLES)[number];
+/** Equipment drawn around an object (course-kits.ts). */
+export const COURSE_KITS = ["crowd-barrier"] as const;
+export type CourseKit = (typeof COURSE_KITS)[number];
 export function countCourseLamps(
   document: { objects: { lamp?: string }[] },
   kind: CourseLampKind,
@@ -881,11 +884,56 @@ const courseDocumentV9Schema = courseDocumentV9BaseSchema.superRefine(
   validateCourseObjectsV9,
 );
 
-export const courseDocumentSchema = courseDocumentV9BaseSchema
-  .extend({ enclosure: enclosureV10Schema, schemaVersion: z.literal(10) })
-  .superRefine((document, context) =>
-    validateCourseObjectsV9(document, context, true),
-  );
+const courseDocumentV10BaseSchema = courseDocumentV9BaseSchema.extend({
+  enclosure: enclosureV10Schema,
+  schemaVersion: z.literal(10),
+});
+
+const courseDocumentV10Schema = courseDocumentV10BaseSchema.superRefine(
+  (document, context) => validateCourseObjectsV9(document, context, true),
+);
+
+// Whether a rotation keeps local up straight up, however its Euler angles
+// read: the editor reads a yaw past ±90° back as (180, 180 − y, 180).
+function isUpright(rotation: { x: number; y: number; z: number }) {
+  return rotateByEulerAngles(rotation, { x: 0, y: 1, z: 0 }).y > 1 - 1e-9;
+}
+
+// Version eleven adds kits: equipment drawn around an object. A crowd
+// barrier is its kick plank, which collides for the whole panel; the
+// barrier's steel frame stands on the plank's base, as long as the plank.
+export const courseDocumentSchema = courseDocumentV10BaseSchema
+  .extend({
+    objects: courseDocumentV10BaseSchema.shape.objects.element
+      .extend({ kit: z.enum(COURSE_KITS).optional() })
+      .array()
+      .min(1)
+      .max(5_000),
+    schemaVersion: z.literal(11),
+  })
+  .superRefine((document, context) => {
+    validateCourseObjectsV9(document, context, true);
+    document.objects.forEach((object, index) => {
+      if (
+        object.kit === "crowd-barrier" &&
+        (object.visual.shape !== "box" ||
+          object.visual.material === "water" ||
+          object.visual.material === "hedge" ||
+          !isUpright(object.transform.rotation) ||
+          object.overhead ||
+          object.lamp ||
+          object.planting ||
+          object.bicycle)
+      ) {
+        context.addIssue({
+          code: "custom",
+          message:
+            "A crowd barrier is an upright box that is not a lamp, roof, bed, bicycle, hedge, or water",
+          path: ["objects", index, "kit"],
+        });
+      }
+    });
+  });
 
 export type CourseDocumentV1 = z.infer<typeof courseDocumentV1Schema>;
 type CourseDocumentV3 = z.infer<typeof courseDocumentV3Schema>;
@@ -1255,6 +1303,11 @@ export function parseCourseDocument(input: unknown): CourseDocument {
 
   if (hasSchemaVersion(input, 9)) {
     return parseCourseDocument({ ...courseDocumentV9Schema.parse(input), schemaVersion: 10 });
+  }
+
+  // Versions ten and eleven upgrade unchanged.
+  if (hasSchemaVersion(input, 10)) {
+    return parseCourseDocument({ ...courseDocumentV10Schema.parse(input), schemaVersion: 11 });
   }
 
   const document = courseDocumentSchema.parse(input);

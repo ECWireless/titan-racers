@@ -26,6 +26,11 @@ import {
 import { createOfficialKartRosterDocuments } from "../src/game/kart/official-kart-roster";
 import { deriveKartSnapshot } from "../src/game/kart/kart-derivation";
 import {
+  createCourseKitGeometry,
+  getCrowdBarrierFrameBoxes,
+} from "../src/game/course/course-kits";
+import { COURSE_EDITOR_OBJECT_LIMIT } from "../src/game/editor/course-editor-document";
+import {
   getCourseWaterVolumes,
   isUnderCourseWater,
 } from "../src/game/course/course-water";
@@ -34,10 +39,17 @@ function cloneSeed() {
   return structuredClone(ROUGH_COURSE_DOCUMENT);
 }
 
+// Falls View Park as a version-ten course could hold it: no kits.
+function versionTenFallsViewPark() {
+  const document = structuredClone(FALLS_VIEW_PARK_DOCUMENT);
+  for (const object of document.objects) delete object.kit;
+  return document;
+}
+
 // Falls View Park as a version-nine course could hold it: not in its
 // clearing, and its berm over the tunnel never supporting a kart.
 function versionNineFallsViewPark() {
-  const document = structuredClone(FALLS_VIEW_PARK_DOCUMENT);
+  const document = versionTenFallsViewPark();
   delete document.enclosure.clearing;
   for (const object of document.objects) {
     if (object.overhead && object.collision?.role === "drivable-surface") {
@@ -160,7 +172,7 @@ function findObject(id: string) {
 }
 
 test("parses the versioned rough course with stable IDs and ordered checkpoints", () => {
-  expect(ROUGH_COURSE_DOCUMENT.schemaVersion).toBe(10);
+  expect(ROUGH_COURSE_DOCUMENT.schemaVersion).toBe(11);
   expect(ROUGH_COURSE_DOCUMENT.units).toBe("meters");
   expect(ROUGH_COURSE_DOCUMENT.start.id).toBe("start-position");
   expect(ROUGH_COURSE_DOCUMENT.checkpoints).toHaveLength(3);
@@ -726,7 +738,7 @@ function toObjectFrame(
 }
 
 test("serializes the seeds deterministically and round trips without changes", () => {
-  for (const seed of ["rough-course.v10.json", "falls-view-park.v10.json"]) {
+  for (const seed of ["rough-course.v11.json", "falls-view-park.v11.json"]) {
     const source = readFileSync(
       join(process.cwd(), "src/game/course", seed),
       "utf8",
@@ -738,7 +750,7 @@ test("serializes the seeds deterministically and round trips without changes", (
   }
   expect(serializeCourseDocument(ROUGH_COURSE_DOCUMENT)).toBe(
     readFileSync(
-      join(process.cwd(), "src/game/course/rough-course.v10.json"),
+      join(process.cwd(), "src/game/course/rough-course.v11.json"),
       "utf8",
     ),
   );
@@ -771,7 +783,7 @@ test("normalizes version-one course data without mutating the stored input", () 
   expect(withoutDerived(normalized)).toEqual(
     withoutDerived(ROUGH_COURSE_DOCUMENT),
   );
-  expect(normalized.schemaVersion).toBe(10);
+  expect(normalized.schemaVersion).toBe(11);
 });
 
 test("normalizes a valid one-checkpoint version-one course", () => {
@@ -966,7 +978,7 @@ test("normalizes v2 to standard surfaces without inferring physics from visuals"
   const input = createVersionTwoSeed();
   const stored = structuredClone(input);
   const normalized = parseCourseDocument(input);
-  expect(normalized.schemaVersion).toBe(10);
+  expect(normalized.schemaVersion).toBe(11);
   // Legacy karts keep spawning on the start gate.
   expect(normalized.start.spawnDistance).toBe(0);
   for (const object of normalized.objects) {
@@ -1333,7 +1345,7 @@ test("upgrades v9 unchanged and places a course in its clearing in v10", () => {
   expect(() =>
     parseCourseDocument({
       ...versionNineFallsViewPark(),
-      objects: FALLS_VIEW_PARK_DOCUMENT.objects,
+      objects: versionTenFallsViewPark().objects,
       schemaVersion: 9,
     }),
   ).toThrow("Overhead objects collide only as solid obstacles");
@@ -1342,6 +1354,70 @@ test("upgrades v9 unchanged and places a course in its clearing in v10", () => {
       document.objects[berm]!.indoors = true;
     }),
   ).toContainEqual(expect.objectContaining({ path: ["objects", berm, "collision", "role"] }));
+});
+
+test("upgrades v10 unchanged and draws each crowd barrier as one kit in v11", () => {
+  const legacy = versionTenFallsViewPark();
+  expect(parseCourseDocument({ ...legacy, schemaVersion: 10 })).toEqual(legacy);
+  expect(() =>
+    parseCourseDocument({ ...FALLS_VIEW_PARK_DOCUMENT, schemaVersion: 10 }),
+  ).toThrow();
+
+  // Each of the downhill's 53 panels is its kick plank, which collides for
+  // the whole panel, with its frame drawn about it.
+  const barriers = FALLS_VIEW_PARK_DOCUMENT.objects.filter((o) => o.kit === "crowd-barrier");
+  expect(barriers).toHaveLength(53);
+  expect(FALLS_VIEW_PARK_DOCUMENT.objects.length).toBeLessThanOrEqual(COURSE_EDITOR_OBJECT_LIMIT);
+  for (const barrier of barriers) {
+    expect(barrier.collision).toMatchObject({ role: "solid-obstacle", shape: "box" });
+  }
+  // The frame stands on its plank's base.
+  const frame = getCrowdBarrierFrameBoxes({ x: 2.2, y: 0.15, z: 0.025 });
+  expect(Math.min(...frame.map(({ center, size }) => center.y - size.y / 2))).toBeCloseTo(
+    -0.075,
+    9,
+  );
+
+  // A kit's geometry faces outward: each face's winding agrees with its normal.
+  const geometry = createCourseKitGeometry(frame);
+  expect(geometry.positions).toHaveLength(frame.length * 24 * 3);
+  for (let index = 0; index < geometry.indices.length; index += 3) {
+    const [a, b, c] = [0, 1, 2].map((corner) => {
+      const vertex = geometry.indices[index + corner]! * 3;
+      return geometry.positions.slice(vertex, vertex + 3);
+    });
+    const ab = [0, 1, 2].map((axis) => b![axis]! - a![axis]!);
+    const ac = [0, 1, 2].map((axis) => c![axis]! - a![axis]!);
+    const cross = [
+      ab[1]! * ac[2]! - ab[2]! * ac[1]!,
+      ab[2]! * ac[0]! - ab[0]! * ac[2]!,
+      ab[0]! * ac[1]! - ab[1]! * ac[0]!,
+    ];
+    const normal = geometry.normals.slice(
+      geometry.indices[index]! * 3,
+      geometry.indices[index]! * 3 + 3,
+    );
+    expect(cross.reduce((sum, value, axis) => sum + value * normal[axis]!, 0)).toBeGreaterThan(0);
+  }
+
+  const issues = (change: (object: CourseDocument["objects"][number]) => void) => {
+    const document = structuredClone(FALLS_VIEW_PARK_DOCUMENT);
+    const index = document.objects.findIndex((o) => o.kit === "crowd-barrier");
+    change(document.objects[index]!);
+    return (courseDocumentSchema.safeParse(document).error?.issues ?? []).map(
+      (issue) => issue.path.join("."),
+    );
+  };
+  const index = FALLS_VIEW_PARK_DOCUMENT.objects.findIndex((o) => o.kit === "crowd-barrier");
+  expect(issues(() => {})).toEqual([]);
+  expect(issues((object) => (object.transform.rotation.x = 5))).toContain(
+    `objects.${index}.kit`,
+  );
+  // A yaw past ±90° may read as (180, 180 − y, 180), still upright.
+  expect(
+    issues((object) => (object.transform.rotation = { x: 180, y: 60, z: 180 })),
+  ).toEqual([]);
+  expect(issues((object) => (object.overhead = true))).toContain(`objects.${index}.kit`);
 });
 
 test("opens a storm drain through the north wall that every official kart fits", () => {

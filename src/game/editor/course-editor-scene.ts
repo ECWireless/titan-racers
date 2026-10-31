@@ -924,11 +924,17 @@ export class CourseEditorScene {
         ? selectedObject.collision.axis
         : null;
     const cylinder = cylinderAxis !== null;
+    // A kit scales only along its length.
+    const kit = Boolean(selectedObject?.kit);
 
     this.scaleGizmo.uniform = cylinder;
     (["x", "y", "z"] as const).forEach((axis, index) =>
-      this.scaleGizmo.enableShape(axis, !cylinder || index === cylinderAxis),
+      this.scaleGizmo.enableShape(
+        axis,
+        kit ? axis === "x" : !cylinder || index === cylinderAxis,
+      ),
     );
+    this.scaleGizmo.enableShape("xyz", !kit);
     const radialPlane =
       cylinderAxis === 0 ? "yz" : cylinderAxis === 1 ? "xz" : "xy";
     (["xy", "xz", "yz"] as const).forEach((plane) =>

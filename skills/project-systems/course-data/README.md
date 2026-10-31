@@ -26,7 +26,7 @@ own editor commands or persistence UI.
 ## Source Ownership
 
 - `src/game/course/course-document.ts` defines strict Zod legacy schemas and the
-  canonical version-ten schema, deterministic legacy normalization,
+  canonical version-eleven schema, deterministic legacy normalization,
   cross-document ID and checkpoint-order refinements, gate-face direction
   alignment, canonical sorting, serialization, inferred TypeScript types, and
   validated seed export.
@@ -34,14 +34,14 @@ own editor commands or persistence UI.
   courses with bundled seeds, and the guest solo course (`falls-view-park`)
   explicit; `course-publication.ts`
   validates protected publication and privacy-minimized public runtime shapes.
-- `src/game/course/rough-course.v10.json` is the canonical portable rough-course
+- `src/game/course/rough-course.v11.json` is the canonical portable rough-course
   sandbox seed. It contains the start/finish gate, three ordered checkpoints
   whose gates reach from the infield into the grass, with directed gate and
   recovery data, an infield barrier, ordinary surfaces and objects, camera
   fixtures, and opt-in collision fixtures.
   It permanently restores only course ID `rough-course`; the official
   Falls View Park document uses the distinct ID `falls-view-park`, seeded by
-  `falls-view-park.v10.json`: a walled two-lap circuit of about 550 m, with
+  `falls-view-park.v11.json`: a walled two-lap circuit of about 550 m, with
   4.5 m lanes for four karts abreast, from a utility tunnel through nursery
   rows and a culvert, up onto a levee crest facing the falls, down the
   levee's anti-spinward access ramp or the youth's jump beside it, and
@@ -71,7 +71,8 @@ own editor commands or persistence UI.
   street lamps along its anti-sunward run. It stands
   0.9 m above the habitat floor (`enclosure.placement.height`), so the
   floor, which curves up around the axis across its 164 m north–south span,
-  stays below the chase camera at every wall. Its perimeter walls reach 1 m
+  stays below the chase camera at every wall. The downhill's 53 crowd
+  barriers are kits, each its kick plank. Its perimeter walls reach 1 m
   below the park's ground, to the floor of its clearing outside them, which
   follows the floor's curve: from 0.9 m below the park's ground beside its
   west and east walls to 0.4 m above it at the south wall, rising about
@@ -96,6 +97,10 @@ own editor commands or persistence UI.
   PlayCanvas visual, collision, rigid-body, tag, group, and mask state. It
   returns stable-ID entity maps plus two explicit sandbox obstacle lookups used
   by reset-clearance checks and the non-production scene test adapter.
+- `src/game/course/course-kits.ts` builds the boxes a kit draws about its
+  object (a crowd barrier's steel frame about its plank) and merges them
+  into one mesh's streams; the builder draws it under the object's entity
+  in its steel finish, so the editor and race show it alike.
 - `src/game/course/course-arc.ts` generates an arc's smooth surface and its
   collision boxes from its dimensions, at 3 mm visual and 5 mm collision
   tolerance; the builder turns them into a render mesh and static box bodies.
@@ -147,10 +152,10 @@ own editor commands or persistence UI.
 
 ## Document Contract
 
-Canonical version ten is strict JSON using metres, Y-up positions, and Euler
+Canonical version eleven is strict JSON using metres, Y-up positions, and Euler
 degrees. It contains:
 
-- literal schema version `10`;
+- literal schema version `11`;
 - a stable course ID and name;
 - one stable start ID, transform (the start/finish gate), bounded start-gate
   half-extents, and a spawn distance (0–10 m) placing the kart behind the gate
@@ -238,6 +243,12 @@ Park's footprint is its perimeter walls' outer faces. Version ten also lets
 outdoor overhead objects, earthworks over a roof, support karts; an indoor
 roof still never does. Version-nine documents upgrade unchanged.
 
+Version eleven adds `kit: "crowd-barrier"` (`COURSE_KITS`), equipment
+drawn about an upright box that is not a lamp, roof, bed, bicycle, hedge,
+or water. A crowd barrier's box is its kick plank, whose collider holds
+the whole panel; its steel frame (`course-kits.ts`) stands on the plank's
+base, as long as the plank. Version-ten documents upgrade unchanged.
+
 Coordinates and dimensions are finite and bounded to the accepted authoring
 envelope. Unknown fields and unsupported enum values fail rather than being
 silently stripped. The complete document validates before scene construction.
@@ -245,14 +256,14 @@ silently stripped. The complete document validates before scene construction.
 ## Legacy Normalization
 
 Stored revisions are immutable, so `parseCourseDocument` keeps strict
-version-one to version-nine schemas and normalizes them in memory to version
-ten; canonical serialization and every new save use version ten. Version
+version-one to version-ten schemas and normalizes them in memory to version
+eleven; canonical serialization and every new save use version eleven. Version
 four allows mirror angles only up to 85° and no lamps, version five no
 indoor, overhead, or arc objects and no tunnel lamps, and version six no
 planting or hedges and at most eight floodlights, and version seven no
 water, gravel, concrete, work lamps, or bicycles and at most sixteen indoor
-lamps, and version eight no street lamps, and version nine no clearing; all
-upgrade unchanged.
+lamps, and version eight no street lamps, and version nine no clearing, and
+version ten no kits; all upgrade unchanged.
 Version two adds
 `start.gateHalfExtents`, `checkpoints[].forward`, and
 `checkpoints[].recovery`.
@@ -272,7 +283,7 @@ Version two adds
 - Degenerate coincident anchors or directions that cannot identify a face are
   rejected rather than invented.
 - A loaded version-one row is normalized in memory, and its next save creates a
-  new version-ten revision. Persistence responses report the normalized schema
+  new version-eleven revision. Persistence responses report the normalized schema
   version consistently.
 
 Every legacy collider normalizes to `surface.standard-course@1`, including

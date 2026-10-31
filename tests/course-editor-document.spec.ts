@@ -580,3 +580,31 @@ test("places full-size street columns up to their independent budget", () => {
   expect(coursePresetLimitReached(document, "lamp")).toBeNull();
   expect(coursePresetLimitReached(document, "tunnel-lamp")).toBeNull();
 });
+
+test("moves and turns a crowd barrier, and scales it only along its length", () => {
+  const document = FALLS_VIEW_PARK_DOCUMENT;
+  const barrier = document.objects.find((o) => o.kit === "crowd-barrier")!;
+  const selection = { id: barrier.id, kind: "object" } as const;
+  // The editor reads a yaw past ±90° back as (180, 180 − y, 180).
+  const turned = updateSelectionGeometry(document, selection, {
+    position: { x: -60, y: 0.075, z: 4 },
+    rotation: { x: 180, y: 30, z: 180 },
+  });
+  expect(turned.objects.find((o) => o.id === barrier.id)!.transform).toEqual({
+    position: { x: -60, y: 0.075, z: 4 },
+    rotation: { x: 180, y: 30, z: 180 },
+  });
+
+  const scaled = scaleSelectionAxis(
+    scaleSelectionAxis(document, selection, "y", 2),
+    selection,
+    "x",
+    0.5,
+  );
+  const object = scaled.objects.find((o) => o.id === barrier.id)!;
+  expect(object.visual).toMatchObject({ scale: { x: 1.1, y: 0.15, z: 0.025 } });
+  expect(object.collision).toMatchObject({
+    halfExtents: { x: 0.575, y: 0.55, z: 0.075 },
+    offset: { position: { y: 0.475 } },
+  });
+});

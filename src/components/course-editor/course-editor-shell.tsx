@@ -457,6 +457,8 @@ export function CourseEditorShell({
   // bicycle keeps its real size.
   const curveSelected = selectedObject?.visual.shape === "arc";
   const bicycleSelected = Boolean(selectedObject?.bicycle);
+  // A kit, such as a crowd barrier, scales only along its length.
+  const kitSelected = Boolean(selectedObject?.kit);
   const scaleUnavailable =
     selection.kind === "start" || curveSelected || bicycleSelected;
   // Scale falls back to Move while it is unavailable rather than stranding
@@ -1328,6 +1330,7 @@ export function CourseEditorShell({
                 : null
             }
             scalable={!bicycleSelected}
+            lengthOnly={kitSelected}
             scaleShape={selectedObject?.visual.shape ?? "box"}
             selection={selection}
             selectionCount={selections.length}
@@ -1390,6 +1393,7 @@ export function CourseEditorShell({
                     : null
                 }
                 scalable={!bicycleSelected}
+                lengthOnly={kitSelected}
                 scaleShape={selectedObject?.visual.shape ?? "box"}
                 selection={selection}
                 selectionCount={selections.length}
@@ -2383,6 +2387,7 @@ function Inspector({
   canDelete,
   geometry,
   groupPosition,
+  lengthOnly,
   objectName,
   onArc,
   onDelete,
@@ -2402,6 +2407,7 @@ function Inspector({
   canDelete: boolean;
   geometry: ReturnType<typeof getSelectionGeometry>;
   groupPosition: { x: number; y: number; z: number } | null;
+  lengthOnly: boolean;
   objectName: string | null;
   onDelete: () => void;
   onNudge: (
@@ -2536,7 +2542,7 @@ function Inspector({
           <legend className="mb-1 font-bold uppercase tracking-[0.12em] text-titan-muted">
             Scale by axis
           </legend>
-          {(["x", "y", "z"] as const).map((axis) => (
+          {(lengthOnly ? (["x"] as const) : (["x", "y", "z"] as const)).map((axis) => (
             <div
               className="grid grid-cols-[2.5rem_1fr_2.75rem_2.75rem] items-center gap-2"
               key={axis}
@@ -2567,9 +2573,11 @@ function Inspector({
             </div>
           ))}
           <p className="text-[0.62rem] leading-relaxed text-titan-muted">
-            {scaleShape === "cylinder"
-              ? "Cylinder X/Z stay paired as one collision radius; Y changes height."
-              : "Each axis updates its matching visual and collision dimension."}
+            {lengthOnly
+              ? "A crowd barrier scales only along its length."
+              : scaleShape === "cylinder"
+                ? "Cylinder X/Z stay paired as one collision radius; Y changes height."
+                : "Each axis updates its matching visual and collision dimension."}
           </p>
         </fieldset>
         </CollapsibleSection>

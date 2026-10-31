@@ -22,6 +22,11 @@ import {
   getCourseClearingGround,
   getCourseFenceMeshCoverage,
 } from "./course-clearing";
+import {
+  type CourseKitBox,
+  createCourseKitGeometry,
+  getCourseKit,
+} from "./course-kits";
 import { CourseSurfaceResolver } from "./course-surface-resolver";
 import {
   createCourseWaterSurfaceGeometry,
@@ -179,6 +184,17 @@ export function buildRoughCourse(
           throw error;
         }
 
+        const kit = getCourseKit(object);
+        if (kit) {
+          const frame = addCourseKit(
+            app.graphicsDevice,
+            entity,
+            kit.scale,
+            kit.boxes,
+            finishes.steel,
+          );
+          if (indoors) keepCourseVisualIndoors(frame);
+        }
         if (indoors) keepCourseVisualIndoors(entity);
         // A bicycle is drawn with the trees, in place of its box, which
         // only the editor keeps, unseen, to select.
@@ -332,6 +348,35 @@ export function addCourseVisual(
   entity.model?.meshInstances?.forEach((meshInstance) => {
     meshInstance.material = material;
   });
+}
+
+/**
+ * Draws a kit's boxes as one mesh under its object's entity, undoing the
+ * object's scale; the mesh instance frees the mesh on destroy.
+ */
+function addCourseKit(
+  device: pc.GraphicsDevice,
+  entity: pc.Entity,
+  scale: { x: number; y: number; z: number },
+  boxes: CourseKitBox[],
+  material: pc.StandardMaterial,
+) {
+  const geometry = createCourseKitGeometry(boxes);
+  const mesh = new pc.Mesh(device);
+  mesh.setPositions(geometry.positions);
+  mesh.setNormals(geometry.normals);
+  // The box primitive's streams, so the kit joins its finish's batch.
+  mesh.setUvs(0, geometry.uvs);
+  mesh.setUvs(1, geometry.uvs);
+  mesh.setIndices(geometry.indices);
+  mesh.update();
+  const frame = new pc.Entity(`${entity.name}-kit`);
+  frame.setLocalScale(1 / scale.x, 1 / scale.y, 1 / scale.z);
+  frame.addComponent("render", {
+    meshInstances: [new pc.MeshInstance(mesh, material)],
+  });
+  entity.addChild(frame);
+  return frame;
 }
 
 /**

@@ -34,7 +34,7 @@ export const COURSE_OBJECT_PRESETS = [
   "hedge",
   "water",
 ] as const;
-export const COURSE_EDITOR_OBJECT_LIMIT = 1_000;
+export const COURSE_EDITOR_OBJECT_LIMIT = 2_000;
 export const COURSE_EDITOR_CHECKPOINT_LIMIT = COURSE_CHECKPOINT_LIMIT;
 
 export type CourseObjectPreset = (typeof COURSE_OBJECT_PRESETS)[number];
@@ -752,7 +752,11 @@ export function updateSelectionGeometry(
             Math.max(0.05, roundEditorValue(value)),
           )
         : object.visual.scale;
-      const nextScale = normalizeCylinderScale(object, requestedScale);
+      // A kit is drawn to its object's length on a fixed section, so it
+      // scales only along its length.
+      const nextScale = object.kit
+        ? { ...object.visual.scale, x: requestedScale.x }
+        : normalizeCylinderScale(object, requestedScale);
       const scaleRatio = mapVectorByAxis(nextScale, (axis, value) =>
         Math.max(0.01, value / object.visual.scale[axis]),
       );
