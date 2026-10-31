@@ -30924,7 +30924,7 @@
       "collision": {
         "friction": 0.7,
         "halfExtents": {
-          "x": 0.61,
+          "x": 1.22,
           "y": 0.05,
           "z": 1.220047
         },
@@ -30965,7 +30965,7 @@
       "visual": {
         "material": "timber",
         "scale": {
-          "x": 1.22,
+          "x": 2.44,
           "y": 0.018,
           "z": 2.440093
         },
@@ -30975,12 +30975,38 @@
     {
       "availability": "standard",
       "category": "feature",
-      "collision": null,
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 0.009,
+          "y": 0.17,
+          "z": 1.220047
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "solid-obstacle",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.standard-course",
+          "version": 1
+        }
+      },
       "editable": true,
       "id": "downhill-kicker-side-l",
       "transform": {
         "position": {
-          "x": -58.211,
+          "x": -58.821,
           "y": 2.379097,
           "z": 10.168513
         },
@@ -31003,12 +31029,38 @@
     {
       "availability": "standard",
       "category": "feature",
-      "collision": null,
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 0.009,
+          "y": 0.17,
+          "z": 1.220047
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "solid-obstacle",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.standard-course",
+          "version": 1
+        }
+      },
       "editable": true,
       "id": "downhill-kicker-side-r",
       "transform": {
         "position": {
-          "x": -57.009,
+          "x": -56.399,
           "y": 2.379097,
           "z": 10.168513
         },
@@ -31036,7 +31088,7 @@
       "id": "downhill-kicker-edge-tape",
       "transform": {
         "position": {
-          "x": -57.03,
+          "x": -56.42,
           "y": 2.550091,
           "z": 10.170009
         },
@@ -31077,7 +31129,7 @@
       "visual": {
         "material": "hazard",
         "scale": {
-          "x": 1.22,
+          "x": 2.44,
           "y": 0.002,
           "z": 0.06
         },
@@ -31092,7 +31144,7 @@
       "id": "downhill-kicker-bearer-lip",
       "transform": {
         "position": {
-          "x": -57.61,
+          "x": -57.305,
           "y": 2.404725,
           "z": 9.0232
         },
@@ -31105,7 +31157,7 @@
       "visual": {
         "material": "timber",
         "scale": {
-          "x": 1.12,
+          "x": 1.73,
           "y": 0.272793,
           "z": 0.045
         },
@@ -31120,7 +31172,7 @@
       "id": "downhill-kicker-bearer-mid",
       "transform": {
         "position": {
-          "x": -57.61,
+          "x": -57.626,
           "y": 2.465774,
           "z": 10.17
         },
@@ -31133,7 +31185,7 @@
       "visual": {
         "material": "timber",
         "scale": {
-          "x": 1.12,
+          "x": 2.372,
           "y": 0.130632,
           "z": 0.045
         },
@@ -31143,17 +31195,235 @@
     {
       "availability": "standard",
       "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "downhill-kicker-bearer-lip-west",
+      "transform": {
+        "position": {
+          "x": -58.491,
+          "y": 2.424259,
+          "z": 9.0232
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "timber",
+        "scale": {
+          "x": 0.642,
+          "y": 0.233726,
+          "z": 0.045
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "downhill-kicker-bearer-tail-west",
+      "transform": {
+        "position": {
+          "x": -58.536,
+          "y": 2.461295,
+          "z": 11.289968
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "timber",
+        "scale": {
+          "x": 0.552,
+          "y": 0.12,
+          "z": 0.045
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "obstacle",
       "collision": {
         "friction": 0.7,
         "halfExtents": {
-          "x": 1.22,
-          "y": 0.05,
-          "z": 0.526128
+          "x": 0.045,
+          "y": 1.200229,
+          "z": 0.045
         },
         "offset": {
           "position": {
             "x": 0,
-            "y": -0.041,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "solid-obstacle",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.standard-course",
+          "version": 1
+        }
+      },
+      "editable": true,
+      "id": "downhill-kicker-post-mid",
+      "transform": {
+        "position": {
+          "x": -58.767,
+          "y": 1.200229,
+          "z": 10.17
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "timber",
+        "scale": {
+          "x": 0.09,
+          "y": 2.400458,
+          "z": 0.09
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "obstacle",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 0.045,
+          "y": 1.200647,
+          "z": 0.045
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "solid-obstacle",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.standard-course",
+          "version": 1
+        }
+      },
+      "editable": true,
+      "id": "downhill-kicker-post-tail",
+      "transform": {
+        "position": {
+          "x": -58.767,
+          "y": 1.200647,
+          "z": 11.289968
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "timber",
+        "scale": {
+          "x": 0.09,
+          "y": 2.401295,
+          "z": 0.09
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "obstacle",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 0.0225,
+          "y": 0.045,
+          "z": 1.21712
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "solid-obstacle",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.standard-course",
+          "version": 1
+        }
+      },
+      "editable": true,
+      "id": "downhill-kicker-brace",
+      "transform": {
+        "position": {
+          "x": -58.6995,
+          "y": 1.200647,
+          "z": 10.729984
+        },
+        "rotation": {
+          "x": -62.60713,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "timber",
+        "scale": {
+          "x": 0.045,
+          "y": 0.09,
+          "z": 2.434239
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 1.524999,
+          "y": 0.05,
+          "z": 0.174539
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": -0.0499,
             "z": 0
           },
           "rotation": {
@@ -31171,25 +31441,53 @@
         }
       },
       "editable": true,
-      "id": "downhill-deck-1",
+      "id": "downhill-deck-1-1",
       "transform": {
         "position": {
-          "x": -57.610204,
-          "y": 2.32912,
-          "z": 9.432109
+          "x": -57.914922,
+          "y": 2.378485,
+          "z": 9.780578
         },
         "rotation": {
-          "x": -5.47458,
-          "y": -0.1237,
-          "z": -1.290455
+          "x": -5.445751,
+          "y": -0.124524,
+          "z": -1.307436
         }
       },
       "visual": {
         "material": "timber",
         "scale": {
-          "x": 2.44,
+          "x": 3.049999,
+          "y": 0.0002,
+          "z": 0.349077
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "downhill-deck-1-1-slab",
+      "transform": {
+        "position": {
+          "x": -57.915356,
+          "y": 2.359675,
+          "z": 9.782372
+        },
+        "rotation": {
+          "x": -5.445751,
+          "y": -0.124524,
+          "z": -1.307436
+        }
+      },
+      "visual": {
+        "material": "timber",
+        "scale": {
+          "x": 3.049999,
           "y": 0.018,
-          "z": 1.052257
+          "z": 0.349077
         },
         "shape": "box"
       }
@@ -31200,14 +31498,14 @@
       "collision": {
         "friction": 0.7,
         "halfExtents": {
-          "x": 1.22,
+          "x": 1.524998,
           "y": 0.05,
-          "z": 0.525819
+          "z": 0.174539
         },
         "offset": {
           "position": {
             "x": 0,
-            "y": -0.041,
+            "y": -0.0499,
             "z": 0
           },
           "rotation": {
@@ -31225,25 +31523,53 @@
         }
       },
       "editable": true,
-      "id": "downhill-deck-2",
+      "id": "downhill-deck-1-2",
       "transform": {
         "position": {
-          "x": -57.610236,
-          "y": 2.233004,
-          "z": 8.394551
+          "x": -57.914918,
+          "y": 2.345348,
+          "z": 9.433078
         },
         "rotation": {
-          "x": -5.107406,
-          "y": -0.133582,
-          "z": -1.494232
+          "x": -5.445676,
+          "y": -0.126171,
+          "z": -1.341399
         }
       },
       "visual": {
         "material": "timber",
         "scale": {
-          "x": 2.44,
+          "x": 3.049997,
+          "y": 0.0002,
+          "z": 0.349077
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "downhill-deck-1-2-slab",
+      "transform": {
+        "position": {
+          "x": -57.915363,
+          "y": 2.326538,
+          "z": 9.434871
+        },
+        "rotation": {
+          "x": -5.445676,
+          "y": -0.126171,
+          "z": -1.341399
+        }
+      },
+      "visual": {
+        "material": "timber",
+        "scale": {
+          "x": 3.049997,
           "y": 0.018,
-          "z": 1.051639
+          "z": 0.349077
         },
         "shape": "box"
       }
@@ -31254,14 +31580,14 @@
       "collision": {
         "friction": 0.7,
         "halfExtents": {
-          "x": 1.22,
+          "x": 1.524998,
           "y": 0.05,
-          "z": 0.525565
+          "z": 0.174539
         },
         "offset": {
           "position": {
             "x": 0,
-            "y": -0.041,
+            "y": -0.0499,
             "z": 0
           },
           "rotation": {
@@ -31279,25 +31605,53 @@
         }
       },
       "editable": true,
-      "id": "downhill-deck-3",
+      "id": "downhill-deck-1-3",
       "transform": {
         "position": {
-          "x": -57.610281,
-          "y": 2.14319,
-          "z": 7.357001
+          "x": -57.914914,
+          "y": 2.31221,
+          "z": 9.085577
         },
         "rotation": {
-          "x": -4.783406,
-          "y": -0.149457,
-          "z": -1.785455
+          "x": -5.445599,
+          "y": -0.127818,
+          "z": -1.375362
         }
       },
       "visual": {
         "material": "timber",
         "scale": {
-          "x": 2.44,
+          "x": 3.049996,
+          "y": 0.0002,
+          "z": 0.349077
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "downhill-deck-1-3-slab",
+      "transform": {
+        "position": {
+          "x": -57.91537,
+          "y": 2.293401,
+          "z": 9.08737
+        },
+        "rotation": {
+          "x": -5.445599,
+          "y": -0.127818,
+          "z": -1.375362
+        }
+      },
+      "visual": {
+        "material": "timber",
+        "scale": {
+          "x": 3.049996,
           "y": 0.018,
-          "z": 1.05113
+          "z": 0.349077
         },
         "shape": "box"
       }
@@ -31308,14 +31662,14 @@
       "collision": {
         "friction": 0.7,
         "halfExtents": {
-          "x": 1.22,
+          "x": 1.524996,
           "y": 0.05,
-          "z": 0.52553
+          "z": 0.173598
         },
         "offset": {
           "position": {
             "x": 0,
-            "y": -0.041,
+            "y": -0.0499,
             "z": 0
           },
           "rotation": {
@@ -31333,25 +31687,53 @@
         }
       },
       "editable": true,
-      "id": "downhill-deck-4",
+      "id": "downhill-deck-2-1",
       "transform": {
         "position": {
-          "x": -57.610346,
-          "y": 2.056747,
-          "z": 6.319493
+          "x": -57.914906,
+          "y": 2.280401,
+          "z": 8.738897
         },
         "rotation": {
-          "x": -4.736571,
-          "y": -0.182159,
-          "z": -2.197383
+          "x": -5.03492,
+          "y": -0.130788,
+          "z": -1.433593
         }
       },
       "visual": {
         "material": "timber",
         "scale": {
-          "x": 2.44,
+          "x": 3.049991,
+          "y": 0.0002,
+          "z": 0.347197
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "downhill-deck-2-1-slab",
+      "transform": {
+        "position": {
+          "x": -57.915381,
+          "y": 2.26158,
+          "z": 8.740556
+        },
+        "rotation": {
+          "x": -5.03492,
+          "y": -0.130788,
+          "z": -1.433593
+        }
+      },
+      "visual": {
+        "material": "timber",
+        "scale": {
+          "x": 3.049991,
           "y": 0.018,
-          "z": 1.051061
+          "z": 0.347197
         },
         "shape": "box"
       }
@@ -31362,14 +31744,14 @@
       "collision": {
         "friction": 0.7,
         "halfExtents": {
-          "x": 1.22,
+          "x": 1.524993,
           "y": 0.05,
-          "z": 1.026415
+          "z": 0.173598
         },
         "offset": {
           "position": {
             "x": 0,
-            "y": -0.041,
+            "y": -0.0499,
             "z": 0
           },
           "rotation": {
@@ -31387,25 +31769,53 @@
         }
       },
       "editable": true,
-      "id": "downhill-deck-5",
+      "id": "downhill-deck-2-2",
       "transform": {
         "position": {
-          "x": -57.610259,
-          "y": 1.915365,
-          "z": 4.7842
+          "x": -57.914895,
+          "y": 2.24992,
+          "z": 8.393041
         },
         "rotation": {
-          "x": -5.524644,
-          "y": -0.159089,
-          "z": -1.64433
+          "x": -5.03473,
+          "y": -0.135081,
+          "z": -1.516093
         }
       },
       "visual": {
         "material": "timber",
         "scale": {
-          "x": 2.44,
+          "x": 3.049987,
+          "y": 0.0002,
+          "z": 0.347197
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "downhill-deck-2-2-slab",
+      "transform": {
+        "position": {
+          "x": -57.915397,
+          "y": 2.2311,
+          "z": 8.3947
+        },
+        "rotation": {
+          "x": -5.03473,
+          "y": -0.135081,
+          "z": -1.516093
+        }
+      },
+      "visual": {
+        "material": "timber",
+        "scale": {
+          "x": 3.049987,
           "y": 0.018,
-          "z": 2.05283
+          "z": 0.347197
         },
         "shape": "box"
       }
@@ -31416,14 +31826,14 @@
       "collision": {
         "friction": 0.7,
         "halfExtents": {
-          "x": 1.22,
+          "x": 1.524994,
           "y": 0.05,
-          "z": 1.029245
+          "z": 0.173598
         },
         "offset": {
           "position": {
             "x": 0,
-            "y": -0.041,
+            "y": -0.0499,
             "z": 0
           },
           "rotation": {
@@ -31441,25 +31851,53 @@
         }
       },
       "editable": true,
-      "id": "downhill-deck-6",
+      "id": "downhill-deck-2-3",
       "transform": {
         "position": {
-          "x": -57.610173,
-          "y": 1.692649,
-          "z": 2.751093
+          "x": -57.914883,
+          "y": 2.21944,
+          "z": 8.047185
         },
         "rotation": {
-          "x": -6.972713,
-          "y": -0.133366,
-          "z": -1.09034
+          "x": -5.03453,
+          "y": -0.139374,
+          "z": -1.598593
         }
       },
       "visual": {
         "material": "timber",
         "scale": {
-          "x": 2.44,
+          "x": 3.049989,
+          "y": 0.0002,
+          "z": 0.347197
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "downhill-deck-2-3-slab",
+      "transform": {
+        "position": {
+          "x": -57.915412,
+          "y": 2.20062,
+          "z": 8.048843
+        },
+        "rotation": {
+          "x": -5.03453,
+          "y": -0.139374,
+          "z": -1.598593
+        }
+      },
+      "visual": {
+        "material": "timber",
+        "scale": {
+          "x": 3.049989,
           "y": 0.018,
-          "z": 2.058489
+          "z": 0.347197
         },
         "shape": "box"
       }
@@ -31470,14 +31908,14 @@
       "collision": {
         "friction": 0.7,
         "halfExtents": {
-          "x": 1.22,
+          "x": 1.524991,
           "y": 0.05,
-          "z": 1.0318
+          "z": 0.173517
         },
         "offset": {
           "position": {
             "x": 0,
-            "y": -0.041,
+            "y": -0.0499,
             "z": 0
           },
           "rotation": {
@@ -31495,25 +31933,53 @@
         }
       },
       "editable": true,
-      "id": "downhill-deck-7",
+      "id": "downhill-deck-3-1",
       "transform": {
         "position": {
-          "x": -57.610086,
-          "y": 1.424405,
-          "z": 0.717928
+          "x": -57.914867,
+          "y": 2.190036,
+          "z": 7.701318
         },
         "rotation": {
-          "x": -8.055942,
-          "y": -0.076787,
-          "z": -0.542509
+          "x": -4.679716,
+          "y": -0.145569,
+          "z": -1.698439
         }
       },
       "visual": {
         "material": "timber",
         "scale": {
-          "x": 2.44,
+          "x": 3.049983,
+          "y": 0.0002,
+          "z": 0.347035
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "downhill-deck-3-1-slab",
+      "transform": {
+        "position": {
+          "x": -57.915429,
+          "y": 2.171207,
+          "z": 7.70286
+        },
+        "rotation": {
+          "x": -4.679716,
+          "y": -0.145569,
+          "z": -1.698439
+        }
+      },
+      "visual": {
+        "material": "timber",
+        "scale": {
+          "x": 3.049983,
           "y": 0.018,
-          "z": 2.063601
+          "z": 0.347035
         },
         "shape": "box"
       }
@@ -31524,7 +31990,2139 @@
       "collision": {
         "friction": 0.7,
         "halfExtents": {
-          "x": 1.22,
+          "x": 1.524987,
+          "y": 0.05,
+          "z": 0.173517
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": -0.0499,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "drivable-surface",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.standard-course",
+          "version": 1
+        }
+      },
+      "editable": true,
+      "id": "downhill-deck-3-2",
+      "transform": {
+        "position": {
+          "x": -57.914847,
+          "y": 2.16171,
+          "z": 7.355441
+        },
+        "rotation": {
+          "x": -4.679415,
+          "y": -0.153665,
+          "z": -1.815631
+        }
+      },
+      "visual": {
+        "material": "timber",
+        "scale": {
+          "x": 3.049974,
+          "y": 0.0002,
+          "z": 0.347035
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "downhill-deck-3-2-slab",
+      "transform": {
+        "position": {
+          "x": -57.915448,
+          "y": 2.142883,
+          "z": 7.356983
+        },
+        "rotation": {
+          "x": -4.679415,
+          "y": -0.153665,
+          "z": -1.815631
+        }
+      },
+      "visual": {
+        "material": "timber",
+        "scale": {
+          "x": 3.049974,
+          "y": 0.018,
+          "z": 0.347035
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 1.524989,
+          "y": 0.05,
+          "z": 0.173517
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": -0.0499,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "drivable-surface",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.standard-course",
+          "version": 1
+        }
+      },
+      "editable": true,
+      "id": "downhill-deck-3-3",
+      "transform": {
+        "position": {
+          "x": -57.914828,
+          "y": 2.133384,
+          "z": 7.009564
+        },
+        "rotation": {
+          "x": -4.679094,
+          "y": -0.161761,
+          "z": -1.932823
+        }
+      },
+      "visual": {
+        "material": "timber",
+        "scale": {
+          "x": 3.049977,
+          "y": 0.0002,
+          "z": 0.347035
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "downhill-deck-3-3-slab",
+      "transform": {
+        "position": {
+          "x": -57.915467,
+          "y": 2.114558,
+          "z": 7.011106
+        },
+        "rotation": {
+          "x": -4.679094,
+          "y": -0.161761,
+          "z": -1.932823
+        }
+      },
+      "visual": {
+        "material": "timber",
+        "scale": {
+          "x": 3.049977,
+          "y": 0.018,
+          "z": 0.347035
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 1.524991,
+          "y": 0.05,
+          "z": 0.17352
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": -0.0499,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "drivable-surface",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.standard-course",
+          "version": 1
+        }
+      },
+      "editable": true,
+      "id": "downhill-deck-4-1",
+      "transform": {
+        "position": {
+          "x": -57.91482,
+          "y": 2.104826,
+          "z": 6.663704
+        },
+        "rotation": {
+          "x": -4.755705,
+          "y": -0.166612,
+          "z": -1.979658
+        }
+      },
+      "visual": {
+        "material": "timber",
+        "scale": {
+          "x": 3.049982,
+          "y": 0.0002,
+          "z": 0.347039
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "downhill-deck-4-1-slab",
+      "transform": {
+        "position": {
+          "x": -57.915475,
+          "y": 2.086003,
+          "z": 6.665271
+        },
+        "rotation": {
+          "x": -4.755705,
+          "y": -0.166612,
+          "z": -1.979658
+        }
+      },
+      "visual": {
+        "material": "timber",
+        "scale": {
+          "x": 3.049982,
+          "y": 0.018,
+          "z": 0.347039
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 1.524989,
+          "y": 0.05,
+          "z": 0.17352
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": -0.0499,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "drivable-surface",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.standard-course",
+          "version": 1
+        }
+      },
+      "editable": true,
+      "id": "downhill-deck-4-2",
+      "transform": {
+        "position": {
+          "x": -57.914824,
+          "y": 2.076037,
+          "z": 6.317861
+        },
+        "rotation": {
+          "x": -4.755772,
+          "y": -0.168218,
+          "z": -1.956138
+        }
+      },
+      "visual": {
+        "material": "timber",
+        "scale": {
+          "x": 3.049977,
+          "y": 0.0002,
+          "z": 0.347039
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "downhill-deck-4-2-slab",
+      "transform": {
+        "position": {
+          "x": -57.915471,
+          "y": 2.057213,
+          "z": 6.319428
+        },
+        "rotation": {
+          "x": -4.755772,
+          "y": -0.168218,
+          "z": -1.956138
+        }
+      },
+      "visual": {
+        "material": "timber",
+        "scale": {
+          "x": 3.049977,
+          "y": 0.018,
+          "z": 0.347039
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 1.524987,
+          "y": 0.05,
+          "z": 0.17352
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": -0.0499,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "drivable-surface",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.standard-course",
+          "version": 1
+        }
+      },
+      "editable": true,
+      "id": "downhill-deck-4-3",
+      "transform": {
+        "position": {
+          "x": -57.914828,
+          "y": 2.047248,
+          "z": 5.972018
+        },
+        "rotation": {
+          "x": -4.755838,
+          "y": -0.169823,
+          "z": -1.932617
+        }
+      },
+      "visual": {
+        "material": "timber",
+        "scale": {
+          "x": 3.049973,
+          "y": 0.0002,
+          "z": 0.347039
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "downhill-deck-4-3-slab",
+      "transform": {
+        "position": {
+          "x": -57.915468,
+          "y": 2.028424,
+          "z": 5.973585
+        },
+        "rotation": {
+          "x": -4.755838,
+          "y": -0.169823,
+          "z": -1.932617
+        }
+      },
+      "visual": {
+        "material": "timber",
+        "scale": {
+          "x": 3.049973,
+          "y": 0.018,
+          "z": 0.347039
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 1.524981,
+          "y": 0.05,
+          "z": 0.145928
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": -0.0499,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "drivable-surface",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.standard-course",
+          "version": 1
+        }
+      },
+      "editable": true,
+      "id": "downhill-deck-5-1",
+      "transform": {
+        "position": {
+          "x": -57.914836,
+          "y": 2.018591,
+          "z": 5.653869
+        },
+        "rotation": {
+          "x": -5.605734,
+          "y": -0.168884,
+          "z": -1.88132
+        }
+      },
+      "visual": {
+        "material": "timber",
+        "scale": {
+          "x": 3.049962,
+          "y": 0.0002,
+          "z": 0.291855
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "downhill-deck-5-1-slab",
+      "transform": {
+        "position": {
+          "x": -57.915459,
+          "y": 1.999792,
+          "z": 5.655715
+        },
+        "rotation": {
+          "x": -5.605734,
+          "y": -0.168884,
+          "z": -1.88132
+        }
+      },
+      "visual": {
+        "material": "timber",
+        "scale": {
+          "x": 3.049962,
+          "y": 0.018,
+          "z": 0.291855
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 1.524974,
+          "y": 0.05,
+          "z": 0.145928
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": -0.0499,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "drivable-surface",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.standard-course",
+          "version": 1
+        }
+      },
+      "editable": true,
+      "id": "downhill-deck-5-2",
+      "transform": {
+        "position": {
+          "x": -57.914848,
+          "y": 1.990067,
+          "z": 5.363411
+        },
+        "rotation": {
+          "x": -5.60598,
+          "y": -0.165399,
+          "z": -1.802245
+        }
+      },
+      "visual": {
+        "material": "timber",
+        "scale": {
+          "x": 3.049948,
+          "y": 0.0002,
+          "z": 0.291855
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "downhill-deck-5-2-slab",
+      "transform": {
+        "position": {
+          "x": -57.915445,
+          "y": 1.971267,
+          "z": 5.365257
+        },
+        "rotation": {
+          "x": -5.60598,
+          "y": -0.165399,
+          "z": -1.802245
+        }
+      },
+      "visual": {
+        "material": "timber",
+        "scale": {
+          "x": 3.049948,
+          "y": 0.018,
+          "z": 0.291855
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 1.524969,
+          "y": 0.05,
+          "z": 0.145928
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": -0.0499,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "drivable-surface",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.standard-course",
+          "version": 1
+        }
+      },
+      "editable": true,
+      "id": "downhill-deck-5-3",
+      "transform": {
+        "position": {
+          "x": -57.91486,
+          "y": 1.961543,
+          "z": 5.072953
+        },
+        "rotation": {
+          "x": -5.606215,
+          "y": -0.161915,
+          "z": -1.723171
+        }
+      },
+      "visual": {
+        "material": "timber",
+        "scale": {
+          "x": 3.049939,
+          "y": 0.0002,
+          "z": 0.291855
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "downhill-deck-5-3-slab",
+      "transform": {
+        "position": {
+          "x": -57.915431,
+          "y": 1.942742,
+          "z": 5.074799
+        },
+        "rotation": {
+          "x": -5.606215,
+          "y": -0.161915,
+          "z": -1.723171
+        }
+      },
+      "visual": {
+        "material": "timber",
+        "scale": {
+          "x": 3.049939,
+          "y": 0.018,
+          "z": 0.291855
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 1.524968,
+          "y": 0.05,
+          "z": 0.145928
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": -0.0499,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "drivable-surface",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.standard-course",
+          "version": 1
+        }
+      },
+      "editable": true,
+      "id": "downhill-deck-5-4",
+      "transform": {
+        "position": {
+          "x": -57.914872,
+          "y": 1.933019,
+          "z": 4.782495
+        },
+        "rotation": {
+          "x": -5.60644,
+          "y": -0.158429,
+          "z": -1.644095
+        }
+      },
+      "visual": {
+        "material": "timber",
+        "scale": {
+          "x": 3.049936,
+          "y": 0.0002,
+          "z": 0.291855
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "downhill-deck-5-4-slab",
+      "transform": {
+        "position": {
+          "x": -57.915417,
+          "y": 1.914217,
+          "z": 4.784341
+        },
+        "rotation": {
+          "x": -5.60644,
+          "y": -0.158429,
+          "z": -1.644095
+        }
+      },
+      "visual": {
+        "material": "timber",
+        "scale": {
+          "x": 3.049936,
+          "y": 0.018,
+          "z": 0.291855
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 1.524969,
+          "y": 0.05,
+          "z": 0.145928
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": -0.0499,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "drivable-surface",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.standard-course",
+          "version": 1
+        }
+      },
+      "editable": true,
+      "id": "downhill-deck-5-5",
+      "transform": {
+        "position": {
+          "x": -57.914884,
+          "y": 1.904495,
+          "z": 4.492037
+        },
+        "rotation": {
+          "x": -5.606654,
+          "y": -0.154944,
+          "z": -1.56502
+        }
+      },
+      "visual": {
+        "material": "timber",
+        "scale": {
+          "x": 3.049939,
+          "y": 0.0002,
+          "z": 0.291855
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "downhill-deck-5-5-slab",
+      "transform": {
+        "position": {
+          "x": -57.915403,
+          "y": 1.885692,
+          "z": 4.493883
+        },
+        "rotation": {
+          "x": -5.606654,
+          "y": -0.154944,
+          "z": -1.56502
+        }
+      },
+      "visual": {
+        "material": "timber",
+        "scale": {
+          "x": 3.049939,
+          "y": 0.018,
+          "z": 0.291855
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 1.524974,
+          "y": 0.05,
+          "z": 0.145928
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": -0.0499,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "drivable-surface",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.standard-course",
+          "version": 1
+        }
+      },
+      "editable": true,
+      "id": "downhill-deck-5-6",
+      "transform": {
+        "position": {
+          "x": -57.914896,
+          "y": 1.875971,
+          "z": 4.201579
+        },
+        "rotation": {
+          "x": -5.606858,
+          "y": -0.151458,
+          "z": -1.485946
+        }
+      },
+      "visual": {
+        "material": "timber",
+        "scale": {
+          "x": 3.049947,
+          "y": 0.0002,
+          "z": 0.291855
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "downhill-deck-5-6-slab",
+      "transform": {
+        "position": {
+          "x": -57.915389,
+          "y": 1.857168,
+          "z": 4.203425
+        },
+        "rotation": {
+          "x": -5.606858,
+          "y": -0.151458,
+          "z": -1.485946
+        }
+      },
+      "visual": {
+        "material": "timber",
+        "scale": {
+          "x": 3.049947,
+          "y": 0.018,
+          "z": 0.291855
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 1.524981,
+          "y": 0.05,
+          "z": 0.145928
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": -0.0499,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "drivable-surface",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.standard-course",
+          "version": 1
+        }
+      },
+      "editable": true,
+      "id": "downhill-deck-5-7",
+      "transform": {
+        "position": {
+          "x": -57.914909,
+          "y": 1.847447,
+          "z": 3.911121
+        },
+        "rotation": {
+          "x": -5.607051,
+          "y": -0.147972,
+          "z": -1.406872
+        }
+      },
+      "visual": {
+        "material": "timber",
+        "scale": {
+          "x": 3.049962,
+          "y": 0.0002,
+          "z": 0.291855
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "downhill-deck-5-7-slab",
+      "transform": {
+        "position": {
+          "x": -57.915375,
+          "y": 1.828643,
+          "z": 3.912967
+        },
+        "rotation": {
+          "x": -5.607051,
+          "y": -0.147972,
+          "z": -1.406872
+        }
+      },
+      "visual": {
+        "material": "timber",
+        "scale": {
+          "x": 3.049962,
+          "y": 0.018,
+          "z": 0.291855
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 1.524981,
+          "y": 0.05,
+          "z": 0.146331
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": -0.0499,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "drivable-surface",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.standard-course",
+          "version": 1
+        }
+      },
+      "editable": true,
+      "id": "downhill-deck-6-1",
+      "transform": {
+        "position": {
+          "x": -57.914919,
+          "y": 1.815208,
+          "z": 3.620672
+        },
+        "rotation": {
+          "x": -7.054709,
+          "y": -0.14329,
+          "z": -1.327985
+        }
+      },
+      "visual": {
+        "material": "timber",
+        "scale": {
+          "x": 3.049962,
+          "y": 0.0002,
+          "z": 0.292662
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "downhill-deck-6-1-slab",
+      "transform": {
+        "position": {
+          "x": -57.915359,
+          "y": 1.796456,
+          "z": 3.622993
+        },
+        "rotation": {
+          "x": -7.054709,
+          "y": -0.14329,
+          "z": -1.327985
+        }
+      },
+      "visual": {
+        "material": "timber",
+        "scale": {
+          "x": 3.049962,
+          "y": 0.018,
+          "z": 0.292662
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 1.524974,
+          "y": 0.05,
+          "z": 0.146331
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": -0.0499,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "drivable-surface",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.standard-course",
+          "version": 1
+        }
+      },
+      "editable": true,
+      "id": "downhill-deck-6-2",
+      "transform": {
+        "position": {
+          "x": -57.914926,
+          "y": 1.779255,
+          "z": 3.330227
+        },
+        "rotation": {
+          "x": -7.054926,
+          "y": -0.137412,
+          "z": -1.249283
+        }
+      },
+      "visual": {
+        "material": "timber",
+        "scale": {
+          "x": 3.049948,
+          "y": 0.0002,
+          "z": 0.292662
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "downhill-deck-6-2-slab",
+      "transform": {
+        "position": {
+          "x": -57.915341,
+          "y": 1.760502,
+          "z": 3.332548
+        },
+        "rotation": {
+          "x": -7.054926,
+          "y": -0.137412,
+          "z": -1.249283
+        }
+      },
+      "visual": {
+        "material": "timber",
+        "scale": {
+          "x": 3.049948,
+          "y": 0.018,
+          "z": 0.292662
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 1.52497,
+          "y": 0.05,
+          "z": 0.146331
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": -0.0499,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "drivable-surface",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.standard-course",
+          "version": 1
+        }
+      },
+      "editable": true,
+      "id": "downhill-deck-6-3",
+      "transform": {
+        "position": {
+          "x": -57.914934,
+          "y": 1.743301,
+          "z": 3.039782
+        },
+        "rotation": {
+          "x": -7.055129,
+          "y": -0.131534,
+          "z": -1.170581
+        }
+      },
+      "visual": {
+        "material": "timber",
+        "scale": {
+          "x": 3.049939,
+          "y": 0.0002,
+          "z": 0.292662
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "downhill-deck-6-3-slab",
+      "transform": {
+        "position": {
+          "x": -57.915323,
+          "y": 1.724549,
+          "z": 3.042103
+        },
+        "rotation": {
+          "x": -7.055129,
+          "y": -0.131534,
+          "z": -1.170581
+        }
+      },
+      "visual": {
+        "material": "timber",
+        "scale": {
+          "x": 3.049939,
+          "y": 0.018,
+          "z": 0.292662
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 1.524968,
+          "y": 0.05,
+          "z": 0.146331
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": -0.0499,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "drivable-surface",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.standard-course",
+          "version": 1
+        }
+      },
+      "editable": true,
+      "id": "downhill-deck-6-4",
+      "transform": {
+        "position": {
+          "x": -57.914942,
+          "y": 1.707348,
+          "z": 2.749337
+        },
+        "rotation": {
+          "x": -7.05532,
+          "y": -0.125655,
+          "z": -1.091879
+        }
+      },
+      "visual": {
+        "material": "timber",
+        "scale": {
+          "x": 3.049936,
+          "y": 0.0002,
+          "z": 0.292662
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "downhill-deck-6-4-slab",
+      "transform": {
+        "position": {
+          "x": -57.915305,
+          "y": 1.688595,
+          "z": 2.751659
+        },
+        "rotation": {
+          "x": -7.05532,
+          "y": -0.125655,
+          "z": -1.091879
+        }
+      },
+      "visual": {
+        "material": "timber",
+        "scale": {
+          "x": 3.049936,
+          "y": 0.018,
+          "z": 0.292662
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 1.52497,
+          "y": 0.05,
+          "z": 0.146331
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": -0.0499,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "drivable-surface",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.standard-course",
+          "version": 1
+        }
+      },
+      "editable": true,
+      "id": "downhill-deck-6-5",
+      "transform": {
+        "position": {
+          "x": -57.91495,
+          "y": 1.671395,
+          "z": 2.458892
+        },
+        "rotation": {
+          "x": -7.055496,
+          "y": -0.119776,
+          "z": -1.013177
+        }
+      },
+      "visual": {
+        "material": "timber",
+        "scale": {
+          "x": 3.049939,
+          "y": 0.0002,
+          "z": 0.292662
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "downhill-deck-6-5-slab",
+      "transform": {
+        "position": {
+          "x": -57.915287,
+          "y": 1.652641,
+          "z": 2.461214
+        },
+        "rotation": {
+          "x": -7.055496,
+          "y": -0.119776,
+          "z": -1.013177
+        }
+      },
+      "visual": {
+        "material": "timber",
+        "scale": {
+          "x": 3.049939,
+          "y": 0.018,
+          "z": 0.292662
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 1.524974,
+          "y": 0.05,
+          "z": 0.146331
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": -0.0499,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "drivable-surface",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.standard-course",
+          "version": 1
+        }
+      },
+      "editable": true,
+      "id": "downhill-deck-6-6",
+      "transform": {
+        "position": {
+          "x": -57.914958,
+          "y": 1.635442,
+          "z": 2.168448
+        },
+        "rotation": {
+          "x": -7.05566,
+          "y": -0.113897,
+          "z": -0.934476
+        }
+      },
+      "visual": {
+        "material": "timber",
+        "scale": {
+          "x": 3.049948,
+          "y": 0.0002,
+          "z": 0.292662
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "downhill-deck-6-6-slab",
+      "transform": {
+        "position": {
+          "x": -57.915269,
+          "y": 1.616687,
+          "z": 2.170769
+        },
+        "rotation": {
+          "x": -7.05566,
+          "y": -0.113897,
+          "z": -0.934476
+        }
+      },
+      "visual": {
+        "material": "timber",
+        "scale": {
+          "x": 3.049948,
+          "y": 0.018,
+          "z": 0.292662
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 1.524981,
+          "y": 0.05,
+          "z": 0.146331
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": -0.0499,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "drivable-surface",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.standard-course",
+          "version": 1
+        }
+      },
+      "editable": true,
+      "id": "downhill-deck-6-7",
+      "transform": {
+        "position": {
+          "x": -57.914966,
+          "y": 1.599488,
+          "z": 1.878003
+        },
+        "rotation": {
+          "x": -7.05581,
+          "y": -0.108017,
+          "z": -0.855774
+        }
+      },
+      "visual": {
+        "material": "timber",
+        "scale": {
+          "x": 3.049962,
+          "y": 0.0002,
+          "z": 0.292662
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "downhill-deck-6-7-slab",
+      "transform": {
+        "position": {
+          "x": -57.915251,
+          "y": 1.580734,
+          "z": 1.880324
+        },
+        "rotation": {
+          "x": -7.05581,
+          "y": -0.108017,
+          "z": -0.855774
+        }
+      },
+      "visual": {
+        "material": "timber",
+        "scale": {
+          "x": 3.049962,
+          "y": 0.018,
+          "z": 0.292662
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 1.524976,
+          "y": 0.05,
+          "z": 0.146333
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": -0.0499,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "drivable-surface",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.standard-course",
+          "version": 1
+        }
+      },
+      "editable": true,
+      "id": "downhill-deck-7-1",
+      "transform": {
+        "position": {
+          "x": -57.914972,
+          "y": 1.560694,
+          "z": 1.587938
+        },
+        "rotation": {
+          "x": -8.178181,
+          "y": -0.097573,
+          "z": -0.758109
+        }
+      },
+      "visual": {
+        "material": "timber",
+        "scale": {
+          "x": 3.049953,
+          "y": 0.0002,
+          "z": 0.292666
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "downhill-deck-7-1-slab",
+      "transform": {
+        "position": {
+          "x": -57.915224,
+          "y": 1.541988,
+          "z": 1.590626
+        },
+        "rotation": {
+          "x": -8.178181,
+          "y": -0.097573,
+          "z": -0.758109
+        }
+      },
+      "visual": {
+        "material": "timber",
+        "scale": {
+          "x": 3.049953,
+          "y": 0.018,
+          "z": 0.292666
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 1.524962,
+          "y": 0.05,
+          "z": 0.146333
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": -0.0499,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "drivable-surface",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.standard-course",
+          "version": 1
+        }
+      },
+      "editable": true,
+      "id": "downhill-deck-7-2",
+      "transform": {
+        "position": {
+          "x": -57.914977,
+          "y": 1.519058,
+          "z": 1.298249
+        },
+        "rotation": {
+          "x": -8.178384,
+          "y": -0.082562,
+          "z": -0.641477
+        }
+      },
+      "visual": {
+        "material": "timber",
+        "scale": {
+          "x": 3.049925,
+          "y": 0.0002,
+          "z": 0.292666
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "downhill-deck-7-2-slab",
+      "transform": {
+        "position": {
+          "x": -57.91519,
+          "y": 1.500351,
+          "z": 1.300937
+        },
+        "rotation": {
+          "x": -8.178384,
+          "y": -0.082562,
+          "z": -0.641477
+        }
+      },
+      "visual": {
+        "material": "timber",
+        "scale": {
+          "x": 3.049925,
+          "y": 0.018,
+          "z": 0.292666
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 1.524955,
+          "y": 0.05,
+          "z": 0.146333
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": -0.0499,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "drivable-surface",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.standard-course",
+          "version": 1
+        }
+      },
+      "editable": true,
+      "id": "downhill-deck-7-3",
+      "transform": {
+        "position": {
+          "x": -57.914981,
+          "y": 1.477422,
+          "z": 1.00856
+        },
+        "rotation": {
+          "x": -8.178552,
+          "y": -0.067551,
+          "z": -0.524844
+        }
+      },
+      "visual": {
+        "material": "timber",
+        "scale": {
+          "x": 3.04991,
+          "y": 0.0002,
+          "z": 0.292666
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "downhill-deck-7-3-slab",
+      "transform": {
+        "position": {
+          "x": -57.915155,
+          "y": 1.458715,
+          "z": 1.011248
+        },
+        "rotation": {
+          "x": -8.178552,
+          "y": -0.067551,
+          "z": -0.524844
+        }
+      },
+      "visual": {
+        "material": "timber",
+        "scale": {
+          "x": 3.04991,
+          "y": 0.018,
+          "z": 0.292666
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 1.524954,
+          "y": 0.05,
+          "z": 0.146333
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": -0.0499,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "drivable-surface",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.standard-course",
+          "version": 1
+        }
+      },
+      "editable": true,
+      "id": "downhill-deck-7-4",
+      "transform": {
+        "position": {
+          "x": -57.914985,
+          "y": 1.435786,
+          "z": 0.71887
+        },
+        "rotation": {
+          "x": -8.178687,
+          "y": -0.05254,
+          "z": -0.40821
+        }
+      },
+      "visual": {
+        "material": "timber",
+        "scale": {
+          "x": 3.049907,
+          "y": 0.0002,
+          "z": 0.292666
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "downhill-deck-7-4-slab",
+      "transform": {
+        "position": {
+          "x": -57.915121,
+          "y": 1.417079,
+          "z": 0.721559
+        },
+        "rotation": {
+          "x": -8.178687,
+          "y": -0.05254,
+          "z": -0.40821
+        }
+      },
+      "visual": {
+        "material": "timber",
+        "scale": {
+          "x": 3.049907,
+          "y": 0.018,
+          "z": 0.292666
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 1.524959,
+          "y": 0.05,
+          "z": 0.146333
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": -0.0499,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "drivable-surface",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.standard-course",
+          "version": 1
+        }
+      },
+      "editable": true,
+      "id": "downhill-deck-7-5",
+      "transform": {
+        "position": {
+          "x": -57.914989,
+          "y": 1.39415,
+          "z": 0.429181
+        },
+        "rotation": {
+          "x": -8.178788,
+          "y": -0.037528,
+          "z": -0.291576
+        }
+      },
+      "visual": {
+        "material": "timber",
+        "scale": {
+          "x": 3.049918,
+          "y": 0.0002,
+          "z": 0.292666
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "downhill-deck-7-5-slab",
+      "transform": {
+        "position": {
+          "x": -57.915086,
+          "y": 1.375443,
+          "z": 0.43187
+        },
+        "rotation": {
+          "x": -8.178788,
+          "y": -0.037528,
+          "z": -0.291576
+        }
+      },
+      "visual": {
+        "material": "timber",
+        "scale": {
+          "x": 3.049918,
+          "y": 0.018,
+          "z": 0.292666
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 1.52497,
+          "y": 0.05,
+          "z": 0.146333
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": -0.0499,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "drivable-surface",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.standard-course",
+          "version": 1
+        }
+      },
+      "editable": true,
+      "id": "downhill-deck-7-6",
+      "transform": {
+        "position": {
+          "x": -57.914994,
+          "y": 1.352514,
+          "z": 0.139492
+        },
+        "rotation": {
+          "x": -8.178854,
+          "y": -0.022517,
+          "z": -0.174944
+        }
+      },
+      "visual": {
+        "material": "timber",
+        "scale": {
+          "x": 3.049941,
+          "y": 0.0002,
+          "z": 0.292666
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "downhill-deck-7-6-slab",
+      "transform": {
+        "position": {
+          "x": -57.915052,
+          "y": 1.333807,
+          "z": 0.142181
+        },
+        "rotation": {
+          "x": -8.178854,
+          "y": -0.022517,
+          "z": -0.174944
+        }
+      },
+      "visual": {
+        "material": "timber",
+        "scale": {
+          "x": 3.049941,
+          "y": 0.018,
+          "z": 0.292666
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 1.524989,
+          "y": 0.05,
+          "z": 0.146333
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": -0.0499,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "drivable-surface",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.standard-course",
+          "version": 1
+        }
+      },
+      "editable": true,
+      "id": "downhill-deck-7-7",
+      "transform": {
+        "position": {
+          "x": -57.914998,
+          "y": 1.310879,
+          "z": -0.150197
+        },
+        "rotation": {
+          "x": -8.178886,
+          "y": -0.007506,
+          "z": -0.058314
+        }
+      },
+      "visual": {
+        "material": "timber",
+        "scale": {
+          "x": 3.049977,
+          "y": 0.0002,
+          "z": 0.292666
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "downhill-deck-7-7-slab",
+      "transform": {
+        "position": {
+          "x": -57.915017,
+          "y": 1.292171,
+          "z": -0.147508
+        },
+        "rotation": {
+          "x": -8.178886,
+          "y": -0.007506,
+          "z": -0.058314
+        }
+      },
+      "visual": {
+        "material": "timber",
+        "scale": {
+          "x": 3.049977,
+          "y": 0.018,
+          "z": 0.292666
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 1.525,
           "y": 0.05,
           "z": 1.033173
         },
@@ -31552,7 +34150,7 @@
       "id": "downhill-deck-8",
       "transform": {
         "position": {
-          "x": -57.61,
+          "x": -57.915,
           "y": 1.127124,
           "z": -1.315324
         },
@@ -31565,7 +34163,7 @@
       "visual": {
         "material": "timber",
         "scale": {
-          "x": 2.44,
+          "x": 3.05,
           "y": 0.018,
           "z": 2.066346
         },
@@ -31578,7 +34176,7 @@
       "collision": {
         "friction": 0.7,
         "halfExtents": {
-          "x": 1.22,
+          "x": 1.525,
           "y": 0.05,
           "z": 1.032739
         },
@@ -31606,7 +34204,7 @@
       "id": "downhill-deck-9",
       "transform": {
         "position": {
-          "x": -57.61,
+          "x": -57.915,
           "y": 0.823277,
           "z": -3.348682
         },
@@ -31619,7 +34217,7 @@
       "visual": {
         "material": "timber",
         "scale": {
-          "x": 2.44,
+          "x": 3.05,
           "y": 0.018,
           "z": 2.065478
         },
@@ -31632,7 +34230,7 @@
       "collision": {
         "friction": 0.7,
         "halfExtents": {
-          "x": 1.22,
+          "x": 1.525,
           "y": 0.05,
           "z": 1.030502
         },
@@ -31660,7 +34258,7 @@
       "id": "downhill-deck-10",
       "transform": {
         "position": {
-          "x": -57.61,
+          "x": -57.915,
           "y": 0.538481,
           "z": -5.382154
         },
@@ -31673,7 +34271,7 @@
       "visual": {
         "material": "timber",
         "scale": {
-          "x": 2.44,
+          "x": 3.05,
           "y": 0.018,
           "z": 2.061004
         },
@@ -31686,7 +34284,7 @@
       "collision": {
         "friction": 0.7,
         "halfExtents": {
-          "x": 1.22,
+          "x": 1.525,
           "y": 0.05,
           "z": 1.027173
         },
@@ -31714,7 +34312,7 @@
       "id": "downhill-deck-11",
       "transform": {
         "position": {
-          "x": -57.61,
+          "x": -57.915,
           "y": 0.298175,
           "z": -7.415734
         },
@@ -31727,7 +34325,7 @@
       "visual": {
         "material": "timber",
         "scale": {
-          "x": 2.44,
+          "x": 3.05,
           "y": 0.018,
           "z": 2.054345
         },
@@ -31740,7 +34338,7 @@
       "collision": {
         "friction": 0.7,
         "halfExtents": {
-          "x": 1.22,
+          "x": 1.525,
           "y": 0.05,
           "z": 1.023923
         },
@@ -31768,7 +34366,7 @@
       "id": "downhill-deck-12",
       "transform": {
         "position": {
-          "x": -57.61,
+          "x": -57.915,
           "y": 0.124419,
           "z": -9.449401
         },
@@ -31781,7 +34379,7 @@
       "visual": {
         "material": "timber",
         "scale": {
-          "x": 2.44,
+          "x": 3.05,
           "y": 0.018,
           "z": 2.047847
         },
@@ -31794,7 +34392,7 @@
       "collision": {
         "friction": 0.7,
         "halfExtents": {
-          "x": 1.22,
+          "x": 1.525,
           "y": 0.05,
           "z": 1.021934
         },
@@ -31822,7 +34420,7 @@
       "id": "downhill-deck-13",
       "transform": {
         "position": {
-          "x": -57.61,
+          "x": -57.915,
           "y": 0.033314,
           "z": -11.483127
         },
@@ -31835,7 +34433,7 @@
       "visual": {
         "material": "timber",
         "scale": {
-          "x": 2.44,
+          "x": 3.05,
           "y": 0.018,
           "z": 2.043868
         },
@@ -31850,7 +34448,7 @@
         "halfExtents": {
           "x": 0.0125,
           "y": 0.07,
-          "z": 0.526128
+          "z": 0.523554
         },
         "offset": {
           "position": {
@@ -31876,14 +34474,14 @@
       "id": "downhill-deck-1-edge",
       "transform": {
         "position": {
-          "x": -58.815833,
-          "y": 2.424981,
-          "z": 9.422919
+          "x": -59.425585,
+          "y": 2.440581,
+          "z": 9.424198
         },
         "rotation": {
-          "x": -5.47458,
-          "y": -0.1237,
-          "z": -1.290455
+          "x": -5.297273,
+          "y": -0.126171,
+          "z": -1.341399
         }
       },
       "visual": {
@@ -31891,7 +34489,7 @@
         "scale": {
           "x": 0.025,
           "y": 0.14,
-          "z": 1.052257
+          "z": 1.047109
         },
         "shape": "box"
       }
@@ -31904,7 +34502,7 @@
         "halfExtents": {
           "x": 0.0125,
           "y": 0.07,
-          "z": 0.525819
+          "z": 0.520687
         },
         "offset": {
           "position": {
@@ -31930,14 +34528,14 @@
       "id": "downhill-deck-2-edge",
       "transform": {
         "position": {
-          "x": -58.815515,
-          "y": 2.333194,
-          "z": 8.385593
+          "x": -59.425257,
+          "y": 2.349816,
+          "z": 8.384579
         },
         "rotation": {
-          "x": -5.107406,
-          "y": -0.133582,
-          "z": -1.494232
+          "x": -4.672031,
+          "y": -0.135081,
+          "z": -1.516093
         }
       },
       "visual": {
@@ -31945,7 +34543,7 @@
         "scale": {
           "x": 0.025,
           "y": 0.14,
-          "z": 1.051639
+          "z": 1.041375
         },
         "shape": "box"
       }
@@ -31958,7 +34556,7 @@
         "halfExtents": {
           "x": 0.0125,
           "y": 0.07,
-          "z": 0.525565
+          "z": 0.520514
         },
         "offset": {
           "position": {
@@ -31984,14 +34582,14 @@
       "id": "downhill-deck-3-edge",
       "transform": {
         "position": {
-          "x": -58.815034,
-          "y": 2.249538,
-          "z": 7.348097
+          "x": -59.424658,
+          "y": 2.269541,
+          "z": 7.347021
         },
         "rotation": {
-          "x": -4.783406,
-          "y": -0.149457,
-          "z": -1.785455
+          "x": -4.163204,
+          "y": -0.153665,
+          "z": -1.815631
         }
       },
       "visual": {
@@ -31999,7 +34597,7 @@
         "scale": {
           "x": 0.025,
           "y": 0.14,
-          "z": 1.05113
+          "z": 1.041027
         },
         "shape": "box"
       }
@@ -32012,7 +34610,7 @@
         "halfExtents": {
           "x": 0.0125,
           "y": 0.07,
-          "z": 0.52553
+          "z": 0.520701
         },
         "offset": {
           "position": {
@@ -32038,14 +34636,14 @@
       "id": "downhill-deck-4-edge",
       "transform": {
         "position": {
-          "x": -58.814298,
-          "y": 2.171758,
-          "z": 6.309957
+          "x": -59.424365,
+          "y": 2.187513,
+          "z": 6.308331
         },
         "rotation": {
-          "x": -4.736571,
-          "y": -0.182159,
-          "z": -2.197383
+          "x": -4.85816,
+          "y": -0.168218,
+          "z": -1.956138
         }
       },
       "visual": {
@@ -32053,7 +34651,7 @@
         "scale": {
           "x": 0.025,
           "y": 0.14,
-          "z": 1.051061
+          "z": 1.041403
         },
         "shape": "box"
       }
@@ -32066,7 +34664,7 @@
         "halfExtents": {
           "x": 0.0125,
           "y": 0.07,
-          "z": 1.026415
+          "z": 1.021917
         },
         "offset": {
           "position": {
@@ -32092,14 +34690,14 @@
       "id": "downhill-deck-5-edge",
       "transform": {
         "position": {
-          "x": -58.815268,
-          "y": 2.018664,
-          "z": 4.774204
+          "x": -59.424979,
+          "y": 2.036156,
+          "z": 4.772011
         },
         "rotation": {
-          "x": -5.524644,
-          "y": -0.159089,
-          "z": -1.64433
+          "x": -6.019248,
+          "y": -0.158429,
+          "z": -1.644095
         }
       },
       "visual": {
@@ -32107,7 +34705,7 @@
         "scale": {
           "x": 0.025,
           "y": 0.14,
-          "z": 2.05283
+          "z": 2.043833
         },
         "shape": "box"
       }
@@ -32120,7 +34718,7 @@
         "halfExtents": {
           "x": 0.0125,
           "y": 0.07,
-          "z": 1.029245
+          "z": 1.024699
         },
         "offset": {
           "position": {
@@ -32146,14 +34744,14 @@
       "id": "downhill-deck-6-edge",
       "transform": {
         "position": {
-          "x": -58.816128,
-          "y": 1.784103,
-          "z": 2.739906
+          "x": -59.425979,
+          "y": 1.795748,
+          "z": 2.738212
         },
         "rotation": {
-          "x": -6.972713,
-          "y": -0.133366,
-          "z": -1.09034
+          "x": -7.465918,
+          "y": -0.125655,
+          "z": -1.091879
         }
       },
       "visual": {
@@ -32161,7 +34759,7 @@
         "scale": {
           "x": 0.025,
           "y": 0.14,
-          "z": 2.058489
+          "z": 2.049398
         },
         "shape": "box"
       }
@@ -32174,7 +34772,7 @@
         "halfExtents": {
           "x": 0.0125,
           "y": 0.07,
-          "z": 1.0318
+          "z": 1.024551
         },
         "offset": {
           "position": {
@@ -32200,14 +34798,14 @@
       "id": "downhill-deck-7-edge",
       "transform": {
         "position": {
-          "x": -58.816871,
-          "y": 1.504154,
-          "z": 0.70664
+          "x": -59.426967,
+          "y": 1.505954,
+          "z": 0.708299
         },
         "rotation": {
-          "x": -8.055942,
-          "y": -0.076787,
-          "z": -0.542509
+          "x": -8.791242,
+          "y": -0.05254,
+          "z": -0.40821
         }
       },
       "visual": {
@@ -32215,7 +34813,7 @@
         "scale": {
           "x": 0.025,
           "y": 0.14,
-          "z": 2.063601
+          "z": 2.049102
         },
         "shape": "box"
       }
@@ -32254,7 +34852,7 @@
       "id": "downhill-deck-8-edge",
       "transform": {
         "position": {
-          "x": -58.8175,
+          "x": -59.4275,
           "y": 1.195352,
           "z": -1.325618
         },
@@ -32308,7 +34906,7 @@
       "id": "downhill-deck-9-edge",
       "transform": {
         "position": {
-          "x": -58.8175,
+          "x": -59.4275,
           "y": 0.891534,
           "z": -3.358784
         },
@@ -32362,7 +34960,7 @@
       "id": "downhill-deck-10-edge",
       "transform": {
         "position": {
-          "x": -58.8175,
+          "x": -59.4275,
           "y": 0.606886,
           "z": -5.391192
         },
@@ -32416,7 +35014,7 @@
       "id": "downhill-deck-11-edge",
       "transform": {
         "position": {
-          "x": -58.8175,
+          "x": -59.4275,
           "y": 0.366803,
           "z": -7.422886
         },
@@ -32444,20 +35042,20 @@
       "id": "downhill-deck-mark-4",
       "transform": {
         "position": {
-          "x": -57.609971,
-          "y": 1.941441,
-          "z": 4.949904
+          "x": -57.914836,
+          "y": 1.950481,
+          "z": 4.949055
         },
         "rotation": {
-          "x": -5.524644,
-          "y": -0.159089,
-          "z": -1.64433
+          "x": -5.606215,
+          "y": -0.161915,
+          "z": -1.723171
         }
       },
       "visual": {
         "material": "hazard",
         "scale": {
-          "x": 2.3,
+          "x": 2.91,
           "y": 0.002,
           "z": 0.05
         },
@@ -32472,20 +35070,20 @@
       "id": "downhill-deck-mark-6",
       "transform": {
         "position": {
-          "x": -57.609981,
-          "y": 1.727038,
-          "z": 2.949879
+          "x": -57.914918,
+          "y": 1.733195,
+          "z": 2.949188
         },
         "rotation": {
-          "x": -6.972713,
-          "y": -0.133366,
-          "z": -1.09034
+          "x": -7.055129,
+          "y": -0.131534,
+          "z": -1.170581
         }
       },
       "visual": {
         "material": "hazard",
         "scale": {
-          "x": 2.3,
+          "x": 2.91,
           "y": 0.002,
           "z": 0.05
         },
@@ -32500,20 +35098,20 @@
       "id": "downhill-deck-mark-8",
       "transform": {
         "position": {
-          "x": -57.60999,
-          "y": 1.467333,
-          "z": 0.94986
+          "x": -57.914978,
+          "y": 1.470047,
+          "z": 0.949512
         },
         "rotation": {
-          "x": -8.055942,
-          "y": -0.076787,
-          "z": -0.542509
+          "x": -8.178552,
+          "y": -0.067551,
+          "z": -0.524844
         }
       },
       "visual": {
         "material": "hazard",
         "scale": {
-          "x": 2.3,
+          "x": 2.91,
           "y": 0.002,
           "z": 0.05
         },
@@ -32528,7 +35126,7 @@
       "id": "downhill-deck-mark-10",
       "transform": {
         "position": {
-          "x": -57.61,
+          "x": -57.915,
           "y": 1.177246,
           "z": -1.050149
         },
@@ -32541,7 +35139,7 @@
       "visual": {
         "material": "hazard",
         "scale": {
-          "x": 2.3,
+          "x": 2.91,
           "y": 0.002,
           "z": 0.05
         },
@@ -32556,7 +35154,7 @@
       "id": "downhill-deck-mark-12",
       "transform": {
         "position": {
-          "x": -57.61,
+          "x": -57.915,
           "y": 0.877566,
           "z": -3.050146
         },
@@ -32569,7 +35167,7 @@
       "visual": {
         "material": "hazard",
         "scale": {
-          "x": 2.3,
+          "x": 2.91,
           "y": 0.002,
           "z": 0.05
         },
@@ -32584,7 +35182,7 @@
       "id": "downhill-deck-mark-14",
       "transform": {
         "position": {
-          "x": -57.61,
+          "x": -57.915,
           "y": 0.592435,
           "z": -5.050131
         },
@@ -32597,7 +35195,7 @@
       "visual": {
         "material": "hazard",
         "scale": {
-          "x": 2.3,
+          "x": 2.91,
           "y": 0.002,
           "z": 0.05
         },
@@ -32612,7 +35210,7 @@
       "id": "downhill-deck-mark-16",
       "transform": {
         "position": {
-          "x": -57.61,
+          "x": -57.915,
           "y": 0.346333,
           "z": -7.050104
         },
@@ -32625,7 +35223,7 @@
       "visual": {
         "material": "hazard",
         "scale": {
-          "x": 2.3,
+          "x": 2.91,
           "y": 0.002,
           "z": 0.05
         },
@@ -32640,7 +35238,7 @@
       "id": "downhill-deck-mark-18",
       "transform": {
         "position": {
-          "x": -57.61,
+          "x": -57.915,
           "y": 0.161062,
           "z": -9.050067
         },
@@ -32653,7 +35251,7 @@
       "visual": {
         "material": "hazard",
         "scale": {
-          "x": 2.3,
+          "x": 2.91,
           "y": 0.002,
           "z": 0.05
         },
@@ -32668,7 +35266,7 @@
       "id": "downhill-deck-mark-20",
       "transform": {
         "position": {
-          "x": -57.61,
+          "x": -57.915,
           "y": 0.053248,
           "z": -11.050023
         },
@@ -32681,7 +35279,7 @@
       "visual": {
         "material": "hazard",
         "scale": {
-          "x": 2.3,
+          "x": 2.91,
           "y": 0.002,
           "z": 0.05
         },
@@ -32696,12 +35294,12 @@
       "id": "downhill-deck-1-bearer",
       "transform": {
         "position": {
-          "x": -57.611991,
-          "y": 2.300231,
-          "z": 9.958396
+          "x": -57.917139,
+          "y": 2.297621,
+          "z": 9.96362
         },
         "rotation": {
-          "x": -5.47458,
+          "x": -5.445788,
           "y": -0.1237,
           "z": -1.290455
         }
@@ -32709,7 +35307,7 @@
       "visual": {
         "material": "timber",
         "scale": {
-          "x": 2.44,
+          "x": 3.05,
           "y": 0.14,
           "z": 0.045
         },
@@ -32723,7 +35321,7 @@
         "friction": 0.7,
         "halfExtents": {
           "x": 0.045,
-          "y": 1.128008,
+          "y": 1.13017,
           "z": 0.045
         },
         "offset": {
@@ -32750,9 +35348,9 @@
       "id": "downhill-deck-1-post-l",
       "transform": {
         "position": {
-          "x": -58.743285,
-          "y": 1.128008,
-          "z": 9.962634
+          "x": -59.356355,
+          "y": 1.13017,
+          "z": 9.967159
         },
         "rotation": {
           "x": 0,
@@ -32764,7 +35362,7 @@
         "material": "timber",
         "scale": {
           "x": 0.09,
-          "y": 2.256017,
+          "y": 2.260339,
           "z": 0.09
         },
         "shape": "box"
@@ -32778,20 +35376,20 @@
       "id": "downhill-deck-2-bearer",
       "transform": {
         "position": {
-          "x": -57.612304,
-          "y": 2.200726,
-          "z": 8.920334
+          "x": -57.917301,
+          "y": 2.198149,
+          "z": 8.920418
         },
         "rotation": {
-          "x": -5.107406,
-          "y": -0.133582,
-          "z": -1.494232
+          "x": -5.035013,
+          "y": -0.128641,
+          "z": -1.392343
         }
       },
       "visual": {
         "material": "timber",
         "scale": {
-          "x": 2.44,
+          "x": 3.049996,
           "y": 0.14,
           "z": 0.045
         },
@@ -32805,7 +35403,7 @@
         "friction": 0.7,
         "halfExtents": {
           "x": 0.045,
-          "y": 1.080247,
+          "y": 1.08169,
           "z": 0.045
         },
         "offset": {
@@ -32832,9 +35430,9 @@
       "id": "downhill-deck-2-post-l",
       "transform": {
         "position": {
-          "x": -58.743749,
-          "y": 1.080247,
-          "z": 8.923931
+          "x": -59.356579,
+          "y": 1.08169,
+          "z": 8.923333
         },
         "rotation": {
           "x": 0,
@@ -32846,7 +35444,7 @@
         "material": "timber",
         "scale": {
           "x": 0.09,
-          "y": 2.160494,
+          "y": 2.163381,
           "z": 0.09
         },
         "shape": "box"
@@ -32860,20 +35458,20 @@
       "id": "downhill-deck-3-bearer",
       "transform": {
         "position": {
-          "x": -57.612751,
-          "y": 2.107934,
-          "z": 7.882338
+          "x": -57.917689,
+          "y": 2.106666,
+          "z": 7.882244
         },
         "rotation": {
-          "x": -4.783406,
-          "y": -0.149457,
-          "z": -1.785455
+          "x": -4.679862,
+          "y": -0.14152,
+          "z": -1.639843
         }
       },
       "visual": {
         "material": "timber",
         "scale": {
-          "x": 2.44,
+          "x": 3.049992,
           "y": 0.14,
           "z": 0.045
         },
@@ -32887,7 +35485,7 @@
         "friction": 0.7,
         "halfExtents": {
           "x": 0.045,
-          "y": 1.03671,
+          "y": 1.039039,
           "z": 0.045
         },
         "offset": {
@@ -32914,9 +35512,9 @@
       "id": "downhill-deck-3-post-l",
       "transform": {
         "position": {
-          "x": -58.744388,
-          "y": 1.03671,
-          "z": 7.885228
+          "x": -59.357102,
+          "y": 1.039039,
+          "z": 7.884403
         },
         "rotation": {
           "x": 0,
@@ -32928,7 +35526,7 @@
         "material": "timber",
         "scale": {
           "x": 0.09,
-          "y": 2.07342,
+          "y": 2.078079,
           "z": 0.09
         },
         "shape": "box"
@@ -32942,20 +35540,20 @@
       "id": "downhill-deck-4-bearer",
       "transform": {
         "position": {
-          "x": -57.613386,
-          "y": 2.021089,
-          "z": 6.844767
+          "x": -57.918231,
+          "y": 2.021718,
+          "z": 6.844743
         },
         "rotation": {
-          "x": -4.736571,
-          "y": -0.182159,
-          "z": -2.197383
+          "x": -4.755671,
+          "y": -0.165809,
+          "z": -1.991419
         }
       },
       "visual": {
         "material": "timber",
         "scale": {
-          "x": 2.44,
+          "x": 3.049984,
           "y": 0.14,
           "z": 0.045
         },
@@ -32969,7 +35567,7 @@
         "friction": 0.7,
         "halfExtents": {
           "x": 0.045,
-          "y": 0.997353,
+          "y": 1.000986,
           "z": 0.045
         },
         "offset": {
@@ -32996,9 +35594,9 @@
       "id": "downhill-deck-4-post-l",
       "transform": {
         "position": {
-          "x": -58.745242,
-          "y": 0.997353,
-          "z": 6.846954
+          "x": -59.35779,
+          "y": 1.000986,
+          "z": 6.846385
         },
         "rotation": {
           "x": 0,
@@ -33010,7 +35608,7 @@
         "material": "timber",
         "scale": {
           "x": 0.09,
-          "y": 1.994707,
+          "y": 2.001971,
           "z": 0.09
         },
         "shape": "box"
@@ -33024,20 +35622,20 @@
       "id": "downhill-deck-5-bearer",
       "transform": {
         "position": {
-          "x": -57.612537,
-          "y": 1.935141,
-          "z": 5.808472
+          "x": -57.918125,
+          "y": 1.935477,
+          "z": 5.808661
         },
         "rotation": {
-          "x": -5.524644,
-          "y": -0.159089,
-          "z": -1.64433
+          "x": -5.605616,
+          "y": -0.170626,
+          "z": -1.920856
         }
       },
       "visual": {
         "material": "timber",
         "scale": {
-          "x": 2.44,
+          "x": 3.049972,
           "y": 0.14,
           "z": 0.045
         },
@@ -33051,7 +35649,7 @@
         "friction": 0.7,
         "halfExtents": {
           "x": 0.045,
-          "y": 0.94896,
+          "y": 0.957026,
           "z": 0.045
         },
         "offset": {
@@ -33078,9 +35676,9 @@
       "id": "downhill-deck-5-post-l",
       "transform": {
         "position": {
-          "x": -58.744085,
-          "y": 0.94896,
-          "z": 5.812074
+          "x": -59.357651,
+          "y": 0.957026,
+          "z": 5.811216
         },
         "rotation": {
           "x": 0,
@@ -33092,7 +35690,7 @@
         "material": "timber",
         "scale": {
           "x": 0.09,
-          "y": 1.89792,
+          "y": 1.914051,
           "z": 0.09
         },
         "shape": "box"
@@ -33106,20 +35704,20 @@
       "id": "downhill-deck-6-bearer",
       "transform": {
         "position": {
-          "x": -57.611687,
-          "y": 1.73861,
-          "z": 3.77735
+          "x": -57.917264,
+          "y": 1.736054,
+          "z": 3.777918
         },
         "rotation": {
-          "x": -6.972713,
-          "y": -0.133366,
-          "z": -1.09034
+          "x": -7.054609,
+          "y": -0.146229,
+          "z": -1.367335
         }
       },
       "visual": {
         "material": "timber",
         "scale": {
-          "x": 2.44,
+          "x": 3.049971,
           "y": 0.14,
           "z": 0.045
         },
@@ -33133,7 +35731,7 @@
         "friction": 0.7,
         "halfExtents": {
           "x": 0.045,
-          "y": 0.845322,
+          "y": 0.850459,
           "z": 0.045
         },
         "offset": {
@@ -33160,9 +35758,9 @@
       "id": "downhill-deck-6-post-l",
       "transform": {
         "position": {
-          "x": -58.742821,
-          "y": 0.845322,
-          "z": 3.783217
+          "x": -59.356515,
+          "y": 0.850459,
+          "z": 3.782845
         },
         "rotation": {
           "x": 0,
@@ -33174,7 +35772,7 @@
         "material": "timber",
         "scale": {
           "x": 0.09,
-          "y": 1.690643,
+          "y": 1.700918,
           "z": 0.09
         },
         "shape": "box"
@@ -33187,7 +35785,7 @@
         "friction": 0.7,
         "halfExtents": {
           "x": 0.045,
-          "y": 0.823819,
+          "y": 0.816181,
           "z": 0.045
         },
         "offset": {
@@ -33214,9 +35812,9 @@
       "id": "downhill-deck-6-post-r",
       "transform": {
         "position": {
-          "x": -56.483237,
-          "y": 0.823819,
-          "z": 3.788478
+          "x": -56.484371,
+          "y": 0.816181,
+          "z": 3.790177
         },
         "rotation": {
           "x": 0,
@@ -33228,7 +35826,7 @@
         "material": "timber",
         "scale": {
           "x": 0.09,
-          "y": 1.647638,
+          "y": 1.632363,
           "z": 0.09
         },
         "shape": "box"
@@ -33242,20 +35840,20 @@
       "id": "downhill-deck-7-bearer",
       "transform": {
         "position": {
-          "x": -57.610842,
-          "y": 1.490091,
-          "z": 1.745666
+          "x": -57.916376,
+          "y": 1.484618,
+          "z": 1.746709
         },
         "rotation": {
-          "x": -8.055942,
-          "y": -0.076787,
-          "z": -0.542509
+          "x": -8.178077,
+          "y": -0.105078,
+          "z": -0.816424
         }
       },
       "visual": {
         "material": "timber",
         "scale": {
-          "x": 2.44,
+          "x": 3.049972,
           "y": 0.14,
           "z": 0.045
         },
@@ -33269,7 +35867,7 @@
         "friction": 0.7,
         "halfExtents": {
           "x": 0.045,
-          "y": 0.715742,
+          "y": 0.717913,
           "z": 0.045
         },
         "offset": {
@@ -33296,9 +35894,9 @@
       "id": "downhill-deck-7-post-l",
       "transform": {
         "position": {
-          "x": -58.741459,
-          "y": 0.715742,
-          "z": 1.753961
+          "x": -59.35522,
+          "y": 0.717913,
+          "z": 1.754029
         },
         "rotation": {
           "x": 0,
@@ -33310,7 +35908,7 @@
         "material": "timber",
         "scale": {
           "x": 0.09,
-          "y": 1.431484,
+          "y": 1.435826,
           "z": 0.09
         },
         "shape": "box"
@@ -33323,7 +35921,7 @@
         "friction": 0.7,
         "halfExtents": {
           "x": 0.045,
-          "y": 0.705043,
+          "y": 0.697445,
           "z": 0.045
         },
         "offset": {
@@ -33350,9 +35948,9 @@
       "id": "downhill-deck-7-post-r",
       "transform": {
         "position": {
-          "x": -56.481563,
-          "y": 0.705043,
-          "z": 1.75699
+          "x": -56.482544,
+          "y": 0.697445,
+          "z": 1.759298
         },
         "rotation": {
           "x": 0,
@@ -33364,7 +35962,7 @@
         "material": "timber",
         "scale": {
           "x": 0.09,
-          "y": 1.410085,
+          "y": 1.39489,
           "z": 0.09
         },
         "shape": "box"
@@ -33378,7 +35976,7 @@
       "id": "downhill-deck-8-bearer",
       "transform": {
         "position": {
-          "x": -57.61,
+          "x": -57.915,
           "y": 1.202399,
           "z": -0.286872
         },
@@ -33391,7 +35989,7 @@
       "visual": {
         "material": "timber",
         "scale": {
-          "x": 2.44,
+          "x": 3.05,
           "y": 0.14,
           "z": 0.045
         },
@@ -33432,7 +36030,7 @@
       "id": "downhill-deck-8-post-l",
       "transform": {
         "position": {
-          "x": -58.74,
+          "x": -59.35,
           "y": 0.566591,
           "z": -0.276428
         },
@@ -33514,7 +36112,7 @@
       "id": "downhill-deck-9-bearer",
       "transform": {
         "position": {
-          "x": -57.61,
+          "x": -57.915,
           "y": 0.895581,
           "z": -2.320451
         },
@@ -33527,7 +36125,7 @@
       "visual": {
         "material": "timber",
         "scale": {
-          "x": 2.44,
+          "x": 3.05,
           "y": 0.14,
           "z": 0.045
         },
@@ -33568,7 +36166,7 @@
       "id": "downhill-deck-9-post-l",
       "transform": {
         "position": {
-          "x": -58.74,
+          "x": -59.35,
           "y": 0.413168,
           "z": -2.310203
         },
@@ -33650,7 +36248,7 @@
       "id": "downhill-deck-10-bearer",
       "transform": {
         "position": {
-          "x": -57.61,
+          "x": -57.915,
           "y": 0.594486,
           "z": -4.35514
         },
@@ -33663,7 +36261,7 @@
       "visual": {
         "material": "timber",
         "scale": {
-          "x": 2.44,
+          "x": 3.05,
           "y": 0.14,
           "z": 0.045
         },
@@ -33704,7 +36302,7 @@
       "id": "downhill-deck-10-post-l",
       "transform": {
         "position": {
-          "x": -58.74,
+          "x": -59.35,
           "y": 0.262545,
           "z": -4.345971
         },
@@ -33786,7 +36384,7 @@
       "id": "downhill-deck-11-bearer",
       "transform": {
         "position": {
-          "x": -57.61,
+          "x": -57.915,
           "y": 0.325552,
           "z": -6.390878
         },
@@ -33799,7 +36397,7 @@
       "visual": {
         "material": "timber",
         "scale": {
-          "x": 2.44,
+          "x": 3.05,
           "y": 0.14,
           "z": 0.045
         },
@@ -33840,7 +36438,7 @@
       "id": "downhill-deck-11-post-l",
       "transform": {
         "position": {
-          "x": -58.74,
+          "x": -59.35,
           "y": 0.127965,
           "z": -6.383623
         },
@@ -33916,13 +36514,715 @@
     },
     {
       "availability": "standard",
+      "category": "obstacle",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 0.0225,
+          "y": 0.045,
+          "z": 1.094185
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "solid-obstacle",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.standard-course",
+          "version": 1
+        }
+      },
+      "editable": true,
+      "id": "downhill-deck-1-brace-l",
+      "transform": {
+        "position": {
+          "x": -59.423967,
+          "y": 1.081691,
+          "z": 9.445246
+        },
+        "rotation": {
+          "x": 118.488849,
+          "y": -0.012295,
+          "z": 180
+        }
+      },
+      "visual": {
+        "material": "timber",
+        "scale": {
+          "x": 0.045,
+          "y": 0.09,
+          "z": 2.188371
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "obstacle",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 0.0225,
+          "y": 0.045,
+          "z": 0.963683
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "solid-obstacle",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.standard-course",
+          "version": 1
+        }
+      },
+      "editable": true,
+      "id": "downhill-deck-2-brace-l",
+      "transform": {
+        "position": {
+          "x": -59.42434,
+          "y": 1.081691,
+          "z": 8.403868
+        },
+        "rotation": {
+          "x": -57.381601,
+          "y": 0.028843,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "timber",
+        "scale": {
+          "x": 0.045,
+          "y": 0.09,
+          "z": 1.927367
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "obstacle",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 0.0225,
+          "y": 0.045,
+          "z": 1.0225
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "solid-obstacle",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.standard-course",
+          "version": 1
+        }
+      },
+      "editable": true,
+      "id": "downhill-deck-3-brace-l",
+      "transform": {
+        "position": {
+          "x": -59.424946,
+          "y": 1.000986,
+          "z": 7.365394
+        },
+        "rotation": {
+          "x": 120.503331,
+          "y": -0.037976,
+          "z": 180
+        }
+      },
+      "visual": {
+        "material": "timber",
+        "scale": {
+          "x": 0.045,
+          "y": 0.09,
+          "z": 2.045
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "obstacle",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 0.0225,
+          "y": 0.045,
+          "z": 0.895675
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "solid-obstacle",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.standard-course",
+          "version": 1
+        }
+      },
+      "editable": true,
+      "id": "downhill-deck-4-brace-l",
+      "transform": {
+        "position": {
+          "x": -59.425221,
+          "y": 1.000986,
+          "z": 6.3288
+        },
+        "rotation": {
+          "x": -54.699064,
+          "y": -0.007694,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "timber",
+        "scale": {
+          "x": 0.045,
+          "y": 0.09,
+          "z": 1.79135
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "obstacle",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 0.0225,
+          "y": 0.045,
+          "z": 1.249857
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "solid-obstacle",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.standard-course",
+          "version": 1
+        }
+      },
+      "editable": true,
+      "id": "downhill-deck-5-brace-l",
+      "transform": {
+        "position": {
+          "x": -59.424583,
+          "y": 0.850459,
+          "z": 4.79703
+        },
+        "rotation": {
+          "x": 144.236986,
+          "y": 0.032089,
+          "z": 180
+        }
+      },
+      "visual": {
+        "material": "timber",
+        "scale": {
+          "x": 0.045,
+          "y": 0.09,
+          "z": 2.499714
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "obstacle",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 0.0225,
+          "y": 0.045,
+          "z": 1.168741
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "solid-obstacle",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.standard-course",
+          "version": 1
+        }
+      },
+      "editable": true,
+      "id": "downhill-deck-6-brace-l",
+      "transform": {
+        "position": {
+          "x": -59.423368,
+          "y": 0.850459,
+          "z": 2.768437
+        },
+        "rotation": {
+          "x": -29.778812,
+          "y": -0.036572,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "timber",
+        "scale": {
+          "x": 0.045,
+          "y": 0.09,
+          "z": 2.337483
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "obstacle",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 0.0225,
+          "y": 0.045,
+          "z": 1.109116
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "solid-obstacle",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.standard-course",
+          "version": 1
+        }
+      },
+      "editable": true,
+      "id": "downhill-deck-7-brace-l",
+      "transform": {
+        "position": {
+          "x": -59.42011,
+          "y": 0.566591,
+          "z": 0.7388
+        },
+        "rotation": {
+          "x": 156.255755,
+          "y": 0.147299,
+          "z": 180
+        }
+      },
+      "visual": {
+        "material": "timber",
+        "scale": {
+          "x": 0.045,
+          "y": 0.09,
+          "z": 2.218233
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "obstacle",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 0.0225,
+          "y": 0.045,
+          "z": 1.15301
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "solid-obstacle",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.standard-course",
+          "version": 1
+        }
+      },
+      "editable": true,
+      "id": "downhill-deck-6-brace-r",
+      "transform": {
+        "position": {
+          "x": -56.415957,
+          "y": 0.816182,
+          "z": 2.774737
+        },
+        "rotation": {
+          "x": -28.274774,
+          "y": -0.051544,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "timber",
+        "scale": {
+          "x": 0.045,
+          "y": 0.09,
+          "z": 2.30602
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "obstacle",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 0.0225,
+          "y": 0.045,
+          "z": 1.111526
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "solid-obstacle",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.standard-course",
+          "version": 1
+        }
+      },
+      "editable": true,
+      "id": "downhill-deck-7-brace-r",
+      "transform": {
+        "position": {
+          "x": -56.413772,
+          "y": 0.566591,
+          "z": 0.741435
+        },
+        "rotation": {
+          "x": 156.310382,
+          "y": 0.071601,
+          "z": 180
+        }
+      },
+      "visual": {
+        "material": "timber",
+        "scale": {
+          "x": 0.045,
+          "y": 0.09,
+          "z": 2.223052
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "obstacle",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 0.0225,
+          "y": 0.045,
+          "z": 0.408604
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "solid-obstacle",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.standard-course",
+          "version": 1
+        }
+      },
+      "editable": true,
+      "id": "downhill-deck-2-knee",
+      "transform": {
+        "position": {
+          "x": -59.034168,
+          "y": 1.863381,
+          "z": 8.876092
+        },
+        "rotation": {
+          "x": -47.240286,
+          "y": 89.860884,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "timber",
+        "scale": {
+          "x": 0.045,
+          "y": 0.09,
+          "z": 0.817208
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "obstacle",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 0.0225,
+          "y": 0.045,
+          "z": 0.408581
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "solid-obstacle",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.standard-course",
+          "version": 1
+        }
+      },
+      "editable": true,
+      "id": "downhill-deck-3-knee",
+      "transform": {
+        "position": {
+          "x": -59.034726,
+          "y": 1.778079,
+          "z": 7.837985
+        },
+        "rotation": {
+          "x": -47.243815,
+          "y": 89.846938,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "timber",
+        "scale": {
+          "x": 0.045,
+          "y": 0.09,
+          "z": 0.817161
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "obstacle",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 0.0225,
+          "y": 0.045,
+          "z": 0.408541
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "solid-obstacle",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.standard-course",
+          "version": 1
+        }
+      },
+      "editable": true,
+      "id": "downhill-deck-4-knee",
+      "transform": {
+        "position": {
+          "x": -59.035472,
+          "y": 1.701971,
+          "z": 6.800611
+        },
+        "rotation": {
+          "x": -47.249818,
+          "y": 89.82063,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "timber",
+        "scale": {
+          "x": 0.045,
+          "y": 0.09,
+          "z": 0.817082
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "obstacle",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 0.0225,
+          "y": 0.045,
+          "z": 0.40855
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "solid-obstacle",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.standard-course",
+          "version": 1
+        }
+      },
+      "editable": true,
+      "id": "downhill-deck-5-knee",
+      "transform": {
+        "position": {
+          "x": -59.035321,
+          "y": 1.614051,
+          "z": 5.764554
+        },
+        "rotation": {
+          "x": -47.248518,
+          "y": 89.815427,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "timber",
+        "scale": {
+          "x": 0.045,
+          "y": 0.09,
+          "z": 0.817099
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
       "category": "feature",
       "collision": null,
       "editable": true,
       "id": "downhill-deck-12-sleeper",
       "transform": {
         "position": {
-          "x": -57.61,
+          "x": -57.915,
           "y": 0.091587,
           "z": -8.433333
         },
@@ -33935,7 +37235,7 @@
       "visual": {
         "material": "timber",
         "scale": {
-          "x": 2.44,
+          "x": 3.05,
           "y": 0.183174,
           "z": 0.1
         },
@@ -33950,7 +37250,7 @@
       "id": "downhill-deck-13-sleeper",
       "transform": {
         "position": {
-          "x": -57.61,
+          "x": -57.915,
           "y": 0.023812,
           "z": -10.466667
         },
@@ -33963,7 +37263,7 @@
       "visual": {
         "material": "timber",
         "scale": {
-          "x": 2.44,
+          "x": 3.05,
           "y": 0.047623,
           "z": 0.1
         },

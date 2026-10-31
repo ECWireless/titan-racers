@@ -346,7 +346,8 @@ exposed in the UI.
   it. Build such a road from 0.3 m pieces whose drivable top is a 0.2 mm
   skin carrying the collider, over a visual slab 1 cm below that reaches
   under its fill's level tops, the fill set back 2 cm (Falls View Park's
-  downhill).
+  downhill; its jump's banked landing deck uses the same skin and slab in
+  plywood, without fill).
 - Earthworks built from tilted slabs fill concave corners correctly (the
   surface is the highest slope), but a convex corner needs the lowest, and
   overlapping slabs leave lips that show as dark lines. Plan visible
