@@ -492,8 +492,9 @@ export function coursePresetLimitReached(
  * Marks an object indoors (lit only by indoor light) or overhead (a roof the
  * editor can cut away; beneath an indoor one, the race counts a kart
  * indoors). The schema's rules hold: tunnel and work lamps stand indoors
- * and floodlights outdoors, and an overhead object never supports a kart. A
- * change that breaks one leaves the course unchanged.
+ * and floodlights outdoors, and an indoor roof never supports a kart
+ * (outdoor earthworks over one may). A change that breaks one leaves the
+ * course unchanged.
  */
 export function updateSelectionPlacement(
   document: CourseDocument,

@@ -8,9 +8,9 @@ import {
 } from "../enclosure/island-three";
 import { getApprovedSurfaceMaterial } from "../kart/kart-material-registry";
 import { COURSE_ARC_MAXIMUM_WIDTH_RATIO } from "./course-arc";
-import fallsViewParkDocumentJson from "./falls-view-park.v9.json";
+import fallsViewParkDocumentJson from "./falls-view-park.v10.json";
 import type { OfficialCourseId } from "./course-ids";
-import roughCourseDocumentJson from "./rough-course.v9.json";
+import roughCourseDocumentJson from "./rough-course.v10.json";
 
 export const courseIdSchema = z
   .string()
@@ -198,6 +198,9 @@ export const COURSE_INDOOR_LAMP_LIMIT = 20;
 // Courses before schema version eight had at most this many tunnel lamps.
 const LEGACY_COURSE_INDOOR_LAMP_LIMIT = 16;
 export const COURSE_STREET_LAMP_LIMIT = 8;
+// A course's footprint stays this close to its placement, inside the
+// clearing's fence.
+const COURSE_CLEARING_FOOTPRINT_REACH = 200;
 export type CourseLampKind = "floodlight" | "tunnel" | "work" | "street";
 export const COURSE_INDOOR_LAMP_KINDS = ["tunnel", "work"] as const;
 /** The bicycles a course can park. */
@@ -333,8 +336,8 @@ const courseDocumentV3BaseSchema = courseDocumentV2BaseSchema.extend({
 const courseDocumentV3Schema =
   courseDocumentV3BaseSchema.superRefine(validateCourseRoute);
 
-const enclosureSchema = (mirrorAngleMax: number) => z
-  .strictObject({
+const enclosureObjectSchema = (mirrorAngleMax: number) =>
+  z.strictObject({
     id: z.string().max(80),
     mirrorAngle: z
       .number()
@@ -348,21 +351,82 @@ const enclosureSchema = (mirrorAngleMax: number) => z
       height: z.number().finite().min(0),
     }),
     version: z.number().int().positive(),
+  });
+
+function validateEnclosure(
+  enclosure: z.infer<ReturnType<typeof enclosureObjectSchema>>,
+  context: z.RefinementCtx,
+) {
+  const definition = getApprovedEnclosure(enclosure);
+  if (!definition) {
+    context.addIssue({
+      code: "custom",
+      message: "Unsupported enclosure",
+      path: ["id"],
+    });
+    return;
+  }
+  getEnclosurePlacementIssues(definition, enclosure.placement).forEach(
+    ({ message, path }) =>
+      context.addIssue({ code: "custom", message, path: ["placement", path] }),
+  );
+}
+
+const enclosureSchema = (mirrorAngleMax: number) =>
+  enclosureObjectSchema(mirrorAngleMax).superRefine(validateEnclosure);
+
+const footprintCornerSchema = z.strictObject({
+  x: z.number().finite(),
+  z: z.number().finite(),
+});
+
+// Version ten lets a course stand in its habitat clearing: outside its
+// footprint, out to the clearing's fence, the habitat floor is drawn and
+// drivable (course-clearing.ts).
+const enclosureV10Schema = enclosureObjectSchema(MIRROR_ANGLE_LIMITS.max)
+  .extend({
+    clearing: z
+      .strictObject({
+        footprint: z.strictObject({
+          max: footprintCornerSchema,
+          min: footprintCornerSchema,
+        }),
+      })
+      .optional(),
   })
   .superRefine((enclosure, context) => {
-    const definition = getApprovedEnclosure(enclosure);
-    if (!definition) {
+    validateEnclosure(enclosure, context);
+    if (!enclosure.clearing) return;
+    const { max, min } = enclosure.clearing.footprint;
+    if (!(min.x < max.x && min.z < max.z)) {
       context.addIssue({
         code: "custom",
-        message: "Unsupported enclosure",
-        path: ["id"],
+        message: "A clearing footprint's minimum must lie below its maximum",
+        path: ["clearing", "footprint"],
       });
-      return;
     }
-    getEnclosurePlacementIssues(definition, enclosure.placement).forEach(
-      ({ message, path }) =>
-        context.addIssue({ code: "custom", message, path: ["placement", path] }),
-    );
+    // The floor runs straight along the axis and curves around it, so a
+    // footprint square to the axis meets it along straight edges.
+    if (enclosure.placement.heading % 90 !== 0) {
+      context.addIssue({
+        code: "custom",
+        message: "A course in a clearing must be turned square to the axis",
+        path: ["placement", "heading"],
+      });
+    }
+    if (
+      [min.x, max.x].some((x) =>
+        [min.z, max.z].some(
+          (z) => Math.hypot(x, z) > COURSE_CLEARING_FOOTPRINT_REACH,
+        ),
+      )
+    ) {
+      context.addIssue({
+        code: "custom",
+        message: `A clearing footprint must lie within ${COURSE_CLEARING_FOOTPRINT_REACH} m of the placement`,
+        path: ["clearing", "footprint"],
+      });
+    }
   });
 
 // Version four places the course in its habitat enclosure, whose sunlight
@@ -444,6 +508,7 @@ function validateCourseObjectsV6(
   context: z.RefinementCtx,
   lampLimit: number,
   indoorLampLimit: number,
+  outdoorOverheadSupport = false,
 ) {
   validateCourseRoute(document, context);
   if (countCourseLamps(document, "floodlight") > lampLimit) {
@@ -473,7 +538,14 @@ function validateCourseObjectsV6(
       });
     }
     // A drivable roof would catch karts and checkpoint recovery above it.
-    if (object.overhead && object.collision?.role === "drivable-surface") {
+    // From version ten, outdoor earthworks over a roof (a berm) may support
+    // karts, the overhead flag only marking them for the editor's cut-away;
+    // an indoor roof still never does.
+    if (
+      object.overhead &&
+      (object.indoors || !outdoorOverheadSupport) &&
+      object.collision?.role === "drivable-surface"
+    ) {
       context.addIssue({
         code: "custom",
         message: "Overhead objects collide only as solid obstacles",
@@ -618,8 +690,15 @@ function validateCourseObjectsV7(
   },
   context: z.RefinementCtx,
   indoorLampLimit = LEGACY_COURSE_INDOOR_LAMP_LIMIT,
+  outdoorOverheadSupport = false,
 ) {
-  validateCourseObjectsV6(document, context, COURSE_LAMP_LIMIT, indoorLampLimit);
+  validateCourseObjectsV6(
+    document,
+    context,
+    COURSE_LAMP_LIMIT,
+    indoorLampLimit,
+    outdoorOverheadSupport,
+  );
   if (countCourseTrees(document) > COURSE_TREE_LIMIT) {
     context.addIssue({
       code: "custom",
@@ -713,8 +792,14 @@ const courseDocumentV9BaseSchema = courseDocumentV8BaseSchema.extend({
 function validateCourseObjectsV8(
   document: Omit<z.infer<typeof courseDocumentV9BaseSchema>, "schemaVersion">,
   context: z.RefinementCtx,
+  outdoorOverheadSupport = false,
 ) {
-  validateCourseObjectsV7(document, context, COURSE_INDOOR_LAMP_LIMIT);
+  validateCourseObjectsV7(
+    document,
+    context,
+    COURSE_INDOOR_LAMP_LIMIT,
+    outdoorOverheadSupport,
+  );
   document.objects.forEach((object, index) => {
     // Water is a level box of open water under the sky: its top is the
     // surface and its volume the water a kart can drown in. Karts pass
@@ -765,31 +850,42 @@ const courseDocumentV8Schema = courseDocumentV8BaseSchema.superRefine(
 );
 
 // Park street lamps have their own bounded outdoor light budget.
-export const courseDocumentSchema = courseDocumentV9BaseSchema.superRefine(
-  (document, context) => {
-    validateCourseObjectsV8(document, context);
-    if (countCourseLamps(document, "street") > COURSE_STREET_LAMP_LIMIT) {
+function validateCourseObjectsV9(
+  document: Omit<z.infer<typeof courseDocumentV9BaseSchema>, "schemaVersion">,
+  context: z.RefinementCtx,
+  outdoorOverheadSupport = false,
+) {
+  validateCourseObjectsV8(document, context, outdoorOverheadSupport);
+  if (countCourseLamps(document, "street") > COURSE_STREET_LAMP_LIMIT) {
+    context.addIssue({
+      code: "custom",
+      message: `A course has at most ${COURSE_STREET_LAMP_LIMIT} street lamps`,
+      path: ["objects"],
+    });
+  }
+  document.objects.forEach((object, index) => {
+    if (
+      object.lamp === "street" &&
+      (object.visual.shape !== "cylinder" || object.overhead)
+    ) {
       context.addIssue({
         code: "custom",
-        message: `A course has at most ${COURSE_STREET_LAMP_LIMIT} street lamps`,
-        path: ["objects"],
+        message: "Street lamps stand on outdoor cylinder columns, never roofs",
+        path: ["objects", index, "lamp"],
       });
     }
-    document.objects.forEach((object, index) => {
-      if (
-        object.lamp === "street" &&
-        (object.visual.shape !== "cylinder" || object.overhead)
-      ) {
-        context.addIssue({
-          code: "custom",
-          message:
-            "Street lamps stand on outdoor cylinder columns, never roofs",
-          path: ["objects", index, "lamp"],
-        });
-      }
-    });
-  },
+  });
+}
+
+const courseDocumentV9Schema = courseDocumentV9BaseSchema.superRefine(
+  validateCourseObjectsV9,
 );
+
+export const courseDocumentSchema = courseDocumentV9BaseSchema
+  .extend({ enclosure: enclosureV10Schema, schemaVersion: z.literal(10) })
+  .superRefine((document, context) =>
+    validateCourseObjectsV9(document, context, true),
+  );
 
 export type CourseDocumentV1 = z.infer<typeof courseDocumentV1Schema>;
 type CourseDocumentV3 = z.infer<typeof courseDocumentV3Schema>;
@@ -1152,8 +1248,13 @@ export function parseCourseDocument(input: unknown): CourseDocument {
     });
   }
 
+  // Versions eight and nine upgrade unchanged.
   if (hasSchemaVersion(input, 8)) {
     return parseCourseDocument({ ...courseDocumentV8Schema.parse(input), schemaVersion: 9 });
+  }
+
+  if (hasSchemaVersion(input, 9)) {
+    return parseCourseDocument({ ...courseDocumentV9Schema.parse(input), schemaVersion: 10 });
   }
 
   const document = courseDocumentSchema.parse(input);

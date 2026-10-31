@@ -463,7 +463,8 @@ test.describe("course editor document commands", () => {
     expect(find("block-1", cleared)).not.toHaveProperty("indoors");
     expect(find("block-1", cleared)).not.toHaveProperty("overhead");
 
-    // Floodlights stand outdoors, and karts never drive on a roof.
+    // Floodlights stand outdoors, and karts never drive on an indoor roof,
+    // though outdoor earthworks over one may carry them.
     expect(
       updateSelectionPlacement(
         document,
@@ -475,9 +476,19 @@ test.describe("course editor document commands", () => {
       updateSelectionPlacement(
         document,
         { id: "platform-1", kind: "object" },
-        { indoors: false, overhead: true },
+        { indoors: true, overhead: true },
       ),
     ).toBe(document);
+    expect(
+      find(
+        "platform-1",
+        updateSelectionPlacement(
+          document,
+          { id: "platform-1", kind: "object" },
+          { indoors: false, overhead: true },
+        ),
+      ),
+    ).toMatchObject({ overhead: true });
   });
 
   test("sets the time of day through the enclosure mirror angle", () => {

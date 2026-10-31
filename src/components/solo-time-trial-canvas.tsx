@@ -42,7 +42,10 @@ import {
   buildCourseLighting,
   ENCLOSURE_SUN_ID,
 } from "@/game/course/build-course-lighting";
-import { buildRoughCourse } from "@/game/course/build-rough-course";
+import {
+  addCourseClearing,
+  buildRoughCourse,
+} from "@/game/course/build-rough-course";
 import {
   createCourseInteriorAtlas,
   createCourseInteriorTest,
@@ -920,6 +923,19 @@ export function SoloTimeTrialCanvas({
           if (visual) visual.batchGroupId = courseBatch.id;
         });
       });
+      // The habitat floor around the course, in its clearing, and its
+      // fence; the ground and posts batch with the course's finishes.
+      const clearing = addCourseClearing(app, COURSE_DOCUMENT, {
+        lawn: courseSurfaces.materials.baseLawn,
+        steel: courseSurfaces.materials.steel,
+        surfaceResolver,
+      });
+      if (clearing) {
+        runtime.addCleanup(() => clearing.destroy());
+        clearing.batched.forEach((entity) => {
+          if (entity.render) entity.render.batchGroupId = courseBatch.id;
+        });
+      }
 
       function syncObstacleCollision(
         id: CourseTestObstacleId,

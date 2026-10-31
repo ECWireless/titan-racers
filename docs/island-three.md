@@ -64,7 +64,12 @@ own:
   bridge stands. Every valley is shaded by them; the course's own valley
   also rises in geometry, so hills show in silhouette where the view grazes.
 - Each course sits in a flat, mown clearing of 220 m radius, ringed
-  by clumps of real trees that open toward the sunward cap. Within 750 m of
+  by clumps of real trees that open toward the sunward cap. A course that
+  names its footprint draws the clearing's floor around it as its own
+  drivable lawn, following the floor's curve out to the clearing's edge,
+  where the habitat's painted lawn takes over. A park fence closes it 215 m
+  out
+  ([course data](../skills/project-systems/course-data/README.md)). Within 750 m of
   the course the woods and park trees are real trees, 10–24 m tall: three
   broadleaves and a fir, each a billboard baked from a scanned tree that
   turns to face the camera ([tree billboards](visual-identity.md#tree-billboards)).

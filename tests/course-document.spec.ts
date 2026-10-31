@@ -23,6 +23,8 @@ import {
   ROUGH_COURSE_DOCUMENT,
   serializeCourseDocument,
 } from "../src/game/course/course-document";
+import { createOfficialKartRosterDocuments } from "../src/game/kart/official-kart-roster";
+import { deriveKartSnapshot } from "../src/game/kart/kart-derivation";
 import {
   getCourseWaterVolumes,
   isUnderCourseWater,
@@ -32,11 +34,24 @@ function cloneSeed() {
   return structuredClone(ROUGH_COURSE_DOCUMENT);
 }
 
+// Falls View Park as a version-nine course could hold it: not in its
+// clearing, and its berm over the tunnel never supporting a kart.
+function versionNineFallsViewPark() {
+  const document = structuredClone(FALLS_VIEW_PARK_DOCUMENT);
+  delete document.enclosure.clearing;
+  for (const object of document.objects) {
+    if (object.overhead && object.collision?.role === "drivable-surface") {
+      object.collision = null;
+    }
+  }
+  return document;
+}
+
 // Falls View Park as a version-seven course could hold it: no water, work
 // lights, or bicycles, turf where its lanes are concrete, and block where
 // its stream bed is gravel.
 function versionSevenFallsViewPark() {
-  const document = structuredClone(FALLS_VIEW_PARK_DOCUMENT);
+  const document = versionNineFallsViewPark();
   document.objects = document.objects.filter(
     (object) =>
       object.visual.material !== "water" &&
@@ -145,7 +160,7 @@ function findObject(id: string) {
 }
 
 test("parses the versioned rough course with stable IDs and ordered checkpoints", () => {
-  expect(ROUGH_COURSE_DOCUMENT.schemaVersion).toBe(9);
+  expect(ROUGH_COURSE_DOCUMENT.schemaVersion).toBe(10);
   expect(ROUGH_COURSE_DOCUMENT.units).toBe("meters");
   expect(ROUGH_COURSE_DOCUMENT.start.id).toBe("start-position");
   expect(ROUGH_COURSE_DOCUMENT.checkpoints).toHaveLength(3);
@@ -598,6 +613,8 @@ function expectMarkingsRestOnSurfaces(document: CourseDocument) {
     .filter(
       (object) =>
         object.collision?.role === "drivable-surface" &&
+        // Earthworks over a roof lie above it, never beneath a marking.
+        !object.overhead &&
         object.transform.rotation.x === 0 &&
         object.transform.rotation.z === 0,
     );
@@ -709,7 +726,7 @@ function toObjectFrame(
 }
 
 test("serializes the seeds deterministically and round trips without changes", () => {
-  for (const seed of ["rough-course.v9.json", "falls-view-park.v9.json"]) {
+  for (const seed of ["rough-course.v10.json", "falls-view-park.v10.json"]) {
     const source = readFileSync(
       join(process.cwd(), "src/game/course", seed),
       "utf8",
@@ -721,7 +738,7 @@ test("serializes the seeds deterministically and round trips without changes", (
   }
   expect(serializeCourseDocument(ROUGH_COURSE_DOCUMENT)).toBe(
     readFileSync(
-      join(process.cwd(), "src/game/course/rough-course.v9.json"),
+      join(process.cwd(), "src/game/course/rough-course.v10.json"),
       "utf8",
     ),
   );
@@ -754,7 +771,7 @@ test("normalizes version-one course data without mutating the stored input", () 
   expect(withoutDerived(normalized)).toEqual(
     withoutDerived(ROUGH_COURSE_DOCUMENT),
   );
-  expect(normalized.schemaVersion).toBe(9);
+  expect(normalized.schemaVersion).toBe(10);
 });
 
 test("normalizes a valid one-checkpoint version-one course", () => {
@@ -949,7 +966,7 @@ test("normalizes v2 to standard surfaces without inferring physics from visuals"
   const input = createVersionTwoSeed();
   const stored = structuredClone(input);
   const normalized = parseCourseDocument(input);
-  expect(normalized.schemaVersion).toBe(9);
+  expect(normalized.schemaVersion).toBe(10);
   // Legacy karts keep spawning on the start gate.
   expect(normalized.start.spawnDistance).toBe(0);
   for (const object of normalized.objects) {
@@ -1186,14 +1203,14 @@ test("parks bicycles only in schema version eight, as upright boxes", () => {
 
 
 test("upgrades v8 unchanged and bounds outdoor street lamps in v9", () => {
-  const legacy = structuredClone(FALLS_VIEW_PARK_DOCUMENT);
+  const legacy = versionNineFallsViewPark();
   legacy.objects = legacy.objects.filter((o) => o.lamp !== "street");
   expect(parseCourseDocument({ ...legacy, schemaVersion: 8 })).toEqual(legacy);
   const street = FALLS_VIEW_PARK_DOCUMENT.objects.find(
     (o) => o.lamp === "street",
   )!;
   expect(() =>
-    parseCourseDocument({ ...FALLS_VIEW_PARK_DOCUMENT, schemaVersion: 8 }),
+    parseCourseDocument({ ...versionNineFallsViewPark(), schemaVersion: 8 }),
   ).toThrow();
   const full = structuredClone(legacy);
   for (let i = 0; i < COURSE_STREET_LAMP_LIMIT; i++)
@@ -1251,5 +1268,103 @@ test("connects both return-turn kerbs to the downhill and return straight", () =
         5,
       );
     }
+  }
+});
+
+test("upgrades v9 unchanged and places a course in its clearing in v10", () => {
+  const legacy = versionNineFallsViewPark();
+  expect(parseCourseDocument({ ...legacy, schemaVersion: 9 })).toEqual(legacy);
+  expect(() =>
+    parseCourseDocument({ ...FALLS_VIEW_PARK_DOCUMENT, schemaVersion: 9 }),
+  ).toThrow();
+
+  // Falls View Park's footprint is its perimeter walls' outer faces.
+  const walls = FALLS_VIEW_PARK_DOCUMENT.objects.filter((o) =>
+    o.id.startsWith("perimeter-wall-"),
+  );
+  const faces = walls.flatMap(({ transform: { position }, visual }) =>
+    visual.shape === "arc"
+      ? []
+      : [
+          { x: position.x - visual.scale.x / 2, z: position.z - visual.scale.z / 2 },
+          { x: position.x + visual.scale.x / 2, z: position.z + visual.scale.z / 2 },
+        ],
+  );
+  expect(FALLS_VIEW_PARK_DOCUMENT.enclosure.clearing?.footprint).toEqual({
+    max: { x: Math.max(...faces.map((f) => f.x)), z: Math.max(...faces.map((f) => f.z)) },
+    min: { x: Math.min(...faces.map((f) => f.x)), z: Math.min(...faces.map((f) => f.z)) },
+  });
+
+  // The walls retain the park down to the floor, which lies at most
+  // 0.9 m below its ground.
+  for (const wall of walls) {
+    const bottom = wall.transform.position.y - (wall.visual.shape === "arc" ? 0 : wall.visual.scale.y / 2);
+    expect(bottom).toBeLessThan(-FALLS_VIEW_PARK_DOCUMENT.enclosure.placement.height);
+  }
+
+  const issues = (change: (document: typeof legacy) => void) => {
+    const document = structuredClone(FALLS_VIEW_PARK_DOCUMENT);
+    change(document);
+    return courseDocumentSchema.safeParse(document).error?.issues ?? [];
+  };
+  expect(issues(() => {})).toEqual([]);
+  expect(
+    issues((document) => {
+      document.enclosure.clearing!.footprint.min.x = 150;
+    }),
+  ).toContainEqual(expect.objectContaining({ path: ["enclosure", "clearing", "footprint"] }));
+  expect(
+    issues((document) => {
+      document.enclosure.clearing!.footprint.max.z = 190;
+    }),
+  ).toContainEqual(expect.objectContaining({ path: ["enclosure", "clearing", "footprint"] }));
+  expect(
+    issues((document) => {
+      document.enclosure.placement.heading = 45;
+    }),
+  ).toContainEqual(expect.objectContaining({ path: ["enclosure", "placement", "heading"] }));
+
+  // Outdoor earthworks over a roof may support karts from version ten;
+  // an indoor roof never does.
+  const berm = FALLS_VIEW_PARK_DOCUMENT.objects.findIndex(
+    (o) => o.overhead && !o.indoors && o.collision?.role === "drivable-surface",
+  );
+  expect(berm).toBeGreaterThanOrEqual(0);
+  expect(() =>
+    parseCourseDocument({
+      ...versionNineFallsViewPark(),
+      objects: FALLS_VIEW_PARK_DOCUMENT.objects,
+      schemaVersion: 9,
+    }),
+  ).toThrow("Overhead objects collide only as solid obstacles");
+  expect(
+    issues((document) => {
+      document.objects[berm]!.indoors = true;
+    }),
+  ).toContainEqual(expect.objectContaining({ path: ["objects", berm, "collision", "role"] }));
+});
+
+test("opens a storm drain through the north wall that every official kart fits", () => {
+  const box = (id: string) => {
+    const object = FALLS_VIEW_PARK_DOCUMENT.objects.find((o) => o.id === id)!;
+    if (object.visual.shape === "arc") throw new Error("Expected a box");
+    const { position } = object.transform;
+    const { scale } = object.visual;
+    return {
+      bottom: position.y - scale.y / 2,
+      east: position.x + scale.x / 2,
+      top: position.y + scale.y / 2,
+      west: position.x - scale.x / 2,
+    };
+  };
+  const width = box("perimeter-wall-north-east").west - box("perimeter-wall-north").east;
+  const height = box("storm-drain-lintel").bottom - box("storm-drain-apron").top;
+  expect([width, height].map((v) => Number(v.toFixed(3)))).toEqual([0.6, 0.45]);
+  // The culvert's floor is the park's ground, carried by its apron.
+  expect(box("storm-drain-apron").top).toBeCloseTo(0, 6);
+  for (const document of createOfficialKartRosterDocuments()) {
+    const { dimensions } = deriveKartSnapshot(document).geometry;
+    expect(width - dimensions.x, document.kartId).toBeGreaterThan(0.12);
+    expect(height - dimensions.y, document.kartId).toBeGreaterThan(0.25);
   }
 });
