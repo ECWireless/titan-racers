@@ -50,7 +50,8 @@ own:
 
 - Window frames are sized to read from kilometres away: sills along each
   window edge, longerons every 10°, and ring frames every kilometre, with
-  lighter mullions between them. The sources' panes are far smaller.
+  slimmer mullions between them, lit like the frames by the habitat's own
+  light, so they stay dark at dusk. The sources' panes are far smaller.
 - Valleys are lived-in landscape built in code, following
   [habitat land use](../skills/game-concepts/habitat-land-use/README.md):
   meadows, woods, single park trees and footpaths, a river with lakes, a

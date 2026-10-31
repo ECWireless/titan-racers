@@ -49314,6 +49314,34 @@
     },
     {
       "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "service-road-ramp-1-face-left",
+      "transform": {
+        "position": {
+          "x": 93.115,
+          "y": 0.059933,
+          "z": 81.950696
+        },
+        "rotation": {
+          "x": 0.766256,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "obstacleBlock",
+        "scale": {
+          "x": 0.05,
+          "y": 0.188211,
+          "z": 2.118284
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
       "category": "obstacle",
       "collision": {
         "friction": 0.7,
@@ -49362,6 +49390,34 @@
           "x": 0.15,
           "y": 0.15,
           "z": 2.020179
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "service-road-ramp-1-face-right",
+      "transform": {
+        "position": {
+          "x": 97.885,
+          "y": 0.059933,
+          "z": 81.950696
+        },
+        "rotation": {
+          "x": 0.766256,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "obstacleBlock",
+        "scale": {
+          "x": 0.05,
+          "y": 0.188211,
+          "z": 2.118284
         },
         "shape": "box"
       }
@@ -49476,6 +49532,34 @@
     },
     {
       "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "service-road-ramp-2-face-left",
+      "transform": {
+        "position": {
+          "x": 93.115,
+          "y": 0.073389,
+          "z": 79.897887
+        },
+        "rotation": {
+          "x": 2.17996,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "obstacleBlock",
+        "scale": {
+          "x": 0.05,
+          "y": 0.270634,
+          "z": 2.199373
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
       "category": "obstacle",
       "collision": {
         "friction": 0.7,
@@ -49524,6 +49608,34 @@
           "x": 0.15,
           "y": 0.15,
           "z": 2.021448
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "service-road-ramp-2-face-right",
+      "transform": {
+        "position": {
+          "x": 97.885,
+          "y": 0.073389,
+          "z": 79.897887
+        },
+        "rotation": {
+          "x": 2.17996,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "obstacleBlock",
+        "scale": {
+          "x": 0.05,
+          "y": 0.270634,
+          "z": 2.199373
         },
         "shape": "box"
       }
@@ -49638,6 +49750,34 @@
     },
     {
       "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "service-road-ramp-3-face-left",
+      "transform": {
+        "position": {
+          "x": 93.115,
+          "y": 0.111456,
+          "z": 77.853158
+        },
+        "rotation": {
+          "x": 3.414835,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "obstacleBlock",
+        "scale": {
+          "x": 0.05,
+          "y": 0.399503,
+          "z": 2.281248
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
       "category": "obstacle",
       "collision": {
         "friction": 0.7,
@@ -49686,6 +49826,34 @@
           "x": 0.15,
           "y": 0.15,
           "z": 2.023557
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "service-road-ramp-3-face-right",
+      "transform": {
+        "position": {
+          "x": 97.885,
+          "y": 0.111456,
+          "z": 77.853158
+        },
+        "rotation": {
+          "x": 3.414835,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "obstacleBlock",
+        "scale": {
+          "x": 0.05,
+          "y": 0.399503,
+          "z": 2.281248
         },
         "shape": "box"
       }
@@ -49800,6 +49968,34 @@
     },
     {
       "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "service-road-ramp-4-face-left",
+      "transform": {
+        "position": {
+          "x": 93.115,
+          "y": 0.171123,
+          "z": 75.810386
+        },
+        "rotation": {
+          "x": 4.470821,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "obstacleBlock",
+        "scale": {
+          "x": 0.05,
+          "y": 0.56735,
+          "z": 2.35246
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
       "category": "obstacle",
       "collision": {
         "friction": 0.7,
@@ -49848,6 +50044,34 @@
           "x": 0.15,
           "y": 0.15,
           "z": 2.026104
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "service-road-ramp-4-face-right",
+      "transform": {
+        "position": {
+          "x": 97.885,
+          "y": 0.171123,
+          "z": 75.810386
+        },
+        "rotation": {
+          "x": 4.470821,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "obstacleBlock",
+        "scale": {
+          "x": 0.05,
+          "y": 0.56735,
+          "z": 2.35246
         },
         "shape": "box"
       }
@@ -50016,6 +50240,34 @@
     },
     {
       "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "service-road-ramp-5-face-left",
+      "transform": {
+        "position": {
+          "x": 93.115,
+          "y": 0.249307,
+          "z": 73.769625
+        },
+        "rotation": {
+          "x": 5.348521,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "obstacleBlock",
+        "scale": {
+          "x": 0.05,
+          "y": 0.766839,
+          "z": 2.412598
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
       "category": "obstacle",
       "collision": {
         "friction": 0.7,
@@ -50064,6 +50316,34 @@
           "x": 0.15,
           "y": 0.15,
           "z": 2.028746
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "service-road-ramp-5-face-right",
+      "transform": {
+        "position": {
+          "x": 97.885,
+          "y": 0.249307,
+          "z": 73.769625
+        },
+        "rotation": {
+          "x": 5.348521,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "obstacleBlock",
+        "scale": {
+          "x": 0.05,
+          "y": 0.766839,
+          "z": 2.412598
         },
         "shape": "box"
       }
@@ -50232,6 +50512,34 @@
     },
     {
       "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "service-road-ramp-6-face-left",
+      "transform": {
+        "position": {
+          "x": 93.115,
+          "y": 0.342919,
+          "z": 71.731456
+        },
+        "rotation": {
+          "x": 6.048893,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "obstacleBlock",
+        "scale": {
+          "x": 0.05,
+          "y": 0.990717,
+          "z": 2.461275
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
       "category": "obstacle",
       "collision": {
         "friction": 0.7,
@@ -50280,6 +50588,34 @@
           "x": 0.15,
           "y": 0.15,
           "z": 2.031198
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "service-road-ramp-6-face-right",
+      "transform": {
+        "position": {
+          "x": 97.885,
+          "y": 0.342919,
+          "z": 71.731456
+        },
+        "rotation": {
+          "x": 6.048893,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "obstacleBlock",
+        "scale": {
+          "x": 0.05,
+          "y": 0.990717,
+          "z": 2.461275
         },
         "shape": "box"
       }
@@ -50448,6 +50784,34 @@
     },
     {
       "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "service-road-ramp-7-face-left",
+      "transform": {
+        "position": {
+          "x": 93.115,
+          "y": 0.448877,
+          "z": 69.702212
+        },
+        "rotation": {
+          "x": 6.572995,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "obstacleBlock",
+        "scale": {
+          "x": 0.05,
+          "y": 1.23059,
+          "z": 2.487541
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
       "category": "obstacle",
       "collision": {
         "friction": 0.7,
@@ -50496,6 +50860,34 @@
           "x": 0.15,
           "y": 0.15,
           "z": 2.033233
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "service-road-ramp-7-face-right",
+      "transform": {
+        "position": {
+          "x": 97.885,
+          "y": 0.448877,
+          "z": 69.702212
+        },
+        "rotation": {
+          "x": 6.572995,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "obstacleBlock",
+        "scale": {
+          "x": 0.05,
+          "y": 1.23059,
+          "z": 2.487541
         },
         "shape": "box"
       }
@@ -50664,6 +51056,34 @@
     },
     {
       "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "service-road-ramp-8-face-left",
+      "transform": {
+        "position": {
+          "x": 93.115,
+          "y": 0.73974,
+          "z": 67.651078
+        },
+        "rotation": {
+          "x": 6.921789,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "obstacleBlock",
+        "scale": {
+          "x": 0.05,
+          "y": 1.838198,
+          "z": 2.533487
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
       "category": "obstacle",
       "collision": {
         "friction": 0.7,
@@ -50712,6 +51132,34 @@
           "x": 0.15,
           "y": 0.5,
           "z": 2.034684
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "service-road-ramp-8-face-right",
+      "transform": {
+        "position": {
+          "x": 97.885,
+          "y": 0.73974,
+          "z": 67.651078
+        },
+        "rotation": {
+          "x": 6.921789,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "obstacleBlock",
+        "scale": {
+          "x": 0.05,
+          "y": 1.838198,
+          "z": 2.533487
         },
         "shape": "box"
       }
@@ -50880,6 +51328,34 @@
     },
     {
       "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "service-road-ramp-9-face-left",
+      "transform": {
+        "position": {
+          "x": 93.115,
+          "y": 0.860507,
+          "z": 65.905589
+        },
+        "rotation": {
+          "x": 7.095995,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "obstacleBlock",
+        "scale": {
+          "x": 0.05,
+          "y": 2.025452,
+          "z": 2.015055
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
       "category": "obstacle",
       "collision": {
         "friction": 0.7,
@@ -50928,6 +51404,34 @@
           "x": 0.15,
           "y": 0.5,
           "z": 2.035437
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "service-road-ramp-9-face-right",
+      "transform": {
+        "position": {
+          "x": 97.885,
+          "y": 0.860507,
+          "z": 65.905589
+        },
+        "rotation": {
+          "x": 7.095995,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "obstacleBlock",
+        "scale": {
+          "x": 0.05,
+          "y": 2.025452,
+          "z": 2.015055
         },
         "shape": "box"
       }
@@ -51096,6 +51600,34 @@
     },
     {
       "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "service-road-ramp-10-face-left",
+      "transform": {
+        "position": {
+          "x": 93.115,
+          "y": 0.951481,
+          "z": 64.159104
+        },
+        "rotation": {
+          "x": 7.095995,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "obstacleBlock",
+        "scale": {
+          "x": 0.05,
+          "y": 2.276392,
+          "z": 2.557993
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
       "category": "obstacle",
       "collision": {
         "friction": 0.7,
@@ -51144,6 +51676,34 @@
           "x": 0.15,
           "y": 0.5,
           "z": 2.035437
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "service-road-ramp-10-face-right",
+      "transform": {
+        "position": {
+          "x": 97.885,
+          "y": 0.951481,
+          "z": 64.159104
+        },
+        "rotation": {
+          "x": 7.095995,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "obstacleBlock",
+        "scale": {
+          "x": 0.05,
+          "y": 2.276392,
+          "z": 2.557993
         },
         "shape": "box"
       }
@@ -51312,6 +51872,34 @@
     },
     {
       "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "service-road-ramp-11-face-left",
+      "transform": {
+        "position": {
+          "x": 93.115,
+          "y": 1.077494,
+          "z": 62.14117
+        },
+        "rotation": {
+          "x": 6.921789,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "obstacleBlock",
+        "scale": {
+          "x": 0.05,
+          "y": 2.520169,
+          "z": 2.54586
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
       "category": "obstacle",
       "collision": {
         "friction": 0.7,
@@ -51360,6 +51948,34 @@
           "x": 0.15,
           "y": 0.5,
           "z": 2.034684
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "service-road-ramp-11-face-right",
+      "transform": {
+        "position": {
+          "x": 97.885,
+          "y": 1.077494,
+          "z": 62.14117
+        },
+        "rotation": {
+          "x": 6.921789,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "obstacleBlock",
+        "scale": {
+          "x": 0.05,
+          "y": 2.520169,
+          "z": 2.54586
         },
         "shape": "box"
       }
@@ -51528,6 +52144,34 @@
     },
     {
       "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "service-road-ramp-12-face-left",
+      "transform": {
+        "position": {
+          "x": 93.115,
+          "y": 1.201865,
+          "z": 60.122249
+        },
+        "rotation": {
+          "x": 6.572995,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "obstacleBlock",
+        "scale": {
+          "x": 0.05,
+          "y": 2.750376,
+          "z": 2.52093
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
       "category": "obstacle",
       "collision": {
         "friction": 0.7,
@@ -51576,6 +52220,34 @@
           "x": 0.15,
           "y": 0.5,
           "z": 2.033233
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "service-road-ramp-12-face-right",
+      "transform": {
+        "position": {
+          "x": 97.885,
+          "y": 1.201865,
+          "z": 60.122249
+        },
+        "rotation": {
+          "x": 6.572995,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "obstacleBlock",
+        "scale": {
+          "x": 0.05,
+          "y": 2.750376,
+          "z": 2.52093
         },
         "shape": "box"
       }
@@ -51744,6 +52416,34 @@
     },
     {
       "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "service-road-ramp-13-face-left",
+      "transform": {
+        "position": {
+          "x": 93.115,
+          "y": 1.321288,
+          "z": 58.103617
+        },
+        "rotation": {
+          "x": 6.048893,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "obstacleBlock",
+        "scale": {
+          "x": 0.05,
+          "y": 2.960753,
+          "z": 2.483396
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
       "category": "obstacle",
       "collision": {
         "friction": 0.7,
@@ -51792,6 +52492,34 @@
           "x": 0.15,
           "y": 0.5,
           "z": 2.031198
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "service-road-ramp-13-face-right",
+      "transform": {
+        "position": {
+          "x": 97.885,
+          "y": 1.321288,
+          "z": 58.103617
+        },
+        "rotation": {
+          "x": 6.048893,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "obstacleBlock",
+        "scale": {
+          "x": 0.05,
+          "y": 2.960753,
+          "z": 2.483396
         },
         "shape": "box"
       }
@@ -51960,6 +52688,34 @@
     },
     {
       "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "service-road-ramp-14-face-left",
+      "transform": {
+        "position": {
+          "x": 93.115,
+          "y": 1.43235,
+          "z": 56.086279
+        },
+        "rotation": {
+          "x": 5.348521,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "obstacleBlock",
+        "scale": {
+          "x": 0.05,
+          "y": 3.145232,
+          "z": 2.433529
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
       "category": "obstacle",
       "collision": {
         "friction": 0.7,
@@ -52008,6 +52764,34 @@
           "x": 0.15,
           "y": 0.5,
           "z": 2.028746
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "service-road-ramp-14-face-right",
+      "transform": {
+        "position": {
+          "x": 97.885,
+          "y": 1.43235,
+          "z": 56.086279
+        },
+        "rotation": {
+          "x": 5.348521,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "obstacleBlock",
+        "scale": {
+          "x": 0.05,
+          "y": 3.145232,
+          "z": 2.433529
         },
         "shape": "box"
       }
@@ -52176,6 +52960,34 @@
     },
     {
       "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "service-road-ramp-15-face-left",
+      "transform": {
+        "position": {
+          "x": 93.115,
+          "y": 1.531527,
+          "z": 54.070882
+        },
+        "rotation": {
+          "x": 4.470821,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "obstacleBlock",
+        "scale": {
+          "x": 0.05,
+          "y": 3.297964,
+          "z": 2.37167
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
       "category": "obstacle",
       "collision": {
         "friction": 0.7,
@@ -52224,6 +53036,34 @@
           "x": 0.15,
           "y": 0.5,
           "z": 2.026104
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "service-road-ramp-15-face-right",
+      "transform": {
+        "position": {
+          "x": 97.885,
+          "y": 1.531527,
+          "z": 54.070882
+        },
+        "rotation": {
+          "x": 4.470821,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "obstacleBlock",
+        "scale": {
+          "x": 0.05,
+          "y": 3.297964,
+          "z": 2.37167
         },
         "shape": "box"
       }
@@ -52392,6 +53232,34 @@
     },
     {
       "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "service-road-ramp-16-face-left",
+      "transform": {
+        "position": {
+          "x": 93.115,
+          "y": 1.615185,
+          "z": 52.057612
+        },
+        "rotation": {
+          "x": 3.414835,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "obstacleBlock",
+        "scale": {
+          "x": 0.05,
+          "y": 3.413323,
+          "z": 2.298206
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
       "category": "obstacle",
       "collision": {
         "friction": 0.7,
@@ -52440,6 +53308,34 @@
           "x": 0.15,
           "y": 0.5,
           "z": 2.023557
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "service-road-ramp-16-face-right",
+      "transform": {
+        "position": {
+          "x": 97.885,
+          "y": 1.615185,
+          "z": 52.057612
+        },
+        "rotation": {
+          "x": 3.414835,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "obstacleBlock",
+        "scale": {
+          "x": 0.05,
+          "y": 3.413323,
+          "z": 2.298206
         },
         "shape": "box"
       }
@@ -52608,6 +53504,34 @@
     },
     {
       "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "service-road-ramp-17-face-left",
+      "transform": {
+        "position": {
+          "x": 93.115,
+          "y": 1.679581,
+          "z": 50.046106
+        },
+        "rotation": {
+          "x": 2.17996,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "obstacleBlock",
+        "scale": {
+          "x": 0.05,
+          "y": 3.485884,
+          "z": 2.213551
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
       "category": "obstacle",
       "collision": {
         "friction": 0.7,
@@ -52656,6 +53580,34 @@
           "x": 0.15,
           "y": 0.5,
           "z": 2.021448
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "service-road-ramp-17-face-right",
+      "transform": {
+        "position": {
+          "x": 97.885,
+          "y": 1.679581,
+          "z": 50.046106
+        },
+        "rotation": {
+          "x": 2.17996,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "obstacleBlock",
+        "scale": {
+          "x": 0.05,
+          "y": 3.485884,
+          "z": 2.213551
         },
         "shape": "box"
       }
@@ -52824,6 +53776,34 @@
     },
     {
       "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "service-road-ramp-18-face-left",
+      "transform": {
+        "position": {
+          "x": 93.115,
+          "y": 1.72086,
+          "z": 48.032093
+        },
+        "rotation": {
+          "x": 0.766256,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "obstacleBlock",
+        "scale": {
+          "x": 0.05,
+          "y": 3.510447,
+          "z": 2.124634
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
       "category": "obstacle",
       "collision": {
         "friction": 0.7,
@@ -52872,6 +53852,34 @@
           "x": 0.15,
           "y": 0.5,
           "z": 2.020179
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "service-road-ramp-18-face-right",
+      "transform": {
+        "position": {
+          "x": 97.885,
+          "y": 1.72086,
+          "z": 48.032093
+        },
+        "rotation": {
+          "x": 0.766256,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "obstacleBlock",
+        "scale": {
+          "x": 0.05,
+          "y": 3.510447,
+          "z": 2.124634
         },
         "shape": "box"
       }

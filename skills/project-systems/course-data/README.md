@@ -348,6 +348,11 @@ exposed in the UI.
   under its fill's level tops, the fill set back 2 cm (Falls View Park's
   downhill; its jump's banked landing deck uses the same skin and slab in
   plywood, without fill).
+- Faces that share a plane flicker as the camera moves. Where a ramp's
+  slabs, kerbs, and fill would meet in one side face, a thin face panel
+  per slab and side, 1 cm proud and overlapping its neighbour over its
+  full height, draws the wall instead (Falls View Park's service ramp);
+  overlaps in one finish draw alike and cannot flicker.
 - Earthworks built from tilted slabs fill concave corners correctly (the
   surface is the highest slope), but a convex corner needs the lowest, and
   overlapping slabs leave lips that show as dark lines. Plan visible
