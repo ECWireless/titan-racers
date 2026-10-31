@@ -47,16 +47,26 @@ own editor commands or persistence UI.
   levee's anti-spinward access ramp or the youth's jump beside it, and
   back along a return lane, placed in another valley 2.5 km from the
   sunward end cap, at deep dusk (mirror 89.5°) under floodlights. Its start
-  sits in a roofed, lamp-lit, and dressed utility tunnel under an earth berm.
+  sits in a roofed, lamp-lit, and dressed utility tunnel under an earth berm,
+  whose grass banks and crest are drivable lawn. Its lawn is 20 m tiles,
+  0.5 m deep.
   Past the tunnel the route forks: turf alleys between planted beds take the
   nursery hairpins, or the service road swoops south behind hedges and climbs
   an access ramp to the levee crest; both rejoin before the crest checkpoint.
   The nursery route leaves through the culvert, a precast box lit by the
   youth's work lights, under a perched stream and the levee; the stream
-  drains west to an outfall at the perimeter wall, with room beside it for
-  4.4.7's storm drain. Two of the youth's bicycles lean at the crest's
-  handrail and wall. Past the crest an S-bend ramp comes down to the park,
-  with the youth's jump straight across its inside (PR 4.4.5 in the plan).
+  drains west to an outfall at the perimeter wall. The youth's last crowd
+  barrier on the downhill's west side stands swung open, a gate from the
+  jump's infield to the lawn inside the park's walls, all off the route.
+  The tunnel's berm, whose portals' headwalls stand flush with its crest,
+  hides a storm drain through the north wall in the narrow lawn behind it:
+  a 600 × 450 mm precast box culvert, the smallest standard box every
+  official kart fits through. Wingwalls flare from it to a 1 m
+  concrete chute that falls 1:8 to the floor of the clearing, and two park
+  street lamps light its inlet and the chute's foot. Two of the youth's
+  bicycles lean at the levee crest's handrail and wall. Past the crest an
+  S-bend ramp comes down to the park, with the youth's jump straight across
+  its inside (PR 4.4.5 in the plan).
   The return lane has 150 mm kerbs and edge lines, with four full-size
   street lamps along its anti-sunward run. It stands
   0.9 m above the habitat floor (`enclosure.placement.height`), so the
@@ -177,7 +187,8 @@ apart from the floodlights. Version six also adds `indoors: true`, for objects l
 indoor light (tunnel and work lamps stand indoors, floodlights and street
 lamps outdoors), and
 `overhead: true`, for roofs and the earthworks over them, which the editor
-can cut away and which never support a kart; a kart beneath an object that
+can cut away and which never support a kart (from version ten, outdoor ones
+may); a kart beneath an object that
 is both counts as indoors.
 
 Version six adds arcs. An arc's visual has no scale: `visual.arc` holds its
@@ -225,8 +236,9 @@ the course's clearing is drawn and drivable outside the footprint
 footprint stays within 200 m of the placement,
 and the course must be turned square to
 the axis, so the footprint meets the floor along straight edges. Falls View
-Park's footprint is its perimeter walls' outer faces. Version-nine documents
-upgrade unchanged.
+Park's footprint is its perimeter walls' outer faces. Version ten also lets
+outdoor overhead objects, earthworks over a roof, support karts; an indoor
+roof still never does. Version-nine documents upgrade unchanged.
 
 Coordinates and dimensions are finite and bounded to the accepted authoring
 envelope. Unknown fields and unsupported enum values fail rather than being
@@ -363,5 +375,6 @@ exposed in the UI.
   banked arcs are not yet supported. New primitive kinds need runtime,
   collision, and round-trip evidence.
 - Arbitrary placeable lights, skyboxes, fog, and post-processing are deferred.
-- Wheel contacts jitter at speed on long elevated decks, so drivable decks
-  and roads come in pieces of at most about 20 m.
+- Wheel contacts jitter on long drivable boxes (a 140 m deck at speed; a
+  218 m, 0.1 m ground slab bounced karts on lawn), so decks, roads, and
+  ground come in pieces of at most about 20 m.

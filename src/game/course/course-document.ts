@@ -508,6 +508,7 @@ function validateCourseObjectsV6(
   context: z.RefinementCtx,
   lampLimit: number,
   indoorLampLimit: number,
+  outdoorOverheadSupport = false,
 ) {
   validateCourseRoute(document, context);
   if (countCourseLamps(document, "floodlight") > lampLimit) {
@@ -537,7 +538,14 @@ function validateCourseObjectsV6(
       });
     }
     // A drivable roof would catch karts and checkpoint recovery above it.
-    if (object.overhead && object.collision?.role === "drivable-surface") {
+    // From version ten, outdoor earthworks over a roof (a berm) may support
+    // karts, the overhead flag only marking them for the editor's cut-away;
+    // an indoor roof still never does.
+    if (
+      object.overhead &&
+      (object.indoors || !outdoorOverheadSupport) &&
+      object.collision?.role === "drivable-surface"
+    ) {
       context.addIssue({
         code: "custom",
         message: "Overhead objects collide only as solid obstacles",
@@ -682,8 +690,15 @@ function validateCourseObjectsV7(
   },
   context: z.RefinementCtx,
   indoorLampLimit = LEGACY_COURSE_INDOOR_LAMP_LIMIT,
+  outdoorOverheadSupport = false,
 ) {
-  validateCourseObjectsV6(document, context, COURSE_LAMP_LIMIT, indoorLampLimit);
+  validateCourseObjectsV6(
+    document,
+    context,
+    COURSE_LAMP_LIMIT,
+    indoorLampLimit,
+    outdoorOverheadSupport,
+  );
   if (countCourseTrees(document) > COURSE_TREE_LIMIT) {
     context.addIssue({
       code: "custom",
@@ -777,8 +792,14 @@ const courseDocumentV9BaseSchema = courseDocumentV8BaseSchema.extend({
 function validateCourseObjectsV8(
   document: Omit<z.infer<typeof courseDocumentV9BaseSchema>, "schemaVersion">,
   context: z.RefinementCtx,
+  outdoorOverheadSupport = false,
 ) {
-  validateCourseObjectsV7(document, context, COURSE_INDOOR_LAMP_LIMIT);
+  validateCourseObjectsV7(
+    document,
+    context,
+    COURSE_INDOOR_LAMP_LIMIT,
+    outdoorOverheadSupport,
+  );
   document.objects.forEach((object, index) => {
     // Water is a level box of open water under the sky: its top is the
     // surface and its volume the water a kart can drown in. Karts pass
@@ -832,8 +853,9 @@ const courseDocumentV8Schema = courseDocumentV8BaseSchema.superRefine(
 function validateCourseObjectsV9(
   document: Omit<z.infer<typeof courseDocumentV9BaseSchema>, "schemaVersion">,
   context: z.RefinementCtx,
+  outdoorOverheadSupport = false,
 ) {
-  validateCourseObjectsV8(document, context);
+  validateCourseObjectsV8(document, context, outdoorOverheadSupport);
   if (countCourseLamps(document, "street") > COURSE_STREET_LAMP_LIMIT) {
     context.addIssue({
       code: "custom",
@@ -861,7 +883,9 @@ const courseDocumentV9Schema = courseDocumentV9BaseSchema.superRefine(
 
 export const courseDocumentSchema = courseDocumentV9BaseSchema
   .extend({ enclosure: enclosureV10Schema, schemaVersion: z.literal(10) })
-  .superRefine(validateCourseObjectsV9);
+  .superRefine((document, context) =>
+    validateCourseObjectsV9(document, context, true),
+  );
 
 export type CourseDocumentV1 = z.infer<typeof courseDocumentV1Schema>;
 type CourseDocumentV3 = z.infer<typeof courseDocumentV3Schema>;

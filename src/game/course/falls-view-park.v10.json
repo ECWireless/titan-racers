@@ -249,9 +249,9 @@
       "collision": {
         "friction": 0.7,
         "halfExtents": {
-          "x": 108.85,
-          "y": 0.05,
-          "z": 81.85
+          "x": 9.8955,
+          "y": 0.25,
+          "z": 9.0945
         },
         "offset": {
           "position": {
@@ -274,11 +274,227 @@
         }
       },
       "editable": false,
-      "id": "ground",
+      "id": "ground-1-1",
       "transform": {
         "position": {
-          "x": 34,
-          "y": -0.05,
+          "x": -64.9545,
+          "y": -0.25,
+          "z": -52.7555
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "lawn",
+        "scale": {
+          "x": 19.791,
+          "y": 0.5,
+          "z": 18.189
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "surface",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 9.8955,
+          "y": 0.25,
+          "z": 9.0945
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "drivable-surface",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.lawn-grass",
+          "version": 1
+        }
+      },
+      "editable": false,
+      "id": "ground-1-2",
+      "transform": {
+        "position": {
+          "x": -64.9545,
+          "y": -0.25,
+          "z": -34.5665
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "lawn",
+        "scale": {
+          "x": 19.791,
+          "y": 0.5,
+          "z": 18.189
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "surface",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 9.8955,
+          "y": 0.25,
+          "z": 9.0945
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "drivable-surface",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.lawn-grass",
+          "version": 1
+        }
+      },
+      "editable": false,
+      "id": "ground-1-3",
+      "transform": {
+        "position": {
+          "x": -64.9545,
+          "y": -0.25,
+          "z": -16.3775
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "lawn",
+        "scale": {
+          "x": 19.791,
+          "y": 0.5,
+          "z": 18.189
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "surface",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 9.8955,
+          "y": 0.25,
+          "z": 9.0945
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "drivable-surface",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.lawn-grass",
+          "version": 1
+        }
+      },
+      "editable": false,
+      "id": "ground-1-4",
+      "transform": {
+        "position": {
+          "x": -64.9545,
+          "y": -0.25,
+          "z": 1.8115
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "lawn",
+        "scale": {
+          "x": 19.791,
+          "y": 0.5,
+          "z": 18.189
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "surface",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 9.8955,
+          "y": 0.25,
+          "z": 9.094
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "drivable-surface",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.lawn-grass",
+          "version": 1
+        }
+      },
+      "editable": false,
+      "id": "ground-1-5",
+      "transform": {
+        "position": {
+          "x": -64.9545,
+          "y": -0.25,
           "z": 20
         },
         "rotation": {
@@ -290,9 +506,5085 @@
       "visual": {
         "material": "lawn",
         "scale": {
-          "x": 217.7,
-          "y": 0.1,
-          "z": 163.7
+          "x": 19.791,
+          "y": 0.5,
+          "z": 18.188
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "surface",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 9.8955,
+          "y": 0.25,
+          "z": 9.0945
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "drivable-surface",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.lawn-grass",
+          "version": 1
+        }
+      },
+      "editable": false,
+      "id": "ground-1-6",
+      "transform": {
+        "position": {
+          "x": -64.9545,
+          "y": -0.25,
+          "z": 38.1885
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "lawn",
+        "scale": {
+          "x": 19.791,
+          "y": 0.5,
+          "z": 18.189
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "surface",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 9.8955,
+          "y": 0.25,
+          "z": 9.0945
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "drivable-surface",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.lawn-grass",
+          "version": 1
+        }
+      },
+      "editable": false,
+      "id": "ground-1-7",
+      "transform": {
+        "position": {
+          "x": -64.9545,
+          "y": -0.25,
+          "z": 56.3775
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "lawn",
+        "scale": {
+          "x": 19.791,
+          "y": 0.5,
+          "z": 18.189
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "surface",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 9.8955,
+          "y": 0.25,
+          "z": 9.0945
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "drivable-surface",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.lawn-grass",
+          "version": 1
+        }
+      },
+      "editable": false,
+      "id": "ground-1-8",
+      "transform": {
+        "position": {
+          "x": -64.9545,
+          "y": -0.25,
+          "z": 74.5665
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "lawn",
+        "scale": {
+          "x": 19.791,
+          "y": 0.5,
+          "z": 18.189
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "surface",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 9.8955,
+          "y": 0.25,
+          "z": 9.0945
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "drivable-surface",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.lawn-grass",
+          "version": 1
+        }
+      },
+      "editable": false,
+      "id": "ground-1-9",
+      "transform": {
+        "position": {
+          "x": -64.9545,
+          "y": -0.25,
+          "z": 92.7555
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "lawn",
+        "scale": {
+          "x": 19.791,
+          "y": 0.5,
+          "z": 18.189
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "surface",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 9.8955,
+          "y": 0.25,
+          "z": 9.0945
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "drivable-surface",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.lawn-grass",
+          "version": 1
+        }
+      },
+      "editable": false,
+      "id": "ground-2-1",
+      "transform": {
+        "position": {
+          "x": -45.1635,
+          "y": -0.25,
+          "z": -52.7555
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "lawn",
+        "scale": {
+          "x": 19.791,
+          "y": 0.5,
+          "z": 18.189
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "surface",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 9.8955,
+          "y": 0.25,
+          "z": 9.0945
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "drivable-surface",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.lawn-grass",
+          "version": 1
+        }
+      },
+      "editable": false,
+      "id": "ground-2-2",
+      "transform": {
+        "position": {
+          "x": -45.1635,
+          "y": -0.25,
+          "z": -34.5665
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "lawn",
+        "scale": {
+          "x": 19.791,
+          "y": 0.5,
+          "z": 18.189
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "surface",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 9.8955,
+          "y": 0.25,
+          "z": 9.0945
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "drivable-surface",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.lawn-grass",
+          "version": 1
+        }
+      },
+      "editable": false,
+      "id": "ground-2-3",
+      "transform": {
+        "position": {
+          "x": -45.1635,
+          "y": -0.25,
+          "z": -16.3775
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "lawn",
+        "scale": {
+          "x": 19.791,
+          "y": 0.5,
+          "z": 18.189
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "surface",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 9.8955,
+          "y": 0.25,
+          "z": 9.0945
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "drivable-surface",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.lawn-grass",
+          "version": 1
+        }
+      },
+      "editable": false,
+      "id": "ground-2-4",
+      "transform": {
+        "position": {
+          "x": -45.1635,
+          "y": -0.25,
+          "z": 1.8115
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "lawn",
+        "scale": {
+          "x": 19.791,
+          "y": 0.5,
+          "z": 18.189
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "surface",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 9.8955,
+          "y": 0.25,
+          "z": 9.094
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "drivable-surface",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.lawn-grass",
+          "version": 1
+        }
+      },
+      "editable": false,
+      "id": "ground-2-5",
+      "transform": {
+        "position": {
+          "x": -45.1635,
+          "y": -0.25,
+          "z": 20
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "lawn",
+        "scale": {
+          "x": 19.791,
+          "y": 0.5,
+          "z": 18.188
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "surface",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 9.8955,
+          "y": 0.25,
+          "z": 9.0945
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "drivable-surface",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.lawn-grass",
+          "version": 1
+        }
+      },
+      "editable": false,
+      "id": "ground-2-6",
+      "transform": {
+        "position": {
+          "x": -45.1635,
+          "y": -0.25,
+          "z": 38.1885
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "lawn",
+        "scale": {
+          "x": 19.791,
+          "y": 0.5,
+          "z": 18.189
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "surface",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 9.8955,
+          "y": 0.25,
+          "z": 9.0945
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "drivable-surface",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.lawn-grass",
+          "version": 1
+        }
+      },
+      "editable": false,
+      "id": "ground-2-7",
+      "transform": {
+        "position": {
+          "x": -45.1635,
+          "y": -0.25,
+          "z": 56.3775
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "lawn",
+        "scale": {
+          "x": 19.791,
+          "y": 0.5,
+          "z": 18.189
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "surface",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 9.8955,
+          "y": 0.25,
+          "z": 9.0945
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "drivable-surface",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.lawn-grass",
+          "version": 1
+        }
+      },
+      "editable": false,
+      "id": "ground-2-8",
+      "transform": {
+        "position": {
+          "x": -45.1635,
+          "y": -0.25,
+          "z": 74.5665
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "lawn",
+        "scale": {
+          "x": 19.791,
+          "y": 0.5,
+          "z": 18.189
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "surface",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 9.8955,
+          "y": 0.25,
+          "z": 9.0945
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "drivable-surface",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.lawn-grass",
+          "version": 1
+        }
+      },
+      "editable": false,
+      "id": "ground-2-9",
+      "transform": {
+        "position": {
+          "x": -45.1635,
+          "y": -0.25,
+          "z": 92.7555
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "lawn",
+        "scale": {
+          "x": 19.791,
+          "y": 0.5,
+          "z": 18.189
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "surface",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 9.8955,
+          "y": 0.25,
+          "z": 9.0945
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "drivable-surface",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.lawn-grass",
+          "version": 1
+        }
+      },
+      "editable": false,
+      "id": "ground-3-1",
+      "transform": {
+        "position": {
+          "x": -25.3725,
+          "y": -0.25,
+          "z": -52.7555
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "lawn",
+        "scale": {
+          "x": 19.791,
+          "y": 0.5,
+          "z": 18.189
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "surface",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 9.8955,
+          "y": 0.25,
+          "z": 9.0945
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "drivable-surface",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.lawn-grass",
+          "version": 1
+        }
+      },
+      "editable": false,
+      "id": "ground-3-2",
+      "transform": {
+        "position": {
+          "x": -25.3725,
+          "y": -0.25,
+          "z": -34.5665
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "lawn",
+        "scale": {
+          "x": 19.791,
+          "y": 0.5,
+          "z": 18.189
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "surface",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 9.8955,
+          "y": 0.25,
+          "z": 9.0945
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "drivable-surface",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.lawn-grass",
+          "version": 1
+        }
+      },
+      "editable": false,
+      "id": "ground-3-3",
+      "transform": {
+        "position": {
+          "x": -25.3725,
+          "y": -0.25,
+          "z": -16.3775
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "lawn",
+        "scale": {
+          "x": 19.791,
+          "y": 0.5,
+          "z": 18.189
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "surface",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 9.8955,
+          "y": 0.25,
+          "z": 9.0945
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "drivable-surface",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.lawn-grass",
+          "version": 1
+        }
+      },
+      "editable": false,
+      "id": "ground-3-4",
+      "transform": {
+        "position": {
+          "x": -25.3725,
+          "y": -0.25,
+          "z": 1.8115
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "lawn",
+        "scale": {
+          "x": 19.791,
+          "y": 0.5,
+          "z": 18.189
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "surface",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 9.8955,
+          "y": 0.25,
+          "z": 9.094
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "drivable-surface",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.lawn-grass",
+          "version": 1
+        }
+      },
+      "editable": false,
+      "id": "ground-3-5",
+      "transform": {
+        "position": {
+          "x": -25.3725,
+          "y": -0.25,
+          "z": 20
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "lawn",
+        "scale": {
+          "x": 19.791,
+          "y": 0.5,
+          "z": 18.188
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "surface",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 9.8955,
+          "y": 0.25,
+          "z": 9.0945
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "drivable-surface",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.lawn-grass",
+          "version": 1
+        }
+      },
+      "editable": false,
+      "id": "ground-3-6",
+      "transform": {
+        "position": {
+          "x": -25.3725,
+          "y": -0.25,
+          "z": 38.1885
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "lawn",
+        "scale": {
+          "x": 19.791,
+          "y": 0.5,
+          "z": 18.189
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "surface",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 9.8955,
+          "y": 0.25,
+          "z": 9.0945
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "drivable-surface",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.lawn-grass",
+          "version": 1
+        }
+      },
+      "editable": false,
+      "id": "ground-3-7",
+      "transform": {
+        "position": {
+          "x": -25.3725,
+          "y": -0.25,
+          "z": 56.3775
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "lawn",
+        "scale": {
+          "x": 19.791,
+          "y": 0.5,
+          "z": 18.189
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "surface",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 9.8955,
+          "y": 0.25,
+          "z": 9.0945
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "drivable-surface",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.lawn-grass",
+          "version": 1
+        }
+      },
+      "editable": false,
+      "id": "ground-3-8",
+      "transform": {
+        "position": {
+          "x": -25.3725,
+          "y": -0.25,
+          "z": 74.5665
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "lawn",
+        "scale": {
+          "x": 19.791,
+          "y": 0.5,
+          "z": 18.189
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "surface",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 9.8955,
+          "y": 0.25,
+          "z": 9.0945
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "drivable-surface",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.lawn-grass",
+          "version": 1
+        }
+      },
+      "editable": false,
+      "id": "ground-3-9",
+      "transform": {
+        "position": {
+          "x": -25.3725,
+          "y": -0.25,
+          "z": 92.7555
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "lawn",
+        "scale": {
+          "x": 19.791,
+          "y": 0.5,
+          "z": 18.189
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "surface",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 9.8955,
+          "y": 0.25,
+          "z": 9.0945
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "drivable-surface",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.lawn-grass",
+          "version": 1
+        }
+      },
+      "editable": false,
+      "id": "ground-4-1",
+      "transform": {
+        "position": {
+          "x": -5.5815,
+          "y": -0.25,
+          "z": -52.7555
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "lawn",
+        "scale": {
+          "x": 19.791,
+          "y": 0.5,
+          "z": 18.189
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "surface",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 9.8955,
+          "y": 0.25,
+          "z": 9.0945
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "drivable-surface",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.lawn-grass",
+          "version": 1
+        }
+      },
+      "editable": false,
+      "id": "ground-4-2",
+      "transform": {
+        "position": {
+          "x": -5.5815,
+          "y": -0.25,
+          "z": -34.5665
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "lawn",
+        "scale": {
+          "x": 19.791,
+          "y": 0.5,
+          "z": 18.189
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "surface",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 9.8955,
+          "y": 0.25,
+          "z": 9.0945
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "drivable-surface",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.lawn-grass",
+          "version": 1
+        }
+      },
+      "editable": false,
+      "id": "ground-4-3",
+      "transform": {
+        "position": {
+          "x": -5.5815,
+          "y": -0.25,
+          "z": -16.3775
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "lawn",
+        "scale": {
+          "x": 19.791,
+          "y": 0.5,
+          "z": 18.189
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "surface",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 9.8955,
+          "y": 0.25,
+          "z": 9.0945
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "drivable-surface",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.lawn-grass",
+          "version": 1
+        }
+      },
+      "editable": false,
+      "id": "ground-4-4",
+      "transform": {
+        "position": {
+          "x": -5.5815,
+          "y": -0.25,
+          "z": 1.8115
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "lawn",
+        "scale": {
+          "x": 19.791,
+          "y": 0.5,
+          "z": 18.189
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "surface",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 9.8955,
+          "y": 0.25,
+          "z": 9.094
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "drivable-surface",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.lawn-grass",
+          "version": 1
+        }
+      },
+      "editable": false,
+      "id": "ground-4-5",
+      "transform": {
+        "position": {
+          "x": -5.5815,
+          "y": -0.25,
+          "z": 20
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "lawn",
+        "scale": {
+          "x": 19.791,
+          "y": 0.5,
+          "z": 18.188
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "surface",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 9.8955,
+          "y": 0.25,
+          "z": 9.0945
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "drivable-surface",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.lawn-grass",
+          "version": 1
+        }
+      },
+      "editable": false,
+      "id": "ground-4-6",
+      "transform": {
+        "position": {
+          "x": -5.5815,
+          "y": -0.25,
+          "z": 38.1885
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "lawn",
+        "scale": {
+          "x": 19.791,
+          "y": 0.5,
+          "z": 18.189
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "surface",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 9.8955,
+          "y": 0.25,
+          "z": 9.0945
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "drivable-surface",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.lawn-grass",
+          "version": 1
+        }
+      },
+      "editable": false,
+      "id": "ground-4-7",
+      "transform": {
+        "position": {
+          "x": -5.5815,
+          "y": -0.25,
+          "z": 56.3775
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "lawn",
+        "scale": {
+          "x": 19.791,
+          "y": 0.5,
+          "z": 18.189
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "surface",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 9.8955,
+          "y": 0.25,
+          "z": 9.0945
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "drivable-surface",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.lawn-grass",
+          "version": 1
+        }
+      },
+      "editable": false,
+      "id": "ground-4-8",
+      "transform": {
+        "position": {
+          "x": -5.5815,
+          "y": -0.25,
+          "z": 74.5665
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "lawn",
+        "scale": {
+          "x": 19.791,
+          "y": 0.5,
+          "z": 18.189
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "surface",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 9.8955,
+          "y": 0.25,
+          "z": 9.0945
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "drivable-surface",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.lawn-grass",
+          "version": 1
+        }
+      },
+      "editable": false,
+      "id": "ground-4-9",
+      "transform": {
+        "position": {
+          "x": -5.5815,
+          "y": -0.25,
+          "z": 92.7555
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "lawn",
+        "scale": {
+          "x": 19.791,
+          "y": 0.5,
+          "z": 18.189
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "surface",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 9.8955,
+          "y": 0.25,
+          "z": 9.0945
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "drivable-surface",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.lawn-grass",
+          "version": 1
+        }
+      },
+      "editable": false,
+      "id": "ground-5-1",
+      "transform": {
+        "position": {
+          "x": 14.2095,
+          "y": -0.25,
+          "z": -52.7555
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "lawn",
+        "scale": {
+          "x": 19.791,
+          "y": 0.5,
+          "z": 18.189
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "surface",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 9.8955,
+          "y": 0.25,
+          "z": 9.0945
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "drivable-surface",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.lawn-grass",
+          "version": 1
+        }
+      },
+      "editable": false,
+      "id": "ground-5-2",
+      "transform": {
+        "position": {
+          "x": 14.2095,
+          "y": -0.25,
+          "z": -34.5665
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "lawn",
+        "scale": {
+          "x": 19.791,
+          "y": 0.5,
+          "z": 18.189
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "surface",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 9.8955,
+          "y": 0.25,
+          "z": 9.0945
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "drivable-surface",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.lawn-grass",
+          "version": 1
+        }
+      },
+      "editable": false,
+      "id": "ground-5-3",
+      "transform": {
+        "position": {
+          "x": 14.2095,
+          "y": -0.25,
+          "z": -16.3775
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "lawn",
+        "scale": {
+          "x": 19.791,
+          "y": 0.5,
+          "z": 18.189
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "surface",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 9.8955,
+          "y": 0.25,
+          "z": 9.0945
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "drivable-surface",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.lawn-grass",
+          "version": 1
+        }
+      },
+      "editable": false,
+      "id": "ground-5-4",
+      "transform": {
+        "position": {
+          "x": 14.2095,
+          "y": -0.25,
+          "z": 1.8115
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "lawn",
+        "scale": {
+          "x": 19.791,
+          "y": 0.5,
+          "z": 18.189
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "surface",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 9.8955,
+          "y": 0.25,
+          "z": 9.094
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "drivable-surface",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.lawn-grass",
+          "version": 1
+        }
+      },
+      "editable": false,
+      "id": "ground-5-5",
+      "transform": {
+        "position": {
+          "x": 14.2095,
+          "y": -0.25,
+          "z": 20
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "lawn",
+        "scale": {
+          "x": 19.791,
+          "y": 0.5,
+          "z": 18.188
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "surface",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 9.8955,
+          "y": 0.25,
+          "z": 9.0945
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "drivable-surface",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.lawn-grass",
+          "version": 1
+        }
+      },
+      "editable": false,
+      "id": "ground-5-6",
+      "transform": {
+        "position": {
+          "x": 14.2095,
+          "y": -0.25,
+          "z": 38.1885
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "lawn",
+        "scale": {
+          "x": 19.791,
+          "y": 0.5,
+          "z": 18.189
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "surface",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 9.8955,
+          "y": 0.25,
+          "z": 9.0945
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "drivable-surface",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.lawn-grass",
+          "version": 1
+        }
+      },
+      "editable": false,
+      "id": "ground-5-7",
+      "transform": {
+        "position": {
+          "x": 14.2095,
+          "y": -0.25,
+          "z": 56.3775
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "lawn",
+        "scale": {
+          "x": 19.791,
+          "y": 0.5,
+          "z": 18.189
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "surface",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 9.8955,
+          "y": 0.25,
+          "z": 9.0945
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "drivable-surface",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.lawn-grass",
+          "version": 1
+        }
+      },
+      "editable": false,
+      "id": "ground-5-8",
+      "transform": {
+        "position": {
+          "x": 14.2095,
+          "y": -0.25,
+          "z": 74.5665
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "lawn",
+        "scale": {
+          "x": 19.791,
+          "y": 0.5,
+          "z": 18.189
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "surface",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 9.8955,
+          "y": 0.25,
+          "z": 9.0945
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "drivable-surface",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.lawn-grass",
+          "version": 1
+        }
+      },
+      "editable": false,
+      "id": "ground-5-9",
+      "transform": {
+        "position": {
+          "x": 14.2095,
+          "y": -0.25,
+          "z": 92.7555
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "lawn",
+        "scale": {
+          "x": 19.791,
+          "y": 0.5,
+          "z": 18.189
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "surface",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 9.895,
+          "y": 0.25,
+          "z": 9.0945
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "drivable-surface",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.lawn-grass",
+          "version": 1
+        }
+      },
+      "editable": false,
+      "id": "ground-6-1",
+      "transform": {
+        "position": {
+          "x": 34,
+          "y": -0.25,
+          "z": -52.7555
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "lawn",
+        "scale": {
+          "x": 19.79,
+          "y": 0.5,
+          "z": 18.189
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "surface",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 9.895,
+          "y": 0.25,
+          "z": 9.0945
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "drivable-surface",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.lawn-grass",
+          "version": 1
+        }
+      },
+      "editable": false,
+      "id": "ground-6-2",
+      "transform": {
+        "position": {
+          "x": 34,
+          "y": -0.25,
+          "z": -34.5665
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "lawn",
+        "scale": {
+          "x": 19.79,
+          "y": 0.5,
+          "z": 18.189
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "surface",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 9.895,
+          "y": 0.25,
+          "z": 9.0945
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "drivable-surface",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.lawn-grass",
+          "version": 1
+        }
+      },
+      "editable": false,
+      "id": "ground-6-3",
+      "transform": {
+        "position": {
+          "x": 34,
+          "y": -0.25,
+          "z": -16.3775
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "lawn",
+        "scale": {
+          "x": 19.79,
+          "y": 0.5,
+          "z": 18.189
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "surface",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 9.895,
+          "y": 0.25,
+          "z": 9.0945
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "drivable-surface",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.lawn-grass",
+          "version": 1
+        }
+      },
+      "editable": false,
+      "id": "ground-6-4",
+      "transform": {
+        "position": {
+          "x": 34,
+          "y": -0.25,
+          "z": 1.8115
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "lawn",
+        "scale": {
+          "x": 19.79,
+          "y": 0.5,
+          "z": 18.189
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "surface",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 9.895,
+          "y": 0.25,
+          "z": 9.094
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "drivable-surface",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.lawn-grass",
+          "version": 1
+        }
+      },
+      "editable": false,
+      "id": "ground-6-5",
+      "transform": {
+        "position": {
+          "x": 34,
+          "y": -0.25,
+          "z": 20
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "lawn",
+        "scale": {
+          "x": 19.79,
+          "y": 0.5,
+          "z": 18.188
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "surface",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 9.895,
+          "y": 0.25,
+          "z": 9.0945
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "drivable-surface",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.lawn-grass",
+          "version": 1
+        }
+      },
+      "editable": false,
+      "id": "ground-6-6",
+      "transform": {
+        "position": {
+          "x": 34,
+          "y": -0.25,
+          "z": 38.1885
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "lawn",
+        "scale": {
+          "x": 19.79,
+          "y": 0.5,
+          "z": 18.189
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "surface",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 9.895,
+          "y": 0.25,
+          "z": 9.0945
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "drivable-surface",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.lawn-grass",
+          "version": 1
+        }
+      },
+      "editable": false,
+      "id": "ground-6-7",
+      "transform": {
+        "position": {
+          "x": 34,
+          "y": -0.25,
+          "z": 56.3775
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "lawn",
+        "scale": {
+          "x": 19.79,
+          "y": 0.5,
+          "z": 18.189
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "surface",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 9.895,
+          "y": 0.25,
+          "z": 9.0945
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "drivable-surface",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.lawn-grass",
+          "version": 1
+        }
+      },
+      "editable": false,
+      "id": "ground-6-8",
+      "transform": {
+        "position": {
+          "x": 34,
+          "y": -0.25,
+          "z": 74.5665
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "lawn",
+        "scale": {
+          "x": 19.79,
+          "y": 0.5,
+          "z": 18.189
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "surface",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 9.895,
+          "y": 0.25,
+          "z": 9.0945
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "drivable-surface",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.lawn-grass",
+          "version": 1
+        }
+      },
+      "editable": false,
+      "id": "ground-6-9",
+      "transform": {
+        "position": {
+          "x": 34,
+          "y": -0.25,
+          "z": 92.7555
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "lawn",
+        "scale": {
+          "x": 19.79,
+          "y": 0.5,
+          "z": 18.189
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "surface",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 9.8955,
+          "y": 0.25,
+          "z": 9.0945
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "drivable-surface",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.lawn-grass",
+          "version": 1
+        }
+      },
+      "editable": false,
+      "id": "ground-7-1",
+      "transform": {
+        "position": {
+          "x": 53.7905,
+          "y": -0.25,
+          "z": -52.7555
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "lawn",
+        "scale": {
+          "x": 19.791,
+          "y": 0.5,
+          "z": 18.189
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "surface",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 9.8955,
+          "y": 0.25,
+          "z": 9.0945
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "drivable-surface",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.lawn-grass",
+          "version": 1
+        }
+      },
+      "editable": false,
+      "id": "ground-7-2",
+      "transform": {
+        "position": {
+          "x": 53.7905,
+          "y": -0.25,
+          "z": -34.5665
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "lawn",
+        "scale": {
+          "x": 19.791,
+          "y": 0.5,
+          "z": 18.189
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "surface",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 9.8955,
+          "y": 0.25,
+          "z": 9.0945
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "drivable-surface",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.lawn-grass",
+          "version": 1
+        }
+      },
+      "editable": false,
+      "id": "ground-7-3",
+      "transform": {
+        "position": {
+          "x": 53.7905,
+          "y": -0.25,
+          "z": -16.3775
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "lawn",
+        "scale": {
+          "x": 19.791,
+          "y": 0.5,
+          "z": 18.189
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "surface",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 9.8955,
+          "y": 0.25,
+          "z": 9.0945
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "drivable-surface",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.lawn-grass",
+          "version": 1
+        }
+      },
+      "editable": false,
+      "id": "ground-7-4",
+      "transform": {
+        "position": {
+          "x": 53.7905,
+          "y": -0.25,
+          "z": 1.8115
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "lawn",
+        "scale": {
+          "x": 19.791,
+          "y": 0.5,
+          "z": 18.189
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "surface",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 9.8955,
+          "y": 0.25,
+          "z": 9.094
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "drivable-surface",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.lawn-grass",
+          "version": 1
+        }
+      },
+      "editable": false,
+      "id": "ground-7-5",
+      "transform": {
+        "position": {
+          "x": 53.7905,
+          "y": -0.25,
+          "z": 20
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "lawn",
+        "scale": {
+          "x": 19.791,
+          "y": 0.5,
+          "z": 18.188
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "surface",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 9.8955,
+          "y": 0.25,
+          "z": 9.0945
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "drivable-surface",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.lawn-grass",
+          "version": 1
+        }
+      },
+      "editable": false,
+      "id": "ground-7-6",
+      "transform": {
+        "position": {
+          "x": 53.7905,
+          "y": -0.25,
+          "z": 38.1885
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "lawn",
+        "scale": {
+          "x": 19.791,
+          "y": 0.5,
+          "z": 18.189
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "surface",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 9.8955,
+          "y": 0.25,
+          "z": 9.0945
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "drivable-surface",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.lawn-grass",
+          "version": 1
+        }
+      },
+      "editable": false,
+      "id": "ground-7-7",
+      "transform": {
+        "position": {
+          "x": 53.7905,
+          "y": -0.25,
+          "z": 56.3775
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "lawn",
+        "scale": {
+          "x": 19.791,
+          "y": 0.5,
+          "z": 18.189
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "surface",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 9.8955,
+          "y": 0.25,
+          "z": 9.0945
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "drivable-surface",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.lawn-grass",
+          "version": 1
+        }
+      },
+      "editable": false,
+      "id": "ground-7-8",
+      "transform": {
+        "position": {
+          "x": 53.7905,
+          "y": -0.25,
+          "z": 74.5665
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "lawn",
+        "scale": {
+          "x": 19.791,
+          "y": 0.5,
+          "z": 18.189
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "surface",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 9.8955,
+          "y": 0.25,
+          "z": 9.0945
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "drivable-surface",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.lawn-grass",
+          "version": 1
+        }
+      },
+      "editable": false,
+      "id": "ground-7-9",
+      "transform": {
+        "position": {
+          "x": 53.7905,
+          "y": -0.25,
+          "z": 92.7555
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "lawn",
+        "scale": {
+          "x": 19.791,
+          "y": 0.5,
+          "z": 18.189
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "surface",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 9.8955,
+          "y": 0.25,
+          "z": 9.0945
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "drivable-surface",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.lawn-grass",
+          "version": 1
+        }
+      },
+      "editable": false,
+      "id": "ground-8-1",
+      "transform": {
+        "position": {
+          "x": 73.5815,
+          "y": -0.25,
+          "z": -52.7555
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "lawn",
+        "scale": {
+          "x": 19.791,
+          "y": 0.5,
+          "z": 18.189
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "surface",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 9.8955,
+          "y": 0.25,
+          "z": 9.0945
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "drivable-surface",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.lawn-grass",
+          "version": 1
+        }
+      },
+      "editable": false,
+      "id": "ground-8-2",
+      "transform": {
+        "position": {
+          "x": 73.5815,
+          "y": -0.25,
+          "z": -34.5665
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "lawn",
+        "scale": {
+          "x": 19.791,
+          "y": 0.5,
+          "z": 18.189
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "surface",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 9.8955,
+          "y": 0.25,
+          "z": 9.0945
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "drivable-surface",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.lawn-grass",
+          "version": 1
+        }
+      },
+      "editable": false,
+      "id": "ground-8-3",
+      "transform": {
+        "position": {
+          "x": 73.5815,
+          "y": -0.25,
+          "z": -16.3775
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "lawn",
+        "scale": {
+          "x": 19.791,
+          "y": 0.5,
+          "z": 18.189
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "surface",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 9.8955,
+          "y": 0.25,
+          "z": 9.0945
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "drivable-surface",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.lawn-grass",
+          "version": 1
+        }
+      },
+      "editable": false,
+      "id": "ground-8-4",
+      "transform": {
+        "position": {
+          "x": 73.5815,
+          "y": -0.25,
+          "z": 1.8115
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "lawn",
+        "scale": {
+          "x": 19.791,
+          "y": 0.5,
+          "z": 18.189
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "surface",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 9.8955,
+          "y": 0.25,
+          "z": 9.094
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "drivable-surface",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.lawn-grass",
+          "version": 1
+        }
+      },
+      "editable": false,
+      "id": "ground-8-5",
+      "transform": {
+        "position": {
+          "x": 73.5815,
+          "y": -0.25,
+          "z": 20
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "lawn",
+        "scale": {
+          "x": 19.791,
+          "y": 0.5,
+          "z": 18.188
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "surface",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 9.8955,
+          "y": 0.25,
+          "z": 9.0945
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "drivable-surface",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.lawn-grass",
+          "version": 1
+        }
+      },
+      "editable": false,
+      "id": "ground-8-6",
+      "transform": {
+        "position": {
+          "x": 73.5815,
+          "y": -0.25,
+          "z": 38.1885
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "lawn",
+        "scale": {
+          "x": 19.791,
+          "y": 0.5,
+          "z": 18.189
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "surface",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 9.8955,
+          "y": 0.25,
+          "z": 9.0945
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "drivable-surface",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.lawn-grass",
+          "version": 1
+        }
+      },
+      "editable": false,
+      "id": "ground-8-7",
+      "transform": {
+        "position": {
+          "x": 73.5815,
+          "y": -0.25,
+          "z": 56.3775
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "lawn",
+        "scale": {
+          "x": 19.791,
+          "y": 0.5,
+          "z": 18.189
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "surface",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 9.8955,
+          "y": 0.25,
+          "z": 9.0945
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "drivable-surface",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.lawn-grass",
+          "version": 1
+        }
+      },
+      "editable": false,
+      "id": "ground-8-8",
+      "transform": {
+        "position": {
+          "x": 73.5815,
+          "y": -0.25,
+          "z": 74.5665
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "lawn",
+        "scale": {
+          "x": 19.791,
+          "y": 0.5,
+          "z": 18.189
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "surface",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 9.8955,
+          "y": 0.25,
+          "z": 9.0945
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "drivable-surface",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.lawn-grass",
+          "version": 1
+        }
+      },
+      "editable": false,
+      "id": "ground-8-9",
+      "transform": {
+        "position": {
+          "x": 73.5815,
+          "y": -0.25,
+          "z": 92.7555
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "lawn",
+        "scale": {
+          "x": 19.791,
+          "y": 0.5,
+          "z": 18.189
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "surface",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 9.8955,
+          "y": 0.25,
+          "z": 9.0945
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "drivable-surface",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.lawn-grass",
+          "version": 1
+        }
+      },
+      "editable": false,
+      "id": "ground-9-1",
+      "transform": {
+        "position": {
+          "x": 93.3725,
+          "y": -0.25,
+          "z": -52.7555
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "lawn",
+        "scale": {
+          "x": 19.791,
+          "y": 0.5,
+          "z": 18.189
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "surface",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 9.8955,
+          "y": 0.25,
+          "z": 9.0945
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "drivable-surface",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.lawn-grass",
+          "version": 1
+        }
+      },
+      "editable": false,
+      "id": "ground-9-2",
+      "transform": {
+        "position": {
+          "x": 93.3725,
+          "y": -0.25,
+          "z": -34.5665
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "lawn",
+        "scale": {
+          "x": 19.791,
+          "y": 0.5,
+          "z": 18.189
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "surface",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 9.8955,
+          "y": 0.25,
+          "z": 9.0945
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "drivable-surface",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.lawn-grass",
+          "version": 1
+        }
+      },
+      "editable": false,
+      "id": "ground-9-3",
+      "transform": {
+        "position": {
+          "x": 93.3725,
+          "y": -0.25,
+          "z": -16.3775
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "lawn",
+        "scale": {
+          "x": 19.791,
+          "y": 0.5,
+          "z": 18.189
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "surface",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 9.8955,
+          "y": 0.25,
+          "z": 9.0945
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "drivable-surface",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.lawn-grass",
+          "version": 1
+        }
+      },
+      "editable": false,
+      "id": "ground-9-4",
+      "transform": {
+        "position": {
+          "x": 93.3725,
+          "y": -0.25,
+          "z": 1.8115
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "lawn",
+        "scale": {
+          "x": 19.791,
+          "y": 0.5,
+          "z": 18.189
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "surface",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 9.8955,
+          "y": 0.25,
+          "z": 9.094
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "drivable-surface",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.lawn-grass",
+          "version": 1
+        }
+      },
+      "editable": false,
+      "id": "ground-9-5",
+      "transform": {
+        "position": {
+          "x": 93.3725,
+          "y": -0.25,
+          "z": 20
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "lawn",
+        "scale": {
+          "x": 19.791,
+          "y": 0.5,
+          "z": 18.188
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "surface",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 9.8955,
+          "y": 0.25,
+          "z": 9.0945
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "drivable-surface",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.lawn-grass",
+          "version": 1
+        }
+      },
+      "editable": false,
+      "id": "ground-9-6",
+      "transform": {
+        "position": {
+          "x": 93.3725,
+          "y": -0.25,
+          "z": 38.1885
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "lawn",
+        "scale": {
+          "x": 19.791,
+          "y": 0.5,
+          "z": 18.189
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "surface",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 9.8955,
+          "y": 0.25,
+          "z": 9.0945
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "drivable-surface",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.lawn-grass",
+          "version": 1
+        }
+      },
+      "editable": false,
+      "id": "ground-9-7",
+      "transform": {
+        "position": {
+          "x": 93.3725,
+          "y": -0.25,
+          "z": 56.3775
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "lawn",
+        "scale": {
+          "x": 19.791,
+          "y": 0.5,
+          "z": 18.189
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "surface",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 9.8955,
+          "y": 0.25,
+          "z": 9.0945
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "drivable-surface",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.lawn-grass",
+          "version": 1
+        }
+      },
+      "editable": false,
+      "id": "ground-9-8",
+      "transform": {
+        "position": {
+          "x": 93.3725,
+          "y": -0.25,
+          "z": 74.5665
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "lawn",
+        "scale": {
+          "x": 19.791,
+          "y": 0.5,
+          "z": 18.189
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "surface",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 9.8955,
+          "y": 0.25,
+          "z": 9.0945
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "drivable-surface",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.lawn-grass",
+          "version": 1
+        }
+      },
+      "editable": false,
+      "id": "ground-9-9",
+      "transform": {
+        "position": {
+          "x": 93.3725,
+          "y": -0.25,
+          "z": 92.7555
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "lawn",
+        "scale": {
+          "x": 19.791,
+          "y": 0.5,
+          "z": 18.189
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "surface",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 9.8955,
+          "y": 0.25,
+          "z": 9.0945
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "drivable-surface",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.lawn-grass",
+          "version": 1
+        }
+      },
+      "editable": false,
+      "id": "ground-10-1",
+      "transform": {
+        "position": {
+          "x": 113.1635,
+          "y": -0.25,
+          "z": -52.7555
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "lawn",
+        "scale": {
+          "x": 19.791,
+          "y": 0.5,
+          "z": 18.189
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "surface",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 9.8955,
+          "y": 0.25,
+          "z": 9.0945
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "drivable-surface",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.lawn-grass",
+          "version": 1
+        }
+      },
+      "editable": false,
+      "id": "ground-10-2",
+      "transform": {
+        "position": {
+          "x": 113.1635,
+          "y": -0.25,
+          "z": -34.5665
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "lawn",
+        "scale": {
+          "x": 19.791,
+          "y": 0.5,
+          "z": 18.189
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "surface",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 9.8955,
+          "y": 0.25,
+          "z": 9.0945
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "drivable-surface",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.lawn-grass",
+          "version": 1
+        }
+      },
+      "editable": false,
+      "id": "ground-10-3",
+      "transform": {
+        "position": {
+          "x": 113.1635,
+          "y": -0.25,
+          "z": -16.3775
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "lawn",
+        "scale": {
+          "x": 19.791,
+          "y": 0.5,
+          "z": 18.189
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "surface",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 9.8955,
+          "y": 0.25,
+          "z": 9.0945
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "drivable-surface",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.lawn-grass",
+          "version": 1
+        }
+      },
+      "editable": false,
+      "id": "ground-10-4",
+      "transform": {
+        "position": {
+          "x": 113.1635,
+          "y": -0.25,
+          "z": 1.8115
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "lawn",
+        "scale": {
+          "x": 19.791,
+          "y": 0.5,
+          "z": 18.189
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "surface",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 9.8955,
+          "y": 0.25,
+          "z": 9.094
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "drivable-surface",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.lawn-grass",
+          "version": 1
+        }
+      },
+      "editable": false,
+      "id": "ground-10-5",
+      "transform": {
+        "position": {
+          "x": 113.1635,
+          "y": -0.25,
+          "z": 20
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "lawn",
+        "scale": {
+          "x": 19.791,
+          "y": 0.5,
+          "z": 18.188
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "surface",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 9.8955,
+          "y": 0.25,
+          "z": 9.0945
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "drivable-surface",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.lawn-grass",
+          "version": 1
+        }
+      },
+      "editable": false,
+      "id": "ground-10-6",
+      "transform": {
+        "position": {
+          "x": 113.1635,
+          "y": -0.25,
+          "z": 38.1885
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "lawn",
+        "scale": {
+          "x": 19.791,
+          "y": 0.5,
+          "z": 18.189
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "surface",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 9.8955,
+          "y": 0.25,
+          "z": 9.0945
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "drivable-surface",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.lawn-grass",
+          "version": 1
+        }
+      },
+      "editable": false,
+      "id": "ground-10-7",
+      "transform": {
+        "position": {
+          "x": 113.1635,
+          "y": -0.25,
+          "z": 56.3775
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "lawn",
+        "scale": {
+          "x": 19.791,
+          "y": 0.5,
+          "z": 18.189
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "surface",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 9.8955,
+          "y": 0.25,
+          "z": 9.0945
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "drivable-surface",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.lawn-grass",
+          "version": 1
+        }
+      },
+      "editable": false,
+      "id": "ground-10-8",
+      "transform": {
+        "position": {
+          "x": 113.1635,
+          "y": -0.25,
+          "z": 74.5665
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "lawn",
+        "scale": {
+          "x": 19.791,
+          "y": 0.5,
+          "z": 18.189
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "surface",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 9.8955,
+          "y": 0.25,
+          "z": 9.0945
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "drivable-surface",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.lawn-grass",
+          "version": 1
+        }
+      },
+      "editable": false,
+      "id": "ground-10-9",
+      "transform": {
+        "position": {
+          "x": 113.1635,
+          "y": -0.25,
+          "z": 92.7555
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "lawn",
+        "scale": {
+          "x": 19.791,
+          "y": 0.5,
+          "z": 18.189
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "surface",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 9.8955,
+          "y": 0.25,
+          "z": 9.0945
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "drivable-surface",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.lawn-grass",
+          "version": 1
+        }
+      },
+      "editable": false,
+      "id": "ground-11-1",
+      "transform": {
+        "position": {
+          "x": 132.9545,
+          "y": -0.25,
+          "z": -52.7555
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "lawn",
+        "scale": {
+          "x": 19.791,
+          "y": 0.5,
+          "z": 18.189
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "surface",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 9.8955,
+          "y": 0.25,
+          "z": 9.0945
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "drivable-surface",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.lawn-grass",
+          "version": 1
+        }
+      },
+      "editable": false,
+      "id": "ground-11-2",
+      "transform": {
+        "position": {
+          "x": 132.9545,
+          "y": -0.25,
+          "z": -34.5665
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "lawn",
+        "scale": {
+          "x": 19.791,
+          "y": 0.5,
+          "z": 18.189
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "surface",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 9.8955,
+          "y": 0.25,
+          "z": 9.0945
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "drivable-surface",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.lawn-grass",
+          "version": 1
+        }
+      },
+      "editable": false,
+      "id": "ground-11-3",
+      "transform": {
+        "position": {
+          "x": 132.9545,
+          "y": -0.25,
+          "z": -16.3775
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "lawn",
+        "scale": {
+          "x": 19.791,
+          "y": 0.5,
+          "z": 18.189
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "surface",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 9.8955,
+          "y": 0.25,
+          "z": 9.0945
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "drivable-surface",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.lawn-grass",
+          "version": 1
+        }
+      },
+      "editable": false,
+      "id": "ground-11-4",
+      "transform": {
+        "position": {
+          "x": 132.9545,
+          "y": -0.25,
+          "z": 1.8115
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "lawn",
+        "scale": {
+          "x": 19.791,
+          "y": 0.5,
+          "z": 18.189
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "surface",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 9.8955,
+          "y": 0.25,
+          "z": 9.094
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "drivable-surface",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.lawn-grass",
+          "version": 1
+        }
+      },
+      "editable": false,
+      "id": "ground-11-5",
+      "transform": {
+        "position": {
+          "x": 132.9545,
+          "y": -0.25,
+          "z": 20
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "lawn",
+        "scale": {
+          "x": 19.791,
+          "y": 0.5,
+          "z": 18.188
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "surface",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 9.8955,
+          "y": 0.25,
+          "z": 9.0945
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "drivable-surface",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.lawn-grass",
+          "version": 1
+        }
+      },
+      "editable": false,
+      "id": "ground-11-6",
+      "transform": {
+        "position": {
+          "x": 132.9545,
+          "y": -0.25,
+          "z": 38.1885
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "lawn",
+        "scale": {
+          "x": 19.791,
+          "y": 0.5,
+          "z": 18.189
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "surface",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 9.8955,
+          "y": 0.25,
+          "z": 9.0945
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "drivable-surface",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.lawn-grass",
+          "version": 1
+        }
+      },
+      "editable": false,
+      "id": "ground-11-7",
+      "transform": {
+        "position": {
+          "x": 132.9545,
+          "y": -0.25,
+          "z": 56.3775
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "lawn",
+        "scale": {
+          "x": 19.791,
+          "y": 0.5,
+          "z": 18.189
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "surface",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 9.8955,
+          "y": 0.25,
+          "z": 9.0945
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "drivable-surface",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.lawn-grass",
+          "version": 1
+        }
+      },
+      "editable": false,
+      "id": "ground-11-8",
+      "transform": {
+        "position": {
+          "x": 132.9545,
+          "y": -0.25,
+          "z": 74.5665
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "lawn",
+        "scale": {
+          "x": 19.791,
+          "y": 0.5,
+          "z": 18.189
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "surface",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 9.8955,
+          "y": 0.25,
+          "z": 9.0945
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "drivable-surface",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.lawn-grass",
+          "version": 1
+        }
+      },
+      "editable": false,
+      "id": "ground-11-9",
+      "transform": {
+        "position": {
+          "x": 132.9545,
+          "y": -0.25,
+          "z": 92.7555
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "lawn",
+        "scale": {
+          "x": 19.791,
+          "y": 0.5,
+          "z": 18.189
         },
         "shape": "box"
       }
@@ -10303,7 +15595,7 @@
       "transform": {
         "position": {
           "x": 9.85,
-          "y": 4.8,
+          "y": 4.555,
           "z": -45.45
         },
         "rotation": {
@@ -10639,7 +15931,7 @@
       "transform": {
         "position": {
           "x": 81,
-          "y": 4.8,
+          "y": 4.555,
           "z": -9.85
         },
         "rotation": {
@@ -10969,13 +16261,39 @@
     {
       "availability": "standard",
       "category": "feature",
-      "collision": null,
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 36.925,
+          "y": 0.325,
+          "z": 3
+        },
+        "offset": {
+          "position": {
+            "x": -0.005,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "drivable-surface",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.lawn-grass",
+          "version": 1
+        }
+      },
       "editable": true,
       "id": "tunnel-berm-crest-west",
       "overhead": true,
       "transform": {
         "position": {
-          "x": 46.775,
+          "x": 46.63,
           "y": 4.275,
           "z": -45.45
         },
@@ -10988,7 +16306,7 @@
       "visual": {
         "material": "lawn",
         "scale": {
-          "x": 73.55,
+          "x": 73.84,
           "y": 0.65,
           "z": 6
         },
@@ -10998,7 +16316,33 @@
     {
       "availability": "standard",
       "category": "feature",
-      "collision": null,
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 3.3,
+          "y": 0.3245,
+          "z": 1.65
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "drivable-surface",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.lawn-grass",
+          "version": 1
+        }
+      },
       "editable": true,
       "id": "tunnel-berm-crest-chamfer",
       "overhead": true,
@@ -11027,7 +16371,33 @@
     {
       "availability": "standard",
       "category": "feature",
-      "collision": null,
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 2.55,
+          "y": 0.325,
+          "z": 16.375
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0.005
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "drivable-surface",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.lawn-grass",
+          "version": 1
+        }
+      },
       "editable": true,
       "id": "tunnel-berm-crest-north",
       "overhead": true,
@@ -11035,7 +16405,7 @@
         "position": {
           "x": 81,
           "y": 4.275,
-          "z": -26.225
+          "z": -26.08
         },
         "rotation": {
           "x": 0,
@@ -11048,7 +16418,7 @@
         "scale": {
           "x": 5.1,
           "y": 0.65,
-          "z": 32.45
+          "z": 32.74
         },
         "shape": "box"
       }
@@ -11056,7 +16426,33 @@
     {
       "availability": "standard",
       "category": "feature",
-      "collision": null,
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 36.775,
+          "y": 0.4,
+          "z": 5.1429565
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "drivable-surface",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.lawn-grass",
+          "version": 1
+        }
+      },
       "editable": true,
       "id": "tunnel-berm-south",
       "overhead": true,
@@ -11085,7 +16481,33 @@
     {
       "availability": "standard",
       "category": "feature",
-      "collision": null,
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 32,
+          "y": 0.4,
+          "z": 5.1429565
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "drivable-surface",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.lawn-grass",
+          "version": 1
+        }
+      },
       "editable": true,
       "id": "tunnel-berm-inner-west",
       "overhead": true,
@@ -11114,7 +16536,33 @@
     {
       "availability": "standard",
       "category": "feature",
-      "collision": null,
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 3.3,
+          "y": 0.4,
+          "z": 5.1429565
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "drivable-surface",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.lawn-grass",
+          "version": 1
+        }
+      },
       "editable": true,
       "id": "tunnel-berm-chamfer",
       "overhead": true,
@@ -11143,7 +16591,33 @@
     {
       "availability": "standard",
       "category": "feature",
-      "collision": null,
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 14,
+          "y": 0.4,
+          "z": 5.1429565
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "drivable-surface",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.lawn-grass",
+          "version": 1
+        }
+      },
       "editable": true,
       "id": "tunnel-berm-inner-north",
       "overhead": true,
@@ -11172,7 +16646,33 @@
     {
       "availability": "standard",
       "category": "feature",
-      "collision": null,
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 19.225,
+          "y": 0.4,
+          "z": 5.1429565
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "drivable-surface",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.lawn-grass",
+          "version": 1
+        }
+      },
       "editable": true,
       "id": "tunnel-berm-east",
       "overhead": true,
@@ -11201,7 +16701,33 @@
     {
       "availability": "standard",
       "category": "feature",
-      "collision": null,
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 0.226224,
+          "y": 0.4,
+          "z": 1.285739
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "drivable-surface",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.lawn-grass",
+          "version": 1
+        }
+      },
       "editable": true,
       "id": "tunnel-berm-corner-inner-1",
       "overhead": true,
@@ -11230,7 +16756,33 @@
     {
       "availability": "standard",
       "category": "feature",
-      "collision": null,
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 0.8298955,
+          "y": 0.4,
+          "z": 4.0249225
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "drivable-surface",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.lawn-grass",
+          "version": 1
+        }
+      },
       "editable": true,
       "id": "tunnel-berm-corner-outer-1",
       "overhead": true,
@@ -11259,7 +16811,33 @@
     {
       "availability": "standard",
       "category": "feature",
-      "collision": null,
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 0.226224,
+          "y": 0.4,
+          "z": 1.285739
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "drivable-surface",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.lawn-grass",
+          "version": 1
+        }
+      },
       "editable": true,
       "id": "tunnel-berm-corner-inner-2",
       "overhead": true,
@@ -11288,7 +16866,33 @@
     {
       "availability": "standard",
       "category": "feature",
-      "collision": null,
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 0.8298955,
+          "y": 0.4,
+          "z": 4.0249225
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "drivable-surface",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.lawn-grass",
+          "version": 1
+        }
+      },
       "editable": true,
       "id": "tunnel-berm-corner-outer-2",
       "overhead": true,
@@ -11317,7 +16921,33 @@
     {
       "availability": "standard",
       "category": "feature",
-      "collision": null,
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 0.226224,
+          "y": 0.4,
+          "z": 1.285739
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "drivable-surface",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.lawn-grass",
+          "version": 1
+        }
+      },
       "editable": true,
       "id": "tunnel-berm-corner-inner-3",
       "overhead": true,
@@ -11346,7 +16976,33 @@
     {
       "availability": "standard",
       "category": "feature",
-      "collision": null,
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 0.8298955,
+          "y": 0.4,
+          "z": 4.0249225
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "drivable-surface",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.lawn-grass",
+          "version": 1
+        }
+      },
       "editable": true,
       "id": "tunnel-berm-corner-outer-3",
       "overhead": true,
@@ -11375,7 +17031,33 @@
     {
       "availability": "standard",
       "category": "feature",
-      "collision": null,
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 0.226224,
+          "y": 0.4,
+          "z": 1.285739
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "drivable-surface",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.lawn-grass",
+          "version": 1
+        }
+      },
       "editable": true,
       "id": "tunnel-berm-corner-inner-4",
       "overhead": true,
@@ -11404,7 +17086,33 @@
     {
       "availability": "standard",
       "category": "feature",
-      "collision": null,
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 0.8298955,
+          "y": 0.4,
+          "z": 4.0249225
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "drivable-surface",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.lawn-grass",
+          "version": 1
+        }
+      },
       "editable": true,
       "id": "tunnel-berm-corner-outer-4",
       "overhead": true,
@@ -11433,7 +17141,33 @@
     {
       "availability": "standard",
       "category": "feature",
-      "collision": null,
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 0.226224,
+          "y": 0.4,
+          "z": 1.285739
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "drivable-surface",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.lawn-grass",
+          "version": 1
+        }
+      },
       "editable": true,
       "id": "tunnel-berm-corner-inner-5",
       "overhead": true,
@@ -11462,7 +17196,33 @@
     {
       "availability": "standard",
       "category": "feature",
-      "collision": null,
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 0.8298955,
+          "y": 0.4,
+          "z": 4.0249225
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "drivable-surface",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.lawn-grass",
+          "version": 1
+        }
+      },
       "editable": true,
       "id": "tunnel-berm-corner-outer-5",
       "overhead": true,
@@ -11491,7 +17251,33 @@
     {
       "availability": "standard",
       "category": "feature",
-      "collision": null,
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 0.226224,
+          "y": 0.4,
+          "z": 1.285739
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "drivable-surface",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.lawn-grass",
+          "version": 1
+        }
+      },
       "editable": true,
       "id": "tunnel-berm-corner-inner-6",
       "overhead": true,
@@ -11520,7 +17306,33 @@
     {
       "availability": "standard",
       "category": "feature",
-      "collision": null,
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 0.8298955,
+          "y": 0.4,
+          "z": 4.0249225
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "drivable-surface",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.lawn-grass",
+          "version": 1
+        }
+      },
       "editable": true,
       "id": "tunnel-berm-corner-outer-6",
       "overhead": true,
@@ -11549,7 +17361,33 @@
     {
       "availability": "standard",
       "category": "feature",
-      "collision": null,
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 0.226224,
+          "y": 0.4,
+          "z": 1.285739
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "drivable-surface",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.lawn-grass",
+          "version": 1
+        }
+      },
       "editable": true,
       "id": "tunnel-berm-corner-inner-7",
       "overhead": true,
@@ -11578,7 +17416,33 @@
     {
       "availability": "standard",
       "category": "feature",
-      "collision": null,
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 0.8298955,
+          "y": 0.4,
+          "z": 4.0249225
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "drivable-surface",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.lawn-grass",
+          "version": 1
+        }
+      },
       "editable": true,
       "id": "tunnel-berm-corner-outer-7",
       "overhead": true,
@@ -11607,7 +17471,33 @@
     {
       "availability": "standard",
       "category": "feature",
-      "collision": null,
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 0.226224,
+          "y": 0.4,
+          "z": 1.285739
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "drivable-surface",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.lawn-grass",
+          "version": 1
+        }
+      },
       "editable": true,
       "id": "tunnel-berm-corner-inner-8",
       "overhead": true,
@@ -11636,7 +17526,33 @@
     {
       "availability": "standard",
       "category": "feature",
-      "collision": null,
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 0.8298955,
+          "y": 0.4,
+          "z": 4.0249225
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "drivable-surface",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.lawn-grass",
+          "version": 1
+        }
+      },
       "editable": true,
       "id": "tunnel-berm-corner-outer-8",
       "overhead": true,
@@ -11665,7 +17581,33 @@
     {
       "availability": "standard",
       "category": "feature",
-      "collision": null,
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 0.226224,
+          "y": 0.4,
+          "z": 1.285739
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "drivable-surface",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.lawn-grass",
+          "version": 1
+        }
+      },
       "editable": true,
       "id": "tunnel-berm-corner-inner-9",
       "overhead": true,
@@ -11694,7 +17636,33 @@
     {
       "availability": "standard",
       "category": "feature",
-      "collision": null,
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 0.8298955,
+          "y": 0.4,
+          "z": 4.0249225
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "drivable-surface",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.lawn-grass",
+          "version": 1
+        }
+      },
       "editable": true,
       "id": "tunnel-berm-corner-outer-9",
       "overhead": true,
@@ -11727,7 +17695,7 @@
         "friction": 0.7,
         "halfExtents": {
           "x": 0.15,
-          "y": 0.575,
+          "y": 0.5,
           "z": 2.7
         },
         "offset": {
@@ -11755,7 +17723,7 @@
       "transform": {
         "position": {
           "x": 9.85,
-          "y": 4.175,
+          "y": 4.1,
           "z": -45.45
         },
         "rotation": {
@@ -11768,7 +17736,7 @@
         "material": "obstacleBlock",
         "scale": {
           "x": 0.3,
-          "y": 1.15,
+          "y": 1,
           "z": 5.4
         },
         "shape": "box"
@@ -11781,7 +17749,7 @@
         "friction": 0.7,
         "halfExtents": {
           "x": 0.15,
-          "y": 2.375,
+          "y": 2.3,
           "z": 2.45
         },
         "offset": {
@@ -11809,7 +17777,7 @@
       "transform": {
         "position": {
           "x": 9.85,
-          "y": 2.375,
+          "y": 2.3,
           "z": -50.6
         },
         "rotation": {
@@ -11822,7 +17790,7 @@
         "material": "obstacleBlock",
         "scale": {
           "x": 0.3,
-          "y": 4.75,
+          "y": 4.6,
           "z": 4.9
         },
         "shape": "box"
@@ -11889,7 +17857,7 @@
         "friction": 0.7,
         "halfExtents": {
           "x": 0.15,
-          "y": 2.375,
+          "y": 2.3,
           "z": 2.45
         },
         "offset": {
@@ -11917,7 +17885,7 @@
       "transform": {
         "position": {
           "x": 9.85,
-          "y": 2.375,
+          "y": 2.3,
           "z": -40.3
         },
         "rotation": {
@@ -11930,7 +17898,7 @@
         "material": "obstacleBlock",
         "scale": {
           "x": 0.3,
-          "y": 4.75,
+          "y": 4.6,
           "z": 4.9
         },
         "shape": "box"
@@ -11997,7 +17965,7 @@
         "friction": 0.7,
         "halfExtents": {
           "x": 2.25,
-          "y": 0.575,
+          "y": 0.5,
           "z": 0.15
         },
         "offset": {
@@ -12025,7 +17993,7 @@
       "transform": {
         "position": {
           "x": 81,
-          "y": 4.175,
+          "y": 4.1,
           "z": -9.85
         },
         "rotation": {
@@ -12038,7 +18006,7 @@
         "material": "obstacleBlock",
         "scale": {
           "x": 4.5,
-          "y": 1.15,
+          "y": 1,
           "z": 0.3
         },
         "shape": "box"
@@ -12051,7 +18019,7 @@
         "friction": 0.7,
         "halfExtents": {
           "x": 2.45,
-          "y": 2.375,
+          "y": 2.3,
           "z": 0.15
         },
         "offset": {
@@ -12079,7 +18047,7 @@
       "transform": {
         "position": {
           "x": 85.7,
-          "y": 2.375,
+          "y": 2.3,
           "z": -9.85
         },
         "rotation": {
@@ -12092,7 +18060,7 @@
         "material": "obstacleBlock",
         "scale": {
           "x": 4.9,
-          "y": 4.75,
+          "y": 4.6,
           "z": 0.3
         },
         "shape": "box"
@@ -12159,7 +18127,7 @@
         "friction": 0.7,
         "halfExtents": {
           "x": 2.45,
-          "y": 2.375,
+          "y": 2.3,
           "z": 0.15
         },
         "offset": {
@@ -12187,7 +18155,7 @@
       "transform": {
         "position": {
           "x": 76.3,
-          "y": 2.375,
+          "y": 2.3,
           "z": -9.85
         },
         "rotation": {
@@ -12200,7 +18168,7 @@
         "material": "obstacleBlock",
         "scale": {
           "x": 4.9,
-          "y": 4.75,
+          "y": 4.6,
           "z": 0.3
         },
         "shape": "box"
@@ -29806,13 +35774,13 @@
       "id": "downhill-barrier-west-1-plank",
       "transform": {
         "position": {
-          "x": -61.5,
+          "x": -62.5625,
           "y": 0.075,
-          "z": 19.35
+          "z": 17.9653
         },
         "rotation": {
           "x": 0,
-          "y": 90,
+          "y": -15,
           "z": 0
         }
       },
@@ -29834,13 +35802,13 @@
       "id": "downhill-barrier-west-1-upright-a",
       "transform": {
         "position": {
-          "x": -61.5,
+          "x": -63.625,
           "y": 0.555,
-          "z": 20.45
+          "z": 17.6806
         },
         "rotation": {
           "x": 0,
-          "y": 0,
+          "y": -105,
           "z": 0
         }
       },
@@ -29862,13 +35830,13 @@
       "id": "downhill-barrier-west-1-foot-a",
       "transform": {
         "position": {
-          "x": -61.5,
+          "x": -63.625,
           "y": 0.005,
-          "z": 20.45
+          "z": 17.6806
         },
         "rotation": {
           "x": 0,
-          "y": 0,
+          "y": -105,
           "z": 0
         }
       },
@@ -29896,7 +35864,7 @@
         },
         "rotation": {
           "x": 0,
-          "y": 0,
+          "y": -105,
           "z": 0
         }
       },
@@ -29919,12 +35887,12 @@
       "transform": {
         "position": {
           "x": -61.5,
-          "y": 0.005,
+          "y": 0.006,
           "z": 18.25
         },
         "rotation": {
           "x": 0,
-          "y": 0,
+          "y": -105,
           "z": 0
         }
       },
@@ -29946,13 +35914,13 @@
       "id": "downhill-barrier-west-1-rail-top",
       "transform": {
         "position": {
-          "x": -61.5,
+          "x": -62.5625,
           "y": 1.1,
-          "z": 19.35
+          "z": 17.9653
         },
         "rotation": {
           "x": -90,
-          "y": 0,
+          "y": -105,
           "z": 0
         }
       },
@@ -29974,13 +35942,13 @@
       "id": "downhill-barrier-west-1-rail-bottom",
       "transform": {
         "position": {
-          "x": -61.5,
+          "x": -62.5625,
           "y": 0.2,
-          "z": 19.35
+          "z": 17.9653
         },
         "rotation": {
           "x": -90,
-          "y": 0,
+          "y": -105,
           "z": 0
         }
       },
@@ -30002,13 +35970,13 @@
       "id": "downhill-barrier-west-1-bar-1",
       "transform": {
         "position": {
-          "x": -61.5,
+          "x": -63.2,
           "y": 0.65,
-          "z": 20.01
+          "z": 17.7945
         },
         "rotation": {
           "x": 0,
-          "y": 0,
+          "y": -105,
           "z": 0
         }
       },
@@ -30030,13 +35998,13 @@
       "id": "downhill-barrier-west-1-bar-2",
       "transform": {
         "position": {
-          "x": -61.5,
+          "x": -62.775,
           "y": 0.65,
-          "z": 19.57
+          "z": 17.9084
         },
         "rotation": {
           "x": 0,
-          "y": 0,
+          "y": -105,
           "z": 0
         }
       },
@@ -30058,13 +36026,13 @@
       "id": "downhill-barrier-west-1-bar-3",
       "transform": {
         "position": {
-          "x": -61.5,
+          "x": -62.35,
           "y": 0.65,
-          "z": 19.13
+          "z": 18.0222
         },
         "rotation": {
           "x": 0,
-          "y": 0,
+          "y": -105,
           "z": 0
         }
       },
@@ -30086,13 +36054,13 @@
       "id": "downhill-barrier-west-1-bar-4",
       "transform": {
         "position": {
-          "x": -61.5,
+          "x": -61.925,
           "y": 0.65,
-          "z": 18.69
+          "z": 18.1361
         },
         "rotation": {
           "x": 0,
-          "y": 0,
+          "y": -105,
           "z": 0
         }
       },
@@ -47480,7 +53448,7 @@
       "collision": {
         "friction": 0.7,
         "halfExtents": {
-          "x": 109,
+          "x": 62.35,
           "y": 1,
           "z": 0.15
         },
@@ -47506,10 +53474,10 @@
       },
       "editable": true,
       "id": "perimeter-wall-north",
-      "label": "Perimeter wall (north)",
+      "label": "Perimeter wall (north, west of the drain)",
       "transform": {
         "position": {
-          "x": 34,
+          "x": -12.65,
           "y": 0,
           "z": -61.85
         },
@@ -47522,7 +53490,7 @@
       "visual": {
         "material": "obstacleBlock",
         "scale": {
-          "x": 218,
+          "x": 124.7,
           "y": 2,
           "z": 0.3
         },
@@ -65371,6 +71339,604 @@
         "rotation": {
           "x": 0,
           "y": 270,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "steel",
+        "scale": {
+          "x": 0.15,
+          "y": 6,
+          "z": 0.15
+        },
+        "shape": "cylinder"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "obstacle",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 46.35,
+          "y": 1,
+          "z": 0.15
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "solid-obstacle",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.standard-course",
+          "version": 1
+        }
+      },
+      "editable": true,
+      "id": "perimeter-wall-north-east",
+      "label": "Perimeter wall (north, east of the drain)",
+      "transform": {
+        "position": {
+          "x": 96.65,
+          "y": 0,
+          "z": -61.85
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "obstacleBlock",
+        "scale": {
+          "x": 92.7,
+          "y": 2,
+          "z": 0.3
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "obstacle",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 0.3,
+          "y": 0.275,
+          "z": 0.15
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "solid-obstacle",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.standard-course",
+          "version": 1
+        }
+      },
+      "editable": true,
+      "id": "storm-drain-lintel",
+      "label": "Storm drain lintel",
+      "transform": {
+        "position": {
+          "x": 50,
+          "y": 0.725,
+          "z": -61.85
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "obstacleBlock",
+        "scale": {
+          "x": 0.6,
+          "y": 0.55,
+          "z": 0.3
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "obstacle",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 0.3,
+          "y": 0.495,
+          "z": 0.15
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "solid-obstacle",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.standard-course",
+          "version": 1
+        }
+      },
+      "editable": true,
+      "id": "storm-drain-invert",
+      "transform": {
+        "position": {
+          "x": 50,
+          "y": -0.505,
+          "z": -61.85
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "obstacleBlock",
+        "scale": {
+          "x": 0.6,
+          "y": 0.99,
+          "z": 0.3
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "surface",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 0.6,
+          "y": 0.04,
+          "z": 0.6
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": -0.039,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "drivable-surface",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.standard-course",
+          "version": 1
+        }
+      },
+      "editable": true,
+      "id": "storm-drain-apron",
+      "label": "Storm drain apron",
+      "transform": {
+        "position": {
+          "x": 50,
+          "y": -0.001,
+          "z": -61.4
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "concrete",
+        "scale": {
+          "x": 1.2,
+          "y": 0.002,
+          "z": 1.2
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "surface",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 0.5,
+          "y": 0.1,
+          "z": 1.5001
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "drivable-surface",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.standard-course",
+          "version": 1
+        }
+      },
+      "editable": true,
+      "id": "storm-drain-chute",
+      "label": "Storm drain chute",
+      "transform": {
+        "position": {
+          "x": 50,
+          "y": -0.2853,
+          "z": -63.4761
+        },
+        "rotation": {
+          "x": -7.125,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "obstacleBlock",
+        "scale": {
+          "x": 1,
+          "y": 0.2,
+          "z": 3.0002
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "obstacle",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 0.075,
+          "y": 0.6,
+          "z": 1.5001
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "solid-obstacle",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.standard-course",
+          "version": 1
+        }
+      },
+      "editable": true,
+      "id": "storm-drain-chute-wall-west",
+      "transform": {
+        "position": {
+          "x": 49.425,
+          "y": -0.6326,
+          "z": -63.4327
+        },
+        "rotation": {
+          "x": -7.125,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "obstacleBlock",
+        "scale": {
+          "x": 0.15,
+          "y": 1.2,
+          "z": 3.0002
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "obstacle",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 0.075,
+          "y": 0.6,
+          "z": 1.5001
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "solid-obstacle",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.standard-course",
+          "version": 1
+        }
+      },
+      "editable": true,
+      "id": "storm-drain-chute-wall-east",
+      "transform": {
+        "position": {
+          "x": 50.575,
+          "y": -0.6326,
+          "z": -63.4327
+        },
+        "rotation": {
+          "x": -7.125,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "obstacleBlock",
+        "scale": {
+          "x": 0.15,
+          "y": 1.2,
+          "z": 3.0002
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "obstacle",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 0.32625,
+          "y": 0.25,
+          "z": 0.075
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "solid-obstacle",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.standard-course",
+          "version": 1
+        }
+      },
+      "editable": true,
+      "id": "storm-drain-wingwall-west",
+      "transform": {
+        "position": {
+          "x": 49.5257,
+          "y": -0.15,
+          "z": -62.2858
+        },
+        "rotation": {
+          "x": 0,
+          "y": 108.4349,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "obstacleBlock",
+        "scale": {
+          "x": 0.6525,
+          "y": 0.5,
+          "z": 0.15
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "obstacle",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 0.32625,
+          "y": 0.25,
+          "z": 0.075
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "solid-obstacle",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.standard-course",
+          "version": 1
+        }
+      },
+      "editable": true,
+      "id": "storm-drain-wingwall-east",
+      "transform": {
+        "position": {
+          "x": 50.4743,
+          "y": -0.15,
+          "z": -62.2858
+        },
+        "rotation": {
+          "x": 0,
+          "y": 71.5651,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "obstacleBlock",
+        "scale": {
+          "x": 0.6525,
+          "y": 0.5,
+          "z": 0.15
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "obstacle",
+      "collision": {
+        "axis": 1,
+        "friction": 0.5,
+        "height": 6,
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "radius": 0.075,
+        "restitution": 0,
+        "role": "solid-obstacle",
+        "shape": "cylinder",
+        "surfaceMaterial": {
+          "id": "surface.standard-course",
+          "version": 1
+        }
+      },
+      "editable": true,
+      "id": "storm-drain-street-lamp-1",
+      "label": "Park street lamp 5",
+      "lamp": "street",
+      "transform": {
+        "position": {
+          "x": 48.2,
+          "y": 3,
+          "z": -60.4
+        },
+        "rotation": {
+          "x": 0,
+          "y": 270,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "steel",
+        "scale": {
+          "x": 0.15,
+          "y": 6,
+          "z": 0.15
+        },
+        "shape": "cylinder"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "obstacle",
+      "collision": {
+        "axis": 1,
+        "friction": 0.5,
+        "height": 6,
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "radius": 0.075,
+        "restitution": 0,
+        "role": "solid-obstacle",
+        "shape": "cylinder",
+        "surfaceMaterial": {
+          "id": "surface.standard-course",
+          "version": 1
+        }
+      },
+      "editable": true,
+      "id": "storm-drain-street-lamp-2",
+      "label": "Park street lamp 6",
+      "lamp": "street",
+      "transform": {
+        "position": {
+          "x": 51.8,
+          "y": 2.6376,
+          "z": -65.577
+        },
+        "rotation": {
+          "x": 0,
+          "y": 90,
           "z": 0
         }
       },

@@ -1216,13 +1216,14 @@ test.describe("home screen", () => {
     const canvas = page.getByTestId("solo-time-trial-canvas");
     await advanceRaceToRacing(canvas);
 
-    // Outside the west wall, out toward the falls, and across the curve
-    // where the floor has risen about 3 m and tilted 2.6°.
+    // Outside the west wall beside the drain's chute, out toward the falls,
+    // and across the curve where the floor has risen about 3 m and tilted
+    // 2.6°.
     const radius = 4_000;
     const height = FALLS_VIEW_PARK_DOCUMENT.enclosure.placement.height;
     const floorYAt = (z: number) => radius - height - Math.sqrt(radius ** 2 - z ** 2);
     for (const { x, z } of [
-      { x: -80, z: 19 },
+      { x: -80, z: 25 },
       { x: -200, z: 0 },
       { x: 20, z: -180 },
     ]) {
@@ -1263,6 +1264,96 @@ test.describe("home screen", () => {
     expect(stopped.x, fenceEvidence).toBeGreaterThan(-214.8);
     expect(stopped.x, fenceEvidence).toBeLessThan(-213.5);
     expect(stopped.speed, fenceEvidence).toBeLessThan(0.1);
+  });
+
+  test("drives the widest official kart out through the storm drain and back, up the berm, and off it", async ({
+    page,
+  }, testInfo) => {
+    testInfo.setTimeout(300_000);
+    test.skip(
+      testInfo.project.name !== "desktop",
+      "The storm drain only needs to run once.",
+    );
+    await useBundledHandlingKart(page);
+    await page.setViewportSize({ height: 270, width: 480 });
+    await page.route("**/api/courses/*/published", async (route) => {
+      await route.fulfill({
+        body: JSON.stringify({ error: "Published course not found." }),
+        contentType: "application/json",
+        status: 404,
+      });
+    });
+    await page.goto("/");
+    await page.getByRole("button", { name: "Solo Time Trial" }).click();
+    const canvas = page.getByTestId("solo-time-trial-canvas");
+    await advanceRaceToRacing(canvas);
+    await canvas.click();
+
+    const floorY = (z: number) => 4_000 - 0.9 - Math.sqrt(4_000 ** 2 - z ** 2);
+    const drive = async (
+      from: { x: number; y: number; z: number },
+      yaw: number,
+      seconds: number,
+    ) => {
+      await setKartDebugPose(canvas, {
+        position: { x: from.x, y: from.y + 0.1, z: from.z },
+        rotation: { x: 0, y: yaw, z: 0 },
+      });
+      await stepSimulation(canvas, 60);
+      await page.keyboard.down("ArrowUp");
+      try {
+        return await stepSimulationWithKartSamples(
+          canvas,
+          Math.ceil(seconds / DEFAULT_FIXED_STEP_SECONDS),
+        );
+      } finally {
+        await page.keyboard.up("ArrowUp");
+      }
+    };
+    const expectUpright = (samples: KartDebugState[]) =>
+      expect(Math.min(...samples.map(({ up }) => up.y))).toBeGreaterThan(0.9);
+
+    // Out from the narrow lawn behind the tunnel's berm, through the drain
+    // in the north wall and down its chute onto the floor of the clearing.
+    const out = await drive({ x: 50, y: 0, z: -59 }, 0, 4);
+    const outside = out.at(-1)!;
+    const outEvidence = JSON.stringify([outside.x, outside.y, outside.z, outside.supportEntityNames]);
+    expect(outside.z, outEvidence).toBeLessThan(-66);
+    expect(Math.abs(outside.y - floorY(outside.z)), outEvidence).toBeLessThan(0.2);
+    expect(outside.supportCount, outEvidence).toBeGreaterThanOrEqual(3);
+    expectUpright(out);
+
+    // And back up the chute and in, onto the park's lawn.
+    const back = await drive({ x: 50, y: floorY(-72), z: -72 }, 180, 4);
+    const inIndex = back.findIndex(({ z }) => z > -60.5);
+    const inside = back[inIndex];
+    const backEvidence = JSON.stringify(back.at(-1));
+    expect(inside, backEvidence).toBeDefined();
+    expect(Math.abs(inside!.y), backEvidence).toBeLessThan(0.15);
+    expectUpright(back.slice(0, inIndex + 1));
+
+    // The gate opens the park's lawn: the kart climbs the 1:2 grass bank of
+    // the berm over its tunnel on its wheels, upright, until the long
+    // grass's grip runs out from a short run-up.
+    const berm = await drive({ x: 46.8, y: 0, z: -60.5 }, 180, 3);
+    const bermEvidence = JSON.stringify(berm.filter((_, i) => i % 30 === 0).map((s) => [s.z.toFixed(1), s.y.toFixed(2), s.up.y.toFixed(2), s.supportCount]));
+    const climb = berm.filter(({ y }) => y > 0.45);
+    expect(climb.length, bermEvidence).toBeGreaterThan(30);
+    expect(climb.every(({ supportCount }) => supportCount >= 3), bermEvidence).toBe(true);
+    expect(
+      climb.every(({ supportEntityNames }) => supportEntityNames.some((name) => name.startsWith("tunnel-berm-"))),
+      bermEvidence,
+    ).toBe(true);
+    expect(Math.min(...climb.map(({ up }) => up.y)), bermEvidence).toBeGreaterThan(0.85);
+
+    // From the crest, the portal's headwall stands flush, so a kart can
+    // drive off it and drop to the return lane in front of the tunnel.
+    const drop = await drive({ x: 14, y: 4.6, z: -45.45 }, 90, 4);
+    const landed = drop.at(-1)!;
+    const dropEvidence = JSON.stringify([landed.x, landed.y, landed.z, landed.supportEntityNames]);
+    expect(Math.max(...drop.slice(0, 30).map(({ y }) => y)), dropEvidence).toBeGreaterThan(4.5);
+    expect(landed.x, dropEvidence).toBeLessThan(9.5);
+    expect(landed.y, dropEvidence).toBeLessThan(0.5);
   });
 
   test("constructs guest racing from the published course revision", async ({

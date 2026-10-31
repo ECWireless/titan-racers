@@ -67,7 +67,8 @@ phone budget. Art direction and the budget itself live in
   lantern on their column: a 1,000 cd warm-white downward spot (40–80°,
   24 m reach), on the habitat's lamp schedule, with no shadows and no
   contribution to exposure. Falls View Park uses 6 m columns every 20 m
-  along its return straight, plus one outside the turn. The race batches
+  along its return straight, plus one outside the turn, and two at its
+  storm drain, over the inlet and the chute's foot. The race batches
   the lamp parts with the static
   course; the editor shows them switched off.
 - `addCourseClearing` (`src/game/course/build-rough-course.ts`) draws the

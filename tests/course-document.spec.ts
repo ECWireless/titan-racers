@@ -23,6 +23,8 @@ import {
   ROUGH_COURSE_DOCUMENT,
   serializeCourseDocument,
 } from "../src/game/course/course-document";
+import { createOfficialKartRosterDocuments } from "../src/game/kart/official-kart-roster";
+import { deriveKartSnapshot } from "../src/game/kart/kart-derivation";
 import {
   getCourseWaterVolumes,
   isUnderCourseWater,
@@ -33,10 +35,15 @@ function cloneSeed() {
 }
 
 // Falls View Park as a version-nine course could hold it: not in its
-// clearing.
+// clearing, and its berm over the tunnel never supporting a kart.
 function versionNineFallsViewPark() {
   const document = structuredClone(FALLS_VIEW_PARK_DOCUMENT);
   delete document.enclosure.clearing;
+  for (const object of document.objects) {
+    if (object.overhead && object.collision?.role === "drivable-surface") {
+      object.collision = null;
+    }
+  }
   return document;
 }
 
@@ -606,6 +613,8 @@ function expectMarkingsRestOnSurfaces(document: CourseDocument) {
     .filter(
       (object) =>
         object.collision?.role === "drivable-surface" &&
+        // Earthworks over a roof lie above it, never beneath a marking.
+        !object.overhead &&
         object.transform.rotation.x === 0 &&
         object.transform.rotation.z === 0,
     );
@@ -1314,4 +1323,48 @@ test("upgrades v9 unchanged and places a course in its clearing in v10", () => {
       document.enclosure.placement.heading = 45;
     }),
   ).toContainEqual(expect.objectContaining({ path: ["enclosure", "placement", "heading"] }));
+
+  // Outdoor earthworks over a roof may support karts from version ten;
+  // an indoor roof never does.
+  const berm = FALLS_VIEW_PARK_DOCUMENT.objects.findIndex(
+    (o) => o.overhead && !o.indoors && o.collision?.role === "drivable-surface",
+  );
+  expect(berm).toBeGreaterThanOrEqual(0);
+  expect(() =>
+    parseCourseDocument({
+      ...versionNineFallsViewPark(),
+      objects: FALLS_VIEW_PARK_DOCUMENT.objects,
+      schemaVersion: 9,
+    }),
+  ).toThrow("Overhead objects collide only as solid obstacles");
+  expect(
+    issues((document) => {
+      document.objects[berm]!.indoors = true;
+    }),
+  ).toContainEqual(expect.objectContaining({ path: ["objects", berm, "collision", "role"] }));
+});
+
+test("opens a storm drain through the north wall that every official kart fits", () => {
+  const box = (id: string) => {
+    const object = FALLS_VIEW_PARK_DOCUMENT.objects.find((o) => o.id === id)!;
+    if (object.visual.shape === "arc") throw new Error("Expected a box");
+    const { position } = object.transform;
+    const { scale } = object.visual;
+    return {
+      bottom: position.y - scale.y / 2,
+      east: position.x + scale.x / 2,
+      top: position.y + scale.y / 2,
+      west: position.x - scale.x / 2,
+    };
+  };
+  const width = box("perimeter-wall-north-east").west - box("perimeter-wall-north").east;
+  const height = box("storm-drain-lintel").bottom - box("storm-drain-apron").top;
+  expect([width, height].map((v) => Number(v.toFixed(3)))).toEqual([0.6, 0.45]);
+  // The culvert's floor is the park's ground, carried by its apron.
+  expect(box("storm-drain-apron").top).toBeCloseTo(0, 6);
+  for (const document of createOfficialKartRosterDocuments()) {
+    const { dimensions } = deriveKartSnapshot(document).geometry;
+    expect(width - dimensions.x, document.kartId).toBeGreaterThan(0.12);
+    expect(height - dimensions.y, document.kartId).toBeGreaterThan(0.25);
+  }
 });
