@@ -466,15 +466,28 @@ barriers are the youth's portable race kit
       Two iPhone races keep frame time and draws within budget, with CPU
       work at its 5 ms median limit and no hitches. Startup remains over
       budget for 4.4.8. Production stays on its earlier seed until 4.4.8.
-- [ ] 4.4.7: Off-track clearing. A storm drain through the perimeter wall,
-      about 30 cm across (a kart fits, a car would not), sited where a real
-      drain would be, lets a kart leave the track and roam the park's mown
-      clearing, about 220 m in radius, out to a park fence before the belt
-      of trees. The ground beyond the walls follows the habitat floor's
-      real curve, rising about 5 m by the clearing's edge around the axis,
-      as drivable physics and near detail. No off-track marker: a racer may
-      have found a shortcut. Check colliders out there, shadow reach, dusk
-      light, and the phone budget.
+- [x] 4.4.7: Off-track clearing. Shipped: the park stands in its
+      habitat clearing. Course schema v10 names a course's footprint, and
+      outside it, out to the clearing's 220 m edge, the race builds the
+      habitat floor from the enclosure model: lawn that follows the floor's
+      curve, rising about 5 m by the edge around the axis, drawn and
+      drivable in flat slabs of at most 10 × 20 m.
+      The perimeter walls retain the park down to it, and a 1.2 m steel
+      weld-mesh park fence rings it 215 m out, inside the belt of trees.
+      The way out is a detour, not a shortcut, and nothing marks it: the
+      youth's last crowd barrier on the downhill's west side stands swung
+      open onto the lawn inside the park's walls, and behind the tunnel's
+      berm, out of sight of the route, a storm drain runs through the
+      north wall: a 600 × 450 mm precast box culvert, the smallest standard
+      box the widest official kart (0.46 m) fits through, with wingwalls
+      and a 1 m chute falling 1:8 to the floor, lit by two park street
+      lamps. Opening the lawn made the park's ground 20 m tiles (one 218 m
+      slab bounced wheels) and the berm's grass drivable (v10 lets outdoor
+      earthworks over a roof support karts), with the portals' headwalls
+      flush with its crest, so karts can drive off it onto the road. v9
+      documents upgrade in memory, with no migration. Within the phone
+      budget: frame time holds, draws rise about three, and CPU work falls
+      to a 3 ms median; startup is unchanged, still over budget for 4.4.8.
 - [ ] 4.4.8: Detail pass, once the whole route is built. The finishes are
       flat colour with a fine grain, so pieces read as basic shapes: give
       concrete, steel, and paint real textures; bevel or detail the models
@@ -494,6 +507,9 @@ barriers are the youth's portable race kit
       bundled seed from 0.74 to 1.34 MB: merge each panel into fewer parts.
       Brace the landing deck's tall posts, and even out its banked rows'
       joints and the fill's seams beside it.
+      The course editor accepts at most 1,000 objects, so it cannot open
+      Falls View Park (about 1,740): raise the limit or merge objects (its
+      "creates Falls View Park from its card" test fails on main).
       Also steady the habitat's far-side street lamps (`lampLight` in
       `src/game/enclosure/habitat-glsl.ts`, PR 4.3.5), which draw as a
       crosshatch overhead and shimmer while driving, seen most clearly from
