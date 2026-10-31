@@ -721,6 +721,7 @@ export function SoloTimeTrialCanvas({
         loadAmmoPhysics(),
         loadCourseSurfaceImages(),
       ]);
+      const loadedAt = performance.now();
 
       if (cancelled) {
         return;
@@ -2987,6 +2988,7 @@ export function SoloTimeTrialCanvas({
             },
             firstFrameMs,
             recording,
+            startup: { buildMs: startedAt - loadedAt, waitMs: loadedAt - mountedAt },
             summary: recording ? null : recorder.summarize(),
           });
         };
@@ -3011,6 +3013,7 @@ export function SoloTimeTrialCanvas({
 
       raceSession.markReady();
       publishRacePresentation();
+      const startedAt = performance.now();
       runtime.start();
       setSceneFailureCode(null);
       setSceneStatus("ready");

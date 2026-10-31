@@ -5,6 +5,11 @@ export type FrameBudgetReport = {
   /** Race mount to first rendered frame. */
   firstFrameMs: number | null;
   recording: boolean;
+  /**
+   * The first frame's parts: waiting for physics and the surface scans,
+   * then building the scene; the rest is its first render.
+   */
+  startup: { buildMs: number; waitMs: number };
   summary: FrameBudgetSummary | null;
 };
 
@@ -29,10 +34,18 @@ export function FrameBudgetOverlay({
   loadTimings?: CourseLoadTimings;
   report: FrameBudgetReport;
 }) {
-  const { backBuffer, firstFrameMs, recording, summary } = report;
+  const { backBuffer, firstFrameMs, recording, startup, summary } = report;
   const rows: Array<[string, string]> = [
     ["Buffer", `${backBuffer.width}×${backBuffer.height}`],
     ["First frame", milliseconds(firstFrameMs)],
+    ["· Wait", milliseconds(startup.waitMs)],
+    ["· Build", milliseconds(startup.buildMs)],
+    [
+      "· Render",
+      milliseconds(
+        firstFrameMs === null ? null : firstFrameMs - startup.waitMs - startup.buildMs,
+      ),
+    ],
   ];
   if (loadTimings) {
     rows.push(

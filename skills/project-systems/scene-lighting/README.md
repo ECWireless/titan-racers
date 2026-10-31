@@ -43,6 +43,12 @@ phone budget. Art direction and the budget itself live in
   screen starts it, the race waits for it before its first frame, and the
   course editor switches to the scans when they arrive. If they fail, those
   surfaces keep the grain finish.
+- `src/game/course/course-prewarm.ts` builds a race's CPU-side parts
+  while the home screen idles, one step at a time, stopped when a race
+  starts: the finishes' grain and ripple pixels, the habitat's light
+  and environment atlas, and the trees' and hedges' geometry, each cached
+  per page. The home screen also starts loading physics, so a warm race
+  waits for neither.
 - `src/game/course/course-trees.ts` draws a course's trees and hedges
   ([visual identity](../../../docs/visual-identity.md#leaf-sprays)):
   smooth grey-brown bark, and leaf sprays alpha-tested from the baked
@@ -140,7 +146,9 @@ phone budget. Art direction and the budget itself live in
 - `src/game/runtime/frame-budget.ts` and
   `src/components/frame-budget-overlay.tsx` sample rendered frames through
   `PlayCanvasRuntime.onFrameSample` and show the budget readout, with the
-  loading screen's cover, race-ready, and reveal times from the tap.
+  loading screen's cover, race-ready, and reveal times from the tap, and
+  the first frame split into waiting for physics and scans, building the
+  scene, and its first render.
 
 Callers: the race (`src/components/solo-time-trial-canvas.tsx`), the kart and
 course editor scenes in `src/game/editor/`, and

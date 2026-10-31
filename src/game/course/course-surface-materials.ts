@@ -24,6 +24,9 @@ import { applyAdaptedEnvironmentAtlas } from "../render/scene-look";
 let grainPixels: Uint8Array | undefined;
 const GRAIN_SIZE = 512;
 
+/** The finishes' CPU-side pixels, built ahead of a race once per page. */
+export const prewarmCourseSurfacePixels = [getGrainPixels, getRipplePixels];
+
 function getGrainPixels() {
   if (grainPixels) return grainPixels;
   const pixels = new Uint8Array(GRAIN_SIZE * GRAIN_SIZE * 4);

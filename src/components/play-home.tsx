@@ -13,6 +13,7 @@ import {
   SANDBOX_COURSE_ID,
 } from "@/game/course/course-ids";
 import { withAxisRampTest } from "@/game/course/axis-ramp-test";
+import { prewarmCourseScene } from "@/game/course/course-prewarm";
 import { loadCourseSurfaceImages } from "@/game/course/course-surface-textures";
 import { publishedCourseRuntimeSchema } from "@/game/course/course-publication";
 import { useControllerMenuNavigation } from "@/game/input/use-controller-menu-navigation";
@@ -26,6 +27,7 @@ import {
 } from "@/game/kart/official-kart-roster";
 
 import { drawsEnclosure } from "@/game/enclosure/enclosure-view";
+import { loadAmmoPhysics } from "@/game/runtime/playcanvas-application";
 import { loadTreeImages } from "@/game/enclosure/tree-images";
 import type { CourseEnclosure } from "@/game/enclosure/island-three";
 
@@ -127,6 +129,7 @@ export function PlayHome() {
   );
   const [loadTimings, setLoadTimings] = useState<CourseLoadTimings>();
   const courseLoadingStartRef = useRef<number | null>(null);
+  const stopPrewarmRef = useRef<(() => void) | null>(null);
   const coverPaintedRef = useRef<(() => void) | null>(null);
   const revealTimerRef = useRef<number | null>(null);
   const raceExitRef = useRef<(() => void) | null>(null);
@@ -161,10 +164,19 @@ export function PlayHome() {
 
   useEffect(() => {
     let active = true;
-    // Decode the course finishes and the habitat's trees while the player
-    // picks a kart, so the race rarely waits for them.
+    // Load physics and decode the course finishes and the habitat's trees
+    // while the player picks a kart, so the race rarely waits for them. A
+    // failed physics load is reported by the race, which receives the same
+    // failure.
+    loadAmmoPhysics().catch(() => {});
     void loadCourseSurfaceImages();
     if (drawsEnclosure()) void loadTreeImages();
+    // Build the course's lighting and planting ahead too; a race stops
+    // whatever is left, so it never competes with the race's own setup.
+    const stopPrewarm = prewarmCourseScene(
+      BUNDLED_COURSE_DOCUMENTS[soloCourseId()],
+    );
+    stopPrewarmRef.current = stopPrewarm;
 
     void (async () => {
       let roster: OfficialKartRoster;
@@ -187,6 +199,7 @@ export function PlayHome() {
 
     return () => {
       active = false;
+      stopPrewarm();
     };
   }, []);
 
@@ -238,6 +251,7 @@ export function PlayHome() {
 
     setUtilityMenuOpen(false);
     setSoloPending(true);
+    stopPrewarmRef.current?.();
     const courseId = soloCourseId();
     const nextCoursePromise = loadPublishedCourse(courseId).catch(
       () => BUNDLED_COURSE_DOCUMENTS[courseId],
