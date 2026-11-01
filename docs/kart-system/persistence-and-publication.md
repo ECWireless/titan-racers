@@ -5,7 +5,7 @@
 Postgres stores ownership and history outside the portable assembly document.
 All kart create, save, publish, and unpublish mutations require a
 server-verified `admin` role. The `assembler` database role exists but grants no
-access; community authoring arrives in Phase 6. Mutation routes also require JSON and an allowed same-origin request.
+access; community authoring is not supported yet. Mutation routes also require JSON and an allowed same-origin request.
 
 ## Records
 

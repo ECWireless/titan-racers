@@ -138,7 +138,7 @@ is requested:
 
 There is no direct-Ammo overlap or contact-test boundary. Recovery clearance
 comes from authored placements, filtered support evidence, and QA. If community
-course publishing (Phase 7) needs automatic shape-clearance validation,
+course publishing needs automatic shape-clearance validation,
 research it as a separate direct-Ammo capability.
 
 Falling below the existing boundary requests lifecycle recovery rather than

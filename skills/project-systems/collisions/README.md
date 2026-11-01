@@ -204,8 +204,8 @@ fixed step, but `maximumImpulse` is the largest single-substep impulse;
   per-substep bound; future materially higher speed envelopes require new
   controlled tests and retuning.
 - Substeps are chosen from the player kart's motion only; kart-to-kart contact
-  (Phase 8) should select from the fastest dynamic body.
-- Not implemented: kart-to-kart contact policy (Phase 8), damage and
-  detachable parts (Phase 6), physical wheel bodies, per-child kart materials,
-  and per-surface material authoring.
+  in multiplayer should select from the fastest dynamic body.
+- Not implemented: kart-to-kart contact policy, damage and detachable parts,
+  physical wheel bodies, per-child kart materials, and per-surface material
+  authoring.
 - Representative mobile performance acceptance is deferred to Phase 9.
