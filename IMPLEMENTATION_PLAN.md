@@ -17,8 +17,8 @@ accepted; the app, README, and durable docs take over from there.
 
 - **Done:** Phases 0–3 (PRs #1–#24, the Phase 3 closeout, and its follow-ups),
   and Phase 4 through PR 4.4 (#30–#54).
-- **Next:** PR 4.5 (Ambience and SFX) and PR 4.6 (kart editor suspension
-  swap), then Phase 5.
+- **Next:** PR 4.5 (Ambience and SFX), then Phase 5. PR 4.6 (kart editor
+  suspension swap) is done.
 
 ## Guiding Decisions
 
@@ -551,10 +551,12 @@ sound (MIT code, CC0 samples), synthesized from the events it accompanies.
 
 **PR 4.6: Kart editor suspension swap**
 
-- [ ] Swapping a suspension type keeps the current arm geometry. Approved
+- [x] Swapping a suspension type keeps the current arm geometry. Approved
       mounting defaults assume 8 cm arms, so on the official karts' longer
       arms the hub lands off the wheel (deferred from PR 4.1.4). Admin kart
-      editor only, with no derivation, schema, or physics change.
+      editor only, with no derivation, schema, or physics change. Shipped:
+      swaps keep each instance's authored mounts; a unit that cannot span
+      them (Handling Kart to firm-short) shows a stroke validation issue.
 
 **Done when:**
 

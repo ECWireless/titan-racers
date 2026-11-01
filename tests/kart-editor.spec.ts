@@ -496,7 +496,6 @@ test.describe("protected kart builder access", () => {
       testInfo.project.name !== "desktop",
       "Historical component revision coverage only needs to run once.",
     );
-    // Approved suspension defaults assume the fixture's 8 cm lower arms.
     let historicalDocument = createValidKartAssembly({
       kartId: "balanced-kart",
     });
