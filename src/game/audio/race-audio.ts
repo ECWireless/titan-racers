@@ -5,6 +5,7 @@ import {
   playLandingSound,
   prepareImpactSounds,
 } from "./impact-sounds";
+import { createParameterSmoother } from "./audio-synthesis";
 import { createMotorVoice } from "./motor-voice";
 import {
   SILENT_MOTOR,
@@ -34,6 +35,7 @@ const SOUND_STORAGE_KEY = "titan-racers.sound.v1";
  */
 const MASTER_GAIN = 0.9;
 const MIX_DB = {
+  ambience: -12,
   cue: -5.5,
   impact: 8,
   landing: 2.4,
@@ -45,11 +47,21 @@ const MIX_DB = {
 let sharedContext: AudioContext | null = null;
 
 const ASPHALT_RECORDING_URL = "/audio/asphalt-roll.wav";
-const recordings = new WeakMap<BaseAudioContext, Promise<AudioBuffer | null>>();
+const HABITAT_BED_URL = "/audio/habitat-bed.wav";
+const TUNNEL_TONE_URL = "/audio/tunnel-tone.wav";
+const recordings = new WeakMap<
+  BaseAudioContext,
+  Map<string, Promise<AudioBuffer | null>>
+>();
 
 /** Fetches and decodes a recorded loop once per context; null on failure. */
 function loadRecording(context: BaseAudioContext, url: string) {
-  let pending = recordings.get(context);
+  let loops = recordings.get(context);
+  if (!loops) {
+    loops = new Map();
+    recordings.set(context, loops);
+  }
+  let pending = loops.get(url);
   if (!pending) {
     pending = fetch(url)
       .then((response) => (response.ok ? response.arrayBuffer() : null))
@@ -57,12 +69,41 @@ function loadRecording(context: BaseAudioContext, url: string) {
       .catch(() => null)
       .then((buffer) => {
         // A failure is not kept: the next race tries again.
-        if (!buffer) recordings.delete(context);
+        if (!buffer) loops.delete(url);
         return buffer;
       });
-    recordings.set(context, pending);
+    loops.set(url, pending);
   }
   return pending;
+}
+
+/** A looping recording with its own level, silent until it loads. */
+function createLoopPlayer(context: BaseAudioContext, output: AudioNode) {
+  const gain = context.createGain();
+  gain.gain.value = 0;
+  gain.connect(output);
+  let source: AudioBufferSourceNode | null = null;
+  return {
+    gain: gain.gain,
+    loaded: () => source !== null,
+    play(buffer: AudioBuffer) {
+      if (source) return;
+      source = context.createBufferSource();
+      source.buffer = buffer;
+      source.loop = true;
+      source.connect(gain);
+      source.start(0, Math.random() * buffer.duration);
+    },
+    dispose() {
+      try {
+        source?.stop();
+      } catch {
+        // Already stopped.
+      }
+      source?.disconnect();
+      gain.disconnect();
+    },
+  };
 }
 
 function getSharedContext() {
@@ -146,6 +187,7 @@ export type RaceAudioDebugState = {
   /** Motor, tire roll, and scrub may sound: the world is moving. */
   continuousVoices: boolean;
   wheels: readonly AudioWheel[];
+  ambience: { habitatBed: boolean; indoors: number; tunnelTone: boolean };
 };
 
 export type RaceAudio = {
@@ -166,6 +208,8 @@ export type RaceAudio = {
   setContinuousVoices: (open: boolean) => void;
   updateMotor: (state: MotorAudioState) => void;
   updateWheels: (wheels: readonly AudioWheel[]) => void;
+  /** `indoors` 0 outdoors to 1 in the tunnel, eased across portals. */
+  updateAmbience: (indoors: number) => void;
   dispose: () => void;
 };
 
@@ -197,8 +241,24 @@ export function createRaceAudio(soundOn: boolean): RaceAudio | null {
   // stands still (paused, or counting down to resume). The race skips its
   // per-frame updates then, so the voices would hold their last sound.
   const continuousGate = context.createGain();
-  continuousGate.connect(master);
   let continuousOpen = true;
+  // The kart's own sounds, dry, plus a short echo in the tunnel: a single
+  // concrete-box reflection about 21 ms back, darkened, with a little
+  // feedback for the far wall. Silent outdoors.
+  const kartBus = context.createGain();
+  kartBus.connect(master);
+  continuousGate.connect(kartBus);
+  const echoDelay = context.createDelay(0.05);
+  echoDelay.delayTime.value = 0.021;
+  const echoTone = context.createBiquadFilter();
+  echoTone.type = "lowpass";
+  echoTone.frequency.value = 2400;
+  const echoFeedback = context.createGain();
+  echoFeedback.gain.value = 0.3;
+  const echoWet = context.createGain();
+  echoWet.gain.value = 0;
+  kartBus.connect(echoDelay).connect(echoTone).connect(echoWet).connect(master);
+  echoTone.connect(echoFeedback).connect(echoDelay);
   const bus = (decibels: number, destination: AudioNode = master) => {
     const gain = context.createGain();
     gain.gain.value = fromDb(decibels);
@@ -207,13 +267,28 @@ export function createRaceAudio(soundOn: boolean): RaceAudio | null {
   };
   const buses = {
     cue: bus(MIX_DB.cue),
-    impact: bus(MIX_DB.impact),
-    landing: bus(MIX_DB.landing),
+    ambience: bus(MIX_DB.ambience),
+    impact: bus(MIX_DB.impact, kartBus),
+    landing: bus(MIX_DB.landing, kartBus),
     motor: bus(MIX_DB.motor, continuousGate),
     scrub: bus(MIX_DB.scrub, continuousGate),
     tireRoll: bus(MIX_DB.tireRoll, continuousGate),
   };
   const motorVoice = createMotorVoice(context, buses.motor);
+  // The habitat's air handling outdoors, and the tunnel's closer hum inside,
+  // crossfaded by how far the listener is inside.
+  const habitatBed = createLoopPlayer(context, buses.ambience);
+  const tunnelTone = createLoopPlayer(context, buses.ambience);
+  for (const [player, url] of [
+    [habitatBed, HABITAT_BED_URL],
+    [tunnelTone, TUNNEL_TONE_URL],
+  ] as const) {
+    void loadRecording(context, url).then((buffer) => {
+      if (buffer && !disposed) player.play(buffer);
+    });
+  }
+  let indoorAmount = 0;
+  const setAmbience = createParameterSmoother();
   // The tire voices generate their gravel and water textures (tens of ms,
   // longer on phones), so they are built in `prepare`, after the scene's
   // first frame, not during the scene build.
@@ -310,6 +385,11 @@ export function createRaceAudio(soundOn: boolean): RaceAudio | null {
       active,
       audible: audible(),
       recordedAsphalt,
+      ambience: {
+        habitatBed: habitatBed.loaded(),
+        indoors: indoorAmount,
+        tunnelTone: tunnelTone.loaded(),
+      },
       contextState: context.state,
       cues: [...cues],
       impacts: [...impacts],
@@ -387,6 +467,16 @@ export function createRaceAudio(soundOn: boolean): RaceAudio | null {
       if (context.state !== "running") return;
       motorVoice.update(state, context.currentTime);
     },
+    updateAmbience(indoors) {
+      indoorAmount = indoors;
+      if (context.state !== "running") return;
+      const now = context.currentTime;
+      // Equal power: the two beds are unrelated noise, so equal gains would
+      // dip about 3 dB halfway through a portal.
+      setAmbience(habitatBed.gain, Math.sqrt(1 - indoors), now, 0.05);
+      setAmbience(tunnelTone.gain, Math.sqrt(indoors), now, 0.05);
+      setAmbience(echoWet.gain, indoors * 0.22, now, 0.05);
+    },
     updateWheels(nextWheels) {
       wheels = nextWheels;
       if (context.state !== "running") return;
@@ -409,6 +499,17 @@ export function createRaceAudio(soundOn: boolean): RaceAudio | null {
       contactVoices?.scrub.dispose();
       Object.values(buses).forEach((gain) => gain.disconnect());
       continuousGate.disconnect();
+      habitatBed.dispose();
+      tunnelTone.dispose();
+      for (const node of [
+        kartBus,
+        echoDelay,
+        echoTone,
+        echoFeedback,
+        echoWet,
+      ]) {
+        node.disconnect();
+      }
       master.disconnect();
       limiter.disconnect();
       runContext(context, false);

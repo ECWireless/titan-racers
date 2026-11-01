@@ -3077,8 +3077,12 @@ test.describe("home screen", () => {
 
     await expect.poll(async () => (await audio())?.contextState).toBe("running");
     await expect.poll(async () => (await audio())?.cues[0]).toBe("count-3");
-    // Asphalt plays the recorded loop once it loads.
+    // Asphalt plays the recorded loop once it loads, and the habitat bed
+    // and tunnel tone load for the ambience; the sandbox is all outdoors.
     await expect.poll(async () => (await audio())?.recordedAsphalt).toBe(true);
+    await expect
+      .poll(async () => (await audio())?.ambience)
+      .toEqual({ habitatBed: true, indoors: 0, tunnelTone: true });
     expect((await audio())?.wheels.map(({ surface }) => surface)).toEqual([
       "asphalt",
       "asphalt",

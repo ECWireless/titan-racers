@@ -36,6 +36,7 @@ import {
   unlockRaceAudio,
   type RaceAudio,
 } from "@/game/audio/race-audio";
+import { approachIndoors } from "@/game/audio/ambience-mapping";
 import {
   getAudioSurface,
   getAudioWheel,
@@ -3069,6 +3070,7 @@ export function SoloTimeTrialCanvas({
 
       let displayedHabitatReadout = { altitude: Number.NaN, gravity: Number.NaN };
       let motorAudio = SILENT_MOTOR;
+      let indoorAudio = 0;
       // Reused every frame; the race audio copies it only for its debug state.
       const audioWheels: AudioWheel[] = [];
       runtime.onRender(({ accumulatorFraction, frameSeconds }) => {
@@ -3105,6 +3107,12 @@ export function SoloTimeTrialCanvas({
             );
           }
           raceAudio.updateWheels(audioWheels);
+          indoorAudio = approachIndoors(
+            indoorAudio,
+            isUnderRoof?.(kart.getPosition()) ?? false,
+            frameSeconds,
+          );
+          raceAudio.updateAmbience(indoorAudio);
         }
         interpolatedKartPosition.lerp(
           kartPresentation.previousPosition,
