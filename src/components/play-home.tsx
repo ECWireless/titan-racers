@@ -30,6 +30,7 @@ import { drawsEnclosure } from "@/game/enclosure/enclosure-view";
 import { loadAmmoPhysics } from "@/game/runtime/playcanvas-application";
 import { loadTreeImages } from "@/game/enclosure/tree-images";
 import type { CourseEnclosure } from "@/game/enclosure/island-three";
+import { suspendRaceAudio, unlockRaceAudio } from "@/game/audio/race-audio";
 
 import {
   COURSE_LOADING_FADE_MS,
@@ -249,6 +250,8 @@ export function PlayHome() {
     );
     if (!selectedKart) return;
 
+    // Still inside the click: the only moment iPhone Safari allows sound.
+    unlockRaceAudio();
     setUtilityMenuOpen(false);
     setSoloPending(true);
     stopPrewarmRef.current?.();
@@ -344,6 +347,8 @@ export function PlayHome() {
   }
 
   function exitSolo() {
+    // Covers a race left during loading, before its audio existed.
+    suspendRaceAudio();
     if (revealTimerRef.current !== null) {
       window.clearTimeout(revealTimerRef.current);
       revealTimerRef.current = null;

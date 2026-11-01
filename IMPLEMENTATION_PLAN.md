@@ -17,8 +17,8 @@ accepted; the app, README, and durable docs take over from there.
 
 - **Done:** Phases 0–3 (PRs #1–#24, the Phase 3 closeout, and its follow-ups),
   and Phase 4 through PR 4.4 (#30–#54).
-- **Next:** PR 4.5 (Ambience and SFX), then Phase 5. PR 4.6 (kart editor
-  suspension swap) is done.
+- **Next:** PR 4.5.1 (race audio and kart sound), then 4.5.2 (ambience),
+  then Phase 5. PR 4.6 (kart editor suspension swap) is done.
 
 ## Guiding Decisions
 
@@ -538,8 +538,22 @@ barriers are the youth's portable race kit
 
 **PR 4.5: Ambience and SFX**
 
-- [ ] Ambience and readable SFX for road contact, impacts, machinery,
-      irrigation, and the habitat, kept separate from kart physics.
+Sound is generated in code with Web Audio, with no dependency or download. It
+is derived from the simulation and never feeds back into physics. Recipes
+came from a blind, loudness-matched competition between Claude and Codex
+entries. CC0 recordings replace a generated sound only where listening QA
+says it does not read.
+
+- [ ] 4.5.1: Race audio and kart sound. The audio runtime (one shared
+      context started by the race's start click, suspended on pause, blur, a
+      hidden tab, and exit) with a remembered Sound switch in the pause menu;
+      the kart's brushless motor and gear whine; tire roll per surface,
+      scrub and skid, impacts by material, and landings by surface; and
+      countdown, go, final-lap, finish, and rejected-lap cues.
+- [ ] 4.5.2: Ambience. An outdoor habitat bed, a muffled tunnel mix, water
+      from the course's water boxes, machinery at valve and junction kits,
+      sprinkler and drip irrigation over the nursery rows, and distance
+      culling.
 - [ ] Mind the phone budget's headroom: after PR 4.4.8, CPU work has about
       1 ms left at the median (p95 7 ms), measured on the lead's iPhone
       only; GPU time is unmeasured.

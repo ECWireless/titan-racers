@@ -5,6 +5,7 @@ import type {
   KartDevelopmentValueMetadata,
   KartDevelopmentValues,
 } from "../kart/kart-development-values";
+import type { RaceAudioDebugState } from "../audio/race-audio";
 import type { ChaseCameraDiagnostics } from "../camera/chase-camera";
 import type {
   RaceProgressionResult,
@@ -155,6 +156,8 @@ export type CollisionResponseDebugState = {
 };
 
 export type SceneTestApi = {
+  /** Null where the browser has no Web Audio. */
+  getAudioDebugState: () => RaceAudioDebugState | null;
   getCameraDebugState: () => CameraDebugState;
   getCollisionDebugState: () => CollisionDebugState;
   getCollisionResponseDebugState: () => CollisionResponseDebugState;
@@ -222,6 +225,16 @@ export function attachSceneTestAdapter(
   api: SceneTestApi,
 ) {
   const listeners: Array<[string, EventListener]> = [
+    [
+      "getAudioDebugState",
+      ((
+        event: CustomEvent<{
+          respond: (state: RaceAudioDebugState | null) => void;
+        }>,
+      ) => {
+        event.detail.respond(api.getAudioDebugState());
+      }) as EventListener,
+    ],
     [
       "getCameraDebugState",
       ((

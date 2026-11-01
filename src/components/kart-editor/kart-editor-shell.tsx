@@ -72,6 +72,7 @@ import { serializeKartAssemblyDocument } from "@/game/kart/kart-assembly-documen
 import { isEditableKeyboardTarget } from "@/game/input/keyboard-input";
 import { useEditorController } from "@/game/input/use-editor-controller";
 import { KART_EDITOR_TRANSLATE_SNAP } from "@/game/editor/kart-editor-scene";
+import { suspendRaceAudio, unlockRaceAudio } from "@/game/audio/race-audio";
 
 import { SoloTimeTrialCanvas } from "../solo-time-trial-canvas";
 import {
@@ -622,6 +623,8 @@ export function KartEditorShell({
   }
 
   async function startSandboxTest() {
+    // Before the fetch, while still inside the click that allows sound.
+    unlockRaceAudio();
     testModeTriggerRef.current = true;
     setTestPending(true);
     try {
@@ -1141,7 +1144,11 @@ export function KartEditorShell({
         kartSnapshot={testSession.kartSnapshot}
         recordTelemetry={false}
         sessionLabel={`Saved r${testSession.kartRevision} on sandbox course · ${testSession.kartDocument.name}`}
-        onExit={() => setTestSession(null)}
+        onExit={() => {
+          // Covers a test drive left during loading, before its audio existed.
+          suspendRaceAudio();
+          setTestSession(null);
+        }}
       />
     );
   }

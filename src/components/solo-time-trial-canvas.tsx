@@ -26,6 +26,18 @@ import type {
 } from "@/game/contracts";
 import { KartCollisionObserver } from "@/game/collision/kart-collision-observer";
 import {
+  createRaceAudio,
+  readSoundMuted,
+  suspendRaceAudio,
+  unlockRaceAudio,
+  writeSoundMuted,
+  type RaceAudio,
+} from "@/game/audio/race-audio";
+import {
+  getMotorAudioState,
+  SILENT_MOTOR,
+} from "@/game/audio/race-audio-mapping";
+import {
   DEFAULT_KART_COLLISION_CONSTRUCTION,
   deriveKartCcdConfiguration,
   KART_COLLISION_SOLVER_POLICY,
@@ -571,6 +583,8 @@ export function SoloTimeTrialCanvas({
   const pauseMenuRef = useRef<HTMLDivElement | null>(null);
   const resumeButtonRef = useRef<HTMLButtonElement | null>(null);
   const sceneApiRef = useRef<SoloSceneControls | null>(null);
+  const raceAudioRef = useRef<RaceAudio | null>(null);
+  const raceAudioActiveRef = useRef(false);
   const statusMenuRef = useRef<HTMLDivElement | null>(null);
   const countdownHeldRef = useRef(covered);
   const startCountdownRef = useRef<(() => void) | null>(null);
@@ -592,6 +606,9 @@ export function SoloTimeTrialCanvas({
   );
   const [driveCursorHidden, setDriveCursorHidden] = useState(false);
   const [gamePaused, setGamePaused] = useState(false);
+  // Races mount only after a click, so this never renders on the server.
+  const [soundMuted, setSoundMuted] = useState(readSoundMuted);
+  const soundMutedRef = useRef(soundMuted);
   const [kartDynamicsOpen, setKartDynamicsOpen] = useState(false);
   const [raceSpeed, setRaceSpeed] = useState(0);
   const [habitatReadout, setHabitatReadout] = useState<{
@@ -652,6 +669,19 @@ export function SoloTimeTrialCanvas({
     if (!covered) startCountdownRef.current?.();
   }, [covered]);
 
+  // Sound runs only while the race is on screen and unpaused. The race audio
+  // also follows page focus and visibility itself, finish screen included.
+  useEffect(() => {
+    raceAudioActiveRef.current =
+      sceneStatus === "ready" && !gamePaused && !covered;
+    soundMutedRef.current = soundMuted;
+    raceAudioRef.current?.setMuted(soundMuted);
+    raceAudioRef.current?.setActive(raceAudioActiveRef.current);
+    // A load that fails before its audio exists leaves the start click's
+    // context running.
+    if (sceneStatus === "failed") suspendRaceAudio();
+  }, [covered, gamePaused, sceneStatus, soundMuted]);
+
   useEffect(() => {
     if (!gameplayTelemetryStartedRef.current) {
       gameplayTelemetryStartedRef.current = true;
@@ -676,6 +706,7 @@ export function SoloTimeTrialCanvas({
       }
 
       event.preventDefault();
+      unlockRaceAudio(soundMutedRef.current);
       sceneApiRef.current?.setPaused(false);
       setGamePaused(false);
       setDriveCursorHidden(true);
@@ -1771,6 +1802,14 @@ export function SoloTimeTrialCanvas({
         kart,
       );
       runtime.addCleanup(() => collisionObserver.destroy());
+      const raceAudio = createRaceAudio(soundMutedRef.current);
+      raceAudioRef.current = raceAudio;
+      // A scene rebuilt while already ready gets no fresh status change.
+      raceAudio?.setActive(raceAudioActiveRef.current);
+      runtime.addCleanup(() => {
+        raceAudio?.dispose();
+        if (raceAudioRef.current === raceAudio) raceAudioRef.current = null;
+      });
       let cameraImpactId = 0;
       let latestCameraImpact: ChaseCameraImpact | null = null;
       const chaseCameraSnapshot: ChaseCameraSnapshot = {
@@ -2641,6 +2680,7 @@ export function SoloTimeTrialCanvas({
 
       const detachSceneTestAdapter = ENABLE_SCENE_TEST_HOOKS
         ? attachSceneTestAdapter(activeCanvas, {
+            getAudioDebugState: () => raceAudio?.getDebugState() ?? null,
             getCameraDebugState: () => chaseCamera.getDiagnostics(),
             getCollisionDebugState,
             getCollisionResponseDebugState,
@@ -2876,7 +2916,30 @@ export function SoloTimeTrialCanvas({
       });
 
       let displayedHabitatReadout = { altitude: Number.NaN, gravity: Number.NaN };
+      let motorAudio = SILENT_MOTOR;
       runtime.onRender(({ accumulatorFraction, frameSeconds }) => {
+        if (raceAudio) {
+          const raceState = raceSession.snapshot.state;
+          const held = raceState === "countdown";
+          // The world stands still through the resume countdown.
+          motorAudio =
+            raceState === "resuming"
+              ? SILENT_MOTOR
+              : getMotorAudioState({
+                  brake: latestDrivingInput.brake,
+                  deltaSeconds: frameSeconds,
+                  forwardSpeed: kartController.state.speed,
+                  handbrake: latestDrivingInput.handbrake,
+                  held,
+                  noLoadSpeed: activeDynamics.kart.drivetrain.noLoadSpeed,
+                  previousMotorSpeed: motorAudio.motorSpeed,
+                  throttle: held
+                    ? latestRequestedDrivingInput.throttle
+                    : latestDrivingInput.throttle,
+                  wheels: kartController.state.wheelTelemetry,
+                });
+          raceAudio.updateMotor(motorAudio);
+        }
         interpolatedKartPosition.lerp(
           kartPresentation.previousPosition,
           kartPresentation.currentPosition,
@@ -3431,10 +3494,18 @@ export function SoloTimeTrialCanvas({
   }
 
   function resumeRace() {
+    // Inside the gesture, which iPhone Safari needs to resume sound.
+    unlockRaceAudio(soundMuted);
     sceneApiRef.current?.setPaused(false);
     setGamePaused(false);
     setDriveCursorHidden(true);
     requestAnimationFrame(() => canvasRef.current?.focus());
+  }
+
+  function toggleSound() {
+    const nextMuted = !soundMuted;
+    setSoundMuted(nextMuted);
+    writeSoundMuted(nextMuted);
   }
 
   function restartRace() {
@@ -3685,6 +3756,16 @@ export function SoloTimeTrialCanvas({
                     onClick={resumeRace}
                   >
                     Resume
+                  </button>
+                  <button
+                    type="button"
+                    role="switch"
+                    aria-checked={!soundMuted}
+                    className="titan-button titan-button-secondary"
+                    onClick={toggleSound}
+                  >
+                    Sound{" "}
+                    <span aria-hidden="true">{soundMuted ? "Off" : "On"}</span>
                   </button>
                   <button
                     type="button"

@@ -22,6 +22,7 @@ import {
   REFERENCE_KART_MASS_SCALE,
   scaleReferenceKartLength,
 } from "../src/game/kart/kart-reference-construction";
+import type { RaceAudioDebugState } from "../src/game/audio/race-audio";
 import type {
   KartDebugState,
   KartLightingDebugState,
@@ -303,6 +304,19 @@ async function getCollisionResponseDebugState(canvas: Locator) {
       }>((resolve) => {
         element.dispatchEvent(
           new CustomEvent("getCollisionResponseDebugState", {
+            detail: { respond: resolve },
+          }),
+        );
+      }),
+  );
+}
+
+async function getAudioDebugState(canvas: Locator) {
+  return canvas.evaluate(
+    (element) =>
+      new Promise<RaceAudioDebugState | null>((resolve) => {
+        element.dispatchEvent(
+          new CustomEvent("getAudioDebugState", {
             detail: { respond: resolve },
           }),
         );
@@ -3043,6 +3057,64 @@ test.describe("home screen", () => {
     await expect(canvas).toHaveCSS("cursor", "none");
     await page.waitForTimeout(250);
     await expect(page.getByText("Paused", { exact: true })).not.toBeVisible();
+  });
+
+  test("plays race sound only while racing and remembers mute", async ({
+    page,
+  }, testInfo) => {
+    test.skip(
+      testInfo.project.name === "mobile",
+      "The sound lifecycle does not depend on the viewport.",
+    );
+    // Two race loads: before and after a reload.
+    test.setTimeout(60_000);
+
+    await page.goto("/?sandbox-course");
+    await page.getByRole("button", { name: "Solo Time Trial" }).click();
+    const canvas = page.getByTestId("solo-time-trial-canvas");
+    await waitForSceneReady(canvas);
+    const audio = () => getAudioDebugState(canvas);
+
+    await expect.poll(async () => (await audio())?.contextState).toBe("running");
+    // Throttle on the grid spins the held kart's wheels, so the motor revs.
+    await canvas.focus();
+    await page.keyboard.down("ArrowUp");
+    await expect
+      .poll(async () => (await audio())?.motor.motorSpeed ?? 0)
+      .toBeGreaterThan(0.3);
+    await page.keyboard.up("ArrowUp");
+
+    await page.keyboard.press("Escape");
+    const pauseDialog = page.getByRole("dialog", { name: "Paused" });
+    await expect(pauseDialog).toBeVisible();
+    await expect.poll(async () => (await audio())?.contextState).toBe("suspended");
+
+    const sound = pauseDialog.getByRole("switch", { name: "Sound" });
+    await expect(sound).toHaveAttribute("aria-checked", "true");
+    await sound.click();
+    await expect(sound).toHaveAttribute("aria-checked", "false");
+    await pauseDialog.getByRole("button", { name: "Resume" }).click();
+    await expect(pauseDialog).toHaveCount(0);
+    await page.waitForTimeout(250);
+    expect(await audio()).toMatchObject({
+      active: true,
+      contextState: "suspended",
+      muted: true,
+    });
+
+    await page.reload();
+    await page.getByRole("button", { name: "Solo Time Trial" }).click();
+    await waitForSceneReady(canvas);
+    await expect.poll(async () => (await audio())?.active).toBe(true);
+    expect(await audio()).toMatchObject({
+      contextState: "suspended",
+      muted: true,
+    });
+    await canvas.focus();
+    await page.keyboard.press("Escape");
+    await expect(
+      pauseDialog.getByRole("switch", { name: "Sound" }),
+    ).toHaveAttribute("aria-checked", "false");
   });
 
   test("drives continuously in two axes with the touch joystick and accessible pedals", async ({
