@@ -259,8 +259,8 @@ base, as long as the plank. `kit: "handwheel"` draws a valve's handwheel
 uniform one as wide as the pipe, joining a pipe along local +Y through the
 corner at its origin to one along local +X. An elbow collides as its bend,
 `collision: { shape: "elbow" }` (cylinders along chords of the bend, as many
-as keep them within 4 mm of the pipe, as a solid obstacle), or not at all;
-nothing else collides so.
+as keep them within 4 mm of the pipe drawn, as a solid obstacle; at most 2 m
+across), or not at all; nothing else collides so.
 Version eleven also adds the `kerb` finish, sidewalk concrete apart from
 walls' cast concrete; `visual.bevel`, a chamfer up to 5 cm wide along a
 solid box's or round cylinder's edges (never a surface, timber, kit, or

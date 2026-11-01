@@ -916,8 +916,10 @@ const COURSE_SIGN_MAXIMUM_LENGTH = 12;
 const COURSE_SIGN_PATTERN = /^[A-Za-z0-9.-](?:[A-Za-z0-9 .-]*[A-Za-z0-9.-])?$/;
 // A sign is painted on a face, so it is at most this thick.
 const COURSE_SIGN_MAXIMUM_THICKNESS = 0.01;
-// An elbow collides only as a wall, along its bend (course-kits.ts).
+// An elbow collides only as a wall, along its bend (course-kits.ts), and
+// only up to this wide, within which its collision follows the pipe drawn.
 const elbowCollisionSchema = arcCollisionSchema.extend({ shape: z.literal("elbow") });
+const COURSE_ELBOW_COLLISION_MAXIMUM_DIAMETER = 2;
 const primitiveVisualV11Schema = visualSchema.extend({
   bevel: z.number().finite().positive().max(COURSE_BEVEL_MAXIMUM).optional(),
   material: visualMaterialV11Schema,
@@ -1013,10 +1015,15 @@ export const courseDocumentSchema = courseDocumentV10BaseSchema
           path: ["objects", index, "kit"],
         });
       }
-      if (object.collision?.shape === "elbow" && object.kit !== "elbow") {
+      if (
+        object.collision?.shape === "elbow" &&
+        (object.kit !== "elbow" ||
+          visual.shape === "arc" ||
+          visual.scale.x > COURSE_ELBOW_COLLISION_MAXIMUM_DIAMETER)
+      ) {
         context.addIssue({
           code: "custom",
-          message: "Only an elbow collides as an elbow",
+          message: `Only an elbow at most ${COURSE_ELBOW_COLLISION_MAXIMUM_DIAMETER} m across collides as an elbow`,
           path: ["objects", index, "collision"],
         });
       }

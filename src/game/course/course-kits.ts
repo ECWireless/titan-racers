@@ -208,18 +208,33 @@ export function createCourseHandwheelGeometry(scale: Vector) {
 
 // A long-radius elbow bends its pipe's centreline about one and a half of
 // its diameters.
-const ELBOW = { bend: 1.5, sides: { around: 20, along: 12 } };
+// Its faces stay within 1 mm of the true bend, finer for larger elbows.
+const ELBOW = { bend: 1.5, sides: { maximum: 96, minimum: 12 }, tolerance: 0.001 };
+
+// How many equal steps keep the chords of `sweep` radians on a circle of
+// `radius` within `tolerance` of it, between `minimum` and `maximum`.
+function getChordSteps(
+  radius: number,
+  sweep: number,
+  tolerance: number,
+  { maximum, minimum }: { maximum: number; minimum: number },
+) {
+  const widest = 2 * Math.acos(Math.max(-1, 1 - tolerance / radius));
+  return Math.min(maximum, Math.max(minimum, Math.ceil(sweep / widest)));
+}
 
 /**
  * A pipe's 90° elbow, in place of its round, as wide as the pipe: the pipe
  * along local +Y bends through the corner at the origin to run along local
- * +X. Its ends are open, to meet the pipes either side.
+ * +X. Its ends are closed, so where its finer ring meets a straight pipe's
+ * coarser one, the join shows pipe, not a sliver of its inside.
  */
 export function createCourseElbowGeometry(scale: Vector) {
   const { geometry, polygon } = createCourseMeshBuilder(scale);
   const radius = scale.x / 2;
   const bend = ELBOW.bend * scale.x;
-  const { along, around } = ELBOW.sides;
+  const around = getChordSteps(radius, Math.PI * 2, ELBOW.tolerance, ELBOW.sides);
+  const along = getChordSteps(bend + radius, Math.PI / 2, ELBOW.tolerance, ELBOW.sides);
   const at = (step: number, side: number) => {
     const theta = (step / along) * (Math.PI / 2);
     const phi = (side / around) * Math.PI * 2;
@@ -252,12 +267,22 @@ export function createCourseElbowGeometry(scale: Vector) {
       );
     }
   }
+  for (const [step, normal] of [
+    [0, [0, 1, 0]],
+    [along, [1, 0, 0]],
+  ] as const) {
+    polygon(
+      Array.from({ length: around }, (_, side) => at(step, side).point),
+      [...normal],
+    );
+  }
   return geometry;
 }
 
 // An elbow collides as cylinders along chords of its bend, as many as keep
-// each chord within 4 mm of the bend, up to 32 (elbows to about 9 m across).
-const ELBOW_COLLISION = { maximum: 32, tolerance: 0.004 };
+// each within 3 mm of the bend, so with its faces' 1 mm, within 4 mm of the
+// pipe drawn; colliding elbows are at most 2 m across.
+const ELBOW_COLLISION = { maximum: 32, minimum: 1, tolerance: 0.003 };
 
 /**
  * The cylinders an elbow of this diameter collides as, in its local frame in
@@ -267,12 +292,7 @@ const ELBOW_COLLISION = { maximum: 32, tolerance: 0.004 };
 export function getCourseElbowCollisionCylinders(diameter: number) {
   const radius = diameter / 2;
   const bend = ELBOW.bend * diameter;
-  // A chord across angle a lies inside the bend by bend × (1 − cos(a / 2)).
-  const widest = 2 * Math.acos(Math.max(-1, 1 - ELBOW_COLLISION.tolerance / bend));
-  const count = Math.min(
-    ELBOW_COLLISION.maximum,
-    Math.max(1, Math.ceil(Math.PI / 2 / widest)),
-  );
+  const count = getChordSteps(bend, Math.PI / 2, ELBOW_COLLISION.tolerance, ELBOW_COLLISION);
   const step = Math.PI / 2 / count;
   return Array.from({ length: count }, (_, index) => {
     const mid = (index + 0.5) * step;

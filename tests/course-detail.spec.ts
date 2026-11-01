@@ -145,13 +145,15 @@ test("bends an elbow through its corner, its ends square to the pipes", () => {
   expect(facesItsNormals(geometry, MAIN)).toBe(true);
   const points = inMetres(geometry, MAIN);
   // Its ends: a ring across the +Y pipe at the bend's start, and one across
-  // the +X pipe at its end, each the pipe's width.
+  // the +X pipe at its end, each the pipe's width, and each closed.
   for (const axis of [0, 1]) {
-    const ring = points.filter(({ point }) => Math.abs(point[axis]! - BEND) < 1e-9 && point[1 - axis]! < 0.2);
+    const end = points.filter(({ point }) => Math.abs(point[axis]! - BEND) < 1e-9 && point[1 - axis]! < 0.2);
+    const ring = end.filter(({ normal }) => Math.abs(normal[axis]!) < 1e-9);
+    const cap = end.filter(({ normal }) => normal[axis]! > 1 - 1e-9);
     expect(ring.length).toBeGreaterThan(0);
-    for (const { normal, point } of ring) {
+    expect(cap.length).toBe(ring.length / 2);
+    for (const { point } of [...ring, ...cap]) {
       expect(Math.hypot(point[1 - axis]!, point[2]!)).toBeCloseTo(0.163, 9);
-      expect(normal[axis]).toBeCloseTo(0, 9);
     }
   }
 });
@@ -187,33 +189,178 @@ function fromCentreLine(point: number[], bend: number) {
   return onBend ? Math.min(legs, Math.hypot(Math.hypot(dx, dy) - bend, z)) : legs;
 }
 
-test("collides as an elbow's pipe within 4 mm, both ways, at any size", () => {
+// The nearest point on triangle abc to p (Ericson, Real-Time Collision
+// Detection, 5.1.5).
+function closestOnTriangle(p: number[], a: number[], b: number[], c: number[]) {
+  const sub = (u: number[], v: number[]) => u.map((value, index) => value - v[index]!);
+  const dot = (u: number[], v: number[]) => u.reduce((sum, value, index) => sum + value * v[index]!, 0);
+  const at = (s: number, t: number) => a.map((value, index) => value + s * (b[index]! - value) + t * (c[index]! - value));
+  const [ab, ac, ap] = [sub(b, a), sub(c, a), sub(p, a)];
+  const [d1, d2] = [dot(ab, ap), dot(ac, ap)];
+  if (d1 <= 0 && d2 <= 0) return a;
+  const bp = sub(p, b);
+  const [d3, d4] = [dot(ab, bp), dot(ac, bp)];
+  if (d3 >= 0 && d4 <= d3) return b;
+  const vc = d1 * d4 - d3 * d2;
+  if (vc <= 0 && d1 >= 0 && d3 <= 0) return at(d1 / (d1 - d3), 0);
+  const cp = sub(p, c);
+  const [d5, d6] = [dot(ab, cp), dot(ac, cp)];
+  if (d6 >= 0 && d5 <= d6) return c;
+  const vb = d5 * d2 - d1 * d6;
+  if (vb <= 0 && d2 >= 0 && d6 <= 0) return at(0, d2 / (d2 - d6));
+  const va = d3 * d6 - d5 * d4;
+  if (va <= 0 && d4 - d3 >= 0 && d5 - d6 >= 0) {
+    const w = (d4 - d3) / (d4 - d3 + (d5 - d6));
+    return b.map((value, index) => value + w * (c[index]! - value));
+  }
+  const denominator = 1 / (va + vb + vc);
+  return at(vb * denominator, vc * denominator);
+}
+
+// An elbow's drawn faces in metres, and how far outside them a point lies
+// (0 inside them).
+function drawnFaces(geometry: Geometry, scale: Scale) {
+  const points = inMetres(geometry, scale).map(({ point }) => point);
+  const faces = Array.from({ length: geometry.indices.length / 3 }, (_, index) => {
+    const [a, b, c] = [0, 1, 2].map((corner) => points[geometry.indices[index * 3 + corner]!]!);
+    const e1 = b!.map((value, axis) => value - a![axis]!);
+    const e2 = c!.map((value, axis) => value - a![axis]!);
+    const facing = [
+      e1[1]! * e2[2]! - e1[2]! * e2[1]!,
+      e1[2]! * e2[0]! - e1[0]! * e2[2]!,
+      e1[0]! * e2[1]! - e1[1]! * e2[0]!,
+    ];
+    const centre = a!.map((value, axis) => (value + b![axis]! + c![axis]!) / 3);
+    const reach = Math.max(
+      ...[a!, b!, c!].map((corner) => length(corner.map((value, axis) => value - centre[axis]!))),
+    );
+    return { a: a!, b: b!, c: c!, centre, facing, reach };
+  });
+  return (point: number[]) => {
+    // Only faces whose bounding spheres come near the point can be nearest.
+    const [px, py, pz] = point as [number, number, number];
+    const near = new Float64Array(faces.length);
+    let bound = Infinity;
+    for (let index = 0; index < faces.length; index++) {
+      const { centre, reach } = faces[index]!;
+      const [dx, dy, dz] = [px - centre[0]!, py - centre[1]!, pz - centre[2]!];
+      near[index] = Math.sqrt(dx * dx + dy * dy + dz * dz);
+      if (near[index]! + reach < bound) bound = near[index]! + reach;
+    }
+    let best = Infinity;
+    let outside = 0;
+    for (let index = 0; index < faces.length; index++) {
+      if (near[index]! - faces[index]!.reach > bound) continue;
+      const { a, b, c, facing } = faces[index]!;
+      const nearest = closestOnTriangle(point, a, b, c);
+      const offset = point.map((value, axis) => value - nearest[axis]!);
+      const distance = length(offset);
+      if (distance >= best) continue;
+      best = distance;
+      outside = facing.reduce((sum, value, axis) => sum + value * offset[axis]!, 0) > 0 ? distance : 0;
+    }
+    return outside;
+  };
+}
+
+test("collides as an elbow's drawn pipe within 4 mm, both ways, up to 2 m across", () => {
   for (const diameter of [0.326, 1, 2]) {
     const scale = { x: diameter, y: diameter, z: diameter };
     const bend = 1.5 * diameter;
-    // The visible pipe lies within the cylinders...
-    for (const { point } of inMetres(createCourseElbowGeometry(scale), scale)) {
-      expect(outsideColliders(point, diameter)).toBeLessThanOrEqual(0.0041);
+    const geometry = createCourseElbowGeometry(scale);
+    const outsideFaces = drawnFaces(geometry, scale);
+    // The pipe drawn lies within the cylinders...
+    let gap = 0;
+    for (const { point } of inMetres(geometry, scale)) {
+      gap = Math.max(gap, outsideColliders(point, diameter));
     }
-    // ...and the cylinders' surfaces within the pipe, or its straight runs.
+    expect(gap, `${diameter} m`).toBeLessThanOrEqual(0.004);
+    // ...and the cylinders' surfaces within the pipe drawn, or, past the
+    // bend's ends, within the straight pipes it joins.
+    let reach = 0;
     for (const { center, height, radius, roll } of getCourseElbowCollisionCylinders(diameter)) {
       const turn = (roll * Math.PI) / 180;
       const axis = [-Math.sin(turn), Math.cos(turn), 0];
       const across = [Math.cos(turn), Math.sin(turn), 0];
-      for (let step = 0; step <= 8; step++) {
-        for (let side = 0; side < 16; side++) {
-          const along = (step / 8 - 0.5) * height;
-          const angle = (side / 16) * Math.PI * 2;
+      for (let step = 0; step <= 4; step++) {
+        for (let side = 0; side < 12; side++) {
+          const along = (step / 4 - 0.5) * height;
+          const angle = (side / 12) * Math.PI * 2;
           const point = [center.x, center.y, center.z].map(
             (value, index) =>
               value +
               along * axis[index]! +
               radius * (Math.cos(angle) * across[index]! + (index === 2 ? Math.sin(angle) : 0)),
           );
-          expect(fromCentreLine(point, bend) - diameter / 2).toBeLessThanOrEqual(0.0041);
+          const pastBend = point[0]! > bend || point[1]! > bend;
+          reach = Math.max(
+            reach,
+            pastBend ? fromCentreLine(point, bend) - diameter / 2 : outsideFaces(point),
+          );
         }
       }
     }
+    expect(reach, `${diameter} m`).toBeLessThanOrEqual(0.004);
+  }
+});
+
+test("joins each water-main elbow's collision to the main's, with no gap", () => {
+  const main = FALLS_VIEW_PARK_DOCUMENT.objects.find((o) => o.id === "tunnel-water-main")!;
+  if (main.visual.shape === "arc" || main.collision?.shape !== "cylinder") {
+    throw new Error("Expected the main's cylinder");
+  }
+  const { radius, height } = main.collision;
+  const centre = main.transform.position;
+  // Inside the main's collider, along world X, as it lies.
+  const outsideMain = (point: { x: number; y: number; z: number }) =>
+    Math.hypot(
+      Math.max(0, Math.hypot(point.y - centre.y, point.z - centre.z) - radius),
+      Math.max(0, Math.abs(point.x - centre.x) - height / 2),
+    );
+  for (const side of ["west", "east"] as const) {
+    const elbow = FALLS_VIEW_PARK_DOCUMENT.objects.find(
+      (o) => o.id === `tunnel-water-main-elbow-${side}`,
+    )!;
+    if (elbow.visual.shape === "arc") throw new Error("Expected a primitive");
+    const diameter = elbow.visual.scale.x;
+    const bend = 1.5 * diameter;
+    const { position, rotation } = elbow.transform;
+    const toWorld = (local: number[]) => {
+      const turned = rotateCourseDirection({ x: local[0]!, y: local[1]!, z: local[2]! }, { x: 0, y: 0, z: 0 }, rotation);
+      return { x: position.x + turned.x, y: position.y + turned.y, z: position.z + turned.z };
+    };
+    const toLocal = (world: { x: number; y: number; z: number }) => {
+      const local = rotateCourseDirection(
+        { x: world.x - position.x, y: world.y - position.y, z: world.z - position.z },
+        rotation,
+        { x: 0, y: 0, z: 0 },
+      );
+      return [local.x, local.y, local.z];
+    };
+    // The pipe's surface 0.1 m either side of the junction, all round.
+    let gap = 0;
+    for (let step = -10; step <= 10; step++) {
+      for (let side = 0; side < 24; side++) {
+        const angle = (side / 24) * Math.PI * 2;
+        const ring = [Math.cos(angle) * (diameter / 2), 0, Math.sin(angle) * (diameter / 2)];
+        // Along the +Y pipe past the bend's start, or around its first degrees.
+        const local =
+          step >= 0
+            ? [ring[0]!, bend + step * 0.01, ring[2]!]
+            : (() => {
+                const theta = (-step * 0.01) / bend;
+                const out = [-Math.cos(theta), -Math.sin(theta), 0];
+                return [0, 1, 2].map(
+                  (index) =>
+                    [bend - bend * Math.cos(theta), bend - bend * Math.sin(theta), 0][index]! +
+                    (diameter / 2) * (Math.cos(angle) * out[index]! + (index === 2 ? Math.sin(angle) : 0)),
+                );
+              })();
+        const world = toWorld(local);
+        gap = Math.max(gap, Math.min(outsideMain(world), outsideColliders(toLocal(world), diameter)));
+      }
+    }
+    expect(gap, side).toBeLessThanOrEqual(0.004);
   }
 });
 

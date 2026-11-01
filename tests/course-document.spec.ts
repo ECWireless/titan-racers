@@ -1491,6 +1491,8 @@ test("letters signs, bevels solids, and draws handwheels in v11 only", () => {
   expect(issues("tunnel-fire-main", (o) => (o.collision = structuredClone(bend)))).toContain(
     "collision",
   );
+  // Its collision follows the pipe drawn only up to 2 m across.
+  expect(issues(elbow, (o) => setScale(o, { x: 2.5, y: 2.5, z: 2.5 }))).toContain("collision");
 
   // Version ten has none of them.
   const legacy = versionTenFallsViewPark();
