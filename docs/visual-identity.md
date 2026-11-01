@@ -448,7 +448,8 @@ ready after 846 ms. Building the audio graph during the course build had
 cost the first frame about 60 ms of drawing (an A/B on one build: 230 ms
 with race audio, 172 ms without), so the graph, the tire textures, and the
 recordings are now prepared just after the first frame, behind the loading
-screen. Sound adds no measurable CPU work (3 ms median, p95 4 ms), and it
+screen. A load slower than the screen's hold, or the editor's test drive,
+which has none, prepares them as the countdown starts instead. Sound adds no measurable CPU work (3 ms median, p95 4 ms), and it
 draws nothing: the draw counts (a 55 median, 70 at most) are the course's.
 The race was ready later than PR 4.4.8's 480 ms in the A/B runs too, sound
 on or off (650–868 ms), so audio does not cause it. The four mono

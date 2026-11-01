@@ -3169,6 +3169,56 @@ test.describe("home screen", () => {
     ).toHaveAttribute("aria-checked", "false");
   });
 
+  test("keeps sound off after the page hides until a tap brings it back", async ({
+    page,
+  }, testInfo) => {
+    test.skip(
+      testInfo.project.name === "mobile",
+      "The sound lifecycle does not depend on the viewport.",
+    );
+    test.setTimeout(60_000);
+    const setHidden = (hidden: boolean) =>
+      page.evaluate((hidden) => {
+        Object.defineProperty(document, "hidden", {
+          configurable: true,
+          get: () => hidden,
+        });
+        Object.defineProperty(document, "visibilityState", {
+          configurable: true,
+          get: () => (hidden ? "hidden" : "visible"),
+        });
+        // Coming back, iPhone Safari sends focus before the page is visible.
+        if (!hidden) window.dispatchEvent(new Event("focus"));
+        document.dispatchEvent(new Event("visibilitychange"));
+        if (hidden) window.dispatchEvent(new Event("blur"));
+      }, hidden);
+
+    await page.goto("/?sandbox-course");
+    await page.getByRole("button", { name: "Solo Time Trial" }).click();
+    // A quick app switch while the race loads, over before the scene listens
+    // for one: the race must still open paused, or its countdown would play
+    // into silence until the first tap.
+    await setHidden(true);
+    await setHidden(false);
+    const canvas = page.getByTestId("solo-time-trial-canvas");
+    await waitForSceneReady(canvas);
+    const audio = () => getAudioDebugState(canvas);
+    const pauseDialog = page.getByRole("dialog", { name: "Paused" });
+    await expect(pauseDialog).toBeVisible({ timeout: 10_000 });
+
+    // No resume until a gesture: on iPhone, one tried while the page comes
+    // back is refused and leaves the context silent for good.
+    await expect.poll(async () => (await audio())?.contextState).toBe(
+      "suspended",
+    );
+    await page.waitForTimeout(500);
+    expect((await audio())?.contextState).toBe("suspended");
+
+    await pauseDialog.getByRole("button", { name: "Resume" }).click();
+    await expect.poll(async () => (await audio())?.contextState).toBe("running");
+    await expect.poll(async () => (await audio())?.audible).toBe(true);
+  });
+
   test("sounds a wall hit by what the wall is made of", async ({
     page,
   }, testInfo) => {

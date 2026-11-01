@@ -31,6 +31,7 @@ import {
 } from "@/game/collision/kart-collision-observer";
 import {
   createRaceAudio,
+  raceAudioAwaitsGesture,
   readSoundOn,
   suspendRaceAudio,
   unlockRaceAudio,
@@ -3361,11 +3362,13 @@ export function SoloTimeTrialCanvas({
       startCountdownRef.current = () => {
         startCountdownRef.current = null;
         // A context lost behind the loading screen could not pause the
-        // race before its countdown.
+        // race before its countdown. Nor could a page hidden while loading
+        // whose sound now waits for a tap: its countdown would be silent.
         const interrupted =
           document.hidden ||
           !document.hasFocus() ||
-          contextRestoreTimeoutId !== null;
+          contextRestoreTimeoutId !== null ||
+          (soundOnRef.current && raceAudioAwaitsGesture());
         // The countdown starts only once the race is ready and uncovered, so
         // open its sound now: React's own update can land a frame or more
         // later, after the first tick has played into silence.

@@ -50,6 +50,50 @@ const MIX_DB = {
 };
 
 let sharedContext: AudioContext | null = null;
+// Whether the page has focus, tracked for the page's lifetime from the click
+// that first unlocks audio, so race audio created later (after the scene's
+// first frame) starts from it. `hasFocus()` can read false in a page that
+// has focus (headless browsers), so a trusted gesture or focus event sets it.
+let pageFocused = true;
+// Set when the page hides; cleared by the next trusted gesture. iPhone
+// WebKit refuses a resume while a page is coming back (focus arrives before
+// it is visible), and a context refused then later reports "running" with
+// its clock stopped and no output. Resuming only inside a gesture once the
+// page has hidden avoids that.
+let hiddenSinceGesture = false;
+let pageListenersInstalled = false;
+
+/** Installed once, with the first context, for the page's lifetime. */
+function installPageListeners() {
+  if (pageListenersInstalled) return;
+  pageListenersInstalled = true;
+  // Before a race's audio exists, nothing else stops the unlocked context
+  // on blur or a hidden tab (which draws no frames, so its race audio waits
+  // to be built). Race audio resumes it itself once it is wanted again.
+  window.addEventListener("blur", () => {
+    pageFocused = false;
+    if (sharedContext) runContext(sharedContext, false);
+  });
+  window.addEventListener("focus", () => {
+    pageFocused = true;
+  });
+  document.addEventListener("visibilitychange", () => {
+    if (!document.hidden) return;
+    hiddenSinceGesture = true;
+    if (sharedContext) runContext(sharedContext, false);
+  });
+  // Installed before any race audio's own gesture listeners, so a gesture
+  // clears the flag before they resume. Only a tap's end, a click, or a key
+  // counts as a gesture for audio on iPhone.
+  const onGesture = (event: Event) => {
+    if (!event.isTrusted) return;
+    pageFocused = true;
+    hiddenSinceGesture = false;
+  };
+  for (const name of ["touchend", "click", "keydown"]) {
+    window.addEventListener(name, onGesture, true);
+  }
+}
 
 const ASPHALT_RECORDING_URL = "/audio/asphalt-roll.wav";
 const HABITAT_BED_URL = "/audio/habitat-bed.wav";
@@ -145,6 +189,7 @@ function getSharedContext() {
   } catch {
     return null;
   }
+  installPageListeners();
   return sharedContext;
 }
 
@@ -152,6 +197,8 @@ function getSharedContext() {
 // Always send the wanted one: the context applies them in order, and a
 // repeat is a no-op.
 function runContext(context: AudioContext, running: boolean) {
+  // Once the page has hidden, only a gesture may resume it (see above).
+  if (running && hiddenSinceGesture) return;
   void (running ? context.resume() : context.suspend()).catch(() => undefined);
 }
 
@@ -187,9 +234,20 @@ export function writeSoundOn(on: boolean) {
  * Safari in particular, only let audio start from one.
  */
 export function unlockRaceAudio(soundOn = readSoundOn()) {
+  // Called from a gesture, which proves the page has focus.
+  pageFocused = true;
   if (!soundOn) return;
   const context = getSharedContext();
   if (context) runContext(context, true);
+}
+
+/**
+ * The page has hidden since its last gesture, so sound cannot start until
+ * the next tap, click, or key press. A race starting now should open paused,
+ * so its Resume tap brings the sound.
+ */
+export function raceAudioAwaitsGesture() {
+  return hiddenSinceGesture && sharedContext !== null;
 }
 
 /** For a race that ends before its audio exists, such as a failed load. */
@@ -390,11 +448,6 @@ export function createRaceAudio(soundOn: boolean): RaceAudio | null {
   let motor = SILENT_MOTOR;
   let soundEnabled = soundOn;
   let recordedAsphalt = false;
-  // The page just took the click that started the race. `hasFocus()` can
-  // read false in a page that has focus (headless browsers), and a blur
-  // while the race loads still arrives as a pause.
-  let pageFocused = true;
-
   // Runs whenever it may (silent while covered), so the first countdown tick
   // is on time. Create it after the scene's first frame: building the graph
   // during the scene build slows that frame on iPhone.
@@ -429,7 +482,14 @@ export function createRaceAudio(soundOn: boolean): RaceAudio | null {
     pageFocused = true;
     if (wanted() && context.state !== "running") runContext(context, true);
   };
-  const gestureEvents = ["pointerdown", "keydown", "touchend"] as const;
+  // A click too: once the page has hidden, a mouse's pointerdown comes
+  // before the click that clears it.
+  const gestureEvents = [
+    "pointerdown",
+    "keydown",
+    "touchend",
+    "click",
+  ] as const;
   window.addEventListener("blur", onBlur);
   window.addEventListener("focus", onFocus);
   document.addEventListener("visibilitychange", apply);
