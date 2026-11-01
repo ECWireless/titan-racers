@@ -19,9 +19,10 @@ import {
 } from "../src/game/editor/kart-editor-document";
 import { shouldTrackKartEditorPointerDown } from "../src/game/editor/kart-editor-scene";
 import { createBalancedKartDocument } from "../src/game/kart/balanced-kart-document";
+import { createHandlingKartDocument } from "../src/game/kart/handling-kart-document";
+import { getApprovedKartComponent } from "../src/game/kart/kart-component-registry";
+import { resolveApprovedSuspensionMount } from "../src/game/kart/kart-suspension-mounting";
 import { validateKartAssembly } from "../src/game/kart/kart-assembly-validation";
-import { deriveKartSnapshot } from "../src/game/kart/kart-derivation";
-import { createValidKartAssembly } from "./support/kart-assembly";
 
 test("edits identity and transforms through schema-valid document commands", () => {
   const original = createBalancedKartDocument();
@@ -433,6 +434,94 @@ test("updates both mirrored halves when the mirrored outline item changes", () =
   }
 });
 
+test("keeps mirrored suspension mounts across variant swaps", () => {
+  const original = createBalancedKartDocument();
+  expect(
+    replaceKartComponentDefinition(
+      original,
+      "suspension-front-right",
+      "suspension.firm-short",
+      2,
+    ),
+  ).toEqual(original);
+
+  const changed = replaceKartComponentDefinition(
+    replaceKartComponentDefinition(
+      original,
+      "suspension-front-right",
+      "suspension.compliant-long",
+      3,
+    ),
+    "suspension-rear-left",
+    "suspension.compliant-long",
+    3,
+  );
+  for (const before of original.componentInstances.filter(
+    ({ suspensionMount }) => suspensionMount,
+  )) {
+    const after = changed.componentInstances.find(
+      ({ id }) => id === before.id,
+    )!;
+    expect(after.definition).toEqual({
+      id: "suspension.compliant-long",
+      version: 3,
+    });
+    expect(after.suspensionMount).toEqual(before.suspensionMount);
+  }
+  expect(validateKartAssembly(changed).success).toBe(true);
+});
+
+test("gives mount-less suspensions approved defaults on a variant swap", () => {
+  const original = createBalancedKartDocument();
+  const pair = ["suspension-front-left", "suspension-front-right"];
+  for (const instance of original.componentInstances) {
+    if (pair.includes(instance.id)) instance.suspensionMount = null;
+  }
+  const changed = replaceKartComponentDefinition(
+    original,
+    "suspension-front-left",
+    "suspension.compliant-long",
+    3,
+  );
+  const definition = getApprovedKartComponent({
+    id: "suspension.compliant-long",
+    version: 3,
+  })!;
+  for (const id of pair) {
+    const instance = changed.componentInstances.find(
+      (candidate) => candidate.id === id,
+    )!;
+    expect(definition.category).toBe("suspension");
+    expect(instance.suspensionMount).toEqual(
+      resolveApprovedSuspensionMount(
+        instance,
+        definition as Parameters<typeof resolveApprovedSuspensionMount>[1],
+      ),
+    );
+  }
+});
+
+test("reports kept suspension mounts a shorter unit cannot span", () => {
+  const original = createHandlingKartDocument();
+  const changed = replaceKartComponentDefinition(
+    replaceKartComponentDefinition(
+      original,
+      "suspension-front-left",
+      "suspension.firm-short",
+      2,
+    ),
+    "suspension-rear-left",
+    "suspension.firm-short",
+    2,
+  );
+  const result = validateKartAssembly(changed);
+  expect(result.success).toBe(false);
+  const codes = new Set(
+    result.success ? [] : result.issues.map(({ code }) => code),
+  );
+  expect([...codes]).toEqual(["invalid-suspension-rest-length"]);
+});
+
 test("reflects mirrored positions and orientations through one policy", () => {
   const original = createBalancedKartDocument();
   const next = updateKartInstanceTransform(
@@ -637,38 +726,4 @@ test("does not start camera gestures from gizmo-consumed pointer downs", () => {
   expect(shouldTrackKartEditorPointerDown({ defaultPrevented: false })).toBe(
     true,
   );
-});
-
-test("applies approved suspension mounting defaults to a mirrored pair", () => {
-  // The defaults assume 8 cm lower arms, as the fixture uses.
-  const original = createValidKartAssembly();
-  const left = original.componentInstances.find(
-    ({ id }) => id === "suspension-front-left",
-  )!;
-  const changedFront = replaceKartComponentDefinition(
-    original,
-    left.id,
-    "suspension.compliant-long",
-  );
-  const next = replaceKartComponentDefinition(
-    changedFront,
-    "suspension-rear-left",
-    "suspension.compliant-long",
-  );
-  const changedLeft = next.componentInstances.find(({ id }) => id === left.id)!;
-  const right = next.componentInstances.find(
-    ({ id }) => id === "suspension-front-right",
-  )!;
-
-  expect(changedLeft.definition.id).toBe("suspension.compliant-long");
-  expect(changedLeft.definition.version).toBe(3);
-  expect(right.definition.id).toBe("suspension.compliant-long");
-  expect(right.definition.version).toBe(3);
-  expect(changedLeft.suspensionMount?.armPivot.x).toBeCloseTo(
-    changedLeft.transform.position.x + 0.08 * Math.sqrt(812.5 / 1_600),
-  );
-  expect(right.suspensionMount?.armPivot.x).toBeCloseTo(
-    right.transform.position.x - 0.08 * Math.sqrt(812.5 / 1_600),
-  );
-  expect(() => deriveKartSnapshot(next)).not.toThrow();
 });

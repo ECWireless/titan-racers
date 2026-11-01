@@ -620,8 +620,10 @@ export function replaceKartComponentDefinition(
       candidate.id === originalId || candidate.mirrorOf === originalId,
   )) {
     member.definition = { id: definition.id, version: definition.version };
+    // Mounts are authored in assembly space, so a swap keeps the arm and shock
+    // eyes in place; validation reports a unit that cannot span them.
     if (definition.category === "suspension") {
-      member.suspensionMount = resolveApprovedSuspensionMount(
+      member.suspensionMount ??= resolveApprovedSuspensionMount(
         member,
         definition,
       );

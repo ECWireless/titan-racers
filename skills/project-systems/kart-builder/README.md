@@ -83,7 +83,8 @@ revision-bound previews live in [`kart-thumbnails`](../kart-thumbnails/README.md
   `src/components/kart-editor/` (access, shell, canvas, admin roster,
   post-save thumbnail capture); `src/game/editor/kart-editor-document.ts`
   (selection, transforms, attachment tolerance, mirror pairs, nudges, primitive
-  geometry; new primitives spawn on the structural root's top face) and `kart-editor-scene.ts` (PlayCanvas projection, picking,
+  geometry; new primitives spawn on the structural root's top face; variant
+  swaps keep each suspension's authored mounts) and `kart-editor-scene.ts` (PlayCanvas projection, picking,
   gizmos, shared editor camera).
 - **Selection:** `src/components/play-home.tsx` loads the official roster,
   falls back to the bundled roster, and starts the race with the chosen
@@ -138,10 +139,6 @@ revision-bound previews live in [`kart-thumbnails`](../kart-thumbnails/README.md
 
 Official vs. community status is not server-owned and request hardening is
 incomplete. Community kart publishing must fix both.
-
-Approved suspension mounting defaults assume 8 cm lower arms. Swapping the
-suspension type on an official kart (longer arms) leaves the hub off the
-wheel until the builder repositions the suspension.
 
 Thin solid primitives (2 mm plates) are collision geometry too. Above top
 speed a kart can travel farther per physics step than a thin wall is deep,
