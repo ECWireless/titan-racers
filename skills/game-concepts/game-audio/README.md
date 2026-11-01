@@ -32,6 +32,12 @@ it hits, and the places it drives through.
   or brand's sounds.
 - **Readable on phone speakers.** Phones reproduce little below about 150 Hz,
   so cues that must read carry energy between about 500 Hz and 4 kHz.
+- **Comfortable over a whole race.** A sound the player hears all the time,
+  like the motor, keeps little energy above about 4 kHz, even where the real
+  machine is shriller. Realism yields to fatigue here.
+- **What is behind a surface sets its ring.** Boards with soil behind them,
+  posts in footings, and full drums knock dully; only free-standing,
+  unbacked objects ring.
 - **One-way mapping.** A pure mapping turns state into sound parameters and
   is testable without audio hardware. The voices only render those
   parameters.

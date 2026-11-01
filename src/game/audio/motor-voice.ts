@@ -16,14 +16,16 @@ import type { MotorAudioState } from "./race-audio-mapping";
 /**
  * A sensorless brushless "540" motor and its gears, as on a real 1:10 RC car.
  *
- * - Two poles at about 30,000 rpm no-load: a 500 Hz rotor rate at motor speed
- *   1, with six-step commutation ripple at 6×.
+ * - A lower-kV motor on 2S: two poles at about 22,000 rpm no-load, a 370 Hz
+ *   rotor rate at motor speed 1, with six-step commutation ripple at 6×.
  * - An 18T pinion on a 72T spur (4:1), then a 21T second stage on the spur
  *   shaft: meshes at 18× rotor rate and 21× spur-shaft rate.
  *
  * Layers: the electrical whine, a buzz the current drives into saturation, the
- * two gear meshes, the ESC's PWM squeal and a bearing hiss, through a high
- * shelf that brightens with current. 16 nodes.
+ * two gear meshes, the ESC's PWM ripple and a bearing hiss, through a high
+ * shelf. Tuned for long listening: the ESC's 8 kHz ripple, the pinion mesh,
+ * and the upper electrical harmonics sit well back, and the shelf darkens
+ * the top end, lifting only a little under load. 16 nodes.
  */
 export function createMotorVoice(context: BaseAudioContext, output: AudioNode) {
   const noise = noiseBuffer(context);
@@ -34,10 +36,10 @@ export function createMotorVoice(context: BaseAudioContext, output: AudioNode) {
       2: 0.45,
       3: 0.16,
       4: 0.14,
-      6: 0.62,
-      7: 0.1,
-      12: 0.3,
-      18: 0.12,
+      6: 0.35,
+      7: 0.05,
+      12: 0.1,
+      18: 0.03,
     }),
   );
   electrical.frequency.value = 5;
@@ -46,15 +48,15 @@ export function createMotorVoice(context: BaseAudioContext, output: AudioNode) {
   const gear = context.createOscillator();
   gear.setPeriodicWave(
     cachedWave(context, "motorGear", {
-      20: 0.18,
-      21: 0.75,
-      22: 0.18,
-      42: 0.2,
-      68: 0.12,
-      71: 0.1,
-      72: 0.6,
-      73: 0.1,
-      76: 0.12,
+      20: 0.12,
+      21: 0.5,
+      22: 0.12,
+      42: 0.08,
+      68: 0.015,
+      71: 0.012,
+      72: 0.08,
+      73: 0.012,
+      76: 0.015,
     }),
   );
   gear.frequency.value = 1.25;
@@ -83,8 +85,8 @@ export function createMotorVoice(context: BaseAudioContext, output: AudioNode) {
   // Noise played very slowly: a random pitch wobble about 90 Hz wide.
   const jitter = loopSource(context, noise, 0.002, 0.7);
   const jitterGain = gainNode(context, 3);
-  const shelf = filterNode(context, "highshelf", 1800);
-  shelf.gain.value = -3;
+  const shelf = filterNode(context, "highshelf", 1500);
+  shelf.gain.value = -9;
 
   chain(electrical, electricalGain, shelf);
   chain(electrical, drive, shaper, harshFilter, harshGain, shelf);
@@ -133,7 +135,7 @@ export function createMotorVoice(context: BaseAudioContext, output: AudioNode) {
       const current = Math.max(throttle > 0.01 ? load : 0, regen * 0.6);
       const powered = Math.max(throttle, regen);
       const rpm = speed ** 0.7;
-      const rotorHz = 500 * Math.max(speed, 0.01);
+      const rotorHz = 370 * Math.max(speed, 0.01);
 
       // Below about 2% speed a sensorless ESC steps the field open-loop: a
       // coarse stutter rather than a pitched whine.
@@ -154,7 +156,7 @@ export function createMotorVoice(context: BaseAudioContext, output: AudioNode) {
       set(drive.gain, 0.2 + 0.8 * current, time, 0.04);
       set(
         harshGain.gain,
-        powered * current * (0.4 + 0.6 * (1 - Math.min(speed, 1) * 0.8)) * 0.6,
+        powered * current * (0.4 + 0.6 * (1 - Math.min(speed, 1) * 0.8)) * 0.3,
         time,
         0.04,
       );
@@ -172,13 +174,13 @@ export function createMotorVoice(context: BaseAudioContext, output: AudioNode) {
       const duty = clamp(0.12 + speed * 0.9 + current * 0.15);
       set(
         pwmGain.gain,
-        powered > 0.01 ? powered * 4 * duty * (1 - duty) * 0.035 : 0,
+        powered > 0.01 ? powered * 4 * duty * (1 - duty) * 0.006 : 0,
         time,
         0.03,
       );
-      set(bearingGain.gain, spin * speed ** 1.3 * 0.25, time, 0.05);
-      set(bearingFilter.frequency, 1200 + 3800 * speed, time, 0.05);
-      set(shelf.gain, -3 + 9 * current, time, 0.05);
+      set(bearingGain.gain, spin * speed ** 1.3 * 0.08, time, 0.05);
+      set(bearingFilter.frequency, 700 + 1100 * speed, time, 0.05);
+      set(shelf.gain, -9 + 4 * current, time, 0.05);
       set(
         jitterGain.gain,
         3 + 32 * current * (1 - Math.min(speed, 1)),

@@ -24,7 +24,10 @@ import type {
   DrivingInput,
   Position3,
 } from "@/game/contracts";
-import { KartCollisionObserver } from "@/game/collision/kart-collision-observer";
+import {
+  KartCollisionObserver,
+  type KartCollisionContact,
+} from "@/game/collision/kart-collision-observer";
 import {
   createRaceAudio,
   readSoundMuted,
@@ -34,8 +37,19 @@ import {
   type RaceAudio,
 } from "@/game/audio/race-audio";
 import {
+  getAudioSurface,
+  getAudioWheel,
+  getContactObjectId,
+  getImpactMaterial,
   getMotorAudioState,
+  getRaceCue,
+  ImpactAudioGate,
+  isAnnouncedLapRejection,
+  LandingAudioDetector,
+  resolveImpactMaterial,
   SILENT_MOTOR,
+  type AudioWheel,
+  type ImpactMaterial,
 } from "@/game/audio/race-audio-mapping";
 import {
   DEFAULT_KART_COLLISION_CONSTRUCTION,
@@ -101,7 +115,10 @@ import {
   getLateralScrubPower,
   KartDriftSmoke,
 } from "@/game/kart/kart-drift-smoke";
-import { KartSurfaceEffects } from "@/game/kart/kart-surface-effects";
+import {
+  KART_SURFACE_EFFECT_POLICY,
+  KartSurfaceEffects,
+} from "@/game/kart/kart-surface-effects";
 import {
   getKartContactFootprint,
   KartContactShadow,
@@ -682,6 +699,13 @@ export function SoloTimeTrialCanvas({
     if (sceneStatus === "failed") suspendRaceAudio();
   }, [covered, gamePaused, sceneStatus, soundMuted]);
 
+  // After the scene's build and first frame, while the loading screen holds.
+  useEffect(() => {
+    if (sceneStatus !== "ready") return;
+    const timer = window.setTimeout(() => raceAudioRef.current?.prepare(), 0);
+    return () => window.clearTimeout(timer);
+  }, [sceneStatus]);
+
   useEffect(() => {
     if (!gameplayTelemetryStartedRef.current) {
       gameplayTelemetryStartedRef.current = true;
@@ -810,6 +834,8 @@ export function SoloTimeTrialCanvas({
           return;
         }
 
+        const cue = getRaceCue(lastRacePresentation, nextPresentation);
+        if (cue) raceAudioRef.current?.playCue(cue);
         lastRacePresentation = nextPresentation;
         setRacePresentation(nextPresentation);
       }
@@ -1806,6 +1832,120 @@ export function SoloTimeTrialCanvas({
       raceAudioRef.current = raceAudio;
       // A scene rebuilt while already ready gets no fresh status change.
       raceAudio?.setActive(raceAudioActiveRef.current);
+      // What each course object looks like, and how its solid ones sound.
+      const courseLooks = new Map<string, string>(
+        COURSE_DOCUMENT.objects.map((object) => [
+          object.id,
+          object.visual.material,
+        ]),
+      );
+      const solidImpactMaterials = new Map<string, ImpactMaterial>();
+      for (const object of COURSE_DOCUMENT.objects) {
+        if (object.collision?.role === "solid-obstacle") {
+          solidImpactMaterials.set(
+            object.id,
+            getImpactMaterial(object.visual.material),
+          );
+        }
+      }
+      const impactAudioGate = new ImpactAudioGate();
+      const landingAudioDetector = new LandingAudioDetector();
+      // Objects touched this step and last, swapped each step, so scraping
+      // along a wall (even across an arc's boxes) is told from a fresh hit.
+      let touchedObjects = new Set<string>();
+      let previouslyTouchedObjects = new Set<string>();
+      const noContacts: readonly KartCollisionContact[] = [];
+      const getWheelAudioSurface = (
+        wheel: (typeof kartController.state.wheelTelemetry)[number],
+      ) =>
+        wheel.supported
+          ? getAudioSurface(
+              wheel.surfaceMaterial?.id ?? null,
+              wheel.surfaceName ? courseLooks.get(wheel.surfaceName) : undefined,
+              wheel.contactPoint
+                ? isUnderCourseWater(courseWater, wheel.contactPoint)
+                : false,
+            )
+          : null;
+      // Impacts and landings, read once per fixed step from physics results.
+      const captureAudioEvents = (stepSeconds: number) => {
+        if (!raceAudio) return;
+        // The grid hold, a restart, and a recovery teleport are not flights
+        // or hits.
+        const raceState = raceSession.snapshot.state;
+        if (raceState === "countdown" || raceState === "recovering") {
+          impactAudioGate.reset();
+          landingAudioDetector.reset();
+          touchedObjects.clear();
+          previouslyTouchedObjects.clear();
+          return;
+        }
+        impactAudioGate.advance(stepSeconds);
+        [previouslyTouchedObjects, touchedObjects] = [
+          touchedObjects,
+          previouslyTouchedObjects,
+        ];
+        touchedObjects.clear();
+        // The hardest fresh hit and the hardest continuing contact, judged
+        // apart, so a scrape cannot hide a new hit elsewhere.
+        let freshSpeed = 0;
+        let freshMaterial: ImpactMaterial | null = null;
+        let continuingSpeed = 0;
+        let continuingMaterial: ImpactMaterial | null = null;
+        for (const contact of collisionObserver.lastFrame?.contacts ??
+          noContacts) {
+          const material = resolveImpactMaterial(
+            contact.otherEntityName,
+            solidImpactMaterials,
+          );
+          if (!material) continue;
+          const objectId = getContactObjectId(contact.otherEntityName);
+          touchedObjects.add(objectId);
+          if (!previouslyTouchedObjects.has(objectId)) {
+            if (contact.approachSpeed > freshSpeed) {
+              freshSpeed = contact.approachSpeed;
+              freshMaterial = material;
+            }
+          } else if (contact.approachSpeed > continuingSpeed) {
+            continuingSpeed = contact.approachSpeed;
+            continuingMaterial = material;
+          }
+        }
+        const fresh = freshMaterial
+          ? impactAudioGate.admit(freshSpeed, true)
+          : null;
+        if (freshMaterial && fresh !== null) {
+          raceAudio.playImpact(fresh, freshMaterial);
+        } else if (continuingMaterial) {
+          const harder = impactAudioGate.admit(continuingSpeed, false);
+          if (harder !== null) raceAudio.playImpact(harder, continuingMaterial);
+        }
+
+        const velocity = kart.rigidbody?.linearVelocity;
+        const landing = landingAudioDetector.step(
+          kartController.state.supportCount,
+          velocity ? -velocity.dot(kartController.state.localUp) : 0,
+          stepSeconds,
+        );
+        if (landing !== null) {
+          // The most loaded wheel decides, so a landing half in the stream
+          // sounds like whichever side took the weight.
+          let heaviest: (typeof kartController.state.wheelTelemetry)[number] | null =
+            null;
+          for (const wheel of kartController.state.wheelTelemetry) {
+            if (
+              wheel.supported &&
+              (!heaviest || wheel.suspensionLoad > heaviest.suspensionLoad)
+            ) {
+              heaviest = wheel;
+            }
+          }
+          raceAudio.playLanding(
+            landing,
+            (heaviest && getWheelAudioSurface(heaviest)) ?? "asphalt",
+          );
+        }
+      };
       runtime.addCleanup(() => {
         raceAudio?.dispose();
         if (raceAudioRef.current === raceAudio) raceAudioRef.current = null;
@@ -2835,6 +2975,7 @@ export function SoloTimeTrialCanvas({
 
         kartController.postUpdate(latestDrivingInput, dt);
         captureManualRightingAtUprightApex();
+        captureAudioEvents(dt);
 
         const currentRacePosition = kart.getPosition();
         if (raceSession.acceptsDriving) {
@@ -2853,6 +2994,9 @@ export function SoloTimeTrialCanvas({
           lastRaceProgressionResult = progressionResult;
           if (progressionResult.kind !== "none") {
             lastRaceAnnouncementResult = progressionResult;
+          }
+          if (isAnnouncedLapRejection(progressionResult)) {
+            raceAudio?.playCue("lap-rejected");
           }
           if (lastRaceProgressionResult.kind === "finished") {
             raceFinishedThisFrame = true;
@@ -2917,6 +3061,8 @@ export function SoloTimeTrialCanvas({
 
       let displayedHabitatReadout = { altitude: Number.NaN, gravity: Number.NaN };
       let motorAudio = SILENT_MOTOR;
+      // Reused every frame; the race audio copies it only for its debug state.
+      const audioWheels: AudioWheel[] = [];
       runtime.onRender(({ accumulatorFraction, frameSeconds }) => {
         if (raceAudio) {
           const raceState = raceSession.snapshot.state;
@@ -2939,6 +3085,22 @@ export function SoloTimeTrialCanvas({
                   wheels: kartController.state.wheelTelemetry,
                 });
           raceAudio.updateMotor(motorAudio);
+          const wheels = kartController.state.wheelTelemetry;
+          const restWheelLoad =
+            ((kart.rigidbody?.mass ?? 0) * kartController.state.localGravity) /
+            Math.max(wheels.length, 1);
+          audioWheels.length = raceState === "resuming" ? 0 : wheels.length;
+          for (let index = 0; index < audioWheels.length; index += 1) {
+            audioWheels[index] = getAudioWheel(
+              wheels[index],
+              getWheelAudioSurface(wheels[index]),
+              restWheelLoad,
+              KART_SURFACE_EFFECT_POLICY.marks.asphalt.scrubOnsetWatts,
+              KART_SURFACE_EFFECT_POLICY.markScrubFullWatts,
+              audioWheels[index],
+            );
+          }
+          raceAudio.updateWheels(audioWheels);
         }
         interpolatedKartPosition.lerp(
           kartPresentation.previousPosition,

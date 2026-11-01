@@ -1,5 +1,19 @@
+import { createScrubVoice, createTireRollVoice } from "./contact-voices";
+import { playCueSound } from "./cue-sounds";
+import {
+  playImpactSound,
+  playLandingSound,
+  prepareImpactSounds,
+} from "./impact-sounds";
 import { createMotorVoice } from "./motor-voice";
-import { SILENT_MOTOR, type MotorAudioState } from "./race-audio-mapping";
+import {
+  SILENT_MOTOR,
+  type AudioSurface,
+  type AudioWheel,
+  type ImpactMaterial,
+  type MotorAudioState,
+  type RaceCue,
+} from "./race-audio-mapping";
 
 /**
  * The browser side of race sound: one shared audio context for the page,
@@ -12,9 +26,19 @@ import { SILENT_MOTOR, type MotorAudioState } from "./race-audio-mapping";
 
 const SOUND_MUTED_STORAGE_KEY = "titan-racers.sound-muted.v1";
 
-/** Mix levels from loudness-matched listening, in dB. */
+/**
+ * Mix levels in dB, set by listening QA in a race. A full-strength hit peaks
+ * under 0 dBFS after the limiter, and a firm tap barely touches it.
+ */
 const MASTER_GAIN = 0.9;
-const MOTOR_GAIN_DB = -3.6;
+const MIX_DB = {
+  cue: -5.5,
+  impact: 8,
+  landing: 2.4,
+  motor: -5.6,
+  scrub: -1.8,
+  tireRoll: -1.4,
+};
 
 let sharedContext: AudioContext | null = null;
 
@@ -75,17 +99,37 @@ export function suspendRaceAudio() {
 export type RaceAudioDebugState = {
   active: boolean;
   contextState: string;
+  cues: RaceCue[];
+  impacts: Array<{ material: ImpactMaterial; strength: number }>;
+  landings: Array<{ strength: number; surface: AudioSurface }>;
   motor: MotorAudioState;
   muted: boolean;
+  wheels: readonly AudioWheel[];
 };
 
 export type RaceAudio = {
   getDebugState: () => RaceAudioDebugState;
+  playCue: (cue: RaceCue) => void;
+  playImpact: (strength: number, material: ImpactMaterial) => void;
+  playLanding: (strength: number, surface: AudioSurface) => void;
+  /**
+   * Renders the impact and landing sounds (tens of ms). Call while the race
+   * is still covered, so the first hit never stalls a frame.
+   */
+  prepare: () => void;
   /** On screen, unpaused, and ready. */
   setActive: (active: boolean) => void;
   setMuted: (muted: boolean) => void;
   updateMotor: (state: MotorAudioState) => void;
+  updateWheels: (wheels: readonly AudioWheel[]) => void;
   dispose: () => void;
+};
+
+/** Event history kept for tests; old entries drop off. */
+const DEBUG_HISTORY = 16;
+const remember = <T>(list: T[], item: T) => {
+  list.push(item);
+  if (list.length > DEBUG_HISTORY) list.shift();
 };
 
 const fromDb = (decibels: number) => 10 ** (decibels / 20);
@@ -100,21 +144,47 @@ export function createRaceAudio(muted: boolean): RaceAudio | null {
   limiter.threshold.value = -6;
   limiter.knee.value = 0;
   limiter.ratio.value = 20;
-  limiter.attack.value = 0.003;
+  limiter.attack.value = 0.001;
   limiter.release.value = 0.12;
   master.connect(limiter).connect(context.destination);
 
-  const motorBus = context.createGain();
-  motorBus.gain.value = fromDb(MOTOR_GAIN_DB);
-  motorBus.connect(master);
-  const motorVoice = createMotorVoice(context, motorBus);
+  const bus = (decibels: number) => {
+    const gain = context.createGain();
+    gain.gain.value = fromDb(decibels);
+    gain.connect(master);
+    return gain;
+  };
+  const buses = {
+    cue: bus(MIX_DB.cue),
+    impact: bus(MIX_DB.impact),
+    landing: bus(MIX_DB.landing),
+    motor: bus(MIX_DB.motor),
+    scrub: bus(MIX_DB.scrub),
+    tireRoll: bus(MIX_DB.tireRoll),
+  };
+  const motorVoice = createMotorVoice(context, buses.motor);
+  const tireRollVoice = createTireRollVoice(context, buses.tireRoll);
+  const scrubVoice = createScrubVoice(context, buses.scrub);
+  const cues: RaceCue[] = [];
+  const impacts: RaceAudioDebugState["impacts"] = [];
+  const landings: RaceAudioDebugState["landings"] = [];
+  let wheels: readonly AudioWheel[] = [];
+  // Cues sent while the context is not yet running wait at its frozen clock.
+  // Keep only one, so a resume refused until a tap cannot release a pile.
+  let cueWaiting = false;
+  const onStateChange = () => {
+    if (context.state === "running") cueWaiting = false;
+  };
+  context.addEventListener("statechange", onStateChange);
 
   let active = false;
   let disposed = false;
   let motor = SILENT_MOTOR;
   let soundMuted = muted;
-  // Focus can be lost while the race loads, before these listeners exist.
-  let pageFocused = document.hasFocus();
+  // The page just took the click that started the race. `hasFocus()` can
+  // read false in a page that has focus (headless browsers), and a blur
+  // while the race loads still arrives as a pause.
+  let pageFocused = true;
 
   const wanted = () =>
     active && !soundMuted && !disposed && pageFocused && !document.hidden;
@@ -151,9 +221,49 @@ export function createRaceAudio(muted: boolean): RaceAudio | null {
     getDebugState: () => ({
       active,
       contextState: context.state,
+      cues: [...cues],
+      impacts: [...impacts],
+      landings: [...landings],
       motor,
       muted: soundMuted,
+      wheels: wheels.map((wheel) => ({ ...wheel })),
     }),
+    // Cues may land just before the context resumes, such as the first
+    // count as the loading screen lifts; they play as it starts.
+    playCue(cue) {
+      if (soundMuted || disposed) return;
+      if (context.state !== "running") {
+        if (cueWaiting) return;
+        cueWaiting = true;
+      }
+      remember(cues, cue);
+      playCueSound(context, buses.cue, cue, context.currentTime);
+    },
+    playImpact(strength, material) {
+      if (context.state !== "running") return;
+      remember(impacts, { material, strength });
+      playImpactSound(
+        context,
+        buses.impact,
+        strength,
+        material,
+        context.currentTime,
+      );
+    },
+    prepare() {
+      prepareImpactSounds(context);
+    },
+    playLanding(strength, surface) {
+      if (context.state !== "running") return;
+      remember(landings, { strength, surface });
+      playLandingSound(
+        context,
+        buses.landing,
+        strength,
+        surface,
+        context.currentTime,
+      );
+    },
     // Unchanged values send nothing, so a resume made inside a gesture is
     // not undone by a suspend on the way to the next state.
     setActive(nextActive) {
@@ -173,17 +283,26 @@ export function createRaceAudio(muted: boolean): RaceAudio | null {
       if (context.state !== "running") return;
       motorVoice.update(state, context.currentTime);
     },
+    updateWheels(nextWheels) {
+      wheels = nextWheels;
+      if (context.state !== "running") return;
+      tireRollVoice.update(nextWheels, context.currentTime);
+      scrubVoice.update(nextWheels, context.currentTime);
+    },
     dispose() {
       if (disposed) return;
       disposed = true;
       window.removeEventListener("blur", onBlur);
       window.removeEventListener("focus", onFocus);
       document.removeEventListener("visibilitychange", apply);
+      context.removeEventListener("statechange", onStateChange);
       gestureEvents.forEach((name) =>
         window.removeEventListener(name, retryInGesture, { capture: true }),
       );
       motorVoice.dispose();
-      motorBus.disconnect();
+      tireRollVoice.dispose();
+      scrubVoice.dispose();
+      Object.values(buses).forEach((gain) => gain.disconnect());
       master.disconnect();
       limiter.disconnect();
       runContext(context, false);

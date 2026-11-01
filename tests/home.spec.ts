@@ -3076,6 +3076,13 @@ test.describe("home screen", () => {
     const audio = () => getAudioDebugState(canvas);
 
     await expect.poll(async () => (await audio())?.contextState).toBe("running");
+    await expect.poll(async () => (await audio())?.cues[0]).toBe("count-3");
+    expect((await audio())?.wheels.map(({ surface }) => surface)).toEqual([
+      "asphalt",
+      "asphalt",
+      "asphalt",
+      "asphalt",
+    ]);
     // Throttle on the grid spins the held kart's wheels, so the motor revs.
     await canvas.focus();
     await page.keyboard.down("ArrowUp");
@@ -3115,6 +3122,45 @@ test.describe("home screen", () => {
     await expect(
       pauseDialog.getByRole("switch", { name: "Sound" }),
     ).toHaveAttribute("aria-checked", "false");
+  });
+
+  test("sounds a wall hit by what the wall is made of", async ({
+    page,
+  }, testInfo) => {
+    test.skip(
+      testInfo.project.name === "mobile",
+      "Impact sound does not depend on the viewport.",
+    );
+
+    await page.goto("/?sandbox-course&collision-fixtures");
+    await page.getByRole("button", { name: "Solo Time Trial" }).click();
+    const canvas = page.getByTestId("solo-time-trial-canvas");
+    await waitForSceneReady(canvas);
+    await expect
+      .poll(async () => (await getRaceDebugState(canvas)).state, {
+        timeout: 10_000,
+      })
+      .toBe("racing");
+    await expect
+      .poll(async () => (await getAudioDebugState(canvas))?.contextState)
+      .toBe("running");
+
+    // Into the cast-concrete thin wall, square on: about 4 m/s after rolling
+    // across the turf, a firm tap.
+    await setSimulationPaused(canvas, true);
+    await setKartDebugPose(canvas, {
+      angularVelocity: { x: 0, y: 0, z: 0 },
+      linearVelocity: { x: -6, y: 0, z: 0 },
+      position: { x: -29.5, y: REFERENCE_KART_UPRIGHT_ROOT_HEIGHT, z: 24 },
+      rotation: { x: 0, y: 90, z: 0 },
+    });
+    await stepSimulation(canvas, 150);
+
+    const impacts = (await getAudioDebugState(canvas))?.impacts ?? [];
+    expect(impacts).toHaveLength(1);
+    expect(impacts[0].material).toBe("concrete");
+    expect(impacts[0].strength).toBeGreaterThan(0.2);
+    expect(impacts[0].strength).toBeLessThan(0.45);
   });
 
   test("drives continuously in two axes with the touch joystick and accessible pedals", async ({

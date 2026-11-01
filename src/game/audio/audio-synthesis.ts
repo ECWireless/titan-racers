@@ -15,7 +15,7 @@ export function smoothstep(edge0: number, edge1: number, value: number) {
 }
 
 /** Deterministic generator, so generated buffers match on every run. */
-function seededRandom(seed: number) {
+export function seededRandom(seed: number) {
   let state = seed;
   return () => {
     state = (state + 0x6d2b79f5) | 0;
@@ -38,7 +38,7 @@ function cached<T>(context: BaseAudioContext, key: string, create: () => T) {
 }
 
 /** A mono buffer filled once per context and normalized to a 0.95 peak. */
-function cachedBuffer(
+export function cachedBuffer(
   context: BaseAudioContext,
   key: string,
   seconds: number,
@@ -173,4 +173,46 @@ export function continuousVoice<State>(
       for (const node of nodes) node.disconnect();
     },
   };
+}
+
+/** One envelope hit: a linear rise, an optional hold, then exponential decay. */
+export type EnvelopeHit = {
+  at: number;
+  attack: number;
+  hold?: number;
+  peak: number;
+  tau: number;
+};
+
+/**
+ * Writes a sum of hits as one value curve over `duration`, fading its last
+ * 5% to zero so stopping the sources never clicks.
+ */
+export function applyEnvelope(
+  param: AudioParam,
+  time: number,
+  duration: number,
+  hits: readonly EnvelopeHit[],
+  points = 900,
+) {
+  const curve = new Float32Array(points);
+  for (let i = 0; i < points; i += 1) {
+    const at = (i / (points - 1)) * duration;
+    let value = 0;
+    for (const hit of hits) {
+      const since = at - hit.at;
+      if (since < 0) continue;
+      const holdEnd = hit.attack + (hit.hold ?? 0);
+      if (since < hit.attack) value += (hit.peak * since) / hit.attack;
+      else
+        value +=
+          since < holdEnd
+            ? hit.peak
+            : hit.peak * Math.exp(-(since - holdEnd) / hit.tau);
+    }
+    curve[i] = value;
+  }
+  const fade = Math.floor(points * 0.05);
+  for (let i = 0; i < fade; i += 1) curve[points - 1 - i] *= i / fade;
+  param.setValueCurveAtTime(curve, time, duration);
 }
