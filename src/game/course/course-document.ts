@@ -206,8 +206,8 @@ export const COURSE_INDOOR_LAMP_KINDS = ["tunnel", "work"] as const;
 /** The bicycles a course can park. */
 export const COURSE_BICYCLES = ["hardtail", "bmx"] as const;
 export type CourseBicycle = (typeof COURSE_BICYCLES)[number];
-/** Equipment drawn around an object (course-kits.ts). */
-export const COURSE_KITS = ["crowd-barrier"] as const;
+/** Equipment drawn around or in place of an object (course-kits.ts). */
+export const COURSE_KITS = ["crowd-barrier", "elbow", "handwheel"] as const;
 export type CourseKit = (typeof COURSE_KITS)[number];
 export function countCourseLamps(
   document: { objects: { lamp?: string }[] },
@@ -899,20 +899,58 @@ function isUpright(rotation: { x: number; y: number; z: number }) {
   return rotateByEulerAngles(rotation, { x: 0, y: 1, z: 0 }).y > 1 - 1e-9;
 }
 
-// Version eleven adds kits: equipment drawn around an object. A crowd
-// barrier is its kick plank, which collides for the whole panel; the
-// barrier's steel frame stands on the plank's base, as long as the plank.
+// Version eleven adds kits: equipment drawn around or in place of an
+// object. A crowd barrier is its kick plank, which collides for the whole
+// panel; the barrier's steel frame stands on the plank's base, as long as the
+// plank. A handwheel is a valve's wheel, drawn in place of its round: rim,
+// hub, and four spokes. An elbow is a pipe's 90° long-radius bend, drawn in
+// place of a uniform round as wide as the pipe.
 // It also adds the `kerb` finish: sidewalk-grade concrete, lighter than the
-// cast concrete of walls and tunnels.
+// cast concrete of walls and tunnels; `bevel`, the width in metres of a
+// chamfer along a solid's edges; and `sign`, lettering painted on a thin
+// box's local +Z face.
 const visualMaterialV11Schema = z.enum([...visualMaterialV8Schema.options, "kerb"]);
+const COURSE_BEVEL_MAXIMUM = 0.05;
+const COURSE_SIGN_MAXIMUM_LENGTH = 12;
+// Letters, digits, spaces, full stops, and hyphens, starting and ending with
+// one that is not a space.
+const COURSE_SIGN_PATTERN = /^[A-Za-z0-9.-](?:[A-Za-z0-9 .-]*[A-Za-z0-9.-])?$/;
+// A sign is painted on a face, so it is at most this thick.
+const COURSE_SIGN_MAXIMUM_THICKNESS = 0.01;
+const primitiveVisualV11Schema = visualSchema.extend({
+  bevel: z.number().finite().positive().max(COURSE_BEVEL_MAXIMUM).optional(),
+  material: visualMaterialV11Schema,
+});
+// Finishes that tile a surface or are not a solid's: a chamfer would groove
+// every joint, or has nothing to cut. Timber keeps its grain's own mesh.
+const UNBEVELLED_FINISHES = new Set<string>([
+  "asphalt",
+  "concrete",
+  "gravel",
+  "ground",
+  "hazard",
+  "hedge",
+  "lawn",
+  "line",
+  "mulch",
+  "timber",
+  "verge",
+  "water",
+]);
 
 export const courseDocumentSchema = courseDocumentV10BaseSchema
   .extend({
     objects: courseDocumentV10BaseSchema.shape.objects.element
       .extend({
         kit: z.enum(COURSE_KITS).optional(),
+        sign: z
+          .string()
+          // Long text stops here, before the pattern reads it.
+          .max(COURSE_SIGN_MAXIMUM_LENGTH, { abort: true })
+          .regex(COURSE_SIGN_PATTERN)
+          .optional(),
         visual: z.discriminatedUnion("shape", [
-          visualSchema.extend({ material: visualMaterialV11Schema }),
+          primitiveVisualV11Schema,
           arcVisualSchema.extend({ material: visualMaterialV11Schema }),
         ]),
       })
@@ -947,6 +985,73 @@ export const courseDocumentSchema = courseDocumentV10BaseSchema
           path: ["objects", index, "kit"],
         });
       }
+      const { visual } = object;
+      const plain =
+        !object.collision &&
+        !object.overhead &&
+        !object.lamp &&
+        !object.planting &&
+        !object.bicycle;
+      if (
+        object.kit === "elbow" &&
+        (visual.shape !== "cylinder" ||
+          visual.scale.x !== visual.scale.z ||
+          visual.scale.x !== visual.scale.y ||
+          UNBEVELLED_FINISHES.has(visual.material) ||
+          !plain)
+      ) {
+        context.addIssue({
+          code: "custom",
+          message:
+            "An elbow is a uniform cylinder, as wide as its pipe, without collision, of a solid's finish",
+          path: ["objects", index, "kit"],
+        });
+      }
+      if (
+        object.kit === "handwheel" &&
+        (visual.shape !== "cylinder" ||
+          visual.scale.x !== visual.scale.z ||
+          UNBEVELLED_FINISHES.has(visual.material) ||
+          !plain)
+      ) {
+        context.addIssue({
+          code: "custom",
+          message:
+            "A handwheel is a round cylinder, without collision, of a solid's finish",
+          path: ["objects", index, "kit"],
+        });
+      }
+      if (
+        object.sign !== undefined &&
+        (visual.shape !== "box" ||
+          visual.scale.z > COURSE_SIGN_MAXIMUM_THICKNESS ||
+          visual.material === "water" ||
+          visual.material === "hedge" ||
+          object.kit ||
+          visual.bevel ||
+          !plain)
+      ) {
+        context.addIssue({
+          code: "custom",
+          message: `A sign is a box at most ${COURSE_SIGN_MAXIMUM_THICKNESS * 1000} mm thick along its local Z, without collision, kit, or bevel`,
+          path: ["objects", index, "sign"],
+        });
+      }
+      if (
+        visual.shape !== "arc" &&
+        visual.bevel &&
+        (UNBEVELLED_FINISHES.has(visual.material) ||
+          object.kit ||
+          object.bicycle ||
+          (visual.shape === "cylinder" && visual.scale.x !== visual.scale.z))
+      ) {
+        context.addIssue({
+          code: "custom",
+          message:
+            "A bevel is cut on a solid's box or round cylinder, not a surface, timber, kit, or bicycle",
+          path: ["objects", index, "visual", "bevel"],
+        });
+      }
     });
   });
 
@@ -966,6 +1071,19 @@ export function isCoursePrimitiveObject(
   object: CourseObject,
 ): object is CoursePrimitiveObject {
   return object.visual.shape !== "arc" && object.collision?.shape !== "arc";
+}
+
+/**
+ * Whether a cylinder must stay round across local X and Z: a handwheel, and
+ * a bevelled cylinder, whose chamfer runs at one width around it.
+ */
+export function isCourseRoundCylinder(object: CourseObject) {
+  return (
+    object.visual.shape === "cylinder" &&
+    (object.kit === "handwheel" ||
+      object.kit === "elbow" ||
+      Boolean(object.visual.bevel))
+  );
 }
 
 const DEFAULT_START_GATE_HALF_EXTENTS = {

@@ -15,6 +15,7 @@ import {
   type CourseObject,
   type CoursePrimitiveObject,
   isCoursePrimitiveObject,
+  isCourseRoundCylinder,
   parseCourseDocument,
   rotateCourseDirection,
 } from "../course/course-document";
@@ -747,19 +748,35 @@ export function updateSelectionGeometry(
         return { ...object, transform: { position, rotation } };
       }
 
+      // A move or turn leaves every size as it was. A size the gesture
+      // changes stays at least 5 cm, or its own size where it is already
+      // thinner, as a sign, door leaf, or flange is.
       const requestedScale = geometry.scale
-        ? mapVector(geometry.scale, (value) =>
-            Math.max(0.05, roundEditorValue(value)),
-          )
+        ? mapVectorByAxis(geometry.scale, (axis, value) => {
+            const current = object.visual.scale[axis];
+            return Math.abs(value - current) < 1e-9
+              ? current
+              : Math.max(Math.min(0.05, current), roundEditorValue(value));
+          })
         : object.visual.scale;
-      // A kit is drawn to its object's length on a fixed section, so it
-      // scales only along its length.
-      const nextScale = object.kit
-        ? { ...object.visual.scale, x: requestedScale.x }
-        : normalizeCylinderScale(object, requestedScale);
+      // A crowd barrier is drawn to its plank's length on a fixed section,
+      // so it scales only along its length; a sign keeps its thickness; an
+      // elbow scales as a whole, by its most changed size.
+      const nextScale =
+        object.kit === "crowd-barrier"
+          ? { ...object.visual.scale, x: requestedScale.x }
+          : object.sign !== undefined
+            ? { ...requestedScale, z: object.visual.scale.z }
+            : object.kit === "elbow"
+              ? scaleUniformly(object.visual.scale, requestedScale)
+              : normalizeCylinderScale(object, requestedScale);
       const scaleRatio = mapVectorByAxis(nextScale, (axis, value) =>
         Math.max(0.01, value / object.visual.scale[axis]),
       );
+      // A collider's size along an axis the object keeps is left exactly
+      // as it was.
+      const rescale = (value: number, ratio: number) =>
+        ratio === 1 ? value : roundEditorValue(value * ratio);
       const collision = object.collision
         ? {
             ...object.collision,
@@ -767,26 +784,24 @@ export function updateSelectionGeometry(
               ? {
                   halfExtents: mapVectorByAxis(
                     object.collision.halfExtents,
-                    (axis, value) =>
-                      roundEditorValue(value * scaleRatio[axis]),
+                    (axis, value) => rescale(value, scaleRatio[axis]),
                   ),
                 }
               : {
-                  height: roundEditorValue(
-                    object.collision.height *
-                      scaleRatio[axisName(object.collision.axis)],
+                  height: rescale(
+                    object.collision.height,
+                    scaleRatio[axisName(object.collision.axis)],
                   ),
-                  radius: roundEditorValue(
-                    object.collision.radius *
-                      scaleRatio[radialAxes(object.collision.axis)[0]],
+                  radius: rescale(
+                    object.collision.radius,
+                    scaleRatio[radialAxes(object.collision.axis)[0]],
                   ),
                 }),
             offset: {
               ...object.collision.offset,
               position: mapVectorByAxis(
                 object.collision.offset.position,
-                (axis, value) =>
-                  roundEditorValue(value * scaleRatio[axis]),
+                (axis, value) => rescale(value, scaleRatio[axis]),
               ),
             },
           }
@@ -1064,17 +1079,28 @@ function normalizeCylinderScale(
   object: CoursePrimitiveObject,
   requestedScale: { x: number; y: number; z: number },
 ) {
-  if (object.collision?.shape !== "cylinder") {
+  // A round visual (a handwheel, or a bevelled cylinder) stands on its
+  // local Y, whatever its collider's axis.
+  const axis = isCourseRoundCylinder(object)
+    ? 1
+    : object.collision?.shape === "cylinder"
+      ? object.collision.axis
+      : null;
+  if (axis === null) {
     return requestedScale;
   }
 
-  const [firstRadiusAxis, secondRadiusAxis] = radialAxes(object.collision.axis);
+  const [firstRadiusAxis, secondRadiusAxis] = radialAxes(axis);
   const firstRatio = requestedScale[firstRadiusAxis] / object.visual.scale[firstRadiusAxis];
   const secondRatio = requestedScale[secondRadiusAxis] / object.visual.scale[secondRadiusAxis];
   const radiusRatio =
     Math.abs(firstRatio - 1) >= Math.abs(secondRatio - 1)
       ? firstRatio
       : secondRatio;
+  // A diameter the gesture leaves alone stays exactly as it was.
+  if (radiusRatio === 1) {
+    return requestedScale;
+  }
 
   return {
     ...requestedScale,
@@ -1085,6 +1111,16 @@ function normalizeCylinderScale(
       object.visual.scale[secondRadiusAxis] * radiusRatio,
     ),
   };
+}
+
+function scaleUniformly(
+  current: { x: number; y: number; z: number },
+  requested: { x: number; y: number; z: number },
+) {
+  const ratio = (["x", "y", "z"] as const)
+    .map((axis) => requested[axis] / current[axis])
+    .reduce((most, next) => (Math.abs(next - 1) > Math.abs(most - 1) ? next : most), 1);
+  return ratio === 1 ? current : mapVector(current, (value) => roundEditorValue(value * ratio));
 }
 
 function roundEditorValue(value: number) {

@@ -100,7 +100,13 @@ own editor commands or persistence UI.
 - `src/game/course/course-kits.ts` builds the boxes a kit draws about its
   object (a crowd barrier's steel frame about its plank) and merges them
   into one mesh's streams; the builder draws it under the object's entity
-  in its steel finish, so the editor and race show it alike.
+  in its steel finish, so the editor and race show it alike. A handwheel
+  or elbow instead replaces its round, in the round's own finish.
+- `src/game/course/course-bevel.ts` builds a bevelled box or round in
+  metres and fits it to the unit primitive its entity scales, so a chamfer
+  keeps its width and 45° on any size; `course-sign.ts` draws the signs'
+  letters once per page into a coverage atlas and lays a sign's letters on
+  its front face.
 - `src/game/course/course-arc.ts` generates an arc's smooth surface and its
   collision boxes from its dimensions, at 3 mm visual and 5 mm collision
   tolerance; the builder turns them into a render mesh and static box bodies.
@@ -247,9 +253,18 @@ Version eleven adds `kit: "crowd-barrier"` (`COURSE_KITS`), equipment
 drawn about an upright box that is not a lamp, roof, bed, bicycle, hedge,
 or water. A crowd barrier's box is its kick plank, whose collider holds
 the whole panel; its steel frame (`course-kits.ts`) stands on the plank's
-base, as long as the plank. It also adds the `kerb` finish, sidewalk
-concrete apart from walls' cast concrete. Version-ten documents upgrade
-unchanged.
+base, as long as the plank. `kit: "handwheel"` draws a valve's handwheel
+(rim, hub, four spokes) in place of a round cylinder with no collision, and
+`kit: "elbow"` a pipe's 90° long-radius bend (1.5 diameters) in place of a
+uniform one as wide as the pipe, joining a pipe along local +Y through the
+corner at its origin to one along local +X.
+Version eleven also adds the `kerb` finish, sidewalk concrete apart from
+walls' cast concrete; `visual.bevel`, a chamfer up to 5 cm wide along a
+solid box's or round cylinder's edges (never a surface, timber, kit, or
+bicycle), drawn up to 45% of its thinnest side; and `sign`, up to 12
+letters, digits, spaces, full stops, and hyphens, not all spaces, painted
+in its finish on the local +Z face of a box at most 10 mm thick with no
+collision, kit, or bevel. Version-ten documents upgrade unchanged.
 
 Coordinates and dimensions are finite and bounded to the accepted authoring
 envelope. Unknown fields and unsupported enum values fail rather than being
@@ -265,7 +280,7 @@ indoor, overhead, or arc objects and no tunnel lamps, and version six no
 planting or hedges and at most eight floodlights, and version seven no
 water, gravel, concrete, work lamps, or bicycles and at most sixteen indoor
 lamps, and version eight no street lamps, and version nine no clearing, and
-version ten no kits; all upgrade unchanged.
+version ten no kits, kerbs, bevels, or signs; all upgrade unchanged.
 Version two adds
 `start.gateHalfExtents`, `checkpoints[].forward`, and
 `checkpoints[].recovery`.

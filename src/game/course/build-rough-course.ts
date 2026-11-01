@@ -22,11 +22,15 @@ import {
   getCourseClearingGround,
   getCourseFenceMeshCoverage,
 } from "./course-clearing";
+import { createCourseBevelGeometry, type CourseMeshGeometry } from "./course-bevel";
 import {
   type CourseKitBox,
+  createCourseElbowGeometry,
+  createCourseHandwheelGeometry,
   createCourseKitGeometry,
   getCourseKit,
 } from "./course-kits";
+import { createCourseSignGeometry, type CourseSignGlyphs } from "./course-sign";
 import { CourseSurfaceResolver } from "./course-surface-resolver";
 import { createCourseTimberGeometry } from "./course-timber";
 import {
@@ -64,13 +68,19 @@ export type CourseObjectProjection = ReturnType<typeof projectCourseObject>;
 // Custom factories must return an unattached entity. The builder owns scene
 // attachment so the complete course batch can be committed atomically. A
 // generated mesh replaces the visual primitive: an arc's surface, a timber
-// box or round with its grain laid along it, a water surface, or the top face
-// of a thin surface layer.
+// box or round with its grain laid along it, a bevelled solid, a handwheel, a
+// sign's lettering, a water surface, or the top face of a thin surface layer.
 type CourseEntityFactory = (
   projection: CourseObjectProjection,
   material: pc.StandardMaterial,
   mesh?: pc.Mesh,
 ) => pc.Entity;
+
+/** Signs' letters and their paint, from the course's finishes. */
+export type CourseSignFinishes = {
+  glyphs(): Pick<CourseSignGlyphs, "capHeight" | "cell" | "glyphs" | "space">;
+  material(finish: CourseVisualMaterial, indoors: boolean): pc.StandardMaterial;
+};
 
 type BuildRoughCourseOptions = {
   createEntity?: CourseEntityFactory;
@@ -82,6 +92,8 @@ type BuildRoughCourseOptions = {
    */
   indoorMaterials?: RoughCourseMaterials | null;
   materials: RoughCourseMaterials;
+  /** Without them, a sign draws as its plain box. */
+  signs?: CourseSignFinishes;
   topFaces?: CourseTopFaceMeshes;
 };
 
@@ -113,6 +125,7 @@ export function projectCourseObject(object: CourseObject) {
     collision,
     editable: object.editable,
     id: object.id,
+    kit: object.kit,
     physics: collision
       ? {
           friction: collision.friction,
@@ -126,6 +139,7 @@ export function projectCourseObject(object: CourseObject) {
           tag: supportsKart ? "drivable-surface" : "obstacle",
         }
       : null,
+    sign: object.sign,
     transform: object.transform,
     visual: object.visual,
   } as const;
@@ -139,6 +153,7 @@ export function buildRoughCourse(
     includeCollisionFixtures = false,
     indoorMaterials = null,
     materials,
+    signs,
     topFaces,
   }: BuildRoughCourseOptions,
 ) {
@@ -158,30 +173,21 @@ export function buildRoughCourse(
         const projection = projectCourseObject(object);
         const finishes = (object.indoors && indoorMaterials) || materials;
         const indoors = finishes !== materials;
-        const generatedMesh =
-          object.visual.shape === "arc"
-            ? createCourseArcMesh(app.graphicsDevice, object.visual.arc)
-            : isCourseWater(object)
-              ? createCourseWaterMesh(app.graphicsDevice, object.visual.scale)
-              : object.visual.material === "timber"
-                ? createCourseTimberMesh(
-                    app.graphicsDevice,
-                    object.visual.shape,
-                    object.visual.scale,
-                    object.transform,
-                  )
-                : undefined;
+        const lettered = object.sign !== undefined && signs !== undefined;
+        const generatedMesh = createCourseObjectMesh(app.graphicsDevice, object, signs);
         let entity: pc.Entity;
         try {
           entity = createEntity(
             projection,
-            drawsCourseGrassUnlayered(object)
-              ? projection.visual.material === "lawn"
-                ? finishes.baseLawn
-                : finishes.baseGround
-              : drawsCourseAsphaltUnlayered(object)
-                ? finishes.baseAsphalt
-                : finishes[projection.visual.material],
+            lettered
+              ? signs.material(projection.visual.material, indoors)
+              : drawsCourseGrassUnlayered(object)
+                ? projection.visual.material === "lawn"
+                  ? finishes.baseLawn
+                  : finishes.baseGround
+                : drawsCourseAsphaltUnlayered(object)
+                  ? finishes.baseAsphalt
+                  : finishes[projection.visual.material],
             generatedMesh ??
               (object.visual.shape !== "arc" && drawsCourseTopFaceOnly(object)
                 ? topFaces?.[object.visual.shape]
@@ -279,7 +285,7 @@ function configureCourseEntity(
   mesh?: pc.Mesh,
 ) {
   const { visual } = projection;
-  addCourseVisual(entity, visual, material, mesh);
+  addCourseVisual(entity, projection, material, mesh);
   entity.setPosition(toVec3(projection.transform.position));
   entity.setEulerAngles(toVec3(projection.transform.rotation));
   // An arc's mesh is built to size.
@@ -341,21 +347,28 @@ function configureCourseEntity(
 
 export function addCourseVisual(
   entity: pc.Entity,
-  { material: finish, shape }: Pick<CourseObject["visual"], "material" | "shape">,
+  { kit, sign, visual }: Pick<CourseObjectProjection, "kit" | "sign" | "visual">,
   material: pc.StandardMaterial,
   mesh?: pc.Mesh,
 ) {
   if (mesh) {
     entity.addComponent("render", {
-      // A thin layer's top face and a water surface cast no shadow; an arc
-      // and timber cast as a box does.
-      castShadows: shape === "arc" || finish === "timber",
+      // A generated solid (an arc, timber, a bevelled solid, a handwheel,
+      // or an elbow) casts as its primitive would; a thin layer's top face,
+      // a water surface, and a sign's lettering do not.
+      castShadows:
+        visual.shape === "arc" ||
+        (sign === undefined &&
+          (visual.material === "timber" ||
+            Boolean(visual.bevel) ||
+            kit === "handwheel" ||
+            kit === "elbow")),
       meshInstances: [new pc.MeshInstance(mesh, material)],
     });
     return;
   }
-  if (shape === "arc") throw new Error("An arc needs its generated mesh");
-  entity.addComponent("model", { type: shape });
+  if (visual.shape === "arc") throw new Error("An arc needs its generated mesh");
+  entity.addComponent("model", { type: visual.shape });
   entity.model?.meshInstances?.forEach((meshInstance) => {
     meshInstance.material = material;
   });
@@ -372,15 +385,7 @@ function addCourseKit(
   boxes: CourseKitBox[],
   material: pc.StandardMaterial,
 ) {
-  const geometry = createCourseKitGeometry(boxes);
-  const mesh = new pc.Mesh(device);
-  mesh.setPositions(geometry.positions);
-  mesh.setNormals(geometry.normals);
-  // The box primitive's streams, so the kit joins its finish's batch.
-  mesh.setUvs(0, geometry.uvs);
-  mesh.setUvs(1, geometry.uvs);
-  mesh.setIndices(geometry.indices);
-  mesh.update();
+  const mesh = createCourseMesh(device, createCourseKitGeometry(boxes));
   const frame = new pc.Entity(`${entity.name}-kit`);
   frame.setLocalScale(1 / scale.x, 1 / scale.y, 1 / scale.z);
   frame.addComponent("render", {
@@ -391,20 +396,49 @@ function addCourseKit(
 }
 
 /**
- * A timber box or round, with UVs in metres along its grain; its mesh
- * instance frees it on destroy.
+ * The mesh an object draws in place of its primitive, if any (see
+ * CourseEntityFactory). Given `signs`, the object is a sign; its mesh
+ * instance frees the mesh on destroy.
  */
-function createCourseTimberMesh(
+function createCourseObjectMesh(
   device: pc.GraphicsDevice,
-  shape: "box" | "cylinder",
-  scale: { x: number; y: number; z: number },
-  transform: CourseObject["transform"],
+  object: CourseObject,
+  signs?: CourseSignFinishes,
 ) {
-  const geometry = createCourseTimberGeometry(shape, scale, transform);
+  const { visual } = object;
+  if (visual.shape === "arc") return createCourseArcMesh(device, visual.arc);
+  if (isCourseWater(object)) return createCourseWaterMesh(device, visual.scale);
+  if (signs && object.sign !== undefined) {
+    return createCourseMesh(
+      device,
+      createCourseSignGeometry(object.sign, visual.scale, signs.glyphs()),
+    );
+  }
+  if (object.kit === "handwheel") {
+    return createCourseMesh(device, createCourseHandwheelGeometry(visual.scale));
+  }
+  if (object.kit === "elbow") return createCourseElbowMesh(device, visual.scale);
+  if (visual.material === "timber") {
+    return createCourseMesh(
+      device,
+      createCourseTimberGeometry(visual.shape, visual.scale, object.transform),
+    );
+  }
+  if (visual.bevel) {
+    return createCourseMesh(
+      device,
+      createCourseBevelGeometry(visual.shape, visual.scale, visual.bevel),
+    );
+  }
+  return undefined;
+}
+
+// The engine primitives' streams (positions, normals, two UV sets), so the
+// mesh joins its finish's static batch.
+function createCourseMesh(device: pc.GraphicsDevice, geometry: CourseMeshGeometry) {
   const mesh = new pc.Mesh(device);
   mesh.setPositions(geometry.positions);
   mesh.setNormals(geometry.normals);
-  // The engine primitives' streams, so it joins its finish's static batch.
   mesh.setUvs(0, geometry.uvs);
   mesh.setUvs(1, geometry.uvs);
   mesh.setIndices(geometry.indices);
@@ -435,15 +469,18 @@ function createCourseWaterMesh(
  * joins its finish's static batch. Its mesh instance frees it on destroy.
  */
 export function createCourseArcMesh(device: pc.GraphicsDevice, arc: CourseArc) {
-  const geometry = createCourseArcGeometry(arc);
-  const mesh = new pc.Mesh(device);
-  mesh.setPositions(geometry.positions);
-  mesh.setNormals(geometry.normals);
-  mesh.setUvs(0, geometry.uvs);
-  mesh.setUvs(1, geometry.uvs);
-  mesh.setIndices(geometry.indices);
-  mesh.update();
-  return mesh;
+  return createCourseMesh(device, createCourseArcGeometry(arc));
+}
+
+/**
+ * A pipe elbow, fitted to the unit primitive its entity scales by `scale`;
+ * its mesh instance frees it on destroy.
+ */
+export function createCourseElbowMesh(
+  device: pc.GraphicsDevice,
+  scale: { x: number; y: number; z: number },
+) {
+  return createCourseMesh(device, createCourseElbowGeometry(scale));
 }
 
 // Each collision box is its own static body, as authored boxes are, under

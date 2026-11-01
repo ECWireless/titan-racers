@@ -43,8 +43,10 @@ function cloneSeed() {
 // kerbs in the walls' concrete.
 function versionTenFallsViewPark() {
   const document = structuredClone(FALLS_VIEW_PARK_DOCUMENT);
+  document.objects = document.objects.filter((object) => object.sign === undefined);
   for (const object of document.objects) {
     delete object.kit;
+    if (object.visual.shape !== "arc") delete object.visual.bevel;
     if (object.visual.material === "kerb") object.visual.material = "obstacleBlock";
   }
   return document;
@@ -1093,7 +1095,7 @@ test("adds water and work lights in schema version eight", () => {
   const versionSeven = versionSevenFallsViewPark();
   expect(parseCourseDocument({ ...versionSeven, schemaVersion: 7 })).toEqual(versionSeven);
 
-  const housing = FALLS_VIEW_PARK_DOCUMENT.objects.find(
+  const housing = versionTenFallsViewPark().objects.find(
     (object) => object.lamp === "tunnel",
   )!;
   const workLight = (index: number) => ({
@@ -1428,6 +1430,103 @@ test("upgrades v10 unchanged and draws each crowd barrier as one kit in v11", ()
     issues((object) => (object.transform.rotation = { x: 180, y: 60, z: 180 })),
   ).toEqual([]);
   expect(issues((object) => (object.overhead = true))).toContain(`objects.${index}.kit`);
+});
+
+test("letters signs, bevels solids, and draws handwheels in v11 only", () => {
+  const objects = FALLS_VIEW_PARK_DOCUMENT.objects;
+  expect(objects.filter((o) => o.sign !== undefined).map((o) => o.sign)).toEqual([
+    "1",
+    "2",
+    "3",
+    "4",
+    "MAX 2.7m",
+    "MAX 2.7m",
+  ]);
+  expect(objects.filter((o) => o.kit === "handwheel")).toHaveLength(3);
+  // Both mains bend into the wall at each end.
+  expect(objects.filter((o) => o.kit === "elbow").map((o) => o.id).sort()).toEqual([
+    "tunnel-fire-main-elbow-east",
+    "tunnel-fire-main-elbow-west",
+    "tunnel-water-main-elbow-east",
+    "tunnel-water-main-elbow-west",
+  ]);
+  expect(
+    objects.filter((o) => o.visual.shape !== "arc" && o.visual.bevel).length,
+  ).toBeGreaterThan(0);
+
+  // Each change, made to a copy of the named object, and the paths it fails.
+  const issues = (id: string, change: (object: CourseDocument["objects"][number]) => void) => {
+    const document = structuredClone(FALLS_VIEW_PARK_DOCUMENT);
+    const index = document.objects.findIndex((o) => o.id === id);
+    change(document.objects[index]!);
+    return (courseDocumentSchema.safeParse(document).error?.issues ?? []).map((issue) =>
+      issue.path.slice(2).join("."),
+    );
+  };
+  const sign = "tunnel-portal-north-height-sign";
+  const setScale = (object: CourseDocument["objects"][number], scale: Partial<Record<"x" | "y" | "z", number>>) => {
+    if (object.visual.shape === "arc") throw new Error("Expected a primitive");
+    Object.assign(object.visual.scale, scale);
+  };
+  expect(issues(sign, () => {})).toEqual([]);
+  // Letters, digits, spaces, full stops, and hyphens; at most 12; not blank.
+  expect(issues(sign, (o) => (o.sign = "No-12 3.4m.x"))).toEqual([]);
+  for (const text of ["MAX 3.6m!", "   ", "", " 1", "1 ", "Thirteen char"]) {
+    expect(issues(sign, (o) => (o.sign = text))).toContain("sign");
+  }
+  // Long text is refused before its pattern is read.
+  const started = performance.now();
+  expect(issues(sign, (o) => (o.sign = "1 ".repeat(20_000)))).toContain("sign");
+  expect(performance.now() - started).toBeLessThan(200);
+  // A sign is painted on a thin box, and draws nothing else.
+  expect(issues(sign, (o) => setScale(o, { z: 0.05 }))).toContain("sign");
+  expect(issues(sign, (o) => (o.kit = "handwheel"))).toContain("sign");
+
+  // Bevels cut a solid's edges, up to 5 cm, never a surface's or timber's.
+  const door = "tunnel-door-1";
+  expect(issues(door, (o) => {
+    if (o.visual.shape !== "arc") o.visual.bevel = 0.05;
+  })).toEqual([]);
+  expect(issues(door, (o) => {
+    if (o.visual.shape !== "arc") o.visual.bevel = 0.06;
+  })).toContain("visual.bevel");
+  for (const material of ["timber", "gravel", "mulch"] as const) {
+    expect(issues(door, (o) => (o.visual.material = material))).toContain("visual.bevel");
+  }
+  // A bevel is a width: zero is no bevel, so it is left out.
+  expect(issues(door, (o) => {
+    if (o.visual.shape !== "arc") o.visual.bevel = 0;
+  })).toContain("visual.bevel");
+  // A bevelled round stays round.
+  const flange = "tunnel-fire-main-flange-1a";
+  expect(issues(flange, (o) => setScale(o, { x: 0.3 }))).toContain("visual.bevel");
+
+  // A handwheel is a round cylinder without collision.
+  const wheel = "tunnel-riser-1-wheel";
+  expect(issues(wheel, () => {})).toEqual([]);
+  expect(issues(wheel, (o) => setScale(o, { z: 0.3 }))).toContain("kit");
+  expect(issues("tunnel-door-1", (o) => (o.kit = "handwheel"))).toContain("kit");
+  // An elbow is a uniform round, as wide as its pipe.
+  const elbow = "tunnel-water-main-elbow-west";
+  expect(issues(elbow, () => {})).toEqual([]);
+  expect(issues(elbow, (o) => setScale(o, { y: 0.5 }))).toContain("kit");
+
+  // Version ten has none of them.
+  const legacy = versionTenFallsViewPark();
+  for (const change of [
+    (document: CourseDocument) => document.objects.push(structuredClone(objects.find((o) => o.id === sign)!)),
+    (document: CourseDocument) => {
+      const object = document.objects.find((o) => o.id === door)!;
+      if (object.visual.shape !== "arc") object.visual.bevel = 0.003;
+    },
+    (document: CourseDocument) => {
+      document.objects.find((o) => o.id === wheel)!.kit = "handwheel";
+    },
+  ]) {
+    const document = structuredClone(legacy);
+    change(document);
+    expect(() => parseCourseDocument({ ...document, schemaVersion: 10 })).toThrow();
+  }
 });
 
 test("opens a storm drain through the north wall that every official kart fits", () => {

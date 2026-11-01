@@ -457,8 +457,8 @@ export function CourseEditorShell({
   // bicycle keeps its real size.
   const curveSelected = selectedObject?.visual.shape === "arc";
   const bicycleSelected = Boolean(selectedObject?.bicycle);
-  // A kit, such as a crowd barrier, scales only along its length.
-  const kitSelected = Boolean(selectedObject?.kit);
+  // A crowd barrier scales only along its length.
+  const kitSelected = selectedObject?.kit === "crowd-barrier";
   const scaleUnavailable =
     selection.kind === "start" || curveSelected || bicycleSelected;
   // Scale falls back to Move while it is unavailable rather than stranding

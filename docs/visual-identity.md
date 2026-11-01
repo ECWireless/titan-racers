@@ -163,6 +163,17 @@ Materials), and so do course surfaces (see Course Surfaces).
   panels, grimier at ground level; kerbs are sidewalk concrete, a light
   buff grey (about 35%), smooth-faced under a broom-finished top. Posts,
   pipes, cabinets, and valves are painted or powder-coated steel.
+- **Made, not modelled.** Pieces whose silhouettes show carry the edges and
+  fittings their trade gives them: doors, cabinets, lamp housings, height
+  boards, and headwall copings have chamfered edges (3–15 mm); the fire
+  main is joined every 6 m by PN16 flanged joints, two 285 mm plates either
+  side of a gasket; both mains end in long-radius elbows into the wall;
+  valves turn on cast handwheels with a rim, hub, and four spokes. Tiled
+  floors, walls, and sidewalk kerbs keep square edges, as their joints
+  would otherwise groove. Signs are painted lettering in bold DIN (a narrow
+  grotesque where the system lacks it): door numbers, and the headroom
+  between the hazard stripes of the portals' height boards, "MAX 2.7m",
+  under the youth's timing gantry's work light at 2.74 m.
 - **Asphalt and grass are photo scans at true size.** CC0 scans give their
   aggregate, blades, relief, and roughness variation, recoloured and re-glossed
   so each surface keeps its palette colour and sheen on average. Turf mowing stripes depend on viewing

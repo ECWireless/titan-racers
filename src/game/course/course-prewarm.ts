@@ -1,6 +1,7 @@
 import { getHabitatLight } from "../enclosure/habitat-light";
 import type { CourseDocument } from "./course-document";
 import { courseLampLux } from "./course-lamps";
+import { getCourseSignGlyphs } from "./course-sign";
 import { prewarmCourseSurfacePixels } from "./course-surface-materials";
 import {
   createCourseHedgeGeometry,
@@ -12,10 +13,10 @@ import {
 /**
  * Builds the CPU-side parts of a race on this course while the page is
  * otherwise idle, such as the home screen while a kart is chosen: the
- * finishes' pixels, the habitat's light and its environment atlas, and the
- * planting's geometry. Each is cached per page, so a race on the same course
- * finds it ready. Steps run one at a time while the page is idle; the
- * returned function stops any not yet run.
+ * finishes' pixels, the habitat's light and its environment atlas, the
+ * planting's geometry, and its signs' letters. Each is cached per page, so
+ * a race on the same course finds it ready. Steps run one at a time while
+ * the page is idle; the returned function stops any not yet run.
  */
 export function prewarmCourseScene(document: CourseDocument) {
   const steps: Array<() => unknown> = [
@@ -27,6 +28,9 @@ export function prewarmCourseScene(document: CourseDocument) {
     ),
     createNurseryStakeGeometry,
     () => createCourseHedgeGeometry(document),
+    ...(document.objects.some((object) => object.sign !== undefined)
+      ? [getCourseSignGlyphs]
+      : []),
   ];
   let stopped = false;
   const schedule = (run: () => void) =>

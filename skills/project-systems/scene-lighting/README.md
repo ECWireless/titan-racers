@@ -48,13 +48,16 @@ phone budget. Art direction and the budget itself live in
   `course-surface-textures.ts` decodes the scans once per page; the home
   screen starts it, the race waits for it before its first frame, and the
   course editor switches to the scans when they arrive. If they fail, those
-  surfaces keep the grain finish.
+  surfaces keep the grain finish. Signs' lettering is plain paint in its
+  finish's colour (with the indoor environment indoors), alpha-tested from
+  a one-channel letter atlas, one material per finish used; the lettering
+  casts no shadow and batches with signs of its finish.
 - `src/game/course/course-prewarm.ts` builds a race's CPU-side parts
   while the home screen idles, one step at a time, stopped when a race
   starts: the finishes' grain and ripple pixels, the habitat's light
-  and environment atlas, and the trees' and hedges' geometry, each cached
-  per page. The home screen also starts loading physics, so a warm race
-  waits for neither.
+  and environment atlas, the trees' and hedges' geometry, and its signs'
+  letter atlas, each cached per page. The home screen also starts loading
+  physics, so a warm race waits for neither.
 - `src/game/course/course-trees.ts` draws a course's trees and hedges
   ([visual identity](../../../docs/visual-identity.md#leaf-sprays)):
   smooth grey-brown bark, and leaf sprays alpha-tested from the baked

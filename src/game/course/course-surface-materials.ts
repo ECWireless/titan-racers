@@ -17,6 +17,8 @@ import {
   type CourseScannedSurface,
   type CourseSurfaceImages,
 } from "./course-surface-textures";
+import type { CourseVisualMaterial } from "./course-document";
+import { getCourseSignGlyphs } from "./course-sign";
 import { COURSE_WATER_FLOW_SPEED } from "./course-water";
 import { applyAdaptedEnvironmentAtlas } from "../render/scene-look";
 
@@ -621,6 +623,53 @@ export function createCourseSurfaceMaterials(
     box: createTopFaceMesh(device, "box"),
     cylinder: createTopFaceMesh(device, "cylinder"),
   } satisfies CourseTopFaceMeshes;
+  // Signs' lettering: each finish's paint, plain, cut out by the letters'
+  // coverage. Made when a course first letters a sign in it.
+  let signLetters: pc.Texture | undefined;
+  const signMaterials = new Map<string, pc.StandardMaterial>();
+  const signs = {
+    glyphs: getCourseSignGlyphs,
+    material(finish: CourseVisualMaterial, indoors: boolean) {
+      const key = `${finish}:${indoors && interior ? "indoor" : "outdoor"}`;
+      const cached = signMaterials.get(key);
+      if (cached) return cached;
+      if (!signLetters) {
+        const glyphs = getCourseSignGlyphs();
+        signLetters = new pc.Texture(device, {
+          name: "course-sign-letters",
+          width: glyphs.width,
+          height: glyphs.height,
+          format: pc.PIXELFORMAT_R8,
+          levels: [glyphs.pixels],
+          mipmaps: true,
+          minFilter: pc.FILTER_LINEAR_MIPMAP_LINEAR,
+          magFilter: pc.FILTER_LINEAR,
+          addressU: pc.ADDRESS_CLAMP_TO_EDGE,
+          addressV: pc.ADDRESS_CLAMP_TO_EDGE,
+        });
+      }
+      const base = (indoors && indoorMaterials ? indoorMaterials : materials)[finish];
+      const material = new pc.StandardMaterial();
+      material.diffuse = base.diffuse.clone();
+      material.useMetalness = true;
+      material.metalness = 0;
+      material.gloss = base.gloss;
+      material.opacityMap = signLetters;
+      material.opacityMapChannel = "r";
+      material.alphaTest = 0.5;
+      // Lettering stands 3 mm proud of its board; at a distance that is
+      // under one depth step, so it is drawn a step and a quarter-pixel
+      // slope toward the camera, as a course's paint layers are.
+      material.depthBias = -1;
+      material.slopeDepthBias = -0.25;
+      if (indoors && interior) {
+        applyAdaptedEnvironmentAtlas(material, interior.atlas, interior.adaptation);
+      }
+      material.update();
+      signMaterials.set(key, material);
+      return material;
+    },
+  };
   let waterSeconds = 0;
   return {
     /** Moves the water's ripples downstream by a frame's time. */
@@ -639,6 +688,7 @@ export function createCourseSurfaceMaterials(
     },
     indoorMaterials,
     materials,
+    signs,
     topFaces,
     /**
      * Switches the scanned finishes (asphalt, cast and brushed concrete,
@@ -717,6 +767,8 @@ export function createCourseSurfaceMaterials(
         Object.values(finishes ?? {}).forEach((material) => material.destroy()),
       );
       Object.values(topFaces).forEach(releaseTopFaceMesh);
+      signMaterials.forEach((material) => material.destroy());
+      signLetters?.destroy();
       grain.destroy();
       ripples.destroy();
       scanTextures.forEach((texture) => texture.destroy());

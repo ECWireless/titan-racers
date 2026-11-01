@@ -13,6 +13,7 @@ import {
   addCourseVisual,
   buildRoughCourse,
   createCourseArcMesh,
+  createCourseElbowMesh,
   type CourseObjectProjection,
   type RoughCourseMaterials,
 } from "../course/build-rough-course";
@@ -21,7 +22,10 @@ import {
   getCourseArcCollisionBoxes,
   getCourseArcMidpoint,
 } from "../course/course-arc";
-import type { CourseDocument } from "../course/course-document";
+import {
+  type CourseDocument,
+  isCourseRoundCylinder,
+} from "../course/course-document";
 import { createCourseSurfaceMaterials } from "../course/course-surface-materials";
 import type { CourseSurfaceImages } from "../course/course-surface-textures";
 import { COURSE_EDITOR_CAMERA_NEAR_CLIP } from "../course/course-visual-policy";
@@ -127,6 +131,8 @@ export class CourseEditorScene {
   private lampCleanup: (() => void) | null = null;
   private treeMaterials: CourseTreeMaterials;
   private trees: ReturnType<typeof addCourseTrees> | null = null;
+  // Unseen plates that pick each sign between its letters.
+  private signPlates: pc.Entity[] = [];
   private selections: CourseEditorSelections;
   private selectionEntities: pc.Entity[] = [];
   private tool: CourseEditorTool = "translate";
@@ -791,14 +797,15 @@ export class CourseEditorScene {
     }
 
     // Trees, hedge leaves, and bicycles are drawn, not picked: their beds,
-    // hedges, and the bicycles' unseen boxes are.
-    const bicycleBoxes = this.bicycleBoxes();
+    // hedges, and the bicycles' unseen boxes are. A sign picks by an unseen
+    // plate its box's size, as its letters leave gaps.
+    const pickBoxes = [...this.bicycleBoxes(), ...this.signPlates];
     if (this.trees) this.trees.root.enabled = false;
-    bicycleBoxes.forEach((box) => (box.enabled = true));
+    pickBoxes.forEach((box) => (box.enabled = true));
     try {
       this.picker.prepare(cameraComponent, this.app.scene);
     } finally {
-      bicycleBoxes.forEach((box) => (box.enabled = false));
+      pickBoxes.forEach((box) => (box.enabled = false));
       if (this.trees) this.trees.root.enabled = true;
     }
     const picked = this.picker.getSelection(x, y);
@@ -828,6 +835,7 @@ export class CourseEditorScene {
 
     const { courseEntities } = buildRoughCourse(this.app, {
       createEntity: createProjectionEntity,
+      signs: this.courseSurfaces.signs,
       topFaces: this.courseSurfaces.topFaces,
       document: this.currentDocument,
       materials: this.materials,
@@ -857,6 +865,17 @@ export class CourseEditorScene {
       if (entity) entity.enabled = true;
     });
     this.bicycleBoxes().forEach((box) => (box.enabled = false));
+    this.signPlates = this.currentDocument.objects.flatMap((object) => {
+      const entity =
+        object.sign !== undefined &&
+        this.documentEntities.get(selectionKey({ id: object.id, kind: "object" }));
+      if (!entity) return [];
+      const plate = new pc.Entity(`${object.id}-pick-plate`);
+      plate.addComponent("model", { type: "box" });
+      plate.enabled = false;
+      entity.addChild(plate);
+      return [plate];
+    });
     this.showRoofs();
     const lights = buildCourseLighting(this.app, { document: this.currentDocument });
     lights.forEach((entity) => {
@@ -920,25 +939,37 @@ export class CourseEditorScene {
   private configureScaleGizmo() {
     const selectedObject = this.selectedObject();
     const cylinderAxis =
-      selectedObject?.collision?.shape === "cylinder"
-        ? selectedObject.collision.axis
-        : null;
+      selectedObject && isCourseRoundCylinder(selectedObject)
+        ? 1
+        : selectedObject?.collision?.shape === "cylinder"
+          ? selectedObject.collision.axis
+          : null;
     const cylinder = cylinderAxis !== null;
-    // A kit scales only along its length.
-    const kit = Boolean(selectedObject?.kit);
+    // A crowd barrier scales only along its length; a sign keeps its
+    // thickness; an elbow scales only as a whole.
+    const kit = selectedObject?.kit === "crowd-barrier";
+    const sign = selectedObject?.sign !== undefined;
+    const elbow = selectedObject?.kit === "elbow";
 
     this.scaleGizmo.uniform = cylinder;
     (["x", "y", "z"] as const).forEach((axis, index) =>
       this.scaleGizmo.enableShape(
         axis,
-        kit ? axis === "x" : !cylinder || index === cylinderAxis,
+        kit
+          ? axis === "x"
+          : sign
+            ? axis !== "z"
+            : !elbow && (!cylinder || index === cylinderAxis),
       ),
     );
-    this.scaleGizmo.enableShape("xyz", !kit);
+    this.scaleGizmo.enableShape("xyz", !kit && !sign);
     const radialPlane =
       cylinderAxis === 0 ? "yz" : cylinderAxis === 1 ? "xz" : "xy";
     (["xy", "xz", "yz"] as const).forEach((plane) =>
-      this.scaleGizmo.enableShape(plane, cylinder && plane === radialPlane),
+      this.scaleGizmo.enableShape(
+        plane,
+        !elbow && cylinder && plane === radialPlane,
+      ),
     );
   }
 
@@ -952,22 +983,25 @@ export class CourseEditorScene {
         return;
       }
 
-      const sourceVisual =
+      const sourceObject =
         selection.kind === "object"
           ? this.currentDocument.objects.find(({ id }) => id === selection.id)
-              ?.visual
           : undefined;
+      const sourceVisual = sourceObject?.visual;
       const scale = geometry.scale ?? { x: 1.9, y: 0.22, z: 2.7 };
+      const grown = { x: scale.x * 1.04, y: scale.y * 1.04, z: scale.z * 1.04 };
       const outline =
         sourceVisual?.shape === "arc"
           ? this.createArcOutline(selection.id, sourceVisual.arc)
-          : createVisualEntity(
-              sourceVisual?.shape ?? "box",
-              `course-editor-selection-${selection.id}`,
-              { x: scale.x * 1.04, y: scale.y * 1.04, z: scale.z * 1.04 },
-              this.selectionMaterial,
-              true,
-            );
+          : sourceObject?.kit === "elbow"
+            ? this.createElbowOutline(selection.id, grown)
+            : createVisualEntity(
+                sourceVisual?.shape ?? "box",
+                `course-editor-selection-${selection.id}`,
+                grown,
+                this.selectionMaterial,
+                true,
+              );
       outline.setPosition(
         geometry.position.x,
         geometry.position.y,
@@ -1010,6 +1044,23 @@ export class CourseEditorScene {
       renderStyle: pc.RENDERSTYLE_WIREFRAME,
     });
     outline.addChild(grown);
+    return outline;
+  }
+
+  // An elbow's outline is its own bend, grown 4% about its corner.
+  private createElbowOutline(id: string, scale: { x: number; y: number; z: number }) {
+    const outline = new pc.Entity(`course-editor-selection-${id}`);
+    outline.addComponent("render", {
+      castShadows: false,
+      meshInstances: [
+        new pc.MeshInstance(
+          createCourseElbowMesh(this.app.graphicsDevice, scale),
+          this.selectionMaterial,
+        ),
+      ],
+      renderStyle: pc.RENDERSTYLE_WIREFRAME,
+    });
+    outline.setLocalScale(scale.x, scale.y, scale.z);
     return outline;
   }
 
@@ -1122,7 +1173,7 @@ function createProjectionEntity(
 ) {
   const entity = new pc.Entity(projection.id);
   const { visual } = projection;
-  addCourseVisual(entity, visual, material, mesh);
+  addCourseVisual(entity, projection, material, mesh);
   if (visual.shape !== "arc") {
     entity.setLocalScale(visual.scale.x, visual.scale.y, visual.scale.z);
   }
