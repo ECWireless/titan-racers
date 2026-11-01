@@ -174,7 +174,7 @@ or application alive. `tests/playcanvas-runtime.spec.ts` and
 - The owned outer loop deviates from PlayCanvas' default tick, so exact version
   pinning and regression tests are required.
 - Mobile cost of wheel sweeps and collision complexity still needs
-  representative-device measurement (Phase 9).
+  representative-device measurement in the public demo polish phase.
 
 ## Sources
 

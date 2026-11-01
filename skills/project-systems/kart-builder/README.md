@@ -7,8 +7,8 @@
 This node maps the shipped kart construction pipeline: the portable kart
 document, approved part registry, validation, deterministic derivation,
 immutable revisions and publication, the admin kart editor, racer usernames,
-and the official roster shown in public kart selection. Phase 6 reuses all of
-it for community karts.
+and the official roster shown in public kart selection. Community karts will
+reuse all of it.
 
 `docs/kart-system/` is the authority for the layered architecture, document
 contract, catalog, derivation formulas, persistence records, and versioning.
@@ -137,7 +137,7 @@ revision-bound previews live in [`kart-thumbnails`](../kart-thumbnails/README.md
 ## Known Limits
 
 Official vs. community status is not server-owned and request hardening is
-incomplete. Phase 6 owns both.
+incomplete. Community kart publishing must fix both.
 
 Approved suspension mounting defaults assume 8 cm lower arms. Swapping the
 suspension type on an official kart (longer arms) leaves the hub off the

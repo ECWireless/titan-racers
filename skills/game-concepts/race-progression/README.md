@@ -269,6 +269,6 @@ authority defined here.
 ## Known Limits
 
 - Generated recovery defaults require per-course runtime evidence; community
-  courses (Phase 7) may need recovery-pose authoring controls.
+  courses may need recovery-pose authoring controls.
 - Ghosts, persistent results, leaderboard eligibility, multiplayer authority,
   anti-cheat, and resuming a race after refresh are later work.

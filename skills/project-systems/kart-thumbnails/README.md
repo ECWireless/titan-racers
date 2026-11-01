@@ -101,6 +101,6 @@ presentation. Kart authoring and publication belong to the
   bounds are deliberately small. Object storage can replace byte persistence
   later without changing the revision identity contract.
 - Revisions without a current-version image use exact local rendering until an
-  admin save or roster visit captures one. Community karts (Phase 6) need their
+  admin save or roster visit captures one. Community karts need their
   own fill path.
 - Any change to the shared builder's output must advance the renderer version.
