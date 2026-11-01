@@ -721,6 +721,7 @@ export function SoloTimeTrialCanvas({
         loadAmmoPhysics(),
         loadCourseSurfaceImages(),
       ]);
+      const loadedAt = performance.now();
 
       if (cancelled) {
         return;
@@ -879,6 +880,7 @@ export function SoloTimeTrialCanvas({
       } = buildRoughCourse(app, {
         indoorMaterials: courseSurfaces.indoorMaterials,
         materials: courseSurfaces.materials,
+        signs: courseSurfaces.signs,
         topFaces: courseSurfaces.topFaces,
         document: COURSE_DOCUMENT,
         includeCollisionFixtures:
@@ -2987,6 +2989,7 @@ export function SoloTimeTrialCanvas({
             },
             firstFrameMs,
             recording,
+            startup: { buildMs: startedAt - loadedAt, waitMs: loadedAt - mountedAt },
             summary: recording ? null : recorder.summarize(),
           });
         };
@@ -3011,6 +3014,7 @@ export function SoloTimeTrialCanvas({
 
       raceSession.markReady();
       publishRacePresentation();
+      const startedAt = performance.now();
       runtime.start();
       setSceneFailureCode(null);
       setSceneStatus("ready");

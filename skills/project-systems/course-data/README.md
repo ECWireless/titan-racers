@@ -1,7 +1,6 @@
 # Course Data System
 
-**Maturity:** Validated (PR 2.3.1, extended by PRs 2.4.2, 4.4.2, 4.4.3, and
-4.4.4).
+**Maturity:** Validated (PR 2.3.1, extended by PR 2.4.2 and PRs 4.4.2–4.4.8).
 
 ## Purpose And Scope
 
@@ -26,7 +25,7 @@ own editor commands or persistence UI.
 ## Source Ownership
 
 - `src/game/course/course-document.ts` defines strict Zod legacy schemas and the
-  canonical version-ten schema, deterministic legacy normalization,
+  canonical version-eleven schema, deterministic legacy normalization,
   cross-document ID and checkpoint-order refinements, gate-face direction
   alignment, canonical sorting, serialization, inferred TypeScript types, and
   validated seed export.
@@ -34,48 +33,24 @@ own editor commands or persistence UI.
   courses with bundled seeds, and the guest solo course (`falls-view-park`)
   explicit; `course-publication.ts`
   validates protected publication and privacy-minimized public runtime shapes.
-- `src/game/course/rough-course.v10.json` is the canonical portable rough-course
+- `src/game/course/rough-course.v11.json` is the canonical portable rough-course
   sandbox seed. It contains the start/finish gate, three ordered checkpoints
   whose gates reach from the infield into the grass, with directed gate and
   recovery data, an infield barrier, ordinary surfaces and objects, camera
   fixtures, and opt-in collision fixtures.
   It permanently restores only course ID `rough-course`; the official
   Falls View Park document uses the distinct ID `falls-view-park`, seeded by
-  `falls-view-park.v10.json`: a walled two-lap circuit of about 550 m, with
-  4.5 m lanes for four karts abreast, from a utility tunnel through nursery
-  rows and a culvert, up onto a levee crest facing the falls, down the
-  levee's anti-spinward access ramp or the youth's jump beside it, and
-  back along a return lane, placed in another valley 2.5 km from the
-  sunward end cap, at deep dusk (mirror 89.5°) under floodlights. Its start
-  sits in a roofed, lamp-lit, and dressed utility tunnel under an earth berm,
-  whose grass banks and crest are drivable lawn. Its lawn is 20 m tiles,
-  0.5 m deep.
-  Past the tunnel the route forks: turf alleys between planted beds take the
-  nursery hairpins, or the service road swoops south behind hedges and climbs
-  an access ramp to the levee crest; both rejoin before the crest checkpoint.
-  The nursery route leaves through the culvert, a precast box lit by the
-  youth's work lights, under a perched stream and the levee; the stream
-  drains west to an outfall at the perimeter wall. The youth's last crowd
-  barrier on the downhill's west side stands swung open, a gate from the
-  jump's infield to the lawn inside the park's walls, all off the route.
-  The tunnel's berm, whose portals' headwalls stand flush with its crest,
-  hides a storm drain through the north wall in the narrow lawn behind it:
-  a 600 × 450 mm precast box culvert, the narrowest standard width every
-  official kart fits through. Wingwalls flare from it to a 1 m-wide
-  concrete chute that falls 1:8 to the floor of the clearing, and two park
-  street lamps light its inlet and the chute's foot. Two of the youth's
-  bicycles lean at the levee crest's handrail and wall. Past the crest an
-  S-bend ramp comes down to the park, with the youth's jump straight across
-  its inside (PR 4.4.5 in the plan).
-  The return lane has 150 mm kerbs and edge lines, with four full-size
-  street lamps along its anti-sunward run. It stands
-  0.9 m above the habitat floor (`enclosure.placement.height`), so the
-  floor, which curves up around the axis across its 164 m north–south span,
-  stays below the chase camera at every wall. Its perimeter walls reach 1 m
-  below the park's ground, to the floor of its clearing outside them, which
-  follows the floor's curve: from 0.9 m below the park's ground beside its
-  west and east walls to 0.4 m above it at the south wall, rising about
-  5 m by the clearing's edge around the axis.
+  `falls-view-park.v11.json`. Its route is the plan's and the visual
+  identity's to describe (PR 4.4 in
+  [the implementation plan](../../../IMPLEMENTATION_PLAN.md);
+  [visual identity](../../../docs/visual-identity.md#course-surfaces)). The
+  seed keeps these invariants: it stands 0.9 m above the habitat floor
+  (`enclosure.placement.height`), so the floor stays below the chase camera
+  at every wall; its perimeter walls reach 1 m below the park's ground, to
+  the floor of its clearing outside them; its drivable lawn is 20 m tiles,
+  0.5 m deep; its storm drain is the narrowest standard culvert every
+  official kart fits through; and its crowd barriers are kits, each its kick
+  plank.
   `BUNDLED_COURSE_DOCUMENTS` maps each official course to its seed.
 - `src/game/course/course-clearing.ts` builds the habitat floor of a course's
   clearing from the enclosure model: outside the course's footprint, out to
@@ -96,6 +71,16 @@ own editor commands or persistence UI.
   PlayCanvas visual, collision, rigid-body, tag, group, and mask state. It
   returns stable-ID entity maps plus two explicit sandbox obstacle lookups used
   by reset-clearance checks and the non-production scene test adapter.
+- `src/game/course/course-kits.ts` builds the boxes a kit draws about its
+  object (a crowd barrier's steel frame about its plank) and merges them
+  into one mesh's streams; the builder draws it under the object's entity
+  in its steel finish, so the editor and race show it alike. A handwheel
+  or elbow instead replaces its round, in the round's own finish.
+- `src/game/course/course-bevel.ts` builds a bevelled box or round in
+  metres and fits it to the unit primitive its entity scales, so a chamfer
+  keeps its width and 45° on any size; `course-sign.ts` draws the signs'
+  letters once per page into a coverage atlas and lays a sign's letters on
+  its front face.
 - `src/game/course/course-arc.ts` generates an arc's smooth surface and its
   collision boxes from its dimensions, at 3 mm visual and 5 mm collision
   tolerance; the builder turns them into a render mesh and static box bodies.
@@ -136,6 +121,9 @@ own editor commands or persistence UI.
   vertex on the habitat floor, slab tops within the sagitta, no ground inside
   the footprint, support everywhere outside it, and a closed fence whose
   colliders stand on the floor and hold its panels.
+- `tests/course-detail.spec.ts` owns the generated details: crowd-barrier
+  frames, bevels, handwheels, elbows and their collision against the pipe
+  drawn, sign lettering, and timber grain.
 - `tests/course-water.spec.ts` owns water volumes and drowning;
   `tests/course-bicycle-geometry.spec.ts` owns the bicycles' build, poses,
   colliders, and their contact with the crest's rail and wall.
@@ -147,10 +135,10 @@ own editor commands or persistence UI.
 
 ## Document Contract
 
-Canonical version ten is strict JSON using metres, Y-up positions, and Euler
+Canonical version eleven is strict JSON using metres, Y-up positions, and Euler
 degrees. It contains:
 
-- literal schema version `10`;
+- literal schema version `11`;
 - a stable course ID and name;
 - one stable start ID, transform (the start/finish gate), bounded start-gate
   half-extents, and a spawn distance (0–10 m) placing the kart behind the gate
@@ -238,6 +226,30 @@ Park's footprint is its perimeter walls' outer faces. Version ten also lets
 outdoor overhead objects, earthworks over a roof, support karts; an indoor
 roof still never does. Version-nine documents upgrade unchanged.
 
+Version eleven adds `kit: "crowd-barrier"` (`COURSE_KITS`), equipment
+drawn about an upright box that is not a lamp, roof, bed, bicycle, hedge,
+or water. A crowd barrier's box is its kick plank; its steel frame
+(`course-kits.ts`) stands on the plank's base, as long as the plank, its
+infill bars no more than 110 mm apart, so no kart fits through. Its
+collider is the panel the frame fills (`getCrowdBarrierCollisionBox`): as
+long and tall as the frame, and 100 mm deep, the thinnest solid obstacle
+kart physics allows. `kit: "handwheel"` draws a valve's handwheel
+(rim, hub, four spokes) in place of a round cylinder with no collision, and
+`kit: "elbow"` a pipe's 90° long-radius bend (1.5 diameters) in place of a
+uniform one as wide as the pipe, joining a pipe along local +Y through the
+corner at its origin to one along local +X. An elbow collides as its bend,
+`collision: { shape: "elbow" }` (cylinders along chords of the bend, as many
+as keep them within 4 mm of the pipe drawn, as a solid obstacle; at most 2 m
+across), or not at all; nothing else collides so.
+Version eleven also adds the `kerb` finish, sidewalk concrete apart from
+walls' cast concrete; `visual.bevel`, a chamfer up to 5 cm wide along a
+solid box's or round cylinder's edges (never a surface, timber, kit, or
+bicycle), drawn up to 45% of its thinnest side; and `sign`, up to 12
+letters, digits, spaces, full stops, and hyphens, starting and ending with
+one that is not a space, painted
+in its finish on the local +Z face of a box at most 10 mm thick with no
+collision, kit, or bevel. Version-ten documents upgrade unchanged.
+
 Coordinates and dimensions are finite and bounded to the accepted authoring
 envelope. Unknown fields and unsupported enum values fail rather than being
 silently stripped. The complete document validates before scene construction.
@@ -245,14 +257,14 @@ silently stripped. The complete document validates before scene construction.
 ## Legacy Normalization
 
 Stored revisions are immutable, so `parseCourseDocument` keeps strict
-version-one to version-nine schemas and normalizes them in memory to version
-ten; canonical serialization and every new save use version ten. Version
+version-one to version-ten schemas and normalizes them in memory to version
+eleven; canonical serialization and every new save use version eleven. Version
 four allows mirror angles only up to 85° and no lamps, version five no
 indoor, overhead, or arc objects and no tunnel lamps, and version six no
 planting or hedges and at most eight floodlights, and version seven no
 water, gravel, concrete, work lamps, or bicycles and at most sixteen indoor
-lamps, and version eight no street lamps, and version nine no clearing; all
-upgrade unchanged.
+lamps, and version eight no street lamps, and version nine no clearing, and
+version ten no kits, kerbs, bevels, or signs; all upgrade unchanged.
 Version two adds
 `start.gateHalfExtents`, `checkpoints[].forward`, and
 `checkpoints[].recovery`.
@@ -272,7 +284,7 @@ Version two adds
 - Degenerate coincident anchors or directions that cannot identify a face are
   rejected rather than invented.
 - A loaded version-one row is normalized in memory, and its next save creates a
-  new version-ten revision. Persistence responses report the normalized schema
+  new version-eleven revision. Persistence responses report the normalized schema
   version consistently.
 
 Every legacy collider normalizes to `surface.standard-course@1`, including
@@ -335,7 +347,13 @@ exposed in the UI.
   it. Build such a road from 0.3 m pieces whose drivable top is a 0.2 mm
   skin carrying the collider, over a visual slab 1 cm below that reaches
   under its fill's level tops, the fill set back 2 cm (Falls View Park's
-  downhill).
+  downhill; its jump's banked landing deck uses the same skin and slab in
+  plywood, without fill).
+- Faces that share a plane flicker as the camera moves. Where a ramp's
+  slabs, kerbs, and fill would meet in one side face, a thin face panel
+  per slab and side, 1 cm proud and overlapping its neighbour over its
+  full height, draws the wall instead (Falls View Park's service ramp);
+  overlaps in one finish draw alike and cannot flicker.
 - Earthworks built from tilted slabs fill concave corners correctly (the
   surface is the highest slope), but a convex corner needs the lowest, and
   overlapping slabs leave lips that show as dark lines. Plan visible

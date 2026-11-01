@@ -33,16 +33,32 @@ phone budget. Art direction and the budget itself live in
   sets the spin).
 - `src/game/course/course-surface-materials.ts` owns the course finishes:
   one shader program whose diffuse override samples a CPU-built grain
-  texture by world position, and a second for asphalt, turf, lawn, brushed
-  concrete, and river gravel that samples their photo scans (colour, normal,
-  and roughness) the same way. Water is a third
+  texture by world position, and others that sample photo scans (colour,
+  normal, and roughness) the same way: from above for asphalt, turf, lawn,
+  brushed concrete, and river gravel; along each face's axis (triplanar)
+  for cast concrete, kerbs (their tops in the brushed concrete), steel, and
+  the nursery beds' soil; and as road paint, over the asphalt's scan on
+  faces turned up. Timber alone follows its mesh's UVs, metres with u along
+  the grain, anchored to the world along and across it: `course-timber.ts`
+  builds each timber box and round with them, arcs and the trees' stakes
+  carry their own, and the static batch keeps them. Water is another
   ([visual identity](../../../docs/visual-identity.md#course-surfaces)): its
   ripples drift along the box's local +X, and it blends over a river-gravel
   bed's colour, so a water box belongs over a `gravel` bed.
   `course-surface-textures.ts` decodes the scans once per page; the home
   screen starts it, the race waits for it before its first frame, and the
   course editor switches to the scans when they arrive. If they fail, those
-  surfaces keep the grain finish.
+  surfaces keep the grain finish. Signs' lettering is plain paint in its
+  finish's colour (with the indoor environment indoors), alpha-tested from
+  a one-channel letter atlas, one material per finish used; the lettering
+  casts no shadow and batches with signs of its finish.
+- `src/game/course/course-prewarm.ts` builds a race's CPU-side parts
+  while the home screen idles (in Safari, which cannot report idle time,
+  half a second after the player's last touch), one step at a time,
+  stopped when a race starts: the finishes' grain and ripple pixels, the
+  habitat's light and environment atlas, the trees' and hedges' geometry,
+  and its signs' letter atlas, each cached per page. The home screen also
+  starts loading physics, so a warm race waits for neither.
 - `src/game/course/course-trees.ts` draws a course's trees and hedges
   ([visual identity](../../../docs/visual-identity.md#leaf-sprays)):
   smooth grey-brown bark, and leaf sprays alpha-tested from the baked
@@ -66,11 +82,8 @@ phone budget. Art direction and the budget itself live in
   same way. Outdoor `lamp: "street"` objects carry a short bracket and flat
   lantern on their column: a 1,000 cd warm-white downward spot (40–80°,
   24 m reach), on the habitat's lamp schedule, with no shadows and no
-  contribution to exposure. Falls View Park uses 6 m columns every 20 m
-  along its return straight, plus one outside the turn, and two at its
-  storm drain, over the inlet and the chute's foot. The race batches
-  the lamp parts with the static
-  course; the editor shows them switched off.
+  contribution to exposure. The race batches the lamp parts with the
+  static course; the editor shows them switched off.
 - `addCourseClearing` (`src/game/course/build-rough-course.ts`) draws a
   clearing's ground as one lawn mesh and its fence posts as one steel mesh,
   both in the race's static batch; the posts cast shadows, the ground does
@@ -140,7 +153,9 @@ phone budget. Art direction and the budget itself live in
 - `src/game/runtime/frame-budget.ts` and
   `src/components/frame-budget-overlay.tsx` sample rendered frames through
   `PlayCanvasRuntime.onFrameSample` and show the budget readout, with the
-  loading screen's cover, race-ready, and reveal times from the tap.
+  loading screen's cover, race-ready, and reveal times from the tap, and
+  the first frame split into waiting for physics and scans, building the
+  scene, and its first render.
 
 Callers: the race (`src/components/solo-time-trial-canvas.tsx`), the kart and
 course editor scenes in `src/game/editor/`, and

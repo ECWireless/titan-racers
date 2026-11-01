@@ -298,7 +298,7 @@ test.describe("protected course editor access", () => {
 
     await expect(page.getByTestId("course-editor-shell")).toBeVisible();
     expect(savePayload).toMatchObject({
-      document: { courseId: "rough-course", schemaVersion: 10 },
+      document: { courseId: "rough-course", schemaVersion: 11 },
       expectedRevision: null,
     });
   });
@@ -356,9 +356,24 @@ test.describe("protected course editor access", () => {
       page.getByText("Falls View Park Circuit"),
     ).toBeVisible();
     expect(parkSave).toMatchObject({
-      document: { courseId: "falls-view-park", schemaVersion: 10 },
+      document: { courseId: "falls-view-park", schemaVersion: 11 },
       expectedRevision: null,
     });
+
+    // A crowd barrier selects as its plank and scales only along its length.
+    const canvas = page.getByTestId("course-editor-canvas");
+    await waitForEditorScene(canvas);
+    await page
+      .getByRole("button", { name: /downhill-barrier-east-1-plank/ })
+      .click();
+    await expect(canvas).toHaveAttribute(
+      "data-selected-id",
+      "downhill-barrier-east-1-plank",
+    );
+    const inspector = page.getByRole("complementary", { name: "Inspector" });
+    await expect(inspector.getByTestId("scale-x-value")).toHaveText("2.20");
+    await expect(inspector.getByTestId("scale-y-value")).toHaveCount(0);
+    await expect(inspector.getByTestId("scale-z-value")).toHaveCount(0);
   });
 
   test("reloads the winning revision after a competing seed initialization", async ({

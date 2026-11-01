@@ -12,10 +12,13 @@ import {
   getCourseSurfaceLayerSlopeDepthBias,
   type CourseSurfaceLayer,
 } from "./course-visual-policy";
-import type {
-  CourseScannedSurface,
-  CourseSurfaceImages,
+import {
+  COURSE_SCANNED_SURFACES,
+  type CourseScannedSurface,
+  type CourseSurfaceImages,
 } from "./course-surface-textures";
+import type { CourseVisualMaterial } from "./course-document";
+import { getCourseSignGlyphs } from "./course-sign";
 import { COURSE_WATER_FLOW_SPEED } from "./course-water";
 import { applyAdaptedEnvironmentAtlas } from "../render/scene-look";
 
@@ -23,6 +26,9 @@ import { applyAdaptedEnvironmentAtlas } from "../render/scene-look";
 // restoration. GPU textures belong to one scene and are released with it.
 let grainPixels: Uint8Array | undefined;
 const GRAIN_SIZE = 512;
+
+/** The finishes' CPU-side pixels, built ahead of a race once per page. */
+export const prewarmCourseSurfacePixels = [getGrainPixels, getRipplePixels];
 
 function getGrainPixels() {
   if (grainPixels) return grainPixels;
@@ -263,6 +269,120 @@ void getNormal() {
 }
 `;
 
+// Walls, posts, and frames stand any way up, so a triplanar finish takes the
+// scan along each axis a face turns toward, blended where it turns between
+// them; on walls the image's up is world up. Formwork and coating marks show
+// on a cast or sprayed side; a top is trowelled or settles smooth, so faces
+// turned up or down keep only part of the scan's variation and relief.
+const TRIPLANAR_SURFACE_ALBEDO = `
+uniform vec3 material_diffuse;
+uniform sampler2D courseGrain;
+uniform vec3 courseFinish;
+uniform sampler2D courseScanAlbedo;
+uniform sampler2D courseScanSurface;
+uniform vec4 courseScan;
+// Faces turned up or down: their own scan (or the sides'), x: repeats per
+// metre, y: normal strength, z: share of its variation kept, w: its mean
+// roughness. courseGrime darkens walls with grime at ground level.
+uniform sampler2D courseScanTopAlbedo;
+uniform sampler2D courseScanTopSurface;
+uniform vec4 courseScanTop;
+uniform float courseGrime;
+vec3 courseScanWeights;
+vec4 courseScanX;
+vec4 courseScanY;
+vec4 courseScanZ;
+vec4 courseScanSample;
+void getAlbedo() {
+    vec3 facing = pow(abs(dVertexNormalW), vec3(4.0));
+    courseScanWeights = facing / (facing.x + facing.y + facing.z);
+    vec3 at = vPositionW * courseScan.x;
+    // Image rows run down from its top, so world up is -v on the sides.
+    vec2 side = vec2(at.z, -at.y);
+    vec2 front = vec2(at.x, -at.y);
+    vec2 above = vPositionW.xz * courseScanTop.x;
+    vec3 top = mix(vec3(1.0), texture2D(courseScanTopAlbedo, above).rgb * 4.0, courseScanTop.z);
+    vec3 ratio = texture2D(courseScanAlbedo, side).rgb * 4.0 * courseScanWeights.x
+        + top * courseScanWeights.y
+        + texture2D(courseScanAlbedo, front).rgb * 4.0 * courseScanWeights.z;
+    courseScanX = texture2D(courseScanSurface, side);
+    courseScanY = texture2D(courseScanTopSurface, above);
+    // The top's roughness, rescaled to the sides' mean so one gloss serves both.
+    courseScanY.b = 1.0 - (1.0 - courseScanY.b) * (1.0 - courseScan.w) / max(1.0 - courseScanTop.w, 0.05);
+    courseScanZ = texture2D(courseScanSurface, front);
+    courseScanSample = courseScanX * courseScanWeights.x
+        + courseScanY * courseScanWeights.y + courseScanZ * courseScanWeights.z;
+    float broad = texture2D(courseGrain, mat2(0.8, -0.6, 0.6, 0.8) * vPositionW.xz / 48.0).g;
+    float brightness = dot(ratio, vec3(0.2126, 0.7152, 0.0722));
+    vec3 tint = mix(vec3(1.0), ratio / max(brightness, 0.002), courseScan.z);
+    float grime = 1.0 - courseGrime * (1.0 - smoothstep(0.0, 0.6, vPositionW.y));
+    dAlbedo = material_diffuse * brightness * tint * grime * (1.0 + (broad - 0.5) * courseFinish.y);
+}
+`;
+
+// Each plane's relief tilts the face along that plane's image axes.
+const TRIPLANAR_SURFACE_NORMAL = `
+void getNormal() {
+    vec2 x = (courseScanX.rg * 2.0 - 1.0) * courseScan.y;
+    vec2 y = (courseScanY.rg * 2.0 - 1.0) * courseScanTop.y;
+    vec2 z = (courseScanZ.rg * 2.0 - 1.0) * courseScan.y;
+    dNormalW = normalize(dVertexNormalW
+        + courseScanWeights.x * vec3(0.0, x.y, x.x)
+        + courseScanWeights.y * vec3(y.x, 0.0, -y.y)
+        + courseScanWeights.z * vec3(z.x, z.y, 0.0));
+}
+`;
+
+// Road paint: the asphalt's grain shows through it, darker in its pits, on
+// faces turned up only; painted boards and kerb sides stay plain.
+const PAINT_SURFACE_ALBEDO = `
+uniform vec3 material_diffuse;
+uniform sampler2D courseScanAlbedo;
+uniform sampler2D courseScanSurface;
+uniform vec4 courseScan;
+vec4 courseScanSample;
+void getAlbedo() {
+    vec2 uv = vPositionW.xz * courseScan.x;
+    float road = smoothstep(0.8, 0.95, dVertexNormalW.y);
+    float brightness = dot(texture2D(courseScanAlbedo, uv).rgb * 4.0, vec3(0.2126, 0.7152, 0.0722));
+    courseScanSample = mix(vec4(0.5, 0.5, courseScan.w, 1.0), texture2D(courseScanSurface, uv), road);
+    // Paint fills the pores between the stones only partly: they show dark.
+    float pits = 0.7 * (1.0 - smoothstep(0.35, 0.8, brightness));
+    dAlbedo = material_diffuse * mix(1.0, mix(1.0, brightness, 0.5) * (1.0 - pits), road);
+}
+`;
+
+// Sawn timber: its mesh's UVs are metres with u along each piece's grain,
+// where the wood scan's grain runs. The normal map's UVs give the shader
+// those UVs and a tangent frame from them; the map itself is never sampled.
+const GRAIN_SURFACE_ALBEDO = `
+uniform vec3 material_diffuse;
+uniform sampler2D courseGrain;
+uniform vec3 courseFinish;
+uniform sampler2D courseScanAlbedo;
+uniform sampler2D courseScanSurface;
+uniform vec4 courseScan;
+vec4 courseScanSample;
+void getAlbedo() {
+    vec2 uv = {STD_NORMAL_TEXTURE_UV} * courseScan.x;
+    vec3 ratio = texture2D(courseScanAlbedo, uv).rgb * 4.0;
+    courseScanSample = texture2D(courseScanSurface, uv);
+    float broad = texture2D(courseGrain, mat2(0.8, -0.6, 0.6, 0.8) * vPositionW.xz / 48.0).g;
+    float brightness = dot(ratio, vec3(0.2126, 0.7152, 0.0722));
+    vec3 tint = mix(vec3(1.0), ratio / max(brightness, 0.002), courseScan.z);
+    dAlbedo = material_diffuse * brightness * tint * (1.0 + (broad - 0.5) * courseFinish.y);
+}
+`;
+
+// The scan's relief, in the frame of the UVs: x along the grain, and the
+// image's up (OpenGL green) toward falling v.
+const GRAIN_SURFACE_NORMAL = `
+void getNormal() {
+    vec2 slope = (courseScanSample.rg * 2.0 - 1.0) * courseScan.y;
+    dNormalW = normalize(dTBN * vec3(slope, sqrt(max(0.0, 1.0 - dot(slope, slope)))));
+}
+`;
+
 // Each finish keeps its tuned gloss on average; the scan's roughness only
 // varies it, because scanned roughness levels differ between sources.
 const SCANNED_SURFACE_GLOSS = `
@@ -273,21 +393,91 @@ void getGlossiness() {
 }
 `;
 
+type ScannedFinish =
+  | "asphalt"
+  | "castConcrete"
+  | "concrete"
+  | "gravel"
+  | "kerb"
+  | "lawn"
+  | "mulch"
+  | "paint"
+  | "steel"
+  | "timber"
+  | "turf";
+
+type ScanLayer = {
+  image: CourseScannedSurface;
+  metres: number;
+  normal: number;
+  // Mean of the packed surface image's blue channel.
+  roughness: number;
+};
+
 const SCANNED_SURFACES: Record<
-  CourseScannedSurface,
-  // roughness: mean of the packed surface image's blue channel.
-  { metres: number; normal: number; tint: number; roughness: number }
+  ScannedFinish,
+  ScanLayer & {
+    // How the scan is laid: from above, along each axis, along a timber
+    // piece's grain, or as road paint.
+    projection: "grain" | "paint" | "top" | "triplanar";
+    tint: number;
+    // A triplanar finish's faces turned up or down: their own scan, keeping
+    // its whole variation; without one, a softened share of the sides'.
+    top?: ScanLayer;
+    // How much darker a triplanar finish is at ground level, from grime.
+    grime?: number;
+  }
 > = {
-  asphalt: { metres: 2.2, normal: 1, tint: 0.12, roughness: 0.612 },
+  asphalt: { image: "asphalt", projection: "top", metres: 2.2, normal: 1, tint: 0.12, roughness: 0.612 },
+  // Cast-in-place concrete poured against 1.2 m formwork panels: tunnels,
+  // retaining walls, and fill.
+  castConcrete: { image: "castConcrete", projection: "triplanar", metres: 4.8, normal: 0.6, tint: 0.12, roughness: 0.692, grime: 0.12 },
   // A coarse broom finish, its ridges about 2 cm apart, brushed across the
   // nursery's lanes.
-  concrete: { metres: 2, normal: 0.6, tint: 0.12, roughness: 0.608 },
+  concrete: { image: "concrete", projection: "top", metres: 2, normal: 0.6, tint: 0.12, roughness: 0.608 },
   // Rounded river pebbles a few centimetres across, on a 0.5 m scan; their
   // mixed greys keep more of the scan's hue.
-  gravel: { metres: 0.5, normal: 1, tint: 0.35, roughness: 0.56 },
-  lawn: { metres: 1.4, normal: 1, tint: 0.35, roughness: 0.544 },
+  gravel: { image: "gravel", projection: "top", metres: 0.5, normal: 1, tint: 0.35, roughness: 0.56 },
+  // Sidewalk-grade kerbs: smooth formed faces under a broom-finished top.
+  kerb: {
+    image: "smoothConcrete",
+    projection: "triplanar",
+    metres: 1,
+    normal: 0.5,
+    tint: 0.12,
+    roughness: 0.627,
+    top: { image: "concrete", metres: 2, normal: 0.6, roughness: 0.608 },
+  },
+  lawn: { image: "lawn", projection: "top", metres: 1.4, normal: 1, tint: 0.35, roughness: 0.544 },
+  // The nursery beds' composted soil, with bark and twigs a few centimetres
+  // long through it, on a 1 m scan, the same on a bed's top and on its sides
+  // where no edging covers them.
+  mulch: {
+    image: "soil",
+    projection: "triplanar",
+    metres: 1,
+    normal: 1,
+    tint: 0.35,
+    roughness: 0.669,
+    top: { image: "soil", metres: 1, normal: 1, roughness: 0.669 },
+  },
+  // Road paint over the asphalt's scan.
+  paint: { image: "asphalt", projection: "paint", metres: 2.2, normal: 0.9, tint: 0, roughness: 0.612 },
+  // Powder-coated or painted steel's fine orange peel, on a 512² scan
+  // (about 1 mm a texel).
+  steel: { image: "steel", projection: "triplanar", metres: 0.6, normal: 0.5, tint: 0, roughness: 0.298 },
+  // Rough-sawn softwood's open grain, on a 512² scan (about 1 mm a texel),
+  // weathered: the finish keeps little of the fresh wood's warm hue.
+  timber: { image: "wood", projection: "grain", metres: 0.6, normal: 0.6, tint: 0.15, roughness: 0.405 },
   // A 1.4 m scan drawn smaller, so its blades read as clipped.
-  turf: { metres: 0.8, normal: 0.8, tint: 0.35, roughness: 0.263 },
+  turf: { image: "turf", projection: "top", metres: 0.8, normal: 0.8, tint: 0.35, roughness: 0.263 },
+};
+
+const SCANNED_CHUNKS = {
+  grain: { diffusePS: GRAIN_SURFACE_ALBEDO, normalMapPS: GRAIN_SURFACE_NORMAL },
+  paint: { diffusePS: PAINT_SURFACE_ALBEDO, normalMapPS: SCANNED_SURFACE_NORMAL },
+  top: { diffusePS: SCANNED_SURFACE_ALBEDO, normalMapPS: SCANNED_SURFACE_NORMAL },
+  triplanar: { diffusePS: TRIPLANAR_SURFACE_ALBEDO, normalMapPS: TRIPLANAR_SURFACE_NORMAL },
 };
 
 /**
@@ -361,7 +551,7 @@ export function createCourseSurfaceMaterials(
     gloss: number,
     variation: [number, number, number],
     layer?: CourseSurfaceLayer,
-    scanned?: CourseScannedSurface,
+    scanned?: ScannedFinish,
   ) => {
     const material = new pc.StandardMaterial();
     material.diffuse = color;
@@ -380,7 +570,7 @@ export function createCourseSurfaceMaterials(
     if (scanned) scannedMaterials.push([material, scanned]);
     return material;
   };
-  const scannedMaterials: Array<[pc.StandardMaterial, CourseScannedSurface]> = [];
+  const scannedMaterials: Array<[pc.StandardMaterial, ScannedFinish]> = [];
   const scanTextures: pc.Texture[] = [];
   const hex = (color: string) => new pc.Color().fromString(color);
   const turf = () => hex(COURSE_TURF_COLOR);
@@ -394,16 +584,22 @@ export function createCourseSurfaceMaterials(
     ground: finish(turf(), 0.08, [0.45, 0.3, 0.035], "ground", "turf"),
     lawn: finish(lawn(), 0.05, [0.55, 0.42, 0], "lawn", "lawn"),
     verge: finish(turf(), 0.08, [0.45, 0.3, 0.035], "verge", "turf"),
-    line: finish(hex("#e8e3d7"), 0.27, [0.12, 0.04, 0], "line"),
-    hazard: finish(hex("#ffbd59"), 0.27, [0.12, 0.04, 0], "line"),
-    steel: finish(hex("#34404a"), 0.32, [0.08, 0.04, 0]),
-    obstacleBarrel: finish(hex("#bd482d"), 0.3, [0.12, 0.08, 0]),
-    obstacleBlock: finish(hex("#a9a393"), 0.16, [0.3, 0.16, 0]),
-    ramp: finish(hex("#54646b"), 0.26, [0.25, 0.12, 0]),
-    // The nursery: weathered treated softwood, dark bark mulch, and the
-    // shaded inside of a clipped hedge, behind its leaves.
-    timber: finish(hex("#857661"), 0.14, [0.3, 0.18, 0]),
-    mulch: finish(hex("#3e3025"), 0.06, [0.7, 0.35, 0]),
+    line: finish(hex("#e8e3d7"), 0.27, [0.12, 0.04, 0], "line", "paint"),
+    hazard: finish(hex("#ffbd59"), 0.27, [0.12, 0.04, 0], "line", "paint"),
+    steel: finish(hex("#34404a"), 0.32, [0.08, 0.04, 0], undefined, "steel"),
+    // Painted steel: pipes, cabinets, and valves.
+    obstacleBarrel: finish(hex("#bd482d"), 0.3, [0.12, 0.08, 0], undefined, "steel"),
+    // Cast concrete, a neutral mid grey (about 25% reflectance), grimier at
+    // ground level.
+    obstacleBlock: finish(hex("#8a8a87"), 0.16, [0.3, 0.16, 0], undefined, "castConcrete"),
+    // Sidewalk concrete, weathered to a light buff grey (about 35%).
+    kerb: finish(hex("#a9a395"), 0.16, [0.3, 0.16, 0], undefined, "kerb"),
+    ramp: finish(hex("#54646b"), 0.26, [0.25, 0.12, 0], undefined, "steel"),
+    // The nursery: weathered treated softwood, its beds' moist, dark brown
+    // soil (about 5%), and the shaded inside of a clipped hedge, behind its
+    // leaves.
+    timber: finish(hex("#857661"), 0.14, [0.3, 0.18, 0], undefined, "timber"),
+    mulch: finish(hex("#4d4136"), 0.06, [0.7, 0.35, 0], undefined, "mulch"),
     hedge: finish(hex("#46522f"), 0.08, [0.35, 0.25, 0]),
     // A working nursery's brushed-concrete trolley lanes, weathered to about
     // 30% reflectance.
@@ -427,6 +623,56 @@ export function createCourseSurfaceMaterials(
     box: createTopFaceMesh(device, "box"),
     cylinder: createTopFaceMesh(device, "cylinder"),
   } satisfies CourseTopFaceMeshes;
+  // Signs' lettering: each finish's paint, plain, cut out by the letters'
+  // coverage. Made when a course first letters a sign in it.
+  let signLetters: pc.Texture | undefined;
+  const signMaterials = new Map<string, pc.StandardMaterial>();
+  const signs = {
+    glyphs: getCourseSignGlyphs,
+    material(finish: CourseVisualMaterial, indoors: boolean) {
+      const key = `${finish}:${indoors && interior ? "indoor" : "outdoor"}`;
+      const cached = signMaterials.get(key);
+      if (cached) return cached;
+      if (!signLetters) {
+        const glyphs = getCourseSignGlyphs();
+        signLetters = new pc.Texture(device, {
+          name: "course-sign-letters",
+          width: glyphs.width,
+          height: glyphs.height,
+          format: pc.PIXELFORMAT_R8,
+          levels: [glyphs.pixels],
+          mipmaps: true,
+          minFilter: pc.FILTER_LINEAR_MIPMAP_LINEAR,
+          magFilter: pc.FILTER_LINEAR,
+          addressU: pc.ADDRESS_CLAMP_TO_EDGE,
+          addressV: pc.ADDRESS_CLAMP_TO_EDGE,
+        });
+      }
+      const base = (indoors && indoorMaterials ? indoorMaterials : materials)[finish];
+      const material = new pc.StandardMaterial();
+      material.diffuse = base.diffuse.clone();
+      material.useMetalness = true;
+      material.metalness = 0;
+      material.gloss = base.gloss;
+      material.opacityMap = signLetters;
+      material.opacityMapChannel = "r";
+      // With multisampling, strokes fade over their edge rather than step;
+      // a low cut keeps thin strokes at a distance for coverage to soften.
+      material.alphaTest = 0.25;
+      material.alphaToCoverage = true;
+      // Lettering stands 3 mm proud of its board; at a distance that is
+      // under one depth step, so it is drawn a step and a quarter-pixel
+      // slope toward the camera, as a course's paint layers are.
+      material.depthBias = -1;
+      material.slopeDepthBias = -0.25;
+      if (indoors && interior) {
+        applyAdaptedEnvironmentAtlas(material, interior.atlas, interior.adaptation);
+      }
+      material.update();
+      signMaterials.set(key, material);
+      return material;
+    },
+  };
   let waterSeconds = 0;
   return {
     /** Moves the water's ripples downstream by a frame's time. */
@@ -445,10 +691,12 @@ export function createCourseSurfaceMaterials(
     },
     indoorMaterials,
     materials,
+    signs,
     topFaces,
     /**
-     * Switches asphalt, concrete, gravel, turf, and lawn to their scanned
-     * finishes. Until then (or if the scans never load) they keep the
+     * Switches the scanned finishes (asphalt, cast and brushed concrete,
+     * kerbs, gravel, turf, lawn, soil, steel, timber, and road paint) to
+     * their scans. Until then (or if the scans never load) they keep the
      * code-built grain.
      */
     useScans(images: CourseSurfaceImages) {
@@ -473,7 +721,7 @@ export function createCourseSurfaceMaterials(
         scanTextures.push(result);
         return result;
       };
-      const scans = (["asphalt", "concrete", "gravel", "lawn", "turf"] as const).map(
+      const scans = COURSE_SCANNED_SURFACES.map(
         (surface) => [surface, images[surface]] as const,
       );
       const textures = Object.fromEntries(
@@ -485,13 +733,29 @@ export function createCourseSurfaceMaterials(
           },
         ]),
       ) as Record<CourseScannedSurface, { albedo: pc.Texture; surface: pc.Texture }>;
-      for (const [material, surface] of scannedMaterials) {
-        const scan = SCANNED_SURFACES[surface];
-        material.shaderChunks.glsl.set("diffusePS", SCANNED_SURFACE_ALBEDO);
-        material.shaderChunks.glsl.set("normalMapPS", SCANNED_SURFACE_NORMAL);
+      for (const [material, finish] of scannedMaterials) {
+        const scan = SCANNED_SURFACES[finish];
+        const chunks = SCANNED_CHUNKS[scan.projection];
+        material.shaderChunks.glsl.set("diffusePS", chunks.diffusePS);
+        material.shaderChunks.glsl.set("normalMapPS", chunks.normalMapPS);
         material.shaderChunks.glsl.set("glossPS", SCANNED_SURFACE_GLOSS);
-        material.setParameter("courseScanAlbedo", textures[surface].albedo);
-        material.setParameter("courseScanSurface", textures[surface].surface);
+        material.setParameter("courseScanAlbedo", textures[scan.image].albedo);
+        material.setParameter("courseScanSurface", textures[scan.image].surface);
+        if (scan.projection === "grain") {
+          material.normalMap = textures[scan.image].surface;
+        }
+        if (scan.projection === "triplanar") {
+          const top = scan.top ?? { ...scan, normal: scan.normal * 0.4 };
+          material.setParameter("courseScanTopAlbedo", textures[top.image].albedo);
+          material.setParameter("courseScanTopSurface", textures[top.image].surface);
+          material.setParameter("courseScanTop", [
+            1 / top.metres,
+            top.normal,
+            scan.top ? 1 : 0.35,
+            top.roughness,
+          ]);
+          material.setParameter("courseGrime", scan.grime ?? 0);
+        }
         material.setParameter("courseScan", [
           1 / scan.metres,
           scan.normal,
@@ -506,6 +770,8 @@ export function createCourseSurfaceMaterials(
         Object.values(finishes ?? {}).forEach((material) => material.destroy()),
       );
       Object.values(topFaces).forEach(releaseTopFaceMesh);
+      signMaterials.forEach((material) => material.destroy());
+      signLetters?.destroy();
       grain.destroy();
       ripples.destroy();
       scanTextures.forEach((texture) => texture.destroy());

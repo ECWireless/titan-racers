@@ -50,7 +50,8 @@ own:
 
 - Window frames are sized to read from kilometres away: sills along each
   window edge, longerons every 10°, and ring frames every kilometre, with
-  lighter mullions between them. The sources' panes are far smaller.
+  slimmer mullions between them, lit like the frames by the habitat's own
+  light, so they stay dark at dusk. The sources' panes are far smaller.
 - Valleys are lived-in landscape built in code, following
   [habitat land use](../skills/game-concepts/habitat-land-use/README.md):
   meadows, woods, single park trees and footpaths, a river with lakes, a
@@ -222,9 +223,9 @@ toward the window darkens the habitat the same way.
   along its outdoor sections and its service road; the habitat gives about
   400 lux everywhere. Separately, up to eight park street lamps can stand
   on outdoor cylinder columns, at the habitat roads' 1,000 cd warm white,
-  on the same schedule and without shadows. Falls View Park's return lane
-  has four 6 m columns leading anti-sunward toward the tunnel portal; their
-  light does not change the race's exposure. Indoor tunnel and work lamps
+  on the same schedule and without shadows; their light does not change
+  the race's exposure (Falls View Park's are placed in the
+  [visual identity](visual-identity.md#light)). Indoor tunnel and work lamps
   share a separate twenty-lamp limit
   ([course data](../skills/project-systems/course-data/README.md)).
 

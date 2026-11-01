@@ -1,4 +1,7 @@
+import { ZodError } from "zod";
+
 import type { CourseArc } from "../course/course-arc";
+import { getCrowdBarrierCollisionBox } from "../course/course-kits";
 import {
   COURSE_CHECKPOINT_LIMIT,
   COURSE_LAMP_LIMIT,
@@ -11,10 +14,10 @@ import {
   countCourseIndoorLamps,
   countCourseLamps,
   type CourseDocument,
-  courseDocumentSchema,
   type CourseObject,
   type CoursePrimitiveObject,
   isCoursePrimitiveObject,
+  isCourseRoundCylinder,
   parseCourseDocument,
   rotateCourseDirection,
 } from "../course/course-document";
@@ -34,7 +37,7 @@ export const COURSE_OBJECT_PRESETS = [
   "hedge",
   "water",
 ] as const;
-export const COURSE_EDITOR_OBJECT_LIMIT = 1_000;
+export const COURSE_EDITOR_OBJECT_LIMIT = 2_000;
 export const COURSE_EDITOR_CHECKPOINT_LIMIT = COURSE_CHECKPOINT_LIMIT;
 
 export type CourseObjectPreset = (typeof COURSE_OBJECT_PRESETS)[number];
@@ -512,7 +515,7 @@ export function updateSelectionPlacement(
   ) {
     return document;
   }
-  const next = courseDocumentSchema.safeParse({
+  return parseOrKeep(document, {
     ...document,
     objects: document.objects.map((candidate) => {
       if (candidate.id !== selection.id) {
@@ -526,7 +529,6 @@ export function updateSelectionPlacement(
       return placed;
     }),
   });
-  return next.success ? parseCourseDocument(next.data) : document;
 }
 
 export function addCourseCheckpoint(
@@ -663,7 +665,7 @@ export function updateSelectionArc(
   ) {
     return document;
   }
-  const next = courseDocumentSchema.safeParse({
+  return parseOrKeep(document, {
     ...document,
     objects: document.objects.map((object) =>
       object === current
@@ -671,7 +673,6 @@ export function updateSelectionArc(
         : object,
     ),
   });
-  return next.success ? parseCourseDocument(next.data) : document;
 }
 
 export function updateSelectionGeometry(
@@ -736,7 +737,7 @@ export function updateSelectionGeometry(
 
   // A scale that breaks a course rule, such as its tree limit, changes
   // nothing.
-  const next = courseDocumentSchema.safeParse({
+  return parseOrKeep(document, {
     ...document,
     objects: document.objects.map((object) => {
       if (object.id !== selection.id) {
@@ -747,42 +748,77 @@ export function updateSelectionGeometry(
         return { ...object, transform: { position, rotation } };
       }
 
+      // A move or turn leaves every size as it was. A size the gesture
+      // changes stays at least 5 cm, or its own size where it is already
+      // thinner, as a sign, door leaf, or flange is.
       const requestedScale = geometry.scale
-        ? mapVector(geometry.scale, (value) =>
-            Math.max(0.05, roundEditorValue(value)),
-          )
+        ? mapVectorByAxis(geometry.scale, (axis, value) => {
+            const current = object.visual.scale[axis];
+            return Math.abs(value - current) < 1e-9
+              ? current
+              : Math.max(Math.min(0.05, current), roundEditorValue(value));
+          })
         : object.visual.scale;
-      const nextScale = normalizeCylinderScale(object, requestedScale);
+      // A crowd barrier is drawn to its plank's length on a fixed section,
+      // so it scales only along its length; a sign keeps its thickness; an
+      // elbow scales as a whole, by its most changed size.
+      const nextScale =
+        object.kit === "crowd-barrier"
+          ? { ...object.visual.scale, x: requestedScale.x }
+          : object.sign !== undefined
+            ? { ...requestedScale, z: object.visual.scale.z }
+            : object.kit === "elbow"
+              ? scaleUniformly(object.visual.scale, requestedScale)
+              : normalizeCylinderScale(object, requestedScale);
       const scaleRatio = mapVectorByAxis(nextScale, (axis, value) =>
         Math.max(0.01, value / object.visual.scale[axis]),
       );
-      const collision = object.collision
+      // A collider's size along an axis the object keeps is left exactly
+      // as it was.
+      const rescale = (value: number, ratio: number) =>
+        ratio === 1 ? value : roundEditorValue(value * ratio);
+      // An elbow's collision follows its size, and a crowd barrier's its
+      // frame, unless its plank keeps its length.
+      const barrier =
+        object.kit === "crowd-barrier" &&
+        object.collision?.shape === "box" &&
+        scaleRatio.x !== 1
+          ? getCrowdBarrierCollisionBox(nextScale)
+          : null;
+      const collision =
+        object.collision?.shape === "elbow"
+          ? object.collision
+          : barrier && object.collision?.shape === "box"
+            ? {
+                ...object.collision,
+                halfExtents: barrier.halfExtents,
+                offset: { ...object.collision.offset, position: barrier.center },
+              }
+            : object.collision
         ? {
             ...object.collision,
             ...(object.collision.shape === "box"
               ? {
                   halfExtents: mapVectorByAxis(
                     object.collision.halfExtents,
-                    (axis, value) =>
-                      roundEditorValue(value * scaleRatio[axis]),
+                    (axis, value) => rescale(value, scaleRatio[axis]),
                   ),
                 }
               : {
-                  height: roundEditorValue(
-                    object.collision.height *
-                      scaleRatio[axisName(object.collision.axis)],
+                  height: rescale(
+                    object.collision.height,
+                    scaleRatio[axisName(object.collision.axis)],
                   ),
-                  radius: roundEditorValue(
-                    object.collision.radius *
-                      scaleRatio[radialAxes(object.collision.axis)[0]],
+                  radius: rescale(
+                    object.collision.radius,
+                    scaleRatio[radialAxes(object.collision.axis)[0]],
                   ),
                 }),
             offset: {
               ...object.collision.offset,
               position: mapVectorByAxis(
                 object.collision.offset.position,
-                (axis, value) =>
-                  roundEditorValue(value * scaleRatio[axis]),
+                (axis, value) => rescale(value, scaleRatio[axis]),
               ),
             },
           }
@@ -796,7 +832,6 @@ export function updateSelectionGeometry(
       };
     }),
   });
-  return next.success ? parseCourseDocument(next.data) : document;
 }
 
 export function nudgeSelection(
@@ -943,6 +978,46 @@ export function renameCourseObject(
   });
 }
 
+/**
+ * How an object turns and resizes in the editor: the axes it turns about,
+ * the scale axes the inspector offers, and the inspector's note on them.
+ */
+export function getCourseEditorTransformRule(object: CourseObject | undefined) {
+  const turns = ["x", "y", "z"] as const;
+  if (object?.kit === "crowd-barrier") {
+    return {
+      note: "A crowd barrier stands upright and scales only along its length.",
+      scales: ["x"] as const,
+      turns: ["y"] as const,
+    };
+  }
+  if (object?.sign !== undefined) {
+    return {
+      note: "A sign scales across its face; its thickness stays.",
+      scales: ["x", "y"] as const,
+      turns,
+    };
+  }
+  if (object?.kit === "elbow") {
+    return { note: "An elbow scales as a whole.", scales: ["x"] as const, turns };
+  }
+  if (object && isCourseRoundCylinder(object)) {
+    return {
+      note: "X and Z stay paired as one diameter; Y changes thickness.",
+      scales: ["x", "y"] as const,
+      turns,
+    };
+  }
+  return {
+    note:
+      object?.collision?.shape === "cylinder"
+        ? "Cylinder X/Z stay paired as one collision radius; Y changes height."
+        : "Each axis updates its matching visual and collision dimension.",
+    scales: ["x", "y", "z"] as const,
+    turns,
+  };
+}
+
 export function scaleSelectionUniformly(
   document: CourseDocument,
   selection: CourseEditorSelection,
@@ -1060,17 +1135,28 @@ function normalizeCylinderScale(
   object: CoursePrimitiveObject,
   requestedScale: { x: number; y: number; z: number },
 ) {
-  if (object.collision?.shape !== "cylinder") {
+  // A round visual (a handwheel, or a bevelled cylinder) stands on its
+  // local Y, whatever its collider's axis.
+  const axis = isCourseRoundCylinder(object)
+    ? 1
+    : object.collision?.shape === "cylinder"
+      ? object.collision.axis
+      : null;
+  if (axis === null) {
     return requestedScale;
   }
 
-  const [firstRadiusAxis, secondRadiusAxis] = radialAxes(object.collision.axis);
+  const [firstRadiusAxis, secondRadiusAxis] = radialAxes(axis);
   const firstRatio = requestedScale[firstRadiusAxis] / object.visual.scale[firstRadiusAxis];
   const secondRatio = requestedScale[secondRadiusAxis] / object.visual.scale[secondRadiusAxis];
   const radiusRatio =
     Math.abs(firstRatio - 1) >= Math.abs(secondRatio - 1)
       ? firstRatio
       : secondRatio;
+  // A diameter the gesture leaves alone stays exactly as it was.
+  if (radiusRatio === 1) {
+    return requestedScale;
+  }
 
   return {
     ...requestedScale,
@@ -1081,6 +1167,26 @@ function normalizeCylinderScale(
       object.visual.scale[secondRadiusAxis] * radiusRatio,
     ),
   };
+}
+
+function scaleUniformly(
+  current: { x: number; y: number; z: number },
+  requested: { x: number; y: number; z: number },
+) {
+  const ratio = (["x", "y", "z"] as const)
+    .map((axis) => requested[axis] / current[axis])
+    .reduce((most, next) => (Math.abs(next - 1) > Math.abs(most - 1) ? next : most), 1);
+  return ratio === 1 ? current : mapVector(current, (value) => roundEditorValue(value * ratio));
+}
+
+// An edit's result when valid, or the document it would have changed.
+function parseOrKeep(document: CourseDocument, candidate: unknown) {
+  try {
+    return parseCourseDocument(candidate);
+  } catch (error) {
+    if (error instanceof ZodError) return document;
+    throw error;
+  }
 }
 
 function roundEditorValue(value: number) {

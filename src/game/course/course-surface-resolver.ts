@@ -2,8 +2,11 @@ import type { Position3 } from "../contracts";
 import { rotateCourseDirection, type CourseObject } from "./course-document";
 
 type CourseSurface = {
-  // Arcs only ever collide as walls.
-  collision: Exclude<NonNullable<CourseObject["collision"]>, { shape: "arc" }>;
+  // Arcs and elbows only ever collide as walls.
+  collision: Exclude<
+    NonNullable<CourseObject["collision"]>,
+    { shape: "arc" } | { shape: "elbow" }
+  >;
   center: Position3;
   right: Position3;
   forward: Position3;

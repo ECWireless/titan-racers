@@ -488,38 +488,51 @@ barriers are the youth's portable race kit
       documents upgrade in memory, with no migration. Within the phone
       budget: frame time holds, draws rise about three, and CPU work falls
       to a 3 ms median; startup is unchanged, still over budget for 4.4.8.
-- [ ] 4.4.8: Detail pass, once the whole route is built. The finishes are
-      flat colour with a fine grain, so pieces read as basic shapes: give
-      concrete, steel, and paint real textures; bevel or detail the models
-      whose silhouettes show (pipe flanges, door leaves, valve wheels,
-      coping); and letter signs through textures, such as the tunnel's
-      3.6 m clearance boards and its door numbers. Then an iPhone `?perf=1`
-      run on the finished route, and the route in production: reset Falls
-      View Park there to the finished seed with `db:reset-course-seed`, then
-      an admin publishes it. If the phone run needs headroom, stop
-      spraying hedges' unseen faces (about 38% of their sprays, against the
-      ground, walls, and neighbours) and thin tree leaves at distance.
-      Bring startup back within budget: PR 4.4.4's first frame is
-      465–549 ms warm, about 30–110 ms over. Its new scans (concrete,
-      gravel), decoded before the first frame, and the water and bicycle
-      programs are the likely costs; measure before cutting.
-      The downhill's crowd barriers are 583 of its objects and grow the
-      bundled seed from 0.74 to 1.34 MB: merge each panel into fewer parts.
-      Brace the landing deck's tall posts, and even out its banked rows'
-      joints and the fill's seams beside it.
-      The course editor accepts at most 1,000 objects, so it cannot open
-      Falls View Park (about 1,740): raise the limit or merge objects (its
-      "creates Falls View Park from its card" test fails on main).
-      Also steady the habitat's far-side street lamps (`lampLight` in
-      `src/game/enclosure/habitat-glsl.ts`, PR 4.3.5), which draw as a
-      crosshatch overhead and shimmer while driving, seen most clearly from
-      Falls View Park's service ramp and levee climb, where the chase camera
-      tilts up.
+- [x] 4.4.8: Detail pass and production release. Shipped: Falls View
+      Park's finishes are CC0 scans at true size: cast-in-place concrete
+      walls and tunnels on 1.2 m formwork, buff sidewalk kerbs with
+      broom-finished tops, powder-coated steel, road paint over the
+      asphalt's grain, the nursery beds' soil, and timber whose grain runs
+      the length of each piece. The tunnel gains what its silhouettes
+      lacked: chamfered doors, cabinets, lamp housings, height boards, and
+      copings; PN16 flanged joints every 6 m on the fire main; both mains
+      bending into the wall at each end, the water main's elbows colliding
+      as their bends; handwheels on the valves; and
+      painted door numbers, with the park's own headroom, "MAX 3.1m", on
+      the portals' height boards. Each crowd barrier is now one object, its
+      frame a kit about its plank, so the seed holds 1,355 objects and the
+      course editor, now accepting 2,000, opens it. The frame's infill bars
+      stand at a real barrier's 110 mm pitch, too close for any kart to
+      pass, and it collides as the panel the frame fills, 100 mm deep (the
+      thinnest solid obstacle kart physics allows). The landing deck is
+      smoothed, widened, and braced, and the kicker widened to 2.44 m into
+      the road: turned 8° west, every official kart now lands on the deck
+      from each lane at 8 and 16 m/s, though two of six such flights from
+      the westmost lane end upside down. The far-side shimmer was not
+      `lampLight` but the habitat windows' mullions, lit at a fixed radiance
+      that dusk exposure boosted; they now take the fill light, and the
+      service ramp's side wall no longer z-fights. The `?perf=1` overlay
+      splits startup into wait, build, and render; the home screen prepares
+      the course's lighting, planting, and physics while a kart is chosen,
+      and thumbnails and editors draw without physics. Course schema v11
+      adds kits (crowd barrier, handwheel, elbow), elbow collision, the kerb
+      finish, bevels, and signs; v10 documents upgrade in memory, with no
+      migration. On the
+      iPhone the warm first frame is back within budget at 393 ms; frame
+      time holds, CPU work is a 4 ms median, and draws rise about three.
+      After the merge, production's Falls View Park is reset to this seed
+      with `db:reset-course-seed` and an admin publishes it. Left open: the
+      junction chamber's valve risers have no collision, and home.spec's
+      "keeps a late thumbnail fallback isolated from race startup" fails
+      on main as before this PR.
 
 **PR 4.5: Ambience and SFX**
 
 - [ ] Ambience and readable SFX for road contact, impacts, machinery,
       irrigation, and the habitat, kept separate from kart physics.
+- [ ] Mind the phone budget's headroom: after PR 4.4.8, CPU work has about
+      1 ms left at the median (p95 7 ms), measured on the lead's iPhone
+      only; GPU time is unmeasured.
 
 **Done when:**
 
@@ -642,6 +655,12 @@ courses start from.
       courses while keeping history, attribution, and past race identity.
 - [ ] Server-side ownership checks, validation, bounded text, and publish rate
       limits. Guests cannot author or publish.
+- [ ] A per-course budget for generated geometry: elbows, handwheels, bevels,
+      signs, and timber each build their own mesh, so 5,000 of them could
+      exhaust a phone.
+- [ ] Let authors create what the seeds use: crowd barriers, signs, bevels,
+      handwheels, elbows, bicycles, and a clearing's footprint have no
+      preset or inspector field yet, and the editor cannot duplicate.
 
 **PR 7.2: Public course discovery and play**
 

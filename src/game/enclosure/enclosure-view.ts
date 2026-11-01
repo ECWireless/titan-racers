@@ -73,6 +73,8 @@ const RING_SEGMENT_DEGREES = 5;
 const LONGERON_SPACING_DEGREES = 10;
 // Frames are sized to read from kilometres away, not to the sources' panes.
 const FRAME = { depth: 40, width: 30 };
+// Frame steel's grey: a channel's sides, and its face toward the habitat.
+const FRAME_SHADE = { inner: 90, side: 65 };
 const SILL = { depth: 60, width: 60 };
 // The course valley's relief mesh: rows close together near the course,
 // spreading with distance, and columns as wide as the shell's.
@@ -476,6 +478,10 @@ const WINDOW_PS = /* glsl */ `
 // The sun's brightness relative to its light.
 const float SUN_RADIANCE = 60.0;
 
+// Mullions are frame steel facing the habitat, lit like the frames by its
+// fill light, so at dusk they stay as dark as the frames.
+const vec3 MULLION = vec3(${glslFloat(FRAME_SHADE.inner / 255)});
+
 // What a view ray sees beyond the glass: a mirror, the sun in it, or space.
 vec3 beyond(vec3 origin, vec3 direction, float pixelAngle) {
   float nearest = 1e9;
@@ -530,7 +536,7 @@ void main(void) {
     lattice(c.x, 4.0, 250.0, f.x),
     lattice(arc, 4.0, RADIUS * radians(2.5), f.y)
   );
-  color = mix(color, vec3(0.06, 0.07, 0.08), mullions);
+  color = mix(color, MULLION * uFill, mullions);
   gl_FragColor = finish(throughAir(color, toGlass));
 }
 `;
@@ -841,9 +847,9 @@ export function createEnclosureView(
         shift(outer, width / 2),
       ];
     });
-    frames.strip(corners.map((c) => [c[0]!, c[1]!]), frameShade(65));
-    frames.strip(corners.map((c) => [c[1]!, c[2]!]), frameShade(90));
-    frames.strip(corners.map((c) => [c[2]!, c[3]!]), frameShade(65));
+    frames.strip(corners.map((c) => [c[0]!, c[1]!]), frameShade(FRAME_SHADE.side));
+    frames.strip(corners.map((c) => [c[1]!, c[2]!]), frameShade(FRAME_SHADE.inner));
+    frames.strip(corners.map((c) => [c[2]!, c[3]!]), frameShade(FRAME_SHADE.side));
   };
   const across = (at: { azimuth: number }) => frame.outward(at.azimuth + 90);
   const along = () => frame.sunward;

@@ -36,6 +36,7 @@ import {
   COURSE_OBJECT_PRESET_LABELS,
   coursePresetLimitReached,
   deleteCourseSelection,
+  getCourseEditorTransformRule,
   getSelectionGeometry,
   nudgeObjectSelections,
   nudgeSelection,
@@ -457,6 +458,7 @@ export function CourseEditorShell({
   // bicycle keeps its real size.
   const curveSelected = selectedObject?.visual.shape === "arc";
   const bicycleSelected = Boolean(selectedObject?.bicycle);
+  const transformRule = getCourseEditorTransformRule(selectedObject);
   const scaleUnavailable =
     selection.kind === "start" || curveSelected || bicycleSelected;
   // Scale falls back to Move while it is unavailable rather than stranding
@@ -1328,7 +1330,7 @@ export function CourseEditorShell({
                 : null
             }
             scalable={!bicycleSelected}
-            scaleShape={selectedObject?.visual.shape ?? "box"}
+            transformRule={transformRule}
             selection={selection}
             selectionCount={selections.length}
             groupPosition={selectedGroupPosition}
@@ -1390,7 +1392,7 @@ export function CourseEditorShell({
                     : null
                 }
                 scalable={!bicycleSelected}
-                scaleShape={selectedObject?.visual.shape ?? "box"}
+                transformRule={transformRule}
                 selection={selection}
                 selectionCount={selections.length}
                 groupPosition={selectedGroupPosition}
@@ -2132,7 +2134,7 @@ function CoursePanel({
                 key={preset}
                 title={
                   objectLimitReached
-                    ? `Editor object limit reached (${COURSE_EDITOR_OBJECT_LIMIT})`
+                    ? `Editor object limit reached (${COURSE_EDITOR_OBJECT_LIMIT.toLocaleString("en-US")})`
                     : presetBlocked
                       ? presetLimitMessage(preset, presetLimit)
                       : `Add ${label}`
@@ -2151,7 +2153,7 @@ function CoursePanel({
             id={objectLimitMessageId}
             role="status"
           >
-            Editor object limit reached ({COURSE_EDITOR_OBJECT_LIMIT})
+            Editor object limit reached ({COURSE_EDITOR_OBJECT_LIMIT.toLocaleString("en-US")})
           </p>
         ) : null}
         {!objectLimitReached && presetLimitReached ? (
@@ -2393,10 +2395,10 @@ function Inspector({
   onSectionToggle,
   placement,
   scalable,
-  scaleShape,
   sectionOpen,
   selection,
   selectionCount,
+  transformRule,
 }: {
   arc: CourseArc | null;
   canDelete: boolean;
@@ -2416,7 +2418,7 @@ function Inspector({
   onSectionToggle: (section: EditorSection) => void;
   placement: ObjectPlacement | null;
   scalable: boolean;
-  scaleShape: "arc" | "box" | "cylinder";
+  transformRule: ReturnType<typeof getCourseEditorTransformRule>;
   sectionOpen: Record<EditorSection, boolean>;
   selection: CourseEditorSelection;
   selectionCount: number;
@@ -2511,6 +2513,7 @@ function Inspector({
         onToggle={() => onSectionToggle("inspector-rotation")}
       >
       <NudgeGroup
+        axes={transformRule.turns}
         label="Rotation"
         step={5}
         values={geometry.rotation}
@@ -2536,7 +2539,7 @@ function Inspector({
           <legend className="mb-1 font-bold uppercase tracking-[0.12em] text-titan-muted">
             Scale by axis
           </legend>
-          {(["x", "y", "z"] as const).map((axis) => (
+          {transformRule.scales.map((axis) => (
             <div
               className="grid grid-cols-[2.5rem_1fr_2.75rem_2.75rem] items-center gap-2"
               key={axis}
@@ -2567,9 +2570,7 @@ function Inspector({
             </div>
           ))}
           <p className="text-[0.62rem] leading-relaxed text-titan-muted">
-            {scaleShape === "cylinder"
-              ? "Cylinder X/Z stay paired as one collision radius; Y changes height."
-              : "Each axis updates its matching visual and collision dimension."}
+            {transformRule.note}
           </p>
         </fieldset>
         </CollapsibleSection>
@@ -2610,7 +2611,8 @@ function ObjectPlacementControl({
   placement: ObjectPlacement;
 }) {
   const { boxShaped, indoors, lamp, overhead, supportsKarts } = placement;
-  // Only a box can be an indoor roof.
+  // Only a box can be an indoor roof, and an indoor roof never carries
+  // karts; an outdoor one, such as a berm over a tunnel, may.
   const options = [
     {
       checked: indoors,
@@ -2620,20 +2622,25 @@ function ObjectPlacementControl({
           : "Tunnel and work lamps stand indoors."
         : overhead && !boxShaped
           ? "Indoor roofs are boxes."
-          : "Lit only by indoor light in the race.",
+          : overhead && supportsKarts
+            ? "Indoor roofs never carry karts."
+            : "Lit only by indoor light in the race.",
       label: "Indoors",
-      locked: lamp !== null || (overhead && !boxShaped),
+      locked: lamp !== null || (overhead && (!boxShaped || supportsKarts)),
       next: { indoors: !indoors, overhead },
     },
     {
       checked: overhead,
-      hint: supportsKarts
-        ? "Surfaces karts drive on cannot be roofs."
-        : indoors && !boxShaped
-          ? "Indoor roofs are boxes."
-          : "A roof: cut away in the editor; karts beneath an indoor roof count as indoors.",
+      hint:
+        lamp === "street"
+          ? "Street lamps stand on columns, never roofs."
+          : indoors && supportsKarts
+            ? "Indoor roofs never carry karts."
+            : indoors && !boxShaped
+              ? "Indoor roofs are boxes."
+              : "A roof: cut away in the editor; karts beneath an indoor roof count as indoors.",
       label: "Overhead",
-      locked: supportsKarts || (indoors && !boxShaped),
+      locked: lamp === "street" || (indoors && (supportsKarts || !boxShaped)),
       next: { indoors, overhead: !overhead },
     },
   ];
@@ -2782,11 +2789,13 @@ function ObjectNameControl({
 }
 
 function NudgeGroup({
+  axes = ["x", "y", "z"],
   label,
   onNudge,
   step,
   values,
 }: {
+  axes?: readonly ("x" | "y" | "z")[];
   label: string;
   onNudge: (axis: "x" | "y" | "z", delta: number) => void;
   step: number;
@@ -2797,7 +2806,7 @@ function NudgeGroup({
       <legend className="mb-1 font-bold uppercase tracking-[0.12em] text-titan-muted">
         {label}
       </legend>
-      {(["x", "y", "z"] as const).map((axis) => (
+      {axes.map((axis) => (
         <div className="grid grid-cols-[2.5rem_1fr_2.75rem_2.75rem] items-center gap-2" key={axis}>
           <span className="font-bold uppercase text-titan-muted">{axis}</span>
           <output

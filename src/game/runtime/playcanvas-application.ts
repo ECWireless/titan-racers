@@ -354,6 +354,11 @@ export class PlayCanvasRuntime {
 
 let ammoLoadPromise: Promise<void> | null = null;
 
+/**
+ * Loads Ammo once per page. PlayCanvas cannot retry a failed load in the
+ * same page, so a failure stays the answer for every caller, and a reload
+ * is the recovery.
+ */
 export function loadAmmoPhysics() {
   if (ammoLoadPromise) {
     return ammoLoadPromise;
@@ -365,7 +370,6 @@ export function loadAmmoPhysics() {
       glueUrl: "/vendor/ammo/ammo.wasm.js",
       wasmUrl: "/vendor/ammo/ammo.wasm.wasm",
       errorHandler: (error) => {
-        ammoLoadPromise = null;
         reject(new Error(`Unable to load Ammo physics: ${error}`));
       },
     });

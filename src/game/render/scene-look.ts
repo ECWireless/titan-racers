@@ -34,7 +34,7 @@ let habitatAtlasPixels: Uint8Array | null = null;
  * releases the environment texture.
  */
 export function applySceneLook(
-  app: pc.Application,
+  app: pc.AppBase,
   camera: pc.CameraComponent,
   habitat?: HabitatLight,
 ) {

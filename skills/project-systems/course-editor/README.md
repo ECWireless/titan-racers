@@ -85,7 +85,7 @@ owns only Resume and Exit.
   a portable document and enters history as one coherent command.
 - Runtime entities, selection outlines, checkpoint markers, gizmos, and
   collision wireframes remain disposable projections of stable document IDs.
-- The protected editor accepts at most 1,000 course objects and 256 checkpoints,
+- The protected editor accepts at most 2,000 course objects and 256 checkpoints,
   disables creation at either limit, retains issued IDs as session tombstones,
   and creates collision diagnostics only while visible.
 - Box and checkpoint axes scale independently; cylinder height is independent
@@ -108,6 +108,18 @@ owns only Resume and Exit.
   own eight-lamp budget, independent of the floodlights and indoor lamps.
   The "water" preset is a 6 × 3 m box 0.3 m deep, filled from
   the ground and flowing along its length.
+- A crowd barrier's frame draws about its plank and picks as it, so the
+  barrier selects and moves as one object and scales only along its
+  length; there is no preset. A handwheel, and any bevelled cylinder,
+  scales its diameter as one, staying round; an elbow scales only as a
+  whole. A sign keeps its thickness
+  and picks by an unseen plate its box's size, between its letters. A move
+  or turn leaves every size as it was; a resized size stays at least 5 cm,
+  or its own size where already thinner. Bevels and signs are set in the
+  document, as the inspector has no fields for them; a resized bevel or
+  sign stretches until the drag ends and the course rebuilds. A crowd
+  barrier stands upright, turning only about Y, its outline is its whole
+  panel, and resizing it derives its collider from its frame again.
 - A parked bicycle draws in place of its box, which the editor keeps
   unseen but pickable, so the bike selects and moves as its box; it has no
   Scale tool.

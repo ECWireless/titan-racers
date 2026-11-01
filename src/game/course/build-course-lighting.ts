@@ -59,7 +59,7 @@ export function projectCourseLighting(document: CourseDocument) {
 }
 
 export function buildCourseLighting(
-  app: pc.Application,
+  app: pc.AppBase,
   {
     createEntity = createDirectionalLightEntity,
     document = ROUGH_COURSE_DOCUMENT,

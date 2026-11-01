@@ -108,7 +108,7 @@ export type KartDebugPose = {
 };
 
 /** The light a set of kart meshes takes: each distinct value among them. */
-export type KartLightingSample = {
+type KartLightingSample = {
   environments: Array<"habitat" | "interior" | "other">;
   lightChannels: Array<"indoor" | "outdoor" | "other">;
 };

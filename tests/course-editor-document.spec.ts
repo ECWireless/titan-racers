@@ -580,3 +580,74 @@ test("places full-size street columns up to their independent budget", () => {
   expect(coursePresetLimitReached(document, "lamp")).toBeNull();
   expect(coursePresetLimitReached(document, "tunnel-lamp")).toBeNull();
 });
+
+test("moves and turns a crowd barrier, and scales it only along its length", () => {
+  const document = FALLS_VIEW_PARK_DOCUMENT;
+  const barrier = document.objects.find((o) => o.kit === "crowd-barrier")!;
+  const selection = { id: barrier.id, kind: "object" } as const;
+  // The editor reads a yaw past ±90° back as (180, 180 − y, 180).
+  const turned = updateSelectionGeometry(document, selection, {
+    position: { x: -60, y: 0.075, z: 4 },
+    rotation: { x: 180, y: 30, z: 180 },
+  });
+  expect(turned.objects.find((o) => o.id === barrier.id)!.transform).toEqual({
+    position: { x: -60, y: 0.075, z: 4 },
+    rotation: { x: 180, y: 30, z: 180 },
+  });
+
+  const scaled = scaleSelectionAxis(
+    scaleSelectionAxis(document, selection, "y", 2),
+    selection,
+    "x",
+    0.5,
+  );
+  const object = scaled.objects.find((o) => o.id === barrier.id)!;
+  expect(object.visual).toMatchObject({ scale: { x: 1.1, y: 0.15, z: 0.025 } });
+  // Its collider is the panel its shorter frame fills.
+  if (object.collision?.shape !== "box") throw new Error("Expected a box collider");
+  expect(object.collision.halfExtents.x).toBeCloseTo(0.569, 9);
+  expect(object.collision.halfExtents.y).toBeCloseTo(0.5595, 9);
+  expect(object.collision.halfExtents.z).toBeCloseTo(0.05, 9);
+  expect(object.collision.offset.position.y).toBeCloseTo(0.4845, 9);
+});
+
+test("moves thin details without thickening them, and keeps rounds and signs true", () => {
+  const document = FALLS_VIEW_PARK_DOCUMENT;
+  const scaleOf = (next: typeof document, id: string) => {
+    const { visual } = next.objects.find((o) => o.id === id)!;
+    if (visual.shape === "arc") throw new Error("Expected a primitive");
+    return visual.scale;
+  };
+  // A move leaves a 1 mm sign, a 10 mm door, and a 22 mm flange as they are.
+  for (const id of ["tunnel-door-1-number", "tunnel-door-1", "tunnel-fire-main-flange-1a"]) {
+    const moved = nudgeSelection(document, { id, kind: "object" }, "position", "y", 0.1);
+    expect(moved).not.toBe(document);
+    expect(scaleOf(moved, id)).toEqual(scaleOf(document, id));
+  }
+
+  // A move leaves sizes the editor would round, and the collider's, exact.
+  const ground = { id: "ground-1-1", kind: "object" } as const;
+  const groundMoved = nudgeSelection(document, ground, "position", "x", 0.1);
+  expect(groundMoved.objects.find((o) => o.id === ground.id)!.collision).toEqual(
+    document.objects.find((o) => o.id === ground.id)!.collision,
+  );
+  const fine = structuredClone(document);
+  const flange = fine.objects.find((o) => o.id === "tunnel-fire-main-flange-1a")!;
+  if (flange.visual.shape === "arc") throw new Error("Expected a primitive");
+  flange.visual.scale = { ...flange.visual.scale, x: 0.2855, z: 0.2855 };
+  const fineMoved = nudgeSelection(fine, { id: flange.id, kind: "object" }, "position", "y", 0.1);
+  expect(scaleOf(fineMoved, flange.id)).toEqual({ x: 0.2855, y: 0.022, z: 0.2855 });
+
+  // A sign scales across its face, never thicker.
+  const sign = { id: "tunnel-portal-north-height-sign", kind: "object" } as const;
+  const larger = scaleSelectionUniformly(document, sign, 1.1);
+  expect(scaleOf(larger, sign.id)).toEqual({ x: 2.42, y: 0.44, z: 0.001 });
+
+  // A handwheel scales its diameter as one, staying round.
+  const wheel = { id: "tunnel-riser-1-wheel", kind: "object" } as const;
+  expect(scaleOf(scaleSelectionAxis(document, wheel, "x", 1.25), wheel.id)).toEqual({
+    x: 0.5,
+    y: 0.04,
+    z: 0.5,
+  });
+});
