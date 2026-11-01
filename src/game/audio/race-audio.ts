@@ -395,16 +395,11 @@ export function createRaceAudio(soundOn: boolean): RaceAudio | null {
   // while the race loads still arrives as a pause.
   let pageFocused = true;
 
-  // Until the scene has drawn its first frame the context stays suspended,
-  // so the audio thread never competes with building and first drawing the
-  // course; from then on it runs (silent while covered), so the first
-  // countdown tick is on time. A countdown that starts sooner opens it too.
+  // Runs whenever it may (silent while covered), so the first countdown tick
+  // is on time. Create it after the scene's first frame: building the graph
+  // during the scene build slows that frame on iPhone.
   const wanted = () =>
-    (prepared || active) &&
-    soundEnabled &&
-    !disposed &&
-    pageFocused &&
-    !document.hidden;
+    soundEnabled && !disposed && pageFocused && !document.hidden;
   const audible = () => active && soundEnabled;
   const apply = () => {
     // A sound still ringing out stops with the race or the switch. Coming

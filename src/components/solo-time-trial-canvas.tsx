@@ -682,15 +682,6 @@ export function SoloTimeTrialCanvas({
     onLoadedRef.current = onLoaded;
   }, [onLoaded]);
 
-  // After the scene's build and first frame, while the loading screen holds.
-  // Declared before the report below, so its timer runs before the reveal's
-  // even when a slow load leaves no hold.
-  useEffect(() => {
-    if (sceneStatus !== "ready") return;
-    const timer = window.setTimeout(() => raceAudioRef.current?.prepare(), 0);
-    return () => window.clearTimeout(timer);
-  }, [sceneStatus]);
-
   useEffect(() => {
     if (sceneStatus === "initializing" || loadedReportedRef.current) return;
     loadedReportedRef.current = true;
@@ -1843,10 +1834,30 @@ export function SoloTimeTrialCanvas({
         kart,
       );
       runtime.addCleanup(() => collisionObserver.destroy());
-      const raceAudio = createRaceAudio(soundOnRef.current);
-      raceAudioRef.current = raceAudio;
-      // A scene rebuilt while already ready gets no fresh status change.
-      raceAudio?.setActive(raceAudioActiveRef.current);
+      // The audio graph is built after the scene's first frame, not here:
+      // on iPhone, building it during the scene build cost the first frame
+      // about 60 ms of render (A/B against no race audio, 230 vs 172 ms).
+      let raceAudio: RaceAudio | null = null;
+      let raceAudioCreated = false;
+      const ensureRaceAudio = () => {
+        if (!raceAudioCreated) {
+          raceAudioCreated = true;
+          raceAudio = createRaceAudio(soundOnRef.current);
+          raceAudioRef.current = raceAudio;
+          // A scene rebuilt while already ready gets no fresh status change.
+          raceAudio?.setActive(raceAudioActiveRef.current);
+        }
+        return raceAudio;
+      };
+      // Just after the scene's first drawn frame, while the loading screen
+      // holds. A countdown that starts sooner builds it itself.
+      let raceAudioScheduled = false;
+      runtime.onFrameSample(() => {
+        if (raceAudioScheduled) return;
+        raceAudioScheduled = true;
+        const timer = window.setTimeout(() => ensureRaceAudio()?.prepare(), 0);
+        runtime.addCleanup(() => window.clearTimeout(timer));
+      });
       // What each course object looks like, and how its solid ones sound.
       const courseLooks = new Map<string, string>(
         COURSE_DOCUMENT.objects.map((object) => [
@@ -2037,6 +2048,8 @@ export function SoloTimeTrialCanvas({
         }
       };
       runtime.addCleanup(() => {
+        // Nothing can create it after the scene is gone.
+        raceAudioCreated = true;
         raceAudio?.dispose();
         if (raceAudioRef.current === raceAudio) raceAudioRef.current = null;
       });
@@ -3358,7 +3371,7 @@ export function SoloTimeTrialCanvas({
         // later, after the first tick has played into silence.
         if (!interrupted) {
           raceAudioActiveRef.current = true;
-          raceAudioRef.current?.setActive(true);
+          ensureRaceAudio()?.setActive(true);
         }
         raceSession.startCountdown();
         publishRacePresentation();
