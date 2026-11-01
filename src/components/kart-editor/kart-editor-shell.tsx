@@ -649,6 +649,8 @@ export function KartEditorShell({
       });
     } catch (error) {
       testModeTriggerRef.current = false;
+      // The click started sound for a test drive that will not open.
+      suspendRaceAudio();
       showCommandError(error);
     } finally {
       setTestPending(false);

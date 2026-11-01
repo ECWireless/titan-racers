@@ -7,7 +7,6 @@ import {
   getMotorAudioState,
   getRaceCue,
   ImpactAudioGate,
-  isAnnouncedLapRejection,
   LandingAudioDetector,
   resolveImpactMaterial,
   type MotorAudioInput,
@@ -278,14 +277,5 @@ test.describe("race audio mapping", () => {
       "go",
       "finish",
     ]);
-    expect(
-      isAnnouncedLapRejection({ kind: "rejected", reason: "out-of-order" }),
-    ).toBe(true);
-    expect(
-      isAnnouncedLapRejection({
-        kind: "rejected",
-        reason: "lifecycle-inactive",
-      }),
-    ).toBe(false);
   });
 });

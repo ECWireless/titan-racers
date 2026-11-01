@@ -104,6 +104,8 @@ export type RaceAudioDebugState = {
   landings: Array<{ strength: number; surface: AudioSurface }>;
   motor: MotorAudioState;
   muted: boolean;
+  /** Motor, tire roll, and scrub may sound: the world is moving. */
+  continuousVoices: boolean;
   wheels: readonly AudioWheel[];
 };
 
@@ -120,6 +122,8 @@ export type RaceAudio = {
   /** On screen, unpaused, and ready. */
   setActive: (active: boolean) => void;
   setMuted: (muted: boolean) => void;
+  /** Opens or closes the motor, tire roll, and scrub. */
+  setContinuousVoices: (open: boolean) => void;
   updateMotor: (state: MotorAudioState) => void;
   updateWheels: (wheels: readonly AudioWheel[]) => void;
   dispose: () => void;
@@ -148,19 +152,25 @@ export function createRaceAudio(muted: boolean): RaceAudio | null {
   limiter.release.value = 0.12;
   master.connect(limiter).connect(context.destination);
 
-  const bus = (decibels: number) => {
+  // The always-on voices pass through one gate, closed while the world
+  // stands still (paused, or counting down to resume). The race skips its
+  // per-frame updates then, so the voices would hold their last sound.
+  const continuousGate = context.createGain();
+  continuousGate.connect(master);
+  let continuousOpen = true;
+  const bus = (decibels: number, destination: AudioNode = master) => {
     const gain = context.createGain();
     gain.gain.value = fromDb(decibels);
-    gain.connect(master);
+    gain.connect(destination);
     return gain;
   };
   const buses = {
     cue: bus(MIX_DB.cue),
     impact: bus(MIX_DB.impact),
     landing: bus(MIX_DB.landing),
-    motor: bus(MIX_DB.motor),
-    scrub: bus(MIX_DB.scrub),
-    tireRoll: bus(MIX_DB.tireRoll),
+    motor: bus(MIX_DB.motor, continuousGate),
+    scrub: bus(MIX_DB.scrub, continuousGate),
+    tireRoll: bus(MIX_DB.tireRoll, continuousGate),
   };
   const motorVoice = createMotorVoice(context, buses.motor);
   const tireRollVoice = createTireRollVoice(context, buses.tireRoll);
@@ -226,6 +236,7 @@ export function createRaceAudio(muted: boolean): RaceAudio | null {
       landings: [...landings],
       motor,
       muted: soundMuted,
+      continuousVoices: continuousOpen,
       wheels: wheels.map((wheel) => ({ ...wheel })),
     }),
     // Cues may land just before the context resumes, such as the first
@@ -271,6 +282,17 @@ export function createRaceAudio(muted: boolean): RaceAudio | null {
       active = nextActive;
       apply();
     },
+    setContinuousVoices(open) {
+      if (open === continuousOpen) return;
+      continuousOpen = open;
+      const now = context.currentTime;
+      continuousGate.gain.cancelScheduledValues(now);
+      // Closing applies at once, even on a suspended context's frozen clock,
+      // so nothing plays when it resumes. Opening waits 60 ms, so the voices
+      // have moved off their pre-pause sound, then fades in.
+      if (open) continuousGate.gain.setTargetAtTime(1, now + 0.06, 0.02);
+      else continuousGate.gain.setValueAtTime(0, now);
+    },
     setMuted(nextMuted) {
       if (nextMuted === soundMuted) return;
       soundMuted = nextMuted;
@@ -303,6 +325,7 @@ export function createRaceAudio(muted: boolean): RaceAudio | null {
       tireRollVoice.dispose();
       scrubVoice.dispose();
       Object.values(buses).forEach((gain) => gain.disconnect());
+      continuousGate.disconnect();
       master.disconnect();
       limiter.disconnect();
       runContext(context, false);

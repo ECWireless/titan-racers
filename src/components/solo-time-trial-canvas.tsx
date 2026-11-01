@@ -44,7 +44,6 @@ import {
   getMotorAudioState,
   getRaceCue,
   ImpactAudioGate,
-  isAnnouncedLapRejection,
   LandingAudioDetector,
   resolveImpactMaterial,
   SILENT_MOTOR,
@@ -194,6 +193,7 @@ import { createRaceSessionConfig } from "@/game/race/playcanvas-race-course";
 import {
   createLoadingRacePresentationSnapshot,
   createRacePresentationSnapshot,
+  isIncompleteLapRoute,
   formatRaceSpeed,
   racePresentationSnapshotsEqual,
   resolveRaceSpeedUnit,
@@ -675,6 +675,15 @@ export function SoloTimeTrialCanvas({
     onLoadedRef.current = onLoaded;
   }, [onLoaded]);
 
+  // After the scene's build and first frame, while the loading screen holds.
+  // Declared before the report below, so its timer runs before the reveal's
+  // even when a slow load leaves no hold.
+  useEffect(() => {
+    if (sceneStatus !== "ready") return;
+    const timer = window.setTimeout(() => raceAudioRef.current?.prepare(), 0);
+    return () => window.clearTimeout(timer);
+  }, [sceneStatus]);
+
   useEffect(() => {
     if (sceneStatus === "initializing" || loadedReportedRef.current) return;
     loadedReportedRef.current = true;
@@ -698,13 +707,6 @@ export function SoloTimeTrialCanvas({
     // context running.
     if (sceneStatus === "failed") suspendRaceAudio();
   }, [covered, gamePaused, sceneStatus, soundMuted]);
-
-  // After the scene's build and first frame, while the loading screen holds.
-  useEffect(() => {
-    if (sceneStatus !== "ready") return;
-    const timer = window.setTimeout(() => raceAudioRef.current?.prepare(), 0);
-    return () => window.clearTimeout(timer);
-  }, [sceneStatus]);
 
   useEffect(() => {
     if (!gameplayTelemetryStartedRef.current) {
@@ -836,6 +838,12 @@ export function SoloTimeTrialCanvas({
 
         const cue = getRaceCue(lastRacePresentation, nextPresentation);
         if (cue) raceAudioRef.current?.playCue(cue);
+        // Render updates stop while paused and through the resume countdown,
+        // so the motor and tires are closed here, by race state.
+        raceAudioRef.current?.setContinuousVoices(
+          nextPresentation.state !== "paused" &&
+            nextPresentation.state !== "resuming",
+        );
         lastRacePresentation = nextPresentation;
         setRacePresentation(nextPresentation);
       }
@@ -2995,7 +3003,7 @@ export function SoloTimeTrialCanvas({
           if (progressionResult.kind !== "none") {
             lastRaceAnnouncementResult = progressionResult;
           }
-          if (isAnnouncedLapRejection(progressionResult)) {
+          if (isIncompleteLapRoute(progressionResult)) {
             raceAudio?.playCue("lap-rejected");
           }
           if (lastRaceProgressionResult.kind === "finished") {
@@ -3067,29 +3075,25 @@ export function SoloTimeTrialCanvas({
         if (raceAudio) {
           const raceState = raceSession.snapshot.state;
           const held = raceState === "countdown";
-          // The world stands still through the resume countdown.
-          motorAudio =
-            raceState === "resuming"
-              ? SILENT_MOTOR
-              : getMotorAudioState({
-                  brake: latestDrivingInput.brake,
-                  deltaSeconds: frameSeconds,
-                  forwardSpeed: kartController.state.speed,
-                  handbrake: latestDrivingInput.handbrake,
-                  held,
-                  noLoadSpeed: activeDynamics.kart.drivetrain.noLoadSpeed,
-                  previousMotorSpeed: motorAudio.motorSpeed,
-                  throttle: held
-                    ? latestRequestedDrivingInput.throttle
-                    : latestDrivingInput.throttle,
-                  wheels: kartController.state.wheelTelemetry,
-                });
+          motorAudio = getMotorAudioState({
+            brake: latestDrivingInput.brake,
+            deltaSeconds: frameSeconds,
+            forwardSpeed: kartController.state.speed,
+            handbrake: latestDrivingInput.handbrake,
+            held,
+            noLoadSpeed: activeDynamics.kart.drivetrain.noLoadSpeed,
+            previousMotorSpeed: motorAudio.motorSpeed,
+            throttle: held
+              ? latestRequestedDrivingInput.throttle
+              : latestDrivingInput.throttle,
+            wheels: kartController.state.wheelTelemetry,
+          });
           raceAudio.updateMotor(motorAudio);
           const wheels = kartController.state.wheelTelemetry;
           const restWheelLoad =
             ((kart.rigidbody?.mass ?? 0) * kartController.state.localGravity) /
             Math.max(wheels.length, 1);
-          audioWheels.length = raceState === "resuming" ? 0 : wheels.length;
+          audioWheels.length = wheels.length;
           for (let index = 0; index < audioWheels.length; index += 1) {
             audioWheels[index] = getAudioWheel(
               wheels[index],

@@ -3066,8 +3066,8 @@ test.describe("home screen", () => {
       testInfo.project.name === "mobile",
       "The sound lifecycle does not depend on the viewport.",
     );
-    // Two race loads: before and after a reload.
-    test.setTimeout(60_000);
+    // Two race loads, before and after a reload, and a resume countdown.
+    test.setTimeout(90_000);
 
     await page.goto("/?sandbox-course");
     await page.getByRole("button", { name: "Solo Time Trial" }).click();
@@ -3091,11 +3091,32 @@ test.describe("home screen", () => {
       .toBeGreaterThan(0.3);
     await page.keyboard.up("ArrowUp");
 
+    // Pause mid-race, so Resume runs the resume countdown, not the start's.
+    await expect
+      .poll(async () => (await getRaceDebugState(canvas)).state, {
+        timeout: 10_000,
+      })
+      .toBe("racing");
     await page.keyboard.press("Escape");
     const pauseDialog = page.getByRole("dialog", { name: "Paused" });
     await expect(pauseDialog).toBeVisible();
     await expect.poll(async () => (await audio())?.contextState).toBe("suspended");
+    expect((await audio())?.continuousVoices).toBe(false);
 
+    // Resume's click restarts sound at once, but the frozen kart's motor and
+    // tires stay closed through the resume countdown and open at Go.
+    await pauseDialog.getByRole("button", { name: "Resume" }).click();
+    expect((await audio())?.continuousVoices).toBe(false);
+    expect((await getRaceDebugState(canvas)).state).toBe("resuming");
+    await expect.poll(async () => (await audio())?.contextState).toBe("running");
+    await expect
+      .poll(async () => (await audio())?.continuousVoices, { timeout: 5_000 })
+      .toBe(true);
+    expect((await getRaceDebugState(canvas)).state).toBe("racing");
+
+    await canvas.focus();
+    await page.keyboard.press("Escape");
+    await expect(pauseDialog).toBeVisible();
     const sound = pauseDialog.getByRole("switch", { name: "Sound" });
     await expect(sound).toHaveAttribute("aria-checked", "true");
     await sound.click();

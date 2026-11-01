@@ -5,7 +5,7 @@ import type { AudioSurface, ImpactMaterial } from "./race-audio-mapping";
  * Impacts by what the kart hit, and landings by what it landed on.
  *
  * Every sound is modal or granular synthesis, rendered once per context into
- * one mono buffer of short segments (about 2.9 s in total). A contact force
+ * one mono buffer of short segments (about 3 s in total). A contact force
  * pulse (a half-sine, shorter for harder pairs) drives banks of inharmonic
  * two-pole resonators, one per vibration mode, each with its own decay.
  * Granular parts (leaves, stones, bubbles) are many tiny damped modes. Each

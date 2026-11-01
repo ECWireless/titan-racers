@@ -23,7 +23,7 @@ it hits, and the places it drives through.
 - Sound is scaled to the objects: a 1:10 RC kart sounds like a real one
   (brushless whine, light clacks), while the world around it sounds full-size.
 - Sound never plays when the game is not visibly running, and a muted game
-  costs nothing.
+  does no audio processing.
 
 ## Core Principles
 

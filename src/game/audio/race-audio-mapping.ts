@@ -394,15 +394,3 @@ export function resolveImpactMaterial(
   }
   return null;
 }
-
-/** A rejected lap the race also announces as an incomplete route. */
-export function isAnnouncedLapRejection(result: {
-  kind: string;
-  reason?: string;
-}) {
-  return (
-    result.kind === "rejected" &&
-    (result.reason === "finish-before-checkpoints" ||
-      result.reason === "out-of-order")
-  );
-}
