@@ -154,6 +154,15 @@ function getCue(snapshot: RaceSessionSnapshot) {
   return null;
 }
 
+/** A rejected lap that skipped part of the route, which the race announces. */
+export function isIncompleteLapRoute(result: RaceProgressionResult) {
+  return (
+    result.kind === "rejected" &&
+    (result.reason === "finish-before-checkpoints" ||
+      result.reason === "out-of-order")
+  );
+}
+
 function getAnnouncement(
   snapshot: RaceSessionSnapshot,
   result: RaceProgressionResult,
@@ -173,11 +182,7 @@ function getAnnouncement(
   if (result.kind === "lap") {
     return `Lap ${snapshot.currentLap} of ${snapshot.lapCount}`;
   }
-  if (
-    result.kind === "rejected" &&
-    (result.reason === "finish-before-checkpoints" ||
-      result.reason === "out-of-order")
-  ) {
+  if (isIncompleteLapRoute(result)) {
     return "Lap route incomplete";
   }
   if (showsGoCue(snapshot)) {

@@ -43,3 +43,6 @@ Prefer primary documentation and direct runtime evidence. Link back to relevant 
   snapped authoring actions.
 - [`playcanvas-ammo/`](playcanvas-ammo/README.md): the accepted mapping from
   Titan Racers' fixed-step kart-physics standard to PlayCanvas and Ammo/Bullet.
+- [`browser-web-audio/`](browser-web-audio/README.md): the candidate mapping
+  of race sound to one shared Web Audio context, gesture start, suspend on
+  pause and mute, and budgeted generated voices.

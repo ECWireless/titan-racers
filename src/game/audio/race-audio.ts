@@ -1,0 +1,417 @@
+import { createScrubVoice, createTireRollVoice } from "./contact-voices";
+import { playCueSound } from "./cue-sounds";
+import {
+  playImpactSound,
+  playLandingSound,
+  prepareImpactSounds,
+} from "./impact-sounds";
+import { createMotorVoice } from "./motor-voice";
+import {
+  SILENT_MOTOR,
+  type AudioSurface,
+  type AudioWheel,
+  type ImpactMaterial,
+  type MotorAudioState,
+  type RaceCue,
+} from "./race-audio-mapping";
+
+/**
+ * The browser side of race sound: one shared audio context for the page,
+ * started by a user gesture, plus a master bus and limiter per race.
+ *
+ * The context runs while a race exists, Sound effects is on, and the page is
+ * visible and focused; otherwise it is suspended, which stops all audio
+ * processing. A paused or covered race keeps it running but silent: waking
+ * a suspended context takes up to a few hundred ms (longest on iPhone),
+ * which would make the first countdown tick late.
+ */
+
+const SOUND_STORAGE_KEY = "titan-racers.sound.v1";
+
+/**
+ * Mix levels in dB, set by listening QA in a race. A full-strength hit peaks
+ * under 0 dBFS after the limiter, and a firm tap barely touches it.
+ */
+const MASTER_GAIN = 0.9;
+const MIX_DB = {
+  cue: -5.5,
+  impact: 8,
+  landing: 2.4,
+  motor: -5.6,
+  scrub: -1.8,
+  tireRoll: -1.4,
+};
+
+let sharedContext: AudioContext | null = null;
+
+const ASPHALT_RECORDING_URL = "/audio/asphalt-roll.wav";
+const recordings = new WeakMap<BaseAudioContext, Promise<AudioBuffer | null>>();
+
+/** Fetches and decodes a recorded loop once per context; null on failure. */
+function loadRecording(context: BaseAudioContext, url: string) {
+  let pending = recordings.get(context);
+  if (!pending) {
+    pending = fetch(url)
+      .then((response) => (response.ok ? response.arrayBuffer() : null))
+      .then((data) => (data ? context.decodeAudioData(data) : null))
+      .catch(() => null)
+      .then((buffer) => {
+        // A failure is not kept: the next race tries again.
+        if (!buffer) recordings.delete(context);
+        return buffer;
+      });
+    recordings.set(context, pending);
+  }
+  return pending;
+}
+
+function getSharedContext() {
+  if (sharedContext) return sharedContext;
+  if (
+    typeof window === "undefined" ||
+    typeof window.AudioContext !== "function"
+  ) {
+    return null;
+  }
+  try {
+    sharedContext = new window.AudioContext({ latencyHint: "interactive" });
+  } catch {
+    return null;
+  }
+  return sharedContext;
+}
+
+// Suspend and resume settle asynchronously, so `state` can lag a request.
+// Always send the wanted one: the context applies them in order, and a
+// repeat is a no-op.
+function runContext(context: AudioContext, running: boolean) {
+  void (running ? context.resume() : context.suspend()).catch(() => undefined);
+}
+
+/** The player's Sound effects switch, kept on this device. On by default. */
+export function readSoundOn() {
+  try {
+    const stored: unknown = JSON.parse(
+      window.localStorage.getItem(SOUND_STORAGE_KEY) ?? "null",
+    );
+    if (stored && typeof stored === "object") {
+      const { effects } = stored as { effects?: unknown };
+      if (typeof effects === "boolean") return effects;
+    }
+  } catch {
+    // Unreadable storage or a malformed value: fall back to on.
+  }
+  return true;
+}
+
+export function writeSoundOn(on: boolean) {
+  try {
+    window.localStorage.setItem(
+      SOUND_STORAGE_KEY,
+      JSON.stringify({ effects: on }),
+    );
+  } catch {
+    // Storage can be unavailable (private mode); the choice lasts this page.
+  }
+}
+
+/**
+ * Call from inside a user gesture that leads to a race. Browsers, iPhone
+ * Safari in particular, only let audio start from one.
+ */
+export function unlockRaceAudio(soundOn = readSoundOn()) {
+  if (!soundOn) return;
+  const context = getSharedContext();
+  if (context) runContext(context, true);
+}
+
+/** For a race that ends before its audio exists, such as a failed load. */
+export function suspendRaceAudio() {
+  if (sharedContext) runContext(sharedContext, false);
+}
+
+export type RaceAudioDebugState = {
+  active: boolean;
+  /** On screen, unpaused, and Sound effects on: the master is open. */
+  audible: boolean;
+  /** The recorded asphalt loop has loaded and replaced the generated one. */
+  recordedAsphalt: boolean;
+  contextState: string;
+  cues: RaceCue[];
+  impacts: Array<{ material: ImpactMaterial; strength: number }>;
+  landings: Array<{ strength: number; surface: AudioSurface }>;
+  motor: MotorAudioState;
+  /** Sound effects are switched off, so the context stays suspended. */
+  muted: boolean;
+  /** Motor, tire roll, and scrub may sound: the world is moving. */
+  continuousVoices: boolean;
+  wheels: readonly AudioWheel[];
+};
+
+export type RaceAudio = {
+  getDebugState: () => RaceAudioDebugState;
+  playCue: (cue: RaceCue) => void;
+  playImpact: (strength: number, material: ImpactMaterial) => void;
+  playLanding: (strength: number, surface: AudioSurface) => void;
+  /**
+   * Builds the tire voices and renders the impact and landing sounds (tens
+   * of ms each). Call after the scene's first frame, while the race is still
+   * covered, so neither the scene build nor the first hit pays for them.
+   */
+  prepare: () => void;
+  /** On screen, unpaused, and ready. */
+  setActive: (active: boolean) => void;
+  setSoundOn: (on: boolean) => void;
+  /** Opens or closes the motor, tire roll, and scrub. */
+  setContinuousVoices: (open: boolean) => void;
+  updateMotor: (state: MotorAudioState) => void;
+  updateWheels: (wheels: readonly AudioWheel[]) => void;
+  dispose: () => void;
+};
+
+/** Event history kept for tests; old entries drop off. */
+const DEBUG_HISTORY = 16;
+const remember = <T>(list: T[], item: T) => {
+  list.push(item);
+  if (list.length > DEBUG_HISTORY) list.shift();
+};
+
+const fromDb = (decibels: number) => 10 ** (decibels / 20);
+
+export function createRaceAudio(soundOn: boolean): RaceAudio | null {
+  const context = getSharedContext();
+  if (!context) return null;
+
+  const master = context.createGain();
+  // Silent until the race is on screen and unpaused.
+  master.gain.value = 0;
+  const limiter = context.createDynamicsCompressor();
+  limiter.threshold.value = -6;
+  limiter.knee.value = 0;
+  limiter.ratio.value = 20;
+  limiter.attack.value = 0.001;
+  limiter.release.value = 0.12;
+  master.connect(limiter).connect(context.destination);
+
+  // The always-on voices pass through one gate, closed while the world
+  // stands still (paused, or counting down to resume). The race skips its
+  // per-frame updates then, so the voices would hold their last sound.
+  const continuousGate = context.createGain();
+  continuousGate.connect(master);
+  let continuousOpen = true;
+  const bus = (decibels: number, destination: AudioNode = master) => {
+    const gain = context.createGain();
+    gain.gain.value = fromDb(decibels);
+    gain.connect(destination);
+    return gain;
+  };
+  const buses = {
+    cue: bus(MIX_DB.cue),
+    impact: bus(MIX_DB.impact),
+    landing: bus(MIX_DB.landing),
+    motor: bus(MIX_DB.motor, continuousGate),
+    scrub: bus(MIX_DB.scrub, continuousGate),
+    tireRoll: bus(MIX_DB.tireRoll, continuousGate),
+  };
+  const motorVoice = createMotorVoice(context, buses.motor);
+  // The tire voices generate their gravel and water textures (tens of ms,
+  // longer on phones), so they are built in `prepare`, after the scene's
+  // first frame, not during the scene build.
+  let contactVoices: {
+    scrub: ReturnType<typeof createScrubVoice>;
+    tires: ReturnType<typeof createTireRollVoice>;
+  } | null = null;
+  let asphaltRecording: AudioBuffer | null = null;
+  const prepareContactVoices = () => {
+    if (!contactVoices) {
+      contactVoices = {
+        scrub: createScrubVoice(context, buses.scrub),
+        tires: createTireRollVoice(context, buses.tireRoll),
+      };
+      if (asphaltRecording) {
+        contactVoices.tires.setAsphaltRecording(asphaltRecording);
+      }
+    }
+    return contactVoices;
+  };
+  // The generated asphalt plays until the recording arrives, or for good if
+  // it cannot load.
+  void loadRecording(context, ASPHALT_RECORDING_URL).then((buffer) => {
+    if (!buffer || disposed) return;
+    asphaltRecording = buffer;
+    contactVoices?.tires.setAsphaltRecording(buffer);
+    recordedAsphalt = true;
+  });
+  const cues: RaceCue[] = [];
+  const impacts: RaceAudioDebugState["impacts"] = [];
+  const landings: RaceAudioDebugState["landings"] = [];
+  let wheels: readonly AudioWheel[] = [];
+  // Cues sent while the context is not yet running wait at its frozen clock.
+  // Keep only one, so a resume refused until a tap cannot release a pile.
+  let cueWaiting = false;
+  const onStateChange = () => {
+    if (context.state === "running") cueWaiting = false;
+  };
+  context.addEventListener("statechange", onStateChange);
+
+  let active = false;
+  let disposed = false;
+  let motor = SILENT_MOTOR;
+  let soundEnabled = soundOn;
+  let recordedAsphalt = false;
+  // The page just took the click that started the race. `hasFocus()` can
+  // read false in a page that has focus (headless browsers), and a blur
+  // while the race loads still arrives as a pause.
+  let pageFocused = true;
+
+  const wanted = () =>
+    soundEnabled && !disposed && pageFocused && !document.hidden;
+  const audible = () => active && soundEnabled;
+  const apply = () => {
+    // A sound still ringing out stops with the race or the switch. Coming
+    // back fades in over a few ms, so a cue sent in the same moment the race
+    // turns active starts on time; the countdown opens it itself.
+    const now = context.currentTime;
+    master.gain.cancelScheduledValues(now);
+    if (audible()) master.gain.setTargetAtTime(MASTER_GAIN, now, 0.004);
+    else master.gain.setValueAtTime(0, now);
+    runContext(context, wanted());
+  };
+  // The race pauses itself on blur and hidden tabs, but not once it has
+  // finished, so the page's own state is checked here too.
+  const onBlur = () => {
+    pageFocused = false;
+    apply();
+  };
+  const onFocus = () => {
+    pageFocused = true;
+    apply();
+  };
+  // A resume refused outside a gesture, or an iPhone interruption such as a
+  // call, retries on the next tap, click, or key press.
+  const retryInGesture = () => {
+    // A trusted gesture proves the page has focus, even if a browser (iPhone
+    // Safari) never sent the focus event.
+    pageFocused = true;
+    if (wanted() && context.state !== "running") runContext(context, true);
+  };
+  const gestureEvents = ["pointerdown", "keydown", "touchend"] as const;
+  window.addEventListener("blur", onBlur);
+  window.addEventListener("focus", onFocus);
+  document.addEventListener("visibilitychange", apply);
+  gestureEvents.forEach((name) =>
+    window.addEventListener(name, retryInGesture, { capture: true }),
+  );
+  // Settle the context once; later calls send only changes.
+  apply();
+
+  return {
+    getDebugState: () => ({
+      active,
+      audible: audible(),
+      recordedAsphalt,
+      contextState: context.state,
+      cues: [...cues],
+      impacts: [...impacts],
+      landings: [...landings],
+      motor,
+      muted: !soundEnabled,
+      continuousVoices: continuousOpen,
+      wheels: wheels.map((wheel) => ({ ...wheel })),
+    }),
+    // Cues may land just before the context resumes, such as the first
+    // count as the loading screen lifts; they play as it starts.
+    playCue(cue) {
+      if (!soundEnabled || disposed) return;
+      if (context.state !== "running") {
+        if (cueWaiting) return;
+        cueWaiting = true;
+      }
+      remember(cues, cue);
+      playCueSound(context, buses.cue, cue, context.currentTime);
+    },
+    playImpact(strength, material) {
+      if (context.state !== "running") return;
+      remember(impacts, { material, strength });
+      playImpactSound(
+        context,
+        buses.impact,
+        strength,
+        material,
+        context.currentTime,
+      );
+    },
+    prepare() {
+      if (disposed) return;
+      prepareContactVoices();
+      prepareImpactSounds(context);
+    },
+    playLanding(strength, surface) {
+      if (context.state !== "running") return;
+      remember(landings, { strength, surface });
+      playLandingSound(
+        context,
+        buses.landing,
+        strength,
+        surface,
+        context.currentTime,
+      );
+    },
+    // Unchanged values send nothing, so a resume made inside a gesture is
+    // not undone by a suspend on the way to the next state.
+    setActive(nextActive) {
+      if (nextActive === active) return;
+      active = nextActive;
+      apply();
+    },
+    setContinuousVoices(open) {
+      if (open === continuousOpen) return;
+      continuousOpen = open;
+      const now = context.currentTime;
+      continuousGate.gain.cancelScheduledValues(now);
+      // Closing applies at once, even on a suspended context's frozen clock,
+      // so nothing plays when it resumes. Opening waits 60 ms, so the voices
+      // have moved off their pre-pause sound, then fades in.
+      if (open) continuousGate.gain.setTargetAtTime(1, now + 0.06, 0.02);
+      else continuousGate.gain.setValueAtTime(0, now);
+    },
+    setSoundOn(on) {
+      if (on === soundEnabled) return;
+      soundEnabled = on;
+      apply();
+    },
+    updateMotor(state) {
+      motor = state;
+      // A suspended context's clock stands still; queuing changes there
+      // would only pile up.
+      if (context.state !== "running") return;
+      motorVoice.update(state, context.currentTime);
+    },
+    updateWheels(nextWheels) {
+      wheels = nextWheels;
+      if (context.state !== "running") return;
+      const voices = prepareContactVoices();
+      voices.tires.update(nextWheels, context.currentTime);
+      voices.scrub.update(nextWheels, context.currentTime);
+    },
+    dispose() {
+      if (disposed) return;
+      disposed = true;
+      window.removeEventListener("blur", onBlur);
+      window.removeEventListener("focus", onFocus);
+      document.removeEventListener("visibilitychange", apply);
+      context.removeEventListener("statechange", onStateChange);
+      gestureEvents.forEach((name) =>
+        window.removeEventListener(name, retryInGesture, { capture: true }),
+      );
+      motorVoice.dispose();
+      contactVoices?.tires.dispose();
+      contactVoices?.scrub.dispose();
+      Object.values(buses).forEach((gain) => gain.disconnect());
+      continuousGate.disconnect();
+      master.disconnect();
+      limiter.disconnect();
+      runContext(context, false);
+    },
+  };
+}

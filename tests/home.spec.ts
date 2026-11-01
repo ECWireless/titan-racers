@@ -22,6 +22,7 @@ import {
   REFERENCE_KART_MASS_SCALE,
   scaleReferenceKartLength,
 } from "../src/game/kart/kart-reference-construction";
+import type { RaceAudioDebugState } from "../src/game/audio/race-audio";
 import type {
   KartDebugState,
   KartLightingDebugState,
@@ -303,6 +304,19 @@ async function getCollisionResponseDebugState(canvas: Locator) {
       }>((resolve) => {
         element.dispatchEvent(
           new CustomEvent("getCollisionResponseDebugState", {
+            detail: { respond: resolve },
+          }),
+        );
+      }),
+  );
+}
+
+async function getAudioDebugState(canvas: Locator) {
+  return canvas.evaluate(
+    (element) =>
+      new Promise<RaceAudioDebugState | null>((resolve) => {
+        element.dispatchEvent(
+          new CustomEvent("getAudioDebugState", {
             detail: { respond: resolve },
           }),
         );
@@ -3043,6 +3057,147 @@ test.describe("home screen", () => {
     await expect(canvas).toHaveCSS("cursor", "none");
     await page.waitForTimeout(250);
     await expect(page.getByText("Paused", { exact: true })).not.toBeVisible();
+  });
+
+  test("plays race sound only while racing and remembers the sound switch", async ({
+    page,
+  }, testInfo) => {
+    test.skip(
+      testInfo.project.name === "mobile",
+      "The sound lifecycle does not depend on the viewport.",
+    );
+    // Two race loads, before and after a reload, and a resume countdown.
+    test.setTimeout(90_000);
+
+    await page.goto("/?sandbox-course");
+    await page.getByRole("button", { name: "Solo Time Trial" }).click();
+    const canvas = page.getByTestId("solo-time-trial-canvas");
+    await waitForSceneReady(canvas);
+    const audio = () => getAudioDebugState(canvas);
+
+    await expect.poll(async () => (await audio())?.contextState).toBe("running");
+    await expect.poll(async () => (await audio())?.cues[0]).toBe("count-3");
+    // Asphalt plays the recorded loop once it loads.
+    await expect.poll(async () => (await audio())?.recordedAsphalt).toBe(true);
+    expect((await audio())?.wheels.map(({ surface }) => surface)).toEqual([
+      "asphalt",
+      "asphalt",
+      "asphalt",
+      "asphalt",
+    ]);
+    // Throttle on the grid spins the held kart's wheels, so the motor revs.
+    await canvas.focus();
+    await page.keyboard.down("ArrowUp");
+    await expect
+      .poll(async () => (await audio())?.motor.motorSpeed ?? 0)
+      .toBeGreaterThan(0.3);
+    await page.keyboard.up("ArrowUp");
+
+    // Pause mid-race, so Resume runs the resume countdown, not the start's.
+    await expect
+      .poll(async () => (await getRaceDebugState(canvas)).state, {
+        timeout: 10_000,
+      })
+      .toBe("racing");
+    await page.keyboard.press("Escape");
+    const pauseDialog = page.getByRole("dialog", { name: "Paused" });
+    await expect(pauseDialog).toBeVisible();
+    // Paused, sound goes silent but keeps running, so the resume countdown's
+    // first tick is not late.
+    await expect.poll(async () => (await audio())?.audible).toBe(false);
+    expect(await audio()).toMatchObject({
+      continuousVoices: false,
+      contextState: "running",
+    });
+
+    // Resume's click restarts sound at once, but the frozen kart's motor and
+    // tires stay closed through the resume countdown and open at Go.
+    await pauseDialog.getByRole("button", { name: "Resume" }).click();
+    expect((await audio())?.continuousVoices).toBe(false);
+    expect((await getRaceDebugState(canvas)).state).toBe("resuming");
+    await expect.poll(async () => (await audio())?.audible).toBe(true);
+    await expect
+      .poll(async () => (await audio())?.continuousVoices, { timeout: 5_000 })
+      .toBe(true);
+    expect((await getRaceDebugState(canvas)).state).toBe("racing");
+
+    await canvas.focus();
+    await page.keyboard.press("Escape");
+    await expect(pauseDialog).toBeVisible();
+    const soundEffects = pauseDialog.getByRole("switch", {
+      name: "Sound effects",
+    });
+    await expect(soundEffects).toHaveAttribute("aria-checked", "true");
+    await soundEffects.click();
+    await expect(soundEffects).toHaveAttribute("aria-checked", "false");
+    await pauseDialog.getByRole("button", { name: "Resume" }).click();
+    await expect(pauseDialog).toHaveCount(0);
+    await page.waitForTimeout(250);
+    expect(await audio()).toMatchObject({
+      active: true,
+      contextState: "suspended",
+      muted: true,
+    });
+
+    // Saved on this device: the home menu shows it off, and a new race
+    // starts silent.
+    await page.reload();
+    await page.getByRole("button", { name: "Open utility menu" }).click();
+    await expect(
+      page.getByRole("switch", { name: "Sound effects" }),
+    ).toHaveAttribute("aria-checked", "false");
+    await page.keyboard.press("Escape");
+    await page.getByRole("button", { name: "Solo Time Trial" }).click();
+    await waitForSceneReady(canvas);
+    await expect.poll(async () => (await audio())?.active).toBe(true);
+    expect(await audio()).toMatchObject({
+      contextState: "suspended",
+      muted: true,
+    });
+    await canvas.focus();
+    await page.keyboard.press("Escape");
+    await expect(
+      pauseDialog.getByRole("switch", { name: "Sound effects" }),
+    ).toHaveAttribute("aria-checked", "false");
+  });
+
+  test("sounds a wall hit by what the wall is made of", async ({
+    page,
+  }, testInfo) => {
+    test.skip(
+      testInfo.project.name === "mobile",
+      "Impact sound does not depend on the viewport.",
+    );
+
+    await page.goto("/?sandbox-course&collision-fixtures");
+    await page.getByRole("button", { name: "Solo Time Trial" }).click();
+    const canvas = page.getByTestId("solo-time-trial-canvas");
+    await waitForSceneReady(canvas);
+    await expect
+      .poll(async () => (await getRaceDebugState(canvas)).state, {
+        timeout: 10_000,
+      })
+      .toBe("racing");
+    await expect
+      .poll(async () => (await getAudioDebugState(canvas))?.contextState)
+      .toBe("running");
+
+    // Into the cast-concrete thin wall, square on: about 4 m/s after rolling
+    // across the turf, a firm tap.
+    await setSimulationPaused(canvas, true);
+    await setKartDebugPose(canvas, {
+      angularVelocity: { x: 0, y: 0, z: 0 },
+      linearVelocity: { x: -6, y: 0, z: 0 },
+      position: { x: -29.5, y: REFERENCE_KART_UPRIGHT_ROOT_HEIGHT, z: 24 },
+      rotation: { x: 0, y: 90, z: 0 },
+    });
+    await stepSimulation(canvas, 150);
+
+    const impacts = (await getAudioDebugState(canvas))?.impacts ?? [];
+    expect(impacts).toHaveLength(1);
+    expect(impacts[0].material).toBe("concrete");
+    expect(impacts[0].strength).toBeGreaterThan(0.2);
+    expect(impacts[0].strength).toBeLessThan(0.45);
   });
 
   test("drives continuously in two axes with the touch joystick and accessible pedals", async ({

@@ -5,6 +5,7 @@ import {
   createRacePresentationSnapshot,
   formatRaceSpeed,
   formatRaceTime,
+  isIncompleteLapRoute,
   racePresentationSnapshotsEqual,
   resolveRaceSpeedUnit,
 } from "../src/game/race/race-presentation";
@@ -185,6 +186,21 @@ test.describe("race presentation", () => {
         snapshot({ ...resumed, elapsedRaceMicroseconds: 22_000_000 }),
       ).cue,
     ).toBeNull();
+  });
+
+  test("announces a lap that skipped part of the route", () => {
+    const skipped: RaceProgressionResult = {
+      kind: "rejected",
+      reason: "out-of-order",
+    };
+    expect(isIncompleteLapRoute(skipped)).toBe(true);
+    expect(
+      isIncompleteLapRoute({ kind: "rejected", reason: "lifecycle-inactive" }),
+    ).toBe(false);
+    expect(
+      createRacePresentationSnapshot(snapshot({ state: "racing" }), skipped)
+        .announcement,
+    ).toBe("Lap route incomplete");
   });
 
   test("compares projected values instead of object identity", () => {

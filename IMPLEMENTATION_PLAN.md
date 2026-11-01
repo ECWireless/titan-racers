@@ -17,8 +17,8 @@ accepted; the app, README, and durable docs take over from there.
 
 - **Done:** Phases 0–3 (PRs #1–#24, the Phase 3 closeout, and its follow-ups),
   and Phase 4 through PR 4.4 (#30–#54).
-- **Next:** PR 4.5 (Ambience and SFX), then Phase 5. PR 4.6 (kart editor
-  suspension swap) is done.
+- **Next:** PR 4.5.2 (lean ambience), then Phase 5. PRs 4.5.1 (race audio
+  and kart sound) and 4.6 (kart editor suspension swap) are done.
 
 ## Guiding Decisions
 
@@ -538,8 +538,28 @@ barriers are the youth's portable race kit
 
 **PR 4.5: Ambience and SFX**
 
-- [ ] Ambience and readable SFX for road contact, impacts, machinery,
-      irrigation, and the habitat, kept separate from kart physics.
+Sound is generated in code with Web Audio, with no dependency. It is
+derived from the simulation and never feeds back into physics. CC0
+recordings replace a generated sound only where listening QA says it does
+not read.
+
+- [x] 4.5.1: Race audio and kart sound. The audio runtime (one shared
+      context started by the race's start click, silent while paused or
+      covered, suspended when the switch is off, the page is hidden or
+      unfocused, and on exit) with a remembered Sound effects switch in the
+      pause and home menus; the kart's brushless motor and gear whine; tire
+      roll per surface, scrub and skid, impacts by material, and landings by
+      surface; and countdown, go, final-lap, finish, and rejected-lap cues.
+      Shipped: recipes from blind listening, retuned in races for comfort
+      over a whole race (a lower, darker motor, dull knocks on soil-backed
+      boards); asphalt plays a 192 KB CC0 recorded loop of small wheels on
+      grit (credits in `public/audio/CREDITS.md`); impacts sound once per
+      contact, and hitting the side of a drivable deck or step is silent.
+- [ ] 4.5.2: Ambience, kept lean. An outdoor habitat bed, a muffled tunnel
+      mix, and the stream from the course's water boxes, with distance
+      culling. Machinery at valve and junction kits and sprinkler or drip
+      irrigation over the nursery rows come in only if the iPhone budget
+      allows.
 - [ ] Mind the phone budget's headroom: after PR 4.4.8, CPU work has about
       1 ms left at the median (p95 7 ms), measured on the lead's iPhone
       only; GPU time is unmeasured.

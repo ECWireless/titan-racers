@@ -71,3 +71,6 @@ A game-concept node should normally cover:
 - [`habitat-land-use/`](habitat-land-use/README.md): the candidate standard
   for what fills a large habitat's valleys (parkland, villages, low-rise
   towns, quiet transport) and what stays outside (crops, heavy industry).
+- [`game-audio/`](game-audio/README.md): the candidate standard for race
+  sound derived one-way from simulation, physically scaled, readable on phone
+  speakers, and following the game's lifecycle.
