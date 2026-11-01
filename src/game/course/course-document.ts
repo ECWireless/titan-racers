@@ -208,7 +208,6 @@ export const COURSE_BICYCLES = ["hardtail", "bmx"] as const;
 export type CourseBicycle = (typeof COURSE_BICYCLES)[number];
 /** Equipment drawn around or in place of an object (course-kits.ts). */
 export const COURSE_KITS = ["crowd-barrier", "elbow", "handwheel"] as const;
-export type CourseKit = (typeof COURSE_KITS)[number];
 export function countCourseLamps(
   document: { objects: { lamp?: string }[] },
   kind: CourseLampKind,
@@ -907,8 +906,8 @@ function isUpright(rotation: { x: number; y: number; z: number }) {
 // place of a uniform round as wide as the pipe.
 // It also adds the `kerb` finish: sidewalk-grade concrete, lighter than the
 // cast concrete of walls and tunnels; `bevel`, the width in metres of a
-// chamfer along a solid's edges; and `sign`, lettering painted on a thin
-// box's local +Z face.
+// chamfer along a solid's edges; `sign`, lettering painted on a thin box's
+// local +Z face; and elbow collision, an elbow colliding as its bend.
 const visualMaterialV11Schema = z.enum([...visualMaterialV8Schema.options, "kerb"]);
 const COURSE_BEVEL_MAXIMUM = 0.05;
 const COURSE_SIGN_MAXIMUM_LENGTH = 12;
@@ -917,6 +916,8 @@ const COURSE_SIGN_MAXIMUM_LENGTH = 12;
 const COURSE_SIGN_PATTERN = /^[A-Za-z0-9.-](?:[A-Za-z0-9 .-]*[A-Za-z0-9.-])?$/;
 // A sign is painted on a face, so it is at most this thick.
 const COURSE_SIGN_MAXIMUM_THICKNESS = 0.01;
+// An elbow collides only as a wall, along its bend (course-kits.ts).
+const elbowCollisionSchema = arcCollisionSchema.extend({ shape: z.literal("elbow") });
 const primitiveVisualV11Schema = visualSchema.extend({
   bevel: z.number().finite().positive().max(COURSE_BEVEL_MAXIMUM).optional(),
   material: visualMaterialV11Schema,
@@ -942,6 +943,13 @@ export const courseDocumentSchema = courseDocumentV10BaseSchema
   .extend({
     objects: courseDocumentV10BaseSchema.shape.objects.element
       .extend({
+        collision: z
+          .discriminatedUnion("shape", [
+            ...courseDocumentV10BaseSchema.shape.objects.element.shape.collision.unwrap()
+              .options,
+            elbowCollisionSchema,
+          ])
+          .nullable(),
         kit: z.enum(COURSE_KITS).optional(),
         sign: z
           .string()
@@ -986,25 +994,30 @@ export const courseDocumentSchema = courseDocumentV10BaseSchema
         });
       }
       const { visual } = object;
-      const plain =
-        !object.collision &&
-        !object.overhead &&
-        !object.lamp &&
-        !object.planting &&
-        !object.bicycle;
+      const free =
+        !object.overhead && !object.lamp && !object.planting && !object.bicycle;
+      const plain = !object.collision && free;
       if (
         object.kit === "elbow" &&
         (visual.shape !== "cylinder" ||
           visual.scale.x !== visual.scale.z ||
           visual.scale.x !== visual.scale.y ||
           UNBEVELLED_FINISHES.has(visual.material) ||
-          !plain)
+          !free ||
+          (object.collision !== null && object.collision.shape !== "elbow"))
       ) {
         context.addIssue({
           code: "custom",
           message:
-            "An elbow is a uniform cylinder, as wide as its pipe, without collision, of a solid's finish",
+            "An elbow is a uniform cylinder, as wide as its pipe, of a solid's finish, colliding as its bend or not at all",
           path: ["objects", index, "kit"],
+        });
+      }
+      if (object.collision?.shape === "elbow" && object.kit !== "elbow") {
+        context.addIssue({
+          code: "custom",
+          message: "Only an elbow collides as an elbow",
+          path: ["objects", index, "collision"],
         });
       }
       if (
@@ -1074,8 +1087,8 @@ export function isCoursePrimitiveObject(
 }
 
 /**
- * Whether a cylinder must stay round across local X and Z: a handwheel, and
- * a bevelled cylinder, whose chamfer runs at one width around it.
+ * Whether a cylinder must stay round across local X and Z: a handwheel, an
+ * elbow, and a bevelled cylinder, whose chamfer runs at one width around it.
  */
 export function isCourseRoundCylinder(object: CourseObject) {
   return (

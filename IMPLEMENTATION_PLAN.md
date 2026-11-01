@@ -496,7 +496,8 @@ barriers are the youth's portable race kit
       the length of each piece. The tunnel gains what its silhouettes
       lacked: chamfered doors, cabinets, lamp housings, height boards, and
       copings; PN16 flanged joints every 6 m on the fire main; both mains
-      bending into the wall at each end; handwheels on the valves; and
+      bending into the wall at each end, the water main's elbows colliding
+      as their bends; handwheels on the valves; and
       painted door numbers, with "MAX 2.7m" on the portals' height boards,
       under the youth's timing gantry. Each crowd barrier is now one object,
       its frame a kit about its plank, so the seed holds 1,355 objects and
@@ -511,8 +512,9 @@ barriers are the youth's portable race kit
       splits startup into wait, build, and render; the home screen prepares
       the course's lighting, planting, and physics while a kart is chosen,
       and thumbnails and editors draw without physics. Course schema v11
-      adds kits (crowd barrier, handwheel, elbow), the kerb finish, bevels,
-      and signs; v10 documents upgrade in memory, with no migration. On the
+      adds kits (crowd barrier, handwheel, elbow), elbow collision, the kerb
+      finish, bevels, and signs; v10 documents upgrade in memory, with no
+      migration. On the
       iPhone the warm first frame is back within budget at 393 ms; frame
       time holds, CPU work is a 4 ms median, and draws rise about three.
       After the merge, production's Falls View Park is reset to this seed
@@ -647,6 +649,9 @@ courses start from.
       courses while keeping history, attribution, and past race identity.
 - [ ] Server-side ownership checks, validation, bounded text, and publish rate
       limits. Guests cannot author or publish.
+- [ ] A per-course budget for generated geometry: elbows, handwheels, bevels,
+      signs, and timber each build their own mesh, so 5,000 of them could
+      exhaust a phone.
 
 **PR 7.2: Public course discovery and play**
 

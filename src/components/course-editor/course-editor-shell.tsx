@@ -36,6 +36,7 @@ import {
   COURSE_OBJECT_PRESET_LABELS,
   coursePresetLimitReached,
   deleteCourseSelection,
+  getCourseEditorTransformRule,
   getSelectionGeometry,
   nudgeObjectSelections,
   nudgeSelection,
@@ -457,8 +458,7 @@ export function CourseEditorShell({
   // bicycle keeps its real size.
   const curveSelected = selectedObject?.visual.shape === "arc";
   const bicycleSelected = Boolean(selectedObject?.bicycle);
-  // A crowd barrier scales only along its length.
-  const kitSelected = selectedObject?.kit === "crowd-barrier";
+  const transformRule = getCourseEditorTransformRule(selectedObject);
   const scaleUnavailable =
     selection.kind === "start" || curveSelected || bicycleSelected;
   // Scale falls back to Move while it is unavailable rather than stranding
@@ -1330,8 +1330,7 @@ export function CourseEditorShell({
                 : null
             }
             scalable={!bicycleSelected}
-            lengthOnly={kitSelected}
-            scaleShape={selectedObject?.visual.shape ?? "box"}
+            transformRule={transformRule}
             selection={selection}
             selectionCount={selections.length}
             groupPosition={selectedGroupPosition}
@@ -1393,8 +1392,7 @@ export function CourseEditorShell({
                     : null
                 }
                 scalable={!bicycleSelected}
-                lengthOnly={kitSelected}
-                scaleShape={selectedObject?.visual.shape ?? "box"}
+                transformRule={transformRule}
                 selection={selection}
                 selectionCount={selections.length}
                 groupPosition={selectedGroupPosition}
@@ -2136,7 +2134,7 @@ function CoursePanel({
                 key={preset}
                 title={
                   objectLimitReached
-                    ? `Editor object limit reached (${COURSE_EDITOR_OBJECT_LIMIT})`
+                    ? `Editor object limit reached (${COURSE_EDITOR_OBJECT_LIMIT.toLocaleString("en-US")})`
                     : presetBlocked
                       ? presetLimitMessage(preset, presetLimit)
                       : `Add ${label}`
@@ -2155,7 +2153,7 @@ function CoursePanel({
             id={objectLimitMessageId}
             role="status"
           >
-            Editor object limit reached ({COURSE_EDITOR_OBJECT_LIMIT})
+            Editor object limit reached ({COURSE_EDITOR_OBJECT_LIMIT.toLocaleString("en-US")})
           </p>
         ) : null}
         {!objectLimitReached && presetLimitReached ? (
@@ -2387,7 +2385,6 @@ function Inspector({
   canDelete,
   geometry,
   groupPosition,
-  lengthOnly,
   objectName,
   onArc,
   onDelete,
@@ -2398,16 +2395,15 @@ function Inspector({
   onSectionToggle,
   placement,
   scalable,
-  scaleShape,
   sectionOpen,
   selection,
   selectionCount,
+  transformRule,
 }: {
   arc: CourseArc | null;
   canDelete: boolean;
   geometry: ReturnType<typeof getSelectionGeometry>;
   groupPosition: { x: number; y: number; z: number } | null;
-  lengthOnly: boolean;
   objectName: string | null;
   onDelete: () => void;
   onNudge: (
@@ -2422,7 +2418,7 @@ function Inspector({
   onSectionToggle: (section: EditorSection) => void;
   placement: ObjectPlacement | null;
   scalable: boolean;
-  scaleShape: "arc" | "box" | "cylinder";
+  transformRule: ReturnType<typeof getCourseEditorTransformRule>;
   sectionOpen: Record<EditorSection, boolean>;
   selection: CourseEditorSelection;
   selectionCount: number;
@@ -2517,6 +2513,7 @@ function Inspector({
         onToggle={() => onSectionToggle("inspector-rotation")}
       >
       <NudgeGroup
+        axes={transformRule.turns}
         label="Rotation"
         step={5}
         values={geometry.rotation}
@@ -2542,7 +2539,7 @@ function Inspector({
           <legend className="mb-1 font-bold uppercase tracking-[0.12em] text-titan-muted">
             Scale by axis
           </legend>
-          {(lengthOnly ? (["x"] as const) : (["x", "y", "z"] as const)).map((axis) => (
+          {transformRule.scales.map((axis) => (
             <div
               className="grid grid-cols-[2.5rem_1fr_2.75rem_2.75rem] items-center gap-2"
               key={axis}
@@ -2573,11 +2570,7 @@ function Inspector({
             </div>
           ))}
           <p className="text-[0.62rem] leading-relaxed text-titan-muted">
-            {lengthOnly
-              ? "A crowd barrier scales only along its length."
-              : scaleShape === "cylinder"
-                ? "Cylinder X/Z stay paired as one collision radius; Y changes height."
-                : "Each axis updates its matching visual and collision dimension."}
+            {transformRule.note}
           </p>
         </fieldset>
         </CollapsibleSection>
@@ -2790,11 +2783,13 @@ function ObjectNameControl({
 }
 
 function NudgeGroup({
+  axes = ["x", "y", "z"],
   label,
   onNudge,
   step,
   values,
 }: {
+  axes?: readonly ("x" | "y" | "z")[];
   label: string;
   onNudge: (axis: "x" | "y" | "z", delta: number) => void;
   step: number;
@@ -2805,7 +2800,7 @@ function NudgeGroup({
       <legend className="mb-1 font-bold uppercase tracking-[0.12em] text-titan-muted">
         {label}
       </legend>
-      {(["x", "y", "z"] as const).map((axis) => (
+      {axes.map((axis) => (
         <div className="grid grid-cols-[2.5rem_1fr_2.75rem_2.75rem] items-center gap-2" key={axis}>
           <span className="font-bold uppercase text-titan-muted">{axis}</span>
           <output

@@ -1,3 +1,4 @@
+import { CYLINDER_SIDES } from "./course-bevel";
 import { rotateCourseDirection } from "./course-document";
 
 type Vec3 = { x: number; y: number; z: number };
@@ -5,8 +6,6 @@ type Transform = { position: Vec3; rotation: Vec3 };
 
 const AXES = ["x", "y", "z"] as const;
 const UNROTATED = { x: 0, y: 0, z: 0 };
-// The engine cylinder's sides.
-const CYLINDER_SIDES = 20;
 
 /**
  * A unit box or cylinder for a timber object of this size and place, with its

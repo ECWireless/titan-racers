@@ -33,7 +33,7 @@ export type CourseSignGlyphs = {
 const CHARACTERS =
   "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789.-";
 // Bold DIN, the lettering of road and plant signs, where the system has it
-// (iOS and macOS); otherwise a narrow grotesque.
+// (iOS and macOS); otherwise Arial Narrow, or the system's sans.
 const FONT = '"DIN Alternate", "DIN Condensed", "Arial Narrow", "Helvetica Neue", Arial, sans-serif';
 const FONT_PIXELS = 64;
 // Room around each letter so mipmaps do not bleed neighbours into it.

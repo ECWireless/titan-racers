@@ -255,6 +255,39 @@ export function createCourseElbowGeometry(scale: Vector) {
   return geometry;
 }
 
+// An elbow collides as cylinders along chords of its bend, as many as keep
+// each chord within 4 mm of the bend, up to 32 (elbows to about 9 m across).
+const ELBOW_COLLISION = { maximum: 32, tolerance: 0.004 };
+
+/**
+ * The cylinders an elbow of this diameter collides as, in its local frame in
+ * metres: each along a chord of the bend, lengthened to close the mitre at
+ * its ends, turned about local Z (`roll`, degrees) from local Y.
+ */
+export function getCourseElbowCollisionCylinders(diameter: number) {
+  const radius = diameter / 2;
+  const bend = ELBOW.bend * diameter;
+  // A chord across angle a lies inside the bend by bend × (1 − cos(a / 2)).
+  const widest = 2 * Math.acos(Math.max(-1, 1 - ELBOW_COLLISION.tolerance / bend));
+  const count = Math.min(
+    ELBOW_COLLISION.maximum,
+    Math.max(1, Math.ceil(Math.PI / 2 / widest)),
+  );
+  const step = Math.PI / 2 / count;
+  return Array.from({ length: count }, (_, index) => {
+    const mid = (index + 0.5) * step;
+    const half = step / 2;
+    // The chord's middle lies inside the bend's centre line by its sagitta.
+    const reach = bend * Math.cos(half);
+    return {
+      center: { x: bend - reach * Math.cos(mid), y: bend - reach * Math.sin(mid), z: 0 },
+      height: 2 * bend * Math.sin(half) + 2 * radius * Math.tan(half),
+      radius,
+      roll: (mid * 180) / Math.PI,
+    };
+  });
+}
+
 /** The boxes a kit draws about its object, and the object's scale, or null. */
 export function getCourseKit(object: CourseObject) {
   if (object.kit !== "crowd-barrier" || object.visual.shape !== "box") return null;

@@ -656,7 +656,10 @@ export function createCourseSurfaceMaterials(
       material.gloss = base.gloss;
       material.opacityMap = signLetters;
       material.opacityMapChannel = "r";
-      material.alphaTest = 0.5;
+      // With multisampling, strokes fade over their edge rather than step;
+      // a low cut keeps thin strokes at a distance for coverage to soften.
+      material.alphaTest = 0.25;
+      material.alphaToCoverage = true;
       // Lettering stands 3 mm proud of its board; at a distance that is
       // under one depth step, so it is drawn a step and a quarter-pixel
       // slope toward the camera, as a course's paint layers are.

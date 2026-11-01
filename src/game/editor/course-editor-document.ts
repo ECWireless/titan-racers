@@ -777,7 +777,11 @@ export function updateSelectionGeometry(
       // as it was.
       const rescale = (value: number, ratio: number) =>
         ratio === 1 ? value : roundEditorValue(value * ratio);
-      const collision = object.collision
+      // An elbow's collision follows its size.
+      const collision =
+        object.collision?.shape === "elbow"
+          ? object.collision
+          : object.collision
         ? {
             ...object.collision,
             ...(object.collision.shape === "box"
@@ -960,6 +964,46 @@ export function renameCourseObject(
         : candidate,
     ),
   });
+}
+
+/**
+ * How an object turns and resizes in the editor: the axes it turns about,
+ * the scale axes the inspector offers, and the inspector's note on them.
+ */
+export function getCourseEditorTransformRule(object: CourseObject | undefined) {
+  const turns = ["x", "y", "z"] as const;
+  if (object?.kit === "crowd-barrier") {
+    return {
+      note: "A crowd barrier stands upright and scales only along its length.",
+      scales: ["x"] as const,
+      turns: ["y"] as const,
+    };
+  }
+  if (object?.sign !== undefined) {
+    return {
+      note: "A sign scales across its face; its thickness stays.",
+      scales: ["x", "y"] as const,
+      turns,
+    };
+  }
+  if (object?.kit === "elbow") {
+    return { note: "An elbow scales as a whole.", scales: ["x"] as const, turns };
+  }
+  if (object && isCourseRoundCylinder(object)) {
+    return {
+      note: "X and Z stay paired as one diameter; Y changes thickness.",
+      scales: ["x", "y"] as const,
+      turns,
+    };
+  }
+  return {
+    note:
+      object?.collision?.shape === "cylinder"
+        ? "Cylinder X/Z stay paired as one collision radius; Y changes height."
+        : "Each axis updates its matching visual and collision dimension.",
+    scales: ["x", "y", "z"] as const,
+    turns,
+  };
 }
 
 export function scaleSelectionUniformly(

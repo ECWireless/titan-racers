@@ -257,12 +257,16 @@ base, as long as the plank. `kit: "handwheel"` draws a valve's handwheel
 (rim, hub, four spokes) in place of a round cylinder with no collision, and
 `kit: "elbow"` a pipe's 90° long-radius bend (1.5 diameters) in place of a
 uniform one as wide as the pipe, joining a pipe along local +Y through the
-corner at its origin to one along local +X.
+corner at its origin to one along local +X. An elbow collides as its bend,
+`collision: { shape: "elbow" }` (cylinders along chords of the bend, as many
+as keep them within 4 mm of the pipe, as a solid obstacle), or not at all;
+nothing else collides so.
 Version eleven also adds the `kerb` finish, sidewalk concrete apart from
 walls' cast concrete; `visual.bevel`, a chamfer up to 5 cm wide along a
 solid box's or round cylinder's edges (never a surface, timber, kit, or
 bicycle), drawn up to 45% of its thinnest side; and `sign`, up to 12
-letters, digits, spaces, full stops, and hyphens, not all spaces, painted
+letters, digits, spaces, full stops, and hyphens, starting and ending with
+one that is not a space, painted
 in its finish on the local +Z face of a box at most 10 mm thick with no
 collision, kit, or bevel. Version-ten documents upgrade unchanged.
 

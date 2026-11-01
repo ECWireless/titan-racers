@@ -16,8 +16,14 @@ import {
  * finishes' pixels, the habitat's light and its environment atlas, the
  * planting's geometry, and its signs' letters. Each is cached per page, so
  * a race on the same course finds it ready. Steps run one at a time while
- * the page is idle; the returned function stops any not yet run.
+ * the page is idle, or, where the browser cannot say (Safari), once the
+ * player has not touched or typed for half a second; the returned function
+ * stops any not yet run.
  */
+// Where the browser cannot report idle time, how long after the player's
+// last touch or key a step may run.
+const QUIET_MS = 500;
+
 export function prewarmCourseScene(document: CourseDocument) {
   const steps: Array<() => unknown> = [
     ...prewarmCourseSurfacePixels,
@@ -33,17 +39,31 @@ export function prewarmCourseScene(document: CourseDocument) {
       : []),
   ];
   let stopped = false;
+  const idle = typeof window.requestIdleCallback === "function";
+  let lastInput = -Infinity;
+  const onInput = () => {
+    lastInput = performance.now();
+  };
+  const inputs = ["keydown", "pointerdown"] as const;
+  const stop = () => {
+    stopped = true;
+    if (!idle) inputs.forEach((type) => window.removeEventListener(type, onInput, true));
+  };
+  if (!idle) inputs.forEach((type) => window.addEventListener(type, onInput, true));
   const schedule = (run: () => void) =>
-    typeof window.requestIdleCallback === "function"
+    idle
       ? window.requestIdleCallback(run, { timeout: 1_000 })
-      : window.setTimeout(run, 50);
+      : window.setTimeout(run, 100);
   const next = () => {
     if (stopped) return;
+    if (!idle && performance.now() - lastInput < QUIET_MS) {
+      schedule(next);
+      return;
+    }
     steps.shift()?.();
     if (steps.length > 0) schedule(next);
+    else stop();
   };
   schedule(next);
-  return () => {
-    stopped = true;
-  };
+  return stop;
 }

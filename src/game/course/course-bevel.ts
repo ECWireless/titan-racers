@@ -10,7 +10,7 @@ export type CourseMeshGeometry = {
 };
 
 // The engine cylinder's sides.
-const CYLINDER_SIDES = 20;
+export const CYLINDER_SIDES = 20;
 
 /**
  * Builds geometry in metres, then fits it to the unit primitive its entity

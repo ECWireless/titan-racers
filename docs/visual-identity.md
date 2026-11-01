@@ -170,8 +170,9 @@ Materials), and so do course surfaces (see Course Surfaces).
   side of a gasket; both mains end in long-radius elbows into the wall;
   valves turn on cast handwheels with a rim, hub, and four spokes. Tiled
   floors, walls, and sidewalk kerbs keep square edges, as their joints
-  would otherwise groove. Signs are painted lettering in bold DIN (a narrow
-  grotesque where the system lacks it): door numbers, and the headroom
+  would otherwise groove. Signs are painted lettering in bold DIN where the
+  system has it (Arial Narrow, or the system sans, elsewhere): door numbers,
+  and the headroom
   between the hazard stripes of the portals' height boards, "MAX 2.7m",
   under the youth's timing gantry's work light at 2.74 m.
 - **Asphalt and grass are photo scans at true size.** CC0 scans give their
@@ -424,10 +425,13 @@ CPU work falls to a 3 ms median, with p95 7 ms. The warm first frame took
 over budget for PR 4.4.8.
 
 PR 4.4.8 was measured with one warm iPhone race on the final production
-preview, after a cold load, with no hitches. The home screen now prepares
-the course while a kart is chosen, so the race waits for nothing: the warm
-first frame took 393 ms (236 ms building the course and 157 ms drawing it)
-and the race was ready after 480 ms, back within the 436 ms budget. The
-scanned finishes, the timber, bevelled, and lettered pieces' own meshes,
-and the signs' lettering add about three draws (a 52 median, 73 at most)
-and a millisecond of median CPU work (4 ms, p95 7 ms); frame time holds.
+preview, after an unmeasured cold load, with no hitches. The home screen
+now prepares the course while a kart is chosen, so the race waits for
+nothing: the warm first frame took 393 ms (236 ms building the course and
+157 ms drawing it), back within the 436 ms budget, and the race was ready
+after 480 ms. The scanned finishes, the timber, bevelled, and lettered
+pieces' own meshes, and the signs' lettering add about three draws (a 52
+median, 73 at most) and a millisecond of median CPU work (4 ms, p95 7 ms);
+frame time holds. The scans grew to 5.5 MB to download (from 4.3 MB) and
+about 67 MiB in GPU memory with mipmaps, cast concrete's 1K set the
+largest; a cold load waits for all of them.

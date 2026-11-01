@@ -12528,7 +12528,16 @@
     {
       "availability": "standard",
       "category": "obstacle",
-      "collision": null,
+      "collision": {
+        "friction": 0.7,
+        "restitution": 0,
+        "role": "solid-obstacle",
+        "shape": "elbow",
+        "surfaceMaterial": {
+          "id": "surface.standard-course",
+          "version": 1
+        }
+      },
       "editable": true,
       "id": "tunnel-water-main-elbow-west",
       "indoors": true,
@@ -12558,7 +12567,16 @@
     {
       "availability": "standard",
       "category": "obstacle",
-      "collision": null,
+      "collision": {
+        "friction": 0.7,
+        "restitution": 0,
+        "role": "solid-obstacle",
+        "shape": "elbow",
+        "surfaceMaterial": {
+          "id": "surface.standard-course",
+          "version": 1
+        }
+      },
       "editable": true,
       "id": "tunnel-water-main-elbow-east",
       "indoors": true,
@@ -40319,6 +40337,7 @@
       "editable": true,
       "id": "downhill-barrier-west-1-plank",
       "kit": "crowd-barrier",
+      "label": "Crowd barrier (downhill west 1)",
       "transform": {
         "position": {
           "x": -62.5625,
@@ -40374,6 +40393,7 @@
       "editable": true,
       "id": "downhill-barrier-west-2-plank",
       "kit": "crowd-barrier",
+      "label": "Crowd barrier (downhill west 2)",
       "transform": {
         "position": {
           "x": -61.5,
@@ -40429,6 +40449,7 @@
       "editable": true,
       "id": "downhill-barrier-west-3-plank",
       "kit": "crowd-barrier",
+      "label": "Crowd barrier (downhill west 3)",
       "transform": {
         "position": {
           "x": -61.5,
@@ -40484,6 +40505,7 @@
       "editable": true,
       "id": "downhill-barrier-west-4-plank",
       "kit": "crowd-barrier",
+      "label": "Crowd barrier (downhill west 4)",
       "transform": {
         "position": {
           "x": -61.5,
@@ -40539,6 +40561,7 @@
       "editable": true,
       "id": "downhill-barrier-west-5-plank",
       "kit": "crowd-barrier",
+      "label": "Crowd barrier (downhill west 5)",
       "transform": {
         "position": {
           "x": -61.5,
@@ -40594,6 +40617,7 @@
       "editable": true,
       "id": "downhill-barrier-west-6-plank",
       "kit": "crowd-barrier",
+      "label": "Crowd barrier (downhill west 6)",
       "transform": {
         "position": {
           "x": -61.5,
@@ -40649,6 +40673,7 @@
       "editable": true,
       "id": "downhill-barrier-west-7-plank",
       "kit": "crowd-barrier",
+      "label": "Crowd barrier (downhill west 7)",
       "transform": {
         "position": {
           "x": -61.5,
@@ -40704,6 +40729,7 @@
       "editable": true,
       "id": "downhill-barrier-west-8-plank",
       "kit": "crowd-barrier",
+      "label": "Crowd barrier (downhill west 8)",
       "transform": {
         "position": {
           "x": -61.5,
@@ -40759,6 +40785,7 @@
       "editable": true,
       "id": "downhill-barrier-west-9-plank",
       "kit": "crowd-barrier",
+      "label": "Crowd barrier (downhill west 9)",
       "transform": {
         "position": {
           "x": -61.5,
@@ -40814,6 +40841,7 @@
       "editable": true,
       "id": "downhill-barrier-west-10-plank",
       "kit": "crowd-barrier",
+      "label": "Crowd barrier (downhill west 10)",
       "transform": {
         "position": {
           "x": -61.5,
@@ -40869,6 +40897,7 @@
       "editable": true,
       "id": "downhill-barrier-west-11-plank",
       "kit": "crowd-barrier",
+      "label": "Crowd barrier (downhill west 11)",
       "transform": {
         "position": {
           "x": -61.5,
@@ -40924,6 +40953,7 @@
       "editable": true,
       "id": "downhill-barrier-west-12-plank",
       "kit": "crowd-barrier",
+      "label": "Crowd barrier (downhill west 12)",
       "transform": {
         "position": {
           "x": -61.5,
@@ -40979,6 +41009,7 @@
       "editable": true,
       "id": "downhill-barrier-west-13-plank",
       "kit": "crowd-barrier",
+      "label": "Crowd barrier (downhill west 13)",
       "transform": {
         "position": {
           "x": -61.5,
@@ -41034,6 +41065,7 @@
       "editable": true,
       "id": "downhill-barrier-west-14-plank",
       "kit": "crowd-barrier",
+      "label": "Crowd barrier (downhill west 14)",
       "transform": {
         "position": {
           "x": -61.5,
@@ -41089,6 +41121,7 @@
       "editable": true,
       "id": "downhill-barrier-west-15-plank",
       "kit": "crowd-barrier",
+      "label": "Crowd barrier (downhill west 15)",
       "transform": {
         "position": {
           "x": -61.5,
@@ -41144,6 +41177,7 @@
       "editable": true,
       "id": "downhill-barrier-west-16-plank",
       "kit": "crowd-barrier",
+      "label": "Crowd barrier (downhill west 16)",
       "transform": {
         "position": {
           "x": -61.5,
@@ -41199,6 +41233,7 @@
       "editable": true,
       "id": "downhill-barrier-west-17-plank",
       "kit": "crowd-barrier",
+      "label": "Crowd barrier (downhill west 17)",
       "transform": {
         "position": {
           "x": -61.5,
@@ -41254,6 +41289,7 @@
       "editable": true,
       "id": "downhill-barrier-west-18-plank",
       "kit": "crowd-barrier",
+      "label": "Crowd barrier (downhill west 18)",
       "transform": {
         "position": {
           "x": -61.5,
@@ -41309,6 +41345,7 @@
       "editable": true,
       "id": "downhill-barrier-west-19-plank",
       "kit": "crowd-barrier",
+      "label": "Crowd barrier (downhill west 19)",
       "transform": {
         "position": {
           "x": -61.5,
@@ -41364,6 +41401,7 @@
       "editable": true,
       "id": "downhill-barrier-west-20-plank",
       "kit": "crowd-barrier",
+      "label": "Crowd barrier (downhill west 20)",
       "transform": {
         "position": {
           "x": -61.5,
@@ -41419,6 +41457,7 @@
       "editable": true,
       "id": "downhill-barrier-west-21-plank",
       "kit": "crowd-barrier",
+      "label": "Crowd barrier (downhill west 21)",
       "transform": {
         "position": {
           "x": -61.5,
@@ -41474,6 +41513,7 @@
       "editable": true,
       "id": "downhill-barrier-west-22-plank",
       "kit": "crowd-barrier",
+      "label": "Crowd barrier (downhill west 22)",
       "transform": {
         "position": {
           "x": -61.5,
@@ -41529,6 +41569,7 @@
       "editable": true,
       "id": "downhill-barrier-west-23-plank",
       "kit": "crowd-barrier",
+      "label": "Crowd barrier (downhill west 23)",
       "transform": {
         "position": {
           "x": -61.5,
@@ -41584,6 +41625,7 @@
       "editable": true,
       "id": "downhill-barrier-west-24-plank",
       "kit": "crowd-barrier",
+      "label": "Crowd barrier (downhill west 24)",
       "transform": {
         "position": {
           "x": -61.5,
@@ -41639,6 +41681,7 @@
       "editable": true,
       "id": "downhill-barrier-west-25-plank",
       "kit": "crowd-barrier",
+      "label": "Crowd barrier (downhill west 25)",
       "transform": {
         "position": {
           "x": -60.89179,
@@ -41694,6 +41737,7 @@
       "editable": true,
       "id": "downhill-barrier-west-26-plank",
       "kit": "crowd-barrier",
+      "label": "Crowd barrier (downhill west 26)",
       "transform": {
         "position": {
           "x": -59.528591,
@@ -41749,6 +41793,7 @@
       "editable": true,
       "id": "downhill-barrier-east-1-plank",
       "kit": "crowd-barrier",
+      "label": "Crowd barrier (downhill east 1)",
       "transform": {
         "position": {
           "x": -53,
@@ -41804,6 +41849,7 @@
       "editable": true,
       "id": "downhill-barrier-east-2-plank",
       "kit": "crowd-barrier",
+      "label": "Crowd barrier (downhill east 2)",
       "transform": {
         "position": {
           "x": -53,
@@ -41859,6 +41905,7 @@
       "editable": true,
       "id": "downhill-barrier-east-3-plank",
       "kit": "crowd-barrier",
+      "label": "Crowd barrier (downhill east 3)",
       "transform": {
         "position": {
           "x": -53,
@@ -41914,6 +41961,7 @@
       "editable": true,
       "id": "downhill-barrier-east-4-plank",
       "kit": "crowd-barrier",
+      "label": "Crowd barrier (downhill east 4)",
       "transform": {
         "position": {
           "x": -52.978469,
@@ -41969,6 +42017,7 @@
       "editable": true,
       "id": "downhill-barrier-east-5-plank",
       "kit": "crowd-barrier",
+      "label": "Crowd barrier (downhill east 5)",
       "transform": {
         "position": {
           "x": -52.663484,
@@ -42024,6 +42073,7 @@
       "editable": true,
       "id": "downhill-barrier-east-6-plank",
       "kit": "crowd-barrier",
+      "label": "Crowd barrier (downhill east 6)",
       "transform": {
         "position": {
           "x": -51.757086,
@@ -42079,6 +42129,7 @@
       "editable": true,
       "id": "downhill-barrier-east-7-plank",
       "kit": "crowd-barrier",
+      "label": "Crowd barrier (downhill east 7)",
       "transform": {
         "position": {
           "x": -50.388491,
@@ -42134,6 +42185,7 @@
       "editable": true,
       "id": "downhill-barrier-east-8-plank",
       "kit": "crowd-barrier",
+      "label": "Crowd barrier (downhill east 8)",
       "transform": {
         "position": {
           "x": -49.030528,
@@ -42189,6 +42241,7 @@
       "editable": true,
       "id": "downhill-barrier-east-9-plank",
       "kit": "crowd-barrier",
+      "label": "Crowd barrier (downhill east 9)",
       "transform": {
         "position": {
           "x": -48.000738,
@@ -42244,6 +42297,7 @@
       "editable": true,
       "id": "downhill-barrier-east-10-plank",
       "kit": "crowd-barrier",
+      "label": "Crowd barrier (downhill east 10)",
       "transform": {
         "position": {
           "x": -47.337066,
@@ -42299,6 +42353,7 @@
       "editable": true,
       "id": "downhill-barrier-east-11-plank",
       "kit": "crowd-barrier",
+      "label": "Crowd barrier (downhill east 11)",
       "transform": {
         "position": {
           "x": -47.057492,
@@ -42354,6 +42409,7 @@
       "editable": true,
       "id": "downhill-barrier-east-12-plank",
       "kit": "crowd-barrier",
+      "label": "Crowd barrier (downhill east 12)",
       "transform": {
         "position": {
           "x": -47.169926,
@@ -42409,6 +42465,7 @@
       "editable": true,
       "id": "downhill-barrier-east-13-plank",
       "kit": "crowd-barrier",
+      "label": "Crowd barrier (downhill east 13)",
       "transform": {
         "position": {
           "x": -47.671164,
@@ -42464,6 +42521,7 @@
       "editable": true,
       "id": "downhill-barrier-east-14-plank",
       "kit": "crowd-barrier",
+      "label": "Crowd barrier (downhill east 14)",
       "transform": {
         "position": {
           "x": -48.546986,
@@ -42519,6 +42577,7 @@
       "editable": true,
       "id": "downhill-barrier-east-15-plank",
       "kit": "crowd-barrier",
+      "label": "Crowd barrier (downhill east 15)",
       "transform": {
         "position": {
           "x": -49.772552,
@@ -42574,6 +42633,7 @@
       "editable": true,
       "id": "downhill-barrier-east-16-plank",
       "kit": "crowd-barrier",
+      "label": "Crowd barrier (downhill east 16)",
       "transform": {
         "position": {
           "x": -51.193786,
@@ -42629,6 +42689,7 @@
       "editable": true,
       "id": "downhill-barrier-east-17-plank",
       "kit": "crowd-barrier",
+      "label": "Crowd barrier (downhill east 17)",
       "transform": {
         "position": {
           "x": -52.352198,
@@ -42684,6 +42745,7 @@
       "editable": true,
       "id": "downhill-barrier-east-18-plank",
       "kit": "crowd-barrier",
+      "label": "Crowd barrier (downhill east 18)",
       "transform": {
         "position": {
           "x": -52.894607,
@@ -42739,6 +42801,7 @@
       "editable": true,
       "id": "downhill-barrier-east-19-plank",
       "kit": "crowd-barrier",
+      "label": "Crowd barrier (downhill east 19)",
       "transform": {
         "position": {
           "x": -53,
@@ -42794,6 +42857,7 @@
       "editable": true,
       "id": "downhill-barrier-east-20-plank",
       "kit": "crowd-barrier",
+      "label": "Crowd barrier (downhill east 20)",
       "transform": {
         "position": {
           "x": -53,
@@ -42849,6 +42913,7 @@
       "editable": true,
       "id": "downhill-barrier-east-21-plank",
       "kit": "crowd-barrier",
+      "label": "Crowd barrier (downhill east 21)",
       "transform": {
         "position": {
           "x": -53,
@@ -42904,6 +42969,7 @@
       "editable": true,
       "id": "downhill-barrier-east-22-plank",
       "kit": "crowd-barrier",
+      "label": "Crowd barrier (downhill east 22)",
       "transform": {
         "position": {
           "x": -53,
@@ -42959,6 +43025,7 @@
       "editable": true,
       "id": "downhill-barrier-east-23-plank",
       "kit": "crowd-barrier",
+      "label": "Crowd barrier (downhill east 23)",
       "transform": {
         "position": {
           "x": -53,
@@ -43014,6 +43081,7 @@
       "editable": true,
       "id": "downhill-barrier-east-24-plank",
       "kit": "crowd-barrier",
+      "label": "Crowd barrier (downhill east 24)",
       "transform": {
         "position": {
           "x": -53,
@@ -43069,6 +43137,7 @@
       "editable": true,
       "id": "downhill-barrier-east-25-plank",
       "kit": "crowd-barrier",
+      "label": "Crowd barrier (downhill east 25)",
       "transform": {
         "position": {
           "x": -53,
@@ -43124,6 +43193,7 @@
       "editable": true,
       "id": "downhill-barrier-east-26-plank",
       "kit": "crowd-barrier",
+      "label": "Crowd barrier (downhill east 26)",
       "transform": {
         "position": {
           "x": -53.141552,
@@ -43179,6 +43249,7 @@
       "editable": true,
       "id": "downhill-barrier-east-27-plank",
       "kit": "crowd-barrier",
+      "label": "Crowd barrier (downhill east 27)",
       "transform": {
         "position": {
           "x": -53.263565,

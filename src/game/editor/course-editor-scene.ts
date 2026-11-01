@@ -14,6 +14,7 @@ import {
   buildRoughCourse,
   createCourseArcMesh,
   createCourseElbowMesh,
+  type CourseObjectMesh,
   type CourseObjectProjection,
   type RoughCourseMaterials,
 } from "../course/build-rough-course";
@@ -26,6 +27,7 @@ import {
   type CourseDocument,
   isCourseRoundCylinder,
 } from "../course/course-document";
+import { getCourseElbowCollisionCylinders } from "../course/course-kits";
 import { createCourseSurfaceMaterials } from "../course/course-surface-materials";
 import type { CourseSurfaceImages } from "../course/course-surface-textures";
 import { COURSE_EDITOR_CAMERA_NEAR_CLIP } from "../course/course-visual-policy";
@@ -660,6 +662,32 @@ export class CourseEditorScene {
         });
         return;
       }
+      if (collision.shape === "elbow") {
+        if (object.visual.shape === "arc") return;
+        getCourseElbowCollisionCylinders(object.visual.scale.x).forEach(
+          (cylinder, index) => {
+            const part = createVisualEntity(
+              "cylinder",
+              `${object.id}-collision-shape-${index + 1}`,
+              {
+                x: cylinder.radius * 2,
+                y: cylinder.height,
+                z: cylinder.radius * 2,
+              },
+              this.collisionMaterial,
+              true,
+            );
+            part.setLocalPosition(
+              cylinder.center.x,
+              cylinder.center.y,
+              cylinder.center.z,
+            );
+            part.setLocalEulerAngles(0, 0, cylinder.roll);
+            transformRoot.addChild(part);
+          },
+        );
+        return;
+      }
 
       const offset = new pc.Entity(`${object.id}-collision-offset`);
       offset.setLocalPosition(
@@ -915,6 +943,11 @@ export class CourseEditorScene {
     } else if (this.selections.length > 1) {
       return;
     } else if (this.tool === "rotate") {
+      // A crowd barrier stands upright: it turns only about Y.
+      const upright = this.selectedObject()?.kit === "crowd-barrier";
+      (["x", "z", "f", "xyz"] as const).forEach((shape) =>
+        this.rotateGizmo.enableShape(shape, !upright),
+      );
       this.rotateGizmo.attach(entities);
     } else if (
       this.primarySelection.kind !== "start" &&
@@ -995,7 +1028,10 @@ export class CourseEditorScene {
           ? this.createArcOutline(selection.id, sourceVisual.arc)
           : sourceObject?.kit === "elbow"
             ? this.createElbowOutline(selection.id, grown)
-            : createVisualEntity(
+            : sourceObject?.kit === "crowd-barrier" &&
+                sourceObject.collision?.shape === "box"
+              ? this.createBarrierOutline(selection.id, sourceObject.collision)
+              : createVisualEntity(
                 sourceVisual?.shape ?? "box",
                 `course-editor-selection-${selection.id}`,
                 grown,
@@ -1044,6 +1080,33 @@ export class CourseEditorScene {
       renderStyle: pc.RENDERSTYLE_WIREFRAME,
     });
     outline.addChild(grown);
+    return outline;
+  }
+
+  // A crowd barrier's outline is its collider, which holds the whole panel
+  // its frame draws about the plank, grown 4%.
+  private createBarrierOutline(
+    id: string,
+    collision: {
+      halfExtents: { x: number; y: number; z: number };
+      offset: {
+        position: { x: number; y: number; z: number };
+        rotation: { x: number; y: number; z: number };
+      };
+    },
+  ) {
+    const outline = new pc.Entity(`course-editor-selection-${id}`);
+    const { halfExtents, offset } = collision;
+    const panel = createVisualEntity(
+      "box",
+      `course-editor-selection-${id}-panel`,
+      { x: halfExtents.x * 2.08, y: halfExtents.y * 2.08, z: halfExtents.z * 2.08 },
+      this.selectionMaterial,
+      true,
+    );
+    panel.setLocalPosition(offset.position.x, offset.position.y, offset.position.z);
+    panel.setLocalEulerAngles(offset.rotation.x, offset.rotation.y, offset.rotation.z);
+    outline.addChild(panel);
     return outline;
   }
 
@@ -1169,11 +1232,11 @@ function createMaterial(
 function createProjectionEntity(
   projection: CourseObjectProjection,
   material: pc.StandardMaterial,
-  mesh?: pc.Mesh,
+  generated?: CourseObjectMesh,
 ) {
   const entity = new pc.Entity(projection.id);
   const { visual } = projection;
-  addCourseVisual(entity, projection, material, mesh);
+  addCourseVisual(entity, visual.shape, material, generated);
   if (visual.shape !== "arc") {
     entity.setLocalScale(visual.scale.x, visual.scale.y, visual.scale.z);
   }

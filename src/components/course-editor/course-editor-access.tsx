@@ -33,7 +33,7 @@ export const persistedCourseRevisionSchema = z
     if (revision.document.objects.length > COURSE_EDITOR_OBJECT_LIMIT) {
       context.addIssue({
         code: "custom",
-        message: `The course editor supports at most ${COURSE_EDITOR_OBJECT_LIMIT} objects.`,
+        message: `The course editor supports at most ${COURSE_EDITOR_OBJECT_LIMIT.toLocaleString("en-US")} objects.`,
         path: ["document", "objects"],
       });
     }

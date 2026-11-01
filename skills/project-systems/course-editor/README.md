@@ -116,8 +116,10 @@ owns only Resume and Exit.
   and picks by an unseen plate its box's size, between its letters. A move
   or turn leaves every size as it was; a resized size stays at least 5 cm,
   or its own size where already thinner. Bevels and signs are set in the
-  document; the inspector has no fields for them yet, and a resized bevel
-  or sign stretches until the drag ends and the course rebuilds.
+  document, as the inspector has no fields for them; a resized bevel or
+  sign stretches until the drag ends and the course rebuilds. A crowd
+  barrier stands upright, turning only about Y, and its outline is its
+  whole panel.
 - A parked bicycle draws in place of its box, which the editor keeps
   unseen but pickable, so the bike selects and moves as its box; it has no
   Scale tool.
