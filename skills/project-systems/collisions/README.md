@@ -208,4 +208,5 @@ fixed step, but `maximumImpulse` is the largest single-substep impulse;
 - Not implemented: kart-to-kart contact policy, damage and detachable parts,
   physical wheel bodies, per-child kart materials, and per-surface material
   authoring.
-- Representative mobile performance acceptance is deferred to Phase 9.
+- Representative mobile performance acceptance is deferred to the public demo
+  polish phase.

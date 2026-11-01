@@ -6,8 +6,9 @@ Titan Racers is a browser-playable demo built to prove one idea:
 > last Titan colony.
 
 Demo v1 is done when solo racing, official and community karts built from
-primitives, ghosts, leaderboard-ready results, community kart and course
-publishing, private multiplayer, and controller support all work.
+primitives, ghosts, leaderboard-ready results, CAD-style kart assembly with
+remixes and tracked royalties, community kart and course publishing, private
+multiplayer, and controller support all work.
 
 This file is the source of truth for remaining scope. Delete it once Demo v1 is
 accepted; the app, README, and durable docs take over from there.
@@ -27,6 +28,8 @@ These still constrain every remaining phase.
 - **Karts are machines, not skins.** Behavior comes from validated construction
   through a versioned derivation. There are no manual stat overrides; if a
   reasonable build behaves badly, fix the editor, parts, derivation, or physics.
+- **Three layers: racing, assembling, engineering.** Demo v1 covers racing and
+  assembling: players assemble approved parts, and only admins engineer them.
 - **History is immutable.** Saved kart and course revisions never change.
   A kart revision stores its derived snapshot, and races use that snapshot. A
   published part version (`id@version`) never changes; add a new version
@@ -43,7 +46,7 @@ These still constrain every remaining phase.
   checks only shape the UI. No public role-promotion endpoint or deployment
   allowlist grants roles.
 - **"Assembler" is a capability, not a role.** Admins assemble official karts
-  now; every logged-in player gets the same tools in Phase 7.
+  now; every logged-in player gets the same tools in Phase 8.
 - **Kart cards stay practical.** Short machine-focused descriptors, no lore.
 - **Match the existing Titan Racers site** (see [Visual Direction](#visual-direction)).
 - **Ship separately from the marketing site,** likely at `play.titanracers.com`.
@@ -64,6 +67,8 @@ These still constrain every remaining phase.
   storage is needed. Textures and models are reviewed repository assets that
   ship with the app (see Phase 4). Add a reviewed S3-compatible boundary only
   if player uploads arrive after Demo v1.
+- **CAD authoring:** text-to-cad for admin part models, used only in
+  development and never in the app runtime (Phase 7).
 - **Multiplayer transport:** to be chosen in Phase 6.
 
 ## Scope
@@ -80,8 +85,10 @@ These still constrain every remaining phase.
 - Developer ghost and player-best ghost.
 - Login-gated solo leaderboard.
 - Falls View Park best-time medals that set progression tiers.
-- Admin kart builder; after Phase 6, player-built community karts with
+- Admin kart builder; after Phase 7, player-built community karts with
   immediate publishing, discovery, and admin safety unpublishing.
+- CAD-style kart assembly, kart remixes, and assembler royalties that are
+  tracked and displayed, never paid.
 - Player-built community courses with immediate publishing, thumbs-ups, admin
   featuring, and safety unpublishing.
 - Private 2–4 player multiplayer rooms that guests can join by link.
@@ -90,12 +97,13 @@ These still constrain every remaining phase.
 ### Not In Demo v1
 
 - External model or custom asset uploads.
-- Marketplace, patenting, licensing, or a deep economy.
+- Marketplace, patenting, royalty payments, or a deep economy.
+- Player component engineering.
 - On-chain gameplay or token rewards.
 - Global ranked multiplayer or robust anti-cheat.
 - Hand-finished production art or a real-world kit export pipeline. Phase 4
   sets a demo-sized visual baseline instead.
-- Damage beyond the simple joint-breakage model in Phase 7.
+- Damage beyond the simple joint-breakage model in Phase 8.
 - Fuel or battery simulation, advanced tire physics, or punishing collisions.
 - Player-editable numerical tuning or raw handling controls.
 
@@ -104,7 +112,7 @@ These still constrain every remaining phase.
 | Role | Can do |
 | --- | --- |
 | Guest | Race official and published community karts and courses, join private rooms, see local results. Cannot submit leaderboard times or save designs. |
-| Player | Everything a guest can, plus a persistent racer identity and history, leaderboard submission, building and publishing their own karts (Phase 7) and courses (Phase 8), and one thumbs-up per community course. |
+| Player | Everything a guest can, plus a persistent racer identity and history, leaderboard submission, building, remixing, and publishing their own karts (Phase 8) and courses (Phase 9), and one thumbs-up per community course. |
 | Admin | Protected course and kart editors; create, revise, publish, and unpublish official karts and courses; feature or safety-unpublish community karts and courses without deleting history; inspect derived kart stats, never override them. Several admins are allowed. |
 
 ## Visual Direction
@@ -538,6 +546,9 @@ barriers are the youth's portable race kit
 - [ ] Leave headroom for Phase 6's four-kart rooms: engine and contact
       sounds for three remote karts, which can cost less than the player's.
 
+Reference: [teardown](https://github.com/elvarofficial/teardown)'s procedural
+sound (MIT code, CC0 samples), synthesized from the events it accompanies.
+
 **PR 4.6: Kart editor suspension swap**
 
 - [ ] Swapping a suspension type keeps the current arm geometry. Approved
@@ -615,7 +626,7 @@ authoritative system.
       mass, relative velocity, contact normal, and angle of attack.
 - [ ] Sync collision impulses without remote tunneling or explosive
       corrections.
-- [ ] Version the room's sync messages so Phase 7's joint damage can extend
+- [ ] Version the room's sync messages so Phase 8's joint damage can extend
       them.
 
 **Done when:** a host creates a room, a guest joins by link, both ready up and
@@ -624,7 +635,73 @@ glancing, rear-end, head-on, pileup, airborne, wall-pinning, and concurrent
 kart/environment contacts each resolve once and stay in sync under latency and
 disconnects.
 
-### Phase 7: Community Karts And Structural Breakage
+### Phase 7: CAD Assembly And Kart Royalties
+
+**Goal:** make kart assembly feel like CAD, rebuild selected approved parts with
+new authoring approaches, and credit assemblers with tracked, displayed
+royalties.
+
+Phase decisions:
+
+- **Racing and assembly only.** Players assemble approved parts and engineer
+  nothing. Only admins engineer parts, and the component-engineering boundary
+  in `docs/kart-system/components-and-materials.md` still holds.
+- **CAD stays out of the game.** text-to-cad (build123d on OpenCASCADE) is an
+  admin authoring tool used only in development, never in the app runtime.
+- **Royalties are tracked and displayed, never paid.** Payments, balances, and
+  on-chain actions need a separately accepted scope.
+
+**PR 7.1: Admin parts with new approaches**
+
+- [ ] Review text-to-cad and set it up for development only: telemetry off,
+      no installer that configures every agent app, and a license check
+      before committing any vendor model from `step.parts`.
+- [ ] Rebuild selected approved parts' visuals from CAD models, or from
+      code-built linkages posed from one input. Visuals stay presentation-only,
+      so derivation, revisions, and hashes do not change; mass measured from
+      CAD enters only through new part versions.
+- [ ] A per-kart triangle and draw budget for part visuals that keeps a
+      four-kart room within the phone budget.
+
+**PR 7.2: CAD-style assembly**
+
+- [ ] Approved parts declare named mounting points, and compatible parts snap
+      together. New kart schema version; older revisions load unchanged.
+- [ ] Clearance and interference checks from measured overlap and closest
+      points between parts.
+- [ ] Exploded and x-ray views, with suspension posed from wheel travel, and
+      measured-dimension readouts. Presentation only.
+- [ ] Ships in the admin kart builder; players get it in Phase 8.
+
+**PR 7.3: Assembler credit and royalties**
+
+- [ ] Each published kart revision records its assembler and license terms:
+      whether others may race and remix it, and a payment type of
+      attribution or free.
+- [ ] A server-owned ledger counts races, room uses, and remixes for each
+      published kart, computed from existing run summaries and kart revisions
+      with no new telemetry. Kart cards and assembler profiles show it.
+- [ ] Official karts come first; community karts and remixes join in Phase 8.
+
+**Done when:** a rebuilt part shows on every kart that uses it without changing
+any derived stats, within the phone budget; karts assemble by mounting points
+with clearance checks, and older revisions still race unchanged; and each
+published kart shows its assembler, license, and usage, with nothing paid out.
+
+References (concepts, not dependencies):
+
+- [text-to-cad](https://github.com/earthtojake/text-to-cad) (MIT): agents
+  write build123d models; mass from volume times density; overlap and
+  closest-point checks; STEP, GLB, STL, and 3MF export.
+- [SindriCAD](https://tinkeratlas.com/sindricad) (AGPL-3.0, concepts only):
+  documents store the recipe (named parameters and ordered features), not
+  the shapes.
+- [RSL 1.0](https://rslstandard.org/): per-asset license terms, what is
+  permitted or prohibited, and a fixed set of payment types.
+- [teardown](https://github.com/elvarofficial/teardown) (MIT): one input drives
+  every pose; isolate, x-ray, cut away, or explode the part doing the work.
+
+### Phase 8: Community Karts And Structural Breakage
 
 **Goal:** every logged-in player can build, publish, and race karts, and karts
 can break in a readable, forgiving way.
@@ -633,10 +710,14 @@ Reuse the Phase 3 kart document, derivation, editor, and revision pipeline. No
 second format, raw tuning, or creator-set stat or joint-strength numbers.
 Publishing is immediate, with no approval queue.
 
-**PR 7.1: Player kart ownership and publishing**
+**PR 8.1: Player kart ownership and publishing**
 
 - [ ] Role-aware player kart editor without admin or roster controls.
 - [ ] Players create, edit, and save only their own private drafts.
+- [ ] Players assemble with Phase 7's CAD-style tools.
+- [ ] Players remix a published kart whose license allows it: the draft starts
+      from that revision, and the published remix credits the original
+      assembler and links its source revision.
 - [ ] Debrief speed-carrying drifts: a handbrake drift should flow on out of
       the corner, but sliding asphalt grip scrubs most of the speed. Options
       to weigh: a drift tire with lower sliding grip, a wheel-spin model, or
@@ -651,17 +732,19 @@ Publishing is immediate, with no approval queue.
 - [ ] Send `no-store` on every admin and profile response, cap JSON request
       sizes, and restrict or server-render thumbnail PNG chunks.
 
-**PR 7.2: Community kart discovery, play, and safety**
+**PR 8.2: Community kart discovery, play, and safety**
 
 - [ ] Public catalog that clearly separates official and community karts.
 - [ ] Anyone can race any published community kart in casual modes.
 - [ ] Players can bring a published community kart into a private room.
+- [ ] Community karts' races, room uses, and remixes count in the Phase 7
+      ledger.
 - [ ] Each race records the kart ID and publication revision.
 - [ ] Admins feature or safety-unpublish karts without changing stats,
       eligibility, history, or audit data. Unpublished karts leave discovery
       and guest play.
 
-**PR 7.3: Structural joints and forgiving breakage**
+**PR 8.3: Structural joints and forgiving breakage**
 
 - [ ] Research and approve the damage standard and its PlayCanvas/Ammo mapping
       first.
@@ -685,6 +768,7 @@ Publishing is immediate, with no approval queue.
 - Guests can race a published community kart, and community karts cannot reach
   the solo leaderboard.
 - A race stays bound to the kart revision it started with.
+- A remix credits its source kart's assembler and keeps its source revision.
 - Glancing hits, direct hits, scraping, repeated small hits, and falls behave
   forgivingly, detached parts clean up correctly on reset and race finish,
   and damage stays in sync in rooms under latency and disconnects.
@@ -692,7 +776,7 @@ Publishing is immediate, with no approval queue.
 Not in this phase: external assets, marketplace behavior, collaborative editing,
 comments, and leaderboard eligibility for community karts.
 
-### Phase 8: Community Courses
+### Phase 9: Community Courses
 
 **Goal:** players publish, discover, race, and curate courses with no approval
 queue.
@@ -701,7 +785,7 @@ Reuse the existing course document, revisions, and editor. No second format or
 editor. The Starter Course (`rough-course`) is the template new community
 courses start from.
 
-**PR 8.1: Player course ownership and publishing**
+**PR 9.1: Player course ownership and publishing**
 
 - [ ] Role-aware player course editor without admin-only controls.
 - [ ] Players create, edit, and save only their own private drafts.
@@ -716,7 +800,7 @@ courses start from.
       handwheels, elbows, bicycles, and a clearing's footprint have no
       preset or inspector field yet, and the editor cannot duplicate.
 
-**PR 8.2: Public course discovery and play**
+**PR 9.2: Public course discovery and play**
 
 - [ ] Public catalog separating the official circuit from community courses,
       with featured, popular, and new views.
@@ -726,7 +810,7 @@ courses start from.
 - [ ] Remove rough-course and Falls View Park assumptions from shared race
       systems while keeping official-course selection and recovery working.
 
-**PR 8.3: Ranking, featuring, and safety**
+**PR 9.3: Ranking, featuring, and safety**
 
 - [ ] One reversible thumbs-up per player per course. No downvotes or star
       ratings.
@@ -741,7 +825,7 @@ new views stay distinct, and authoring and discovery work on narrow screens.
 Not in this phase: custom course assets, collaborative editing, comments, and
 course-specific ghosts or leaderboards.
 
-### Phase 9: Public Demo Polish
+### Phase 10: Public Demo Polish
 
 **Goal:** make it ready to share.
 

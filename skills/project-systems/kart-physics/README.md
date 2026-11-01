@@ -153,4 +153,5 @@ systems.
 - No player air control, anti-roll bar, yaw stabilization, or airborne pitch
   assist. Grounded stabilization is limited to rest settling and grounded
   roll/heave damping.
-- Representative mobile performance is deferred to Phase 9.
+- Representative mobile performance is deferred to the public demo polish
+  phase.

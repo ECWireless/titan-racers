@@ -98,7 +98,7 @@ Ammo shapes.
 - `convexSweepTest` is a direct-Ammo dependency and must be re-verified on any
   PlayCanvas or Ammo upgrade.
 - Cylinder sweeps cost more than rays; representative mobile measurement is
-  still pending (Phase 9).
+  still pending for the public demo polish phase.
 
 ## Sources
 
