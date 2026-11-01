@@ -36,7 +36,10 @@ import {
   unlockRaceAudio,
   type RaceAudio,
 } from "@/game/audio/race-audio";
-import { approachIndoors } from "@/game/audio/ambience-mapping";
+import {
+  approachIndoors,
+  getStreamLevel,
+} from "@/game/audio/ambience-mapping";
 import {
   getAudioSurface,
   getAudioWheel,
@@ -80,6 +83,7 @@ import {
 } from "@/game/course/course-interior";
 import { createCourseSurfaceMaterials } from "@/game/course/course-surface-materials";
 import {
+  getCourseWaterDistance,
   getCourseWaterVolumes,
   isUnderCourseWater,
 } from "@/game/course/course-water";
@@ -3112,7 +3116,12 @@ export function SoloTimeTrialCanvas({
             isUnderRoof?.(kart.getPosition()) ?? false,
             frameSeconds,
           );
-          raceAudio.updateAmbience(indoorAudio);
+          raceAudio.updateAmbience(
+            indoorAudio,
+            getStreamLevel(
+              getCourseWaterDistance(courseWater, kart.getPosition()),
+            ),
+          );
         }
         interpolatedKartPosition.lerp(
           kartPresentation.previousPosition,

@@ -14,3 +14,6 @@ to start into a mono loop.
 - `tunnel-tone.wav` (8 s, 16 kHz): "Concrete Hallway with Air Conditioner"
   by ecfike, https://freesound.org/people/ecfike/sounds/474458/, from 40 s,
   high-passed at 40 Hz.
+- `stream.wav` (8 s, 22.05 kHz): "stream gentle nearby" by kyles,
+  https://freesound.org/people/kyles/sounds/637831/, from 50 s, high-passed
+  at 80 Hz.

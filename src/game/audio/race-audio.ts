@@ -49,6 +49,9 @@ let sharedContext: AudioContext | null = null;
 const ASPHALT_RECORDING_URL = "/audio/asphalt-roll.wav";
 const HABITAT_BED_URL = "/audio/habitat-bed.wav";
 const TUNNEL_TONE_URL = "/audio/tunnel-tone.wav";
+const STREAM_URL = "/audio/stream.wav";
+/** The stream's level at the water, over the beds. */
+const STREAM_GAIN = 0.9;
 const recordings = new WeakMap<
   BaseAudioContext,
   Map<string, Promise<AudioBuffer | null>>
@@ -77,30 +80,48 @@ function loadRecording(context: BaseAudioContext, url: string) {
   return pending;
 }
 
-/** A looping recording with its own level, silent until it loads. */
+/**
+ * A looping recording with its own level, silent until it loads. A distant
+ * source stops playing entirely, and starts again at a random point.
+ */
 function createLoopPlayer(context: BaseAudioContext, output: AudioNode) {
   const gain = context.createGain();
   gain.gain.value = 0;
   gain.connect(output);
+  let buffer: AudioBuffer | null = null;
   let source: AudioBufferSourceNode | null = null;
-  return {
-    gain: gain.gain,
-    loaded: () => source !== null,
-    play(buffer: AudioBuffer) {
-      if (source) return;
+  let running = false;
+  const sync = () => {
+    if (running && buffer && !source) {
       source = context.createBufferSource();
       source.buffer = buffer;
       source.loop = true;
       source.connect(gain);
       source.start(0, Math.random() * buffer.duration);
-    },
-    dispose() {
+    } else if (!running && source) {
       try {
-        source?.stop();
+        source.stop();
       } catch {
         // Already stopped.
       }
-      source?.disconnect();
+      source.disconnect();
+      source = null;
+    }
+  };
+  return {
+    gain: gain.gain,
+    loaded: () => buffer !== null,
+    setBuffer(next: AudioBuffer) {
+      buffer = next;
+      sync();
+    },
+    setRunning(next: boolean) {
+      running = next;
+      sync();
+    },
+    dispose() {
+      running = false;
+      sync();
       gain.disconnect();
     },
   };
@@ -187,7 +208,13 @@ export type RaceAudioDebugState = {
   /** Motor, tire roll, and scrub may sound: the world is moving. */
   continuousVoices: boolean;
   wheels: readonly AudioWheel[];
-  ambience: { habitatBed: boolean; indoors: number; tunnelTone: boolean };
+  ambience: {
+    habitatBed: boolean;
+    indoors: number;
+    stream: number;
+    streamLoaded: boolean;
+    tunnelTone: boolean;
+  };
 };
 
 export type RaceAudio = {
@@ -208,8 +235,11 @@ export type RaceAudio = {
   setContinuousVoices: (open: boolean) => void;
   updateMotor: (state: MotorAudioState) => void;
   updateWheels: (wheels: readonly AudioWheel[]) => void;
-  /** `indoors` 0 outdoors to 1 in the tunnel, eased across portals. */
-  updateAmbience: (indoors: number) => void;
+  /**
+   * `indoors` 0 outdoors to 1 in the tunnel, eased across portals; `stream`
+   * 0 out of range to 1 at the water.
+   */
+  updateAmbience: (indoors: number, stream: number) => void;
   dispose: () => void;
 };
 
@@ -279,14 +309,21 @@ export function createRaceAudio(soundOn: boolean): RaceAudio | null {
   // crossfaded by how far the listener is inside.
   const habitatBed = createLoopPlayer(context, buses.ambience);
   const tunnelTone = createLoopPlayer(context, buses.ambience);
+  const stream = createLoopPlayer(context, buses.ambience);
+  habitatBed.setRunning(true);
+  tunnelTone.setRunning(true);
   for (const [player, url] of [
     [habitatBed, HABITAT_BED_URL],
     [tunnelTone, TUNNEL_TONE_URL],
+    [stream, STREAM_URL],
   ] as const) {
     void loadRecording(context, url).then((buffer) => {
-      if (buffer && !disposed) player.play(buffer);
+      if (buffer && !disposed) player.setBuffer(buffer);
     });
   }
+  let streamLevel = 0;
+  // When the stream's level first reached 0, on the audio clock.
+  let streamQuietSince: number | null = null;
   let indoorAmount = 0;
   const setAmbience = createParameterSmoother();
   // The tire voices generate their gravel and water textures (tens of ms,
@@ -388,6 +425,8 @@ export function createRaceAudio(soundOn: boolean): RaceAudio | null {
       ambience: {
         habitatBed: habitatBed.loaded(),
         indoors: indoorAmount,
+        stream: streamLevel,
+        streamLoaded: stream.loaded(),
         tunnelTone: tunnelTone.loaded(),
       },
       contextState: context.state,
@@ -467,15 +506,28 @@ export function createRaceAudio(soundOn: boolean): RaceAudio | null {
       if (context.state !== "running") return;
       motorVoice.update(state, context.currentTime);
     },
-    updateAmbience(indoors) {
+    updateAmbience(indoors, streamAt) {
+      if (disposed) return;
       indoorAmount = indoors;
+      streamLevel = streamAt;
       if (context.state !== "running") return;
       const now = context.currentTime;
+      // Out of range, the stream stops playing rather than playing silence,
+      // but only once its level has rested at 0 for half a second: a
+      // teleport away then fades it out instead of cutting it off.
+      if (streamAt > 0) {
+        streamQuietSince = null;
+        stream.setRunning(true);
+      } else {
+        streamQuietSince ??= now;
+        if (now - streamQuietSince > 0.5) stream.setRunning(false);
+      }
       // Equal power: the two beds are unrelated noise, so equal gains would
       // dip about 3 dB halfway through a portal.
       setAmbience(habitatBed.gain, Math.sqrt(1 - indoors), now, 0.05);
       setAmbience(tunnelTone.gain, Math.sqrt(indoors), now, 0.05);
       setAmbience(echoWet.gain, indoors * 0.22, now, 0.05);
+      setAmbience(stream.gain, streamAt * STREAM_GAIN, now, 0.08);
     },
     updateWheels(nextWheels) {
       wheels = nextWheels;
@@ -501,6 +553,7 @@ export function createRaceAudio(soundOn: boolean): RaceAudio | null {
       continuousGate.disconnect();
       habitatBed.dispose();
       tunnelTone.dispose();
+      stream.dispose();
       for (const node of [
         kartBus,
         echoDelay,

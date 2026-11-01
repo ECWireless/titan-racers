@@ -6,6 +6,7 @@ import {
 } from "../src/game/course/course-document";
 import {
   createCourseWaterSurfaceGeometry,
+  getCourseWaterDistance,
   getCourseWaterVolumes,
   isUnderCourseWater,
 } from "../src/game/course/course-water";
@@ -39,6 +40,38 @@ test("finds a kart under water by its centre of mass, in the water's own frame",
   // Above the surface, or on the bed beneath, a kart is not drowned.
   expect(at(5, 1.71, 2)).toBe(false);
   expect(at(5, 1.39, 2)).toBe(false);
+});
+
+test("measures the distance to the nearest water in the water's own frame", () => {
+  const volumes = getCourseWaterVolumes(withStream());
+  const from = (x: number, y: number, z: number) =>
+    getCourseWaterDistance(volumes, { x, y, z });
+
+  // Inside, at the surface's height, then 3 m off the bank across the flow
+  // (half-width 2 m), and 4 m past the end along it (half-length 5 m).
+  expect(from(5, 1.55, 2)).toBe(0);
+  expect(from(5 + 2 + 3, 1.55, 2)).toBeCloseTo(3, 6);
+  expect(from(5, 1.55, 2 + 5 + 4)).toBeCloseTo(4, 6);
+  expect(getCourseWaterDistance([], { x: 0, y: 0, z: 0 })).toBe(
+    Number.POSITIVE_INFINITY,
+  );
+  // 2 m above the surface, as from a bridge (half-height 0.15 m).
+  expect(from(5, 1.55 + 0.15 + 2, 2)).toBeCloseTo(2, 6);
+
+  // Turned 30°, a point 4 m out along the stream's own length (its local
+  // +X) is 4 m past its end only if the rotation runs the right way.
+  const turned = getCourseWaterVolumes(withStream());
+  turned[0]!.rotation = { x: 0, y: 30, z: 0 };
+  const yaw = (30 * Math.PI) / 180;
+  const along = { x: Math.cos(yaw), z: -Math.sin(yaw) };
+  const out = 5 + 4;
+  expect(
+    getCourseWaterDistance(turned, {
+      x: 5 + along.x * out,
+      y: 1.55,
+      z: 2 + along.z * out,
+    }),
+  ).toBeCloseTo(4, 6);
 });
 
 test("lays the water's surface UVs out in metres along its flow", () => {
