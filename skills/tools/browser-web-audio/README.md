@@ -7,8 +7,11 @@
 Maps the [`game-audio`](../../game-concepts/game-audio/README.md) standard to
 the browser's built-in Web Audio API. Read it before touching the audio
 context, its lifecycle, or how voices are built. There is no audio
-dependency, and PlayCanvas's sound system is not used: it plays recorded
-files, while race sound is generated in code and changed every frame.
+dependency, and PlayCanvas's sound system is not used: race sound is mostly
+generated in code and changed every frame. A recorded loop, where one is
+used, is fetched once, decoded with `decodeAudioData`, and played through
+the same graph; the generated sound covers for it until it loads or if it
+fails to.
 
 ## Context Lifecycle
 
@@ -19,8 +22,12 @@ files, while race sound is generated in code and changed every frame.
   starts or resumes play.
 - A `resume()` refused outside a gesture, or an iPhone interruption such as a
   call, is retried on the next pointer, touch, or key event.
-- `suspend()` stops all audio processing, so pause, mute, blur, a hidden tab,
-  and exit suspend the context rather than silencing it with gain.
+- `suspend()` stops all audio processing, so mute, blur, a hidden tab, and
+  exit suspend the context rather than silencing it with gain.
+- Waking a suspended context takes up to a few hundred milliseconds,
+  longest on iPhone, so the first sound after it is late. Through a short
+  pause or a loading screen, keep the context running and silence it with
+  gain instead, so a countdown's first tick lands on time.
 - `suspend()` and `resume()` settle asynchronously, so `state` can lag a
   request. Send the wanted one on every change instead of deciding from
   `state`; the context applies them in order.

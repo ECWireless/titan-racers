@@ -18,8 +18,8 @@ import type { AudioSurface, AudioWheel } from "./race-audio-mapping";
  * wheels by surface, so it costs the same however the kart is supported.
  */
 
-// Pebble ticks (tiny stones ringing for 1–3 ms at 2–7 kHz) over the granular
-// crunch of stones grinding against each other (300–1500 Hz grains).
+// Crunch clicks of stones cracking under the tread over the granular grind
+// of stones against each other (300–1500 Hz grains).
 function gravelBuffer(context: BaseAudioContext) {
   return cachedBuffer(context, "gravel", 0.95, (data, sampleRate) => {
     const random = seededRandom(23);
@@ -37,19 +37,27 @@ function gravelBuffer(context: BaseAudioContext) {
           amplitude * filtered * Math.sin((Math.PI * i) / grainLength) * 3;
       }
     }
-    const ticks = Math.round((length / sampleRate) * 110);
-    for (let p = 0; p < ticks; p += 1) {
-      const start = Math.floor(random() * length);
-      const frequency = 2000 * 3.5 ** random();
-      const decay = sampleRate * (0.0006 + random() * 0.0022);
-      // No standout ticks to betray the loop.
-      const amplitude = 0.3 + 0.7 * random() ** 2;
-      const phase = random() * Math.PI * 2;
-      for (let i = 0; i < decay * 6; i += 1) {
-        data[(start + i) % length] +=
-          amplitude *
-          Math.exp(-i / decay) *
-          Math.sin((2 * Math.PI * frequency * i) / sampleRate + phase);
+    // Crunch: stones cracking under the tread are clicks of broadband noise
+    // a fraction of a millisecond long, often a few in quick succession as
+    // one stone knocks the next. (Decaying tones here read as dripping
+    // water.) Differenced noise keeps each click crisp, not thuddy.
+    const crunches = Math.round((length / sampleRate) * 160);
+    for (let p = 0; p < crunches; p += 1) {
+      let start = Math.floor(random() * length);
+      // No standout clicks to betray the loop.
+      let amplitude = 0.35 + 0.65 * random() ** 2;
+      const cluster = random() < 0.35 ? 2 + Math.floor(random() * 3) : 1;
+      for (let c = 0; c < cluster; c += 1) {
+        const decay = sampleRate * (0.00015 + random() * 0.00045);
+        let previous = 0;
+        for (let i = 0; i < decay * 6; i += 1) {
+          const white = random() * 2 - 1;
+          data[(start + i) % length] +=
+            amplitude * 1.6 * Math.exp(-i / decay) * (white - previous);
+          previous = white;
+        }
+        start += Math.floor(sampleRate * (0.002 + random() * 0.006));
+        amplitude *= 0.45 + 0.4 * random();
       }
     }
   });
@@ -135,25 +143,37 @@ const usable = (wheel: AudioWheel) =>
 const TREAD_PITCH_M = 0.0065;
 
 /**
- * How a small rubber tire sounds on asphalt, picked by listening over a
- * dry rasp and a low road roar: a soft hiss under the tread blocks' whir,
- * which rises in pitch with speed, and a little fine grit.
+ * How a small rubber tire sounds on asphalt, picked by listening: a soft
+ * hiss under the tread blocks' whir, which rises in pitch with speed, and a
+ * crunch of grit and tiny pebbles under the tires.
  */
 const ASPHALT = {
-  /** Grit ticks from the grain buffer, through a high band, Hz. */
-  gritFrequency: [2200, 500],
-  gritLevel: 0.14,
+  /** Crunch: the grain buffer's stone clicks through a high band, Hz. */
+  gritFrequency: [2800, 600],
+  gritLevel: 1.1,
   /** Broad noise band: centre at rest and its rise to top speed, Hz. */
   hissFrequency: [600, 500],
-  hissLevel: 0.525,
+  hissLevel: 0.22,
   hissQ: 0.8,
   /** The tread blocks' whir at speed over tread pitch. */
-  treadLevel: 0.612,
+  treadLevel: 0.27,
   treadQ: 3,
 } as const;
 // Asphalt and concrete take their levels from ASPHALT and the hard-ground
 // layers below.
 const ROLL_LEVEL = { grass: 0.55, gravel: 1.5, water: 1.8 };
+
+/**
+ * A recorded loop of small wheels on gritty asphalt (see
+ * `public/audio/CREDITS.md`) replaces the generated asphalt hiss and crunch
+ * once it loads. It plays faster with speed; 1 is its recorded pace.
+ */
+const RECORDED_ASPHALT = {
+  level: 0.54,
+  rate: [0.55, 0.75],
+  /** Share of the generated tread whir kept under it. */
+  treadShare: 0.5,
+};
 
 /**
  * Hard surfaces: a broadband hiss whose band rises with speed, plus a tread
@@ -176,7 +196,7 @@ export function createTireRollVoice(
   const blades = loopSource(context, noise, 0.0004, 0.5);
   const bladeDepth = gainNode(context);
   const gravelSource = loopSource(context, gravelBuffer(context), 1, 0);
-  // Grains: a crunch on gravel, fine grit ticks on asphalt and concrete.
+  // Grains: a crunch on gravel, fine grit clicks on asphalt and concrete.
   const gravelFilter = filterNode(context, "bandpass", 900, 0.5);
   const gravelGain = gainNode(context);
   const waterSource = loopSource(context, waterBuffer(context), 1, 0.2);
@@ -213,7 +233,9 @@ export function createTireRollVoice(
     waterGain,
     waterDepth,
   ];
-  return continuousVoice<readonly AudioWheel[]>(
+  let recording: { source: AudioBufferSourceNode; gain: GainNode } | null =
+    null;
+  const voice = continuousVoice<readonly AudioWheel[]>(
     nodes,
     [source, blades, gravelSource, waterSource],
     (wheels, time) => {
@@ -239,6 +261,21 @@ export function createTireRollVoice(
       // The noise plays faster with speed, so its loop never settles into a
       // pattern.
       set(source.playbackRate, 0.8 + 0.4 * speed, time, tau);
+      const generatedAsphalt = recording ? 0 : 1;
+      if (recording) {
+        set(
+          recording.source.playbackRate,
+          RECORDED_ASPHALT.rate[0] + RECORDED_ASPHALT.rate[1] * speed,
+          time,
+          tau,
+        );
+        set(
+          recording.gain.gain,
+          levels.asphalt * RECORDED_ASPHALT.level,
+          time,
+          tau,
+        );
+      }
       set(
         hardFilter.frequency,
         ASPHALT.hissFrequency[0] +
@@ -250,7 +287,9 @@ export function createTireRollVoice(
       set(hardFilter.Q, ASPHALT.hissQ + 0.3 * concreteShare, time, tau);
       set(
         hardGain.gain,
-        (levels.asphalt * ASPHALT.hissLevel + levels.concrete * 0.4) * 0.75,
+        (levels.asphalt * ASPHALT.hissLevel * generatedAsphalt +
+          levels.concrete * 0.4) *
+          0.75,
         time,
         tau,
       );
@@ -263,7 +302,11 @@ export function createTireRollVoice(
       set(treadFilter.Q, ASPHALT.treadQ, time, tau);
       set(
         treadGain.gain,
-        (levels.asphalt * ASPHALT.treadLevel + levels.concrete * 0.25) * 0.9,
+        (levels.asphalt *
+          ASPHALT.treadLevel *
+          (recording ? RECORDED_ASPHALT.treadShare : 1) +
+          levels.concrete * 0.25) *
+          0.9,
         time,
         tau,
       );
@@ -279,8 +322,9 @@ export function createTireRollVoice(
       const gravelGrains = levels.gravel * ROLL_LEVEL.gravel;
       const grains =
         gravelGrains +
-        levels.asphalt * ASPHALT.gritLevel +
-        levels.concrete * ASPHALT.gritLevel * 0.3;
+        levels.asphalt * ASPHALT.gritLevel * generatedAsphalt +
+        // Pinned to concrete's level from before asphalt's crunch was raised.
+        levels.concrete * 0.04;
       const gravelShare = grains > 0 ? gravelGrains / grains : 0;
       set(gravelGain.gain, grains * 0.9, time, tau);
       set(gravelSource.playbackRate, 0.65 + 0.6 * speed, time, tau);
@@ -300,6 +344,31 @@ export function createTireRollVoice(
       set(waterFilter.frequency, 900 + 2600 * speed, time, tau);
     },
   );
+  return {
+    ...voice,
+    /** Swaps the generated asphalt for a recorded loop once it loads. */
+    setAsphaltRecording(buffer: AudioBuffer) {
+      if (recording) return;
+      const recorded = context.createBufferSource();
+      recorded.buffer = buffer;
+      recorded.loop = true;
+      const gain = gainNode(context);
+      recorded.connect(gain).connect(output);
+      recorded.start(0, Math.random() * buffer.duration);
+      recording = { gain, source: recorded };
+    },
+    dispose() {
+      voice.dispose();
+      if (!recording) return;
+      try {
+        recording.source.stop();
+      } catch {
+        // Already stopped.
+      }
+      recording.source.disconnect();
+      recording.gain.disconnect();
+    },
+  };
 }
 
 const SQUEAL: Partial<Record<AudioSurface, number>> = {

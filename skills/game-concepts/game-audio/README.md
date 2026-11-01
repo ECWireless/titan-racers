@@ -46,9 +46,12 @@ it hits, and the places it drives through.
   rather than jumping when the state that drives them changes.
 - **Budgeted voices.** Each voice has a fixed node count and per-event cost,
   so adding karts or sources scales predictably.
-- **Lifecycle follows the game.** Audio starts from a user gesture, and stops
-  whenever the game is paused, covered, unfocused, hidden, or exited. Muting
-  is a remembered player choice.
+- **Lifecycle follows the game.** Audio starts from a user gesture, falls
+  silent whenever the game is paused or covered, and stops processing
+  whenever it is unfocused, hidden, switched off, or exited.
+- **One switch, reachable anywhere.** A single Sound effects switch,
+  remembered on the device and reachable both in and out of play; when it
+  is off, no audio runs at all.
 - **Loudness, not peak, sets the mix.** Compare and balance sounds on
   short-window loudness, with a limiter only as protection.
 
@@ -57,13 +60,14 @@ it hits, and the places it drives through.
 - A pitched oscillator as the body of an impact reads as a synth drum.
 - One filtered noise burst for every hit erases material identity.
 - Louder candidates win comparisons unless loudness is matched first.
-- Audio that keeps running behind a pause or hidden tab, or starts before a
-  gesture, breaks trust and triggers browser autoplay blocks.
+- Audio heard behind a pause, processing behind a hidden tab, or starting
+  before a gesture breaks trust and triggers browser autoplay blocks.
 
 ## Validation
 
 - Unit specs for the mapping from simulation state to sound parameters.
-- A browser test of start, pause, and mute persistence across a reload.
+- A browser test of start, pause, and the sound switch persisting across a
+  reload.
 - Blind, loudness-matched listening on the target phone and on headphones.
 
 ## Related Nodes

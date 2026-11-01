@@ -19,6 +19,7 @@ import {
   type FrameBudgetReport,
 } from "@/components/frame-budget-overlay";
 import { KartStatsDrawer } from "@/components/kart-stats-drawer";
+import { SoundToggle } from "@/components/sound-toggle";
 import type {
   CourseTestObstacleId,
   DrivingInput,
@@ -30,10 +31,9 @@ import {
 } from "@/game/collision/kart-collision-observer";
 import {
   createRaceAudio,
-  readSoundMuted,
+  readSoundOn,
   suspendRaceAudio,
   unlockRaceAudio,
-  writeSoundMuted,
   type RaceAudio,
 } from "@/game/audio/race-audio";
 import {
@@ -624,8 +624,8 @@ export function SoloTimeTrialCanvas({
   const [driveCursorHidden, setDriveCursorHidden] = useState(false);
   const [gamePaused, setGamePaused] = useState(false);
   // Races mount only after a click, so this never renders on the server.
-  const [soundMuted, setSoundMuted] = useState(readSoundMuted);
-  const soundMutedRef = useRef(soundMuted);
+  const [soundOn, setSoundOn] = useState(readSoundOn);
+  const soundOnRef = useRef(soundOn);
   const [kartDynamicsOpen, setKartDynamicsOpen] = useState(false);
   const [raceSpeed, setRaceSpeed] = useState(0);
   const [habitatReadout, setHabitatReadout] = useState<{
@@ -700,13 +700,13 @@ export function SoloTimeTrialCanvas({
   useEffect(() => {
     raceAudioActiveRef.current =
       sceneStatus === "ready" && !gamePaused && !covered;
-    soundMutedRef.current = soundMuted;
-    raceAudioRef.current?.setMuted(soundMuted);
+    soundOnRef.current = soundOn;
+    raceAudioRef.current?.setSoundOn(soundOn);
     raceAudioRef.current?.setActive(raceAudioActiveRef.current);
     // A load that fails before its audio exists leaves the start click's
     // context running.
     if (sceneStatus === "failed") suspendRaceAudio();
-  }, [covered, gamePaused, sceneStatus, soundMuted]);
+  }, [covered, gamePaused, sceneStatus, soundOn]);
 
   useEffect(() => {
     if (!gameplayTelemetryStartedRef.current) {
@@ -732,7 +732,7 @@ export function SoloTimeTrialCanvas({
       }
 
       event.preventDefault();
-      unlockRaceAudio(soundMutedRef.current);
+      unlockRaceAudio(soundOnRef.current);
       sceneApiRef.current?.setPaused(false);
       setGamePaused(false);
       setDriveCursorHidden(true);
@@ -1836,7 +1836,7 @@ export function SoloTimeTrialCanvas({
         kart,
       );
       runtime.addCleanup(() => collisionObserver.destroy());
-      const raceAudio = createRaceAudio(soundMutedRef.current);
+      const raceAudio = createRaceAudio(soundOnRef.current);
       raceAudioRef.current = raceAudio;
       // A scene rebuilt while already ready gets no fresh status change.
       raceAudio?.setActive(raceAudioActiveRef.current);
@@ -3252,18 +3252,25 @@ export function SoloTimeTrialCanvas({
       // renders behind it meanwhile, so its first frame is already done.
       startCountdownRef.current = () => {
         startCountdownRef.current = null;
+        // A context lost behind the loading screen could not pause the
+        // race before its countdown.
+        const interrupted =
+          document.hidden ||
+          !document.hasFocus() ||
+          contextRestoreTimeoutId !== null;
+        // The countdown starts only once the race is ready and uncovered, so
+        // open its sound now: React's own update can land a frame or more
+        // later, after the first tick has played into silence.
+        if (!interrupted) {
+          raceAudioActiveRef.current = true;
+          raceAudioRef.current?.setActive(true);
+        }
         raceSession.startCountdown();
         publishRacePresentation();
         activeCanvas.dataset.sceneReady = "true";
         activeCanvas.focus();
         setDriveCursorHidden(true);
-        // A context lost behind the loading screen could not pause the
-        // race before its countdown.
-        if (
-          document.hidden ||
-          !document.hasFocus() ||
-          contextRestoreTimeoutId !== null
-        ) {
+        if (interrupted) {
           pauseForInterruption();
           gameplayTelemetry.flushRuntimeHealth();
         }
@@ -3661,17 +3668,11 @@ export function SoloTimeTrialCanvas({
 
   function resumeRace() {
     // Inside the gesture, which iPhone Safari needs to resume sound.
-    unlockRaceAudio(soundMuted);
+    unlockRaceAudio(soundOn);
     sceneApiRef.current?.setPaused(false);
     setGamePaused(false);
     setDriveCursorHidden(true);
     requestAnimationFrame(() => canvasRef.current?.focus());
-  }
-
-  function toggleSound() {
-    const nextMuted = !soundMuted;
-    setSoundMuted(nextMuted);
-    writeSoundMuted(nextMuted);
   }
 
   function restartRace() {
@@ -3894,7 +3895,7 @@ export function SoloTimeTrialCanvas({
             <div
               aria-labelledby="pause-dialog-title"
               aria-modal="true"
-              className="absolute inset-0 z-30 grid place-items-center bg-titan-black/72 px-6 text-center font-mono text-titan-ice backdrop-blur-sm"
+              className="absolute inset-0 z-30 grid place-items-center overflow-y-auto bg-titan-black/72 [place-items:safe_center] px-6 py-4 text-center font-mono text-titan-ice backdrop-blur-sm"
               role="dialog"
               onKeyDown={handleDialogKeyDown}
             >
@@ -3923,16 +3924,7 @@ export function SoloTimeTrialCanvas({
                   >
                     Resume
                   </button>
-                  <button
-                    type="button"
-                    role="switch"
-                    aria-checked={!soundMuted}
-                    className="titan-button titan-button-secondary"
-                    onClick={toggleSound}
-                  >
-                    Sound{" "}
-                    <span aria-hidden="true">{soundMuted ? "Off" : "On"}</span>
-                  </button>
+                  <SoundToggle on={soundOn} onChange={setSoundOn} />
                   <button
                     type="button"
                     className="titan-button titan-button-secondary"

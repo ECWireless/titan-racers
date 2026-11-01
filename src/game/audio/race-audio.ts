@@ -19,12 +19,14 @@ import {
  * The browser side of race sound: one shared audio context for the page,
  * started by a user gesture, plus a master bus and limiter per race.
  *
- * The context runs only while a race is on screen, unpaused, unmuted, and in
- * a visible, focused page. Otherwise it is suspended, which stops all audio
- * processing.
+ * The context runs while a race exists, Sound effects is on, and the page is
+ * visible and focused; otherwise it is suspended, which stops all audio
+ * processing. A paused or covered race keeps it running but silent: waking
+ * a suspended context takes up to a few hundred ms (longest on iPhone),
+ * which would make the first countdown tick late.
  */
 
-const SOUND_MUTED_STORAGE_KEY = "titan-racers.sound-muted.v1";
+const SOUND_STORAGE_KEY = "titan-racers.sound.v1";
 
 /**
  * Mix levels in dB, set by listening QA in a race. A full-strength hit peaks
@@ -41,6 +43,27 @@ const MIX_DB = {
 };
 
 let sharedContext: AudioContext | null = null;
+
+const ASPHALT_RECORDING_URL = "/audio/asphalt-roll.wav";
+const recordings = new WeakMap<BaseAudioContext, Promise<AudioBuffer | null>>();
+
+/** Fetches and decodes a recorded loop once per context; null on failure. */
+function loadRecording(context: BaseAudioContext, url: string) {
+  let pending = recordings.get(context);
+  if (!pending) {
+    pending = fetch(url)
+      .then((response) => (response.ok ? response.arrayBuffer() : null))
+      .then((data) => (data ? context.decodeAudioData(data) : null))
+      .catch(() => null)
+      .then((buffer) => {
+        // A failure is not kept: the next race tries again.
+        if (!buffer) recordings.delete(context);
+        return buffer;
+      });
+    recordings.set(context, pending);
+  }
+  return pending;
+}
 
 function getSharedContext() {
   if (sharedContext) return sharedContext;
@@ -65,17 +88,28 @@ function runContext(context: AudioContext, running: boolean) {
   void (running ? context.resume() : context.suspend()).catch(() => undefined);
 }
 
-export function readSoundMuted() {
+/** The player's Sound effects switch, kept on this device. On by default. */
+export function readSoundOn() {
   try {
-    return window.localStorage.getItem(SOUND_MUTED_STORAGE_KEY) === "true";
+    const stored: unknown = JSON.parse(
+      window.localStorage.getItem(SOUND_STORAGE_KEY) ?? "null",
+    );
+    if (stored && typeof stored === "object") {
+      const { effects } = stored as { effects?: unknown };
+      if (typeof effects === "boolean") return effects;
+    }
   } catch {
-    return false;
+    // Unreadable storage or a malformed value: fall back to on.
   }
+  return true;
 }
 
-export function writeSoundMuted(muted: boolean) {
+export function writeSoundOn(on: boolean) {
   try {
-    window.localStorage.setItem(SOUND_MUTED_STORAGE_KEY, String(muted));
+    window.localStorage.setItem(
+      SOUND_STORAGE_KEY,
+      JSON.stringify({ effects: on }),
+    );
   } catch {
     // Storage can be unavailable (private mode); the choice lasts this page.
   }
@@ -85,8 +119,8 @@ export function writeSoundMuted(muted: boolean) {
  * Call from inside a user gesture that leads to a race. Browsers, iPhone
  * Safari in particular, only let audio start from one.
  */
-export function unlockRaceAudio(muted = readSoundMuted()) {
-  if (muted) return;
+export function unlockRaceAudio(soundOn = readSoundOn()) {
+  if (!soundOn) return;
   const context = getSharedContext();
   if (context) runContext(context, true);
 }
@@ -98,11 +132,16 @@ export function suspendRaceAudio() {
 
 export type RaceAudioDebugState = {
   active: boolean;
+  /** On screen, unpaused, and Sound effects on: the master is open. */
+  audible: boolean;
+  /** The recorded asphalt loop has loaded and replaced the generated one. */
+  recordedAsphalt: boolean;
   contextState: string;
   cues: RaceCue[];
   impacts: Array<{ material: ImpactMaterial; strength: number }>;
   landings: Array<{ strength: number; surface: AudioSurface }>;
   motor: MotorAudioState;
+  /** Sound effects are switched off, so the context stays suspended. */
   muted: boolean;
   /** Motor, tire roll, and scrub may sound: the world is moving. */
   continuousVoices: boolean;
@@ -121,7 +160,7 @@ export type RaceAudio = {
   prepare: () => void;
   /** On screen, unpaused, and ready. */
   setActive: (active: boolean) => void;
-  setMuted: (muted: boolean) => void;
+  setSoundOn: (on: boolean) => void;
   /** Opens or closes the motor, tire roll, and scrub. */
   setContinuousVoices: (open: boolean) => void;
   updateMotor: (state: MotorAudioState) => void;
@@ -138,12 +177,13 @@ const remember = <T>(list: T[], item: T) => {
 
 const fromDb = (decibels: number) => 10 ** (decibels / 20);
 
-export function createRaceAudio(muted: boolean): RaceAudio | null {
+export function createRaceAudio(soundOn: boolean): RaceAudio | null {
   const context = getSharedContext();
   if (!context) return null;
 
   const master = context.createGain();
-  master.gain.value = MASTER_GAIN;
+  // Silent until the race is on screen and unpaused.
+  master.gain.value = 0;
   const limiter = context.createDynamicsCompressor();
   limiter.threshold.value = -6;
   limiter.knee.value = 0;
@@ -174,6 +214,13 @@ export function createRaceAudio(muted: boolean): RaceAudio | null {
   };
   const motorVoice = createMotorVoice(context, buses.motor);
   const tireRollVoice = createTireRollVoice(context, buses.tireRoll);
+  // The generated asphalt plays until the recording arrives, or for good if
+  // it cannot load.
+  void loadRecording(context, ASPHALT_RECORDING_URL).then((buffer) => {
+    if (!buffer || disposed) return;
+    tireRollVoice.setAsphaltRecording(buffer);
+    recordedAsphalt = true;
+  });
   const scrubVoice = createScrubVoice(context, buses.scrub);
   const cues: RaceCue[] = [];
   const impacts: RaceAudioDebugState["impacts"] = [];
@@ -190,15 +237,26 @@ export function createRaceAudio(muted: boolean): RaceAudio | null {
   let active = false;
   let disposed = false;
   let motor = SILENT_MOTOR;
-  let soundMuted = muted;
+  let soundEnabled = soundOn;
+  let recordedAsphalt = false;
   // The page just took the click that started the race. `hasFocus()` can
   // read false in a page that has focus (headless browsers), and a blur
   // while the race loads still arrives as a pause.
   let pageFocused = true;
 
   const wanted = () =>
-    active && !soundMuted && !disposed && pageFocused && !document.hidden;
-  const apply = () => runContext(context, wanted());
+    soundEnabled && !disposed && pageFocused && !document.hidden;
+  const audible = () => active && soundEnabled;
+  const apply = () => {
+    // A sound still ringing out stops with the race or the switch. Coming
+    // back fades in over a few ms, so a cue sent in the same moment the race
+    // turns active starts on time; the countdown opens it itself.
+    const now = context.currentTime;
+    master.gain.cancelScheduledValues(now);
+    if (audible()) master.gain.setTargetAtTime(MASTER_GAIN, now, 0.004);
+    else master.gain.setValueAtTime(0, now);
+    runContext(context, wanted());
+  };
   // The race pauses itself on blur and hidden tabs, but not once it has
   // finished, so the page's own state is checked here too.
   const onBlur = () => {
@@ -230,19 +288,21 @@ export function createRaceAudio(muted: boolean): RaceAudio | null {
   return {
     getDebugState: () => ({
       active,
+      audible: audible(),
+      recordedAsphalt,
       contextState: context.state,
       cues: [...cues],
       impacts: [...impacts],
       landings: [...landings],
       motor,
-      muted: soundMuted,
+      muted: !soundEnabled,
       continuousVoices: continuousOpen,
       wheels: wheels.map((wheel) => ({ ...wheel })),
     }),
     // Cues may land just before the context resumes, such as the first
     // count as the loading screen lifts; they play as it starts.
     playCue(cue) {
-      if (soundMuted || disposed) return;
+      if (!soundEnabled || disposed) return;
       if (context.state !== "running") {
         if (cueWaiting) return;
         cueWaiting = true;
@@ -293,9 +353,9 @@ export function createRaceAudio(muted: boolean): RaceAudio | null {
       if (open) continuousGate.gain.setTargetAtTime(1, now + 0.06, 0.02);
       else continuousGate.gain.setValueAtTime(0, now);
     },
-    setMuted(nextMuted) {
-      if (nextMuted === soundMuted) return;
-      soundMuted = nextMuted;
+    setSoundOn(on) {
+      if (on === soundEnabled) return;
+      soundEnabled = on;
       apply();
     },
     updateMotor(state) {

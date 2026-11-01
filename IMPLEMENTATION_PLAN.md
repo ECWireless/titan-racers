@@ -538,21 +538,23 @@ barriers are the youth's portable race kit
 
 **PR 4.5: Ambience and SFX**
 
-Sound is generated in code with Web Audio, with no dependency or download. It
-is derived from the simulation and never feeds back into physics. CC0
+Sound is generated in code with Web Audio, with no dependency. It is
+derived from the simulation and never feeds back into physics. CC0
 recordings replace a generated sound only where listening QA says it does
 not read.
 
 - [x] 4.5.1: Race audio and kart sound. The audio runtime (one shared
-      context started by the race's start click, suspended on pause, blur, a
-      hidden tab, and exit) with a remembered Sound switch in the pause menu;
-      the kart's brushless motor and gear whine; tire roll per surface,
-      scrub and skid, impacts by material, and landings by surface; and
-      countdown, go, final-lap, finish, and rejected-lap cues. Shipped:
-      recipes from blind listening, retuned in races for comfort over a
-      whole race (a lower, darker motor, a soft whir on asphalt, dull knocks
-      on soil-backed boards); impacts sound once per contact, and hitting
-      the side of a drivable deck or step is silent.
+      context started by the race's start click, silent while paused or
+      covered, suspended when the switch is off, the page is hidden or
+      unfocused, and on exit) with a remembered Sound effects switch in the
+      pause and home menus; the kart's brushless motor and gear whine; tire
+      roll per surface, scrub and skid, impacts by material, and landings by
+      surface; and countdown, go, final-lap, finish, and rejected-lap cues.
+      Shipped: recipes from blind listening, retuned in races for comfort
+      over a whole race (a lower, darker motor, dull knocks on soil-backed
+      boards); asphalt plays a 192 KB CC0 recorded loop of small wheels on
+      grit (credits in `public/audio/CREDITS.md`); impacts sound once per
+      contact, and hitting the side of a drivable deck or step is silent.
 - [ ] 4.5.2: Ambience, kept lean. An outdoor habitat bed, a muffled tunnel
       mix, and the stream from the course's water boxes, with distance
       culling. Machinery at valve and junction kits and sprinkler or drip

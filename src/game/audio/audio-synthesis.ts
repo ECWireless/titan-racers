@@ -1,7 +1,7 @@
 /**
- * Shared building blocks for the generated race sounds. Every sound is
- * synthesized in code from oscillators, periodic waves, and a few buffers
- * generated once per audio context; nothing is downloaded.
+ * Shared building blocks for the generated race sounds, synthesized in code
+ * from oscillators, periodic waves, and a few buffers generated once per
+ * audio context.
  */
 
 export function clamp(value: number | undefined, minimum = 0, maximum = 1) {

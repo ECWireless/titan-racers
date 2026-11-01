@@ -39,6 +39,7 @@ import {
 import type { CourseLoadTimings } from "./frame-budget-overlay";
 import { KartThumbnail } from "./kart-thumbnail";
 import { SoloTimeTrialCanvas } from "./solo-time-trial-canvas";
+import { StoredSoundToggle } from "./sound-toggle";
 
 // The loading screen stays up at least this long, even when the course is
 // ready sooner.
@@ -432,26 +433,30 @@ export function PlayHome() {
             <span className="h-0.5 w-6 bg-current" />
           </button>
           {utilityMenuOpen ? (
-            <nav
-              aria-label="Account and protected tools"
-              className="absolute right-0 top-[calc(100%+0.6rem)] z-40 grid w-56 border border-titan-ice/24 bg-titan-black/96 p-2 shadow-[0_24px_60px_rgb(0_0_0/0.68)] backdrop-blur"
+            <div
+              className="absolute right-0 top-[calc(100%+0.6rem)] z-40 grid w-64 gap-2 border border-titan-ice/24 bg-titan-black/96 p-2 shadow-[0_24px_60px_rgb(0_0_0/0.68)] backdrop-blur"
               id="home-utility-menu"
             >
-              {[
-                ["Profile", "/profile"],
-                ["Kart Builder", "/admin/karts"],
-                ["Course Editor", "/admin/courses"],
-              ].map(([label, href]) => (
-                <Link
-                  className="border border-transparent px-4 py-3 font-mono text-xs font-bold uppercase tracking-[0.14em] text-titan-ice/78 transition hover:border-titan-ice/20 hover:bg-titan-ice/[0.06] hover:text-titan-hazard focus-visible:border-titan-hazard focus-visible:bg-titan-hazard/[0.08] focus-visible:text-titan-hazard focus-visible:outline-none"
-                  href={href}
-                  key={href}
-                  onClick={() => setUtilityMenuOpen(false)}
-                >
-                  {label}
-                </Link>
-              ))}
-            </nav>
+              <nav aria-label="Account and protected tools" className="grid">
+                {[
+                  ["Profile", "/profile"],
+                  ["Kart Builder", "/admin/karts"],
+                  ["Course Editor", "/admin/courses"],
+                ].map(([label, href]) => (
+                  <Link
+                    className="border border-transparent px-4 py-3 font-mono text-xs font-bold uppercase tracking-[0.14em] text-titan-ice/78 transition hover:border-titan-ice/20 hover:bg-titan-ice/[0.06] hover:text-titan-hazard focus-visible:border-titan-hazard focus-visible:bg-titan-hazard/[0.08] focus-visible:text-titan-hazard focus-visible:outline-none"
+                    href={href}
+                    key={href}
+                    onClick={() => setUtilityMenuOpen(false)}
+                  >
+                    {label}
+                  </Link>
+                ))}
+              </nav>
+              <div className="border-t border-titan-ice/15 px-2 pb-2 pt-3">
+                <StoredSoundToggle />
+              </div>
+            </div>
           ) : null}
         </div>
       </header>

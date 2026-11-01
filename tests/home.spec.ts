@@ -3059,7 +3059,7 @@ test.describe("home screen", () => {
     await expect(page.getByText("Paused", { exact: true })).not.toBeVisible();
   });
 
-  test("plays race sound only while racing and remembers mute", async ({
+  test("plays race sound only while racing and remembers the sound switch", async ({
     page,
   }, testInfo) => {
     test.skip(
@@ -3077,6 +3077,8 @@ test.describe("home screen", () => {
 
     await expect.poll(async () => (await audio())?.contextState).toBe("running");
     await expect.poll(async () => (await audio())?.cues[0]).toBe("count-3");
+    // Asphalt plays the recorded loop once it loads.
+    await expect.poll(async () => (await audio())?.recordedAsphalt).toBe(true);
     expect((await audio())?.wheels.map(({ surface }) => surface)).toEqual([
       "asphalt",
       "asphalt",
@@ -3100,15 +3102,20 @@ test.describe("home screen", () => {
     await page.keyboard.press("Escape");
     const pauseDialog = page.getByRole("dialog", { name: "Paused" });
     await expect(pauseDialog).toBeVisible();
-    await expect.poll(async () => (await audio())?.contextState).toBe("suspended");
-    expect((await audio())?.continuousVoices).toBe(false);
+    // Paused, sound goes silent but keeps running, so the resume countdown's
+    // first tick is not late.
+    await expect.poll(async () => (await audio())?.audible).toBe(false);
+    expect(await audio()).toMatchObject({
+      continuousVoices: false,
+      contextState: "running",
+    });
 
     // Resume's click restarts sound at once, but the frozen kart's motor and
     // tires stay closed through the resume countdown and open at Go.
     await pauseDialog.getByRole("button", { name: "Resume" }).click();
     expect((await audio())?.continuousVoices).toBe(false);
     expect((await getRaceDebugState(canvas)).state).toBe("resuming");
-    await expect.poll(async () => (await audio())?.contextState).toBe("running");
+    await expect.poll(async () => (await audio())?.audible).toBe(true);
     await expect
       .poll(async () => (await audio())?.continuousVoices, { timeout: 5_000 })
       .toBe(true);
@@ -3117,10 +3124,12 @@ test.describe("home screen", () => {
     await canvas.focus();
     await page.keyboard.press("Escape");
     await expect(pauseDialog).toBeVisible();
-    const sound = pauseDialog.getByRole("switch", { name: "Sound" });
-    await expect(sound).toHaveAttribute("aria-checked", "true");
-    await sound.click();
-    await expect(sound).toHaveAttribute("aria-checked", "false");
+    const soundEffects = pauseDialog.getByRole("switch", {
+      name: "Sound effects",
+    });
+    await expect(soundEffects).toHaveAttribute("aria-checked", "true");
+    await soundEffects.click();
+    await expect(soundEffects).toHaveAttribute("aria-checked", "false");
     await pauseDialog.getByRole("button", { name: "Resume" }).click();
     await expect(pauseDialog).toHaveCount(0);
     await page.waitForTimeout(250);
@@ -3130,7 +3139,14 @@ test.describe("home screen", () => {
       muted: true,
     });
 
+    // Saved on this device: the home menu shows it off, and a new race
+    // starts silent.
     await page.reload();
+    await page.getByRole("button", { name: "Open utility menu" }).click();
+    await expect(
+      page.getByRole("switch", { name: "Sound effects" }),
+    ).toHaveAttribute("aria-checked", "false");
+    await page.keyboard.press("Escape");
     await page.getByRole("button", { name: "Solo Time Trial" }).click();
     await waitForSceneReady(canvas);
     await expect.poll(async () => (await audio())?.active).toBe(true);
@@ -3141,7 +3157,7 @@ test.describe("home screen", () => {
     await canvas.focus();
     await page.keyboard.press("Escape");
     await expect(
-      pauseDialog.getByRole("switch", { name: "Sound" }),
+      pauseDialog.getByRole("switch", { name: "Sound effects" }),
     ).toHaveAttribute("aria-checked", "false");
   });
 
