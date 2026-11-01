@@ -154,8 +154,9 @@ export type RaceAudio = {
   playImpact: (strength: number, material: ImpactMaterial) => void;
   playLanding: (strength: number, surface: AudioSurface) => void;
   /**
-   * Renders the impact and landing sounds (tens of ms). Call while the race
-   * is still covered, so the first hit never stalls a frame.
+   * Builds the tire voices and renders the impact and landing sounds (tens
+   * of ms each). Call after the scene's first frame, while the race is still
+   * covered, so neither the scene build nor the first hit pays for them.
    */
   prepare: () => void;
   /** On screen, unpaused, and ready. */
@@ -213,15 +214,34 @@ export function createRaceAudio(soundOn: boolean): RaceAudio | null {
     tireRoll: bus(MIX_DB.tireRoll, continuousGate),
   };
   const motorVoice = createMotorVoice(context, buses.motor);
-  const tireRollVoice = createTireRollVoice(context, buses.tireRoll);
+  // The tire voices generate their gravel and water textures (tens of ms,
+  // longer on phones), so they are built in `prepare`, after the scene's
+  // first frame, not during the scene build.
+  let contactVoices: {
+    scrub: ReturnType<typeof createScrubVoice>;
+    tires: ReturnType<typeof createTireRollVoice>;
+  } | null = null;
+  let asphaltRecording: AudioBuffer | null = null;
+  const prepareContactVoices = () => {
+    if (!contactVoices) {
+      contactVoices = {
+        scrub: createScrubVoice(context, buses.scrub),
+        tires: createTireRollVoice(context, buses.tireRoll),
+      };
+      if (asphaltRecording) {
+        contactVoices.tires.setAsphaltRecording(asphaltRecording);
+      }
+    }
+    return contactVoices;
+  };
   // The generated asphalt plays until the recording arrives, or for good if
   // it cannot load.
   void loadRecording(context, ASPHALT_RECORDING_URL).then((buffer) => {
     if (!buffer || disposed) return;
-    tireRollVoice.setAsphaltRecording(buffer);
+    asphaltRecording = buffer;
+    contactVoices?.tires.setAsphaltRecording(buffer);
     recordedAsphalt = true;
   });
-  const scrubVoice = createScrubVoice(context, buses.scrub);
   const cues: RaceCue[] = [];
   const impacts: RaceAudioDebugState["impacts"] = [];
   const landings: RaceAudioDebugState["landings"] = [];
@@ -322,6 +342,8 @@ export function createRaceAudio(soundOn: boolean): RaceAudio | null {
       );
     },
     prepare() {
+      if (disposed) return;
+      prepareContactVoices();
       prepareImpactSounds(context);
     },
     playLanding(strength, surface) {
@@ -368,8 +390,9 @@ export function createRaceAudio(soundOn: boolean): RaceAudio | null {
     updateWheels(nextWheels) {
       wheels = nextWheels;
       if (context.state !== "running") return;
-      tireRollVoice.update(nextWheels, context.currentTime);
-      scrubVoice.update(nextWheels, context.currentTime);
+      const voices = prepareContactVoices();
+      voices.tires.update(nextWheels, context.currentTime);
+      voices.scrub.update(nextWheels, context.currentTime);
     },
     dispose() {
       if (disposed) return;
@@ -382,8 +405,8 @@ export function createRaceAudio(soundOn: boolean): RaceAudio | null {
         window.removeEventListener(name, retryInGesture, { capture: true }),
       );
       motorVoice.dispose();
-      tireRollVoice.dispose();
-      scrubVoice.dispose();
+      contactVoices?.tires.dispose();
+      contactVoices?.scrub.dispose();
       Object.values(buses).forEach((gain) => gain.disconnect());
       continuousGate.disconnect();
       master.disconnect();
