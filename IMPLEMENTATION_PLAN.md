@@ -15,10 +15,11 @@ accepted; the app, README, and durable docs take over from there.
 
 ## Status
 
-- **Done:** Phases 0–3 (PRs #1–#24, the Phase 3 closeout, and its follow-ups),
-  and Phase 4 through PR 4.4 (#30–#54).
-- **Next:** PR 4.5.2 (lean ambience), then Phase 5. PRs 4.5.1 (race audio
-  and kart sound) and 4.6 (kart editor suspension swap) are done.
+- **Done:** Phases 0–4 (PRs #1–#24, the Phase 3 closeout and its
+  follow-ups, and #30–#57 with the PR 4.5.2 closeout).
+- **Next:** Phase 5, after its debrief. First, reseed production's Falls View
+  Park (`db:reset-course-seed`, then an admin publishes the draft) so the
+  return turn's seam fix from PR 4.5.2 reaches players.
 
 ## Guiding Decisions
 
@@ -65,7 +66,7 @@ These still constrain every remaining phase.
   gameplay-run summaries in Postgres with an admin dashboard.
 - **Assets:** karts and courses are bounded primitive documents, so no file
   storage is needed. Textures and models are reviewed repository assets that
-  ship with the app (see Phase 4). Add a reviewed S3-compatible boundary only
+  ship with the app (see Completed Phases). Add a reviewed S3-compatible boundary only
   if player uploads arrive after Demo v1.
 - **CAD authoring:** text-to-cad for admin part models, used only in
   development and never in the app runtime (Phase 7).
@@ -102,7 +103,7 @@ These still constrain every remaining phase.
 - On-chain gameplay or token rewards.
 - Global ranked multiplayer or robust anti-cheat.
 - Hand-finished production art or a real-world kit export pipeline. Phase 4
-  sets a demo-sized visual baseline instead.
+  set a demo-sized visual baseline instead.
 - Damage beyond the simple joint-breakage model in Phase 8.
 - Fuel or battery simulation, advanced tire physics, or punishing collisions.
 - Player-editable numerical tuning or raw handling controls.
@@ -153,6 +154,7 @@ Details live in git history, `docs/kart-system/`, and `skills/project-systems/`.
 | 1. Engine spike | PlayCanvas chosen; canvas and mobile rendering proven. | #2 |
 | 2. Driving prototype | Gameplay architecture and agent Skills Tree; dynamic kart physics, collisions, and chase camera; course documents, Postgres, auth, and roles; protected course editor with private drafts and publishing; unified keyboard, touch, and controller input; race lifecycle with checkpoints, laps, and recovery; telemetry dashboard and runtime resilience; handling and mobile polish, manual righting, and editor multi-select. | #3–#18 |
 | 3. Kart dynamics and admin kart builder | Handling model cut from 62 tuning values to 16 with clear owners; versioned kart documents, approved part registry, deterministic derivation, immutable revisions, and publication; admin kart builder; editor controller input; three official karts in public selection with thumbnails and racer usernames; integration review and its two fixes. | #19, #21–#24, closeout |
+| 4. Visual baseline, Island Three, and Falls View Park | One shared kart visual builder, a lighting baseline and phone budget, and presentation-only part visuals; sandbox surfaces with grass physics, substepped high-speed collisions, and tire marks and clippings; the Island Three enclosure with true-scale rotating-habitat physics, a loading screen, valleys, and dusk; the Falls View Park Circuit, built section by section and published; generated race audio, kart sound, race cues, and lean ambience, with CC0 recordings where synthesis did not read; the kart editor's suspension swap; integration review. | #30–#57, closeout |
 
 Decisions from completed phases that later phases rely on:
 
@@ -163,6 +165,24 @@ Decisions from completed phases that later phases rely on:
   input, per-frame, hardware-identity, or player-journey capture.
 - Course revision history and restore, real-time collaboration, and multi-author
   merging are later tooling, not Demo v1.
+- **One visual identity and one phone budget.** `docs/visual-identity.md`
+  owns the art direction and the budget (CPU median ≤ 5 ms on the lead's
+  iPhone, measured with `?perf=1` on a production build); every later phase
+  holds it. With sound on, the closed Phase 4 measured 3.0 / 4.0 ms.
+- **Karts are 1:10 RC scale.** Part visuals are presentation only and never
+  change derivation, revisions, or hashes.
+- **Assets are code-built geometry, CC0 textures and sounds, and
+  repository-owned models,** all reviewed and committed; players cannot
+  upload assets.
+- **Island Three is the enclosure for every course,** and courses name their
+  enclosure and placement. Physics is true-scale rotating-habitat gravity and
+  Coriolis under versioned physics; near-axis, low-gravity racing belongs to
+  a later course.
+- **Race sound is one-way from physics.** Sound is generated with Web Audio,
+  and CC0 recordings are used where synthesis does not read. A kart's voices
+  are the motor, tire roll, and scrub (16 nodes each) and a body scrape (5),
+  with one-shots of at most 8 nodes; Phase 6's remote karts can run a
+  cheaper motor and tire-roll voice.
 - **Component engineering is a separate later phase.** Kart assembly uses
   sealed, freely available parts with no progression tiers. If component
   engineering is planned, progression unlocks engineered *parts*, an engineered
@@ -170,423 +190,6 @@ Decisions from completed phases that later phases rely on:
   stats can be overridden.
 
 ## Remaining Phases
-
-### Phase 4: Visual Baseline, Island Three, And Falls View Park
-
-**Goal:** give Titan Racers a consistent visual identity, physical surfaces,
-and its home inside the Island Three habitat, then build the Falls View Park
-Circuit there.
-
-Phase decisions:
-
-- **A visual identity, not plain realism.** Materials and lighting behave
-  physically, but within one consistent identity that starts from the site
-  palette. `docs/visual-identity.md` records it, and each PR refines it.
-- **Karts are 1:10 RC scale, and realism lives in the parts.** Each approved
-  part version gets a presentation-only visual. Every kart, including future
-  community karts, improves without changing derivation, revisions, or hashes.
-- **Assets mix code-built geometry, CC0 textures, and repository-owned
-  models,** including models generated in separate sessions. All are reviewed
-  and committed to the repository; players still cannot upload assets. Pull
-  back if the work drifts toward production art.
-- **Island Three is the enclosure for every course.** It spins for 1 g at the
-  floor (radius about 4 km). Courses name an enclosure and their placement in
-  it, so nothing is hard-coded to one course. The distant cylinder
-  renders as its own layer, and course physics stays local.
-- **Rotating-habitat physics at true scale.** Position-dependent artificial
-  gravity (`g × r / R`) plus Coriolis force replace the fixed Earth gravity
-  under a new physics version, with no exaggeration.
-- **Near-axis, low-gravity racing belongs to a later course** placed near the
-  axis, not to Falls View Park.
-- **A phone performance budget** is set in PR 4.1.2 and holds for the rest of
-  the phase. `docs/visual-identity.md` owns it and the art direction.
-
-**PR 4.0: Phase 4 plan**
-
-- [x] Rewrite Phase 4 and move the shared kart visual builder up from Phase 6.
-
-**PR 4.1: Kart visual baseline**
-
-- [x] 4.1.1: One shared kart visual builder for race, editor, and thumbnails,
-      with no visual change.
-- [x] 4.1.2: Lighting baseline (environment lighting, tone mapping, shadows),
-      phone performance budget, look exploration on one kart, and the first
-      `docs/visual-identity.md`.
-- [x] 4.1.3: Presentation-only visuals for each approved part version, with
-      materials that follow the identity; regenerate official kart thumbnails.
-- [x] 4.1.4: Visuals for authored primitives (chassis, body shells, guards,
-      trim, and mass blocks), generated at each primitive's size from its role,
-      material, and solid or shell construction, staying inside its envelope.
-      Scope grew to rebuild the official karts as open 1:10 RC chassis (plate,
-      hinge-pin mounts, shock towers, top deck, bumpers) with a retune and a
-      wider stability score range (derivation version 4).
-
-**PR 4.2: Sandbox surfaces**
-
-- [x] 4.2.1: Road, grass, and marking visuals on `rough-course`. Align
-      surface visuals with their collision tops: the asphalt is drawn 5 cm
-      above where karts roll, hiding wheels and the low open chassis (found in
-      PR 4.1.4). Scope grew into an intro-course pass: service-yard finishes
-      and markings, a timing portal and props, a low bridge and kicker on the
-      lap, the tall jump moved beside it, an infield barrier, three wider
-      checkpoints, kart-scale shadows with a contact shadow, and no race-only
-      start pad.
-- [x] 4.2.2: Surface physics: a grass surface material and its tire
-      interaction, per-surface materials in the course document (new schema
-      version with normalization), and a new physics version. Scope grew to
-      two grasses: short turf verges beside the asphalt and around the infield
-      edge, with slower uncut lawn beyond, each with its own finish. The tall
-      jump ramp sits 8 cm lower so its entry is flush with the ground, and
-      karts spawn just behind the start line (a course spawn distance).
-- [x] 4.2.3: High-speed collision robustness. Above top speed a kart travels
-      farther per physics step than a thin wall is deep, so the solver can
-      push it into the floor (found in PR 4.1.4; the old official karts did it
-      too). Fix it with adaptive substeps or a leading-edge sweep under a new
-      physics version, then tighten the thin-wall test from one step of
-      overlap to a small fixed margin at any starting offset. Cover standard
-      and grass approaches: at 20.4 m/s from x=-29.5, z=24, grass rolling
-      resistance changes impact-step alignment and exposes deeper penetration.
-      The existing CCD benchmark explicitly retains the standard interaction.
-      Telemetry must keep accepting `surface-physics-v1` starts from clients
-      still running the older build.
-      Shipped as speed-adaptive Bullet substeps under `collision-substeps-v1`.
-- [x] 4.2.4: Surface driving effects: grass clippings and bounded tire marks
-      (rubber on asphalt, torn turf on grass) driven by wheel contact and
-      slip. Marks last for the race; the oldest fade only when the pool is
-      full.
-      Presentation only, within the phone performance budget; debrief the
-      effects before implementation. Also steadied the flickering kart shadow
-      (4.2.2 phone QA) with PCF5 filtering on course lights.
-- [x] 4.2.5: Grass visuals for the uncut lawn and the short turf. A
-      comparison of code-built blades, photo scans, and scans with parallax
-      depth chose flat CC0 photo scans; raised grass would hide wheels the
-      physics keeps on a flat surface. Scope grew to scan the asphalt too.
-      Scans load before the race's first frame, and the 4.2.4 clipping colours
-      follow the scanned blades.
-- [x] 4.2.6: Handbrake drift. Holding Shift with throttle jolted the rear
-      left and right: the motor out-pulls the derived handbrake as the drift
-      slows, so the rear re-gripped mid-slide. The handbrake now disengages
-      drive (gameplay policy, physics version `handbrake-clutch-v1`). On
-      touch, pulling the joystick back-diagonal at speed also pulls the
-      handbrake, without the brake pedal.
-
-**PR 4.3: Island Three**
-
-- [x] 4.3.1: The cylinder enclosure as a distant render layer, enclosure and
-      placement in the course document, and a tiny `agricultural-zone` loop
-      inside it. Course schema v4 places each course in Island Three and
-      replaces authored lights with the sun through its mirror, which reaches
-      only a band of the valley. Races are lit by the habitat around the
-      course. The Agricultural Zone became the solo time trial, and
-      `rough-course` became the Starter Course, a sandbox for kart test drives.
-      Both courses gained perimeter walls. The course editor opens from a
-      course roster, and migration 0016 accepts official-course telemetry for
-      both. Course lamps moved to 4.3.5: at real brightness they would not show
-      until the habitat has a night.
-- [x] 4.3.2: Rotating-habitat physics: a research note first, then
-      position-dependent gravity and Coriolis through the kart controller,
-      steering, righting, and camera up; optionally a near-axis test pad.
-      Also decide shock installation angle and re-lay out each axle.
-      Shipped as physics version `rotating-habitat-v1`: gravity from the
-      kart's distance to the axis, Coriolis, local up, Island Three's
-      half-pressure air, and a parked-kart hold on a flat course's slight
-      habitat slope. The test pad grew into a dev-only `?axisRamp` ramp
-      from the Starter Course to a pad 500 m from the axis and on to the
-      axis itself. Derivation v5 counts shock tilt; every official shock
-      leans 30° on coilover versions rated for it, so wheel rates and travel
-      are unchanged, with deep hinge-pin mounts and post-and-crossbar towers.
-      The taller towers and longer plates shift stats slightly: acceleration
-      Balanced 42→41, Speed 10→9, Handling 79→76; stability Speed 46→44,
-      Handling 87→76.
-      Manual righting now clears the hull through the whole roll. After
-      merge, re-save and republish the three official karts in production
-      (Load official design, Save, Publish).
-- [x] 4.3.3: Course loading screen showing Island Three from outside in
-      space, held for a short minimum. Shipped as a ray-traced view of the
-      habitat spinning at its true rate, with Saturn and its rings behind:
-      Island Three orbits Saturn with Titan. The race builds behind it, and
-      the screen holds for at least 2.5 s before fading into the countdown.
-      The home screen keeps its own backdrop for now. The `home.spec`
-      recovery test now pauses the race as it becomes ready, before it can
-      start racing.
-- [x] 4.3.4: Valleys and distant structures. Shipped as a land-use
-      research note (`skills/game-concepts/habitat-land-use/`) and, following
-      it, the official course renamed Falls View Park (`falls-view-park`) on
-      the Starter Course's layout until PR 4.4 builds its route, 2.5 km from
-      the sunward cap. Migration 0017 adds the ID to the telemetry check and
-      keeps `agricultural-zone` for older runs and clients; in production,
-      migrate before deploying, then an admin initialises and publishes the
-      course. The valleys now hold parkland, woods, villages, and towns, with
-      rolling hills, town buildings, the end caps' terraces and elevators, a
-      suspension bridge over the falls lake, and trees as billboards baked
-      from CC0 Poly Haven scans. An 800 m waterfall drops down a granite
-      gorge in the sunward terraces, bending about 426 m anti-spinward as the
-      habitat turns. All within the phone budget on iPhone `?perf=1`.
-- [x] 4.3.5: Dusk and night. Shipped as the habitat's daylight: what the
-      mirrors send onto its floors and caps, falling to nothing as a mirror
-      opens fully toward 90°, where its window sees only space. The haze
-      glows with it, and the race exposes for its course's key light as eyes
-      adjust. Course schema v5 adds up to four floodlights per course (12 m
-      masts, about 250,000 cd, no shadows; lamp shadows were decided against)
-      and mirrors up to 90°. Falls View Park is seeded at deep dusk (89.5°)
-      under four, with the falls floodlit, the bridge lit, and street lamps
-      and a few floodlit fields across the valleys; in production an admin
-      initializes and publishes it. The loading screen shows Island Three by
-      day. The iPhone sun-shadow flicker came from the chase camera widening
-      with speed, so the shadow fit now holds the widest view; sun shadows
-      reach 60 m in two blended cascades with a faded far edge. The three
-      failing tests were fixed. Deferred: the course's direct sun renders
-      about a third dimmer than the habitat model assumes (PlayCanvas applies
-      light intensities below 1 before linearising the colour), and
-      `home.spec`'s lost-WebGL-context recovery test already fails on `main`.
-
-**PR 4.4: Falls View Park Circuit** (split by route section)
-
-A two-lap circuit of about 500–550 m a lap, authored under `falls-view-park`
-from the Starter Course layout it took in PR 4.3.4. Courses are rough circuits
-the habitat's youth build through the infrastructure already there, so
-everything stands at real size around the 1:10 karts: pipes, vents, culverts,
-doors, rails, ramps, and catwalks that make them feel tiny. The lap reveals the
-habitat step by step, and each beat is one moment the route shows:
-
-1. **Utility tunnel:** the park's service tunnel under the soil, carrying its
-   water, power, and air, with the start/finish inside. Nothing of the
-   habitat shows.
-2. **Tree nursery rows:** tight turns between rows of young trees, with
-   glimpses of sky through them.
-3. **Stream and culvert:** the stream's banks open the view a little, then a
-   narrow culvert ducks under the water.
-4. **Levee crest:** the climb onto the stream's flood levee reveals the
-   floodlit falls, the terraced sunward cap, and the bridge's lamps.
-5. **Downhill run:** a fast descent off the levee heading anti-spinward, with
-   the floor curving up ahead and a jump that shows the spin's effect on a
-   flying kart.
-6. **Return lane:** heading anti-sunward, with street lamps running down the
-   cylinder's length, back into the tunnel portal.
-
-The route stays clearly lit at deep dusk (89.5°).
-
-In-world, the youth borrow the park's maintenance network after hours and
-stitch it into a loop: the tunnel is the park's service road, the nursery
-rows its access lanes, the culvert a link only a kart can take, the levee
-crest its inspection track, the downhill its access ramp (the jump is the
-youth's own), and the return lane a service lane. Everything permanent is the
-park's, at full size; the timing portal, grid tape, jump, and improvised
-barriers are the youth's portable race kit
-([visual identity](docs/visual-identity.md#course-surfaces)).
-
-- [x] 4.4.1: Carry-overs from PR 4.3.5, then the route layout. Shipped:
-      the sun renders at the habitat model's brightness, and the
-      lost-WebGL-context tests allow for the software renderer's slow dusk
-      frames. Falls View Park is a walled blockout of the full route, about
-      550 m a lap with 4.5 m lanes for four karts abreast; its downhill
-      forks into a jump lane and a gentle lane. A course may carry eight
-      floodlights (schema v5, no migration); Falls View Park places eight
-      outdoors, within the phone budget.
-- [x] 4.4.1.1: Falls View Park seed reset and wheel motion blur. Shipped:
-      the guarded seed reset (`db:reset-course-seed`) covers
-      `falls-view-park` as well as the Starter Course, and production's
-      Falls View Park was reset to the 4.4.1 route. Wheels show their spin,
-      presentation-only and driven by the tire's rolling speed: tread
-      blocks, sidewall lettering, and machined spokes blur over at least
-      1/15 s (an art choice) into grey rings, with no full-screen pass. The
-      chase camera sees mostly black tread, so the blur shows best side-on.
-      Within the phone budget.
-- [x] 4.4.2: Utility tunnel, with its own lights. Shipped: the
-      start/finish sits in a cut-and-cover service
-      road under an earth berm: 4.5 m lane, 3.6 m clear height, a pipe bay
-      behind a kerb bench, and a junction chamber at the right-hander, where
-      the bend's barriers are smooth arcs, a new course primitive drawn
-      within 3 mm of a true circle. Indoor objects take only indoor light
-      (a second light channel and an interior environment), so habitat
-      light and floodlights no longer pass through the roof, and the kart
-      switches light at the portals. Twelve 8,600 cd ceiling lamps and the
-      youth's work light over the start light it, and the tunnel is dressed
-      at full size: mains, numbered doors, cabinets, trays, centre line,
-      chevrons, sump and valves, and finished portals. The editor cuts away
-      roofs, marks objects indoors or overhead, places tunnel lamps (16 per
-      course beside 8 floodlights), and takes up to 1,000 objects. Course
-      schema v6, no migration. Within the phone budget, frame and CPU time
-      unchanged.
-- [x] 4.4.3: Tree nursery rows and the service-road bypass, and how their
-      trees look. Shipped: the nursery is raised, mulched, timber-edged
-      beds of young trees at real size (3.2 m nursery standards on stakes,
-      leaf sprays baked from a CC0 scan) with turf alleys through its
-      hairpins. The service road swoops south behind windbreak and screen
-      hedges, which keep the east view for the climb out of the nursery,
-      then climbs an access ramp onto the levee crest: tight hairpins or a
-      longer, faster sweep. Four more floodlights light the road at dusk,
-      raising the course limit to twelve. The race drops the nursery and
-      culvert checkpoints. The park stands 0.9 m off the habitat floor, so
-      the floor's curve stays below the chase camera.
-      The engine-backed lighting test checks the kart's light switch at
-      each portal, on both meshes, after a reset, a batch rebuild, and a
-      new race. Course schema v7 (planted beds, hedges), no migration.
-      Within the phone budget; CPU work rose about 1 ms.
-- [x] 4.4.4: Stream, culvert, and levee vista, and how the water looks.
-      Shipped: the stream runs perched between the levee and a
-      concrete-faced bank, 0.3 m of clear water over a river-gravel bed,
-      falling 1 in 3,000 west to a weir and an outfall chamber at the
-      perimeter wall, where water would really leave the park; the wall
-      stays clear beside it for 4.4.7's storm drain. The water reflects as
-      water does, its ripples drift downstream, and a kart that goes under
-      drowns and is recovered. The culvert is a precast 1.5 × 1.2 m box
-      under the bank, stream, and levee, lit by a string of six of the
-      youth's battery work lights. The levee's riverside is a grass slope
-      and the crest's stream side a kerb and tubular handrail, so the stream
-      shows from the crest. The nursery's trolley lanes are brushed
-      concrete and its hairpin edges round. The levee's curved walls are
-      true arcs and its route is asphalt drawn without a layer bias, so no
-      side faces flicker through the walls; the climb's wall slits are
-      closed, and the hairpin merge is marked with arrows and chevron
-      boards. To dodge after the vista, two of the youth's bicycles stand
-      at the crest's edges, built at real size and colliding as their own
-      shapes: a hardtail leaning on the handrail and a BMX laid over against
-      the wall. Course schema v8 (water, concrete, gravel, work lamps, and
-      bicycles; twenty indoor lamps), no migration. Frame time, CPU work (a
-      4 ms median, p95 5–6 ms), and draws (about six more) stay within the
-      phone budget, but startup does not: the first frame takes 465–549 ms
-      warm, against about 436 ms allowed, deferred to 4.4.8.
-- [x] 4.4.5: Downhill run and spin jump. Shipped: past the crest the
-      levee's track crosses the stream on a bridge and comes 3 m down to
-      the park on an asphalt S-bend ramp over concrete fill, with kerbs.
-      The youth's jump is a shortcut: a plywood kicker at the ramp's left
-      edge sends karts straight on, anti-spinward, over the S's inside onto
-      their plywood landing deck on timber, taped every 2 m, which ends on
-      level ground beside the road; their steel crowd barriers fence both
-      sides. In test flights every official kart landed it upright, straight
-      on, from the 8 m/s the Handling Kart tops out at to 16 m/s; a launch
-      turned 8° west misses the deck and lands, often upside down, inside
-      the barriers. Course layers' slope depth bias is a quarter of a pixel a
-      layer, so markings no longer draw over a ramp's thin toe. Karts
-      hopped down slopes because grounded heave damping slowed motion along
-      habitat up, lifting a kart that rolls steadily downhill; it now damps
-      motion off the surface the wheels are on, under physics version
-      `support-heave-v1`. Course schema v8, no migration. Frame time and
-      draws stay within the phone budget and CPU work at its 5 ms top;
-      startup is unchanged, still over budget for 4.4.8.
-- [x] 4.4.6: Return lane and finish. Shipped: the park's return
-      service lane has 150 mm kerbs, true arcs at its turn, ice edge lines,
-      and four 6 m street-lamp columns leading anti-sunward to the tunnel;
-      the crowd barriers still seal the downhill's infield. The dusk pass
-      adds one ceiling lamp at the junction chamber's approach, within
-      twelve floodlights, twenty indoor lamps, and four of eight street
-      lamps. Course schema v9 adds the outdoor street-lamp kind and editor
-      preset; v8 documents upgrade in memory, with no database migration.
-      Two iPhone races keep frame time and draws within budget, with CPU
-      work at its 5 ms median limit and no hitches. Startup remains over
-      budget for 4.4.8. Production stays on its earlier seed until 4.4.8.
-- [x] 4.4.7: Off-track clearing. Shipped: the park stands in its
-      habitat clearing. Course schema v10 names a course's footprint, and
-      outside it, out to the clearing's 220 m edge, the race builds the
-      habitat floor from the enclosure model: lawn that follows the floor's
-      curve, rising about 5 m by the edge around the axis, drawn and
-      drivable in flat slabs of at most 10 × 20 m.
-      The perimeter walls retain the park down to it, and a 1.2 m steel
-      weld-mesh park fence rings it 215 m out, inside the belt of trees.
-      The way out is a detour, not a shortcut, and nothing marks it: the
-      youth's last crowd barrier on the downhill's west side stands swung
-      open onto the lawn inside the park's walls, and behind the tunnel's
-      berm, out of sight of the route, a storm drain runs through the
-      north wall: a 600 × 450 mm precast box culvert, the narrowest
-      standard width the widest official kart (0.46 m) fits through, with
-      wingwalls and a 1 m-wide chute falling 1:8 to the floor, lit by two
-      park street lamps. Opening the lawn made the park's ground 20 m tiles (one 218 m
-      slab bounced wheels) and the berm's grass drivable (v10 lets outdoor
-      earthworks over a roof support karts), with the portals' headwalls
-      flush with its crest, so karts can drive off it onto the road. v9
-      documents upgrade in memory, with no migration. Within the phone
-      budget: frame time holds, draws rise about three, and CPU work falls
-      to a 3 ms median; startup is unchanged, still over budget for 4.4.8.
-- [x] 4.4.8: Detail pass and production release. Shipped: Falls View
-      Park's finishes are CC0 scans at true size: cast-in-place concrete
-      walls and tunnels on 1.2 m formwork, buff sidewalk kerbs with
-      broom-finished tops, powder-coated steel, road paint over the
-      asphalt's grain, the nursery beds' soil, and timber whose grain runs
-      the length of each piece. The tunnel gains what its silhouettes
-      lacked: chamfered doors, cabinets, lamp housings, height boards, and
-      copings; PN16 flanged joints every 6 m on the fire main; both mains
-      bending into the wall at each end, the water main's elbows colliding
-      as their bends; handwheels on the valves; and
-      painted door numbers, with the park's own headroom, "MAX 3.1m", on
-      the portals' height boards. Each crowd barrier is now one object, its
-      frame a kit about its plank, so the seed holds 1,355 objects and the
-      course editor, now accepting 2,000, opens it. The frame's infill bars
-      stand at a real barrier's 110 mm pitch, too close for any kart to
-      pass, and it collides as the panel the frame fills, 100 mm deep (the
-      thinnest solid obstacle kart physics allows). The landing deck is
-      smoothed, widened, and braced, and the kicker widened to 2.44 m into
-      the road: turned 8° west, every official kart now lands on the deck
-      from each lane at 8 and 16 m/s, though two of six such flights from
-      the westmost lane end upside down. The far-side shimmer was not
-      `lampLight` but the habitat windows' mullions, lit at a fixed radiance
-      that dusk exposure boosted; they now take the fill light, and the
-      service ramp's side wall no longer z-fights. The `?perf=1` overlay
-      splits startup into wait, build, and render; the home screen prepares
-      the course's lighting, planting, and physics while a kart is chosen,
-      and thumbnails and editors draw without physics. Course schema v11
-      adds kits (crowd barrier, handwheel, elbow), elbow collision, the kerb
-      finish, bevels, and signs; v10 documents upgrade in memory, with no
-      migration. On the
-      iPhone the warm first frame is back within budget at 393 ms; frame
-      time holds, CPU work is a 4 ms median, and draws rise about three.
-      After the merge, production's Falls View Park is reset to this seed
-      with `db:reset-course-seed` and an admin publishes it. Left open: the
-      junction chamber's valve risers have no collision, and home.spec's
-      "keeps a late thumbnail fallback isolated from race startup" fails
-      on main as before this PR.
-
-**PR 4.5: Ambience and SFX**
-
-Sound is generated in code with Web Audio, with no dependency. It is
-derived from the simulation and never feeds back into physics. CC0
-recordings replace a generated sound only where listening QA says it does
-not read.
-
-- [x] 4.5.1: Race audio and kart sound. The audio runtime (one shared
-      context started by the race's start click, silent while paused or
-      covered, suspended when the switch is off, the page is hidden or
-      unfocused, and on exit) with a remembered Sound effects switch in the
-      pause and home menus; the kart's brushless motor and gear whine; tire
-      roll per surface, scrub and skid, impacts by material, and landings by
-      surface; and countdown, go, final-lap, finish, and rejected-lap cues.
-      Shipped: recipes from blind listening, retuned in races for comfort
-      over a whole race (a lower, darker motor, dull knocks on soil-backed
-      boards); asphalt plays a 192 KB CC0 recorded loop of small wheels on
-      grit (credits in `public/audio/CREDITS.md`); impacts sound once per
-      contact, and hitting the side of a drivable deck or step is silent.
-- [ ] 4.5.2: Ambience, kept lean. An outdoor habitat bed, a muffled tunnel
-      mix, and the stream from the course's water boxes, with distance
-      culling. Machinery at valve and junction kits and sprinkler or drip
-      irrigation over the nursery rows come in only if the iPhone budget
-      allows.
-- [ ] Mind the phone budget's headroom: after PR 4.4.8, CPU work has about
-      1 ms left at the median (p95 7 ms), measured on the lead's iPhone
-      only; GPU time is unmeasured.
-- [ ] Leave headroom for Phase 6's four-kart rooms: engine and contact
-      sounds for three remote karts, which can cost less than the player's.
-
-Reference: [teardown](https://github.com/elvarofficial/teardown)'s procedural
-sound (MIT code, CC0 samples), synthesized from the events it accompanies.
-
-**PR 4.6: Kart editor suspension swap**
-
-- [x] Swapping a suspension type keeps the current arm geometry. Approved
-      mounting defaults assume 8 cm arms, so on the official karts' longer
-      arms the hub lands off the wheel (deferred from PR 4.1.4). Admin kart
-      editor only, with no derivation, schema, or physics change. Shipped:
-      swaps keep each instance's authored mounts; a unit that cannot span
-      them (Handling Kart to firm-short) shows a stroke validation issue.
-
-**Done when:**
-
-- Two laps take roughly 90 seconds to 2.5 minutes, and the handling feels like
-  fast RC arcade racing: quick acceleration, tight steering, slight controlled
-  drift, forgiving walls, fast reset. Easy to finish, hard to master.
-- Karts, sandbox, enclosure, and course read as one visual identity and stay
-  within the phone performance budget.
-- Every physics change is versioned, and older runs keep their physics
-  version.
 
 ### Phase 5: Solo, Ghosts, Results, Leaderboard
 
@@ -856,6 +459,14 @@ course-specific ghosts or leaderboards.
 - [ ] Mobile performance pass.
 - [ ] Lobby polish, onboarding copy, and UI clarity.
 - [ ] Final visual pass against the Titan Racers site.
+- [ ] Ambience left from Phase 4: machinery at Falls View Park's valve and
+      junction kits, and sprinkler or drip irrigation over the nursery rows,
+      within the phone budget.
+- [ ] Loose ends from Phase 4: the junction chamber's valve risers have no
+      collision, and three `home.spec` tests fail on `main` ("keeps a late
+      thumbnail fallback isolated from race startup", "keeps the drive
+      cursor hidden and restores it while paused", and "recovers a lost
+      WebGL context into an explicit pause…").
 - [ ] Analytics review: confirm we can measure time to first race, race start
       and completion, replays, room joins, shares, login after a race,
       leaderboard submissions, community publishing and play, thumbs-ups,
