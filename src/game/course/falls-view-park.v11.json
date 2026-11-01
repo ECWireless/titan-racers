@@ -14411,7 +14411,7 @@
       "collision": null,
       "editable": true,
       "id": "tunnel-portal-north-height-sign",
-      "sign": "MAX 2.7m",
+      "sign": "MAX 3.1m",
       "transform": {
         "position": {
           "x": 81,
@@ -14440,7 +14440,7 @@
       "collision": null,
       "editable": true,
       "id": "tunnel-portal-west-height-sign",
-      "sign": "MAX 2.7m",
+      "sign": "MAX 3.1m",
       "transform": {
         "position": {
           "x": 9.6375,
@@ -40310,14 +40310,14 @@
       "collision": {
         "friction": 0.7,
         "halfExtents": {
-          "x": 1.15,
-          "y": 0.55,
-          "z": 0.075
+          "x": 1.119,
+          "y": 0.5595,
+          "z": 0.05
         },
         "offset": {
           "position": {
             "x": 0,
-            "y": 0.475,
+            "y": 0.4845,
             "z": 0
           },
           "rotation": {
@@ -40366,14 +40366,14 @@
       "collision": {
         "friction": 0.7,
         "halfExtents": {
-          "x": 1.15,
-          "y": 0.55,
-          "z": 0.075
+          "x": 1.119,
+          "y": 0.5595,
+          "z": 0.05
         },
         "offset": {
           "position": {
             "x": 0,
-            "y": 0.475,
+            "y": 0.4845,
             "z": 0
           },
           "rotation": {
@@ -40422,14 +40422,14 @@
       "collision": {
         "friction": 0.7,
         "halfExtents": {
-          "x": 1.15,
-          "y": 0.55,
-          "z": 0.075
+          "x": 1.119,
+          "y": 0.5595,
+          "z": 0.05
         },
         "offset": {
           "position": {
             "x": 0,
-            "y": 0.475,
+            "y": 0.4845,
             "z": 0
           },
           "rotation": {
@@ -40478,14 +40478,14 @@
       "collision": {
         "friction": 0.7,
         "halfExtents": {
-          "x": 1.15,
-          "y": 0.55,
-          "z": 0.075
+          "x": 1.119,
+          "y": 0.5595,
+          "z": 0.05
         },
         "offset": {
           "position": {
             "x": 0,
-            "y": 0.475,
+            "y": 0.4845,
             "z": 0
           },
           "rotation": {
@@ -40534,14 +40534,14 @@
       "collision": {
         "friction": 0.7,
         "halfExtents": {
-          "x": 1.15,
-          "y": 0.55,
-          "z": 0.075
+          "x": 1.119,
+          "y": 0.5595,
+          "z": 0.05
         },
         "offset": {
           "position": {
             "x": 0,
-            "y": 0.475,
+            "y": 0.4845,
             "z": 0
           },
           "rotation": {
@@ -40590,14 +40590,14 @@
       "collision": {
         "friction": 0.7,
         "halfExtents": {
-          "x": 1.15,
-          "y": 0.55,
-          "z": 0.075
+          "x": 1.119,
+          "y": 0.5595,
+          "z": 0.05
         },
         "offset": {
           "position": {
             "x": 0,
-            "y": 0.475,
+            "y": 0.4845,
             "z": 0
           },
           "rotation": {
@@ -40646,14 +40646,14 @@
       "collision": {
         "friction": 0.7,
         "halfExtents": {
-          "x": 1.15,
-          "y": 0.55,
-          "z": 0.075
+          "x": 1.119,
+          "y": 0.5595,
+          "z": 0.05
         },
         "offset": {
           "position": {
             "x": 0,
-            "y": 0.475,
+            "y": 0.4845,
             "z": 0
           },
           "rotation": {
@@ -40702,14 +40702,14 @@
       "collision": {
         "friction": 0.7,
         "halfExtents": {
-          "x": 1.15,
-          "y": 0.55,
-          "z": 0.075
+          "x": 1.119,
+          "y": 0.5595,
+          "z": 0.05
         },
         "offset": {
           "position": {
             "x": 0,
-            "y": 0.475,
+            "y": 0.4845,
             "z": 0
           },
           "rotation": {
@@ -40758,14 +40758,14 @@
       "collision": {
         "friction": 0.7,
         "halfExtents": {
-          "x": 1.15,
-          "y": 0.55,
-          "z": 0.075
+          "x": 1.119,
+          "y": 0.5595,
+          "z": 0.05
         },
         "offset": {
           "position": {
             "x": 0,
-            "y": 0.475,
+            "y": 0.4845,
             "z": 0
           },
           "rotation": {
@@ -40814,14 +40814,14 @@
       "collision": {
         "friction": 0.7,
         "halfExtents": {
-          "x": 1.15,
-          "y": 0.55,
-          "z": 0.075
+          "x": 1.119,
+          "y": 0.5595,
+          "z": 0.05
         },
         "offset": {
           "position": {
             "x": 0,
-            "y": 0.475,
+            "y": 0.4845,
             "z": 0
           },
           "rotation": {
@@ -40870,14 +40870,14 @@
       "collision": {
         "friction": 0.7,
         "halfExtents": {
-          "x": 1.15,
-          "y": 0.55,
-          "z": 0.075
+          "x": 1.119,
+          "y": 0.5595,
+          "z": 0.05
         },
         "offset": {
           "position": {
             "x": 0,
-            "y": 0.475,
+            "y": 0.4845,
             "z": 0
           },
           "rotation": {
@@ -40926,14 +40926,14 @@
       "collision": {
         "friction": 0.7,
         "halfExtents": {
-          "x": 1.15,
-          "y": 0.55,
-          "z": 0.075
+          "x": 1.119,
+          "y": 0.5595,
+          "z": 0.05
         },
         "offset": {
           "position": {
             "x": 0,
-            "y": 0.475,
+            "y": 0.4845,
             "z": 0
           },
           "rotation": {
@@ -40982,14 +40982,14 @@
       "collision": {
         "friction": 0.7,
         "halfExtents": {
-          "x": 1.15,
-          "y": 0.55,
-          "z": 0.075
+          "x": 1.119,
+          "y": 0.5595,
+          "z": 0.05
         },
         "offset": {
           "position": {
             "x": 0,
-            "y": 0.475,
+            "y": 0.4845,
             "z": 0
           },
           "rotation": {
@@ -41038,14 +41038,14 @@
       "collision": {
         "friction": 0.7,
         "halfExtents": {
-          "x": 1.15,
-          "y": 0.55,
-          "z": 0.075
+          "x": 1.119,
+          "y": 0.5595,
+          "z": 0.05
         },
         "offset": {
           "position": {
             "x": 0,
-            "y": 0.475,
+            "y": 0.4845,
             "z": 0
           },
           "rotation": {
@@ -41094,14 +41094,14 @@
       "collision": {
         "friction": 0.7,
         "halfExtents": {
-          "x": 1.15,
-          "y": 0.55,
-          "z": 0.075
+          "x": 1.119,
+          "y": 0.5595,
+          "z": 0.05
         },
         "offset": {
           "position": {
             "x": 0,
-            "y": 0.475,
+            "y": 0.4845,
             "z": 0
           },
           "rotation": {
@@ -41150,14 +41150,14 @@
       "collision": {
         "friction": 0.7,
         "halfExtents": {
-          "x": 1.15,
-          "y": 0.55,
-          "z": 0.075
+          "x": 1.119,
+          "y": 0.5595,
+          "z": 0.05
         },
         "offset": {
           "position": {
             "x": 0,
-            "y": 0.475,
+            "y": 0.4845,
             "z": 0
           },
           "rotation": {
@@ -41206,14 +41206,14 @@
       "collision": {
         "friction": 0.7,
         "halfExtents": {
-          "x": 1.15,
-          "y": 0.55,
-          "z": 0.075
+          "x": 1.119,
+          "y": 0.5595,
+          "z": 0.05
         },
         "offset": {
           "position": {
             "x": 0,
-            "y": 0.475,
+            "y": 0.4845,
             "z": 0
           },
           "rotation": {
@@ -41262,14 +41262,14 @@
       "collision": {
         "friction": 0.7,
         "halfExtents": {
-          "x": 1.15,
-          "y": 0.55,
-          "z": 0.075
+          "x": 1.119,
+          "y": 0.5595,
+          "z": 0.05
         },
         "offset": {
           "position": {
             "x": 0,
-            "y": 0.475,
+            "y": 0.4845,
             "z": 0
           },
           "rotation": {
@@ -41318,14 +41318,14 @@
       "collision": {
         "friction": 0.7,
         "halfExtents": {
-          "x": 1.15,
-          "y": 0.55,
-          "z": 0.075
+          "x": 1.119,
+          "y": 0.5595,
+          "z": 0.05
         },
         "offset": {
           "position": {
             "x": 0,
-            "y": 0.475,
+            "y": 0.4845,
             "z": 0
           },
           "rotation": {
@@ -41374,14 +41374,14 @@
       "collision": {
         "friction": 0.7,
         "halfExtents": {
-          "x": 1.15,
-          "y": 0.55,
-          "z": 0.075
+          "x": 1.119,
+          "y": 0.5595,
+          "z": 0.05
         },
         "offset": {
           "position": {
             "x": 0,
-            "y": 0.475,
+            "y": 0.4845,
             "z": 0
           },
           "rotation": {
@@ -41430,14 +41430,14 @@
       "collision": {
         "friction": 0.7,
         "halfExtents": {
-          "x": 1.15,
-          "y": 0.55,
-          "z": 0.075
+          "x": 1.119,
+          "y": 0.5595,
+          "z": 0.05
         },
         "offset": {
           "position": {
             "x": 0,
-            "y": 0.475,
+            "y": 0.4845,
             "z": 0
           },
           "rotation": {
@@ -41486,14 +41486,14 @@
       "collision": {
         "friction": 0.7,
         "halfExtents": {
-          "x": 1.15,
-          "y": 0.55,
-          "z": 0.075
+          "x": 1.119,
+          "y": 0.5595,
+          "z": 0.05
         },
         "offset": {
           "position": {
             "x": 0,
-            "y": 0.475,
+            "y": 0.4845,
             "z": 0
           },
           "rotation": {
@@ -41542,14 +41542,14 @@
       "collision": {
         "friction": 0.7,
         "halfExtents": {
-          "x": 1.15,
-          "y": 0.55,
-          "z": 0.075
+          "x": 1.119,
+          "y": 0.5595,
+          "z": 0.05
         },
         "offset": {
           "position": {
             "x": 0,
-            "y": 0.475,
+            "y": 0.4845,
             "z": 0
           },
           "rotation": {
@@ -41598,14 +41598,14 @@
       "collision": {
         "friction": 0.7,
         "halfExtents": {
-          "x": 1.15,
-          "y": 0.55,
-          "z": 0.075
+          "x": 1.119,
+          "y": 0.5595,
+          "z": 0.05
         },
         "offset": {
           "position": {
             "x": 0,
-            "y": 0.475,
+            "y": 0.4845,
             "z": 0
           },
           "rotation": {
@@ -41654,14 +41654,14 @@
       "collision": {
         "friction": 0.7,
         "halfExtents": {
-          "x": 0.984459,
-          "y": 0.55,
-          "z": 0.075
+          "x": 0.953458,
+          "y": 0.5595,
+          "z": 0.05
         },
         "offset": {
           "position": {
             "x": 0,
-            "y": 0.475,
+            "y": 0.4845,
             "z": 0
           },
           "rotation": {
@@ -41710,14 +41710,14 @@
       "collision": {
         "friction": 0.7,
         "halfExtents": {
-          "x": 1.15,
-          "y": 0.55,
-          "z": 0.075
+          "x": 1.119,
+          "y": 0.5595,
+          "z": 0.05
         },
         "offset": {
           "position": {
             "x": 0,
-            "y": 0.475,
+            "y": 0.4845,
             "z": 0
           },
           "rotation": {
@@ -41766,14 +41766,14 @@
       "collision": {
         "friction": 0.7,
         "halfExtents": {
-          "x": 1.15,
-          "y": 0.55,
-          "z": 0.075
+          "x": 1.119,
+          "y": 0.5595,
+          "z": 0.05
         },
         "offset": {
           "position": {
             "x": 0,
-            "y": 0.475,
+            "y": 0.4845,
             "z": 0
           },
           "rotation": {
@@ -41822,14 +41822,14 @@
       "collision": {
         "friction": 0.7,
         "halfExtents": {
-          "x": 1.15,
-          "y": 0.55,
-          "z": 0.075
+          "x": 1.119,
+          "y": 0.5595,
+          "z": 0.05
         },
         "offset": {
           "position": {
             "x": 0,
-            "y": 0.475,
+            "y": 0.4845,
             "z": 0
           },
           "rotation": {
@@ -41878,14 +41878,14 @@
       "collision": {
         "friction": 0.7,
         "halfExtents": {
-          "x": 1.15,
-          "y": 0.55,
-          "z": 0.075
+          "x": 1.119,
+          "y": 0.5595,
+          "z": 0.05
         },
         "offset": {
           "position": {
             "x": 0,
-            "y": 0.475,
+            "y": 0.4845,
             "z": 0
           },
           "rotation": {
@@ -41934,14 +41934,14 @@
       "collision": {
         "friction": 0.7,
         "halfExtents": {
-          "x": 1.149454,
-          "y": 0.55,
-          "z": 0.075
+          "x": 1.118453,
+          "y": 0.5595,
+          "z": 0.05
         },
         "offset": {
           "position": {
             "x": 0,
-            "y": 0.475,
+            "y": 0.4845,
             "z": 0
           },
           "rotation": {
@@ -41990,14 +41990,14 @@
       "collision": {
         "friction": 0.7,
         "halfExtents": {
-          "x": 1.145912,
-          "y": 0.55,
-          "z": 0.075
+          "x": 1.114911,
+          "y": 0.5595,
+          "z": 0.05
         },
         "offset": {
           "position": {
             "x": 0,
-            "y": 0.475,
+            "y": 0.4845,
             "z": 0
           },
           "rotation": {
@@ -42046,14 +42046,14 @@
       "collision": {
         "friction": 0.7,
         "halfExtents": {
-          "x": 1.145898,
-          "y": 0.55,
-          "z": 0.075
+          "x": 1.114898,
+          "y": 0.5595,
+          "z": 0.05
         },
         "offset": {
           "position": {
             "x": 0,
-            "y": 0.475,
+            "y": 0.4845,
             "z": 0
           },
           "rotation": {
@@ -42102,14 +42102,14 @@
       "collision": {
         "friction": 0.7,
         "halfExtents": {
-          "x": 1.149165,
-          "y": 0.55,
-          "z": 0.075
+          "x": 1.118165,
+          "y": 0.5595,
+          "z": 0.05
         },
         "offset": {
           "position": {
             "x": 0,
-            "y": 0.475,
+            "y": 0.4845,
             "z": 0
           },
           "rotation": {
@@ -42158,14 +42158,14 @@
       "collision": {
         "friction": 0.7,
         "halfExtents": {
-          "x": 1.148685,
-          "y": 0.55,
-          "z": 0.075
+          "x": 1.117684,
+          "y": 0.5595,
+          "z": 0.05
         },
         "offset": {
           "position": {
             "x": 0,
-            "y": 0.475,
+            "y": 0.4845,
             "z": 0
           },
           "rotation": {
@@ -42214,14 +42214,14 @@
       "collision": {
         "friction": 0.7,
         "halfExtents": {
-          "x": 1.148718,
-          "y": 0.55,
-          "z": 0.075
+          "x": 1.117718,
+          "y": 0.5595,
+          "z": 0.05
         },
         "offset": {
           "position": {
             "x": 0,
-            "y": 0.475,
+            "y": 0.4845,
             "z": 0
           },
           "rotation": {
@@ -42270,14 +42270,14 @@
       "collision": {
         "friction": 0.7,
         "halfExtents": {
-          "x": 1.148681,
-          "y": 0.55,
-          "z": 0.075
+          "x": 1.117681,
+          "y": 0.5595,
+          "z": 0.05
         },
         "offset": {
           "position": {
             "x": 0,
-            "y": 0.475,
+            "y": 0.4845,
             "z": 0
           },
           "rotation": {
@@ -42326,14 +42326,14 @@
       "collision": {
         "friction": 0.7,
         "halfExtents": {
-          "x": 1.148652,
-          "y": 0.55,
-          "z": 0.075
+          "x": 1.117651,
+          "y": 0.5595,
+          "z": 0.05
         },
         "offset": {
           "position": {
             "x": 0,
-            "y": 0.475,
+            "y": 0.4845,
             "z": 0
           },
           "rotation": {
@@ -42382,14 +42382,14 @@
       "collision": {
         "friction": 0.7,
         "halfExtents": {
-          "x": 1.14863,
-          "y": 0.55,
-          "z": 0.075
+          "x": 1.11763,
+          "y": 0.5595,
+          "z": 0.05
         },
         "offset": {
           "position": {
             "x": 0,
-            "y": 0.475,
+            "y": 0.4845,
             "z": 0
           },
           "rotation": {
@@ -42438,14 +42438,14 @@
       "collision": {
         "friction": 0.7,
         "halfExtents": {
-          "x": 1.148616,
-          "y": 0.55,
-          "z": 0.075
+          "x": 1.117617,
+          "y": 0.5595,
+          "z": 0.05
         },
         "offset": {
           "position": {
             "x": 0,
-            "y": 0.475,
+            "y": 0.4845,
             "z": 0
           },
           "rotation": {
@@ -42494,14 +42494,14 @@
       "collision": {
         "friction": 0.7,
         "halfExtents": {
-          "x": 1.148611,
-          "y": 0.55,
-          "z": 0.075
+          "x": 1.11761,
+          "y": 0.5595,
+          "z": 0.05
         },
         "offset": {
           "position": {
             "x": 0,
-            "y": 0.475,
+            "y": 0.4845,
             "z": 0
           },
           "rotation": {
@@ -42550,14 +42550,14 @@
       "collision": {
         "friction": 0.7,
         "halfExtents": {
-          "x": 1.148613,
-          "y": 0.55,
-          "z": 0.075
+          "x": 1.117612,
+          "y": 0.5595,
+          "z": 0.05
         },
         "offset": {
           "position": {
             "x": 0,
-            "y": 0.475,
+            "y": 0.4845,
             "z": 0
           },
           "rotation": {
@@ -42606,14 +42606,14 @@
       "collision": {
         "friction": 0.7,
         "halfExtents": {
-          "x": 1.147182,
-          "y": 0.55,
-          "z": 0.075
+          "x": 1.116181,
+          "y": 0.5595,
+          "z": 0.05
         },
         "offset": {
           "position": {
             "x": 0,
-            "y": 0.475,
+            "y": 0.4845,
             "z": 0
           },
           "rotation": {
@@ -42662,14 +42662,14 @@
       "collision": {
         "friction": 0.7,
         "halfExtents": {
-          "x": 1.145854,
-          "y": 0.55,
-          "z": 0.075
+          "x": 1.114854,
+          "y": 0.5595,
+          "z": 0.05
         },
         "offset": {
           "position": {
             "x": 0,
-            "y": 0.475,
+            "y": 0.4845,
             "z": 0
           },
           "rotation": {
@@ -42718,14 +42718,14 @@
       "collision": {
         "friction": 0.7,
         "halfExtents": {
-          "x": 1.146678,
-          "y": 0.55,
-          "z": 0.075
+          "x": 1.115678,
+          "y": 0.5595,
+          "z": 0.05
         },
         "offset": {
           "position": {
             "x": 0,
-            "y": 0.475,
+            "y": 0.4845,
             "z": 0
           },
           "rotation": {
@@ -42774,14 +42774,14 @@
       "collision": {
         "friction": 0.7,
         "halfExtents": {
-          "x": 1.15,
-          "y": 0.55,
-          "z": 0.075
+          "x": 1.119,
+          "y": 0.5595,
+          "z": 0.05
         },
         "offset": {
           "position": {
             "x": 0,
-            "y": 0.475,
+            "y": 0.4845,
             "z": 0
           },
           "rotation": {
@@ -42830,14 +42830,14 @@
       "collision": {
         "friction": 0.7,
         "halfExtents": {
-          "x": 1.15,
-          "y": 0.55,
-          "z": 0.075
+          "x": 1.119,
+          "y": 0.5595,
+          "z": 0.05
         },
         "offset": {
           "position": {
             "x": 0,
-            "y": 0.475,
+            "y": 0.4845,
             "z": 0
           },
           "rotation": {
@@ -42886,14 +42886,14 @@
       "collision": {
         "friction": 0.7,
         "halfExtents": {
-          "x": 1.15,
-          "y": 0.55,
-          "z": 0.075
+          "x": 1.119,
+          "y": 0.5595,
+          "z": 0.05
         },
         "offset": {
           "position": {
             "x": 0,
-            "y": 0.475,
+            "y": 0.4845,
             "z": 0
           },
           "rotation": {
@@ -42942,14 +42942,14 @@
       "collision": {
         "friction": 0.7,
         "halfExtents": {
-          "x": 1.15,
-          "y": 0.55,
-          "z": 0.075
+          "x": 1.119,
+          "y": 0.5595,
+          "z": 0.05
         },
         "offset": {
           "position": {
             "x": 0,
-            "y": 0.475,
+            "y": 0.4845,
             "z": 0
           },
           "rotation": {
@@ -42998,14 +42998,14 @@
       "collision": {
         "friction": 0.7,
         "halfExtents": {
-          "x": 1.15,
-          "y": 0.55,
-          "z": 0.075
+          "x": 1.119,
+          "y": 0.5595,
+          "z": 0.05
         },
         "offset": {
           "position": {
             "x": 0,
-            "y": 0.475,
+            "y": 0.4845,
             "z": 0
           },
           "rotation": {
@@ -43054,14 +43054,14 @@
       "collision": {
         "friction": 0.7,
         "halfExtents": {
-          "x": 1.15,
-          "y": 0.55,
-          "z": 0.075
+          "x": 1.119,
+          "y": 0.5595,
+          "z": 0.05
         },
         "offset": {
           "position": {
             "x": 0,
-            "y": 0.475,
+            "y": 0.4845,
             "z": 0
           },
           "rotation": {
@@ -43110,14 +43110,14 @@
       "collision": {
         "friction": 0.7,
         "halfExtents": {
-          "x": 1.15,
-          "y": 0.55,
-          "z": 0.075
+          "x": 1.119,
+          "y": 0.5595,
+          "z": 0.05
         },
         "offset": {
           "position": {
             "x": 0,
-            "y": 0.475,
+            "y": 0.4845,
             "z": 0
           },
           "rotation": {
@@ -43166,14 +43166,14 @@
       "collision": {
         "friction": 0.7,
         "halfExtents": {
-          "x": 1.144082,
-          "y": 0.55,
-          "z": 0.075
+          "x": 1.113082,
+          "y": 0.5595,
+          "z": 0.05
         },
         "offset": {
           "position": {
             "x": 0,
-            "y": 0.475,
+            "y": 0.4845,
             "z": 0
           },
           "rotation": {
@@ -43222,14 +43222,14 @@
       "collision": {
         "friction": 0.7,
         "halfExtents": {
-          "x": 1.15,
-          "y": 0.55,
-          "z": 0.075
+          "x": 1.119,
+          "y": 0.5595,
+          "z": 0.05
         },
         "offset": {
           "position": {
             "x": 0,
-            "y": 0.475,
+            "y": 0.4845,
             "z": 0
           },
           "rotation": {

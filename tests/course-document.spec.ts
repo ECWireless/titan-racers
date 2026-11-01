@@ -25,6 +25,12 @@ import {
 } from "../src/game/course/course-document";
 import { createOfficialKartRosterDocuments } from "../src/game/kart/official-kart-roster";
 import { deriveKartSnapshot } from "../src/game/kart/kart-derivation";
+import {
+  COURSE_THINNEST_SOLID_OBSTACLE,
+  getCrowdBarrierCollisionBox,
+  getCrowdBarrierFrameBoxes,
+} from "../src/game/course/course-kits";
+import { KART_SUBSTEP_POLICY } from "../src/game/collision/kart-collision-model";
 import { COURSE_EDITOR_OBJECT_LIMIT } from "../src/game/editor/course-editor-document";
 import {
   getCourseWaterVolumes,
@@ -1374,13 +1380,37 @@ test("upgrades v10 unchanged and draws each crowd barrier as one kit in v11", ()
   legacyKerb.objects.find((o) => o.id === kerbs[0]!.id)!.visual.material = "kerb";
   expect(() => parseCourseDocument({ ...legacyKerb, schemaVersion: 10 })).toThrow();
 
-  // Each of the downhill's 53 panels is its kick plank, which collides for
-  // the whole panel, with its frame drawn about it.
+  // Each panel is its kick plank, which collides as the panel its frame
+  // fills, as deep as the thinnest solid obstacle kart physics allows, with
+  // its frame drawn about it.
+  expect(COURSE_THINNEST_SOLID_OBSTACLE).toBe(2 * KART_SUBSTEP_POLICY.maximumPointTravelPerSubstep);
   const barriers = FALLS_VIEW_PARK_DOCUMENT.objects.filter((o) => o.kit === "crowd-barrier");
-  expect(barriers).toHaveLength(53);
+  expect(barriers.length).toBeGreaterThan(0);
   expect(FALLS_VIEW_PARK_DOCUMENT.objects.length).toBeLessThanOrEqual(COURSE_EDITOR_OBJECT_LIMIT);
   for (const barrier of barriers) {
-    expect(barrier.collision).toMatchObject({ role: "solid-obstacle", shape: "box" });
+    if (barrier.visual.shape !== "box" || barrier.collision?.shape !== "box") {
+      throw new Error(`${barrier.id} is a box colliding as a box`);
+    }
+    expect(barrier.collision.role).toBe("solid-obstacle");
+    const panel = getCrowdBarrierCollisionBox(barrier.visual.scale);
+    for (const axis of ["x", "y", "z"] as const) {
+      // The seed keeps six decimal places.
+      expect(barrier.collision.halfExtents[axis], barrier.id).toBeCloseTo(panel.halfExtents[axis], 5);
+      expect(barrier.collision.offset.position[axis], barrier.id).toBeCloseTo(panel.center[axis], 5);
+    }
+    // The frame's uprights and rails reach the collider's ends and top,
+    // and the collider is no deeper than physics needs.
+    const frame = getCrowdBarrierFrameBoxes(barrier.visual.scale).filter(
+      ({ size }) => size.y > 0.02,
+    );
+    for (const axis of ["x", "y"] as const) {
+      const reach = Math.max(...frame.map(({ center, size }) => center[axis] + size[axis] / 2));
+      expect(panel.center[axis] + panel.halfExtents[axis], `${barrier.id} ${axis}`).toBeCloseTo(
+        reach,
+        6,
+      );
+    }
+    expect(panel.halfExtents.z * 2).toBeCloseTo(COURSE_THINNEST_SOLID_OBSTACLE, 9);
   }
 
   const issues = (change: (object: CourseDocument["objects"][number]) => void) => {
@@ -1410,8 +1440,8 @@ test("letters signs, bevels solids, and draws handwheels in v11 only", () => {
     "2",
     "3",
     "4",
-    "MAX 2.7m",
-    "MAX 2.7m",
+    "MAX 3.1m",
+    "MAX 3.1m",
   ]);
   expect(objects.filter((o) => o.kit === "handwheel")).toHaveLength(3);
   // Both mains bend into the wall at each end.
@@ -1442,7 +1472,7 @@ test("letters signs, bevels solids, and draws handwheels in v11 only", () => {
   expect(issues(sign, () => {})).toEqual([]);
   // Letters, digits, spaces, full stops, and hyphens; at most 12; not blank.
   expect(issues(sign, (o) => (o.sign = "No-12 3.4m.x"))).toEqual([]);
-  for (const text of ["MAX 3.6m!", "   ", "", " 1", "1 ", "Thirteen char"]) {
+  for (const text of ["MAX 3.1m!", "   ", "", " 1", "1 ", "Thirteen char"]) {
     expect(issues(sign, (o) => (o.sign = text))).toContain("sign");
   }
   // Long text is refused by its length alone, before its pattern is read.

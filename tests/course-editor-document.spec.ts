@@ -603,10 +603,12 @@ test("moves and turns a crowd barrier, and scales it only along its length", () 
   );
   const object = scaled.objects.find((o) => o.id === barrier.id)!;
   expect(object.visual).toMatchObject({ scale: { x: 1.1, y: 0.15, z: 0.025 } });
-  expect(object.collision).toMatchObject({
-    halfExtents: { x: 0.575, y: 0.55, z: 0.075 },
-    offset: { position: { y: 0.475 } },
-  });
+  // Its collider is the panel its shorter frame fills.
+  if (object.collision?.shape !== "box") throw new Error("Expected a box collider");
+  expect(object.collision.halfExtents.x).toBeCloseTo(0.569, 9);
+  expect(object.collision.halfExtents.y).toBeCloseTo(0.5595, 9);
+  expect(object.collision.halfExtents.z).toBeCloseTo(0.05, 9);
+  expect(object.collision.offset.position.y).toBeCloseTo(0.4845, 9);
 });
 
 test("moves thin details without thickening them, and keeps rounds and signs true", () => {

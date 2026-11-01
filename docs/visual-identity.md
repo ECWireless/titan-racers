@@ -79,7 +79,8 @@ Orange and hazard are signals. Use them sparingly so they stay readable.
   Park service lanes can also carry up to eight warm-white street lamps:
   1,000 cd lanterns on real-size columns, on the habitat's dusk schedule,
   without shadows or a change to exposure. Falls View Park's return lane
-  uses four 6 m columns, three at 20 m spacing and one outside the turn. The
+  uses four 6 m columns, three at 20 m spacing and one outside the turn, and
+  two more light its storm drain, over the inlet and the chute's foot. The
   falls are floodlit, and the falls bridge and distant sports fields carry
   their lights through the haze
   ([dusk and night](island-three.md#dusk-and-night)).
@@ -146,7 +147,8 @@ Materials), and so do course surfaces (see Course Surfaces).
   karts read as tiny.
 - **Two layers: the park's and the youth's.** Everything on a course is one
   of two things. The park's infrastructure is permanent, full-size, and built
-  to its trade: service roads, mains, doors, lamps, road markings, and signs.
+  to its trade: service roads, mains, doors, lamps and floodlights, road
+  markings, and signs.
   The youth's race kit is portable and improvised: the timing portal and the
   work light clamped to it, taped grid slots, the battery work lights strung
   through the culvert, the bicycles they rode there, the plywood kicker and
@@ -172,9 +174,9 @@ Materials), and so do course surfaces (see Course Surfaces).
   floors, walls, and sidewalk kerbs keep square edges, as their joints
   would otherwise groove. Signs are painted lettering in bold DIN where the
   system has it (Arial Narrow, or the system sans, elsewhere): door numbers,
-  and the headroom
-  between the hazard stripes of the portals' height boards, "MAX 2.7m",
-  under the youth's timing gantry's work light at 2.74 m.
+  and the park's own headroom, under the cable trays along the lane's
+  edges, "MAX 3.1m", between the hazard stripes of the portals' height
+  boards.
 - **Asphalt and grass are photo scans at true size.** CC0 scans give their
   aggregate, blades, relief, and roughness variation, recoloured and re-glossed
   so each surface keeps its palette colour and sheen on average. Turf mowing stripes depend on viewing
@@ -433,5 +435,8 @@ after 480 ms. The scanned finishes, the timber, bevelled, and lettered
 pieces' own meshes, and the signs' lettering add about three draws (a 52
 median, 73 at most) and a millisecond of median CPU work (4 ms, p95 7 ms);
 frame time holds. The scans grew to 5.5 MB to download (from 4.3 MB) and
-about 67 MiB in GPU memory with mipmaps, cast concrete's 1K set the
-largest; a cold load waits for all of them.
+about 67 MiB in GPU memory with mipmaps (each 1K set about 10.7 MiB);
+with the leaf sprays and the enclosure's trees, textures take about 99 MiB.
+A cold load waits for all the scans, and the warm first frame assumes the
+home screen's preparation finished: a player who starts a race at once pays
+the rest of it inside the race.

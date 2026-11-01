@@ -498,10 +498,13 @@ barriers are the youth's portable race kit
       copings; PN16 flanged joints every 6 m on the fire main; both mains
       bending into the wall at each end, the water main's elbows colliding
       as their bends; handwheels on the valves; and
-      painted door numbers, with "MAX 2.7m" on the portals' height boards,
-      under the youth's timing gantry. Each crowd barrier is now one object,
-      its frame a kit about its plank, so the seed holds 1,355 objects and
-      the course editor, now accepting 2,000, opens it. The landing deck is
+      painted door numbers, with the park's own headroom, "MAX 3.1m", on
+      the portals' height boards. Each crowd barrier is now one object, its
+      frame a kit about its plank, so the seed holds 1,355 objects and the
+      course editor, now accepting 2,000, opens it. The frame's infill bars
+      stand at a real barrier's 110 mm pitch, too close for any kart to
+      pass, and it collides as the panel the frame fills, 100 mm deep (the
+      thinnest solid obstacle kart physics allows). The landing deck is
       smoothed, widened, and braced, and the kicker widened to 2.44 m into
       the road: turned 8° west, every official kart now lands on the deck
       from each lane at 8 and 16 m/s, though two of six such flights from
@@ -527,6 +530,9 @@ barriers are the youth's portable race kit
 
 - [ ] Ambience and readable SFX for road contact, impacts, machinery,
       irrigation, and the habitat, kept separate from kart physics.
+- [ ] Mind the phone budget's headroom: after PR 4.4.8, CPU work has about
+      1 ms left at the median (p95 7 ms), measured on the lead's iPhone
+      only; GPU time is unmeasured.
 
 **Done when:**
 
@@ -652,6 +658,9 @@ courses start from.
 - [ ] A per-course budget for generated geometry: elbows, handwheels, bevels,
       signs, and timber each build their own mesh, so 5,000 of them could
       exhaust a phone.
+- [ ] Let authors create what the seeds use: crowd barriers, signs, bevels,
+      handwheels, elbows, bicycles, and a clearing's footprint have no
+      preset or inspector field yet, and the editor cannot duplicate.
 
 **PR 7.2: Public course discovery and play**
 

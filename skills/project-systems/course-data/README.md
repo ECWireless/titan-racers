@@ -1,7 +1,6 @@
 # Course Data System
 
-**Maturity:** Validated (PR 2.3.1, extended by PRs 2.4.2, 4.4.2, 4.4.3, and
-4.4.4).
+**Maturity:** Validated (PR 2.3.1, extended by PR 2.4.2 and PRs 4.4.2–4.4.8).
 
 ## Purpose And Scope
 
@@ -41,42 +40,17 @@ own editor commands or persistence UI.
   fixtures, and opt-in collision fixtures.
   It permanently restores only course ID `rough-course`; the official
   Falls View Park document uses the distinct ID `falls-view-park`, seeded by
-  `falls-view-park.v11.json`: a walled two-lap circuit of about 550 m, with
-  4.5 m lanes for four karts abreast, from a utility tunnel through nursery
-  rows and a culvert, up onto a levee crest facing the falls, down the
-  levee's anti-spinward access ramp or the youth's jump beside it, and
-  back along a return lane, placed in another valley 2.5 km from the
-  sunward end cap, at deep dusk (mirror 89.5°) under floodlights. Its start
-  sits in a roofed, lamp-lit, and dressed utility tunnel under an earth berm,
-  whose grass banks and crest are drivable lawn. Its lawn is 20 m tiles,
-  0.5 m deep.
-  Past the tunnel the route forks: turf alleys between planted beds take the
-  nursery hairpins, or the service road swoops south behind hedges and climbs
-  an access ramp to the levee crest; both rejoin before the crest checkpoint.
-  The nursery route leaves through the culvert, a precast box lit by the
-  youth's work lights, under a perched stream and the levee; the stream
-  drains west to an outfall at the perimeter wall. The youth's last crowd
-  barrier on the downhill's west side stands swung open, a gate from the
-  jump's infield to the lawn inside the park's walls, all off the route.
-  The tunnel's berm, whose portals' headwalls stand flush with its crest,
-  hides a storm drain through the north wall in the narrow lawn behind it:
-  a 600 × 450 mm precast box culvert, the narrowest standard width every
-  official kart fits through. Wingwalls flare from it to a 1 m-wide
-  concrete chute that falls 1:8 to the floor of the clearing, and two park
-  street lamps light its inlet and the chute's foot. Two of the youth's
-  bicycles lean at the levee crest's handrail and wall. Past the crest an
-  S-bend ramp comes down to the park, with the youth's jump straight across
-  its inside (PR 4.4.5 in the plan).
-  The return lane has 150 mm kerbs and edge lines, with four full-size
-  street lamps along its anti-sunward run. It stands
-  0.9 m above the habitat floor (`enclosure.placement.height`), so the
-  floor, which curves up around the axis across its 164 m north–south span,
-  stays below the chase camera at every wall. The downhill's 53 crowd
-  barriers are kits, each its kick plank. Its perimeter walls reach 1 m
-  below the park's ground, to the floor of its clearing outside them, which
-  follows the floor's curve: from 0.9 m below the park's ground beside its
-  west and east walls to 0.4 m above it at the south wall, rising about
-  5 m by the clearing's edge around the axis.
+  `falls-view-park.v11.json`. Its route is the plan's and the visual
+  identity's to describe (PR 4.4 in
+  [the implementation plan](../../../IMPLEMENTATION_PLAN.md);
+  [visual identity](../../../docs/visual-identity.md#course-surfaces)). The
+  seed keeps these invariants: it stands 0.9 m above the habitat floor
+  (`enclosure.placement.height`), so the floor stays below the chase camera
+  at every wall; its perimeter walls reach 1 m below the park's ground, to
+  the floor of its clearing outside them; its drivable lawn is 20 m tiles,
+  0.5 m deep; its storm drain is the narrowest standard culvert every
+  official kart fits through; and its crowd barriers are kits, each its kick
+  plank.
   `BUNDLED_COURSE_DOCUMENTS` maps each official course to its seed.
 - `src/game/course/course-clearing.ts` builds the habitat floor of a course's
   clearing from the enclosure model: outside the course's footprint, out to
@@ -147,6 +121,9 @@ own editor commands or persistence UI.
   vertex on the habitat floor, slab tops within the sagitta, no ground inside
   the footprint, support everywhere outside it, and a closed fence whose
   colliders stand on the floor and hold its panels.
+- `tests/course-detail.spec.ts` owns the generated details: crowd-barrier
+  frames, bevels, handwheels, elbows and their collision against the pipe
+  drawn, sign lettering, and timber grain.
 - `tests/course-water.spec.ts` owns water volumes and drowning;
   `tests/course-bicycle-geometry.spec.ts` owns the bicycles' build, poses,
   colliders, and their contact with the crest's rail and wall.
@@ -251,9 +228,12 @@ roof still never does. Version-nine documents upgrade unchanged.
 
 Version eleven adds `kit: "crowd-barrier"` (`COURSE_KITS`), equipment
 drawn about an upright box that is not a lamp, roof, bed, bicycle, hedge,
-or water. A crowd barrier's box is its kick plank, whose collider holds
-the whole panel; its steel frame (`course-kits.ts`) stands on the plank's
-base, as long as the plank. `kit: "handwheel"` draws a valve's handwheel
+or water. A crowd barrier's box is its kick plank; its steel frame
+(`course-kits.ts`) stands on the plank's base, as long as the plank, its
+infill bars no more than 110 mm apart, so no kart fits through. Its
+collider is the panel the frame fills (`getCrowdBarrierCollisionBox`): as
+long and tall as the frame, and 100 mm deep, the thinnest solid obstacle
+kart physics allows. `kit: "handwheel"` draws a valve's handwheel
 (rim, hub, four spokes) in place of a round cylinder with no collision, and
 `kit: "elbow"` a pipe's 90° long-radius bend (1.5 diameters) in place of a
 uniform one as wide as the pipe, joining a pipe along local +Y through the

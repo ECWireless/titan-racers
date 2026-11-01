@@ -105,15 +105,19 @@ longer lists the course and the telemetry dashboard shows only
 widened; restoring the `0016` check first requires removing or remapping
 `falls-view-park` rows.
 
-Courses are saved as schema version eight (water, concrete, gravel, work
-lamps, and parked bicycles, from PR 4.4.4); earlier rows load unchanged, with
-no migration. A build from before a course's version cannot read it: rolling
-the code back after a save breaks the editor and the published-course route
-for that course, though players fall back to the bundled course. That holds
-for version eight (before PR 4.4.4), version seven (planted beds, hedges, and
-twelve floodlights, before PR 4.4.3), version six (before PR 4.4.2), version five
-(course lamps and mirror angles up to 90°, before PR 4.3.5), and more than
-four lamps (before PR 4.4.1). A database
+Courses are saved as schema version eleven (kits, kerbs, bevels, signs, and
+elbow collision, from PR 4.4.8); earlier rows load unchanged, with no
+migration. A build from before a course's version cannot read it: rolling the
+code back after a save breaks the editor and the published-course route for
+that course, though players fall back to the bundled course. That holds for
+version eleven (before PR 4.4.8), version ten (a course's clearing, before PR
+4.4.7), version nine (street lamps, before PR 4.4.6), version eight (water,
+concrete, gravel, work lamps, and parked bicycles, before PR 4.4.4), version
+seven (planted beds, hedges, and twelve floodlights, before PR 4.4.3), version
+six (before PR 4.4.2), version five (course lamps and mirror angles up to 90°,
+before PR 4.3.5), and more than four lamps (before PR 4.4.1). Editors from
+before PR 4.4.8 also refuse courses of more than 1,000 objects, and Falls View
+Park's seed has 1,355. A database
 serves its existing `rough-course` revision, not the walled Starter Course
 seed, until the guarded seed reset below appends the seed and an admin
 publishes it.
@@ -202,6 +206,8 @@ The explicit course-ID confirmation guards the destructive product intent. The
 operation does not delete or rewrite immutable history: it validates the seed
 and appends it as the next attributed draft revision using optimistic
 concurrency. It fails if another author advances the course during the reset.
+Running it again appends another identical draft, so after an unclear failure
+check the course's latest draft before retrying.
 Players keep racing the current publication until an admin opens the course
 in the editor and publishes the new draft. The seed comes from the local
 checkout, so run the command from the deployed commit (normally `main`), and

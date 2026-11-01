@@ -7,23 +7,30 @@ type Vector = { x: number; y: number; z: number };
 export type CourseKitBox = { center: Vector; size: Vector };
 
 // A steel crowd-control barrier: 38 mm square tube uprights and rails,
-// 16 mm infill bars, and flat feet across the panel, 1.1 m tall from its
-// kick plank's base.
+// 16 mm infill bars at about 110 mm centres, and flat feet across the panel,
+// 1.1 m tall from its kick plank's base. Its grille's gaps are narrower than
+// any kart, so it collides as one solid panel.
 const TUBE = 0.038;
 const BAR = 0.016;
 const HEIGHT = 1.1;
 const FOOT = { across: 0.6, thickness: 0.01, width: 0.05 };
 const BOTTOM_RAIL = 0.2;
-const BARS_AT = [-0.3, -0.1, 0.1, 0.3];
+const INFILL_PITCH = 0.11;
+// Kart physics keeps every point of a kart within half this of its last
+// substep's position (kart-collision-model.ts), so solid obstacles collide
+// at least this thick.
+export const COURSE_THINNEST_SOLID_OBSTACLE = 0.1;
 
 /**
  * A crowd barrier's steel frame about its plank, whose local X runs along
  * the panel and whose size sets the panel's length and base: uprights and
- * feet at its ends, rails at the bottom and top, and four infill bars.
+ * feet at its ends, rails at the bottom and top, and infill bars between.
  */
 export function getCrowdBarrierFrameBoxes(plank: Vector): CourseKitBox[] {
   const base = -plank.y / 2;
   const end = plank.x / 2;
+  // Evenly between the uprights' centres, no further apart than the pitch.
+  const bars = Math.max(0, Math.ceil(plank.x / INFILL_PITCH) - 1);
   const rail = (height: number): CourseKitBox => ({
     center: { x: 0, y: base + height, z: 0 },
     size: { x: plank.x, y: TUBE, z: TUBE },
@@ -41,11 +48,34 @@ export function getCrowdBarrierFrameBoxes(plank: Vector): CourseKitBox[] {
     ]),
     rail(BOTTOM_RAIL),
     rail(HEIGHT),
-    ...BARS_AT.map((along) => ({
-      center: { x: along * plank.x, y: base + (BOTTOM_RAIL + HEIGHT) / 2, z: 0 },
+    ...Array.from({ length: bars }, (_, index) => ({
+      center: {
+        x: -end + ((index + 1) * plank.x) / (bars + 1),
+        y: base + (BOTTOM_RAIL + HEIGHT) / 2,
+        z: 0,
+      },
       size: { x: BAR, y: HEIGHT - BOTTOM_RAIL, z: BAR },
     })),
   ];
+}
+
+/**
+ * A crowd barrier's collider about its plank, in the plank's frame: the box
+ * its plank, uprights, and rails fill, taken as one solid panel, as long and
+ * tall as its frame and as deep as the thinnest solid obstacle allows. Its
+ * feet lie flat on the ground, under it.
+ */
+export function getCrowdBarrierCollisionBox(plank: Vector) {
+  const base = -plank.y / 2;
+  const top = base + HEIGHT + TUBE / 2;
+  return {
+    center: { x: 0, y: (base + top) / 2, z: 0 },
+    halfExtents: {
+      x: plank.x / 2 + TUBE / 2,
+      y: (top - base) / 2,
+      z: Math.max(COURSE_THINNEST_SOLID_OBSTACLE, TUBE, plank.z) / 2,
+    },
+  };
 }
 
 // Each face: its normal axis and sign, and the two axes spanning it, with

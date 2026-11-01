@@ -2611,7 +2611,8 @@ function ObjectPlacementControl({
   placement: ObjectPlacement;
 }) {
   const { boxShaped, indoors, lamp, overhead, supportsKarts } = placement;
-  // Only a box can be an indoor roof.
+  // Only a box can be an indoor roof, and an indoor roof never carries
+  // karts; an outdoor one, such as a berm over a tunnel, may.
   const options = [
     {
       checked: indoors,
@@ -2621,20 +2622,25 @@ function ObjectPlacementControl({
           : "Tunnel and work lamps stand indoors."
         : overhead && !boxShaped
           ? "Indoor roofs are boxes."
-          : "Lit only by indoor light in the race.",
+          : overhead && supportsKarts
+            ? "Indoor roofs never carry karts."
+            : "Lit only by indoor light in the race.",
       label: "Indoors",
-      locked: lamp !== null || (overhead && !boxShaped),
+      locked: lamp !== null || (overhead && (!boxShaped || supportsKarts)),
       next: { indoors: !indoors, overhead },
     },
     {
       checked: overhead,
-      hint: supportsKarts
-        ? "Surfaces karts drive on cannot be roofs."
-        : indoors && !boxShaped
-          ? "Indoor roofs are boxes."
-          : "A roof: cut away in the editor; karts beneath an indoor roof count as indoors.",
+      hint:
+        lamp === "street"
+          ? "Street lamps stand on columns, never roofs."
+          : indoors && supportsKarts
+            ? "Indoor roofs never carry karts."
+            : indoors && !boxShaped
+              ? "Indoor roofs are boxes."
+              : "A roof: cut away in the editor; karts beneath an indoor roof count as indoors.",
       label: "Overhead",
-      locked: supportsKarts || (indoors && !boxShaped),
+      locked: lamp === "street" || (indoors && (supportsKarts || !boxShaped)),
       next: { indoors, overhead: !overhead },
     },
   ];

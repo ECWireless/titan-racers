@@ -84,7 +84,7 @@ type CourseEntityFactory = (
 export type CourseObjectMesh = { castShadows: boolean; mesh: pc.Mesh };
 
 /** Signs' letters and their paint, from the course's finishes. */
-export type CourseSignFinishes = {
+type CourseSignFinishes = {
   glyphs(): Pick<CourseSignGlyphs, "capHeight" | "cell" | "glyphs" | "space">;
   material(finish: CourseVisualMaterial, indoors: boolean): pc.StandardMaterial;
 };

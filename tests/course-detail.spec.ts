@@ -84,6 +84,20 @@ test("builds a crowd barrier's frame on its plank's base, facing outward", () =>
   expect(facesItsNormals(createCourseKitGeometry(frame))).toBe(true);
 });
 
+test("fills a crowd barrier's grille too closely for any kart to pass", () => {
+  for (const length of [2.2, 1.869, 0.6]) {
+    // The uprights and infill bars, left to right.
+    const posts = getCrowdBarrierFrameBoxes({ x: length, y: 0.15, z: 0.025 })
+      .filter(({ size }) => size.y > 0.5)
+      .sort((a, b) => a.center.x - b.center.x);
+    for (let index = 1; index < posts.length; index++) {
+      const [left, right] = [posts[index - 1]!, posts[index]!];
+      const gap = right.center.x - right.size.x / 2 - (left.center.x + left.size.x / 2);
+      expect(gap, `${length} m`).toBeLessThanOrEqual(0.1);
+    }
+  }
+});
+
 test("chamfers a box's edges by the same metres however it is scaled", () => {
   // A portal's height board: 5 m long, 0.4 m tall, and 60 mm thick.
   const scale = { x: 5, y: 0.4, z: 0.06 };
@@ -393,11 +407,11 @@ test("lays a sign's letters on its front, centred and fitted to it", () => {
   const glyphs = {
     capHeight: 0.7,
     cell: { height: 1, left: 0.25, top: 0.8 },
-    glyphs: new Map([..."MAX2.7m"].map((c, i) => [c, cell(i)])),
+    glyphs: new Map([..."MAX3.1m"].map((c, i) => [c, cell(i)])),
     space: 0.25,
   };
   const scale = { x: 2.2, y: 0.4, z: 0.001 };
-  const geometry = createCourseSignGeometry("MAX 2.7m", scale, glyphs);
+  const geometry = createCourseSignGeometry("MAX 3.1m", scale, glyphs);
   // A quad a letter; the space only moves the pen.
   expect(geometry.indices.length / 6).toBe(7);
   const points = inMetres(geometry, scale);
@@ -414,7 +428,7 @@ test("lays a sign's letters on its front, centred and fitted to it", () => {
   expect(baseline).toBeCloseTo((-0.7 * em) / 2, 9);
   // A long line shrinks to fit the width instead.
   const narrow = { ...scale, x: 0.5 };
-  const wide = inMetres(createCourseSignGeometry("MAX 2.7m", narrow, glyphs), narrow);
+  const wide = inMetres(createCourseSignGeometry("MAX 3.1m", narrow, glyphs), narrow);
   const fitted = (0.9 * 0.5) / advance;
   expect(wide.at(-4)!.point[0]! + 0.25 * fitted + 0.5 * fitted).toBeCloseTo(0.45 / 2, 9);
 });

@@ -1,4 +1,7 @@
+import { ZodError } from "zod";
+
 import type { CourseArc } from "../course/course-arc";
+import { getCrowdBarrierCollisionBox } from "../course/course-kits";
 import {
   COURSE_CHECKPOINT_LIMIT,
   COURSE_LAMP_LIMIT,
@@ -11,7 +14,6 @@ import {
   countCourseIndoorLamps,
   countCourseLamps,
   type CourseDocument,
-  courseDocumentSchema,
   type CourseObject,
   type CoursePrimitiveObject,
   isCoursePrimitiveObject,
@@ -513,7 +515,7 @@ export function updateSelectionPlacement(
   ) {
     return document;
   }
-  const next = courseDocumentSchema.safeParse({
+  return parseOrKeep(document, {
     ...document,
     objects: document.objects.map((candidate) => {
       if (candidate.id !== selection.id) {
@@ -527,7 +529,6 @@ export function updateSelectionPlacement(
       return placed;
     }),
   });
-  return next.success ? parseCourseDocument(next.data) : document;
 }
 
 export function addCourseCheckpoint(
@@ -664,7 +665,7 @@ export function updateSelectionArc(
   ) {
     return document;
   }
-  const next = courseDocumentSchema.safeParse({
+  return parseOrKeep(document, {
     ...document,
     objects: document.objects.map((object) =>
       object === current
@@ -672,7 +673,6 @@ export function updateSelectionArc(
         : object,
     ),
   });
-  return next.success ? parseCourseDocument(next.data) : document;
 }
 
 export function updateSelectionGeometry(
@@ -737,7 +737,7 @@ export function updateSelectionGeometry(
 
   // A scale that breaks a course rule, such as its tree limit, changes
   // nothing.
-  const next = courseDocumentSchema.safeParse({
+  return parseOrKeep(document, {
     ...document,
     objects: document.objects.map((object) => {
       if (object.id !== selection.id) {
@@ -777,11 +777,24 @@ export function updateSelectionGeometry(
       // as it was.
       const rescale = (value: number, ratio: number) =>
         ratio === 1 ? value : roundEditorValue(value * ratio);
-      // An elbow's collision follows its size.
+      // An elbow's collision follows its size, and a crowd barrier's its
+      // frame, unless its plank keeps its length.
+      const barrier =
+        object.kit === "crowd-barrier" &&
+        object.collision?.shape === "box" &&
+        scaleRatio.x !== 1
+          ? getCrowdBarrierCollisionBox(nextScale)
+          : null;
       const collision =
         object.collision?.shape === "elbow"
           ? object.collision
-          : object.collision
+          : barrier && object.collision?.shape === "box"
+            ? {
+                ...object.collision,
+                halfExtents: barrier.halfExtents,
+                offset: { ...object.collision.offset, position: barrier.center },
+              }
+            : object.collision
         ? {
             ...object.collision,
             ...(object.collision.shape === "box"
@@ -819,7 +832,6 @@ export function updateSelectionGeometry(
       };
     }),
   });
-  return next.success ? parseCourseDocument(next.data) : document;
 }
 
 export function nudgeSelection(
@@ -1165,6 +1177,16 @@ function scaleUniformly(
     .map((axis) => requested[axis] / current[axis])
     .reduce((most, next) => (Math.abs(next - 1) > Math.abs(most - 1) ? next : most), 1);
   return ratio === 1 ? current : mapVector(current, (value) => roundEditorValue(value * ratio));
+}
+
+// An edit's result when valid, or the document it would have changed.
+function parseOrKeep(document: CourseDocument, candidate: unknown) {
+  try {
+    return parseCourseDocument(candidate);
+  } catch (error) {
+    if (error instanceof ZodError) return document;
+    throw error;
+  }
 }
 
 function roundEditorValue(value: number) {

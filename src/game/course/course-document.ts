@@ -1464,10 +1464,11 @@ export function parseCourseDocument(input: unknown): CourseDocument {
   }
 
   const document = courseDocumentSchema.parse(input);
-  return courseDocumentSchema.parse({
-    ...document,
-    checkpoints: alignCheckpoints(document.checkpoints),
-  });
+  const checkpoints = alignCheckpoints(document.checkpoints);
+  // Aligned checkpoints are validated again, unless aligning changed none.
+  return JSON.stringify(checkpoints) === JSON.stringify(document.checkpoints)
+    ? document
+    : courseDocumentSchema.parse({ ...document, checkpoints });
 }
 
 /** The kart spawn: behind the start gate (local +z) by the authored distance. */

@@ -15,7 +15,7 @@ export const COURSE_WATER_FLOW_SPEED = 0.3;
 
 type Vec3 = { x: number; y: number; z: number };
 
-export type CourseWaterVolume = {
+type CourseWaterVolume = {
   halfExtents: Vec3;
   position: Vec3;
   rotation: Vec3;
