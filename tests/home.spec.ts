@@ -3208,6 +3208,46 @@ test.describe("home screen", () => {
     expect(impacts[0].strength).toBeLessThan(0.45);
   });
 
+  test("sounds a kart tumbling onto its back and sliding on it", async ({
+    page,
+  }, testInfo) => {
+    test.skip(
+      testInfo.project.name === "mobile",
+      "Tumble sound does not depend on the viewport.",
+    );
+
+    await page.goto("/?sandbox-course");
+    await page.getByRole("button", { name: "Solo Time Trial" }).click();
+    const canvas = page.getByTestId("solo-time-trial-canvas");
+    await waitForSceneReady(canvas);
+    await expect
+      .poll(async () => (await getRaceDebugState(canvas)).state, {
+        timeout: 10_000,
+      })
+      .toBe("racing");
+    await expect
+      .poll(async () => (await getAudioDebugState(canvas))?.contextState)
+      .toBe("running");
+
+    // Upside down just above the turf, sliding at 5 m/s: it drops onto its
+    // back, then slides on it.
+    await setSimulationPaused(canvas, true);
+    await setKartDebugPose(canvas, {
+      angularVelocity: { x: 0, y: 0, z: 0 },
+      linearVelocity: { x: 5, y: 0, z: 0 },
+      position: { x: 0, y: 0.35, z: 10 },
+      rotation: { x: 180, y: 90, z: 0 },
+    });
+    await stepSimulation(canvas, 30);
+
+    // The turf here lies over the asphalt straight; the topmost authored
+    // piece decides, as it does for the wheels.
+    const audio = await getAudioDebugState(canvas);
+    expect(audio?.impacts.map(({ material }) => material)).toContain("soft");
+    expect(audio?.bodyScrape ?? 0).toBeGreaterThan(0.2);
+    expect(audio?.bodyScrapeHard).toBe(false);
+  });
+
   test("drives continuously in two axes with the touch joystick and accessible pedals", async ({
     page,
   }, testInfo) => {

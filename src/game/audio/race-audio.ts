@@ -1,4 +1,8 @@
-import { createScrubVoice, createTireRollVoice } from "./contact-voices";
+import {
+  createBodyScrapeVoice,
+  createScrubVoice,
+  createTireRollVoice,
+} from "./contact-voices";
 import { playCueSound } from "./cue-sounds";
 import {
   playImpactSound,
@@ -36,6 +40,7 @@ const SOUND_STORAGE_KEY = "titan-racers.sound.v1";
 const MASTER_GAIN = 0.9;
 const MIX_DB = {
   ambience: -12,
+  bodyScrape: -4,
   cue: -5.5,
   impact: 8,
   landing: 2.4,
@@ -51,7 +56,7 @@ const HABITAT_BED_URL = "/audio/habitat-bed.wav";
 const TUNNEL_TONE_URL = "/audio/tunnel-tone.wav";
 const STREAM_URL = "/audio/stream.wav";
 /** The stream's level at the water, over the beds. */
-const STREAM_GAIN = 0.9;
+const STREAM_GAIN = 0.5;
 const recordings = new WeakMap<
   BaseAudioContext,
   Map<string, Promise<AudioBuffer | null>>
@@ -208,6 +213,8 @@ export type RaceAudioDebugState = {
   /** Motor, tire roll, and scrub may sound: the world is moving. */
   continuousVoices: boolean;
   wheels: readonly AudioWheel[];
+  bodyScrape: number;
+  bodyScrapeHard: boolean;
   ambience: {
     habitatBed: boolean;
     indoors: number;
@@ -223,9 +230,10 @@ export type RaceAudio = {
   playImpact: (strength: number, material: ImpactMaterial) => void;
   playLanding: (strength: number, surface: AudioSurface) => void;
   /**
-   * Builds the tire voices and renders the impact and landing sounds (tens
-   * of ms each). Call after the scene's first frame, while the race is still
-   * covered, so neither the scene build nor the first hit pays for them.
+   * Builds the tire voices, renders the impact and landing sounds (tens of
+   * ms each), starts the recordings downloading, and lets the context run.
+   * Call after the scene's first frame, while the race is still covered, so
+   * neither the scene build nor the first hit pays for any of it.
    */
   prepare: () => void;
   /** On screen, unpaused, and ready. */
@@ -235,6 +243,8 @@ export type RaceAudio = {
   setContinuousVoices: (open: boolean) => void;
   updateMotor: (state: MotorAudioState) => void;
   updateWheels: (wheels: readonly AudioWheel[]) => void;
+  /** A tipped kart's body sliding on the ground: 0–1, on hard ground or not. */
+  updateBodyScrape: (level: number, hard: boolean) => void;
   /**
    * `indoors` 0 outdoors to 1 in the tunnel, eased across portals; `stream`
    * 0 out of range to 1 at the water.
@@ -298,6 +308,7 @@ export function createRaceAudio(soundOn: boolean): RaceAudio | null {
   const buses = {
     cue: bus(MIX_DB.cue),
     ambience: bus(MIX_DB.ambience),
+    bodyScrape: bus(MIX_DB.bodyScrape, continuousGate),
     impact: bus(MIX_DB.impact, kartBus),
     landing: bus(MIX_DB.landing, kartBus),
     motor: bus(MIX_DB.motor, continuousGate),
@@ -305,6 +316,9 @@ export function createRaceAudio(soundOn: boolean): RaceAudio | null {
     tireRoll: bus(MIX_DB.tireRoll, continuousGate),
   };
   const motorVoice = createMotorVoice(context, buses.motor);
+  const bodyScrapeVoice = createBodyScrapeVoice(context, buses.bodyScrape);
+  let bodyScrape = 0;
+  let scrapeHard = false;
   // The habitat's air handling outdoors, and the tunnel's closer hum inside,
   // crossfaded by how far the listener is inside.
   const habitatBed = createLoopPlayer(context, buses.ambience);
@@ -312,15 +326,25 @@ export function createRaceAudio(soundOn: boolean): RaceAudio | null {
   const stream = createLoopPlayer(context, buses.ambience);
   habitatBed.setRunning(true);
   tunnelTone.setRunning(true);
-  for (const [player, url] of [
-    [habitatBed, HABITAT_BED_URL],
-    [tunnelTone, TUNNEL_TONE_URL],
-    [stream, STREAM_URL],
-  ] as const) {
-    void loadRecording(context, url).then((buffer) => {
-      if (buffer && !disposed) player.setBuffer(buffer);
+  // Recordings download and decode only once the scene has drawn its first
+  // frame (`prepare`), so they never compete with building the course.
+  const loadRecordings = () => {
+    for (const [player, url] of [
+      [habitatBed, HABITAT_BED_URL],
+      [tunnelTone, TUNNEL_TONE_URL],
+      [stream, STREAM_URL],
+    ] as const) {
+      void loadRecording(context, url).then((buffer) => {
+        if (buffer && !disposed) player.setBuffer(buffer);
+      });
+    }
+    void loadRecording(context, ASPHALT_RECORDING_URL).then((buffer) => {
+      if (!buffer || disposed) return;
+      asphaltRecording = buffer;
+      contactVoices?.tires.setAsphaltRecording(buffer);
+      recordedAsphalt = true;
     });
-  }
+  };
   let streamLevel = 0;
   // When the stream's level first reached 0, on the audio clock.
   let streamQuietSince: number | null = null;
@@ -348,12 +372,6 @@ export function createRaceAudio(soundOn: boolean): RaceAudio | null {
   };
   // The generated asphalt plays until the recording arrives, or for good if
   // it cannot load.
-  void loadRecording(context, ASPHALT_RECORDING_URL).then((buffer) => {
-    if (!buffer || disposed) return;
-    asphaltRecording = buffer;
-    contactVoices?.tires.setAsphaltRecording(buffer);
-    recordedAsphalt = true;
-  });
   const cues: RaceCue[] = [];
   const impacts: RaceAudioDebugState["impacts"] = [];
   const landings: RaceAudioDebugState["landings"] = [];
@@ -368,6 +386,7 @@ export function createRaceAudio(soundOn: boolean): RaceAudio | null {
 
   let active = false;
   let disposed = false;
+  let prepared = false;
   let motor = SILENT_MOTOR;
   let soundEnabled = soundOn;
   let recordedAsphalt = false;
@@ -376,8 +395,16 @@ export function createRaceAudio(soundOn: boolean): RaceAudio | null {
   // while the race loads still arrives as a pause.
   let pageFocused = true;
 
+  // Until the scene has drawn its first frame the context stays suspended,
+  // so the audio thread never competes with building and first drawing the
+  // course; from then on it runs (silent while covered), so the first
+  // countdown tick is on time. A countdown that starts sooner opens it too.
   const wanted = () =>
-    soundEnabled && !disposed && pageFocused && !document.hidden;
+    (prepared || active) &&
+    soundEnabled &&
+    !disposed &&
+    pageFocused &&
+    !document.hidden;
   const audible = () => active && soundEnabled;
   const apply = () => {
     // A sound still ringing out stops with the race or the switch. Coming
@@ -422,6 +449,8 @@ export function createRaceAudio(soundOn: boolean): RaceAudio | null {
       active,
       audible: audible(),
       recordedAsphalt,
+      bodyScrape,
+      bodyScrapeHard: scrapeHard,
       ambience: {
         habitatBed: habitatBed.loaded(),
         indoors: indoorAmount,
@@ -461,9 +490,12 @@ export function createRaceAudio(soundOn: boolean): RaceAudio | null {
       );
     },
     prepare() {
-      if (disposed) return;
+      if (disposed || prepared) return;
+      prepared = true;
       prepareContactVoices();
       prepareImpactSounds(context);
+      loadRecordings();
+      apply();
     },
     playLanding(strength, surface) {
       if (context.state !== "running") return;
@@ -529,6 +561,12 @@ export function createRaceAudio(soundOn: boolean): RaceAudio | null {
       setAmbience(echoWet.gain, indoors * 0.22, now, 0.05);
       setAmbience(stream.gain, streamAt * STREAM_GAIN, now, 0.08);
     },
+    updateBodyScrape(level, hard) {
+      bodyScrape = level;
+      scrapeHard = hard;
+      if (context.state !== "running") return;
+      bodyScrapeVoice.update({ hard, level }, context.currentTime);
+    },
     updateWheels(nextWheels) {
       wheels = nextWheels;
       if (context.state !== "running") return;
@@ -547,6 +585,7 @@ export function createRaceAudio(soundOn: boolean): RaceAudio | null {
         window.removeEventListener(name, retryInGesture, { capture: true }),
       );
       motorVoice.dispose();
+      bodyScrapeVoice.dispose();
       contactVoices?.tires.dispose();
       contactVoices?.scrub.dispose();
       Object.values(buses).forEach((gain) => gain.disconnect());

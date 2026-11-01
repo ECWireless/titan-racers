@@ -505,3 +505,33 @@ export function createScrubVoice(context: BaseAudioContext, output: AudioNode) {
     },
   );
 }
+
+/**
+ * The kart's body sliding on the ground once it is over on its side or back:
+ * a plastic shell grinding on hard ground, a duller swish on turf. 5 nodes.
+ */
+export function createBodyScrapeVoice(
+  context: BaseAudioContext,
+  output: AudioNode,
+) {
+  const source = loopSource(context, noiseBuffer(context), 1, 0.4);
+  const hardFilter = filterNode(context, "bandpass", 1800, 1.1);
+  const hardGain = gainNode(context);
+  const softFilter = filterNode(context, "lowpass", 700, 0.7);
+  const softGain = gainNode(context);
+  chain(source, hardFilter, hardGain, output);
+  chain(source, softFilter, softGain, output);
+  const set = createParameterSmoother();
+  return continuousVoice<{ level: number; hard: boolean }>(
+    [source, hardFilter, hardGain, softFilter, softGain],
+    [source],
+    ({ hard, level }, time) => {
+      const amount = clamp(level);
+      // Faster slides grind brighter.
+      set(source.playbackRate, 0.8 + 0.5 * amount, time, 0.05);
+      set(hardFilter.frequency, 1200 + 1600 * amount, time, 0.05);
+      set(hardGain.gain, hard ? amount * 0.9 : 0, time, 0.04);
+      set(softGain.gain, hard ? 0 : amount * 1.2, time, 0.04);
+    },
+  );
+}

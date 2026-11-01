@@ -43,6 +43,7 @@ import {
 import {
   getAudioSurface,
   getAudioWheel,
+  getBodyScrapeLevel,
   getContactObjectId,
   getImpactMaterial,
   getMotorAudioState,
@@ -51,6 +52,7 @@ import {
   LandingAudioDetector,
   resolveImpactMaterial,
   SILENT_MOTOR,
+  TIPPED_UPRIGHTNESS,
   type AudioWheel,
   type ImpactMaterial,
 } from "@/game/audio/race-audio-mapping";
@@ -1853,14 +1855,30 @@ export function SoloTimeTrialCanvas({
         ]),
       );
       const solidImpactMaterials = new Map<string, ImpactMaterial>();
-      for (const object of COURSE_DOCUMENT.objects) {
-        if (object.collision?.role === "solid-obstacle") {
-          solidImpactMaterials.set(
-            object.id,
-            getImpactMaterial(object.visual.material),
-          );
+      // Drivable ground sounds only under a tipped kart: its body tumbling
+      // onto it or sliding along it.
+      // With its authoring order: where ground pieces overlap, the later one
+      // is what shows. (Coarser than the wheels' resolver, which decides per
+      // contact point: the kart takes the topmost piece it touches at all.)
+      const groundImpactMaterials = new Map<
+        string,
+        { material: ImpactMaterial; order: number }
+      >();
+      COURSE_DOCUMENT.objects.forEach((object, order) => {
+        const role = object.collision?.role;
+        if (!role) return;
+        const material = getImpactMaterial(object.visual.material);
+        if (role === "solid-obstacle") {
+          solidImpactMaterials.set(object.id, material);
+        } else {
+          groundImpactMaterials.set(object.id, { material, order });
         }
-      }
+      });
+      // A floor-like contact faces up within about 30°, which keeps the
+      // course's steepest drivable pieces (28°) and drops the edges at seams.
+      const FLOOR_CONTACT_UP = 0.85;
+      let bodyScrapeLevel = 0;
+      let bodyScrapeHard = false;
       const impactAudioGate = new ImpactAudioGate();
       const landingAudioDetector = new LandingAudioDetector();
       // Objects touched this step and last, swapped each step, so scraping
@@ -1891,8 +1909,15 @@ export function SoloTimeTrialCanvas({
           landingAudioDetector.reset();
           touchedObjects.clear();
           previouslyTouchedObjects.clear();
+          bodyScrapeLevel = 0;
           return;
         }
+        const up = kartController.state.localUp;
+        // On its side or back, the body's hits on the ground and its slide
+        // along it sound; upright, a chassis touching down is a landing.
+        const uprightness = kartAssemblyFrame.up.dot(up);
+        const tipped = uprightness < TIPPED_UPRIGHTNESS;
+        let groundContact = false;
         impactAudioGate.advance(stepSeconds);
         [previouslyTouchedObjects, touchedObjects] = [
           touchedObjects,
@@ -1905,24 +1930,64 @@ export function SoloTimeTrialCanvas({
         let freshMaterial: ImpactMaterial | null = null;
         let continuingSpeed = 0;
         let continuingMaterial: ImpactMaterial | null = null;
+        const consider = (
+          objectId: string,
+          approachSpeed: number,
+          material: ImpactMaterial,
+        ) => {
+          touchedObjects.add(objectId);
+          if (!previouslyTouchedObjects.has(objectId)) {
+            if (approachSpeed > freshSpeed) {
+              freshSpeed = approachSpeed;
+              freshMaterial = material;
+            }
+          } else if (approachSpeed > continuingSpeed) {
+            continuingSpeed = approachSpeed;
+            continuingMaterial = material;
+          }
+        };
+        // A tipped kart's ground contacts count as one surface: the topmost
+        // authored piece under it, off the course's objects (the habitat
+        // floor) turf, hit at the hardest approach among them.
+        let groundSpeed = 0;
+        let groundOrder = -1;
+        let groundHit: ImpactMaterial = "soft";
         for (const contact of collisionObserver.lastFrame?.contacts ??
           noContacts) {
           const material = resolveImpactMaterial(
             contact.otherEntityName,
             solidImpactMaterials,
           );
-          if (!material) continue;
-          const objectId = getContactObjectId(contact.otherEntityName);
-          touchedObjects.add(objectId);
-          if (!previouslyTouchedObjects.has(objectId)) {
-            if (contact.approachSpeed > freshSpeed) {
-              freshSpeed = contact.approachSpeed;
-              freshMaterial = material;
-            }
-          } else if (contact.approachSpeed > continuingSpeed) {
-            continuingSpeed = contact.approachSpeed;
-            continuingMaterial = material;
+          if (material) {
+            consider(
+              getContactObjectId(contact.otherEntityName),
+              contact.approachSpeed,
+              material,
+            );
+            continue;
           }
+          const { normal } = contact;
+          if (
+            !tipped ||
+            normal.x * up.x + normal.y * up.y + normal.z * up.z <=
+              FLOOR_CONTACT_UP
+          ) {
+            continue;
+          }
+          groundContact = true;
+          groundSpeed = Math.max(groundSpeed, contact.approachSpeed);
+          const ground = groundImpactMaterials.get(
+            getContactObjectId(contact.otherEntityName),
+          );
+          if (ground && ground.order > groundOrder) {
+            groundOrder = ground.order;
+            groundHit = ground.material;
+          }
+        }
+        if (groundContact) {
+          bodyScrapeHard = groundHit !== "soft";
+          // Not a course object id, so it can never merge with one.
+          consider("\u0000ground", groundSpeed, groundHit);
         }
         const fresh = freshMaterial
           ? impactAudioGate.admit(freshSpeed, true)
@@ -1935,6 +2000,18 @@ export function SoloTimeTrialCanvas({
         }
 
         const velocity = kart.rigidbody?.linearVelocity;
+        const along = velocity ? velocity.dot(up) : 0;
+        bodyScrapeLevel = getBodyScrapeLevel(
+          uprightness,
+          groundContact,
+          velocity
+            ? Math.hypot(
+                velocity.x - up.x * along,
+                velocity.y - up.y * along,
+                velocity.z - up.z * along,
+              )
+            : 0,
+        );
         const landing = landingAudioDetector.step(
           kartController.state.supportCount,
           velocity ? -velocity.dot(kartController.state.localUp) : 0,
@@ -3111,6 +3188,7 @@ export function SoloTimeTrialCanvas({
             );
           }
           raceAudio.updateWheels(audioWheels);
+          raceAudio.updateBodyScrape(bodyScrapeLevel, bodyScrapeHard);
           indoorAudio = approachIndoors(
             indoorAudio,
             isUnderRoof?.(kart.getPosition()) ?? false,
