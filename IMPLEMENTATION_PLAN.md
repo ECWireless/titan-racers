@@ -582,8 +582,8 @@ sound (MIT code, CC0 samples), synthesized from the events it accompanies.
 - [ ] Progression tiers from Falls View Park best-time medals: a finish tier,
       then bronze, silver, and gold. Tiers do not unlock kart-assembly parts.
 - [ ] Guests keep racing freely without progression.
-- [ ] Races and results record the course ID and immutable publication revision
-      instead of hard-coding the official course.
+- [ ] Races and results record the course and kart IDs and their immutable
+      publication revisions instead of hard-coding the official course.
 
 Wallet scope is login and account linking only. Embedded wallets, balances, and
 on-chain actions need a separately accepted scope.
@@ -679,8 +679,9 @@ Phase decisions:
       whether others may race and remix it, and a payment type of
       attribution or free.
 - [ ] A server-owned ledger counts races, room uses, and remixes for each
-      published kart, computed from existing run summaries and kart revisions
-      with no new telemetry. Kart cards and assembler profiles show it.
+      published kart, computed from the race results and kart revisions that
+      Phases 5 and 6 record, with no new telemetry. Kart cards and assembler
+      profiles show it.
 - [ ] Official karts come first; community karts and remixes join in Phase 8.
 
 **Done when:** a rebuilt part shows on every kart that uses it without changing
@@ -739,7 +740,6 @@ Publishing is immediate, with no approval queue.
 - [ ] Players can bring a published community kart into a private room.
 - [ ] Community karts' races, room uses, and remixes count in the Phase 7
       ledger.
-- [ ] Each race records the kart ID and publication revision.
 - [ ] Admins feature or safety-unpublish karts without changing stats,
       eligibility, history, or audit data. Unpublished karts leave discovery
       and guest play.
