@@ -10,8 +10,9 @@ context, its lifecycle, or how voices are built. There is no audio
 dependency, and PlayCanvas's sound system is not used: race sound is mostly
 generated in code and changed every frame. A recorded loop, where one is
 used, is fetched once, decoded with `decodeAudioData`, and played through
-the same graph; the generated sound covers for it until it loads or if it
-fails to.
+the same graph. Where a generated sound exists, such as the asphalt roll,
+it covers for the recording until it loads or if it fails to; an ambience
+bed with no generated stand-in stays silent until then.
 
 ## Context Lifecycle
 
@@ -22,8 +23,20 @@ fails to.
   starts or resumes play.
 - A `resume()` refused outside a gesture, or an iPhone interruption such as a
   call, is retried on the next pointer, touch, or key event.
+- Once the page has been hidden, resume only inside a gesture: the end of a
+  tap, a click, or a key press. Coming back, iPhone WebKit sends focus
+  before the page is visible, refuses a resume tried then, and the context
+  afterwards reports `running` with its clock stopped and no output, for the
+  rest of the page. A background tab or app switch while a race loads
+  counts, so a race whose sound waits for that gesture opens paused, and
+  its Resume tap brings the sound.
 - `suspend()` stops all audio processing, so mute, blur, a hidden tab, and
   exit suspend the context rather than silencing it with gain.
+- Create the voices just after the scene's first drawn frame, not during
+  the scene build: building a graph of started sources then slowed an
+  iPhone's first frame by about 60 ms. Until then, track focus and
+  visibility for the unlocked context yourself, so a blur or hidden tab
+  while loading still suspends it.
 - Waking a suspended context takes up to a few hundred milliseconds,
   longest on iPhone, so the first sound after it is late. Through a short
   pause or a loading screen, keep the context running and silence it with
@@ -39,7 +52,8 @@ fails to.
   voices holding their last sound. Close them through a gain driven by game
   state, which applies even on a suspended context's frozen clock.
 - Gamepad input is not a user gesture. A race started only from a controller
-  stays silent until the first tap, click, or key press.
+  stays silent until the first tap, click, or key press, and so does one a
+  controller player comes back to after the page hid.
 - The iPhone ringer switch silences Web Audio.
 
 ## Synthesis Methods
@@ -54,7 +68,8 @@ fails to.
   of milliseconds, so do it behind a loading screen, never at the first hit.
 - Give each one-shot a fixed node budget and stop every source it starts.
 - Voices use oscillators (with periodic waves), buffer sources, biquad
-  filters, gains, and wave shapers.
+  filters, gains, and wave shapers. A short room echo, such as a tunnel's,
+  is one delay node with a low-pass in a feedback loop.
 - Not used: `AudioWorklet`, `ScriptProcessor`, `ConvolverNode`, panners, or
   media elements. They cost too much on phones or are not needed.
 - A master `GainNode` feeds one `DynamicsCompressorNode` limiter before the
@@ -71,8 +86,8 @@ fails to.
 
 - Desktop Safari and iPhone Safari autoplay behavior needs manual checks.
 - There is no positional audio or Doppler effect.
-- A limiter catches peaks; it is not the mix. A 3 ms attack lets sharp hits
-  through, so keep mix levels low enough that the loudest hit stays under
+- A limiter catches peaks; it is not the mix. Even a 1 ms attack lets sharp
+  hits through, so keep mix levels low enough that the loudest hit stays under
   0 dBFS after it.
 
 ## Project Systems

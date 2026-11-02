@@ -31,14 +31,20 @@ import {
 } from "@/game/collision/kart-collision-observer";
 import {
   createRaceAudio,
+  raceAudioAwaitsGesture,
   readSoundOn,
   suspendRaceAudio,
   unlockRaceAudio,
   type RaceAudio,
 } from "@/game/audio/race-audio";
 import {
+  approachIndoors,
+  getStreamLevel,
+} from "@/game/audio/ambience-mapping";
+import {
   getAudioSurface,
   getAudioWheel,
+  getBodyScrapeLevel,
   getContactObjectId,
   getImpactMaterial,
   getMotorAudioState,
@@ -47,6 +53,7 @@ import {
   LandingAudioDetector,
   resolveImpactMaterial,
   SILENT_MOTOR,
+  TIPPED_UPRIGHTNESS,
   type AudioWheel,
   type ImpactMaterial,
 } from "@/game/audio/race-audio-mapping";
@@ -79,6 +86,7 @@ import {
 } from "@/game/course/course-interior";
 import { createCourseSurfaceMaterials } from "@/game/course/course-surface-materials";
 import {
+  getCourseWaterDistance,
   getCourseWaterVolumes,
   isUnderCourseWater,
 } from "@/game/course/course-water";
@@ -674,15 +682,6 @@ export function SoloTimeTrialCanvas({
   useEffect(() => {
     onLoadedRef.current = onLoaded;
   }, [onLoaded]);
-
-  // After the scene's build and first frame, while the loading screen holds.
-  // Declared before the report below, so its timer runs before the reveal's
-  // even when a slow load leaves no hold.
-  useEffect(() => {
-    if (sceneStatus !== "ready") return;
-    const timer = window.setTimeout(() => raceAudioRef.current?.prepare(), 0);
-    return () => window.clearTimeout(timer);
-  }, [sceneStatus]);
 
   useEffect(() => {
     if (sceneStatus === "initializing" || loadedReportedRef.current) return;
@@ -1836,10 +1835,30 @@ export function SoloTimeTrialCanvas({
         kart,
       );
       runtime.addCleanup(() => collisionObserver.destroy());
-      const raceAudio = createRaceAudio(soundOnRef.current);
-      raceAudioRef.current = raceAudio;
-      // A scene rebuilt while already ready gets no fresh status change.
-      raceAudio?.setActive(raceAudioActiveRef.current);
+      // The audio graph is built after the scene's first frame, not here:
+      // on iPhone, building it during the scene build cost the first frame
+      // about 60 ms of render (A/B against no race audio, 230 vs 172 ms).
+      let raceAudio: RaceAudio | null = null;
+      let raceAudioCreated = false;
+      const ensureRaceAudio = () => {
+        if (!raceAudioCreated) {
+          raceAudioCreated = true;
+          raceAudio = createRaceAudio(soundOnRef.current);
+          raceAudioRef.current = raceAudio;
+          // A scene rebuilt while already ready gets no fresh status change.
+          raceAudio?.setActive(raceAudioActiveRef.current);
+        }
+        return raceAudio;
+      };
+      // Just after the scene's first drawn frame, while the loading screen
+      // holds. A countdown that starts sooner builds it itself.
+      let raceAudioScheduled = false;
+      runtime.onFrameSample(() => {
+        if (raceAudioScheduled) return;
+        raceAudioScheduled = true;
+        const timer = window.setTimeout(() => ensureRaceAudio()?.prepare(), 0);
+        runtime.addCleanup(() => window.clearTimeout(timer));
+      });
       // What each course object looks like, and how its solid ones sound.
       const courseLooks = new Map<string, string>(
         COURSE_DOCUMENT.objects.map((object) => [
@@ -1848,14 +1867,30 @@ export function SoloTimeTrialCanvas({
         ]),
       );
       const solidImpactMaterials = new Map<string, ImpactMaterial>();
-      for (const object of COURSE_DOCUMENT.objects) {
-        if (object.collision?.role === "solid-obstacle") {
-          solidImpactMaterials.set(
-            object.id,
-            getImpactMaterial(object.visual.material),
-          );
+      // Drivable ground sounds only under a tipped kart: its body tumbling
+      // onto it or sliding along it.
+      // With its authoring order: where ground pieces overlap, the later one
+      // is what shows. (Coarser than the wheels' resolver, which decides per
+      // contact point: the kart takes the topmost piece it touches at all.)
+      const groundImpactMaterials = new Map<
+        string,
+        { material: ImpactMaterial; order: number }
+      >();
+      COURSE_DOCUMENT.objects.forEach((object, order) => {
+        const role = object.collision?.role;
+        if (!role) return;
+        const material = getImpactMaterial(object.visual.material);
+        if (role === "solid-obstacle") {
+          solidImpactMaterials.set(object.id, material);
+        } else {
+          groundImpactMaterials.set(object.id, { material, order });
         }
-      }
+      });
+      // A floor-like contact faces up within about 30°, which keeps the
+      // course's steepest drivable pieces (28°) and drops the edges at seams.
+      const FLOOR_CONTACT_UP = 0.85;
+      let bodyScrapeLevel = 0;
+      let bodyScrapeHard = false;
       const impactAudioGate = new ImpactAudioGate();
       const landingAudioDetector = new LandingAudioDetector();
       // Objects touched this step and last, swapped each step, so scraping
@@ -1886,8 +1921,15 @@ export function SoloTimeTrialCanvas({
           landingAudioDetector.reset();
           touchedObjects.clear();
           previouslyTouchedObjects.clear();
+          bodyScrapeLevel = 0;
           return;
         }
+        const up = kartController.state.localUp;
+        // On its side or back, the body's hits on the ground and its slide
+        // along it sound; upright, a chassis touching down is a landing.
+        const uprightness = kartAssemblyFrame.up.dot(up);
+        const tipped = uprightness < TIPPED_UPRIGHTNESS;
+        let groundContact = false;
         impactAudioGate.advance(stepSeconds);
         [previouslyTouchedObjects, touchedObjects] = [
           touchedObjects,
@@ -1900,24 +1942,64 @@ export function SoloTimeTrialCanvas({
         let freshMaterial: ImpactMaterial | null = null;
         let continuingSpeed = 0;
         let continuingMaterial: ImpactMaterial | null = null;
+        const consider = (
+          objectId: string,
+          approachSpeed: number,
+          material: ImpactMaterial,
+        ) => {
+          touchedObjects.add(objectId);
+          if (!previouslyTouchedObjects.has(objectId)) {
+            if (approachSpeed > freshSpeed) {
+              freshSpeed = approachSpeed;
+              freshMaterial = material;
+            }
+          } else if (approachSpeed > continuingSpeed) {
+            continuingSpeed = approachSpeed;
+            continuingMaterial = material;
+          }
+        };
+        // A tipped kart's ground contacts count as one surface: the topmost
+        // authored piece under it, off the course's objects (the habitat
+        // floor) turf, hit at the hardest approach among them.
+        let groundSpeed = 0;
+        let groundOrder = -1;
+        let groundHit: ImpactMaterial = "soft";
         for (const contact of collisionObserver.lastFrame?.contacts ??
           noContacts) {
           const material = resolveImpactMaterial(
             contact.otherEntityName,
             solidImpactMaterials,
           );
-          if (!material) continue;
-          const objectId = getContactObjectId(contact.otherEntityName);
-          touchedObjects.add(objectId);
-          if (!previouslyTouchedObjects.has(objectId)) {
-            if (contact.approachSpeed > freshSpeed) {
-              freshSpeed = contact.approachSpeed;
-              freshMaterial = material;
-            }
-          } else if (contact.approachSpeed > continuingSpeed) {
-            continuingSpeed = contact.approachSpeed;
-            continuingMaterial = material;
+          if (material) {
+            consider(
+              getContactObjectId(contact.otherEntityName),
+              contact.approachSpeed,
+              material,
+            );
+            continue;
           }
+          const { normal } = contact;
+          if (
+            !tipped ||
+            normal.x * up.x + normal.y * up.y + normal.z * up.z <=
+              FLOOR_CONTACT_UP
+          ) {
+            continue;
+          }
+          groundContact = true;
+          groundSpeed = Math.max(groundSpeed, contact.approachSpeed);
+          const ground = groundImpactMaterials.get(
+            getContactObjectId(contact.otherEntityName),
+          );
+          if (ground && ground.order > groundOrder) {
+            groundOrder = ground.order;
+            groundHit = ground.material;
+          }
+        }
+        if (groundContact) {
+          bodyScrapeHard = groundHit !== "soft";
+          // Not a course object id, so it can never merge with one.
+          consider("\u0000ground", groundSpeed, groundHit);
         }
         const fresh = freshMaterial
           ? impactAudioGate.admit(freshSpeed, true)
@@ -1930,6 +2012,18 @@ export function SoloTimeTrialCanvas({
         }
 
         const velocity = kart.rigidbody?.linearVelocity;
+        const along = velocity ? velocity.dot(up) : 0;
+        bodyScrapeLevel = getBodyScrapeLevel(
+          uprightness,
+          groundContact,
+          velocity
+            ? Math.hypot(
+                velocity.x - up.x * along,
+                velocity.y - up.y * along,
+                velocity.z - up.z * along,
+              )
+            : 0,
+        );
         const landing = landingAudioDetector.step(
           kartController.state.supportCount,
           velocity ? -velocity.dot(kartController.state.localUp) : 0,
@@ -1955,6 +2049,8 @@ export function SoloTimeTrialCanvas({
         }
       };
       runtime.addCleanup(() => {
+        // Nothing can create it after the scene is gone.
+        raceAudioCreated = true;
         raceAudio?.dispose();
         if (raceAudioRef.current === raceAudio) raceAudioRef.current = null;
       });
@@ -3069,6 +3165,7 @@ export function SoloTimeTrialCanvas({
 
       let displayedHabitatReadout = { altitude: Number.NaN, gravity: Number.NaN };
       let motorAudio = SILENT_MOTOR;
+      let indoorAudio = 0;
       // Reused every frame; the race audio copies it only for its debug state.
       const audioWheels: AudioWheel[] = [];
       runtime.onRender(({ accumulatorFraction, frameSeconds }) => {
@@ -3105,6 +3202,18 @@ export function SoloTimeTrialCanvas({
             );
           }
           raceAudio.updateWheels(audioWheels);
+          raceAudio.updateBodyScrape(bodyScrapeLevel, bodyScrapeHard);
+          indoorAudio = approachIndoors(
+            indoorAudio,
+            isUnderRoof?.(kart.getPosition()) ?? false,
+            frameSeconds,
+          );
+          raceAudio.updateAmbience(
+            indoorAudio,
+            getStreamLevel(
+              getCourseWaterDistance(courseWater, kart.getPosition()),
+            ),
+          );
         }
         interpolatedKartPosition.lerp(
           kartPresentation.previousPosition,
@@ -3253,17 +3362,19 @@ export function SoloTimeTrialCanvas({
       startCountdownRef.current = () => {
         startCountdownRef.current = null;
         // A context lost behind the loading screen could not pause the
-        // race before its countdown.
+        // race before its countdown. Nor could a page hidden while loading
+        // whose sound now waits for a tap: its countdown would be silent.
         const interrupted =
           document.hidden ||
           !document.hasFocus() ||
-          contextRestoreTimeoutId !== null;
+          contextRestoreTimeoutId !== null ||
+          (soundOnRef.current && raceAudioAwaitsGesture());
         // The countdown starts only once the race is ready and uncovered, so
         // open its sound now: React's own update can land a frame or more
         // later, after the first tick has played into silence.
         if (!interrupted) {
           raceAudioActiveRef.current = true;
-          raceAudioRef.current?.setActive(true);
+          ensureRaceAudio()?.setActive(true);
         }
         raceSession.startCountdown();
         publishRacePresentation();

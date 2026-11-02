@@ -3,6 +3,7 @@ import { expect, test } from "@playwright/test";
 import {
   getAudioSurface,
   getAudioWheel,
+  getBodyScrapeLevel,
   getImpactMaterial,
   getMotorAudioState,
   getRaceCue,
@@ -176,6 +177,20 @@ test.describe("race audio mapping", () => {
     // Drivable ground, including a deck the chassis bottoms out on.
     expect(hit("deck-1")).toBeNull();
     expect(hit("ground")).toBeNull();
+  });
+
+  test("scrapes a tipped kart's body by its slide speed, never an upright one", () => {
+    expect(getBodyScrapeLevel(1, true, 6)).toBe(0); // upright: a landing
+    expect(getBodyScrapeLevel(-1, false, 6)).toBe(0); // in the air
+    expect(getBodyScrapeLevel(-1, true, 0.2)).toBe(0); // at rest
+    expect(getBodyScrapeLevel(-1, true, 6)).toBe(1);
+    expect(getBodyScrapeLevel(0.2, true, 3)).toBeCloseTo(0.5 ** 0.8, 6);
+    // Turf and verge ground land soft; asphalt and decks do not.
+    expect(getImpactMaterial("lawn")).toBe("soft");
+    expect(getImpactMaterial("verge")).toBe("soft");
+    expect(getImpactMaterial("ground")).toBe("soft");
+    expect(getImpactMaterial("asphalt")).toBe("concrete");
+    expect(getImpactMaterial("timber")).toBe("wood");
   });
 
   test("scrubs from the tire-mark onset and scales load to a quarter at rest", () => {

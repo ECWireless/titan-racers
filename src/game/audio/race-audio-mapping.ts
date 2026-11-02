@@ -175,6 +175,7 @@ export function getAudioSurface(
 
 const IMPACT_MATERIALS: Readonly<Record<string, ImpactMaterial>> = {
   gravel: "soft",
+  ground: "soft",
   hedge: "soft",
   lawn: "soft",
   mulch: "soft",
@@ -182,9 +183,10 @@ const IMPACT_MATERIALS: Readonly<Record<string, ImpactMaterial>> = {
   ramp: "metal",
   steel: "metal",
   timber: "wood",
+  verge: "soft",
 };
 
-/** What a solid course object sounds like when hit, by how it looks. */
+/** What a course object sounds like when hit, by how it looks. */
 export function getImpactMaterial(look: string): ImpactMaterial {
   return IMPACT_MATERIALS[look] ?? "concrete";
 }
@@ -376,8 +378,8 @@ export function getContactObjectId(entityName: string) {
 /**
  * The material of whatever a chassis contact names: a solid course object, a
  * tree, a parked bicycle, or the clearing's steel fence. Null for anything
- * else, such as drivable ground: the chassis bottoming out there, or touching
- * a seam between ground pieces, is covered by landings, not hits.
+ * else, such as drivable ground: an upright chassis bottoming out there is a
+ * landing, and only a tipped kart's body sounds on it (see the race canvas).
  */
 export function resolveImpactMaterial(
   entityName: string,
@@ -393,4 +395,23 @@ export function resolveImpactMaterial(
     return "metal";
   }
   return null;
+}
+
+/** Uprightness (the body's up · the habitat's up) below which it is tipped. */
+export const TIPPED_UPRIGHTNESS = 0.5;
+/** Slide speed for a full body scrape, m/s. */
+const FULL_SCRAPE_SPEED = 6;
+
+/**
+ * How hard a tipped kart's body scrapes along the ground: by the speed it
+ * slides across the contact, 0 when upright or off the ground.
+ */
+export function getBodyScrapeLevel(
+  uprightness: number,
+  groundContact: boolean,
+  slideSpeed: number,
+) {
+  if (!groundContact || !(uprightness < TIPPED_UPRIGHTNESS)) return 0;
+  if (!(slideSpeed > 0.3)) return 0;
+  return Math.min(1, slideSpeed / FULL_SCRAPE_SPEED) ** 0.8;
 }

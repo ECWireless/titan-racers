@@ -67,6 +67,37 @@ export function isUnderCourseWater(
 }
 
 /**
+ * Metres from a point, such as the listener, to the nearest course water
+ * volume: 0 inside one, Infinity on a course without water.
+ */
+export function getCourseWaterDistance(
+  volumes: readonly CourseWaterVolume[],
+  point: Vec3,
+) {
+  let nearest = Number.POSITIVE_INFINITY;
+  for (const { halfExtents, position, rotation } of volumes) {
+    const local = rotateCourseDirection(
+      {
+        x: point.x - position.x,
+        y: point.y - position.y,
+        z: point.z - position.z,
+      },
+      rotation,
+      LOCAL,
+    );
+    nearest = Math.min(
+      nearest,
+      Math.hypot(
+        Math.max(Math.abs(local.x) - halfExtents.x, 0),
+        Math.max(Math.abs(local.y) - halfExtents.y, 0),
+        Math.max(Math.abs(local.z) - halfExtents.z, 0),
+      ),
+    );
+  }
+  return nearest;
+}
+
+/**
  * A unit box's top face for a water object of this size: its UVs are metres,
  * u downstream along local +X and v across, so ripples keep their real size
  * and flow with the box after the course's batching merges it.

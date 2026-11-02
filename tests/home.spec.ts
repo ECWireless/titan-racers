@@ -3077,8 +3077,16 @@ test.describe("home screen", () => {
 
     await expect.poll(async () => (await audio())?.contextState).toBe("running");
     await expect.poll(async () => (await audio())?.cues[0]).toBe("count-3");
-    // Asphalt plays the recorded loop once it loads.
+    // Asphalt plays the recorded loop once it loads, and the ambience
+    // loops load; the sandbox is all outdoors, with no stream in range.
     await expect.poll(async () => (await audio())?.recordedAsphalt).toBe(true);
+    await expect.poll(async () => (await audio())?.ambience).toEqual({
+      habitatBed: true,
+      indoors: 0,
+      stream: 0,
+      streamLoaded: true,
+      tunnelTone: true,
+    });
     expect((await audio())?.wheels.map(({ surface }) => surface)).toEqual([
       "asphalt",
       "asphalt",
@@ -3161,6 +3169,56 @@ test.describe("home screen", () => {
     ).toHaveAttribute("aria-checked", "false");
   });
 
+  test("keeps sound off after the page hides until a tap brings it back", async ({
+    page,
+  }, testInfo) => {
+    test.skip(
+      testInfo.project.name === "mobile",
+      "The sound lifecycle does not depend on the viewport.",
+    );
+    test.setTimeout(60_000);
+    const setHidden = (hidden: boolean) =>
+      page.evaluate((hidden) => {
+        Object.defineProperty(document, "hidden", {
+          configurable: true,
+          get: () => hidden,
+        });
+        Object.defineProperty(document, "visibilityState", {
+          configurable: true,
+          get: () => (hidden ? "hidden" : "visible"),
+        });
+        // Coming back, iPhone Safari sends focus before the page is visible.
+        if (!hidden) window.dispatchEvent(new Event("focus"));
+        document.dispatchEvent(new Event("visibilitychange"));
+        if (hidden) window.dispatchEvent(new Event("blur"));
+      }, hidden);
+
+    await page.goto("/?sandbox-course");
+    await page.getByRole("button", { name: "Solo Time Trial" }).click();
+    // A quick app switch while the race loads, over before the scene listens
+    // for one: the race must still open paused, or its countdown would play
+    // into silence until the first tap.
+    await setHidden(true);
+    await setHidden(false);
+    const canvas = page.getByTestId("solo-time-trial-canvas");
+    await waitForSceneReady(canvas);
+    const audio = () => getAudioDebugState(canvas);
+    const pauseDialog = page.getByRole("dialog", { name: "Paused" });
+    await expect(pauseDialog).toBeVisible({ timeout: 10_000 });
+
+    // No resume until a gesture: on iPhone, one tried while the page comes
+    // back is refused and leaves the context silent for good.
+    await expect.poll(async () => (await audio())?.contextState).toBe(
+      "suspended",
+    );
+    await page.waitForTimeout(500);
+    expect((await audio())?.contextState).toBe("suspended");
+
+    await pauseDialog.getByRole("button", { name: "Resume" }).click();
+    await expect.poll(async () => (await audio())?.contextState).toBe("running");
+    await expect.poll(async () => (await audio())?.audible).toBe(true);
+  });
+
   test("sounds a wall hit by what the wall is made of", async ({
     page,
   }, testInfo) => {
@@ -3198,6 +3256,46 @@ test.describe("home screen", () => {
     expect(impacts[0].material).toBe("concrete");
     expect(impacts[0].strength).toBeGreaterThan(0.2);
     expect(impacts[0].strength).toBeLessThan(0.45);
+  });
+
+  test("sounds a kart tumbling onto its back and sliding on it", async ({
+    page,
+  }, testInfo) => {
+    test.skip(
+      testInfo.project.name === "mobile",
+      "Tumble sound does not depend on the viewport.",
+    );
+
+    await page.goto("/?sandbox-course");
+    await page.getByRole("button", { name: "Solo Time Trial" }).click();
+    const canvas = page.getByTestId("solo-time-trial-canvas");
+    await waitForSceneReady(canvas);
+    await expect
+      .poll(async () => (await getRaceDebugState(canvas)).state, {
+        timeout: 10_000,
+      })
+      .toBe("racing");
+    await expect
+      .poll(async () => (await getAudioDebugState(canvas))?.contextState)
+      .toBe("running");
+
+    // Upside down just above the turf, sliding at 5 m/s: it drops onto its
+    // back, then slides on it.
+    await setSimulationPaused(canvas, true);
+    await setKartDebugPose(canvas, {
+      angularVelocity: { x: 0, y: 0, z: 0 },
+      linearVelocity: { x: 5, y: 0, z: 0 },
+      position: { x: 0, y: 0.35, z: 10 },
+      rotation: { x: 180, y: 90, z: 0 },
+    });
+    await stepSimulation(canvas, 30);
+
+    // The turf here lies over the asphalt straight; the topmost authored
+    // piece decides, as it does for the wheels.
+    const audio = await getAudioDebugState(canvas);
+    expect(audio?.impacts.map(({ material }) => material)).toContain("soft");
+    expect(audio?.bodyScrape ?? 0).toBeGreaterThan(0.2);
+    expect(audio?.bodyScrapeHard).toBe(false);
   });
 
   test("drives continuously in two axes with the touch joystick and accessible pedals", async ({
