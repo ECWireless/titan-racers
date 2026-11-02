@@ -410,6 +410,12 @@ export const gameplayRuns = pgTable(
       onDelete: "set null",
     }),
     courseId: text("course_id").notNull(),
+    // What the run raced (event version 3 on); a null revision is a
+    // bundled seed or roster. Version 1 and 2 runs leave all four null.
+    courseRevision: integer("course_revision"),
+    kartId: text("kart_id"),
+    kartRevision: integer("kart_revision"),
+    raceAgain: boolean("race_again"),
     deploymentVersion: text("deployment_version").notNull(),
     physicsVersion: text("physics_version"),
     startedAt: timestamp("started_at", { mode: "date", withTimezone: true })
@@ -444,8 +450,11 @@ export const gameplayRuns = pgTable(
       sql`char_length(${table.courseId}) between 1 and 80`,
     ),
     check(
-      "gameplay_runs_known_course",
-      sql`${table.courseId} in ('rough-course', 'falls-view-park', 'agricultural-zone')`,
+      "gameplay_runs_race_identity",
+      sql`(${table.courseRevision} is null or ${table.courseRevision} > 0)
+        and (${table.kartRevision} is null or (${table.kartRevision} > 0 and ${table.kartId} is not null))
+        and (${table.kartId} is null or char_length(${table.kartId}) between 1 and 80)
+        and ((${table.kartId} is null) = (${table.raceAgain} is null))`,
     ),
     check(
       "gameplay_runs_deployment_version_length",

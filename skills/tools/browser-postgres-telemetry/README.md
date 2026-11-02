@@ -32,7 +32,8 @@ not receive gameplay milestones.
 - Require `application/json`, a direct allowed origin, and same-origin fetch
   metadata using the existing request guard.
 - Stream request bodies through a byte counter, stop after the approved limit,
-  and use a strict discriminated schema with UUIDv4 and known-course allowlists.
+  and use a strict discriminated schema with UUIDv4, then check any named
+  course or kart revision against stored publications.
 - Return success for safe duplicate delivery.
 - Create only on `run_started`; later milestones update an existing UUID.
 - Use database conditions so a terminal row cannot return to an earlier state

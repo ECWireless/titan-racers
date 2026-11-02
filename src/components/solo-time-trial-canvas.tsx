@@ -219,6 +219,7 @@ import {
 } from "@/game/testing/scene-test-adapter";
 import {
   GameplayRunTelemetry,
+  type GameplayRaceIdentity,
   httpGameplayTelemetrySink,
   type GameplayRunFailureCode,
 } from "@/game/telemetry/gameplay-run-events";
@@ -324,8 +325,12 @@ function getSceneInitializationTestControl() {
 
 type SoloTimeTrialCanvasProps = {
   courseDocument?: CourseDocument;
+  /** The course's published revision; null or omitted for a bundled seed. */
+  courseRevision?: number | null;
   includeCollisionFixtures?: boolean;
   kartDocument?: KartAssemblyDocument;
+  /** The kart's published revision; null or omitted for a bundled kart. */
+  kartRevision?: number | null;
   kartSnapshot?: PersistedResolvedKartSnapshot;
   /** Times from the loading screen, shown on the `?perf=1` readout. */
   loadTimings?: CourseLoadTimings;
@@ -446,8 +451,10 @@ function setTouchJoystickPresentation(
 
 export function SoloTimeTrialCanvas({
   courseDocument = ROUGH_COURSE_DOCUMENT,
+  courseRevision = null,
   includeCollisionFixtures = false,
   kartDocument = DEFAULT_BALANCED_KART_DOCUMENT,
+  kartRevision = null,
   exitRef,
   kartSnapshot,
   loadTimings,
@@ -459,6 +466,20 @@ export function SoloTimeTrialCanvas({
   showHabitatReadout = false,
 }: SoloTimeTrialCanvasProps) {
   const COURSE_DOCUMENT = courseDocument;
+  const raceIdentity = useMemo<GameplayRaceIdentity>(
+    () => ({
+      courseId: courseDocument.courseId,
+      courseRevision,
+      kartId: kartDocument.kartId,
+      kartRevision,
+    }),
+    [courseDocument.courseId, courseRevision, kartDocument.kartId, kartRevision],
+  );
+  // Read by the scene's restart, which outlives a render.
+  const raceIdentityRef = useRef(raceIdentity);
+  useEffect(() => {
+    raceIdentityRef.current = raceIdentity;
+  }, [raceIdentity]);
   const kartRuntime = useMemo(() => {
     const snapshot = kartSnapshot ?? deriveKartSnapshot(kartDocument);
     const inertiaTensor: KartInertiaTensor =
@@ -710,9 +731,9 @@ export function SoloTimeTrialCanvas({
   useEffect(() => {
     if (!gameplayTelemetryStartedRef.current) {
       gameplayTelemetryStartedRef.current = true;
-      gameplayTelemetry.start(COURSE_DOCUMENT.courseId);
+      gameplayTelemetry.start(raceIdentityRef.current);
     }
-  }, [COURSE_DOCUMENT.courseId, gameplayTelemetry]);
+  }, [gameplayTelemetry]);
 
   useEffect(() => {
     raceSpeedUnitRef.current = raceSpeedUnit;
@@ -2450,7 +2471,7 @@ export function SoloTimeTrialCanvas({
             return false;
           }
 
-          gameplayTelemetry.start(COURSE_DOCUMENT.courseId);
+          gameplayTelemetry.start(raceIdentityRef.current, { raceAgain: true });
           gameplayTelemetry.markRuntimeLoaded();
           raceStartReported = false;
           lastRaceProgressionResult = { kind: "none" };
@@ -4068,6 +4089,9 @@ export function SoloTimeTrialCanvas({
                   </p>
                   <p className="text-4xl font-black tabular-nums tracking-tight">
                     {racePresentation.elapsedTime}
+                  </p>
+                  <p className="text-xs uppercase tracking-[0.16em] text-titan-ice/60">
+                    {kartDocument.name}
                   </p>
                 </div>
                 <ol

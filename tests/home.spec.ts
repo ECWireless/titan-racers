@@ -1777,6 +1777,7 @@ test.describe("home screen", () => {
     await expect(finishDialog).toBeVisible();
     await expect(raceAnnouncement).toHaveText(/^Race finished in 0:/);
     await expect(finishDialog.getByRole("listitem")).toHaveCount(2);
+    await expect(finishDialog).toContainText("Balanced Kart");
     await expect(
       finishDialog.getByRole("button", { name: "Race again" }),
     ).toBeFocused();

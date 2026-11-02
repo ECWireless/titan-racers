@@ -1,15 +1,25 @@
 import { z } from "zod";
 
-import {
-  isOfficialCourseId,
-  TELEMETRY_COURSE_IDS,
-} from "../course/course-ids";
+import { TELEMETRY_COURSE_IDS } from "../course/course-ids";
+import { courseIdSchema } from "../course/course-document";
+import { kartStableIdSchema } from "../kart/kart-assembly-document";
 import {
   ACCEPTED_PHYSICS_VERSIONS,
   CURRENT_PHYSICS_VERSION,
 } from "../physics/physics-version";
 
 export type GameplayInputFamily = "gamepad" | "keyboard" | "touch";
+
+/**
+ * What a run raced. A null revision means the bundled seed or roster, used
+ * when no publication was available.
+ */
+export type GameplayRaceIdentity = {
+  courseId: string;
+  courseRevision: number | null;
+  kartId: string;
+  kartRevision: number | null;
+};
 
 const runIdSchema = z.uuidv4();
 const inputFamilySchema = z.enum(["keyboard", "touch", "gamepad"]);
@@ -28,8 +38,9 @@ export const gameplayRunFailureCodeSchema = z.enum([
 
 const eventBase = {
   runId: runIdSchema,
-  schemaVersion: z.union([z.literal(1), z.literal(2)]),
+  schemaVersion: z.union([z.literal(1), z.literal(2), z.literal(3)]),
 } as const;
+const publicationRevisionSchema = z.number().int().positive().max(2_147_483_647);
 
 const runStartedEventSchema = z.strictObject({
   ...eventBase,
@@ -41,6 +52,20 @@ const runStartedEventSchema = z.strictObject({
 const versionedRunStartedEventSchema = runStartedEventSchema.extend({
   schemaVersion: z.literal(2),
   physicsVersion: z.enum(ACCEPTED_PHYSICS_VERSIONS),
+});
+
+// Version three names what was raced instead of a fixed course list; the
+// server accepts it only for a stored publication or a bundled official seed.
+const identifiedRunStartedEventSchema = z.strictObject({
+  courseId: courseIdSchema,
+  courseRevision: publicationRevisionSchema.nullable(),
+  kartId: kartStableIdSchema,
+  kartRevision: publicationRevisionSchema.nullable(),
+  physicsVersion: z.enum(ACCEPTED_PHYSICS_VERSIONS),
+  raceAgain: z.boolean(),
+  runId: runIdSchema,
+  schemaVersion: z.literal(3),
+  type: z.literal("run_started"),
 });
 
 const runtimeLoadedEventSchema = z.strictObject({
@@ -108,6 +133,7 @@ const failedRunSchema = z.strictObject({
 });
 
 export const gameplayRunEventSchema = z.union([
+  identifiedRunStartedEventSchema,
   versionedRunStartedEventSchema,
   runStartedEventSchema,
   runtimeLoadedEventSchema,
@@ -145,10 +171,8 @@ export class GameplayRunTelemetry {
     private readonly now: () => number = () => performance.now(),
   ) {}
 
-  start(courseId: string) {
-    if (!isOfficialCourseId(courseId)) {
-      return;
-    }
+  /** Starts a new run; `raceAgain` marks one begun from the finish screen. */
+  start(identity: GameplayRaceIdentity, { raceAgain = false } = {}) {
     this.runId = this.createRunId();
     this.inputFamilies.clear();
     this.automaticPauseCount = 0;
@@ -157,10 +181,11 @@ export class GameplayRunTelemetry {
     this.terminal = false;
     this.startedAtMs = this.now();
     this.runStartedDelivery = this.emit({
-      courseId,
+      ...identity,
       physicsVersion: CURRENT_PHYSICS_VERSION,
+      raceAgain,
       runId: this.runId,
-      schemaVersion: 2,
+      schemaVersion: 3,
       type: "run_started",
     });
   }
@@ -175,7 +200,7 @@ export class GameplayRunTelemetry {
         Math.max(0, Math.round(this.now() - this.startedAtMs)),
       ),
       runId: this.runId,
-      schemaVersion: 2,
+      schemaVersion: 3,
       type: "runtime_loaded",
     });
   }
@@ -223,7 +248,7 @@ export class GameplayRunTelemetry {
       automaticPauseCount: this.automaticPauseCount,
       discardedTimeMs: this.discardedTimeMs,
       runId: this.runId,
-      schemaVersion: 2,
+      schemaVersion: 3,
       type: "runtime_health",
     } satisfies GameplayRunEvent;
 
@@ -269,7 +294,7 @@ export class GameplayRunTelemetry {
         inputFamilies: [...this.inputFamilies].sort(),
         recoveryCount: this.recoveryCount,
         runId: this.runId,
-        schemaVersion: 2,
+        schemaVersion: 3,
         type: "run_ended",
       } as GameplayRunEvent,
       true,
@@ -281,7 +306,7 @@ export class GameplayRunTelemetry {
       return;
     }
 
-    this.emit({ runId: this.runId, schemaVersion: 2, type });
+    this.emit({ runId: this.runId, schemaVersion: 3, type });
   }
 
   private emit(event: GameplayRunEvent, keepalive = false) {

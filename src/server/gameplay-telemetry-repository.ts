@@ -1,12 +1,59 @@
 import { and, eq, isNotNull, isNull, lte, sql } from "drizzle-orm";
 
 import { db } from "@/db/client";
-import { gameplayRuns } from "@/db/schema";
-import type { GameplayRunEvent } from "@/game/telemetry/gameplay-run-events";
+import {
+  coursePublications,
+  gameplayRuns,
+  kartPublicationEvents,
+} from "@/db/schema";
+import { isOfficialCourseId } from "@/game/course/course-ids";
+import { OFFICIAL_KART_IDS } from "@/game/kart/official-kart-roster";
+import type {
+  GameplayRaceIdentity,
+  GameplayRunEvent,
+} from "@/game/telemetry/gameplay-run-events";
 
 function deploymentVersion() {
   const version = process.env.VERCEL_GIT_COMMIT_SHA?.trim();
   return version ? version.slice(0, 120) : "development";
+}
+
+/**
+ * A run may name a revision only if it was published at some point (a race
+ * outlives a later republish), and a null revision only for a bundled
+ * official seed or roster kart.
+ */
+async function isRecordableRaceIdentity(identity: GameplayRaceIdentity) {
+  const [course, kart] = await Promise.all([
+    identity.courseRevision === null
+      ? isOfficialCourseId(identity.courseId)
+      : db
+          .select({ id: coursePublications.id })
+          .from(coursePublications)
+          .where(
+            and(
+              eq(coursePublications.courseId, identity.courseId),
+              eq(coursePublications.revision, identity.courseRevision),
+            ),
+          )
+          .limit(1)
+          .then((rows) => rows.length > 0),
+    identity.kartRevision === null
+      ? (OFFICIAL_KART_IDS as readonly string[]).includes(identity.kartId)
+      : db
+          .select({ id: kartPublicationEvents.id })
+          .from(kartPublicationEvents)
+          .where(
+            and(
+              eq(kartPublicationEvents.kartId, identity.kartId),
+              eq(kartPublicationEvents.action, "publish"),
+              eq(kartPublicationEvents.revision, identity.kartRevision),
+            ),
+          )
+          .limit(1)
+          .then((rows) => rows.length > 0),
+  ]);
+  return course && kart;
 }
 
 export async function recordGameplayRunEvent(
@@ -14,12 +61,20 @@ export async function recordGameplayRunEvent(
   receivedAt = new Date(),
 ) {
   if (event.type === "run_started") {
+    const identified = event.schemaVersion === 3 ? event : null;
+    if (identified && !(await isRecordableRaceIdentity(identified))) {
+      return "ignored";
+    }
     const inserted = await db
       .insert(gameplayRuns)
       .values({
         courseId: event.courseId,
+        courseRevision: identified?.courseRevision ?? null,
+        kartId: identified?.kartId ?? null,
+        kartRevision: identified?.kartRevision ?? null,
+        raceAgain: identified?.raceAgain ?? null,
         deploymentVersion: deploymentVersion(),
-        physicsVersion: event.schemaVersion === 2 ? event.physicsVersion : null,
+        physicsVersion: event.schemaVersion === 1 ? null : event.physicsVersion,
         id: event.runId,
         inputFamilies: [],
         startedAt: receivedAt,
