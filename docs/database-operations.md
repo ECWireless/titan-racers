@@ -126,6 +126,14 @@ needs `0018`'s version of `prevent_gameplay_run_race_identity_changes`
 restored, since `0019` replaced that trigger function to read `ghost`, and
 every later run update would otherwise fail.
 
+Migration `0020` (PR 5.2) adds `wallet_addresses`, the SIWE plugin's wallet
+rows: one per address, unique across racers, deleted with their user. It also
+allows one Google account per racer and adds triggers that refuse new
+sessions, logins, and wallets for an anonymized racer. Apply it before deploying the build with
+wallet login, or wallet sign-in and linking fail (Google login is unaffected).
+To roll back code, keep the migration: earlier builds ignore it, but racers who
+signed up with a wallet cannot sign in.
+
 Courses are saved as schema version eleven (kits, kerbs, bevels, signs, and
 elbow collision, from PR 4.4.8); earlier rows load unchanged, with no
 migration. A build from before a course's version cannot read it: rolling the
@@ -156,9 +164,12 @@ host-managed environment variables.
 
 Titan Racers uses Google only to establish identity and does not call Google
 APIs, so access, refresh, and ID tokens are discarded before account data is
-stored. Account linking is also disabled until the explicitly deferred account-
-linking phase. Only the original linked Google provider subject can resolve an
-existing canonical application user.
+stored. A signed-in racer can link Google from the profile, but a matching
+email never links accounts: only a linked Google provider subject resolves an
+existing canonical application user. After a racer unlinks Google, signing in
+with it is refused if their account email is that Google email, and otherwise
+creates a new racer; either way, they sign in another way and link Google
+again.
 
 PR 2.3.2 deliberately adds no login UI. For operational verification before
 PR 2.3.3,
@@ -174,6 +185,16 @@ const response = await fetch("/api/auth/sign-in/social", {
 const { url } = await response.json();
 location.assign(url);
 ```
+
+## Wallet Login
+
+Wallet login needs no keys or environment variables; the
+[identity system](../skills/project-systems/identity-course-persistence/README.md)
+describes how it works. The plugin creates a new racer, its wallet row, and its
+login in separate writes. If a first sign-in stops before its wallet row is
+written, that wallet keeps failing to sign in; anonymize the half-created
+racer with `--email <address>@wallet.invalid` (lowercase, below), then sign in
+again.
 
 ## First Admin Bootstrap
 
@@ -198,14 +219,16 @@ From a trusted machine, anonymize an account with:
 
 ```bash
 corepack pnpm db:anonymize-user --email account@example.com
+corepack pnpm db:anonymize-user --wallet 0x0000000000000000000000000000000000000000
 ```
 
-This transaction deletes sessions and linked provider accounts, removes
-privileged roles, clears the profile image and verification state, and replaces
-the name and email with non-personal tombstone values. The opaque user row and
-baseline player role remain so immutable course revisions keep referential
-integrity. The supplied email and real profile values are never written to
-documentation or logs.
+A wallet-first racer has no real email, so it is found by any linked wallet.
+This transaction deletes sessions, linked provider accounts, wallets and
+their sign-in nonces, removes privileged roles, clears the profile image and
+verification state, and replaces the name and email with non-personal
+tombstone values. The opaque user row and baseline player role remain so
+immutable course revisions keep referential integrity. The supplied email or
+wallet and real profile values are never written to documentation or logs.
 
 ## Official Course Seed Reset
 

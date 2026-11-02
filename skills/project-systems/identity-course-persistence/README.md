@@ -1,12 +1,12 @@
 # Identity And Course Persistence System
 
-**Maturity:** Validated (PR 2.3.2).
+**Maturity:** Validated (PR 2.3.2; wallet login PR 5.2).
 
 ## Purpose And Scope
 
 This system owns canonical application identities, linked Better Auth provider
-accounts, Postgres-backed sessions and roles, Google login, centralized
-server-side admin authorization, immutable course revisions, and protected
+accounts, Postgres-backed sessions and roles, Google and wallet login, explicit
+login-method linking, centralized server-side admin authorization, immutable course revisions, and protected
 course load/save APIs.
 
 It keeps the portable course document defined by
@@ -23,8 +23,16 @@ same identity, role, and request-guard boundaries; see the
 - `drizzle/` contains the reviewed version-controlled Postgres migrations,
   including database triggers for default player roles and immutable revisions.
 - `src/db/client.ts` owns the shared node-postgres pool and Drizzle client.
-- `src/lib/auth.ts` configures Better Auth's Drizzle adapter and Google provider,
-  including an explicit Google account-selection prompt for every sign-in.
+- `src/lib/auth.ts` configures Better Auth's Drizzle adapter, the Google
+  provider with an account-selection prompt for every sign-in, explicit-only
+  account linking, and the SIWE plugin.
+- `src/lib/siwe.ts` owns the sign-in chain (Base, 8453), the placeholder email
+  domain, and offline EOA signature checks with viem.
+- `src/lib/browser-wallets.ts` discovers EIP-6963 wallets and asks one for a
+  signed Sign-In with Ethereum message.
+- `src/server/login-methods.ts` and `src/app/api/profile/login-methods/route.ts`
+  list, link, and unlink a signed-in racer's login methods;
+  `src/server/session-user.ts` resolves the racer for profile routes.
 - `src/server/authorization.ts` validates live sessions and database roles at
   protected server boundaries.
 - `src/server/request-guards.ts` enforces strict JSON and same-origin browser
@@ -55,8 +63,30 @@ same identity, role, and request-guard boundaries; see the
    Google-linked application user. There is no public promotion endpoint.
 5. Protected handlers validate the signed session against Postgres, then query
    `user_roles`. Client visibility and cookie existence are never authoritative.
-6. Account linking is disabled. A new provider subject cannot inherit an
-   existing canonical identity or its roles by presenting the same email.
+6. Linking is explicit only. A new provider subject cannot inherit an existing
+   canonical identity or its roles by presenting the same email.
+
+## Wallet Login And Linking
+
+1. Signed out, the profile offers one wallet button (a chooser when several
+   EIP-6963 wallets announce). The wallet signs a message naming this host,
+   Base, and a single-use server nonce; Better Auth's SIWE plugin verifies it
+   with viem's offline check, so smart-contract wallets never verify.
+2. A new wallet creates a racer with a generated ID, a placeholder email
+   `<address>@wallet.invalid` that is never shown, and a `racer` username
+   seed. The racer then claims a username through onboarding.
+3. Each address belongs to one racer (`wallet_addresses.address` is unique); a
+   racer may link several wallets and one Google account (a partial unique
+   index on `accounts`).
+4. The plugin's verify signs in as the wallet's racer and ignores the session,
+   so linking a wallet uses our profile route, which consumes the same nonce,
+   repeats the plugin's checks, and writes the wallet row and its `siwe`
+   account together. Google links through Better Auth's `/link-social`, which
+   allows a different email because wallet-first racers have a placeholder.
+5. Our route unlinks any method but the last, deleting a wallet's row with its
+   account and replacing a placeholder email built from that wallet. Better
+   Auth's `/unlink-account` is disabled because it would leave the wallet row,
+   which still signs in.
 
 ## Course Revision Flow
 
@@ -103,8 +133,13 @@ same identity, role, and request-guard boundaries; see the
 - Guest racing and the existing product UI do not require a database session.
 - Secrets and connection strings remain outside version control.
 - OAuth provider token material is not retained in Postgres.
-- Anonymization removes sessions, provider credentials, privileged roles, and
-  profile PII while retaining only the opaque user ID needed for attribution.
+- Anonymization removes sessions, provider credentials, wallets, privileged
+  roles, and profile PII while retaining only the opaque user ID needed for
+  attribution.
+- A login method never moves between racers, and the last one cannot be
+  unlinked. Database triggers refuse new sessions, login methods, and wallets
+  for anonymized racers, so a sign-in or Google link racing anonymization
+  cannot restore one.
 - Course documents contain no revision IDs, author IDs, timestamps, or other
   database metadata.
 - Revisions are append-only and fully attributed.
@@ -121,6 +156,10 @@ same identity, role, and request-guard boundaries; see the
 
 - `tests/auth-configuration.spec.ts` covers the environment-independent Google
   account-selection policy.
+- `tests/wallet-login.spec.ts` covers wallet sign-in and rejection, linking,
+  unlinking, Google link initiation, and anonymization by wallet with real
+  signatures; `tests/profile.spec.ts` covers the wallet chooser and the
+  login-method list.
 - `tests/course-persistence.spec.ts` covers default roles, role denial and
   approval, real Better Auth sessions, protected API load/save, Google OAuth
   initiation including the generated account-selection parameter, immutable
@@ -131,15 +170,18 @@ same identity, role, and request-guard boundaries; see the
   and the created tables and triggers are inspected directly.
 - The full desktop/mobile Playwright matrix remains the gameplay regression gate.
 
-## Primary Reference
+## Primary References
 
 - [Better Auth Google provider: Always ask to select an account](https://better-auth.com/docs/authentication/google#always-ask-to-select-an-account)
   defines the server-side `prompt: "select_account"` configuration used here.
+- [EIP-4361 (Sign-In with Ethereum)](https://eips.ethereum.org/EIPS/eip-4361)
+  and [EIP-6963 (multi-wallet discovery)](https://eips.ethereum.org/EIPS/eip-6963)
+  define the message and wallet discovery used for wallet login.
 
 ## Known Limits And Deferred Work
 
-- Player login, SIWE wallet login, and explicit account linking arrive in
-  Phase 5; embedded wallets need separately accepted scope.
+- Not supported: WalletConnect, smart-contract wallets, ENS, embedded wallets,
+  and on-chain actions. Unlinking does not end that method's live sessions.
 - Automated Neon preview branches and production deployment migrations are not
   configured. Production migration is currently a deliberate laptop operation.
 - The early hosted preview may share the production database by explicit
