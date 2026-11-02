@@ -47,6 +47,7 @@ async function fulfillIncompleteProfile(page: Page, suggestion = "elliott4821") 
     if (route.request().method() === "GET") {
       await route.fulfill({
         body: JSON.stringify({
+          loginMethods: [],
           status: "incomplete",
           suggestedUsername: suggestion,
         }),
@@ -104,7 +105,11 @@ test.describe("racer onboarding and profile", () => {
   }) => {
     await page.route(profileApiPattern, async (route) => {
       await route.fulfill({
-        body: JSON.stringify({ status: "complete", username: "nova_racer" }),
+        body: JSON.stringify({
+          loginMethods: [],
+          status: "complete",
+          username: "nova_racer",
+        }),
         contentType: "application/json",
         status: 200,
       });
@@ -114,6 +119,54 @@ test.describe("racer onboarding and profile", () => {
     await expect(page.getByText("@nova_racer")).toBeVisible();
     await expect(page.getByRole("textbox")).toHaveCount(0);
     await expect(page.getByRole("button", { name: /save|create/i })).toHaveCount(0);
+  });
+
+  test("lists login methods and unlinks while another remains", async ({
+    page,
+  }) => {
+    const google = { id: "google-row", kind: "google", label: "Google" };
+    const wallet = { id: "wallet-row", kind: "wallet", label: "0x1111…1111" };
+    let unlinkBody: unknown;
+    await page.route(profileApiPattern, async (route) => {
+      await route.fulfill({
+        body: JSON.stringify({
+          loginMethods: [google, wallet],
+          status: "complete",
+          username: "nova_racer",
+        }),
+        contentType: "application/json",
+      });
+    });
+    await page.route("**/api/profile/login-methods", async (route) => {
+      expect(route.request().method()).toBe("DELETE");
+      unlinkBody = route.request().postDataJSON();
+      await route.fulfill({
+        body: JSON.stringify({ loginMethods: [google] }),
+        contentType: "application/json",
+      });
+    });
+
+    await page.goto("/profile");
+    const methods = page.getByRole("region", { name: "Login methods" });
+    await expect(methods.getByRole("listitem")).toHaveText([
+      /Google/,
+      /Wallet 0x1111…1111/,
+    ]);
+    await expect(
+      methods.getByRole("button", { exact: true, name: "Link Google" }),
+    ).toHaveCount(0);
+    await methods
+      .getByRole("button", { name: "Unlink Wallet 0x1111…1111" })
+      .click();
+    expect(unlinkBody).toEqual({ id: "wallet-row" });
+    await expect(page.getByText("Wallet 0x1111…1111 unlinked.")).toBeVisible();
+    await expect(methods.getByRole("listitem")).toHaveText([/Google/]);
+    await expect(
+      methods.getByRole("button", { name: "Unlink Google" }),
+    ).toBeDisabled();
+    await expect(
+      methods.getByText("Add another login method before removing this one."),
+    ).toBeVisible();
   });
 
   test("starts Google sign-in through onboarding for signed-out racers", async ({
@@ -181,6 +234,7 @@ test.describe("racer onboarding and profile", () => {
         verifyBody
           ? {
               body: JSON.stringify({
+                loginMethods: [],
                 status: "incomplete",
                 suggestedUsername: "racer4821",
               }),
@@ -382,7 +436,11 @@ test.describe("racer onboarding and profile", () => {
   test("rejects unsafe onboarding return paths", async ({ page }) => {
     await page.route(profileApiPattern, async (route) => {
       await route.fulfill({
-        body: JSON.stringify({ status: "complete", username: "safe_racer" }),
+        body: JSON.stringify({
+          loginMethods: [],
+          status: "complete",
+          username: "safe_racer",
+        }),
         contentType: "application/json",
         status: 200,
       });

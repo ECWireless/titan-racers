@@ -7,7 +7,11 @@ import { siwe } from "better-auth/plugins/siwe";
 import { db } from "@/db/client";
 import { authSchema } from "@/db/schema";
 import { createRacerUsernameSeed } from "@/lib/racer-username";
-import { isWalletAddress, verifyWalletSignature } from "@/lib/siwe";
+import {
+  isWalletAddress,
+  verifyWalletSignature,
+  WALLET_EMAIL_DOMAIN,
+} from "@/lib/siwe";
 
 const unavailableValue = "unavailable-until-runtime-environment-is-configured";
 const baseURL = process.env.BETTER_AUTH_URL ?? "http://localhost:3000";
@@ -31,10 +35,15 @@ export const auth = betterAuth({
       },
     },
   },
+  // Our profile route unlinks so a wallet's SIWE row goes with its account.
+  disabledPaths: ["/unlink-account"],
   account: {
+    // Only a signed-in racer's explicit link adds Google; a matching email
+    // never links, and wallet-first racers have a placeholder email.
     accountLinking: {
+      allowDifferentEmails: true,
       disableImplicitLinking: true,
-      enabled: false,
+      enabled: true,
     },
     encryptOAuthTokens: true,
     updateAccountOnSignIn: false,
@@ -53,8 +62,7 @@ export const auth = betterAuth({
   plugins: [
     siwe({
       domain: new URL(baseURL).host,
-      // Wallet-first racers get a placeholder email that is never shown.
-      emailDomainName: "wallet.invalid",
+      emailDomainName: WALLET_EMAIL_DOMAIN,
       getNonce: async () => generateRandomString(32, "a-z", "A-Z", "0-9"),
       verifyMessage: verifyWalletSignature,
     }),

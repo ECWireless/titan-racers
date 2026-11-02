@@ -1,8 +1,7 @@
 import { z } from "zod";
 
-import { auth } from "@/lib/auth";
 import { racerUsernameSchema } from "@/lib/racer-username";
-import { assertSessionEnvironment } from "@/lib/server-environment";
+import { listLoginMethods } from "@/server/login-methods";
 import { protectedJsonMutationError } from "@/server/request-guards";
 import {
   claimRacerUsername,
@@ -11,38 +10,22 @@ import {
   RacerUsernameAlreadyClaimedError,
   RacerUsernameTakenError,
 } from "@/server/racer-identity";
+import { sessionUserIdOrResponse } from "@/server/session-user";
 
 const claimRequestSchema = z.strictObject({
   username: z.string(),
 });
 
-function sessionEnvironmentError() {
-  try {
-    assertSessionEnvironment();
-    return null;
-  } catch {
-    return Response.json(
-      { error: "Authentication is not configured." },
-      { status: 503 },
-    );
-  }
-}
-
 export async function GET(request: Request) {
-  const environmentError = sessionEnvironmentError();
-  if (environmentError) return environmentError;
-
-  const userId = (await auth.api.getSession({ headers: request.headers }))?.user
-    .id;
-  if (!userId) {
-    return Response.json(
-      { error: "Authentication required." },
-      { status: 401 },
-    );
-  }
+  const userId = await sessionUserIdOrResponse(request);
+  if (userId instanceof Response) return userId;
 
   try {
-    return Response.json(await loadRacerIdentity(userId), {
+    const [identity, loginMethods] = await Promise.all([
+      loadRacerIdentity(userId),
+      listLoginMethods(userId),
+    ]);
+    return Response.json({ ...identity, loginMethods }, {
       headers: { "cache-control": "no-store" },
     });
   } catch (error) {
@@ -57,17 +40,8 @@ export async function PUT(request: Request) {
   const mutationError = protectedJsonMutationError(request);
   if (mutationError) return mutationError;
 
-  const environmentError = sessionEnvironmentError();
-  if (environmentError) return environmentError;
-
-  const userId = (await auth.api.getSession({ headers: request.headers }))?.user
-    .id;
-  if (!userId) {
-    return Response.json(
-      { error: "Authentication required." },
-      { status: 401 },
-    );
-  }
+  const userId = await sessionUserIdOrResponse(request);
+  if (userId instanceof Response) return userId;
 
   let rawUsername: string;
   try {

@@ -24,16 +24,30 @@ import {
 } from "@/lib/racer-username";
 import { SIWE_CHAIN_ID } from "@/lib/siwe";
 
+const loginMethodsSchema = z.array(
+  z.strictObject({
+    id: z.string(),
+    kind: z.enum(["google", "wallet"]),
+    label: z.string(),
+  }),
+);
+type LoginMethod = z.infer<typeof loginMethodsSchema>[number];
 const racerIdentitySchema = z.discriminatedUnion("status", [
   z.strictObject({
+    loginMethods: loginMethodsSchema,
     status: z.literal("complete"),
     username: z.string(),
   }),
   z.strictObject({
+    loginMethods: loginMethodsSchema,
     status: z.literal("incomplete"),
     suggestedUsername: z.string(),
   }),
 ]);
+const loginMethodsResponseSchema = z.object({
+  loginMethods: loginMethodsSchema,
+});
+type WalletPurpose = "link" | "sign-in";
 const usernameClaimResponseSchema = z.object({
   code: z.string().optional(),
   status: z.literal("complete").optional(),
@@ -44,6 +58,60 @@ const usernameClaimFailure =
 
 class UsernameClaimError extends Error {}
 class WalletVerificationError extends Error {}
+class WalletLinkedElsewhereError extends Error {}
+
+function loginMethodName(method: LoginMethod) {
+  return method.kind === "google" ? "Google" : `Wallet ${method.label}`;
+}
+
+// Better Auth returns to the profile with ?error= when Google linking fails.
+function googleLinkErrorMessage() {
+  const code = new URLSearchParams(window.location.search).get("error");
+  if (!code) return null;
+  window.history.replaceState(null, "", "/profile");
+  return code === "account_already_linked_to_different_user"
+    ? "That Google account belongs to another racer."
+    : "Google could not be linked. Please retry.";
+}
+
+function WalletChooser({
+  onCancel,
+  onChoose,
+  wallets,
+}: {
+  onCancel: () => void;
+  onChoose: (wallet: BrowserWallet) => void;
+  wallets: BrowserWallet[];
+}) {
+  return (
+    <div
+      aria-label="Choose a wallet"
+      className="grid gap-3 border border-titan-ice/20 p-4"
+      role="group"
+    >
+      <p className="font-mono text-xs font-bold uppercase tracking-[0.16em] text-titan-ice/72">
+        Choose a wallet
+      </p>
+      {wallets.map((wallet) => (
+        <button
+          className="titan-button titan-button-secondary"
+          key={wallet.id}
+          type="button"
+          onClick={() => onChoose(wallet)}
+        >
+          {wallet.name}
+        </button>
+      ))}
+      <button
+        className="titan-button titan-button-secondary"
+        type="button"
+        onClick={onCancel}
+      >
+        Cancel
+      </button>
+    </div>
+  );
+}
 
 type ProfileState =
   | { status: "loading" }
@@ -96,7 +164,11 @@ export function ProfileAccess({
   const [savePending, setSavePending] = useState(false);
   const [signInPending, setSignInPending] = useState<string | null>(null);
   const wallets = useBrowserWallets();
-  const [walletChoiceOpen, setWalletChoiceOpen] = useState(false);
+  const [walletChoice, setWalletChoice] = useState<WalletPurpose | null>(
+    null,
+  );
+  const [unlinkPending, setUnlinkPending] = useState<string | null>(null);
+  const methodChangePending = signInPending !== null || unlinkPending !== null;
   const normalizedUsername = normalizeRacerUsername(username);
 
   useControllerMenuNavigation({
@@ -111,6 +183,8 @@ export function ProfileAccess({
     void loadProfile().then((nextState) => {
       if (!active) return;
       setProfileState(nextState);
+      const linkError = mode === "profile" ? googleLinkErrorMessage() : null;
+      if (linkError) setFeedback({ kind: "error", message: linkError });
       if (nextState.status === "incomplete") {
         setUsername(nextState.suggestedUsername);
       }
@@ -118,7 +192,7 @@ export function ProfileAccess({
     return () => {
       active = false;
     };
-  }, []);
+  }, [mode]);
 
   async function retryProfile() {
     setFeedback(null);
@@ -161,24 +235,52 @@ export function ProfileAccess({
     }
   }
 
-  async function signInWithWallet(wallet: BrowserWallet) {
+  function applyLoginMethods(loginMethods: LoginMethod[]) {
+    setProfileState((current) =>
+      current.status === "complete" || current.status === "incomplete"
+        ? { ...current, loginMethods }
+        : current,
+    );
+  }
+
+  function chooseWallet(purpose: WalletPurpose) {
+    if (wallets.length === 1) void runWalletAction(purpose, wallets[0]);
+    else setWalletChoice(purpose);
+  }
+
+  async function runWalletAction(purpose: WalletPurpose, wallet: BrowserWallet) {
+    setWalletChoice(null);
     setSignInPending(wallet.id);
     setFeedback(null);
     try {
       const signed = await signWalletMessage(wallet);
-      const response = await fetch("/api/auth/siwe/verify", {
-        body: JSON.stringify({
-          chainId: SIWE_CHAIN_ID,
-          message: signed.message,
-          signature: signed.signature,
-          walletAddress: signed.address,
-        }),
-        credentials: "include",
-        headers: { "content-type": "application/json" },
-        method: "POST",
-      });
-      if (!response.ok) throw new WalletVerificationError();
-      await retryProfile();
+      const response = await fetch(
+        purpose === "sign-in"
+          ? "/api/auth/siwe/verify"
+          : "/api/profile/login-methods",
+        {
+          body: JSON.stringify({
+            ...(purpose === "sign-in" ? { chainId: SIWE_CHAIN_ID } : {}),
+            message: signed.message,
+            signature: signed.signature,
+            walletAddress: signed.address,
+          }),
+          credentials: "include",
+          headers: { "content-type": "application/json" },
+          method: "POST",
+        },
+      );
+      if (response.status === 401) throw new WalletVerificationError();
+      if (response.status === 409) throw new WalletLinkedElsewhereError();
+      if (!response.ok) throw new Error("Wallet request failed.");
+      if (purpose === "sign-in") {
+        await retryProfile();
+        return;
+      }
+      applyLoginMethods(
+        loginMethodsResponseSchema.parse(await response.json()).loginMethods,
+      );
+      setFeedback({ kind: "success", message: "Wallet linked." });
     } catch (error) {
       setFeedback({
         kind: "error",
@@ -187,10 +289,77 @@ export function ProfileAccess({
             ? "The wallet request was cancelled."
             : error instanceof WalletVerificationError
               ? "Your wallet's signature could not be verified. Please retry. Smart-contract wallets aren't supported."
-              : "Wallet sign-in could not be completed. Please retry.",
+              : error instanceof WalletLinkedElsewhereError
+                ? "That wallet belongs to another racer."
+                : purpose === "sign-in"
+                  ? "Wallet sign-in could not be completed. Please retry."
+                  : "The wallet could not be linked. Please retry.",
       });
     } finally {
       setSignInPending(null);
+    }
+  }
+
+  async function linkGoogle() {
+    setSignInPending("google");
+    setFeedback(null);
+    try {
+      const response = await fetch("/api/auth/link-social", {
+        body: JSON.stringify({
+          callbackURL: "/profile",
+          errorCallbackURL: "/profile",
+          provider: "google",
+        }),
+        credentials: "include",
+        headers: { "content-type": "application/json" },
+        method: "POST",
+      });
+      if (!response.ok) throw new Error("Google linking could not start.");
+      const payload = z
+        .object({ url: z.string().url() })
+        .parse(await response.json());
+      window.location.assign(payload.url);
+    } catch {
+      setFeedback({
+        kind: "error",
+        message: "Google linking could not be started. Please retry.",
+      });
+      setSignInPending(null);
+    }
+  }
+
+  async function unlinkLoginMethod(method: LoginMethod) {
+    setUnlinkPending(method.id);
+    setFeedback(null);
+    try {
+      const response = await fetch("/api/profile/login-methods", {
+        body: JSON.stringify({ id: method.id }),
+        credentials: "include",
+        headers: { "content-type": "application/json" },
+        method: "DELETE",
+      });
+      if (response.status === 409) {
+        setFeedback({
+          kind: "error",
+          message: "Your last login method can't be removed.",
+        });
+        return;
+      }
+      if (!response.ok) throw new Error("Unlink failed.");
+      applyLoginMethods(
+        loginMethodsResponseSchema.parse(await response.json()).loginMethods,
+      );
+      setFeedback({
+        kind: "success",
+        message: `${loginMethodName(method)} unlinked.`,
+      });
+    } catch {
+      setFeedback({
+        kind: "error",
+        message: "That login method could not be unlinked. Please retry.",
+      });
+    } finally {
+      setUnlinkPending(null);
     }
   }
 
@@ -258,7 +427,12 @@ export function ProfileAccess({
       }
 
       setUsername(claimedUsername);
-      setProfileState({ status: "complete", username: claimedUsername });
+      setProfileState((current) => ({
+        loginMethods:
+          current.status === "incomplete" ? current.loginMethods : [],
+        status: "complete",
+        username: claimedUsername,
+      }));
       setFeedback({ kind: "success", message: "Racer account complete." });
     } catch (error) {
       setFeedback({
@@ -344,46 +518,18 @@ export function ProfileAccess({
             >
               {signInPending === "google" ? "Connecting…" : "Continue with Google"}
             </button>
-            {walletChoiceOpen ? (
-              <div
-                aria-label="Choose a wallet"
-                className="grid gap-3 border border-titan-ice/20 p-4"
-                role="group"
-              >
-                <p className="font-mono text-xs font-bold uppercase tracking-[0.16em] text-titan-ice/72">
-                  Choose a wallet
-                </p>
-                {wallets.map((wallet) => (
-                  <button
-                    className="titan-button titan-button-secondary"
-                    key={wallet.id}
-                    type="button"
-                    onClick={() => {
-                      setWalletChoiceOpen(false);
-                      void signInWithWallet(wallet);
-                    }}
-                  >
-                    {wallet.name}
-                  </button>
-                ))}
-                <button
-                  className="titan-button titan-button-secondary"
-                  type="button"
-                  onClick={() => setWalletChoiceOpen(false)}
-                >
-                  Cancel
-                </button>
-              </div>
+            {walletChoice === "sign-in" ? (
+              <WalletChooser
+                wallets={wallets}
+                onCancel={() => setWalletChoice(null)}
+                onChoose={(wallet) => void runWalletAction("sign-in", wallet)}
+              />
             ) : wallets.length > 0 ? (
               <button
                 className="titan-button titan-button-secondary"
                 disabled={signInPending !== null}
                 type="button"
-                onClick={() =>
-                  wallets.length === 1
-                    ? void signInWithWallet(wallets[0])
-                    : setWalletChoiceOpen(true)
-                }
+                onClick={() => chooseWallet("sign-in")}
               >
                 {signInPending && signInPending !== "google"
                   ? "Check your wallet…"
@@ -487,6 +633,92 @@ export function ProfileAccess({
               Usernames are permanent after account creation so published
               attribution stays trustworthy.
             </p>
+            {mode === "profile" ? (
+              <section
+                aria-labelledby="login-methods-heading"
+                className="grid gap-3"
+              >
+                <h2
+                  className="font-mono text-xs font-bold uppercase tracking-[0.16em] text-titan-muted"
+                  id="login-methods-heading"
+                >
+                  Login methods
+                </h2>
+                <ul className="grid gap-2">
+                  {profileState.loginMethods.map((method) => (
+                    <li
+                      className="flex items-center justify-between gap-3 border border-titan-ice/15 px-4 py-2"
+                      key={method.id}
+                    >
+                      <span className="font-bold">
+                        {loginMethodName(method)}
+                      </span>
+                      <button
+                        aria-describedby={
+                          profileState.loginMethods.length <= 1
+                            ? "last-login-method-note"
+                            : undefined
+                        }
+                        aria-label={`Unlink ${loginMethodName(method)}`}
+                        className="font-mono text-xs font-bold uppercase tracking-[0.12em] text-titan-hazard underline-offset-4 hover:underline disabled:text-titan-muted disabled:no-underline"
+                        disabled={
+                          profileState.loginMethods.length <= 1 ||
+                          methodChangePending
+                        }
+                        type="button"
+                        onClick={() => void unlinkLoginMethod(method)}
+                      >
+                        {unlinkPending === method.id ? "Unlinking…" : "Unlink"}
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+                {profileState.loginMethods.length <= 1 ? (
+                  <p
+                    className="text-xs leading-5 text-titan-muted"
+                    id="last-login-method-note"
+                  >
+                    Add another login method before removing this one.
+                  </p>
+                ) : null}
+                {walletChoice === "link" ? (
+                  <WalletChooser
+                    wallets={wallets}
+                    onCancel={() => setWalletChoice(null)}
+                    onChoose={(wallet) => void runWalletAction("link", wallet)}
+                  />
+                ) : (
+                  <div className="flex flex-wrap gap-3">
+                    {profileState.loginMethods.some(
+                      (method) => method.kind === "google",
+                    ) ? null : (
+                      <button
+                        className="titan-button titan-button-secondary"
+                        disabled={methodChangePending}
+                        type="button"
+                        onClick={() => void linkGoogle()}
+                      >
+                        {signInPending === "google"
+                          ? "Connecting…"
+                          : "Link Google"}
+                      </button>
+                    )}
+                    {wallets.length > 0 ? (
+                      <button
+                        className="titan-button titan-button-secondary"
+                        disabled={methodChangePending}
+                        type="button"
+                        onClick={() => chooseWallet("link")}
+                      >
+                        {signInPending && signInPending !== "google"
+                          ? "Check your wallet…"
+                          : "Link wallet"}
+                      </button>
+                    ) : null}
+                  </div>
+                )}
+              </section>
+            ) : null}
             {mode === "onboarding" ? (
               <Link
                 className="titan-button titan-button-primary"

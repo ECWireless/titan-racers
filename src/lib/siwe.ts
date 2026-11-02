@@ -4,6 +4,9 @@ import { verifyMessage } from "viem";
 // network it is on. EOA signatures do not depend on the chain.
 export const SIWE_CHAIN_ID = 8453;
 
+// Wallet-first racers get a placeholder email at this domain, never shown.
+export const WALLET_EMAIL_DOMAIN = "wallet.invalid";
+
 const walletAddressPattern = /^0x[0-9a-fA-F]{40}$/;
 
 export function isWalletAddress(value: unknown): value is `0x${string}` {
