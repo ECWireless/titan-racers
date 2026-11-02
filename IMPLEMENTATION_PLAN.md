@@ -242,7 +242,7 @@ Phase decisions:
 - [x] One see-through ghost with no collision, sound, or shadow: your best on
       this device, behind a ghost switch.
 - [x] The result screen shows the kart used.
-- [ ] Ghost playback stays within the phone budget (`?perf=1`).
+- [x] Ghost playback stays within the phone budget (`?perf=1`).
 
 **PR 5.2: Wallet login and account linking**
 

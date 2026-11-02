@@ -106,6 +106,18 @@ test.describe("ghost trace format", () => {
       corrupt((_, view) => {
         for (const slot of [0, 1, 2]) view.setInt16(HEADER + 16 + slot * 2, 32_767, true);
       }),
+      // Just over a unit length, which a clamped fourth component would hide.
+      corrupt((_, view) => {
+        view.setInt16(HEADER + 16, 32_767, true);
+        view.setInt16(HEADER + 18, 32_767, true);
+        view.setInt16(HEADER + 20, 1_000, true);
+      }),
+      // A unit length whose left-out component is not the largest.
+      corrupt((_, view) => {
+        view.setInt16(HEADER + 16, 32_000, true);
+        view.setInt16(HEADER + 18, 32_000, true);
+        view.setInt16(HEADER + 20, 0, true);
+      }),
     ]) {
       expect(() => decodeGhostTrace(bytes)).toThrow(GhostTraceFormatError);
     }

@@ -28,6 +28,8 @@ const HEADER_BYTES = 8;
 const SAMPLE_BYTES = 24;
 const MAX_GHOST_BYTES = HEADER_BYTES + MAX_GHOST_SAMPLES * SAMPLE_BYTES;
 const QUATERNION_SCALE = 32_767 * Math.SQRT2;
+// Rounding each stored component moves it by at most half a step.
+const QUATERNION_TOLERANCE = 4 / QUATERNION_SCALE;
 const STEER_RANGE_DEGREES = 45;
 const FLAG_RESET = 0b0100;
 const FLAG_GATE = 0b1000;
@@ -138,7 +140,17 @@ export function decodeGhostTrace(bytes: Uint8Array): GhostSample[] {
       (slot) => view.getInt16(offset + 16 + slot * 2, true) / QUATERNION_SCALE,
     );
     const squares = components.reduce((sum, value) => sum + value * value, 0);
-    if (squares > 1 + 1e-3) fail("The ghost has an invalid rotation.");
+    const omitted = Math.sqrt(Math.max(0, 1 - squares));
+    // A valid encoding leaves out the largest component of a unit
+    // quaternion, so the rest fit inside it and it is at least as large.
+    if (
+      squares > 1 + QUATERNION_TOLERANCE ||
+      components.some(
+        (value) => Math.abs(value) > omitted + QUATERNION_TOLERANCE,
+      )
+    ) {
+      fail("The ghost has an invalid rotation.");
+    }
     samples.push({
       gate: (flags & FLAG_GATE) !== 0,
       position: {
@@ -147,11 +159,7 @@ export function decodeGhostTrace(bytes: Uint8Array): GhostSample[] {
         z: view.getInt32(offset + 12, true) / 1_000,
       },
       reset: (flags & FLAG_RESET) !== 0,
-      rotation: fromSmallestThree(
-        flags & 0b11,
-        components,
-        Math.sqrt(Math.max(0, 1 - squares)),
-      ),
+      rotation: fromSmallestThree(flags & 0b11, components, omitted),
       steerDegrees: (view.getInt8(offset + 23) / 127) * STEER_RANGE_DEGREES,
       timeMicroseconds,
     });

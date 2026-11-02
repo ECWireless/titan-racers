@@ -1140,17 +1140,28 @@ export function SoloTimeTrialCanvas({
       let activeGhost: DeviceGhost | null = null;
       let ghostPlayback: GhostPlayback | null = null;
       let ghostVisual: GhostKartVisual | null = null;
+      // The kart `ghostVisual` was built for, so a later best of the same
+      // kart only swaps the path.
+      let ghostVisualKart: GhostKart | null = null;
       let pendingGhost: DeviceGhost | null = null;
       let lastGhostTimeMicroseconds = 0;
       const ghostPose = createGhostPose();
       const installGhost = (ghost: DeviceGhost): boolean => {
+        if (ghostVisual && ghostVisualKart === ghost.kart) {
+          activeGhost = ghost;
+          ghostPlayback = new GhostPlayback(ghost.samples);
+          lastGhostTimeMicroseconds = 0;
+          return true;
+        }
         ghostVisual?.destroy();
         ghostVisual = null;
+        ghostVisualKart = null;
         ghostPlayback = null;
         activeGhost = null;
         try {
           ghostMaterial ??= createGhostMaterial(app.scene.exposure);
           ghostVisual = createGhostKartVisual(app, ghost.kart, ghostMaterial);
+          ghostVisualKart = ghost.kart;
           ghostPlayback = new GhostPlayback(ghost.samples);
           activeGhost = ghost;
         } catch {

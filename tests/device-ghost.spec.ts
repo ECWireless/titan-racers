@@ -89,7 +89,7 @@ test("keeps only a faster ghost and reads it back for its own revision", () => {
   expect(readDeviceGhost("rough-course", 10)).toBeNull();
 });
 
-test("a new revision drops older ghosts, but an offline seed race drops none", () => {
+test("a new revision drops older ghosts; an offline seed race drops only other physics", () => {
   keepDeviceGhostIfBest(ghost(9, 80_000_000));
   keepDeviceGhostIfBest(ghost(null, 99_000_000));
   storage.setItem(key("10", "older-physics-v0"), "{}");

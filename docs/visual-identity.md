@@ -293,12 +293,12 @@ CPU work and draw calls are the headroom signals.
 
 ### Baseline
 
-| Measure | Before lighting (PR 4.1.2 start) | After lighting baseline | Part visuals (PR 4.1.3) | Authored primitives (PR 4.1.4) | Sandbox surfaces (PR 4.2.1) | Surface physics (PR 4.2.2) | Collision substeps (PR 4.2.3) | Surface effects (PR 4.2.4) | Surface scans (PR 4.2.5) | Handbrake clutch (PR 4.2.6) | Island Three (PR 4.3.1) | Habitat physics (PR 4.3.2) | Loading screen (PR 4.3.3) | Valley structures (PR 4.3.4) | Dusk and night (PR 4.3.5) | Falls View Park route (PR 4.4.1) | Wheel blur (PR 4.4.1.1) | Utility tunnel (PR 4.4.2) | Nursery and service road (PR 4.4.3) | Stream and levee (PR 4.4.4) | Return lane and finish (PR 4.4.6) | Off-track clearing (PR 4.4.7) | Detail pass (PR 4.4.8) | Race audio and ambience (PR 4.5) |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| Frame p50 / p95 | 17.0 / 18.0 ms | 17.0 / 18.0 ms | 17.0 / 18.0 ms | 17.0 / 18.0–19.0 ms | 17.0 / 18.0 ms | 17.0 / 18.0 ms | 17.0 / 18.0 ms | 17.0 / 18.0 ms | 17.0 / 18.0 ms | 17.0 / 18.0 ms | 17.0 / 18.0 ms | 17.0 / 18.0 ms | 17.0 / 18.0 ms | 17.0 / 18.0 ms | 17.0 / 18.0 ms | 17.0 / 18.0 ms | 17.0 / 18.0 ms | 17.0 / 18.0 ms | 17.0 / 18.0 ms | 17.0 / 18.0–19.0 ms | 17.0 / 18.0–19.0 ms | 17.0 / 18.0 ms | 17.0 / 18.0 ms | 17.0 / 17.0 ms |
-| CPU p50 / p95 | 3 / 4 ms | 3 / 4 ms | 2 / 3 ms | 2 / 3 ms | 2 / 3–4 ms | 2 / 3 ms | 3 / 4 ms | 2 / 3–4 ms | 2–3 / 4 ms | 2 / 3 ms | 2 / 3 ms | 2 / 3–4 ms | 2 / 3 ms | 3 / 4 ms | 2–3 / 3–4 ms | 3 / 4 ms | 3 / 4 ms | 3 / 4 ms | 4 / 5 ms | 4 / 5–6 ms | 5 / 6 ms | 3 / 7 ms | 4 / 7 ms | 3 / 4 ms |
-| Draw calls p50 / max | 212 / 226 | 213 / 226 | 38–39 / 55 | 38–39 / 51 | 34 / 45–46 | 35 / 48–49 | 35–36 / 46–49 | 36–37 / 49–51 | 37–39 / 49–51 | 36–37 / 49–50 | 30–31 / 41 | 31–32 / 41–42 | 30–32 / 41 | 44–45 / 55–58 | 31 / 43–44 | 24 / 37–39 | 27 / 42 | 32 / 52 | 40–41 / 65–69 | 45–48 / 67–68 | 46–47 / 68–70 | 49–50 / 70 | 52 / 73 | 55 / 70 |
-| First frame (warm) | 63–136 ms | 107–278 ms | 121–128 ms | 132–191 ms | 335–392 ms | 133–207 ms | 136–282 ms | 147–230 ms | 240–243 ms | Not measured | 259 ms | 352–433 ms | 289–295 ms | 302–575 ms | 265–281 ms | 305–321 ms | 300 ms | 302 ms | 421 ms | 465–549 ms | 464–495 ms (reported) | 490 ms | 393 ms | 412 ms |
+| Measure | Before lighting (PR 4.1.2 start) | After lighting baseline | Part visuals (PR 4.1.3) | Authored primitives (PR 4.1.4) | Sandbox surfaces (PR 4.2.1) | Surface physics (PR 4.2.2) | Collision substeps (PR 4.2.3) | Surface effects (PR 4.2.4) | Surface scans (PR 4.2.5) | Handbrake clutch (PR 4.2.6) | Island Three (PR 4.3.1) | Habitat physics (PR 4.3.2) | Loading screen (PR 4.3.3) | Valley structures (PR 4.3.4) | Dusk and night (PR 4.3.5) | Falls View Park route (PR 4.4.1) | Wheel blur (PR 4.4.1.1) | Utility tunnel (PR 4.4.2) | Nursery and service road (PR 4.4.3) | Stream and levee (PR 4.4.4) | Return lane and finish (PR 4.4.6) | Off-track clearing (PR 4.4.7) | Detail pass (PR 4.4.8) | Race audio and ambience (PR 4.5) | Ghosts (PR 5.1) |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| Frame p50 / p95 | 17.0 / 18.0 ms | 17.0 / 18.0 ms | 17.0 / 18.0 ms | 17.0 / 18.0–19.0 ms | 17.0 / 18.0 ms | 17.0 / 18.0 ms | 17.0 / 18.0 ms | 17.0 / 18.0 ms | 17.0 / 18.0 ms | 17.0 / 18.0 ms | 17.0 / 18.0 ms | 17.0 / 18.0 ms | 17.0 / 18.0 ms | 17.0 / 18.0 ms | 17.0 / 18.0 ms | 17.0 / 18.0 ms | 17.0 / 18.0 ms | 17.0 / 18.0 ms | 17.0 / 18.0 ms | 17.0 / 18.0–19.0 ms | 17.0 / 18.0–19.0 ms | 17.0 / 18.0 ms | 17.0 / 18.0 ms | 17.0 / 17.0 ms | 17.0 / 18.0 ms |
+| CPU p50 / p95 | 3 / 4 ms | 3 / 4 ms | 2 / 3 ms | 2 / 3 ms | 2 / 3–4 ms | 2 / 3 ms | 3 / 4 ms | 2 / 3–4 ms | 2–3 / 4 ms | 2 / 3 ms | 2 / 3 ms | 2 / 3–4 ms | 2 / 3 ms | 3 / 4 ms | 2–3 / 3–4 ms | 3 / 4 ms | 3 / 4 ms | 3 / 4 ms | 4 / 5 ms | 4 / 5–6 ms | 5 / 6 ms | 3 / 7 ms | 4 / 7 ms | 3 / 4 ms | 3 / 4–5 ms |
+| Draw calls p50 / max | 212 / 226 | 213 / 226 | 38–39 / 55 | 38–39 / 51 | 34 / 45–46 | 35 / 48–49 | 35–36 / 46–49 | 36–37 / 49–51 | 37–39 / 49–51 | 36–37 / 49–50 | 30–31 / 41 | 31–32 / 41–42 | 30–32 / 41 | 44–45 / 55–58 | 31 / 43–44 | 24 / 37–39 | 27 / 42 | 32 / 52 | 40–41 / 65–69 | 45–48 / 67–68 | 46–47 / 68–70 | 49–50 / 70 | 52 / 73 | 55 / 70 | 85–88 / 117–121 |
+| First frame (warm) | 63–136 ms | 107–278 ms | 121–128 ms | 132–191 ms | 335–392 ms | 133–207 ms | 136–282 ms | 147–230 ms | 240–243 ms | Not measured | 259 ms | 352–433 ms | 289–295 ms | 302–575 ms | 265–281 ms | 305–321 ms | 300 ms | 302 ms | 421 ms | 465–549 ms | 464–495 ms (reported) | 490 ms | 393 ms | 412 ms | 411 ms |
 
 PR 4.1.4 was measured with one race on each official kart rather than three
 Balanced races. Each official kart is 15.3–15.5k triangles: 11.6k of part
@@ -454,3 +454,13 @@ draws nothing: the draw counts (a 55 median, 70 at most) are the course's.
 The race was ready later than PR 4.4.8's 480 ms in the A/B runs too, sound
 on or off (650–868 ms), so audio does not cause it. The four mono
 recordings add about 1 MB to download, after the first frame.
+
+PR 5.1 was measured with two warm iPhone races at night on the QA build,
+charging, with no hitches: one racing a stored ghost, then one with the
+Ghost switch off (the startup figures are the first race's). The ghost
+adds about three draws (an 88 median with it, 85 without) and no
+measurable CPU work (3 ms median both ways, p95 4–5 ms); frame time holds,
+and the warm first frame took 411 ms, within budget. The rise from PR
+4.5's 55-draw median comes from the night lighting rather than the ghost:
+both races drew 112–113 forward draws at most with no shadow map, so the
+course's draw count depends on the time of day it is measured at.

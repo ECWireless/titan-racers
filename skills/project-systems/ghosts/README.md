@@ -14,10 +14,9 @@ and checking runs against their recordings.
 
 ## Source Ownership
 
-- `src/game/ghost/ghost-trace.ts`: the versioned binary format (8-byte
-  header, 24-byte samples: race µs, root position in mm, smallest-three
-  rotation, reset and gate flags, steer in degrees at ±45° full scale), strict
-  decoding, base64, and `GhostRecorder`.
+- `src/game/ghost/ghost-trace.ts`: the versioned binary format (its layout
+  is in the file's header comment), strict decoding, base64, and
+  `GhostRecorder`.
 - `src/game/ghost/ghost-playback.ts`: sampling a pose at a race time
   (time-scaled Hermite positions, shorter-arc rotation blend, reset holds).
 - `src/game/ghost/ghost-kart-visual.ts`: the ghost kart, drawn from its own
@@ -38,27 +37,28 @@ and checking runs against their recordings.
 - A new best is kept on finish and raced from the next Race again. Bests are
   keyed `titan-racers.ghost.v1:<course>:<revision or seed>:<physics>` and
   carry the kart document, centre of mass, and wheel stations, so another
-  kart can be drawn. A best on a published revision drops the seed's and
-  earlier revisions'; a best raced on the bundled seed drops none. A record
+  kart can be drawn. Every new best drops bests under other physics; one on a
+  published revision also drops the seed's and earlier revisions'. A record
   this build cannot read or draw is ignored or forgotten, and the race runs
   without a ghost.
 - The ghost is one unlit, dithered material in the site blue, in its own
   dynamic batch, with no shadows. It hides within a quarter of a kart length
-  of the kart's root and shows again past 0.35 lengths.
+  of the kart's root and shows again past 0.35 lengths. Race again with a
+  new best of the same kart swaps only the path.
 - `ghosts` is on only for home's solo race; the kart editor's test drive and
-  the axis-ramp test have none. Run summaries record which ghost a race
-  raced ([telemetry](../gameplay-telemetry/README.md)).
+  the axis-ramp test have none. Run summaries record which ghost a race was
+  set to race at its start ([telemetry](../gameplay-telemetry/README.md)).
 
 ## PlayCanvas Notes
 
 - Tone mapping multiplies by the scene exposure, so the ghost's emissive
   intensity is `1 / exposure`; turning tone mapping off does not skip it.
-- A dynamic batch draws a copy of its material made when the batch is built,
-  so material changes never reach an existing batch. The ghost therefore
-  hides through its batches' `meshInstance.visible`, looked up every frame,
-  and runs the pending batch rebuild (`batcher.updateAll()`) when it is
-  enabled. Toggling `enabled` rebuilds the batch, so it is kept for rare
-  changes (finish, switch, Race again).
+- Dynamic batches draw copies of their materials
+  ([scene lighting](../scene-lighting/README.md)), so the ghost fades through
+  its batches' `meshInstance.visible`, looked up every frame, rather than its
+  material. Toggling `enabled` rebuilds the batch, so it is kept for rare
+  changes (finish, switch, Race again), and the pending rebuild runs at once
+  (`batcher.updateAll()`) so a fade applies from the first frame.
 
 ## Verification
 
@@ -72,3 +72,7 @@ and checking runs against their recordings.
 
 - Both steered wheels take the centre steer angle, without Ackermann's
   spread, and a reversing ghost's wheels roll forward.
+- The ghost's shader compiles the first time it is drawn, after it pulls
+  clear early in the race, which may cost one long frame on a phone. Drawing
+  it once behind the loading screen doubled every later frame's cost under
+  software WebGL, so it is not warmed.

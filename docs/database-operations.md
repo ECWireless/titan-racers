@@ -121,7 +121,10 @@ being remapped.
 Migration `0019` (PR 5.1) adds nullable `gameplay_runs.ghost`, which ghost a
 version-three run raced (`none` or `own_best`), and adds it to the immutable
 race identity. Apply it with `0018`, before deploying the build that sends it.
-Rolling back only drops a column no earlier build reads.
+To roll back code, keep the column: earlier builds ignore it. Dropping it first
+needs `0018`'s version of `prevent_gameplay_run_race_identity_changes`
+restored, since `0019` replaced that trigger function to read `ghost`, and
+every later run update would otherwise fail.
 
 Courses are saved as schema version eleven (kits, kerbs, bevels, signs, and
 elbow collision, from PR 4.4.8); earlier rows load unchanged, with no
