@@ -22,6 +22,12 @@ export type DirectedRaceGate = {
 export type GateCrossingOptions = {
   boundsTolerance?: number;
   planeEpsilon?: number;
+  /**
+   * How far either end of the segment may sit on the wrong side of the gate
+   * plane, for positions rounded after the fact (a ghost recording's
+   * millimetres). Zero for live race positions.
+   */
+  planeTolerance?: number;
 };
 
 const DEFAULT_BOUNDS_TOLERANCE = 1e-6;
@@ -74,24 +80,27 @@ export function crossesDirectedRaceGate(
 
   const planeEpsilon = options.planeEpsilon ?? DEFAULT_PLANE_EPSILON;
   const boundsTolerance = options.boundsTolerance ?? DEFAULT_BOUNDS_TOLERANCE;
+  const planeTolerance = options.planeTolerance ?? 0;
   const previousOffset = subtract(previousPosition, gate.center);
   const currentOffset = subtract(currentPosition, gate.center);
   const previousDistance = dot(previousOffset, gate.forward);
   const currentDistance = dot(currentOffset, gate.forward);
 
+  const travel = currentDistance - previousDistance;
   if (
-    previousDistance >= -planeEpsilon ||
-    currentDistance < 0 ||
-    currentDistance - previousDistance <= planeEpsilon
+    previousDistance >= planeTolerance - planeEpsilon ||
+    currentDistance < -planeTolerance ||
+    // Rounding can make a slow crossing's ends coincide, or even reverse.
+    travel <= planeEpsilon - 2 * planeTolerance
   ) {
     return false;
   }
 
+  // Without a plane tolerance the fraction is already within (0, 1].
   const intersectionFraction =
-    -previousDistance / (currentDistance - previousDistance);
-  if (intersectionFraction < 0 || intersectionFraction > 1) {
-    return false;
-  }
+    travel > planeEpsilon
+      ? Math.min(1, Math.max(0, -previousDistance / travel))
+      : 1;
 
   const intersectionOffset = {
     x:

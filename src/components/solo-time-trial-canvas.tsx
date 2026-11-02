@@ -197,7 +197,7 @@ import {
   steadyShadowFit,
 } from "@/game/render/scene-look";
 import { FrameBudgetRecorder } from "@/game/runtime/frame-budget";
-import { createRaceSessionConfig } from "@/game/race/playcanvas-race-course";
+import { createRaceSessionConfig } from "@/game/race/race-course";
 import {
   createLoadingRacePresentationSnapshot,
   createRacePresentationSnapshot,
