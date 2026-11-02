@@ -13,8 +13,9 @@ with the PlayCanvas/Ammo mapping in
 The system owns loading-through-finish lifecycle state, deterministic countdown
 and race time, ordered directed checkpoints, lap completion, invalid-crossing
 handling, pause/resume state, and safe checkpoint recovery. It does not own the
-final integrated HUD, leaderboard persistence, analytics, ghosts, multiplayer,
-or the final Falls View Park course.
+final integrated HUD, leaderboard persistence, analytics, multiplayer, or the
+final Falls View Park course; races are recorded as
+[ghosts](../ghosts/README.md).
 
 ## Source Ownership
 
@@ -99,7 +100,8 @@ or the final Falls View Park course.
 - Race snapshots and test diagnostics are defensive plain-data copies. Runtime
   PlayCanvas, Ammo, and mutable internal objects never cross the public or test
   contract.
-- Race progress and per-frame kart paths are not persisted.
+- Race progress is not persisted. A race's kart path is kept only as its
+  ghost recording ([ghosts](../ghosts/README.md)).
 
 ## Verification
 
@@ -122,8 +124,8 @@ Focused coverage includes:
 
 ## Known Limits And Deferred Work
 
-- Race results and progress are session-memory only; results, ghosts, and
-  leaderboards arrive in Phase 5.
+- Race results are session-memory only; results and leaderboards are not
+  supported yet.
 - The rough course is the development loop. Falls View Park has its own
   circuit, gates, and recoveries.
 - Recovery support uses the accepted authored candidate chain and current

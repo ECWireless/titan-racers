@@ -35,7 +35,7 @@ The site tokens live in `src/app/globals.css`.
 | Hazard | `#ffbd59` | Floor markings and caution striping. |
 | Rust | `#bd482d` | Weathering and secondary warning color. |
 | Steel | `#34404a` | Machinery, frames, and technical surfaces. |
-| Blue | `#42a5ff` | Rare technical accent, such as indicators. |
+| Blue | `#42a5ff` | Rare technical accent, such as indicators and the see-through race ghost. |
 
 Orange and hazard are signals. Use them sparingly so they stay readable.
 

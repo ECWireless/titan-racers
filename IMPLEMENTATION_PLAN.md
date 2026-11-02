@@ -234,14 +234,14 @@ Phase decisions:
 
 **PR 5.1: Race identity and ghosts**
 
-- [ ] Races and telemetry record the course and kart IDs and their
+- [x] Races and telemetry record the course and kart IDs and their
       publication revisions instead of hard-coding the official course.
-- [ ] Run summaries record whether a race came from Race again and which
+- [x] Run summaries record whether a race came from Race again and which
       ghost it raced (none or your own; later PRs add their choices).
-- [ ] The ghost recording format and recorder.
-- [ ] One see-through ghost with no collision, sound, or shadow: your best on
+- [x] The ghost recording format and recorder.
+- [x] One see-through ghost with no collision, sound, or shadow: your best on
       this device, behind a ghost switch.
-- [ ] The result screen shows the kart used.
+- [x] The result screen shows the kart used.
 - [ ] Ghost playback stays within the phone budget (`?perf=1`).
 
 **PR 5.2: Wallet login and account linking**
@@ -526,10 +526,14 @@ course-specific ghosts or leaderboards.
       junction kits, and sprinkler or drip irrigation over the nursery rows,
       within the phone budget.
 - [ ] Loose ends from Phase 4: the junction chamber's valve risers have no
-      collision, and three `home.spec` tests fail on `main` ("keeps a late
-      thumbnail fallback isolated from race startup", "keeps the drive
-      cursor hidden and restores it while paused", and "recovers a lost
-      WebGL context into an explicit pause…").
+      collision, and tests fail on `main` on the lead's server under
+      software WebGL: four in `home.spec` ("keeps a late thumbnail fallback
+      isolated from race startup", "keeps the drive cursor hidden and
+      restores it while paused", "recovers a lost WebGL context into an
+      explicit pause…", and "navigates guest menus end-to-end with a
+      standard controller snapshot") and two in `gameplay-telemetry.spec`
+      ("flushes one coarse health summary…" and "reports ordered run
+      milestones…", which time out clicking Exit).
 - [ ] Analytics review: confirm we can measure time to first race, race start
       and completion, replays, room joins, shares, login after a race,
       leaderboard submissions, community publishing and play, thumbs-ups,
