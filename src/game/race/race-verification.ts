@@ -28,7 +28,7 @@ const RACE_CHECK_LIMITS = {
  */
 export const MAX_RUN_SAMPLES = 20_000;
 
-export const RACE_CHECK_REJECTIONS = [
+const RACE_CHECK_REJECTIONS = [
   "off-start",
   "too-fast",
   "bad-reset",
@@ -37,7 +37,7 @@ export const RACE_CHECK_REJECTIONS = [
   "unfinished",
   "too-long",
 ] as const;
-export type RaceCheckRejection = (typeof RACE_CHECK_REJECTIONS)[number];
+type RaceCheckRejection = (typeof RACE_CHECK_REJECTIONS)[number];
 
 /**
  * Why a submitted run did not count: the check's reasons, a recording that
@@ -50,7 +50,7 @@ export const RUN_REJECTIONS = [
 ] as const;
 export type RunRejection = (typeof RUN_REJECTIONS)[number];
 
-export type RaceCheckResult =
+type RaceCheckResult =
   | { verified: true; timeMicroseconds: number }
   | { verified: false; reason: RaceCheckRejection };
 
@@ -69,7 +69,8 @@ function distance(left: RaceVector3, right: RaceVector3) {
 /**
  * Checks a finished race's recording against its course, as the server does
  * before a run counts, mirroring `RaceSession`'s progression. Only
- * gate-flagged samples may cross, each must cross the expected gate, and the
+ * gate-flagged samples count as crossings, each must cross the expected gate,
+ * and the
  * speed between samples is capped. A reset may land only on the race's newest
  * reset point (the last checkpoint passed this lap, else the start), as the
  * race picks when that point has ground, so a reset never moves a kart

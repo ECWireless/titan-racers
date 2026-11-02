@@ -55,7 +55,7 @@ export function RunStandingSummary({
     content = (
       <>
         <dl className="grid gap-2">
-          <StandingRow label="Rank">
+          <StandingRow label="Board rank">
             {standing.rank} of {standing.entries}
           </StandingRow>
           <StandingRow label="Personal best">
@@ -70,7 +70,7 @@ export function RunStandingSummary({
           className="justify-self-center text-xs font-bold uppercase tracking-[0.16em] text-titan-hazard underline-offset-4 hover:underline"
           href="/leaderboard"
         >
-          Leaderboard
+          View leaderboard
         </Link>
       </>
     );

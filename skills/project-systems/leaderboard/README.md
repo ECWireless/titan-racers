@@ -91,7 +91,5 @@ yet: boards for earlier revisions, and a guest's login prompt and claims.
 ## Known Limits
 
 - A recording does not prove which kart raced it.
-- Every recovery point needs ground under it for its resets to verify
-  ([race progression](../race-progression/README.md)).
 - A run on an older published revision ranks on that revision's board, while
   `/leaderboard` shows only the newest.

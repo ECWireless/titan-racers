@@ -232,7 +232,6 @@ export async function recordRunSubmission(
       },
       rank: standing.rank,
       status: "verified",
-      timeMicroseconds: run.timeMicroseconds,
     };
   });
 }

@@ -1803,7 +1803,6 @@ test.describe("home screen", () => {
           personalBest: { improved: true, timeMicroseconds: 61_234_000 },
           rank: 2,
           status: "verified",
-          timeMicroseconds: 61_234_000,
         },
       });
     });
@@ -1889,11 +1888,11 @@ test.describe("home screen", () => {
       .toEqual({ recording, ticket: "test-ticket" });
     // The result shows the server's standing for the run.
     const standing = finishDialog.getByRole("status");
-    await expect(standing).toContainText("Rank2 of 5");
+    await expect(standing).toContainText("Board rank2 of 5");
     await expect(standing).toContainText("Personal best1:01.234New");
     await expect(standing).toContainText("MedalSilver");
     await expect(
-      standing.getByRole("link", { exact: true, name: "Leaderboard" }),
+      standing.getByRole("link", { name: "View leaderboard" }),
     ).toHaveAttribute("href", "/leaderboard");
     await expect(finishDialog.getByRole("listitem")).toHaveCount(2);
     await expect(finishDialog).toContainText("Balanced Kart");

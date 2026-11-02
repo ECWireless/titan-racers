@@ -29,10 +29,10 @@ final Falls View Park course; races are recorded as
   supplies the race configuration: a three-second countdown, two laps, and a
   half-second recovery stabilization.
 - `src/game/race/race-verification.ts` checks a finished race's ghost
-  recording against its course: crossings only on gate-flagged samples and in
-  order, samples at least a fixed step apart under a speed cap, and resets
-  only to the race's newest reset point. The time comes from the finishing
-  crossing.
+  recording against its course: only gate-flagged samples count as
+  crossings, in order; samples are at least a fixed step apart under a speed
+  cap; and resets land only on the race's newest reset point. The time comes
+  from the finishing crossing.
 - `src/game/course/course-document.ts` owns the canonical version-two start-gate,
   checkpoint direction, and recovery contract plus immutable version-one
   normalization. Candidate v2 directions are aligned to the full rotated gate

@@ -34,7 +34,6 @@ const runSubmissionResponseSchema = z.discriminatedUnion("status", [
     }),
     rank: z.number().int().positive(),
     status: z.literal("verified"),
-    timeMicroseconds: microsecondsSchema,
   }),
   z.strictObject({
     reason: z.enum(RUN_REJECTIONS),

@@ -211,7 +211,8 @@ Phase decisions:
   real elapsed time at least the race time), re-runs the gate check on the
   recording against that course revision, caps speed, allows jumps only to
   reset points, and takes the time from its own check. The client never sends
-  a tier or rank. A forged recording that obeys the physics can still pass.
+  a time, medal, or rank. A forged recording that obeys the checks can still
+  pass.
 - **Eligibility:** a logged-in player with a username, an official kart, and
   a published course revision under the current physics. Community karts stay
   casual and multiplayer results stay room-only. Runs that leave through the

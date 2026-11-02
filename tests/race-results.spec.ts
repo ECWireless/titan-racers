@@ -211,7 +211,6 @@ test.describe("verified runs", () => {
       personalBest: { improved: true, timeMicroseconds: slow.timeMicroseconds },
       rank: 1,
       status: "verified",
-      timeMicroseconds: slow.timeMicroseconds,
     });
     expect(
       (await submit(first.headers, ticket, encode(fast.samples))).status,
@@ -235,7 +234,6 @@ test.describe("verified runs", () => {
         improved: false,
         timeMicroseconds: fast.timeMicroseconds,
       },
-      timeMicroseconds: slow.timeMicroseconds,
     });
     const [best] = await db
       .select({ ghost: boardBests.ghost })
