@@ -47,6 +47,7 @@ async function fulfillIncompleteProfile(page: Page, suggestion = "elliott4821") 
     if (route.request().method() === "GET") {
       await route.fulfill({
         body: JSON.stringify({
+          loginMethods: [],
           status: "incomplete",
           suggestedUsername: suggestion,
         }),
@@ -104,7 +105,11 @@ test.describe("racer onboarding and profile", () => {
   }) => {
     await page.route(profileApiPattern, async (route) => {
       await route.fulfill({
-        body: JSON.stringify({ status: "complete", username: "nova_racer" }),
+        body: JSON.stringify({
+          loginMethods: [],
+          status: "complete",
+          username: "nova_racer",
+        }),
         contentType: "application/json",
         status: 200,
       });
@@ -114,6 +119,54 @@ test.describe("racer onboarding and profile", () => {
     await expect(page.getByText("@nova_racer")).toBeVisible();
     await expect(page.getByRole("textbox")).toHaveCount(0);
     await expect(page.getByRole("button", { name: /save|create/i })).toHaveCount(0);
+  });
+
+  test("lists login methods and unlinks while another remains", async ({
+    page,
+  }) => {
+    const google = { id: "google-row", kind: "google", label: "Google" };
+    const wallet = { id: "wallet-row", kind: "wallet", label: "0x1111…1111" };
+    let unlinkBody: unknown;
+    await page.route(profileApiPattern, async (route) => {
+      await route.fulfill({
+        body: JSON.stringify({
+          loginMethods: [google, wallet],
+          status: "complete",
+          username: "nova_racer",
+        }),
+        contentType: "application/json",
+      });
+    });
+    await page.route("**/api/profile/login-methods", async (route) => {
+      expect(route.request().method()).toBe("DELETE");
+      unlinkBody = route.request().postDataJSON();
+      await route.fulfill({
+        body: JSON.stringify({ loginMethods: [google] }),
+        contentType: "application/json",
+      });
+    });
+
+    await page.goto("/profile");
+    const methods = page.getByRole("region", { name: "Login methods" });
+    await expect(methods.getByRole("listitem")).toHaveText([
+      /Google/,
+      /Wallet 0x1111…1111/,
+    ]);
+    await expect(
+      methods.getByRole("button", { exact: true, name: "Link Google" }),
+    ).toHaveCount(0);
+    await methods
+      .getByRole("button", { name: "Unlink Wallet 0x1111…1111" })
+      .click();
+    expect(unlinkBody).toEqual({ id: "wallet-row" });
+    await expect(page.getByText("Wallet 0x1111…1111 unlinked.")).toBeVisible();
+    await expect(methods.getByRole("listitem")).toHaveText([/Google/]);
+    await expect(
+      methods.getByRole("button", { name: "Unlink Google" }),
+    ).toBeDisabled();
+    await expect(
+      methods.getByText("Add another login method before removing this one."),
+    ).toBeVisible();
   });
 
   test("starts Google sign-in through onboarding for signed-out racers", async ({
@@ -143,10 +196,89 @@ test.describe("racer onboarding and profile", () => {
 
     await page.goto("/profile");
     await expect(
-      page.getByText("Sign in with Google, then choose the username"),
+      page.getByText("Sign in with Google or a browser wallet"),
     ).toBeVisible();
+    await expect(page.getByText("No browser wallet detected")).toBeVisible();
     await page.getByRole("button", { name: "Continue with Google" }).click();
     await expect(page).toHaveURL(/oauth=started/);
+  });
+
+  test("signs in with a chosen browser wallet", async ({ page }) => {
+    const walletAddress = "0x1111111111111111111111111111111111111111";
+    await page.addInitScript((address) => {
+      const provider = {
+        request: async ({ method }: { method: string }) =>
+          method === "eth_requestAccounts" ? [address] : "0xabc123",
+      };
+      window.addEventListener("eip6963:requestProvider", () => {
+        for (const name of ["Test Wallet", "Other Wallet"]) {
+          window.dispatchEvent(
+            new CustomEvent("eip6963:announceProvider", {
+              detail: Object.freeze({
+                info: {
+                  icon: "data:image/svg+xml,<svg/>",
+                  name,
+                  rdns: `${name}.test`,
+                  uuid: name,
+                },
+                provider,
+              }),
+            }),
+          );
+        }
+      });
+    }, walletAddress);
+    let verifyBody: { message?: string } | undefined;
+    await page.route(profileApiPattern, async (route) => {
+      await route.fulfill(
+        verifyBody
+          ? {
+              body: JSON.stringify({
+                loginMethods: [],
+                status: "incomplete",
+                suggestedUsername: "racer4821",
+              }),
+              contentType: "application/json",
+              status: 200,
+            }
+          : { body: "{}", contentType: "application/json", status: 401 },
+      );
+    });
+    await page.route("**/api/auth/siwe/nonce", async (route) => {
+      expect(route.request().postDataJSON()).toEqual({
+        chainId: 8453,
+        walletAddress,
+      });
+      await route.fulfill({
+        body: JSON.stringify({ nonce: "abcdefgh12345678" }),
+        contentType: "application/json",
+      });
+    });
+    await page.route("**/api/auth/siwe/verify", async (route) => {
+      verifyBody = route.request().postDataJSON();
+      await route.fulfill({
+        body: JSON.stringify({ success: true }),
+        contentType: "application/json",
+      });
+    });
+
+    await page.goto("/profile");
+    await page.getByRole("button", { name: "Continue with wallet" }).click();
+    const testWallet = page
+      .getByRole("group", { name: "Choose a wallet" })
+      .getByRole("button", { name: "Test Wallet" });
+    await expect(testWallet).toBeFocused();
+    await testWallet.click();
+    await expect(page.getByLabel("Username")).toHaveValue("racer4821");
+    expect(verifyBody).toMatchObject({
+      chainId: 8453,
+      signature: "0xabc123",
+      walletAddress,
+    });
+    expect(verifyBody?.message).toContain(
+      `${new URL(page.url()).host} wants you to sign in with your Ethereum account:\n${walletAddress}`,
+    );
+    expect(verifyBody?.message).toContain("Nonce: abcdefgh12345678");
   });
 
   test("rejects invalid usernames before sending a claim", async ({ page }) => {
@@ -305,7 +437,11 @@ test.describe("racer onboarding and profile", () => {
   test("rejects unsafe onboarding return paths", async ({ page }) => {
     await page.route(profileApiPattern, async (route) => {
       await route.fulfill({
-        body: JSON.stringify({ status: "complete", username: "safe_racer" }),
+        body: JSON.stringify({
+          loginMethods: [],
+          status: "complete",
+          username: "safe_racer",
+        }),
         contentType: "application/json",
         status: 200,
       });

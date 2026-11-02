@@ -17,7 +17,7 @@ accepted; the app, README, and durable docs take over from there.
 
 - **Done:** Phases 0–4 (PRs #1–#24, the Phase 3 closeout and its
   follow-ups, and #30–#57 with the PR 4.5.2 closeout).
-- **Next:** PR 5.1. Phase 5's debrief is done (see its phase decisions).
+- **Next:** PR 5.3. PRs 5.1 (#59) and 5.2 are done (see Phase 5's decisions).
 
 ## Guiding Decisions
 
@@ -223,7 +223,8 @@ Phase decisions:
   time. Each is granted once per player per course; they are display-only and
   unlock no parts.
 - **Login:** Google, plus SIWE login with browser wallets (EIP-6963) that sign
-  with their own key. A new wallet creates a racer with a generated ID.
+  with their own key; sign-in messages name Base (chain 8453). A new wallet
+  creates a racer with a generated ID, and a racer may link several wallets.
   Signed-in racers link a wallet or Google explicitly; email never links
   accounts, accounts never merge, and the last login method cannot be
   unlinked. WalletConnect, smart-contract wallets, ENS, embedded wallets,
@@ -246,12 +247,12 @@ Phase decisions:
 
 **PR 5.2: Wallet login and account linking**
 
-- [ ] Wallet sign-in through Better Auth's SIWE plugin, and our own route to
+- [x] Wallet sign-in through Better Auth's SIWE plugin, and our own route to
       link a wallet to the signed-in racer (the plugin's sign-in ignores the
       session).
-- [ ] Link Google to a wallet-first racer; unlink while another method
+- [x] Link Google to a wallet-first racer; unlink while another method
       remains.
-- [ ] The profile lists login methods; anonymization removes wallets.
+- [x] The profile lists login methods; anonymization removes wallets.
 
 **PR 5.3: Verified runs, leaderboard, and medals**
 

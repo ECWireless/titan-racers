@@ -696,6 +696,7 @@ test.describe("course persistence and authorization", () => {
     const initialResponse = await getProfile(makeProfileRequest());
     expect(initialResponse.status).toBe(200);
     await expect(initialResponse.json()).resolves.toEqual({
+      loginMethods: [],
       status: "incomplete",
       suggestedUsername: seed,
     });
@@ -860,10 +861,10 @@ test.describe("course persistence and authorization", () => {
     expect(wrongMediaTypeResponse.status).toBe(415);
   });
 
-  test("disables account linking and never retains Google token material", async () => {
+  test("links accounts only explicitly and never retains Google token material", async () => {
     expect(auth.options.account?.accountLinking).toMatchObject({
       disableImplicitLinking: true,
-      enabled: false,
+      enabled: true,
     });
 
     const userId = randomUUID();

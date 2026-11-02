@@ -1,16 +1,24 @@
 import { drizzleAdapter } from "@better-auth/drizzle-adapter";
 import { APIError } from "better-auth/api";
+import { generateRandomString } from "better-auth/crypto";
 import { betterAuth } from "better-auth/minimal";
+import { siwe } from "better-auth/plugins/siwe";
 
 import { db } from "@/db/client";
 import { authSchema } from "@/db/schema";
 import { createRacerUsernameSeed } from "@/lib/racer-username";
+import {
+  isWalletAddress,
+  verifyWalletSignature,
+  WALLET_EMAIL_DOMAIN,
+} from "@/lib/siwe";
 
 const unavailableValue = "unavailable-until-runtime-environment-is-configured";
+const baseURL = process.env.BETTER_AUTH_URL ?? "http://localhost:3000";
 
 export const auth = betterAuth({
   appName: "Titan Racers",
-  baseURL: process.env.BETTER_AUTH_URL ?? "http://localhost:3000",
+  baseURL,
   secret: process.env.BETTER_AUTH_SECRET ?? unavailableValue,
   database: drizzleAdapter(db, {
     provider: "pg",
@@ -27,10 +35,15 @@ export const auth = betterAuth({
       },
     },
   },
+  // Our profile route unlinks so a wallet's SIWE row goes with its account.
+  disabledPaths: ["/unlink-account"],
   account: {
+    // Only a signed-in racer's explicit link adds Google; a matching email
+    // never links, and wallet-first racers have a placeholder email.
     accountLinking: {
+      allowDifferentEmails: true,
       disableImplicitLinking: true,
-      enabled: false,
+      enabled: true,
     },
     encryptOAuthTokens: true,
     updateAccountOnSignIn: false,
@@ -46,6 +59,14 @@ export const auth = betterAuth({
       prompt: "select_account",
     },
   },
+  plugins: [
+    siwe({
+      domain: new URL(baseURL).host,
+      emailDomainName: WALLET_EMAIL_DOMAIN,
+      getNonce: async () => generateRandomString(32, "a-z", "A-Z", "0-9"),
+      verifyMessage: verifyWalletSignature,
+    }),
+  ],
   databaseHooks: {
     user: {
       create: {
@@ -53,7 +74,11 @@ export const auth = betterAuth({
           data: {
             ...user,
             image: null,
-            name: createRacerUsernameSeed(user.name),
+            // A wallet-first racer's name is its address; never suggest it
+            // as a public username.
+            name: isWalletAddress(user.name)
+              ? "racer"
+              : createRacerUsernameSeed(user.name),
           },
         }),
       },
