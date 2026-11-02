@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 
-import { and, desc, eq } from "drizzle-orm";
+import { and, desc, eq, sql } from "drizzle-orm";
 
 import { db } from "@/db/client";
 import { coursePublications, courseRevisions, courses } from "@/db/schema";
@@ -93,6 +93,30 @@ export async function loadCourseRevisionDocument(
     )
     .limit(1);
   return row ? parseCourseDocument(row.document) : null;
+}
+
+/**
+ * The newest published revision and the course's name in it, without
+ * parsing the whole document as `loadLatestCoursePublication` does.
+ */
+export async function loadLatestPublishedRevision(courseId: string) {
+  const [row] = await db
+    .select({
+      courseName: sql<string>`${courseRevisions.document} ->> 'name'`,
+      revision: coursePublications.revision,
+    })
+    .from(coursePublications)
+    .innerJoin(
+      courseRevisions,
+      and(
+        eq(courseRevisions.courseId, coursePublications.courseId),
+        eq(courseRevisions.revision, coursePublications.revision),
+      ),
+    )
+    .where(eq(coursePublications.courseId, courseId))
+    .orderBy(desc(coursePublications.id))
+    .limit(1);
+  return row ?? null;
 }
 
 /** Whether a revision was ever published; a race outlives a later republish. */

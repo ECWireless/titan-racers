@@ -7,7 +7,6 @@ import {
 } from "../ghost/ghost-trace";
 import { CURRENT_PHYSICS_VERSION } from "../physics/physics-version";
 import type { GameplayRaceIdentity } from "../telemetry/gameplay-run-events";
-import { MEDAL_TIERS } from "./race-medals";
 import { RUN_REJECTIONS } from "./race-verification";
 
 /**
@@ -29,10 +28,6 @@ const microsecondsSchema = z.number().int().positive();
 const runSubmissionResponseSchema = z.discriminatedUnion("status", [
   z.strictObject({
     entries: z.number().int().positive(),
-    medal: z.strictObject({
-      newTiers: z.array(z.enum(MEDAL_TIERS)),
-      tier: z.enum(MEDAL_TIERS),
-    }),
     personalBest: z.strictObject({
       improved: z.boolean(),
       timeMicroseconds: microsecondsSchema,
@@ -58,10 +53,15 @@ function postJson(path: string, body: unknown, timeoutMs: number) {
   });
 }
 
-/** A ticket for a race that can count, else null (a guest, a bundled race). */
+export type RunTicketOutcome = { ticket: string } | { reason: NoTicketReason };
+
+/**
+ * A ticket for a race that can count, or why it gets none; null for a
+ * bundled race or when the request fails.
+ */
 export async function requestRunTicket(
   identity: GameplayRaceIdentity,
-): Promise<string | null> {
+): Promise<RunTicketOutcome | null> {
   const { courseId, courseRevision, kartId, kartRevision } = identity;
   if (courseRevision === null || kartRevision === null) return null;
   try {
@@ -77,7 +77,10 @@ export async function requestRunTicket(
       5_000,
     );
     if (!response.ok) return null;
-    return ticketResponseSchema.parse(await response.json()).ticket;
+    const parsed = ticketResponseSchema.parse(await response.json());
+    return parsed.ticket === null
+      ? { reason: parsed.reason }
+      : { ticket: parsed.ticket };
   } catch {
     return null;
   }

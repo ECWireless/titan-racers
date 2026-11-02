@@ -1,5 +1,4 @@
 import {
-  type AnyPgColumn,
   boolean,
   check,
   customType,
@@ -17,7 +16,6 @@ import {
 } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 
-import { MEDAL_TIERS } from "../game/race/race-medals";
 import {
   MAX_RUN_SAMPLES,
   RUN_REJECTIONS,
@@ -564,8 +562,6 @@ export const gameplayRuns = pgTable(
   ],
 );
 
-export const medalTier = pgEnum("medal_tier", MEDAL_TIERS);
-
 export const raceResultStatus = pgEnum("race_result_status", [
   "verified",
   "rejected",
@@ -579,15 +575,6 @@ export const leaderboards = pgTable(
     courseId: text("course_id").notNull(),
     courseRevision: integer("course_revision").notNull(),
     physicsVersion: text("physics_version").notNull(),
-    // An admin's own verified run on this board sets its medal times.
-    developerResultId: uuid("developer_result_id").references(
-      (): AnyPgColumn => raceResults.id,
-      { onDelete: "restrict" },
-    ),
-    developerSetAt: timestamp("developer_set_at", {
-      mode: "date",
-      withTimezone: true,
-    }),
     createdAt: timestamp("created_at", { mode: "date", withTimezone: true })
       .defaultNow()
       .notNull(),
@@ -606,10 +593,6 @@ export const leaderboards = pgTable(
     check(
       "leaderboards_physics_version_length",
       sql`char_length(${table.physicsVersion}) between 1 and 80`,
-    ),
-    check(
-      "leaderboards_developer_time_pair",
-      sql`(${table.developerResultId} is null) = (${table.developerSetAt} is null)`,
     ),
   ],
 );
@@ -690,29 +673,6 @@ export const boardBests = pgTable(
         String(8 + 24 * MAX_RUN_SAMPLES),
       )}`,
     ),
-  ],
-);
-
-// Medal tiers, each granted once per player per course and never revoked.
-export const courseMedals = pgTable(
-  "course_medals",
-  {
-    userId: text("user_id")
-      .notNull()
-      .references(() => users.id, { onDelete: "restrict" }),
-    courseId: text("course_id")
-      .notNull()
-      .references(() => courses.id, { onDelete: "restrict" }),
-    tier: medalTier("tier").notNull(),
-    resultId: uuid("result_id")
-      .notNull()
-      .references(() => raceResults.id, { onDelete: "restrict" }),
-    grantedAt: timestamp("granted_at", { mode: "date", withTimezone: true })
-      .defaultNow()
-      .notNull(),
-  },
-  (table) => [
-    primaryKey({ columns: [table.userId, table.courseId, table.tier] }),
   ],
 );
 

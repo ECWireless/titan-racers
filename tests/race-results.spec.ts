@@ -8,7 +8,6 @@ import { postRunTicket } from "../src/app/api/runs/tickets/route";
 import { db } from "../src/db/client";
 import {
   boardBests,
-  courseMedals,
   leaderboards,
   raceResults,
   users,
@@ -22,7 +21,6 @@ import {
 import { createBalancedKartDocument } from "../src/game/kart/balanced-kart-document";
 import { CURRENT_PHYSICS_VERSION } from "../src/game/physics/physics-version";
 import { createRaceSessionConfig } from "../src/game/race/race-course";
-import { earnedMedalTiers } from "../src/game/race/race-medals";
 import {
   publishCourseRevision,
   saveCourseRevision,
@@ -35,6 +33,9 @@ import {
   checkSubmittedRun,
   recordRunSubmission,
 } from "../src/server/race-results";
+import { leaderboardResponseSchema } from "../src/game/race/leaderboard";
+import { medalForRank } from "../src/game/race/race-medals";
+import { loadLeaderboard } from "../src/server/leaderboard";
 import { issueRunTicket, readRunTicket } from "../src/server/run-tickets";
 import { anonymizeUserByEmail } from "../src/server/user-anonymization";
 import { recordRace, routeThroughGates } from "./support/race-recording";
@@ -139,23 +140,6 @@ async function submit(headers: Headers, ticket: string, recording: string) {
   return postRun(post("/api/runs", headers, { recording, ticket }));
 }
 
-test("medals are a finish, then bronze, silver, and gold near the developer time", () => {
-  expect(earnedMedalTiers(1_000, null)).toEqual(["finish"]);
-  expect(earnedMedalTiers(1_501, 1_000)).toEqual(["finish"]);
-  expect(earnedMedalTiers(1_500, 1_000)).toEqual(["finish", "bronze"]);
-  expect(earnedMedalTiers(1_200, 1_000)).toEqual([
-    "finish",
-    "bronze",
-    "silver",
-  ]);
-  expect(earnedMedalTiers(1_060, 1_000)).toEqual([
-    "finish",
-    "bronze",
-    "silver",
-    "gold",
-  ]);
-});
-
 test.describe("verified runs", () => {
   test.beforeEach(() => {
     test.skip(
@@ -222,7 +206,6 @@ test.describe("verified runs", () => {
     expect(response.status).toBe(200);
     expect(await response.json()).toEqual({
       entries: 1,
-      medal: { newTiers: ["finish"], tier: "finish" },
       personalBest: { improved: true, timeMicroseconds: slow.timeMicroseconds },
       rank: 1,
       status: "verified",
@@ -238,7 +221,6 @@ test.describe("verified runs", () => {
       encode(fast.samples),
     );
     expect(await improved.json()).toMatchObject({
-      medal: { newTiers: [], tier: "finish" },
       personalBest: { improved: true, timeMicroseconds: fast.timeMicroseconds },
     });
     const slower = await submit(
@@ -327,9 +309,6 @@ test.describe("verified runs", () => {
       .where(eq(boardBests.userId, second.id));
     expect(best.timeMicroseconds).toBe(fast.timeMicroseconds);
     expect(ghostTraceToBase64(best.ghost)).toBe(encode(fast.samples));
-    await expect(
-      db.select().from(courseMedals).where(eq(courseMedals.userId, second.id)),
-    ).resolves.toHaveLength(1);
   });
 
   test("stores why a run did not verify, without a best", async () => {
@@ -394,46 +373,7 @@ test.describe("verified runs", () => {
     }
   });
 
-  test("grants each medal tier once, against the board's developer time", async () => {
-    const board = await publishedBoard();
-    const developer = await racer();
-    const player = await racer();
-    const developerTicket = board.ticket(developer.id);
-    await submit(developer.headers, developerTicket, encode(race(10).samples));
-    await db
-      .update(leaderboards)
-      .set({
-        developerResultId: readRunTicket(developerTicket)!.id,
-        developerSetAt: new Date(),
-      })
-      .where(eq(leaderboards.courseId, board.courseId));
-    const medalFor = async (speed: number) =>
-      (
-        (await (
-          await submit(
-            player.headers,
-            board.ticket(player.id),
-            encode(race(speed).samples),
-          )
-        ).json()) as { medal: unknown }
-      ).medal;
-
-    // About 43% slower, then 5% slower, than the developer.
-    expect(await medalFor(7)).toEqual({
-      newTiers: ["finish", "bronze"],
-      tier: "bronze",
-    });
-    expect(await medalFor(9.5)).toEqual({
-      newTiers: ["silver", "gold"],
-      tier: "gold",
-    });
-    expect(await medalFor(9.5)).toEqual({ newTiers: [], tier: "gold" });
-    await expect(
-      db.select().from(courseMedals).where(eq(courseMedals.userId, player.id)),
-    ).resolves.toHaveLength(4);
-  });
-
-  test("anonymization removes bests and medals and refuses new ones", async () => {
+  test("anonymization removes bests and refuses new ones", async () => {
     const board = await publishedBoard();
     const me = await racer();
     const ticket = board.ticket(me.id);
@@ -447,9 +387,6 @@ test.describe("verified runs", () => {
     await anonymizeUserByEmail(me.email);
     await expect(
       db.select().from(boardBests).where(eq(boardBests.userId, me.id)),
-    ).resolves.toEqual([]);
-    await expect(
-      db.select().from(courseMedals).where(eq(courseMedals.userId, me.id)),
     ).resolves.toEqual([]);
     await expect(
       db.select().from(raceResults).where(eq(raceResults.userId, me.id)),
@@ -491,5 +428,44 @@ test.describe("verified runs", () => {
     await expect(
       db.select().from(raceResults).where(eq(raceResults.userId, other.id)),
     ).resolves.toEqual([]);
+  });
+
+  test("lists the board, with gold, silver, and bronze for the top three", async () => {
+    const board = await publishedBoard();
+    const entrants = [await racer(), await racer(), await racer(), await racer()];
+    const ranks = [];
+    for (const [index, entrant] of entrants.entries()) {
+      // Each racer is slower than the last, so each lands one place lower.
+      const response = await submit(
+        entrant.headers,
+        board.ticket(entrant.id),
+        encode(race(10 - index).samples),
+      );
+      ranks.push(((await response.json()) as { rank: number }).rank);
+    }
+    expect(ranks).toEqual([1, 2, 3, 4]);
+    expect(ranks.map(medalForRank)).toEqual(["gold", "silver", "bronze", null]);
+
+    // The public board carries no racer or result IDs.
+    const listed = leaderboardResponseSchema.parse(
+      await loadLeaderboard(board.courseId, entrants[3].id),
+    );
+    expect(listed.board).toMatchObject({
+      courseName: FALLS_VIEW_PARK_DOCUMENT.name,
+      viewer: { rank: 4 },
+    });
+    expect(
+      listed.board!.entries.map(({ kartName, rank, viewer }) => ({
+        kartName,
+        rank,
+        viewer,
+      })),
+    ).toEqual(
+      [1, 2, 3, 4].map((rank) => ({
+        kartName: "Balanced Kart",
+        rank,
+        viewer: rank === 4,
+      })),
+    );
   });
 });

@@ -1,5 +1,5 @@
 {
-  "id": "56320547-a75a-4b77-bd14-50b7040ac0f1",
+  "id": "64a151fe-d03c-4fa5-b483-0c10566a78d2",
   "prevId": "0722b84a-d343-4390-8cf4-26814ed2a2b2",
   "version": "7",
   "dialect": "postgresql",
@@ -292,100 +292,6 @@
           "value": "octet_length(\"board_bests\".\"ghost\") between 32 and 480008"
         }
       },
-      "isRLSEnabled": false
-    },
-    "public.course_medals": {
-      "name": "course_medals",
-      "schema": "",
-      "columns": {
-        "user_id": {
-          "name": "user_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "course_id": {
-          "name": "course_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "tier": {
-          "name": "tier",
-          "type": "medal_tier",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "result_id": {
-          "name": "result_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "granted_at": {
-          "name": "granted_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {
-        "course_medals_user_id_users_id_fk": {
-          "name": "course_medals_user_id_users_id_fk",
-          "tableFrom": "course_medals",
-          "tableTo": "users",
-          "columnsFrom": [
-            "user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "restrict",
-          "onUpdate": "no action"
-        },
-        "course_medals_course_id_courses_id_fk": {
-          "name": "course_medals_course_id_courses_id_fk",
-          "tableFrom": "course_medals",
-          "tableTo": "courses",
-          "columnsFrom": [
-            "course_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "restrict",
-          "onUpdate": "no action"
-        },
-        "course_medals_result_id_race_results_id_fk": {
-          "name": "course_medals_result_id_race_results_id_fk",
-          "tableFrom": "course_medals",
-          "tableTo": "race_results",
-          "columnsFrom": [
-            "result_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "restrict",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {
-        "course_medals_user_id_course_id_tier_pk": {
-          "name": "course_medals_user_id_course_id_tier_pk",
-          "columns": [
-            "user_id",
-            "course_id",
-            "tier"
-          ]
-        }
-      },
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
       "isRLSEnabled": false
     },
     "public.course_publications": {
@@ -1534,18 +1440,6 @@
           "primaryKey": false,
           "notNull": true
         },
-        "developer_result_id": {
-          "name": "developer_result_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "developer_set_at": {
-          "name": "developer_set_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
         "created_at": {
           "name": "created_at",
           "type": "timestamp with time zone",
@@ -1584,19 +1478,6 @@
         }
       },
       "foreignKeys": {
-        "leaderboards_developer_result_id_race_results_id_fk": {
-          "name": "leaderboards_developer_result_id_race_results_id_fk",
-          "tableFrom": "leaderboards",
-          "tableTo": "race_results",
-          "columnsFrom": [
-            "developer_result_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "restrict",
-          "onUpdate": "no action"
-        },
         "leaderboards_course_revision_fk": {
           "name": "leaderboards_course_revision_fk",
           "tableFrom": "leaderboards",
@@ -1620,10 +1501,6 @@
         "leaderboards_physics_version_length": {
           "name": "leaderboards_physics_version_length",
           "value": "char_length(\"leaderboards\".\"physics_version\") between 1 and 80"
-        },
-        "leaderboards_developer_time_pair": {
-          "name": "leaderboards_developer_time_pair",
-          "value": "(\"leaderboards\".\"developer_result_id\" is null) = (\"leaderboards\".\"developer_set_at\" is null)"
         }
       },
       "isRLSEnabled": false
@@ -2262,16 +2139,6 @@
       "values": [
         "publish",
         "unpublish"
-      ]
-    },
-    "public.medal_tier": {
-      "name": "medal_tier",
-      "schema": "public",
-      "values": [
-        "finish",
-        "bronze",
-        "silver",
-        "gold"
       ]
     },
     "public.race_result_status": {

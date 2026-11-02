@@ -1,12 +1,7 @@
 import { and, eq, sql } from "drizzle-orm";
 
 import { db } from "@/db/client";
-import {
-  boardBests,
-  courseMedals,
-  leaderboards,
-  raceResults,
-} from "@/db/schema";
+import { boardBests, leaderboards, raceResults } from "@/db/schema";
 import { LEADERBOARD_COURSE_IDS } from "@/game/course/course-ids";
 import {
   decodeGhostTrace,
@@ -16,7 +11,6 @@ import {
 import { OFFICIAL_KART_IDS } from "@/game/kart/official-kart-roster";
 import { CURRENT_PHYSICS_VERSION } from "@/game/physics/physics-version";
 import { createRaceSessionConfig } from "@/game/race/race-course";
-import { earnedMedalTiers, MEDAL_TIERS } from "@/game/race/race-medals";
 import type { RaceSessionConfig } from "@/game/race/race-session";
 import {
   type RunRejection,
@@ -58,6 +52,56 @@ export async function isLeaderboardRace(
     wasKartRevisionPublished(race.kartId, race.kartRevision),
   ]);
   return course && kart;
+}
+
+type Transaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
+
+/** A board's ID, or null before its first run. */
+export async function findLeaderboard(
+  executor: typeof db | Transaction,
+  board: Pick<RunTicket, "courseId" | "courseRevision" | "physicsVersion">,
+) {
+  const [found] = await executor
+    .select({ id: leaderboards.id })
+    .from(leaderboards)
+    .where(
+      and(
+        eq(leaderboards.courseId, board.courseId),
+        eq(leaderboards.courseRevision, board.courseRevision),
+        eq(leaderboards.physicsVersion, board.physicsVersion),
+      ),
+    );
+  return found?.id ?? null;
+}
+
+/**
+ * A racer's best on a board, its rank, and the board's size. Bests rank by
+ * time, then who set it first, then racer, as the board lists them.
+ */
+export async function racerStanding(
+  executor: typeof db | Transaction,
+  leaderboardId: number,
+  userId: string,
+) {
+  const { rows } = await executor.execute<{
+    best: number;
+    entries: number;
+    rank: number;
+  }>(sql`
+    select
+      mine.time_microseconds as best,
+      count(*)::int as entries,
+      1 + (count(*) filter (
+        where (other.time_microseconds, other.achieved_at, other.user_id)
+          < (mine.time_microseconds, mine.achieved_at, mine.user_id)
+      ))::int as rank
+    from ${boardBests} mine
+    join ${boardBests} other on other.leaderboard_id = mine.leaderboard_id
+    where mine.leaderboard_id = ${leaderboardId}
+      and mine.user_id = ${userId}
+    group by mine.time_microseconds, mine.achieved_at, mine.user_id
+  `);
+  return rows[0] ?? null;
 }
 
 // Revisions never change, so their gates are built once per server.
@@ -110,33 +154,15 @@ export async function checkSubmittedRun(
 
 /**
  * Stores a submitted run under its ticket's ID, so each ticket counts once.
- * A verified run replaces the racer's best on its board only when faster,
- * and is granted each medal tier it earns that the racer does not hold.
+ * A verified run replaces the racer's best on its board only when faster.
  */
 export async function recordRunSubmission(
   ticket: RunTicket,
   run: CheckedRun,
 ): Promise<RunSubmissionResponse | "duplicate"> {
   return db.transaction(async (transaction) => {
-    const board = and(
-      eq(leaderboards.courseId, ticket.courseId),
-      eq(leaderboards.courseRevision, ticket.courseRevision),
-      eq(leaderboards.physicsVersion, ticket.physicsVersion),
-    );
-    const findBoard = () =>
-      transaction
-        .select({
-          developerMicroseconds: raceResults.timeMicroseconds,
-          leaderboardId: leaderboards.id,
-        })
-        .from(leaderboards)
-        .leftJoin(
-          raceResults,
-          eq(raceResults.id, leaderboards.developerResultId),
-        )
-        .where(board);
-    let [found] = await findBoard();
-    if (!found) {
+    let leaderboardId = await findLeaderboard(transaction, ticket);
+    if (leaderboardId === null) {
       // The first run on a board creates it; a racing first run may too.
       await transaction
         .insert(leaderboards)
@@ -146,9 +172,8 @@ export async function recordRunSubmission(
           physicsVersion: ticket.physicsVersion,
         })
         .onConflictDoNothing();
-      [found] = await findBoard();
+      leaderboardId = (await findLeaderboard(transaction, ticket))!;
     }
-    const { developerMicroseconds, leaderboardId } = found;
 
     const stored = await transaction
       .insert(raceResults)
@@ -193,63 +218,14 @@ export async function recordRunSubmission(
       })
       .returning({ userId: boardBests.userId });
 
-    const {
-      rows: [standing],
-    } = await transaction.execute<{
-      best: number;
-      entries: number;
-      rank: number;
-    }>(sql`
-      select
-        mine.time_microseconds as best,
-        count(*)::int as entries,
-        1 + (count(*) filter (
-          where (other.time_microseconds, other.achieved_at, other.user_id)
-            < (mine.time_microseconds, mine.achieved_at, mine.user_id)
-        ))::int as rank
-      from ${boardBests} mine
-      join ${boardBests} other on other.leaderboard_id = mine.leaderboard_id
-      where mine.leaderboard_id = ${leaderboardId}
-        and mine.user_id = ${ticket.userId}
-      group by mine.time_microseconds, mine.achieved_at, mine.user_id
-    `);
-
-    const granted = await transaction
-      .insert(courseMedals)
-      .values(
-        earnedMedalTiers(run.timeMicroseconds, developerMicroseconds).map(
-          (tier) => ({
-            courseId: ticket.courseId,
-            resultId: ticket.id,
-            tier,
-            userId: ticket.userId,
-          }),
-        ),
-      )
-      .onConflictDoNothing()
-      .returning({ tier: courseMedals.tier });
-    const held = new Set(
-      (
-        await transaction
-          .select({ tier: courseMedals.tier })
-          .from(courseMedals)
-          .where(
-            and(
-              eq(courseMedals.userId, ticket.userId),
-              eq(courseMedals.courseId, ticket.courseId),
-            ),
-          )
-      ).map(({ tier }) => tier),
-    );
-    const newTiers = new Set(granted.map(({ tier }) => tier));
+    const standing = (await racerStanding(
+      transaction,
+      leaderboardId,
+      ticket.userId,
+    ))!;
 
     return {
       entries: standing.entries,
-      medal: {
-        newTiers: MEDAL_TIERS.filter((tier) => newTiers.has(tier)),
-        // A verified run always holds at least the finish tier.
-        tier: [...MEDAL_TIERS].reverse().find((tier) => held.has(tier))!,
-      },
       personalBest: {
         improved: improved.length > 0,
         timeMicroseconds: standing.best,

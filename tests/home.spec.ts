@@ -799,6 +799,7 @@ test.describe("home screen", () => {
     ).toBeVisible();
     await expect(page.getByRole("link", { name: "Kart Builder" })).toBeVisible();
     await expect(page.getByRole("link", { name: "Profile" })).toBeVisible();
+    await expect(page.getByRole("link", { name: "Leaderboard" })).toBeVisible();
     await expect(page.getByRole("link", { name: "Telemetry" })).toHaveCount(0);
     expect(
       await page.evaluate(() => document.documentElement.scrollWidth),
@@ -817,6 +818,32 @@ test.describe("home screen", () => {
 
     await raceFriends.click();
     await expect(page.getByRole("status")).toHaveText("coming soon");
+  });
+
+  test("offers Sign out while signed in, else Sign in", async ({ page }) => {
+    let signedIn = true;
+    await page.route("**/api/auth/get-session", (route) =>
+      route.fulfill({
+        json: signedIn ? { session: { id: "session" }, user: { id: "racer" } } : null,
+      }),
+    );
+    await page.route("**/api/auth/sign-out", (route) => {
+      signedIn = false;
+      return route.fulfill({ json: { success: true } });
+    });
+    await page.goto("/");
+
+    const utilityMenu = page.getByRole("button", { name: "Open utility menu" });
+    await utilityMenu.click();
+    await page.getByRole("button", { name: "Sign out" }).click();
+    await expect(utilityMenu).toBeFocused();
+    expect(signedIn).toBe(false);
+    await utilityMenu.click();
+    await expect(page.getByRole("link", { name: "Sign in" })).toHaveAttribute(
+      "href",
+      "/profile",
+    );
+    await expect(page.getByRole("button", { name: "Sign out" })).toHaveCount(0);
   });
 
   test("selects and races only currently published official karts", async ({
@@ -1762,7 +1789,15 @@ test.describe("home screen", () => {
     let submitted: unknown = null;
     await page.route("**/api/runs", async (route) => {
       submitted = route.request().postDataJSON();
-      await route.fulfill({ json: { error: "Not stored." }, status: 503 });
+      await route.fulfill({
+        json: {
+          entries: 5,
+          personalBest: { improved: true, timeMicroseconds: 61_234_000 },
+          rank: 2,
+          status: "verified",
+          timeMicroseconds: 61_234_000,
+        },
+      });
     });
     await page.goto("/?sandbox-course");
     await page.getByRole("button", { name: "Solo Time Trial" }).click();
@@ -1844,6 +1879,14 @@ test.describe("home screen", () => {
     await expect
       .poll(() => submitted)
       .toEqual({ recording, ticket: "test-ticket" });
+    // The result shows the server's standing for the run.
+    const standing = finishDialog.getByRole("status");
+    await expect(standing).toContainText("Rank2 of 5");
+    await expect(standing).toContainText("Personal best1:01.234New");
+    await expect(standing).toContainText("MedalSilver");
+    await expect(
+      standing.getByRole("link", { name: "Leaderboard" }),
+    ).toHaveAttribute("href", "/leaderboard");
     await expect(finishDialog.getByRole("listitem")).toHaveCount(2);
     await expect(finishDialog).toContainText("Balanced Kart");
     await expect(
@@ -3654,6 +3697,10 @@ test.describe("home screen", () => {
     const courseEditor = page.getByRole("link", { name: "Course Editor" });
     const kartBuilder = page.getByRole("link", { name: "Kart Builder" });
     const profile = page.getByRole("link", { name: "Profile" });
+    await setStandardTestGamepad(page);
+    await page.waitForTimeout(50);
+    await setStandardTestGamepad(page, { buttons: { 13: 1 } });
+    await expect(page.getByRole("link", { name: "Leaderboard" })).toBeFocused();
     await setStandardTestGamepad(page);
     await page.waitForTimeout(50);
     await setStandardTestGamepad(page, { buttons: { 13: 1 } });

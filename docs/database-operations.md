@@ -134,13 +134,13 @@ wallet login, or wallet sign-in and linking fail (Google login is unaffected).
 To roll back code, keep the migration: earlier builds ignore it, but racers who
 signed up with a wallet cannot sign in.
 
-Migration `0021` (PR 5.3) adds `leaderboards`, `race_results`, `board_bests`
-(with each racer's best ghost), and `course_medals`. Results are immutable,
-and triggers refuse new results, bests, or medals for an anonymized racer.
-Apply it before deploying the build that submits runs, or submissions and
-anonymization fail. To roll back code, keep the tables: earlier builds ignore
-them, but their anonymization leaves bests and medals behind, so re-run any
-anonymization done meanwhile with a current build.
+Migration `0021` (PR 5.3) adds `leaderboards`, `race_results`, and
+`board_bests` (with each racer's best ghost). Results are immutable, and
+triggers refuse new results or bests for an anonymized racer. Apply it before
+deploying the build that submits runs, or submissions and anonymization fail.
+To roll back code, keep the tables: earlier builds ignore them, but their
+anonymization leaves bests behind, so re-run any anonymization done meanwhile
+with a current build.
 
 Courses are saved as schema version eleven (kits, kerbs, bevels, signs, and
 elbow collision, from PR 4.4.8); earlier rows load unchanged, with no
@@ -232,8 +232,8 @@ corepack pnpm db:anonymize-user --wallet 0x0000000000000000000000000000000000000
 
 A wallet-first racer has no real email, so it is found by any linked wallet.
 This transaction deletes sessions, linked provider accounts, wallets and
-their sign-in nonces, leaderboard bests with their ghosts, and medals,
-removes privileged roles, clears the profile image and verification state,
+their sign-in nonces, and leaderboard bests with their ghosts, removes
+privileged roles, clears the profile image and verification state,
 and replaces the name and email with non-personal tombstone values. The
 opaque user row and baseline player role remain so immutable course
 revisions and race results keep referential integrity. The supplied email or

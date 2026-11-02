@@ -19,6 +19,10 @@ import {
   type FrameBudgetReport,
 } from "@/components/frame-budget-overlay";
 import { KartStatsDrawer } from "@/components/kart-stats-drawer";
+import {
+  type RunStanding,
+  RunStandingSummary,
+} from "@/components/run-standing";
 import { GhostToggle, SoundToggle } from "@/components/setting-switch";
 import type {
   CourseTestObstacleId,
@@ -198,7 +202,11 @@ import {
 } from "@/game/render/scene-look";
 import { FrameBudgetRecorder } from "@/game/runtime/frame-budget";
 import { createRaceSessionConfig } from "@/game/race/race-course";
-import { requestRunTicket, submitRun } from "@/game/race/run-submission";
+import {
+  requestRunTicket,
+  type RunTicketOutcome,
+  submitRun,
+} from "@/game/race/run-submission";
 import {
   createLoadingRacePresentationSnapshot,
   createRacePresentationSnapshot,
@@ -683,8 +691,11 @@ export function SoloTimeTrialCanvas({
   const touchJoystickPointerRef = useRef<number | null>(null);
   const kartTapCandidateRef = useRef<KartTapCandidate | null>(null);
   const gameplayTelemetryStartedRef = useRef(false);
-  // The current run's ticket request, if its result can count.
-  const runTicketRef = useRef<Promise<string | null> | null>(null);
+  // The current run's ticket request, if its result can count, and which run
+  // it is, so a late standing never lands on a later run's result.
+  const runTicketRef = useRef<Promise<RunTicketOutcome | null> | null>(null);
+  const runNumberRef = useRef(0);
+  const [runStanding, setRunStanding] = useState<RunStanding | null>(null);
   const [gameplayTelemetry] = useState(
     () =>
       new GameplayRunTelemetry(
@@ -2595,6 +2606,8 @@ export function SoloTimeTrialCanvas({
           if (submitsRuns) {
             runTicketRef.current = requestRunTicket(raceIdentityRef.current);
           }
+          runNumberRef.current += 1;
+          setRunStanding(null);
           gameplayTelemetry.markRuntimeLoaded();
           ghostRecorder.reset();
           raceStartReported = false;
@@ -3369,9 +3382,24 @@ export function SoloTimeTrialCanvas({
         runTicketRef.current = null;
         if (runTicket && finishedGhostTrace) {
           const recording = finishedGhostTrace;
+          const runNumber = runNumberRef.current;
+          const show = (standing: RunStanding) => {
+            if (runNumberRef.current === runNumber) setRunStanding(standing);
+          };
           window.setTimeout(() => {
-            void runTicket.then((ticket) => {
-              if (ticket) void submitRun(ticket, recording);
+            void runTicket.then(async (outcome) => {
+              if (!outcome) return;
+              if ("reason" in outcome) {
+                // Guests' prompt to log in comes with claiming runs.
+                if (outcome.reason === "username") show({ status: "username" });
+                return;
+              }
+              show({ status: "pending" });
+              show(
+                (await submitRun(outcome.ticket, recording)) ?? {
+                  status: "failed",
+                },
+              );
             });
           }, 0);
         }
@@ -4055,8 +4083,8 @@ export function SoloTimeTrialCanvas({
       return;
     }
     const buttons = Array.from(
-      event.currentTarget.querySelectorAll<HTMLButtonElement>(
-        "button:not(:disabled)",
+      event.currentTarget.querySelectorAll<HTMLElement>(
+        "button:not(:disabled), a[href]",
       ),
     );
     const first = buttons[0];
@@ -4314,7 +4342,7 @@ export function SoloTimeTrialCanvas({
             <div
               aria-labelledby="finish-dialog-title"
               aria-modal="true"
-              className="absolute inset-0 z-30 grid place-items-center bg-titan-black/76 px-6 text-center font-mono text-titan-ice backdrop-blur-sm"
+              className="absolute inset-0 z-30 grid place-items-center overflow-y-auto bg-titan-black/76 px-6 py-4 text-center font-mono text-titan-ice backdrop-blur-sm"
               role="dialog"
               onKeyDown={handleDialogKeyDown}
             >
@@ -4352,6 +4380,7 @@ export function SoloTimeTrialCanvas({
                     </li>
                   ))}
                 </ol>
+                <RunStandingSummary standing={runStanding} />
                 <div className="grid gap-3">
                   <button
                     type="button"
