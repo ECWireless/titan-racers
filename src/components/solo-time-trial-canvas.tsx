@@ -19,7 +19,7 @@ import {
   type FrameBudgetReport,
 } from "@/components/frame-budget-overlay";
 import { KartStatsDrawer } from "@/components/kart-stats-drawer";
-import { SoundToggle } from "@/components/sound-toggle";
+import { GhostToggle, SoundToggle } from "@/components/setting-switch";
 import type {
   CourseTestObstacleId,
   DrivingInput,
@@ -218,6 +218,21 @@ import {
   describeKartLighting,
 } from "@/game/testing/scene-test-adapter";
 import {
+  type DeviceGhost,
+  forgetDeviceGhost,
+  type GhostKart,
+  keepDeviceGhostIfBest,
+  readDeviceGhost,
+  readGhostSwitch,
+} from "@/game/ghost/device-ghost";
+import {
+  createGhostKartVisual,
+  createGhostMaterial,
+  type GhostKartVisual,
+} from "@/game/ghost/ghost-kart-visual";
+import { createGhostPose, GhostPlayback } from "@/game/ghost/ghost-playback";
+import { DEFAULT_FIXED_STEP_SECONDS } from "@/game/runtime/fixed-step-clock";
+import {
   encodeGhostTrace,
   GhostRecorder,
   type GhostSample,
@@ -333,6 +348,8 @@ type SoloTimeTrialCanvasProps = {
   courseDocument?: CourseDocument;
   /** The course's published revision; null or omitted for a bundled seed. */
   courseRevision?: number | null;
+  /** Race your best ghost on this device and keep a new best. */
+  ghosts?: boolean;
   includeCollisionFixtures?: boolean;
   kartDocument?: KartAssemblyDocument;
   /** The kart's published revision; null or omitted for a bundled kart. */
@@ -362,6 +379,8 @@ type SoloSceneControls = {
   requestKartTapRighting: (clientX: number, clientY: number) => boolean;
   requestTouchReset: () => void;
   restartRace: () => boolean;
+  /** Hides the ghost at once; a paused race draws no pose updates. */
+  hideGhost: () => void;
   setKartDevelopmentValues: (values: Partial<KartDevelopmentValues>) => void;
   setTouchJoystick: (pointerId: number, x: number, y: number) => void;
   setPaused: (paused: boolean) => void;
@@ -458,6 +477,7 @@ function setTouchJoystickPresentation(
 export function SoloTimeTrialCanvas({
   courseDocument = ROUGH_COURSE_DOCUMENT,
   courseRevision = null,
+  ghosts = false,
   includeCollisionFixtures = false,
   kartDocument = DEFAULT_BALANCED_KART_DOCUMENT,
   kartRevision = null,
@@ -486,6 +506,15 @@ export function SoloTimeTrialCanvas({
   useEffect(() => {
     raceIdentityRef.current = raceIdentity;
   }, [raceIdentity]);
+  // Races mount only after a click, so reading storage here is safe.
+  const [initialGhost] = useState(() =>
+    ghosts ? readDeviceGhost(courseDocument.courseId, courseRevision) : null,
+  );
+  const [ghostOn, setGhostOn] = useState(readGhostSwitch);
+  const ghostOnRef = useRef(ghostOn);
+  useEffect(() => {
+    ghostOnRef.current = ghostOn;
+  }, [ghostOn]);
   const kartRuntime = useMemo(() => {
     const snapshot = kartSnapshot ?? deriveKartSnapshot(kartDocument);
     const inertiaTensor: KartInertiaTensor =
@@ -737,9 +766,11 @@ export function SoloTimeTrialCanvas({
   useEffect(() => {
     if (!gameplayTelemetryStartedRef.current) {
       gameplayTelemetryStartedRef.current = true;
-      gameplayTelemetry.start(raceIdentityRef.current);
+      gameplayTelemetry.start(raceIdentityRef.current, {
+        ghost: initialGhost && ghostOnRef.current ? "own_best" : "none",
+      });
     }
-  }, [gameplayTelemetry]);
+  }, [gameplayTelemetry, initialGhost]);
 
   useEffect(() => {
     raceSpeedUnitRef.current = raceSpeedUnit;
@@ -1102,6 +1133,53 @@ export function SoloTimeTrialCanvas({
       });
 
       kartAssemblyFrame.addChild(kartVisual);
+
+      // The ghost being raced, and a new best waiting for the next race.
+      // Made on first use, once the scene look has set the exposure.
+      let ghostMaterial: pc.StandardMaterial | null = null;
+      let activeGhost: DeviceGhost | null = null;
+      let ghostPlayback: GhostPlayback | null = null;
+      let ghostVisual: GhostKartVisual | null = null;
+      let pendingGhost: DeviceGhost | null = null;
+      let lastGhostTimeMicroseconds = 0;
+      const ghostPose = createGhostPose();
+      const installGhost = (ghost: DeviceGhost): boolean => {
+        ghostVisual?.destroy();
+        ghostVisual = null;
+        ghostPlayback = null;
+        activeGhost = null;
+        try {
+          ghostMaterial ??= createGhostMaterial(app.scene.exposure);
+          ghostVisual = createGhostKartVisual(app, ghost.kart, ghostMaterial);
+          ghostPlayback = new GhostPlayback(ghost.samples);
+          activeGhost = ghost;
+        } catch {
+          // A stored kart this build cannot draw: race without a ghost.
+          ghostVisual?.destroy();
+          ghostVisual = null;
+        }
+        lastGhostTimeMicroseconds = 0;
+        return activeGhost !== null;
+      };
+      // Nearly on top of the kart (as on the grid), the ghost would fight
+      // it for the same pixels and shimmer; touching or overlapping karts
+      // cross instead, which reads fine. It fades out there and back in a
+      // little further away, so a close race does not make it blink.
+      const ghostFadeDistance = 0.25 * kartRuntime.dimensions.z;
+      const ghostShowDistance = 0.35 * kartRuntime.dimensions.z;
+      let ghostFaded = false;
+      runtime.addCleanup(() => {
+        ghostVisual?.destroy();
+        ghostMaterial?.destroy();
+      });
+      const currentGhostKart: GhostKart = {
+        centerOfMass: { ...KART_CENTER_OF_MASS_OFFSET },
+        document: kartRuntime.document,
+        wheels: (
+          KART_SNAPSHOT.geometry
+            .wheelStations as readonly ResolvedKartWheelStation[]
+        ).map(({ id, radius, steered }) => ({ id, radius, steered })),
+      };
       const currentStartPosition = START_POSITION.clone();
       const currentStartRotation = START_ROTATION.clone();
 
@@ -1324,6 +1402,9 @@ export function SoloTimeTrialCanvas({
         if (entity.light?.castShadows) applyShadowPolicy(entity.light);
       });
       runtime.addCleanup(applySceneLook(app, camera.camera!, habitatLight));
+      if (initialGhost && !installGhost(initialGhost)) {
+        forgetDeviceGhost(initialGhost.courseId, initialGhost.courseRevision);
+      }
       const isUnderRoof = createCourseInteriorTest(COURSE_DOCUMENT);
       const habitatAtlas = app.scene.envAtlas;
       if (interiorAtlas && isUnderRoof && habitatAtlas) {
@@ -2477,12 +2558,20 @@ export function SoloTimeTrialCanvas({
         releaseTouch: (pointerId) => inputManager.releaseTouch(pointerId),
         requestKartTapRighting,
         requestTouchReset: () => inputManager.requestTouchReset(),
+        hideGhost: () => ghostVisual?.update(null, 0),
         restartRace: () => {
           if (!raceSession.restart()) {
             return false;
           }
 
-          gameplayTelemetry.start(raceIdentityRef.current, { raceAgain: true });
+          if (pendingGhost) {
+            installGhost(pendingGhost);
+            pendingGhost = null;
+          }
+          gameplayTelemetry.start(raceIdentityRef.current, {
+            ghost: activeGhost && ghostOnRef.current ? "own_best" : "none",
+            raceAgain: true,
+          });
           gameplayTelemetry.markRuntimeLoaded();
           ghostRecorder.reset();
           raceStartReported = false;
@@ -2986,6 +3075,10 @@ export function SoloTimeTrialCanvas({
             getKartScreenPoint,
             getKartVisualDebugState,
             getPresentationDebugState,
+            getGhostDebugState: () => ({
+              finishMicroseconds: ghostPlayback?.finishMicroseconds ?? null,
+              visible: ghostVisual?.visible() ?? false,
+            }),
             getGhostRecording: () =>
               finishedGhostTrace
                 ? ghostTraceToBase64(encodeGhostTrace(finishedGhostTrace))
@@ -3155,14 +3248,14 @@ export function SoloTimeTrialCanvas({
         // Record while race time runs, and the step that finished it.
         const finishedThisStep =
           crossedGate && lastRaceProgressionResult.kind === "finished";
-        const raceClock = raceSession.snapshot;
+        const lifecycle = raceSession.lifecycleState;
         if (
-          raceClock.state === "racing" ||
-          raceClock.state === "recovering" ||
+          lifecycle === "racing" ||
+          lifecycle === "recovering" ||
           finishedThisStep
         ) {
           ghostRecorder.recordStep(
-            raceClock.elapsedRaceMicroseconds,
+            raceSession.raceMicroseconds,
             currentRacePosition,
             ghostAssemblyRotation.mul2(
               kart.getRotation(),
@@ -3226,6 +3319,27 @@ export function SoloTimeTrialCanvas({
         if (finalSample) {
           finalSample.timeMicroseconds =
             raceSession.snapshot.elapsedRaceMicroseconds;
+        }
+        const bestMicroseconds =
+          (pendingGhost ?? activeGhost)?.timeMicroseconds ?? Infinity;
+        if (
+          ghosts &&
+          finishedGhostTrace &&
+          finalSample &&
+          finalSample.timeMicroseconds < bestMicroseconds
+        ) {
+          const { courseId, courseRevision } = raceIdentityRef.current;
+          pendingGhost = {
+            courseId,
+            courseRevision,
+            kart: currentGhostKart,
+            samples: finishedGhostTrace,
+            timeMicroseconds: finalSample.timeMicroseconds,
+          };
+          // Kept here even if storage refuses it, for this session's races.
+          // Saved after the finish frame, which it would otherwise lengthen.
+          const finishedBest = pendingGhost;
+          window.setTimeout(() => keepDeviceGhostIfBest(finishedBest), 0);
         }
         gameplayTelemetry.complete(
           Math.round(raceSession.snapshot.elapsedRaceMicroseconds / 1_000),
@@ -3307,6 +3421,39 @@ export function SoloTimeTrialCanvas({
         kartVisual.setPosition(interpolatedKartVisualPosition);
         kartVisual.setRotation(interpolatedKartAssemblyRotation);
         renderWheelPresentation(accumulatorFraction, frameSeconds);
+        if (ghostVisual && ghostPlayback) {
+          // The kart is drawn between its last two steps; draw the ghost
+          // at the same moment of race time. A stopped clock (paused,
+          // finished) holds it still a step back.
+          const lifecycle = raceSession.lifecycleState;
+          const clockRunning =
+            lifecycle === "racing" || lifecycle === "recovering";
+          const ghostTime = Math.max(
+            0,
+            raceSession.raceMicroseconds -
+              (clockRunning ? 1 - accumulatorFraction : 1) *
+                DEFAULT_FIXED_STEP_SECONDS *
+                1_000_000,
+          );
+          const pose = ghostOnRef.current
+            ? ghostPlayback.sample(ghostTime, ghostPose)
+            : null;
+          if (pose) {
+            const gap = Math.hypot(
+              pose.position.x - interpolatedKartPosition.x,
+              pose.position.y - interpolatedKartPosition.y,
+              pose.position.z - interpolatedKartPosition.z,
+            );
+            if (gap < ghostFadeDistance) ghostFaded = true;
+            else if (gap > ghostShowDistance) ghostFaded = false;
+          }
+          ghostVisual.update(
+            pose,
+            Math.max(0, ghostTime - lastGhostTimeMicroseconds) / 1_000_000,
+            ghostFaded,
+          );
+          lastGhostTimeMicroseconds = ghostTime;
+        }
         contactShadow.update(kartVisual, findGroundBelowKart);
 
         chaseCamera.update(frameSeconds, getChaseCameraSnapshot());
@@ -3514,7 +3661,9 @@ export function SoloTimeTrialCanvas({
     KART_SNAPSHOT,
     KART_STEERING_GEOMETRY,
     gameplayTelemetry,
+    ghosts,
     includeCollisionFixtures,
+    initialGhost,
     kartRuntime,
     showHabitatReadout,
   ]);
@@ -4106,6 +4255,15 @@ export function SoloTimeTrialCanvas({
                     Resume
                   </button>
                   <SoundToggle on={soundOn} onChange={setSoundOn} />
+                  {ghosts ? (
+                    <GhostToggle
+                      on={ghostOn}
+                      onChange={(on) => {
+                        setGhostOn(on);
+                        if (!on) sceneApiRef.current?.hideGhost();
+                      }}
+                    />
+                  ) : null}
                   <button
                     type="button"
                     className="titan-button titan-button-secondary"

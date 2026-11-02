@@ -39,7 +39,7 @@ import {
 import type { CourseLoadTimings } from "./frame-budget-overlay";
 import { KartThumbnail } from "./kart-thumbnail";
 import { SoloTimeTrialCanvas } from "./solo-time-trial-canvas";
-import { StoredSoundToggle } from "./sound-toggle";
+import { StoredSoundToggle } from "./setting-switch";
 
 // The loading screen stays up at least this long, even when the course is
 // ready sooner.
@@ -408,6 +408,7 @@ export function PlayHome() {
             courseDocument={courseDocument}
             courseRevision={courseRevision}
             exitRef={raceExitRef}
+            ghosts={!axisRampTest}
             kartDocument={kartDocument}
             kartRevision={kartRevision}
             kartSnapshot={kartSnapshot}

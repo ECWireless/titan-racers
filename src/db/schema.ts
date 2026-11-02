@@ -416,6 +416,7 @@ export const gameplayRuns = pgTable(
     kartId: text("kart_id"),
     kartRevision: integer("kart_revision"),
     raceAgain: boolean("race_again"),
+    ghost: text("ghost"),
     deploymentVersion: text("deployment_version").notNull(),
     physicsVersion: text("physics_version"),
     startedAt: timestamp("started_at", { mode: "date", withTimezone: true })
@@ -455,6 +456,10 @@ export const gameplayRuns = pgTable(
         and (${table.kartRevision} is null or (${table.kartRevision} > 0 and ${table.kartId} is not null))
         and (${table.kartId} is null or char_length(${table.kartId}) between 1 and 80)
         and ((${table.kartId} is null) = (${table.raceAgain} is null))`,
+    ),
+    check(
+      "gameplay_runs_ghost",
+      sql`${table.ghost} is null or (${table.kartId} is not null and ${table.ghost} in ('none', 'own_best'))`,
     ),
     check(
       "gameplay_runs_deployment_version_length",

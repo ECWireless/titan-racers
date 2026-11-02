@@ -118,6 +118,11 @@ unaffected). It is forward-only: restoring the known-course check first
 requires removing rows for other courses, which the trigger also stops from
 being remapped.
 
+Migration `0019` (PR 5.1) adds nullable `gameplay_runs.ghost`, which ghost a
+version-three run raced (`none` or `own_best`), and adds it to the immutable
+race identity. Apply it with `0018`, before deploying the build that sends it.
+Rolling back only drops a column no earlier build reads.
+
 Courses are saved as schema version eleven (kits, kerbs, bevels, signs, and
 elbow collision, from PR 4.4.8); earlier rows load unchanged, with no
 migration. A build from before a course's version cannot read it: rolling the

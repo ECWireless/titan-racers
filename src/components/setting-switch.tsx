@@ -3,14 +3,49 @@
 import { useState } from "react";
 
 import { readSoundOn, writeSoundOn } from "@/game/audio/race-audio";
+import { writeGhostSwitch } from "@/game/ghost/device-ghost";
 
-/** The player's Sound effects switch, saved on this device as it changes. */
-export function SoundToggle({
-  on,
-  onChange,
-}: {
+type StoredSwitchProps = {
   on: boolean;
   onChange: (on: boolean) => void;
+};
+
+/** The player's Sound effects switch, saved on this device as it changes. */
+export function SoundToggle({ on, onChange }: StoredSwitchProps) {
+  return (
+    <SettingSwitch
+      label="Sound effects"
+      on={on}
+      onToggle={() => {
+        writeSoundOn(!on);
+        onChange(!on);
+      }}
+    />
+  );
+}
+
+/** The player's Ghost switch, saved on this device as it changes. */
+export function GhostToggle({ on, onChange }: StoredSwitchProps) {
+  return (
+    <SettingSwitch
+      label="Ghost"
+      on={on}
+      onToggle={() => {
+        writeGhostSwitch(!on);
+        onChange(!on);
+      }}
+    />
+  );
+}
+
+function SettingSwitch({
+  label,
+  on,
+  onToggle,
+}: {
+  label: string;
+  on: boolean;
+  onToggle: () => void;
 }) {
   return (
     <button
@@ -18,15 +53,12 @@ export function SoundToggle({
       className="flex min-h-[3.25rem] w-full items-center justify-between gap-4 border border-titan-ice/20 bg-titan-black/60 px-4 py-3 text-titan-ice/85 transition hover:border-titan-hazard hover:text-titan-ice focus-visible:border-titan-hazard focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-titan-hazard motion-reduce:transition-none"
       role="switch"
       type="button"
-      onClick={() => {
-        writeSoundOn(!on);
-        onChange(!on);
-      }}
+      onClick={onToggle}
     >
       {/* The global `button { font: inherit }` would override these on the
           button itself. */}
       <span className="whitespace-nowrap text-left font-mono text-xs font-bold uppercase tracking-[0.14em]">
-        Sound effects
+        {label}
       </span>
       <span
         aria-hidden="true"

@@ -394,6 +394,23 @@ async function getPresentationDebugState(canvas: Locator) {
   );
 }
 
+async function getGhostDebugState(canvas: Locator) {
+  await waitForSceneReady(canvas);
+
+  return canvas.evaluate(
+    (element) =>
+      new Promise<{ finishMicroseconds: number | null; visible: boolean }>(
+        (resolve) => {
+          element.dispatchEvent(
+            new CustomEvent("getGhostDebugState", {
+              detail: { respond: resolve },
+            }),
+          );
+        },
+      ),
+  );
+}
+
 async function getGhostRecording(canvas: Locator) {
   await waitForSceneReady(canvas);
 
@@ -1818,9 +1835,26 @@ test.describe("home screen", () => {
     await setSimulationPaused(canvas, false);
     await setStandardTestGamepad(page, { buttons: { 0: 1 } });
     await expect(finishDialog).not.toBeVisible();
+    // Hold the new race on the grid: its clock runs on real time.
+    await setSimulationPaused(canvas, true);
     await expect
       .poll(async () => (await getRaceDebugState(canvas)).state)
       .toBe("countdown");
+    // Race again races the best just set. On the grid it would sit on the
+    // kart, so it shows only once the kart is clear of it.
+    await stepSimulation(canvas, 1);
+    expect(await getGhostDebugState(canvas)).toEqual({
+      finishMicroseconds: race.elapsedRaceMicroseconds,
+      visible: false,
+    });
+    const gridKart = await getKartDebugState(canvas);
+    await setKartDebugPose(canvas, {
+      position: { x: gridKart.x, y: gridKart.y + 0.05, z: gridKart.z + 1 },
+      rotation: { x: 0, y: gridKart.rotationY, z: 0 },
+    });
+    await stepSimulation(canvas, 1);
+    expect((await getGhostDebugState(canvas)).visible).toBe(true);
+    await resetKart(canvas);
     await expect(raceStatus).toContainText("Lap01/02");
     await expect(canvas).toBeFocused();
 
@@ -1833,6 +1867,24 @@ test.describe("home screen", () => {
     expect(Math.abs(restartedKart.z - initialKart.z)).toBeLessThan(
       scaleReferenceKartLength(0.1),
     );
+
+    // The Ghost switch hides the ghost at once, though the race is paused.
+    const clearOfGhost = await getKartDebugState(canvas);
+    await setKartDebugPose(canvas, {
+      position: { x: clearOfGhost.x, y: clearOfGhost.y + 0.05, z: clearOfGhost.z + 1 },
+      rotation: { x: 0, y: clearOfGhost.rotationY, z: 0 },
+    });
+    await stepSimulation(canvas, 1);
+    expect((await getGhostDebugState(canvas)).visible).toBe(true);
+    await page.keyboard.press("Escape");
+    await stepSimulation(canvas, 1);
+    const ghostSwitch = page
+      .getByRole("dialog", { name: "Paused" })
+      .getByRole("switch", { name: "Ghost" });
+    await expect(ghostSwitch).toHaveAttribute("aria-checked", "true");
+    await ghostSwitch.click();
+    await expect(ghostSwitch).toHaveAttribute("aria-checked", "false");
+    expect((await getGhostDebugState(canvas)).visible).toBe(false);
   });
 
   test("keeps the rough-race HUD clear of mobile utilities", async ({

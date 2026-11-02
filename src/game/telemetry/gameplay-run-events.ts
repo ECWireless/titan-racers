@@ -54,11 +54,16 @@ const versionedRunStartedEventSchema = runStartedEventSchema.extend({
   physicsVersion: z.enum(ACCEPTED_PHYSICS_VERSIONS),
 });
 
+/** Which ghost a run raced: none, or the player's own best. */
+const ghostRacedSchema = z.enum(["none", "own_best"]);
+export type GameplayGhostRaced = z.infer<typeof ghostRacedSchema>;
+
 // Version three names what was raced instead of a fixed course list; the
 // server accepts it only for a stored publication or a bundled official seed.
 const identifiedRunStartedEventSchema = z.strictObject({
   courseId: courseIdSchema,
   courseRevision: publicationRevisionSchema.nullable(),
+  ghost: ghostRacedSchema,
   kartId: kartStableIdSchema,
   kartRevision: publicationRevisionSchema.nullable(),
   physicsVersion: z.enum(ACCEPTED_PHYSICS_VERSIONS),
@@ -172,7 +177,13 @@ export class GameplayRunTelemetry {
   ) {}
 
   /** Starts a new run; `raceAgain` marks one begun from the finish screen. */
-  start(identity: GameplayRaceIdentity, { raceAgain = false } = {}) {
+  start(
+    identity: GameplayRaceIdentity,
+    {
+      ghost = "none",
+      raceAgain = false,
+    }: { ghost?: GameplayGhostRaced; raceAgain?: boolean } = {},
+  ) {
     this.runId = this.createRunId();
     this.inputFamilies.clear();
     this.automaticPauseCount = 0;
@@ -182,6 +193,7 @@ export class GameplayRunTelemetry {
     this.startedAtMs = this.now();
     this.runStartedDelivery = this.emit({
       ...identity,
+      ghost,
       physicsVersion: CURRENT_PHYSICS_VERSION,
       raceAgain,
       runId: this.runId,

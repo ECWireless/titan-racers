@@ -24,7 +24,7 @@ identity.
   same-origin guest writer.
 - `src/server/gameplay-telemetry-repository.ts` owns idempotent server-timestamped
   Postgres transitions and server-derived deployment attribution.
-- `src/db/schema.ts` and `drizzle/0004_*` through `0018_*` own the typed run
+- `src/db/schema.ts` and `drizzle/0004_*` through `0019_*` own the typed run
   table, enum values, lifecycle and attribution constraints, triggers, and
   timestamp index.
 - `src/game/telemetry/gameplay-dashboard.ts` owns pure aggregate semantics and
@@ -47,8 +47,8 @@ identity.
 
 1. Mounting a solo race, or Race again, generates one random UUIDv4 and
    queues `run_started` naming what the run races: the course and kart IDs,
-   their publication revisions (null for a bundled seed or roster), and
-   whether it came from Race again.
+   their publication revisions (null for a bundled seed or roster),
+   whether it came from Race again, and which ghost it races.
 2. A ready PlayCanvas scene queues `runtime_loaded` with a bounded monotonic
    client load duration. The server records its own receipt timestamp and the
    duration separately so database/network latency does not inflate runtime

@@ -161,6 +161,11 @@ export type SceneTestApi = {
   getCameraDebugState: () => CameraDebugState;
   getCollisionDebugState: () => CollisionDebugState;
   getCollisionResponseDebugState: () => CollisionResponseDebugState;
+  /** The ghost being raced: its finish time, and whether it is drawn now. */
+  getGhostDebugState: () => {
+    finishMicroseconds: number | null;
+    visible: boolean;
+  };
   /** The last finished race's ghost, base64-encoded, or null. */
   getGhostRecording: () => string | null;
   getKartDebugState: () => KartDebugState;
@@ -315,6 +320,16 @@ export function attachSceneTestAdapter(
         }>,
       ) => {
         event.detail.respond(api.getPresentationDebugState());
+      }) as EventListener,
+    ],
+    [
+      "getGhostDebugState",
+      ((
+        event: CustomEvent<{
+          respond: (state: ReturnType<SceneTestApi["getGhostDebugState"]>) => void;
+        }>,
+      ) => {
+        event.detail.respond(api.getGhostDebugState());
       }) as EventListener,
     ],
     [

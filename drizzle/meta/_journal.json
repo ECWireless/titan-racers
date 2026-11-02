@@ -134,6 +134,13 @@
       "when": 1793582987067,
       "tag": "0018_race_identity_telemetry",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1793585650724,
+      "tag": "0019_ghost_raced_telemetry",
+      "breakpoints": true
     }
   ]
 }

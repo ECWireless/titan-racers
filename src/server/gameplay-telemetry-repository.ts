@@ -73,6 +73,7 @@ export async function recordGameplayRunEvent(
         kartId: identified?.kartId ?? null,
         kartRevision: identified?.kartRevision ?? null,
         raceAgain: identified?.raceAgain ?? null,
+        ghost: identified?.ghost ?? null,
         deploymentVersion: deploymentVersion(),
         physicsVersion: event.schemaVersion === 1 ? null : event.physicsVersion,
         id: event.runId,

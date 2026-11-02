@@ -114,6 +114,7 @@ test.describe("gameplay telemetry contract", () => {
       ...BUNDLED_SANDBOX_RUN,
       courseId: "community-loop",
       courseRevision: 4,
+      ghost: "own_best",
       kartRevision: 2,
       physicsVersion: CURRENT_PHYSICS_VERSION,
       raceAgain: true,
@@ -131,6 +132,8 @@ test.describe("gameplay telemetry contract", () => {
       { courseRevision: 0 },
       { kartRevision: 1.5 },
       { raceAgain: undefined },
+      { ghost: "someone_else" },
+      { ghost: undefined },
       { physicsVersion: undefined },
       { userId: "someone" },
     ]) {
@@ -262,6 +265,7 @@ test.describe("gameplay telemetry contract", () => {
     expect(events[1]).toMatchObject({ elapsedMs: 2_000 });
     expect(events[0]).toEqual({
       ...BUNDLED_SANDBOX_RUN,
+      ghost: "none",
       physicsVersion: CURRENT_PHYSICS_VERSION,
       raceAgain: false,
       runId: "11111111-1111-4111-8111-111111111111",
@@ -270,10 +274,14 @@ test.describe("gameplay telemetry contract", () => {
     });
     expect(keepalive).toEqual([false, false, true, false, true]);
 
-    // Race again starts a fresh run that says so.
-    telemetry.start(BUNDLED_SANDBOX_RUN, { raceAgain: true });
+    // Race again starts a fresh run that says so, and which ghost it races.
+    telemetry.start(BUNDLED_SANDBOX_RUN, { ghost: "own_best", raceAgain: true });
     await expect.poll(() => events.length).toBe(6);
-    expect(events.at(-1)).toMatchObject({ raceAgain: true, type: "run_started" });
+    expect(events.at(-1)).toMatchObject({
+      ghost: "own_best",
+      raceAgain: true,
+      type: "run_started",
+    });
   });
 
   test("never exposes sink failure to gameplay callers", async () => {
@@ -646,6 +654,7 @@ test.describe("gameplay telemetry Postgres integration", () => {
       runIds.push(runId);
       const result = await recordGameplayRunEvent({
         ...identity,
+        ghost: "none",
         physicsVersion: CURRENT_PHYSICS_VERSION,
         raceAgain: false,
         runId,
@@ -693,6 +702,7 @@ test.describe("gameplay telemetry Postgres integration", () => {
           kartId: gameplayRuns.kartId,
           kartRevision: gameplayRuns.kartRevision,
           raceAgain: gameplayRuns.raceAgain,
+          ghost: gameplayRuns.ghost,
         })
         .from(gameplayRuns)
         .where(eq(gameplayRuns.id, published.runId));
@@ -702,6 +712,7 @@ test.describe("gameplay telemetry Postgres integration", () => {
         kartId: "balanced-kart",
         kartRevision: null,
         raceAgain: false,
+        ghost: "none",
       });
       expect((await start(BUNDLED_SANDBOX_RUN)).result).toBe("created");
 
