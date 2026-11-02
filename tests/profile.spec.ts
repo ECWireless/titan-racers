@@ -264,10 +264,11 @@ test.describe("racer onboarding and profile", () => {
 
     await page.goto("/profile");
     await page.getByRole("button", { name: "Continue with wallet" }).click();
-    await page
+    const testWallet = page
       .getByRole("group", { name: "Choose a wallet" })
-      .getByRole("button", { name: "Test Wallet" })
-      .click();
+      .getByRole("button", { name: "Test Wallet" });
+    await expect(testWallet).toBeFocused();
+    await testWallet.click();
     await expect(page.getByLabel("Username")).toHaveValue("racer4821");
     expect(verifyBody).toMatchObject({
       chainId: 8453,

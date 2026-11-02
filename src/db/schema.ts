@@ -114,6 +114,10 @@ export const accounts = pgTable(
       table.providerId,
       table.accountId,
     ),
+    // A racer may link several wallets but only one Google account.
+    uniqueIndex("accounts_one_google_per_user_uidx")
+      .on(table.userId)
+      .where(sql`${table.providerId} = 'google'`),
   ],
 );
 

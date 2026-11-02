@@ -4,6 +4,7 @@ import { pool } from "../src/db/client";
 import {
   anonymizeUserByEmail,
   anonymizeUserByWallet,
+  UserNotFoundError,
 } from "../src/server/user-anonymization";
 
 function flagValue(flag: string) {
@@ -31,7 +32,14 @@ async function main() {
   }
 }
 
+// Database errors can echo the supplied email or wallet, so only known
+// messages are printed.
 main().catch((error: unknown) => {
-  console.error(error instanceof Error ? error.message : "Anonymization failed.");
+  console.error(
+    error instanceof UserNotFoundError ||
+      (error instanceof Error && error.message.startsWith("Usage:"))
+      ? error.message
+      : "Anonymization failed.",
+  );
   process.exitCode = 1;
 });

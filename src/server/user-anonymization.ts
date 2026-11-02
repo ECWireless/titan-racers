@@ -47,10 +47,13 @@ export async function anonymizeUserByWallet(rawAddress: string) {
 }
 
 async function anonymizeUser(transaction: Transaction, userId: string) {
+  // Locking the racer first makes a concurrent sign-in or new login method
+  // wait, then fail on the anonymized racer (migration 0020's triggers).
   const [{ email }] = await transaction
     .select({ email: users.email })
     .from(users)
-    .where(eq(users.id, userId));
+    .where(eq(users.id, userId))
+    .for("update");
   const wallets = await transaction
     .delete(walletAddresses)
     .where(eq(walletAddresses.userId, userId))

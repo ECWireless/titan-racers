@@ -208,6 +208,28 @@ test.describe("wallet login", () => {
       email: `${user.id}@deleted.invalid`,
       name: "Deleted racer",
     });
+    for (const write of [
+      db.insert(accounts).values({
+        accountId: `google-${user.id}`,
+        id: randomUUID(),
+        providerId: "google",
+        userId: user.id,
+      }),
+      db.insert(sessions).values({
+        expiresAt: new Date(Date.now() + 60_000),
+        id: randomUUID(),
+        token: randomUUID(),
+        userId: user.id,
+      }),
+      db.insert(walletAddresses).values({
+        address: newWallet().address,
+        chainId: SIWE_CHAIN_ID,
+        id: randomUUID(),
+        userId: user.id,
+      }),
+    ]) {
+      await expect(write).rejects.toThrow();
+    }
 
     const again = await authPost("/siwe/verify", await signedWalletBody(wallet));
     expect(again.status).toBe(200);
@@ -313,7 +335,7 @@ test.describe("wallet login", () => {
     expect(fresh.id).not.toBe(user.id);
   });
 
-  test("starts Google linking and blocks Better Auth's own unlink", async () => {
+  test("starts Google linking, allows one Google, and blocks Better Auth's own unlink", async () => {
     const racer = await googleRacer();
     const authRequest = (path: string, body: unknown) =>
       postAuth(
@@ -338,5 +360,14 @@ test.describe("wallet login", () => {
 
     const unlink = await authRequest("/unlink-account", { providerId: "google" });
     expect(unlink.status).toBe(404);
+
+    await expect(
+      db.insert(accounts).values({
+        accountId: `second-google-${racer.id}`,
+        id: randomUUID(),
+        providerId: "google",
+        userId: racer.id,
+      }),
+    ).rejects.toThrow();
   });
 });

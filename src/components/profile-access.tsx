@@ -57,8 +57,16 @@ const usernameClaimFailure =
   "Your username could not be created. Your entry is still here.";
 
 class UsernameClaimError extends Error {}
-class WalletVerificationError extends Error {}
-class WalletLinkedElsewhereError extends Error {}
+
+function walletFailureMessage(purpose: WalletPurpose, status?: number) {
+  if (status === 401) {
+    return "Your wallet's signature could not be verified. Please retry. Smart-contract wallets aren't supported.";
+  }
+  if (status === 409) return "That wallet belongs to another racer.";
+  return purpose === "sign-in"
+    ? "Wallet sign-in could not be completed. Please retry."
+    : "The wallet could not be linked. Please retry.";
+}
 
 function loginMethodName(method: LoginMethod) {
   return method.kind === "google" ? "Google" : `Wallet ${method.label}`;
@@ -83,6 +91,8 @@ function WalletChooser({
   onChoose: (wallet: BrowserWallet) => void;
   wallets: BrowserWallet[];
 }) {
+  const firstWalletRef = useRef<HTMLButtonElement | null>(null);
+  useEffect(() => firstWalletRef.current?.focus(), []);
   return (
     <div
       aria-label="Choose a wallet"
@@ -92,10 +102,11 @@ function WalletChooser({
       <p className="font-mono text-xs font-bold uppercase tracking-[0.16em] text-titan-ice/72">
         Choose a wallet
       </p>
-      {wallets.map((wallet) => (
+      {wallets.map((wallet, index) => (
         <button
           className="titan-button titan-button-secondary"
           key={wallet.id}
+          ref={index === 0 ? firstWalletRef : undefined}
           type="button"
           onClick={() => onChoose(wallet)}
         >
@@ -248,12 +259,24 @@ export function ProfileAccess({
     else setWalletChoice(purpose);
   }
 
+  function cancelWalletChoice(purpose: WalletPurpose) {
+    setWalletChoice(null);
+    requestAnimationFrame(() =>
+      document.getElementById(`wallet-${purpose}-trigger`)?.focus(),
+    );
+  }
+
   async function runWalletAction(purpose: WalletPurpose, wallet: BrowserWallet) {
     setWalletChoice(null);
     setSignInPending(wallet.id);
     setFeedback(null);
     try {
-      const signed = await signWalletMessage(wallet);
+      const signed = await signWalletMessage(
+        wallet,
+        purpose === "sign-in"
+          ? "Sign in to Titan Racers."
+          : "Link this wallet to your Titan Racers racer.",
+      );
       const response = await fetch(
         purpose === "sign-in"
           ? "/api/auth/siwe/verify"
@@ -270,9 +293,13 @@ export function ProfileAccess({
           method: "POST",
         },
       );
-      if (response.status === 401) throw new WalletVerificationError();
-      if (response.status === 409) throw new WalletLinkedElsewhereError();
-      if (!response.ok) throw new Error("Wallet request failed.");
+      if (!response.ok) {
+        setFeedback({
+          kind: "error",
+          message: walletFailureMessage(purpose, response.status),
+        });
+        return;
+      }
       if (purpose === "sign-in") {
         await retryProfile();
         return;
@@ -287,13 +314,7 @@ export function ProfileAccess({
         message:
           error instanceof WalletRequestCancelledError
             ? "The wallet request was cancelled."
-            : error instanceof WalletVerificationError
-              ? "Your wallet's signature could not be verified. Please retry. Smart-contract wallets aren't supported."
-              : error instanceof WalletLinkedElsewhereError
-                ? "That wallet belongs to another racer."
-                : purpose === "sign-in"
-                  ? "Wallet sign-in could not be completed. Please retry."
-                  : "The wallet could not be linked. Please retry.",
+            : walletFailureMessage(purpose),
       });
     } finally {
       setSignInPending(null);
@@ -521,13 +542,14 @@ export function ProfileAccess({
             {walletChoice === "sign-in" ? (
               <WalletChooser
                 wallets={wallets}
-                onCancel={() => setWalletChoice(null)}
+                onCancel={() => cancelWalletChoice("sign-in")}
                 onChoose={(wallet) => void runWalletAction("sign-in", wallet)}
               />
             ) : wallets.length > 0 ? (
               <button
                 className="titan-button titan-button-secondary"
                 disabled={signInPending !== null}
+                id="wallet-sign-in-trigger"
                 type="button"
                 onClick={() => chooseWallet("sign-in")}
               >
@@ -684,7 +706,7 @@ export function ProfileAccess({
                 {walletChoice === "link" ? (
                   <WalletChooser
                     wallets={wallets}
-                    onCancel={() => setWalletChoice(null)}
+                    onCancel={() => cancelWalletChoice("link")}
                     onChoose={(wallet) => void runWalletAction("link", wallet)}
                   />
                 ) : (
@@ -707,6 +729,7 @@ export function ProfileAccess({
                       <button
                         className="titan-button titan-button-secondary"
                         disabled={methodChangePending}
+                        id="wallet-link-trigger"
                         type="button"
                         onClick={() => chooseWallet("link")}
                       >

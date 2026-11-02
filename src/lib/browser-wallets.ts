@@ -77,9 +77,10 @@ async function walletRequest(
 }
 
 // Asks the wallet for its account and a signed Sign-In with Ethereum message
-// bound to this site and a fresh server nonce.
+// bound to this site and a fresh server nonce. Linking signs the same kind of message.
 export async function signWalletMessage(
   wallet: BrowserWallet,
+  statement: string,
 ): Promise<SignedWalletMessage> {
   const accounts = z
     .array(z.string())
@@ -106,7 +107,7 @@ export async function signWalletMessage(
     expirationTime: new Date(issuedAt.getTime() + 10 * 60_000),
     issuedAt,
     nonce,
-    statement: "Sign in to Titan Racers.",
+    statement,
     uri: window.location.origin,
     version: "1",
   });
