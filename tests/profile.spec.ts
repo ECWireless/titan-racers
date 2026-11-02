@@ -100,6 +100,21 @@ test.describe("racer onboarding and profile", () => {
     ).toHaveAttribute("href", "/admin/karts");
   });
 
+  test("sends a racer who already has a username straight on from onboarding", async ({
+    page,
+  }) => {
+    await page.route(profileApiPattern, (route) =>
+      route.fulfill({
+        json: { loginMethods: [], status: "complete", username: "nova_racer" },
+      }),
+    );
+
+    await page.goto("/onboarding?returnTo=%2Fprofile");
+    await expect(page).toHaveURL(/\/profile$/);
+    await expect(page.getByText("@nova_racer")).toBeVisible();
+    await expect(page.getByRole("link", { name: "Continue" })).toHaveCount(0);
+  });
+
   test("shows an existing username as immutable on the profile page", async ({
     page,
   }) => {
@@ -451,10 +466,10 @@ test.describe("racer onboarding and profile", () => {
       "/\\evil.example",
       "/\t/evil.example",
     ]) {
+      // A returning racer is sent on at once, so only to this site's home.
       await page.goto(`/onboarding?returnTo=${encodeURIComponent(returnTo)}`);
-      await expect(page.getByRole("link", { name: "Continue" })).toHaveAttribute(
-        "href",
-        "/",
+      await expect(page).toHaveURL(
+        new URL("/", test.info().project.use.baseURL).href,
       );
     }
   });

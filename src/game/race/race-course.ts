@@ -1,7 +1,7 @@
-import * as pc from "playcanvas";
-
 import {
   getCourseStartTransform,
+  quaternionFromEulerAngles,
+  rotateByEulerAngles,
   type CourseDocument,
 } from "../course/course-document";
 import type {
@@ -11,36 +11,24 @@ import type {
 } from "./race-gate";
 import type { RaceSessionConfig } from "./race-session";
 
-const LOCAL_FORWARD = new pc.Vec3(0, 0, -1);
+// Plain maths, so the server builds the same gates to check recordings.
 
-function toRaceVector(vector: {
-  x: number;
-  y: number;
-  z: number;
-}): RaceVector3 {
+function toRaceVector(vector: RaceVector3): RaceVector3 {
   return { x: vector.x, y: vector.y, z: vector.z };
 }
 
-function toRaceQuaternion(quaternion: pc.Quat): RaceQuaternion {
-  return {
-    w: quaternion.w,
-    x: quaternion.x,
-    y: quaternion.y,
-    z: quaternion.z,
-  };
-}
-
-function rotationFromEuler(rotation: RaceVector3) {
-  return new pc.Quat().setFromEulerAngles(rotation.x, rotation.y, rotation.z);
-}
-
-function worldToLocalRotation(rotation: RaceVector3) {
-  return toRaceQuaternion(rotationFromEuler(rotation).invert());
+function worldToLocalRotation(rotation: RaceVector3): RaceQuaternion {
+  const { w, x, y, z } = quaternionFromEulerAngles(rotation);
+  return { w, x: -x, y: -y, z: -z };
 }
 
 function startGate(document: CourseDocument): DirectedRaceGate {
-  const rotation = rotationFromEuler(document.start.rotation);
-  const forward = rotation.transformVector(LOCAL_FORWARD.clone()).normalize();
+  const forward = rotateByEulerAngles(document.start.rotation, {
+    x: 0,
+    y: 0,
+    z: -1,
+  });
+  const length = Math.hypot(forward.x, forward.y, forward.z);
 
   return {
     center: {
@@ -48,10 +36,14 @@ function startGate(document: CourseDocument): DirectedRaceGate {
       y: document.start.position.y + document.start.gateHalfExtents.y,
       z: document.start.position.z,
     },
-    forward: toRaceVector(forward),
+    forward: {
+      x: forward.x / length,
+      y: forward.y / length,
+      z: forward.z / length,
+    },
     halfExtents: toRaceVector(document.start.gateHalfExtents),
     id: document.start.id,
-    worldToLocalRotation: toRaceQuaternion(rotation.clone().invert()),
+    worldToLocalRotation: worldToLocalRotation(document.start.rotation),
   };
 }
 

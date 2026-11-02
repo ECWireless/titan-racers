@@ -7,10 +7,11 @@
 How Titan Racers records races and replays your best as a ghost, following
 the [ghost standard](../../game-concepts/ghosts/README.md). It owns the
 recording format, the recorder, playback, the ghost kart's look, the
-per-device best, and the Ghost switch.
+per-device best, which ghost a race takes, and the Ghost switch.
 
-Not supported yet: server-stored bests, the course best, shared ghost links,
-and checking runs against their recordings.
+A logged-in racer's best is stored and checked by the
+[leaderboard](../leaderboard/README.md). Not supported yet: shared ghost
+links.
 
 ## Source Ownership
 
@@ -21,8 +22,12 @@ and checking runs against their recordings.
   (time-scaled Hermite positions, shorter-arc rotation blend, reset holds).
 - `src/game/ghost/ghost-kart-visual.ts`: the ghost kart, drawn from its own
   document through `createKartAssemblyVisual`.
-- `src/game/ghost/device-ghost.ts`: the per-device best and the Ghost switch
-  in `localStorage`.
+- `src/game/ghost/device-ghost.ts`: the per-device best, the ghost choice,
+  and the Ghost switch in `localStorage`, and reading a ghost record.
+- `src/game/ghost/board-ghost.ts`: fetching the board's course best or your
+  account best (`GET /api/leaderboards/[courseId]/ghost`).
+- `src/components/play-home.tsx`: the Course best / Your best choice, and
+  loading the board's ghost before a solo race mounts.
 - `src/components/solo-time-trial-canvas.tsx`: recording in the post-physics
   step, posing in the render loop, keeping a new best at finish, and the
   pause-menu switch (`src/components/setting-switch.tsx`).
@@ -34,7 +39,13 @@ and checking runs against their recordings.
   reset. The recorded pose is the kart root (centre of mass, the point gates
   test) and the assembly rotation; a ghost's visual sits at
   `root + rotation × −centreOfMass` of its own kart.
-- A new best is kept on finish and raced from the next Race again. Bests are
+- A solo race on a board takes the course best by default, or your account
+  best if you choose your own. Without one (an empty board, a guest, a failed
+  request, or a kart this build cannot draw) it races your best on this
+  device. A board ghost is a record like a device best, built on the server
+  from the best's recording and its kart revision.
+- A run faster than the ghost raced is raced from the next Race again; the
+  device keeps its own best whichever ghost was raced. Bests are
   keyed `titan-racers.ghost.v1:<course>:<revision or seed>:<physics>` and
   carry the kart document, centre of mass, and wheel stations, so another
   kart can be drawn. Every new best drops bests under other physics; one on a

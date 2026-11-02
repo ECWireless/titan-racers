@@ -48,7 +48,8 @@ identity.
 1. Mounting a solo race, or Race again, generates one random UUIDv4 and
    queues `run_started` naming what the run races: the course and kart IDs,
    their publication revisions (null for a bundled seed or roster),
-   whether it came from Race again, and which ghost it races.
+   whether it came from Race again, and which ghost it races (none, your own
+   best, or the course best).
 2. A ready PlayCanvas scene queues `runtime_loaded` with a bounded monotonic
    client load duration. The server records its own receipt timestamp and the
    duration separately so database/network latency does not inflate runtime

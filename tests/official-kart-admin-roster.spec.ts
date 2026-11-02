@@ -190,6 +190,8 @@ test("navigates into and back from the official roster with a controller", async
   await expect(utilityMenu).toBeFocused();
   await pressStandardGamepadButton(page, 0);
   const kartBuilder = page.getByRole("link", { name: "Kart Builder" });
+  // Leaderboard, Profile, then Kart Builder.
+  await pressStandardGamepadButton(page, 13);
   await pressStandardGamepadButton(page, 13);
   await pressStandardGamepadButton(page, 13);
   await expect(kartBuilder).toBeFocused();
@@ -209,6 +211,7 @@ test("navigates into and back from the official roster with a controller", async
   await pressStandardGamepadButton(page, 12);
   await expect(utilityMenu).toBeFocused();
   await pressStandardGamepadButton(page, 0);
+  await pressStandardGamepadButton(page, 13);
   await pressStandardGamepadButton(page, 13);
   await pressStandardGamepadButton(page, 13);
   await expect(kartBuilder).toBeFocused();

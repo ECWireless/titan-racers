@@ -134,8 +134,8 @@ same identity, role, and request-guard boundaries; see the
 - Secrets and connection strings remain outside version control.
 - OAuth provider token material is not retained in Postgres.
 - Anonymization removes sessions, provider credentials, wallets, privileged
-  roles, and profile PII while retaining only the opaque user ID needed for
-  attribution.
+  roles, leaderboard bests, and profile PII while retaining only
+  the opaque user ID needed for attribution.
 - A login method never moves between racers, and the last one cannot be
   unlinked. Database triggers refuse new sessions, login methods, and wallets
   for anonymized racers, so a sign-in or Google link racing anonymization

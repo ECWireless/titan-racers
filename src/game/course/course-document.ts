@@ -1128,7 +1128,8 @@ function normalizeDirection(
   return { x: x / length, y: y / length, z: z / length };
 }
 
-function quaternionFromEulerAngles(rotation: {
+/** PlayCanvas's Euler convention (degrees), without the engine. */
+export function quaternionFromEulerAngles(rotation: {
   x: number;
   y: number;
   z: number;
@@ -1187,7 +1188,7 @@ function cleanDirectionComponent(value: number) {
   return value;
 }
 
-function rotateByEulerAngles(
+export function rotateByEulerAngles(
   rotation: { x: number; y: number; z: number },
   vector: { x: number; y: number; z: number },
 ) {

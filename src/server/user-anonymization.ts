@@ -3,6 +3,7 @@ import { and, eq, like, ne, or, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import {
   accounts,
+  boardBests,
   sessions,
   userRoles,
   users,
@@ -60,6 +61,8 @@ async function anonymizeUser(transaction: Transaction, userId: string) {
     .returning({ address: walletAddresses.address });
 
   await transaction.delete(sessions).where(eq(sessions.userId, userId));
+  // Leaderboard bests and ghosts go; results stay under the opaque ID.
+  await transaction.delete(boardBests).where(eq(boardBests.userId, userId));
   await transaction.delete(accounts).where(eq(accounts.userId, userId));
   await transaction
     .delete(verifications)

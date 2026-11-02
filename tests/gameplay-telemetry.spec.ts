@@ -126,6 +126,10 @@ test.describe("gameplay telemetry contract", () => {
       courseRevision: 4,
       raceAgain: true,
     });
+    expect(
+      gameplayRunEventSchema.safeParse({ ...identifiedStart, ghost: "course_best" })
+        .success,
+    ).toBe(true);
     for (const invalid of [
       { courseId: "Private Note" },
       { kartId: "kart with spaces" },

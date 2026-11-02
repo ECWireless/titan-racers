@@ -91,6 +91,42 @@ test.describe("directed race gate crossing", () => {
     ).toBe(false);
   });
 
+  test("lets rounded segment ends sit within the plane tolerance", () => {
+    const tolerance = { planeTolerance: 0.01 };
+    // Rounding can leave the step before a crossing just past the plane, or
+    // the crossing step just short of it; a slow crossing's ends can
+    // coincide, or even reverse.
+    for (const [previous, current] of [
+      [0.004, 0.2],
+      [-0.2, -0.004],
+      [-0.004, -0.004],
+      [0.003, 0.002],
+    ]) {
+      const from = { x: previous, y: 1, z: 0 };
+      const to = { x: current, y: 1, z: 0 };
+      expect(crossesDirectedRaceGate(IDENTITY_GATE, from, to)).toBe(false);
+      expect(crossesDirectedRaceGate(IDENTITY_GATE, from, to, tolerance)).toBe(
+        true,
+      );
+    }
+    expect(
+      crossesDirectedRaceGate(
+        IDENTITY_GATE,
+        { x: 0.02, y: 1, z: 0 },
+        { x: 0.2, y: 1, z: 0 },
+        tolerance,
+      ),
+    ).toBe(false);
+    expect(
+      crossesDirectedRaceGate(
+        IDENTITY_GATE,
+        { x: 0.2, y: 1, z: 0 },
+        { x: -0.2, y: 1, z: 0 },
+        tolerance,
+      ),
+    ).toBe(false);
+  });
+
   test("rejects non-finite movement samples", () => {
     expect(
       crossesDirectedRaceGate(

@@ -1,17 +1,15 @@
 import { and, eq, isNotNull, isNull, lte, sql } from "drizzle-orm";
 
 import { db } from "@/db/client";
-import {
-  coursePublications,
-  gameplayRuns,
-  kartPublicationEvents,
-} from "@/db/schema";
+import { gameplayRuns } from "@/db/schema";
 import { isOfficialCourseId } from "@/game/course/course-ids";
 import { OFFICIAL_KART_IDS } from "@/game/kart/official-kart-roster";
 import type {
   GameplayRaceIdentity,
   GameplayRunEvent,
 } from "@/game/telemetry/gameplay-run-events";
+import { wasCourseRevisionPublished } from "@/server/course-repository";
+import { wasKartRevisionPublished } from "@/server/kart-repository";
 
 function deploymentVersion() {
   const version = process.env.VERCEL_GIT_COMMIT_SHA?.trim();
@@ -27,31 +25,10 @@ async function isRecordableRaceIdentity(identity: GameplayRaceIdentity) {
   const [course, kart] = await Promise.all([
     identity.courseRevision === null
       ? isOfficialCourseId(identity.courseId)
-      : db
-          .select({ id: coursePublications.id })
-          .from(coursePublications)
-          .where(
-            and(
-              eq(coursePublications.courseId, identity.courseId),
-              eq(coursePublications.revision, identity.courseRevision),
-            ),
-          )
-          .limit(1)
-          .then((rows) => rows.length > 0),
+      : wasCourseRevisionPublished(identity.courseId, identity.courseRevision),
     identity.kartRevision === null
       ? (OFFICIAL_KART_IDS as readonly string[]).includes(identity.kartId)
-      : db
-          .select({ id: kartPublicationEvents.id })
-          .from(kartPublicationEvents)
-          .where(
-            and(
-              eq(kartPublicationEvents.kartId, identity.kartId),
-              eq(kartPublicationEvents.action, "publish"),
-              eq(kartPublicationEvents.revision, identity.kartRevision),
-            ),
-          )
-          .limit(1)
-          .then((rows) => rows.length > 0),
+      : wasKartRevisionPublished(identity.kartId, identity.kartRevision),
   ]);
   return course && kart;
 }

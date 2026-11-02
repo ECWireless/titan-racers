@@ -17,7 +17,8 @@ accepted; the app, README, and durable docs take over from there.
 
 - **Done:** Phases 0–4 (PRs #1–#24, the Phase 3 closeout and its
   follow-ups, and #30–#57 with the PR 4.5.2 closeout).
-- **Next:** PR 5.3. PRs 5.1 (#59) and 5.2 are done (see Phase 5's decisions).
+- **Next:** PR 5.4. PRs 5.1 (#59), 5.2 (#60), and 5.3 are done (see Phase 5's
+  decisions).
 
 ## Guiding Decisions
 
@@ -82,9 +83,9 @@ These still constrain every remaining phase.
   showing name, assembler credit, visual identity, stat bars, and a short
   descriptor.
 - Keyboard, touch, and gamepad controls, plus fast reset.
-- Own-best, course-best, and shared ghosts; a developer time sets the medals.
+- Own-best, course-best, and shared ghosts.
 - Login-gated solo leaderboard.
-- Falls View Park best-time medals that set progression tiers.
+- Gold, silver, and bronze for the Falls View Park board's top three.
 - Admin kart builder; after Phase 7, player-built community karts with
   immediate publishing, discovery, and admin safety unpublishing.
 - CAD-style kart assembly, kart remixes, and assembler royalties that are
@@ -196,10 +197,10 @@ Decisions from completed phases that later phases rely on:
 
 Phase decisions:
 
-- **One ghost on track at a time.** A solo trial races your own best. You can
-  instead race the course best (the board's first place) or a ghost a friend
-  shared. There is no separate developer ghost; a developer time sets the
-  medals.
+- **One ghost on track at a time.** A solo trial races the course best (the
+  board's first place) by default, or your own best when the board is empty
+  or you choose it; a friend's shared ghost is the other option. There is no
+  separate developer ghost.
 - **Ghosts are recordings, not re-simulations.** A ghost records the kart's
   pose 20 times per race second, plus exact samples at gate crossings and
   resets, in a small versioned binary format. It is not telemetry: on the
@@ -210,7 +211,8 @@ Phase decisions:
   real elapsed time at least the race time), re-runs the gate check on the
   recording against that course revision, caps speed, allows jumps only to
   reset points, and takes the time from its own check. The client never sends
-  a tier or rank. A forged recording that obeys the physics can still pass.
+  a time, medal, or rank. A forged recording that obeys the checks can still
+  pass.
 - **Eligibility:** a logged-in player with a username, an official kart, and
   a published course revision under the current physics. Community karts stay
   casual and multiplayer results stay room-only. Runs that leave through the
@@ -218,10 +220,9 @@ Phase decisions:
   is its only way back in, so the trip is always a detour. Re-check this if a
   course change opens another way back in.
 - **Boards and medals:** one board per published course revision and physics
-  version, with one row per player and the top 50 shown. Medals are a finish
-  tier, then bronze, silver, and gold within 50%, 20%, and 6% of the developer
-  time. Each is granted once per player per course; they are display-only and
-  unlock no parts.
+  version, with one row per player and the top 50 shown. Gold, silver, and
+  bronze are the board's current first, second, and third places; they are
+  display-only, unlock nothing, and are not stored.
 - **Login:** Google, plus SIWE login with browser wallets (EIP-6963) that sign
   with their own key; sign-in messages name Base (chain 8453). A new wallet
   creates a racer with a generated ID, and a racer may link several wallets.
@@ -256,12 +257,12 @@ Phase decisions:
 
 **PR 5.3: Verified runs, leaderboard, and medals**
 
-- [ ] Signed run tickets, submission on finish, and the server checks.
-- [ ] Results, medals, and each player's best ghost per board in Postgres.
-- [ ] A leaderboard page; logged-in players race their account best, and
+- [x] Signed run tickets, submission on finish, and the server checks.
+- [x] Results and each player's best ghost per board in Postgres.
+- [x] A leaderboard page; logged-in players race their account best, and
       anyone can race the course best.
-- [ ] Admins set the developer time from one of their verified runs.
-- [ ] The result screen shows rank, personal best, and medal.
+- [x] Gold, silver, and bronze for the board's top three.
+- [x] The result screen shows rank, personal best, and medal.
 
 **PR 5.4: Results flow, sharing, and closeout**
 
@@ -276,9 +277,9 @@ Phase decisions:
       Sign-ups, submissions, and claims come from the rows those features
       already store, not new telemetry.
 
-**Done when:** medal tiers are granted once per player and cannot be forged by
-client state; a guest finishes, logs in, and finds the claimed run on the
-board; and a friend's ghost link races their best.
+**Done when:** a board's standings and medals come only from verified runs and
+cannot be forged by client state; a guest finishes, logs in, and finds the
+claimed run on the board; and a friend's ghost link races their best.
 
 ### Phase 6: Private Multiplayer
 

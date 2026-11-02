@@ -86,8 +86,23 @@ export function readDeviceGhost(
 ): DeviceGhost | null {
   try {
     const raw = window.localStorage.getItem(ghostKey(courseId, courseRevision));
-    if (!raw) return null;
-    const stored = storedGhostSchema.parse(JSON.parse(raw));
+    return raw ? parseGhostRecord(JSON.parse(raw), courseId, courseRevision) : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * A ghost from a stored or downloaded record for this course revision, or
+ * null if it is for another, malformed, or in an older format.
+ */
+export function parseGhostRecord(
+  value: unknown,
+  courseId: string,
+  courseRevision: number | null,
+): DeviceGhost | null {
+  try {
+    const stored = storedGhostSchema.parse(value);
     if (
       stored.courseId !== courseId ||
       stored.courseRevision !== courseRevision
@@ -106,7 +121,7 @@ export function readDeviceGhost(
       timeMicroseconds: stored.timeMicroseconds,
     };
   } catch {
-    // Unreadable storage, a malformed record, or an older format.
+    // A malformed record or an older format.
     return null;
   }
 }
@@ -160,6 +175,47 @@ export function forgetDeviceGhost(
   } catch {
     // Nothing to forget.
   }
+}
+
+/** Which ghost a solo race takes: the course best unless they chose their own. */
+export type GhostChoice = "course_best" | "own_best";
+const GHOST_CHOICE_KEY = "titan-racers.ghost-choice.v1";
+
+/** A ghost from the board, and which of the two it is. */
+export type BoardGhost = { ghost: DeviceGhost; kind: GhostChoice };
+
+// Holds a choice for this session when storage refuses it.
+let sessionGhostChoice: GhostChoice | null = null;
+
+export function readGhostChoice(): GhostChoice {
+  if (sessionGhostChoice) return sessionGhostChoice;
+  try {
+    return window.localStorage.getItem(GHOST_CHOICE_KEY) === "own_best"
+      ? "own_best"
+      : "course_best";
+  } catch {
+    return "course_best";
+  }
+}
+
+const ghostChoiceListeners = new Set<() => void>();
+
+/** For `useSyncExternalStore`: hears choices made in this tab. */
+export function subscribeGhostChoice(listener: () => void) {
+  ghostChoiceListeners.add(listener);
+  return () => {
+    ghostChoiceListeners.delete(listener);
+  };
+}
+
+export function writeGhostChoice(choice: GhostChoice) {
+  sessionGhostChoice = choice;
+  try {
+    window.localStorage.setItem(GHOST_CHOICE_KEY, choice);
+  } catch {
+    // Storage is unavailable; the choice holds for this session.
+  }
+  ghostChoiceListeners.forEach((listener) => listener());
 }
 
 /** The player's Ghost switch; on unless they turned it off. */

@@ -54,8 +54,8 @@ const versionedRunStartedEventSchema = runStartedEventSchema.extend({
   physicsVersion: z.enum(ACCEPTED_PHYSICS_VERSIONS),
 });
 
-/** Which ghost a run raced: none, or the player's own best. */
-const ghostRacedSchema = z.enum(["none", "own_best"]);
+/** Which ghost a run raced: none, the player's own best, or the course best. */
+const ghostRacedSchema = z.enum(["none", "own_best", "course_best"]);
 export type GameplayGhostRaced = z.infer<typeof ghostRacedSchema>;
 
 // Version three names what was raced instead of a fixed course list; the

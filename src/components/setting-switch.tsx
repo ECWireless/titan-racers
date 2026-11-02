@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { type ReactNode, useState } from "react";
 
 import { readSoundOn, writeSoundOn } from "@/game/audio/race-audio";
 import { writeGhostSwitch } from "@/game/ghost/device-ghost";
@@ -11,9 +11,14 @@ type StoredSwitchProps = {
 };
 
 /** The player's Sound effects switch, saved on this device as it changes. */
-export function SoundToggle({ on, onChange }: StoredSwitchProps) {
+export function SoundToggle({
+  icon,
+  on,
+  onChange,
+}: StoredSwitchProps & { icon?: ReactNode }) {
   return (
     <SettingSwitch
+      icon={icon}
       label="Sound effects"
       on={on}
       onToggle={() => {
@@ -39,10 +44,12 @@ export function GhostToggle({ on, onChange }: StoredSwitchProps) {
 }
 
 function SettingSwitch({
+  icon,
   label,
   on,
   onToggle,
 }: {
+  icon?: ReactNode;
   label: string;
   on: boolean;
   onToggle: () => void;
@@ -57,7 +64,8 @@ function SettingSwitch({
     >
       {/* The global `button { font: inherit }` would override these on the
           button itself. */}
-      <span className="whitespace-nowrap text-left font-mono text-xs font-bold uppercase tracking-[0.14em]">
+      <span className="flex items-center gap-3 whitespace-nowrap text-left font-mono text-xs font-bold uppercase tracking-[0.14em]">
+        {icon}
         {label}
       </span>
       <span
@@ -82,7 +90,7 @@ function SettingSwitch({
  * The switch outside a race, such as in the home menu. It mounts only after
  * a click opens its menu, so reading storage at once is safe.
  */
-export function StoredSoundToggle() {
+export function StoredSoundToggle({ icon }: { icon?: ReactNode }) {
   const [on, setOn] = useState(readSoundOn);
-  return <SoundToggle on={on} onChange={setOn} />;
+  return <SoundToggle icon={icon} on={on} onChange={setOn} />;
 }

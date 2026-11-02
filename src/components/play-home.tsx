@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 
 import {
   BUNDLED_COURSE_DOCUMENTS,
@@ -27,6 +27,14 @@ import {
 } from "@/game/kart/official-kart-roster";
 
 import { drawsEnclosure } from "@/game/enclosure/enclosure-view";
+import { fetchRaceGhost } from "@/game/ghost/board-ghost";
+import {
+  type BoardGhost,
+  type GhostChoice,
+  readGhostChoice,
+  subscribeGhostChoice,
+  writeGhostChoice,
+} from "@/game/ghost/device-ghost";
 import { loadAmmoPhysics } from "@/game/runtime/playcanvas-application";
 import { loadTreeImages } from "@/game/enclosure/tree-images";
 import type { CourseEnclosure } from "@/game/enclosure/island-three";
@@ -38,8 +46,20 @@ import {
 } from "./course-loading-screen";
 import type { CourseLoadTimings } from "./frame-budget-overlay";
 import { KartThumbnail } from "./kart-thumbnail";
+import {
+  CourseEditorIcon,
+  KartBuilderIcon,
+  LeaderboardIcon,
+  ProfileIcon,
+  SignInIcon,
+  SignOutIcon,
+  SoundIcon,
+} from "./menu-icons";
 import { SoloTimeTrialCanvas } from "./solo-time-trial-canvas";
 import { StoredSoundToggle } from "./setting-switch";
+
+const UTILITY_MENU_ITEM =
+  "flex items-center gap-3 border border-transparent px-4 py-3 font-mono text-xs font-bold uppercase tracking-[0.14em] text-titan-ice/78 transition hover:border-titan-ice/20 hover:bg-titan-ice/[0.06] hover:text-titan-hazard focus-visible:border-titan-hazard focus-visible:bg-titan-hazard/[0.08] focus-visible:text-titan-hazard focus-visible:outline-none";
 
 // The loading screen stays up at least this long, even when the course is
 // ready sooner.
@@ -146,6 +166,9 @@ export function PlayHome() {
   const revealTimerRef = useRef<number | null>(null);
   const raceExitRef = useRef<(() => void) | null>(null);
   const [utilityMenuOpen, setUtilityMenuOpen] = useState(false);
+  // Whether to offer Sign in or Sign out (neither until known), checked each
+  // time the menu opens.
+  const [signedIn, setSignedIn] = useState<boolean | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   const [soloPending, setSoloPending] = useState(false);
   const [rosterPending, setRosterPending] = useState(true);
@@ -163,6 +186,13 @@ export function PlayHome() {
   const [kartSnapshot, setKartSnapshot] = useState<
     PersistedResolvedKartSnapshot | undefined
   >(undefined);
+  const [boardGhost, setBoardGhost] = useState<BoardGhost | null>(null);
+  // Read from storage only in the browser; the server renders the default.
+  const ghostChoice = useSyncExternalStore<GhostChoice>(
+    subscribeGhostChoice,
+    readGhostChoice,
+    () => "course_best",
+  );
 
   useControllerMenuNavigation({
     containerRef: homeMenuRef,
@@ -216,6 +246,36 @@ export function PlayHome() {
       stopPrewarm();
     };
   }, []);
+
+  useEffect(() => {
+    if (!utilityMenuOpen) return;
+    let active = true;
+    void fetch("/api/auth/get-session", { cache: "no-store" })
+      .then((response) => (response.ok ? response.json() : null))
+      .then((session: { session?: unknown } | null) => {
+        if (active) setSignedIn(Boolean(session?.session));
+      })
+      .catch(() => undefined);
+    return () => {
+      active = false;
+    };
+  }, [utilityMenuOpen]);
+
+  async function signOut() {
+    const response = await fetch("/api/auth/sign-out", {
+      body: JSON.stringify({}),
+      headers: { "content-type": "application/json" },
+      method: "POST",
+    }).catch(() => null);
+    if (!response?.ok) {
+      setToast("sign out failed, please retry");
+      return;
+    }
+    setToast(null);
+    setSignedIn(false);
+    setUtilityMenuOpen(false);
+    utilityMenuButtonRef.current?.focus();
+  }
 
   useEffect(() => {
     if (!utilityMenuOpen) return;
@@ -298,10 +358,20 @@ export function PlayHome() {
         leaving: false,
       });
     }
-    const [, nextCourse] = await Promise.all([
+    // The ramp test changes the course, so it races no board's ghost. The
+    // ghost loads once the revision is known, alongside the rest.
+    const rampHeight = axisRampStartHeight();
+    const nextBoardGhostPromise =
+      rampHeight === null
+        ? nextCoursePromise.then((course) =>
+            fetchRaceGhost(courseId, course.revision, readGhostChoice()),
+          )
+        : Promise.resolve(null);
+    const [, nextCourse, , nextBoardGhost] = await Promise.all([
       thumbnailPause.ready,
       nextCoursePromise,
       coverPainted,
+      nextBoardGhostPromise,
     ]);
     if (resumeThumbnailRenderingRef.current !== thumbnailPause.release) return;
     // Name the course being raced. The habitat view stays as it is rather
@@ -310,7 +380,7 @@ export function PlayHome() {
       (current) =>
         current && { ...current, courseName: nextCourse.document.name },
     );
-    const rampHeight = axisRampStartHeight();
+    setBoardGhost(nextBoardGhost);
     setCourseDocument(
       rampHeight === null
         ? nextCourse.document
@@ -412,10 +482,12 @@ export function PlayHome() {
             kartDocument={kartDocument}
             kartRevision={kartRevision}
             kartSnapshot={kartSnapshot}
+            boardGhost={boardGhost}
             loadTimings={loadTimings}
             covered={covered}
             recordTelemetry={!axisRampTest}
             showHabitatReadout={axisRampTest}
+            submitsRuns={!axisRampTest}
             onExit={exitSolo}
             onLoaded={revealRace}
           />
@@ -458,27 +530,55 @@ export function PlayHome() {
           </button>
           {utilityMenuOpen ? (
             <div
-              className="absolute right-0 top-[calc(100%+0.6rem)] z-40 grid w-64 gap-2 border border-titan-ice/24 bg-titan-black/96 p-2 shadow-[0_24px_60px_rgb(0_0_0/0.68)] backdrop-blur"
+              className="absolute right-0 top-[calc(100%+0.6rem)] z-40 grid w-72 gap-2 border border-titan-ice/24 bg-titan-black/96 p-2 shadow-[0_24px_60px_rgb(0_0_0/0.68)] backdrop-blur"
               id="home-utility-menu"
             >
-              <nav aria-label="Account and protected tools" className="grid">
-                {[
-                  ["Profile", "/profile"],
-                  ["Kart Builder", "/admin/karts"],
-                  ["Course Editor", "/admin/courses"],
-                ].map(([label, href]) => (
+              <nav aria-label="Leaderboard, account, and protected tools" className="grid">
+                {(
+                  [
+                    ["Leaderboard", "/leaderboard", <LeaderboardIcon key="icon" />],
+                    ["Profile", "/profile", <ProfileIcon key="icon" />],
+                    ["Kart Builder", "/admin/karts", <KartBuilderIcon key="icon" />],
+                    ["Course Editor", "/admin/courses", <CourseEditorIcon key="icon" />],
+                  ] as const
+                ).map(([label, href, icon]) => (
                   <Link
-                    className="border border-transparent px-4 py-3 font-mono text-xs font-bold uppercase tracking-[0.14em] text-titan-ice/78 transition hover:border-titan-ice/20 hover:bg-titan-ice/[0.06] hover:text-titan-hazard focus-visible:border-titan-hazard focus-visible:bg-titan-hazard/[0.08] focus-visible:text-titan-hazard focus-visible:outline-none"
+                    className={UTILITY_MENU_ITEM}
                     href={href}
                     key={href}
                     onClick={() => setUtilityMenuOpen(false)}
                   >
+                    {icon}
                     {label}
                   </Link>
                 ))}
+                {signedIn === false ? (
+                  <Link
+                    className={UTILITY_MENU_ITEM}
+                    href="/profile"
+                    onClick={() => setUtilityMenuOpen(false)}
+                  >
+                    <SignInIcon />
+                    Sign in
+                  </Link>
+                ) : null}
+                {signedIn ? (
+                  <button
+                    className={`${UTILITY_MENU_ITEM} text-left`}
+                    type="button"
+                    onClick={() => void signOut()}
+                  >
+                    <SignOutIcon />
+                    {/* The global `button { font: inherit }` overrides the
+                        button's own font classes. */}
+                    <span className="font-mono text-xs font-bold uppercase tracking-[0.14em]">
+                      Sign out
+                    </span>
+                  </button>
+                ) : null}
               </nav>
               <div className="border-t border-titan-ice/15 px-2 pb-2 pt-3">
-                <StoredSoundToggle />
+                <StoredSoundToggle icon={<SoundIcon />} />
               </div>
             </div>
           ) : null}
@@ -612,6 +712,49 @@ export function PlayHome() {
           >
             {soloPending ? "Preparing Race…" : "Solo Time Trial"}
           </button>
+          <p
+            className="-mb-2 font-mono text-[0.62rem] font-bold uppercase tracking-[0.18em] text-titan-muted"
+            id="ghost-choice-label"
+          >
+            Ghost
+          </p>
+          <div
+            aria-labelledby="ghost-choice-label"
+            className="grid grid-cols-2 gap-2"
+            role="group"
+          >
+            {(
+              [
+                ["course_best", "Course best"],
+                ["own_best", "Your best"],
+              ] as const
+            ).map(([choice, label]) => (
+              <button
+                aria-pressed={ghostChoice === choice}
+                className={`flex min-h-11 items-center justify-center border px-3 transition ${
+                  ghostChoice === choice
+                    ? "border-titan-hazard text-titan-hazard"
+                    : "border-titan-ice/20 text-titan-ice/70 hover:border-titan-ice/45"
+                }`}
+                key={choice}
+                type="button"
+                onClick={() => writeGhostChoice(choice)}
+              >
+                {/* The global `button { font: inherit }` overrides the
+                    button's own font classes. */}
+                <span className="font-mono text-[0.68rem] font-bold uppercase leading-none tracking-[0.12em]">
+                  {label}
+                </span>
+              </button>
+            ))}
+          </div>
+          <Link
+            className="flex items-center justify-center gap-2 py-1 font-mono text-xs font-bold uppercase tracking-[0.16em] text-titan-ice/70 transition hover:text-titan-hazard focus-visible:text-titan-hazard focus-visible:outline-none"
+            href="/leaderboard"
+          >
+            <LeaderboardIcon />
+            View leaderboard
+          </Link>
           <div
             className={
               toast

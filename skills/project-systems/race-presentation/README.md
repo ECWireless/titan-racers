@@ -62,8 +62,9 @@ ghosts, telemetry, multiplayer, or final Falls View Park presentation.
   input from the finished race.
 - Bundled-coordinate browser fixtures cannot consume mutable publication data;
   publication behavior is covered through explicit route overrides.
-- The finish dialog names the kart raced.
-- No race progress or result is persisted yet.
+- The finish dialog names the kart raced and shows a logged-in racer's
+  verified standing ([leaderboard](../leaderboard/README.md)). Race
+  progress is not persisted.
 
 ## Verification
 
@@ -79,4 +80,4 @@ ghosts, telemetry, multiplayer, or final Falls View Park presentation.
   touch, and controller. Deterministic gate traversal, per-family driving/input
   integration, controller finish/replay/exit, and accepted feature-lead
   cross-device feel QA provide the current evidence boundary.
-- Persistent results, leaderboards, and HUD settings are later work.
+- HUD settings are later work.

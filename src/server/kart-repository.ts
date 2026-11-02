@@ -250,6 +250,25 @@ export async function saveKartRevision(input: {
   });
 }
 
+/** Whether a revision was ever published; a race outlives a later republish. */
+export async function wasKartRevisionPublished(
+  kartId: string,
+  revision: number,
+) {
+  const rows = await db
+    .select({ id: kartPublicationEvents.id })
+    .from(kartPublicationEvents)
+    .where(
+      and(
+        eq(kartPublicationEvents.kartId, kartId),
+        eq(kartPublicationEvents.action, "publish"),
+        eq(kartPublicationEvents.revision, revision),
+      ),
+    )
+    .limit(1);
+  return rows.length > 0;
+}
+
 export async function loadLatestKartPublicationEvent(
   kartId: string,
 ): Promise<PersistedKartPublicationEvent | null> {

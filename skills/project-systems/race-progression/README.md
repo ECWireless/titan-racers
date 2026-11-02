@@ -24,9 +24,15 @@ final Falls View Park course; races are recorded as
 - `src/game/race/race-session.ts` owns lifecycle transitions, microsecond timing,
   expected-target progression, lap history, invalid-crossing diagnostics, and
   immutable recovery snapshots.
-- `src/game/race/playcanvas-race-course.ts` converts validated course transforms
-  into plain race gates and supplies the rough-loop configuration: a
-  three-second countdown, two laps, and a half-second recovery stabilization.
+- `src/game/race/race-course.ts` converts validated course transforms into
+  plain race gates without the engine, so a server builds the same gates, and
+  supplies the race configuration: a three-second countdown, two laps, and a
+  half-second recovery stabilization.
+- `src/game/race/race-verification.ts` checks a finished race's ghost
+  recording against its course: only gate-flagged samples count as
+  crossings, in order; samples are at least a fixed step apart under a speed
+  cap; and resets land only on the race's newest reset point. The time comes
+  from the finishing crossing.
 - `src/game/course/course-document.ts` owns the canonical version-two start-gate,
   checkpoint direction, and recovery contract plus immutable version-one
   normalization. Candidate v2 directions are aligned to the full rotated gate
@@ -49,8 +55,8 @@ final Falls View Park course; races are recorded as
 ## Runtime Flow
 
 1. The published course is strictly parsed and normalized to an owned v2 value.
-2. The PlayCanvas adapter builds the start/finish gate and ordered checkpoint
-   gates as plain data; no rigid-body trigger entity is created.
+2. `race-course.ts` builds the start/finish gate and ordered checkpoint gates
+   as plain data; no rigid-body trigger entity is created.
 3. The session moves from `loading` to `ready` and immediately begins
    `countdown`. Countdown time does not count toward the competitive result.
 4. Before each 120 Hz physics step, input is sampled and race time advances.
@@ -112,6 +118,8 @@ Focused coverage includes:
 - `tests/race-session.spec.ts` for lifecycle transitions, countdown/recovery
   boundaries, deterministic timing, laps, invalid ordering, pause, finish, and
   defensive snapshots;
+- `tests/race-verification.spec.ts` for recordings made by driving the session
+  and recorder, tampered copies of them, and gates matching PlayCanvas's;
 - `tests/course-document.spec.ts` for v2 validation, canonical serialization,
   gate-face alignment, recovery data, and non-mutating v1/v2 compatibility;
 - `tests/fixed-step-clock.spec.ts` and `tests/playcanvas-runtime.spec.ts` for
@@ -124,10 +132,13 @@ Focused coverage includes:
 
 ## Known Limits And Deferred Work
 
-- Race results are session-memory only; results and leaderboards are not
-  supported yet.
+- Race results persist only as verified runs
+  ([leaderboard](../leaderboard/README.md)).
 - The rough course is the development loop. Falls View Park has its own
   circuit, gates, and recoveries.
 - Recovery support uses the accepted authored candidate chain and current
   PlayCanvas/Ammo raycast mapping; moving course geometry still requires
   course-specific clearance QA before publication.
+- Every recovery point needs drivable ground within 2 m above or below it.
+  Without it the race falls back to an older point, and the recording check,
+  which accepts only the newest, rejects that run.

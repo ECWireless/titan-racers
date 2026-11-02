@@ -107,8 +107,9 @@ and recovery. Teleporting onto a gate therefore cannot create a crossing.
 Process only the currently expected stable ID and accept at most one target in
 one fixed step.
 
-PlayCanvas `Quat.setFromEulerAngles`, `invert`, and `transformVector` may prepare
-plain axes at the adapter boundary. Pure tests should not require PlayCanvas.
+Gate axes are prepared with plain maths in PlayCanvas's Euler convention
+(`Quat.setFromEulerAngles`), so the same gates can be built without the engine.
+Pure tests should not require PlayCanvas.
 
 ## Course Data
 

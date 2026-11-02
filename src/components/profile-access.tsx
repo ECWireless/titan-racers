@@ -3,7 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { FormEvent, useEffect, useRef, useState } from "react";
+import { FormEvent, useCallback, useEffect, useRef, useState } from "react";
 import { z } from "zod";
 
 import { useControllerMenuNavigation } from "@/game/input/use-controller-menu-navigation";
@@ -189,10 +189,22 @@ export function ProfileAccess({
     onBack: () => router.push(returnTo),
   });
 
+  // A returning racer signing in has nothing to set up, so carry on.
+  const carryOn = useCallback(
+    (nextState: ProfileState) => {
+      if (mode !== "onboarding" || nextState.status !== "complete") {
+        return false;
+      }
+      router.replace(returnTo);
+      return true;
+    },
+    [mode, returnTo, router],
+  );
+
   useEffect(() => {
     let active = true;
     void loadProfile().then((nextState) => {
-      if (!active) return;
+      if (!active || carryOn(nextState)) return;
       setProfileState(nextState);
       const linkError = mode === "profile" ? googleLinkErrorMessage() : null;
       if (linkError) setFeedback({ kind: "error", message: linkError });
@@ -203,12 +215,13 @@ export function ProfileAccess({
     return () => {
       active = false;
     };
-  }, [mode]);
+  }, [carryOn, mode]);
 
   async function retryProfile() {
     setFeedback(null);
     setProfileState({ status: "loading" });
     const nextState = await loadProfile();
+    if (carryOn(nextState)) return;
     setProfileState(nextState);
     if (nextState.status === "incomplete") {
       setUsername(nextState.suggestedUsername);
