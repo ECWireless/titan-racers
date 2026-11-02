@@ -22,6 +22,10 @@ import {
   REFERENCE_KART_MASS_SCALE,
   scaleReferenceKartLength,
 } from "../src/game/kart/kart-reference-construction";
+import {
+  decodeGhostTrace,
+  ghostTraceFromBase64,
+} from "../src/game/ghost/ghost-trace";
 import type { RaceAudioDebugState } from "../src/game/audio/race-audio";
 import type {
   KartDebugState,
@@ -383,6 +387,21 @@ async function getPresentationDebugState(canvas: Locator) {
       }>((resolve) => {
         element.dispatchEvent(
           new CustomEvent("getPresentationDebugState", {
+            detail: { respond: resolve },
+          }),
+        );
+      }),
+  );
+}
+
+async function getGhostRecording(canvas: Locator) {
+  await waitForSceneReady(canvas);
+
+  return canvas.evaluate(
+    (element) =>
+      new Promise<string | null>((resolve) => {
+        element.dispatchEvent(
+          new CustomEvent("getGhostRecording", {
             detail: { respond: resolve },
           }),
         );
@@ -1776,6 +1795,18 @@ test.describe("home screen", () => {
     const finishDialog = page.getByRole("dialog", { name: "Finish" });
     await expect(finishDialog).toBeVisible();
     await expect(raceAnnouncement).toHaveText(/^Race finished in 0:/);
+
+    // The race's ghost samples each gate crossing and ends on the result.
+    const recording = await getGhostRecording(canvas);
+    expect(recording).not.toBeNull();
+    const ghost = decodeGhostTrace(ghostTraceFromBase64(recording!));
+    expect(ghost.filter(({ gate }) => gate)).toHaveLength(
+      2 * (checkpoints.length + 1),
+    );
+    expect(ghost.at(-1)).toMatchObject({
+      gate: true,
+      timeMicroseconds: race.elapsedRaceMicroseconds,
+    });
     await expect(finishDialog.getByRole("listitem")).toHaveCount(2);
     await expect(finishDialog).toContainText("Balanced Kart");
     await expect(

@@ -218,6 +218,12 @@ import {
   describeKartLighting,
 } from "@/game/testing/scene-test-adapter";
 import {
+  encodeGhostTrace,
+  GhostRecorder,
+  type GhostSample,
+  ghostTraceToBase64,
+} from "@/game/ghost/ghost-trace";
+import {
   GameplayRunTelemetry,
   type GameplayRaceIdentity,
   httpGameplayTelemetrySink,
@@ -837,6 +843,10 @@ export function SoloTimeTrialCanvas({
         createRaceSessionConfig(COURSE_DOCUMENT),
       );
       let raceStartReported = false;
+      const ghostRecorder = new GhostRecorder();
+      const ghostAssemblyRotation = new pc.Quat();
+      // The last finished race's recording.
+      let finishedGhostTrace: GhostSample[] | null = null;
       let lastRaceProgressionResult: RaceProgressionResult = { kind: "none" };
       let lastRaceAnnouncementResult: RaceProgressionResult = { kind: "none" };
       let lastRacePresentation = createRacePresentationSnapshot(
@@ -1724,6 +1734,7 @@ export function SoloTimeTrialCanvas({
           kart.rigidbody.activate();
         }
         kartController.reset();
+        ghostRecorder.markReset();
         manualRightingCapturePending = false;
         manualRightingSettling = false;
         manualRightingSettlingRemainingSeconds = 0;
@@ -2473,6 +2484,7 @@ export function SoloTimeTrialCanvas({
 
           gameplayTelemetry.start(raceIdentityRef.current, { raceAgain: true });
           gameplayTelemetry.markRuntimeLoaded();
+          ghostRecorder.reset();
           raceStartReported = false;
           lastRaceProgressionResult = { kind: "none" };
           lastRaceAnnouncementResult = { kind: "none" };
@@ -2974,6 +2986,10 @@ export function SoloTimeTrialCanvas({
             getKartScreenPoint,
             getKartVisualDebugState,
             getPresentationDebugState,
+            getGhostRecording: () =>
+              finishedGhostTrace
+                ? ghostTraceToBase64(encodeGhostTrace(finishedGhostTrace))
+                : null,
             getRaceDebugState: () => ({
               ...raceSession.snapshot,
               lastProgressionResult: lastRaceProgressionResult,
@@ -3103,6 +3119,7 @@ export function SoloTimeTrialCanvas({
         captureAudioEvents(dt);
 
         const currentRacePosition = kart.getPosition();
+        let crossedGate = false;
         if (raceSession.acceptsDriving) {
           const progressionResult = raceSession.processMovement(
             {
@@ -3123,6 +3140,10 @@ export function SoloTimeTrialCanvas({
           if (isIncompleteLapRoute(progressionResult)) {
             raceAudio?.playCue("lap-rejected");
           }
+          crossedGate =
+            progressionResult.kind === "checkpoint" ||
+            progressionResult.kind === "lap" ||
+            progressionResult.kind === "finished";
           if (lastRaceProgressionResult.kind === "finished") {
             raceFinishedThisFrame = true;
             inputManager.setEnabled(false);
@@ -3130,6 +3151,27 @@ export function SoloTimeTrialCanvas({
             setKartDynamicsOpen(false);
             setDriveCursorHidden(false);
           }
+        }
+        // Record while race time runs, and the step that finished it.
+        const finishedThisStep =
+          crossedGate && lastRaceProgressionResult.kind === "finished";
+        const raceClock = raceSession.snapshot;
+        if (
+          raceClock.state === "racing" ||
+          raceClock.state === "recovering" ||
+          finishedThisStep
+        ) {
+          ghostRecorder.recordStep(
+            raceClock.elapsedRaceMicroseconds,
+            currentRacePosition,
+            ghostAssemblyRotation.mul2(
+              kart.getRotation(),
+              KART_ASSEMBLY_TO_PRINCIPAL_ROTATION,
+            ),
+            kartController.state.steerAngle,
+            crossedGate,
+          );
+          if (finishedThisStep) finishedGhostTrace = ghostRecorder.finish();
         }
         previousRacePosition.copy(currentRacePosition);
         // A 1:10 kart whose centre of mass goes under water is drowned, as a
@@ -3178,6 +3220,13 @@ export function SoloTimeTrialCanvas({
           return;
         }
         raceFinishedThisFrame = false;
+        // A stall in the finishing frame is charged to the result after the
+        // finishing step was recorded; the ghost ends on the official time.
+        const finalSample = finishedGhostTrace?.at(-1);
+        if (finalSample) {
+          finalSample.timeMicroseconds =
+            raceSession.snapshot.elapsedRaceMicroseconds;
+        }
         gameplayTelemetry.complete(
           Math.round(raceSession.snapshot.elapsedRaceMicroseconds / 1_000),
         );
