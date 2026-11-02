@@ -17,9 +17,7 @@ accepted; the app, README, and durable docs take over from there.
 
 - **Done:** Phases 0–4 (PRs #1–#24, the Phase 3 closeout and its
   follow-ups, and #30–#57 with the PR 4.5.2 closeout).
-- **Next:** Phase 5, after its debrief. First, reseed production's Falls View
-  Park (`db:reset-course-seed`, then an admin publishes the draft) so the
-  return turn's seam fix from PR 4.5.2 reaches players.
+- **Next:** PR 5.1. Phase 5's debrief is done (see its phase decisions).
 
 ## Guiding Decisions
 
@@ -58,8 +56,9 @@ These still constrain every remaining phase.
   results, leaderboards, community catalogs, rooms, sharing, and analytics.
 - **Game runtime:** PlayCanvas with Ammo physics, chosen in the Phase 1 spike.
 - **Data:** Postgres locally and Neon when hosted, with Drizzle migrations.
-- **Auth:** Better Auth with Postgres-backed sessions. Google login exists for
-  admins today; player login and SIWE wallet linking arrive in Phase 5. The
+- **Auth:** Better Auth with Postgres-backed sessions. Players and admins log
+  in with Google; SIWE wallet login and account linking arrive in Phase 5,
+  with Better Auth's SIWE plugin and signatures checked offline by `viem`. The
   first admin is bootstrapped by a database script
   (`docs/database-operations.md`).
 - **Analytics:** Vercel Web Analytics for anonymous page views, plus small
@@ -83,7 +82,7 @@ These still constrain every remaining phase.
   showing name, assembler credit, visual identity, stat bars, and a short
   descriptor.
 - Keyboard, touch, and gamepad controls, plus fast reset.
-- Developer ghost and player-best ghost.
+- Own-best, course-best, and shared ghosts; a developer time sets the medals.
 - Login-gated solo leaderboard.
 - Falls View Park best-time medals that set progression tiers.
 - Admin kart builder; after Phase 7, player-built community karts with
@@ -195,26 +194,90 @@ Decisions from completed phases that later phases rely on:
 
 **Goal:** make solo play replayable.
 
-- [ ] Solo time trial with developer and player-best ghosts.
-- [ ] Result screen showing total and lap times, kart used, replay, sharing,
-      and a login prompt when the run is leaderboard-eligible.
-- [ ] Player login with explicit account linking, including SIWE wallet login
-      that never becomes the canonical user ID.
-- [ ] Login-gated global solo leaderboard. Official karts are eligible;
-      community karts stay casual until their balance is validated.
-      Multiplayer results stay room-only. Decide whether runs that leave
-      the track through Falls View Park's storm drain stay eligible.
-- [ ] Progression tiers from Falls View Park best-time medals: a finish tier,
-      then bronze, silver, and gold. Tiers do not unlock kart-assembly parts.
-- [ ] Guests keep racing freely without progression.
-- [ ] Races and results record the course and kart IDs and their immutable
-      publication revisions instead of hard-coding the official course.
+Phase decisions:
 
-Wallet scope is login and account linking only. Embedded wallets, balances, and
-on-chain actions need a separately accepted scope.
+- **One ghost on track at a time.** A solo trial races your own best. You can
+  instead race the course best (the board's first place) or a ghost a friend
+  shared. There is no separate developer ghost; a developer time sets the
+  medals.
+- **Ghosts are recordings, not re-simulations.** A ghost records the kart's
+  pose 20 times per race second, plus exact samples at gate crossings and
+  resets, in a small versioned binary format. It is not telemetry: on the
+  server, only a logged-in player's best run on a board keeps one, replaced
+  when they improve. Guests' ghosts stay on their device.
+- **Runs are verified, not cheat-proof.** A logged-in player's qualifying run
+  submits on finish. The server checks a signed run ticket (used once, with
+  real elapsed time at least the race time), re-runs the gate check on the
+  recording against that course revision, caps speed, allows jumps only to
+  reset points, and takes the time from its own check. The client never sends
+  a tier or rank. A forged recording that obeys the physics can still pass.
+- **Eligibility:** a logged-in player with a username, an official kart, and
+  a published course revision under the current physics. Community karts stay
+  casual and multiplayer results stay room-only. Runs that leave through the
+  storm drain stay eligible: gates count only in order and the drain's chute
+  is its only way back in, so the trip is always a detour. Re-check this if a
+  course change opens another way back in.
+- **Boards and medals:** one board per published course revision and physics
+  version, with one row per player and the top 50 shown. Medals are a finish
+  tier, then bronze, silver, and gold within 50%, 20%, and 6% of the developer
+  time. Each is granted once per player per course; they are display-only and
+  unlock no parts.
+- **Login:** Google, plus SIWE login with browser wallets (EIP-6963) that sign
+  with their own key. A new wallet creates a racer with a generated ID.
+  Signed-in racers link a wallet or Google explicitly; email never links
+  accounts, accounts never merge, and the last login method cannot be
+  unlinked. WalletConnect, smart-contract wallets, ENS, embedded wallets,
+  balances, and on-chain actions need a separately accepted scope.
+- **Guests race freely without progression.** A guest's qualifying run can be
+  claimed by logging in within 30 minutes of its start.
+- **Replay** is Race again with a ghost; there is no watch mode.
+
+**PR 5.1: Race identity and ghosts**
+
+- [x] Races and telemetry record the course and kart IDs and their
+      publication revisions instead of hard-coding the official course.
+- [x] Run summaries record whether a race came from Race again and which
+      ghost it raced (none or your own; later PRs add their choices).
+- [x] The ghost recording format and recorder.
+- [x] One see-through ghost with no collision, sound, or shadow: your best on
+      this device, behind a ghost switch.
+- [x] The result screen shows the kart used.
+- [x] Ghost playback stays within the phone budget (`?perf=1`).
+
+**PR 5.2: Wallet login and account linking**
+
+- [ ] Wallet sign-in through Better Auth's SIWE plugin, and our own route to
+      link a wallet to the signed-in racer (the plugin's sign-in ignores the
+      session).
+- [ ] Link Google to a wallet-first racer; unlink while another method
+      remains.
+- [ ] The profile lists login methods; anonymization removes wallets.
+
+**PR 5.3: Verified runs, leaderboard, and medals**
+
+- [ ] Signed run tickets, submission on finish, and the server checks.
+- [ ] Results, medals, and each player's best ghost per board in Postgres.
+- [ ] A leaderboard page; logged-in players race their account best, and
+      anyone can race the course best.
+- [ ] Admins set the developer time from one of their verified runs.
+- [ ] The result screen shows rank, personal best, and medal.
+
+**PR 5.4: Results flow, sharing, and closeout**
+
+- [ ] A login prompt on a guest's qualifying result, and claiming the run after
+      Google or wallet login, including onboarding.
+- [ ] Sharing through the share sheet, else copying. A logged-in player's best
+      race shares a ghost link that follows their current best.
+- [ ] Anyone can race a shared ghost from its link without logging in.
+- [ ] Run summaries record whether the result was shared. A Phase 5 panel on
+      the admin dashboard shows replays, ghost use, sign-ups by login method,
+      submissions, claims after a race, shares, and races from shared links.
+      Sign-ups, submissions, and claims come from the rows those features
+      already store, not new telemetry.
 
 **Done when:** medal tiers are granted once per player and cannot be forged by
-client state.
+client state; a guest finishes, logs in, and finds the claimed run on the
+board; and a friend's ghost link races their best.
 
 ### Phase 6: Private Multiplayer
 
@@ -463,10 +526,14 @@ course-specific ghosts or leaderboards.
       junction kits, and sprinkler or drip irrigation over the nursery rows,
       within the phone budget.
 - [ ] Loose ends from Phase 4: the junction chamber's valve risers have no
-      collision, and three `home.spec` tests fail on `main` ("keeps a late
-      thumbnail fallback isolated from race startup", "keeps the drive
-      cursor hidden and restores it while paused", and "recovers a lost
-      WebGL context into an explicit pause…").
+      collision, and tests fail on `main` on the lead's server under
+      software WebGL: four in `home.spec` ("keeps a late thumbnail fallback
+      isolated from race startup", "keeps the drive cursor hidden and
+      restores it while paused", "recovers a lost WebGL context into an
+      explicit pause…", and "navigates guest menus end-to-end with a
+      standard controller snapshot") and two in `gameplay-telemetry.spec`
+      ("flushes one coarse health summary…" and "reports ordered run
+      milestones…", which time out clicking Exit).
 - [ ] Analytics review: confirm we can measure time to first race, race start
       and completion, replays, room joins, shares, login after a race,
       leaderboard submissions, community publishing and play, thumbs-ups,

@@ -42,6 +42,8 @@ A game-concept node should normally cover:
   engine-independent standard for explicit race lifecycle, deterministic
   timing, ordered checkpoints and laps, invalid-progression handling, and safe
   checkpoint recovery.
+- [`ghosts/`](ghosts/README.md): the candidate standard for recording a race
+  as poses on the race clock and replaying one see-through ghost.
 - [`player-input/`](player-input/README.md): the validated engine-independent
   standard for normalized driving actions, concurrent keyboard, touch, and
   controller support, device arbitration, cancellation, and accessible control

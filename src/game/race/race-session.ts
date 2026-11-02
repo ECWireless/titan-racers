@@ -171,6 +171,15 @@ export class RaceSession {
     };
   }
 
+  /** Cheap per-frame reads; `snapshot` copies the whole session. */
+  get lifecycleState() {
+    return this.state;
+  }
+
+  get raceMicroseconds() {
+    return this.elapsedRaceMicroseconds;
+  }
+
   get acceptsDriving() {
     return this.state === "racing";
   }

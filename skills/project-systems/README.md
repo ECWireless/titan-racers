@@ -47,6 +47,8 @@ The source code and authoritative project documents remain the final authority f
 - [Race progression](race-progression/README.md): deterministic lifecycle,
   directed swept checkpoint gates, ordered laps, monotonic timing, pause-safe
   fixed-step integration, and checkpoint recovery.
+- [Ghosts](ghosts/README.md): the race recording format and recorder, ghost
+  playback and look, your best on this device, and the Ghost switch.
 - [Player input](player-input/README.md): normalized fixed-step driving actions,
   keyboard, multi-touch, and standard-gamepad adapters, intentional-activity
   arbitration, cancellation, accessible touch controls, reset, and pause.

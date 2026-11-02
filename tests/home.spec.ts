@@ -22,6 +22,12 @@ import {
   REFERENCE_KART_MASS_SCALE,
   scaleReferenceKartLength,
 } from "../src/game/kart/kart-reference-construction";
+import {
+  decodeGhostTrace,
+  encodeGhostTrace,
+  ghostTraceFromBase64,
+  ghostTraceToBase64,
+} from "../src/game/ghost/ghost-trace";
 import type { RaceAudioDebugState } from "../src/game/audio/race-audio";
 import type {
   KartDebugState,
@@ -29,6 +35,7 @@ import type {
   RaceDebugState,
 } from "../src/game/testing/scene-test-adapter";
 import { DEFAULT_FIXED_STEP_SECONDS } from "../src/game/runtime/fixed-step-clock";
+import { CURRENT_PHYSICS_VERSION } from "../src/game/physics/physics-version";
 
 import {
   PHYSICS_GROUP,
@@ -383,6 +390,38 @@ async function getPresentationDebugState(canvas: Locator) {
       }>((resolve) => {
         element.dispatchEvent(
           new CustomEvent("getPresentationDebugState", {
+            detail: { respond: resolve },
+          }),
+        );
+      }),
+  );
+}
+
+async function getGhostDebugState(canvas: Locator) {
+  await waitForSceneReady(canvas);
+
+  return canvas.evaluate(
+    (element) =>
+      new Promise<{ finishMicroseconds: number | null; visible: boolean }>(
+        (resolve) => {
+          element.dispatchEvent(
+            new CustomEvent("getGhostDebugState", {
+              detail: { respond: resolve },
+            }),
+          );
+        },
+      ),
+  );
+}
+
+async function getGhostRecording(canvas: Locator) {
+  await waitForSceneReady(canvas);
+
+  return canvas.evaluate(
+    (element) =>
+      new Promise<string | null>((resolve) => {
+        element.dispatchEvent(
+          new CustomEvent("getGhostRecording", {
             detail: { respond: resolve },
           }),
         );
@@ -1776,7 +1815,20 @@ test.describe("home screen", () => {
     const finishDialog = page.getByRole("dialog", { name: "Finish" });
     await expect(finishDialog).toBeVisible();
     await expect(raceAnnouncement).toHaveText(/^Race finished in 0:/);
+
+    // The race's ghost samples each gate crossing and ends on the result.
+    const recording = await getGhostRecording(canvas);
+    expect(recording).not.toBeNull();
+    const ghost = decodeGhostTrace(ghostTraceFromBase64(recording!));
+    expect(ghost.filter(({ gate }) => gate)).toHaveLength(
+      2 * (checkpoints.length + 1),
+    );
+    expect(ghost.at(-1)).toMatchObject({
+      gate: true,
+      timeMicroseconds: race.elapsedRaceMicroseconds,
+    });
     await expect(finishDialog.getByRole("listitem")).toHaveCount(2);
+    await expect(finishDialog).toContainText("Balanced Kart");
     await expect(
       finishDialog.getByRole("button", { name: "Race again" }),
     ).toBeFocused();
@@ -1789,6 +1841,10 @@ test.describe("home screen", () => {
     await expect
       .poll(async () => (await getRaceDebugState(canvas)).state)
       .toBe("countdown");
+    // Race again races the best just set.
+    expect((await getGhostDebugState(canvas)).finishMicroseconds).toBe(
+      race.elapsedRaceMicroseconds,
+    );
     await expect(raceStatus).toContainText("Lap01/02");
     await expect(canvas).toBeFocused();
 
@@ -1801,6 +1857,89 @@ test.describe("home screen", () => {
     expect(Math.abs(restartedKart.z - initialKart.z)).toBeLessThan(
       scaleReferenceKartLength(0.1),
     );
+  });
+
+  test("races a stored ghost, hidden on the kart and by its switch", async ({
+    page,
+  }, testInfo) => {
+    testInfo.setTimeout(240_000);
+    test.skip(testInfo.project.name !== "desktop", "Ghost playback only needs to run once.");
+    await page.setViewportSize({ height: 270, width: 480 });
+    await page.goto("/");
+    await page.getByRole("button", { name: "Solo Time Trial" }).click();
+    let canvas = page.getByTestId("solo-time-trial-canvas");
+    // Falls View Park loads slowly under software WebGL.
+    await expect(canvas).toHaveAttribute("data-scene-ready", "true", {
+      timeout: 120_000,
+    });
+    await setSimulationPaused(canvas, true);
+    const grid = await getKartDebugState(canvas);
+
+    // A best that waits on the grid for the whole race, stored on this
+    // device for the published revision the race loads.
+    const samples = [0, 100_000_000].map((timeMicroseconds) => ({
+      gate: false,
+      position: { x: grid.x, y: grid.y, z: grid.z },
+      reset: false,
+      rotation: grid.rotation,
+      steerDegrees: 0,
+      timeMicroseconds,
+    }));
+    const record = {
+      courseId: FALLS_VIEW_PARK_DOCUMENT.courseId,
+      courseRevision: 1,
+      kart: {
+        centerOfMass: BALANCED_KART_SNAPSHOT.massProperties.centerOfMass,
+        document: BALANCED_KART_DOCUMENT,
+        wheels: BALANCED_KART_SNAPSHOT.geometry.wheelStations.map(
+          ({ id, radius, steered }) => ({ id, radius, steered }),
+        ),
+      },
+      timeMicroseconds: 100_000_000,
+      trace: ghostTraceToBase64(encodeGhostTrace(samples)),
+    };
+    await page.evaluate(
+      ([key, value]) => window.localStorage.setItem(key, value),
+      [
+        `titan-racers.ghost.v1:${FALLS_VIEW_PARK_DOCUMENT.courseId}:1:${CURRENT_PHYSICS_VERSION}`,
+        JSON.stringify(record),
+      ],
+    );
+    await page.reload();
+    await page.getByRole("button", { name: "Solo Time Trial" }).click();
+    canvas = page.getByTestId("solo-time-trial-canvas");
+    await expect(canvas).toHaveAttribute("data-scene-ready", "true", {
+      timeout: 120_000,
+    });
+    await setSimulationPaused(canvas, true);
+    await stepSimulation(canvas, 3);
+    // On the kart it would fight it for the same pixels.
+    expect(await getGhostDebugState(canvas)).toEqual({
+      finishMicroseconds: 100_000_000,
+      visible: false,
+    });
+
+    await setKartDebugPose(canvas, {
+      position: {
+        x: grid.x - grid.forward.x,
+        y: grid.y + 0.05,
+        z: grid.z - grid.forward.z,
+      },
+      rotation: { x: 0, y: grid.rotationY, z: 0 },
+    });
+    await stepSimulation(canvas, 1);
+    expect((await getGhostDebugState(canvas)).visible).toBe(true);
+
+    // The switch hides it at once, though the race is paused.
+    await page.keyboard.press("Escape");
+    await stepSimulation(canvas, 1);
+    const ghostSwitch = page
+      .getByRole("dialog", { name: "Paused" })
+      .getByRole("switch", { name: "Ghost" });
+    await expect(ghostSwitch).toHaveAttribute("aria-checked", "true");
+    await ghostSwitch.click();
+    await expect(ghostSwitch).toHaveAttribute("aria-checked", "false");
+    expect((await getGhostDebugState(canvas)).visible).toBe(false);
   });
 
   test("keeps the rough-race HUD clear of mobile utilities", async ({

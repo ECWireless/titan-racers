@@ -39,7 +39,7 @@ import {
 import type { CourseLoadTimings } from "./frame-budget-overlay";
 import { KartThumbnail } from "./kart-thumbnail";
 import { SoloTimeTrialCanvas } from "./solo-time-trial-canvas";
-import { StoredSoundToggle } from "./sound-toggle";
+import { StoredSoundToggle } from "./setting-switch";
 
 // The loading screen stays up at least this long, even when the course is
 // ready sooner.
@@ -55,8 +55,13 @@ type PlayableOfficialKart = {
   assemblerCredit: string;
   document: KartAssemblyDocument;
   resolvedSnapshot: PersistedResolvedKartSnapshot;
+  /** The published revision, or null for the bundled roster. */
+  revision: number | null;
   thumbnailSource: string | null;
 };
+
+/** A course to race and its published revision, or null for the seed. */
+type RaceCourse = { document: CourseDocument; revision: number | null };
 
 // Non-production test hooks: `?sandbox-course` races the physics sandbox;
 // `?axisRamp` adds the ramp to the habitat axis and records no telemetry, and
@@ -77,7 +82,7 @@ function soloCourseId() {
     : CURRENT_GUEST_COURSE_ID;
 }
 
-async function loadPublishedCourse(courseId: string) {
+async function loadPublishedCourse(courseId: string): Promise<RaceCourse> {
   const response = await fetch(
     `/api/courses/${courseId}/published`,
     {
@@ -86,7 +91,10 @@ async function loadPublishedCourse(courseId: string) {
     },
   );
   if (!response.ok) throw new Error("Published course unavailable.");
-  return publishedCourseRuntimeSchema.parse(await response.json()).document;
+  const { document, revision } = publishedCourseRuntimeSchema.parse(
+    await response.json(),
+  );
+  return { document, revision };
 }
 
 async function loadOfficialKartRoster() {
@@ -107,6 +115,7 @@ function playableOfficialKarts(
           assemblerCredit: entry.assemblerCredit,
           document: entry.runtime.document,
           resolvedSnapshot: entry.runtime.resolvedSnapshot,
+          revision: entry.runtime.revision,
           thumbnailSource: entry.runtime.thumbnailAvailable
             ? `/api/karts/${entry.runtime.kartId}/thumbnail?revision=${entry.runtime.revision}`
             : null,
@@ -115,6 +124,7 @@ function playableOfficialKarts(
           assemblerCredit: entry.assemblerCredit,
           document: entry.document,
           resolvedSnapshot: entry.resolvedSnapshot,
+          revision: null,
           thumbnailSource: null,
         },
   );
@@ -145,6 +155,8 @@ export function PlayHome() {
   const [courseDocument, setCourseDocument] = useState<CourseDocument>(
     BUNDLED_COURSE_DOCUMENTS[CURRENT_GUEST_COURSE_ID],
   );
+  const [courseRevision, setCourseRevision] = useState<number | null>(null);
+  const [kartRevision, setKartRevision] = useState<number | null>(null);
   const [kartDocument, setKartDocument] = useState<
     KartAssemblyDocument | undefined
   >(undefined);
@@ -258,7 +270,10 @@ export function PlayHome() {
     stopPrewarmRef.current?.();
     const courseId = soloCourseId();
     const nextCoursePromise = loadPublishedCourse(courseId).catch(
-      () => BUNDLED_COURSE_DOCUMENTS[courseId],
+      (): RaceCourse => ({
+        document: BUNDLED_COURSE_DOCUMENTS[courseId],
+        revision: null,
+      }),
     );
     const thumbnailPause = pauseKartThumbnailRendering();
     resumeThumbnailRenderingRef.current = thumbnailPause.release;
@@ -292,12 +307,18 @@ export function PlayHome() {
     // Name the course being raced. The habitat view stays as it is rather
     // than restart for a published course's slightly different placement.
     setCourseLoading(
-      (current) => current && { ...current, courseName: nextCourse.name },
+      (current) =>
+        current && { ...current, courseName: nextCourse.document.name },
     );
     const rampHeight = axisRampStartHeight();
     setCourseDocument(
-      rampHeight === null ? nextCourse : withAxisRampTest(nextCourse, rampHeight),
+      rampHeight === null
+        ? nextCourse.document
+        : withAxisRampTest(nextCourse.document, rampHeight),
     );
+    // The ramp test changes the course, so it no longer is that revision.
+    setCourseRevision(rampHeight === null ? nextCourse.revision : null);
+    setKartRevision(selectedKart.revision);
     setAxisRampTest(rampHeight !== null);
     setKartDocument(selectedKart.document);
     setKartSnapshot(selectedKart.resolvedSnapshot);
@@ -385,8 +406,11 @@ export function PlayHome() {
         <div className="contents" inert={covered}>
           <SoloTimeTrialCanvas
             courseDocument={courseDocument}
+            courseRevision={courseRevision}
             exitRef={raceExitRef}
+            ghosts={!axisRampTest}
             kartDocument={kartDocument}
+            kartRevision={kartRevision}
             kartSnapshot={kartSnapshot}
             loadTimings={loadTimings}
             covered={covered}

@@ -24,7 +24,7 @@ identity.
   same-origin guest writer.
 - `src/server/gameplay-telemetry-repository.ts` owns idempotent server-timestamped
   Postgres transitions and server-derived deployment attribution.
-- `src/db/schema.ts` and `drizzle/0004_*` through `0010_*` own the typed run
+- `src/db/schema.ts` and `drizzle/0004_*` through `0019_*` own the typed run
   table, enum values, lifecycle and attribution constraints, triggers, and
   timestamp index.
 - `src/game/telemetry/gameplay-dashboard.ts` owns pure aggregate semantics and
@@ -45,8 +45,10 @@ identity.
 
 ## Runtime Flow
 
-1. Mounting a solo race generates one random UUIDv4 and queues `run_started`
-   for the allowlisted playable course.
+1. Mounting a solo race, or Race again, generates one random UUIDv4 and
+   queues `run_started` naming what the run races: the course and kart IDs,
+   their publication revisions (null for a bundled seed or roster),
+   whether it came from Race again, and which ghost it races.
 2. A ready PlayCanvas scene queues `runtime_loaded` with a bounded monotonic
    client load duration. The server records its own receipt timestamp and the
    duration separately so database/network latency does not inflate runtime
@@ -66,10 +68,14 @@ identity.
    transitions, and leaves missing terminals open. The dashboard classifies
    recent open rows as active and rows older than 30 minutes as unfinished.
 
-New clients emit version-two events. A version-two start requires the allowlisted
-client physics identity, pinned immutably for that run. Version-one starts remain
-accepted with null identity; existing rows are not backfilled. Deployment version
-remains server-derived. See [physics identity](../../../docs/kart-system/environment.md#shipped-physics-identity).
+New clients emit version-three events. A version-three start carries the
+allowlisted client physics identity and the run's race identity. The server
+stores it only when each named revision was published at some point (a race
+outlives a later republish), or, for a null revision, when the ID is an
+official bundled course or kart; anything else is ignored. A trigger keeps both
+identities immutable. Version-one and version-two starts, which name a course
+from a fixed list, remain accepted with null race identity; existing rows are
+not backfilled. Deployment version remains server-derived. See [physics identity](../../../docs/kart-system/environment.md#shipped-physics-identity).
 
 ## Accepted Invariants
 
@@ -97,7 +103,8 @@ remains server-derived. See [physics identity](../../../docs/kart-system/environ
 
 ## Verification
 
-- `tests/gameplay-telemetry.spec.ts` covers UUIDv4 and course allowlists,
+- `tests/gameplay-telemetry.spec.ts` covers UUIDv4, course allowlists and
+  published race identity,
   streaming request bounds, ordered non-blocking reporting, admin authorization,
   dashboard aggregation, idempotent and ordered real-Postgres transitions,
   immutable attribution and terminal outcome, account deletion, ingestion

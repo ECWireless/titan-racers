@@ -64,7 +64,7 @@ it looks up thumbnails by revision alone and could serve an older render.
 PR 2.5.1 adds the typed `gameplay_runs` summary table through the same migration
 workflow. Guest rows are anonymous and carry permanent guest attribution
 separately from the nullable account foreign key. Database constraints and
-triggers enforce known courses, valid lifecycle order, immutable attribution,
+triggers enforce well-formed, immutable race identity, valid lifecycle order, immutable attribution,
 and frozen terminal summaries while still allowing an authenticated account
 link to be erased on deletion. The table must never be populated with raw input,
 per-frame movement, IP addresses, user agents, or arbitrary metadata. The
@@ -104,6 +104,27 @@ longer lists the course and the telemetry dashboard shows only
 `falls-view-park` runs. Rolling the code back is safe, since the check only
 widened; restoring the `0016` check first requires removing or remapping
 `falls-view-park` rows.
+
+Migration `0018` (PR 5.1) records what each run raced: nullable
+`course_revision`, `kart_id`, `kart_revision`, and `race_again`, filled by
+version-three starts, and drops the known-course check. The server now accepts
+a version-three start only for a revision that was published at some point, or
+for a bundled official course or kart when the revision is null; version-one
+and version-two starts still name a course from a fixed list. A trigger makes
+`course_id` and the new columns immutable on every row, open or finished.
+Existing rows stay null. Apply it before deploying the build that sends
+version-three starts, or their telemetry is lost until it runs (racing is
+unaffected). It is forward-only: restoring the known-course check first
+requires removing rows for other courses, which the trigger also stops from
+being remapped.
+
+Migration `0019` (PR 5.1) adds nullable `gameplay_runs.ghost`, which ghost a
+version-three run raced (`none` or `own_best`), and adds it to the immutable
+race identity. Apply it with `0018`, before deploying the build that sends it.
+To roll back code, keep the column: earlier builds ignore it. Dropping it first
+needs `0018`'s version of `prevent_gameplay_run_race_identity_changes`
+restored, since `0019` replaced that trigger function to read `ghost`, and
+every later run update would otherwise fail.
 
 Courses are saved as schema version eleven (kits, kerbs, bevels, signs, and
 elbow collision, from PR 4.4.8); earlier rows load unchanged, with no

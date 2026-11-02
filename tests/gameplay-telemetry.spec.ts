@@ -7,6 +7,8 @@ import { getTelemetryDashboard } from "../src/app/api/admin/telemetry/route";
 import { postGameplayRun } from "../src/app/api/telemetry/gameplay-runs/route";
 import { db } from "../src/db/client";
 import { gameplayRuns, users } from "../src/db/schema";
+import { ROUGH_COURSE_DOCUMENT } from "../src/game/course/course-document";
+import { createBalancedKartDocument } from "../src/game/kart/balanced-kart-document";
 import {
   aggregateGameplayDashboard,
   gameplayDashboardSchema,
@@ -15,13 +17,28 @@ import {
 import {
   GameplayRunTelemetry,
   gameplayRunEventSchema,
+  type GameplayRaceIdentity,
   type GameplayRunEvent,
 } from "../src/game/telemetry/gameplay-run-events";
+import {
+  publishCourseRevision,
+  saveCourseRevision,
+} from "../src/server/course-repository";
+import {
+  publishKartRevision,
+  saveKartRevision,
+} from "../src/server/kart-repository";
 import { recordGameplayRunEvent } from "../src/server/gameplay-telemetry-repository";
 import { CURRENT_PHYSICS_VERSION } from "../src/game/physics/physics-version";
 import { createBundledOfficialKartRoster } from "../src/game/kart/official-kart-roster";
 
 const ORIGIN = "http://127.0.0.1:3873";
+const BUNDLED_SANDBOX_RUN: GameplayRaceIdentity = {
+  courseId: "rough-course",
+  courseRevision: null,
+  kartId: "balanced-kart",
+  kartRevision: null,
+};
 
 function requestFor(payload: unknown, overrides: RequestInit = {}) {
   return new Request(`${ORIGIN}/api/telemetry/gameplay-runs`, {
@@ -90,6 +107,41 @@ test.describe("gameplay telemetry contract", () => {
     expect(gameplayRunEventSchema.safeParse({ ...versionedStart, physicsVersion: "collision-substeps-v1" }).success).toBe(true);
     expect(gameplayRunEventSchema.safeParse({ ...versionedStart, physicsVersion: "handbrake-clutch-v1" }).success).toBe(true);
     expect(gameplayRunEventSchema.safeParse({ ...versionedStart, physicsVersion: "rotating-habitat-v1" }).success).toBe(true);
+
+    // Version three names any well-formed course and kart; the server checks
+    // them against publications.
+    const identifiedStart = {
+      ...BUNDLED_SANDBOX_RUN,
+      courseId: "community-loop",
+      courseRevision: 4,
+      ghost: "own_best",
+      kartRevision: 2,
+      physicsVersion: CURRENT_PHYSICS_VERSION,
+      raceAgain: true,
+      runId,
+      schemaVersion: 3,
+      type: "run_started",
+    };
+    expect(gameplayRunEventSchema.parse(identifiedStart)).toMatchObject({
+      courseRevision: 4,
+      raceAgain: true,
+    });
+    for (const invalid of [
+      { courseId: "Private Note" },
+      { kartId: "kart with spaces" },
+      { courseRevision: 0 },
+      { kartRevision: 1.5 },
+      { raceAgain: undefined },
+      { ghost: "someone_else" },
+      { ghost: undefined },
+      { physicsVersion: undefined },
+      { userId: "someone" },
+    ]) {
+      expect(
+        gameplayRunEventSchema.safeParse({ ...identifiedStart, ...invalid }).success,
+        JSON.stringify(invalid),
+      ).toBe(false);
+    }
 
     expect(() =>
       gameplayRunEventSchema.parse({
@@ -181,7 +233,7 @@ test.describe("gameplay telemetry contract", () => {
       })(),
     );
 
-    telemetry.start("rough-course");
+    telemetry.start(BUNDLED_SANDBOX_RUN);
     telemetry.markRuntimeLoaded();
     telemetry.recordInputFamily("keyboard");
     telemetry.recordInputFamily("keyboard");
@@ -211,8 +263,25 @@ test.describe("gameplay telemetry contract", () => {
       recoveryCount: 1,
     });
     expect(events[1]).toMatchObject({ elapsedMs: 2_000 });
-    expect(events[0]).toMatchObject({ schemaVersion: 2, physicsVersion: CURRENT_PHYSICS_VERSION });
+    expect(events[0]).toEqual({
+      ...BUNDLED_SANDBOX_RUN,
+      ghost: "none",
+      physicsVersion: CURRENT_PHYSICS_VERSION,
+      raceAgain: false,
+      runId: "11111111-1111-4111-8111-111111111111",
+      schemaVersion: 3,
+      type: "run_started",
+    });
     expect(keepalive).toEqual([false, false, true, false, true]);
+
+    // Race again starts a fresh run that says so, and which ghost it races.
+    telemetry.start(BUNDLED_SANDBOX_RUN, { ghost: "own_best", raceAgain: true });
+    await expect.poll(() => events.length).toBe(6);
+    expect(events.at(-1)).toMatchObject({
+      ghost: "own_best",
+      raceAgain: true,
+      type: "run_started",
+    });
   });
 
   test("never exposes sink failure to gameplay callers", async () => {
@@ -224,7 +293,7 @@ test.describe("gameplay telemetry contract", () => {
     );
 
     expect(() => {
-      telemetry.start("rough-course");
+      telemetry.start(BUNDLED_SANDBOX_RUN);
       telemetry.markRuntimeLoaded();
       telemetry.exit();
     }).not.toThrow();
@@ -246,7 +315,7 @@ test.describe("gameplay telemetry contract", () => {
       () => "11111111-1111-4111-8111-111111111111",
     );
 
-    telemetry.start("rough-course");
+    telemetry.start(BUNDLED_SANDBOX_RUN);
     await expect.poll(() => received.map((event) => event.type)).toEqual([
       "run_started",
     ]);
@@ -572,6 +641,124 @@ test.describe("gameplay telemetry Postgres integration", () => {
     } finally {
       await db.delete(gameplayRuns).where(eq(gameplayRuns.id, legacyId));
       await db.delete(gameplayRuns).where(eq(gameplayRuns.id, currentId));
+    }
+  });
+
+  test("records what identified runs raced and ignores identities never published", async () => {
+    const userId = `telemetry-identity-${randomUUID()}`;
+    const courseId = `telemetry-identity-${randomUUID()}`;
+    const kartId = `telemetry-identity-${randomUUID()}`;
+    const runIds: string[] = [];
+    const start = async (identity: GameplayRaceIdentity) => {
+      const runId = randomUUID();
+      runIds.push(runId);
+      const result = await recordGameplayRunEvent({
+        ...identity,
+        ghost: "none",
+        physicsVersion: CURRENT_PHYSICS_VERSION,
+        raceAgain: false,
+        runId,
+        schemaVersion: 3,
+        type: "run_started",
+      });
+      return { result, runId };
+    };
+    try {
+      await db.insert(users).values({
+        email: `${userId}@example.invalid`,
+        emailVerified: true,
+        id: userId,
+        name: "Telemetry identity author",
+      });
+      const document = { ...structuredClone(ROUGH_COURSE_DOCUMENT), courseId };
+      await saveCourseRevision({ authorUserId: userId, document, expectedRevision: null });
+      await saveCourseRevision({ authorUserId: userId, document, expectedRevision: 1 });
+      const firstCoursePublication = await publishCourseRevision({
+        courseId,
+        expectedPublicationId: null,
+        publishedByUserId: userId,
+        revision: 1,
+      });
+      const kart = { ...createBalancedKartDocument(), kartId };
+      const kartSave = { authorUserId: userId, document: kart, ownerUserId: userId };
+      await saveKartRevision({ ...kartSave, expectedRevision: null });
+      await saveKartRevision({ ...kartSave, expectedRevision: 1 });
+      await publishKartRevision({
+        actorUserId: userId,
+        expectedPublicationEventId: null,
+        kartId,
+        revision: 1,
+      });
+
+      const published = await start({ ...BUNDLED_SANDBOX_RUN, courseId, courseRevision: 1 });
+      expect(published.result).toBe("created");
+      expect(
+        (await start({ ...BUNDLED_SANDBOX_RUN, kartId, kartRevision: 1 })).result,
+      ).toBe("created");
+      const [row] = await db
+        .select({
+          courseId: gameplayRuns.courseId,
+          courseRevision: gameplayRuns.courseRevision,
+          kartId: gameplayRuns.kartId,
+          kartRevision: gameplayRuns.kartRevision,
+          raceAgain: gameplayRuns.raceAgain,
+          ghost: gameplayRuns.ghost,
+        })
+        .from(gameplayRuns)
+        .where(eq(gameplayRuns.id, published.runId));
+      expect(row).toEqual({
+        courseId,
+        courseRevision: 1,
+        kartId: "balanced-kart",
+        kartRevision: null,
+        raceAgain: false,
+        ghost: "none",
+      });
+      expect((await start(BUNDLED_SANDBOX_RUN)).result).toBe("created");
+
+      for (const identity of [
+        // Saved but never published.
+        { ...BUNDLED_SANDBOX_RUN, courseId, courseRevision: 2 },
+        // A bundled seed only exists for official courses.
+        { ...BUNDLED_SANDBOX_RUN, courseId },
+        { ...BUNDLED_SANDBOX_RUN, kartId, kartRevision: 2 },
+        { ...BUNDLED_SANDBOX_RUN, kartRevision: 2_000_000_000 },
+        { ...BUNDLED_SANDBOX_RUN, kartId: "community.kart" },
+      ]) {
+        const ignored = await start(identity);
+        expect(ignored.result, JSON.stringify(identity)).toBe("ignored");
+        expect(
+          await db.select().from(gameplayRuns).where(eq(gameplayRuns.id, ignored.runId)),
+        ).toEqual([]);
+      }
+
+      // A race that loaded revision 1 still records after revision 2 is out.
+      await publishCourseRevision({
+        courseId,
+        expectedPublicationId: firstCoursePublication.publicationId,
+        publishedByUserId: userId,
+        revision: 2,
+      });
+      expect(
+        (await start({ ...BUNDLED_SANDBOX_RUN, courseId, courseRevision: 1 })).result,
+      ).toBe("created");
+
+      let failure: unknown;
+      try {
+        await db
+          .update(gameplayRuns)
+          .set({ kartId: "speed-kart" })
+          .where(eq(gameplayRuns.id, published.runId));
+      } catch (error) {
+        failure = error;
+      }
+      expect((failure as Error & { cause?: Error })?.cause?.message).toMatch(
+        /race identity cannot be changed/,
+      );
+    } finally {
+      for (const runId of runIds) {
+        await db.delete(gameplayRuns).where(eq(gameplayRuns.id, runId));
+      }
     }
   });
 
@@ -1041,6 +1228,12 @@ test.describe("gameplay telemetry browser integration", () => {
     await expect.poll(() => events.map(({ type }) => type), { timeout: 6_000 }).toContain(
       "race_started",
     );
+    expect(events[0]).toMatchObject({
+      courseId: "falls-view-park",
+      kartId: expect.any(String),
+      raceAgain: false,
+      schemaVersion: 3,
+    });
 
     await page.keyboard.down("KeyW");
     await page.waitForTimeout(100);
