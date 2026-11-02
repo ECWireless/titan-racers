@@ -8,6 +8,12 @@ import { z } from "zod";
 
 import { useControllerMenuNavigation } from "@/game/input/use-controller-menu-navigation";
 import {
+  type BrowserWallet,
+  signWalletMessage,
+  useBrowserWallets,
+  WalletRequestCancelledError,
+} from "@/lib/browser-wallets";
+import {
   normalizeRacerUsername,
   racerOnboardingPath,
   racerUsernameSchema,
@@ -16,6 +22,7 @@ import {
   RACER_USERNAME_REQUIREMENTS,
   safeRacerReturnTo,
 } from "@/lib/racer-username";
+import { SIWE_CHAIN_ID } from "@/lib/siwe";
 
 const racerIdentitySchema = z.discriminatedUnion("status", [
   z.strictObject({
@@ -36,6 +43,7 @@ const usernameClaimFailure =
   "Your username could not be created. Your entry is still here.";
 
 class UsernameClaimError extends Error {}
+class WalletVerificationError extends Error {}
 
 type ProfileState =
   | { status: "loading" }
@@ -86,7 +94,9 @@ export function ProfileAccess({
     message: string;
   } | null>(null);
   const [savePending, setSavePending] = useState(false);
-  const [signInPending, setSignInPending] = useState(false);
+  const [signInPending, setSignInPending] = useState<string | null>(null);
+  const wallets = useBrowserWallets();
+  const [walletChoiceOpen, setWalletChoiceOpen] = useState(false);
   const normalizedUsername = normalizeRacerUsername(username);
 
   useControllerMenuNavigation({
@@ -121,7 +131,7 @@ export function ProfileAccess({
   }
 
   async function signInWithGoogle() {
-    setSignInPending(true);
+    setSignInPending("google");
     setFeedback(null);
     const destination = racerOnboardingPath(
       mode === "profile" ? "/profile" : returnTo,
@@ -147,7 +157,60 @@ export function ProfileAccess({
         kind: "error",
         message: "Google sign-in could not be started. Please retry.",
       });
-      setSignInPending(false);
+      setSignInPending(null);
+    }
+  }
+
+  async function signInWithWallet(wallet: BrowserWallet) {
+    setSignInPending(wallet.id);
+    setFeedback(null);
+    try {
+      const signed = await signWalletMessage(wallet);
+      const response = await fetch("/api/auth/siwe/verify", {
+        body: JSON.stringify({
+          chainId: SIWE_CHAIN_ID,
+          message: signed.message,
+          signature: signed.signature,
+          walletAddress: signed.address,
+        }),
+        credentials: "include",
+        headers: { "content-type": "application/json" },
+        method: "POST",
+      });
+      if (!response.ok) throw new WalletVerificationError();
+      await retryProfile();
+    } catch (error) {
+      setFeedback({
+        kind: "error",
+        message:
+          error instanceof WalletRequestCancelledError
+            ? "The wallet request was cancelled."
+            : error instanceof WalletVerificationError
+              ? "Your wallet's signature could not be verified. Please retry. Smart-contract wallets aren't supported."
+              : "Wallet sign-in could not be completed. Please retry.",
+      });
+    } finally {
+      setSignInPending(null);
+    }
+  }
+
+  async function signOut() {
+    setFeedback(null);
+    try {
+      const response = await fetch("/api/auth/sign-out", {
+        body: JSON.stringify({}),
+        credentials: "include",
+        headers: { "content-type": "application/json" },
+        method: "POST",
+      });
+      if (!response.ok) throw new Error("Sign-out failed.");
+      setUsername("");
+      setProfileState({ status: "unauthenticated" });
+    } catch {
+      setFeedback({
+        kind: "error",
+        message: "You could not be signed out. Please retry.",
+      });
     }
   }
 
@@ -269,18 +332,68 @@ export function ProfileAccess({
         ) : profileState.status === "unauthenticated" ? (
           <div className="grid gap-5">
             <p className="text-sm leading-6 text-titan-ice/76">
-              Sign in with Google, then choose the username Titan Racers will
-              use publicly.
+              Sign in with Google or a browser wallet, then choose the username
+              Titan Racers will use publicly.
             </p>
             <button
               className="titan-button titan-button-primary"
               data-controller-default="true"
-              disabled={signInPending}
+              disabled={signInPending !== null}
               type="button"
               onClick={() => void signInWithGoogle()}
             >
-              {signInPending ? "Connecting…" : "Continue with Google"}
+              {signInPending === "google" ? "Connecting…" : "Continue with Google"}
             </button>
+            {walletChoiceOpen ? (
+              <div
+                aria-label="Choose a wallet"
+                className="grid gap-3 border border-titan-ice/20 p-4"
+                role="group"
+              >
+                <p className="font-mono text-xs font-bold uppercase tracking-[0.16em] text-titan-ice/72">
+                  Choose a wallet
+                </p>
+                {wallets.map((wallet) => (
+                  <button
+                    className="titan-button titan-button-secondary"
+                    key={wallet.id}
+                    type="button"
+                    onClick={() => {
+                      setWalletChoiceOpen(false);
+                      void signInWithWallet(wallet);
+                    }}
+                  >
+                    {wallet.name}
+                  </button>
+                ))}
+                <button
+                  className="titan-button titan-button-secondary"
+                  type="button"
+                  onClick={() => setWalletChoiceOpen(false)}
+                >
+                  Cancel
+                </button>
+              </div>
+            ) : wallets.length > 0 ? (
+              <button
+                className="titan-button titan-button-secondary"
+                disabled={signInPending !== null}
+                type="button"
+                onClick={() =>
+                  wallets.length === 1
+                    ? void signInWithWallet(wallets[0])
+                    : setWalletChoiceOpen(true)
+                }
+              >
+                {signInPending && signInPending !== "google"
+                  ? "Check your wallet…"
+                  : "Continue with wallet"}
+              </button>
+            ) : (
+              <p className="font-mono text-xs uppercase tracking-[0.1em] text-titan-muted">
+                No browser wallet detected
+              </p>
+            )}
           </div>
         ) : profileState.status === "error" ? (
           <div className="grid gap-5">
@@ -351,6 +464,14 @@ export function ProfileAccess({
             >
               {savePending ? "Creating account…" : "Create racer account"}
             </button>
+            <button
+              className="titan-button titan-button-secondary"
+              disabled={savePending}
+              type="button"
+              onClick={() => void signOut()}
+            >
+              Sign out
+            </button>
           </form>
         ) : (
           <div className="grid gap-5">
@@ -375,6 +496,13 @@ export function ProfileAccess({
                 Continue
               </Link>
             ) : null}
+            <button
+              className="titan-button titan-button-secondary"
+              type="button"
+              onClick={() => void signOut()}
+            >
+              Sign out
+            </button>
           </div>
         )}
 

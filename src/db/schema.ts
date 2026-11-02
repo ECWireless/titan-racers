@@ -135,6 +135,28 @@ export const verifications = pgTable(
   (table) => [index("verifications_identifier_idx").on(table.identifier)],
 );
 
+// Better Auth SIWE plugin rows. One racer per wallet address: the address is
+// unique whatever chain the sign-in message names.
+export const walletAddresses = pgTable(
+  "wallet_addresses",
+  {
+    id: text("id").primaryKey(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    address: text("address").notNull(),
+    chainId: integer("chain_id").notNull(),
+    isPrimary: boolean("is_primary").default(false).notNull(),
+    createdAt: timestamp("created_at", { mode: "date", withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => [
+    index("wallet_addresses_user_id_idx").on(table.userId),
+    uniqueIndex("wallet_addresses_address_uidx").on(table.address),
+  ],
+);
+
 export const applicationRole = pgEnum("application_role", [
   "player",
   "assembler",
@@ -536,6 +558,8 @@ export const authSchema = {
   sessions,
   accounts,
   verifications,
+  // Better Auth pluralizes model names by appending "s".
+  walletAddresss: walletAddresses,
 };
 
 export type ApplicationRole = (typeof applicationRole.enumValues)[number];

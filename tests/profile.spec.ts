@@ -143,10 +143,87 @@ test.describe("racer onboarding and profile", () => {
 
     await page.goto("/profile");
     await expect(
-      page.getByText("Sign in with Google, then choose the username"),
+      page.getByText("Sign in with Google or a browser wallet"),
     ).toBeVisible();
+    await expect(page.getByText("No browser wallet detected")).toBeVisible();
     await page.getByRole("button", { name: "Continue with Google" }).click();
     await expect(page).toHaveURL(/oauth=started/);
+  });
+
+  test("signs in with a chosen browser wallet", async ({ page }) => {
+    const walletAddress = "0x1111111111111111111111111111111111111111";
+    await page.addInitScript((address) => {
+      const provider = {
+        request: async ({ method }: { method: string }) =>
+          method === "eth_requestAccounts" ? [address] : "0xabc123",
+      };
+      window.addEventListener("eip6963:requestProvider", () => {
+        for (const name of ["Test Wallet", "Other Wallet"]) {
+          window.dispatchEvent(
+            new CustomEvent("eip6963:announceProvider", {
+              detail: Object.freeze({
+                info: {
+                  icon: "data:image/svg+xml,<svg/>",
+                  name,
+                  rdns: `${name}.test`,
+                  uuid: name,
+                },
+                provider,
+              }),
+            }),
+          );
+        }
+      });
+    }, walletAddress);
+    let verifyBody: { message?: string } | undefined;
+    await page.route(profileApiPattern, async (route) => {
+      await route.fulfill(
+        verifyBody
+          ? {
+              body: JSON.stringify({
+                status: "incomplete",
+                suggestedUsername: "racer4821",
+              }),
+              contentType: "application/json",
+              status: 200,
+            }
+          : { body: "{}", contentType: "application/json", status: 401 },
+      );
+    });
+    await page.route("**/api/auth/siwe/nonce", async (route) => {
+      expect(route.request().postDataJSON()).toEqual({
+        chainId: 8453,
+        walletAddress,
+      });
+      await route.fulfill({
+        body: JSON.stringify({ nonce: "abcdefgh12345678" }),
+        contentType: "application/json",
+      });
+    });
+    await page.route("**/api/auth/siwe/verify", async (route) => {
+      verifyBody = route.request().postDataJSON();
+      await route.fulfill({
+        body: JSON.stringify({ success: true }),
+        contentType: "application/json",
+      });
+    });
+
+    await page.goto("/profile");
+    await page.getByRole("button", { name: "Continue with wallet" }).click();
+    await page
+      .getByRole("group", { name: "Choose a wallet" })
+      .getByRole("button", { name: "Test Wallet" })
+      .click();
+    await expect(page.getByLabel("Username")).toHaveValue("racer4821");
+    expect(verifyBody).toMatchObject({
+      chainId: 8453,
+      signature: "0xabc123",
+      walletAddress,
+    });
+    expect(verifyBody?.message).toContain(
+      `${new URL(page.url()).host} wants you to sign in with your Ethereum account:\n${walletAddress}`,
+    );
+    expect(verifyBody?.message).toContain("Nonce: abcdefgh12345678");
   });
 
   test("rejects invalid usernames before sending a claim", async ({ page }) => {
