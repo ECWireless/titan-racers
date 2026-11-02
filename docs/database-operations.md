@@ -142,6 +142,11 @@ To roll back code, keep the tables: earlier builds ignore them, but their
 anonymization leaves bests behind, so re-run any anonymization done meanwhile
 with a current build.
 
+Migration `0022` (PR 5.3) lets a run summary record `course_best` as the
+ghost it raced. Apply it with `0021`, before deploying the build that sends
+it, or those starts are refused (racing is unaffected). To roll back code,
+keep it: earlier builds never send the new value.
+
 Courses are saved as schema version eleven (kits, kerbs, bevels, signs, and
 elbow collision, from PR 4.4.8); earlier rows load unchanged, with no
 migration. A build from before a course's version cannot read it: rolling the

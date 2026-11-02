@@ -15,8 +15,8 @@ the gate re-check mirrors [race progression](../race-progression/README.md),
 and sessions and usernames belong to
 [identity](../identity-course-persistence/README.md).
 
-Not supported yet: racing a stored best, boards for earlier revisions, and a
-guest's login prompt and claims.
+Its bests are raced as ghosts ([ghosts](../ghosts/README.md)). Not supported
+yet: boards for earlier revisions, and a guest's login prompt and claims.
 
 ## Source Ownership
 
@@ -27,9 +27,10 @@ guest's login prompt and claims.
 - `src/server/run-tickets.ts`: signing and reading tickets.
 - `src/server/race-results.ts`: eligibility, the server's check, and storing
   a submission with its best and standing.
-- `src/server/leaderboard.ts`: loading a course's current board.
-- `src/app/api/runs/tickets/route.ts`, `src/app/api/runs/route.ts`, and
-  `src/app/api/leaderboards/[courseId]/route.ts`.
+- `src/server/leaderboard.ts`: loading a course's current board, and a
+  board's course best or a racer's own best as a ghost record.
+- `src/app/api/runs/tickets/route.ts`, `src/app/api/runs/route.ts`,
+  `src/app/api/leaderboards/[courseId]/route.ts`, and its `ghost/route.ts`.
 - `src/app/leaderboard/page.tsx` and `src/components/leaderboard-view.tsx`:
   the page, linked from home's menu and the result screen.
 - `src/components/run-standing.tsx`: the result screen's standing.

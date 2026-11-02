@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 
 import {
   BUNDLED_COURSE_DOCUMENTS,
@@ -27,6 +27,14 @@ import {
 } from "@/game/kart/official-kart-roster";
 
 import { drawsEnclosure } from "@/game/enclosure/enclosure-view";
+import { fetchRaceGhost } from "@/game/ghost/board-ghost";
+import {
+  type BoardGhost,
+  type GhostChoice,
+  readGhostChoice,
+  subscribeGhostChoice,
+  writeGhostChoice,
+} from "@/game/ghost/device-ghost";
 import { loadAmmoPhysics } from "@/game/runtime/playcanvas-application";
 import { loadTreeImages } from "@/game/enclosure/tree-images";
 import type { CourseEnclosure } from "@/game/enclosure/island-three";
@@ -178,6 +186,13 @@ export function PlayHome() {
   const [kartSnapshot, setKartSnapshot] = useState<
     PersistedResolvedKartSnapshot | undefined
   >(undefined);
+  const [boardGhost, setBoardGhost] = useState<BoardGhost | null>(null);
+  // Read from storage only in the browser; the server renders the default.
+  const ghostChoice = useSyncExternalStore<GhostChoice>(
+    subscribeGhostChoice,
+    readGhostChoice,
+    () => "course_best",
+  );
 
   useControllerMenuNavigation({
     containerRef: homeMenuRef,
@@ -343,10 +358,20 @@ export function PlayHome() {
         leaving: false,
       });
     }
-    const [, nextCourse] = await Promise.all([
+    // The ramp test changes the course, so it races no board's ghost. The
+    // ghost loads once the revision is known, alongside the rest.
+    const rampHeight = axisRampStartHeight();
+    const nextBoardGhostPromise =
+      rampHeight === null
+        ? nextCoursePromise.then((course) =>
+            fetchRaceGhost(courseId, course.revision, readGhostChoice()),
+          )
+        : Promise.resolve(null);
+    const [, nextCourse, , nextBoardGhost] = await Promise.all([
       thumbnailPause.ready,
       nextCoursePromise,
       coverPainted,
+      nextBoardGhostPromise,
     ]);
     if (resumeThumbnailRenderingRef.current !== thumbnailPause.release) return;
     // Name the course being raced. The habitat view stays as it is rather
@@ -355,7 +380,7 @@ export function PlayHome() {
       (current) =>
         current && { ...current, courseName: nextCourse.document.name },
     );
-    const rampHeight = axisRampStartHeight();
+    setBoardGhost(nextBoardGhost);
     setCourseDocument(
       rampHeight === null
         ? nextCourse.document
@@ -457,6 +482,7 @@ export function PlayHome() {
             kartDocument={kartDocument}
             kartRevision={kartRevision}
             kartSnapshot={kartSnapshot}
+            boardGhost={boardGhost}
             loadTimings={loadTimings}
             covered={covered}
             recordTelemetry={!axisRampTest}
@@ -686,6 +712,49 @@ export function PlayHome() {
           >
             {soloPending ? "Preparing Race…" : "Solo Time Trial"}
           </button>
+          <p
+            className="-mb-2 font-mono text-[0.62rem] font-bold uppercase tracking-[0.18em] text-titan-muted"
+            id="ghost-choice-label"
+          >
+            Ghost
+          </p>
+          <div
+            aria-labelledby="ghost-choice-label"
+            className="grid grid-cols-2 gap-2"
+            role="group"
+          >
+            {(
+              [
+                ["course_best", "Course best"],
+                ["own_best", "Your best"],
+              ] as const
+            ).map(([choice, label]) => (
+              <button
+                aria-pressed={ghostChoice === choice}
+                className={`flex min-h-11 items-center justify-center border px-3 transition ${
+                  ghostChoice === choice
+                    ? "border-titan-hazard text-titan-hazard"
+                    : "border-titan-ice/20 text-titan-ice/70 hover:border-titan-ice/45"
+                }`}
+                key={choice}
+                type="button"
+                onClick={() => writeGhostChoice(choice)}
+              >
+                {/* The global `button { font: inherit }` overrides the
+                    button's own font classes. */}
+                <span className="font-mono text-[0.68rem] font-bold uppercase leading-none tracking-[0.12em]">
+                  {label}
+                </span>
+              </button>
+            ))}
+          </div>
+          <Link
+            className="flex items-center justify-center gap-2 py-1 font-mono text-xs font-bold uppercase tracking-[0.16em] text-titan-ice/70 transition hover:text-titan-hazard focus-visible:text-titan-hazard focus-visible:outline-none"
+            href="/leaderboard"
+          >
+            <LeaderboardIcon />
+            View leaderboard
+          </Link>
           <div
             className={
               toast

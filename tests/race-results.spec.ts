@@ -3,6 +3,7 @@ import { randomUUID } from "node:crypto";
 import { expect, test } from "@playwright/test";
 import { eq } from "drizzle-orm";
 
+import { GET as getGhost } from "../src/app/api/leaderboards/[courseId]/ghost/route";
 import { POST as postRun } from "../src/app/api/runs/route";
 import { postRunTicket } from "../src/app/api/runs/tickets/route";
 import { db } from "../src/db/client";
@@ -35,7 +36,8 @@ import {
 } from "../src/server/race-results";
 import { leaderboardResponseSchema } from "../src/game/race/leaderboard";
 import { medalForRank } from "../src/game/race/race-medals";
-import { loadLeaderboard } from "../src/server/leaderboard";
+import { parseGhostRecord } from "../src/game/ghost/device-ghost";
+import { loadBoardGhost, loadLeaderboard } from "../src/server/leaderboard";
 import { issueRunTicket, readRunTicket } from "../src/server/run-tickets";
 import { anonymizeUserByEmail } from "../src/server/user-anonymization";
 import { recordRace, routeThroughGates } from "./support/race-recording";
@@ -467,5 +469,48 @@ test.describe("verified runs", () => {
         viewer: rank === 4,
       })),
     );
+  });
+
+  test("serves the course best to anyone and a racer's own best to them", async () => {
+    const board = await publishedBoard();
+    const fastest = await racer();
+    const slower = await racer();
+    const fast = race(10);
+    const slow = race(8);
+    await submit(fastest.headers, board.ticket(fastest.id), encode(fast.samples));
+    await submit(slower.headers, board.ticket(slower.id), encode(slow.samples));
+
+    const courseBest = await loadBoardGhost(board.courseId, 1, null);
+    expect(courseBest?.timeMicroseconds).toBe(fast.timeMicroseconds);
+    const ownBest = await loadBoardGhost(board.courseId, 1, slower.id);
+    expect(ownBest?.timeMicroseconds).toBe(slow.timeMicroseconds);
+    await expect(loadBoardGhost(board.courseId, 2, null)).resolves.toBeNull();
+
+    // The client reads it as it reads a best kept on its device.
+    const ghost = parseGhostRecord(
+      JSON.parse(JSON.stringify(courseBest)),
+      board.courseId,
+      1,
+    );
+    expect(ghost?.samples).toHaveLength(fast.samples.length);
+    expect(ghost?.kart.document.name).toBe("Balanced Kart");
+
+    // The route serves only the official board, and your own best only to you.
+    const ghostRoute = (courseId: string, query: string) =>
+      getGhost(
+        new Request(`${ORIGIN}/api/leaderboards/${courseId}/ghost?${query}`),
+        { params: Promise.resolve({ courseId }) },
+      );
+    expect((await ghostRoute(board.courseId, "best=course&revision=1")).status).toBe(
+      404,
+    );
+    const guestOwn = await ghostRoute(
+      "falls-view-park",
+      "best=mine&revision=1",
+    );
+    expect(await guestOwn.json()).toEqual({ ghost: null });
+    expect(
+      (await ghostRoute("falls-view-park", "best=fastest&revision=1")).status,
+    ).toBe(400);
   });
 });

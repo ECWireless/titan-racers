@@ -1,0 +1,2 @@
+ALTER TABLE "gameplay_runs" DROP CONSTRAINT "gameplay_runs_ghost";--> statement-breakpoint
+ALTER TABLE "gameplay_runs" ADD CONSTRAINT "gameplay_runs_ghost" CHECK ("gameplay_runs"."ghost" is null or ("gameplay_runs"."kart_id" is not null and "gameplay_runs"."ghost" in ('none', 'own_best', 'course_best')));

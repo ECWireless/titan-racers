@@ -17,7 +17,8 @@ accepted; the app, README, and durable docs take over from there.
 
 - **Done:** Phases 0–4 (PRs #1–#24, the Phase 3 closeout and its
   follow-ups, and #30–#57 with the PR 4.5.2 closeout).
-- **Next:** PR 5.3. PRs 5.1 (#59) and 5.2 are done (see Phase 5's decisions).
+- **Next:** PR 5.4. PRs 5.1 (#59), 5.2 (#60), and 5.3 are done (see Phase 5's
+  decisions).
 
 ## Guiding Decisions
 
@@ -196,9 +197,10 @@ Decisions from completed phases that later phases rely on:
 
 Phase decisions:
 
-- **One ghost on track at a time.** A solo trial races your own best. You can
-  instead race the course best (the board's first place) or a ghost a friend
-  shared. There is no separate developer ghost.
+- **One ghost on track at a time.** A solo trial races the course best (the
+  board's first place) by default, or your own best when the board is empty
+  or you choose it; a friend's shared ghost is the other option. There is no
+  separate developer ghost.
 - **Ghosts are recordings, not re-simulations.** A ghost records the kart's
   pose 20 times per race second, plus exact samples at gate crossings and
   resets, in a small versioned binary format. It is not telemetry: on the
@@ -254,12 +256,12 @@ Phase decisions:
 
 **PR 5.3: Verified runs, leaderboard, and medals**
 
-- [ ] Signed run tickets, submission on finish, and the server checks.
-- [ ] Results and each player's best ghost per board in Postgres.
-- [ ] A leaderboard page; logged-in players race their account best, and
+- [x] Signed run tickets, submission on finish, and the server checks.
+- [x] Results and each player's best ghost per board in Postgres.
+- [x] A leaderboard page; logged-in players race their account best, and
       anyone can race the course best.
-- [ ] Gold, silver, and bronze for the board's top three.
-- [ ] The result screen shows rank, personal best, and medal.
+- [x] Gold, silver, and bronze for the board's top three.
+- [x] The result screen shows rank, personal best, and medal.
 
 **PR 5.4: Results flow, sharing, and closeout**
 

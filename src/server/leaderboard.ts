@@ -2,6 +2,8 @@ import { sql } from "drizzle-orm";
 
 import { db } from "@/db/client";
 import { CURRENT_PHYSICS_VERSION } from "@/game/physics/physics-version";
+import { parseKartAssemblyDocument } from "@/game/kart/kart-assembly-document";
+import { parseResolvedKartSnapshot } from "@/game/kart/kart-derivation";
 import type { LeaderboardResponse } from "@/game/race/leaderboard";
 import { loadLatestPublishedRevision } from "@/server/course-repository";
 import { findLeaderboard, racerStanding } from "@/server/race-results";
@@ -68,5 +70,62 @@ export async function loadLeaderboard(
         ? { rank: standing.rank, timeMicroseconds: standing.best }
         : null,
     },
+  };
+}
+
+/**
+ * A board's course best, or one racer's best, as a ghost record: its
+ * recording and what drawing its kart needs, from that kart revision.
+ */
+export async function loadBoardGhost(
+  courseId: string,
+  courseRevision: number,
+  userId: string | null,
+) {
+  const leaderboardId = await findLeaderboard(db, {
+    courseId,
+    courseRevision,
+    physicsVersion: CURRENT_PHYSICS_VERSION,
+  });
+  if (leaderboardId === null) return null;
+  const {
+    rows: [best],
+  } = await db.execute<{
+    document: unknown;
+    ghost: Buffer;
+    resolved_snapshot: unknown;
+    time_microseconds: number;
+  }>(sql`
+    select kart.document, kart.resolved_snapshot, best.ghost,
+      best.time_microseconds
+    from board_bests best
+    join race_results result on result.id = best.result_id
+    join kart_revisions kart
+      on kart.kart_id = result.kart_id and kart.revision = result.kart_revision
+    where best.leaderboard_id = ${leaderboardId}
+      ${userId === null ? sql`` : sql`and best.user_id = ${userId}`}
+    order by best.time_microseconds, best.achieved_at, best.user_id
+    limit 1
+  `);
+  if (!best) return null;
+  // Stored in older versions too; sent as the client reads them now.
+  const document = parseKartAssemblyDocument(best.document);
+  const { geometry, massProperties } = parseResolvedKartSnapshot(
+    best.resolved_snapshot,
+  );
+  return {
+    courseId,
+    courseRevision,
+    kart: {
+      centerOfMass: massProperties.centerOfMass,
+      document,
+      wheels: geometry.wheelStations.map(({ id, radius, steered }) => ({
+        id,
+        radius,
+        steered,
+      })),
+    },
+    timeMicroseconds: best.time_microseconds,
+    trace: best.ghost.toString("base64"),
   };
 }

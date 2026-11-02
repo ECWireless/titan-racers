@@ -227,6 +227,7 @@ import {
   describeKartLighting,
 } from "@/game/testing/scene-test-adapter";
 import {
+  type BoardGhost,
   type DeviceGhost,
   forgetDeviceGhost,
   type GhostKart,
@@ -359,6 +360,8 @@ type SoloTimeTrialCanvasProps = {
   courseRevision?: number | null;
   /** Race your best ghost on this device and keep a new best. */
   ghosts?: boolean;
+  /** A ghost from the board, raced instead of your best on this device. */
+  boardGhost?: BoardGhost | null;
   includeCollisionFixtures?: boolean;
   kartDocument?: KartAssemblyDocument;
   /** The kart's published revision; null or omitted for a bundled kart. */
@@ -489,6 +492,7 @@ export function SoloTimeTrialCanvas({
   courseDocument = ROUGH_COURSE_DOCUMENT,
   courseRevision = null,
   ghosts = false,
+  boardGhost = null,
   includeCollisionFixtures = false,
   kartDocument = DEFAULT_BALANCED_KART_DOCUMENT,
   kartRevision = null,
@@ -519,8 +523,23 @@ export function SoloTimeTrialCanvas({
     raceIdentityRef.current = raceIdentity;
   }, [raceIdentity]);
   // Races mount only after a click, so reading storage here is safe.
-  const [initialGhost] = useState(() =>
-    ghosts ? readDeviceGhost(courseDocument.courseId, courseRevision) : null,
+  // The board's ghost if one was loaded, else your best on this device.
+  const [
+    {
+      fromDevice: initialGhostFromDevice,
+      ghost: initialGhost,
+      kind: initialGhostKind,
+    },
+  ] = useState(() =>
+    boardGhost
+      ? { fromDevice: false, ...boardGhost }
+      : {
+          fromDevice: true,
+          ghost: ghosts
+            ? readDeviceGhost(courseDocument.courseId, courseRevision)
+            : null,
+          kind: "own_best" as const,
+        },
   );
   const [ghostOn, setGhostOn] = useState(readGhostSwitch);
   const ghostOnRef = useRef(ghostOn);
@@ -784,13 +803,13 @@ export function SoloTimeTrialCanvas({
     if (!gameplayTelemetryStartedRef.current) {
       gameplayTelemetryStartedRef.current = true;
       gameplayTelemetry.start(raceIdentityRef.current, {
-        ghost: initialGhost && ghostOnRef.current ? "own_best" : "none",
+        ghost: initialGhost && ghostOnRef.current ? initialGhostKind : "none",
       });
       if (submitsRuns) {
         runTicketRef.current = requestRunTicket(raceIdentityRef.current);
       }
     }
-  }, [gameplayTelemetry, initialGhost, submitsRuns]);
+  }, [gameplayTelemetry, initialGhost, initialGhostKind, submitsRuns]);
 
   useEffect(() => {
     raceSpeedUnitRef.current = raceSpeedUnit;
@@ -1164,6 +1183,8 @@ export function SoloTimeTrialCanvas({
       // kart only swaps the path.
       let ghostVisualKart: GhostKart | null = null;
       let pendingGhost: DeviceGhost | null = null;
+      // Racing a faster run of your own makes the ghost your best.
+      let activeGhostKind = initialGhostKind;
       let lastGhostTimeMicroseconds = 0;
       const ghostPose = createGhostPose();
       const installGhost = (ghost: DeviceGhost): boolean => {
@@ -1434,7 +1455,18 @@ export function SoloTimeTrialCanvas({
       });
       runtime.addCleanup(applySceneLook(app, camera.camera!, habitatLight));
       if (initialGhost && !installGhost(initialGhost)) {
-        forgetDeviceGhost(initialGhost.courseId, initialGhost.courseRevision);
+        if (initialGhostFromDevice) {
+          forgetDeviceGhost(initialGhost.courseId, initialGhost.courseRevision);
+        } else {
+          // A board ghost this build cannot draw: race the device's instead.
+          const deviceGhost = readDeviceGhost(
+            initialGhost.courseId,
+            initialGhost.courseRevision,
+          );
+          if (deviceGhost && installGhost(deviceGhost)) {
+            activeGhostKind = "own_best";
+          }
+        }
       }
       const isUnderRoof = createCourseInteriorTest(COURSE_DOCUMENT);
       const habitatAtlas = app.scene.envAtlas;
@@ -2598,9 +2630,10 @@ export function SoloTimeTrialCanvas({
           if (pendingGhost) {
             installGhost(pendingGhost);
             pendingGhost = null;
+            activeGhostKind = "own_best";
           }
           gameplayTelemetry.start(raceIdentityRef.current, {
-            ghost: activeGhost && ghostOnRef.current ? "own_best" : "none",
+            ghost: activeGhost && ghostOnRef.current ? activeGhostKind : "none",
             raceAgain: true,
           });
           if (submitsRuns) {
@@ -3358,24 +3391,23 @@ export function SoloTimeTrialCanvas({
         }
         const bestMicroseconds =
           (pendingGhost ?? activeGhost)?.timeMicroseconds ?? Infinity;
-        if (
-          ghosts &&
-          finishedGhostTrace &&
-          finalSample &&
-          finalSample.timeMicroseconds < bestMicroseconds
-        ) {
+        if (ghosts && finishedGhostTrace && finalSample) {
           const { courseId, courseRevision } = raceIdentityRef.current;
-          pendingGhost = {
+          const finished: DeviceGhost = {
             courseId,
             courseRevision,
             kart: currentGhostKart,
             samples: finishedGhostTrace,
             timeMicroseconds: finalSample.timeMicroseconds,
           };
-          // Kept here even if storage refuses it, for this session's races.
-          // Saved after the finish frame, which it would otherwise lengthen.
-          const finishedBest = pendingGhost;
-          window.setTimeout(() => keepDeviceGhostIfBest(finishedBest), 0);
+          // A run faster than the ghost is raced next, even if storage
+          // refuses it.
+          if (finished.timeMicroseconds < bestMicroseconds) {
+            pendingGhost = finished;
+          }
+          // The device keeps its own best whichever ghost was raced; saved
+          // after the finish frame, which it would otherwise lengthen.
+          window.setTimeout(() => keepDeviceGhostIfBest(finished), 0);
         }
         // Each ticket is submitted once, after the finish frame.
         const runTicket = runTicketRef.current;
@@ -3726,6 +3758,8 @@ export function SoloTimeTrialCanvas({
     ghosts,
     includeCollisionFixtures,
     initialGhost,
+    initialGhostFromDevice,
+    initialGhostKind,
     kartRuntime,
     showHabitatReadout,
     submitsRuns,
