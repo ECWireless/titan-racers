@@ -132,8 +132,8 @@ Focused coverage includes:
 
 ## Known Limits And Deferred Work
 
-- Race results are session-memory only; results and leaderboards are not
-  supported yet.
+- Race results persist only as verified runs
+  ([leaderboard](../leaderboard/README.md)).
 - The rough course is the development loop. Falls View Park has its own
   circuit, gates, and recoveries.
 - Recovery support uses the accepted authored candidate chain and current

@@ -77,6 +77,42 @@ export async function loadLatestCourseRevision(
   return { ...row, document, schemaVersion: document.schemaVersion };
 }
 
+/** A stored revision's normalized document, or null if it does not exist. */
+export async function loadCourseRevisionDocument(
+  courseId: string,
+  revision: number,
+): Promise<CourseDocument | null> {
+  const [row] = await db
+    .select({ document: courseRevisions.document })
+    .from(courseRevisions)
+    .where(
+      and(
+        eq(courseRevisions.courseId, courseId),
+        eq(courseRevisions.revision, revision),
+      ),
+    )
+    .limit(1);
+  return row ? parseCourseDocument(row.document) : null;
+}
+
+/** Whether a revision was ever published; a race outlives a later republish. */
+export async function wasCourseRevisionPublished(
+  courseId: string,
+  revision: number,
+) {
+  const rows = await db
+    .select({ id: coursePublications.id })
+    .from(coursePublications)
+    .where(
+      and(
+        eq(coursePublications.courseId, courseId),
+        eq(coursePublications.revision, revision),
+      ),
+    )
+    .limit(1);
+  return rows.length > 0;
+}
+
 export async function saveCourseRevision(input: {
   authorUserId: string;
   document: unknown;

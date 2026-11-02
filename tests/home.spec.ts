@@ -768,6 +768,10 @@ test.describe("home screen", () => {
       useBundledCourse(page),
       useBundledCourse(page, FALLS_VIEW_PARK_DOCUMENT),
       useBundledBalancedKart(page),
+      // Races are a guest's, so they get no run ticket.
+      page.route("**/api/runs/tickets", (route) =>
+        route.fulfill({ json: { reason: "login", ticket: null } }),
+      ),
     ]);
   });
 
@@ -1751,6 +1755,15 @@ test.describe("home screen", () => {
     );
 
     await installStandardGamepadFixture(page);
+    // A racer's ticket and the finished run's submission.
+    await page.route("**/api/runs/tickets", (route) =>
+      route.fulfill({ json: { ticket: "test-ticket" } }),
+    );
+    let submitted: unknown = null;
+    await page.route("**/api/runs", async (route) => {
+      submitted = route.request().postDataJSON();
+      await route.fulfill({ json: { error: "Not stored." }, status: 503 });
+    });
     await page.goto("/?sandbox-course");
     await page.getByRole("button", { name: "Solo Time Trial" }).click();
     const canvas = page.getByTestId("solo-time-trial-canvas");
@@ -1827,6 +1840,10 @@ test.describe("home screen", () => {
       gate: true,
       timeMicroseconds: race.elapsedRaceMicroseconds,
     });
+    // The run submits that recording with its own ticket, once finished.
+    await expect
+      .poll(() => submitted)
+      .toEqual({ recording, ticket: "test-ticket" });
     await expect(finishDialog.getByRole("listitem")).toHaveCount(2);
     await expect(finishDialog).toContainText("Balanced Kart");
     await expect(

@@ -416,6 +416,7 @@ export function PlayHome() {
             covered={covered}
             recordTelemetry={!axisRampTest}
             showHabitatReadout={axisRampTest}
+            submitsRuns={!axisRampTest}
             onExit={exitSolo}
             onLoaded={revealRace}
           />

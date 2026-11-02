@@ -1,29 +1,23 @@
 import { expect, test } from "@playwright/test";
 
 import { BUNDLED_COURSE_DOCUMENTS } from "../src/game/course/course-document";
-import {
-  decodeGhostTrace,
-  encodeGhostTrace,
-  GhostRecorder,
-  type GhostSample,
-} from "../src/game/ghost/ghost-trace";
+import type { GhostSample } from "../src/game/ghost/ghost-trace";
 import { createRaceSessionConfig } from "../src/game/race/race-course";
 import type { DirectedRaceGate, RaceVector3 } from "../src/game/race/race-gate";
+import type { RaceSessionConfig } from "../src/game/race/race-session";
 import {
-  RaceSession,
-  type RaceSessionConfig,
-} from "../src/game/race/race-session";
-import { verifyRaceRecording } from "../src/game/race/race-verification";
+  MAX_RUN_SAMPLES,
+  verifyRaceRecording,
+} from "../src/game/race/race-verification";
+import {
+  lifted,
+  recordRace,
+  type Route,
+  routeThroughGates,
+} from "./support/race-recording";
 
-const STEP_SECONDS = 1 / 120;
 const IDENTITY = { w: 1, x: 0, y: 0, z: 0 };
 const NO_ROTATION = { x: 0, y: 0, z: 0 };
-// The kart root rides this far above the ground its reset points sit on.
-const ROOT_HEIGHT = 0.1;
-
-function lifted(point: RaceVector3): RaceVector3 {
-  return { x: point.x, y: point.y + ROOT_HEIGHT, z: point.z };
-}
 
 function axisGate(
   id: string,
@@ -71,112 +65,6 @@ const SQUARE_ROUTE: Route = {
   start: lifted(SQUARE.startRecovery.position),
 };
 
-/** A waypoint's speed, if any, holds on the leg towards it. */
-type Route = {
-  lap: Array<RaceVector3 & { speed?: number }>;
-  start: RaceVector3;
-};
-
-/**
- * Drives a kart along a looping route at a steady speed, stepping the race
- * session and recorder in the solo race's order, and returns the recording
- * as the server decodes it. A reset teleports to the race's recovery point
- * and resumes towards the route's `resumeAt` waypoint.
- */
-function recordRace(
-  config: RaceSessionConfig,
-  route: Route,
-  {
-    reset,
-    speed = 10,
-  }: {
-    reset?: { atMicroseconds: number; resumeAt: number };
-    speed?: number;
-  } = {},
-) {
-  const session = new RaceSession(config);
-  session.markReady();
-  session.startCountdown();
-  const recorder = new GhostRecorder();
-  const position = { ...route.start };
-  let previous = { ...position };
-  let target = 0;
-  let resetDone = false;
-
-  for (let step = 0; step < 120 * 900; step += 1) {
-    session.advanceTime(STEP_SECONDS);
-    if (
-      reset &&
-      !resetDone &&
-      session.lifecycleState === "racing" &&
-      session.raceMicroseconds >= reset.atMicroseconds
-    ) {
-      const transform = session.requestRecovery();
-      if (!transform) throw new Error("Recovery was refused.");
-      Object.assign(position, lifted(transform.position));
-      previous = { ...position };
-      recorder.markReset();
-      target = reset.resumeAt;
-      resetDone = true;
-    }
-    if (session.lifecycleState === "racing") {
-      let seconds = STEP_SECONDS;
-      while (seconds > 0) {
-        const goal = route.lap[target % route.lap.length];
-        const travel = (goal.speed ?? speed) * seconds;
-        const gap = Math.hypot(
-          goal.x - position.x,
-          goal.y - position.y,
-          goal.z - position.z,
-        );
-        if (gap <= travel) {
-          position.x = goal.x;
-          position.y = goal.y;
-          position.z = goal.z;
-          seconds -= gap / (goal.speed ?? speed);
-          target += 1;
-        } else {
-          position.x += ((goal.x - position.x) * travel) / gap;
-          position.y += ((goal.y - position.y) * travel) / gap;
-          position.z += ((goal.z - position.z) * travel) / gap;
-          seconds = 0;
-        }
-      }
-    }
-
-    let crossed = false;
-    let finished = false;
-    if (session.acceptsDriving) {
-      const result = session.processMovement(previous, position);
-      crossed =
-        result.kind === "checkpoint" ||
-        result.kind === "lap" ||
-        result.kind === "finished";
-      finished = result.kind === "finished";
-    }
-    const state = session.lifecycleState;
-    if (state === "racing" || state === "recovering" || finished) {
-      recorder.recordStep(
-        session.raceMicroseconds,
-        position,
-        IDENTITY,
-        0,
-        crossed,
-      );
-    }
-    previous = { ...position };
-    if (finished) {
-      const samples = recorder.finish();
-      if (!samples) throw new Error("The recorder overflowed.");
-      return {
-        samples: decodeGhostTrace(encodeGhostTrace(samples)),
-        timeMicroseconds: session.raceMicroseconds,
-      };
-    }
-  }
-  throw new Error("The route never finished.");
-}
-
 function copySamples(samples: readonly GhostSample[]) {
   return samples.map((sample) => ({
     ...sample,
@@ -208,20 +96,7 @@ test.describe("race recording verification", () => {
     const config = createRaceSessionConfig(
       BUNDLED_COURSE_DOCUMENTS["falls-view-park"],
     );
-    // Straight through each gate's centre, a little above its floor.
-    const through = (gate: DirectedRaceGate) =>
-      [-2, 2].map((offset) => ({
-        x: gate.center.x + gate.forward.x * offset,
-        y: gate.center.y - gate.halfExtents.y + ROOT_HEIGHT,
-        z: gate.center.z + gate.forward.z * offset,
-      }));
-    const race = recordRace(config, {
-      lap: [
-        ...config.checkpoints.map(({ gate }) => gate),
-        config.startGate,
-      ].flatMap(through),
-      start: lifted(config.startRecovery.position),
-    });
+    const race = recordRace(config, routeThroughGates(config));
 
     expect(race.samples.filter(({ gate }) => gate)).toHaveLength(
       2 * (config.checkpoints.length + 1),
@@ -379,6 +254,14 @@ test.describe("race recording verification", () => {
     }));
 
     expect(verifyRaceRecording(SQUARE, slowed)).toEqual({
+      reason: "too-long",
+      verified: false,
+    });
+    const crowded = Array.from(
+      { length: MAX_RUN_SAMPLES + 1 },
+      () => clean.samples[0],
+    );
+    expect(verifyRaceRecording(SQUARE, crowded)).toEqual({
       reason: "too-long",
       verified: false,
     });

@@ -9,8 +9,9 @@ the [ghost standard](../../game-concepts/ghosts/README.md). It owns the
 recording format, the recorder, playback, the ghost kart's look, the
 per-device best, and the Ghost switch.
 
-Not supported yet: server-stored bests, the course best, shared ghost links,
-and checking runs against their recordings.
+A logged-in racer's best is stored and checked by the
+[leaderboard](../leaderboard/README.md). Not supported yet: racing a stored
+best or the course best, and shared ghost links.
 
 ## Source Ownership
 

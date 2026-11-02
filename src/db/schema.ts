@@ -1,4 +1,5 @@
 import {
+  type AnyPgColumn,
   boolean,
   check,
   customType,
@@ -15,6 +16,12 @@ import {
   uuid,
 } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
+
+import { MEDAL_TIERS } from "../game/race/race-medals";
+import {
+  MAX_RUN_SAMPLES,
+  RUN_REJECTIONS,
+} from "../game/race/race-verification";
 
 const bytea = customType<{ data: Buffer; driverData: Buffer }>({
   dataType() {
@@ -554,6 +561,158 @@ export const gameplayRuns = pgTable(
         or (${table.outcome} = 'runtime_failed' and ${table.loadedAt} is not null and ${table.endedAt} >= ${table.loadedAt})
       `,
     ),
+  ],
+);
+
+export const medalTier = pgEnum("medal_tier", MEDAL_TIERS);
+
+export const raceResultStatus = pgEnum("race_result_status", [
+  "verified",
+  "rejected",
+]);
+
+// One board per published course revision and physics version.
+export const leaderboards = pgTable(
+  "leaderboards",
+  {
+    id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+    courseId: text("course_id").notNull(),
+    courseRevision: integer("course_revision").notNull(),
+    physicsVersion: text("physics_version").notNull(),
+    // An admin's own verified run on this board sets its medal times.
+    developerResultId: uuid("developer_result_id").references(
+      (): AnyPgColumn => raceResults.id,
+      { onDelete: "restrict" },
+    ),
+    developerSetAt: timestamp("developer_set_at", {
+      mode: "date",
+      withTimezone: true,
+    }),
+    createdAt: timestamp("created_at", { mode: "date", withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => [
+    uniqueIndex("leaderboards_board_uidx").on(
+      table.courseId,
+      table.courseRevision,
+      table.physicsVersion,
+    ),
+    foreignKey({
+      columns: [table.courseId, table.courseRevision],
+      foreignColumns: [courseRevisions.courseId, courseRevisions.revision],
+      name: "leaderboards_course_revision_fk",
+    }).onDelete("restrict"),
+    check(
+      "leaderboards_physics_version_length",
+      sql`char_length(${table.physicsVersion}) between 1 and 80`,
+    ),
+    check(
+      "leaderboards_developer_time_pair",
+      sql`(${table.developerResultId} is null) = (${table.developerSetAt} is null)`,
+    ),
+  ],
+);
+
+// Every submitted run, keyed by its single-use ticket, verified or not.
+export const raceResults = pgTable(
+  "race_results",
+  {
+    id: uuid("id").primaryKey(),
+    leaderboardId: integer("leaderboard_id")
+      .notNull()
+      .references(() => leaderboards.id, { onDelete: "restrict" }),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "restrict" }),
+    kartId: text("kart_id").notNull(),
+    kartRevision: integer("kart_revision").notNull(),
+    status: raceResultStatus("status").notNull(),
+    rejection: text("rejection"),
+    timeMicroseconds: integer("time_microseconds"),
+    ticketIssuedAt: timestamp("ticket_issued_at", {
+      mode: "date",
+      withTimezone: true,
+    }).notNull(),
+    submittedAt: timestamp("submitted_at", { mode: "date", withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => [
+    index("race_results_leaderboard_user_idx").on(
+      table.leaderboardId,
+      table.userId,
+    ),
+    check(
+      "race_results_kart",
+      sql`char_length(${table.kartId}) between 1 and 80 and ${table.kartRevision} > 0`,
+    ),
+    // Verified times are under the 15-minute race cap.
+    check(
+      "race_results_outcome",
+      sql`(${table.status} = 'verified' and ${table.timeMicroseconds} is not null and ${table.timeMicroseconds} between 1 and 900000000 and ${table.rejection} is null)
+        or (${table.status} = 'rejected' and ${table.timeMicroseconds} is null and ${table.rejection} is not null and ${table.rejection} in (${sql.raw(
+          RUN_REJECTIONS.map((reason) => `'${reason}'`).join(", "),
+        )}))`,
+    ),
+  ],
+);
+
+// Each player's best verified run on a board, with its ghost recording.
+export const boardBests = pgTable(
+  "board_bests",
+  {
+    leaderboardId: integer("leaderboard_id")
+      .notNull()
+      .references(() => leaderboards.id, { onDelete: "restrict" }),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "restrict" }),
+    resultId: uuid("result_id")
+      .notNull()
+      .references(() => raceResults.id, { onDelete: "restrict" }),
+    timeMicroseconds: integer("time_microseconds").notNull(),
+    ghost: bytea("ghost").notNull(),
+    achievedAt: timestamp("achieved_at", { mode: "date", withTimezone: true })
+      .notNull(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.leaderboardId, table.userId] }),
+    index("board_bests_rank_idx").on(
+      table.leaderboardId,
+      table.timeMicroseconds,
+      table.achievedAt,
+    ),
+    // A header and one 24-byte sample, up to the run sample cap.
+    check(
+      "board_bests_ghost_size",
+      sql`octet_length(${table.ghost}) between 32 and ${sql.raw(
+        String(8 + 24 * MAX_RUN_SAMPLES),
+      )}`,
+    ),
+  ],
+);
+
+// Medal tiers, each granted once per player per course and never revoked.
+export const courseMedals = pgTable(
+  "course_medals",
+  {
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "restrict" }),
+    courseId: text("course_id")
+      .notNull()
+      .references(() => courses.id, { onDelete: "restrict" }),
+    tier: medalTier("tier").notNull(),
+    resultId: uuid("result_id")
+      .notNull()
+      .references(() => raceResults.id, { onDelete: "restrict" }),
+    grantedAt: timestamp("granted_at", { mode: "date", withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.userId, table.courseId, table.tier] }),
   ],
 );
 

@@ -198,6 +198,7 @@ import {
 } from "@/game/render/scene-look";
 import { FrameBudgetRecorder } from "@/game/runtime/frame-budget";
 import { createRaceSessionConfig } from "@/game/race/race-course";
+import { requestRunTicket, submitRun } from "@/game/race/run-submission";
 import {
   createLoadingRacePresentationSnapshot,
   createRacePresentationSnapshot,
@@ -369,6 +370,8 @@ type SoloTimeTrialCanvasProps = {
   exitRef?: RefObject<(() => void) | null>;
   recordTelemetry?: boolean;
   sessionLabel?: string;
+  /** Submit a logged-in racer's runs for the leaderboard. */
+  submitsRuns?: boolean;
   /** Test readout of height above the habitat floor and local gravity. */
   showHabitatReadout?: boolean;
 };
@@ -490,6 +493,7 @@ export function SoloTimeTrialCanvas({
   recordTelemetry = true,
   sessionLabel,
   showHabitatReadout = false,
+  submitsRuns = false,
 }: SoloTimeTrialCanvasProps) {
   const COURSE_DOCUMENT = courseDocument;
   const raceIdentity = useMemo<GameplayRaceIdentity>(
@@ -679,6 +683,8 @@ export function SoloTimeTrialCanvas({
   const touchJoystickPointerRef = useRef<number | null>(null);
   const kartTapCandidateRef = useRef<KartTapCandidate | null>(null);
   const gameplayTelemetryStartedRef = useRef(false);
+  // The current run's ticket request, if its result can count.
+  const runTicketRef = useRef<Promise<string | null> | null>(null);
   const [gameplayTelemetry] = useState(
     () =>
       new GameplayRunTelemetry(
@@ -769,8 +775,11 @@ export function SoloTimeTrialCanvas({
       gameplayTelemetry.start(raceIdentityRef.current, {
         ghost: initialGhost && ghostOnRef.current ? "own_best" : "none",
       });
+      if (submitsRuns) {
+        runTicketRef.current = requestRunTicket(raceIdentityRef.current);
+      }
     }
-  }, [gameplayTelemetry, initialGhost]);
+  }, [gameplayTelemetry, initialGhost, submitsRuns]);
 
   useEffect(() => {
     raceSpeedUnitRef.current = raceSpeedUnit;
@@ -2583,6 +2592,9 @@ export function SoloTimeTrialCanvas({
             ghost: activeGhost && ghostOnRef.current ? "own_best" : "none",
             raceAgain: true,
           });
+          if (submitsRuns) {
+            runTicketRef.current = requestRunTicket(raceIdentityRef.current);
+          }
           gameplayTelemetry.markRuntimeLoaded();
           ghostRecorder.reset();
           raceStartReported = false;
@@ -3352,6 +3364,17 @@ export function SoloTimeTrialCanvas({
           const finishedBest = pendingGhost;
           window.setTimeout(() => keepDeviceGhostIfBest(finishedBest), 0);
         }
+        // Each ticket is submitted once, after the finish frame.
+        const runTicket = runTicketRef.current;
+        runTicketRef.current = null;
+        if (runTicket && finishedGhostTrace) {
+          const recording = finishedGhostTrace;
+          window.setTimeout(() => {
+            void runTicket.then((ticket) => {
+              if (ticket) void submitRun(ticket, recording);
+            });
+          }, 0);
+        }
         gameplayTelemetry.complete(
           Math.round(raceSession.snapshot.elapsedRaceMicroseconds / 1_000),
         );
@@ -3677,6 +3700,7 @@ export function SoloTimeTrialCanvas({
     initialGhost,
     kartRuntime,
     showHabitatReadout,
+    submitsRuns,
   ]);
 
   const updateKartDynamicsOpen = useCallback((open: boolean) => {

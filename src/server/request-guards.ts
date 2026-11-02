@@ -56,3 +56,30 @@ export function protectedJsonMutationError(request: Request) {
 
   return null;
 }
+
+/** Reads a request body as text, stopping once it passes `maxBytes`. */
+export async function readBoundedBody(request: Request, maxBytes: number) {
+  if (!request.body) {
+    return { body: "", tooLarge: false } as const;
+  }
+
+  const reader = request.body.getReader();
+  const decoder = new TextDecoder();
+  let body = "";
+  let receivedBytes = 0;
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) {
+      body += decoder.decode();
+      return { body, tooLarge: false } as const;
+    }
+
+    receivedBytes += value.byteLength;
+    if (receivedBytes > maxBytes) {
+      await reader.cancel();
+      return { body: "", tooLarge: true } as const;
+    }
+    body += decoder.decode(value, { stream: true });
+  }
+}

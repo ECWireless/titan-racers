@@ -24,3 +24,6 @@ export const TELEMETRY_COURSE_IDS = [
 // The solo time trial races Falls View Park. The sandbox stays the editor
 // and physics course, and kart test drives use it.
 export const CURRENT_GUEST_COURSE_ID = FALLS_VIEW_PARK_COURSE_ID;
+
+// Only the official circuit has a leaderboard; the sandbox never does.
+export const LEADERBOARD_COURSE_IDS = [FALLS_VIEW_PARK_COURSE_ID] as const;

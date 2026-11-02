@@ -22,6 +22,12 @@ const RACE_CHECK_LIMITS = {
   maxRaceMicroseconds: 15 * 60 * 1_000_000,
 } as const;
 
+/**
+ * The most samples a race within the time cap can record: 20 a second, one
+ * more per reset (at most one per half-second recovery), and gate pairs.
+ */
+export const MAX_RUN_SAMPLES = 20_000;
+
 export const RACE_CHECK_REJECTIONS = [
   "off-start",
   "too-fast",
@@ -32,6 +38,17 @@ export const RACE_CHECK_REJECTIONS = [
   "too-long",
 ] as const;
 export type RaceCheckRejection = (typeof RACE_CHECK_REJECTIONS)[number];
+
+/**
+ * Why a submitted run did not count: the check's reasons, a recording that
+ * does not decode, or a finish sooner after its ticket than the race took.
+ */
+export const RUN_REJECTIONS = [
+  ...RACE_CHECK_REJECTIONS,
+  "bad-recording",
+  "too-early",
+] as const;
+export type RunRejection = (typeof RUN_REJECTIONS)[number];
 
 export type RaceCheckResult =
   | { verified: true; timeMicroseconds: number }
@@ -71,6 +88,7 @@ export function verifyRaceRecording(
     boundsTolerance: RACE_CHECK_LIMITS.gateToleranceMetres,
     planeTolerance: RACE_CHECK_LIMITS.gateToleranceMetres,
   };
+  if (samples.length > MAX_RUN_SAMPLES) return reject("too-long");
   const first = samples[0];
   if (
     !first ||
