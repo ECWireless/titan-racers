@@ -112,9 +112,7 @@ course versions' boards stay to look at, read-only.
   with one best per racer; a physics change always starts one.
   `leaderboards.course_revision` is the revision that started it. Each run
   is still checked against the gates of the revision it raced. Publications
-  only move forward
-  ([identity](../identity-course-persistence/README.md)), so a board covers
-  every revision from its start to the next.
+  only move forward ([identity](../identity-course-persistence/README.md)).
 - A run already racing when a new leaderboard starts lands on the board it
   raced; new tickets are for the current board only.
 - Board numbers say which board, not their order: one first raced late can
@@ -152,3 +150,5 @@ course versions' boards stay to look at, read-only.
 - A recording does not prove which kart raced it.
 - A run kept on a shared device goes to whoever signs in there next.
 - A kept board's times may come from earlier revisions.
+- A guest's kept run is matched by course revision, so on a kept board a run
+  on the newer revision replaces a faster one kept from the older.

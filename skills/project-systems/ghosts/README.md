@@ -100,6 +100,9 @@ A logged-in racer's best is stored and checked by the
 
 ## Known Limits
 
+- Your best on this device is kept per course revision, so a publication
+  that keeps the board still drops a guest's own ghost; signed-in racers keep
+  their account best.
 - Both steered wheels take the centre steer angle, without Ackermann's
   spread, and a reversing ghost's wheels roll forward.
 - The ghost's shader compiles the first time it is drawn, after it pulls

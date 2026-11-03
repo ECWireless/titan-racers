@@ -18,9 +18,9 @@ const HELD_RUN_KEY = "titan-racers.held-run.v1";
 const HELD_RUN_NOTE_KEY = "titan-racers.held-run-note.v1";
 
 const heldRunSchema = z.strictObject({
-  // Its board (course, revision, and physics): a run on another board
-  // replaces it, as only the newest board is shown. Missing on runs held
-  // before boards were named, which any new run replaces.
+  // Its course, revision, and physics: a run on another replaces it, so the
+  // newest layout's run waits, even on a board kept across publications.
+  // Missing on runs held before this was named, which any new run replaces.
   board: z.string().min(1).optional(),
   expiresAt: z.number().int().positive(),
   recording: z.string().min(1),

@@ -1,4 +1,5 @@
 import { LeaderboardView } from "@/components/leaderboard-view";
+import { parseBoardNumber } from "@/game/race/leaderboard";
 
 export default async function LeaderboardPage({
   searchParams,
@@ -6,10 +7,9 @@ export default async function LeaderboardPage({
   searchParams: Promise<{ board?: string | string[] }>;
 }) {
   const { board } = await searchParams;
-  const number = Number(Array.isArray(board) ? board[0] : board);
   return (
     <LeaderboardView
-      boardNumber={Number.isInteger(number) && number > 0 ? number : null}
+      boardNumber={parseBoardNumber(Array.isArray(board) ? board[0] : board)}
     />
   );
 }

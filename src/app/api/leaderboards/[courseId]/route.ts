@@ -1,4 +1,5 @@
 import { LEADERBOARD_COURSE_IDS } from "@/game/course/course-ids";
+import { parseBoardNumber } from "@/game/race/leaderboard";
 import { loadLeaderboard } from "@/server/leaderboard";
 import { sessionUserIdOrResponse } from "@/server/session-user";
 
@@ -14,11 +15,8 @@ export async function GET(request: Request, context: RouteContext) {
     return Response.json({ error: "No leaderboard." }, { status: 404 });
   }
   const requested = new URL(request.url).searchParams.get("board");
-  const boardNumber = requested === null ? null : Number(requested);
-  if (
-    boardNumber !== null &&
-    !(Number.isInteger(boardNumber) && boardNumber > 0 && boardNumber < 2 ** 31)
-  ) {
+  const boardNumber = parseBoardNumber(requested);
+  if (requested !== null && boardNumber === null) {
     return Response.json({ error: "Invalid leaderboard." }, { status: 400 });
   }
   const leaderboard = await loadLeaderboard(

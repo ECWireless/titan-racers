@@ -23,7 +23,12 @@ import { racerOnboardingPath } from "@/lib/racer-username";
 import { copyLink, ghostLinkUrl, copyNoteFor } from "@/lib/share-link";
 
 import { MedalIcon } from "./medal-icon";
-import { CheckIcon, CopyLinkIcon, RaceGhostIcon } from "./menu-icons";
+import {
+  CheckIcon,
+  CopyLinkIcon,
+  CourseVersionsIcon,
+  RaceGhostIcon,
+} from "./menu-icons";
 
 type BoardState =
   | { status: "loading" }
@@ -68,23 +73,6 @@ function timesSetBetween(board: LeaderboardResponse["earlier"][number]) {
       ? {}
       : { year: "numeric" }),
   }).formatRange(first, last);
-}
-
-/** A clock turned back: the course's versions. */
-function EarlierVersionsIcon() {
-  return (
-    <svg
-      aria-hidden="true"
-      className="size-[1.125rem] shrink-0"
-      fill="none"
-      stroke="currentColor"
-      strokeLinecap="square"
-      strokeWidth={1.75}
-      viewBox="0 0 24 24"
-    >
-      <path d="M4.5 12a7.5 7.5 0 1 0 2.2-5.3M4.5 3.5v3.7h3.7M12 8v4.5l3 2" />
-    </svg>
-  );
 }
 
 // The editors' tooltip look, shown above a row's button.
@@ -255,12 +243,11 @@ export function LeaderboardView({ boardNumber }: { boardNumber: number | null })
 
   const board = state.status === "ready" ? state.leaderboard.board : null;
   const readOnly = boardNumber !== null;
-  // The last answer lists them while another board loads, so the icon
-  // doesn't vanish under the racer.
+  // The last answer decides these while another board loads, so the icon
+  // and title don't change under the racer.
   const earlier =
     loaded?.state.status === "ready" ? loaded.state.leaderboard.earlier : [];
   const viewing = earlier.find(({ number }) => number === boardNumber);
-  // Kept from the last answer while another version loads.
   const courseName =
     (loaded?.state.status === "ready"
       ? loaded.state.leaderboard.board?.courseName
@@ -361,7 +348,7 @@ export function LeaderboardView({ boardNumber }: { boardNumber: number | null })
                     type="button"
                     onClick={() => setEarlierOpen((open) => !open)}
                   >
-                    <EarlierVersionsIcon />
+                    <CourseVersionsIcon />
                   </button>
                 </RowActionHint>
                 {earlierOpen ? (

@@ -78,7 +78,7 @@ function boardStart(courseId: string, revision: number | SQL) {
 }
 
 /** Whether a revision races on the board of the course's live revision. */
-async function isOnCurrentBoard(courseId: string, revision: number) {
+export async function isOnCurrentBoard(courseId: string, revision: number) {
   const live = sql`(
     select ${coursePublications.revision} from ${coursePublications}
     where ${coursePublications.courseId} = ${courseId}

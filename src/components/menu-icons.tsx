@@ -79,6 +79,15 @@ export function DashboardIcon() {
   );
 }
 
+/** A clock turned back: the course's versions. */
+export function CourseVersionsIcon() {
+  return (
+    <MenuIcon>
+      <path d="M4.5 12a7.5 7.5 0 1 0 2.2-5.3M4.5 3.5v3.7h3.7M12 8v4.5l3 2" />
+    </MenuIcon>
+  );
+}
+
 export function SignInIcon() {
   return (
     <MenuIcon>

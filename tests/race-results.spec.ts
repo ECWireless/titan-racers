@@ -154,14 +154,12 @@ async function publishedBoard() {
 async function publishNext(
   board: Awaited<ReturnType<typeof publishedBoard>>,
   newLeaderboard: boolean,
+  document = FALLS_VIEW_PARK_DOCUMENT,
 ) {
   const latest = (await loadLatestCoursePublication(board.courseId))!;
   const saved = await saveCourseRevision({
     authorUserId: board.author.id,
-    document: {
-      ...structuredClone(FALLS_VIEW_PARK_DOCUMENT),
-      courseId: board.courseId,
-    },
+    document: { ...structuredClone(document), courseId: board.courseId },
     expectedRevision: latest.revision,
   });
   await publishCourseRevision({
@@ -685,6 +683,18 @@ test.describe("verified runs", () => {
     const second = await racer();
     const fast = race(10);
     const slow = race(8);
+    // The kept revision moves the levee crest's gate, so each revision's
+    // runs must pass its own gates.
+    const moved = structuredClone(FALLS_VIEW_PARK_DOCUMENT);
+    const crest = moved.checkpoints.find(
+      ({ id }) => id === "checkpoint-levee-crest",
+    )!;
+    crest.position.z += 10;
+    crest.recovery.position.z += 10;
+    const movedConfig = createRaceSessionConfig(moved);
+    const onMoved = recordRace(movedConfig, routeThroughGates(movedConfig), {
+      speed: 8,
+    });
     // A ticket signed at a revision, and one asked for from the route.
     const ticketAt = (courseRevision: number, userId: string) =>
       issueRunTicket(
@@ -716,20 +726,32 @@ test.describe("verified runs", () => {
     await submit(first.headers, ticketAt(1, first.id), encode(fast.samples));
 
     // Publishing keeps the board: both revisions race on it.
-    const kept = await publishNext(board, false);
+    const kept = await publishNext(board, false, moved);
     expect(await routeTicket(1)).not.toBeNull();
     expect(await routeTicket(kept)).not.toBeNull();
+    // Each run is checked against the gates of the revision it raced.
+    for (const [revision, samples] of [
+      [kept, slow.samples],
+      [1, onMoved.samples],
+    ] as const) {
+      const wrongGates = await submit(
+        second.headers,
+        ticketAt(revision, second.id),
+        encode(samples),
+      );
+      expect(await wrongGates.json()).toMatchObject({ status: "rejected" });
+    }
     const onKept = await submit(
       second.headers,
       ticketAt(kept, second.id),
-      encode(slow.samples),
+      encode(onMoved.samples),
     );
     expect(await onKept.json()).toMatchObject({ entries: 2, rank: 2 });
     expect(
       (await loadLeaderboard(courseId, null))?.board?.entries.map(
         ({ timeMicroseconds }) => timeMicroseconds,
       ),
-    ).toEqual([fast.timeMicroseconds, slow.timeMicroseconds]);
+    ).toEqual([fast.timeMicroseconds, onMoved.timeMicroseconds]);
     // The course best carries over, named for the revision raced.
     expect(await loadBoardGhost(courseId, kept, null)).toMatchObject({
       courseRevision: kept,
@@ -759,15 +781,17 @@ test.describe("verified runs", () => {
       (await loadLeaderboard(courseId, null, 1))?.board?.entries.map(
         ({ timeMicroseconds }) => timeMicroseconds,
       ),
-    ).toEqual([fast.timeMicroseconds, slow.timeMicroseconds]);
+    ).toEqual([fast.timeMicroseconds, onMoved.timeMicroseconds]);
     await expect(loadLeaderboard(courseId, null, 2)).resolves.toBeNull();
     await expect(loadCurrentBoardSummary(courseId)).resolves.toBeNull();
     await expect(loadBoardGhost(courseId, fresh, null)).resolves.toBeNull();
+    // Nor do earlier course versions serve ghosts, which raced an older layout.
+    await expect(loadBoardGhost(courseId, kept, null)).resolves.toBeNull();
     // A run already racing the old board still lands on it.
     const inFlight = await submit(
       first.headers,
       ticketAt(kept, first.id),
-      encode(slow.samples),
+      encode(onMoved.samples),
     );
     expect(await inFlight.json()).toMatchObject({ entries: 2, rank: 1 });
     const onFresh = await submit(

@@ -8,6 +8,7 @@ import type { LeaderboardResponse } from "@/game/race/leaderboard";
 import { loadLatestPublishedRevision } from "@/server/course-repository";
 import {
   findLeaderboard,
+  isOnCurrentBoard,
   listEarlierLeaderboards,
   racerStanding,
 } from "@/server/race-results";
@@ -124,13 +125,16 @@ export async function loadCurrentBoardSummary(courseId: string) {
 
 /**
  * A board's course best, or one racer's best, as a ghost record: its
- * recording and what drawing its kart needs, from that kart revision.
+ * recording and what drawing its kart needs, from that kart revision. Only
+ * the current board's: earlier course versions' ghosts raced a layout that
+ * changed.
  */
 export async function loadBoardGhost(
   courseId: string,
   courseRevision: number,
   userId: string | null,
 ) {
+  if (!(await isOnCurrentBoard(courseId, courseRevision))) return null;
   const leaderboardId = await findLeaderboard(db, {
     courseId,
     courseRevision,

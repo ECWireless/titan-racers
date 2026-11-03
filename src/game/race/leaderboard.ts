@@ -1,5 +1,14 @@
 import { z } from "zod";
 
+/** An earlier board's number from `?board=`, or null if it names none. */
+export function parseBoardNumber(value: string | null | undefined) {
+  if (value === null || value === undefined) return null;
+  const number = Number(value);
+  return Number.isInteger(number) && number > 0 && number < 2 ** 31
+    ? number
+    : null;
+}
+
 /** A race time, in whole microseconds. */
 export const microsecondsSchema = z.number().int().positive();
 
