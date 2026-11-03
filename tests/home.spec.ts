@@ -1475,6 +1475,140 @@ test.describe("home screen", () => {
     expect(stopped.speed, fenceEvidence).toBeLessThan(0.1);
   });
 
+  test("launches the slowest and fastest karts off the levee kicker onto the crest", async ({
+    page,
+  }, testInfo) => {
+    testInfo.setTimeout(400_000);
+    test.skip(
+      testInfo.project.name !== "desktop",
+      "The kicker only needs to run once.",
+    );
+    await page.setViewportSize({ height: 270, width: 480 });
+    await page.route("**/api/courses/*/published", (route) =>
+      route.fulfill({ json: { error: "Published course not found." }, status: 404 }),
+    );
+    // The bundled roster has every official kart.
+    await page.route("**/api/karts/official", (route) =>
+      route.fulfill({ status: 503 }),
+    );
+    const kicker = FALLS_VIEW_PARK_DOCUMENT.objects.find(
+      ({ id }) => id === "levee-kicker",
+    )!;
+    const crestTop = 3;
+    const ride = async (
+      canvas: Locator,
+      from: { x: number; z: number },
+      yaw: number,
+      speed: number,
+      seconds: number,
+    ) => {
+      const radians = (yaw * Math.PI) / 180;
+      const forward = { x: -Math.sin(radians), z: -Math.cos(radians) };
+      await setKartDebugPose(canvas, {
+        // No spin carried over from the run before.
+        angularVelocity: { x: 0, y: 0, z: 0 },
+        linearVelocity: { x: forward.x * speed, y: 0, z: forward.z * speed },
+        position: { x: from.x, y: crestTop + 0.08, z: from.z },
+        rotation: { x: 0, y: yaw, z: 0 },
+      });
+      await page.keyboard.down("ArrowUp");
+      try {
+        return await stepSimulationWithKartSamples(
+          canvas,
+          Math.ceil(seconds / DEFAULT_FIXED_STEP_SECONDS),
+        );
+      } finally {
+        await page.keyboard.up("ArrowUp");
+      }
+    };
+    const evidence = (samples: KartDebugState[]) =>
+      JSON.stringify(
+        samples
+          .filter((_, index) => index % 12 === 0)
+          .map((s) => [s.x.toFixed(2), s.y.toFixed(2), s.z.toFixed(2), s.speed.toFixed(1), s.supportCount, s.up.y.toFixed(2)]),
+      );
+    // Never through the fence (its rails stand at z 30.6) or past the wall,
+    // nor down off the levee, and back on the crest's asphalt at the end,
+    // upright on its wheels, clear of the kerb (inner face at z 30.75).
+    const expectOnCrest = (samples: KartDebugState[], onWheels = true) => {
+      const proof = evidence(samples);
+      for (const { y, z } of samples) {
+        expect(z, proof).toBeGreaterThan(30.6);
+        expect(z, proof).toBeLessThan(35.25);
+        expect(y, proof).toBeGreaterThan(crestTop - 0.05);
+      }
+      const end = samples.at(-1)!;
+      expect(end.z, proof).toBeGreaterThan(30.75 + 0.15);
+      expect(end.y, proof).toBeLessThan(crestTop + 0.25);
+      if (!onWheels) return;
+      expect(end.up.y, proof).toBeGreaterThan(0.9);
+      expect(end.supportCount, proof).toBeGreaterThanOrEqual(3);
+    };
+    // The sheet is 0.8 m long: its toe meets the asphalt, its lip in the air.
+    const toeX = kicker.transform.position.x + 0.4;
+    const lipX = toeX - 0.8;
+    const runUpX = toeX + 4;
+
+    // Measured from the hairpin with the throttle held: the Handling Kart
+    // reaches the kicker at its 8.2 m/s top speed, the Speed Kart at 13.
+    for (const [kart, speed, minimumRise] of [
+      ["Handling Kart", 8.2, 0.1],
+      ["Speed Kart", 13, 0.25],
+    ] as const) {
+      await page.goto("/");
+      await startSoloRace(page, kart);
+      const canvas = page.getByTestId("solo-time-trial-canvas");
+      await advanceRaceToRacing(canvas);
+      await canvas.click();
+
+      // Straight over it: on at the flush toe without a bump, off the lip
+      // into the air, and down upright on the crest, still driving.
+      const straight = await ride(canvas, { x: runUpX, z: kicker.transform.position.z }, 90, speed, 1.6);
+      const proof = evidence(straight);
+      const onRamp = straight.filter(({ x }) => x > lipX);
+      expect(Math.min(...onRamp.map((s) => s.speed)), proof).toBeGreaterThan(speed - 0.3);
+      const restY = straight[30]!.y;
+      const fromToe = straight.filter(({ x }) => x < toeX);
+      expect(Math.max(...fromToe.map(({ y }) => y)) - restY, proof).toBeGreaterThan(minimumRise);
+      const takeoff = straight.findIndex(({ supportCount, x }) => x < lipX && supportCount === 0);
+      const landing = straight.findIndex((s, index) => index > takeoff && s.supportCount >= 3);
+      expect(takeoff, proof).toBeGreaterThan(0);
+      expect(landing - takeoff, proof).toBeGreaterThan(18);
+      expect(Math.min(...straight.map(({ up }) => up.y)), proof).toBeGreaterThan(0.5);
+      expectOnCrest(straight);
+      const end = straight.at(-1)!;
+      expect(end.up.y, proof).toBeGreaterThan(0.95);
+      expect(end.supportCount, proof).toBeGreaterThanOrEqual(3);
+      expect(end.speed, proof).toBeGreaterThan(speed * 0.7);
+
+      if (kart === "Speed Kart") {
+        // Off the kicker at an angle, 10° and 25° off the crest's line,
+        // toward the fence (right) and toward the wall (left): the kart
+        // comes down on the crest, whether or not it reaches either side.
+        // How it tumbles off a barrier is chaotic, so it may land on its
+        // back, for the player to right.
+        const kickerZ = kicker.transform.position.z;
+        for (const [yaw, z] of [
+          [80, kickerZ + 0.75],
+          [65, kickerZ + 1.87],
+          [100, kickerZ - 0.75],
+          [115, kickerZ - 1.87],
+        ] as const) {
+          const yawed = await ride(canvas, { x: runUpX, z }, yaw, speed, 2.4);
+          expect(yawed.some(({ supportCount }) => supportCount === 0), evidence(yawed)).toBe(true);
+          expectOnCrest(yawed, false);
+        }
+
+        // Driven across it side-on, it crosses the sheet without a fling
+        // and settles on its wheels.
+        const across = await ride(canvas, { x: toeX - 0.5, z: kickerZ + 1.9 }, 0, 5, 1.6);
+        expect(Math.min(...across.map(({ z }) => z)), evidence(across)).toBeLessThan(kickerZ - 0.6);
+        expect(Math.max(...across.map(({ y }) => y)), evidence(across)).toBeLessThan(crestTop + 0.6);
+        expectOnCrest(across);
+      }
+    }
+  });
+
   test("drives the widest official kart out through the storm drain and back, up the berm, and off it", async ({
     page,
   }, testInfo) => {

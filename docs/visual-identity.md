@@ -153,7 +153,8 @@ Materials), and so do course surfaces (see Course Surfaces).
   work light clamped to it, taped grid slots, the battery work lights strung
   through the culvert, the bicycles they rode there, the plywood kicker and
   landing deck of their jump, and the steel crowd barriers they fence it
-  with, in plywood, steel, hazard paint, and tape. Every new section
+  with, and a plywood offcut on a length of timber that kicks karts into
+  the air along the levee crest, in plywood, steel, hazard paint, and tape. Every new section
   follows the rule, so the route reads as kids racing through a working
   park.
 - **Service-yard finishes.** Aged mineral-grey asphalt (about 13%
