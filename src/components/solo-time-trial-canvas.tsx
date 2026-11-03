@@ -2641,6 +2641,12 @@ export function SoloTimeTrialCanvas({
           if (pendingGhost) {
             installGhost(pendingGhost);
             pendingGhost = null;
+            // A beaten racer's ghost made way for your own best, which
+            // follows your Ghost switch again.
+            if (activeGhostKind !== "own_best" && !readGhostSwitch()) {
+              ghostOnRef.current = false;
+              setGhostOn(false);
+            }
             activeGhostKind = "own_best";
           }
           gameplayTelemetry.start(raceIdentityRef.current, {
@@ -4140,9 +4146,10 @@ export function SoloTimeTrialCanvas({
     // Cleared first, so a repeated note is announced again.
     setShareNote(null);
     const verified = runStanding?.status === "verified" ? runStanding : null;
+    // Only a new best's time holds the rank, so only it names one.
     const ghostLink = verified?.personalBest.improved ? verified : null;
-    const standing = verified
-      ? `, rank ${verified.rank} of ${verified.entries} on the leaderboard`
+    const standing = ghostLink
+      ? `, rank ${ghostLink.rank} of ${ghostLink.entries} on the leaderboard`
       : "";
     const outcome = await shareLink({
       text: `I ran ${COURSE_DOCUMENT.name} in ${racePresentation.elapsedTime} in the ${kartDocument.name}${standing}. ${

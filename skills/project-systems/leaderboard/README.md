@@ -40,8 +40,6 @@ boards for earlier revisions.
 - `src/components/medal-icon.tsx`: the podium medal on rows and results.
 - `src/components/run-standing.tsx`: the result screen's standing, or its
   prompt to sign in or choose a username.
-- `src/components/profile-access.tsx` and `leaderboard-view.tsx`: send a
-  kept run once the account is complete, and on opening the board.
 - `src/db/schema.ts`, `drizzle/0021_*`, and `0023_*`: `leaderboards`,
   `race_results` (with `claimed`), and `board_bests`, with their triggers.
 - `src/components/solo-time-trial-canvas.tsx`: a ticket request at each run
@@ -77,7 +75,7 @@ boards for earlier revisions.
    the racer's best on its board only when faster, keeping its recording. The
    response is the server's time, rank, entries, personal best, and the
    racer's username, which the result screen shows with the medal for a
-   top-three rank; a new best shares a link to the racer's ghost.
+   top-three rank.
 5. `/leaderboard` shows the official course's current board: its newest
    published revision under the current physics, the top 50 bests with
    their karts, and the viewer's own rank if they are lower.

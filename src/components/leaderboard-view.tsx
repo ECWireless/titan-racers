@@ -64,19 +64,16 @@ function RowActionHint({
   hint: string;
   shown?: boolean;
 }) {
-  const [hovered, setHovered] = useState(false);
   return (
-    <span
-      className="relative"
-      onBlur={() => setHovered(false)}
-      onFocus={() => setHovered(true)}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-    >
+    <span className="group relative">
       {children}
       <span
         aria-hidden="true"
-        className={`${HINT_CLASS} ${shown || hovered ? "opacity-100" : "opacity-0"}`}
+        className={`${HINT_CLASS} ${
+          shown
+            ? "opacity-100"
+            : "opacity-0 group-has-[:focus-visible]:opacity-100 group-hover:opacity-100"
+        }`}
       >
         {hint}
       </span>

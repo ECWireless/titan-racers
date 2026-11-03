@@ -838,7 +838,7 @@
         },
         "gameplay_runs_shared_completed": {
           "name": "gameplay_runs_shared_completed",
-          "value": "not \"gameplay_runs\".\"shared\" or \"gameplay_runs\".\"outcome\" = 'completed'"
+          "value": "not \"gameplay_runs\".\"shared\" or \"gameplay_runs\".\"outcome\" is not distinct from 'completed'"
         },
         "gameplay_runs_deployment_version_length": {
           "name": "gameplay_runs_deployment_version_length",

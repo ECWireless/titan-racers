@@ -496,7 +496,7 @@ export const gameplayRuns = pgTable(
     ),
     check(
       "gameplay_runs_shared_completed",
-      sql`not ${table.shared} or ${table.outcome} = 'completed'`,
+      sql`not ${table.shared} or ${table.outcome} is not distinct from 'completed'`,
     ),
     check(
       "gameplay_runs_deployment_version_length",

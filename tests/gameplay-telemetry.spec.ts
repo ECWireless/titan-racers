@@ -903,6 +903,14 @@ test.describe("gameplay telemetry Postgres integration", () => {
         );
       // Only a completed run's result can be shared, once.
       expect(await shared("2026-07-14T10:01:00.000Z")).toBe("ignored");
+      const unfinishedShare = await db
+        .update(gameplayRuns)
+        .set({ shared: true })
+        .where(eq(gameplayRuns.id, runId))
+        .catch((error: Error & { cause?: Error }) => error);
+      expect((unfinishedShare as Error & { cause?: Error }).cause?.message).toMatch(
+        /gameplay_runs_shared_completed/,
+      );
       await recordGameplayRunEvent(
         {
           automaticPauseCount: 3,

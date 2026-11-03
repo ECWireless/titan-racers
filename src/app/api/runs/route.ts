@@ -32,6 +32,12 @@ function jsonError(error: string, status: number) {
 export async function POST(request: Request) {
   const mutationError = protectedJsonMutationError(request);
   if (mutationError) return mutationError;
+  // Every ticket is submitted by a racer with a username: a named ticket's
+  // racer had one when it was issued, and usernames are permanent.
+  const userId = await sessionUserIdOrResponse(request, {
+    requireUsername: true,
+  });
+  if (userId instanceof Response) return userId;
 
   const { body, tooLarge } = await readBoundedBody(request, MAX_BODY_BYTES);
   if (tooLarge) return jsonError("Run submission is too large.", 413);
@@ -43,10 +49,6 @@ export async function POST(request: Request) {
   }
 
   const ticket = readRunTicket(submission.ticket);
-  const userId = await sessionUserIdOrResponse(request, {
-    requireUsername: ticket?.userId === null,
-  });
-  if (userId instanceof Response) return userId;
   if (!ticket) return jsonError("This run ticket is invalid or expired.", 400);
   if (ticket.userId !== null && ticket.userId !== userId) {
     return jsonError("This run ticket belongs to another racer.", 403);
