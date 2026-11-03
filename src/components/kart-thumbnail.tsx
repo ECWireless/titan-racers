@@ -9,14 +9,39 @@ import {
   renderKartThumbnail,
 } from "@/game/kart/kart-thumbnail-renderer";
 
+// Home's official karts keep their drawn pictures for the page's lifetime, so
+// stepping back to the karts never draws them again. A render dropped by a
+// race starting is forgotten, so the next visit draws it.
+const keptThumbnails = new Map<string, Promise<string>>();
+const keptSources = new Map<string, string>();
+
+/** Draws a kart's picture once for the page; call early to draw it ahead. */
+export function keepKartThumbnail(document: KartAssemblyDocument) {
+  const key = JSON.stringify(document);
+  let kept = keptThumbnails.get(key);
+  if (!kept) {
+    kept = renderKartThumbnail(document).then((blob) => {
+      const source = URL.createObjectURL(blob);
+      keptSources.set(key, source);
+      return source;
+    });
+    kept.catch(() => keptThumbnails.delete(key));
+    keptThumbnails.set(key, kept);
+  }
+  return kept;
+}
+
 export function KartThumbnail({
   document,
   initialized,
+  keep = false,
   pending = false,
   source,
 }: {
   document: KartAssemblyDocument;
   initialized: boolean;
+  /** Keep the drawn picture for the page (see `keepKartThumbnail`). */
+  keep?: boolean;
   /** The caller is still resolving which revision to show. */
   pending?: boolean;
   source: string | null;
@@ -25,7 +50,10 @@ export function KartThumbnail({
   const [generated, setGenerated] = useState<{
     key: string;
     source: string;
-  } | null>(null);
+  } | null>(() => {
+    const kept = keep ? keptSources.get(renderKey) : undefined;
+    return kept ? { key: renderKey, source: kept } : null;
+  });
   const [failedRemoteSource, setFailedRemoteSource] = useState<string | null>(
     null,
   );
@@ -39,12 +67,17 @@ export function KartThumbnail({
     if (!initialized || (source && !remoteFailed)) return;
     let active = true;
     let objectUrl: string | null = null;
-    void renderKartThumbnail(document)
-      .then((blob) => {
-        if (!active) return;
-        objectUrl = URL.createObjectURL(blob);
-        setGenerated({ key: renderKey, source: objectUrl });
-      })
+    void (
+      keep
+        ? keepKartThumbnail(document).then((kept) => {
+            if (active) setGenerated({ key: renderKey, source: kept });
+          })
+        : renderKartThumbnail(document).then((blob) => {
+            if (!active) return;
+            objectUrl = URL.createObjectURL(blob);
+            setGenerated({ key: renderKey, source: objectUrl });
+          })
+    )
       .catch((error) => {
         if (error instanceof KartThumbnailRenderingPausedError) return;
         console.error("Unable to render kart thumbnail", error);
@@ -54,7 +87,7 @@ export function KartThumbnail({
       active = false;
       if (objectUrl) URL.revokeObjectURL(objectUrl);
     };
-  }, [document, initialized, remoteFailed, renderKey, source]);
+  }, [document, initialized, keep, remoteFailed, renderKey, source]);
 
   const imageSource =
     source && !remoteFailed ? source : generatedSource ?? null;

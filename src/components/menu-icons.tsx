@@ -1,11 +1,17 @@
 import type { ReactNode } from "react";
 
 /** Line icons for the home menu, drawn in the current text colour. */
-function MenuIcon({ children }: { children: ReactNode }) {
+function MenuIcon({
+  children,
+  className = "size-[1.125rem]",
+}: {
+  children: ReactNode;
+  className?: string;
+}) {
   return (
     <svg
       aria-hidden="true"
-      className="size-[1.125rem] shrink-0"
+      className={`${className} shrink-0`}
       fill="none"
       stroke="currentColor"
       strokeLinecap="square"
@@ -17,10 +23,24 @@ function MenuIcon({ children }: { children: ReactNode }) {
   );
 }
 
-export function LeaderboardIcon() {
+export function LeaderboardIcon({ className }: { className?: string } = {}) {
   return (
-    <MenuIcon>
+    <MenuIcon className={className}>
       <path d="M3.5 20.5v-7h5.5v7M9 20.5V6.5h6v14M15 20.5v-4.5h5.5v4.5M2.5 20.5h19" />
+    </MenuIcon>
+  );
+}
+
+/** A chequered flag on its pole: the race. */
+export function RaceFlagIcon({ className }: { className?: string } = {}) {
+  return (
+    <MenuIcon className={className}>
+      <path d="M5.5 21V3.5M5.5 4h14v9h-14" />
+      <path
+        d="M5.5 4h4.67v4.5H5.5ZM14.83 4h4.67v4.5h-4.67ZM10.17 8.5h4.66V13h-4.66Z"
+        fill="currentColor"
+        stroke="none"
+      />
     </MenuIcon>
   );
 }
@@ -75,9 +95,9 @@ export function SoundIcon() {
   );
 }
 
-export function RaceGhostIcon() {
+export function RaceGhostIcon({ className }: { className?: string } = {}) {
   return (
-    <MenuIcon>
+    <MenuIcon className={className}>
       <path d="M5 21V3.5M5 4.5h12.5l-2.5 4 2.5 4H5" />
     </MenuIcon>
   );

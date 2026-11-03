@@ -74,7 +74,7 @@ test.describe("leaderboard page", () => {
     await expect(page.getByText(/Your best/)).toHaveCount(0);
   });
 
-  test("steps a controller down the board from the viewer's row", async ({
+  test("steps a controller down the board from the viewer's row, one stop a row", async ({
     page,
   }) => {
     await installStandardGamepadFixture(page);
@@ -86,15 +86,34 @@ test.describe("leaderboard page", () => {
       .getByRole("list", { name: "Best times" })
       .getByRole("listitem");
     await expect(rows).toHaveCount(4);
-    // Moves start from the viewer's row (rank 2).
-    await setStandardTestGamepad(page);
-    await page.waitForTimeout(50);
-    await setStandardTestGamepad(page, { buttons: { 13: 1 } });
-    await expect(rows.nth(2)).toBeFocused();
-    await setStandardTestGamepad(page);
-    await page.waitForTimeout(50);
-    await setStandardTestGamepad(page, { buttons: { 12: 1 } });
-    await expect(rows.nth(1)).toBeFocused();
+    const race = (row: number) =>
+      rows.nth(row).getByRole("link", { name: /^Race @/ });
+    const press = async (button: number) => {
+      await setStandardTestGamepad(page);
+      await page.waitForTimeout(50);
+      await setStandardTestGamepad(page, { buttons: { [button]: 1 } });
+      await page.waitForTimeout(50);
+      // Released at once, so a slow frame cannot hold it into a repeat.
+      await setStandardTestGamepad(page);
+    };
+    // Moves start from the viewer's row (rank 2) and go Race to Race.
+    await press(13);
+    await expect(race(2)).toBeFocused();
+    await press(13);
+    await expect(race(3)).toBeFocused();
+    await press(12);
+    await press(12);
+    await expect(race(1)).toBeFocused();
+    await press(15);
+    await expect(
+      rows.nth(1).getByRole("button", { name: /^Copy @/ }),
+    ).toBeFocused();
+
+    // The arrow keys move the same way.
+    await page.keyboard.press("ArrowLeft");
+    await expect(race(1)).toBeFocused();
+    await page.keyboard.press("ArrowDown");
+    await expect(race(2)).toBeFocused();
   });
 
   test("shows the viewer's rank below the top of the board", async ({

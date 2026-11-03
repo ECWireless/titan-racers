@@ -226,6 +226,7 @@ export function writeGhostChoice(choice: GhostChoice) {
 
 /** The player's Ghost switch; on unless they turned it off. */
 export function readGhostSwitch() {
+  if (sessionGhostSwitch !== null) return sessionGhostSwitch;
   try {
     return window.localStorage.getItem(GHOST_SWITCH_KEY) !== "off";
   } catch {
@@ -233,10 +234,24 @@ export function readGhostSwitch() {
   }
 }
 
+// Holds the switch for this session when storage refuses it.
+let sessionGhostSwitch: boolean | null = null;
+const ghostSwitchListeners = new Set<() => void>();
+
+/** For `useSyncExternalStore`: hears the switch change in this tab. */
+export function subscribeGhostSwitch(listener: () => void) {
+  ghostSwitchListeners.add(listener);
+  return () => {
+    ghostSwitchListeners.delete(listener);
+  };
+}
+
 export function writeGhostSwitch(on: boolean) {
+  sessionGhostSwitch = on;
   try {
     window.localStorage.setItem(GHOST_SWITCH_KEY, on ? "on" : "off");
   } catch {
     // The choice still holds for this session.
   }
+  ghostSwitchListeners.forEach((listener) => listener());
 }

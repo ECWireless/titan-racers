@@ -147,6 +147,7 @@ export function LeaderboardView() {
   useControllerMenuNavigation({
     containerRef: mainRef,
     enabled: true,
+    keyboard: true,
     navigationMode: "spatial",
     onBack: () => router.push("/"),
   });
@@ -260,16 +261,12 @@ export function LeaderboardView() {
               return (
               <li
                 aria-current={entry.viewer ? "true" : undefined}
-                className={`grid grid-cols-[2rem_1fr_auto_auto] items-center gap-2 border px-2 py-2 outline-none focus-visible:border-titan-hazard sm:gap-3 sm:px-3 ${
+                className={`grid grid-cols-[2rem_1fr_auto_auto] items-center gap-2 border px-2 py-2 focus-within:border-titan-hazard sm:gap-3 sm:px-3 ${
                   entry.viewer
                     ? "border-titan-hazard/70 bg-titan-hazard/8"
                     : "border-titan-ice/10"
                 }`}
-                // Focusable so a controller can step down the board, which
-                // scrolls each row into view; it starts on your own row.
-                data-controller-default={entry.viewer ? "true" : undefined}
                 key={entry.rank}
-                tabIndex={0}
               >
                 {medal ? (
                   <MedalIcon rank={entry.rank} tier={medal} />
@@ -289,9 +286,12 @@ export function LeaderboardView() {
                 </span>
                 <span className="flex gap-1">
                   <RowActionHint hint="Race ghost">
+                    {/* Each row's one stop on the way down the board,
+                        starting on your own; Copy link is to its right. */}
                     <Link
                       aria-label={`Race @${entry.username}'s ghost`}
                       className={rowActionClass}
+                      data-controller-default={entry.viewer ? "true" : undefined}
                       href={`/?ghost=${encodeURIComponent(entry.username)}&from=leaderboard`}
                     >
                       <RaceGhostIcon />
