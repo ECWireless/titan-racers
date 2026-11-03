@@ -147,3 +147,35 @@ export async function loadRacerGhost(courseId: string, username: string) {
   if (!racer) return null;
   return loadBoardGhost(courseId, published.revision, racer.id);
 }
+
+/**
+ * A racer's standing on a course's current board, for a ghost link's
+ * preview: their best time and rank, without the recording. Null when they
+ * have no best there, or no longer have that username.
+ */
+export async function loadRacerStanding(courseId: string, username: string) {
+  const published = await loadLatestPublishedRevision(courseId);
+  if (!published) return null;
+  const leaderboardId = await findLeaderboard(db, {
+    courseId,
+    courseRevision: published.revision,
+    physicsVersion: CURRENT_PHYSICS_VERSION,
+  });
+  if (leaderboardId === null) return null;
+  const [racer] = (
+    await db.execute<{ id: string }>(sql`
+      select id from users
+      where username = ${username} and anonymized_at is null
+    `)
+  ).rows;
+  if (!racer) return null;
+  const standing = await racerStanding(db, leaderboardId, racer.id);
+  if (!standing) return null;
+  return {
+    courseName: published.courseName,
+    entries: standing.entries,
+    rank: standing.rank,
+    timeMicroseconds: standing.best,
+    username,
+  };
+}

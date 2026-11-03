@@ -36,12 +36,16 @@ import {
 } from "../src/server/race-results";
 import { leaderboardResponseSchema } from "../src/game/race/leaderboard";
 import { medalForRank } from "../src/game/race/race-medals";
+import { formatRaceTime } from "../src/game/race/race-presentation";
 import { parseGhostRecord } from "../src/game/ghost/device-ghost";
 import {
   loadBoardGhost,
   loadLeaderboard,
   loadRacerGhost,
+  loadRacerStanding,
 } from "../src/server/leaderboard";
+import { drawSocialCard } from "../src/app/social-card/card";
+import { ghostLinkMetadata } from "../src/lib/social-metadata";
 import { issueRunTicket, readRunTicket } from "../src/server/run-tickets";
 import { anonymizeUserByEmail } from "../src/server/user-anonymization";
 import { recordRace, routeThroughGates } from "./support/race-recording";
@@ -601,6 +605,29 @@ test.describe("verified runs", () => {
     expect(linked?.timeMicroseconds).toBe(slow.timeMicroseconds);
     expect(JSON.stringify(linked)).not.toContain(slower.id);
     await expect(loadRacerGhost(board.courseId, "no_such_racer")).resolves.toBeNull();
+    // Its preview names their time and rank, and draws as a card.
+    const standing = await loadRacerStanding(board.courseId, username!);
+    expect(standing).toEqual({
+      courseName: FALLS_VIEW_PARK_DOCUMENT.name,
+      entries: 2,
+      rank: 2,
+      timeMicroseconds: slow.timeMicroseconds,
+      username,
+    });
+    const preview = ghostLinkMetadata(standing!);
+    expect(preview.title).toBe(`Race @${username}'s ghost · Titan Racers`);
+    expect(preview.description).toBe(
+      `@${username} ran ${FALLS_VIEW_PARK_DOCUMENT.name} in ${formatRaceTime(slow.timeMicroseconds, 3)}, rank 2 of 2. Race their ghost and beat it.`,
+    );
+    const [image] = preview.openGraph!.images as Array<{ url: string }>;
+    expect(image.url).toBe(
+      `/social-card?racer=${username}&v=${slow.timeMicroseconds}-2-2`,
+    );
+    expect(JSON.stringify(preview)).not.toContain(slower.id);
+    const card = await drawSocialCard(standing, {});
+    expect(card.headers.get("content-type")).toBe("image/png");
+    expect((await card.arrayBuffer()).byteLength).toBeGreaterThan(50_000);
+    await expect(loadRacerStanding(board.courseId, "no_such_racer")).resolves.toBeNull();
     // Only an exact username: a link is never normalized to another racer.
     for (const racer of ["a", username!.toUpperCase()]) {
       expect(
@@ -621,5 +648,6 @@ test.describe("verified runs", () => {
       .where(eq(users.id, slower.id));
     await anonymizeUserByEmail(email);
     await expect(loadRacerGhost(board.courseId, username!)).resolves.toBeNull();
+    await expect(loadRacerStanding(board.courseId, username!)).resolves.toBeNull();
   });
 });

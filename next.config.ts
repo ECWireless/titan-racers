@@ -7,6 +7,10 @@ const allowedDevOrigins =
 
 const nextConfig: NextConfig = {
   ...(allowedDevOrigins.length > 0 ? { allowedDevOrigins } : {}),
+  // The link preview picture reads these from disk when drawn.
+  outputFileTracingIncludes: {
+    "/social-card": ["./src/app/social-card/assets/**"],
+  },
 };
 
 export default nextConfig;
