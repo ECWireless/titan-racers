@@ -24,6 +24,7 @@ import {
   RunStandingSummary,
 } from "@/components/run-standing";
 import { GhostToggle, SoundToggle } from "@/components/setting-switch";
+import { ghostLinkUrl, shareLink, shareNoteFor } from "@/lib/share-link";
 import type {
   CourseTestObstacleId,
   DrivingInput,
@@ -543,7 +544,14 @@ export function SoloTimeTrialCanvas({
           kind: "own_best" as const,
         },
   );
-  const [ghostOn, setGhostOn] = useState(readGhostSwitch);
+  // A racer's ghost picked from a link or the board shows even if the
+  // switch was off; the pause menu can still hide it.
+  const [ghostOn, setGhostOn] = useState(
+    () =>
+      readGhostSwitch() ||
+      boardGhost?.kind === "shared_link" ||
+      boardGhost?.kind === "leaderboard_racer",
+  );
   const ghostOnRef = useRef(ghostOn);
   useEffect(() => {
     ghostOnRef.current = ghostOn;
@@ -717,6 +725,7 @@ export function SoloTimeTrialCanvas({
   const runTicketRef = useRef<Promise<RunTicketOutcome | null> | null>(null);
   const runNumberRef = useRef(0);
   const [runStanding, setRunStanding] = useState<RunStanding | null>(null);
+  const [shareNote, setShareNote] = useState<string | null>(null);
   const [gameplayTelemetry] = useState(
     () =>
       new GameplayRunTelemetry(
@@ -2643,6 +2652,7 @@ export function SoloTimeTrialCanvas({
           }
           runNumberRef.current += 1;
           setRunStanding(null);
+          setShareNote(null);
           gameplayTelemetry.markRuntimeLoaded();
           ghostRecorder.reset();
           raceStartReported = false;
@@ -4122,6 +4132,32 @@ export function SoloTimeTrialCanvas({
     requestAnimationFrame(() => canvasRef.current?.focus());
   }
 
+  /**
+   * Shares the result: a racer's new best links to their ghost, which
+   * follows their best; any other result links home.
+   */
+  async function shareResult() {
+    // Cleared first, so a repeated note is announced again.
+    setShareNote(null);
+    const verified = runStanding?.status === "verified" ? runStanding : null;
+    const ghostLink = verified?.personalBest.improved ? verified : null;
+    const standing = verified
+      ? `, rank ${verified.rank} of ${verified.entries} on the leaderboard`
+      : "";
+    const outcome = await shareLink({
+      text: `I ran ${COURSE_DOCUMENT.name} in ${racePresentation.elapsedTime} in the ${kartDocument.name}${standing}. ${
+        ghostLink ? "Race my ghost on Titan Racers." : "Can you beat it on Titan Racers?"
+      }`,
+      url: ghostLink
+        ? ghostLinkUrl(ghostLink.username)
+        : new URL("/", window.location.origin).href,
+    });
+    if (outcome === "shared" || outcome === "copied") {
+      gameplayTelemetry.markShared();
+    }
+    setShareNote(shareNoteFor(outcome));
+  }
+
   function restartRace() {
     if (!sceneApiRef.current?.restartRace()) {
       return;
@@ -4445,6 +4481,15 @@ export function SoloTimeTrialCanvas({
                   >
                     Race again
                   </button>
+                  {submitsRuns ? (
+                    <button
+                      type="button"
+                      className="titan-button titan-button-secondary"
+                      onClick={() => void shareResult()}
+                    >
+                      Share
+                    </button>
+                  ) : null}
                   <button
                     type="button"
                     className="titan-button titan-button-secondary"
@@ -4452,6 +4497,16 @@ export function SoloTimeTrialCanvas({
                   >
                     Exit
                   </button>
+                  <p
+                    className={
+                      shareNote
+                        ? "text-center font-mono text-xs text-titan-ice/76"
+                        : "sr-only"
+                    }
+                    aria-live="polite"
+                  >
+                    {shareNote}
+                  </p>
                 </div>
               </div>
             </div>

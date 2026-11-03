@@ -65,9 +65,11 @@ test.describe("leaderboard page", () => {
     await expect(rows.nth(0)).toContainText("@quick_racer");
     await expect(rows.nth(0)).toContainText("1:18.500");
     for (const [index, medal] of ["Gold", "Silver", "Bronze"].entries()) {
-      await expect(rows.nth(index)).toContainText(`Balanced Kart · ${medal}`);
+      await expect(
+        rows.nth(index).getByRole("img", { name: `${index + 1}, ${medal}` }),
+      ).toBeVisible();
     }
-    await expect(rows.nth(3)).not.toContainText("·");
+    await expect(rows.nth(3).getByRole("img")).toHaveCount(0);
     await expect(rows.nth(1)).toHaveAttribute("aria-current", "true");
     await expect(page.getByText(/Your best/)).toHaveCount(0);
   });
@@ -135,6 +137,7 @@ test.describe("leaderboard page", () => {
           personalBest: { improved: true, timeMicroseconds: 92_250_000 },
           rank: 2,
           status: "verified",
+          username: "steady_racer",
         },
       });
     });
@@ -174,5 +177,29 @@ test.describe("leaderboard page", () => {
       "/onboarding?returnTo=%2Fleaderboard",
     );
     expect(await keptRun(page)).not.toBeNull();
+  });
+
+  test("races or copies a racer's ghost link from their row", async ({ page }) => {
+    await page.context().grantPermissions(["clipboard-read", "clipboard-write"]);
+    await page.route("**/api/leaderboards/falls-view-park", (route) =>
+      route.fulfill({ json: board() }),
+    );
+    await page.goto("/leaderboard");
+    const row = page
+      .getByRole("list", { name: "Best times" })
+      .getByRole("listitem")
+      .first();
+
+    await expect(
+      row.getByRole("link", { name: "Race @quick_racer's ghost" }),
+    ).toHaveAttribute("href", "/?ghost=quick_racer&from=leaderboard");
+    await row
+      .getByRole("button", { name: "Copy @quick_racer's ghost link" })
+      .click();
+    // The button itself says so, briefly.
+    await expect(row.getByText("Copied", { exact: true })).toBeAttached();
+    expect(await page.evaluate(() => navigator.clipboard.readText())).toMatch(
+      /^https?:\/\/[^/]+\/\?ghost=quick_racer$/,
+    );
   });
 });

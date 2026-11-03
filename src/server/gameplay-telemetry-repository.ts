@@ -103,6 +103,22 @@ export async function recordGameplayRunEvent(
     return updated.length > 0 ? "updated" : "ignored";
   }
 
+  if (event.type === "run_shared") {
+    const updated = await db
+      .update(gameplayRuns)
+      .set({ shared: true, updatedAt: receivedAt })
+      .where(
+        and(
+          eq(gameplayRuns.id, event.runId),
+          eq(gameplayRuns.outcome, "completed"),
+          eq(gameplayRuns.shared, false),
+        ),
+      )
+      .returning({ id: gameplayRuns.id });
+
+    return updated.length > 0 ? "updated" : "ignored";
+  }
+
   if (event.type === "runtime_health") {
     const updated = await db
       .update(gameplayRuns)

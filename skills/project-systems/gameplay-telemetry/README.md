@@ -24,9 +24,9 @@ identity.
   same-origin guest writer.
 - `src/server/gameplay-telemetry-repository.ts` owns idempotent server-timestamped
   Postgres transitions and server-derived deployment attribution.
-- `src/db/schema.ts` and `drizzle/0004_*` through `0019_*` own the typed run
-  table, enum values, lifecycle and attribution constraints, triggers, and
-  timestamp index.
+- `src/db/schema.ts` and `drizzle/0004_*` through `0019_*`, `0022_*`, and
+  `0024_*` own the typed run table, enum values, lifecycle and attribution
+  constraints, triggers, and timestamp index.
 - `src/game/telemetry/gameplay-dashboard.ts` owns pure aggregate semantics and
   the strict response contract.
 - `src/server/gameplay-dashboard-repository.ts` loads only the selected summary
@@ -49,7 +49,8 @@ identity.
    queues `run_started` naming what the run races: the course and kart IDs,
    their publication revisions (null for a bundled seed or roster),
    whether it came from Race again, and which ghost it races (none, your own
-   best, or the course best).
+   best, the course best, or a racer's best from a shared link or picked on
+   the leaderboard).
 2. A ready PlayCanvas scene queues `runtime_loaded` with a bounded monotonic
    client load duration. The server records its own receipt timestamp and the
    duration separately so database/network latency does not inflate runtime
@@ -61,8 +62,10 @@ identity.
 6. Automatic lifecycle pauses and fixed-step overload update two bounded
    in-memory totals. A hidden document queues their current monotonic summary.
 7. Finish, explicit in-app exit, or allowlisted failure queues one
-   `run_ended` summary. A five-second transport timeout prevents one unavailable
-   request from blocking later milestones. Terminal fetch uses `keepalive` but
+   `run_ended` summary. Sharing a completed run's result (share sheet or
+   copy) sends `run_shared`, which sets its `shared` flag once. A
+   five-second transport timeout prevents one unavailable request from
+   blocking later milestones. Terminal fetch uses `keepalive` but
    remains best-effort.
 8. Postgres accepts safe duplicates, keeps runtime-health totals monotonic,
    rejects invalid or conflicting lifecycle

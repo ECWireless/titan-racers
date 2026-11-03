@@ -448,6 +448,8 @@ export const gameplayRuns = pgTable(
     kartRevision: integer("kart_revision"),
     raceAgain: boolean("race_again"),
     ghost: text("ghost"),
+    // The finished result was shared (share sheet or copy).
+    shared: boolean("shared").default(false).notNull(),
     deploymentVersion: text("deployment_version").notNull(),
     physicsVersion: text("physics_version"),
     startedAt: timestamp("started_at", { mode: "date", withTimezone: true })
@@ -490,7 +492,11 @@ export const gameplayRuns = pgTable(
     ),
     check(
       "gameplay_runs_ghost",
-      sql`${table.ghost} is null or (${table.kartId} is not null and ${table.ghost} in ('none', 'own_best', 'course_best'))`,
+      sql`${table.ghost} is null or (${table.kartId} is not null and ${table.ghost} in ('none', 'own_best', 'course_best', 'shared_link', 'leaderboard_racer'))`,
+    ),
+    check(
+      "gameplay_runs_shared_completed",
+      sql`not ${table.shared} or ${table.outcome} = 'completed'`,
     ),
     check(
       "gameplay_runs_deployment_version_length",

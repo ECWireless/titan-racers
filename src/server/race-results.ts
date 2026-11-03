@@ -1,7 +1,7 @@
 import { and, eq, sql } from "drizzle-orm";
 
 import { db } from "@/db/client";
-import { boardBests, leaderboards, raceResults } from "@/db/schema";
+import { boardBests, leaderboards, raceResults, users } from "@/db/schema";
 import { LEADERBOARD_COURSE_IDS } from "@/game/course/course-ids";
 import {
   decodeGhostTrace,
@@ -222,6 +222,10 @@ export async function recordRunSubmission(
       .returning({ userId: boardBests.userId });
 
     const standing = (await racerStanding(transaction, leaderboardId, userId))!;
+    const [{ username }] = await transaction
+      .select({ username: users.username })
+      .from(users)
+      .where(eq(users.id, userId));
 
     return {
       entries: standing.entries,
@@ -231,6 +235,7 @@ export async function recordRunSubmission(
       },
       rank: standing.rank,
       status: "verified",
+      username: username!,
     };
   });
 }

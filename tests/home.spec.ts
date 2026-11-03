@@ -1803,9 +1803,11 @@ test.describe("home screen", () => {
           personalBest: { improved: true, timeMicroseconds: 61_234_000 },
           rank: 2,
           status: "verified",
+          username: "quick_racer",
         },
       });
     });
+    await page.context().grantPermissions(["clipboard-read", "clipboard-write"]);
     await page.goto("/?sandbox-course");
     await page.getByRole("button", { name: "Solo Time Trial" }).click();
     const canvas = page.getByTestId("solo-time-trial-canvas");
@@ -1890,7 +1892,7 @@ test.describe("home screen", () => {
     const standing = finishDialog.getByRole("status");
     await expect(standing).toContainText("Board rank2 of 5");
     await expect(standing).toContainText("Personal best1:01.234New");
-    await expect(standing).toContainText("MedalSilver");
+    await expect(standing).toContainText("Silver");
     await expect(
       standing.getByRole("link", { name: "View leaderboard" }),
     ).toHaveAttribute("href", "/leaderboard");
@@ -1902,6 +1904,14 @@ test.describe("home screen", () => {
     await expect(
       finishDialog.locator('[data-controller-menu-ready="true"]'),
     ).toHaveCount(1);
+    // A new best shares a link to the racer's ghost; without a share
+    // sheet, it is copied.
+    await finishDialog.getByRole("button", { name: "Share" }).click();
+    await expect(finishDialog).toContainText("Link copied.");
+    expect(await page.evaluate(() => navigator.clipboard.readText())).toMatch(
+      /rank 2 of 5 on the leaderboard\. Race my ghost on Titan Racers\. https?:\/\/[^/]+\/\?ghost=quick_racer$/,
+    );
+    await finishDialog.getByRole("button", { name: "Race again" }).focus();
     await setSimulationPaused(canvas, false);
     await setStandardTestGamepad(page, { buttons: { 0: 1 } });
     await expect(finishDialog).not.toBeVisible();
@@ -2052,17 +2062,32 @@ test.describe("home screen", () => {
         ),
       ),
     };
-    await page.route("**/api/leaderboards/falls-view-park/ghost?*", (route) =>
-      route.fulfill({
+    // A friend's best from a ghost link, a faster 80 s.
+    const friendBest = {
+      ...record,
+      timeMicroseconds: 80_000_000,
+      trace: ghostTraceToBase64(
+        encodeGhostTrace(
+          samples.map((sample, index) =>
+            index === 1 ? { ...sample, timeMicroseconds: 80_000_000 } : sample,
+          ),
+        ),
+      ),
+    };
+    await page.route("**/api/leaderboards/falls-view-park/ghost?*", (route) => {
+      const query = new URL(route.request().url()).searchParams;
+      return route.fulfill({
         json: {
           ghost:
-            new URL(route.request().url()).searchParams.get("best") ===
-            "course"
+            query.get("best") === "course"
               ? courseBest
-              : null,
+              : query.get("best") === "racer" &&
+                  query.get("racer") === "fast_friend"
+                ? friendBest
+                : null,
         },
-      }),
-    );
+      });
+    });
     await page.reload();
     await page.getByRole("button", { name: "Solo Time Trial" }).click();
     canvas = page.getByTestId("solo-time-trial-canvas");
@@ -2115,6 +2140,42 @@ test.describe("home screen", () => {
     await ghostSwitch.click();
     await expect(ghostSwitch).toHaveAttribute("aria-checked", "false");
     expect((await getGhostDebugState(canvas)).visible).toBe(false);
+
+    // A ghost link offers and races that racer's best, shown even though
+    // the switch is off.
+    await page.goto("/?ghost=fast_friend");
+    const friend = page
+      .getByRole("group", { name: "Ghost" })
+      .getByRole("button", { name: "@fast_friend · 1:20.000" });
+    await expect(friend).toHaveAttribute("aria-pressed", "true");
+    await expect(
+      page.getByRole("group", { name: "Ghost" }).getByRole("button", {
+        name: "Your best",
+      }),
+    ).toHaveAttribute("aria-pressed", "false");
+    await page.getByRole("button", { name: "Solo Time Trial" }).click();
+    canvas = page.getByTestId("solo-time-trial-canvas");
+    await expect(canvas).toHaveAttribute("data-scene-ready", "true", {
+      timeout: 120_000,
+    });
+    expect((await getGhostDebugState(canvas)).finishMicroseconds).toBe(
+      80_000_000,
+    );
+    await page.keyboard.press("Escape");
+    await expect(
+      page
+        .getByRole("dialog", { name: "Paused" })
+        .getByRole("switch", { name: "Ghost" }),
+    ).toHaveAttribute("aria-checked", "true");
+
+    // A racer with no time there is not offered.
+    await page.goto("/?ghost=slow_friend");
+    await expect(page.getByText("@slow_friend has no time on this course yet")).toBeVisible();
+    await expect(
+      page.getByRole("group", { name: "Ghost" }).getByRole("button", {
+        name: "Your best",
+      }),
+    ).toHaveAttribute("aria-pressed", "true");
   });
 
   test("keeps the rough-race HUD clear of mobile utilities", async ({

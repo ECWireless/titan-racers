@@ -43,6 +43,8 @@ const runSubmissionResponseSchema = z.discriminatedUnion("status", [
     }),
     rank: z.number().int().positive(),
     status: z.literal("verified"),
+    // The racer's own username, for a link to their ghost.
+    username: z.string().min(1),
   }),
   z.strictObject({
     reason: z.enum(RUN_REJECTIONS),

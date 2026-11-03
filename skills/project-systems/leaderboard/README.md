@@ -34,7 +34,10 @@ boards for earlier revisions.
 - `src/app/api/runs/tickets/route.ts`, `src/app/api/runs/route.ts`,
   `src/app/api/leaderboards/[courseId]/route.ts`, and its `ghost/route.ts`.
 - `src/app/leaderboard/page.tsx` and `src/components/leaderboard-view.tsx`:
-  the page, linked from home's menu and the result screen.
+  the page, linked from home's menu and the result screen, with each row's
+  Race and Copy link buttons for that racer's ghost
+  ([ghosts](../ghosts/README.md)).
+- `src/components/medal-icon.tsx`: the podium medal on rows and results.
 - `src/components/run-standing.tsx`: the result screen's standing, or its
   prompt to sign in or choose a username.
 - `src/components/profile-access.tsx` and `leaderboard-view.tsx`: send a
@@ -72,8 +75,9 @@ boards for earlier revisions.
 4. The result is stored under the ticket's ID, verified or rejected with a
    reason, so each ticket counts once (409 after). A verified run replaces
    the racer's best on its board only when faster, keeping its recording. The
-   response is the server's time, rank, entries, and personal best, which
-   the result screen shows with the medal for a top-three rank.
+   response is the server's time, rank, entries, personal best, and the
+   racer's username, which the result screen shows with the medal for a
+   top-three rank; a new best shares a link to the racer's ghost.
 5. `/leaderboard` shows the official course's current board: its newest
    published revision under the current physics, the top 50 bests with
    their karts, and the viewer's own rank if they are lower.

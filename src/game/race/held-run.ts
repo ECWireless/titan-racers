@@ -127,9 +127,11 @@ function noteOutcome(
 ): HeldRunNote | HeldRunWait | null {
   const { timeMicroseconds } = run;
   if ("status" in sent) {
-    return sent.status === "verified"
-      ? { ...sent, timeMicroseconds }
-      : { status: "rejected", timeMicroseconds };
+    if (sent.status === "rejected") {
+      return { status: "rejected", timeMicroseconds };
+    }
+    const { entries, personalBest, rank } = sent;
+    return { entries, personalBest, rank, status: "verified", timeMicroseconds };
   }
   switch (sent.httpStatus) {
     case 401:

@@ -54,8 +54,17 @@ const versionedRunStartedEventSchema = runStartedEventSchema.extend({
   physicsVersion: z.enum(ACCEPTED_PHYSICS_VERSIONS),
 });
 
-/** Which ghost a run raced: none, the player's own best, or the course best. */
-const ghostRacedSchema = z.enum(["none", "own_best", "course_best"]);
+/**
+ * Which ghost a run raced: none, the player's own best, the course best, or
+ * a racer's best from a shared link or picked on the leaderboard.
+ */
+const ghostRacedSchema = z.enum([
+  "none",
+  "own_best",
+  "course_best",
+  "shared_link",
+  "leaderboard_racer",
+]);
 export type GameplayGhostRaced = z.infer<typeof ghostRacedSchema>;
 
 // Version three names what was raced instead of a fixed course list; the
@@ -82,6 +91,12 @@ const runtimeLoadedEventSchema = z.strictObject({
 const raceStartedEventSchema = z.strictObject({
   ...eventBase,
   type: z.literal("race_started"),
+});
+
+// A finished run's result was shared, through the share sheet or a copy.
+const runSharedEventSchema = z.strictObject({
+  ...eventBase,
+  type: z.literal("run_shared"),
 });
 
 const runtimeHealthEventSchema = z.strictObject({
@@ -143,6 +158,7 @@ export const gameplayRunEventSchema = z.union([
   runStartedEventSchema,
   runtimeLoadedEventSchema,
   raceStartedEventSchema,
+  runSharedEventSchema,
   runtimeHealthEventSchema,
   completedRunSchema,
   exitedRunSchema,
@@ -169,6 +185,7 @@ export class GameplayRunTelemetry {
   private runId: string | null = null;
   private startedAtMs = 0;
   private terminal = false;
+  private completed = false;
 
   constructor(
     private readonly sink: GameplayTelemetrySink,
@@ -190,6 +207,7 @@ export class GameplayRunTelemetry {
     this.discardedTimeMs = 0;
     this.recoveryCount = 0;
     this.terminal = false;
+    this.completed = false;
     this.startedAtMs = this.now();
     this.runStartedDelivery = this.emit({
       ...identity,
@@ -270,7 +288,14 @@ export class GameplayRunTelemetry {
   }
 
   complete(completedRaceTimeMs: number) {
+    if (this.runId && !this.terminal) this.completed = true;
     this.end({ completedRaceTimeMs, outcome: "completed" });
+  }
+
+  /** The finished run's result was shared; only a completed run's can be. */
+  markShared() {
+    if (!this.runId || !this.completed) return;
+    this.emit({ runId: this.runId, schemaVersion: 3, type: "run_shared" });
   }
 
   exit() {

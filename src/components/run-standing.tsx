@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { racerOnboardingPath } from "@/lib/racer-username";
+import { MedalIcon } from "@/components/medal-icon";
 import { formatRaceTime } from "@/game/race/race-presentation";
 import { MEDAL_LABELS, medalForRank } from "@/game/race/race-medals";
 import type {
@@ -74,7 +75,12 @@ export function RunStandingSummary({
             {standing.personalBest.improved ? <NewTag /> : null}
           </StandingRow>
           {medal ? (
-            <StandingRow label="Medal">{MEDAL_LABELS[medal]}</StandingRow>
+            <StandingRow label="Medal">
+              <span className="inline-flex items-center gap-2">
+                <MedalIcon decorative rank={standing.rank} tier={medal} />
+                {MEDAL_LABELS[medal]}
+              </span>
+            </StandingRow>
           ) : null}
         </dl>
         <Link

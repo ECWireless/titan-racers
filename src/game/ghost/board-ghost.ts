@@ -1,6 +1,7 @@
 import { LEADERBOARD_COURSE_IDS } from "../course/course-ids";
 import {
   type BoardGhost,
+  type DeviceGhost,
   type GhostChoice,
   parseGhostRecord,
 } from "./device-ghost";
@@ -37,5 +38,36 @@ export async function fetchRaceGhost(
     return parsed ? { ghost: parsed, kind: choice } : null;
   } catch {
     return null;
+  }
+}
+
+/**
+ * A racer's best on the course's current board, from a ghost link: the
+ * ghost, "none" if they have no best there, or "unavailable" if the request
+ * fails.
+ */
+export async function fetchRacerGhost(
+  courseId: string,
+  username: string,
+): Promise<DeviceGhost | "none" | "unavailable"> {
+  try {
+    const response = await fetch(
+      `/api/leaderboards/${courseId}/ghost?best=racer&racer=${encodeURIComponent(username)}`,
+      { cache: "no-store", signal: AbortSignal.timeout(10_000) },
+    );
+    if (!response.ok) return "unavailable";
+    const { ghost } = (await response.json()) as {
+      ghost: { courseRevision?: unknown } | null;
+    };
+    if (!ghost) return "none";
+    // The server picks the current board; the record names its revision.
+    const revision = ghost.courseRevision;
+    return (
+      (typeof revision === "number" &&
+        parseGhostRecord(ghost, courseId, revision)) ||
+      "unavailable"
+    );
+  } catch {
+    return "unavailable";
   }
 }

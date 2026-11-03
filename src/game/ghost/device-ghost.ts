@@ -181,8 +181,14 @@ export function forgetDeviceGhost(
 export type GhostChoice = "course_best" | "own_best";
 const GHOST_CHOICE_KEY = "titan-racers.ghost-choice.v1";
 
-/** A ghost from the board, and which of the two it is. */
-export type BoardGhost = { ghost: DeviceGhost; kind: GhostChoice };
+/** How a racer's ghost was picked: from a shared link or the leaderboard. */
+export type RacerGhostSource = "leaderboard_racer" | "shared_link";
+
+/** A ghost from the board, and which kind it is. */
+export type BoardGhost = {
+  ghost: DeviceGhost;
+  kind: GhostChoice | RacerGhostSource;
+};
 
 // Holds a choice for this session when storage refuses it.
 let sessionGhostChoice: GhostChoice | null = null;

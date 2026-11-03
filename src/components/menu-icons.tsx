@@ -74,3 +74,27 @@ export function SoundIcon() {
     </MenuIcon>
   );
 }
+
+export function RaceGhostIcon() {
+  return (
+    <MenuIcon>
+      <path d="M5 21V3.5M5 4.5h12.5l-2.5 4 2.5 4H5" />
+    </MenuIcon>
+  );
+}
+
+export function CopyLinkIcon() {
+  return (
+    <MenuIcon>
+      <path d="M10 14a4.5 4.5 0 0 0 6.4 0l3-3a4.5 4.5 0 0 0-6.4-6.4l-1.2 1.2M14 10a4.5 4.5 0 0 0-6.4 0l-3 3a4.5 4.5 0 0 0 6.4 6.4l1.2-1.2" />
+    </MenuIcon>
+  );
+}
+
+export function CheckIcon() {
+  return (
+    <MenuIcon>
+      <path d="m4.5 12.5 5 5 10-11" />
+    </MenuIcon>
+  );
+}

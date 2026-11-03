@@ -126,8 +126,13 @@ test.describe("gameplay telemetry contract", () => {
       courseRevision: 4,
       raceAgain: true,
     });
+    for (const ghost of ["course_best", "shared_link", "leaderboard_racer"]) {
+      expect(
+        gameplayRunEventSchema.safeParse({ ...identifiedStart, ghost }).success,
+      ).toBe(true);
+    }
     expect(
-      gameplayRunEventSchema.safeParse({ ...identifiedStart, ghost: "course_best" })
+      gameplayRunEventSchema.safeParse({ runId, schemaVersion: 3, type: "run_shared" })
         .success,
     ).toBe(true);
     for (const invalid of [
@@ -249,7 +254,9 @@ test.describe("gameplay telemetry contract", () => {
     telemetry.markRaceStarted();
     telemetry.complete(92_345);
     telemetry.exit();
-    await expect.poll(() => events.length).toBe(5);
+    // Only a completed run's result can be shared.
+    telemetry.markShared();
+    await expect.poll(() => events.length).toBe(6);
 
     expect(events.map(({ type }) => type)).toEqual([
       "run_started",
@@ -257,8 +264,9 @@ test.describe("gameplay telemetry contract", () => {
       "runtime_health",
       "race_started",
       "run_ended",
+      "run_shared",
     ]);
-    expect(events.at(-1)).toMatchObject({
+    expect(events[4]).toMatchObject({
       automaticPauseCount: 1,
       completedRaceTimeMs: 92_345,
       discardedTimeMs: 456,
@@ -276,11 +284,12 @@ test.describe("gameplay telemetry contract", () => {
       schemaVersion: 3,
       type: "run_started",
     });
-    expect(keepalive).toEqual([false, false, true, false, true]);
+    expect(keepalive).toEqual([false, false, true, false, true, false]);
 
     // Race again starts a fresh run that says so, and which ghost it races.
     telemetry.start(BUNDLED_SANDBOX_RUN, { ghost: "own_best", raceAgain: true });
-    await expect.poll(() => events.length).toBe(6);
+    telemetry.markShared();
+    await expect.poll(() => events.length).toBe(7);
     expect(events.at(-1)).toMatchObject({
       ghost: "own_best",
       raceAgain: true,
@@ -822,6 +831,13 @@ test.describe("gameplay telemetry Postgres integration", () => {
         },
         new Date("2026-07-14T10:00:07.000Z"),
       );
+      const shared = (at: string) =>
+        recordGameplayRunEvent(
+          { runId, schemaVersion: 3, type: "run_shared" },
+          new Date(at),
+        );
+      // Only a completed run's result can be shared, once.
+      expect(await shared("2026-07-14T10:01:00.000Z")).toBe("ignored");
       await recordGameplayRunEvent(
         {
           automaticPauseCount: 3,
@@ -850,12 +866,16 @@ test.describe("gameplay telemetry Postgres integration", () => {
         ),
       ).toBe("ignored");
 
+      expect(await shared("2026-07-14T10:04:00.000Z")).toBe("updated");
+      expect(await shared("2026-07-14T10:05:00.000Z")).toBe("ignored");
+
       const [stored] = await db
         .select()
         .from(gameplayRuns)
         .where(eq(gameplayRuns.id, runId));
       expect(stored).toMatchObject({
         automaticPauseCount: 3,
+        shared: true,
         attribution: "guest",
         completedRaceTimeMs: 95_432,
         courseId: "rough-course",

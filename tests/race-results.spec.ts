@@ -37,7 +37,11 @@ import {
 import { leaderboardResponseSchema } from "../src/game/race/leaderboard";
 import { medalForRank } from "../src/game/race/race-medals";
 import { parseGhostRecord } from "../src/game/ghost/device-ghost";
-import { loadBoardGhost, loadLeaderboard } from "../src/server/leaderboard";
+import {
+  loadBoardGhost,
+  loadLeaderboard,
+  loadRacerGhost,
+} from "../src/server/leaderboard";
 import { issueRunTicket, readRunTicket } from "../src/server/run-tickets";
 import { anonymizeUserByEmail } from "../src/server/user-anonymization";
 import { recordRace, routeThroughGates } from "./support/race-recording";
@@ -229,11 +233,16 @@ test.describe("verified runs", () => {
     const ticket = board.ticket(first.id);
     const response = await submit(first.headers, ticket, encode(slow.samples));
     expect(response.status).toBe(200);
+    const [{ username }] = await db
+      .select({ username: users.username })
+      .from(users)
+      .where(eq(users.id, first.id));
     expect(await response.json()).toEqual({
       entries: 1,
       personalBest: { improved: true, timeMicroseconds: slow.timeMicroseconds },
       rank: 1,
       status: "verified",
+      username,
     });
     expect(
       (await submit(first.headers, ticket, encode(fast.samples))).status,
@@ -582,5 +591,35 @@ test.describe("verified runs", () => {
     expect(
       (await ghostRoute("falls-view-park", "best=fastest&revision=1")).status,
     ).toBe(400);
+
+    // A ghost link names a racer by username and races their current best.
+    const [{ username }] = await db
+      .select({ username: users.username })
+      .from(users)
+      .where(eq(users.id, slower.id));
+    const linked = await loadRacerGhost(board.courseId, username!);
+    expect(linked?.timeMicroseconds).toBe(slow.timeMicroseconds);
+    expect(JSON.stringify(linked)).not.toContain(slower.id);
+    await expect(loadRacerGhost(board.courseId, "no_such_racer")).resolves.toBeNull();
+    // Only an exact username: a link is never normalized to another racer.
+    for (const racer of ["a", username!.toUpperCase()]) {
+      expect(
+        (await ghostRoute("falls-view-park", `best=racer&racer=${racer}`))
+          .status,
+      ).toBe(400);
+    }
+    expect(
+      await (
+        await ghostRoute("falls-view-park", "best=racer&racer=no_such_racer")
+      ).json(),
+    ).toEqual({ ghost: null });
+
+    // Anonymization ends the link.
+    const [{ email }] = await db
+      .select({ email: users.email })
+      .from(users)
+      .where(eq(users.id, slower.id));
+    await anonymizeUserByEmail(email);
+    await expect(loadRacerGhost(board.courseId, username!)).resolves.toBeNull();
   });
 });
