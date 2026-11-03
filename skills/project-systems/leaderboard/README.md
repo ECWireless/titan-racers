@@ -15,8 +15,8 @@ the gate re-check mirrors [race progression](../race-progression/README.md),
 and sessions and usernames belong to
 [identity](../identity-course-persistence/README.md).
 
-Its bests are raced as ghosts ([ghosts](../ghosts/README.md)). Not supported
-yet: boards for earlier revisions, and a guest's login prompt and claims.
+Its bests are raced as ghosts ([ghosts](../ghosts/README.md)). Not supported:
+boards for earlier revisions.
 
 ## Source Ownership
 
@@ -24,6 +24,8 @@ yet: boards for earlier revisions, and a guest's login prompt and claims.
 - `src/game/race/leaderboard.ts`: the board response contract.
 - `src/game/race/run-submission.ts`: the client's ticket request and
   submission, and the response contract.
+- `src/game/race/held-run.ts`: a guest's run kept on the device, sent once
+  they sign in, and the note the leaderboard shows.
 - `src/server/run-tickets.ts`: signing and reading tickets.
 - `src/server/race-results.ts`: eligibility, the server's check, and storing
   a submission with its best and standing.
@@ -33,9 +35,12 @@ yet: boards for earlier revisions, and a guest's login prompt and claims.
   `src/app/api/leaderboards/[courseId]/route.ts`, and its `ghost/route.ts`.
 - `src/app/leaderboard/page.tsx` and `src/components/leaderboard-view.tsx`:
   the page, linked from home's menu and the result screen.
-- `src/components/run-standing.tsx`: the result screen's standing.
-- `src/db/schema.ts` and `drizzle/0021_*`: `leaderboards`, `race_results`,
-  and `board_bests`, with their triggers.
+- `src/components/run-standing.tsx`: the result screen's standing, or its
+  prompt to sign in or choose a username.
+- `src/components/profile-access.tsx` and `leaderboard-view.tsx`: send a
+  kept run once the account is complete, and on opening the board.
+- `src/db/schema.ts`, `drizzle/0021_*`, and `0023_*`: `leaderboards`,
+  `race_results` (with `claimed`), and `board_bests`, with their triggers.
 - `src/components/solo-time-trial-canvas.tsx`: a ticket request at each run
   start (mount and Race again) and the submission after the finish frame.
 
@@ -47,14 +52,22 @@ yet: boards for earlier revisions, and a guest's login prompt and claims.
    that was ever published, under the current physics, gets a ticket: the
    race, the racer, an ID, and the issue time, signed with HMAC-SHA256 under
    a key derived from `BETTER_AUTH_SECRET` and timed from the request.
-   Issuing stores nothing, and a ticket expires after two hours. Any other
-   race gets no ticket and a reason (log in, choose a username, or not
-   eligible), without an error.
+   Issuing stores nothing, and a ticket expires after two hours. A guest, or
+   a racer without a username, gets a ticket naming no racer, with the
+   reason (`login` or `username`), which expires 30 minutes after the run
+   starts. Any other race gets no ticket (`not-eligible`), without an error.
 2. After the finish frame, the race sends the ticket and its recording to
-   `POST /api/runs`.
-3. The server reads the ticket (signature, expiry, same racer), decodes the
-   recording strictly, checks it against that course revision's stored gates,
-   and requires the real time since the ticket to be at least the race time.
+   `POST /api/runs`. A run on a ticket naming no racer is kept on the
+   device instead (the fastest such run wins), and the result asks the
+   player to sign in or choose a username. It is sent once their account
+   is complete, after any sign-in or onboarding, or when they open
+   `/leaderboard`, which sends it before loading the board and says what
+   became of it.
+3. The server reads the ticket (signature, expiry, and the same racer, or
+   any signed-in racer with a username for a ticket naming none), decodes
+   the recording strictly, checks it against that course revision's stored
+   gates, and requires the real time since the ticket to be at least the
+   race time.
    The time is the server's own.
 4. The result is stored under the ticket's ID, verified or rejected with a
    reason, so each ticket counts once (409 after). A verified run replaces
@@ -71,6 +84,8 @@ yet: boards for earlier revisions, and a guest's login prompt and claims.
   one best per racer. Ties rank by who set the time first, at the
   submission's full timestamp precision.
 - The client never sends a time, medal, or rank.
+- A result is the submitting racer's; one from a ticket naming no racer is
+  `claimed`. The guest's gameplay run summary is never linked to them.
 - Results are immutable; rejected results keep no recording.
 - A best's recording holds at most `MAX_RUN_SAMPLES` (20,000) samples, about
   480 KB; a two-minute race is about 58 KB.
@@ -84,12 +99,16 @@ yet: boards for earlier revisions, and a guest's login prompt and claims.
 
 - `tests/race-results.spec.ts`: tickets, submissions, bests, the board and
   its podium, and anonymization against Postgres.
-- `tests/leaderboard.spec.ts`: the page, its podium, and its empty state.
+- `tests/leaderboard.spec.ts`: the page, its podium, its empty state, and
+  sending a kept run.
+- `tests/held-run.spec.ts`: which run the device keeps, and blocked storage.
 - `tests/home.spec.ts` two-lap lifecycle: a run submits its ticket and
-  recording, and the result shows its standing.
+  recording, and the result shows its standing; a guest's run is kept and
+  the result asks them to sign in.
 
 ## Known Limits
 
 - A recording does not prove which kart raced it.
+- A run kept on a shared device goes to whoever signs in there next.
 - A run on an older published revision ranks on that revision's board, while
   `/leaderboard` shows only the newest.

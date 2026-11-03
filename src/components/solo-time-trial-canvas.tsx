@@ -202,7 +202,9 @@ import {
 } from "@/game/render/scene-look";
 import { FrameBudgetRecorder } from "@/game/runtime/frame-budget";
 import { createRaceSessionConfig } from "@/game/race/race-course";
+import { holdRun } from "@/game/race/held-run";
 import {
+  encodeRunRecording,
   requestRunTicket,
   type RunTicketOutcome,
   submitRun,
@@ -3414,6 +3416,7 @@ export function SoloTimeTrialCanvas({
         runTicketRef.current = null;
         if (runTicket && finishedGhostTrace) {
           const recording = finishedGhostTrace;
+          const raceTime = raceSession.snapshot.elapsedRaceMicroseconds;
           const runNumber = runNumberRef.current;
           const show = (standing: RunStanding) => {
             if (runNumberRef.current === runNumber) setRunStanding(standing);
@@ -3422,8 +3425,25 @@ export function SoloTimeTrialCanvas({
             void runTicket.then(async (outcome) => {
               if (!outcome) return;
               if ("reason" in outcome) {
-                // Guests' prompt to log in comes with claiming runs.
-                if (outcome.reason === "username") show({ status: "username" });
+                // Held on this device until they sign in and have a
+                // username, unless a faster run is already waiting.
+                const held = holdRun({
+                  expiresAt: outcome.expiresAt,
+                  recording: encodeRunRecording(recording),
+                  ticket: outcome.ticket,
+                  timeMicroseconds: raceTime,
+                });
+                if (held) {
+                  show({
+                    expiresAt: held.expiresAt,
+                    heldTimeMicroseconds:
+                      held.ticket === outcome.ticket
+                        ? null
+                        : held.timeMicroseconds,
+                    reason: outcome.reason,
+                    status: "held",
+                  });
+                }
                 return;
               }
               show({ status: "pending" });

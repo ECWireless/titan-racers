@@ -768,10 +768,10 @@ test.describe("home screen", () => {
       useBundledCourse(page),
       useBundledCourse(page, FALLS_VIEW_PARK_DOCUMENT),
       useBundledBalancedKart(page),
-      // Races are a guest's, so they get no run ticket, and the board has
-      // no ghosts.
+      // Races get no run ticket unless a test gives them one, and the
+      // board has no ghosts.
       page.route("**/api/runs/tickets", (route) =>
-        route.fulfill({ json: { reason: "login", ticket: null } }),
+        route.fulfill({ json: { reason: "not-eligible", ticket: null } }),
       ),
       page.route("**/api/leaderboards/*/ghost?*", (route) =>
         route.fulfill({ json: { ghost: null } }),
@@ -1924,6 +1924,74 @@ test.describe("home screen", () => {
     expect(Math.abs(restartedKart.z - initialKart.z)).toBeLessThan(
       scaleReferenceKartLength(0.1),
     );
+  });
+
+  test("keeps a guest's finished run and asks them to sign in", async ({
+    page,
+  }, testInfo) => {
+    testInfo.setTimeout(240_000);
+    test.skip(
+      testInfo.project.name !== "desktop",
+      "The guest result only needs to run once.",
+    );
+    await page.setViewportSize({ height: 270, width: 480 });
+    await page.route("**/api/runs/tickets", (route) =>
+      route.fulfill({ json: { reason: "login", ticket: "guest-ticket" } }),
+    );
+    let submissions = 0;
+    await page.route("**/api/runs", async (route) => {
+      submissions += 1;
+      await route.fulfill({ json: {}, status: 401 });
+    });
+    await page.goto("/?sandbox-course");
+    await page.getByRole("button", { name: "Solo Time Trial" }).click();
+    const canvas = page.getByTestId("solo-time-trial-canvas");
+    await setSimulationPaused(canvas, true);
+    await advanceRaceToRacing(canvas);
+    const { checkpoints, start } = ROUGH_COURSE_DOCUMENT;
+    const startYaw = (start.rotation.y * Math.PI) / 180;
+    const startTarget = {
+      forward: { x: -Math.sin(startYaw), y: 0, z: -Math.cos(startYaw) },
+      position: {
+        ...start.position,
+        y: start.position.y + start.gateHalfExtents.y,
+      },
+    };
+    const offsets = [
+      { x: 1, y: 0, z: 0 },
+      { x: 0, y: 0, z: -1 },
+      { x: -1, y: 0, z: 0 },
+    ];
+    for (let lap = 1; lap <= 2; lap += 1) {
+      for (const [index, checkpoint] of checkpoints.entries()) {
+        await crossRaceTarget(canvas, checkpoint, offsets[index]);
+      }
+      await crossRaceTarget(canvas, startTarget);
+    }
+
+    const finishDialog = page.getByRole("dialog", { name: "Finish" });
+    const standing = finishDialog.getByRole("status");
+    await expect(standing).toContainText(
+      "Sign in to put this time on the leaderboard.",
+    );
+    await expect(standing).toContainText(/Kept until \d{1,2}:\d{2}/);
+    await expect(standing.getByRole("link", { name: "Sign in" })).toHaveAttribute(
+      "href",
+      "/onboarding?returnTo=%2Fleaderboard",
+    );
+    // The run waits on this device with its ticket and recording, unsent.
+    const recording = await getGhostRecording(canvas);
+    const race = await getRaceDebugState(canvas);
+    const held = await page.evaluate(() =>
+      JSON.parse(localStorage.getItem("titan-racers.held-run.v1") ?? "null"),
+    );
+    expect(held).toMatchObject({
+      recording,
+      ticket: "guest-ticket",
+      timeMicroseconds: race.elapsedRaceMicroseconds,
+    });
+    expect(held.expiresAt).toBeGreaterThan(Date.now() + 25 * 60 * 1_000);
+    expect(submissions).toBe(0);
   });
 
   test("races the course best or your own, hidden on the kart and by its switch", async ({

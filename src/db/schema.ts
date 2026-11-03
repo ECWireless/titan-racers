@@ -620,6 +620,8 @@ export const raceResults = pgTable(
     submittedAt: timestamp("submitted_at", { mode: "date", withTimezone: true })
       .defaultNow()
       .notNull(),
+    // A guest's run, sent once its racer signed in.
+    claimed: boolean("claimed").default(false).notNull(),
   },
   (table) => [
     index("race_results_leaderboard_user_idx").on(

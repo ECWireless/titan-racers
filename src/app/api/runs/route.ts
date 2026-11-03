@@ -25,13 +25,13 @@ function jsonError(error: string, status: number) {
 
 /**
  * Checks a finished run against its ticket and recording and stores the
- * result. The response is the server's own time and standing.
+ * result. A ticket that names no racer, a guest's, goes to the racer who
+ * signs in and sends it, once they have a username. The response is the
+ * server's own time and standing.
  */
 export async function POST(request: Request) {
   const mutationError = protectedJsonMutationError(request);
   if (mutationError) return mutationError;
-  const userId = await sessionUserIdOrResponse(request);
-  if (userId instanceof Response) return userId;
 
   const { body, tooLarge } = await readBoundedBody(request, MAX_BODY_BYTES);
   if (tooLarge) return jsonError("Run submission is too large.", 413);
@@ -43,14 +43,18 @@ export async function POST(request: Request) {
   }
 
   const ticket = readRunTicket(submission.ticket);
+  const userId = await sessionUserIdOrResponse(request, {
+    requireUsername: ticket?.userId === null,
+  });
+  if (userId instanceof Response) return userId;
   if (!ticket) return jsonError("This run ticket is invalid or expired.", 400);
-  if (ticket.userId !== userId) {
+  if (ticket.userId !== null && ticket.userId !== userId) {
     return jsonError("This run ticket belongs to another racer.", 403);
   }
   const run = await checkSubmittedRun(ticket, submission.recording);
   if (!run) return jsonError("This run's course revision is unavailable.", 422);
 
-  const result = await recordRunSubmission(ticket, run);
+  const result = await recordRunSubmission(ticket, userId, run);
   if (result === "duplicate") {
     return jsonError("This run was already submitted.", 409);
   }

@@ -1,15 +1,26 @@
 import Link from "next/link";
 
+import { racerOnboardingPath } from "@/lib/racer-username";
 import { formatRaceTime } from "@/game/race/race-presentation";
 import { MEDAL_LABELS, medalForRank } from "@/game/race/race-medals";
-import type { RunSubmissionResponse } from "@/game/race/run-submission";
+import type {
+  RunSubmissionResponse,
+  UnnamedTicketReason,
+} from "@/game/race/run-submission";
 
 /** A finished run's leaderboard standing, or where it stands in getting one. */
 export type RunStanding =
   | RunSubmissionResponse
   | { status: "failed" }
-  | { status: "pending" }
-  | { status: "username" };
+  | {
+      /** When the waiting run can no longer go on the board. */
+      expiresAt: number;
+      /** A faster run already waiting, which is the one that will count. */
+      heldTimeMicroseconds: number | null;
+      reason: UnnamedTicketReason;
+      status: "held";
+    }
+  | { status: "pending" };
 
 const NOTES = {
   failed: "This run could not be submitted.",
@@ -74,20 +85,37 @@ export function RunStandingSummary({
         </Link>
       </>
     );
+  } else if (standing?.status === "held") {
+    const time =
+      standing.heldTimeMicroseconds === null
+        ? "this time"
+        : `your best, ${formatRaceTime(standing.heldTimeMicroseconds, 3)},`;
+    content = (
+      <div className="grid gap-3 border border-titan-hazard/70 bg-titan-hazard/10 p-4">
+        <p className="text-base font-bold leading-6 text-titan-ice">
+          {standing.reason === "login"
+            ? `Sign in to put ${time} on the leaderboard.`
+            : `Choose a username to put ${time} on the leaderboard.`}
+        </p>
+        <p className="font-mono text-xs font-bold uppercase tracking-[0.14em] text-titan-hazard">
+          Kept until{" "}
+          {new Date(standing.expiresAt).toLocaleTimeString([], {
+            hour: "numeric",
+            minute: "2-digit",
+          })}
+        </p>
+        <Link
+          className="titan-button titan-button-primary"
+          href={racerOnboardingPath("/leaderboard")}
+        >
+          {standing.reason === "login" ? "Sign in" : "Choose username"}
+        </Link>
+      </div>
+    );
   } else if (standing) {
     content = (
       <p className="text-xs leading-5 text-titan-ice/70">
-        {standing.status === "username" ? (
-          <>
-            Choose a username in your{" "}
-            <Link className="text-titan-hazard underline" href="/profile">
-              profile
-            </Link>{" "}
-            to rank your runs.
-          </>
-        ) : (
-          NOTES[standing.status]
-        )}
+        {NOTES[standing.status]}
       </p>
     );
   }

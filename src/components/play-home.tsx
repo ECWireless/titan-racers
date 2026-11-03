@@ -102,12 +102,16 @@ function soloCourseId() {
     : CURRENT_GUEST_COURSE_ID;
 }
 
+// Only published revisions can count on the board, so these wait out a
+// page busy loading the race; a server that is down still fails at once.
+const PUBLISHED_LOAD_TIMEOUT_MS = 10_000;
+
 async function loadPublishedCourse(courseId: string): Promise<RaceCourse> {
   const response = await fetch(
     `/api/courses/${courseId}/published`,
     {
       cache: "no-store",
-      signal: AbortSignal.timeout(3_000),
+      signal: AbortSignal.timeout(PUBLISHED_LOAD_TIMEOUT_MS),
     },
   );
   if (!response.ok) throw new Error("Published course unavailable.");
@@ -120,7 +124,7 @@ async function loadPublishedCourse(courseId: string): Promise<RaceCourse> {
 async function loadOfficialKartRoster() {
   const response = await fetch("/api/karts/official", {
     cache: "no-store",
-    signal: AbortSignal.timeout(3_000),
+    signal: AbortSignal.timeout(PUBLISHED_LOAD_TIMEOUT_MS),
   });
   if (!response.ok) throw new Error("Official kart roster unavailable.");
   return officialKartRosterSchema.parse(await response.json());

@@ -2,10 +2,16 @@ import { createHmac, randomUUID, timingSafeEqual } from "node:crypto";
 
 import { z } from "zod";
 
+import { UNNAMED_RUN_TICKET_LIFETIME_MS } from "@/game/race/run-submission";
+
 /**
  * A run ticket names what a leaderboard run races and who races it, signed
  * by this server when the run starts. Its ID becomes the result's, so it is
  * used once. Nothing is stored until the run is submitted.
+ *
+ * A guest's ticket, or one for a racer without a username yet, names no
+ * racer: whoever signs in and has a username may submit it, within 30
+ * minutes of the run's start.
  */
 const RUN_TICKET_LIFETIME_MS = 2 * 60 * 60 * 1_000;
 
@@ -17,7 +23,7 @@ const runTicketSchema = z.strictObject({
   kartId: z.string().min(1).max(80),
   kartRevision: z.number().int().positive(),
   physicsVersion: z.string().min(1).max(80),
-  userId: z.string().min(1).max(200),
+  userId: z.string().min(1).max(200).nullable(),
   version: z.literal(1),
 });
 export type RunTicket = z.infer<typeof runTicketSchema>;
@@ -66,7 +72,9 @@ export function readRunTicket(token: string, now = Date.now()) {
     return null;
   }
   if (!parsed.success) return null;
-  return now - parsed.data.issuedAt > RUN_TICKET_LIFETIME_MS
-    ? null
-    : parsed.data;
+  const lifetime =
+    parsed.data.userId === null
+      ? UNNAMED_RUN_TICKET_LIFETIME_MS
+      : RUN_TICKET_LIFETIME_MS;
+  return now - parsed.data.issuedAt > lifetime ? null : parsed.data;
 }

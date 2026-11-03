@@ -162,6 +162,13 @@
       "when": 1793654518087,
       "tag": "0022_course_best_ghost_telemetry",
       "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1793661242209,
+      "tag": "0023_guest_run_claims",
+      "breakpoints": true
     }
   ]
 }

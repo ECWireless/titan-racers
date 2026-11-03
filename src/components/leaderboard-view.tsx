@@ -6,6 +6,12 @@ import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 
 import { FALLS_VIEW_PARK_COURSE_ID } from "@/game/course/course-ids";
+import {
+  type HeldRunNote,
+  type HeldRunWait,
+  sendHeldRun,
+  takeHeldRunNote,
+} from "@/game/race/held-run";
 import { useControllerMenuNavigation } from "@/game/input/use-controller-menu-navigation";
 import {
   type LeaderboardResponse,
@@ -13,6 +19,7 @@ import {
 } from "@/game/race/leaderboard";
 import { MEDAL_LABELS, medalForRank } from "@/game/race/race-medals";
 import { formatRaceTime } from "@/game/race/race-presentation";
+import { racerOnboardingPath } from "@/lib/racer-username";
 
 type BoardState =
   | { status: "loading" }
@@ -36,10 +43,62 @@ async function loadBoard(): Promise<BoardState> {
 
 const time = (microseconds: number) => formatRaceTime(microseconds, 3);
 
+/** What became of a run held from a race before signing in. */
+function HeldRunStatus({ note }: { note: HeldRunNote | HeldRunWait }) {
+  const run = time(note.timeMicroseconds);
+  if ("reason" in note) {
+    if (note.reason === "failed") {
+      return (
+        <p className="text-sm leading-6 text-titan-ice/76">
+          Your {run} couldn&apos;t be sent. We&apos;ll try again next time you
+          open the leaderboard.
+        </p>
+      );
+    }
+    return (
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <p className="text-sm leading-6 text-titan-ice/76">
+          {note.reason === "login"
+            ? `Sign in to put your ${run} on the leaderboard.`
+            : `Choose a username to put your ${run} on the leaderboard.`}
+        </p>
+        <Link
+          className="titan-button titan-button-secondary"
+          href={racerOnboardingPath("/leaderboard")}
+        >
+          {note.reason === "login" ? "Sign in" : "Choose username"}
+        </Link>
+      </div>
+    );
+  }
+  if (note.status === "verified") {
+    const { entries, personalBest, rank } = note;
+    return (
+      <p className="text-sm leading-6">
+        {personalBest.improved
+          ? `Your ${time(personalBest.timeMicroseconds)} is on the leaderboard, rank ${rank} of ${entries}.`
+          : `Your ${run} is saved. Your best, ${time(personalBest.timeMicroseconds)}, ranks ${rank} of ${entries}.`}
+      </p>
+    );
+  }
+  return (
+    <p className="text-sm leading-6 text-titan-ice/76">
+      {note.status === "rejected"
+        ? `We couldn't verify your ${run}, so it isn't on the leaderboard.`
+        : note.status === "expired"
+          ? `Your ${run} wasn't added in time, so it isn't on the leaderboard.`
+          : `Your ${run} couldn't be added to the leaderboard.`}
+    </p>
+  );
+}
+
 export function LeaderboardView() {
   const router = useRouter();
   const mainRef = useRef<HTMLElement>(null);
   const [state, setState] = useState<BoardState>({ status: "loading" });
+  const [heldRunNote, setHeldRunNote] = useState<
+    HeldRunNote | HeldRunWait | null
+  >(null);
   useControllerMenuNavigation({
     containerRef: mainRef,
     enabled: true,
@@ -49,9 +108,14 @@ export function LeaderboardView() {
 
   useEffect(() => {
     let active = true;
-    void loadBoard().then((next) => {
-      if (active) setState(next);
-    });
+    void (async () => {
+      // A run held from before signing in goes first, so the board has it.
+      const wait = await sendHeldRun().catch(() => null);
+      const next = await loadBoard();
+      if (!active) return;
+      setHeldRunNote(takeHeldRunNote() ?? wait);
+      setState(next);
+    })();
     return () => {
       active = false;
     };
@@ -94,6 +158,17 @@ export function LeaderboardView() {
           <h1 className="text-4xl font-black uppercase tracking-[-0.04em] sm:text-5xl">
             {board?.courseName ?? "Falls View Park"}
           </h1>
+        </div>
+
+        <div
+          className={
+            heldRunNote
+              ? "border border-titan-hazard/50 bg-titan-hazard/6 px-4 py-3"
+              : "sr-only"
+          }
+          role="status"
+        >
+          {heldRunNote ? <HeldRunStatus note={heldRunNote} /> : null}
         </div>
 
         {state.status === "loading" ? (

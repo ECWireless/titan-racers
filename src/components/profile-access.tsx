@@ -7,6 +7,7 @@ import { FormEvent, useCallback, useEffect, useRef, useState } from "react";
 import { z } from "zod";
 
 import { useControllerMenuNavigation } from "@/game/input/use-controller-menu-navigation";
+import { sendHeldRun } from "@/game/race/held-run";
 import {
   type BrowserWallet,
   signWalletMessage,
@@ -189,17 +190,25 @@ export function ProfileAccess({
     onBack: () => router.push(returnTo),
   });
 
-  // A returning racer signing in has nothing to set up, so carry on.
+  // A returning racer signing in has nothing to set up, so carry on. A run
+  // held from before signing in is sent on the way; the leaderboard shares
+  // the same request.
   const carryOn = useCallback(
     (nextState: ProfileState) => {
       if (mode !== "onboarding" || nextState.status !== "complete") {
         return false;
       }
+      void sendHeldRun();
       router.replace(returnTo);
       return true;
     },
     [mode, returnTo, router],
   );
+
+  // However the racer signed in, a complete account takes its held run.
+  useEffect(() => {
+    if (profileState.status === "complete") void sendHeldRun();
+  }, [profileState.status]);
 
   useEffect(() => {
     let active = true;
