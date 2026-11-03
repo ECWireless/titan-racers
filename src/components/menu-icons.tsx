@@ -70,6 +70,15 @@ export function CourseEditorIcon() {
   );
 }
 
+/** A trend line in a frame: the admin dashboard. */
+export function DashboardIcon() {
+  return (
+    <MenuIcon>
+      <path d="M3.5 3.5h17v17h-17ZM6.5 16l4-4.5 3 3 4.5-6" />
+    </MenuIcon>
+  );
+}
+
 export function SignInIcon() {
   return (
     <MenuIcon>

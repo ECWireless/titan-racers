@@ -42,6 +42,7 @@ import { formatRaceTime } from "../src/game/race/race-presentation";
 import { parseGhostRecord } from "../src/game/ghost/device-ghost";
 import {
   loadBoardGhost,
+  loadCurrentBoardSummary,
   loadLeaderboard,
   loadRacerGhost,
   loadRacerStanding,
@@ -735,12 +736,18 @@ test.describe("verified runs", () => {
       timeMicroseconds: fast.timeMicroseconds,
     });
     expect(await boards()).toEqual([{ courseRevision: 1, number: 1 }]);
+    // What the publish dialog says it would keep or close.
+    expect(await loadCurrentBoardSummary(courseId)).toEqual({
+      number: 1,
+      racers: 2,
+    });
 
     // A new leaderboard closes the old one to new runs.
     const fresh = await publishNext(board, true);
     expect(await routeTicket(kept)).toBeNull();
     expect(await routeTicket(fresh)).not.toBeNull();
     expect((await loadLeaderboard(courseId, null)).board?.entries).toEqual([]);
+    await expect(loadCurrentBoardSummary(courseId)).resolves.toBeNull();
     await expect(loadBoardGhost(courseId, fresh, null)).resolves.toBeNull();
     // A run already racing the old board still lands on it.
     const inFlight = await submit(

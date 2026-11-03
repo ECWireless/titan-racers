@@ -989,10 +989,18 @@ test.describe("home screen", () => {
       signedIn = false;
       return route.fulfill({ json: { success: true } });
     });
+    // An admin also gets the dashboard.
+    await page.route("**/api/admin", (route) =>
+      route.fulfill({ json: { admin: true } }),
+    );
     await page.goto("/");
 
     const utilityMenu = page.getByRole("button", { name: "Open utility menu" });
     await utilityMenu.click();
+    await expect(page.getByRole("link", { name: "Dashboard" })).toHaveAttribute(
+      "href",
+      "/admin/telemetry",
+    );
     await page.getByRole("button", { name: "Sign out" }).click();
     await expect(utilityMenu).toBeFocused();
     expect(signedIn).toBe(false);
@@ -1002,6 +1010,7 @@ test.describe("home screen", () => {
       "/profile",
     );
     await expect(page.getByRole("button", { name: "Sign out" })).toHaveCount(0);
+    await expect(page.getByRole("link", { name: "Dashboard" })).toHaveCount(0);
   });
 
   test("selects and races only currently published official karts", async ({

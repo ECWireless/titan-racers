@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import { courseIdSchema } from "@/game/course/course-document";
+import { LEADERBOARD_COURSE_IDS } from "@/game/course/course-ids";
 import {
   authorizationErrorResponse,
   authorizeRole,
@@ -12,6 +13,7 @@ import {
   loadLatestCoursePublication,
   publishCourseRevision,
 } from "@/server/course-repository";
+import { loadCurrentBoardSummary } from "@/server/leaderboard";
 import { protectedJsonMutationError } from "@/server/request-guards";
 
 const publishRequestSchema = z.strictObject({
@@ -34,9 +36,17 @@ export async function GET(request: Request, context: RouteContext) {
     return Response.json({ error: "Invalid course ID." }, { status: 400 });
   }
 
-  return Response.json({
-    publication: await loadLatestCoursePublication(courseId),
-  });
+  const [publication, leaderboard] = await Promise.all([
+    loadLatestCoursePublication(courseId),
+    // The board a publication would keep or close.
+    (LEADERBOARD_COURSE_IDS as readonly string[]).includes(courseId)
+      ? loadCurrentBoardSummary(courseId)
+      : null,
+  ]);
+  return Response.json(
+    { leaderboard, publication },
+    { headers: { "cache-control": "no-store" } },
+  );
 }
 
 export async function POST(request: Request, context: RouteContext) {

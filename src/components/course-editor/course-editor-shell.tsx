@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useId, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { z } from "zod";
 
 import {
   type CourseDocument,
@@ -23,6 +24,7 @@ import {
   type CoursePublicationSummary,
   persistedCoursePublicationSchema,
 } from "@/game/course/course-publication";
+import { LEADERBOARD_COURSE_IDS } from "@/game/course/course-ids";
 import {
   COURSE_OBJECT_PRESETS,
   COURSE_EDITOR_CHECKPOINT_LIMIT,
@@ -129,6 +131,7 @@ export function CourseEditorShell({
   const [sectionOpen, setSectionOpen] = useState(DEFAULT_EDITOR_SECTIONS);
   const [recoveryAction, setRecoveryAction] =
     useState<RecoveryAction | null>(null);
+  const [publishDialogOpen, setPublishDialogOpen] = useState(false);
   const [historyVersion, setHistoryVersion] = useState(0);
   const [frameRequest, setFrameRequest] = useState(0);
   const [selections, setSelections] = useState<CourseEditorSelections>([
@@ -178,7 +181,8 @@ export function CourseEditorShell({
       ? document.objects.find(({ id }) => id === selection.id)
       : undefined;
   const courseModalOpen = mobilePanel === "course";
-  const recoveryDialogOpen = recoveryAction !== null;
+  // Either dialog holds the editor behind it still.
+  const modalDialogOpen = recoveryAction !== null || publishDialogOpen;
   const isDirty = history.isDirty;
 
   function selectCourseItem(
@@ -624,7 +628,8 @@ export function CourseEditorShell({
     const target = recoveryFocusRef.current;
     recoveryFocusRef.current = null;
     requestAnimationFrame(() => {
-      if (target?.isConnected) {
+      // Publishing disables the Publish button it was opened from.
+      if (target?.isConnected && !target.matches(":disabled")) {
         target.focus();
       } else {
         actionsButtonRef.current?.focus();
@@ -697,12 +702,44 @@ export function CourseEditorShell({
     };
   }
 
-  async function publishDraft() {
+  /**
+   * Publishing a course with a leaderboard asks first whether to keep it;
+   * its first publication always starts one, and the sandbox has none.
+   */
+  function requestPublish() {
+    if (
+      (LEADERBOARD_COURSE_IDS as readonly string[]).includes(
+        currentRevision.courseId,
+      ) &&
+      currentRevision.publication
+    ) {
+      recoveryFocusRef.current =
+        window.document.activeElement instanceof HTMLElement
+          ? window.document.activeElement
+          : null;
+      setActionsOpen(false);
+      setPublishDialogOpen(true);
+      return;
+    }
+    void publishDraft();
+  }
+
+  function closePublishDialog() {
+    setPublishDialogOpen(false);
+    restoreRecoveryFocus();
+  }
+
+  async function publishDraft(newLeaderboard?: boolean) {
+    setPublishDialogOpen(false);
     if (
       operationPendingRef.current ||
       history.isDirty ||
       currentRevision.publication?.revision === currentRevision.revision
     ) {
+      if (restoreFocusAfterOperationRef.current) {
+        restoreFocusAfterOperationRef.current = false;
+        restoreRecoveryFocus();
+      }
       return;
     }
     operationPendingRef.current = true;
@@ -717,6 +754,7 @@ export function CourseEditorShell({
           body: JSON.stringify({
             expectedPublicationId:
               currentRevision.publication?.publicationId ?? null,
+            newLeaderboard,
             revision: currentRevision.revision,
           }),
           credentials: "include",
@@ -826,6 +864,7 @@ export function CourseEditorShell({
       cameraHelpOpen ? "help" : "",
       mobilePanel ?? "",
       recoveryAction ?? "",
+      publishDialogOpen ? "publish" : "",
     ].join(":"),
     disabled: operationPending || signOutPending,
     onAxisCycle: (direction) => {
@@ -900,7 +939,7 @@ export function CourseEditorShell({
         return;
       }
 
-      if (operationPendingRef.current || recoveryDialogOpen) {
+      if (operationPendingRef.current || modalDialogOpen) {
         return;
       }
 
@@ -972,7 +1011,7 @@ export function CourseEditorShell({
     history,
     mobilePanel,
     multipleObjectsSelected,
-    recoveryDialogOpen,
+    modalDialogOpen,
     selection,
     selections,
   ]);
@@ -986,7 +1025,7 @@ export function CourseEditorShell({
       <header
         className="relative z-50 flex min-h-14 items-center gap-1 border-b border-titan-ice/15 bg-titan-panel px-2 py-2 sm:gap-2 sm:px-4"
         data-editor-controller-region="header"
-        inert={courseModalOpen || recoveryDialogOpen}
+        inert={courseModalOpen || modalDialogOpen}
       >
         <button
           aria-label="Exit course editor"
@@ -1071,7 +1110,7 @@ export function CourseEditorShell({
                     ? `Draft r${currentRevision.revision} is published`
                     : `Publish draft r${currentRevision.revision} to the guest course`
             }
-            onClick={() => void publishDraft()}
+            onClick={requestPublish}
           >
             <EditorToolbarIcon name="publish" />
           </ToolbarIconButton>
@@ -1126,7 +1165,7 @@ export function CourseEditorShell({
                         ? `Draft r${currentRevision.revision} is published`
                         : "Publish saved draft"
                   }
-                  onClick={() => void publishDraft()}
+                  onClick={requestPublish}
                 />
                 <CourseAction
                   disabled={signOutPending}
@@ -1151,7 +1190,7 @@ export function CourseEditorShell({
         className="min-w-0 max-w-full overflow-hidden"
         data-editor-controller-region="toolbar"
         data-testid="editor-toolbar-shell"
-        inert={courseModalOpen || recoveryDialogOpen || operationPending}
+        inert={courseModalOpen || modalDialogOpen || operationPending}
       >
         <EditorToolbar
           additiveSelectionEnabled={additiveSelectionEnabled}
@@ -1184,7 +1223,7 @@ export function CourseEditorShell({
             ? "editor-mobile-workspace-inspector"
             : ""
         }`}
-        inert={recoveryDialogOpen || operationPending}
+        inert={modalDialogOpen || operationPending}
       >
         <EditorPanel
           className="hidden border-r lg:flex"
@@ -1496,6 +1535,18 @@ export function CourseEditorShell({
           onConfirm={confirmRecovery}
         />
       ) : null}
+      {publishDialogOpen ? (
+        <PublishDialog
+          courseId={currentRevision.courseId}
+          revision={currentRevision.revision}
+          onCancel={closePublishDialog}
+          onConfirm={(newLeaderboard) => {
+            // Focus returns once publishing ends and the toolbar is enabled.
+            restoreFocusAfterOperationRef.current = true;
+            void publishDraft(newLeaderboard);
+          }}
+        />
+      ) : null}
     </main>
   );
 }
@@ -1732,6 +1783,160 @@ function RecoveryDialog({
             onClick={onConfirm}
           >
             {actionLabel}
+          </button>
+        </div>
+      </section>
+    </div>
+  );
+}
+
+const currentBoardSchema = z.object({
+  leaderboard: z
+    .object({ number: z.number().int(), racers: z.number().int() })
+    .nullable(),
+});
+
+/** Asks whether a publication keeps the course's leaderboard. */
+function PublishDialog({
+  courseId,
+  onCancel,
+  onConfirm,
+  revision,
+}: {
+  courseId: string;
+  onCancel: () => void;
+  onConfirm: (newLeaderboard: boolean) => void;
+  revision: number;
+}) {
+  const [newLeaderboard, setNewLeaderboard] = useState(false);
+  const [board, setBoard] = useState<
+    | { status: "loading" }
+    | { status: "unavailable" }
+    | {
+        leaderboard: z.infer<typeof currentBoardSchema>["leaderboard"];
+        status: "ready";
+      }
+  >({ status: "loading" });
+  const cancelButtonRef = useRef<HTMLButtonElement>(null);
+  const hintId = useId();
+
+  useEffect(() => {
+    cancelButtonRef.current?.focus();
+    let active = true;
+    void fetch(`/api/admin/courses/${courseId}/publication`, {
+      cache: "no-store",
+      credentials: "include",
+    })
+      .then(async (response) => {
+        if (!response.ok) throw new Error("unavailable");
+        const { leaderboard } = currentBoardSchema.parse(await response.json());
+        if (active) setBoard({ leaderboard, status: "ready" });
+      })
+      .catch(() => {
+        if (active) setBoard({ status: "unavailable" });
+      });
+    return () => {
+      active = false;
+    };
+  }, [courseId]);
+
+  const boardNote =
+    board.status === "loading"
+      ? "Checking the leaderboard…"
+      : board.status === "unavailable"
+        ? "The leaderboard couldn't be checked."
+        : board.leaderboard
+          ? `Leaderboard ${board.leaderboard.number} has ${board.leaderboard.racers} ${
+              board.leaderboard.racers === 1 ? "racer" : "racers"
+            }.`
+          : "The leaderboard has no times yet.";
+
+  return (
+    <div
+      className="fixed inset-0 z-[60] grid place-items-center bg-titan-black/74 p-4"
+      onKeyDown={(event) => {
+        if (event.key === "Escape") {
+          event.preventDefault();
+          onCancel();
+          return;
+        }
+        if (event.key !== "Tab") {
+          return;
+        }
+        const focusable = Array.from(
+          event.currentTarget.querySelectorAll<HTMLElement>(
+            "button:not(:disabled), input:not(:disabled)",
+          ),
+        );
+        const first = focusable[0];
+        const last = focusable[focusable.length - 1];
+        if (event.shiftKey && window.document.activeElement === first) {
+          event.preventDefault();
+          last?.focus();
+        } else if (!event.shiftKey && window.document.activeElement === last) {
+          event.preventDefault();
+          first?.focus();
+        }
+      }}
+    >
+      <section
+        aria-describedby="publish-dialog-board"
+        aria-labelledby="publish-dialog-title"
+        aria-modal="true"
+        className="grid w-full max-w-md gap-5 border border-titan-ice/24 bg-titan-panel p-5 shadow-[0_24px_90px_rgb(0_0_0/0.8)]"
+        role="dialog"
+      >
+        <div>
+          <h2
+            className="font-mono text-sm font-bold uppercase tracking-[0.12em] text-titan-hazard"
+            id="publish-dialog-title"
+          >
+            Publish draft r{revision}?
+          </h2>
+          <p
+            className="mt-2 text-sm leading-relaxed text-titan-ice/76"
+            id="publish-dialog-board"
+            role="status"
+          >
+            {boardNote}
+          </p>
+        </div>
+        <label className="grid cursor-pointer grid-cols-[auto_1fr] items-start gap-3">
+          <input
+            aria-describedby={hintId}
+            checked={newLeaderboard}
+            className="mt-0.5 size-4 accent-titan-hazard"
+            type="checkbox"
+            onChange={(event) => setNewLeaderboard(event.target.checked)}
+          />
+          <span className="grid gap-1">
+            <span className="font-mono text-xs font-bold uppercase tracking-[0.1em] text-titan-ice">
+              Start a new leaderboard
+            </span>
+            <span className="text-xs leading-relaxed text-titan-ice/66" id={hintId}>
+              {newLeaderboard
+                ? "Racers start on an empty leaderboard, and the current one becomes its previous version."
+                : "Times on the current leaderboard carry over. Tick this for changes that affect lap times."}
+            </span>
+          </span>
+        </label>
+        <div className="flex flex-wrap justify-end gap-2">
+          <button
+            className="min-h-10 border border-titan-ice/22 px-3 font-mono text-[0.65rem] font-bold uppercase tracking-[0.08em] text-titan-ice/78 hover:border-titan-hazard hover:text-titan-hazard"
+            data-controller-default="true"
+            data-editor-controller-back="true"
+            ref={cancelButtonRef}
+            type="button"
+            onClick={onCancel}
+          >
+            Keep editing
+          </button>
+          <button
+            className="min-h-10 border border-titan-hazard/65 bg-titan-hazard/8 px-3 font-mono text-[0.65rem] font-bold uppercase tracking-[0.08em] text-titan-hazard"
+            type="button"
+            onClick={() => onConfirm(newLeaderboard)}
+          >
+            Publish draft r{revision}
           </button>
         </div>
       </section>

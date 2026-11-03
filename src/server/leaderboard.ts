@@ -74,6 +74,31 @@ export async function loadLeaderboard(
 }
 
 /**
+ * The current board's number and how many racers have a time on it, for the
+ * publish dialog. Null before the board's first run.
+ */
+export async function loadCurrentBoardSummary(courseId: string) {
+  const published = await loadLatestPublishedRevision(courseId);
+  if (!published) return null;
+  const leaderboardId = await findLeaderboard(db, {
+    courseId,
+    courseRevision: published.revision,
+    physicsVersion: CURRENT_PHYSICS_VERSION,
+  });
+  if (leaderboardId === null) return null;
+  const {
+    rows: [board],
+  } = await db.execute<{ number: number; racers: number }>(sql`
+    select board.number, count(best.user_id)::int as racers
+    from leaderboards board
+    left join board_bests best on best.leaderboard_id = board.id
+    where board.id = ${leaderboardId}
+    group by board.number
+  `);
+  return board ?? null;
+}
+
+/**
  * A board's course best, or one racer's best, as a ghost record: its
  * recording and what drawing its kart needs, from that kart revision.
  */

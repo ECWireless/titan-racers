@@ -661,6 +661,96 @@ test.describe("protected course editor access", () => {
     await expect(publish).toBeDisabled();
   });
 
+  test("asks whether publishing keeps the course's leaderboard", async ({
+    page,
+  }, testInfo) => {
+    const courseId = FALLS_VIEW_PARK_DOCUMENT.courseId;
+    const publications: unknown[] = [];
+    await page.route(`**/api/admin/courses/${courseId}`, (route) =>
+      route.fulfill({
+        json: {
+          authorUserId: "admin-test-user",
+          courseId,
+          createdAt: new Date("2026-11-03T00:00:00.000Z").toISOString(),
+          document: FALLS_VIEW_PARK_DOCUMENT,
+          publication: {
+            publicationId: 8,
+            publishedAt: new Date("2026-11-03T00:00:00.000Z").toISOString(),
+            publishedByUserId: "admin-test-user",
+            revision: 2,
+          },
+          revision: 3,
+          schemaVersion: FALLS_VIEW_PARK_DOCUMENT.schemaVersion,
+        },
+      }),
+    );
+    await page.route(`**/api/admin/courses/${courseId}/publication`, (route) => {
+      if (route.request().method() === "GET") {
+        return route.fulfill({
+          json: { leaderboard: { number: 2, racers: 14 }, publication: null },
+        });
+      }
+      publications.push(route.request().postDataJSON());
+      return route.fulfill({
+        json: {
+          authorUserId: "admin-test-user",
+          courseId,
+          createdAt: new Date("2026-11-03T00:00:00.000Z").toISOString(),
+          document: FALLS_VIEW_PARK_DOCUMENT,
+          publicationId: 9,
+          publishedAt: new Date("2026-11-03T00:05:00.000Z").toISOString(),
+          publishedByUserId: "admin-test-user",
+          revision: 3,
+          schemaVersion: FALLS_VIEW_PARK_DOCUMENT.schemaVersion,
+        },
+        status: 201,
+      });
+    });
+
+    await page.goto(`/admin/courses/${courseId}`);
+    await expect(page.getByTestId("editor-revision")).toContainText(
+      "Draft r3 · Published r2",
+    );
+    const openPublish = async () => {
+      if (testInfo.project.name === "mobile") {
+        await page.getByRole("button", { name: "Course actions" }).click();
+      }
+      await page.getByRole("button", { name: "Publish saved draft" }).click();
+    };
+    const dialog = page.getByRole("dialog", { name: "Publish draft r3?" });
+
+    // Keep editing publishes nothing.
+    await openPublish();
+    await expect(dialog).toContainText("Leaderboard 2 has 14 racers.");
+    const newBoard = dialog.getByRole("checkbox", {
+      name: "Start a new leaderboard",
+    });
+    await expect(newBoard).not.toBeChecked();
+    await dialog.getByRole("button", { name: "Keep editing" }).click();
+    await expect(dialog).toHaveCount(0);
+    expect(publications).toEqual([]);
+
+    await openPublish();
+    await newBoard.check();
+    await dialog.getByRole("button", { name: "Publish draft r3" }).click();
+    await expect(page.getByTestId("editor-revision")).toContainText(
+      "Draft r3 · Published r3",
+    );
+    expect(publications).toEqual([
+      { expectedPublicationId: 8, newLeaderboard: true, revision: 3 },
+    ]);
+    // Focus returns to Publish, which says the draft is live; the phone
+    // menu's item is gone, so it returns to the menu button.
+    await expect(
+      page.getByRole("button", {
+        name:
+          testInfo.project.name === "mobile"
+            ? "Course actions"
+            : "Publish saved draft",
+      }),
+    ).toBeFocused();
+  });
+
   test("reports publication conflicts separately from draft failures", async ({
     page,
   }, testInfo) => {
