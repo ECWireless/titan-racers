@@ -59,8 +59,8 @@ remain owned by the kart-physics system.
   physics input, and scopes controller navigation to loading/error, pause, and
   finish overlays.
 - `src/components/play-home.tsx` scopes spatial controller focus and activation
-  across the guest mode-selection actions and the protected course and kart
-  editor links.
+  to the current step of the home flow (see
+  [`editor-controller-input`](../editor-controller-input/README.md)).
 - `src/app/globals.css` owns the low-obstruction racing HUD, coarse-pointer
   visibility, safe touch target sizing, steering/pedal engagement feedback,
   direct-manipulation suppression, compact landscape sizing, and a guaranteed

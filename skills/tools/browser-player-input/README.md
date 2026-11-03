@@ -152,8 +152,10 @@ Use native DOM focus as the controller selection model:
 3. move through linear controls in DOM/visual order with end wrapping; and
 4. activate the focused element through its native `click()` method.
 
-The home screen opts into the spatial navigation described in
-[`browser-editor-controller-input`](../browser-editor-controller-input/README.md);
+Mixed-axis screens opt into the spatial navigation described in
+[`browser-editor-controller-input`](../browser-editor-controller-input/README.md)
+(which screens, and their arrow-key option, belong to
+[`editor-controller-input`](../../project-systems/editor-controller-input/README.md));
 race overlays keep linear navigation.
 
 Do not dispatch synthetic keyboard events. Keyboard Tab/Enter/Escape behavior,

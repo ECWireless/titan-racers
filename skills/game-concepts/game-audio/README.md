@@ -4,8 +4,9 @@
 
 ## Purpose And Scope
 
-The engine-independent standard for race sound: what the player should hear,
-how sound relates to the simulation, and how it follows the game's lifecycle.
+The engine-independent standard for race and menu sound: what the player
+should hear, how sound relates to the simulation, and how it follows the
+game's lifecycle.
 Read it before adding or changing any sound, mix level, or audio lifecycle
 rule.
 
@@ -51,7 +52,14 @@ it hits, and the places it drives through.
   whenever it is unfocused, hidden, switched off, or exited.
 - **One switch, reachable anywhere.** A single Sound effects switch,
   remembered on the device and reachable both in and out of play; when it
-  is off, no audio runs at all.
+  is off, no audio runs at all. One Volume control beside it scales every
+  sound together, in even steps to the ear.
+- **Menus answer every action.** Moving focus, confirming, going back,
+  starting a race, toggling, and pressing something unavailable each have a
+  short, quiet tone from the same family as the race's timing cues, so menus
+  feel of a piece with the race and sit under it. A menu sound must land on
+  the action or not at all: a late one reads as lag. Dense authoring tools
+  stay silent, where every click would sound.
 - **Loudness, not peak, sets the mix.** Compare and balance sounds on
   short-window loudness, with a limiter only as protection.
 
@@ -67,7 +75,7 @@ it hits, and the places it drives through.
 
 - Unit specs for the mapping from simulation state to sound parameters.
 - A browser test of start, pause, and the sound switch persisting across a
-  reload.
+  reload, and of menu sounds and one Volume shared by menus and the race.
 - Blind, loudness-matched listening on the target phone and on headphones.
 
 ## Related Nodes

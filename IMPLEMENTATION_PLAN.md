@@ -284,16 +284,19 @@ Phase decisions:
 
 **PR 5.5: Home-to-race flow and polish**
 
-- [ ] Replace the one-page home with a step-by-step flow: Quick race or the
-      leaderboards first, then the kart, then the course, then the mode and
+- [x] Replace the one-page home with a step-by-step flow: Race or the
+      leaderboard first, then the kart, then the course, then the mode and
       whether to race a ghost, with keyboard, touch, and controller
-      navigation throughout. Whether the `rough-course` sandbox joins the
-      course choice is settled at the debrief (see the sandbox decision
-      under Completed Phases).
-- [ ] Course thumbnails for the course choice.
-- [ ] Sound effects on UI buttons across the app, and a volume control.
-- [ ] A kicker on the first quarter of Falls View Park's levee.
-- [ ] A better social card for shared links.
+      navigation throughout. Each step is a history entry, so back goes back
+      a step. There is no Quick race, so players try different karts, and
+      the `rough-course` sandbox stays out of the course choice.
+- [x] Course thumbnails for the course choice.
+- [x] Sound effects on UI buttons across the app (admin tools stay silent),
+      and a volume control.
+- [x] A kicker on the first quarter of Falls View Park's levee, centred on
+      the crest. Its course revision starts a new board.
+- [x] A better social card for shared links, with a ghost link's racer,
+      time, and rank.
 - [ ] Phase 5 closeout and integration review.
 
 **Done when:** a board's standings and medals come only from verified runs and

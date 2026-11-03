@@ -29,7 +29,11 @@ authentication, persistence, or PlayCanvas gizmo dragging.
   dialogs, viewport engagement, controller callbacks, pointer ownership, and
   blur, visibility, disconnect, disabled-state, and teardown cleanup.
 - `src/game/input/use-controller-menu-navigation.ts` retains linear menu
-  behavior for race overlays and provides opt-in spatial home navigation.
+  behavior for race overlays and provides opt-in spatial navigation for home
+  and the leaderboard. Its opt-in `keyboard` mode moves focus with the arrow
+  keys the same way (not inside text fields or with modifiers) and maps
+  Escape to back. It plays the menu move and back sounds
+  ([`game-audio`](../../game-concepts/game-audio/README.md)).
 - `src/game/editor/editor-controller-viewport.ts` defines the narrow shared
   viewport bridge and the pure screen-projection transform resolver.
 - `src/game/editor/editor-viewport.ts` applies rate-based controller camera
@@ -42,8 +46,13 @@ authentication, persistence, or PlayCanvas gizmo dragging.
   validation, history, snapping, and tool-availability rules.
 - `src/components/editor-controller-axis-indicator.tsx` presents the
   controller-selected X, Y, or Z axis beside the existing transform tools.
-- `src/components/play-home.tsx` enables spatial navigation across the
-  horizontal protected-editor row and vertical game-mode actions.
+- `src/components/play-home.tsx` enables spatial and arrow-key navigation
+  through each step of the home flow (first screen, kart, course, mode and
+  ghost), focuses each step's default choice as it opens, and maps back to
+  the previous step or to closing the utility menu.
+- `src/components/leaderboard-view.tsx`: up and down step from one row's
+  Race link to the next, starting on the viewer's own row; Copy link is to
+  its right.
 - `src/app/globals.css` hides the idle pointer during controller navigation
   while allowing pointer movement or activation to reclaim presentation.
 
@@ -84,14 +93,16 @@ authentication, persistence, or PlayCanvas gizmo dragging.
 - Controller presentation clears on pointer activation, blur, visibility loss,
   disconnect, disable, and teardown. Pointer movement temporarily restores the
   cursor while controller focus remains active.
-- Home navigation follows visible geometry: up/down moves between rows and
-  left/right traverses the horizontal protected-editor row.
+- Home and leaderboard navigation follow visible geometry: up/down moves
+  between rows and left/right along a row of choices.
 
 ## Verification
 
 - `tests/player-input.spec.ts` covers mapping, radial dead zones, neutral
   arming, edges, repeat, active-index retention, disconnect, context clearing,
   spatial candidate selection, and representative camera projections.
+- `tests/home.spec.ts` and `tests/leaderboard.spec.ts` cover the home flow's
+  and the leaderboard's controller and arrow-key navigation.
 - Editor browser specs cover home spatial navigation, cursor handoff,
   viewport engagement, camera movement, center selection, shoulder tool
   cycling, axis feedback, screen-relative snapped edits, modal cancellation,

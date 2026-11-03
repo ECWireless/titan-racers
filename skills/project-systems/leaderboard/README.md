@@ -29,14 +29,25 @@ boards for earlier revisions.
 - `src/server/run-tickets.ts`: signing and reading tickets.
 - `src/server/race-results.ts`: eligibility, the server's check, and storing
   a submission with its best and standing.
-- `src/server/leaderboard.ts`: loading a course's current board, and a
-  board's course best or a racer's own best as a ghost record.
+- `src/server/leaderboard.ts`: loading a course's current board, a
+  board's course best or a racer's own best as a ghost record, and a racer's
+  standing (best and rank, without the recording) for a ghost link's preview.
+- `src/server/ghost-link-preview.ts`, `src/app/page.tsx`'s
+  `generateMetadata`, `src/lib/social-metadata.ts`, and
+  `src/app/social-card/`: link previews. Every page shares one card (a
+  graded shot from the levee), and a ghost link's page and card show the
+  racer's current best, rank, and course, looked up by exact username. A
+  racer not found, or a lookup that fails or takes over 2 s, gives the plain
+  preview. The card's address carries the time, rank, and entries, so a
+  change gets a new picture past preview caches.
 - `src/app/api/runs/tickets/route.ts`, `src/app/api/runs/route.ts`,
   `src/app/api/leaderboards/[courseId]/route.ts`, and its `ghost/route.ts`.
 - `src/app/leaderboard/page.tsx` and `src/components/leaderboard-view.tsx`:
-  the page, linked from home's menu and the result screen, with each row's
-  Race and Copy link buttons for that racer's ghost
-  ([ghosts](../ghosts/README.md)).
+  the page, linked from home's first screen and menu, and the result
+  screen, with each row's Race and Copy link buttons for that racer's ghost
+  ([ghosts](../ghosts/README.md)). Its controller and arrow-key navigation
+  belongs to
+  [editor controller input](../editor-controller-input/README.md).
 - `src/components/medal-icon.tsx`: the podium medal on rows and results.
 - `src/components/run-standing.tsx`: the result screen's standing, or its
   prompt to sign in or choose a username.
@@ -100,9 +111,12 @@ boards for earlier revisions.
 ## Verification
 
 - `tests/race-results.spec.ts`: tickets, submissions, bests, the board and
-  its podium, and anonymization against Postgres.
+  its podium, a ghost link's standing and preview, and anonymization against
+  Postgres.
 - `tests/leaderboard.spec.ts`: the page, its podium, its empty state, and
   sending a kept run.
+- `tests/social-card.spec.ts`: the preview tags, including the head that
+  link-preview crawlers read, and the card.
 - `tests/held-run.spec.ts`: which run the device keeps, and blocked storage.
 - `tests/home.spec.ts` two-lap lifecycle: a run submits its ticket and
   recording, and the result shows its standing; a guest's run is kept and

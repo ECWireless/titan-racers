@@ -51,6 +51,9 @@ bed with no generated stand-in stays silent until then.
 - A game loop that stops its per-frame updates while paused leaves looping
   voices holding their last sound. Close them through a gain driven by game
   state, which applies even on a suspended context's frozen clock.
+- Menu sounds start the shared context on the page's first pointer, touch,
+  or key event, so the sound that event leads to is not late, and leave it
+  running afterwards; like other one-shots, one due before then is skipped.
 - Gamepad input is not a user gesture. A race started only from a controller
   stays silent until the first tap, click, or key press, and so does one a
   controller player comes back to after the page hid.
@@ -72,13 +75,17 @@ bed with no generated stand-in stays silent until then.
   is one delay node with a low-pass in a feedback loop.
 - Not used: `AudioWorklet`, `ScriptProcessor`, `ConvolverNode`, panners, or
   media elements. They cost too much on phones or are not needed.
-- A master `GainNode` feeds one `DynamicsCompressorNode` limiter before the
-  destination.
+- A master `GainNode` feeds one `DynamicsCompressorNode` limiter, then one
+  volume `GainNode` per context before the destination. Menu sounds feed the
+  volume gain directly. The gain is the square of the Volume level, so each
+  step sounds about as large as the last.
 
 ## Verification
 
 - Headless Chromium runs the context lifecycle in browser tests: a click
-  counts as a gesture, and the context's `state` is observable.
+  counts as a gesture, and the context's `state` is observable. Outside
+  production, played menu sounds are logged on `window.__titanUiSounds` for
+  tests (`tests/home.spec.ts` covers menu sounds, Volume, and the switch).
 - A debug readout of recent events and current inputs lets tests check
   sounds without listening.
 
@@ -92,7 +99,11 @@ bed with no generated stand-in stays silent until then.
 
 ## Project Systems
 
-- Race audio lives in `src/game/audio/`.
+- Race audio lives in `src/game/audio/`. Menu sounds are
+  `src/game/audio/ui-sounds.ts`, played for every click across the app by
+  `src/components/ui-sounds.tsx` (elements opt out or choose a sound with
+  `data-ui-sound`); the Volume control is in
+  `src/components/setting-switch.tsx`.
 
 ## Sources
 

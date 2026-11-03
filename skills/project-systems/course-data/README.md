@@ -49,8 +49,12 @@ own editor commands or persistence UI.
   at every wall; its perimeter walls reach 1 m below the park's ground, to
   the floor of its clearing outside them; its drivable lawn is 20 m tiles,
   0.5 m deep; its storm drain is the narrowest standard culvert every
-  official kart fits through; and its crowd barriers are kits, each its kick
-  plank.
+  official kart fits through; its crowd barriers are kits, each its kick
+  plank; and its levee kicker, centred on the crest in its first quarter,
+  lands the slowest and fastest official karts back on the crest
+  (`tests/home.spec.ts`). Course pictures for home's course choice are static
+  captures in `public/images/courses/`, mapped in
+  `src/components/home-steps.tsx`.
   `BUNDLED_COURSE_DOCUMENTS` maps each official course to its seed.
 - `src/game/course/course-clearing.ts` builds the habitat floor of a course's
   clearing from the enclosure model: outside the course's footprint, out to

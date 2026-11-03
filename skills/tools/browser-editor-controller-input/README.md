@@ -79,9 +79,9 @@ For each directional move:
 6. Do not wrap a two-dimensional search.
 7. Focus and call `scrollIntoView({ block: "nearest", inline: "nearest" })`.
 
-Use this spatial path for mixed-axis screens such as the home page, where
-protected editor links share a horizontal row above vertically stacked game
-actions. Retain linear wrapping only for intentionally one-dimensional menus.
+Use this spatial path for mixed-axis screens, such as home's grids of
+choices or the leaderboard's rows. Retain linear wrapping only for
+intentionally one-dimensional menus.
 
 Editor markup declares logical regions only for navigation policy. These
 attributes never replace semantic landmarks, accessible names, or native focus.

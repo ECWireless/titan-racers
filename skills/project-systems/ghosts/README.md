@@ -22,13 +22,17 @@ A logged-in racer's best is stored and checked by the
 - `src/game/ghost/ghost-kart-visual.ts`: the ghost kart, drawn from its own
   document through `createKartAssemblyVisual`.
 - `src/game/ghost/device-ghost.ts`: the per-device best, the ghost choice,
-  and the Ghost switch in `localStorage`, and reading a ghost record.
+  and the Ghost switch in `localStorage` (with a subscription, so home's No
+  ghost choice and the pause-menu switch stay in step), and reading a ghost
+  record.
 - `src/game/ghost/board-ghost.ts`: fetching the board's course best, your
   account best, or a named racer's best
   (`GET /api/leaderboards/[courseId]/ghost`).
-- `src/components/play-home.tsx`: the Course best / Your best choice, a
-  ghost link's racer, and loading the board's ghost before a solo race
-  mounts.
+- `src/components/play-home.tsx`: the mode step's ghost choice (a ghost
+  link's racer, Course best, Your best, or No ghost, which is the Ghost
+  switch), and loading the board's ghost before a solo race mounts.
+- A ghost link's preview belongs to
+  [`leaderboard`](../leaderboard/README.md).
 - `src/lib/share-link.ts`: ghost link URLs, the result screen's sharing
   (share sheet, else copy), and the leaderboard rows' link copy.
 - `src/components/solo-time-trial-canvas.tsx`: recording in the post-physics
@@ -52,7 +56,7 @@ A logged-in racer's best is stored and checked by the
   when opened, so it follows their improvements. Home offers it first in the
   Ghost choice for that visit, and it shows even with the Ghost switch off.
   A leaderboard row's Race button adds `&from=leaderboard`, a separate ghost
-  kind in run summaries.
+  kind in run summaries, and opens home at the kart step.
 - A run faster than the ghost raced is raced from the next Race again; the
   device keeps its own best whichever ghost was raced. Bests are
   keyed `titan-racers.ghost.v1:<course>:<revision or seed>:<physics>` and
