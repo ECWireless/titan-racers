@@ -8,6 +8,7 @@ import {
 import { CURRENT_PHYSICS_VERSION } from "../physics/physics-version";
 import type { GameplayRaceIdentity } from "../telemetry/gameplay-run-events";
 import { RUN_REJECTIONS } from "./race-verification";
+import { microsecondsSchema } from "./leaderboard";
 
 /**
  * A run that can count asks for a signed ticket when it starts and, on
@@ -33,15 +34,17 @@ const ticketResponseSchema = z.union([
   z.strictObject({ reason: z.literal("not-eligible"), ticket: z.null() }),
 ]);
 
-const microsecondsSchema = z.number().int().positive();
+/** A verified run's place on its board, and the racer's best there. */
+export const verifiedStandingSchema = z.strictObject({
+  entries: z.number().int().positive(),
+  personalBest: z.strictObject({
+    improved: z.boolean(),
+    timeMicroseconds: microsecondsSchema,
+  }),
+  rank: z.number().int().positive(),
+});
 const runSubmissionResponseSchema = z.discriminatedUnion("status", [
-  z.strictObject({
-    entries: z.number().int().positive(),
-    personalBest: z.strictObject({
-      improved: z.boolean(),
-      timeMicroseconds: microsecondsSchema,
-    }),
-    rank: z.number().int().positive(),
+  verifiedStandingSchema.extend({
     status: z.literal("verified"),
     // The racer's own username, for a link to their ghost.
     username: z.string().min(1),

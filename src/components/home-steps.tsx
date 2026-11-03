@@ -386,14 +386,12 @@ export function HomeChoice({
   children,
   chosen,
   className = "",
-  controllerDefault = false,
   disabledNote,
   onChoose,
 }: {
   children: ReactNode;
   chosen: boolean;
   className?: string;
-  controllerDefault?: boolean;
   /** Shown on a choice not yet available, which then only says so. */
   disabledNote?: string;
   onChoose: () => void;
@@ -405,7 +403,6 @@ export function HomeChoice({
       className={`${OPTION} ${chosen ? OPTION_CHOSEN : OPTION_IDLE} min-h-12 content-center px-4 py-3 ${
         disabledNote ? "text-titan-ice/45" : chosen ? "text-titan-hazard" : "text-titan-ice/80"
       } ${className}`}
-      data-controller-default={controllerDefault ? "true" : undefined}
       type="button"
       {...firstClickOnly(onChoose)}
     >

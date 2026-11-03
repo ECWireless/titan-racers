@@ -209,6 +209,7 @@ import {
 import { FrameBudgetRecorder } from "@/game/runtime/frame-budget";
 import { createRaceSessionConfig } from "@/game/race/race-course";
 import { holdRun } from "@/game/race/held-run";
+import { CURRENT_PHYSICS_VERSION } from "@/game/physics/physics-version";
 import {
   encodeRunRecording,
   requestRunTicket,
@@ -3455,7 +3456,9 @@ export function SoloTimeTrialCanvas({
               if ("reason" in outcome) {
                 // Held on this device until they sign in and have a
                 // username, unless a faster run is already waiting.
+                const { courseId, courseRevision } = raceIdentityRef.current;
                 const held = holdRun({
+                  board: `${courseId}:${courseRevision}:${CURRENT_PHYSICS_VERSION}`,
                   expiresAt: outcome.expiresAt,
                   recording: encodeRunRecording(recording),
                   ticket: outcome.ticket,

@@ -1,6 +1,7 @@
 import { z } from "zod";
 
-const microsecondsSchema = z.number().int().positive();
+/** A race time, in whole microseconds. */
+export const microsecondsSchema = z.number().int().positive();
 
 /**
  * A course's current board (its newest published revision under the current

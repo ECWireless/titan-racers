@@ -100,6 +100,4 @@ A logged-in racer's best is stored and checked by the
 - Both steered wheels take the centre steer angle, without Ackermann's
   spread, and a reversing ghost's wheels roll forward.
 - The ghost's shader compiles the first time it is drawn, after it pulls
-  clear early in the race, which may cost one long frame on a phone. Drawing
-  it once behind the loading screen doubled every later frame's cost under
-  software WebGL, so it is not warmed.
+  clear early in the race, which may cost one long frame on a phone.

@@ -131,11 +131,11 @@ export async function loadBoardGhost(
 }
 
 /**
- * A racer's best on a course's current board as a ghost, found by their
- * public username, so a link names no internal ID. Null when they have no
- * best there, or no longer have that username.
+ * A course's newest published revision and a racer found by their public
+ * username, so a link names no internal ID. Null without either, or for a
+ * racer who no longer has that username.
  */
-export async function loadRacerGhost(courseId: string, username: string) {
+async function findLinkedRacer(courseId: string, username: string) {
   const published = await loadLatestPublishedRevision(courseId);
   if (!published) return null;
   const [racer] = (
@@ -144,35 +144,37 @@ export async function loadRacerGhost(courseId: string, username: string) {
       where username = ${username} and anonymized_at is null
     `)
   ).rows;
-  if (!racer) return null;
-  return loadBoardGhost(courseId, published.revision, racer.id);
+  return racer ? { published, userId: racer.id } : null;
+}
+
+/**
+ * A racer's best on a course's current board as a ghost, by their public
+ * username. Null when they have no best there.
+ */
+export async function loadRacerGhost(courseId: string, username: string) {
+  const linked = await findLinkedRacer(courseId, username);
+  if (!linked) return null;
+  return loadBoardGhost(courseId, linked.published.revision, linked.userId);
 }
 
 /**
  * A racer's standing on a course's current board, for a ghost link's
  * preview: their best time and rank, without the recording. Null when they
- * have no best there, or no longer have that username.
+ * have no best there.
  */
 export async function loadRacerStanding(courseId: string, username: string) {
-  const published = await loadLatestPublishedRevision(courseId);
-  if (!published) return null;
+  const linked = await findLinkedRacer(courseId, username);
+  if (!linked) return null;
   const leaderboardId = await findLeaderboard(db, {
     courseId,
-    courseRevision: published.revision,
+    courseRevision: linked.published.revision,
     physicsVersion: CURRENT_PHYSICS_VERSION,
   });
   if (leaderboardId === null) return null;
-  const [racer] = (
-    await db.execute<{ id: string }>(sql`
-      select id from users
-      where username = ${username} and anonymized_at is null
-    `)
-  ).rows;
-  if (!racer) return null;
-  const standing = await racerStanding(db, leaderboardId, racer.id);
+  const standing = await racerStanding(db, leaderboardId, linked.userId);
   if (!standing) return null;
   return {
-    courseName: published.courseName,
+    courseName: linked.published.courseName,
     entries: standing.entries,
     rank: standing.rank,
     timeMicroseconds: standing.best,

@@ -922,11 +922,21 @@ test.describe("home screen", () => {
       page.evaluate(
         () => (window as { __titanUiSounds?: string[] }).__titanUiSounds ?? [],
       );
-    // A first click on no control starts sound and makes none; the moment
-    // after lets the audio start, so the next click's sound plays.
+    // A first click on no control starts sound and makes none. Moves are
+    // skipped until the audio runs, then sound; once one does, start over.
     await page.mouse.click(4, 300);
-    await page.waitForTimeout(500);
     expect(await sounds()).toEqual([]);
+    let down = true;
+    await expect
+      .poll(async () => {
+        await page.keyboard.press(down ? "ArrowDown" : "ArrowUp");
+        down = !down;
+        return (await sounds()).length;
+      })
+      .toBeGreaterThan(0);
+    await page.evaluate(() => {
+      (window as { __titanUiSounds?: string[] }).__titanUiSounds = [];
+    });
     await page.getByRole("button", { exact: true, name: "Race" }).click();
     await expect.poll(sounds).toEqual(["confirm"]);
     await page.keyboard.press("Escape");
@@ -2507,6 +2517,57 @@ test.describe("home screen", () => {
         name: "No ghost",
       }),
     ).toHaveAttribute("aria-pressed", "true");
+
+    // The course is published again after a ghost link opens: the race
+    // races their best on the new board.
+    await page.goto("/?ghost=fast_friend");
+    await page
+      .getByRole("button", { exact: true, name: "Race @fast_friend's ghost" })
+      .click();
+    await page
+      .getByRole("group", { name: "Official kart selection" })
+      .getByRole("button")
+      .first()
+      .click();
+    await expect(
+      page.getByRole("group", { name: "Ghost" }).getByRole("button", {
+        name: "@fast_friend · 1:20.000",
+      }),
+    ).toBeVisible();
+    await page.route(
+      `**/api/courses/${FALLS_VIEW_PARK_DOCUMENT.courseId}/published`,
+      (route) =>
+        route.fulfill({
+          json: {
+            courseId: FALLS_VIEW_PARK_DOCUMENT.courseId,
+            document: FALLS_VIEW_PARK_DOCUMENT,
+            publishedAt: new Date("2026-11-03T00:00:00.000Z").toISOString(),
+            revision: 2,
+            schemaVersion: 4,
+          },
+        }),
+    );
+    await page.route("**/api/leaderboards/falls-view-park/ghost?*", (route) => {
+      const query = new URL(route.request().url()).searchParams;
+      return route.fulfill({
+        json: {
+          ghost:
+            query.get("best") === "racer" &&
+            query.get("racer") === "fast_friend"
+              ? { ...friendBest, courseRevision: 2 }
+              : null,
+        },
+      });
+    });
+    await page.getByRole("button", { name: "Start race" }).click();
+    canvas = page.getByTestId("solo-time-trial-canvas");
+    await expect(canvas).toHaveAttribute("data-scene-ready", "true", {
+      timeout: 120_000,
+    });
+    // (Falling back, with the switch off, would race no ghost.)
+    expect((await getGhostDebugState(canvas)).finishMicroseconds).toBe(
+      80_000_000,
+    );
   });
 
   test("keeps the rough-race HUD clear of mobile utilities", async ({

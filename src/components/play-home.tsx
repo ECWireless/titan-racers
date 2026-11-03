@@ -37,6 +37,7 @@ import { drawsEnclosure } from "@/game/enclosure/enclosure-view";
 import { fetchRaceGhost, fetchRacerGhost } from "@/game/ghost/board-ghost";
 import {
   type BoardGhost,
+  type DeviceGhost,
   type GhostChoice,
   type RacerGhostSource,
   readGhostChoice,
@@ -654,13 +655,29 @@ export function PlayHome() {
       rampHeight === null
         ? nextCoursePromise.then(async (course): Promise<BoardGhost | null> => {
             // A linked racer's best counts only on the board being raced.
-            const linked = linkedRacer ? await linkedRequest : null;
-            if (
-              linkedRacer &&
+            const onBoard = (
+              linked: Awaited<ReturnType<typeof fetchRacerGhost>> | null,
+            ): linked is DeviceGhost =>
               typeof linked === "object" &&
               linked?.courseId === courseId &&
-              linked.courseRevision === course.revision
-            ) {
+              linked.courseRevision === course.revision;
+            let linked = linkedRacer ? await linkedRequest : null;
+            if (linkedRacer && typeof linked === "object" && !onBoard(linked)) {
+              // The course was published again since home opened: their
+              // best on the new board, if they have one, kept for later
+              // races too, and home says if they have none.
+              const refreshed = fetchRacerGhost(courseId, linkedRacer.username);
+              racerGhostRequestRef.current = refreshed;
+              linked = await refreshed;
+              setRacerGhostFound(
+                onBoard(linked)
+                  ? linked
+                  : typeof linked === "string"
+                    ? linked
+                    : "none",
+              );
+            }
+            if (linkedRacer && onBoard(linked)) {
               return { ghost: linked, kind: linkedRacer.source };
             }
             return fetchRaceGhost(courseId, course.revision, readGhostChoice());

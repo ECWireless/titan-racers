@@ -4,8 +4,13 @@ import { holdRun } from "../src/game/race/held-run";
 
 const NOW = 1_800_000_000_000;
 
-function run(ticket: string, timeMicroseconds: number, expiresAt = NOW + 60_000) {
-  return { expiresAt, recording: "recording", ticket, timeMicroseconds };
+function run(
+  ticket: string,
+  timeMicroseconds: number,
+  expiresAt = NOW + 60_000,
+  board = "falls-view-park:3:physics",
+) {
+  return { board, expiresAt, recording: "recording", ticket, timeMicroseconds };
 }
 
 function useStorage(localStorage: Partial<Storage> | (() => never)) {
@@ -41,6 +46,14 @@ test("keeps the fastest run still in time", () => {
   expect(holdRun(run("later", 99, NOW + 120_000), NOW + 61_000)?.ticket).toBe(
     "later",
   );
+  // A run on a newer board replaces it, even slower: the old board is no
+  // longer shown.
+  expect(
+    holdRun(
+      run("new-board", 120, NOW + 120_000, "falls-view-park:4:physics"),
+      NOW + 61_000,
+    )?.ticket,
+  ).toBe("new-board");
 });
 
 test("keeps nothing, without throwing, when storage is blocked", () => {
