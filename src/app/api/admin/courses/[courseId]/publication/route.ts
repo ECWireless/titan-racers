@@ -7,6 +7,7 @@ import {
 } from "@/server/authorization";
 import {
   CoursePublicationConflictError,
+  CoursePublicationOrderError,
   CoursePublicationTargetError,
   loadLatestCoursePublication,
   publishCourseRevision,
@@ -15,6 +16,8 @@ import { protectedJsonMutationError } from "@/server/request-guards";
 
 const publishRequestSchema = z.strictObject({
   expectedPublicationId: z.number().int().positive().nullable(),
+  // Off keeps the course's leaderboard.
+  newLeaderboard: z.boolean().default(false),
   revision: z.number().int().positive(),
 });
 
@@ -68,12 +71,16 @@ export async function POST(request: Request, context: RouteContext) {
     const publication = await publishCourseRevision({
       courseId,
       expectedPublicationId: payload.expectedPublicationId,
+      newLeaderboard: payload.newLeaderboard,
       publishedByUserId: authorization.userId,
       revision: payload.revision,
     });
     return Response.json(publication, { status: 201 });
   } catch (error) {
-    if (error instanceof CoursePublicationConflictError) {
+    if (
+      error instanceof CoursePublicationConflictError ||
+      error instanceof CoursePublicationOrderError
+    ) {
       return Response.json({ error: error.message }, { status: 409 });
     }
     if (error instanceof CoursePublicationTargetError) {

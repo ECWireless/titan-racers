@@ -23,6 +23,13 @@ export class CoursePublicationConflictError extends Error {
   }
 }
 
+export class CoursePublicationOrderError extends Error {
+  constructor() {
+    super("A revision older than the published one cannot be published.");
+    this.name = "CoursePublicationOrderError";
+  }
+}
+
 export class CoursePublicationTargetError extends Error {
   constructor() {
     super("The requested course or saved revision does not exist.");
@@ -235,9 +242,16 @@ export async function loadLatestCoursePublication(
   return { ...row, document, schemaVersion: document.schemaVersion };
 }
 
+/**
+ * Publishes a saved revision. It keeps the course's leaderboard unless
+ * `newLeaderboard` starts one; a course's first publication always does.
+ * Publications only move forward, so each board covers the revisions from
+ * its start to the next.
+ */
 export async function publishCourseRevision(input: {
   courseId: string;
   expectedPublicationId: number | null;
+  newLeaderboard?: boolean;
   publishedByUserId: string;
   revision: number;
 }): Promise<PersistedCoursePublication> {
@@ -300,11 +314,15 @@ export async function publishCourseRevision(input: {
         schemaVersion: document.schemaVersion,
       };
     }
+    if (latestPublication && input.revision < latestPublication.revision) {
+      throw new CoursePublicationOrderError();
+    }
 
     const [publication] = await transaction
       .insert(coursePublications)
       .values({
         courseId: input.courseId,
+        newLeaderboard: !latestPublication || (input.newLeaderboard ?? false),
         publishedByUserId: input.publishedByUserId,
         revision: input.revision,
       })

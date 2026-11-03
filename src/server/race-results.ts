@@ -1,7 +1,13 @@
-import { and, eq, sql } from "drizzle-orm";
+import { and, eq, type SQL, sql } from "drizzle-orm";
 
 import { db } from "@/db/client";
-import { boardBests, leaderboards, raceResults, users } from "@/db/schema";
+import {
+  boardBests,
+  coursePublications,
+  leaderboards,
+  raceResults,
+  users,
+} from "@/db/schema";
 import { LEADERBOARD_COURSE_IDS } from "@/game/course/course-ids";
 import {
   decodeGhostTrace,
@@ -17,10 +23,7 @@ import {
   verifyRaceRecording,
 } from "@/game/race/race-verification";
 import type { RunSubmissionResponse } from "@/game/race/run-submission";
-import {
-  loadCourseRevisionDocument,
-  wasCourseRevisionPublished,
-} from "@/server/course-repository";
+import { loadCourseRevisionDocument } from "@/server/course-repository";
 import { wasKartRevisionPublished } from "@/server/kart-repository";
 import type { RunTicket } from "@/server/run-tickets";
 
@@ -30,8 +33,9 @@ type LeaderboardRace = Pick<
 >;
 
 /**
- * A run counts on the official course in an official kart, both at a
- * published revision, under the current physics. Tests pass their own IDs.
+ * A run counts on the official course in an official kart, under the current
+ * physics, with the kart at a published revision and the course at one on
+ * its current board. Tests pass their own IDs.
  */
 export async function isLeaderboardRace(
   race: LeaderboardRace,
@@ -48,15 +52,48 @@ export async function isLeaderboardRace(
     return false;
   }
   const [course, kart] = await Promise.all([
-    wasCourseRevisionPublished(race.courseId, race.courseRevision),
+    isOnCurrentBoard(race.courseId, race.courseRevision),
     wasKartRevisionPublished(race.kartId, race.kartRevision),
   ]);
   return course && kart;
 }
 
+/**
+ * The revision that started the board a revision races on: the newest
+ * publication up to it that started a new leaderboard. Null for a revision
+ * never published. Publications only move forward, so a board covers every
+ * revision from its start to the next one.
+ */
+function boardStart(courseId: string, revision: number | SQL) {
+  return sql`(
+    select max(${coursePublications.revision}) from ${coursePublications}
+    where ${coursePublications.courseId} = ${courseId}
+      and ${coursePublications.newLeaderboard}
+      and ${coursePublications.revision} <= ${revision}
+      and exists (
+        select 1 from ${coursePublications} raced
+        where raced.course_id = ${courseId} and raced.revision = ${revision}
+      )
+  )`;
+}
+
+/** Whether a revision races on the board of the course's live revision. */
+async function isOnCurrentBoard(courseId: string, revision: number) {
+  const live = sql`(
+    select ${coursePublications.revision} from ${coursePublications}
+    where ${coursePublications.courseId} = ${courseId}
+    order by ${coursePublications.id} desc
+    limit 1
+  )`;
+  const { rows } = await db.execute<{ current: boolean | null }>(
+    sql`select ${boardStart(courseId, revision)} = ${boardStart(courseId, live)} as current`,
+  );
+  return rows[0]?.current === true;
+}
+
 type Transaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
-/** A board's ID, or null before its first run. */
+/** The ID of the board a revision races on, or null before its first run. */
 export async function findLeaderboard(
   executor: typeof db | Transaction,
   board: Pick<RunTicket, "courseId" | "courseRevision" | "physicsVersion">,
@@ -67,7 +104,10 @@ export async function findLeaderboard(
     .where(
       and(
         eq(leaderboards.courseId, board.courseId),
-        eq(leaderboards.courseRevision, board.courseRevision),
+        eq(
+          leaderboards.courseRevision,
+          boardStart(board.courseId, board.courseRevision),
+        ),
         eq(leaderboards.physicsVersion, board.physicsVersion),
       ),
     );
@@ -170,10 +210,16 @@ export async function recordRunSubmission(
         .insert(leaderboards)
         .values({
           courseId: ticket.courseId,
-          courseRevision: ticket.courseRevision,
+          courseRevision: boardStart(ticket.courseId, ticket.courseRevision),
           physicsVersion: ticket.physicsVersion,
         })
-        .onConflictDoNothing();
+        .onConflictDoNothing({
+          target: [
+            leaderboards.courseId,
+            leaderboards.courseRevision,
+            leaderboards.physicsVersion,
+          ],
+        });
       leaderboardId = (await findLeaderboard(transaction, ticket))!;
     }
 

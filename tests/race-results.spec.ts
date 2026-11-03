@@ -23,6 +23,8 @@ import { createBalancedKartDocument } from "../src/game/kart/balanced-kart-docum
 import { CURRENT_PHYSICS_VERSION } from "../src/game/physics/physics-version";
 import { createRaceSessionConfig } from "../src/game/race/race-course";
 import {
+  CoursePublicationOrderError,
+  loadLatestCoursePublication,
   publishCourseRevision,
   saveCourseRevision,
 } from "../src/server/course-repository";
@@ -137,6 +139,7 @@ async function publishedBoard() {
     physicsVersion: CURRENT_PHYSICS_VERSION,
   };
   return {
+    author,
     courseId,
     identity,
     kartId,
@@ -144,6 +147,30 @@ async function publishedBoard() {
     ticket: (userId: string | null, issuedAt = Date.now() - 10 * 60 * 1_000) =>
       issueRunTicket({ ...identity, userId }, issuedAt),
   };
+}
+
+/** Saves and publishes the course's next revision, keeping or starting a board. */
+async function publishNext(
+  board: Awaited<ReturnType<typeof publishedBoard>>,
+  newLeaderboard: boolean,
+) {
+  const latest = (await loadLatestCoursePublication(board.courseId))!;
+  const saved = await saveCourseRevision({
+    authorUserId: board.author.id,
+    document: {
+      ...structuredClone(FALLS_VIEW_PARK_DOCUMENT),
+      courseId: board.courseId,
+    },
+    expectedRevision: latest.revision,
+  });
+  await publishCourseRevision({
+    courseId: board.courseId,
+    expectedPublicationId: latest.publicationId,
+    newLeaderboard,
+    publishedByUserId: board.author.id,
+    revision: saved.revision,
+  });
+  return saved.revision;
 }
 
 async function submit(headers: Headers, ticket: string, recording: string) {
@@ -648,5 +675,123 @@ test.describe("verified runs", () => {
     await anonymizeUserByEmail(email);
     await expect(loadRacerGhost(board.courseId, username!)).resolves.toBeNull();
     await expect(loadRacerStanding(board.courseId, username!)).resolves.toBeNull();
+  });
+
+  test("keeps a board across publications until one starts a new one", async () => {
+    const board = await publishedBoard();
+    const { courseId } = board;
+    const first = await racer();
+    const second = await racer();
+    const fast = race(10);
+    const slow = race(8);
+    // A ticket signed at a revision, and one asked for from the route.
+    const ticketAt = (courseRevision: number, userId: string) =>
+      issueRunTicket(
+        { ...board.identity, courseRevision, userId },
+        Date.now() - 10 * 60 * 1_000,
+      );
+    const routeTicket = async (courseRevision: number) =>
+      (
+        (await (
+          await postRunTicket(
+            post("/api/runs/tickets", first.headers, {
+              ...board.identity,
+              courseRevision,
+            }),
+            { courseIds: [courseId], kartIds: [board.kartId] },
+          )
+        ).json()) as { ticket: string | null }
+      ).ticket;
+    const boards = () =>
+      db
+        .select({
+          courseRevision: leaderboards.courseRevision,
+          number: leaderboards.number,
+        })
+        .from(leaderboards)
+        .where(eq(leaderboards.courseId, courseId))
+        .orderBy(leaderboards.number);
+
+    await submit(first.headers, ticketAt(1, first.id), encode(fast.samples));
+
+    // Publishing keeps the board: both revisions race on it.
+    const kept = await publishNext(board, false);
+    expect(await routeTicket(1)).not.toBeNull();
+    expect(await routeTicket(kept)).not.toBeNull();
+    const onKept = await submit(
+      second.headers,
+      ticketAt(kept, second.id),
+      encode(slow.samples),
+    );
+    expect(await onKept.json()).toMatchObject({ entries: 2, rank: 2 });
+    expect(
+      (await loadLeaderboard(courseId, null)).board?.entries.map(
+        ({ timeMicroseconds }) => timeMicroseconds,
+      ),
+    ).toEqual([fast.timeMicroseconds, slow.timeMicroseconds]);
+    // The course best carries over, named for the revision raced.
+    expect(await loadBoardGhost(courseId, kept, null)).toMatchObject({
+      courseRevision: kept,
+      timeMicroseconds: fast.timeMicroseconds,
+    });
+    expect(await boards()).toEqual([{ courseRevision: 1, number: 1 }]);
+
+    // A new leaderboard closes the old one to new runs.
+    const fresh = await publishNext(board, true);
+    expect(await routeTicket(kept)).toBeNull();
+    expect(await routeTicket(fresh)).not.toBeNull();
+    expect((await loadLeaderboard(courseId, null)).board?.entries).toEqual([]);
+    await expect(loadBoardGhost(courseId, fresh, null)).resolves.toBeNull();
+    // A run already racing the old board still lands on it.
+    const inFlight = await submit(
+      first.headers,
+      ticketAt(kept, first.id),
+      encode(slow.samples),
+    );
+    expect(await inFlight.json()).toMatchObject({ entries: 2, rank: 1 });
+    const onFresh = await submit(
+      second.headers,
+      ticketAt(fresh, second.id),
+      encode(slow.samples),
+    );
+    expect(await onFresh.json()).toMatchObject({ entries: 1, rank: 1 });
+    expect(await boards()).toEqual([
+      { courseRevision: 1, number: 1 },
+      { courseRevision: fresh, number: 2 },
+    ]);
+    // Publications only move forward.
+    const latest = (await loadLatestCoursePublication(courseId))!;
+    await expect(
+      publishCourseRevision({
+        courseId,
+        expectedPublicationId: latest.publicationId,
+        publishedByUserId: board.author.id,
+        revision: kept,
+      }),
+    ).rejects.toBeInstanceOf(CoursePublicationOrderError);
+  });
+
+  test("numbers two boards created at once", async () => {
+    // The first board never had a run, so a run still racing it and the
+    // first run after the reset create both boards together.
+    const board = await publishedBoard();
+    const fresh = await publishNext(board, true);
+    const first = await racer();
+    const second = await racer();
+    const ticketAt = (courseRevision: number, userId: string) =>
+      issueRunTicket(
+        { ...board.identity, courseRevision, userId },
+        Date.now() - 10 * 60 * 1_000,
+      );
+    const statuses = await Promise.all([
+      submit(first.headers, ticketAt(1, first.id), encode(race(10).samples)),
+      submit(second.headers, ticketAt(fresh, second.id), encode(race(10).samples)),
+    ]);
+    expect(statuses.map(({ status }) => status)).toEqual([200, 200]);
+    const numbers = await db
+      .select({ number: leaderboards.number })
+      .from(leaderboards)
+      .where(eq(leaderboards.courseId, board.courseId));
+    expect(numbers.map(({ number }) => number).sort()).toEqual([1, 2]);
   });
 });

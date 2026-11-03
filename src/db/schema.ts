@@ -274,6 +274,10 @@ export const coursePublications = pgTable(
     publishedByUserId: text("published_by_user_id")
       .notNull()
       .references(() => users.id, { onDelete: "restrict" }),
+    // Whether this publication started a new leaderboard; a course's first
+    // always does. Otherwise its revision races on the board before it. The
+    // publisher always sets it; the default is for builds that predate it.
+    newLeaderboard: boolean("new_leaderboard").default(true).notNull(),
     createdAt: timestamp("created_at", { mode: "date", withTimezone: true })
       .defaultNow()
       .notNull(),
@@ -573,12 +577,19 @@ export const raceResultStatus = pgEnum("race_result_status", [
   "rejected",
 ]);
 
-// One board per published course revision and physics version.
+// A board runs from a publication that started a new leaderboard up to the
+// next one, under one physics version, and is numbered per course.
 export const leaderboards = pgTable(
   "leaderboards",
   {
     id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
     courseId: text("course_id").notNull(),
+    // The course's next number, set on insert by the leaderboards_number
+    // trigger (drizzle/0025_*).
+    number: integer("number")
+      .notNull()
+      .$defaultFn(() => sql`null`),
+    // The revision whose publication started the board.
     courseRevision: integer("course_revision").notNull(),
     physicsVersion: text("physics_version").notNull(),
     createdAt: timestamp("created_at", { mode: "date", withTimezone: true })
@@ -591,6 +602,8 @@ export const leaderboards = pgTable(
       table.courseRevision,
       table.physicsVersion,
     ),
+    uniqueIndex("leaderboards_number_uidx").on(table.courseId, table.number),
+    check("leaderboards_number_positive", sql`${table.number} > 0`),
     foreignKey({
       columns: [table.courseId, table.courseRevision],
       foreignColumns: [courseRevisions.courseId, courseRevisions.revision],
