@@ -188,7 +188,8 @@ Decisions from completed phases that later phases rely on:
   cheaper motor and tire-roll voice.
 - **Solo results are verified, not cheat-proof.** A board is one published
   course revision and physics version, with one best (and its ghost) per
-  racer; a new course revision starts a new board. The server times a run
+  racer; a new course revision starts a new board (until PR 6.0 lets a
+  publication keep it). The server times a run
   from its own check of the recording against a signed, single-use ticket;
   the client never sends a time, rank, or medal. Only a logged-in racer with
   a username, in an official kart, on a published revision under the current
@@ -225,6 +226,17 @@ Decisions from completed phases that later phases rely on:
 
 **Goal:** make the demo social, with kart-to-kart contact handled by one
 authoritative system.
+
+**PR 6.0: Leaderboards across course publications**
+
+- [ ] Publishing a course revision keeps its current leaderboard unless the
+      admin chooses "Start a new leaderboard" (off by default), for changes
+      that affect times; a physics change still always starts one. Boards
+      are numbered per course instead of tied to a revision, and each run is
+      still verified against the gates of the revision it raced.
+- [ ] After a new leaderboard starts, `/leaderboard` keeps the previous one
+      as a read-only "Previous version" view, so earlier times are honoured
+      rather than hidden.
 
 **PR 6.1: Private rooms and race lifecycle**
 
