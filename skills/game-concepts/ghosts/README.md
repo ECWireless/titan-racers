@@ -1,6 +1,6 @@
 # Ghosts
 
-**Maturity:** Candidate (PR 5.1).
+**Maturity:** Validated (PRs 5.1–5.5, 2026-11-03).
 
 ## Purpose And Scope
 
