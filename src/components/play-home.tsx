@@ -24,6 +24,7 @@ import { prewarmCourseScene } from "@/game/course/course-prewarm";
 import { loadCourseSurfaceImages } from "@/game/course/course-surface-textures";
 import { publishedCourseRuntimeSchema } from "@/game/course/course-publication";
 import { useControllerMenuNavigation } from "@/game/input/use-controller-menu-navigation";
+import { racerOnboardingPath } from "@/lib/racer-username";
 import type { KartAssemblyDocument } from "@/game/kart/kart-assembly-document";
 import type { PersistedResolvedKartSnapshot } from "@/game/kart/kart-derivation";
 import { pauseKartThumbnailRendering } from "@/game/kart/kart-thumbnail-renderer";
@@ -72,6 +73,7 @@ import {
 } from "./home-steps";
 import {
   CourseEditorIcon,
+  DashboardIcon,
   KartBuilderIcon,
   LeaderboardIcon,
   ProfileIcon,
@@ -270,6 +272,8 @@ export function PlayHome() {
   // Whether to offer Sign in or Sign out (neither until known), checked each
   // time the menu opens.
   const [signedIn, setSignedIn] = useState<boolean | null>(null);
+  // Admins also get the dashboard; the server checks the role again there.
+  const [admin, setAdmin] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
   const [soloPending, setSoloPending] = useState(false);
   const [rosterPending, setRosterPending] = useState(true);
@@ -531,8 +535,15 @@ export function PlayHome() {
     let active = true;
     void fetch("/api/auth/get-session", { cache: "no-store" })
       .then((response) => (response.ok ? response.json() : null))
-      .then((session: { session?: unknown } | null) => {
-        if (active) setSignedIn(Boolean(session?.session));
+      .then(async (session: { session?: unknown } | null) => {
+        if (!active) return;
+        setSignedIn(Boolean(session?.session));
+        const isAdmin = session?.session
+          ? await fetch("/api/admin", { cache: "no-store" })
+              .then((response) => (response.ok ? response.json() : null))
+              .then((role: { admin?: unknown } | null) => role?.admin === true)
+          : false;
+        if (active) setAdmin(isAdmin);
       })
       .catch(() => undefined);
     return () => {
@@ -552,6 +563,7 @@ export function PlayHome() {
     }
     setToast(null);
     setSignedIn(false);
+    setAdmin(false);
     setUtilityMenuOpen(false);
     utilityMenuButtonRef.current?.focus();
   }
@@ -1126,10 +1138,21 @@ export function PlayHome() {
                     {label}
                   </Link>
                 ))}
+                {admin ? (
+                  <Link
+                    className={UTILITY_MENU_ITEM}
+                    href="/admin/telemetry"
+                    onClick={() => setUtilityMenuOpen(false)}
+                  >
+                    <DashboardIcon />
+                    Dashboard
+                  </Link>
+                ) : null}
                 {signedIn === false ? (
                   <Link
                     className={UTILITY_MENU_ITEM}
-                    href="/profile"
+                    // Signing in returns here, never to the profile.
+                    href={racerOnboardingPath("/")}
                     onClick={() => setUtilityMenuOpen(false)}
                   >
                     <SignInIcon />

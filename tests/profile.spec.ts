@@ -152,6 +152,7 @@ test.describe("racer onboarding and profile", () => {
       route.fulfill({
         json: {
           board: { courseName: "Falls View Park", entries: [], viewer: null },
+          earlier: [],
         },
       }),
     );

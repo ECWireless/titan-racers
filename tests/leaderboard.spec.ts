@@ -5,8 +5,23 @@ import {
   setStandardTestGamepad,
 } from "./helpers/standard-gamepad";
 
-function board({ listed = true } = {}) {
+// Two earlier course versions, newest first.
+const EARLIER = [
+  {
+    firstTimeAt: "2026-11-02T15:00:00.000Z",
+    lastTimeAt: "2026-11-03T10:00:00.000Z",
+    number: 2,
+  },
+  {
+    firstTimeAt: "2026-10-30T15:00:00.000Z",
+    lastTimeAt: "2026-10-30T18:00:00.000Z",
+    number: 1,
+  },
+];
+
+function board({ earlier = [] as typeof EARLIER, listed = true } = {}) {
   return {
+    earlier,
     board: {
       courseName: "Falls View Park",
       entries: [
@@ -132,6 +147,7 @@ test.describe("leaderboard page", () => {
       route.fulfill({
         json: {
           board: { courseName: "Falls View Park", entries: [], viewer: null },
+          earlier: [],
         },
       }),
     );
@@ -220,5 +236,73 @@ test.describe("leaderboard page", () => {
     expect(await page.evaluate(() => navigator.clipboard.readText())).toMatch(
       /^https?:\/\/[^/]+\/\?ghost=quick_racer$/,
     );
+  });
+
+  test("offers earlier course versions quietly, read-only", async ({ page }) => {
+    await page.route(
+      (url) => url.pathname === "/api/leaderboards/falls-view-park",
+      (route) => {
+        const requested = new URL(route.request().url()).searchParams.get(
+          "board",
+        );
+        if (requested === "9") {
+          return route.fulfill({ json: { error: "No such leaderboard." }, status: 404 });
+        }
+        return requested === "2"
+          ? route.fulfill({ json: board({ earlier: EARLIER }) })
+          : route.fulfill({
+              json: {
+                board: {
+                  courseName: "Falls View Park",
+                  entries: [],
+                  viewer: null,
+                },
+                earlier: EARLIER,
+              },
+            });
+      },
+    );
+    // A link to a version with no times left shows the latest board.
+    await page.goto("/leaderboard?board=9");
+    await expect(page).toHaveURL(/\/leaderboard$/);
+    await expect(page.getByText("No times yet")).toBeVisible();
+    // The latest board needs no label.
+    await expect(page.getByText(/^Earlier course version/)).toHaveCount(0);
+
+    const earlierButton = page.getByRole("button", { name: "Course versions" });
+    const versions = page.locator("#course-versions").getByRole("link");
+    // Escape closes the list without leaving the page.
+    await earlierButton.click();
+    // The latest first, then each earlier one.
+    await expect(versions).toHaveCount(3);
+    await expect(versions.first()).toHaveText("Latest course version");
+    await expect(versions.first()).toHaveAttribute("aria-current", "page");
+    await page.keyboard.press("Escape");
+    await expect(versions).toHaveCount(0);
+    await expect(page).toHaveURL(/\/leaderboard$/);
+    await earlierButton.click();
+    await expect(versions.nth(1)).toContainText("Course version ·");
+    await versions.nth(1).click();
+    await expect(page).toHaveURL(/\/leaderboard\?board=2$/);
+    await expect(page.getByText(/^Earlier course version · times from/)).toBeVisible();
+    const rows = page
+      .getByRole("list", { name: "Best times" })
+      .getByRole("listitem");
+    await expect(rows).toHaveCount(4);
+    // Its podium is honoured, but its ghosts raced an older layout.
+    await expect(rows.nth(0).getByRole("img", { name: "1, Gold" })).toBeVisible();
+    await expect(page.getByRole("link", { name: /ghost/ })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: /ghost link/ })).toHaveCount(0);
+    // The rows themselves are the stops, starting from your own (rank 2).
+    await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
+    await page.keyboard.press("ArrowDown");
+    await expect(rows.nth(1)).toBeFocused();
+    await page.keyboard.press("ArrowDown");
+    await expect(rows.nth(2)).toBeFocused();
+
+    await earlierButton.click();
+    await versions.first().click();
+    await expect(page).toHaveURL(/\/leaderboard$/);
+    await expect(page.getByText("No times yet")).toBeVisible();
   });
 });

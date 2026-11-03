@@ -176,6 +176,13 @@
       "when": 1793665391307,
       "tag": "0024_shared_results_and_racer_ghosts",
       "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1793736048743,
+      "tag": "0025_leaderboards_across_publications",
+      "breakpoints": true
     }
   ]
 }

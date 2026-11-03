@@ -36,7 +36,8 @@ identity.
   method (`accounts`) and that course's leaderboard submissions, including
   guests' runs sent after signing in (`race_results`).
 - `src/app/api/admin/telemetry/route.ts` enforces the database-backed admin role
-  before returning aggregates.
+  before returning aggregates. Home's menu links the dashboard for admins,
+  asking `GET /api/admin`, which says only whether the viewer is one.
 - `src/components/admin/telemetry-dashboard-access.tsx` owns protected access,
   range selection, empty/populated states, operational summaries, and responsive
   presentation.

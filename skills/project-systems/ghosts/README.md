@@ -50,7 +50,10 @@ A logged-in racer's best is stored and checked by the
   best if you choose your own. Without one (an empty board, a guest, a failed
   request, or a kart this build cannot draw) it races your best on this
   device. A board ghost is a record like a device best, built on the server
-  from the best's recording and its kart revision.
+  from the best's recording and its kart revision. On a board kept across
+  publications it carries over to the later revisions, named for the
+  revision raced, though it was recorded on an earlier layout. Earlier
+  course versions' boards serve no ghosts.
 - A ghost link, `/?ghost=<username>`, names a racer by their exact public
   username, never an ID, and races their best on the course's current board
   when opened, so it follows their improvements. Home offers it first in the
@@ -97,6 +100,9 @@ A logged-in racer's best is stored and checked by the
 
 ## Known Limits
 
+- Your best on this device is kept per course revision, so a publication
+  that keeps the board still drops a guest's own ghost; signed-in racers keep
+  their account best.
 - Both steered wheels take the centre steer angle, without Ackermann's
   spread, and a reversing ghost's wheels roll forward.
 - The ghost's shader compiles the first time it is drawn, after it pulls

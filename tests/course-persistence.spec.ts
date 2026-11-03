@@ -557,7 +557,10 @@ test.describe("course persistence and authorization", () => {
       context,
     );
     expect(publicationStatus.status).toBe(200);
-    await expect(publicationStatus.json()).resolves.toEqual({ publication: null });
+    await expect(publicationStatus.json()).resolves.toEqual({
+      leaderboard: null,
+      publication: null,
+    });
 
     const unpublishedResponse = await getPublishedCourse(
       new Request(`http://127.0.0.1:3873/api/courses/${courseId}/published`),

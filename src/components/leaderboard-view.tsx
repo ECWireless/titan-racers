@@ -23,18 +23,32 @@ import { racerOnboardingPath } from "@/lib/racer-username";
 import { copyLink, ghostLinkUrl, copyNoteFor } from "@/lib/share-link";
 
 import { MedalIcon } from "./medal-icon";
-import { CheckIcon, CopyLinkIcon, RaceGhostIcon } from "./menu-icons";
+import {
+  CheckIcon,
+  CopyLinkIcon,
+  CourseVersionsIcon,
+  RaceGhostIcon,
+} from "./menu-icons";
 
 type BoardState =
   | { status: "loading" }
+  // An earlier board this link names no longer has times to show.
+  | { status: "missing" }
   | { status: "unavailable" }
   | { leaderboard: LeaderboardResponse; status: "ready" };
 
-async function loadBoard(): Promise<BoardState> {
+/** The current board when null, or an earlier one by its number. */
+async function loadBoard(boardNumber: number | null): Promise<BoardState> {
   try {
-    const response = await fetch(`/api/leaderboards/${FALLS_VIEW_PARK_COURSE_ID}`, {
-      cache: "no-store",
-    });
+    const response = await fetch(
+      `/api/leaderboards/${FALLS_VIEW_PARK_COURSE_ID}${
+        boardNumber === null ? "" : `?board=${boardNumber}`
+      }`,
+      { cache: "no-store" },
+    );
+    if (response.status === 404 && boardNumber !== null) {
+      return { status: "missing" };
+    }
     if (!response.ok) return { status: "unavailable" };
     return {
       leaderboard: leaderboardResponseSchema.parse(await response.json()),
@@ -47,6 +61,20 @@ async function loadBoard(): Promise<BoardState> {
 
 const time = (microseconds: number) => formatRaceTime(microseconds, 3);
 
+/** When an earlier board's times were set, as "2–3 Nov" in the racer's locale. */
+function timesSetBetween(board: LeaderboardResponse["earlier"][number]) {
+  const first = new Date(board.firstTimeAt);
+  const last = new Date(board.lastTimeAt);
+  const thisYear = new Date().getFullYear();
+  return new Intl.DateTimeFormat(undefined, {
+    day: "numeric",
+    month: "short",
+    ...(first.getFullYear() === thisYear && last.getFullYear() === thisYear
+      ? {}
+      : { year: "numeric" }),
+  }).formatRange(first, last);
+}
+
 // The editors' tooltip look, shown above a row's button.
 const HINT_CLASS =
   "pointer-events-none absolute bottom-full left-1/2 z-10 mb-2 w-max -translate-x-1/2 border border-titan-ice/20 bg-titan-black/96 px-2 py-1.5 text-[0.62rem] font-bold uppercase tracking-[0.08em] text-titan-ice shadow-[0_8px_30px_rgb(0_0_0/0.6)] transition-opacity duration-150";
@@ -56,13 +84,17 @@ const HINT_CLASS =
  * hidden from screen readers, which hear the button's own name.
  */
 function RowActionHint({
+  align = "center",
   children,
   hint,
-  shown = false,
+  shown = null,
 }: {
+  /** "end" keeps a hint by the card's right edge on screen. */
+  align?: "center" | "end";
   children: ReactNode;
   hint: string;
-  shown?: boolean;
+  /** Shown regardless of hover or focus; false hides it even then. */
+  shown?: boolean | null;
 }) {
   return (
     <span className="group relative">
@@ -70,9 +102,13 @@ function RowActionHint({
       <span
         aria-hidden="true"
         className={`${HINT_CLASS} ${
+          align === "end" ? "left-auto right-0 translate-x-0" : ""
+        } ${
           shown
             ? "opacity-100"
-            : "opacity-0 group-has-[:focus-visible]:opacity-100 group-hover:opacity-100"
+            : shown === false
+              ? "opacity-0"
+              : "opacity-0 group-has-[:focus-visible]:opacity-100 group-hover:opacity-100"
         }`}
       >
         {hint}
@@ -133,10 +169,23 @@ function HeldRunStatus({ note }: { note: HeldRunNote | HeldRunWait }) {
   );
 }
 
-export function LeaderboardView() {
+/**
+ * The current board, or an earlier course version's after a new leaderboard
+ * started: read-only, so its times are honoured without racing an older
+ * layout. Earlier versions sit behind a quiet icon by the course name.
+ */
+export function LeaderboardView({ boardNumber }: { boardNumber: number | null }) {
   const router = useRouter();
   const mainRef = useRef<HTMLElement>(null);
-  const [state, setState] = useState<BoardState>({ status: "loading" });
+  // The board loaded for a choice; switching shows loading until it comes.
+  const [loaded, setLoaded] = useState<{
+    boardNumber: number | null;
+    state: BoardState;
+  } | null>(null);
+  const state: BoardState =
+    loaded?.boardNumber === boardNumber ? loaded.state : { status: "loading" };
+  const [earlierOpen, setEarlierOpen] = useState(false);
+  const earlierButtonRef = useRef<HTMLButtonElement>(null);
   // Announces a copy to screen readers; the copied row shows it itself.
   const [copyNote, setCopyNote] = useState<string | null>(null);
   const [copiedUsername, setCopiedUsername] = useState<string | null>(null);
@@ -149,25 +198,60 @@ export function LeaderboardView() {
     enabled: true,
     keyboard: true,
     navigationMode: "spatial",
-    onBack: () => router.push("/"),
+    // Back closes the earlier versions' list first.
+    onBack: () => {
+      if (!earlierOpen) {
+        router.push("/");
+        return;
+      }
+      setEarlierOpen(false);
+      earlierButtonRef.current?.focus();
+    },
   });
+
+  // A tap outside closes the list, also where tapping doesn't focus.
+  const earlierRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!earlierOpen) return;
+    const closeOutside = (event: PointerEvent) => {
+      if (!earlierRef.current?.contains(event.target as Node)) {
+        setEarlierOpen(false);
+      }
+    };
+    document.addEventListener("pointerdown", closeOutside);
+    return () => document.removeEventListener("pointerdown", closeOutside);
+  }, [earlierOpen]);
 
   useEffect(() => {
     let active = true;
     void (async () => {
       // A run held from before signing in goes first, so the board has it.
       const wait = await sendHeldRun().catch(() => null);
-      const next = await loadBoard();
+      const next = await loadBoard(boardNumber);
       if (!active) return;
-      setHeldRunNote(takeHeldRunNote() ?? wait);
-      setState(next);
+      if (next.status === "missing") {
+        router.replace("/leaderboard");
+        return;
+      }
+      setHeldRunNote((current) => takeHeldRunNote() ?? wait ?? current);
+      setLoaded({ boardNumber, state: next });
     })();
     return () => {
       active = false;
     };
-  }, []);
+  }, [boardNumber, router]);
 
   const board = state.status === "ready" ? state.leaderboard.board : null;
+  const readOnly = boardNumber !== null;
+  // The last answer decides these while another board loads, so the icon
+  // and title don't change under the racer.
+  const earlier =
+    loaded?.state.status === "ready" ? loaded.state.leaderboard.earlier : [];
+  const viewing = earlier.find(({ number }) => number === boardNumber);
+  const courseName =
+    (loaded?.state.status === "ready"
+      ? loaded.state.leaderboard.board?.courseName
+      : null) ?? "Falls View Park";
 
   async function copyGhostLink(username: string) {
     // Cleared first, so a repeated note is announced again.
@@ -227,23 +311,104 @@ export function LeaderboardView() {
         </header>
 
         <div className="grid gap-3">
-          <p className="font-mono text-xs font-bold uppercase tracking-[0.22em] text-titan-hazard">
-            Leaderboard
-          </p>
+          {/* The versions sit on the label's line, leaving the title its
+              full width. */}
+          <div className="flex min-h-9 items-center justify-between gap-3">
+            <p className="font-mono text-xs font-bold uppercase tracking-[0.22em] text-titan-hazard">
+              Leaderboard
+            </p>
+            {earlier.length > 0 ? (
+              <div
+                className="relative"
+                // Focus leaving the icon and its list closes it.
+                onBlur={(event) => {
+                  if (!event.currentTarget.contains(event.relatedTarget)) {
+                    setEarlierOpen(false);
+                  }
+                }}
+                ref={earlierRef}
+              >
+                <RowActionHint
+                  align="end"
+                  hint="Course versions"
+                  // The open list says the rest.
+                  shown={earlierOpen ? false : null}
+                >
+                  <button
+                    aria-controls="course-versions"
+                    aria-expanded={earlierOpen}
+                    aria-label="Course versions"
+                    className="grid size-9 place-items-center border border-titan-ice/12 text-titan-ice/50 transition hover:border-titan-ice/40 hover:text-titan-ice focus-visible:border-titan-hazard focus-visible:text-titan-hazard focus-visible:outline-none"
+                    // Where an earlier version's page starts, unless your
+                    // own time on it does.
+                    data-controller-default={
+                      readOnly && !board?.viewer ? "true" : undefined
+                    }
+                    ref={earlierButtonRef}
+                    type="button"
+                    onClick={() => setEarlierOpen((open) => !open)}
+                  >
+                    <CourseVersionsIcon />
+                  </button>
+                </RowActionHint>
+                {earlierOpen ? (
+                  <ul
+                    className="absolute right-0 top-[calc(100%+0.5rem)] z-20 grid w-64 gap-1 border border-titan-ice/20 bg-titan-black/98 p-1 shadow-[0_18px_55px_rgb(0_0_0/0.65)]"
+                    id="course-versions"
+                  >
+                    {[
+                      {
+                        href: "/leaderboard",
+                        label: "Latest course version",
+                        number: null,
+                      },
+                      ...earlier.map((version) => ({
+                        href: `/leaderboard?board=${version.number}`,
+                        label: `Course version · ${timesSetBetween(version)}`,
+                        number: version.number,
+                      })),
+                    ].map(({ href, label, number }) => (
+                      <li key={number ?? "latest"}>
+                        <Link
+                          aria-current={number === boardNumber ? "page" : undefined}
+                          className={`block border px-3 py-2 text-sm transition focus-visible:border-titan-hazard focus-visible:outline-none ${
+                            number === boardNumber
+                              ? "border-titan-hazard/60 text-titan-hazard"
+                              : "border-transparent text-titan-ice/78 hover:border-titan-ice/30"
+                          }`}
+                          href={href}
+                          onClick={() => setEarlierOpen(false)}
+                        >
+                          {label}
+                        </Link>
+                      </li>
+                    ))}
+                  </ul>
+                ) : null}
+              </div>
+            ) : null}
+          </div>
           <h1 className="text-4xl font-black uppercase tracking-[-0.04em] sm:text-5xl">
-            {board?.courseName ?? "Falls View Park"}
+            {courseName}
           </h1>
+          {readOnly ? (
+            <p className="font-mono text-xs text-titan-ice/60">
+              Earlier course version
+              {viewing ? ` · times from ${timesSetBetween(viewing)}` : ""}
+            </p>
+          ) : null}
         </div>
 
         <div
           className={
-            heldRunNote
+            heldRunNote && !readOnly
               ? "border border-titan-hazard/50 bg-titan-hazard/6 px-4 py-3"
               : "sr-only"
           }
           role="status"
         >
-          {heldRunNote ? <HeldRunStatus note={heldRunNote} /> : null}
+          {/* It describes the current board. */}
+          {heldRunNote && !readOnly ? <HeldRunStatus note={heldRunNote} /> : null}
         </div>
 
         {state.status === "loading" ? (
@@ -256,7 +421,7 @@ export function LeaderboardView() {
           </p>
         ) : !board || board.entries.length === 0 ? (
           <p className="border border-titan-ice/10 px-3 py-4 text-center font-mono text-sm text-titan-ice/60">
-            No times yet
+            {readOnly ? "No earlier times" : "No times yet"}
           </p>
         ) : (
           <ol aria-label="Best times" className="grid gap-1">
@@ -265,7 +430,17 @@ export function LeaderboardView() {
               return (
               <li
                 aria-current={entry.viewer ? "true" : undefined}
-                className={`grid grid-cols-[2rem_1fr_auto_auto] items-center gap-2 border px-2 py-2 focus-within:border-titan-hazard sm:gap-3 sm:px-3 ${
+                // With no buttons, the rows themselves are the stops down
+                // the board, starting on your own.
+                data-controller-default={
+                  readOnly && entry.viewer ? "true" : undefined
+                }
+                tabIndex={readOnly ? 0 : undefined}
+                className={`grid ${
+                  readOnly
+                    ? "grid-cols-[2rem_1fr_auto] py-3"
+                    : "grid-cols-[2rem_1fr_auto_auto] py-2"
+                } items-center gap-2 border px-2 focus-within:border-titan-hazard focus-visible:border-titan-hazard focus-visible:outline-none sm:gap-3 sm:px-3 ${
                   entry.viewer
                     ? "border-titan-hazard/70 bg-titan-hazard/8"
                     : "border-titan-ice/10"
@@ -288,6 +463,7 @@ export function LeaderboardView() {
                 <span className="font-mono text-sm font-bold tabular-nums">
                   {time(entry.timeMicroseconds)}
                 </span>
+                {readOnly ? null : (
                 <span className="flex gap-1">
                   <RowActionHint hint="Race ghost">
                     {/* Each row's one stop on the way down the board,
@@ -307,7 +483,7 @@ export function LeaderboardView() {
                         ? "Copied"
                         : "Copy ghost link"
                     }
-                    shown={copiedUsername === entry.username}
+                    shown={copiedUsername === entry.username || null}
                   >
                     <button
                       aria-label={`Copy @${entry.username}'s ghost link`}
@@ -323,6 +499,7 @@ export function LeaderboardView() {
                     </button>
                   </RowActionHint>
                 </span>
+                )}
               </li>
               );
             })}

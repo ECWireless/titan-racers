@@ -70,6 +70,24 @@ export function CourseEditorIcon() {
   );
 }
 
+/** A trend line in a frame: the admin dashboard. */
+export function DashboardIcon() {
+  return (
+    <MenuIcon>
+      <path d="M3.5 3.5h17v17h-17ZM6.5 16l4-4.5 3 3 4.5-6" />
+    </MenuIcon>
+  );
+}
+
+/** A clock turned back: the course's versions. */
+export function CourseVersionsIcon() {
+  return (
+    <MenuIcon>
+      <path d="M4.5 12a7.5 7.5 0 1 0 2.2-5.3M4.5 3.5v3.7h3.7M12 8v4.5l3 2" />
+    </MenuIcon>
+  );
+}
+
 export function SignInIcon() {
   return (
     <MenuIcon>

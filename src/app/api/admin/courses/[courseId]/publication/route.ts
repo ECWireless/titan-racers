@@ -1,20 +1,25 @@
 import { z } from "zod";
 
 import { courseIdSchema } from "@/game/course/course-document";
+import { LEADERBOARD_COURSE_IDS } from "@/game/course/course-ids";
 import {
   authorizationErrorResponse,
   authorizeRole,
 } from "@/server/authorization";
 import {
   CoursePublicationConflictError,
+  CoursePublicationOrderError,
   CoursePublicationTargetError,
   loadLatestCoursePublication,
   publishCourseRevision,
 } from "@/server/course-repository";
+import { loadCurrentBoardSummary } from "@/server/leaderboard";
 import { protectedJsonMutationError } from "@/server/request-guards";
 
 const publishRequestSchema = z.strictObject({
   expectedPublicationId: z.number().int().positive().nullable(),
+  // Off keeps the course's leaderboard.
+  newLeaderboard: z.boolean().default(false),
   revision: z.number().int().positive(),
 });
 
@@ -31,9 +36,17 @@ export async function GET(request: Request, context: RouteContext) {
     return Response.json({ error: "Invalid course ID." }, { status: 400 });
   }
 
-  return Response.json({
-    publication: await loadLatestCoursePublication(courseId),
-  });
+  const [publication, leaderboard] = await Promise.all([
+    loadLatestCoursePublication(courseId),
+    // The board a publication would keep or close.
+    (LEADERBOARD_COURSE_IDS as readonly string[]).includes(courseId)
+      ? loadCurrentBoardSummary(courseId)
+      : null,
+  ]);
+  return Response.json(
+    { leaderboard, publication },
+    { headers: { "cache-control": "no-store" } },
+  );
 }
 
 export async function POST(request: Request, context: RouteContext) {
@@ -68,12 +81,16 @@ export async function POST(request: Request, context: RouteContext) {
     const publication = await publishCourseRevision({
       courseId,
       expectedPublicationId: payload.expectedPublicationId,
+      newLeaderboard: payload.newLeaderboard,
       publishedByUserId: authorization.userId,
       revision: payload.revision,
     });
     return Response.json(publication, { status: 201 });
   } catch (error) {
-    if (error instanceof CoursePublicationConflictError) {
+    if (
+      error instanceof CoursePublicationConflictError ||
+      error instanceof CoursePublicationOrderError
+    ) {
       return Response.json({ error: error.message }, { status: 409 });
     }
     if (error instanceof CoursePublicationTargetError) {
