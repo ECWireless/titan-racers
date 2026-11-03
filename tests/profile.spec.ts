@@ -115,6 +115,56 @@ test.describe("racer onboarding and profile", () => {
     await expect(page.getByRole("link", { name: "Continue" })).toHaveCount(0);
   });
 
+  test("sends a run kept before signing in once, and lands on the board", async ({
+    page,
+  }) => {
+    await page.addInitScript((run) => {
+      // Only on the first page: the run is forgotten once sent.
+      if (!sessionStorage.getItem("kept-run-seeded")) {
+        sessionStorage.setItem("kept-run-seeded", "1");
+        localStorage.setItem("titan-racers.held-run.v1", run);
+      }
+    }, JSON.stringify({
+      expiresAt: Date.now() + 20 * 60 * 1_000,
+      recording: "test-recording",
+      ticket: "guest-ticket",
+      timeMicroseconds: 92_250_000,
+    }));
+    await page.route(profileApiPattern, (route) =>
+      route.fulfill({
+        json: { loginMethods: [], status: "complete", username: "nova_racer" },
+      }),
+    );
+    let sent = 0;
+    await page.route("**/api/runs", async (route) => {
+      sent += 1;
+      await route.fulfill({
+        json: {
+          entries: 4,
+          personalBest: { improved: true, timeMicroseconds: 92_250_000 },
+          rank: 2,
+          status: "verified",
+          username: "nova_racer",
+        },
+      });
+    });
+    await page.route("**/api/leaderboards/falls-view-park", (route) =>
+      route.fulfill({
+        json: {
+          board: { courseName: "Falls View Park", entries: [], viewer: null },
+        },
+      }),
+    );
+
+    // Signing in returns through onboarding, which carries a complete racer on.
+    await page.goto("/onboarding?returnTo=%2Fleaderboard");
+    await expect(page).toHaveURL(/\/leaderboard$/);
+    await expect(
+      page.getByText("Your 1:32.250 is on the leaderboard, rank 2 of 4."),
+    ).toBeVisible();
+    expect(sent).toBe(1);
+  });
+
   test("shows an existing username as immutable on the profile page", async ({
     page,
   }) => {

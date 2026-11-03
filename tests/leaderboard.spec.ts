@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, type Page, test } from "@playwright/test";
 
 import {
   installStandardGamepadFixture,
@@ -28,6 +28,24 @@ function board({ listed = true } = {}) {
   };
 }
 
+// A run kept on this device from a race before signing in.
+async function keepRun(page: Page, timeMicroseconds: number) {
+  await page.addInitScript(
+    ([run]) => localStorage.setItem("titan-racers.held-run.v1", run),
+    [
+      JSON.stringify({
+        expiresAt: Date.now() + 20 * 60 * 1_000,
+        recording: "test-recording",
+        ticket: "guest-ticket",
+        timeMicroseconds,
+      }),
+    ],
+  );
+}
+
+const keptRun = (page: Page) =>
+  page.evaluate(() => localStorage.getItem("titan-racers.held-run.v1"));
+
 test.describe("leaderboard page", () => {
   test("lists best times, the podium, and the viewer's row", async ({
     page,
@@ -47,9 +65,11 @@ test.describe("leaderboard page", () => {
     await expect(rows.nth(0)).toContainText("@quick_racer");
     await expect(rows.nth(0)).toContainText("1:18.500");
     for (const [index, medal] of ["Gold", "Silver", "Bronze"].entries()) {
-      await expect(rows.nth(index)).toContainText(`Balanced Kart · ${medal}`);
+      await expect(
+        rows.nth(index).getByRole("img", { name: `${index + 1}, ${medal}` }),
+      ).toBeVisible();
     }
-    await expect(rows.nth(3)).not.toContainText("·");
+    await expect(rows.nth(3).getByRole("img")).toHaveCount(0);
     await expect(rows.nth(1)).toHaveAttribute("aria-current", "true");
     await expect(page.getByText(/Your best/)).toHaveCount(0);
   });
@@ -98,5 +118,88 @@ test.describe("leaderboard page", () => {
     );
     await page.goto("/leaderboard");
     await expect(page.getByText("No times yet")).toBeVisible();
+  });
+
+  test("puts a run kept from before signing in on the board first", async ({
+    page,
+  }) => {
+    await keepRun(page, 92_250_000);
+    const requests: string[] = [];
+    await page.route("**/api/runs", async (route) => {
+      requests.push("run");
+      expect(route.request().postDataJSON()).toEqual({
+        recording: "test-recording",
+        ticket: "guest-ticket",
+      });
+      await route.fulfill({
+        json: {
+          entries: 4,
+          personalBest: { improved: true, timeMicroseconds: 92_250_000 },
+          rank: 2,
+          status: "verified",
+          username: "steady_racer",
+        },
+      });
+    });
+    await page.route("**/api/leaderboards/falls-view-park", (route) => {
+      requests.push("board");
+      return route.fulfill({ json: board() });
+    });
+    await page.goto("/leaderboard");
+    // Loaded, so the loading status is gone.
+    await expect(page.getByRole("list", { name: "Best times" })).toBeVisible();
+
+    await expect(page.getByRole("status")).toHaveText(
+      "Your 1:32.250 is on the leaderboard, rank 2 of 4.",
+    );
+    await expect(page.locator("[aria-current]")).toContainText("@steady_racer");
+    expect(requests.slice(0, 2)).toEqual(["run", "board"]);
+    expect(await keptRun(page)).toBeNull();
+  });
+
+  test("asks to sign in while a kept run waits", async ({ page }) => {
+    await keepRun(page, 65_000_000);
+    await page.route("**/api/runs", (route) =>
+      route.fulfill({ json: { error: "Authentication required." }, status: 401 }),
+    );
+    await page.route("**/api/leaderboards/falls-view-park", (route) =>
+      route.fulfill({ json: board({ listed: false }) }),
+    );
+    await page.goto("/leaderboard");
+    await expect(page.getByRole("list", { name: "Best times" })).toBeVisible();
+
+    const status = page.getByRole("status");
+    await expect(status).toContainText(
+      "Sign in to put your 1:05.000 on the leaderboard.",
+    );
+    await expect(status.getByRole("link", { name: "Sign in" })).toHaveAttribute(
+      "href",
+      "/onboarding?returnTo=%2Fleaderboard",
+    );
+    expect(await keptRun(page)).not.toBeNull();
+  });
+
+  test("races or copies a racer's ghost link from their row", async ({ page }) => {
+    await page.context().grantPermissions(["clipboard-read", "clipboard-write"]);
+    await page.route("**/api/leaderboards/falls-view-park", (route) =>
+      route.fulfill({ json: board() }),
+    );
+    await page.goto("/leaderboard");
+    const row = page
+      .getByRole("list", { name: "Best times" })
+      .getByRole("listitem")
+      .first();
+
+    await expect(
+      row.getByRole("link", { name: "Race @quick_racer's ghost" }),
+    ).toHaveAttribute("href", "/?ghost=quick_racer&from=leaderboard");
+    await row
+      .getByRole("button", { name: "Copy @quick_racer's ghost link" })
+      .click();
+    // The button itself says so, briefly.
+    await expect(row.getByText("Copied", { exact: true })).toBeAttached();
+    expect(await page.evaluate(() => navigator.clipboard.readText())).toMatch(
+      /^https?:\/\/[^/]+\/\?ghost=quick_racer$/,
+    );
   });
 });

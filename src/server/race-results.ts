@@ -1,7 +1,7 @@
 import { and, eq, sql } from "drizzle-orm";
 
 import { db } from "@/db/client";
-import { boardBests, leaderboards, raceResults } from "@/db/schema";
+import { boardBests, leaderboards, raceResults, users } from "@/db/schema";
 import { LEADERBOARD_COURSE_IDS } from "@/game/course/course-ids";
 import {
   decodeGhostTrace,
@@ -153,11 +153,13 @@ export async function checkSubmittedRun(
 }
 
 /**
- * Stores a submitted run under its ticket's ID, so each ticket counts once.
- * A verified run replaces the racer's best on its board only when faster.
+ * Stores a submitted run under its ticket's ID, so each ticket counts once,
+ * for the racer who sent it; a ticket naming no racer is marked claimed. A
+ * verified run replaces the racer's best on its board only when faster.
  */
 export async function recordRunSubmission(
   ticket: RunTicket,
+  userId: string,
   run: CheckedRun,
 ): Promise<RunSubmissionResponse | "duplicate"> {
   return db.transaction(async (transaction) => {
@@ -178,6 +180,7 @@ export async function recordRunSubmission(
     const stored = await transaction
       .insert(raceResults)
       .values({
+        claimed: ticket.userId === null,
         id: ticket.id,
         kartId: ticket.kartId,
         kartRevision: ticket.kartRevision,
@@ -186,7 +189,7 @@ export async function recordRunSubmission(
         status: run.verified ? "verified" : "rejected",
         ticketIssuedAt: new Date(ticket.issuedAt),
         timeMicroseconds: run.verified ? run.timeMicroseconds : null,
-        userId: ticket.userId,
+        userId,
       })
       .onConflictDoNothing()
       .returning({ id: raceResults.id });
@@ -202,7 +205,7 @@ export async function recordRunSubmission(
         leaderboardId,
         resultId: ticket.id,
         timeMicroseconds: run.timeMicroseconds,
-        userId: ticket.userId,
+        userId,
       })
       .onConflictDoUpdate({
         set: {
@@ -218,11 +221,11 @@ export async function recordRunSubmission(
       })
       .returning({ userId: boardBests.userId });
 
-    const standing = (await racerStanding(
-      transaction,
-      leaderboardId,
-      ticket.userId,
-    ))!;
+    const standing = (await racerStanding(transaction, leaderboardId, userId))!;
+    const [{ username }] = await transaction
+      .select({ username: users.username })
+      .from(users)
+      .where(eq(users.id, userId));
 
     return {
       entries: standing.entries,
@@ -232,6 +235,7 @@ export async function recordRunSubmission(
       },
       rank: standing.rank,
       status: "verified",
+      username: username!,
     };
   });
 }

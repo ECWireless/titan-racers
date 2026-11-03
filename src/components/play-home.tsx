@@ -2,7 +2,13 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useEffect, useRef, useState, useSyncExternalStore } from "react";
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
 
 import {
   BUNDLED_COURSE_DOCUMENTS,
@@ -27,10 +33,11 @@ import {
 } from "@/game/kart/official-kart-roster";
 
 import { drawsEnclosure } from "@/game/enclosure/enclosure-view";
-import { fetchRaceGhost } from "@/game/ghost/board-ghost";
+import { fetchRaceGhost, fetchRacerGhost } from "@/game/ghost/board-ghost";
 import {
   type BoardGhost,
   type GhostChoice,
+  type RacerGhostSource,
   readGhostChoice,
   subscribeGhostChoice,
   writeGhostChoice,
@@ -39,6 +46,8 @@ import { loadAmmoPhysics } from "@/game/runtime/playcanvas-application";
 import { loadTreeImages } from "@/game/enclosure/tree-images";
 import type { CourseEnclosure } from "@/game/enclosure/island-three";
 import { suspendRaceAudio, unlockRaceAudio } from "@/game/audio/race-audio";
+import { formatRaceTime } from "@/game/race/race-presentation";
+import { exactRacerUsernameSchema } from "@/lib/racer-username";
 
 import {
   COURSE_LOADING_FADE_MS,
@@ -102,12 +111,16 @@ function soloCourseId() {
     : CURRENT_GUEST_COURSE_ID;
 }
 
+// Only published revisions can count on the board, so these wait out a
+// page busy loading the race; a server that is down still fails at once.
+const PUBLISHED_LOAD_TIMEOUT_MS = 10_000;
+
 async function loadPublishedCourse(courseId: string): Promise<RaceCourse> {
   const response = await fetch(
     `/api/courses/${courseId}/published`,
     {
       cache: "no-store",
-      signal: AbortSignal.timeout(3_000),
+      signal: AbortSignal.timeout(PUBLISHED_LOAD_TIMEOUT_MS),
     },
   );
   if (!response.ok) throw new Error("Published course unavailable.");
@@ -120,7 +133,7 @@ async function loadPublishedCourse(courseId: string): Promise<RaceCourse> {
 async function loadOfficialKartRoster() {
   const response = await fetch("/api/karts/official", {
     cache: "no-store",
-    signal: AbortSignal.timeout(3_000),
+    signal: AbortSignal.timeout(PUBLISHED_LOAD_TIMEOUT_MS),
   });
   if (!response.ok) throw new Error("Official kart roster unavailable.");
   return officialKartRosterSchema.parse(await response.json());
@@ -149,6 +162,23 @@ function playableOfficialKarts(
         },
   );
 }
+
+/** A racer named by a ghost link (`?ghost=<username>`), and where from. */
+type RacerLink = { source: RacerGhostSource; username: string };
+
+function parseRacerLink(search: string): RacerLink | null {
+  const params = new URLSearchParams(search);
+  const username = exactRacerUsernameSchema.safeParse(params.get("ghost") ?? "");
+  if (!username.success) return null;
+  return {
+    source:
+      params.get("from") === "leaderboard" ? "leaderboard_racer" : "shared_link",
+    username: username.data,
+  };
+}
+
+// The address is read in the browser only; home never navigates itself.
+const subscribeToNothing = () => () => {};
 
 export function PlayHome() {
   const homeMenuRef = useRef<HTMLElement | null>(null);
@@ -187,6 +217,24 @@ export function PlayHome() {
     PersistedResolvedKartSnapshot | undefined
   >(undefined);
   const [boardGhost, setBoardGhost] = useState<BoardGhost | null>(null);
+  // A ghost link's racer, raced unless another ghost is chosen. Their best
+  // is undefined while it loads.
+  const locationSearch = useSyncExternalStore(
+    subscribeToNothing,
+    () => window.location.search,
+    () => "",
+  );
+  const racerGhost = useMemo(
+    () => parseRacerLink(locationSearch),
+    [locationSearch],
+  );
+  const racerGhostRequestRef = useRef<ReturnType<
+    typeof fetchRacerGhost
+  > | null>(null);
+  const [racerGhostFound, setRacerGhostFound] = useState<
+    Awaited<ReturnType<typeof fetchRacerGhost>> | undefined
+  >(undefined);
+  const [racerGhostChosen, setRacerGhostChosen] = useState(true);
   // Read from storage only in the browser; the server renders the default.
   const ghostChoice = useSyncExternalStore<GhostChoice>(
     subscribeGhostChoice,
@@ -246,6 +294,19 @@ export function PlayHome() {
       stopPrewarm();
     };
   }, []);
+
+  useEffect(() => {
+    if (!racerGhost) return;
+    let active = true;
+    const request = fetchRacerGhost(CURRENT_GUEST_COURSE_ID, racerGhost.username);
+    racerGhostRequestRef.current = request;
+    void request.then((ghost) => {
+      if (active) setRacerGhostFound(ghost);
+    });
+    return () => {
+      active = false;
+    };
+  }, [racerGhost]);
 
   useEffect(() => {
     if (!utilityMenuOpen) return;
@@ -361,11 +422,23 @@ export function PlayHome() {
     // The ramp test changes the course, so it races no board's ghost. The
     // ghost loads once the revision is known, alongside the rest.
     const rampHeight = axisRampStartHeight();
+    const linkedRacer = racerGhostChosen ? racerGhost : null;
+    const linkedRequest = racerGhostRequestRef.current;
     const nextBoardGhostPromise =
       rampHeight === null
-        ? nextCoursePromise.then((course) =>
-            fetchRaceGhost(courseId, course.revision, readGhostChoice()),
-          )
+        ? nextCoursePromise.then(async (course): Promise<BoardGhost | null> => {
+            // A linked racer's best counts only on the board being raced.
+            const linked = linkedRacer ? await linkedRequest : null;
+            if (
+              linkedRacer &&
+              typeof linked === "object" &&
+              linked?.courseId === courseId &&
+              linked.courseRevision === course.revision
+            ) {
+              return { ghost: linked, kind: linkedRacer.source };
+            }
+            return fetchRaceGhost(courseId, course.revision, readGhostChoice());
+          })
         : Promise.resolve(null);
     const [, nextCourse, , nextBoardGhost] = await Promise.all([
       thumbnailPause.ready,
@@ -457,6 +530,21 @@ export function PlayHome() {
   }
 
   const covered = courseLoading !== null && !courseLoading.leaving;
+  // Offered while it loads or once found; a racer with no time is not.
+  const racerGhostOffered =
+    racerGhost !== null &&
+    typeof racerGhostFound !== "string" &&
+    racerGhostChosen;
+  const racerGhostNote =
+    racerGhost && typeof racerGhostFound === "string"
+      ? `${
+          racerGhostFound === "none"
+            ? `@${racerGhost.username} has no time on this course yet`
+            : `@${racerGhost.username}'s ghost couldn't be loaded`
+        }, so you'll race ${
+          ghostChoice === "own_best" ? "your best" : "the course best"
+        }.`
+      : null;
   const loadingScreen = courseLoading ? (
     <CourseLoadingScreen
       courseName={courseLoading.courseName}
@@ -723,6 +811,25 @@ export function PlayHome() {
             className="grid grid-cols-2 gap-2"
             role="group"
           >
+            {racerGhost && typeof racerGhostFound !== "string" ? (
+              <button
+                aria-pressed={racerGhostChosen}
+                className={`col-span-2 flex min-h-11 items-center justify-center gap-2 border px-3 transition ${
+                  racerGhostChosen
+                    ? "border-titan-hazard text-titan-hazard"
+                    : "border-titan-ice/20 text-titan-ice/70 hover:border-titan-ice/45"
+                }`}
+                type="button"
+                onClick={() => setRacerGhostChosen(true)}
+              >
+                <span className="truncate font-mono text-[0.68rem] font-bold uppercase leading-none tracking-[0.12em]">
+                  @{racerGhost.username}
+                  {racerGhostFound
+                    ? ` · ${formatRaceTime(racerGhostFound.timeMicroseconds, 3)}`
+                    : ""}
+                </span>
+              </button>
+            ) : null}
             {(
               [
                 ["course_best", "Course best"],
@@ -730,15 +837,18 @@ export function PlayHome() {
               ] as const
             ).map(([choice, label]) => (
               <button
-                aria-pressed={ghostChoice === choice}
+                aria-pressed={!racerGhostOffered && ghostChoice === choice}
                 className={`flex min-h-11 items-center justify-center border px-3 transition ${
-                  ghostChoice === choice
+                  !racerGhostOffered && ghostChoice === choice
                     ? "border-titan-hazard text-titan-hazard"
                     : "border-titan-ice/20 text-titan-ice/70 hover:border-titan-ice/45"
                 }`}
                 key={choice}
                 type="button"
-                onClick={() => writeGhostChoice(choice)}
+                onClick={() => {
+                  writeGhostChoice(choice);
+                  setRacerGhostChosen(false);
+                }}
               >
                 {/* The global `button { font: inherit }` overrides the
                     button's own font classes. */}
@@ -748,6 +858,14 @@ export function PlayHome() {
               </button>
             ))}
           </div>
+          <p
+            className={
+              racerGhostNote ? "text-xs leading-5 text-titan-ice/70" : "sr-only"
+            }
+            aria-live="polite"
+          >
+            {racerGhostNote}
+          </p>
           <Link
             className="flex items-center justify-center gap-2 py-1 font-mono text-xs font-bold uppercase tracking-[0.16em] text-titan-ice/70 transition hover:text-titan-hazard focus-visible:text-titan-hazard focus-visible:outline-none"
             href="/leaderboard"

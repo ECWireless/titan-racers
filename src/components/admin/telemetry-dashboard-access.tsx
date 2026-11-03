@@ -443,6 +443,33 @@ function TelemetryDashboard({
           </div>
         )}
 
+        <section className="grid gap-5 border border-titan-ice/15 p-5 sm:p-6" aria-labelledby="solo-play-title">
+          <div>
+            <h2 className="text-lg font-black uppercase" id="solo-play-title">Replays, ghosts, and results</h2>
+            <p className="mt-1 text-xs text-titan-muted">Sign-ups count each racer by the login method they joined with; submissions are leaderboard runs on this course.</p>
+          </div>
+          <div className="grid items-start gap-6 md:grid-cols-3">
+            <MetricRows rows={[
+              ["Race again", dashboard.soloPlay.replays],
+              ["Results shared", dashboard.soloPlay.shares],
+              ["Races from shared links", dashboard.soloPlay.ghosts.sharedLink],
+              ["Races from the leaderboard", dashboard.soloPlay.ghosts.leaderboardRacer],
+            ]} />
+            <MetricRows rows={[
+              ["No ghost", dashboard.soloPlay.ghosts.none],
+              ["Own best", dashboard.soloPlay.ghosts.ownBest],
+              ["Course best", dashboard.soloPlay.ghosts.courseBest],
+            ]} />
+            <MetricRows rows={[
+              ["Google sign-ups", dashboard.soloPlay.signUps.google],
+              ["Wallet sign-ups", dashboard.soloPlay.signUps.wallet],
+              ["Verified submissions", dashboard.soloPlay.submissions.verified],
+              ["Rejected submissions", dashboard.soloPlay.submissions.rejected],
+              ["Sent after signing in", dashboard.soloPlay.submissions.afterSignIn],
+            ]} />
+          </div>
+        </section>
+
         <section className="grid gap-4 border border-titan-ice/15 p-5 sm:p-6" aria-labelledby="failures-title">
           <div>
             <h2 className="text-lg font-black uppercase" id="failures-title">Grouped failures</h2>

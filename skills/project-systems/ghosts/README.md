@@ -10,8 +10,7 @@ recording format, the recorder, playback, the ghost kart's look, the
 per-device best, which ghost a race takes, and the Ghost switch.
 
 A logged-in racer's best is stored and checked by the
-[leaderboard](../leaderboard/README.md). Not supported yet: shared ghost
-links.
+[leaderboard](../leaderboard/README.md).
 
 ## Source Ownership
 
@@ -24,10 +23,14 @@ links.
   document through `createKartAssemblyVisual`.
 - `src/game/ghost/device-ghost.ts`: the per-device best, the ghost choice,
   and the Ghost switch in `localStorage`, and reading a ghost record.
-- `src/game/ghost/board-ghost.ts`: fetching the board's course best or your
-  account best (`GET /api/leaderboards/[courseId]/ghost`).
-- `src/components/play-home.tsx`: the Course best / Your best choice, and
-  loading the board's ghost before a solo race mounts.
+- `src/game/ghost/board-ghost.ts`: fetching the board's course best, your
+  account best, or a named racer's best
+  (`GET /api/leaderboards/[courseId]/ghost`).
+- `src/components/play-home.tsx`: the Course best / Your best choice, a
+  ghost link's racer, and loading the board's ghost before a solo race
+  mounts.
+- `src/lib/share-link.ts`: ghost link URLs, the result screen's sharing
+  (share sheet, else copy), and the leaderboard rows' link copy.
 - `src/components/solo-time-trial-canvas.tsx`: recording in the post-physics
   step, posing in the render loop, keeping a new best at finish, and the
   pause-menu switch (`src/components/setting-switch.tsx`).
@@ -44,6 +47,12 @@ links.
   request, or a kart this build cannot draw) it races your best on this
   device. A board ghost is a record like a device best, built on the server
   from the best's recording and its kart revision.
+- A ghost link, `/?ghost=<username>`, names a racer by their exact public
+  username, never an ID, and races their best on the course's current board
+  when opened, so it follows their improvements. Home offers it first in the
+  Ghost choice for that visit, and it shows even with the Ghost switch off.
+  A leaderboard row's Race button adds `&from=leaderboard`, a separate ghost
+  kind in run summaries.
 - A run faster than the ghost raced is raced from the next Race again; the
   device keeps its own best whichever ghost was raced. Bests are
   keyed `titan-racers.ghost.v1:<course>:<revision or seed>:<physics>` and
@@ -76,8 +85,11 @@ links.
 - `tests/ghost-trace.spec.ts`, `tests/ghost-playback.spec.ts`, and
   `tests/device-ghost.spec.ts`.
 - `tests/home.spec.ts` two-lap lifecycle: the recording's gate samples and
-  finish time, Race again installing the new best, hiding on the grid, and
-  the switch hiding it while paused.
+  finish time, Race again installing the new best, hiding on the grid, the
+  switch hiding it while paused, and a ghost link's racer; sharing a new
+  best's ghost link.
+- `tests/race-results.spec.ts` and `tests/leaderboard.spec.ts`: finding a
+  racer's best by username, and each row's Race and Copy link.
 
 ## Known Limits
 

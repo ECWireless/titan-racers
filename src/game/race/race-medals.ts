@@ -1,6 +1,6 @@
 /** The board's top three: gold, silver, and bronze, by current rank. */
 const MEDAL_TIERS = ["gold", "silver", "bronze"] as const;
-type MedalTier = (typeof MEDAL_TIERS)[number];
+export type MedalTier = (typeof MEDAL_TIERS)[number];
 
 export const MEDAL_LABELS: Record<MedalTier, string> = {
   bronze: "Bronze",

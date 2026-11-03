@@ -37,7 +37,11 @@ import {
 import { leaderboardResponseSchema } from "../src/game/race/leaderboard";
 import { medalForRank } from "../src/game/race/race-medals";
 import { parseGhostRecord } from "../src/game/ghost/device-ghost";
-import { loadBoardGhost, loadLeaderboard } from "../src/server/leaderboard";
+import {
+  loadBoardGhost,
+  loadLeaderboard,
+  loadRacerGhost,
+} from "../src/server/leaderboard";
 import { issueRunTicket, readRunTicket } from "../src/server/run-tickets";
 import { anonymizeUserByEmail } from "../src/server/user-anonymization";
 import { recordRace, routeThroughGates } from "./support/race-recording";
@@ -133,7 +137,7 @@ async function publishedBoard() {
     identity,
     kartId,
     // Issued well before the race could have finished.
-    ticket: (userId: string, issuedAt = Date.now() - 10 * 60 * 1_000) =>
+    ticket: (userId: string | null, issuedAt = Date.now() - 10 * 60 * 1_000) =>
       issueRunTicket({ ...identity, userId }, issuedAt),
   };
 }
@@ -150,7 +154,7 @@ test.describe("verified runs", () => {
     );
   });
 
-  test("signs tickets only for named racers in races that count", async () => {
+  test("signs tickets for races that count, naming only named racers", async () => {
     const board = await publishedBoard();
     const eligibility = {
       courseIds: [board.courseId],
@@ -162,11 +166,34 @@ test.describe("verified runs", () => {
     // Races that cannot count get no ticket, without an error.
     const noTicket = async (response: Response) => {
       expect(response.status).toBe(200);
-      return ((await response.json()) as { reason: string }).reason;
+      const body = (await response.json()) as { reason: string; ticket: null };
+      expect(body.ticket).toBeNull();
+      return body.reason;
     };
-    expect(await noTicket(await ticketFor(new Headers()))).toBe("login");
+    // A guest's ticket, or an unnamed racer's, names no racer.
     const unnamed = await racer({ username: false });
-    expect(await noTicket(await ticketFor(unnamed.headers))).toBe("username");
+    for (const [headers, reason] of [
+      [new Headers(), "login"],
+      [unnamed.headers, "username"],
+    ] as const) {
+      const body = (await (await ticketFor(headers)).json()) as {
+        reason: string;
+        ticket: string;
+      };
+      expect(body.reason).toBe(reason);
+      expect(readRunTicket(body.ticket)).toMatchObject({
+        ...board.identity,
+        userId: null,
+      });
+      expect(
+        readRunTicket(body.ticket, Date.now() + 31 * 60 * 1_000),
+      ).toBeNull();
+    }
+    expect(
+      await noTicket(
+        await ticketFor(new Headers(), { ...board.identity, courseRevision: 2 }),
+      ),
+    ).toBe("not-eligible");
 
     const named = await racer();
     const response = await ticketFor(named.headers);
@@ -206,11 +233,16 @@ test.describe("verified runs", () => {
     const ticket = board.ticket(first.id);
     const response = await submit(first.headers, ticket, encode(slow.samples));
     expect(response.status).toBe(200);
+    const [{ username }] = await db
+      .select({ username: users.username })
+      .from(users)
+      .where(eq(users.id, first.id));
     expect(await response.json()).toEqual({
       entries: 1,
       personalBest: { improved: true, timeMicroseconds: slow.timeMicroseconds },
       rank: 1,
       status: "verified",
+      username,
     });
     expect(
       (await submit(first.headers, ticket, encode(fast.samples))).status,
@@ -261,6 +293,53 @@ test.describe("verified runs", () => {
       encode(fast.samples),
     );
     expect(await tied.json()).toMatchObject({ entries: 3, rank: 2 });
+  });
+
+  test("gives a guest's run to the racer who signs in within 30 minutes", async () => {
+    const board = await publishedBoard();
+    const recording = encode(race(10).samples);
+    const guestTicket = board.ticket(null);
+
+    // It waits for a signed-in racer with a username.
+    expect((await submit(new Headers(), guestTicket, recording)).status).toBe(
+      401,
+    );
+    const unnamed = await racer({ username: false });
+    expect((await submit(unnamed.headers, guestTicket, recording)).status).toBe(
+      428,
+    );
+
+    const me = await racer();
+    const response = await submit(me.headers, guestTicket, recording);
+    expect(await response.json()).toMatchObject({
+      personalBest: { improved: true },
+      rank: 1,
+      status: "verified",
+    });
+    const resultOf = async (ticket: string) =>
+      (
+        await db
+          .select({ claimed: raceResults.claimed, userId: raceResults.userId })
+          .from(raceResults)
+          .where(eq(raceResults.id, readRunTicket(ticket)!.id))
+      )[0];
+    expect(await resultOf(guestTicket)).toEqual({
+      claimed: true,
+      userId: me.id,
+    });
+    // It counts once, whoever sends it again.
+    const other = await racer();
+    expect((await submit(other.headers, guestTicket, recording)).status).toBe(
+      409,
+    );
+    // A named racer's own ticket is not marked.
+    const own = board.ticket(other.id);
+    expect((await submit(other.headers, own, recording)).status).toBe(200);
+    expect(await resultOf(own)).toEqual({ claimed: false, userId: other.id });
+
+    // Thirty minutes after the run started, it is too late.
+    const late = board.ticket(null, Date.now() - 31 * 60 * 1_000);
+    expect((await submit(me.headers, late, recording)).status).toBe(400);
   });
 
   test("keeps one result per ticket and the fastest best when runs race", async () => {
@@ -419,7 +498,9 @@ test.describe("verified runs", () => {
         .update(users)
         .set({ anonymizedAt: new Date(), username: null })
         .where(eq(users.id, other.id));
-      submission = recordRunSubmission(pending, run!).catch((error) => error);
+      submission = recordRunSubmission(pending, other.id, run!).catch(
+        (error) => error,
+      );
       await new Promise((resolve) => setTimeout(resolve, 300));
     });
     expect(
@@ -510,5 +591,35 @@ test.describe("verified runs", () => {
     expect(
       (await ghostRoute("falls-view-park", "best=fastest&revision=1")).status,
     ).toBe(400);
+
+    // A ghost link names a racer by username and races their current best.
+    const [{ username }] = await db
+      .select({ username: users.username })
+      .from(users)
+      .where(eq(users.id, slower.id));
+    const linked = await loadRacerGhost(board.courseId, username!);
+    expect(linked?.timeMicroseconds).toBe(slow.timeMicroseconds);
+    expect(JSON.stringify(linked)).not.toContain(slower.id);
+    await expect(loadRacerGhost(board.courseId, "no_such_racer")).resolves.toBeNull();
+    // Only an exact username: a link is never normalized to another racer.
+    for (const racer of ["a", username!.toUpperCase()]) {
+      expect(
+        (await ghostRoute("falls-view-park", `best=racer&racer=${racer}`))
+          .status,
+      ).toBe(400);
+    }
+    expect(
+      await (
+        await ghostRoute("falls-view-park", "best=racer&racer=no_such_racer")
+      ).json(),
+    ).toEqual({ ghost: null });
+
+    // Anonymization ends the link.
+    const [{ email }] = await db
+      .select({ email: users.email })
+      .from(users)
+      .where(eq(users.id, slower.id));
+    await anonymizeUserByEmail(email);
+    await expect(loadRacerGhost(board.courseId, username!)).resolves.toBeNull();
   });
 });

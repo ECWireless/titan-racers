@@ -24,6 +24,7 @@ import {
   RunStandingSummary,
 } from "@/components/run-standing";
 import { GhostToggle, SoundToggle } from "@/components/setting-switch";
+import { ghostLinkUrl, shareLink, shareNoteFor } from "@/lib/share-link";
 import type {
   CourseTestObstacleId,
   DrivingInput,
@@ -202,7 +203,9 @@ import {
 } from "@/game/render/scene-look";
 import { FrameBudgetRecorder } from "@/game/runtime/frame-budget";
 import { createRaceSessionConfig } from "@/game/race/race-course";
+import { holdRun } from "@/game/race/held-run";
 import {
+  encodeRunRecording,
   requestRunTicket,
   type RunTicketOutcome,
   submitRun,
@@ -541,7 +544,14 @@ export function SoloTimeTrialCanvas({
           kind: "own_best" as const,
         },
   );
-  const [ghostOn, setGhostOn] = useState(readGhostSwitch);
+  // A racer's ghost picked from a link or the board shows even if the
+  // switch was off; the pause menu can still hide it.
+  const [ghostOn, setGhostOn] = useState(
+    () =>
+      readGhostSwitch() ||
+      boardGhost?.kind === "shared_link" ||
+      boardGhost?.kind === "leaderboard_racer",
+  );
   const ghostOnRef = useRef(ghostOn);
   useEffect(() => {
     ghostOnRef.current = ghostOn;
@@ -715,6 +725,7 @@ export function SoloTimeTrialCanvas({
   const runTicketRef = useRef<Promise<RunTicketOutcome | null> | null>(null);
   const runNumberRef = useRef(0);
   const [runStanding, setRunStanding] = useState<RunStanding | null>(null);
+  const [shareNote, setShareNote] = useState<string | null>(null);
   const [gameplayTelemetry] = useState(
     () =>
       new GameplayRunTelemetry(
@@ -2630,6 +2641,12 @@ export function SoloTimeTrialCanvas({
           if (pendingGhost) {
             installGhost(pendingGhost);
             pendingGhost = null;
+            // A beaten racer's ghost made way for your own best, which
+            // follows your Ghost switch again.
+            if (activeGhostKind !== "own_best" && !readGhostSwitch()) {
+              ghostOnRef.current = false;
+              setGhostOn(false);
+            }
             activeGhostKind = "own_best";
           }
           gameplayTelemetry.start(raceIdentityRef.current, {
@@ -2641,6 +2658,7 @@ export function SoloTimeTrialCanvas({
           }
           runNumberRef.current += 1;
           setRunStanding(null);
+          setShareNote(null);
           gameplayTelemetry.markRuntimeLoaded();
           ghostRecorder.reset();
           raceStartReported = false;
@@ -3414,6 +3432,7 @@ export function SoloTimeTrialCanvas({
         runTicketRef.current = null;
         if (runTicket && finishedGhostTrace) {
           const recording = finishedGhostTrace;
+          const raceTime = raceSession.snapshot.elapsedRaceMicroseconds;
           const runNumber = runNumberRef.current;
           const show = (standing: RunStanding) => {
             if (runNumberRef.current === runNumber) setRunStanding(standing);
@@ -3422,8 +3441,25 @@ export function SoloTimeTrialCanvas({
             void runTicket.then(async (outcome) => {
               if (!outcome) return;
               if ("reason" in outcome) {
-                // Guests' prompt to log in comes with claiming runs.
-                if (outcome.reason === "username") show({ status: "username" });
+                // Held on this device until they sign in and have a
+                // username, unless a faster run is already waiting.
+                const held = holdRun({
+                  expiresAt: outcome.expiresAt,
+                  recording: encodeRunRecording(recording),
+                  ticket: outcome.ticket,
+                  timeMicroseconds: raceTime,
+                });
+                if (held) {
+                  show({
+                    expiresAt: held.expiresAt,
+                    heldTimeMicroseconds:
+                      held.ticket === outcome.ticket
+                        ? null
+                        : held.timeMicroseconds,
+                    reason: outcome.reason,
+                    status: "held",
+                  });
+                }
                 return;
               }
               show({ status: "pending" });
@@ -4102,6 +4138,33 @@ export function SoloTimeTrialCanvas({
     requestAnimationFrame(() => canvasRef.current?.focus());
   }
 
+  /**
+   * Shares the result: a racer's new best links to their ghost, which
+   * follows their best; any other result links home.
+   */
+  async function shareResult() {
+    // Cleared first, so a repeated note is announced again.
+    setShareNote(null);
+    const verified = runStanding?.status === "verified" ? runStanding : null;
+    // Only a new best's time holds the rank, so only it names one.
+    const ghostLink = verified?.personalBest.improved ? verified : null;
+    const standing = ghostLink
+      ? `, rank ${ghostLink.rank} of ${ghostLink.entries} on the leaderboard`
+      : "";
+    const outcome = await shareLink({
+      text: `I ran ${COURSE_DOCUMENT.name} in ${racePresentation.elapsedTime} in the ${kartDocument.name}${standing}. ${
+        ghostLink ? "Race my ghost on Titan Racers." : "Can you beat it on Titan Racers?"
+      }`,
+      url: ghostLink
+        ? ghostLinkUrl(ghostLink.username)
+        : new URL("/", window.location.origin).href,
+    });
+    if (outcome === "shared" || outcome === "copied") {
+      gameplayTelemetry.markShared();
+    }
+    setShareNote(shareNoteFor(outcome));
+  }
+
   function restartRace() {
     if (!sceneApiRef.current?.restartRace()) {
       return;
@@ -4425,6 +4488,15 @@ export function SoloTimeTrialCanvas({
                   >
                     Race again
                   </button>
+                  {submitsRuns ? (
+                    <button
+                      type="button"
+                      className="titan-button titan-button-secondary"
+                      onClick={() => void shareResult()}
+                    >
+                      Share
+                    </button>
+                  ) : null}
                   <button
                     type="button"
                     className="titan-button titan-button-secondary"
@@ -4432,6 +4504,16 @@ export function SoloTimeTrialCanvas({
                   >
                     Exit
                   </button>
+                  <p
+                    className={
+                      shareNote
+                        ? "text-center font-mono text-xs text-titan-ice/76"
+                        : "sr-only"
+                    }
+                    aria-live="polite"
+                  >
+                    {shareNote}
+                  </p>
                 </div>
               </div>
             </div>

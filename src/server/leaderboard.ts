@@ -129,3 +129,21 @@ export async function loadBoardGhost(
     trace: best.ghost.toString("base64"),
   };
 }
+
+/**
+ * A racer's best on a course's current board as a ghost, found by their
+ * public username, so a link names no internal ID. Null when they have no
+ * best there, or no longer have that username.
+ */
+export async function loadRacerGhost(courseId: string, username: string) {
+  const published = await loadLatestPublishedRevision(courseId);
+  if (!published) return null;
+  const [racer] = (
+    await db.execute<{ id: string }>(sql`
+      select id from users
+      where username = ${username} and anonymized_at is null
+    `)
+  ).rows;
+  if (!racer) return null;
+  return loadBoardGhost(courseId, published.revision, racer.id);
+}

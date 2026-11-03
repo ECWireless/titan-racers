@@ -17,8 +17,8 @@ accepted; the app, README, and durable docs take over from there.
 
 - **Done:** Phases 0–4 (PRs #1–#24, the Phase 3 closeout and its
   follow-ups, and #30–#57 with the PR 4.5.2 closeout).
-- **Next:** PR 5.4. PRs 5.1 (#59), 5.2 (#60), and 5.3 are done (see Phase 5's
-  decisions).
+- **Next:** PR 5.5, the last of Phase 5. PRs 5.1 (#59), 5.2 (#60), 5.3
+  (#61), and 5.4 are done (see Phase 5's decisions).
 
 ## Guiding Decisions
 
@@ -230,8 +230,13 @@ Phase decisions:
   accounts, accounts never merge, and the last login method cannot be
   unlinked. WalletConnect, smart-contract wallets, ENS, embedded wallets,
   balances, and on-chain actions need a separately accepted scope.
-- **Guests race freely without progression.** A guest's qualifying run can be
-  claimed by logging in within 30 minutes of its start.
+- **Guests race freely without progression.** A guest's qualifying run is
+  kept on their device and goes to the board as theirs once they sign in and
+  have a username, within 30 minutes of its start.
+- **Ghost links** name a racer by their public username, never an ID, and
+  race their best on the course's current board whenever opened; anyone can
+  race one without logging in, and any racer on the board can be raced from
+  its row.
 - **Replay** is Race again with a ghost; there is no watch mode.
 
 **PR 5.1: Race identity and ghosts**
@@ -264,18 +269,32 @@ Phase decisions:
 - [x] Gold, silver, and bronze for the board's top three.
 - [x] The result screen shows rank, personal best, and medal.
 
-**PR 5.4: Results flow, sharing, and closeout**
+**PR 5.4: Results flow and sharing**
 
-- [ ] A login prompt on a guest's qualifying result, and claiming the run after
+- [x] A login prompt on a guest's qualifying result, and claiming the run after
       Google or wallet login, including onboarding.
-- [ ] Sharing through the share sheet, else copying. A logged-in player's best
+- [x] Sharing through the share sheet, else copying. A logged-in player's best
       race shares a ghost link that follows their current best.
-- [ ] Anyone can race a shared ghost from its link without logging in.
-- [ ] Run summaries record whether the result was shared. A Phase 5 panel on
+- [x] Anyone can race a shared ghost from its link without logging in.
+- [x] Run summaries record whether the result was shared. A Phase 5 panel on
       the admin dashboard shows replays, ghost use, sign-ups by login method,
       submissions, claims after a race, shares, and races from shared links.
       Sign-ups, submissions, and claims come from the rows those features
       already store, not new telemetry.
+
+**PR 5.5: Home-to-race flow and polish**
+
+- [ ] Replace the one-page home with a step-by-step flow: Quick race or the
+      leaderboards first, then the kart, then the course, then the mode and
+      whether to race a ghost, with keyboard, touch, and controller
+      navigation throughout. Whether the `rough-course` sandbox joins the
+      course choice is settled at the debrief (see the sandbox decision
+      under Completed Phases).
+- [ ] Course thumbnails for the course choice.
+- [ ] Sound effects on UI buttons across the app, and a volume control.
+- [ ] A kicker on the first quarter of Falls View Park's levee.
+- [ ] A better social card for shared links.
+- [ ] Phase 5 closeout and integration review.
 
 **Done when:** a board's standings and medals come only from verified runs and
 cannot be forged by client state; a guest finishes, logs in, and finds the
@@ -520,7 +539,6 @@ course-specific ghosts or leaderboards.
 **Goal:** make it ready to share.
 
 - [ ] Controller polish.
-- [ ] Result sharing.
 - [ ] Mobile performance pass.
 - [ ] Lobby polish, onboarding copy, and UI clarity.
 - [ ] Final visual pass against the Titan Racers site.

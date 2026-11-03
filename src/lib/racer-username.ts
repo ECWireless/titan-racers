@@ -110,3 +110,11 @@ export function racerOnboardingPath(returnTo = "/") {
     safeRacerReturnTo(returnTo),
   )}`;
 }
+
+/**
+ * A username exactly as stored, for lookups from a link: it is not
+ * normalized, so a malformed link never finds a different racer.
+ */
+export const exactRacerUsernameSchema = z
+  .string()
+  .refine((value) => racerUsernameSchema.safeParse(value).data === value);

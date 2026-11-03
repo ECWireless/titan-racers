@@ -1,6 +1,5 @@
 import { z } from "zod";
 
-import type { NoTicketReason } from "@/game/race/run-submission";
 import { isLeaderboardRace } from "@/server/race-results";
 import {
   protectedJsonMutationError,
@@ -24,15 +23,12 @@ function jsonError(error: string, status: number) {
   return Response.json({ error }, { headers: NO_STORE_HEADERS, status });
 }
 
-// A guest's, a new racer's, or another course's race simply does not count.
-function noTicket(reason: NoTicketReason) {
-  return Response.json(
-    { reason, ticket: null },
-    { headers: NO_STORE_HEADERS },
-  );
-}
-
-/** Signs a ticket when a logged-in racer starts a race that can count. */
+/**
+ * Signs a ticket when a race that can count starts. A named racer's ticket
+ * submits on finish; a guest's, or an unnamed racer's, names no racer and
+ * waits for them to sign in and choose a username. Another course's race
+ * simply gets none.
+ */
 export async function postRunTicket(
   request: Request,
   eligibility?: Parameters<typeof isLeaderboardRace>[1],
@@ -41,14 +37,15 @@ export async function postRunTicket(
   const issuedAt = Date.now();
   const mutationError = protectedJsonMutationError(request);
   if (mutationError) return mutationError;
-  const userId = await sessionUserIdOrResponse(request, {
+  const viewer = await sessionUserIdOrResponse(request, {
     requireUsername: true,
   });
-  if (userId instanceof Response) {
-    if (userId.status === 401) return noTicket("login");
-    if (userId.status === 428) return noTicket("username");
-    return userId;
-  }
+  let userId: string | null = null;
+  let reason: "login" | "username" | null = null;
+  if (typeof viewer === "string") userId = viewer;
+  else if (viewer.status === 401) reason = "login";
+  else if (viewer.status === 428) reason = "username";
+  else return viewer;
 
   const { body, tooLarge } = await readBoundedBody(request, MAX_BODY_BYTES);
   if (tooLarge) return jsonError("Run ticket request is too large.", 413);
@@ -59,13 +56,16 @@ export async function postRunTicket(
     return jsonError("Invalid run ticket request.", 400);
   }
   if (!(await isLeaderboardRace(race, eligibility))) {
-    return noTicket("not-eligible");
+    return Response.json(
+      { reason: "not-eligible", ticket: null },
+      { headers: NO_STORE_HEADERS },
+    );
   }
 
-  return Response.json(
-    { ticket: issueRunTicket({ ...race, userId }, issuedAt) },
-    { headers: NO_STORE_HEADERS },
-  );
+  const ticket = issueRunTicket({ ...race, userId }, issuedAt);
+  return Response.json(reason ? { reason, ticket } : { ticket }, {
+    headers: NO_STORE_HEADERS,
+  });
 }
 
 export async function POST(request: Request) {
