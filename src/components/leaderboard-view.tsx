@@ -20,7 +20,7 @@ import {
 import { medalForRank } from "@/game/race/race-medals";
 import { formatRaceTime } from "@/game/race/race-presentation";
 import { racerOnboardingPath } from "@/lib/racer-username";
-import { copyLink, ghostLinkUrl, shareNoteFor } from "@/lib/share-link";
+import { copyLink, ghostLinkUrl, copyNoteFor } from "@/lib/share-link";
 
 import { MedalIcon } from "./medal-icon";
 import { CheckIcon, CopyLinkIcon, RaceGhostIcon } from "./menu-icons";
@@ -173,7 +173,7 @@ export function LeaderboardView() {
     // Cleared first, so a repeated note is announced again.
     setCopyNote(null);
     const outcome = await copyLink(ghostLinkUrl(username));
-    setCopyNote(shareNoteFor(outcome));
+    setCopyNote(copyNoteFor(outcome));
     if (outcome !== "copied") return;
     setCopiedUsername(username);
     if (copiedTimerRef.current !== null) {

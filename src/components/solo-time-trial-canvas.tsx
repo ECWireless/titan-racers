@@ -28,7 +28,7 @@ import {
   SoundToggle,
   VolumeControl,
 } from "@/components/setting-switch";
-import { ghostLinkUrl, shareLink, shareNoteFor } from "@/lib/share-link";
+import { copyLink, ghostLinkUrl, copyNoteFor } from "@/lib/share-link";
 import type {
   CourseTestObstacleId,
   DrivingInput,
@@ -730,7 +730,7 @@ export function SoloTimeTrialCanvas({
   const runTicketRef = useRef<Promise<RunTicketOutcome | null> | null>(null);
   const runNumberRef = useRef(0);
   const [runStanding, setRunStanding] = useState<RunStanding | null>(null);
-  const [shareNote, setShareNote] = useState<string | null>(null);
+  const [copyNote, setCopyNote] = useState<string | null>(null);
   const [gameplayTelemetry] = useState(
     () =>
       new GameplayRunTelemetry(
@@ -2668,7 +2668,7 @@ export function SoloTimeTrialCanvas({
           }
           runNumberRef.current += 1;
           setRunStanding(null);
-          setShareNote(null);
+          setCopyNote(null);
           gameplayTelemetry.markRuntimeLoaded();
           ghostRecorder.reset();
           raceStartReported = false;
@@ -4150,31 +4150,19 @@ export function SoloTimeTrialCanvas({
     requestAnimationFrame(() => canvasRef.current?.focus());
   }
 
-  /**
-   * Shares the result: a racer's new best links to their ghost, which
-   * follows their best; any other result links home.
-   */
-  async function shareResult() {
+  // A signed-in racer's new best is a ghost others can race from a link
+  // that follows their best; no other result has one to share.
+  const ghostLinkUsername =
+    runStanding?.status === "verified" && runStanding.personalBest.improved
+      ? runStanding.username
+      : null;
+
+  async function copyGhostLink(username: string) {
     // Cleared first, so a repeated note is announced again.
-    setShareNote(null);
-    const verified = runStanding?.status === "verified" ? runStanding : null;
-    // Only a new best's time holds the rank, so only it names one.
-    const ghostLink = verified?.personalBest.improved ? verified : null;
-    const standing = ghostLink
-      ? `, rank ${ghostLink.rank} of ${ghostLink.entries} on the leaderboard`
-      : "";
-    const outcome = await shareLink({
-      text: `I ran ${COURSE_DOCUMENT.name} in ${racePresentation.elapsedTime} in the ${kartDocument.name}${standing}. ${
-        ghostLink ? "Race my ghost on Titan Racers." : "Can you beat it on Titan Racers?"
-      }`,
-      url: ghostLink
-        ? ghostLinkUrl(ghostLink.username)
-        : new URL("/", window.location.origin).href,
-    });
-    if (outcome === "shared" || outcome === "copied") {
-      gameplayTelemetry.markShared();
-    }
-    setShareNote(shareNoteFor(outcome));
+    setCopyNote(null);
+    const outcome = await copyLink(ghostLinkUrl(username));
+    if (outcome === "copied") gameplayTelemetry.markShared();
+    setCopyNote(copyNoteFor(outcome));
   }
 
   function restartRace() {
@@ -4502,13 +4490,13 @@ export function SoloTimeTrialCanvas({
                   >
                     Race again
                   </button>
-                  {submitsRuns ? (
+                  {ghostLinkUsername ? (
                     <button
                       type="button"
                       className="titan-button titan-button-secondary"
-                      onClick={() => void shareResult()}
+                      onClick={() => void copyGhostLink(ghostLinkUsername)}
                     >
-                      Share
+                      Copy link
                     </button>
                   ) : null}
                   <button
@@ -4520,13 +4508,13 @@ export function SoloTimeTrialCanvas({
                   </button>
                   <p
                     className={
-                      shareNote
+                      copyNote
                         ? "text-center font-mono text-xs text-titan-ice/76"
                         : "sr-only"
                     }
                     aria-live="polite"
                   >
-                    {shareNote}
+                    {copyNote}
                   </p>
                 </div>
               </div>

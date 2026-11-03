@@ -33,8 +33,8 @@ A logged-in racer's best is stored and checked by the
   switch), and loading the board's ghost before a solo race mounts.
 - A ghost link's preview belongs to
   [`leaderboard`](../leaderboard/README.md).
-- `src/lib/share-link.ts`: ghost link URLs, the result screen's sharing
-  (share sheet, else copy), and the leaderboard rows' link copy.
+- `src/lib/share-link.ts`: ghost link URLs and copying them, for the
+  result screen's Copy link and the leaderboard rows'.
 - `src/components/solo-time-trial-canvas.tsx`: recording in the post-physics
   step, posing in the render loop, keeping a new best at finish, and the
   pause-menu switch (`src/components/setting-switch.tsx`).

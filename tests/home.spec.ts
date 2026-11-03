@@ -2213,12 +2213,11 @@ test.describe("home screen", () => {
     await expect(
       finishDialog.locator('[data-controller-menu-ready="true"]'),
     ).toHaveCount(1);
-    // A new best shares a link to the racer's ghost; without a share
-    // sheet, it is copied.
-    await finishDialog.getByRole("button", { name: "Share" }).click();
+    // A new best copies the link to the racer's ghost, and only the link.
+    await finishDialog.getByRole("button", { name: "Copy link" }).click();
     await expect(finishDialog).toContainText("Link copied.");
     expect(await page.evaluate(() => navigator.clipboard.readText())).toMatch(
-      /rank 2 of 5 on the leaderboard\. Race my ghost on Titan Racers\. https?:\/\/[^/]+\/\?ghost=quick_racer$/,
+      /^https?:\/\/[^/]+\/\?ghost=quick_racer$/,
     );
     await finishDialog.getByRole("button", { name: "Race again" }).focus();
     await setSimulationPaused(canvas, false);
@@ -2298,6 +2297,10 @@ test.describe("home screen", () => {
       "href",
       "/onboarding?returnTo=%2Fleaderboard",
     );
+    // A guest has no ghost to share, so no link to copy.
+    await expect(
+      finishDialog.getByRole("button", { name: "Copy link" }),
+    ).toHaveCount(0);
     // The run waits on this device with its ticket and recording, unsent.
     const recording = await getGhostRecording(canvas);
     const race = await getRaceDebugState(canvas);

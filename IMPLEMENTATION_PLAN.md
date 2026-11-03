@@ -296,7 +296,9 @@ Phase decisions:
 - [x] A kicker on the first quarter of Falls View Park's levee, centred on
       the crest. Its course revision starts a new board.
 - [x] A better social card for shared links, with a ghost link's racer,
-      time, and rank.
+      time, and rank. The result screen's Share becomes Copy link, shown
+      only for a signed-in racer's new best and copying only its ghost link
+      (no share sheet), as the leaderboard rows do.
 - [ ] Phase 5 closeout and integration review.
 
 **Done when:** a board's standings and medals come only from verified runs and
