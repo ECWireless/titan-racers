@@ -217,7 +217,11 @@ export function LeaderboardView() {
               className="h-10 w-auto sm:h-12"
             />
           </Link>
-          <Link className="titan-button titan-button-secondary" href="/">
+          <Link
+            className="titan-button titan-button-secondary"
+            data-ui-sound="back"
+            href="/"
+          >
             Back
           </Link>
         </header>

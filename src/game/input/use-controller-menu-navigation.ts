@@ -1,5 +1,7 @@
 import { useEffect, useRef, type RefObject } from "react";
 
+import { playUiSound } from "@/game/audio/ui-sounds";
+
 import {
   EditorGamepadInput,
   type EditorFocusDirection,
@@ -130,6 +132,7 @@ export function useControllerMenuNavigation({
         candidates,
         direction,
       );
+      if (target && target.value !== current) playUiSound("move");
       focusItem(target?.value ?? current, container, fromController);
     };
 
@@ -162,6 +165,7 @@ export function useControllerMenuNavigation({
       if (event.key === "Escape") {
         if (!onBackRef.current) return;
         event.preventDefault();
+        playUiSound("back");
         onBackRef.current();
         return;
       }
@@ -223,6 +227,7 @@ export function useControllerMenuNavigation({
           if (menuRequested && onMenuRef.current) {
             onMenuRef.current();
           } else if (backRequested && onBackRef.current) {
+            playUiSound("back");
             onBackRef.current();
           } else if (moveDirection) {
             if (current) {
@@ -238,6 +243,7 @@ export function useControllerMenuNavigation({
               (currentIndex + move + items.length) % items.length;
             const next = items[nextIndex];
             if (next) {
+              if (next !== current) playUiSound("move");
               focusItem(next, container);
             }
           } else if (confirmRequested) {
@@ -247,6 +253,7 @@ export function useControllerMenuNavigation({
           if (menuRequested && onMenuRef.current) {
             onMenuRef.current();
           } else if (backRequested && onBackRef.current) {
+            playUiSound("back");
             onBackRef.current();
           }
         }

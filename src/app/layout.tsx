@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { Analytics } from "@vercel/analytics/next";
 
+import { UiSounds } from "@/components/ui-sounds";
+
 import "./globals.css";
 
 const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://play.titanracers.com";
@@ -20,6 +22,7 @@ export default function RootLayout({
     <html lang="en">
       <body>
         {children}
+        <UiSounds />
         <Analytics />
       </body>
     </html>

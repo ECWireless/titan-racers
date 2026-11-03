@@ -861,6 +861,60 @@ test.describe("home screen", () => {
     ).toBeVisible();
   });
 
+  test("plays menu sounds, keeps one volume, and goes quiet with Sound effects off", async ({
+    page,
+  }) => {
+    await page.goto("/");
+    const sounds = () =>
+      page.evaluate(
+        () => (window as { __titanUiSounds?: string[] }).__titanUiSounds ?? [],
+      );
+    // The first touch starts sound; one due before it has started is
+    // skipped rather than played late.
+    await page.mouse.click(4, 300);
+    await page.waitForTimeout(500);
+    expect(await sounds()).toEqual([]);
+    await page.getByRole("button", { exact: true, name: "Race" }).click();
+    await expect.poll(sounds).toEqual(["confirm"]);
+    await page.keyboard.press("Escape");
+    await expect.poll(sounds).toEqual(["confirm", "back"]);
+    await page.keyboard.press("ArrowDown");
+    await expect.poll(sounds).toEqual(["confirm", "back", "move"]);
+
+    // One volume for race and menu sound, in tenths, kept on the device
+    // beside the switch.
+    await page.getByRole("button", { name: "Open utility menu" }).click();
+    const volume = page.getByRole("group", { name: "Volume" });
+    await expect(volume.getByRole("status")).toHaveText("100%");
+    await volume.getByRole("button", { name: "Lower volume" }).click();
+    await volume.getByRole("button", { name: "Lower volume" }).click();
+    await expect(volume.getByRole("status")).toHaveText("80%");
+    expect(
+      await page.evaluate(() =>
+        JSON.parse(window.localStorage.getItem("titan-racers.sound.v1") ?? "null"),
+      ),
+    ).toEqual({ effects: true, volume: 0.8 });
+    await expect.poll(async () => (await sounds()).slice(-2)).toEqual([
+      "toggle",
+      "toggle",
+    ]);
+
+    // With Sound effects off, the menus are silent.
+    await page.getByRole("switch", { name: "Sound effects" }).click();
+    const quietFrom = (await sounds()).length;
+    await page.keyboard.press("Escape");
+    await page.getByRole("button", { exact: true, name: "Race" }).click();
+    await expect(
+      page.getByRole("heading", { name: "Choose your kart" }),
+    ).toBeVisible();
+    expect((await sounds()).length).toBe(quietFrom);
+    expect(
+      await page.evaluate(() =>
+        JSON.parse(window.localStorage.getItem("titan-racers.sound.v1") ?? "null"),
+      ),
+    ).toEqual({ effects: false, volume: 0.8 });
+  });
+
   test("offers Sign out while signed in, else Sign in", async ({ page }) => {
     let signedIn = true;
     await page.route("**/api/auth/get-session", (route) =>
@@ -3568,9 +3622,18 @@ test.describe("home screen", () => {
         timeout: 10_000,
       })
       .toBe("racing");
+    const menuSounds = () =>
+      page.evaluate(
+        () => (window as { __titanUiSounds?: string[] }).__titanUiSounds ?? [],
+      );
+    const soundsBeforePause = (await menuSounds()).length;
     await page.keyboard.press("Escape");
     const pauseDialog = page.getByRole("dialog", { name: "Paused" });
     await expect(pauseDialog).toBeVisible();
+    // The pause menu opens with a menu sound.
+    await expect
+      .poll(async () => (await menuSounds()).slice(soundsBeforePause))
+      .toEqual(["confirm"]);
     // Paused, sound goes silent but keeps running, so the resume countdown's
     // first tick is not late.
     await expect.poll(async () => (await audio())?.audible).toBe(false);
@@ -3579,11 +3642,16 @@ test.describe("home screen", () => {
       contextState: "running",
     });
 
-    // Resume's click restarts sound at once, but the frozen kart's motor and
-    // tires stay closed through the resume countdown and open at Go.
+    // Resume's click restarts sound at once, with its menu sound, but the
+    // frozen kart's motor and tires stay closed through the resume countdown
+    // and open at Go.
     await pauseDialog.getByRole("button", { name: "Resume" }).click();
     expect((await audio())?.continuousVoices).toBe(false);
     expect((await getRaceDebugState(canvas)).state).toBe("resuming");
+    expect((await menuSounds()).slice(soundsBeforePause)).toEqual([
+      "confirm",
+      "confirm",
+    ]);
     await expect.poll(async () => (await audio())?.audible).toBe(true);
     await expect
       .poll(async () => (await audio())?.continuousVoices, { timeout: 5_000 })
@@ -3628,6 +3696,9 @@ test.describe("home screen", () => {
     await expect(
       pauseDialog.getByRole("switch", { name: "Sound effects" }),
     ).toHaveAttribute("aria-checked", "false");
+    await expect(
+      pauseDialog.getByRole("group", { name: "Volume" }),
+    ).toBeVisible();
   });
 
   test("keeps sound off after the page hides until a tap brings it back", async ({

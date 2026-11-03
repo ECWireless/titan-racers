@@ -15,7 +15,7 @@ import type { RaceCue } from "./race-audio-mapping";
  */
 
 type Note = readonly [number, number, number, number?];
-type CueSpec = {
+export type CueSpec = {
   level?: number;
   notes: readonly Note[];
   second?: number;
@@ -77,7 +77,16 @@ export function playCueSound(
   cue: RaceCue,
   time: number,
 ) {
-  const spec = CUES[cue];
+  playTones(context, output, CUES[cue], time);
+}
+
+/** Plays a cue's notes in the service network's timbre (6 nodes at most). */
+export function playTones(
+  context: BaseAudioContext,
+  output: AudioNode,
+  spec: CueSpec,
+  time: number,
+) {
   const last = spec.notes[spec.notes.length - 1];
   const release = spec.shape === "bell" ? 0 : 0.04;
   const duration = Math.min(1.9, last[0] + last[1] + release + 0.02);

@@ -22,11 +22,13 @@ import {
 
 /**
  * The browser side of race sound: one shared audio context for the page,
- * started by a user gesture, plus a master bus and limiter per race.
+ * started by a user gesture, with the player's volume, plus a master bus and
+ * limiter per race.
  *
- * The context runs while a race exists, Sound effects is on, and the page is
- * visible and focused; otherwise it is suspended, which stops all audio
- * processing. A paused or covered race keeps it running but silent: waking
+ * The context runs while Sound effects is on and the page is visible and
+ * focused, from the first gesture that wants sound (a menu's, in
+ * `ui-sounds.ts`, or a race's); otherwise it is suspended, which stops all
+ * audio processing. A race's end suspends it until the next menu sound. A paused or covered race keeps it running but silent: waking
  * a suspended context takes up to a few hundred ms (longest on iPhone),
  * which would make the first countdown tick late.
  */
@@ -50,6 +52,12 @@ const MIX_DB = {
 };
 
 let sharedContext: AudioContext | null = null;
+// Everything the page plays, race and menus, passes through one volume.
+let volumeNode: GainNode | null = null;
+// Race audio in existence, and a race between its start click and its audio
+// existing: the context then stays running for it.
+let liveRaceAudios = 0;
+let raceStarting = false;
 // Whether the page has focus, tracked for the page's lifetime from the click
 // that first unlocks audio, so race audio created later (after the scene's
 // first frame) starts from it. `hasFocus()` can read false in a page that
@@ -190,7 +198,15 @@ function getSharedContext() {
     return null;
   }
   installPageListeners();
+  volumeNode = sharedContext.createGain();
+  volumeNode.gain.value = volumeGain(readVolume());
+  volumeNode.connect(sharedContext.destination);
   return sharedContext;
+}
+
+/** The player's level, 0–1, as a gain whose steps sound evenly spaced. */
+function volumeGain(level: number) {
+  return level * level;
 }
 
 // Suspend and resume settle asynchronously, so `state` can lag a request.
@@ -202,31 +218,84 @@ function runContext(context: AudioContext, running: boolean) {
   void (running ? context.resume() : context.suspend()).catch(() => undefined);
 }
 
-/** The player's Sound effects switch, kept on this device. On by default. */
-export function readSoundOn() {
+type SoundSettings = { effects: boolean; volume: number };
+
+/** The player's sound settings, kept on this device. */
+function readSoundSettings(): SoundSettings {
+  const settings: SoundSettings = { effects: true, volume: 1 };
   try {
     const stored: unknown = JSON.parse(
       window.localStorage.getItem(SOUND_STORAGE_KEY) ?? "null",
     );
     if (stored && typeof stored === "object") {
-      const { effects } = stored as { effects?: unknown };
-      if (typeof effects === "boolean") return effects;
+      const { effects, volume } = stored as {
+        effects?: unknown;
+        volume?: unknown;
+      };
+      if (typeof effects === "boolean") settings.effects = effects;
+      if (typeof volume === "number" && Number.isFinite(volume)) {
+        settings.volume = Math.min(1, Math.max(0, volume));
+      }
     }
   } catch {
-    // Unreadable storage or a malformed value: fall back to on.
+    // Unreadable storage or a malformed value: fall back to the defaults.
   }
-  return true;
+  return settings;
 }
 
-export function writeSoundOn(on: boolean) {
+function writeSoundSettings(change: Partial<SoundSettings>) {
   try {
     window.localStorage.setItem(
       SOUND_STORAGE_KEY,
-      JSON.stringify({ effects: on }),
+      JSON.stringify({ ...readSoundSettings(), ...change }),
     );
   } catch {
     // Storage can be unavailable (private mode); the choice lasts this page.
   }
+}
+
+/** The player's Sound effects switch. On by default. */
+export function readSoundOn() {
+  return readSoundSettings().effects;
+}
+
+export function writeSoundOn(on: boolean) {
+  writeSoundSettings({ effects: on });
+  // Off quiets the menus at once; a race applies the switch itself.
+  if (!on && sharedContext && liveRaceAudios === 0 && !raceStarting) {
+    runContext(sharedContext, false);
+  }
+}
+
+/** The player's volume for race and menu sound, 0–1. Full by default. */
+export function readVolume() {
+  return readSoundSettings().volume;
+}
+
+export function writeVolume(level: number) {
+  const volume = Math.min(1, Math.max(0, level));
+  writeSoundSettings({ volume });
+  if (sharedContext && volumeNode) {
+    volumeNode.gain.setTargetAtTime(
+      volumeGain(volume),
+      sharedContext.currentTime,
+      0.01,
+    );
+  }
+}
+
+/**
+ * Runs the context for menu sounds, and returns where one plays now: null
+ * with Sound effects off, no audio, or the context still starting, when a
+ * sound would come out late.
+ */
+export function uiSoundOutput() {
+  if (!readSoundOn()) return null;
+  const context = getSharedContext();
+  if (!context || !volumeNode) return null;
+  const running = context.state === "running";
+  runContext(context, true);
+  return running ? { context, output: volumeNode } : null;
 }
 
 /**
@@ -236,6 +305,8 @@ export function writeSoundOn(on: boolean) {
 export function unlockRaceAudio(soundOn = readSoundOn()) {
   // Called from a gesture, which proves the page has focus.
   pageFocused = true;
+  // A race whose audio already exists (resuming from pause) is not starting.
+  if (liveRaceAudios === 0) raceStarting = true;
   if (!soundOn) return;
   const context = getSharedContext();
   if (context) runContext(context, true);
@@ -252,6 +323,7 @@ export function raceAudioAwaitsGesture() {
 
 /** For a race that ends before its audio exists, such as a failed load. */
 export function suspendRaceAudio() {
+  raceStarting = false;
   if (sharedContext) runContext(sharedContext, false);
 }
 
@@ -322,7 +394,9 @@ const fromDb = (decibels: number) => 10 ** (decibels / 20);
 
 export function createRaceAudio(soundOn: boolean): RaceAudio | null {
   const context = getSharedContext();
-  if (!context) return null;
+  if (!context || !volumeNode) return null;
+  liveRaceAudios += 1;
+  raceStarting = false;
 
   const master = context.createGain();
   // Silent until the race is on screen and unpaused.
@@ -333,7 +407,7 @@ export function createRaceAudio(soundOn: boolean): RaceAudio | null {
   limiter.ratio.value = 20;
   limiter.attack.value = 0.001;
   limiter.release.value = 0.12;
-  master.connect(limiter).connect(context.destination);
+  master.connect(limiter).connect(volumeNode);
 
   // The always-on voices pass through one gate, closed while the world
   // stands still (paused, or counting down to resume). The race skips its
@@ -632,6 +706,7 @@ export function createRaceAudio(soundOn: boolean): RaceAudio | null {
     dispose() {
       if (disposed) return;
       disposed = true;
+      liveRaceAudios -= 1;
       window.removeEventListener("blur", onBlur);
       window.removeEventListener("focus", onFocus);
       document.removeEventListener("visibilitychange", apply);

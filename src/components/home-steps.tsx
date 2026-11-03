@@ -69,6 +69,7 @@ export function HomeStepFrame({
     >
       <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
         <button
+          data-ui-sound="back"
           className="flex min-h-11 items-center gap-2 border border-titan-ice/24 bg-titan-black/60 px-4 text-titan-ice/80 transition hover:border-titan-hazard hover:text-titan-hazard focus-visible:border-titan-hazard focus-visible:text-titan-hazard focus-visible:outline-none"
           type="button"
           onClick={onBack}

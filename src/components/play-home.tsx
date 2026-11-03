@@ -78,7 +78,7 @@ import {
   SoundIcon,
 } from "./menu-icons";
 import { SoloTimeTrialCanvas } from "./solo-time-trial-canvas";
-import { StoredSoundToggle } from "./setting-switch";
+import { StoredSoundToggle, VolumeControl } from "./setting-switch";
 
 const UTILITY_MENU_ITEM =
   "flex items-center gap-3 border border-transparent px-4 py-3 font-mono text-xs font-bold uppercase tracking-[0.14em] text-titan-ice/78 transition hover:border-titan-ice/20 hover:bg-titan-ice/[0.06] hover:text-titan-hazard focus-visible:border-titan-hazard focus-visible:bg-titan-hazard/[0.08] focus-visible:text-titan-hazard focus-visible:outline-none";
@@ -965,6 +965,7 @@ export function PlayHome() {
           <button
             className="titan-button titan-button-primary min-h-16 text-base"
             data-controller-default="true"
+            data-ui-sound="start"
             disabled={soloPending || !selectedKart}
             type="button"
             onClick={() => void startSoloTimeTrial()}
@@ -1057,7 +1058,10 @@ export function PlayHome() {
                 ) : null}
               </nav>
               <div className="border-t border-titan-ice/15 px-2 pb-2 pt-3">
-                <StoredSoundToggle icon={<SoundIcon />} />
+                <div className="grid gap-2">
+                  <StoredSoundToggle icon={<SoundIcon />} />
+                  <VolumeControl />
+                </div>
               </div>
             </div>
           ) : null}

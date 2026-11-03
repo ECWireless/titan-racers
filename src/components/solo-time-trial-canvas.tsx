@@ -23,7 +23,11 @@ import {
   type RunStanding,
   RunStandingSummary,
 } from "@/components/run-standing";
-import { GhostToggle, SoundToggle } from "@/components/setting-switch";
+import {
+  GhostToggle,
+  SoundToggle,
+  VolumeControl,
+} from "@/components/setting-switch";
 import { ghostLinkUrl, shareLink, shareNoteFor } from "@/lib/share-link";
 import type {
   CourseTestObstacleId,
@@ -115,6 +119,7 @@ import {
 import { PlayerInputManager } from "@/game/input/player-input-manager";
 import { isEditableKeyboardTarget } from "@/game/input/keyboard-input";
 import { useControllerMenuNavigation } from "@/game/input/use-controller-menu-navigation";
+import { playUiSound } from "@/game/audio/ui-sounds";
 import {
   normalizeTouchJoystick,
   type TouchPedalAction,
@@ -769,7 +774,10 @@ export function SoloTimeTrialCanvas({
     containerRef: pauseMenuRef,
     enabled: gamePaused && sceneStatus === "ready",
     onBack: resumeRace,
-    onMenu: resumeRace,
+    onMenu: () => {
+      playUiSound("back");
+      resumeRace();
+    },
   });
   useControllerMenuNavigation({
     containerRef: finishMenuRef,
@@ -840,6 +848,7 @@ export function SoloTimeTrialCanvas({
 
       event.preventDefault();
       unlockRaceAudio(soundOnRef.current);
+      playUiSound("back");
       sceneApiRef.current?.setPaused(false);
       setGamePaused(false);
       setDriveCursorHidden(true);
@@ -2506,6 +2515,7 @@ export function SoloTimeTrialCanvas({
           setScenePaused(true);
           clearTouchPresentation();
           setKartDynamicsOpen(false);
+          playUiSound("confirm");
           setGamePaused(true);
           setDriveCursorHidden(false);
           return;
@@ -3369,6 +3379,8 @@ export function SoloTimeTrialCanvas({
           if (paused) {
             runtime.requestPauseAtFixedStepBoundary();
             setKartDynamicsOpen(false);
+            // The player's own pause (Escape, P, Start) opens with a sound.
+            playUiSound("confirm");
             setGamePaused(true);
             setDriveCursorHidden(false);
           }
@@ -4415,6 +4427,7 @@ export function SoloTimeTrialCanvas({
                     Resume
                   </button>
                   <SoundToggle on={soundOn} onChange={setSoundOn} />
+                  <VolumeControl />
                   {ghosts ? (
                     <GhostToggle
                       on={ghostOn}
@@ -4483,6 +4496,7 @@ export function SoloTimeTrialCanvas({
                     type="button"
                     className="titan-button titan-button-primary"
                     data-controller-default="true"
+                    data-ui-sound="start"
                     ref={restartButtonRef}
                     onClick={restartRace}
                   >
@@ -4539,6 +4553,8 @@ export function SoloTimeTrialCanvas({
               {!kartDynamicsOpen ? (
                 <div
                   aria-label="Touch driving controls"
+                  // Driving, not menus: no menu sounds.
+                  data-ui-sound="off"
                   className="race-touch-controls absolute inset-x-0 bottom-0 z-20 justify-between px-[max(1rem,env(safe-area-inset-left))] pb-[max(1rem,env(safe-area-inset-bottom))] pr-[max(1rem,env(safe-area-inset-right))]"
                   role="group"
                 >
