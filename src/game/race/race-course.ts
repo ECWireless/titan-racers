@@ -47,6 +47,9 @@ function startGate(document: CourseDocument): DirectedRaceGate {
   };
 }
 
+/** Every course is raced over this many laps. */
+export const RACE_LAP_COUNT = 2;
+
 export function createRaceSessionConfig(
   document: CourseDocument,
 ): RaceSessionConfig {
@@ -66,7 +69,7 @@ export function createRaceSessionConfig(
       },
     })),
     countdownSeconds: 3,
-    lapCount: 2,
+    lapCount: RACE_LAP_COUNT,
     recoverySeconds: 0.5,
     startGate: startGate(document),
     startRecovery: getCourseStartTransform(document),

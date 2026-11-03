@@ -15,10 +15,12 @@ accepted; the app, README, and durable docs take over from there.
 
 ## Status
 
-- **Done:** Phases 0–4 (PRs #1–#24, the Phase 3 closeout and its
-  follow-ups, and #30–#57 with the PR 4.5.2 closeout).
-- **Next:** PR 5.5, the last of Phase 5. PRs 5.1 (#59), 5.2 (#60), 5.3
-  (#61), and 5.4 are done (see Phase 5's decisions).
+- **Done:** Phases 0–5 (PRs #1–#24, the Phase 3 closeout and its
+  follow-ups, #30–#57 with the PR 4.5.2 closeout, and #59–#62 with the PR
+  5.5 closeout).
+- **Next:** Phase 6, after its debrief. First, reseed production's Falls View
+  Park (`db:reset-course-seed`, then an admin publishes the draft) so PR
+  5.5's levee kicker reaches players; its revision starts a new board.
 
 ## Guiding Decisions
 
@@ -58,7 +60,7 @@ These still constrain every remaining phase.
 - **Game runtime:** PlayCanvas with Ammo physics, chosen in the Phase 1 spike.
 - **Data:** Postgres locally and Neon when hosted, with Drizzle migrations.
 - **Auth:** Better Auth with Postgres-backed sessions. Players and admins log
-  in with Google; SIWE wallet login and account linking arrive in Phase 5,
+  in with Google; SIWE wallet login and account linking arrived in Phase 5,
   with Better Auth's SIWE plugin and signatures checked offline by `viem`. The
   first admin is bootstrapped by a database script
   (`docs/database-operations.md`).
@@ -155,6 +157,7 @@ Details live in git history, `docs/kart-system/`, and `skills/project-systems/`.
 | 2. Driving prototype | Gameplay architecture and agent Skills Tree; dynamic kart physics, collisions, and chase camera; course documents, Postgres, auth, and roles; protected course editor with private drafts and publishing; unified keyboard, touch, and controller input; race lifecycle with checkpoints, laps, and recovery; telemetry dashboard and runtime resilience; handling and mobile polish, manual righting, and editor multi-select. | #3–#18 |
 | 3. Kart dynamics and admin kart builder | Handling model cut from 62 tuning values to 16 with clear owners; versioned kart documents, approved part registry, deterministic derivation, immutable revisions, and publication; admin kart builder; editor controller input; three official karts in public selection with thumbnails and racer usernames; integration review and its two fixes. | #19, #21–#24, closeout |
 | 4. Visual baseline, Island Three, and Falls View Park | One shared kart visual builder, a lighting baseline and phone budget, and presentation-only part visuals; sandbox surfaces with grass physics, substepped high-speed collisions, and tire marks and clippings; the Island Three enclosure with true-scale rotating-habitat physics, a loading screen, valleys, and dusk; the Falls View Park Circuit, built section by section and published; generated race audio, kart sound, race cues, and lean ambience, with CC0 recordings where synthesis did not read; the kart editor's suspension swap; integration review. | #30–#57, closeout |
+| 5. Solo, ghosts, results, leaderboard | Races record their course and kart revisions; one see-through ghost recorded at 20 Hz, from your device, the course best, your account best, or a friend's link; Google plus SIWE wallet login and account linking; signed run tickets and server-verified runs, a best and its ghost per racer per board, and a leaderboard with podium medals; a guest's run kept until they sign in, link copying, and ghost links by username; a Phase 5 dashboard panel; a step-by-step home with keyboard, touch, and controller navigation, course pictures, menu sounds and one Volume, the levee kicker, and link preview cards; integration review. | #59–#62, PR 5.5 |
 
 Decisions from completed phases that later phases rely on:
 
@@ -168,7 +171,7 @@ Decisions from completed phases that later phases rely on:
 - **One visual identity and one phone budget.** `docs/visual-identity.md`
   owns the art direction and the budget (CPU median ≤ 5 ms on the lead's
   iPhone, measured with `?perf=1` on a production build); every later phase
-  holds it. With sound on, the closed Phase 4 measured 3.0 / 4.0 ms.
+  holds it. With sound on, the closed Phases 4 and 5 measured 3.0 / 4.0 ms.
 - **Karts are 1:10 RC scale.** Part visuals are presentation only and never
   change derivation, revisions, or hashes.
 - **Assets are code-built geometry, CC0 textures and sounds, and
@@ -183,6 +186,34 @@ Decisions from completed phases that later phases rely on:
   are the motor, tire roll, and scrub (16 nodes each) and a body scrape (5),
   with one-shots of at most 8 nodes; Phase 6's remote karts can run a
   cheaper motor and tire-roll voice.
+- **Solo results are verified, not cheat-proof.** A board is one published
+  course revision and physics version, with one best (and its ghost) per
+  racer; a new course revision starts a new board (until PR 6.0 lets a
+  publication keep it). The server times a run
+  from its own check of the recording against a signed, single-use ticket;
+  the client never sends a time, rank, or medal. Only a logged-in racer with
+  a username, in an official kart, on a published revision under the current
+  physics, is eligible; community karts stay casual and multiplayer results
+  stay room-only. Medals are the board's current top three, display-only and
+  never stored. Runs through the storm drain stay eligible because gates
+  count only in order and its chute is the only way back in; re-check if a
+  course change opens another way back in.
+- **Ghosts are 20 Hz recordings, one on track at a time,** never telemetry
+  and never re-simulated; only a racer's best per board keeps one on the
+  server. Ghost links name a public username, never an ID, and race that
+  racer's best on the current board. Replay is Race again with a ghost;
+  there is no watch mode.
+- **Login is Google plus SIWE browser wallets** (EIP-6963, messages naming
+  Base, chain 8453). Racers link methods explicitly; email never links
+  accounts, accounts never merge, and the last method cannot be unlinked.
+  WalletConnect, smart-contract wallets, ENS, embedded wallets, balances, and
+  on-chain actions need a separately accepted scope.
+- **Guests race freely without progression;** a guest's qualifying run waits
+  on the device and joins the board as theirs if they sign in and have a
+  username within 30 minutes of its start.
+- **Home is a step-by-step flow** (first screen, kart, course, mode and
+  ghost), one history entry a step, with no Quick race, and menus sound on
+  every action except in the admin tools.
 - **Component engineering is a separate later phase.** Kart assembly uses
   sealed, freely available parts with no progression tiers. If component
   engineering is planned, progression unlocks engineered *parts*, an engineered
@@ -191,119 +222,21 @@ Decisions from completed phases that later phases rely on:
 
 ## Remaining Phases
 
-### Phase 5: Solo, Ghosts, Results, Leaderboard
-
-**Goal:** make solo play replayable.
-
-Phase decisions:
-
-- **One ghost on track at a time.** A solo trial races the course best (the
-  board's first place) by default, or your own best when the board is empty
-  or you choose it; a friend's shared ghost is the other option. There is no
-  separate developer ghost.
-- **Ghosts are recordings, not re-simulations.** A ghost records the kart's
-  pose 20 times per race second, plus exact samples at gate crossings and
-  resets, in a small versioned binary format. It is not telemetry: on the
-  server, only a logged-in player's best run on a board keeps one, replaced
-  when they improve. Guests' ghosts stay on their device.
-- **Runs are verified, not cheat-proof.** A logged-in player's qualifying run
-  submits on finish. The server checks a signed run ticket (used once, with
-  real elapsed time at least the race time), re-runs the gate check on the
-  recording against that course revision, caps speed, allows jumps only to
-  reset points, and takes the time from its own check. The client never sends
-  a time, medal, or rank. A forged recording that obeys the checks can still
-  pass.
-- **Eligibility:** a logged-in player with a username, an official kart, and
-  a published course revision under the current physics. Community karts stay
-  casual and multiplayer results stay room-only. Runs that leave through the
-  storm drain stay eligible: gates count only in order and the drain's chute
-  is its only way back in, so the trip is always a detour. Re-check this if a
-  course change opens another way back in.
-- **Boards and medals:** one board per published course revision and physics
-  version, with one row per player and the top 50 shown. Gold, silver, and
-  bronze are the board's current first, second, and third places; they are
-  display-only, unlock nothing, and are not stored.
-- **Login:** Google, plus SIWE login with browser wallets (EIP-6963) that sign
-  with their own key; sign-in messages name Base (chain 8453). A new wallet
-  creates a racer with a generated ID, and a racer may link several wallets.
-  Signed-in racers link a wallet or Google explicitly; email never links
-  accounts, accounts never merge, and the last login method cannot be
-  unlinked. WalletConnect, smart-contract wallets, ENS, embedded wallets,
-  balances, and on-chain actions need a separately accepted scope.
-- **Guests race freely without progression.** A guest's qualifying run is
-  kept on their device and goes to the board as theirs once they sign in and
-  have a username, within 30 minutes of its start.
-- **Ghost links** name a racer by their public username, never an ID, and
-  race their best on the course's current board whenever opened; anyone can
-  race one without logging in, and any racer on the board can be raced from
-  its row.
-- **Replay** is Race again with a ghost; there is no watch mode.
-
-**PR 5.1: Race identity and ghosts**
-
-- [x] Races and telemetry record the course and kart IDs and their
-      publication revisions instead of hard-coding the official course.
-- [x] Run summaries record whether a race came from Race again and which
-      ghost it raced (none or your own; later PRs add their choices).
-- [x] The ghost recording format and recorder.
-- [x] One see-through ghost with no collision, sound, or shadow: your best on
-      this device, behind a ghost switch.
-- [x] The result screen shows the kart used.
-- [x] Ghost playback stays within the phone budget (`?perf=1`).
-
-**PR 5.2: Wallet login and account linking**
-
-- [x] Wallet sign-in through Better Auth's SIWE plugin, and our own route to
-      link a wallet to the signed-in racer (the plugin's sign-in ignores the
-      session).
-- [x] Link Google to a wallet-first racer; unlink while another method
-      remains.
-- [x] The profile lists login methods; anonymization removes wallets.
-
-**PR 5.3: Verified runs, leaderboard, and medals**
-
-- [x] Signed run tickets, submission on finish, and the server checks.
-- [x] Results and each player's best ghost per board in Postgres.
-- [x] A leaderboard page; logged-in players race their account best, and
-      anyone can race the course best.
-- [x] Gold, silver, and bronze for the board's top three.
-- [x] The result screen shows rank, personal best, and medal.
-
-**PR 5.4: Results flow and sharing**
-
-- [x] A login prompt on a guest's qualifying result, and claiming the run after
-      Google or wallet login, including onboarding.
-- [x] Sharing through the share sheet, else copying. A logged-in player's best
-      race shares a ghost link that follows their current best.
-- [x] Anyone can race a shared ghost from its link without logging in.
-- [x] Run summaries record whether the result was shared. A Phase 5 panel on
-      the admin dashboard shows replays, ghost use, sign-ups by login method,
-      submissions, claims after a race, shares, and races from shared links.
-      Sign-ups, submissions, and claims come from the rows those features
-      already store, not new telemetry.
-
-**PR 5.5: Home-to-race flow and polish**
-
-- [ ] Replace the one-page home with a step-by-step flow: Quick race or the
-      leaderboards first, then the kart, then the course, then the mode and
-      whether to race a ghost, with keyboard, touch, and controller
-      navigation throughout. Whether the `rough-course` sandbox joins the
-      course choice is settled at the debrief (see the sandbox decision
-      under Completed Phases).
-- [ ] Course thumbnails for the course choice.
-- [ ] Sound effects on UI buttons across the app, and a volume control.
-- [ ] A kicker on the first quarter of Falls View Park's levee.
-- [ ] A better social card for shared links.
-- [ ] Phase 5 closeout and integration review.
-
-**Done when:** a board's standings and medals come only from verified runs and
-cannot be forged by client state; a guest finishes, logs in, and finds the
-claimed run on the board; and a friend's ghost link races their best.
-
 ### Phase 6: Private Multiplayer
 
 **Goal:** make the demo social, with kart-to-kart contact handled by one
 authoritative system.
+
+**PR 6.0: Leaderboards across course publications**
+
+- [ ] Publishing a course revision keeps its current leaderboard unless the
+      admin chooses "Start a new leaderboard" (off by default), for changes
+      that affect times; a physics change still always starts one. Boards
+      are numbered per course instead of tied to a revision, and each run is
+      still verified against the gates of the revision it raced.
+- [ ] After a new leaderboard starts, `/leaderboard` keeps the previous one
+      as a read-only "Previous version" view, so earlier times are honoured
+      rather than hidden.
 
 **PR 6.1: Private rooms and race lifecycle**
 

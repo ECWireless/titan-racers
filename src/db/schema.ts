@@ -448,7 +448,7 @@ export const gameplayRuns = pgTable(
     kartRevision: integer("kart_revision"),
     raceAgain: boolean("race_again"),
     ghost: text("ghost"),
-    // The finished result was shared (share sheet or copy).
+    // The finished result was shared (its link copied).
     shared: boolean("shared").default(false).notNull(),
     deploymentVersion: text("deployment_version").notNull(),
     physicsVersion: text("physics_version"),

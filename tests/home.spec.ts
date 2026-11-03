@@ -1,5 +1,7 @@
 import { expect, type Locator, type Page, test } from "@playwright/test";
 
+import { chooseKartAndCourse, startSoloRace } from "./helpers/home-flow";
+
 import {
   FALLS_VIEW_PARK_DOCUMENT,
   getCourseStartTransform,
@@ -779,13 +781,13 @@ test.describe("home screen", () => {
     ]);
   });
 
-  test("shows player-first mode selection with coming soon feedback", async ({
+  test("steps from the first screen through kart, course, and mode, and back", async ({
     page,
   }) => {
     await page.goto("/");
 
     await expect(page.getByAltText("Titan Racers")).toBeVisible();
-    await expect(page.getByText("Choose game mode")).toBeVisible();
+    await expect(page.getByRole("button", { exact: true, name: "Race" })).toBeVisible();
     const utilityMenu = page.getByRole("button", {
       name: "Open utility menu",
     });
@@ -803,7 +805,7 @@ test.describe("home screen", () => {
     ).toBeVisible();
     await expect(page.getByRole("link", { name: "Kart Builder" })).toBeVisible();
     await expect(page.getByRole("link", { name: "Profile" })).toBeVisible();
-    await expect(page.getByRole("link", { exact: true, name: "Leaderboard" })).toBeVisible();
+    await expect(page.locator("#home-utility-menu").getByRole("link", { exact: true, name: "Leaderboard" })).toBeVisible();
     await expect(page.getByRole("link", { name: "Telemetry" })).toHaveCount(0);
     expect(
       await page.evaluate(() => document.documentElement.scrollWidth),
@@ -815,17 +817,165 @@ test.describe("home screen", () => {
     ).toHaveCount(0);
 
     await expect(
-      page.getByRole("link", { name: "View leaderboard" }),
+      page.getByRole("main").getByRole("link", { name: "Leaderboard" }),
     ).toHaveAttribute("href", "/leaderboard");
 
-    const raceFriends = page.getByRole("button", { name: "Race Friends" });
-    const soloTimeTrial = page.getByRole("button", { name: "Solo Time Trial" });
+    // Race leads through the kart and the course to the mode.
+    await page.getByRole("button", { exact: true, name: "Race" }).click();
+    const kartTitle = page.getByRole("heading", { name: "Choose your kart" });
+    await expect(kartTitle).toBeVisible();
+    await chooseKartAndCourse(page);
+    await expect(
+      page.getByRole("heading", { name: "Choose your race" }),
+    ).toBeVisible();
+    await expect(page.getByRole("button", { name: "Start race" })).toBeFocused();
+    await expect(
+      page.getByRole("list", { name: "Race setup" }),
+    ).toContainText("Balanced Kart");
 
-    await expect(raceFriends).toBeVisible();
-    await expect(soloTimeTrial).toBeVisible();
+    const raceFriends = page.getByRole("button", { name: /Race Friends/ });
+    await expect(raceFriends).toHaveAttribute("aria-disabled", "true");
+    // Not available yet, but still focusable and says so.
+    await raceFriends.click({ force: true });
+    await expect(page.getByRole("status").filter({ hasText: "coming soon" })).toBeVisible();
 
-    await raceFriends.click();
-    await expect(page.getByRole("status")).toHaveText("coming soon");
+    // Back, the browser's back, and Escape each go back a step.
+    await page.getByRole("button", { name: "Back" }).click();
+    await expect(
+      page.getByRole("heading", { name: "Choose your course" }),
+    ).toBeVisible();
+    await page.goBack();
+    await expect(kartTitle).toBeVisible();
+    await page.keyboard.press("Escape");
+    await expect(
+      page.getByRole("button", { exact: true, name: "Race" }),
+    ).toBeFocused();
+    await expect(page).toHaveURL(/\/$/);
+
+    // Escape closing the menu on a later step leaves the step as it is.
+    await page.getByRole("button", { exact: true, name: "Race" }).click();
+    await expect(kartTitle).toBeVisible();
+    await utilityMenu.click();
+    await page.keyboard.press("Escape");
+    await expect(utilityMenu).toBeFocused();
+    await expect(kartTitle).toBeVisible();
+
+    // Back from the leaderboard reopens the step, with its kart, and back
+    // still walks the steps before it.
+    await page
+      .getByRole("group", { name: "Official kart selection" })
+      .getByRole("button", { name: /Balanced Kart/ })
+      .click();
+    const courseTitle = page.getByRole("heading", {
+      name: "Choose your course",
+    });
+    await expect(courseTitle).toBeVisible();
+    await utilityMenu.click();
+    await page
+      .locator("#home-utility-menu")
+      .getByRole("link", { exact: true, name: "Leaderboard" })
+      .click();
+    await expect(page).toHaveURL(/\/leaderboard$/);
+    await page.goBack();
+    await expect(courseTitle).toBeVisible();
+    await expect(
+      page.getByRole("list", { name: "Race setup" }),
+    ).toContainText("Balanced Kart");
+    await page.goBack();
+    await expect(kartTitle).toBeVisible();
+    await page.goBack();
+    await expect(
+      page.getByRole("button", { exact: true, name: "Race" }),
+    ).toBeVisible();
+
+    // A leaderboard row's Race opens on the kart, a step past the first.
+    await page.goto("/?ghost=quick_racer&from=leaderboard");
+    await expect(kartTitle).toBeVisible();
+    await page.goBack();
+    await expect(
+      page.getByRole("button", { exact: true, name: "Race" }),
+    ).toBeVisible();
+
+    // While the karts load, Escape still goes back.
+    await page.route("**/api/karts/official", async (route) => {
+      await new Promise((resolve) => setTimeout(resolve, 4_000));
+      await route.fallback();
+    });
+    await page.goto("/");
+    await page.getByRole("button", { exact: true, name: "Race" }).click();
+    await expect(kartTitle).toBeVisible();
+    await expect(
+      page.getByRole("group", { name: "Official kart selection" }),
+    ).toHaveCount(0);
+    await page.keyboard.press("Escape");
+    await expect(
+      page.getByRole("button", { exact: true, name: "Race" }),
+    ).toBeVisible();
+    await page.unrouteAll({ behavior: "ignoreErrors" });
+  });
+
+  test("plays menu sounds, keeps one volume, and goes quiet with Sound effects off", async ({
+    page,
+  }) => {
+    await page.goto("/");
+    const sounds = () =>
+      page.evaluate(
+        () => (window as { __titanUiSounds?: string[] }).__titanUiSounds ?? [],
+      );
+    // A first click on no control starts sound and makes none. Moves are
+    // skipped until the audio runs, then sound; once one does, start over.
+    await page.mouse.click(4, 300);
+    expect(await sounds()).toEqual([]);
+    let down = true;
+    await expect
+      .poll(async () => {
+        await page.keyboard.press(down ? "ArrowDown" : "ArrowUp");
+        down = !down;
+        return (await sounds()).length;
+      })
+      .toBeGreaterThan(0);
+    await page.evaluate(() => {
+      (window as { __titanUiSounds?: string[] }).__titanUiSounds = [];
+    });
+    await page.getByRole("button", { exact: true, name: "Race" }).click();
+    await expect.poll(sounds).toEqual(["confirm"]);
+    await page.keyboard.press("Escape");
+    await expect.poll(sounds).toEqual(["confirm", "back"]);
+    await page.keyboard.press("ArrowDown");
+    await expect.poll(sounds).toEqual(["confirm", "back", "move"]);
+
+    // One volume for race and menu sound, in tenths, kept on the device
+    // beside the switch.
+    await page.getByRole("button", { name: "Open utility menu" }).click();
+    const volume = page.getByRole("group", { name: "Volume" });
+    await expect(volume.getByRole("status")).toHaveText("100%");
+    await volume.getByRole("button", { name: "Lower volume" }).click();
+    await volume.getByRole("button", { name: "Lower volume" }).click();
+    await expect(volume.getByRole("status")).toHaveText("80%");
+    expect(
+      await page.evaluate(() =>
+        JSON.parse(window.localStorage.getItem("titan-racers.sound.v1") ?? "null"),
+      ),
+    ).toEqual({ effects: true, volume: 0.8 });
+    await expect.poll(async () => (await sounds()).slice(-2)).toEqual([
+      "toggle",
+      "toggle",
+    ]);
+
+    // With Sound effects off, the menus are silent.
+    await page.getByRole("switch", { name: "Sound effects" }).click();
+    const quietFrom = (await sounds()).length;
+    await page.keyboard.press("Escape");
+    await page.getByRole("button", { exact: true, name: "Race" }).click();
+    await expect(
+      page.getByRole("heading", { name: "Choose your kart" }),
+    ).toBeVisible();
+    expect((await sounds()).length).toBe(quietFrom);
+    expect(
+      await page.evaluate(() =>
+        JSON.parse(window.localStorage.getItem("titan-racers.sound.v1") ?? "null"),
+      ),
+    ).toEqual({ effects: false, volume: 0.8 });
   });
 
   test("offers Sign out while signed in, else Sign in", async ({ page }) => {
@@ -860,6 +1010,7 @@ test.describe("home screen", () => {
     await usePublishedBalancedAndSpeedKarts(page);
 
     await page.goto("/");
+    await page.getByRole("button", { exact: true, name: "Race" }).click();
     const selection = page.getByRole("group", {
       name: "Official kart selection",
     });
@@ -881,12 +1032,16 @@ test.describe("home screen", () => {
     ).toBeVisible();
     await expect(balanced).toHaveAttribute("aria-pressed", "true");
     await speed.click();
+    await page.getByRole("button", { name: "Back" }).click();
     await expect(speed).toHaveAttribute("aria-pressed", "true");
+    await expect(speed).toBeFocused();
 
-    await page.getByRole("button", { name: "Solo Time Trial" }).click();
+    await chooseKartAndCourse(page);
+    await page.getByRole("button", { name: "Start race" }).click();
     await expect(page.getByTestId("solo-time-trial-canvas")).toHaveAttribute(
       "data-kart-document-name",
       "Speed Kart",
+      { timeout: 30_000 },
     );
   });
 
@@ -901,38 +1056,49 @@ test.describe("home screen", () => {
     await installStandardGamepadFixture(page);
     await usePublishedBalancedAndSpeedKarts(page);
     await page.goto("/");
+    await expect(
+      page.locator('[data-controller-menu-ready="true"]'),
+    ).toHaveCount(1);
+    const press = async (button: number) => {
+      await setStandardTestGamepad(page);
+      await page.waitForTimeout(50);
+      await setStandardTestGamepad(page, { buttons: { [button]: 1 } });
+      await page.waitForTimeout(50);
+      // Released at once, so a slow frame cannot hold it into a repeat.
+      await setStandardTestGamepad(page);
+    };
 
-    const selection = page.getByRole("group", {
-      name: "Official kart selection",
-    });
-    const speed = selection
+    // Confirm takes Race, which is focused first.
+    await press(0);
+    const speed = page
+      .getByRole("group", { name: "Official kart selection" })
       .getByRole("button")
       .filter({ hasText: "Speed Kart" });
     await expect(speed).toBeVisible();
-
-    await setStandardTestGamepad(page);
-    await page.waitForTimeout(50);
-    await focusWithStandardTestGamepadButton(speed, 14);
+    await press(15);
     await expect(speed).toBeFocused();
-    await setStandardTestGamepad(page);
-    await page.waitForTimeout(50);
-    await setStandardTestGamepad(page, { buttons: { 0: 1 } });
-    await expect(speed).toHaveAttribute("aria-pressed", "true");
+    await press(0);
+    // The course's one card is focused; confirm takes it, then Start race.
+    await expect(
+      page.getByRole("group", { name: "Course selection" }).getByRole("button"),
+    ).toBeFocused();
+    await press(0);
+    await expect(page.getByRole("button", { name: "Start race" })).toBeFocused();
+    // Back returns a step, and confirm comes forward again.
+    await press(1);
+    await expect(
+      page.getByRole("heading", { name: "Choose your course" }),
+    ).toBeVisible();
+    await press(0);
+    await expect(page.getByRole("button", { name: "Start race" })).toBeFocused();
+    await press(0);
 
-    await setStandardTestGamepad(page);
-    await page.waitForTimeout(50);
-    const soloTimeTrial = page.getByRole("button", {
-      name: "Solo Time Trial",
-    });
-    await focusWithStandardTestGamepadButton(soloTimeTrial, 15);
-    await expect(soloTimeTrial).toBeFocused();
-    await setStandardTestGamepad(page);
-    await page.waitForTimeout(50);
-    await setStandardTestGamepad(page, { buttons: { 0: 1 } });
-
+    // A first race's setup can hold the page for seconds under software
+    // WebGL.
     await expect(page.getByTestId("solo-time-trial-canvas")).toHaveAttribute(
       "data-kart-document-name",
       "Speed Kart",
+      { timeout: 30_000 },
     );
   });
 
@@ -948,12 +1114,10 @@ test.describe("home screen", () => {
     });
 
     await page.goto("/");
+    await page.getByRole("button", { exact: true, name: "Race" }).click();
     await expect(
       page.getByText("No official karts are currently published."),
     ).toBeVisible();
-    await expect(
-      page.getByRole("button", { name: "Solo Time Trial" }),
-    ).toBeDisabled();
     await expect(
       page.getByRole("group", { name: "Official kart selection" }),
     ).toHaveCount(0);
@@ -967,8 +1131,7 @@ test.describe("home screen", () => {
     page.on("pageerror", (error) => browserErrors.push(error.message));
     await page.goto("/");
 
-    const soloTimeTrial = page.getByRole("button", { name: "Solo Time Trial" });
-    await soloTimeTrial.click();
+    await startSoloRace(page);
 
     const canvas = page.getByTestId("solo-time-trial-canvas");
     await expect(canvas).toBeVisible();
@@ -980,6 +1143,15 @@ test.describe("home screen", () => {
     expect(viewport).not.toBeNull();
     expect(Math.round(box?.width ?? 0)).toBe(viewport?.width);
     expect(Math.round(box?.height ?? 0)).toBe(viewport?.height);
+
+    // Back leaves the race for the mode, and back again reaches the course.
+    await page.goBack();
+    await expect(canvas).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "Start race" })).toBeFocused();
+    await page.goBack();
+    await expect(
+      page.getByRole("heading", { name: "Choose your course" }),
+    ).toBeVisible();
     expect(browserErrors).toEqual([]);
   });
 
@@ -1008,6 +1180,7 @@ test.describe("home screen", () => {
     );
 
     await page.goto("/");
+    await page.getByRole("button", { exact: true, name: "Race" }).click();
     await expect(
       page.locator('[data-kart-thumbnail-source="persisted"]').first(),
     ).toBeVisible();
@@ -1015,8 +1188,11 @@ test.describe("home screen", () => {
       page.locator('[data-kart-thumbnail-source="rendering"]').first(),
     ).toBeVisible();
     await expect.poll(() => requestedRevision).toBe("2");
-    await page.getByRole("button", { name: "Solo Time Trial" }).click();
-    await expect(page.getByTestId("solo-time-trial-canvas")).toBeVisible();
+    await chooseKartAndCourse(page);
+    await page.getByRole("button", { name: "Start race" }).click();
+    await expect(page.getByTestId("solo-time-trial-canvas")).toBeVisible({
+      timeout: 30_000,
+    });
     expect(browserErrors.join("\n")).not.toMatch(
       /syncHierarchy|__destroy__|Unable to render kart thumbnail/,
     );
@@ -1029,22 +1205,27 @@ test.describe("home screen", () => {
       testInfo.project.name !== "desktop",
       "Client-navigation lifecycle coverage only needs one browser fixture.",
     );
-    await delayNextKartThumbnailEncoding(page, 750);
+    // Long enough to outlast the steps to Start race.
+    await delayNextKartThumbnailEncoding(page, 2_000);
     // Bundled karts have no stored images, so every card renders locally.
     await page.route("**/api/karts/official", (route) =>
       route.fulfill({ status: 503 }),
     );
     await page.goto("/");
+    await page.getByRole("button", { exact: true, name: "Race" }).click();
     await expect(
       page.locator('[data-kart-thumbnail-source="rendering"]').first(),
     ).toBeVisible();
-    await page.getByRole("button", { name: "Solo Time Trial" }).click();
+    // Leaves while the race waits for the picture being drawn.
+    await chooseKartAndCourse(page);
+    await page.getByRole("button", { name: "Start race" }).click();
     await page.getByRole("button", { name: "Open utility menu" }).click();
     await page.getByRole("link", { name: "Profile" }).click();
     await expect(page).toHaveURL(/\/profile$/);
 
     await page.goBack();
     await expect(page).toHaveURL("/");
+    await page.getByRole("button", { exact: true, name: "Race" }).click();
     // Queued local renders drain one PlayCanvas application at a time.
     await expect(
       page.locator('[data-kart-thumbnail-source="generated"]').first(),
@@ -1059,7 +1240,7 @@ test.describe("home screen", () => {
       "The browser speed readout only needs one rendered locale fixture.",
     );
     await page.goto("/?sandbox-course");
-    await page.getByRole("button", { name: "Solo Time Trial" }).click();
+    await startSoloRace(page);
     const canvas = page.getByTestId("solo-time-trial-canvas");
     await setSimulationPaused(canvas, true);
     const kart = await getKartDebugState(canvas);
@@ -1107,7 +1288,7 @@ test.describe("home screen", () => {
     });
 
     await page.goto("/");
-    await page.getByRole("button", { name: "Solo Time Trial" }).click();
+    await startSoloRace(page);
     const canvas = page.getByTestId("solo-time-trial-canvas");
     await waitForSceneReady(canvas);
 
@@ -1165,7 +1346,7 @@ test.describe("home screen", () => {
       });
     });
     await page.goto("/");
-    await page.getByRole("button", { name: "Solo Time Trial" }).click();
+    await startSoloRace(page);
     let canvas = page.getByTestId("solo-time-trial-canvas");
     await advanceRaceToRacing(canvas);
 
@@ -1242,7 +1423,7 @@ test.describe("home screen", () => {
     await setSimulationPaused(canvas, false);
     await page.keyboard.press("Escape");
     await page.getByRole("button", { name: "Exit", exact: true }).click();
-    await page.getByRole("button", { name: "Solo Time Trial" }).click();
+    await page.getByRole("button", { name: "Start race" }).click();
     canvas = page.getByTestId("solo-time-trial-canvas");
     await advanceRaceToRacing(canvas);
     await expectKartLight(indoors);
@@ -1268,7 +1449,7 @@ test.describe("home screen", () => {
       });
     });
     await page.goto("/");
-    await page.getByRole("button", { name: "Solo Time Trial" }).click();
+    await startSoloRace(page);
     const canvas = page.getByTestId("solo-time-trial-canvas");
     await advanceRaceToRacing(canvas);
 
@@ -1304,7 +1485,7 @@ test.describe("home screen", () => {
       });
     });
     await page.goto("/");
-    await page.getByRole("button", { name: "Solo Time Trial" }).click();
+    await startSoloRace(page);
     const canvas = page.getByTestId("solo-time-trial-canvas");
     await advanceRaceToRacing(canvas);
 
@@ -1357,6 +1538,140 @@ test.describe("home screen", () => {
     expect(stopped.speed, fenceEvidence).toBeLessThan(0.1);
   });
 
+  test("launches the slowest and fastest karts off the levee kicker onto the crest", async ({
+    page,
+  }, testInfo) => {
+    testInfo.setTimeout(400_000);
+    test.skip(
+      testInfo.project.name !== "desktop",
+      "The kicker only needs to run once.",
+    );
+    await page.setViewportSize({ height: 270, width: 480 });
+    await page.route("**/api/courses/*/published", (route) =>
+      route.fulfill({ json: { error: "Published course not found." }, status: 404 }),
+    );
+    // The bundled roster has every official kart.
+    await page.route("**/api/karts/official", (route) =>
+      route.fulfill({ status: 503 }),
+    );
+    const kicker = FALLS_VIEW_PARK_DOCUMENT.objects.find(
+      ({ id }) => id === "levee-kicker",
+    )!;
+    const crestTop = 3;
+    const ride = async (
+      canvas: Locator,
+      from: { x: number; z: number },
+      yaw: number,
+      speed: number,
+      seconds: number,
+    ) => {
+      const radians = (yaw * Math.PI) / 180;
+      const forward = { x: -Math.sin(radians), z: -Math.cos(radians) };
+      await setKartDebugPose(canvas, {
+        // No spin carried over from the run before.
+        angularVelocity: { x: 0, y: 0, z: 0 },
+        linearVelocity: { x: forward.x * speed, y: 0, z: forward.z * speed },
+        position: { x: from.x, y: crestTop + 0.08, z: from.z },
+        rotation: { x: 0, y: yaw, z: 0 },
+      });
+      await page.keyboard.down("ArrowUp");
+      try {
+        return await stepSimulationWithKartSamples(
+          canvas,
+          Math.ceil(seconds / DEFAULT_FIXED_STEP_SECONDS),
+        );
+      } finally {
+        await page.keyboard.up("ArrowUp");
+      }
+    };
+    const evidence = (samples: KartDebugState[]) =>
+      JSON.stringify(
+        samples
+          .filter((_, index) => index % 12 === 0)
+          .map((s) => [s.x.toFixed(2), s.y.toFixed(2), s.z.toFixed(2), s.speed.toFixed(1), s.supportCount, s.up.y.toFixed(2)]),
+      );
+    // Never through the fence (its rails stand at z 30.6) or past the wall,
+    // nor down off the levee, and back on the crest's asphalt at the end,
+    // upright on its wheels, clear of the kerb (inner face at z 30.75).
+    const expectOnCrest = (samples: KartDebugState[], onWheels = true) => {
+      const proof = evidence(samples);
+      for (const { y, z } of samples) {
+        expect(z, proof).toBeGreaterThan(30.6);
+        expect(z, proof).toBeLessThan(35.25);
+        expect(y, proof).toBeGreaterThan(crestTop - 0.05);
+      }
+      const end = samples.at(-1)!;
+      expect(end.z, proof).toBeGreaterThan(30.75 + 0.15);
+      expect(end.y, proof).toBeLessThan(crestTop + 0.25);
+      if (!onWheels) return;
+      expect(end.up.y, proof).toBeGreaterThan(0.9);
+      expect(end.supportCount, proof).toBeGreaterThanOrEqual(3);
+    };
+    // The sheet is 0.8 m long: its toe meets the asphalt, its lip in the air.
+    const toeX = kicker.transform.position.x + 0.4;
+    const lipX = toeX - 0.8;
+    const runUpX = toeX + 4;
+
+    // Measured from the hairpin with the throttle held: the Handling Kart
+    // reaches the kicker at its 8.2 m/s top speed, the Speed Kart at 13.
+    for (const [kart, speed, minimumRise] of [
+      ["Handling Kart", 8.2, 0.1],
+      ["Speed Kart", 13, 0.25],
+    ] as const) {
+      await page.goto("/");
+      await startSoloRace(page, kart);
+      const canvas = page.getByTestId("solo-time-trial-canvas");
+      await advanceRaceToRacing(canvas);
+      await canvas.click();
+
+      // Straight over it: on at the flush toe without a bump, off the lip
+      // into the air, and down upright on the crest, still driving.
+      const straight = await ride(canvas, { x: runUpX, z: kicker.transform.position.z }, 90, speed, 1.6);
+      const proof = evidence(straight);
+      const onRamp = straight.filter(({ x }) => x > lipX);
+      expect(Math.min(...onRamp.map((s) => s.speed)), proof).toBeGreaterThan(speed - 0.3);
+      const restY = straight[30]!.y;
+      const fromToe = straight.filter(({ x }) => x < toeX);
+      expect(Math.max(...fromToe.map(({ y }) => y)) - restY, proof).toBeGreaterThan(minimumRise);
+      const takeoff = straight.findIndex(({ supportCount, x }) => x < lipX && supportCount === 0);
+      const landing = straight.findIndex((s, index) => index > takeoff && s.supportCount >= 3);
+      expect(takeoff, proof).toBeGreaterThan(0);
+      expect(landing - takeoff, proof).toBeGreaterThan(18);
+      expect(Math.min(...straight.map(({ up }) => up.y)), proof).toBeGreaterThan(0.5);
+      expectOnCrest(straight);
+      const end = straight.at(-1)!;
+      expect(end.up.y, proof).toBeGreaterThan(0.95);
+      expect(end.supportCount, proof).toBeGreaterThanOrEqual(3);
+      expect(end.speed, proof).toBeGreaterThan(speed * 0.7);
+
+      if (kart === "Speed Kart") {
+        // Off the kicker at an angle, 10° and 25° off the crest's line,
+        // toward the fence (right) and toward the wall (left): the kart
+        // comes down on the crest, whether or not it reaches either side.
+        // How it tumbles off a barrier is chaotic, so it may land on its
+        // back, for the player to right.
+        const kickerZ = kicker.transform.position.z;
+        for (const [yaw, z] of [
+          [80, kickerZ + 0.75],
+          [65, kickerZ + 1.87],
+          [100, kickerZ - 0.75],
+          [115, kickerZ - 1.87],
+        ] as const) {
+          const yawed = await ride(canvas, { x: runUpX, z }, yaw, speed, 2.4);
+          expect(yawed.some(({ supportCount }) => supportCount === 0), evidence(yawed)).toBe(true);
+          expectOnCrest(yawed, false);
+        }
+
+        // Driven across it side-on, it crosses the sheet without a fling
+        // and settles on its wheels.
+        const across = await ride(canvas, { x: toeX - 0.5, z: kickerZ + 1.9 }, 0, 5, 1.6);
+        expect(Math.min(...across.map(({ z }) => z)), evidence(across)).toBeLessThan(kickerZ - 0.6);
+        expect(Math.max(...across.map(({ y }) => y)), evidence(across)).toBeLessThan(crestTop + 0.6);
+        expectOnCrest(across);
+      }
+    }
+  });
+
   test("drives the widest official kart out through the storm drain and back, up the berm, and off it", async ({
     page,
   }, testInfo) => {
@@ -1375,7 +1690,7 @@ test.describe("home screen", () => {
       });
     });
     await page.goto("/");
-    await page.getByRole("button", { name: "Solo Time Trial" }).click();
+    await startSoloRace(page);
     const canvas = page.getByTestId("solo-time-trial-canvas");
     await advanceRaceToRacing(canvas);
     await canvas.click();
@@ -1473,7 +1788,7 @@ test.describe("home screen", () => {
     });
 
     await page.goto("/?sandbox-course");
-    await page.getByRole("button", { name: "Solo Time Trial" }).click();
+    await startSoloRace(page);
     const canvas = page.getByTestId("solo-time-trial-canvas");
     const state = await getCollisionDebugState(canvas);
     expect(state.sunDirection?.y).toBeCloseTo(1);
@@ -1518,7 +1833,7 @@ test.describe("home screen", () => {
     });
 
     await page.goto("/?sandbox-course");
-    await page.getByRole("button", { name: "Solo Time Trial" }).click();
+    await startSoloRace(page);
     const canvas = page.getByTestId("solo-time-trial-canvas");
     await expect(canvas).toHaveAttribute("data-kart-primary-color", "#125599");
     await expect(canvas).toHaveAttribute(
@@ -1543,7 +1858,7 @@ test.describe("home screen", () => {
     });
 
     await page.goto("/");
-    await page.getByRole("button", { name: "Solo Time Trial" }).click();
+    await startSoloRace(page);
     const canvas = page.getByTestId("solo-time-trial-canvas");
     await expect(canvas).toHaveAttribute(
       "data-kart-primary-color",
@@ -1586,14 +1901,14 @@ test.describe("home screen", () => {
     });
 
     await page.goto("/?sandbox-course");
-    await page.getByRole("button", { name: "Solo Time Trial" }).click();
+    await startSoloRace(page);
     let canvas = page.getByTestId("solo-time-trial-canvas");
     let state = await getCollisionDebugState(canvas);
     expect(state.sunDirection?.y).toBeCloseTo(1);
 
     await page.keyboard.press("Escape");
     await page.getByRole("button", { name: "Exit", exact: true }).click();
-    await page.getByRole("button", { name: "Solo Time Trial" }).click();
+    await page.getByRole("button", { name: "Start race" }).click();
     canvas = page.getByTestId("solo-time-trial-canvas");
     state = await getCollisionDebugState(canvas);
     expect(state.sunDirection?.y).toBeCloseTo(Math.cos((52 * Math.PI) / 180));
@@ -1606,7 +1921,7 @@ test.describe("home screen", () => {
     await installStandardGamepadFixture(page);
     await page.route("**/vendor/ammo/**", (route) => route.abort());
     await page.goto("/");
-    await page.getByRole("button", { name: "Solo Time Trial" }).click();
+    await startSoloRace(page);
 
     await expect(
       page.getByRole("alert").filter({ hasText: "Unable to start the race" }),
@@ -1618,12 +1933,14 @@ test.describe("home screen", () => {
     await setStandardTestGamepad(page);
     await page.waitForTimeout(50);
     await setStandardTestGamepad(page, { buttons: { 0: 1 } });
-    await expect(page.getByText("Choose game mode")).toBeVisible();
+    // Reload reopens the race's mode.
+    const startRace = page.getByRole("button", { name: "Start race" });
+    await expect(startRace).toBeVisible();
     await setStandardTestGamepad(page);
     await expect(
       page.locator('[data-controller-menu-ready="true"]'),
     ).toHaveCount(1);
-    await page.getByRole("button", { name: "Solo Time Trial" }).click();
+    await startRace.click();
     await expect(page.getByTestId("solo-time-trial-canvas")).toHaveAttribute(
       "data-scene-ready",
       "true",
@@ -1647,7 +1964,7 @@ test.describe("home screen", () => {
       await route.abort();
     });
     await page.goto("/");
-    await page.getByRole("button", { name: "Solo Time Trial" }).click();
+    await startSoloRace(page);
 
     await expect(page.getByRole("status")).toHaveText("Loading race…");
     await expect(
@@ -1656,7 +1973,7 @@ test.describe("home screen", () => {
     await setStandardTestGamepad(page);
     await page.waitForTimeout(50);
     await setStandardTestGamepad(page, { buttons: { 0: 1 } });
-    await expect(page.getByText("Choose game mode")).toBeVisible();
+    await expect(page.getByRole("button", { name: "Start race" })).toBeVisible();
     await setStandardTestGamepad(page);
 
     releaseRequest();
@@ -1670,7 +1987,7 @@ test.describe("home screen", () => {
     await installStandardGamepadFixture(page);
     await page.route("**/vendor/ammo/**", (route) => route.abort());
     await page.goto("/");
-    await page.getByRole("button", { name: "Solo Time Trial" }).click();
+    await startSoloRace(page);
 
     const failedAlert = page
       .getByRole("alert")
@@ -1687,19 +2004,21 @@ test.describe("home screen", () => {
     await setStandardTestGamepad(page);
     await page.waitForTimeout(50);
     await setStandardTestGamepad(page, { buttons: { 0: 1 } });
-    await expect(page.getByText("Choose game mode")).toBeVisible();
+    await expect(page.getByRole("button", { name: "Start race" })).toBeVisible();
 
+    // A reload reopens the step it was on.
     await page.reload();
-    await expect(page.getByText("Choose game mode")).toBeVisible();
+    const startRace = page.getByRole("button", { name: "Start race" });
+    await expect(startRace).toBeVisible();
     await setStandardTestGamepad(page);
-    await page.getByRole("button", { name: "Solo Time Trial" }).click();
+    await startRace.click();
     await expect(failedAlert).toBeVisible();
     await expect(
       page.locator('[data-controller-menu-ready="true"]'),
     ).toHaveCount(1);
     await page.waitForTimeout(50);
     await setStandardTestGamepad(page, { buttons: { 1: 1 } });
-    await expect(page.getByText("Choose game mode")).toBeVisible();
+    await expect(page.getByRole("button", { name: "Start race" })).toBeVisible();
   });
 
   test("destroys the runtime when scene setup fails after initialization", async ({
@@ -1719,7 +2038,7 @@ test.describe("home screen", () => {
       };
     });
     await page.goto("/");
-    await page.getByRole("button", { name: "Solo Time Trial" }).click();
+    await startSoloRace(page);
 
     await expect(
       page.getByRole("alert").filter({ hasText: "Unable to start the race" }),
@@ -1757,7 +2076,7 @@ test.describe("home screen", () => {
       };
     });
     await page.goto("/");
-    await page.getByRole("button", { name: "Solo Time Trial" }).click();
+    await startSoloRace(page);
 
     await expect(
       page.getByRole("alert").filter({ hasText: "Unable to start the race" }),
@@ -1809,7 +2128,7 @@ test.describe("home screen", () => {
     });
     await page.context().grantPermissions(["clipboard-read", "clipboard-write"]);
     await page.goto("/?sandbox-course");
-    await page.getByRole("button", { name: "Solo Time Trial" }).click();
+    await startSoloRace(page);
     const canvas = page.getByTestId("solo-time-trial-canvas");
     await setSimulationPaused(canvas, true);
     await resetKart(canvas);
@@ -1904,12 +2223,11 @@ test.describe("home screen", () => {
     await expect(
       finishDialog.locator('[data-controller-menu-ready="true"]'),
     ).toHaveCount(1);
-    // A new best shares a link to the racer's ghost; without a share
-    // sheet, it is copied.
-    await finishDialog.getByRole("button", { name: "Share" }).click();
+    // A new best copies the link to the racer's ghost, and only the link.
+    await finishDialog.getByRole("button", { name: "Copy link" }).click();
     await expect(finishDialog).toContainText("Link copied.");
     expect(await page.evaluate(() => navigator.clipboard.readText())).toMatch(
-      /rank 2 of 5 on the leaderboard\. Race my ghost on Titan Racers\. https?:\/\/[^/]+\/\?ghost=quick_racer$/,
+      /^https?:\/\/[^/]+\/\?ghost=quick_racer$/,
     );
     await finishDialog.getByRole("button", { name: "Race again" }).focus();
     await setSimulationPaused(canvas, false);
@@ -1954,7 +2272,7 @@ test.describe("home screen", () => {
       await route.fulfill({ json: {}, status: 401 });
     });
     await page.goto("/?sandbox-course");
-    await page.getByRole("button", { name: "Solo Time Trial" }).click();
+    await startSoloRace(page);
     const canvas = page.getByTestId("solo-time-trial-canvas");
     await setSimulationPaused(canvas, true);
     await advanceRaceToRacing(canvas);
@@ -1989,6 +2307,10 @@ test.describe("home screen", () => {
       "href",
       "/onboarding?returnTo=%2Fleaderboard",
     );
+    // A guest has no ghost to share, so no link to copy.
+    await expect(
+      finishDialog.getByRole("button", { name: "Copy link" }),
+    ).toHaveCount(0);
     // The run waits on this device with its ticket and recording, unsent.
     const recording = await getGhostRecording(canvas);
     const race = await getRaceDebugState(canvas);
@@ -2011,7 +2333,7 @@ test.describe("home screen", () => {
     test.skip(testInfo.project.name !== "desktop", "Ghost playback only needs to run once.");
     await page.setViewportSize({ height: 270, width: 480 });
     await page.goto("/");
-    await page.getByRole("button", { name: "Solo Time Trial" }).click();
+    await startSoloRace(page);
     let canvas = page.getByTestId("solo-time-trial-canvas");
     // Falls View Park loads slowly under software WebGL.
     await expect(canvas).toHaveAttribute("data-scene-ready", "true", {
@@ -2088,8 +2410,10 @@ test.describe("home screen", () => {
         },
       });
     });
-    await page.reload();
-    await page.getByRole("button", { name: "Solo Time Trial" }).click();
+    // A fresh visit: a reload (or the same address again) reopens the mode.
+    await page.goto("about:blank");
+    await page.goto("/");
+    await startSoloRace(page);
     canvas = page.getByTestId("solo-time-trial-canvas");
     await expect(canvas).toHaveAttribute("data-scene-ready", "true", {
       timeout: 120_000,
@@ -2106,7 +2430,7 @@ test.describe("home screen", () => {
       .getByRole("button", { name: "Your best" });
     await yourBest.click();
     await expect(yourBest).toHaveAttribute("aria-pressed", "true");
-    await page.getByRole("button", { name: "Solo Time Trial" }).click();
+    await page.getByRole("button", { name: "Start race" }).click();
     canvas = page.getByTestId("solo-time-trial-canvas");
     await expect(canvas).toHaveAttribute("data-scene-ready", "true", {
       timeout: 120_000,
@@ -2144,6 +2468,15 @@ test.describe("home screen", () => {
     // A ghost link offers and races that racer's best, shown even though
     // the switch is off.
     await page.goto("/?ghost=fast_friend");
+    await page
+      .getByRole("button", { exact: true, name: "Race @fast_friend's ghost" })
+      .click();
+    // Their board fixes the course, so the kart leads straight to the mode.
+    await page
+      .getByRole("group", { name: "Official kart selection" })
+      .getByRole("button")
+      .first()
+      .click();
     const friend = page
       .getByRole("group", { name: "Ghost" })
       .getByRole("button", { name: "@fast_friend · 1:20.000" });
@@ -2153,7 +2486,7 @@ test.describe("home screen", () => {
         name: "Your best",
       }),
     ).toHaveAttribute("aria-pressed", "false");
-    await page.getByRole("button", { name: "Solo Time Trial" }).click();
+    await page.getByRole("button", { name: "Start race" }).click();
     canvas = page.getByTestId("solo-time-trial-canvas");
     await expect(canvas).toHaveAttribute("data-scene-ready", "true", {
       timeout: 120_000,
@@ -2168,14 +2501,73 @@ test.describe("home screen", () => {
         .getByRole("switch", { name: "Ghost" }),
     ).toHaveAttribute("aria-checked", "true");
 
-    // A racer with no time there is not offered.
+    // A racer with no time there is not offered, and the switch left off
+    // reads as No ghost.
     await page.goto("/?ghost=slow_friend");
-    await expect(page.getByText("@slow_friend has no time on this course yet")).toBeVisible();
+    await expect(
+      page.getByText(
+        "@slow_friend has no time on this course yet, so you'll race without a ghost.",
+      ),
+    ).toBeVisible();
+    await expect(page.getByRole("button", { name: /^Race @/ })).toHaveCount(0);
+    await page.getByRole("button", { exact: true, name: "Race" }).click();
+    await chooseKartAndCourse(page);
     await expect(
       page.getByRole("group", { name: "Ghost" }).getByRole("button", {
-        name: "Your best",
+        name: "No ghost",
       }),
     ).toHaveAttribute("aria-pressed", "true");
+
+    // The course is published again after a ghost link opens: the race
+    // races their best on the new board.
+    await page.goto("/?ghost=fast_friend");
+    await page
+      .getByRole("button", { exact: true, name: "Race @fast_friend's ghost" })
+      .click();
+    await page
+      .getByRole("group", { name: "Official kart selection" })
+      .getByRole("button")
+      .first()
+      .click();
+    await expect(
+      page.getByRole("group", { name: "Ghost" }).getByRole("button", {
+        name: "@fast_friend · 1:20.000",
+      }),
+    ).toBeVisible();
+    await page.route(
+      `**/api/courses/${FALLS_VIEW_PARK_DOCUMENT.courseId}/published`,
+      (route) =>
+        route.fulfill({
+          json: {
+            courseId: FALLS_VIEW_PARK_DOCUMENT.courseId,
+            document: FALLS_VIEW_PARK_DOCUMENT,
+            publishedAt: new Date("2026-11-03T00:00:00.000Z").toISOString(),
+            revision: 2,
+            schemaVersion: 4,
+          },
+        }),
+    );
+    await page.route("**/api/leaderboards/falls-view-park/ghost?*", (route) => {
+      const query = new URL(route.request().url()).searchParams;
+      return route.fulfill({
+        json: {
+          ghost:
+            query.get("best") === "racer" &&
+            query.get("racer") === "fast_friend"
+              ? { ...friendBest, courseRevision: 2 }
+              : null,
+        },
+      });
+    });
+    await page.getByRole("button", { name: "Start race" }).click();
+    canvas = page.getByTestId("solo-time-trial-canvas");
+    await expect(canvas).toHaveAttribute("data-scene-ready", "true", {
+      timeout: 120_000,
+    });
+    // (Falling back, with the switch off, would race no ghost.)
+    expect((await getGhostDebugState(canvas)).finishMicroseconds).toBe(
+      80_000_000,
+    );
   });
 
   test("keeps the rough-race HUD clear of mobile utilities", async ({
@@ -2184,7 +2576,7 @@ test.describe("home screen", () => {
     test.skip(testInfo.project.name !== "mobile", "Mobile HUD layout only.");
     await page.setViewportSize({ height: 700, width: 350 });
     await page.goto("/?sandbox-course");
-    await page.getByRole("button", { name: "Solo Time Trial" }).click();
+    await startSoloRace(page);
 
     const canvas = page.getByTestId("solo-time-trial-canvas");
     await setSimulationPaused(canvas, true);
@@ -2229,7 +2621,7 @@ test.describe("home screen", () => {
 
     await page.goto("/?sandbox-course");
     await pauseSimulationWhenSceneReady(page);
-    await page.getByRole("button", { name: "Solo Time Trial" }).click();
+    await startSoloRace(page);
     const canvas = page.getByTestId("solo-time-trial-canvas");
 
     expect(await getRaceDebugState(canvas)).toMatchObject({
@@ -2345,7 +2737,9 @@ test.describe("home screen", () => {
     );
     await page.setViewportSize({ height: 270, width: 480 });
     await page.goto("/?enclosure");
-    const solo = page.getByRole("button", { name: "Solo Time Trial" });
+    await page.getByRole("button", { exact: true, name: "Race" }).click();
+    await chooseKartAndCourse(page);
+    const solo = page.getByRole("button", { name: "Start race" });
     const cover = page.getByTestId("course-loading-screen");
 
     await solo.click();
@@ -2381,7 +2775,7 @@ test.describe("home screen", () => {
 
     await page.goto("/?sandbox-course");
 
-    await page.getByRole("button", { name: "Solo Time Trial" }).click();
+    await startSoloRace(page);
 
     const canvas = page.getByTestId("solo-time-trial-canvas");
     await expect(canvas).toBeVisible();
@@ -2425,7 +2819,7 @@ test.describe("home screen", () => {
   }) => {
     await page.goto("/?sandbox-course");
 
-    await page.getByRole("button", { name: "Solo Time Trial" }).click();
+    await startSoloRace(page);
 
     const canvas = page.getByTestId("solo-time-trial-canvas");
     await expect(canvas).toBeVisible();
@@ -2483,7 +2877,7 @@ test.describe("home screen", () => {
     // lifecycle test.
     test.setTimeout(90_000);
     await page.goto("/?sandbox-course");
-    await page.getByRole("button", { name: "Solo Time Trial" }).click();
+    await startSoloRace(page);
     const canvas = page.getByTestId("solo-time-trial-canvas");
     await advanceRaceToRacing(canvas);
     const pose = (z: number) => ({
@@ -2535,7 +2929,7 @@ test.describe("home screen", () => {
   }) => {
     await useBundledHandlingKart(page);
     await page.goto("/?sandbox-course");
-    await page.getByRole("button", { name: "Solo Time Trial" }).click();
+    await startSoloRace(page);
 
     const canvas = page.getByTestId("solo-time-trial-canvas");
     await advanceRaceToRacing(canvas);
@@ -2592,7 +2986,7 @@ test.describe("home screen", () => {
   }) => {
     await page.goto("/?sandbox-course");
 
-    await page.getByRole("button", { name: "Solo Time Trial" }).click();
+    await startSoloRace(page);
 
     const canvas = page.getByTestId("solo-time-trial-canvas");
     await expect(canvas).toBeVisible();
@@ -2640,7 +3034,7 @@ test.describe("home screen", () => {
   test("brakes before engaging reverse", async ({ page }) => {
     await page.goto("/?sandbox-course");
 
-    await page.getByRole("button", { name: "Solo Time Trial" }).click();
+    await startSoloRace(page);
 
     const canvas = page.getByTestId("solo-time-trial-canvas");
     await waitForSceneReady(canvas);
@@ -2692,7 +3086,7 @@ test.describe("home screen", () => {
   }, testInfo) => {
     testInfo.setTimeout(60_000);
     await page.goto("/?sandbox-course");
-    await page.getByRole("button", { name: "Solo Time Trial" }).click();
+    await startSoloRace(page);
 
     const canvas = page.getByTestId("solo-time-trial-canvas");
     const touchControls = page.getByRole("group", {
@@ -2804,7 +3198,7 @@ test.describe("home screen", () => {
   }) => {
     await page.goto("/?sandbox-course");
 
-    await page.getByRole("button", { name: "Solo Time Trial" }).click();
+    await startSoloRace(page);
 
     const canvas = page.getByTestId("solo-time-trial-canvas");
     await expect(canvas).toBeVisible();
@@ -2848,7 +3242,7 @@ test.describe("home screen", () => {
   }, testInfo) => {
     testInfo.setTimeout(60_000);
     await page.goto("/?sandbox-course");
-    await page.getByRole("button", { name: "Solo Time Trial" }).click();
+    await startSoloRace(page);
 
     const canvas = page.getByTestId("solo-time-trial-canvas");
     await advanceRaceToRacing(canvas);
@@ -2941,7 +3335,7 @@ test.describe("home screen", () => {
     test.setTimeout(60_000);
     await page.goto("/?sandbox-course");
 
-    await page.getByRole("button", { name: "Solo Time Trial" }).click();
+    await startSoloRace(page);
 
     const canvas = page.getByTestId("solo-time-trial-canvas");
     await setSimulationPaused(canvas, true);
@@ -2990,7 +3384,7 @@ test.describe("home screen", () => {
     page,
   }) => {
     await page.goto("/?sandbox-course");
-    await page.getByRole("button", { name: "Solo Time Trial" }).click();
+    await startSoloRace(page);
 
     const canvas = page.getByTestId("solo-time-trial-canvas");
     await setSimulationPaused(canvas, true);
@@ -3039,7 +3433,7 @@ test.describe("home screen", () => {
     });
     await page.goto("/?sandbox-course");
 
-    await page.getByRole("button", { name: "Solo Time Trial" }).click();
+    await startSoloRace(page);
 
     const canvas = page.getByTestId("solo-time-trial-canvas");
     const collisionState = await getCollisionDebugState(canvas);
@@ -3099,7 +3493,7 @@ test.describe("home screen", () => {
       }
       await useBundledCourse(page, course);
       await page.goto("/?sandbox-course&collision-fixtures");
-      await page.getByRole("button", { name: "Solo Time Trial" }).click();
+      await startSoloRace(page);
 
       const canvas = page.getByTestId("solo-time-trial-canvas");
       await setSimulationPaused(canvas, true);
@@ -3168,7 +3562,7 @@ test.describe("home screen", () => {
       };
       await useBundledCourse(page, course);
       await page.goto("/?sandbox-course");
-      await page.getByRole("button", { name: "Solo Time Trial" }).click();
+      await startSoloRace(page);
 
       const canvas = page.getByTestId("solo-time-trial-canvas");
       await setSimulationPaused(canvas, true);
@@ -3200,7 +3594,7 @@ test.describe("home screen", () => {
     // 500 m from the axis the pad feels 1/8 of floor gravity.
     await useBundledCourse(page);
     await page.goto("/?axisRamp=3500");
-    await page.getByRole("button", { name: "Solo Time Trial" }).click();
+    await startSoloRace(page);
     const canvas = page.getByTestId("solo-time-trial-canvas");
     await setSimulationPaused(canvas, true);
     await stepSimulation(canvas, 240);
@@ -3224,7 +3618,7 @@ test.describe("home screen", () => {
     await page.setViewportSize({ height: 800, width: 1280 });
 
     await page.goto("/?sandbox-course");
-    await page.getByRole("button", { name: "Solo Time Trial" }).click();
+    await startSoloRace(page);
 
     const canvas = page.getByTestId("solo-time-trial-canvas");
     await expect(canvas).toHaveAccessibleName("Solo Time Trial race");
@@ -3265,7 +3659,7 @@ test.describe("home screen", () => {
     );
 
     await page.goto("/?enclosure");
-    await page.getByRole("button", { name: "Solo Time Trial" }).click();
+    await startSoloRace(page);
     // The enclosure brings the loading screen, which holds the countdown.
     await expect(page.getByTestId("course-loading-screen")).toHaveCount(0, {
       timeout: 60_000,
@@ -3363,7 +3757,7 @@ test.describe("home screen", () => {
     });
 
     await page.goto("/?enclosure");
-    await page.getByRole("button", { name: "Solo Time Trial" }).click();
+    await startSoloRace(page);
     // The enclosure brings the loading screen, which holds the countdown.
     await expect(page.getByTestId("course-loading-screen")).toHaveCount(0, {
       timeout: 60_000,
@@ -3412,7 +3806,7 @@ test.describe("home screen", () => {
     );
 
     await page.goto("/");
-    await page.getByRole("button", { name: "Solo Time Trial" }).click();
+    await startSoloRace(page);
 
     const canvas = page.getByTestId("solo-time-trial-canvas");
     await waitForSceneReady(canvas);
@@ -3445,7 +3839,7 @@ test.describe("home screen", () => {
     test.setTimeout(90_000);
 
     await page.goto("/?sandbox-course");
-    await page.getByRole("button", { name: "Solo Time Trial" }).click();
+    await startSoloRace(page);
     const canvas = page.getByTestId("solo-time-trial-canvas");
     await waitForSceneReady(canvas);
     const audio = () => getAudioDebugState(canvas);
@@ -3482,9 +3876,18 @@ test.describe("home screen", () => {
         timeout: 10_000,
       })
       .toBe("racing");
+    const menuSounds = () =>
+      page.evaluate(
+        () => (window as { __titanUiSounds?: string[] }).__titanUiSounds ?? [],
+      );
+    const soundsBeforePause = (await menuSounds()).length;
     await page.keyboard.press("Escape");
     const pauseDialog = page.getByRole("dialog", { name: "Paused" });
     await expect(pauseDialog).toBeVisible();
+    // The pause menu opens with a menu sound.
+    await expect
+      .poll(async () => (await menuSounds()).slice(soundsBeforePause))
+      .toEqual(["confirm"]);
     // Paused, sound goes silent but keeps running, so the resume countdown's
     // first tick is not late.
     await expect.poll(async () => (await audio())?.audible).toBe(false);
@@ -3493,11 +3896,16 @@ test.describe("home screen", () => {
       contextState: "running",
     });
 
-    // Resume's click restarts sound at once, but the frozen kart's motor and
-    // tires stay closed through the resume countdown and open at Go.
+    // Resume's click restarts sound at once, with its menu sound, but the
+    // frozen kart's motor and tires stay closed through the resume countdown
+    // and open at Go.
     await pauseDialog.getByRole("button", { name: "Resume" }).click();
     expect((await audio())?.continuousVoices).toBe(false);
     expect((await getRaceDebugState(canvas)).state).toBe("resuming");
+    expect((await menuSounds()).slice(soundsBeforePause)).toEqual([
+      "confirm",
+      "confirm",
+    ]);
     await expect.poll(async () => (await audio())?.audible).toBe(true);
     await expect
       .poll(async () => (await audio())?.continuousVoices, { timeout: 5_000 })
@@ -3523,14 +3931,15 @@ test.describe("home screen", () => {
     });
 
     // Saved on this device: the home menu shows it off, and a new race
-    // starts silent.
-    await page.reload();
+    // starts silent. A fresh visit: a reload would reopen the mode.
+    await page.goto("about:blank");
+    await page.goto("/?sandbox-course");
     await page.getByRole("button", { name: "Open utility menu" }).click();
     await expect(
       page.getByRole("switch", { name: "Sound effects" }),
     ).toHaveAttribute("aria-checked", "false");
     await page.keyboard.press("Escape");
-    await page.getByRole("button", { name: "Solo Time Trial" }).click();
+    await startSoloRace(page);
     await waitForSceneReady(canvas);
     await expect.poll(async () => (await audio())?.active).toBe(true);
     expect(await audio()).toMatchObject({
@@ -3542,6 +3951,9 @@ test.describe("home screen", () => {
     await expect(
       pauseDialog.getByRole("switch", { name: "Sound effects" }),
     ).toHaveAttribute("aria-checked", "false");
+    await expect(
+      pauseDialog.getByRole("group", { name: "Volume" }),
+    ).toBeVisible();
   });
 
   test("keeps sound off after the page hides until a tap brings it back", async ({
@@ -3569,7 +3981,7 @@ test.describe("home screen", () => {
       }, hidden);
 
     await page.goto("/?sandbox-course");
-    await page.getByRole("button", { name: "Solo Time Trial" }).click();
+    await startSoloRace(page);
     // A quick app switch while the race loads, over before the scene listens
     // for one: the race must still open paused, or its countdown would play
     // into silence until the first tap.
@@ -3603,7 +4015,7 @@ test.describe("home screen", () => {
     );
 
     await page.goto("/?sandbox-course&collision-fixtures");
-    await page.getByRole("button", { name: "Solo Time Trial" }).click();
+    await startSoloRace(page);
     const canvas = page.getByTestId("solo-time-trial-canvas");
     await waitForSceneReady(canvas);
     await expect
@@ -3642,7 +4054,7 @@ test.describe("home screen", () => {
     );
 
     await page.goto("/?sandbox-course");
-    await page.getByRole("button", { name: "Solo Time Trial" }).click();
+    await startSoloRace(page);
     const canvas = page.getByTestId("solo-time-trial-canvas");
     await waitForSceneReady(canvas);
     await expect
@@ -3679,7 +4091,7 @@ test.describe("home screen", () => {
     test.skip(testInfo.project.name !== "mobile", "Touch controls only.");
 
     await page.goto("/?sandbox-course");
-    await page.getByRole("button", { name: "Solo Time Trial" }).click();
+    await startSoloRace(page);
 
     const canvas = page.getByTestId("solo-time-trial-canvas");
     await waitForSceneReady(canvas);
@@ -3794,7 +4206,7 @@ test.describe("home screen", () => {
 
     await installStandardGamepadFixture(page);
     await page.goto("/?sandbox-course");
-    await page.getByRole("button", { name: "Solo Time Trial" }).click();
+    await startSoloRace(page);
 
     const canvas = page.getByTestId("solo-time-trial-canvas");
     await waitForSceneReady(canvas);
@@ -3876,7 +4288,7 @@ test.describe("home screen", () => {
     await setStandardTestGamepad(page);
     await page.waitForTimeout(50);
     await setStandardTestGamepad(page, { buttons: { 13: 1 } });
-    await expect(page.getByRole("link", { exact: true, name: "Leaderboard" })).toBeFocused();
+    await expect(page.locator("#home-utility-menu").getByRole("link", { exact: true, name: "Leaderboard" })).toBeFocused();
     await setStandardTestGamepad(page);
     await page.waitForTimeout(50);
     await setStandardTestGamepad(page, { buttons: { 13: 1 } });
@@ -3994,21 +4406,32 @@ test.describe("home screen", () => {
     );
 
     await installStandardGamepadFixture(page);
-    await page.goto("/");
+    // The light sandbox keeps the race's menus responsive under software
+    // WebGL; the course itself is not under test.
+    await page.goto("/?sandbox-course");
     await expect(
       page.locator('[data-controller-menu-ready="true"]'),
     ).toHaveCount(1);
     await setStandardTestGamepad(page);
     await page.waitForTimeout(50);
 
-    const soloTimeTrial = page.getByRole("button", {
-      name: "Solo Time Trial",
-    });
-    await setStandardTestGamepad(page, { buttons: { 13: 1 } });
-    await expect(soloTimeTrial).toBeFocused();
-    await setStandardTestGamepad(page);
-    await page.waitForTimeout(50);
-    await setStandardTestGamepad(page, { buttons: { 0: 1 } });
+    // Confirm takes Race, then each step opens on its choice: the kart,
+    // the course, and Start race.
+    const confirm = async () => {
+      await setStandardTestGamepad(page, { buttons: { 0: 1 } });
+      await page.waitForTimeout(50);
+      await setStandardTestGamepad(page);
+      await page.waitForTimeout(50);
+    };
+    await confirm();
+    for (const next of [
+      page.getByRole("group", { name: "Official kart selection" }).getByRole("button"),
+      page.getByRole("group", { name: "Course selection" }).getByRole("button"),
+      page.getByRole("button", { name: "Start race" }),
+    ]) {
+      await expect(next).toBeFocused();
+      await confirm();
+    }
 
     const canvas = page.getByTestId("solo-time-trial-canvas");
     await expect(canvas).toBeVisible();
@@ -4061,9 +4484,8 @@ test.describe("home screen", () => {
     await setStandardTestGamepad(page);
     await page.waitForTimeout(50);
     await setStandardTestGamepad(page, { buttons: { 0: 1 } });
-    await expect(
-      page.getByRole("button", { name: "Solo Time Trial" }),
-    ).toBeVisible();
+    // Exit returns to the mode, its Start race focused.
+    await expect(page.getByRole("button", { name: "Start race" })).toBeFocused();
   });
 
 });

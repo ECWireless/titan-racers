@@ -3,6 +3,8 @@ import { randomUUID } from "node:crypto";
 import { expect, test } from "@playwright/test";
 import { eq } from "drizzle-orm";
 
+import { startSoloRace } from "./helpers/home-flow";
+
 import { getTelemetryDashboard } from "../src/app/api/admin/telemetry/route";
 import { loadGameplayDashboard } from "../src/server/gameplay-dashboard-repository";
 import { postGameplayRun } from "../src/app/api/telemetry/gameplay-runs/route";
@@ -1264,7 +1266,7 @@ test.describe("gameplay telemetry browser integration", () => {
     });
 
     await page.goto("/");
-    await page.getByRole("button", { name: "Solo Time Trial" }).click();
+    await startSoloRace(page);
     const canvas = page.getByTestId("solo-time-trial-canvas");
     await expect(canvas).toHaveAttribute("data-scene-ready", "true", {
       timeout: 15_000,
@@ -1314,7 +1316,7 @@ test.describe("gameplay telemetry browser integration", () => {
     });
 
     await page.goto("/");
-    await page.getByRole("button", { name: "Solo Time Trial" }).click();
+    await startSoloRace(page);
     const canvas = page.getByTestId("solo-time-trial-canvas");
     await expect(canvas).toHaveAttribute("data-scene-ready", "true", {
       timeout: 15_000,
@@ -1338,7 +1340,7 @@ test.describe("gameplay telemetry browser integration", () => {
     await page.keyboard.press("Escape");
     await expect(page.getByRole("dialog", { name: "Paused" })).toBeVisible();
     await page.getByRole("button", { name: "Exit", exact: true }).click();
-    await expect(page.getByText("Choose game mode")).toBeVisible();
+    await expect(page.getByRole("button", { name: "Start race" })).toBeVisible();
     await expect.poll(() => events.at(-1)?.type).toBe("run_ended");
     expect(events.map(({ type }) => type)).toEqual([
       "run_started",
@@ -1364,7 +1366,7 @@ test.describe("gameplay telemetry browser integration", () => {
     });
     await page.route("**/api/telemetry/gameplay-runs", (route) => route.abort());
     await page.goto("/");
-    await page.getByRole("button", { name: "Solo Time Trial" }).click();
+    await startSoloRace(page);
     await expect(page.getByTestId("solo-time-trial-canvas")).toHaveAttribute(
       "data-scene-ready",
       "true",

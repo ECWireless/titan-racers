@@ -65,8 +65,8 @@ identity.
 6. Automatic lifecycle pauses and fixed-step overload update two bounded
    in-memory totals. A hidden document queues their current monotonic summary.
 7. Finish, explicit in-app exit, or allowlisted failure queues one
-   `run_ended` summary. Sharing a completed run's result (share sheet or
-   copy) sends `run_shared`, which sets its `shared` flag once. A
+   `run_ended` summary. Copying a completed run's ghost link sends `run_shared`,
+   which sets its `shared` flag once. A
    five-second transport timeout prevents one unavailable request from
    blocking later milestones. Terminal fetch uses `keepalive` but
    remains best-effort.

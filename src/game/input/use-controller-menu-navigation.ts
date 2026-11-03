@@ -1,5 +1,7 @@
 import { useEffect, useRef, type RefObject } from "react";
 
+import { playUiSound } from "@/game/audio/ui-sounds";
+
 import {
   EditorGamepadInput,
   type EditorFocusDirection,
@@ -14,8 +16,15 @@ const MENU_ITEM_SELECTOR =
   'button:not(:disabled), a[href], [tabindex]:not([tabindex="-1"])';
 
 type ControllerMenuNavigationOptions = {
+  /** Only back (and menu) respond, as while a screen's choices load. */
+  backOnly?: boolean;
   containerRef: RefObject<HTMLElement | null>;
   enabled: boolean;
+  /**
+   * Spatial menus only: arrow keys move focus as the stick does, and Escape
+   * goes back. Off in races, where the arrows drive.
+   */
+  keyboard?: boolean;
   navigationMode?: "linear" | "spatial";
   onBack?: () => void;
   onMenu?: () => void;
@@ -26,19 +35,23 @@ function isRendered(element: HTMLElement) {
 }
 
 export function useControllerMenuNavigation({
+  backOnly = false,
   containerRef,
   enabled,
+  keyboard = false,
   navigationMode = "linear",
   onBack,
   onMenu,
 }: ControllerMenuNavigationOptions) {
+  const backOnlyRef = useRef(backOnly);
   const onBackRef = useRef(onBack);
   const onMenuRef = useRef(onMenu);
 
   useEffect(() => {
+    backOnlyRef.current = backOnly;
     onBackRef.current = onBack;
     onMenuRef.current = onMenu;
-  }, [onBack, onMenu]);
+  }, [backOnly, onBack, onMenu]);
 
   useEffect(() => {
     if (!enabled) {
@@ -74,8 +87,12 @@ export function useControllerMenuNavigation({
       ).filter(isRendered);
     };
 
-    const focusItem = (item: HTMLElement, container: HTMLElement) => {
-      container.dataset.controllerNavigation = "true";
+    const focusItem = (
+      item: HTMLElement,
+      container: HTMLElement,
+      fromController = true,
+    ) => {
+      if (fromController) container.dataset.controllerNavigation = "true";
       item.focus();
     };
 
@@ -97,6 +114,7 @@ export function useControllerMenuNavigation({
       current: HTMLElement,
       items: HTMLElement[],
       container: HTMLElement,
+      fromController = true,
     ) => {
       const candidates = items.map((item, order) => {
         const rect = item.getBoundingClientRect();
@@ -119,7 +137,60 @@ export function useControllerMenuNavigation({
         candidates,
         direction,
       );
-      focusItem(target?.value ?? current, container);
+      if (target && target.value !== current) playUiSound("move");
+      focusItem(target?.value ?? current, container, fromController);
+    };
+
+    const keyDirections: Record<string, EditorFocusDirection> = {
+      ArrowDown: "down",
+      ArrowLeft: "left",
+      ArrowRight: "right",
+      ArrowUp: "up",
+    };
+    const onKeyDown = (event: KeyboardEvent) => {
+      const container = containerRef.current;
+      if (
+        !container ||
+        event.defaultPrevented ||
+        event.altKey ||
+        event.ctrlKey ||
+        event.metaKey ||
+        event.shiftKey
+      ) {
+        return;
+      }
+      const target = event.target;
+      if (
+        target instanceof HTMLElement &&
+        (target.isContentEditable ||
+          target.closest("input, textarea, select") !== null)
+      ) {
+        return;
+      }
+      if (event.key === "Escape") {
+        if (!onBackRef.current) return;
+        event.preventDefault();
+        playUiSound("back");
+        onBackRef.current();
+        return;
+      }
+      const direction = keyDirections[event.key];
+      if (!direction || backOnlyRef.current) return;
+      const items = getItems();
+      if (items.length === 0) return;
+      event.preventDefault();
+      const focusedIndex = items.indexOf(
+        window.document.activeElement as HTMLElement,
+      );
+      if (focusedIndex < 0) {
+        const current = items[getFocusedOrDefault(items)];
+        if (current) focusItem(current, container, false);
+        return;
+      }
+      const current = items[focusedIndex];
+      if (current) {
+        moveSpatialFocus(direction, current, items, container, false);
+      }
     };
 
     const poll = (nowMs: number) => {
@@ -143,6 +214,11 @@ export function useControllerMenuNavigation({
           menuRequested = actions.menuRequested;
           move = actions.move;
         }
+        if (backOnlyRef.current) {
+          confirmRequested = false;
+          move = 0;
+          moveDirection = null;
+        }
         const items = getItems();
         const hasAction =
           move !== 0 ||
@@ -161,6 +237,7 @@ export function useControllerMenuNavigation({
           if (menuRequested && onMenuRef.current) {
             onMenuRef.current();
           } else if (backRequested && onBackRef.current) {
+            playUiSound("back");
             onBackRef.current();
           } else if (moveDirection) {
             if (current) {
@@ -176,6 +253,7 @@ export function useControllerMenuNavigation({
               (currentIndex + move + items.length) % items.length;
             const next = items[nextIndex];
             if (next) {
+              if (next !== current) playUiSound("move");
               focusItem(next, container);
             }
           } else if (confirmRequested) {
@@ -185,6 +263,7 @@ export function useControllerMenuNavigation({
           if (menuRequested && onMenuRef.current) {
             onMenuRef.current();
           } else if (backRequested && onBackRef.current) {
+            playUiSound("back");
             onBackRef.current();
           }
         }
@@ -226,6 +305,10 @@ export function useControllerMenuNavigation({
       }
     };
 
+    const keyboardNavigation = keyboard && navigationMode === "spatial";
+    if (keyboardNavigation) {
+      window.addEventListener("keydown", onKeyDown);
+    }
     initialContainer?.addEventListener("pointerdown", onPointerDown);
     initialContainer?.addEventListener("pointermove", onPointerMove);
     window.addEventListener("blur", clearControllerState);
@@ -235,6 +318,9 @@ export function useControllerMenuNavigation({
 
     return () => {
       window.cancelAnimationFrame(animationFrame);
+      if (keyboardNavigation) {
+        window.removeEventListener("keydown", onKeyDown);
+      }
       initialContainer?.removeEventListener("pointerdown", onPointerDown);
       initialContainer?.removeEventListener("pointermove", onPointerMove);
       window.removeEventListener("blur", clearControllerState);
@@ -249,5 +335,5 @@ export function useControllerMenuNavigation({
       }
       clear();
     };
-  }, [containerRef, enabled, navigationMode]);
+  }, [containerRef, enabled, keyboard, navigationMode]);
 }

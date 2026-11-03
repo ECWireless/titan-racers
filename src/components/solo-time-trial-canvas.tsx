@@ -23,8 +23,12 @@ import {
   type RunStanding,
   RunStandingSummary,
 } from "@/components/run-standing";
-import { GhostToggle, SoundToggle } from "@/components/setting-switch";
-import { ghostLinkUrl, shareLink, shareNoteFor } from "@/lib/share-link";
+import {
+  GhostToggle,
+  SoundToggle,
+  VolumeControl,
+} from "@/components/setting-switch";
+import { copyLink, ghostLinkUrl, copyNoteFor } from "@/lib/share-link";
 import type {
   CourseTestObstacleId,
   DrivingInput,
@@ -38,7 +42,7 @@ import {
   createRaceAudio,
   raceAudioAwaitsGesture,
   readSoundOn,
-  suspendRaceAudio,
+  endRaceAudio,
   unlockRaceAudio,
   type RaceAudio,
 } from "@/game/audio/race-audio";
@@ -115,6 +119,7 @@ import {
 import { PlayerInputManager } from "@/game/input/player-input-manager";
 import { isEditableKeyboardTarget } from "@/game/input/keyboard-input";
 import { useControllerMenuNavigation } from "@/game/input/use-controller-menu-navigation";
+import { playUiSound } from "@/game/audio/ui-sounds";
 import {
   normalizeTouchJoystick,
   type TouchPedalAction,
@@ -204,6 +209,7 @@ import {
 import { FrameBudgetRecorder } from "@/game/runtime/frame-budget";
 import { createRaceSessionConfig } from "@/game/race/race-course";
 import { holdRun } from "@/game/race/held-run";
+import { CURRENT_PHYSICS_VERSION } from "@/game/physics/physics-version";
 import {
   encodeRunRecording,
   requestRunTicket,
@@ -725,7 +731,7 @@ export function SoloTimeTrialCanvas({
   const runTicketRef = useRef<Promise<RunTicketOutcome | null> | null>(null);
   const runNumberRef = useRef(0);
   const [runStanding, setRunStanding] = useState<RunStanding | null>(null);
-  const [shareNote, setShareNote] = useState<string | null>(null);
+  const [copyNote, setCopyNote] = useState<string | null>(null);
   const [gameplayTelemetry] = useState(
     () =>
       new GameplayRunTelemetry(
@@ -769,7 +775,10 @@ export function SoloTimeTrialCanvas({
     containerRef: pauseMenuRef,
     enabled: gamePaused && sceneStatus === "ready",
     onBack: resumeRace,
-    onMenu: resumeRace,
+    onMenu: () => {
+      playUiSound("back");
+      resumeRace();
+    },
   });
   useControllerMenuNavigation({
     containerRef: finishMenuRef,
@@ -807,7 +816,7 @@ export function SoloTimeTrialCanvas({
     raceAudioRef.current?.setActive(raceAudioActiveRef.current);
     // A load that fails before its audio exists leaves the start click's
     // context running.
-    if (sceneStatus === "failed") suspendRaceAudio();
+    if (sceneStatus === "failed") endRaceAudio();
   }, [covered, gamePaused, sceneStatus, soundOn]);
 
   useEffect(() => {
@@ -840,6 +849,7 @@ export function SoloTimeTrialCanvas({
 
       event.preventDefault();
       unlockRaceAudio(soundOnRef.current);
+      playUiSound("back");
       sceneApiRef.current?.setPaused(false);
       setGamePaused(false);
       setDriveCursorHidden(true);
@@ -2506,6 +2516,7 @@ export function SoloTimeTrialCanvas({
           setScenePaused(true);
           clearTouchPresentation();
           setKartDynamicsOpen(false);
+          playUiSound("confirm");
           setGamePaused(true);
           setDriveCursorHidden(false);
           return;
@@ -2658,7 +2669,7 @@ export function SoloTimeTrialCanvas({
           }
           runNumberRef.current += 1;
           setRunStanding(null);
-          setShareNote(null);
+          setCopyNote(null);
           gameplayTelemetry.markRuntimeLoaded();
           ghostRecorder.reset();
           raceStartReported = false;
@@ -3369,6 +3380,8 @@ export function SoloTimeTrialCanvas({
           if (paused) {
             runtime.requestPauseAtFixedStepBoundary();
             setKartDynamicsOpen(false);
+            // The player's own pause (Escape, P, Start) opens with a sound.
+            playUiSound("confirm");
             setGamePaused(true);
             setDriveCursorHidden(false);
           }
@@ -3443,7 +3456,9 @@ export function SoloTimeTrialCanvas({
               if ("reason" in outcome) {
                 // Held on this device until they sign in and have a
                 // username, unless a faster run is already waiting.
+                const { courseId, courseRevision } = raceIdentityRef.current;
                 const held = holdRun({
+                  board: `${courseId}:${courseRevision}:${CURRENT_PHYSICS_VERSION}`,
                   expiresAt: outcome.expiresAt,
                   recording: encodeRunRecording(recording),
                   ticket: outcome.ticket,
@@ -4138,31 +4153,19 @@ export function SoloTimeTrialCanvas({
     requestAnimationFrame(() => canvasRef.current?.focus());
   }
 
-  /**
-   * Shares the result: a racer's new best links to their ghost, which
-   * follows their best; any other result links home.
-   */
-  async function shareResult() {
+  // A signed-in racer's new best is a ghost others can race from a link
+  // that follows their best; no other result has one to share.
+  const ghostLinkUsername =
+    runStanding?.status === "verified" && runStanding.personalBest.improved
+      ? runStanding.username
+      : null;
+
+  async function copyGhostLink(username: string) {
     // Cleared first, so a repeated note is announced again.
-    setShareNote(null);
-    const verified = runStanding?.status === "verified" ? runStanding : null;
-    // Only a new best's time holds the rank, so only it names one.
-    const ghostLink = verified?.personalBest.improved ? verified : null;
-    const standing = ghostLink
-      ? `, rank ${ghostLink.rank} of ${ghostLink.entries} on the leaderboard`
-      : "";
-    const outcome = await shareLink({
-      text: `I ran ${COURSE_DOCUMENT.name} in ${racePresentation.elapsedTime} in the ${kartDocument.name}${standing}. ${
-        ghostLink ? "Race my ghost on Titan Racers." : "Can you beat it on Titan Racers?"
-      }`,
-      url: ghostLink
-        ? ghostLinkUrl(ghostLink.username)
-        : new URL("/", window.location.origin).href,
-    });
-    if (outcome === "shared" || outcome === "copied") {
-      gameplayTelemetry.markShared();
-    }
-    setShareNote(shareNoteFor(outcome));
+    setCopyNote(null);
+    const outcome = await copyLink(ghostLinkUrl(username));
+    if (outcome === "copied") gameplayTelemetry.markShared();
+    setCopyNote(copyNoteFor(outcome));
   }
 
   function restartRace() {
@@ -4415,6 +4418,7 @@ export function SoloTimeTrialCanvas({
                     Resume
                   </button>
                   <SoundToggle on={soundOn} onChange={setSoundOn} />
+                  <VolumeControl />
                   {ghosts ? (
                     <GhostToggle
                       on={ghostOn}
@@ -4483,18 +4487,19 @@ export function SoloTimeTrialCanvas({
                     type="button"
                     className="titan-button titan-button-primary"
                     data-controller-default="true"
+                    data-ui-sound="start"
                     ref={restartButtonRef}
                     onClick={restartRace}
                   >
                     Race again
                   </button>
-                  {submitsRuns ? (
+                  {ghostLinkUsername ? (
                     <button
                       type="button"
                       className="titan-button titan-button-secondary"
-                      onClick={() => void shareResult()}
+                      onClick={() => void copyGhostLink(ghostLinkUsername)}
                     >
-                      Share
+                      Copy link
                     </button>
                   ) : null}
                   <button
@@ -4506,13 +4511,13 @@ export function SoloTimeTrialCanvas({
                   </button>
                   <p
                     className={
-                      shareNote
+                      copyNote
                         ? "text-center font-mono text-xs text-titan-ice/76"
                         : "sr-only"
                     }
                     aria-live="polite"
                   >
-                    {shareNote}
+                    {copyNote}
                   </p>
                 </div>
               </div>
@@ -4539,6 +4544,8 @@ export function SoloTimeTrialCanvas({
               {!kartDynamicsOpen ? (
                 <div
                   aria-label="Touch driving controls"
+                  // Driving, not menus: no menu sounds.
+                  data-ui-sound="off"
                   className="race-touch-controls absolute inset-x-0 bottom-0 z-20 justify-between px-[max(1rem,env(safe-area-inset-left))] pb-[max(1rem,env(safe-area-inset-bottom))] pr-[max(1rem,env(safe-area-inset-right))]"
                   role="group"
                 >

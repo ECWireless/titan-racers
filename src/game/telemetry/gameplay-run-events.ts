@@ -93,7 +93,7 @@ const raceStartedEventSchema = z.strictObject({
   type: z.literal("race_started"),
 });
 
-// A finished run's result was shared, through the share sheet or a copy.
+// A finished run's result was shared: its link was copied.
 const runSharedEventSchema = z.strictObject({
   ...eventBase,
   type: z.literal("run_shared"),

@@ -3,6 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import {
+  type ReactNode,
   useEffect,
   useMemo,
   useRef,
@@ -36,16 +37,21 @@ import { drawsEnclosure } from "@/game/enclosure/enclosure-view";
 import { fetchRaceGhost, fetchRacerGhost } from "@/game/ghost/board-ghost";
 import {
   type BoardGhost,
+  type DeviceGhost,
   type GhostChoice,
   type RacerGhostSource,
   readGhostChoice,
+  readGhostSwitch,
   subscribeGhostChoice,
+  subscribeGhostSwitch,
   writeGhostChoice,
+  writeGhostSwitch,
 } from "@/game/ghost/device-ghost";
 import { loadAmmoPhysics } from "@/game/runtime/playcanvas-application";
 import { loadTreeImages } from "@/game/enclosure/tree-images";
 import type { CourseEnclosure } from "@/game/enclosure/island-three";
-import { suspendRaceAudio, unlockRaceAudio } from "@/game/audio/race-audio";
+import { endRaceAudio, unlockRaceAudio } from "@/game/audio/race-audio";
+import { RACE_LAP_COUNT } from "@/game/race/race-course";
 import { formatRaceTime } from "@/game/race/race-presentation";
 import { exactRacerUsernameSchema } from "@/lib/racer-username";
 
@@ -54,7 +60,16 @@ import {
   CourseLoadingScreen,
 } from "./course-loading-screen";
 import type { CourseLoadTimings } from "./frame-budget-overlay";
-import { KartThumbnail } from "./kart-thumbnail";
+import { keepKartThumbnail } from "./kart-thumbnail";
+import {
+  HomeChoice,
+  HomeCourseCard,
+  type HomeKart,
+  HomeKartCard,
+  HomeStartStep,
+  type HomeStep,
+  HomeStepFrame,
+} from "./home-steps";
 import {
   CourseEditorIcon,
   KartBuilderIcon,
@@ -65,7 +80,7 @@ import {
   SoundIcon,
 } from "./menu-icons";
 import { SoloTimeTrialCanvas } from "./solo-time-trial-canvas";
-import { StoredSoundToggle } from "./setting-switch";
+import { StoredSoundToggle, VolumeControl } from "./setting-switch";
 
 const UTILITY_MENU_ITEM =
   "flex items-center gap-3 border border-transparent px-4 py-3 font-mono text-xs font-bold uppercase tracking-[0.14em] text-titan-ice/78 transition hover:border-titan-ice/20 hover:bg-titan-ice/[0.06] hover:text-titan-hazard focus-visible:border-titan-hazard focus-visible:bg-titan-hazard/[0.08] focus-visible:text-titan-hazard focus-visible:outline-none";
@@ -80,13 +95,9 @@ type CourseLoading = {
   leaving: boolean;
 };
 
-type PlayableOfficialKart = {
-  assemblerCredit: string;
-  document: KartAssemblyDocument;
-  resolvedSnapshot: PersistedResolvedKartSnapshot;
+type PlayableOfficialKart = HomeKart & {
   /** The published revision, or null for the bundled roster. */
   revision: number | null;
-  thumbnailSource: string | null;
 };
 
 /** A course to race and its published revision, or null for the seed. */
@@ -180,12 +191,72 @@ function parseRacerLink(search: string): RacerLink | null {
 // The address is read in the browser only; home never navigates itself.
 const subscribeToNothing = () => () => {};
 
+// Each step after the first is a history entry on the same address, so the
+// browser's or phone's back goes back a step. An entry also keeps the choices
+// made so far, so coming back to home (from the leaderboard, or a reload)
+// reopens the step it was on, and back still walks the steps before it.
+const HISTORY_STEP_KEY = "titanHomeStep";
+const HISTORY_KART_KEY = "titanHomeKart";
+const HISTORY_COURSE_SKIPPED_KEY = "titanHomeCourseSkipped";
+// A race adds its own entry on the mode's, so back leaves the race.
+const HISTORY_RACING_KEY = "titanHomeRacing";
+const HOME_STEPS: readonly HomeStep[] = ["start", "kart", "course", "race"];
+
+function historyField(state: unknown, key: string): unknown {
+  return state && typeof state === "object"
+    ? (state as Record<string, unknown>)[key]
+    : undefined;
+}
+
+function historyStep(state: unknown): HomeStep | null {
+  const step = historyField(state, HISTORY_STEP_KEY);
+  return HOME_STEPS.find((candidate) => candidate === step) ?? null;
+}
+
+/**
+ * A step's history entry, with the choices made to reach it. It keeps the
+ * current entry's other state, Next's own included: an entry written while
+ * the page hydrates may come before Next starts adding it.
+ */
+function historyEntry(
+  step: HomeStep,
+  { courseSkipped, kartId }: { courseSkipped: boolean; kartId: string | null },
+) {
+  const current: unknown = window.history.state;
+  const entry: Record<string, unknown> = {
+    ...(current && typeof current === "object" ? current : {}),
+    [HISTORY_COURSE_SKIPPED_KEY]: courseSkipped,
+    [HISTORY_KART_KEY]: kartId,
+    [HISTORY_STEP_KEY]: step,
+  };
+  delete entry[HISTORY_RACING_KEY];
+  return entry;
+}
+
+function historyRacing(state: unknown) {
+  return Boolean(
+    state &&
+      typeof state === "object" &&
+      (state as Record<string, unknown>)[HISTORY_RACING_KEY],
+  );
+}
+
 export function PlayHome() {
   const homeMenuRef = useRef<HTMLElement | null>(null);
   const utilityMenuRef = useRef<HTMLDivElement | null>(null);
   const utilityMenuButtonRef = useRef<HTMLButtonElement | null>(null);
   const resumeThumbnailRenderingRef = useRef<(() => void) | null>(null);
   const [mode, setMode] = useState<"home" | "solo">("home");
+  const [step, setStep] = useState<HomeStep>("start");
+  // A ghost link's racer fixes the course to their board.
+  const [courseSkipped, setCourseSkipped] = useState(false);
+  // Bumped when a step opens or a race exits, to focus its first choice;
+  // the first screen opens focused too.
+  const [focusRequest, setFocusRequest] = useState(1);
+  const stepRef = useRef<HTMLDivElement | null>(null);
+  // A race is starting or running, so back should leave it.
+  const racingRef = useRef(false);
+  const exitRaceRef = useRef<() => void>(() => undefined);
   const [courseLoading, setCourseLoading] = useState<CourseLoading | null>(
     null,
   );
@@ -241,18 +312,158 @@ export function PlayHome() {
     readGhostChoice,
     () => "course_best",
   );
+  const ghostSwitch = useSyncExternalStore(
+    subscribeGhostSwitch,
+    readGhostSwitch,
+    () => true,
+  );
+
+  function showStep(
+    next: HomeStep,
+    choices: { courseSkipped?: boolean; kartId?: string | null } = {},
+  ) {
+    window.history.pushState(
+      historyEntry(next, {
+        courseSkipped: choices.courseSkipped ?? courseSkipped,
+        kartId: choices.kartId ?? selectedKartId,
+      }),
+      "",
+    );
+    setStep(next);
+    setFocusRequest((request) => request + 1);
+  }
+
+  function goBack() {
+    if (step === "start") return;
+    if (historyStep(window.history.state) === step) {
+      window.history.back();
+      return;
+    }
+    // This step has no entry of its own (a reload's leftovers): step back
+    // without one.
+    setStep(
+      step === "race"
+        ? courseSkipped
+          ? "kart"
+          : "course"
+        : step === "course"
+          ? "kart"
+          : "start",
+    );
+    setFocusRequest((request) => request + 1);
+  }
 
   useControllerMenuNavigation({
     containerRef: homeMenuRef,
+    // A press while the karts load would land on Back, so only back works.
+    backOnly: step === "kart" && rosterPending,
     enabled: mode === "home" && courseLoading === null,
+    keyboard: true,
     navigationMode: "spatial",
     onBack: utilityMenuOpen
       ? () => {
           setUtilityMenuOpen(false);
           utilityMenuButtonRef.current?.focus();
         }
-      : undefined,
+      : step !== "start"
+        ? goBack
+        : undefined,
   });
+
+  useEffect(() => {
+    // A race the opening entry held is over, leaving its mode.
+    const state: unknown = window.history.state;
+    if (historyRacing(state)) {
+      const rest = { ...(state as Record<string, unknown>) };
+      delete rest[HISTORY_RACING_KEY];
+      window.history.replaceState(rest, "");
+    }
+    const onPopState = (event: PopStateEvent) => {
+      // Forward onto a finished race's entry steps past it.
+      if (!racingRef.current && historyRacing(event.state)) {
+        window.history.back();
+        return;
+      }
+      // Back from a race leaves it, landing on the mode. The choices made
+      // since stand.
+      if (racingRef.current) exitRaceRef.current();
+      setStep(historyStep(event.state) ?? "start");
+      setFocusRequest((request) => request + 1);
+    };
+    window.addEventListener("popstate", onPopState);
+    return () => {
+      window.removeEventListener("popstate", onPopState);
+      // Leaving home while a race loads ends it (and its hold on sound).
+      if (racingRef.current) endRaceAudio();
+    };
+  }, []);
+
+  // Coming back to home (from the leaderboard, or a reload) reopens the
+  // step its entry holds, with the choices that reached it, once the entry
+  // is read in the browser.
+  const openingEntry = useSyncExternalStore<unknown>(
+    subscribeToNothing,
+    () => window.history.state,
+    () => null,
+  );
+  const [entryRestored, setEntryRestored] = useState(false);
+  // A leaderboard row's Race opens straight on the kart, once the address is
+  // read in the browser, on an entry of its own (below).
+  const [leaderboardEntry, setLeaderboardEntry] = useState(false);
+  let entryReopened = false;
+  if (!entryRestored && openingEntry !== null) {
+    setEntryRestored(true);
+    const openingStep = historyStep(openingEntry);
+    if (openingStep) {
+      entryReopened = true;
+      const kartId = historyField(openingEntry, HISTORY_KART_KEY);
+      if (typeof kartId === "string") setSelectedKartId(kartId);
+      setCourseSkipped(
+        historyField(openingEntry, HISTORY_COURSE_SKIPPED_KEY) === true,
+      );
+      setStep(openingStep);
+      setFocusRequest((request) => request + 1);
+      // A leaderboard row's link coming back reopens its step too.
+      setLeaderboardEntry(true);
+    }
+  }
+  if (
+    !entryReopened &&
+    racerGhost?.source === "leaderboard_racer" &&
+    !leaderboardEntry
+  ) {
+    setLeaderboardEntry(true);
+    setCourseSkipped(true);
+    setStep("kart");
+    setFocusRequest((request) => request + 1);
+  }
+  useEffect(() => {
+    if (leaderboardEntry && !historyStep(window.history.state)) {
+      window.history.pushState(
+        historyEntry("kart", { courseSkipped: true, kartId: null }),
+        "",
+      );
+    }
+  }, [leaderboardEntry]);
+
+  useEffect(() => {
+    // Once mounted, the race records its own exit.
+    exitRaceRef.current = () => (raceExitRef.current ?? exitSolo)();
+  });
+
+  // The karts arriving refocuses only their own step, and a ghost link's
+  // racer appearing or going refocuses only the first screen.
+  const kartsLoading = step === "kart" && rosterPending;
+  const challengeShown =
+    step === "start" &&
+    racerGhost !== null &&
+    typeof racerGhostFound !== "string";
+  useEffect(() => {
+    if (mode !== "home") return;
+    stepRef.current
+      ?.querySelector<HTMLElement>('[data-controller-default="true"]')
+      ?.focus();
+  }, [challengeShown, focusRequest, kartsLoading, mode, step]);
 
   useEffect(() => {
     let active = true;
@@ -280,6 +491,13 @@ export function PlayHome() {
       if (!active) return;
 
       const nextKarts = playableOfficialKarts(roster);
+      // Draw pictures the server lacks while the player is on the first
+      // screen, as the karts' step would; a race start drops what is left.
+      for (const kart of nextKarts) {
+        if (!kart.thumbnailSource) {
+          keepKartThumbnail(kart.document).catch(() => undefined);
+        }
+      }
       setOfficialKarts(nextKarts);
       setSelectedKartId((current) =>
         nextKarts.some(({ document }) => document.kartId === current)
@@ -351,6 +569,8 @@ export function PlayHome() {
     };
     const closeFromEscape = (event: KeyboardEvent) => {
       if (event.key !== "Escape") return;
+      // Used here: back must not also take it a step back.
+      event.preventDefault();
       setUtilityMenuOpen(false);
       utilityMenuButtonRef.current?.focus();
     };
@@ -374,10 +594,6 @@ export function PlayHome() {
     [],
   );
 
-  function showComingSoon() {
-    setToast("coming soon");
-  }
-
   async function startSoloTimeTrial() {
     const selectedKart = officialKarts.find(
       ({ document }) => document.kartId === selectedKartId,
@@ -386,6 +602,17 @@ export function PlayHome() {
 
     // Still inside the click: the only moment iPhone Safari allows sound.
     unlockRaceAudio();
+    racingRef.current = true;
+    window.history.pushState(
+      {
+        ...historyEntry("race", {
+          courseSkipped,
+          kartId: selectedKart.document.kartId,
+        }),
+        [HISTORY_RACING_KEY]: true,
+      },
+      "",
+    );
     setUtilityMenuOpen(false);
     setSoloPending(true);
     stopPrewarmRef.current?.();
@@ -428,13 +655,29 @@ export function PlayHome() {
       rampHeight === null
         ? nextCoursePromise.then(async (course): Promise<BoardGhost | null> => {
             // A linked racer's best counts only on the board being raced.
-            const linked = linkedRacer ? await linkedRequest : null;
-            if (
-              linkedRacer &&
+            const onBoard = (
+              linked: Awaited<ReturnType<typeof fetchRacerGhost>> | null,
+            ): linked is DeviceGhost =>
               typeof linked === "object" &&
               linked?.courseId === courseId &&
-              linked.courseRevision === course.revision
-            ) {
+              linked.courseRevision === course.revision;
+            let linked = linkedRacer ? await linkedRequest : null;
+            if (linkedRacer && typeof linked === "object" && !onBoard(linked)) {
+              // The course was published again since home opened: their
+              // best on the new board, if they have one, kept for later
+              // races too, and home says if they have none.
+              const refreshed = fetchRacerGhost(courseId, linkedRacer.username);
+              racerGhostRequestRef.current = refreshed;
+              linked = await refreshed;
+              setRacerGhostFound(
+                onBoard(linked)
+                  ? linked
+                  : typeof linked === "string"
+                    ? linked
+                    : "none",
+              );
+            }
+            if (linkedRacer && onBoard(linked)) {
               return { ghost: linked, kind: linkedRacer.source };
             }
             return fetchRaceGhost(courseId, course.revision, readGhostChoice());
@@ -512,8 +755,11 @@ export function PlayHome() {
   }
 
   function exitSolo() {
+    racingRef.current = false;
+    // Leaving by Exit drops the race's entry; leaving by back already has.
+    if (historyRacing(window.history.state)) window.history.back();
     // Covers a race left during loading, before its audio existed.
-    suspendRaceAudio();
+    endRaceAudio();
     if (revealTimerRef.current !== null) {
       window.clearTimeout(revealTimerRef.current);
       revealTimerRef.current = null;
@@ -527,6 +773,7 @@ export function PlayHome() {
     setCourseLoading(null);
     setSoloPending(false);
     setMode("home");
+    setFocusRequest((request) => request + 1);
   }
 
   const covered = courseLoading !== null && !courseLoading.leaving;
@@ -542,7 +789,11 @@ export function PlayHome() {
             ? `@${racerGhost.username} has no time on this course yet`
             : `@${racerGhost.username}'s ghost couldn't be loaded`
         }, so you'll race ${
-          ghostChoice === "own_best" ? "your best" : "the course best"
+          !ghostSwitch
+            ? "without a ghost"
+            : ghostChoice === "own_best"
+              ? "your best"
+              : "the course best"
         }.`
       : null;
   const loadingScreen = courseLoading ? (
@@ -582,6 +833,241 @@ export function PlayHome() {
         </div>
         {loadingScreen}
       </>
+    );
+  }
+
+  const selectedKart = officialKarts.find(
+    ({ document }) => document.kartId === selectedKartId,
+  );
+  // The course raced; outside production a test hook can swap the sandbox in.
+  const stepCourse =
+    BUNDLED_COURSE_DOCUMENTS[
+      step === "start" ? CURRENT_GUEST_COURSE_ID : soloCourseId()
+    ];
+  const rail = (
+    [
+      ["kart", "Kart", selectedKart?.document.name ?? null],
+      ["course", "Course", stepCourse.name],
+      ["race", "Mode", null],
+    ] as const
+  ).map(([railStep, label, value]) => ({
+    current: railStep === step,
+    label,
+    value:
+      HOME_STEPS.indexOf(railStep) < HOME_STEPS.indexOf(step) ||
+      (railStep === "course" && courseSkipped)
+        ? value
+        : null,
+  }));
+
+  function chooseGhost(choice: GhostChoice | "none") {
+    if (choice === "none") {
+      writeGhostSwitch(false);
+    } else {
+      writeGhostChoice(choice);
+      writeGhostSwitch(true);
+    }
+    setRacerGhostChosen(false);
+  }
+
+  let stepContent: ReactNode;
+  if (step === "start") {
+    stepContent = (
+      <HomeStartStep
+        challenge={
+          racerGhost && typeof racerGhostFound !== "string"
+            ? {
+                time: racerGhostFound
+                  ? formatRaceTime(racerGhostFound.timeMicroseconds, 3)
+                  : null,
+                username: racerGhost.username,
+              }
+            : null
+        }
+        note={racerGhostNote}
+        onRace={() => {
+          setCourseSkipped(false);
+          showStep("kart", { courseSkipped: false });
+        }}
+        onRaceChallenge={() => {
+          setRacerGhostChosen(true);
+          setCourseSkipped(true);
+          showStep("kart", { courseSkipped: true });
+        }}
+      />
+    );
+  } else if (step === "kart") {
+    stepContent = (
+      <HomeStepFrame
+        onBack={goBack}
+        rail={rail}
+        title="Choose your kart"
+        titleId="kart-selection-title"
+      >
+        {rosterPending ? (
+          <p
+            className="border border-titan-ice/18 bg-titan-black/68 p-5 font-mono text-sm text-titan-ice/70 backdrop-blur"
+            role="status"
+          >
+            Loading official karts…
+          </p>
+        ) : officialKarts.length === 0 ? (
+          <p
+            className="border border-titan-ice/18 bg-titan-black/68 p-5 text-sm text-titan-ice/72 backdrop-blur"
+            role="status"
+          >
+            No official karts are currently published.
+          </p>
+        ) : (
+          <div
+            aria-label="Official kart selection"
+            className="grid gap-4 md:grid-cols-3"
+            role="group"
+          >
+            {officialKarts.map((kart) => (
+              <HomeKartCard
+                chosen={kart.document.kartId === selectedKartId}
+                kart={kart}
+                key={kart.document.kartId}
+                onChoose={() => {
+                  setSelectedKartId(kart.document.kartId);
+                  showStep(courseSkipped ? "race" : "course", {
+                    kartId: kart.document.kartId,
+                  });
+                }}
+              />
+            ))}
+          </div>
+        )}
+      </HomeStepFrame>
+    );
+  } else if (step === "course") {
+    stepContent = (
+      <HomeStepFrame
+        onBack={goBack}
+        rail={rail}
+        title="Choose your course"
+        titleId="course-selection-title"
+      >
+        <div
+          aria-label="Course selection"
+          className="grid gap-4 md:max-w-md"
+          role="group"
+        >
+          <HomeCourseCard
+            course={stepCourse}
+            laps={RACE_LAP_COUNT}
+            onChoose={() => showStep("race")}
+          />
+        </div>
+      </HomeStepFrame>
+    );
+  } else {
+    stepContent = (
+      <HomeStepFrame
+        onBack={goBack}
+        rail={rail}
+        title="Choose your race"
+        titleId="race-mode-title"
+      >
+        <div className="grid max-w-2xl gap-6">
+          <div className="grid gap-2">
+            <p
+              className="font-mono text-[0.62rem] font-bold uppercase tracking-[0.18em] text-titan-muted"
+              id="mode-choice-label"
+            >
+              Mode
+            </p>
+            <div
+              aria-labelledby="mode-choice-label"
+              className="grid gap-2 sm:grid-cols-2"
+              role="group"
+            >
+              <HomeChoice chosen onChoose={() => undefined}>
+                Time trial
+              </HomeChoice>
+              <HomeChoice
+                chosen={false}
+                disabledNote="Coming soon"
+                onChoose={() => setToast("coming soon")}
+              >
+                Race Friends
+              </HomeChoice>
+            </div>
+          </div>
+          <div className="grid gap-2">
+            <p
+              className="font-mono text-[0.62rem] font-bold uppercase tracking-[0.18em] text-titan-muted"
+              id="ghost-choice-label"
+            >
+              Ghost
+            </p>
+            <div
+              aria-labelledby="ghost-choice-label"
+              className="grid gap-2 sm:grid-cols-3"
+              role="group"
+            >
+              {racerGhost && typeof racerGhostFound !== "string" ? (
+                <HomeChoice
+                  chosen={racerGhostChosen}
+                  className="sm:col-span-3"
+                  onChoose={() => setRacerGhostChosen(true)}
+                >
+                  @{racerGhost.username}
+                  {racerGhostFound
+                    ? ` · ${formatRaceTime(racerGhostFound.timeMicroseconds, 3)}`
+                    : ""}
+                </HomeChoice>
+              ) : null}
+              {(
+                [
+                  ["course_best", "Course best"],
+                  ["own_best", "Your best"],
+                  ["none", "No ghost"],
+                ] as const
+              ).map(([choice, label]) => (
+                <HomeChoice
+                  chosen={
+                    !racerGhostOffered &&
+                    (choice === "none"
+                      ? !ghostSwitch
+                      : ghostSwitch && ghostChoice === choice)
+                  }
+                  key={choice}
+                  onChoose={() => chooseGhost(choice)}
+                >
+                  {label}
+                </HomeChoice>
+              ))}
+            </div>
+            <p
+              className={
+                racerGhostNote
+                  ? "text-xs leading-5 text-titan-ice/70"
+                  : "sr-only"
+              }
+              aria-live="polite"
+            >
+              {racerGhostNote}
+            </p>
+          </div>
+          <button
+            className="titan-button titan-button-primary min-h-16 text-base"
+            data-controller-default="true"
+            data-ui-sound="start"
+            disabled={soloPending || !selectedKart}
+            type="button"
+            data-first-click-only=""
+            onClick={(event) => {
+              // A double-click's second click is not a second start.
+              if (event.detail > 1) return;
+              void startSoloTimeTrial();
+            }}
+          >
+            {soloPending ? "Preparing race…" : "Start race"}
+          </button>
+        </div>
+      </HomeStepFrame>
     );
   }
 
@@ -666,229 +1152,33 @@ export function PlayHome() {
                 ) : null}
               </nav>
               <div className="border-t border-titan-ice/15 px-2 pb-2 pt-3">
-                <StoredSoundToggle icon={<SoundIcon />} />
+                <div className="grid gap-2">
+                  <StoredSoundToggle icon={<SoundIcon />} />
+                  <VolumeControl />
+                </div>
               </div>
             </div>
           ) : null}
         </div>
       </header>
 
-      <div className="grid flex-1 content-center gap-8 py-10 lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-center">
-        <section className="grid gap-5" aria-labelledby="kart-selection-title">
-          <div className="grid gap-2">
-            <p className="font-mono text-xs font-bold uppercase tracking-[0.22em] text-titan-hazard">
-              Official roster
-            </p>
-            <h1
-              className="text-3xl font-black uppercase tracking-[-0.04em] sm:text-5xl"
-              id="kart-selection-title"
-            >
-              Choose your kart
-            </h1>
-          </div>
-
-          {rosterPending ? (
-            <p
-              className="border border-titan-ice/18 bg-titan-black/68 p-5 font-mono text-sm text-titan-ice/70 backdrop-blur"
-              role="status"
-            >
-              Loading official karts…
-            </p>
-          ) : officialKarts.length === 0 ? (
-            <p
-              className="border border-titan-ice/18 bg-titan-black/68 p-5 text-sm text-titan-ice/72 backdrop-blur"
-              role="status"
-            >
-              No official karts are currently published.
-            </p>
-          ) : (
-            <div
-              aria-label="Official kart selection"
-              className="grid gap-4 md:grid-cols-3"
-              role="group"
-            >
-              {officialKarts.map((kart) => {
-                const selected = kart.document.kartId === selectedKartId;
-                return (
-                  <button
-                    aria-pressed={selected}
-                    className={`grid min-w-0 content-start gap-4 border p-4 text-left shadow-[0_20px_60px_rgb(0_0_0/0.35)] backdrop-blur transition ${
-                      selected
-                        ? "border-titan-hazard bg-titan-black/90"
-                        : "border-titan-ice/18 bg-titan-black/68 hover:border-titan-ice/45"
-                    }`}
-                    key={kart.document.kartId}
-                    type="button"
-                    onClick={() => setSelectedKartId(kart.document.kartId)}
-                  >
-                    <KartThumbnail
-                      document={kart.document}
-                      initialized
-                      source={kart.thumbnailSource}
-                    />
-                    <span
-                      aria-hidden="true"
-                      className="h-2 w-full"
-                      style={{
-                        background: `linear-gradient(90deg, ${kart.document.visualIdentity.primaryColor} 0 72%, ${kart.document.visualIdentity.accentColor} 72% 100%)`,
-                      }}
-                    />
-                    <span className="grid gap-1">
-                      <strong className="text-xl font-black uppercase tracking-[-0.03em]">
-                        {kart.document.name}
-                      </strong>
-                      <span className="font-mono text-[0.62rem] font-bold uppercase tracking-[0.12em] text-titan-hazard">
-                        Assembled by {kart.assemblerCredit}
-                      </span>
-                    </span>
-                    <span className="min-h-16 text-xs leading-5 text-titan-ice/68">
-                      {kart.document.practicalDescriptor}
-                    </span>
-                    <span className="grid gap-2">
-                      {Object.entries(kart.resolvedSnapshot.playerStats).map(
-                        ([label, value]) => (
-                          <span
-                            className="grid grid-cols-[5.5rem_1fr_1.5rem] items-center gap-2"
-                            key={label}
-                          >
-                            <span className="font-mono text-[0.56rem] font-bold uppercase tracking-[0.09em] text-titan-muted">
-                              {label}
-                            </span>
-                            <span className="h-1.5 overflow-hidden bg-titan-ice/10">
-                              <span
-                                className="block h-full bg-titan-orange"
-                                style={{ width: `${value}%` }}
-                              />
-                            </span>
-                            <span className="text-right font-mono text-[0.6rem] font-bold">
-                              {value}
-                            </span>
-                          </span>
-                        ),
-                      )}
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
-          )}
-        </section>
-
-        <section
-          aria-labelledby="game-mode-title"
-          className="grid gap-4 border border-titan-ice/18 bg-titan-black/68 p-5 backdrop-blur"
-        >
-          <p
-            className="font-mono text-xs font-bold uppercase tracking-[0.22em] text-titan-hazard"
-            id="game-mode-title"
-          >
-            Choose game mode
-          </p>
-          <button
-            className="titan-button titan-button-primary"
-            data-controller-default="true"
-            type="button"
-            onClick={showComingSoon}
-          >
-            Race Friends
-          </button>
-          <button
-            className="titan-button titan-button-secondary"
-            disabled={rosterPending || !selectedKartId || soloPending}
-            type="button"
-            onClick={() => void startSoloTimeTrial()}
-          >
-            {soloPending ? "Preparing Race…" : "Solo Time Trial"}
-          </button>
-          <p
-            className="-mb-2 font-mono text-[0.62rem] font-bold uppercase tracking-[0.18em] text-titan-muted"
-            id="ghost-choice-label"
-          >
-            Ghost
-          </p>
-          <div
-            aria-labelledby="ghost-choice-label"
-            className="grid grid-cols-2 gap-2"
-            role="group"
-          >
-            {racerGhost && typeof racerGhostFound !== "string" ? (
-              <button
-                aria-pressed={racerGhostChosen}
-                className={`col-span-2 flex min-h-11 items-center justify-center gap-2 border px-3 transition ${
-                  racerGhostChosen
-                    ? "border-titan-hazard text-titan-hazard"
-                    : "border-titan-ice/20 text-titan-ice/70 hover:border-titan-ice/45"
-                }`}
-                type="button"
-                onClick={() => setRacerGhostChosen(true)}
-              >
-                <span className="truncate font-mono text-[0.68rem] font-bold uppercase leading-none tracking-[0.12em]">
-                  @{racerGhost.username}
-                  {racerGhostFound
-                    ? ` · ${formatRaceTime(racerGhostFound.timeMicroseconds, 3)}`
-                    : ""}
-                </span>
-              </button>
-            ) : null}
-            {(
-              [
-                ["course_best", "Course best"],
-                ["own_best", "Your best"],
-              ] as const
-            ).map(([choice, label]) => (
-              <button
-                aria-pressed={!racerGhostOffered && ghostChoice === choice}
-                className={`flex min-h-11 items-center justify-center border px-3 transition ${
-                  !racerGhostOffered && ghostChoice === choice
-                    ? "border-titan-hazard text-titan-hazard"
-                    : "border-titan-ice/20 text-titan-ice/70 hover:border-titan-ice/45"
-                }`}
-                key={choice}
-                type="button"
-                onClick={() => {
-                  writeGhostChoice(choice);
-                  setRacerGhostChosen(false);
-                }}
-              >
-                {/* The global `button { font: inherit }` overrides the
-                    button's own font classes. */}
-                <span className="font-mono text-[0.68rem] font-bold uppercase leading-none tracking-[0.12em]">
-                  {label}
-                </span>
-              </button>
-            ))}
-          </div>
-          <p
-            className={
-              racerGhostNote ? "text-xs leading-5 text-titan-ice/70" : "sr-only"
-            }
-            aria-live="polite"
-          >
-            {racerGhostNote}
-          </p>
-          <Link
-            className="flex items-center justify-center gap-2 py-1 font-mono text-xs font-bold uppercase tracking-[0.16em] text-titan-ice/70 transition hover:text-titan-hazard focus-visible:text-titan-hazard focus-visible:outline-none"
-            href="/leaderboard"
-          >
-            <LeaderboardIcon />
-            View leaderboard
-          </Link>
-          <div
-            className={
-              toast
-                ? "font-mono text-xs font-bold uppercase tracking-[0.18em] text-titan-ice/78"
-                : "sr-only"
-            }
-            role="status"
-            aria-live="polite"
-          >
-            {toast ? (
-              <span className="inline-flex border border-titan-orange bg-titan-black/78 px-4 py-3 shadow-[0_20px_60px_rgb(0_0_0/0.42)]">
-                {toast}
-              </span>
-            ) : null}
-          </div>
-        </section>
+      <div className="grid flex-1 content-center py-10" key={step} ref={stepRef}>
+        {stepContent}
+      </div>
+      <div
+        className={
+          toast
+            ? "pointer-events-none fixed inset-x-0 bottom-6 z-30 flex justify-center font-mono text-xs font-bold uppercase tracking-[0.18em] text-titan-ice/78"
+            : "sr-only"
+        }
+        role="status"
+        aria-live="polite"
+      >
+        {toast ? (
+          <span className="inline-flex border border-titan-orange bg-titan-black/78 px-4 py-3 shadow-[0_20px_60px_rgb(0_0_0/0.42)]">
+            {toast}
+          </span>
+        ) : null}
       </div>
     </section>
   );

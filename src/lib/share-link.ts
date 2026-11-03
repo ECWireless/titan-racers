@@ -1,47 +1,19 @@
-/** How sharing a link ended. */
-export type ShareOutcome = "cancelled" | "copied" | "failed" | "shared";
+/** How copying a link ended. */
+export type CopyOutcome = "copied" | "failed";
 
-/**
- * Shares a message and link through the device's share sheet, or copies
- * them where there is none (most desktop browsers). Must run from a click.
- */
-export async function shareLink({
-  text,
-  url,
-}: {
-  text: string;
-  url: string;
-}): Promise<ShareOutcome> {
-  const data = { text, url };
-  if (typeof navigator.share === "function" && navigator.canShare?.(data) !== false) {
-    try {
-      await navigator.share(data);
-      return "shared";
-    } catch (error) {
-      if (error instanceof DOMException && error.name === "AbortError") {
-        return "cancelled";
-      }
-      // A refused share sheet falls back to copying.
-    }
-  }
-  return copyLink(`${text} ${url}`);
-}
-
-/** Copies a link alone, with no message. */
-export async function copyLink(text: string): Promise<ShareOutcome> {
+/** Copies a link, with no message: its preview tells the rest. */
+export async function copyLink(url: string): Promise<CopyOutcome> {
   try {
-    await navigator.clipboard.writeText(text);
+    await navigator.clipboard.writeText(url);
     return "copied";
   } catch {
     return "failed";
   }
 }
 
-/** What to tell the player after sharing; nothing once shared or cancelled. */
-export function shareNoteFor(outcome: ShareOutcome) {
-  if (outcome === "copied") return "Link copied.";
-  if (outcome === "failed") return "The link couldn't be shared.";
-  return null;
+/** What to tell the player after copying. */
+export function copyNoteFor(outcome: CopyOutcome) {
+  return outcome === "copied" ? "Link copied." : "The link couldn't be copied.";
 }
 
 /** A racer's ghost link: it races their best on the current board. */

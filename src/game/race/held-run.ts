@@ -1,37 +1,36 @@
 import { z } from "zod";
 
+import { microsecondsSchema } from "./leaderboard";
 import {
   type RunSubmissionResponse,
   sendRunRecording,
+  verifiedStandingSchema,
 } from "./run-submission";
 
 /**
  * A guest's finished run, or an unnamed racer's, waits on this device with
  * its ticket and recording until they sign in and choose a username; then
- * it goes to the board as theirs. One run is held, the fastest, until its
- * ticket expires.
+ * it goes to the board as theirs. One run is held, the fastest on its
+ * board, until its ticket expires.
  */
 const HELD_RUN_KEY = "titan-racers.held-run.v1";
 // The outcome of sending it, for the leaderboard to show once.
 const HELD_RUN_NOTE_KEY = "titan-racers.held-run-note.v1";
 
 const heldRunSchema = z.strictObject({
+  // Its board (course, revision, and physics): a run on another board
+  // replaces it, as only the newest board is shown. Missing on runs held
+  // before boards were named, which any new run replaces.
+  board: z.string().min(1).optional(),
   expiresAt: z.number().int().positive(),
   recording: z.string().min(1),
   ticket: z.string().min(1),
-  timeMicroseconds: z.number().int().positive(),
+  timeMicroseconds: microsecondsSchema,
 });
 type HeldRun = z.infer<typeof heldRunSchema>;
 
-const microsecondsSchema = z.number().int().positive();
 const heldRunNoteSchema = z.discriminatedUnion("status", [
-  z.strictObject({
-    entries: z.number().int().positive(),
-    personalBest: z.strictObject({
-      improved: z.boolean(),
-      timeMicroseconds: microsecondsSchema,
-    }),
-    rank: z.number().int().positive(),
+  verifiedStandingSchema.extend({
     status: z.literal("verified"),
     timeMicroseconds: microsecondsSchema,
   }),
@@ -89,15 +88,21 @@ function readHeldRun(now = Date.now()): HeldRun | null {
 }
 
 /**
- * Holds a finished run unless a faster one is already waiting. Returns the
- * run now held, or null if none is: this one is too late, or this device
- * cannot keep it.
+ * Holds a finished run unless a faster one on the same board is already
+ * waiting. Returns the run now held, or null if none is: this one is too
+ * late, or this device cannot keep it.
  */
 export function holdRun(run: HeldRun, now = Date.now()): HeldRun | null {
   // A long pause can outlast the ticket, which dates from the run's start.
   if (run.expiresAt <= now) return null;
   const held = readHeldRun(now);
-  if (held && held.timeMicroseconds <= run.timeMicroseconds) return held;
+  if (
+    held &&
+    held.board === run.board &&
+    held.timeMicroseconds <= run.timeMicroseconds
+  ) {
+    return held;
+  }
   try {
     window.localStorage.setItem(HELD_RUN_KEY, JSON.stringify(run));
     return run;

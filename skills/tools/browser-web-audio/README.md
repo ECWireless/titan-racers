@@ -31,7 +31,8 @@ bed with no generated stand-in stays silent until then.
   counts, so a race whose sound waits for that gesture opens paused, and
   its Resume tap brings the sound.
 - `suspend()` stops all audio processing, so mute, blur, a hidden tab, and
-  exit suspend the context rather than silencing it with gain.
+  exit (on pages without menu sounds) suspend the context rather than
+  silencing it with gain.
 - Create the voices just after the scene's first drawn frame, not during
   the scene build: building a graph of started sources then slowed an
   iPhone's first frame by about 60 ms. Until then, track focus and
@@ -51,6 +52,10 @@ bed with no generated stand-in stays silent until then.
 - A game loop that stops its per-frame updates while paused leaves looping
   voices holding their last sound. Close them through a gain driven by game
   state, which applies even on a suspended context's frozen clock.
+- Menu sounds start the shared context on the page's first pointer, touch,
+  or key event, so the sound that event leads to is not late, and keep it
+  running afterwards, through the end of a race; like other one-shots, one
+  due before then is skipped.
 - Gamepad input is not a user gesture. A race started only from a controller
   stays silent until the first tap, click, or key press, and so does one a
   controller player comes back to after the page hid.
@@ -72,8 +77,10 @@ bed with no generated stand-in stays silent until then.
   is one delay node with a low-pass in a feedback loop.
 - Not used: `AudioWorklet`, `ScriptProcessor`, `ConvolverNode`, panners, or
   media elements. They cost too much on phones or are not needed.
-- A master `GainNode` feeds one `DynamicsCompressorNode` limiter before the
-  destination.
+- A master `GainNode` feeds one `DynamicsCompressorNode` limiter, then one
+  volume `GainNode` per context before the destination. Menu sounds feed the
+  volume gain directly. The gain is the square of the Volume level, so each
+  step sounds about as large as the last.
 
 ## Verification
 
@@ -92,7 +99,8 @@ bed with no generated stand-in stays silent until then.
 
 ## Project Systems
 
-- Race audio lives in `src/game/audio/`.
+- Race and menu audio live in `src/game/audio/`; menu sounds are played
+  app-wide by `src/components/ui-sounds.tsx`.
 
 ## Sources
 

@@ -159,7 +159,7 @@ seven (planted beds, hedges, and twelve floodlights, before PR 4.4.3), version
 six (before PR 4.4.2), version five (course lamps and mirror angles up to 90°,
 before PR 4.3.5), and more than four lamps (before PR 4.4.1). Editors from
 before PR 4.4.8 also refuse courses of more than 1,000 objects, and Falls View
-Park's seed has 1,355. A database
+Park's seed has 1,360. A database
 serves its existing `rough-course` revision, not the walled Starter Course
 seed, until the guarded seed reset below appends the seed and an admin
 publishes it.

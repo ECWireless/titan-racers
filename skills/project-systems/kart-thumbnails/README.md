@@ -28,7 +28,10 @@ presentation. Kart authoring and publication belong to the
   own PlayCanvas application.
 - `src/components/kart-thumbnail.tsx` presents a persisted image when available,
   otherwise renders the exact supplied document locally, with an explicit
-  uninitialized placeholder.
+  uninitialized placeholder. Home keeps its local renders for the page's
+  lifetime (`keepKartThumbnail`), drawn ahead as the roster loads for karts
+  without a stored image, so returning to the kart step never draws them
+  again; a race start drops those still queued.
 - `src/components/kart-editor/persist-kart-thumbnail.ts` performs best-effort
   post-save capture and upload. A failed capture never discards a successful
   kart revision.
