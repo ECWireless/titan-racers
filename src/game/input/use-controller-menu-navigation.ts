@@ -16,6 +16,8 @@ const MENU_ITEM_SELECTOR =
   'button:not(:disabled), a[href], [tabindex]:not([tabindex="-1"])';
 
 type ControllerMenuNavigationOptions = {
+  /** Only back (and menu) respond, as while a screen's choices load. */
+  backOnly?: boolean;
   containerRef: RefObject<HTMLElement | null>;
   enabled: boolean;
   /**
@@ -33,6 +35,7 @@ function isRendered(element: HTMLElement) {
 }
 
 export function useControllerMenuNavigation({
+  backOnly = false,
   containerRef,
   enabled,
   keyboard = false,
@@ -40,13 +43,15 @@ export function useControllerMenuNavigation({
   onBack,
   onMenu,
 }: ControllerMenuNavigationOptions) {
+  const backOnlyRef = useRef(backOnly);
   const onBackRef = useRef(onBack);
   const onMenuRef = useRef(onMenu);
 
   useEffect(() => {
+    backOnlyRef.current = backOnly;
     onBackRef.current = onBack;
     onMenuRef.current = onMenu;
-  }, [onBack, onMenu]);
+  }, [backOnly, onBack, onMenu]);
 
   useEffect(() => {
     if (!enabled) {
@@ -170,7 +175,7 @@ export function useControllerMenuNavigation({
         return;
       }
       const direction = keyDirections[event.key];
-      if (!direction) return;
+      if (!direction || backOnlyRef.current) return;
       const items = getItems();
       if (items.length === 0) return;
       event.preventDefault();
@@ -208,6 +213,11 @@ export function useControllerMenuNavigation({
           confirmRequested = actions.confirmRequested;
           menuRequested = actions.menuRequested;
           move = actions.move;
+        }
+        if (backOnlyRef.current) {
+          confirmRequested = false;
+          move = 0;
+          moveDirection = null;
         }
         const items = getItems();
         const hasAction =

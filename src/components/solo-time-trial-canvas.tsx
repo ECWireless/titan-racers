@@ -42,7 +42,7 @@ import {
   createRaceAudio,
   raceAudioAwaitsGesture,
   readSoundOn,
-  suspendRaceAudio,
+  endRaceAudio,
   unlockRaceAudio,
   type RaceAudio,
 } from "@/game/audio/race-audio";
@@ -815,7 +815,7 @@ export function SoloTimeTrialCanvas({
     raceAudioRef.current?.setActive(raceAudioActiveRef.current);
     // A load that fails before its audio exists leaves the start click's
     // context running.
-    if (sceneStatus === "failed") suspendRaceAudio();
+    if (sceneStatus === "failed") endRaceAudio();
   }, [covered, gamePaused, sceneStatus, soundOn]);
 
   useEffect(() => {

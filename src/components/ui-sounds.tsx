@@ -12,8 +12,9 @@ import {
  * Plays a menu sound for every button, link, and switch activated anywhere
  * in the app, by pointer, key, or controller. A sound due before the audio
  * has started is skipped rather than played late. It listens after the page's
- * own handlers, so a switch sounds as it lands (turning Sound effects on
- * sounds; turning it off is silent).
+ * own handlers, so a switch sounds as it lands: turning Sound effects off is
+ * silent, and so is turning it back on, while the audio wakes. A control
+ * that acts only on a double-click's first click sounds only for that one.
  */
 export function UiSounds() {
   useEffect(() => {
@@ -22,6 +23,9 @@ export function UiSounds() {
         event.target instanceof Element
           ? event.target.closest("button, a[href], [role='switch']")
           : null;
+      if (event.detail > 1 && control?.closest("[data-first-click-only]")) {
+        return;
+      }
       const sound = control ? uiSoundFor(control) : null;
       if (sound) playUiSound(sound);
     };

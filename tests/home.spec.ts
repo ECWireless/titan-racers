@@ -852,6 +852,42 @@ test.describe("home screen", () => {
     ).toBeFocused();
     await expect(page).toHaveURL(/\/$/);
 
+    // Escape closing the menu on a later step leaves the step as it is.
+    await page.getByRole("button", { exact: true, name: "Race" }).click();
+    await expect(kartTitle).toBeVisible();
+    await utilityMenu.click();
+    await page.keyboard.press("Escape");
+    await expect(utilityMenu).toBeFocused();
+    await expect(kartTitle).toBeVisible();
+
+    // Back from the leaderboard reopens the step, with its kart, and back
+    // still walks the steps before it.
+    await page
+      .getByRole("group", { name: "Official kart selection" })
+      .getByRole("button", { name: /Balanced Kart/ })
+      .click();
+    const courseTitle = page.getByRole("heading", {
+      name: "Choose your course",
+    });
+    await expect(courseTitle).toBeVisible();
+    await utilityMenu.click();
+    await page
+      .locator("#home-utility-menu")
+      .getByRole("link", { exact: true, name: "Leaderboard" })
+      .click();
+    await expect(page).toHaveURL(/\/leaderboard$/);
+    await page.goBack();
+    await expect(courseTitle).toBeVisible();
+    await expect(
+      page.getByRole("list", { name: "Race setup" }),
+    ).toContainText("Balanced Kart");
+    await page.goBack();
+    await expect(kartTitle).toBeVisible();
+    await page.goBack();
+    await expect(
+      page.getByRole("button", { exact: true, name: "Race" }),
+    ).toBeVisible();
+
     // A leaderboard row's Race opens on the kart, a step past the first.
     await page.goto("/?ghost=quick_racer&from=leaderboard");
     await expect(kartTitle).toBeVisible();
@@ -859,6 +895,23 @@ test.describe("home screen", () => {
     await expect(
       page.getByRole("button", { exact: true, name: "Race" }),
     ).toBeVisible();
+
+    // While the karts load, Escape still goes back.
+    await page.route("**/api/karts/official", async (route) => {
+      await new Promise((resolve) => setTimeout(resolve, 4_000));
+      await route.fallback();
+    });
+    await page.goto("/");
+    await page.getByRole("button", { exact: true, name: "Race" }).click();
+    await expect(kartTitle).toBeVisible();
+    await expect(
+      page.getByRole("group", { name: "Official kart selection" }),
+    ).toHaveCount(0);
+    await page.keyboard.press("Escape");
+    await expect(
+      page.getByRole("button", { exact: true, name: "Race" }),
+    ).toBeVisible();
+    await page.unrouteAll({ behavior: "ignoreErrors" });
   });
 
   test("plays menu sounds, keeps one volume, and goes quiet with Sound effects off", async ({
@@ -869,8 +922,8 @@ test.describe("home screen", () => {
       page.evaluate(
         () => (window as { __titanUiSounds?: string[] }).__titanUiSounds ?? [],
       );
-    // The first touch starts sound; one due before it has started is
-    // skipped rather than played late.
+    // A first click on no control starts sound and makes none; the moment
+    // after lets the audio start, so the next click's sound plays.
     await page.mouse.click(4, 300);
     await page.waitForTimeout(500);
     expect(await sounds()).toEqual([]);
@@ -1870,15 +1923,14 @@ test.describe("home screen", () => {
     await setStandardTestGamepad(page);
     await page.waitForTimeout(50);
     await setStandardTestGamepad(page, { buttons: { 0: 1 } });
-    // Reload starts home over.
-    await expect(
-      page.getByRole("button", { exact: true, name: "Race" }),
-    ).toBeVisible();
+    // Reload reopens the race's mode.
+    const startRace = page.getByRole("button", { name: "Start race" });
+    await expect(startRace).toBeVisible();
     await setStandardTestGamepad(page);
     await expect(
       page.locator('[data-controller-menu-ready="true"]'),
     ).toHaveCount(1);
-    await startSoloRace(page);
+    await startRace.click();
     await expect(page.getByTestId("solo-time-trial-canvas")).toHaveAttribute(
       "data-scene-ready",
       "true",
@@ -1944,10 +1996,12 @@ test.describe("home screen", () => {
     await setStandardTestGamepad(page, { buttons: { 0: 1 } });
     await expect(page.getByRole("button", { name: "Start race" })).toBeVisible();
 
+    // A reload reopens the step it was on.
     await page.reload();
-    await expect(page.getByRole("button", { exact: true, name: "Race" })).toBeVisible();
+    const startRace = page.getByRole("button", { name: "Start race" });
+    await expect(startRace).toBeVisible();
     await setStandardTestGamepad(page);
-    await startSoloRace(page);
+    await startRace.click();
     await expect(failedAlert).toBeVisible();
     await expect(
       page.locator('[data-controller-menu-ready="true"]'),
@@ -2343,7 +2397,9 @@ test.describe("home screen", () => {
         },
       });
     });
-    await page.reload();
+    // A fresh visit: a reload (or the same address again) reopens the mode.
+    await page.goto("about:blank");
+    await page.goto("/");
     await startSoloRace(page);
     canvas = page.getByTestId("solo-time-trial-canvas");
     await expect(canvas).toHaveAttribute("data-scene-ready", "true", {
@@ -3811,8 +3867,9 @@ test.describe("home screen", () => {
     });
 
     // Saved on this device: the home menu shows it off, and a new race
-    // starts silent.
-    await page.reload();
+    // starts silent. A fresh visit: a reload would reopen the mode.
+    await page.goto("about:blank");
+    await page.goto("/?sandbox-course");
     await page.getByRole("button", { name: "Open utility menu" }).click();
     await expect(
       page.getByRole("switch", { name: "Sound effects" }),

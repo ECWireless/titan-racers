@@ -28,7 +28,9 @@ import {
  * The context runs while Sound effects is on and the page is visible and
  * focused, from the first gesture that wants sound (a menu's, in
  * `ui-sounds.ts`, or a race's); otherwise it is suspended, which stops all
- * audio processing. A race's end suspends it until the next menu sound. A paused or covered race keeps it running but silent: waking
+ * audio processing. A race's end leaves it running for menu sounds, except
+ * on the silent admin pages. A paused or covered race keeps it running but
+ * silent: waking
  * a suspended context takes up to a few hundred ms (longest on iPhone),
  * which would make the first countdown tick late.
  */
@@ -58,6 +60,8 @@ let volumeNode: GainNode | null = null;
 // existing: the context then stays running for it.
 let liveRaceAudios = 0;
 let raceStarting = false;
+// This page's latest sound settings, for when storage refuses them.
+let sessionSoundSettings: SoundSettings | null = null;
 // Whether the page has focus, tracked for the page's lifetime from the click
 // that first unlocks audio, so race audio created later (after the scene's
 // first frame) starts from it. `hasFocus()` can read false in a page that
@@ -222,6 +226,7 @@ type SoundSettings = { effects: boolean; volume: number };
 
 /** The player's sound settings, kept on this device. */
 function readSoundSettings(): SoundSettings {
+  if (sessionSoundSettings) return { ...sessionSoundSettings };
   const settings: SoundSettings = { effects: true, volume: 1 };
   try {
     const stored: unknown = JSON.parse(
@@ -244,14 +249,29 @@ function readSoundSettings(): SoundSettings {
 }
 
 function writeSoundSettings(change: Partial<SoundSettings>) {
+  sessionSoundSettings = { ...readSoundSettings(), ...change };
   try {
     window.localStorage.setItem(
       SOUND_STORAGE_KEY,
-      JSON.stringify({ ...readSoundSettings(), ...change }),
+      JSON.stringify(sessionSoundSettings),
     );
   } catch {
     // Storage can be unavailable (private mode); the choice lasts this page.
   }
+}
+
+/** Admin tools stay silent: their dense panels would click all the time. */
+export function silentPage() {
+  const path = window.location.pathname;
+  return path.startsWith("/admin") || path.startsWith("/editor");
+}
+
+/**
+ * A race is over: its audio stops, unless menus here play sound, which keep
+ * the context running so their next sound is not late waiting for it.
+ */
+function releaseContext(context: AudioContext) {
+  if (!readSoundOn() || silentPage()) runContext(context, false);
 }
 
 /** The player's Sound effects switch. On by default. */
@@ -321,10 +341,13 @@ export function raceAudioAwaitsGesture() {
   return hiddenSinceGesture && sharedContext !== null;
 }
 
-/** For a race that ends before its audio exists, such as a failed load. */
-export function suspendRaceAudio() {
+/**
+ * A race ends, including one that ends before its audio exists, such as a
+ * failed load.
+ */
+export function endRaceAudio() {
   raceStarting = false;
-  if (sharedContext) runContext(sharedContext, false);
+  if (sharedContext) releaseContext(sharedContext);
 }
 
 export type RaceAudioDebugState = {
@@ -734,7 +757,7 @@ export function createRaceAudio(soundOn: boolean): RaceAudio | null {
       }
       master.disconnect();
       limiter.disconnect();
-      runContext(context, false);
+      releaseContext(context);
     },
   };
 }

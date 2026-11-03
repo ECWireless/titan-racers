@@ -38,13 +38,17 @@ const OPTION_IDLE = "border-titan-ice/18";
 const OPTION_CHOSEN = "border-titan-hazard bg-titan-black/90";
 
 /**
- * A choice that opens the next step, where a double-click's second click
- * would land on that step's first choice: only its first click counts.
+ * A choice that moves the flow on, where a double-click's second click
+ * would land on the next screen's choice: only its first click counts (and
+ * sounds).
  */
-function onFirstClick(action: () => void) {
-  return (event: MouseEvent<HTMLButtonElement>) => {
-    if (event.detail > 1) return;
-    action();
+export function firstClickOnly(action: () => void) {
+  return {
+    "data-first-click-only": "",
+    onClick: (event: MouseEvent<HTMLButtonElement>) => {
+      if (event.detail > 1) return;
+      action();
+    },
   };
 }
 
@@ -208,7 +212,7 @@ function MenuItem({
       className={`${OPTION} ${primary ? OPTION_CHOSEN : OPTION_IDLE} home-menu-item`}
       data-controller-default={controllerDefault ? "true" : undefined}
       type="button"
-      onClick={onFirstClick(onClick)}
+      {...firstClickOnly(onClick)}
     >
       <MenuItemContent
         detail={detail}
@@ -283,7 +287,7 @@ export function HomeKartCard({
       className={`${OPTION} ${chosen ? OPTION_CHOSEN : OPTION_IDLE} content-start gap-4 p-4`}
       data-controller-default={chosen ? "true" : undefined}
       type="button"
-      onClick={onFirstClick(onChoose)}
+      {...firstClickOnly(onChoose)}
     >
       <KartThumbnail
         document={kart.document}
@@ -352,7 +356,7 @@ export function HomeCourseCard({
       className={`${OPTION} ${OPTION_CHOSEN} content-start gap-4 p-4`}
       data-controller-default="true"
       type="button"
-      onClick={onFirstClick(onChoose)}
+      {...firstClickOnly(onChoose)}
     >
       <span className="relative block aspect-video w-full overflow-hidden border border-titan-ice/12 bg-titan-steel/20">
         {thumbnail ? (
@@ -403,7 +407,7 @@ export function HomeChoice({
       } ${className}`}
       data-controller-default={controllerDefault ? "true" : undefined}
       type="button"
-      onClick={onChoose}
+      {...firstClickOnly(onChoose)}
     >
       <span className="flex items-center justify-between gap-3 font-mono text-xs font-bold uppercase tracking-[0.14em]">
         <span className="truncate">{children}</span>

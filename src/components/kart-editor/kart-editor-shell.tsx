@@ -72,7 +72,7 @@ import { serializeKartAssemblyDocument } from "@/game/kart/kart-assembly-documen
 import { isEditableKeyboardTarget } from "@/game/input/keyboard-input";
 import { useEditorController } from "@/game/input/use-editor-controller";
 import { KART_EDITOR_TRANSLATE_SNAP } from "@/game/editor/kart-editor-scene";
-import { suspendRaceAudio, unlockRaceAudio } from "@/game/audio/race-audio";
+import { endRaceAudio, unlockRaceAudio } from "@/game/audio/race-audio";
 
 import { SoloTimeTrialCanvas } from "../solo-time-trial-canvas";
 import {
@@ -650,7 +650,7 @@ export function KartEditorShell({
     } catch (error) {
       testModeTriggerRef.current = false;
       // The click started sound for a test drive that will not open.
-      suspendRaceAudio();
+      endRaceAudio();
       showCommandError(error);
     } finally {
       setTestPending(false);
@@ -1148,7 +1148,7 @@ export function KartEditorShell({
         sessionLabel={`Saved r${testSession.kartRevision} on sandbox course · ${testSession.kartDocument.name}`}
         onExit={() => {
           // Covers a test drive left during loading, before its audio existed.
-          suspendRaceAudio();
+          endRaceAudio();
           setTestSession(null);
         }}
       />

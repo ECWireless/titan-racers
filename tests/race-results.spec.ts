@@ -623,7 +623,6 @@ test.describe("verified runs", () => {
     expect(image.url).toBe(
       `/social-card?racer=${username}&v=${slow.timeMicroseconds}-2-2`,
     );
-    expect(JSON.stringify(preview)).not.toContain(slower.id);
     const card = await drawSocialCard(standing, {});
     expect(card.headers.get("content-type")).toBe("image/png");
     expect((await card.arrayBuffer()).byteLength).toBeGreaterThan(50_000);

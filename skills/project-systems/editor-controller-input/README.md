@@ -49,7 +49,10 @@ authentication, persistence, or PlayCanvas gizmo dragging.
 - `src/components/play-home.tsx` enables spatial and arrow-key navigation
   through each step of the home flow (first screen, kart, course, mode and
   ghost), focuses each step's default choice as it opens, and maps back to
-  the previous step or to closing the utility menu.
+  the previous step or to closing the utility menu. Each step is a history
+  entry holding the choices that reached it, so coming back to home (from
+  the leaderboard, or a reload) reopens that step. While the karts load,
+  only back responds.
 - `src/components/leaderboard-view.tsx`: up and down step from one row's
   Race link to the next, starting on the viewer's own row; Copy link is to
   its right.

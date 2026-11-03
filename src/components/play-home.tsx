@@ -49,7 +49,7 @@ import {
 import { loadAmmoPhysics } from "@/game/runtime/playcanvas-application";
 import { loadTreeImages } from "@/game/enclosure/tree-images";
 import type { CourseEnclosure } from "@/game/enclosure/island-three";
-import { suspendRaceAudio, unlockRaceAudio } from "@/game/audio/race-audio";
+import { endRaceAudio, unlockRaceAudio } from "@/game/audio/race-audio";
 import { RACE_LAP_COUNT } from "@/game/race/race-course";
 import { formatRaceTime } from "@/game/race/race-presentation";
 import { exactRacerUsernameSchema } from "@/lib/racer-username";
@@ -63,6 +63,7 @@ import { keepKartThumbnail } from "./kart-thumbnail";
 import {
   HomeChoice,
   HomeCourseCard,
+  type HomeKart,
   HomeKartCard,
   HomeStartStep,
   type HomeStep,
@@ -93,13 +94,9 @@ type CourseLoading = {
   leaving: boolean;
 };
 
-type PlayableOfficialKart = {
-  assemblerCredit: string;
-  document: KartAssemblyDocument;
-  resolvedSnapshot: PersistedResolvedKartSnapshot;
+type PlayableOfficialKart = HomeKart & {
   /** The published revision, or null for the bundled roster. */
   revision: number | null;
-  thumbnailSource: string | null;
 };
 
 /** A course to race and its published revision, or null for the seed. */
@@ -194,18 +191,45 @@ function parseRacerLink(search: string): RacerLink | null {
 const subscribeToNothing = () => () => {};
 
 // Each step after the first is a history entry on the same address, so the
-// browser's or phone's back goes back a step. A reload starts over.
+// browser's or phone's back goes back a step. An entry also keeps the choices
+// made so far, so coming back to home (from the leaderboard, or a reload)
+// reopens the step it was on, and back still walks the steps before it.
 const HISTORY_STEP_KEY = "titanHomeStep";
+const HISTORY_KART_KEY = "titanHomeKart";
+const HISTORY_COURSE_SKIPPED_KEY = "titanHomeCourseSkipped";
 // A race adds its own entry on the mode's, so back leaves the race.
 const HISTORY_RACING_KEY = "titanHomeRacing";
 const HOME_STEPS: readonly HomeStep[] = ["start", "kart", "course", "race"];
 
+function historyField(state: unknown, key: string): unknown {
+  return state && typeof state === "object"
+    ? (state as Record<string, unknown>)[key]
+    : undefined;
+}
+
 function historyStep(state: unknown): HomeStep | null {
-  const step =
-    state && typeof state === "object"
-      ? (state as Record<string, unknown>)[HISTORY_STEP_KEY]
-      : null;
+  const step = historyField(state, HISTORY_STEP_KEY);
   return HOME_STEPS.find((candidate) => candidate === step) ?? null;
+}
+
+/**
+ * A step's history entry, with the choices made to reach it. It keeps the
+ * current entry's other state, Next's own included: an entry written while
+ * the page hydrates may come before Next starts adding it.
+ */
+function historyEntry(
+  step: HomeStep,
+  { courseSkipped, kartId }: { courseSkipped: boolean; kartId: string | null },
+) {
+  const current: unknown = window.history.state;
+  const entry: Record<string, unknown> = {
+    ...(current && typeof current === "object" ? current : {}),
+    [HISTORY_COURSE_SKIPPED_KEY]: courseSkipped,
+    [HISTORY_KART_KEY]: kartId,
+    [HISTORY_STEP_KEY]: step,
+  };
+  delete entry[HISTORY_RACING_KEY];
+  return entry;
 }
 
 function historyRacing(state: unknown) {
@@ -293,8 +317,17 @@ export function PlayHome() {
     () => true,
   );
 
-  function showStep(next: HomeStep) {
-    window.history.pushState({ [HISTORY_STEP_KEY]: next }, "");
+  function showStep(
+    next: HomeStep,
+    choices: { courseSkipped?: boolean; kartId?: string | null } = {},
+  ) {
+    window.history.pushState(
+      historyEntry(next, {
+        courseSkipped: choices.courseSkipped ?? courseSkipped,
+        kartId: choices.kartId ?? selectedKartId,
+      }),
+      "",
+    );
     setStep(next);
     setFocusRequest((request) => request + 1);
   }
@@ -321,11 +354,9 @@ export function PlayHome() {
 
   useControllerMenuNavigation({
     containerRef: homeMenuRef,
-    // A press while the karts load would land on Back, so it waits.
-    enabled:
-      mode === "home" &&
-      courseLoading === null &&
-      !(step === "kart" && rosterPending),
+    // A press while the karts load would land on Back, so only back works.
+    backOnly: step === "kart" && rosterPending,
+    enabled: mode === "home" && courseLoading === null,
     keyboard: true,
     navigationMode: "spatial",
     onBack: utilityMenuOpen
@@ -339,18 +370,11 @@ export function PlayHome() {
   });
 
   useEffect(() => {
-    // A reload keeps the entry's step, but home starts over: forget it. A
-    // leaderboard row's link starts over on the kart (below).
+    // A race the opening entry held is over, leaving its mode.
     const state: unknown = window.history.state;
-    if (historyStep(state) && state && typeof state === "object") {
+    if (historyRacing(state)) {
       const rest = { ...(state as Record<string, unknown>) };
-      delete rest[HISTORY_STEP_KEY];
       delete rest[HISTORY_RACING_KEY];
-      if (
-        parseRacerLink(window.location.search)?.source === "leaderboard_racer"
-      ) {
-        rest[HISTORY_STEP_KEY] = "kart";
-      }
       window.history.replaceState(rest, "");
     }
     const onPopState = (event: PopStateEvent) => {
@@ -359,27 +383,65 @@ export function PlayHome() {
         window.history.back();
         return;
       }
-      // Back from a race leaves it, landing on the mode.
+      // Back from a race leaves it, landing on the mode. The choices made
+      // since stand.
       if (racingRef.current) exitRaceRef.current();
       setStep(historyStep(event.state) ?? "start");
       setFocusRequest((request) => request + 1);
     };
     window.addEventListener("popstate", onPopState);
-    return () => window.removeEventListener("popstate", onPopState);
+    return () => {
+      window.removeEventListener("popstate", onPopState);
+      // Leaving home while a race loads ends it (and its hold on sound).
+      if (racingRef.current) endRaceAudio();
+    };
   }, []);
 
+  // Coming back to home (from the leaderboard, or a reload) reopens the
+  // step its entry holds, with the choices that reached it, once the entry
+  // is read in the browser.
+  const openingEntry = useSyncExternalStore<unknown>(
+    subscribeToNothing,
+    () => window.history.state,
+    () => null,
+  );
+  const [entryRestored, setEntryRestored] = useState(false);
   // A leaderboard row's Race opens straight on the kart, once the address is
-  // read in the browser, on an entry of its own that a reload keeps.
+  // read in the browser, on an entry of its own (below).
   const [leaderboardEntry, setLeaderboardEntry] = useState(false);
-  if (racerGhost?.source === "leaderboard_racer" && !leaderboardEntry) {
+  let entryReopened = false;
+  if (!entryRestored && openingEntry !== null) {
+    setEntryRestored(true);
+    const openingStep = historyStep(openingEntry);
+    if (openingStep) {
+      entryReopened = true;
+      const kartId = historyField(openingEntry, HISTORY_KART_KEY);
+      if (typeof kartId === "string") setSelectedKartId(kartId);
+      setCourseSkipped(
+        historyField(openingEntry, HISTORY_COURSE_SKIPPED_KEY) === true,
+      );
+      setStep(openingStep);
+      setFocusRequest((request) => request + 1);
+      // A leaderboard row's link coming back reopens its step too.
+      setLeaderboardEntry(true);
+    }
+  }
+  if (
+    !entryReopened &&
+    racerGhost?.source === "leaderboard_racer" &&
+    !leaderboardEntry
+  ) {
     setLeaderboardEntry(true);
     setCourseSkipped(true);
     setStep("kart");
     setFocusRequest((request) => request + 1);
   }
   useEffect(() => {
-    if (leaderboardEntry && historyStep(window.history.state) !== "kart") {
-      window.history.pushState({ [HISTORY_STEP_KEY]: "kart" }, "");
+    if (leaderboardEntry && !historyStep(window.history.state)) {
+      window.history.pushState(
+        historyEntry("kart", { courseSkipped: true, kartId: null }),
+        "",
+      );
     }
   }, [leaderboardEntry]);
 
@@ -506,6 +568,8 @@ export function PlayHome() {
     };
     const closeFromEscape = (event: KeyboardEvent) => {
       if (event.key !== "Escape") return;
+      // Used here: back must not also take it a step back.
+      event.preventDefault();
       setUtilityMenuOpen(false);
       utilityMenuButtonRef.current?.focus();
     };
@@ -539,7 +603,13 @@ export function PlayHome() {
     unlockRaceAudio();
     racingRef.current = true;
     window.history.pushState(
-      { [HISTORY_RACING_KEY]: true, [HISTORY_STEP_KEY]: "race" },
+      {
+        ...historyEntry("race", {
+          courseSkipped,
+          kartId: selectedKart.document.kartId,
+        }),
+        [HISTORY_RACING_KEY]: true,
+      },
       "",
     );
     setUtilityMenuOpen(false);
@@ -672,7 +742,7 @@ export function PlayHome() {
     // Leaving by Exit drops the race's entry; leaving by back already has.
     if (historyRacing(window.history.state)) window.history.back();
     // Covers a race left during loading, before its audio existed.
-    suspendRaceAudio();
+    endRaceAudio();
     if (revealTimerRef.current !== null) {
       window.clearTimeout(revealTimerRef.current);
       revealTimerRef.current = null;
@@ -800,12 +870,12 @@ export function PlayHome() {
         note={racerGhostNote}
         onRace={() => {
           setCourseSkipped(false);
-          showStep("kart");
+          showStep("kart", { courseSkipped: false });
         }}
         onRaceChallenge={() => {
           setRacerGhostChosen(true);
           setCourseSkipped(true);
-          showStep("kart");
+          showStep("kart", { courseSkipped: true });
         }}
       />
     );
@@ -844,7 +914,9 @@ export function PlayHome() {
                 key={kart.document.kartId}
                 onChoose={() => {
                   setSelectedKartId(kart.document.kartId);
-                  showStep(courseSkipped ? "race" : "course");
+                  showStep(courseSkipped ? "race" : "course", {
+                    kartId: kart.document.kartId,
+                  });
                 }}
               />
             ))}
@@ -968,7 +1040,12 @@ export function PlayHome() {
             data-ui-sound="start"
             disabled={soloPending || !selectedKart}
             type="button"
-            onClick={() => void startSoloTimeTrial()}
+            data-first-click-only=""
+            onClick={(event) => {
+              // A double-click's second click is not a second start.
+              if (event.detail > 1) return;
+              void startSoloTimeTrial();
+            }}
           >
             {soloPending ? "Preparing race…" : "Start race"}
           </button>

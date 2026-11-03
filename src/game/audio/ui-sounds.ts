@@ -1,5 +1,5 @@
 import { type CueSpec, playTones } from "./cue-sounds";
-import { uiSoundOutput } from "./race-audio";
+import { silentPage, uiSoundOutput } from "./race-audio";
 
 /**
  * Menu sounds: short tones from the same service network as the race's
@@ -55,12 +55,6 @@ const UI_SOUNDS: Record<UiSound, CueSpec> = {
     wave: "buzz",
   },
 };
-
-/** Admin tools stay silent: their dense panels would click all the time. */
-function silentPage() {
-  const path = window.location.pathname;
-  return path.startsWith("/admin") || path.startsWith("/editor");
-}
 
 /**
  * Starts sound on the earliest touch, click, or key, so the sound it leads
