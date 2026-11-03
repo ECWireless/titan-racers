@@ -1,6 +1,6 @@
 # Leaderboard System
 
-**Maturity:** Validated (PRs 5.1–5.5, 2026-11-03).
+**Maturity:** Validated (PRs 5.1–5.5 and 6.0, 2026-11-03).
 
 ## Purpose And Scope
 
@@ -15,8 +15,8 @@ the gate re-check mirrors [race progression](../race-progression/README.md),
 and sessions and usernames belong to
 [identity](../identity-course-persistence/README.md).
 
-Its bests are raced as ghosts ([ghosts](../ghosts/README.md)). Not supported:
-boards for earlier revisions.
+Its bests are raced as ghosts ([ghosts](../ghosts/README.md)). Earlier
+course versions' boards stay to look at, read-only.
 
 ## Source Ownership
 
@@ -27,11 +27,14 @@ boards for earlier revisions.
 - `src/game/race/held-run.ts`: a guest's run kept on the device, sent once
   they sign in, and the note the leaderboard shows.
 - `src/server/run-tickets.ts`: signing and reading tickets.
-- `src/server/race-results.ts`: eligibility, the server's check, and storing
-  a submission with its best and standing.
-- `src/server/leaderboard.ts`: loading a course's current board, a
-  board's course best or a racer's own best as a ghost record, and a racer's
-  standing (best and rank, without the recording) for a ghost link's preview.
+- `src/server/race-results.ts`: eligibility, which board a revision races
+  on, the earlier boards, the server's check, and storing a submission with
+  its best and standing.
+- `src/server/leaderboard.ts`: loading a course's current board or an
+  earlier one, the current board's number and racers for the publish dialog,
+  a board's course best or a racer's own best as a ghost record, and a
+  racer's standing (best and rank, without the recording) for a ghost link's
+  preview.
 - `src/server/ghost-link-preview.ts`, `src/app/page.tsx`'s
   `generateMetadata`, `src/lib/social-metadata.ts`, and
   `src/app/social-card/`: link previews. Every page shares one card (a
@@ -45,14 +48,18 @@ boards for earlier revisions.
 - `src/app/leaderboard/page.tsx` and `src/components/leaderboard-view.tsx`:
   the page, linked from home's first screen and menu, and the result
   screen, with each row's Race and Copy link buttons for that racer's ghost
-  ([ghosts](../ghosts/README.md)). Its controller and arrow-key navigation
-  belongs to
+  ([ghosts](../ghosts/README.md)), and the Course versions list. The page's
+  controller and arrow-key navigation belongs to
   [editor controller input](../editor-controller-input/README.md).
 - `src/components/medal-icon.tsx`: the podium medal on rows and results.
 - `src/components/run-standing.tsx`: the result screen's standing, or its
   prompt to sign in or choose a username.
-- `src/db/schema.ts`, `drizzle/0021_*`, and `0023_*`: `leaderboards`,
-  `race_results` (with `claimed`), and `board_bests`, with their triggers.
+- `src/db/schema.ts`, `drizzle/0021_*`, `0023_*`, and `0025_*`:
+  `leaderboards` (numbered per course by a trigger), `race_results` (with
+  `claimed`), `board_bests`, and `course_publications.new_leaderboard`, with
+  their triggers.
+- The course editor's publish dialog, which asks whether a publication keeps
+  the board ([course editor](../course-editor/README.md)).
 - `src/components/solo-time-trial-canvas.tsx`: a ticket request at each run
   start (mount and Race again) and the submission after the finish frame.
 
@@ -60,8 +67,9 @@ boards for earlier revisions.
 
 1. A run start sends the course and kart IDs, their revisions, and the
    physics version to `POST /api/runs/tickets`. A racer with a username
-   racing `LEADERBOARD_COURSE_IDS` in an official kart, each at a revision
-   that was ever published, under the current physics, gets a ticket: the
+   racing `LEADERBOARD_COURSE_IDS` in an official kart at a revision that
+   was ever published, on a course revision on its current board, under the
+   current physics, gets a ticket: the
    race, the racer, an ID, and the issue time, signed with HMAC-SHA256 under
    a key derived from `BETTER_AUTH_SECRET` and timed from the request.
    Issuing stores nothing, and a ticket expires after two hours. A guest, or
@@ -87,14 +95,30 @@ boards for earlier revisions.
    response is the server's time, rank, entries, personal best, and the
    racer's username, which the result screen shows with the medal for a
    top-three rank.
-5. `/leaderboard` shows the official course's current board: its newest
-   published revision under the current physics, the top 50 bests with
-   their karts, and the viewer's own rank if they are lower.
+5. `/leaderboard` shows the official course's current board: the board its
+   newest published revision races on under the current physics, the top 50
+   bests with their karts, and the viewer's own rank if they are lower. A
+   quiet Course versions icon beside the page's label lists the latest
+   version and every earlier board with times, newest first by the revision
+   that started it, named by when its times were set. An earlier one
+   (`?board=<number>`) is read-only: its podium and your rank, without
+   ghosts ([ghosts](../ghosts/README.md)). A link to a board with no times
+   shows the latest.
 
 ## Invariants
 
-- A board is one course revision and physics version (`leaderboards`), with
-  one best per racer. Ties rank by who set the time first, at the
+- A board runs from a publication that started a new leaderboard (a
+  course's first always does) up to the next one, under one physics version,
+  with one best per racer; a physics change always starts one.
+  `leaderboards.course_revision` is the revision that started it. Each run
+  is still checked against the gates of the revision it raced. Publications
+  only move forward
+  ([identity](../identity-course-persistence/README.md)), so a board covers
+  every revision from its start to the next.
+- A run already racing when a new leaderboard starts lands on the board it
+  raced; new tickets are for the current board only.
+- Board numbers say which board, not their order: one first raced late can
+  be numbered after a newer one. Ties rank by who set the time first, at the
   submission's full timestamp precision.
 - The client never sends a time, medal, or rank.
 - A result is the submitting racer's; one from a ticket naming no racer is
@@ -111,10 +135,11 @@ boards for earlier revisions.
 ## Verification
 
 - `tests/race-results.spec.ts`: tickets, submissions, bests, the board and
-  its podium, a ghost link's standing and preview, and anonymization against
-  Postgres.
-- `tests/leaderboard.spec.ts`: the page, its podium, its empty state, and
-  sending a kept run.
+  its podium, boards kept and started across publications and their
+  numbers, earlier boards, a ghost link's standing and preview, and
+  anonymization against Postgres.
+- `tests/leaderboard.spec.ts`: the page, its podium, its empty state,
+  sending a kept run, and the Course versions list.
 - `tests/social-card.spec.ts`: the preview tags, including the head that
   link-preview crawlers read, and the card.
 - `tests/held-run.spec.ts`: which run the device keeps, and blocked storage.
@@ -126,5 +151,4 @@ boards for earlier revisions.
 
 - A recording does not prove which kart raced it.
 - A run kept on a shared device goes to whoever signs in there next.
-- A run on an older published revision ranks on that revision's board, while
-  `/leaderboard` shows only the newest.
+- A kept board's times may come from earlier revisions.

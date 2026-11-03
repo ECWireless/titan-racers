@@ -16,11 +16,8 @@ accepted; the app, README, and durable docs take over from there.
 ## Status
 
 - **Done:** Phases 0–5 (PRs #1–#24, the Phase 3 closeout and its
-  follow-ups, #30–#57 with the PR 4.5.2 closeout, and #59–#62 with the PR
-  5.5 closeout).
-- **Next:** Phase 6, after its debrief. First, reseed production's Falls View
-  Park (`db:reset-course-seed`, then an admin publishes the draft) so PR
-  5.5's levee kicker reaches players; its revision starts a new board.
+  follow-ups, #30–#57 with the PR 4.5.2 closeout, and #59–#63).
+- **Now:** Phase 6, PR 6.0 (implemented, in review).
 
 ## Guiding Decisions
 
@@ -72,7 +69,8 @@ These still constrain every remaining phase.
   if player uploads arrive after Demo v1.
 - **CAD authoring:** text-to-cad for admin part models, used only in
   development and never in the app runtime (Phase 7).
-- **Multiplayer transport:** to be chosen in Phase 6.
+- **Multiplayer transport:** Cloudflare Workers with a Durable Object per
+  room over WebSockets (Phase 6), deployed apart from the app.
 
 ## Scope
 
@@ -157,7 +155,7 @@ Details live in git history, `docs/kart-system/`, and `skills/project-systems/`.
 | 2. Driving prototype | Gameplay architecture and agent Skills Tree; dynamic kart physics, collisions, and chase camera; course documents, Postgres, auth, and roles; protected course editor with private drafts and publishing; unified keyboard, touch, and controller input; race lifecycle with checkpoints, laps, and recovery; telemetry dashboard and runtime resilience; handling and mobile polish, manual righting, and editor multi-select. | #3–#18 |
 | 3. Kart dynamics and admin kart builder | Handling model cut from 62 tuning values to 16 with clear owners; versioned kart documents, approved part registry, deterministic derivation, immutable revisions, and publication; admin kart builder; editor controller input; three official karts in public selection with thumbnails and racer usernames; integration review and its two fixes. | #19, #21–#24, closeout |
 | 4. Visual baseline, Island Three, and Falls View Park | One shared kart visual builder, a lighting baseline and phone budget, and presentation-only part visuals; sandbox surfaces with grass physics, substepped high-speed collisions, and tire marks and clippings; the Island Three enclosure with true-scale rotating-habitat physics, a loading screen, valleys, and dusk; the Falls View Park Circuit, built section by section and published; generated race audio, kart sound, race cues, and lean ambience, with CC0 recordings where synthesis did not read; the kart editor's suspension swap; integration review. | #30–#57, closeout |
-| 5. Solo, ghosts, results, leaderboard | Races record their course and kart revisions; one see-through ghost recorded at 20 Hz, from your device, the course best, your account best, or a friend's link; Google plus SIWE wallet login and account linking; signed run tickets and server-verified runs, a best and its ghost per racer per board, and a leaderboard with podium medals; a guest's run kept until they sign in, link copying, and ghost links by username; a Phase 5 dashboard panel; a step-by-step home with keyboard, touch, and controller navigation, course pictures, menu sounds and one Volume, the levee kicker, and link preview cards; integration review. | #59–#62, PR 5.5 |
+| 5. Solo, ghosts, results, leaderboard | Races record their course and kart revisions; one see-through ghost recorded at 20 Hz, from your device, the course best, your account best, or a friend's link; Google plus SIWE wallet login and account linking; signed run tickets and server-verified runs, a best and its ghost per racer per board, and a leaderboard with podium medals; a guest's run kept until they sign in, link copying, and ghost links by username; a Phase 5 dashboard panel; a step-by-step home with keyboard, touch, and controller navigation, course pictures, menu sounds and one Volume, the levee kicker, and link preview cards; integration review. | #59–#63 |
 
 Decisions from completed phases that later phases rely on:
 
@@ -186,10 +184,10 @@ Decisions from completed phases that later phases rely on:
   are the motor, tire roll, and scrub (16 nodes each) and a body scrape (5),
   with one-shots of at most 8 nodes; Phase 6's remote karts can run a
   cheaper motor and tire-roll voice.
-- **Solo results are verified, not cheat-proof.** A board is one published
-  course revision and physics version, with one best (and its ghost) per
-  racer; a new course revision starts a new board (until PR 6.0 lets a
-  publication keep it). The server times a run
+- **Solo results are verified, not cheat-proof.** A board covers a course's
+  publications from one that starts a new leaderboard to the next, under one
+  physics version, with one best (and its ghost) per racer (PR 6.0). The
+  server times a run
   from its own check of the recording against a signed, single-use ticket;
   the client never sends a time, rank, or medal. Only a logged-in racer with
   a username, in an official kart, on a published revision under the current
@@ -227,18 +225,56 @@ Decisions from completed phases that later phases rely on:
 **Goal:** make the demo social, with kart-to-kart contact handled by one
 authoritative system.
 
+Phase decisions:
+
+- **A room server decides; each client drives its own kart.** The room
+  server owns membership and host, kart choice and ready, the countdown on
+  its clock, progress, finish order, placements, replay, and each
+  kart-to-kart contact. Clients simulate their own kart as solo does and send
+  its state; opponents' karts are presentation only. No server-side kart
+  physics.
+- **Cloudflare Durable Objects host rooms** over WebSockets, one object per
+  room, on Cloudflare's own API with our own reconnect. The room rules are a
+  transport-free TypeScript module. The app signs room join tokens, and the
+  room server sends results to the app rather than touching Postgres. Free
+  plan for development, Workers Paid ($5/month) before a public share.
+  Vercel's WebSockets were ruled out: a room has no single home across
+  instances, and connections close at the function's time limit.
+
 **PR 6.0: Leaderboards across course publications**
 
-- [ ] Publishing a course revision keeps its current leaderboard unless the
+- [x] Publishing a course revision keeps its current leaderboard unless the
       admin chooses "Start a new leaderboard" (off by default), for changes
       that affect times; a physics change still always starts one. Boards
       are numbered per course instead of tied to a revision, and each run is
       still verified against the gates of the revision it raced.
-- [ ] After a new leaderboard starts, `/leaderboard` keeps the previous one
-      as a read-only "Previous version" view, so earlier times are honoured
-      rather than hidden.
+- [x] After a new leaderboard starts, `/leaderboard` keeps every earlier
+      course version's board to look at, read-only, behind a quiet Course
+      versions icon, so earlier times are honoured rather than hidden.
+- [x] Admins reach the dashboard from home's menu, and signing in from the
+      menu returns home.
 
-**PR 6.1: Private rooms and race lifecycle**
+**PR 6.1: A clearer admin dashboard**
+
+- [ ] An at-a-glance admin dashboard: races started and finished over time
+      and how many finish, sign-ups and active signed-in racers with the
+      guest and signed-in share, leaderboard submissions and new bests, and
+      races per official kart, ghost choices, and links copied. Guests have
+      no lasting identity, so racer counts are signed-in only. PR 6.3 adds
+      room counts.
+
+**PR 6.2: Accounts without Google or a wallet**
+
+- [ ] Research and agree the standard first: Better Auth anonymous accounts,
+      passkeys, or both.
+- [ ] A racer gets an account without Google or a wallet, kept in this
+      browser, and keeps it by adding a passkey, Google, or a wallet. The
+      account stays the racer's canonical ID; methods link to it, and
+      accounts never merge.
+- [ ] Until one is added, say plainly that clearing the browser or
+      switching devices loses the account for good.
+
+**PR 6.3: Private rooms and race lifecycle**
 
 - [ ] Create a private room and join by link; 2–4 players, guests welcome.
 - [ ] Choosing a kart marks a player ready; the host starts a synchronized
@@ -250,7 +286,7 @@ authoritative system.
 - [ ] Rooms race official karts on Falls View Park, recording each kart's
       revision and the course's, as Phase 5's results do.
 
-**PR 6.2: Motion and resilience**
+**PR 6.4: Motion and resilience**
 
 - [ ] Define server authority, update cadence, prediction, interpolation,
       reconciliation, and bounded correction.
@@ -262,7 +298,7 @@ authoritative system.
 - [ ] A four-kart room stays within the phone budget on the lead's iPhone
       (`?perf=1`).
 
-**PR 6.3: Kart-to-kart collisions**
+**PR 6.5: Kart-to-kart collisions**
 
 - [ ] Resolve each kart-to-kart contact once, authoritatively, using both karts'
       mass, relative velocity, contact normal, and angle of attack.

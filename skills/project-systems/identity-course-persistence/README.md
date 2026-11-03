@@ -109,6 +109,11 @@ same identity, role, and request-guard boundaries; see the
    both advance the publication head from the same base.
 3. Publication rows are immutable at the database boundary. Republishing the
    already-current revision is idempotent and does not create history noise.
+   Publications only move forward: a revision older than the live one is
+   refused. Each records whether it started a new leaderboard
+   (`new_leaderboard`; a course's first always does, and the default covers
+   builds that predate it), which the [leaderboard](../leaderboard/README.md)
+   reads.
 4. Protected responses retain opaque attribution for audit. The unauthenticated
    runtime response omits author, publisher, and internal publication IDs.
 5. Guest racing selects an explicit course ID (`falls-view-park`) and

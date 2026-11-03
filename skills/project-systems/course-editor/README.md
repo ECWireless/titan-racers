@@ -198,6 +198,12 @@ owns only Resume and Exit.
   compact desktop icon and a mobile Course Actions entry, and submits the known
   publication ID as its optimistic-concurrency base. Publication failure leaves
   the saved draft private and intact.
+- Publishing a course with a leaderboard that is already published opens a
+  dialog naming the current board and its racers, with **Start a new
+  leaderboard** off by default, for changes that affect lap times
+  ([leaderboard](../leaderboard/README.md)). It holds the editor still like the
+  recovery dialog, and focus returns to Publish afterwards. The sandbox and a
+  course's first publication publish in one click.
 - Narrow screens keep the viewport primary. The Course outline uses a
   width-contained modal bottom sheet with a scrim and focus containment; the
   Inspector uses a non-modal split-view drawer that resizes the viewport so the
