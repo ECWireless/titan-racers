@@ -726,7 +726,7 @@ test.describe("verified runs", () => {
     );
     expect(await onKept.json()).toMatchObject({ entries: 2, rank: 2 });
     expect(
-      (await loadLeaderboard(courseId, null)).board?.entries.map(
+      (await loadLeaderboard(courseId, null))?.board?.entries.map(
         ({ timeMicroseconds }) => timeMicroseconds,
       ),
     ).toEqual([fast.timeMicroseconds, slow.timeMicroseconds]);
@@ -736,6 +736,9 @@ test.describe("verified runs", () => {
       timeMicroseconds: fast.timeMicroseconds,
     });
     expect(await boards()).toEqual([{ courseRevision: 1, number: 1 }]);
+    await expect(loadLeaderboard(courseId, null)).resolves.toMatchObject({
+      earlier: [],
+    });
     // What the publish dialog says it would keep or close.
     expect(await loadCurrentBoardSummary(courseId)).toEqual({
       number: 1,
@@ -746,7 +749,18 @@ test.describe("verified runs", () => {
     const fresh = await publishNext(board, true);
     expect(await routeTicket(kept)).toBeNull();
     expect(await routeTicket(fresh)).not.toBeNull();
-    expect((await loadLeaderboard(courseId, null)).board?.entries).toEqual([]);
+    expect(await loadLeaderboard(courseId, null)).toMatchObject({
+      board: { entries: [] },
+      earlier: [{ number: 1 }],
+    });
+    // The board before it stays to look at, with its times; a number naming
+    // no earlier board with times finds nothing.
+    expect(
+      (await loadLeaderboard(courseId, null, 1))?.board?.entries.map(
+        ({ timeMicroseconds }) => timeMicroseconds,
+      ),
+    ).toEqual([fast.timeMicroseconds, slow.timeMicroseconds]);
+    await expect(loadLeaderboard(courseId, null, 2)).resolves.toBeNull();
     await expect(loadCurrentBoardSummary(courseId)).resolves.toBeNull();
     await expect(loadBoardGhost(courseId, fresh, null)).resolves.toBeNull();
     // A run already racing the old board still lands on it.
@@ -800,5 +814,12 @@ test.describe("verified runs", () => {
       .from(leaderboards)
       .where(eq(leaderboards.courseId, board.courseId));
     expect(numbers.map(({ number }) => number).sort()).toEqual([1, 2]);
+    // The board before the reset is the one to look back on.
+    const { earlier } = (await loadLeaderboard(board.courseId, first.id))!;
+    expect(earlier).toHaveLength(1);
+    expect(
+      (await loadLeaderboard(board.courseId, first.id, earlier[0].number))
+        ?.board?.viewer,
+    ).toMatchObject({ rank: 1 });
   });
 });

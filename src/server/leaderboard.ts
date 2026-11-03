@@ -6,29 +6,52 @@ import { parseKartAssemblyDocument } from "@/game/kart/kart-assembly-document";
 import { parseResolvedKartSnapshot } from "@/game/kart/kart-derivation";
 import type { LeaderboardResponse } from "@/game/race/leaderboard";
 import { loadLatestPublishedRevision } from "@/server/course-repository";
-import { findLeaderboard, racerStanding } from "@/server/race-results";
+import {
+  findLeaderboard,
+  listEarlierLeaderboards,
+  racerStanding,
+} from "@/server/race-results";
 
 const BOARD_SIZE = 50;
 
 /**
- * A course's current board: its newest published revision under the current
- * physics, with the viewer's own standing.
+ * A course's current board (its newest published revision under the current
+ * physics), or an earlier one by its number, with the viewer's own standing
+ * and the earlier boards there are to look back on. Null for a number that
+ * names no earlier board with times.
  */
 export async function loadLeaderboard(
   courseId: string,
   viewerUserId: string | null,
-): Promise<LeaderboardResponse> {
+  boardNumber: number | null = null,
+): Promise<LeaderboardResponse | null> {
   const published = await loadLatestPublishedRevision(courseId);
-  if (!published) return { board: null };
+  if (!published) return boardNumber === null ? { board: null, earlier: [] } : null;
 
-  const leaderboardId = await findLeaderboard(db, {
+  const race = {
     courseId,
     courseRevision: published.revision,
     physicsVersion: CURRENT_PHYSICS_VERSION,
-  });
+  };
+  const [currentId, earlierBoards] = await Promise.all([
+    findLeaderboard(db, race),
+    listEarlierLeaderboards(db, race),
+  ]);
+  const earlier = earlierBoards.map(({ firstTimeAt, lastTimeAt, number }) => ({
+    firstTimeAt: firstTimeAt.toISOString(),
+    lastTimeAt: lastTimeAt.toISOString(),
+    number,
+  }));
+  const leaderboardId =
+    boardNumber === null
+      ? currentId
+      : (earlierBoards.find(({ number }) => number === boardNumber)?.id ??
+        undefined);
+  if (leaderboardId === undefined) return null;
   if (leaderboardId === null) {
     return {
       board: { courseName: published.courseName, entries: [], viewer: null },
+      earlier,
     };
   }
 
@@ -70,6 +93,7 @@ export async function loadLeaderboard(
         ? { rank: standing.rank, timeMicroseconds: standing.best }
         : null,
     },
+    earlier,
   };
 }
 

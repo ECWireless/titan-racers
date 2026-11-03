@@ -5,7 +5,9 @@ export const microsecondsSchema = z.number().int().positive();
 
 /**
  * A course's current board (its newest published revision under the current
- * physics): the top 50 bests and the viewer's own standing.
+ * physics), or an earlier one: the top 50 bests and the viewer's own
+ * standing, and the earlier boards with times, newest first, by number and
+ * when their times were set.
  */
 export const leaderboardResponseSchema = z.strictObject({
   board: z
@@ -30,5 +32,12 @@ export const leaderboardResponseSchema = z.strictObject({
         .nullable(),
     })
     .nullable(),
+  earlier: z.array(
+    z.strictObject({
+      firstTimeAt: z.string().datetime(),
+      lastTimeAt: z.string().datetime(),
+      number: z.number().int().positive(),
+    }),
+  ),
 });
 export type LeaderboardResponse = z.infer<typeof leaderboardResponseSchema>;

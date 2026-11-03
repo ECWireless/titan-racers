@@ -115,6 +115,48 @@ export async function findLeaderboard(
 }
 
 /**
+ * A course's boards with times other than a revision's own, newest first by
+ * the revision that started them (an older physics version's board on the
+ * same revision comes next), with when their verified times were set.
+ */
+export async function listEarlierLeaderboards(
+  executor: typeof db | Transaction,
+  board: Pick<RunTicket, "courseId" | "courseRevision" | "physicsVersion">,
+) {
+  const { rows } = await executor.execute<{
+    first_time_at: Date | string;
+    id: number;
+    last_time_at: Date | string;
+    number: number;
+  }>(sql`
+    select ${leaderboards.id} as id, ${leaderboards.number} as number,
+      min(${raceResults.submittedAt}) as first_time_at,
+      max(${raceResults.submittedAt}) as last_time_at
+    from ${leaderboards}
+    join ${raceResults} on ${raceResults.leaderboardId} = ${leaderboards.id}
+      and ${raceResults.status} = 'verified'
+    where ${leaderboards.courseId} = ${board.courseId}
+      and not (
+        ${leaderboards.courseRevision} is not distinct from
+          ${boardStart(board.courseId, board.courseRevision)}
+        and ${leaderboards.physicsVersion} = ${board.physicsVersion}
+      )
+      and exists (
+        select 1 from ${boardBests}
+        where ${boardBests.leaderboardId} = ${leaderboards.id}
+      )
+    group by ${leaderboards.id}
+    order by ${leaderboards.courseRevision} desc, ${leaderboards.id} desc
+  `);
+  return rows.map((row) => ({
+    firstTimeAt: new Date(row.first_time_at),
+    id: row.id,
+    lastTimeAt: new Date(row.last_time_at),
+    number: row.number,
+  }));
+}
+
+/**
  * A racer's best on a board, its rank, and the board's size. Bests rank by
  * time, then who set it first, then racer, as the board lists them.
  */
