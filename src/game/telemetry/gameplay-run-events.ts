@@ -58,7 +58,7 @@ const versionedRunStartedEventSchema = runStartedEventSchema.extend({
  * Which ghost a run raced: none, the player's own best, the course best, or
  * a racer's best from a shared link or picked on the leaderboard.
  */
-const ghostRacedSchema = z.enum([
+export const ghostRacedSchema = z.enum([
   "none",
   "own_best",
   "course_best",
