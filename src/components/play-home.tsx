@@ -24,6 +24,7 @@ import { prewarmCourseScene } from "@/game/course/course-prewarm";
 import { loadCourseSurfaceImages } from "@/game/course/course-surface-textures";
 import { publishedCourseRuntimeSchema } from "@/game/course/course-publication";
 import { useControllerMenuNavigation } from "@/game/input/use-controller-menu-navigation";
+import { racerOnboardingPath } from "@/lib/racer-username";
 import type { KartAssemblyDocument } from "@/game/kart/kart-assembly-document";
 import type { PersistedResolvedKartSnapshot } from "@/game/kart/kart-derivation";
 import { pauseKartThumbnailRendering } from "@/game/kart/kart-thumbnail-renderer";
@@ -1150,7 +1151,8 @@ export function PlayHome() {
                 {signedIn === false ? (
                   <Link
                     className={UTILITY_MENU_ITEM}
-                    href="/profile"
+                    // Signing in returns here, never to the profile.
+                    href={racerOnboardingPath("/")}
                     onClick={() => setUtilityMenuOpen(false)}
                   >
                     <SignInIcon />

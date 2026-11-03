@@ -1005,9 +1005,10 @@ test.describe("home screen", () => {
     await expect(utilityMenu).toBeFocused();
     expect(signedIn).toBe(false);
     await utilityMenu.click();
+    // Signing in returns to home, not the profile.
     await expect(page.getByRole("link", { name: "Sign in" })).toHaveAttribute(
       "href",
-      "/profile",
+      "/onboarding?returnTo=%2F",
     );
     await expect(page.getByRole("button", { name: "Sign out" })).toHaveCount(0);
     await expect(page.getByRole("link", { name: "Dashboard" })).toHaveCount(0);
