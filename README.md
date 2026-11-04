@@ -20,9 +20,9 @@ phase order. New implementation sessions must also follow `AGENTS.md` and
   navigation.
 - Protected admin course editor backed by Better Auth, Postgres revisions,
   private drafts, explicit publishing, and a permanent rough-course sandbox.
-- Anonymous run-level telemetry, protected operational summaries, and Vercel
-  page analytics with no raw input, movement paths, device identity, or
-  per-frame capture.
+- Run-level telemetry (guest or signed-in), a protected admin dashboard and
+  operational summaries, and Vercel page analytics with no raw input,
+  movement paths, device identity, or per-frame capture.
 - Runtime resilience for focus/visibility interruption, input cancellation,
   resize/orientation changes, bounded low-frame-rate degradation, cancellable
   loading, and recoverable WebGL context loss.

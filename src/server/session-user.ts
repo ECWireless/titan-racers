@@ -27,3 +27,20 @@ export async function sessionUserIdOrResponse(
   }
   return user.id;
 }
+
+// The signed-in racer a new gameplay run is attributed to, or null for a
+// guest. Telemetry never fails or waits on login: any problem means guest.
+export async function signedInUserIdOrNull(
+  request: Request,
+): Promise<string | null> {
+  try {
+    assertSessionEnvironment();
+    const session = await auth.api.getSession({
+      headers: request.headers,
+      query: { disableRefresh: true },
+    });
+    return session?.user.id ?? null;
+  } catch {
+    return null;
+  }
+}

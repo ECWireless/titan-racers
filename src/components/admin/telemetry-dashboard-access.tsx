@@ -1,259 +1,73 @@
 "use client";
 
-import Link from "next/link";
 import { useEffect, useState } from "react";
-import { z } from "zod";
 
+import {
+  AdminNav,
+  type AdminAccessState,
+  browserTimeZone,
+  loadAdminData,
+  MetricRows,
+  ProtectedAdminAccess,
+  ReportingPeriod,
+  useAdminSession,
+} from "@/components/admin/admin-access";
 import {
   gameplayDashboardSchema,
   type GameplayDashboard,
   type GameplayDashboardRange,
 } from "@/game/telemetry/gameplay-dashboard";
-import { racerOnboardingPath } from "@/lib/racer-username";
 
-type AccessState =
-  | { status: "loading" }
-  | { message: string; status: "error" }
-  | { status: "unauthenticated" }
-  | { status: "onboarding-required" }
-  | { status: "forbidden" }
-  | { dashboard: GameplayDashboard; status: "ready" };
+const RETURN_PATH = "/admin/telemetry";
 
-const ranges: Array<{ label: string; value: GameplayDashboardRange }> = [
-  { label: "7 days", value: "7d" },
-  { label: "30 days", value: "30d" },
-  { label: "All time", value: "all" },
-];
-
-async function resolveAccessState(
-  range: GameplayDashboardRange,
-): Promise<AccessState> {
-  try {
-    const response = await fetch(`/api/admin/telemetry?range=${range}`, {
-      cache: "no-store",
-      credentials: "include",
-    });
-
-    if (response.status === 401) {
-      return { status: "unauthenticated" };
-    }
-    if (response.status === 428) {
-      return { status: "onboarding-required" };
-    }
-    if (response.status === 403) {
-      return { status: "forbidden" };
-    }
-    if (!response.ok) {
-      return {
-        message:
-          response.status === 503
-            ? "Telemetry administration is not configured in this environment."
-            : "Gameplay telemetry could not be loaded.",
-        status: "error",
-      };
-    }
-
-    return {
-      dashboard: gameplayDashboardSchema.parse(await response.json()),
-      status: "ready",
-    };
-  } catch {
-    return {
-      message: "The telemetry response was unavailable or invalid.",
-      status: "error",
-    };
-  }
-}
+const loadTelemetry = (range: GameplayDashboardRange) =>
+  loadAdminData(
+    `/api/admin/telemetry?range=${range}&tz=${encodeURIComponent(browserTimeZone())}`,
+    gameplayDashboardSchema,
+  );
 
 export function TelemetryDashboardAccess() {
   const [range, setRange] = useState<GameplayDashboardRange>("7d");
-  const [accessState, setAccessState] = useState<AccessState>({
+  const [accessState, setAccessState] = useState<AdminAccessState<GameplayDashboard>>({
     status: "loading",
   });
-  const [signInPending, setSignInPending] = useState(false);
-  const [signOutPending, setSignOutPending] = useState(false);
+  const session = useAdminSession(RETURN_PATH, setAccessState);
+  const { signedOut } = session;
 
   useEffect(() => {
     let active = true;
-    void resolveAccessState(range).then((nextState) => {
-      if (active) {
-        setAccessState(nextState);
-      }
+    void loadTelemetry(range).then((nextState) => {
+      if (active && !signedOut.current) setAccessState(nextState);
     });
-
     return () => {
       active = false;
     };
-  }, [range]);
-
-  async function signInWithGoogle({
-    replaceCurrentSession = false,
-  }: { replaceCurrentSession?: boolean } = {}) {
-    setSignInPending(true);
-    try {
-      if (replaceCurrentSession) {
-        const signOutResponse = await fetch("/api/auth/sign-out", {
-          body: JSON.stringify({}),
-          credentials: "include",
-          headers: { "content-type": "application/json" },
-          method: "POST",
-        });
-        if (!signOutResponse.ok) {
-          throw new Error("The current account could not be signed out.");
-        }
-      }
-
-      const response = await fetch("/api/auth/sign-in/social", {
-        body: JSON.stringify({
-          callbackURL: "/admin/telemetry",
-          newUserCallbackURL: racerOnboardingPath("/admin/telemetry"),
-          provider: "google",
-        }),
-        credentials: "include",
-        headers: { "content-type": "application/json" },
-        method: "POST",
-      });
-      if (!response.ok) {
-        throw new Error("Google sign-in could not be started.");
-      }
-
-      const payload = z.object({ url: z.string().url() }).parse(await response.json());
-      window.location.assign(payload.url);
-    } catch {
-      setAccessState({
-        message: "Google sign-in could not be started.",
-        status: "error",
-      });
-      setSignInPending(false);
-    }
-  }
-
-  async function signOut() {
-    setSignOutPending(true);
-    try {
-      const response = await fetch("/api/auth/sign-out", {
-        body: JSON.stringify({}),
-        credentials: "include",
-        headers: { "content-type": "application/json" },
-        method: "POST",
-      });
-      if (!response.ok) {
-        throw new Error("Sign out failed.");
-      }
-      setAccessState({ status: "unauthenticated" });
-    } catch {
-      setAccessState({ message: "Sign out failed. Please retry.", status: "error" });
-    } finally {
-      setSignOutPending(false);
-    }
-  }
+  }, [range, signedOut]);
 
   if (accessState.status !== "ready") {
     return (
-      <ProtectedTelemetryAccess
+      <ProtectedAdminAccess
         accessState={accessState}
-        signInPending={signInPending}
+        returnPath={RETURN_PATH}
+        signInPending={session.signInPending}
+        title="Gameplay Telemetry"
         onRetry={() => {
           setAccessState({ status: "loading" });
-          void resolveAccessState(range).then(setAccessState);
+          void loadTelemetry(range).then(setAccessState);
         }}
-        onSignIn={signInWithGoogle}
+        onSignIn={session.signIn}
       />
     );
   }
 
   return (
     <TelemetryDashboard
-      dashboard={accessState.dashboard}
+      dashboard={accessState.data}
       range={range}
-      signOutPending={signOutPending}
+      signOutPending={session.signOutPending}
       onRangeChange={setRange}
-      onSignOut={() => void signOut()}
+      onSignOut={() => void session.signOut()}
     />
-  );
-}
-
-function ProtectedTelemetryAccess({
-  accessState,
-  signInPending,
-  onRetry,
-  onSignIn,
-}: {
-  accessState: Exclude<AccessState, { status: "ready" }>;
-  signInPending: boolean;
-  onRetry: () => void;
-  onSignIn: (options?: { replaceCurrentSession?: boolean }) => Promise<void>;
-}) {
-  const message =
-    accessState.status === "loading"
-      ? "Checking telemetry access..."
-      : accessState.status === "unauthenticated"
-        ? "Sign in with an approved admin account to continue."
-        : accessState.status === "onboarding-required"
-          ? "Choose your permanent racer username before opening protected tools."
-        : accessState.status === "forbidden"
-          ? "This account does not have telemetry access."
-          : accessState.message;
-
-  return (
-    <main className="relative grid min-h-screen place-items-center overflow-hidden bg-titan-black px-5 py-10 text-titan-ice">
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_20%,rgb(52_64_74/0.42),transparent_45%),linear-gradient(145deg,rgb(7_7_6),rgb(20_18_15))]" />
-      <section className="relative grid w-full max-w-lg gap-6 border border-titan-ice/20 bg-titan-black/88 p-6 shadow-[0_28px_100px_rgb(0_0_0/0.62)] sm:p-9">
-        <div className="grid gap-3">
-          <p className="font-mono text-xs font-bold uppercase tracking-[0.22em] text-titan-hazard">
-            Protected tooling
-          </p>
-          <h1 className="text-3xl font-black uppercase tracking-[-0.04em] sm:text-4xl">
-            Gameplay Telemetry
-          </h1>
-        </div>
-        <p
-          className="border border-titan-ice/15 bg-titan-ice/[0.04] px-4 py-3 text-sm text-titan-ice/78"
-          role={accessState.status === "error" ? "alert" : "status"}
-        >
-          {message}
-        </p>
-        <div className="grid gap-3 sm:grid-cols-2">
-          {accessState.status === "unauthenticated" ? (
-            <button
-              className="titan-button titan-button-primary"
-              disabled={signInPending}
-              type="button"
-              onClick={() => void onSignIn()}
-            >
-              {signInPending ? "Connecting..." : "Continue with Google"}
-            </button>
-          ) : accessState.status === "onboarding-required" ? (
-            <Link
-              className="titan-button titan-button-primary"
-              href={racerOnboardingPath("/admin/telemetry")}
-            >
-              Complete account
-            </Link>
-          ) : accessState.status === "forbidden" ? (
-            <button
-              className="titan-button titan-button-primary"
-              disabled={signInPending}
-              type="button"
-              onClick={() => void onSignIn({ replaceCurrentSession: true })}
-            >
-              {signInPending ? "Choosing account..." : "Choose another account"}
-            </button>
-          ) : accessState.status === "error" ? (
-            <button
-              className="titan-button titan-button-primary"
-              type="button"
-              onClick={onRetry}
-            >
-              Retry
-            </button>
-          ) : null}
-          <Link className="titan-button titan-button-secondary" href="/">
-            Back to racing
-          </Link>
-        </div>
-      </section>
-    </main>
   );
 }
 
@@ -289,15 +103,11 @@ function TelemetryDashboard({
     ["Median load", formatDuration(dashboard.summary.medianLoadTimeMs)],
     ["Median race", formatDuration(dashboard.summary.medianCompletedRaceTimeMs)],
   ];
-  const maximumDailyAttempts = Math.max(
-    1,
-    ...dashboard.daily.map(({ attempts }) => attempts),
-  );
 
   return (
     <main className="min-h-screen bg-titan-black px-4 py-5 text-titan-ice sm:px-7 lg:px-10">
       <div className="mx-auto grid w-full max-w-7xl gap-7">
-        <header className="flex flex-col gap-5 border-b border-titan-ice/15 pb-6 sm:flex-row sm:items-end sm:justify-between">
+        <header className="flex flex-col gap-5 border-b border-titan-ice/15 pb-6 sm:flex-row sm:items-start sm:justify-between">
           <div className="grid gap-2">
             <p className="font-mono text-xs font-bold uppercase tracking-[0.22em] text-titan-hazard">
               Admin operations
@@ -306,46 +116,15 @@ function TelemetryDashboard({
               Gameplay Telemetry
             </h1>
             <p className="max-w-2xl text-sm text-titan-ice/62">
-              Anonymous run-level summaries for the current solo time trial
-              course. No raw controls, kart paths, IP addresses, user agents,
-              or persistent guest identities.
+              Run-level summaries for the current solo time trial course,
+              counts only. No raw controls, kart paths, IP addresses, user
+              agents, or persistent guest identities.
             </p>
           </div>
-          <nav aria-label="Admin navigation" className="flex flex-wrap gap-2">
-            <Link className="titan-button titan-button-secondary px-4" href="/">
-              Racing
-            </Link>
-            <Link className="titan-button titan-button-secondary px-4" href="/admin/courses">
-              Course editor
-            </Link>
-            <button
-              className="titan-button titan-button-secondary px-4"
-              disabled={signOutPending}
-              type="button"
-              onClick={onSignOut}
-            >
-              {signOutPending ? "Signing out..." : "Sign out"}
-            </button>
-          </nav>
+          <AdminNav current="/admin/telemetry" signOutPending={signOutPending} onSignOut={onSignOut} />
         </header>
 
-        <section aria-label="Reporting period" className="flex flex-wrap gap-2">
-          {ranges.map((option) => (
-            <button
-              aria-pressed={range === option.value}
-              className={`min-h-10 border px-4 font-mono text-xs font-bold uppercase tracking-[0.12em] transition ${
-                range === option.value
-                  ? "border-titan-hazard bg-titan-hazard/10 text-titan-hazard"
-                  : "border-titan-ice/20 text-titan-ice/64 hover:border-titan-ice/50 hover:text-titan-ice"
-              }`}
-              key={option.value}
-              type="button"
-              onClick={() => onRangeChange(option.value)}
-            >
-              {option.label}
-            </button>
-          ))}
-        </section>
+        <ReportingPeriod value={range} onChange={onRangeChange} />
 
         <section aria-label="Run summary" className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           {summaryCards.map(([label, value]) => (
@@ -366,7 +145,7 @@ function TelemetryDashboard({
             </p>
           </section>
         ) : (
-          <div className="grid gap-6 lg:grid-cols-[1.35fr_1fr]">
+          <div className="grid gap-6 lg:grid-cols-2">
             <section className="grid gap-5 border border-titan-ice/15 p-5 sm:p-6 lg:col-span-2" aria-labelledby="funnel-title">
               <div>
                 <h2 className="text-lg font-black uppercase" id="funnel-title">Run funnel</h2>
@@ -377,24 +156,6 @@ function TelemetryDashboard({
                 <FunnelStage label="Loaded" value={dashboard.funnel.loaded.count} conversionRate={dashboard.funnel.loaded.conversionRate} />
                 <FunnelStage label="Racing" value={dashboard.funnel.racing.count} conversionRate={dashboard.funnel.racing.conversionRate} />
                 <FunnelStage label="Finished" value={dashboard.funnel.completed.count} conversionRate={dashboard.funnel.completed.conversionRate} />
-              </div>
-            </section>
-
-            <section className="border border-titan-ice/15 p-5 sm:p-6" aria-labelledby="daily-runs-title">
-              <div className="mb-5 flex items-center justify-between gap-4">
-                <h2 className="text-lg font-black uppercase" id="daily-runs-title">Daily runs</h2>
-                <span className="font-mono text-[0.65rem] uppercase tracking-[0.12em] text-titan-muted">Attempts / finishes</span>
-              </div>
-              <div className="grid gap-3">
-                {dashboard.daily.map((day) => (
-                  <div className="grid grid-cols-[6.5rem_1fr_auto] items-center gap-3" key={day.date}>
-                    <time className="font-mono text-xs text-titan-ice/64" dateTime={day.date}>{day.date}</time>
-                    <div className="h-3 bg-titan-ice/10" aria-hidden="true">
-                      <div className="h-full bg-titan-hazard" style={{ width: `${(day.attempts / maximumDailyAttempts) * 100}%` }} />
-                    </div>
-                    <span className="min-w-14 text-right font-mono text-xs tabular-nums">{day.attempts} / {day.completed}</span>
-                  </div>
-                ))}
               </div>
             </section>
 
@@ -443,33 +204,6 @@ function TelemetryDashboard({
           </div>
         )}
 
-        <section className="grid gap-5 border border-titan-ice/15 p-5 sm:p-6" aria-labelledby="solo-play-title">
-          <div>
-            <h2 className="text-lg font-black uppercase" id="solo-play-title">Replays, ghosts, and results</h2>
-            <p className="mt-1 text-xs text-titan-muted">Sign-ups count each racer by the login method they joined with; submissions are leaderboard runs on this course.</p>
-          </div>
-          <div className="grid items-start gap-6 md:grid-cols-3">
-            <MetricRows rows={[
-              ["Race again", dashboard.soloPlay.replays],
-              ["Results shared", dashboard.soloPlay.shares],
-              ["Races from shared links", dashboard.soloPlay.ghosts.sharedLink],
-              ["Races from the leaderboard", dashboard.soloPlay.ghosts.leaderboardRacer],
-            ]} />
-            <MetricRows rows={[
-              ["No ghost", dashboard.soloPlay.ghosts.none],
-              ["Own best", dashboard.soloPlay.ghosts.ownBest],
-              ["Course best", dashboard.soloPlay.ghosts.courseBest],
-            ]} />
-            <MetricRows rows={[
-              ["Google sign-ups", dashboard.soloPlay.signUps.google],
-              ["Wallet sign-ups", dashboard.soloPlay.signUps.wallet],
-              ["Verified submissions", dashboard.soloPlay.submissions.verified],
-              ["Rejected submissions", dashboard.soloPlay.submissions.rejected],
-              ["Sent after signing in", dashboard.soloPlay.submissions.afterSignIn],
-            ]} />
-          </div>
-        </section>
-
         <section className="grid gap-4 border border-titan-ice/15 p-5 sm:p-6" aria-labelledby="failures-title">
           <div>
             <h2 className="text-lg font-black uppercase" id="failures-title">Grouped failures</h2>
@@ -504,11 +238,6 @@ function TelemetryDashboard({
             </div>
           )}
         </section>
-
-        <footer className="flex flex-wrap justify-between gap-3 border-t border-titan-ice/10 py-5 font-mono text-[0.65rem] uppercase tracking-[0.1em] text-titan-muted">
-          <span>Anonymous runs: {dashboard.attribution.anonymous}</span>
-          <span>Authenticated runs: {dashboard.attribution.authenticated}</span>
-        </footer>
       </div>
     </main>
   );
@@ -533,18 +262,5 @@ function FunnelStage({
           : `${Math.round(conversionRate * 100)}% from prior stage`}
       </p>
     </article>
-  );
-}
-
-function MetricRows({ rows }: { rows: Array<[string, number]> }) {
-  return (
-    <dl className="grid gap-3">
-      {rows.map(([label, value]) => (
-        <div className="flex items-center justify-between gap-4 border-b border-titan-ice/10 pb-2" key={label}>
-          <dt className="text-sm text-titan-ice/65">{label}</dt>
-          <dd className="font-mono font-bold tabular-nums">{value.toLocaleString()}</dd>
-        </div>
-      ))}
-    </dl>
   );
 }

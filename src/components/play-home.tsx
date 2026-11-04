@@ -1141,7 +1141,7 @@ export function PlayHome() {
                 {admin ? (
                   <Link
                     className={UTILITY_MENU_ITEM}
-                    href="/admin/telemetry"
+                    href="/admin"
                     onClick={() => setUtilityMenuOpen(false)}
                   >
                     <DashboardIcon />

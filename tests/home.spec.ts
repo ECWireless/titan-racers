@@ -999,7 +999,7 @@ test.describe("home screen", () => {
     await utilityMenu.click();
     await expect(page.getByRole("link", { name: "Dashboard" })).toHaveAttribute(
       "href",
-      "/admin/telemetry",
+      "/admin",
     );
     await page.getByRole("button", { name: "Sign out" }).click();
     await expect(utilityMenu).toBeFocused();

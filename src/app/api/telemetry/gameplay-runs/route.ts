@@ -6,12 +6,14 @@ import {
   protectedJsonMutationError,
   readBoundedBody,
 } from "@/server/request-guards";
+import { signedInUserIdOrNull } from "@/server/session-user";
 
 const MAX_BODY_BYTES = 4_096;
 
 export async function postGameplayRun(
   request: Request,
   record: typeof recordGameplayRunEvent = recordGameplayRunEvent,
+  signedInUserId: typeof signedInUserIdOrNull = signedInUserIdOrNull,
 ) {
   const mutationError = protectedJsonMutationError(request);
   if (mutationError) {
@@ -44,7 +46,10 @@ export async function postGameplayRun(
     throw error;
   }
 
-  const result = await record(event);
+  // Only a start is attributed, from the trusted session, never the client.
+  const userId =
+    event.type === "run_started" ? await signedInUserId(request) : null;
+  const result = await record(event, new Date(), userId);
   return new Response(null, { status: result === "created" ? 201 : 202 });
 }
 

@@ -79,6 +79,15 @@ export function DashboardIcon() {
   );
 }
 
+/** A pulse line: the admin telemetry. */
+export function TelemetryIcon() {
+  return (
+    <MenuIcon>
+      <path d="M2.5 12.5h4.5l2.5-6 4.5 11 2.5-5h5" />
+    </MenuIcon>
+  );
+}
+
 /** A clock turned back: the course's versions. */
 export function CourseVersionsIcon() {
   return (

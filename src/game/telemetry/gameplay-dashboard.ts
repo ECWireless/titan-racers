@@ -1,7 +1,6 @@
 import { z } from "zod";
 
 import {
-  type GameplayGhostRaced,
   gameplayRunFailureCodeSchema,
   type GameplayInputFamily,
   type GameplayRunFailureCode,
@@ -20,10 +19,6 @@ export type GameplayDashboardRange = z.infer<
 
 export type GameplayDashboardRun = {
   automaticPauseCount: number;
-  ghost: GameplayGhostRaced | null;
-  raceAgain: boolean | null;
-  shared: boolean;
-  attribution: "authenticated" | "guest";
   completedRaceTimeMs: number | null;
   deploymentVersion: string;
   discardedTimeMs: number;
@@ -40,30 +35,7 @@ export type GameplayDashboardRun = {
 
 const countSchema = z.number().int().nonnegative();
 
-const soloPlayAccountsSchema = z.strictObject({
-  signUps: z.strictObject({ google: countSchema, wallet: countSchema }),
-  submissions: z.strictObject({
-    // Guests' runs sent once they signed in, among the verified and rejected.
-    afterSignIn: countSchema,
-    rejected: countSchema,
-    verified: countSchema,
-  }),
-});
-/** Sign-ups and leaderboard submissions, counted from their own rows. */
-export type SoloPlayAccounts = z.infer<typeof soloPlayAccountsSchema>;
-
 export const gameplayDashboardSchema = z.strictObject({
-  attribution: z.strictObject({
-    anonymous: countSchema,
-    authenticated: countSchema,
-  }),
-  daily: z.array(
-    z.strictObject({
-      attempts: countSchema,
-      completed: countSchema,
-      date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-    }),
-  ),
   inputFamilies: z.strictObject({
     gamepad: countSchema,
     keyboard: countSchema,
@@ -78,18 +50,6 @@ export const gameplayDashboardSchema = z.strictObject({
     unfinished: countSchema,
   }),
   range: gameplayDashboardRangeSchema,
-  // Phase 5: replays, ghosts, shares, sign-ups, and submissions.
-  soloPlay: soloPlayAccountsSchema.extend({
-    ghosts: z.strictObject({
-      courseBest: countSchema,
-      leaderboardRacer: countSchema,
-      none: countSchema,
-      ownBest: countSchema,
-      sharedLink: countSchema,
-    }),
-    replays: countSchema,
-    shares: countSchema,
-  }),
   failureGroups: z.array(
     z.strictObject({
       count: countSchema,
@@ -164,32 +124,16 @@ function failureStage(run: GameplayDashboardRun) {
   return "loading" as const;
 }
 
-const NO_ACCOUNTS: SoloPlayAccounts = {
-  signUps: { google: 0, wallet: 0 },
-  submissions: { afterSignIn: 0, rejected: 0, verified: 0 },
-};
-
 export function aggregateGameplayDashboard(
   runs: GameplayDashboardRun[],
   range: GameplayDashboardRange,
   now = new Date(),
-  accounts: SoloPlayAccounts = NO_ACCOUNTS,
 ): GameplayDashboard {
   const staleBefore = now.getTime() - UNFINISHED_AFTER_MS;
   const completed = runs.filter((run) => run.outcome === "completed");
   const racingRuns = runs.filter((run) => run.racingStartedAt !== null);
   const terminalRacingRuns = racingRuns.filter((run) => run.outcome !== null);
   const loadedRuns = runs.filter((run) => run.loadedAt !== null);
-  const daily = new Map<string, { attempts: number; completed: number }>();
-
-  for (const run of runs) {
-    const date = run.startedAt.toISOString().slice(0, 10);
-    const totals = daily.get(date) ?? { attempts: 0, completed: 0 };
-    totals.attempts += 1;
-    totals.completed += Number(run.outcome === "completed");
-    daily.set(date, totals);
-  }
-
   const inputFamilies = { gamepad: 0, keyboard: 0, touch: 0 };
   for (const run of runs) {
     for (const family of run.inputFamilies) {
@@ -242,18 +186,8 @@ export function aggregateGameplayDashboard(
 
   const rate = (numerator: number, denominator: number) =>
     denominator === 0 ? 0 : numerator / denominator;
-  const ghostRuns = (ghost: GameplayGhostRaced) =>
-    runs.filter((run) => run.ghost === ghost).length;
 
   return {
-    attribution: {
-      anonymous: runs.filter((run) => run.attribution === "guest").length,
-      authenticated: runs.filter((run) => run.attribution === "authenticated")
-        .length,
-    },
-    daily: [...daily.entries()]
-      .sort(([left], [right]) => left.localeCompare(right))
-      .map(([date, totals]) => ({ date, ...totals })),
     failureGroups: [...failures.values()]
       .sort(
         (left, right) =>
@@ -291,18 +225,6 @@ export function aggregateGameplayDashboard(
       unfinished,
     },
     range,
-    soloPlay: {
-      ...accounts,
-      ghosts: {
-        courseBest: ghostRuns("course_best"),
-        leaderboardRacer: ghostRuns("leaderboard_racer"),
-        none: ghostRuns("none"),
-        ownBest: ghostRuns("own_best"),
-        sharedLink: ghostRuns("shared_link"),
-      },
-      replays: runs.filter((run) => run.raceAgain === true).length,
-      shares: runs.filter((run) => run.shared).length,
-    },
     recoveries: {
       multiple: terminalRacingRuns.filter((run) => run.recoveryCount > 1)
         .length,

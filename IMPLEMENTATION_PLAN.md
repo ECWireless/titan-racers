@@ -16,8 +16,9 @@ accepted; the app, README, and durable docs take over from there.
 ## Status
 
 - **Done:** Phases 0–5 (PRs #1–#24, the Phase 3 closeout and its
-  follow-ups, #30–#57 with the PR 4.5.2 closeout, and #59–#63).
-- **Now:** Phase 6, PR 6.0 (implemented, in review).
+  follow-ups, #30–#57 with the PR 4.5.2 closeout, and #59–#63), and PR 6.0
+  (#64).
+- **Now:** Phase 6, PR 6.1 (implemented, in review).
 
 ## Guiding Decisions
 
@@ -256,12 +257,14 @@ Phase decisions:
 
 **PR 6.1: A clearer admin dashboard**
 
-- [ ] An at-a-glance admin dashboard: races started and finished over time
+- [x] An at-a-glance admin dashboard: races started and finished over time
       and how many finish, sign-ups and active signed-in racers with the
       guest and signed-in share, leaderboard submissions and new bests, and
       races per official kart, ghost choices, and links copied. Guests have
       no lasting identity, so racer counts are signed-in only. PR 6.3 adds
       room counts.
+- [x] Races record their signed-in racer from the server's session. Home's
+      menu opens the dashboard, which links the operational telemetry view.
 
 **PR 6.2: Accounts without Google or a wallet**
 

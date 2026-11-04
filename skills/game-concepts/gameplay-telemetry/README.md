@@ -33,11 +33,11 @@ The initial dashboard should answer only:
 4. Which supported input families and recovery behavior were represented?
 5. Which bounded failure categories or unfinished runs need investigation?
 
-## Run Identity And Future Accounts
+## Run Identity And Accounts
 
 A random UUIDv4 run ID identifies one attempt, not one person, browser, device,
-or auth session. Guest runs have immutable guest attribution and no user ID. A
-future authenticated run may receive the canonical application user ID only
+or auth session. Guest runs have immutable guest attribution and no user ID. An
+authenticated run receives the canonical application user ID only
 from the trusted server session; the client never supplies it. Deleting that
 account may clear the erasable user link without rewriting the historical
 attribution category. Never retroactively attach older anonymous runs to a
