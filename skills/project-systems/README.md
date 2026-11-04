@@ -38,9 +38,9 @@ The source code and authoritative project documents remain the final authority f
 - [Runtime resilience](runtime-resilience/README.md): lifecycle safety pauses,
   fixed-step overload bounds, resize reconciliation, WebGL recovery, and coarse
   run-health summaries.
-- [Gameplay telemetry](gameplay-telemetry/README.md): anonymous run summaries,
-  guarded milestone ingestion, protected operational aggregates, automatic
-  Vercel page views, and the admin telemetry dashboard.
+- [Gameplay telemetry](gameplay-telemetry/README.md): guest and signed-in run
+  summaries, guarded milestone ingestion, the at-a-glance admin dashboard and
+  operational telemetry view, and automatic Vercel page views.
 - [Race presentation](race-presentation/README.md): authoritative snapshot
   projection, countdown, lap/time HUD, recovery announcement, finish results, and
   keyboard/controller replay flow.

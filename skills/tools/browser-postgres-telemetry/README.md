@@ -52,8 +52,12 @@ Index the timestamp used by dashboard ranges and only add further indexes after
 query evidence.
 
 The read-only admin repository selects only bounded summary columns. It derives
-conversion counts, input-family totals, recovery totals, daily trends, grouped
-failures, and medians. PostgreSQL supports ordered-set `percentile_cont`, but a
+conversion counts, input-family totals, recovery totals, grouped failures, and
+medians. Trends by calendar day belong in SQL: bucket
+`started_at AT TIME ZONE <IANA zone>` with `date_trunc`, fill empty buckets
+with `generate_series`, and start a range at the first instant of its first
+local day, since a midnight that repeats when clocks fall back resolves to
+its later occurrence. PostgreSQL supports ordered-set `percentile_cont`, but a
 small pure aggregation layer is acceptable for the initial bounded demo data
 and is easier to exercise with deterministic dashboard fixtures. Revisit SQL
 aggregation before unbounded production volume.
