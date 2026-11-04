@@ -4,6 +4,7 @@ import { db } from "@/db/client";
 import {
   accounts,
   boardBests,
+  passkeys,
   sessions,
   userRoles,
   users,
@@ -13,7 +14,7 @@ import {
 
 export class UserNotFoundError extends Error {
   constructor() {
-    super("No application user exists for that email or wallet.");
+    super("No application user exists for that email, wallet, or username.");
     this.name = "UserNotFoundError";
   }
 }
@@ -47,6 +48,20 @@ export async function anonymizeUserByWallet(rawAddress: string) {
   });
 }
 
+// Racers kept in this browser have neither, so they are found by username.
+export async function anonymizeUserByUsername(rawUsername: string) {
+  const username = rawUsername.trim().toLowerCase().replace(/^@/, "");
+  return db.transaction(async (transaction) => {
+    const [user] = await transaction
+      .select({ id: users.id })
+      .from(users)
+      .where(eq(users.username, username))
+      .limit(1);
+    if (!user) throw new UserNotFoundError();
+    return anonymizeUser(transaction, user.id);
+  });
+}
+
 async function anonymizeUser(transaction: Transaction, userId: string) {
   // Locking the racer first makes a concurrent sign-in or new login method
   // wait, then fail on the anonymized racer (migration 0020's triggers).
@@ -64,6 +79,7 @@ async function anonymizeUser(transaction: Transaction, userId: string) {
   // Leaderboard bests and ghosts go; results stay under the opaque ID.
   await transaction.delete(boardBests).where(eq(boardBests.userId, userId));
   await transaction.delete(accounts).where(eq(accounts.userId, userId));
+  await transaction.delete(passkeys).where(eq(passkeys.userId, userId));
   // Better Auth 1.6 keyed wallet nonces by address (`siwe:<address>:<chain>`),
   // and expired rows can linger, so rows from before 1.7 may still name the
   // wallet. 1.7 keys nonces by the nonce alone.
@@ -72,6 +88,8 @@ async function anonymizeUser(transaction: Transaction, userId: string) {
     .where(
       or(
         sql`lower(${verifications.identifier}) = ${email.toLowerCase()}`,
+        // Passkey registration challenges name the racer by ID.
+        like(verifications.value, `%"userData":{"id":"${userId}"%`),
         ...wallets.map(({ address }) =>
           like(verifications.identifier, `siwe:${address}:%`),
         ),

@@ -3,6 +3,7 @@ import "dotenv/config";
 import { pool } from "../src/db/client";
 import {
   anonymizeUserByEmail,
+  anonymizeUserByUsername,
   anonymizeUserByWallet,
   UserNotFoundError,
 } from "../src/server/user-anonymization";
@@ -15,24 +16,27 @@ function flagValue(flag: string) {
 async function main() {
   const email = flagValue("--email");
   const wallet = flagValue("--wallet");
+  const username = flagValue("--username");
 
-  if (!email === !wallet) {
+  if ([email, wallet, username].filter(Boolean).length !== 1) {
     throw new Error(
-      "Usage: pnpm db:anonymize-user --email <account-email> | --wallet <0x-address>",
+      "Usage: pnpm db:anonymize-user --email <account-email> | --wallet <0x-address> | --username <username>",
     );
   }
 
   try {
     const result = email
       ? await anonymizeUserByEmail(email)
-      : await anonymizeUserByWallet(wallet!);
+      : wallet
+        ? await anonymizeUserByWallet(wallet)
+        : await anonymizeUserByUsername(username!);
     console.log(`Application user ${result.userId} was anonymized.`);
   } finally {
     await pool.end();
   }
 }
 
-// Database errors can echo the supplied email or wallet, so only known
+// Database errors can echo the supplied email, wallet, or username, so only known
 // messages are printed.
 main().catch((error: unknown) => {
   console.error(

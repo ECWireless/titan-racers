@@ -116,23 +116,27 @@ export async function loadAdminOverview(
         )})
       group by kart_id
     `),
-    // Each racer by how they joined: on this browser, or else by their
-    // first login method. Anonymized racers are left out.
+    // Each racer by how they joined: on this browser, or else by the
+    // earliest login method they still have. Anonymized racers are left out.
     db.execute<{ count: number; provider_id: string }>(sql`
       select provider_id, count(*)::int as count from (
         select distinct on (users.id)
           case
-            when users.is_anonymous and account.id is not null
+            when users.is_anonymous and method.user_id is not null
               then 'browser-kept'
             when users.is_anonymous then 'browser'
-            else account.provider_id
+            else method.provider_id
           end as provider_id
         from users
-        left join accounts account on account.user_id = users.id
+        left join (
+          select user_id, provider_id, created_at, id from accounts
+          union all
+          select user_id, 'passkey', created_at, id from passkeys
+        ) method on method.user_id = users.id
         where users.anonymized_at is null
-          and (users.is_anonymous or account.id is not null)
+          and (users.is_anonymous or method.user_id is not null)
           ${since ? sql`and users.created_at >= ${since}` : sql``}
-        order by users.id, account.created_at, account.id
+        order by users.id, method.created_at, method.id
       ) joined
       group by provider_id
     `),
@@ -209,6 +213,7 @@ export async function loadAdminOverview(
         browser: joined("browser") + joined("browser-kept"),
         browserKept: joined("browser-kept"),
         google: joined("google"),
+        passkey: joined("passkey"),
         wallet: joined("siwe"),
       },
     },

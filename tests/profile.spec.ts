@@ -42,6 +42,57 @@ async function setStandardTestGamepad(
   }, buttonValues);
 }
 
+const PASSKEY_REGISTRATION_OPTIONS = {
+  attestation: "none",
+  authenticatorSelection: { residentKey: "required", userVerification: "preferred" },
+  challenge: "AQID",
+  excludeCredentials: [],
+  pubKeyCredParams: [{ alg: -7, type: "public-key" }],
+  rp: { id: "127.0.0.1", name: "Titan Racers" },
+  user: { displayName: "nova@example.com", id: "AQID", name: "nova_racer" },
+};
+
+// Stands in for the device's passkey prompts; the server side is mocked too.
+async function stubPasskeys(page: Page) {
+  await page.addInitScript(() => {
+    const bytes = (...values: number[]) => new Uint8Array(values).buffer;
+    const credential = (response: Record<string, unknown>) => ({
+      authenticatorAttachment: "platform",
+      getClientExtensionResults: () => ({}),
+      id: "AQID",
+      rawId: bytes(1, 2, 3),
+      response,
+      type: "public-key",
+    });
+    const testWindow = window as typeof window & {
+      cancelPasskey?: boolean;
+      passkeyUser?: unknown;
+    };
+    navigator.credentials.create = async (options) => {
+      testWindow.passkeyUser = {
+        displayName: options?.publicKey?.user.displayName,
+        name: options?.publicKey?.user.name,
+      };
+      return credential({
+        attestationObject: bytes(1),
+        clientDataJSON: bytes(1),
+        getTransports: () => ["internal"],
+      }) as unknown as Credential;
+    };
+    navigator.credentials.get = async () => {
+      if (testWindow.cancelPasskey) {
+        throw new DOMException("The request was cancelled.", "NotAllowedError");
+      }
+      return credential({
+        authenticatorData: bytes(1),
+        clientDataJSON: bytes(1),
+        signature: bytes(1),
+        userHandle: bytes(1),
+      }) as unknown as Credential;
+    };
+  });
+}
+
 async function fulfillIncompleteProfile(page: Page, suggestion = "elliott4821") {
   await page.route(profileApiPattern, async (route) => {
     if (route.request().method() === "GET") {
@@ -303,7 +354,7 @@ test.describe("racer onboarding and profile", () => {
     await page.goto("/profile");
     const start = page.getByRole("button", { name: "Continue on this browser" });
     await expect(start).toHaveAccessibleDescription(
-      "No Google or wallet needed. Your racer stays in this browser until you add Google or a wallet.",
+      "No Google or wallet needed. Your racer stays in this browser until you add a passkey, Google, or a wallet.",
     );
     await start.click();
     await expect(
@@ -337,7 +388,7 @@ test.describe("racer onboarding and profile", () => {
     await page.goto("/profile");
     const methods = page.getByRole("region", { name: "Login methods" });
     await expect(methods).toContainText(
-      "This racer lives only in this browser. Clearing your browsing data, switching devices, or a year away loses it for good. Add Google or a wallet to keep it.",
+      "This racer lives only in this browser. Clearing your browsing data, switching devices, or a year away loses it for good. Add a passkey, Google, or a wallet to keep it.",
     );
     await expect(methods.getByRole("listitem")).toHaveCount(0);
     await expect(
@@ -358,6 +409,95 @@ test.describe("racer onboarding and profile", () => {
       page.getByRole("button", { name: "Continue on this browser" }),
     ).toBeVisible();
     expect(signOuts).toBe(1);
+  });
+
+  test("adds a passkey, which keeps a racer started on this browser", async ({
+    page,
+  }) => {
+    await stubPasskeys(page);
+    let added = false;
+    let optionsUrl = "";
+    await page.route(profileApiPattern, async (route) => {
+      await route.fulfill({
+        body: JSON.stringify({
+          loginMethods: added
+            ? [{ id: "passkey-1", kind: "passkey", label: "Passkey" }]
+            : [],
+          status: "complete",
+          username: "nova_racer",
+        }),
+        contentType: "application/json",
+      });
+    });
+    await page.route("**/api/auth/passkey/generate-register-options?*", async (route) => {
+      optionsUrl = route.request().url();
+      await route.fulfill({ json: PASSKEY_REGISTRATION_OPTIONS });
+    });
+    await page.route("**/api/auth/passkey/verify-registration", async (route) => {
+      added = true;
+      await route.fulfill({ json: { id: "passkey-1" } });
+    });
+
+    await page.goto("/profile");
+    const methods = page.getByRole("region", { name: "Login methods" });
+    await expect(methods).toContainText("Add a passkey, Google, or a wallet to keep it.");
+    await methods.getByRole("button", { name: "Add a passkey" }).click();
+    await expect(page.getByText("Passkey added.")).toBeVisible();
+    // The password manager files it under the racer's username, never an
+    // email.
+    expect(new URL(optionsUrl).searchParams.get("name")).toBe("nova_racer");
+    expect(
+      await page.evaluate(() => (window as typeof window & { passkeyUser?: unknown }).passkeyUser),
+    ).toEqual({ displayName: "nova_racer", name: "nova_racer" });
+    await expect(methods.getByRole("listitem")).toHaveText([/Passkey/]);
+    await expect(methods).not.toContainText("lives only in this browser");
+  });
+
+  test("signs in with a passkey, and says when it's rate-limited or cancelled", async ({
+    page,
+  }) => {
+    await stubPasskeys(page);
+    let signedIn = false;
+    await page.route(profileApiPattern, async (route) => {
+      await route.fulfill(
+        signedIn
+          ? {
+              body: JSON.stringify({ loginMethods: [], status: "complete", username: "nova_racer" }),
+              contentType: "application/json",
+            }
+          : { body: "{}", contentType: "application/json", status: 401 },
+      );
+    });
+    let optionRequests = 0;
+    await page.route("**/api/auth/passkey/generate-authenticate-options", (route) => {
+      optionRequests += 1;
+      return optionRequests === 1
+        ? route.fulfill({ json: {}, status: 429 })
+        : route.fulfill({ json: { challenge: "AQID", rpId: "127.0.0.1", userVerification: "preferred" } });
+    });
+    await page.route("**/api/auth/passkey/verify-authentication", async (route) => {
+      signedIn = true;
+      await route.fulfill({ json: {} });
+    });
+
+    await page.goto("/profile");
+    await page.evaluate(() => {
+      (window as typeof window & { cancelPasskey?: boolean }).cancelPasskey = true;
+    });
+    const passkey = page.getByRole("button", { name: "Continue with a passkey" });
+    await passkey.click();
+    await expect(
+      page.getByText("Too many passkey requests from this network. Try again in a minute."),
+    ).toBeVisible();
+    await passkey.click();
+    await expect(page.getByText("The passkey request was cancelled.")).toBeVisible();
+    expect(signedIn).toBe(false);
+
+    await page.evaluate(() => {
+      (window as typeof window & { cancelPasskey?: boolean }).cancelPasskey = false;
+    });
+    await passkey.click();
+    await expect(page.getByText("@nova_racer")).toBeVisible();
   });
 
   test("signs in with a chosen browser wallet", async ({ page }) => {

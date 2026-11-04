@@ -106,7 +106,10 @@ function Overview({
 }) {
   const { races, racers, leaderboard } = overview;
   const signUps =
-    racers.signUps.browser + racers.signUps.google + racers.signUps.wallet;
+    racers.signUps.browser +
+    racers.signUps.google +
+    racers.signUps.passkey +
+    racers.signUps.wallet;
   const period = overview.bucket === "week" ? "week" : "day";
   const tiles: Array<[string, number, string | null]> = [
     ["Races started", races.started, null],
@@ -181,7 +184,7 @@ function Overview({
           </Panel>
 
           <Panel
-            note="Races count as signed in from this dashboard's release on; earlier races all show as guest. Sign-ups count each racer by how they joined; racers started on one browser count as signed in, and as kept once they add a login method."
+            note="Races count as signed in from this dashboard's release on; earlier races all show as guest. Sign-ups count each racer by how they joined, or the earliest login method they still have; racers started on one browser count as signed in, and as kept once they add a login method."
             title="Who's racing"
           >
             <SplitBar
@@ -193,6 +196,7 @@ function Overview({
             <MetricRows rows={[
               ["Google sign-ups", racers.signUps.google],
               ["Wallet sign-ups", racers.signUps.wallet],
+              ["Passkey sign-ups", racers.signUps.passkey],
               ["This-browser sign-ups", racers.signUps.browser],
               ["Kept with a login method", racers.signUps.browserKept],
             ]} />

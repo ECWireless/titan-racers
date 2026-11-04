@@ -1,4 +1,5 @@
 import { drizzleAdapter } from "@better-auth/drizzle-adapter";
+import { passkey } from "@better-auth/passkey";
 import {
   APIError,
   createAuthMiddleware,
@@ -12,7 +13,7 @@ import { siwe } from "better-auth/plugins/siwe";
 import { and, eq, notExists } from "drizzle-orm";
 
 import { db } from "@/db/client";
-import { accounts, authSchema, users } from "@/db/schema";
+import { accounts, authSchema, passkeys, users } from "@/db/schema";
 import { createRacerUsernameSeed } from "@/lib/racer-username";
 import {
   isWalletAddress,
@@ -25,6 +26,24 @@ const baseURL = process.env.BETTER_AUTH_URL ?? "http://localhost:3000";
 const DAY_SECONDS = 24 * 60 * 60;
 const KEEP_DEFAULT_LIMIT = (_request: Request, current: { max: number; window: number }) =>
   current;
+// Each request for passkey options stores a challenge, and a racer needs
+// only a few.
+const PASSKEY_OPTIONS_LIMIT = { max: 10, window: 60 };
+
+// The passkey plugin keeps the racer's email with each registration
+// challenge; it needs only the racer's ID.
+function withoutPasskeyIdentity(value: string) {
+  try {
+    const challenge = JSON.parse(value) as {
+      type?: unknown;
+      userData?: { id?: unknown };
+    };
+    if (challenge.type !== "registration" || !challenge.userData) return value;
+    return JSON.stringify({ ...challenge, userData: { id: challenge.userData.id } });
+  } catch {
+    return value;
+  }
+}
 
 // A racer kept only in this browser can't sign back in, so no other sign-in
 // may replace its session.
@@ -38,6 +57,9 @@ async function isOnlyInThisBrowser(userId: string) {
         eq(users.isAnonymous, true),
         notExists(
           db.select().from(accounts).where(eq(accounts.userId, users.id)),
+        ),
+        notExists(
+          db.select().from(passkeys).where(eq(passkeys.userId, users.id)),
         ),
       ),
     );
@@ -63,13 +85,23 @@ export const auth = betterAuth({
       },
     },
   },
-  // Our profile route unlinks so a wallet's SIWE row goes with its account.
-  // A racer kept in this browser is never deleted.
-  disabledPaths: ["/unlink-account", "/delete-anonymous-user"],
+  // Our profile route lists and removes login methods, so the last one
+  // always stays. A racer kept in this browser is never deleted.
+  disabledPaths: [
+    "/unlink-account",
+    "/delete-anonymous-user",
+    "/passkey/delete-passkey",
+    "/passkey/list-user-passkeys",
+    "/passkey/update-passkey",
+  ],
   session: {
     // A racer kept in this browser exists only through this cookie, so it
     // lasts as long as browsers allow and renews at most daily on use.
     expiresIn: 400 * DAY_SECONDS,
+    // A racer kept in this browser can't sign in again to prove a fresh
+    // session, so adding a passkey, like linking Google or a wallet, needs
+    // only a live one.
+    freshAge: 0,
     updateAge: DAY_SECONDS,
   },
   rateLimit: {
@@ -83,13 +115,21 @@ export const auth = betterAuth({
       "/callback/google": KEEP_DEFAULT_LIMIT,
       "/siwe/nonce": KEEP_DEFAULT_LIMIT,
       "/siwe/verify": KEEP_DEFAULT_LIMIT,
+      "/passkey/generate-authenticate-options": PASSKEY_OPTIONS_LIMIT,
+      "/passkey/generate-register-options": PASSKEY_OPTIONS_LIMIT,
+      "/passkey/verify-authentication": KEEP_DEFAULT_LIMIT,
       "/**": false,
     },
     storage: "database",
   },
   hooks: {
     before: createAuthMiddleware(async (ctx) => {
-      const signsIn = ["/sign-in/anonymous", "/sign-in/social", "/siwe/verify"];
+      const signsIn = [
+        "/sign-in/anonymous",
+        "/sign-in/social",
+        "/siwe/verify",
+        "/passkey/verify-authentication",
+      ];
       if (!signsIn.includes(ctx.path)) return;
       const current = await getSessionFromCtx(ctx, { disableRefresh: true });
       if (!current) return;
@@ -138,6 +178,16 @@ export const auth = betterAuth({
       disableDeleteAnonymousUser: true,
       generateName: () => "racer",
     }),
+    // Bound to this site's own origin and domain, never the request's.
+    passkey({
+      authenticatorSelection: {
+        residentKey: "required",
+        userVerification: "preferred",
+      },
+      origin: new URL(baseURL).origin,
+      rpID: new URL(baseURL).hostname,
+      rpName: "Titan Racers",
+    }),
     siwe({
       domain: new URL(baseURL).host,
       emailDomainName: WALLET_EMAIL_DOMAIN,
@@ -146,6 +196,16 @@ export const auth = betterAuth({
     }),
   ],
   databaseHooks: {
+    verification: {
+      create: {
+        before: async (verification) => ({
+          data: {
+            ...verification,
+            value: withoutPasskeyIdentity(verification.value),
+          },
+        }),
+      },
+    },
     session: {
       create: {
         before: async (session, context) => {

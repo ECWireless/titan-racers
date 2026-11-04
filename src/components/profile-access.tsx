@@ -1,9 +1,21 @@
 "use client";
 
+import {
+  browserSupportsWebAuthn,
+  startAuthentication,
+  startRegistration,
+} from "@simplewebauthn/browser";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { FormEvent, useCallback, useEffect, useRef, useState } from "react";
+import {
+  FormEvent,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
 import { z } from "zod";
 
 import { useControllerMenuNavigation } from "@/game/input/use-controller-menu-navigation";
@@ -27,7 +39,7 @@ import {
 const loginMethodsSchema = z.array(
   z.strictObject({
     id: z.string(),
-    kind: z.enum(["google", "wallet"]),
+    kind: z.enum(["google", "passkey", "wallet"]),
     label: z.string(),
   }),
 );
@@ -58,6 +70,24 @@ const usernameClaimFailure =
 const BROWSER_ONLY_WARNING =
   "This racer lives only in this browser. Clearing your browsing data, switching devices, or a year away loses it for good.";
 
+const noSubscription = () => () => {};
+
+class PasskeyRateLimitError extends Error {}
+
+// What went wrong in a passkey request, in the racer's terms.
+function passkeyFailureMessage(error: unknown, fallback: string) {
+  if (error instanceof PasskeyRateLimitError) {
+    return "Too many passkey requests from this network. Try again in a minute.";
+  }
+  if (error instanceof Error && error.name === "NotAllowedError") {
+    return "The passkey request was cancelled.";
+  }
+  if (error instanceof Error && error.name === "InvalidStateError") {
+    return "This device already has a passkey for your racer.";
+  }
+  return fallback;
+}
+
 class UsernameClaimError extends Error {}
 
 function walletFailureMessage(purpose: WalletPurpose, status?: number) {
@@ -71,7 +101,11 @@ function walletFailureMessage(purpose: WalletPurpose, status?: number) {
 }
 
 function loginMethodName(method: LoginMethod) {
-  return method.kind === "google" ? "Google" : `Wallet ${method.label}`;
+  if (method.kind === "google") return "Google";
+  if (method.kind === "wallet") return `Wallet ${method.label}`;
+  return method.label.startsWith("Passkey")
+    ? method.label
+    : `Passkey · ${method.label}`;
 }
 
 // Better Auth returns to the profile with ?error= when Google linking fails.
@@ -218,6 +252,12 @@ export function ProfileAccess({
   const [savePending, setSavePending] = useState(false);
   const [signInPending, setSignInPending] = useState<string | null>(null);
   const wallets = useBrowserWallets();
+  // Known only in the browser, so the server renders without passkeys.
+  const passkeysSupported = useSyncExternalStore(
+    noSubscription,
+    browserSupportsWebAuthn,
+    () => false,
+  );
   const [walletChoice, setWalletChoice] = useState<WalletPurpose | null>(
     null,
   );
@@ -226,8 +266,7 @@ export function ProfileAccess({
   const methodChangePending = signInPending !== null || unlinkPending !== null;
   const walletPending =
     signInPending !== null &&
-    signInPending !== "google" &&
-    signInPending !== "browser";
+    !["browser", "google", "passkey"].includes(signInPending);
   const signedIn =
     profileState.status === "complete" || profileState.status === "incomplete";
   // Kept only by this browser's cookie until the racer adds a login method.
@@ -346,6 +385,94 @@ export function ProfileAccess({
       setFeedback({
         kind: "error",
         message: "A racer could not be started on this browser. Please retry.",
+      });
+    } finally {
+      setSignInPending(null);
+    }
+  }
+
+  async function signInWithPasskey() {
+    setSignInPending("passkey");
+    setFeedback(null);
+    try {
+      const options = await fetch("/api/auth/passkey/generate-authenticate-options", {
+        cache: "no-store",
+        credentials: "include",
+      });
+      if (options.status === 429) throw new PasskeyRateLimitError();
+      if (!options.ok) throw new Error("Passkey options were unavailable.");
+      const response = await startAuthentication({
+        optionsJSON: await options.json(),
+      });
+      const verified = await fetch("/api/auth/passkey/verify-authentication", {
+        body: JSON.stringify({ response }),
+        credentials: "include",
+        headers: { "content-type": "application/json" },
+        method: "POST",
+      });
+      if (verified.status === 429) throw new PasskeyRateLimitError();
+      if (verified.status === 401) {
+        setFeedback({
+          kind: "error",
+          message:
+            "That passkey couldn't sign you in. It may have been removed from your racer.",
+        });
+        return;
+      }
+      if (!verified.ok) throw new Error("Passkey sign-in failed.");
+      await retryProfile();
+    } catch (error) {
+      setFeedback({
+        kind: "error",
+        message: passkeyFailureMessage(
+          error,
+          "Passkey sign-in could not be completed. Please retry.",
+        ),
+      });
+    } finally {
+      setSignInPending(null);
+    }
+  }
+
+  async function addPasskey(racerUsername: string) {
+    setSignInPending("passkey");
+    setFeedback(null);
+    try {
+      const options = await fetch(
+        `/api/auth/passkey/generate-register-options?name=${encodeURIComponent(racerUsername)}`,
+        { cache: "no-store", credentials: "include" },
+      );
+      if (options.status === 429) throw new PasskeyRateLimitError();
+      if (!options.ok) throw new Error("Passkey options were unavailable.");
+      const optionsJSON = await options.json();
+      // The password manager shows the racer's username, never an email.
+      const response = await startRegistration({
+        optionsJSON: {
+          ...optionsJSON,
+          user: { ...optionsJSON.user, displayName: racerUsername },
+        },
+      });
+      const verified = await fetch("/api/auth/passkey/verify-registration", {
+        body: JSON.stringify({ response }),
+        credentials: "include",
+        headers: { "content-type": "application/json" },
+        method: "POST",
+      });
+      if (!verified.ok) throw new Error("Passkey registration failed.");
+      const nextState = await loadProfile();
+      if (nextState.status !== "complete") {
+        setProfileState(nextState);
+        return;
+      }
+      applyLoginMethods(nextState.loginMethods);
+      setFeedback({ kind: "success", message: "Passkey added." });
+    } catch (error) {
+      setFeedback({
+        kind: "error",
+        message: passkeyFailureMessage(
+          error,
+          "The passkey could not be added. Please retry.",
+        ),
       });
     } finally {
       setSignInPending(null);
@@ -685,6 +812,18 @@ export function ProfileAccess({
                 {walletPending ? "Check your wallet…" : "Continue with wallet"}
               </button>
             ) : null}
+            {passkeysSupported ? (
+              <button
+                className="titan-button titan-button-secondary"
+                disabled={signInPending !== null}
+                type="button"
+                onClick={() => void signInWithPasskey()}
+              >
+                {signInPending === "passkey"
+                  ? "Check your device…"
+                  : "Continue with a passkey"}
+              </button>
+            ) : null}
             <div className="grid gap-2">
               <button
                 aria-describedby="this-browser-note"
@@ -702,7 +841,7 @@ export function ProfileAccess({
                 id="this-browser-note"
               >
                 No Google or wallet needed. Your racer stays in this browser
-                until you add Google or a wallet.
+                until you add a passkey, Google, or a wallet.
               </p>
             </div>
           </div>
@@ -800,7 +939,8 @@ export function ProfileAccess({
                 </h2>
                 {onlyThisBrowser ? (
                   <p className="border border-titan-hazard/45 bg-titan-hazard/[0.06] px-4 py-3 text-sm leading-6 text-titan-ice">
-                    {BROWSER_ONLY_WARNING} Add Google or a wallet to keep it.
+                    {BROWSER_ONLY_WARNING} Add a passkey, Google, or a wallet
+                    to keep it.
                   </p>
                 ) : (
                   <ul className="grid gap-2">
@@ -849,6 +989,18 @@ export function ProfileAccess({
                   />
                 ) : (
                   <div className="flex flex-wrap gap-3">
+                    {passkeysSupported ? (
+                      <button
+                        className="titan-button titan-button-secondary"
+                        disabled={methodChangePending}
+                        type="button"
+                        onClick={() => void addPasskey(profileState.username)}
+                      >
+                        {signInPending === "passkey"
+                          ? "Check your device…"
+                          : "Add a passkey"}
+                      </button>
+                    ) : null}
                     {profileState.loginMethods.some(
                       (method) => method.kind === "google",
                     ) ? null : (
@@ -880,8 +1032,8 @@ export function ProfileAccess({
             ) : null}
             {mode === "onboarding" && onlyThisBrowser ? (
               <p className="border border-titan-hazard/45 bg-titan-hazard/[0.06] px-4 py-3 text-sm leading-6 text-titan-ice">
-                {BROWSER_ONLY_WARNING} Add Google or a wallet from your profile
-                to keep it.
+                {BROWSER_ONLY_WARNING} Add a passkey, Google, or a wallet from
+                your profile to keep it.
               </p>
             ) : null}
             {mode === "onboarding" ? (
