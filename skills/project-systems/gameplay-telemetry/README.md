@@ -37,7 +37,8 @@ identity.
   all time), from `gameplay_runs`, `users`, `accounts`, and `passkeys`
   (sign-ups by how each racer joined: on one browser, kept or not, or else by
   the earliest login method they still have; racers kept in a browser count
-  as signed in), and `race_results` (new bests in submission order).
+  as signed in, and as kept once brought into another racer, via
+  `racer_merges`), and `race_results` (new bests in submission order).
   `loadRangeStart` starts 7- and 30-day ranges in the admin's IANA time zone
   (see [calendar-day trends](../../tools/browser-postgres-telemetry/README.md#postgres-mapping));
   the telemetry view shares it.
@@ -109,7 +110,8 @@ not backfilled. Deployment version remains server-derived. See [physics identity
   with a trusted server session creates an `authenticated` run with the
   racer's ID; a repeated start cannot relabel it. Account deletion clears
   the user link without rewriting the attribution, and anonymization keeps
-  it under the opaque ID, as race results do. Older guest runs can never be
+  it under the opaque ID, as race results do, and a merge moves the user
+  link to the racer kept. Older guest runs can never be
   retroactively linked, so runs before signed-in attribution all count as
   guests'.
 - Client JSON cannot provide user ID, timestamps, deployment version, arbitrary

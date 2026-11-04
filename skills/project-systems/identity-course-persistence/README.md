@@ -1,13 +1,13 @@
 # Identity And Course Persistence System
 
 **Maturity:** Validated (PR 2.3.2; wallet login PR 5.2; racers kept in this
-browser and passkeys PR 6.2).
+browser and passkeys PR 6.2; merges PR 6.3).
 
 ## Purpose And Scope
 
 This system owns canonical application identities, linked Better Auth provider
 accounts, Postgres-backed sessions and roles, Google, wallet, and passkey login,
-racers kept in one browser, explicit login-method linking, sign-in rate limits, centralized server-side admin authorization, immutable course revisions, and protected
+racers kept in one browser and bringing them into another racer, explicit login-method linking, sign-in rate limits, centralized server-side admin authorization, immutable course revisions, and protected
 course load/save APIs.
 
 It keeps the portable course document defined by
@@ -27,8 +27,11 @@ same identity, role, and request-guard boundaries; see the
 - `src/lib/auth.ts` configures Better Auth (1.7): its Drizzle adapter, the
   Google provider with an account-selection prompt for every sign-in,
   explicit-only account linking, the SIWE, anonymous, and passkey plugins,
-  session lifetime, the sign-in rate limits, and the guards that keep a racer
-  kept in this browser from being replaced.
+  session lifetime, the sign-in rate limits, the guards that keep a racer
+  kept in this browser from being replaced, and the session hook that runs a
+  requested merge.
+- `src/server/racer-merges.ts` owns merge requests and `mergeRacers()`;
+  `src/app/api/profile/merge/route.ts` lets a racer kept in this browser ask.
 - `src/lib/siwe.ts` owns the sign-in chain (Base, 8453), the placeholder email
   domain, and offline EOA signature checks with viem.
 - `src/lib/browser-wallets.ts` discovers EIP-6963 wallets and asks one for a
@@ -97,23 +100,64 @@ same identity, role, and request-guard boundaries; see the
 
 ## Racers Kept In This Browser
 
-1. Signed out, "Continue on this browser" asks Better Auth's anonymous plugin
+1. Signed out, "Continue anonymously" asks Better Auth's anonymous plugin
    for a racer with no login method; nothing creates one automatically. It is
+   an alternative to signing in, shown apart from the sign-in methods on the
+   profile and below Sign in on a guest's result. It is
    a full racer (username, leaderboard, bests, ghosts), and `users.is_anonymous`
    records that it began this way and never changes.
 2. The racer is the lasting ID. Google, wallets, and passkeys link to it; the
    plugin's merge-and-delete is off (`disableDeleteAnonymousUser`, no
-   `onLinkAccount`, `/delete-anonymous-user` disabled), so it is never merged
-   or deleted. Starting one is refused while any racer is signed in.
+   `onLinkAccount`, `/delete-anonymous-user` disabled), so linking never merges
+   or deletes it; only an explicit merge does (below). Starting one is refused
+   while any racer is signed in.
 3. Until it has a login method, the profile warns it can be lost, Sign out asks
    first (profile, onboarding, and home's menu), and no other sign-in may
    replace its session: a before-hook refuses Google, wallet, and passkey
-   sign-in, and a session hook refuses OAuth callbacks already under way.
+   sign-in, and a session hook refuses OAuth callbacks already under way
+   (`SIGN_OUT_FIRST`), unless the racer asked to be brought into the racer
+   signing in.
 4. It exists only through its session cookie, so sessions last 400 days (the
    browser cap) and renew at most daily. Only Better Auth's own responses renew
    the cookie: home calls `/api/auth/get-session` on each visit, and our
    server-side session checks pass `disableRefresh` so they never extend a
    session without its cookie.
+
+## Bringing A Racer Into Another
+
+1. The profile of a racer with no login method offers "Already have an
+   account? Bring @name into it", and a Google or wallet link that belongs to
+   another racer opens the same confirmation. Confirming posts
+   `/api/profile/merge`, which stores a 10-minute request in `verifications`
+   for that session (`racer-merge:<sessionId>`), then signs in with Google, a
+   passkey, or a wallet. The live session proves the brought-in racer; the
+   fresh sign-in proves the other.
+2. When the new session belongs to another racer and the request is live,
+   Better Auth's session-create hook runs `mergeRacers()` in one transaction:
+   it uses up the request, locks both users in ID order, and re-checks that the
+   brought-in racer has no login method and the other has one. Results, run
+   summaries, and former usernames move over, each board keeps the faster best
+   (the earlier of two equal ones), and the brought-in racer is deleted with
+   its sessions and role. Its username is reserved in `racer_former_usernames`
+   for the racer kept, or given to it if it has none, and a `racer_merges` row
+   lets the dashboard count it as kept. The racer signed in to keeps
+   everything; racers can be brought in any number of times.
+3. Migration 0028 lets a result change only its user ID, and a run summary's
+   user ID move, only for the pair named in the transaction-local
+   `titan.racer_merge` setting. A per-username advisory lock (`lock_racer_username`) keeps a name
+   from being taken between leaving one racer and reaching the other. Former
+   usernames can't be claimed, and ghost links and anonymization by username
+   find the racer that kept them.
+4. A failed merge moves nothing and raises `RACER_MERGE_FAILED`, which
+   Google's callback sends back to the profile; a refused one also drops the
+   request, so the player confirms again to retry. The merge commits before
+   Better Auth writes the new session, so if that write fails the player is
+   signed out with nothing lost, and the profile says to sign in to the other
+   account to finish.
+5. Only a Google merge marks itself in `sessionStorage`, to report the outcome
+   after the redirect; passkey and wallet merges finish in place. A racer that
+   owns a kart or course can't be brought in yet (its delete is refused);
+   Phases 8 and 9 revisit this.
 
 ## Passkeys
 
@@ -182,12 +226,15 @@ same identity, role, and request-guard boundaries; see the
 - Secrets and connection strings remain outside version control.
 - OAuth provider token material is not retained in Postgres.
 - Anonymization removes sessions, provider credentials, wallets, passkeys and
-  their pending challenges, privileged roles, leaderboard bests, and profile
-  PII while retaining only the opaque user ID needed for attribution.
+  their pending challenges, privileged roles, leaderboard bests, former
+  usernames, and profile PII while retaining only the opaque user ID needed
+  for attribution.
   `db:anonymize-user` finds a racer by email, wallet, or username.
-- Racers never merge. Results, bests, and authorship point to the racer ID,
-  never the username, so usernames could become changeable later; today
-  migration 0012's trigger keeps them fixed and ghost links name them.
+- Racers merge only explicitly: a racer kept in one browser, with no login
+  method, into the racer that signs in there after it asks. Results, bests,
+  and authorship point to the racer ID, never the username, so usernames
+  could become changeable later; today migration 0012's trigger keeps them
+  fixed and ghost links name them, or a merged racer's former name.
 - Sessions store no IP address or user agent: new ones never do, migration
   0026 cleared existing ones, and renewal clears any an earlier build wrote.
 - Better Auth's limiter counts only exact sign-in paths, in Postgres so every
@@ -224,6 +271,12 @@ same identity, role, and request-guard boundaries; see the
 - `tests/browser-racers.spec.ts` covers starting a racer in this browser, its
   400-day cookie, refusals while signed in, sign-ins that can't replace it,
   keeping it with a wallet, and the database-backed limiter.
+- `tests/racer-merges.spec.ts` covers migration 0028's rules (former names,
+  the result and run-summary carve-out, the username lock) and real merges
+  through wallet sign-in: moved results, the faster best, ghost links and
+  anonymization by a former name, a username taken over, refusals, and a
+  failed merge changing nothing; `tests/profile.spec.ts` covers the
+  confirmation, its focus, and the Google round trip's outcomes.
 - `tests/passkeys.spec.ts` drives the real passkey endpoints with a software
   authenticator (the test host `127.0.0.1` is not a valid browser RP ID):
   adding, signing in, replay and cross-racer refusal, a foreign origin, the
@@ -262,7 +315,8 @@ same identity, role, and request-guard boundaries; see the
 
 - Not supported: WalletConnect, smart-contract wallets, ENS, embedded wallets,
   and on-chain actions. Unlinking does not end that method's live sessions.
-- Not supported: merging racers (planned as PR 6.3), passkey-first sign-up,
+- Not supported: undoing a merge, merging two racers that both have login
+  methods, passkey-first sign-up,
   passkey autofill, email or password login, and pruning abandoned browser
   racers.
 - Passkeys belong to one hostname. Changing the production domain would lock
