@@ -112,6 +112,43 @@ test.describe("admin overview Postgres integration", () => {
   // and boards stay out of the counts. 2001-01-01 was a Monday.
   const now = new Date("2001-01-07T12:00:00Z");
 
+  test("counts sign-ups by the login method each racer joined with", async () => {
+    const signUps = async () => (await loadAdminOverview("7d", "UTC")).racers.signUps;
+    const before = await signUps();
+    const joinedAt = Date.now();
+    const userId = randomUUID();
+    await db.insert(users).values({
+      email: `${userId}@wallet.invalid`,
+      id: userId,
+      name: "Wallet racer",
+    });
+    try {
+      await db.insert(accounts).values([
+        // Joined with a wallet, then linked Google: counted once, as a wallet.
+        {
+          accountId: `0x${userId}`,
+          createdAt: new Date(joinedAt),
+          id: randomUUID(),
+          providerId: "siwe",
+          userId,
+        },
+        {
+          accountId: `google-${userId}`,
+          createdAt: new Date(joinedAt + 1_000),
+          id: randomUUID(),
+          providerId: "google",
+          userId,
+        },
+      ]);
+      expect(await signUps()).toEqual({
+        google: before.google,
+        wallet: before.wallet + 1,
+      });
+    } finally {
+      await db.delete(users).where(inArray(users.id, [userId]));
+    }
+  });
+
   test("starts a range at the first instant of its first local day", async () => {
     // Havana falls back from 01:00 to midnight on 2026-11-01, so that day
     // begins at 04:00 UTC, not at the second midnight an hour later.
@@ -343,5 +380,98 @@ test.describe("admin overview Postgres integration", () => {
       if (runIds.length) await db.delete(gameplayRuns).where(inArray(gameplayRuns.id, runIds));
       await db.delete(accounts).where(inArray(accounts.userId, [racerA, racerB, earlier]));
     }
+  });
+});
+
+test.describe("admin overview page", () => {
+  test.use({ timezoneId: "America/Denver" });
+
+  const overview = {
+    activity: [
+      { date: "2026-11-02", finished: 3, signedInRacers: 1, started: 5 },
+      { date: "2026-11-03", finished: 0, signedInRacers: 0, started: 0 },
+      { date: "2026-11-04", finished: 4, signedInRacers: 2, started: 6 },
+    ],
+    bucket: "day",
+    ghosts: { courseBest: 2, leaderboardRacer: 1, none: 6, ownBest: 1, sharedLink: 1 },
+    karts: [
+      { kartId: BALANCED_KART_ID, name: "Balanced Kart", races: 7 },
+      { kartId: SPEED_KART_ID, name: "Speed Kart", races: 4 },
+    ],
+    leaderboard: { afterSignIn: 1, courseRecords: 1, personalBests: 3, rejected: 2, verified: 5 },
+    racers: { active: 2, signUps: { google: 3, wallet: 1 } },
+    races: { finished: 7, guest: 8, raceAgain: 4, resultsShared: 2, signedIn: 3, started: 11 },
+    range: "7d",
+    timeZone: "America/Denver",
+  };
+
+  test("asks a signed-out visitor to sign in and come back here", async ({ page }) => {
+    await page.route("**/api/admin/overview?*", (route) =>
+      route.fulfill({ json: { error: "Authentication required." }, status: 401 }),
+    );
+    let signIn: unknown;
+    await page.route("**/api/auth/sign-in/social", (route) => {
+      signIn = route.request().postDataJSON();
+      return route.fulfill({ json: { url: "http://127.0.0.1:3873/?oauth=started" } });
+    });
+    await page.goto("/admin");
+    await expect(page.getByRole("heading", { name: "Dashboard" })).toBeVisible();
+    await page.getByRole("button", { name: "Continue with Google" }).click();
+    await expect(page).toHaveURL(/oauth=started/);
+    expect(signIn).toEqual({
+      callbackURL: "/admin",
+      newUserCallbackURL: "/onboarding?returnTo=%2Fadmin",
+      provider: "google",
+    });
+  });
+
+  test("shows the period's races, racers, leaderboard, karts, and sharing", async ({ page }) => {
+    const requested: string[] = [];
+    await page.route("**/api/admin/overview?*", (route) => {
+      const url = new URL(route.request().url());
+      requested.push(`${url.searchParams.get("range")} ${url.searchParams.get("tz")}`);
+      return route.fulfill({
+        json: { ...overview, range: url.searchParams.get("range") },
+      });
+    });
+    await page.goto("/admin");
+
+    const glance = page.getByRole("region", { name: "At a glance" });
+    await expect(glance).toContainText("Races started11");
+    await expect(glance).toContainText("64% of races started");
+    await expect(glance).toContainText("27% of races signed in");
+    await expect(glance).toContainText("Sign-ups4");
+    await expect(page.getByText("in America/Denver")).toBeVisible();
+
+    const races = page.getByRole("region", { name: "Races each day" });
+    await races.getByText("Table view").click();
+    await expect(races.getByRole("row").nth(1)).toContainText("Mon, Nov 2");
+    await expect(races.getByRole("row").nth(3)).toHaveText(/Wed, Nov 4\s*4\s*2\s*6/);
+
+    await expect(page.getByRole("region", { name: "Who's racing" })).toContainText(
+      "Guest races8 · 73%",
+    );
+    await expect(page.getByRole("region", { name: "Leaderboard" })).toContainText(
+      "New course records1",
+    );
+    await expect(page.getByRole("region", { name: "Races per kart" })).toContainText(
+      "Balanced Kart7",
+    );
+    await expect(page.getByRole("region", { name: "Replays and sharing" })).toContainText(
+      "Links copied2",
+    );
+    await expect(page.getByRole("link", { name: "Telemetry" })).toHaveAttribute(
+      "href",
+      "/admin/telemetry",
+    );
+
+    await page.getByRole("button", { name: "30 days" }).click();
+    await expect(page.getByRole("button", { name: "30 days" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+    await expect
+      .poll(() => requested)
+      .toEqual(["7d America/Denver", "30d America/Denver"]);
   });
 });

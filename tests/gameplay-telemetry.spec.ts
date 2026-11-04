@@ -6,10 +6,9 @@ import { eq } from "drizzle-orm";
 import { startSoloRace } from "./helpers/home-flow";
 
 import { getTelemetryDashboard } from "../src/app/api/admin/telemetry/route";
-import { loadGameplayDashboard } from "../src/server/gameplay-dashboard-repository";
 import { postGameplayRun } from "../src/app/api/telemetry/gameplay-runs/route";
 import { db } from "../src/db/client";
-import { accounts, gameplayRuns, users } from "../src/db/schema";
+import { gameplayRuns, users } from "../src/db/schema";
 import { ROUGH_COURSE_DOCUMENT } from "../src/game/course/course-document";
 import { createBalancedKartDocument } from "../src/game/kart/balanced-kart-document";
 import {
@@ -69,15 +68,12 @@ function run(
     discardedTimeMs: 0,
     endedAt: null,
     failureCode: null,
-    ghost: null,
     inputFamilies: [],
     loadedAt: null,
     outcome: null,
-    raceAgain: null,
     racingStartedAt: null,
     recoveryCount: 0,
     runtimeLoadTimeMs: null,
-    shared: false,
     startedAt: new Date(startedAt),
     ...overrides,
   };
@@ -546,19 +542,14 @@ test("aggregates useful dashboard questions without exposing run identity", () =
         completedRaceTimeMs: 100_000,
         discardedTimeMs: 500,
         endedAt: new Date("2026-07-13T10:02:00.000Z"),
-        ghost: "course_best",
         inputFamilies: ["keyboard"],
         loadedAt: new Date("2026-07-13T10:00:02.000Z"),
         outcome: "completed",
-        raceAgain: false,
         racingStartedAt: new Date("2026-07-13T10:00:05.000Z"),
         runtimeLoadTimeMs: 2_000,
-        shared: true,
       }),
       run("2026-07-13T11:00:00.000Z", {
         attribution: "authenticated",
-        ghost: "shared_link",
-        raceAgain: true,
         completedRaceTimeMs: 120_000,
         discardedTimeMs: 1_500,
         endedAt: new Date("2026-07-13T11:03:00.000Z"),
@@ -592,25 +583,8 @@ test("aggregates useful dashboard questions without exposing run identity", () =
     ],
     "7d",
     now,
-    {
-      signUps: { google: 3, wallet: 1 },
-      submissions: { afterSignIn: 1, rejected: 2, verified: 5 },
-    },
   );
 
-  expect(dashboard.soloPlay).toEqual({
-    ghosts: {
-      courseBest: 1,
-      leaderboardRacer: 0,
-      none: 0,
-      ownBest: 0,
-      sharedLink: 1,
-    },
-    replays: 1,
-    shares: 1,
-    signUps: { google: 3, wallet: 1 },
-    submissions: { afterSignIn: 1, rejected: 2, verified: 5 },
-  });
   expect(dashboard.summary).toEqual({
     attempts: 6,
     completed: 2,
@@ -665,45 +639,6 @@ test.describe("gameplay telemetry Postgres integration", () => {
       !process.env.DATABASE_URL?.trim(),
       "DATABASE_URL is required for gameplay telemetry integration tests.",
     );
-  });
-
-  test("counts sign-ups by the login method each racer joined with", async () => {
-    const signUps = async () =>
-      gameplayDashboardSchema.parse(await loadGameplayDashboard("7d")).soloPlay
-        .signUps;
-    const before = await signUps();
-    const joinedAt = Date.now();
-    const userId = randomUUID();
-    await db.insert(users).values({
-      email: `${userId}@wallet.invalid`,
-      id: userId,
-      name: "Wallet racer",
-    });
-    try {
-      await db.insert(accounts).values([
-        // Joined with a wallet, then linked Google: counted once, as a wallet.
-        {
-          accountId: `0x${userId}`,
-          createdAt: new Date(joinedAt),
-          id: randomUUID(),
-          providerId: "siwe",
-          userId,
-        },
-        {
-          accountId: `google-${userId}`,
-          createdAt: new Date(joinedAt + 1_000),
-          id: randomUUID(),
-          providerId: "google",
-          userId,
-        },
-      ]);
-      expect(await signUps()).toEqual({
-        google: before.google,
-        wallet: before.wallet + 1,
-      });
-    } finally {
-      await db.delete(users).where(eq(users.id, userId));
-    }
   });
 
   test("pins new run physics while legacy starts remain unversioned", async () => {
@@ -1493,12 +1428,8 @@ test.describe("gameplay telemetry browser integration", () => {
       ],
       "7d",
       new Date("2026-07-14T12:00:00.000Z"),
-      {
-        signUps: { google: 4, wallet: 2 },
-        submissions: { afterSignIn: 1, rejected: 0, verified: 3 },
-      },
     );
-    await page.route("**/api/admin/telemetry?range=7d", (route) =>
+    await page.route("**/api/admin/telemetry?range=7d&tz=*", (route) =>
       route.fulfill({ body: JSON.stringify(dashboard), contentType: "application/json" }),
     );
 
@@ -1509,7 +1440,6 @@ test.describe("gameplay telemetry browser integration", () => {
     await expect(page.getByRole("region", { name: "Run summary" })).toContainText(
       "Attempts",
     );
-    await expect(page.getByRole("heading", { name: "Daily runs" })).toBeVisible();
     await expect(page.getByRole("heading", { name: "Run funnel" })).toBeVisible();
     await expect(
       page.getByRole("heading", { name: "Runtime health" }),
@@ -1522,11 +1452,10 @@ test.describe("gameplay telemetry browser integration", () => {
     await expect(page.getByText("100% from prior stage")).toHaveCount(2);
     await expect(page.getByRole("heading", { name: "Controls used" })).toBeVisible();
     await expect(page.getByRole("heading", { name: "Grouped failures" })).toBeVisible();
-    const soloPlay = page.getByRole("region", {
-      name: "Replays, ghosts, and results",
-    });
-    await expect(soloPlay).toContainText("Wallet sign-ups2");
-    await expect(soloPlay).toContainText("Sent after signing in1");
+    await expect(page.getByRole("link", { name: "Dashboard" })).toHaveAttribute(
+      "href",
+      "/admin",
+    );
     await expect(page.getByText("scene_initialization_failed")).toBeVisible();
     await expect(page.locator("body")).not.toContainText(
       "11111111-1111-4111-8111-111111111111",
