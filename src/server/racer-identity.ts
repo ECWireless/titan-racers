@@ -1,9 +1,9 @@
 import { randomInt } from "node:crypto";
 
-import { and, eq, isNull } from "drizzle-orm";
+import { and, eq, isNull, sql } from "drizzle-orm";
 
 import { db } from "@/db/client";
-import { users } from "@/db/schema";
+import { racerFormerUsernames, users } from "@/db/schema";
 import {
   createRacerUsernameSeed,
   createSuffixedRacerUsername,
@@ -38,11 +38,15 @@ function postgresErrorCode(error: unknown): string | undefined {
 }
 
 async function usernameIsAvailable(username: string) {
-  const [existing] = await db
-    .select({ id: users.id })
-    .from(users)
-    .where(eq(users.username, username))
-    .limit(1);
+  const [existing] = (
+    await db.execute(sql`
+      select 1 from ${users} where ${users.username} = ${username}
+      union all
+      select 1 from ${racerFormerUsernames}
+      where ${racerFormerUsernames.username} = ${username}
+      limit 1
+    `)
+  ).rows;
   return !existing;
 }
 

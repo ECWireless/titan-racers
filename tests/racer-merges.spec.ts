@@ -4,17 +4,32 @@ import { expect, test } from "@playwright/test";
 import { eq, sql } from "drizzle-orm";
 import type { PoolClient } from "pg";
 
+import { generatePrivateKey, privateKeyToAccount } from "viem/accounts";
+import { createSiweMessage } from "viem/siwe";
+
+import { POST as postAuth } from "../src/app/api/auth/[...all]/route";
+import { POST as postLoginMethod } from "../src/app/api/profile/login-methods/route";
+import { POST as postMergeRequest } from "../src/app/api/profile/merge/route";
 import { db, pool } from "../src/db/client";
 import {
+  boardBests,
   gameplayRuns,
   leaderboards,
   raceResults,
   racerFormerUsernames,
+  racerMerges,
+  sessions,
   users,
 } from "../src/db/schema";
 import { FALLS_VIEW_PARK_DOCUMENT } from "../src/game/course/course-document";
 import { CURRENT_PHYSICS_VERSION } from "../src/game/physics/physics-version";
-import { saveCourseRevision } from "../src/server/course-repository";
+import { SIWE_CHAIN_ID } from "../src/lib/siwe";
+import {
+  publishCourseRevision,
+  saveCourseRevision,
+} from "../src/server/course-repository";
+import { loadRacerStanding } from "../src/server/leaderboard";
+import { anonymizeUserByUsername } from "../src/server/user-anonymization";
 
 function postgresErrorCode(error: unknown): string | undefined {
   if (!error || typeof error !== "object") return undefined;
@@ -252,5 +267,262 @@ test.describe("racer merge database rules", () => {
     await db.delete(gameplayRuns).where(eq(gameplayRuns.id, id));
     await db.delete(users).where(eq(users.id, from));
     await db.delete(users).where(eq(users.id, to));
+  });
+});
+
+const ORIGIN = process.env.BETTER_AUTH_URL ?? "http://127.0.0.1:3873";
+
+function request(path: string, init: { body?: unknown; cookie?: string } = {}) {
+  return new Request(`${ORIGIN}${path}`, {
+    body: JSON.stringify(init.body ?? {}),
+    headers: {
+      "content-type": "application/json",
+      origin: ORIGIN,
+      ...(init.cookie ? { cookie: init.cookie } : {}),
+    },
+    method: "POST",
+  });
+}
+
+function sessionCookie(response: Response) {
+  return response.headers
+    .getSetCookie()
+    .map((cookie) => cookie.split(";")[0])
+    .join("; ");
+}
+
+async function browserRacer(username: string | null) {
+  const response = await postAuth(request("/api/auth/sign-in/anonymous"));
+  expect(response.status).toBe(200);
+  const { user } = (await response.json()) as { user: { id: string } };
+  if (username) {
+    await db.update(users).set({ name: username, username }).where(eq(users.id, user.id));
+  }
+  return { cookie: sessionCookie(response), id: user.id };
+}
+
+async function signedWalletBody(wallet: ReturnType<typeof privateKeyToAccount>) {
+  const nonceResponse = await postAuth(request("/api/auth/siwe/nonce"));
+  const { nonce } = (await nonceResponse.json()) as { nonce: string };
+  const message = createSiweMessage({
+    address: wallet.address,
+    chainId: SIWE_CHAIN_ID,
+    domain: new URL(ORIGIN).host,
+    issuedAt: new Date(),
+    nonce,
+    uri: ORIGIN,
+    version: "1",
+  });
+  return { message, signature: await wallet.signMessage({ message }) };
+}
+
+async function walletSignIn(wallet: ReturnType<typeof privateKeyToAccount>, cookie?: string) {
+  return postAuth(
+    request("/api/auth/siwe/verify", { body: await signedWalletBody(wallet), cookie }),
+  );
+}
+
+/** A racer with a wallet, and its username when given one. */
+async function walletRacer(username: string | null) {
+  const wallet = privateKeyToAccount(generatePrivateKey());
+  const response = await walletSignIn(wallet);
+  expect(response.status).toBe(200);
+  const { user } = (await response.json()) as { user: { id: string } };
+  if (username) {
+    await db.update(users).set({ name: username, username }).where(eq(users.id, user.id));
+  }
+  return { id: user.id, wallet };
+}
+
+/** A published course with a current board, under a fresh course ID. */
+async function publishedBoard() {
+  const author = await racer();
+  const courseId = `racer-merges-${randomUUID()}`;
+  await saveCourseRevision({
+    authorUserId: author,
+    document: { ...structuredClone(FALLS_VIEW_PARK_DOCUMENT), courseId },
+    expectedRevision: null,
+  });
+  await publishCourseRevision({
+    courseId,
+    expectedPublicationId: null,
+    publishedByUserId: author,
+    revision: 1,
+  });
+  const [board] = await db
+    .insert(leaderboards)
+    .values({ courseId, courseRevision: 1, physicsVersion: CURRENT_PHYSICS_VERSION })
+    .returning({ id: leaderboards.id });
+  return { courseId, id: board.id };
+}
+
+async function best(leaderboardId: number, userId: string, timeMicroseconds: number) {
+  const id = randomUUID();
+  await db.insert(raceResults).values({
+    id,
+    kartId: "balanced",
+    kartRevision: 1,
+    leaderboardId,
+    status: "verified",
+    ticketIssuedAt: new Date(),
+    timeMicroseconds,
+    userId,
+  });
+  await db.insert(boardBests).values({
+    achievedAt: new Date(),
+    ghost: Buffer.alloc(32),
+    leaderboardId,
+    resultId: id,
+    timeMicroseconds,
+    userId,
+  });
+  return id;
+}
+
+async function bestsOf(leaderboardId: number) {
+  return db
+    .select({ resultId: boardBests.resultId, userId: boardBests.userId })
+    .from(boardBests)
+    .where(eq(boardBests.leaderboardId, leaderboardId));
+}
+
+test.describe("bringing a racer kept in one browser into another", () => {
+  test.beforeEach(() => {
+    test.skip(
+      ["DATABASE_URL", "BETTER_AUTH_SECRET", "BETTER_AUTH_URL"].some(
+        (name) => !process.env[name]?.trim(),
+      ),
+      "Database and auth environment variables are required.",
+    );
+  });
+
+  test("moves results, keeps the faster best, and keeps its username for the racer signed in to", async () => {
+    const broughtName = freshUsername();
+    const keptName = freshUsername();
+    const brought = await browserRacer(broughtName);
+    const kept = await walletRacer(keptName);
+    const faster = await publishedBoard();
+    const slower = await publishedBoard();
+    const onlyBrought = await publishedBoard();
+    const broughtFaster = await best(faster.id, brought.id, 50_000_000);
+    await best(faster.id, kept.id, 60_000_000);
+    await best(slower.id, brought.id, 70_000_000);
+    const keptFaster = await best(slower.id, kept.id, 65_000_000);
+    const onlyBroughtBest = await best(onlyBrought.id, brought.id, 80_000_000);
+
+    // Signing in as another racer is refused until this browser's racer asks.
+    expect((await walletSignIn(kept.wallet, brought.cookie)).status).toBe(400);
+    const asked = await postMergeRequest(request("/api/profile/merge", { cookie: brought.cookie }));
+    expect(asked.status).toBe(204);
+    const signedIn = await walletSignIn(kept.wallet, brought.cookie);
+    expect(signedIn.status).toBe(200);
+    expect(((await signedIn.json()) as { user: { id: string } }).user.id).toBe(kept.id);
+
+    await expect(db.select().from(users).where(eq(users.id, brought.id))).resolves.toEqual([]);
+    await expect(
+      db.select().from(sessions).where(eq(sessions.userId, brought.id)),
+    ).resolves.toEqual([]);
+    await expect(bestsOf(faster.id)).resolves.toEqual([
+      { resultId: broughtFaster, userId: kept.id },
+    ]);
+    await expect(bestsOf(slower.id)).resolves.toEqual([{ resultId: keptFaster, userId: kept.id }]);
+    await expect(bestsOf(onlyBrought.id)).resolves.toEqual([
+      { resultId: onlyBroughtBest, userId: kept.id },
+    ]);
+    const results = await db
+      .select({ userId: raceResults.userId })
+      .from(raceResults)
+      .where(eq(raceResults.leaderboardId, slower.id));
+    expect(results).toEqual([{ userId: kept.id }, { userId: kept.id }]);
+
+    // The old username's ghost link races the racer that kept it.
+    await expect(loadRacerStanding(onlyBrought.courseId, broughtName)).resolves.toMatchObject({
+      timeMicroseconds: 80_000_000,
+      username: keptName,
+    });
+    const claimer = await racer();
+    expect(
+      await failureCode(
+        db.update(users).set({ username: broughtName }).where(eq(users.id, claimer)),
+      ),
+    ).toBe("23505");
+    await expect(
+      db.select({ userId: racerMerges.userId }).from(racerMerges).where(eq(racerMerges.userId, kept.id)),
+    ).resolves.toEqual([{ userId: kept.id }]);
+
+    // Deleting the racer frees both of its usernames.
+    await anonymizeUserByUsername(broughtName);
+    await db.update(users).set({ username: broughtName }).where(eq(users.id, claimer));
+    await db.delete(users).where(eq(users.id, claimer));
+  });
+
+  test("gives its username to a racer that has none, and refuses a racer already kept", async () => {
+    const broughtName = freshUsername();
+    const brought = await browserRacer(broughtName);
+    const kept = await walletRacer(null);
+    expect(
+      (await postMergeRequest(request("/api/profile/merge", { cookie: brought.cookie }))).status,
+    ).toBe(204);
+    expect((await walletSignIn(kept.wallet, brought.cookie)).status).toBe(200);
+    await expect(
+      db.select({ username: users.username }).from(users).where(eq(users.id, kept.id)),
+    ).resolves.toEqual([{ username: broughtName }]);
+
+    const keptCookie = sessionCookie(await walletSignIn(kept.wallet));
+    const refused = await postMergeRequest(request("/api/profile/merge", { cookie: keptCookie }));
+    expect(refused.status).toBe(409);
+  });
+
+  test("lets a Google sign-in start only once asked, and a failed merge changes nothing", async () => {
+    const brought = await browserRacer(null);
+    const google = () =>
+      postAuth(
+        request("/api/auth/sign-in/social", {
+          body: { callbackURL: "/profile", provider: "google" },
+          cookie: brought.cookie,
+        }),
+      );
+    expect((await google()).status).toBe(400);
+    await postMergeRequest(request("/api/profile/merge", { cookie: brought.cookie }));
+    expect((await google()).status).toBe(200);
+
+    // A merge that fails changes nothing and leaves it signed in here.
+    await saveCourseRevision({
+      authorUserId: brought.id,
+      document: { ...structuredClone(FALLS_VIEW_PARK_DOCUMENT), courseId: `racer-merges-${randomUUID()}` },
+      expectedRevision: null,
+    });
+    const kept = await walletRacer(null);
+    const failed = await walletSignIn(kept.wallet, brought.cookie);
+    expect(failed.status).toBe(400);
+    await expect(failed.json()).resolves.toMatchObject({ code: "RACER_MERGE_FAILED" });
+    await expect(
+      db.select({ id: sessions.id }).from(sessions).where(eq(sessions.userId, brought.id)),
+    ).resolves.toHaveLength(1);
+    // The failure kept the request, so a retry runs the merge again.
+    await expect((await walletSignIn(kept.wallet, brought.cookie)).json()).resolves.toMatchObject({
+      code: "RACER_MERGE_FAILED",
+    });
+  });
+
+  test("refuses a racer that gained a login method after asking, then lets it switch", async () => {
+    const brought = await browserRacer(null);
+    const kept = await walletRacer(null);
+    await postMergeRequest(request("/api/profile/merge", { cookie: brought.cookie }));
+    const linked = await postLoginMethod(
+      request("/api/profile/login-methods", {
+        body: await signedWalletBody(privateKeyToAccount(generatePrivateKey())),
+        cookie: brought.cookie,
+      }),
+    );
+    expect(linked.status).toBe(200);
+
+    const refused = await walletSignIn(kept.wallet, brought.cookie);
+    await expect(refused.json()).resolves.toMatchObject({ code: "RACER_MERGE_FAILED" });
+    await expect(
+      db.select({ id: sessions.id }).from(sessions).where(eq(sessions.userId, brought.id)),
+    ).resolves.toHaveLength(1);
+    // It no longer asks, so it can switch racers as any kept racer can.
+    expect((await walletSignIn(kept.wallet, brought.cookie)).status).toBe(200);
   });
 });

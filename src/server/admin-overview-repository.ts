@@ -117,7 +117,8 @@ export async function loadAdminOverview(
       group by kart_id
     `),
     // Each racer by how they joined: on this browser, or else by the
-    // earliest login method they still have. Anonymized racers are left out.
+    // earliest login method they still have. A racer from this browser that
+    // was brought into another counts as kept. Anonymized racers are left out.
     db.execute<{ count: number; provider_id: string }>(sql`
       select provider_id, count(*)::int as count from (
         select distinct on (users.id)
@@ -139,6 +140,11 @@ export async function loadAdminOverview(
         order by users.id, method.created_at, method.id
       ) joined
       group by provider_id
+      union all
+      select 'browser-kept', count(*)::int from racer_merges merge
+      join users on users.id = merge.user_id
+      where users.anonymized_at is null
+        ${since ? sql`and merge.merged_racer_created_at >= ${since}` : sql``}
     `),
     // A run is a new best if it beat every earlier verified run, the
     // racer's own or the board's, in the order they were submitted.
@@ -179,7 +185,9 @@ export async function loadAdminOverview(
   const total = totals.rows[0];
   const board = leaderboard.rows[0];
   const joined = (provider: string) =>
-    signUps.rows.find((row) => row.provider_id === provider)?.count ?? 0;
+    signUps.rows
+      .filter((row) => row.provider_id === provider)
+      .reduce((total, row) => total + row.count, 0);
   return {
     activity: activity.rows.map((row) => ({
       date: row.date,

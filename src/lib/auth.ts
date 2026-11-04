@@ -16,6 +16,12 @@ import { db } from "@/db/client";
 import { accounts, authSchema, passkeys, users } from "@/db/schema";
 import { createRacerUsernameSeed } from "@/lib/racer-username";
 import {
+  cancelRacerMergeRequest,
+  hasRacerMergeRequest,
+  mergeRacers,
+  RacerMergeError,
+} from "@/server/racer-merges";
+import {
   isWalletAddress,
   verifyWalletSignature,
   WALLET_EMAIL_DOMAIN,
@@ -46,8 +52,8 @@ function withoutPasskeyIdentity(value: string) {
 }
 
 // A racer kept only in this browser can't sign back in, so no other sign-in
-// may replace its session.
-async function isOnlyInThisBrowser(userId: string) {
+// may replace its session unless it asked to be brought into that racer.
+export async function isOnlyInThisBrowser(userId: string) {
   const [racer] = await db
     .select({ id: users.id })
     .from(users)
@@ -142,9 +148,13 @@ export const auth = betterAuth({
           message: "Sign out before starting a new racer.",
         });
       }
-      // Refused before a wallet sign-in creates its racer; the session hook
-      // below also covers sign-ins already under way.
-      if (await isOnlyInThisBrowser(current.user.id)) {
+      // Refused before a wallet sign-in creates its racer, unless this
+      // browser's racer asked to be brought into the racer signing in; the
+      // session hook below also covers sign-ins already under way.
+      if (
+        (await isOnlyInThisBrowser(current.user.id)) &&
+        !(await hasRacerMergeRequest(current.session.id, current.user.id))
+      ) {
         throw new APIError("BAD_REQUEST", {
           message: "Sign out of this browser's racer first.",
         });
@@ -214,11 +224,38 @@ export const auth = betterAuth({
           const current = context
             ? await getSessionFromCtx(context, { disableRefresh: true })
             : null;
+          const switching = current && current.user.id !== session.userId;
+          // A racer that asked is brought into the racer signing in before
+          // that racer's session exists, so a failed merge leaves it signed
+          // in here. The merge itself refuses a racer that gained a login
+          // method since asking.
           if (
-            current &&
-            current.user.id !== session.userId &&
-            (await isOnlyInThisBrowser(current.user.id))
+            switching &&
+            (await hasRacerMergeRequest(current.session.id, current.user.id))
           ) {
+            let merged;
+            try {
+              merged = await mergeRacers({
+                fromUserId: current.user.id,
+                sessionId: current.session.id,
+                toUserId: session.userId,
+              });
+            } catch (error) {
+              console.error("Racer merge failed", error);
+              if (error instanceof RacerMergeError) {
+                await cancelRacerMergeRequest(current.session.id);
+              }
+              throw new APIError("BAD_REQUEST", {
+                code: "RACER_MERGE_FAILED",
+                message: "Your racers couldn't be brought together. Please retry.",
+              });
+            }
+            if (!merged) {
+              throw new APIError("BAD_REQUEST", {
+                message: "Sign out of this browser's racer first.",
+              });
+            }
+          } else if (switching && (await isOnlyInThisBrowser(current.user.id))) {
             throw new APIError("BAD_REQUEST", {
               message: "Sign out of this browser's racer first.",
             });
