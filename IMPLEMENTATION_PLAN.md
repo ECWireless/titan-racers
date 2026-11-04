@@ -17,8 +17,8 @@ accepted; the app, README, and durable docs take over from there.
 
 - **Done:** Phases 0–5 (PRs #1–#24, the Phase 3 closeout and its
   follow-ups, #30–#57 with the PR 4.5.2 closeout, and #59–#63), and PRs 6.0
-  (#64) and 6.1 (#65).
-- **Now:** Phase 6, PR 6.2 (implemented, in review).
+  (#64), 6.1 (#65), and 6.2 (#66).
+- **Now:** Phase 6, PR 6.3 (in progress).
 
 ## Guiding Decisions
 
@@ -260,6 +260,19 @@ Phase decisions:
   lift migration 0012's trigger, keep old names reserved, redirect
   ghost links, limit renames, and revisit the run route's fixed-username
   assumption.
+- **A racer kept in one browser can be brought into a racer you sign in to**
+  (PR 6.3), any number of times. The racer you sign in to keeps everything:
+  the brought-in racer proves itself by its live session, the other by a
+  fresh sign-in in the same flow, and a failed merge leaves both as they
+  were. Results and run summaries move to it (the only change a result can
+  take), each board keeps the faster best, and the brought-in racer is
+  deleted. Its username stays reserved for the racer that kept it, and its
+  ghost links race that racer; a racer with no username yet takes it. A
+  racer that owns karts or courses can't be brought in, so Phase 8 and 9
+  authoring revisits this. Racers with login methods still never merge.
+- **"Continue anonymously" is an alternative to signing in,** shown apart
+  from the sign-in methods on the profile and below Sign in on a guest's
+  result (PR 6.3).
 
 **PR 6.0: Leaderboards across course publications**
 
@@ -300,13 +313,16 @@ Phase decisions:
 
 **PR 6.3: Merge racers**
 
-- [ ] Needs its own debrief. A racer can bring a racer kept in one browser
-      into another of theirs, for example when the Google account they try
-      to link already belongs to their other racer, proving both. Race
-      results are immutable, two bests on one board keep the faster, and a
-      freed username's ghost links must not pass to someone else. It also
-      covers a Google account that got its own racer because its sign-in,
-      already under way, was refused for a racer kept only in this browser.
+- [ ] A racer kept in one browser is brought into another of theirs after a
+      confirmation, for example when the Google account or wallet they try
+      to link already belongs to their other racer, or when a Google sign-in
+      already under way was refused and made its own racer.
+- [ ] Results and run summaries move to the racer kept, each board keeps
+      the faster best, the brought-in racer is deleted, and its username's
+      ghost links race the racer kept.
+- [ ] The dashboard counts a brought-in racer as kept.
+- [ ] "Continue anonymously" replaces "Continue on this browser" as an
+      alternative to signing in, on the profile and on a guest's result.
 
 **PR 6.4: Private rooms and race lifecycle**
 
