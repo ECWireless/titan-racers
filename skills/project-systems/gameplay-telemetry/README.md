@@ -34,8 +34,10 @@ identity.
   the strict response contract.
 - `src/server/admin-overview-repository.ts` owns the `/admin` dashboard's SQL
   counts for the current solo course, by local calendar day (Monday weeks for
-  all time), from `gameplay_runs`, `accounts` (sign-ups by each racer's first
-  login method), and `race_results` (new bests in submission order).
+  all time), from `gameplay_runs`, `users`, `accounts`, and `passkeys`
+  (sign-ups by how each racer joined: on one browser, kept or not, or else by
+  the earliest login method they still have; racers kept in a browser count
+  as signed in), and `race_results` (new bests in submission order).
   `loadRangeStart` starts 7- and 30-day ranges in the admin's IANA time zone
   (see [calendar-day trends](../../tools/browser-postgres-telemetry/README.md#postgres-mapping));
   the telemetry view shares it.
