@@ -155,7 +155,7 @@ export function ProtectedAdminAccess({
       : accessState.status === "unauthenticated"
         ? "Sign in with an approved admin account to continue."
         : accessState.status === "onboarding-required"
-          ? "Choose your permanent racer username before opening protected tools."
+          ? "Choose your racer username before opening protected tools."
           : accessState.status === "forbidden"
             ? "This account does not have admin access."
             : accessState.message;

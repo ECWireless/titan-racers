@@ -93,9 +93,6 @@ test.describe("racer onboarding and profile", () => {
     expect(savedPayload).toEqual({ username: "nova_racer" });
     await expect(page.getByText("@nova_racer")).toBeVisible();
     await expect(
-      page.getByText("Usernames are permanent after account creation"),
-    ).toBeVisible();
-    await expect(
       page.getByRole("link", { name: "Continue" }),
     ).toHaveAttribute("href", "/admin/karts");
   });
@@ -262,11 +259,105 @@ test.describe("racer onboarding and profile", () => {
 
     await page.goto("/profile");
     await expect(
-      page.getByText("Sign in with Google or a browser wallet"),
+      page.getByRole("heading", { name: "Racer account" }),
     ).toBeVisible();
-    await expect(page.getByText("No browser wallet detected")).toBeVisible();
+    await expect(page.getByText("Racer profile")).toHaveCount(0);
+    // Without a browser wallet there is no wallet option at all.
+    await expect(
+      page.getByRole("button", { name: "Continue with wallet" }),
+    ).toHaveCount(0);
     await page.getByRole("button", { name: "Continue with Google" }).click();
     await expect(page).toHaveURL(/oauth=started/);
+  });
+
+  test("starts a racer on this browser, or says when this network made too many", async ({
+    page,
+  }) => {
+    let started = false;
+    let attempts = 0;
+    await page.route(profileApiPattern, async (route) => {
+      await route.fulfill(
+        started
+          ? {
+              body: JSON.stringify({
+                loginMethods: [],
+                status: "incomplete",
+                suggestedUsername: "racer4821",
+              }),
+              contentType: "application/json",
+            }
+          : { body: "{}", contentType: "application/json", status: 401 },
+      );
+    });
+    await page.route("**/api/auth/sign-in/anonymous", async (route) => {
+      attempts += 1;
+      expect(route.request().postDataJSON()).toEqual({});
+      if (attempts === 1) {
+        await route.fulfill({ body: "{}", contentType: "application/json", status: 429 });
+        return;
+      }
+      started = true;
+      await route.fulfill({ body: "{}", contentType: "application/json" });
+    });
+
+    await page.goto("/profile");
+    const start = page.getByRole("button", { name: "Continue on this browser" });
+    await expect(start).toHaveAccessibleDescription(
+      "No Google or wallet needed. Your racer stays in this browser until you add Google or a wallet.",
+    );
+    await start.click();
+    await expect(
+      page.getByText(
+        "Too many new racers from this network. Try again later, or continue with Google or a wallet.",
+      ),
+    ).toHaveRole("alert");
+    await start.click();
+    await expect(page.getByLabel("Username")).toHaveValue("racer4821");
+  });
+
+  test("warns a racer kept only in this browser and confirms signing out", async ({
+    page,
+  }) => {
+    let signOuts = 0;
+    await page.route(profileApiPattern, async (route) => {
+      await route.fulfill({
+        body: JSON.stringify({
+          loginMethods: [],
+          status: "complete",
+          username: "nova_racer",
+        }),
+        contentType: "application/json",
+      });
+    });
+    await page.route("**/api/auth/sign-out", async (route) => {
+      signOuts += 1;
+      await route.fulfill({ body: "{}", contentType: "application/json" });
+    });
+
+    await page.goto("/profile");
+    const methods = page.getByRole("region", { name: "Login methods" });
+    await expect(methods).toContainText(
+      "This racer lives only in this browser. Clearing your browsing data, switching devices, or a year away loses it for good. Add Google or a wallet to keep it.",
+    );
+    await expect(methods.getByRole("listitem")).toHaveCount(0);
+    await expect(
+      methods.getByRole("button", { exact: true, name: "Link Google" }),
+    ).toBeVisible();
+
+    await page.getByRole("button", { name: "Sign out" }).click();
+    const confirm = page.getByRole("group", { name: /Sign out and lose this racer/ });
+    await expect(confirm.getByRole("button", { name: "Keep racing" })).toBeFocused();
+    await confirm.getByRole("button", { name: "Keep racing" }).click();
+    await expect(confirm).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "Sign out" })).toBeFocused();
+    expect(signOuts).toBe(0);
+
+    await page.getByRole("button", { name: "Sign out" }).click();
+    await page.getByRole("button", { name: "Sign out anyway" }).click();
+    await expect(
+      page.getByRole("button", { name: "Continue on this browser" }),
+    ).toBeVisible();
+    expect(signOuts).toBe(1);
   });
 
   test("signs in with a chosen browser wallet", async ({ page }) => {

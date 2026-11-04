@@ -21,6 +21,15 @@ test("requires explicit Google account selection", () => {
   });
 });
 
+test("never merges or deletes a racer kept in this browser", () => {
+  const plugin = auth.options.plugins?.find(({ id }) => id === "anonymous") as
+    | { options?: Record<string, unknown> }
+    | undefined;
+  expect(plugin?.options).toMatchObject({ disableDeleteAnonymousUser: true });
+  expect(plugin?.options?.onLinkAccount).toBeUndefined();
+  expect(auth.options.disabledPaths).toContain("/delete-anonymous-user");
+});
+
 test("prevents caching transient authorization failures", () => {
   for (const status of [401, 403, 428, 503] as const) {
     const response = authorizationErrorResponse(status);

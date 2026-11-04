@@ -55,6 +55,8 @@ const usernameClaimResponseSchema = z.object({
 });
 const usernameClaimFailure =
   "Your username could not be created. Your entry is still here.";
+const BROWSER_ONLY_WARNING =
+  "This racer lives only in this browser. Clearing your browsing data, switching devices, or a year away loses it for good.";
 
 class UsernameClaimError extends Error {}
 
@@ -124,6 +126,47 @@ function WalletChooser({
   );
 }
 
+// A racer with no login method can't sign back in, so signing out asks first.
+function SignOutConfirmation({
+  onCancel,
+  onConfirm,
+}: {
+  onCancel: () => void;
+  onConfirm: () => void;
+}) {
+  const keepRef = useRef<HTMLButtonElement | null>(null);
+  useEffect(() => keepRef.current?.focus(), []);
+  return (
+    <div
+      aria-labelledby="sign-out-warning"
+      className="grid gap-4 border border-red-300/45 p-4"
+      role="group"
+    >
+      <p className="text-sm leading-6 text-titan-ice" id="sign-out-warning">
+        Sign out and lose this racer? It lives only in this browser, so
+        there&apos;s no way back in.
+      </p>
+      <div className="flex flex-wrap gap-3">
+        <button
+          className="titan-button titan-button-primary"
+          ref={keepRef}
+          type="button"
+          onClick={onCancel}
+        >
+          Keep racing
+        </button>
+        <button
+          className="titan-button titan-button-secondary"
+          type="button"
+          onClick={onConfirm}
+        >
+          Sign out anyway
+        </button>
+      </div>
+    </div>
+  );
+}
+
 type ProfileState =
   | { status: "loading" }
   | { message: string; status: "error" }
@@ -179,7 +222,16 @@ export function ProfileAccess({
     null,
   );
   const [unlinkPending, setUnlinkPending] = useState<string | null>(null);
+  const [confirmingSignOut, setConfirmingSignOut] = useState(false);
   const methodChangePending = signInPending !== null || unlinkPending !== null;
+  const walletPending =
+    signInPending !== null &&
+    signInPending !== "google" &&
+    signInPending !== "browser";
+  const signedIn =
+    profileState.status === "complete" || profileState.status === "incomplete";
+  // Kept only by this browser's cookie until the racer adds a login method.
+  const onlyThisBrowser = signedIn && profileState.loginMethods.length === 0;
   const normalizedUsername = normalizeRacerUsername(username);
 
   useControllerMenuNavigation({
@@ -263,6 +315,39 @@ export function ProfileAccess({
         kind: "error",
         message: "Google sign-in could not be started. Please retry.",
       });
+      setSignInPending(null);
+    }
+  }
+
+  async function signInOnThisBrowser() {
+    setSignInPending("browser");
+    setFeedback(null);
+    try {
+      const response = await fetch("/api/auth/sign-in/anonymous", {
+        body: "{}",
+        credentials: "include",
+        headers: { "content-type": "application/json" },
+        method: "POST",
+      });
+      if (response.status === 429) {
+        setFeedback({
+          kind: "error",
+          message:
+            "Too many new racers from this network. Try again later, or continue with Google or a wallet.",
+        });
+        return;
+      }
+      // Refused when this browser is already signed in: show that racer.
+      if (!response.ok && response.status !== 400) {
+        throw new Error("Browser sign-in failed.");
+      }
+      await retryProfile();
+    } catch {
+      setFeedback({
+        kind: "error",
+        message: "A racer could not be started on this browser. Please retry.",
+      });
+    } finally {
       setSignInPending(null);
     }
   }
@@ -413,6 +498,7 @@ export function ProfileAccess({
         method: "POST",
       });
       if (!response.ok) throw new Error("Sign-out failed.");
+      setConfirmingSignOut(false);
       setUsername("");
       setProfileState({ status: "unauthenticated" });
     } catch {
@@ -458,7 +544,7 @@ export function ProfileAccess({
       }
       if (payload.data.code === "USERNAME_ALREADY_CLAIMED") {
         throw new UsernameClaimError(
-          "This account already has a permanent username.",
+          "This account already has a username.",
         );
       }
       const claimedUsername = payload.data.username;
@@ -486,6 +572,30 @@ export function ProfileAccess({
       setSavePending(false);
     }
   }
+
+  const signOutControl = confirmingSignOut ? (
+    <SignOutConfirmation
+      onCancel={() => {
+        setConfirmingSignOut(false);
+        requestAnimationFrame(() =>
+          document.getElementById("sign-out-trigger")?.focus(),
+        );
+      }}
+      onConfirm={() => void signOut()}
+    />
+  ) : (
+    <button
+      className="titan-button titan-button-secondary"
+      disabled={savePending}
+      id="sign-out-trigger"
+      type="button"
+      onClick={() =>
+        onlyThisBrowser ? setConfirmingSignOut(true) : void signOut()
+      }
+    >
+      Sign out
+    </button>
+  );
 
   const heading =
     profileState.status === "complete"
@@ -525,18 +635,22 @@ export function ProfileAccess({
         </header>
 
         <div className="grid gap-3">
-          <p className="font-mono text-xs font-bold uppercase tracking-[0.22em] text-titan-hazard">
-            {profileState.status === "incomplete"
-              ? "Complete account creation"
-              : "Racer profile"}
-          </p>
+          {signedIn ? (
+            <p className="font-mono text-xs font-bold uppercase tracking-[0.22em] text-titan-hazard">
+              {profileState.status === "incomplete"
+                ? "Complete account creation"
+                : "Racer profile"}
+            </p>
+          ) : null}
           <h1 className="text-4xl font-black uppercase tracking-[-0.04em] sm:text-5xl">
             {heading}
           </h1>
-          <p className="max-w-lg text-sm leading-6 text-titan-ice/70">
-            Your unique username identifies your work, race results, and future
-            Titan Racers profile.
-          </p>
+          {signedIn ? (
+            <p className="max-w-lg text-sm leading-6 text-titan-ice/70">
+              Your unique username identifies your work, race results, and
+              future Titan Racers profile.
+            </p>
+          ) : null}
         </div>
 
         {profileState.status === "loading" ? (
@@ -545,10 +659,6 @@ export function ProfileAccess({
           </p>
         ) : profileState.status === "unauthenticated" ? (
           <div className="grid gap-5">
-            <p className="text-sm leading-6 text-titan-ice/76">
-              Sign in with Google or a browser wallet, then choose the username
-              Titan Racers will use publicly.
-            </p>
             <button
               className="titan-button titan-button-primary"
               data-controller-default="true"
@@ -572,15 +682,29 @@ export function ProfileAccess({
                 type="button"
                 onClick={() => chooseWallet("sign-in")}
               >
-                {signInPending && signInPending !== "google"
-                  ? "Check your wallet…"
-                  : "Continue with wallet"}
+                {walletPending ? "Check your wallet…" : "Continue with wallet"}
               </button>
-            ) : (
-              <p className="font-mono text-xs uppercase tracking-[0.1em] text-titan-muted">
-                No browser wallet detected
+            ) : null}
+            <div className="grid gap-2">
+              <button
+                aria-describedby="this-browser-note"
+                className="titan-button titan-button-secondary"
+                disabled={signInPending !== null}
+                type="button"
+                onClick={() => void signInOnThisBrowser()}
+              >
+                {signInPending === "browser"
+                  ? "Starting…"
+                  : "Continue on this browser"}
+              </button>
+              <p
+                className="text-xs leading-5 text-titan-muted"
+                id="this-browser-note"
+              >
+                No Google or wallet needed. Your racer stays in this browser
+                until you add Google or a wallet.
               </p>
-            )}
+            </div>
           </div>
         ) : profileState.status === "error" ? (
           <div className="grid gap-5">
@@ -651,14 +775,7 @@ export function ProfileAccess({
             >
               {savePending ? "Creating account…" : "Create racer account"}
             </button>
-            <button
-              className="titan-button titan-button-secondary"
-              disabled={savePending}
-              type="button"
-              onClick={() => void signOut()}
-            >
-              Sign out
-            </button>
+            {signOutControl}
           </form>
         ) : (
           <div className="grid gap-5">
@@ -670,10 +787,6 @@ export function ProfileAccess({
                 @{profileState.username}
               </p>
             </div>
-            <p className="text-sm leading-6 text-titan-ice/70">
-              Usernames are permanent after account creation so published
-              attribution stays trustworthy.
-            </p>
             {mode === "profile" ? (
               <section
                 aria-labelledby="login-methods-heading"
@@ -685,36 +798,42 @@ export function ProfileAccess({
                 >
                   Login methods
                 </h2>
-                <ul className="grid gap-2">
-                  {profileState.loginMethods.map((method) => (
-                    <li
-                      className="flex items-center justify-between gap-3 border border-titan-ice/15 px-4 py-2"
-                      key={method.id}
-                    >
-                      <span className="font-bold">
-                        {loginMethodName(method)}
-                      </span>
-                      <button
-                        aria-describedby={
-                          profileState.loginMethods.length <= 1
-                            ? "last-login-method-note"
-                            : undefined
-                        }
-                        aria-label={`Unlink ${loginMethodName(method)}`}
-                        className="font-mono text-xs font-bold uppercase tracking-[0.12em] text-titan-hazard underline-offset-4 hover:underline disabled:text-titan-muted disabled:no-underline"
-                        disabled={
-                          profileState.loginMethods.length <= 1 ||
-                          methodChangePending
-                        }
-                        type="button"
-                        onClick={() => void unlinkLoginMethod(method)}
+                {onlyThisBrowser ? (
+                  <p className="border border-titan-hazard/45 bg-titan-hazard/[0.06] px-4 py-3 text-sm leading-6 text-titan-ice">
+                    {BROWSER_ONLY_WARNING} Add Google or a wallet to keep it.
+                  </p>
+                ) : (
+                  <ul className="grid gap-2">
+                    {profileState.loginMethods.map((method) => (
+                      <li
+                        className="flex items-center justify-between gap-3 border border-titan-ice/15 px-4 py-2"
+                        key={method.id}
                       >
-                        {unlinkPending === method.id ? "Unlinking…" : "Unlink"}
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-                {profileState.loginMethods.length <= 1 ? (
+                        <span className="font-bold">
+                          {loginMethodName(method)}
+                        </span>
+                        <button
+                          aria-describedby={
+                            profileState.loginMethods.length === 1
+                              ? "last-login-method-note"
+                              : undefined
+                          }
+                          aria-label={`Unlink ${loginMethodName(method)}`}
+                          className="font-mono text-xs font-bold uppercase tracking-[0.12em] text-titan-hazard underline-offset-4 hover:underline disabled:text-titan-muted disabled:no-underline"
+                          disabled={
+                            profileState.loginMethods.length <= 1 ||
+                            methodChangePending
+                          }
+                          type="button"
+                          onClick={() => void unlinkLoginMethod(method)}
+                        >
+                          {unlinkPending === method.id ? "Unlinking…" : "Unlink"}
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+                {profileState.loginMethods.length === 1 ? (
                   <p
                     className="text-xs leading-5 text-titan-muted"
                     id="last-login-method-note"
@@ -752,14 +871,18 @@ export function ProfileAccess({
                         type="button"
                         onClick={() => chooseWallet("link")}
                       >
-                        {signInPending && signInPending !== "google"
-                          ? "Check your wallet…"
-                          : "Link wallet"}
+                        {walletPending ? "Check your wallet…" : "Link wallet"}
                       </button>
                     ) : null}
                   </div>
                 )}
               </section>
+            ) : null}
+            {mode === "onboarding" && onlyThisBrowser ? (
+              <p className="border border-titan-hazard/45 bg-titan-hazard/[0.06] px-4 py-3 text-sm leading-6 text-titan-ice">
+                {BROWSER_ONLY_WARNING} Add Google or a wallet from your profile
+                to keep it.
+              </p>
             ) : null}
             {mode === "onboarding" ? (
               <Link
@@ -770,13 +893,7 @@ export function ProfileAccess({
                 Continue
               </Link>
             ) : null}
-            <button
-              className="titan-button titan-button-secondary"
-              type="button"
-              onClick={() => void signOut()}
-            >
-              Sign out
-            </button>
+            {signOutControl}
           </div>
         )}
 

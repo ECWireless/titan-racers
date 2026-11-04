@@ -15,7 +15,14 @@ export async function sessionUserIdOrResponse(
       { status: 503 },
     );
   }
-  const user = (await auth.api.getSession({ headers: request.headers }))?.user;
+  // Only Better Auth's own responses renew a session, since they renew the
+  // cookie with it.
+  const user = (
+    await auth.api.getSession({
+      headers: request.headers,
+      query: { disableRefresh: true },
+    })
+  )?.user;
   if (!user) {
     return Response.json({ error: "Authentication required." }, { status: 401 });
   }

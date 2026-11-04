@@ -48,7 +48,7 @@ test.describe("admin overview contract", () => {
       ghosts: { courseBest: 0, leaderboardRacer: 0, none: 0, ownBest: 0, sharedLink: 0 },
       karts: [],
       leaderboard: { afterSignIn: 0, courseRecords: 0, personalBests: 0, rejected: 0, verified: 0 },
-      racers: { active: 0, signUps: { google: 0, wallet: 0 } },
+      racers: { active: 0, signUps: { browser: 0, browserKept: 0, google: 0, wallet: 0 } },
       races: { finished: 0, guest: 0, raceAgain: 0, resultsShared: 0, signedIn: 0, started: 0 },
       range: "30d",
       timeZone: "America/Denver",
@@ -148,6 +148,8 @@ test.describe("admin overview Postgres integration", () => {
     const racerA = `admin-overview-a-${randomUUID()}`;
     const racerB = `admin-overview-b-${randomUUID()}`;
     const earlier = `admin-overview-earlier-${randomUUID()}`;
+    const browserC = `admin-overview-c-${randomUUID()}`;
+    const browserD = `admin-overview-d-${randomUUID()}`;
     const runIds: string[] = [];
     try {
       // Sign-ups count every racer, so compare with the count before ours.
@@ -159,6 +161,9 @@ test.describe("admin overview Postgres integration", () => {
         { createdAt: new Date("2001-01-03T12:00:00Z"), email: `${racerA}@example.invalid`, id: racerA, name: "A" },
         { createdAt: new Date("2001-01-04T12:00:00Z"), email: `${racerB}@example.invalid`, id: racerB, name: "B" },
         { createdAt: new Date("2000-12-01T12:00:00Z"), email: `${earlier}@example.invalid`, id: earlier, name: "Earlier" },
+        // C and D started on one browser; D then kept it with a wallet.
+        { createdAt: new Date("2001-01-04T12:00:00Z"), email: `${browserC}@example.invalid`, id: browserC, isAnonymous: true, name: "C" },
+        { createdAt: new Date("2001-01-04T12:00:00Z"), email: `${browserD}@example.invalid`, id: browserD, isAnonymous: true, name: "D" },
       ]);
       await db.insert(accounts).values([
         { accountId: racerA, id: randomUUID(), providerId: "google", userId: racerA },
@@ -166,6 +171,7 @@ test.describe("admin overview Postgres integration", () => {
         { accountId: racerB, createdAt: new Date("2001-01-04T12:00:00Z"), id: randomUUID(), providerId: "siwe", userId: racerB },
         { accountId: `google-${racerB}`, createdAt: new Date("2001-01-05T12:00:00Z"), id: randomUUID(), providerId: "google", userId: racerB },
         { accountId: earlier, id: randomUUID(), providerId: "google", userId: earlier },
+        { accountId: browserD, createdAt: new Date("2001-01-05T12:00:00Z"), id: randomUUID(), providerId: "siwe", userId: browserD },
       ]);
       await saveCourseRevision({
         authorUserId: author,
@@ -297,7 +303,12 @@ test.describe("admin overview Postgres integration", () => {
       });
       expect(denver.racers).toEqual({
         active: 2,
-        signUps: { google: signUps.google + 1, wallet: signUps.wallet + 1 },
+        signUps: {
+          browser: signUps.browser + 2,
+          browserKept: signUps.browserKept + 1,
+          google: signUps.google + 1,
+          wallet: signUps.wallet + 1,
+        },
       });
       expect(denver.leaderboard).toEqual({
         afterSignIn: 2,
@@ -351,9 +362,10 @@ test.describe("admin overview Postgres integration", () => {
     } finally {
       // Results are immutable, so they, their board, and their racers stay
       // under the fresh course; without login methods the racers no longer
-      // count as sign-ups.
+      // count as sign-ups. The browser racers raced nowhere, so they go.
       if (runIds.length) await db.delete(gameplayRuns).where(inArray(gameplayRuns.id, runIds));
-      await db.delete(accounts).where(inArray(accounts.userId, [racerA, racerB, earlier]));
+      await db.delete(accounts).where(inArray(accounts.userId, [racerA, racerB, earlier, browserD]));
+      await db.delete(users).where(inArray(users.id, [browserC, browserD]));
     }
   });
 });
@@ -374,7 +386,7 @@ test.describe("admin overview page", () => {
       { kartId: SPEED_KART_ID, name: "Speed Kart", races: 4 },
     ],
     leaderboard: { afterSignIn: 1, courseRecords: 1, personalBests: 3, rejected: 2, verified: 5 },
-    racers: { active: 2, signUps: { google: 3, wallet: 1 } },
+    racers: { active: 2, signUps: { browser: 2, browserKept: 1, google: 3, wallet: 1 } },
     races: { finished: 7, guest: 8, raceAgain: 4, resultsShared: 2, signedIn: 3, started: 11 },
     range: "7d",
     timeZone: "America/Denver",
@@ -415,7 +427,7 @@ test.describe("admin overview page", () => {
     await expect(glance).toContainText("Races started11");
     await expect(glance).toContainText("64% of races started");
     await expect(glance).toContainText("27% of races signed in");
-    await expect(glance).toContainText("Sign-ups4");
+    await expect(glance).toContainText("Sign-ups6");
     await expect(page.getByText("in America/Denver")).toBeVisible();
 
     const races = page.getByRole("region", { name: "Races each day" });
@@ -423,9 +435,10 @@ test.describe("admin overview page", () => {
     await expect(races.getByRole("row").nth(1)).toContainText("Mon, Nov 2");
     await expect(races.getByRole("row").nth(3)).toHaveText(/Wed, Nov 4\s*4\s*2\s*6/);
 
-    await expect(page.getByRole("region", { name: "Who's racing" })).toContainText(
-      "Guest races8 · 73%",
-    );
+    const racing = page.getByRole("region", { name: "Who's racing" });
+    await expect(racing).toContainText("Guest races8 · 73%");
+    await expect(racing).toContainText("This-browser sign-ups2");
+    await expect(racing).toContainText("Kept with a login method1");
     await expect(page.getByRole("region", { name: "Leaderboard" })).toContainText(
       "New course records1",
     );

@@ -132,7 +132,7 @@ test.describe("protected course editor access", () => {
 
     await expect(
       page.getByText(
-        "Choose your permanent racer username before opening protected tools.",
+        "Choose your racer username before opening protected tools.",
       ),
     ).toBeVisible();
     await expect(
