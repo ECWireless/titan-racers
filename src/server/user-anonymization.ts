@@ -5,6 +5,7 @@ import {
   accounts,
   boardBests,
   passkeys,
+  racerFormerUsernames,
   sessions,
   userRoles,
   users,
@@ -48,7 +49,8 @@ export async function anonymizeUserByWallet(rawAddress: string) {
   });
 }
 
-// Racers kept in this browser have neither, so they are found by username.
+// Racers kept in this browser have neither, so they are found by username,
+// or by one a racer kept when another was brought into it.
 export async function anonymizeUserByUsername(rawUsername: string) {
   const username = rawUsername.trim().toLowerCase().replace(/^@/, "");
   return db.transaction(async (transaction) => {
@@ -57,8 +59,15 @@ export async function anonymizeUserByUsername(rawUsername: string) {
       .from(users)
       .where(eq(users.username, username))
       .limit(1);
-    if (!user) throw new UserNotFoundError();
-    return anonymizeUser(transaction, user.id);
+    const [former] = user
+      ? []
+      : await transaction
+          .select({ id: racerFormerUsernames.userId })
+          .from(racerFormerUsernames)
+          .where(eq(racerFormerUsernames.username, username));
+    const userId = user?.id ?? former?.id;
+    if (!userId) throw new UserNotFoundError();
+    return anonymizeUser(transaction, userId);
   });
 }
 
@@ -90,11 +99,20 @@ async function anonymizeUser(transaction: Transaction, userId: string) {
         sql`lower(${verifications.identifier}) = ${email.toLowerCase()}`,
         // Passkey registration challenges name the racer by ID.
         like(verifications.value, `%"userData":{"id":"${userId}"%`),
+        // So do requests to bring it into another racer.
+        and(
+          like(verifications.identifier, "racer-merge:%"),
+          eq(verifications.value, userId),
+        ),
         ...wallets.map(({ address }) =>
           like(verifications.identifier, `siwe:${address}:%`),
         ),
       ),
     );
+  // A deleted racer's usernames are free again, including ones it kept.
+  await transaction
+    .delete(racerFormerUsernames)
+    .where(eq(racerFormerUsernames.userId, userId));
   await transaction
     .delete(userRoles)
     .where(and(eq(userRoles.userId, userId), ne(userRoles.role, "player")));

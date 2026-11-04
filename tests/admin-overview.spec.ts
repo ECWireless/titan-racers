@@ -11,6 +11,7 @@ import {
   leaderboards,
   passkeys,
   raceResults,
+  racerMerges,
   users,
 } from "../src/db/schema";
 import { FALLS_VIEW_PARK_DOCUMENT } from "../src/game/course/course-document";
@@ -154,6 +155,7 @@ test.describe("admin overview Postgres integration", () => {
     const browserE = `admin-overview-e-${randomUUID()}`;
     const passkeyOnly = `admin-overview-f-${randomUUID()}`;
     const runIds: string[] = [];
+    const mergeId = randomUUID();
     try {
       // Sign-ups count every racer, so compare with the count before ours.
       const { signUps } = (await loadAdminOverview("7d", "America/Denver", now, courseId))
@@ -191,6 +193,12 @@ test.describe("admin overview Postgres integration", () => {
         { accountId: earlier, id: randomUUID(), providerId: "google", userId: earlier },
         { accountId: browserD, createdAt: new Date("2001-01-05T12:00:00Z"), id: randomUUID(), providerId: "siwe", userId: browserD },
       ]);
+      // G started on one browser this week and was brought into A.
+      await db.insert(racerMerges).values({
+        id: mergeId,
+        mergedRacerCreatedAt: new Date("2001-01-04T12:00:00Z"),
+        userId: racerA,
+      });
       await saveCourseRevision({
         authorUserId: author,
         document: { ...structuredClone(FALLS_VIEW_PARK_DOCUMENT), courseId },
@@ -322,8 +330,8 @@ test.describe("admin overview Postgres integration", () => {
       expect(denver.racers).toEqual({
         active: 2,
         signUps: {
-          browser: signUps.browser + 3,
-          browserKept: signUps.browserKept + 2,
+          browser: signUps.browser + 4,
+          browserKept: signUps.browserKept + 3,
           google: signUps.google + 1,
           passkey: signUps.passkey + 1,
           wallet: signUps.wallet + 1,
@@ -383,6 +391,7 @@ test.describe("admin overview Postgres integration", () => {
       // under the fresh course; without login methods the racers no longer
       // count as sign-ups. The browser racers raced nowhere, so they go.
       if (runIds.length) await db.delete(gameplayRuns).where(inArray(gameplayRuns.id, runIds));
+      await db.delete(racerMerges).where(inArray(racerMerges.id, [mergeId]));
       await db.delete(accounts).where(inArray(accounts.userId, [racerA, racerB, earlier, browserD]));
       await db.delete(users).where(inArray(users.id, [browserC, browserD, browserE, passkeyOnly]));
     }
@@ -446,7 +455,7 @@ test.describe("admin overview page", () => {
     await page.goto("/admin");
     await page.getByRole("button", { name: "Choose another account" }).click();
     await expect(
-      page.getByText("This racer lives only in this browser, so switching accounts would lose it."),
+      page.getByText("This account lives only in this browser, so switching accounts would lose it."),
     ).toBeVisible();
     expect(signOuts).toBe(0);
   });

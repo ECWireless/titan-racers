@@ -16,6 +16,12 @@ import { db } from "@/db/client";
 import { accounts, authSchema, passkeys, users } from "@/db/schema";
 import { createRacerUsernameSeed } from "@/lib/racer-username";
 import {
+  cancelRacerMergeRequest,
+  hasRacerMergeRequest,
+  mergeRacers,
+  RacerMergeError,
+} from "@/server/racer-merges";
+import {
   isWalletAddress,
   verifyWalletSignature,
   WALLET_EMAIL_DOMAIN,
@@ -46,8 +52,8 @@ function withoutPasskeyIdentity(value: string) {
 }
 
 // A racer kept only in this browser can't sign back in, so no other sign-in
-// may replace its session.
-async function isOnlyInThisBrowser(userId: string) {
+// may replace its session unless it asked to be brought into that racer.
+export async function isOnlyInThisBrowser(userId: string) {
   const [racer] = await db
     .select({ id: users.id })
     .from(users)
@@ -139,14 +145,19 @@ export const auth = betterAuth({
       // never replaces a signed-in racer.
       if (ctx.path === "/sign-in/anonymous") {
         throw new APIError("BAD_REQUEST", {
-          message: "Sign out before starting a new racer.",
+          message: "Sign out before starting a new account.",
         });
       }
-      // Refused before a wallet sign-in creates its racer; the session hook
-      // below also covers sign-ins already under way.
-      if (await isOnlyInThisBrowser(current.user.id)) {
+      // Refused before a wallet sign-in creates its racer, unless this
+      // browser's racer asked to be brought into the racer signing in; the
+      // session hook below also covers sign-ins already under way.
+      if (
+        (await isOnlyInThisBrowser(current.user.id)) &&
+        !(await hasRacerMergeRequest(current.session.id, current.user.id))
+      ) {
         throw new APIError("BAD_REQUEST", {
-          message: "Sign out of this browser's racer first.",
+          code: "SIGN_OUT_FIRST",
+          message: "Sign out of this browser's account first.",
         });
       }
     }),
@@ -214,13 +225,50 @@ export const auth = betterAuth({
           const current = context
             ? await getSessionFromCtx(context, { disableRefresh: true })
             : null;
+          const switching = current && current.user.id !== session.userId;
+          // A racer that asked is brought into the racer signing in before
+          // that racer's session exists, so a failed merge leaves it signed
+          // in here. The merge itself refuses a racer that gained a login
+          // method since asking.
           if (
-            current &&
-            current.user.id !== session.userId &&
-            (await isOnlyInThisBrowser(current.user.id))
+            switching &&
+            (await hasRacerMergeRequest(current.session.id, current.user.id))
           ) {
+            let merged;
+            try {
+              merged = await mergeRacers({
+                fromUserId: current.user.id,
+                sessionId: current.session.id,
+                toUserId: session.userId,
+              });
+            } catch (error) {
+              // Query errors carry their parameters, so only the kind is logged.
+              console.error("Racer merge failed", {
+                code: (error as { cause?: { code?: unknown } })?.cause?.code,
+                name: error instanceof Error ? error.name : typeof error,
+                reason: error instanceof RacerMergeError ? error.message : undefined,
+              });
+              if (error instanceof RacerMergeError) {
+                await cancelRacerMergeRequest(current.session.id);
+              }
+              throw new APIError("BAD_REQUEST", {
+                code: "RACER_MERGE_FAILED",
+                message: "Your accounts couldn't be merged. Please retry.",
+              });
+            }
+            // The request ran out just as it was used.
+            if (!merged) {
+              throw new APIError("BAD_REQUEST", {
+                code: "RACER_MERGE_FAILED",
+                message: "Your accounts couldn't be merged. Please retry.",
+              });
+            }
+          } else if (switching && (await isOnlyInThisBrowser(current.user.id))) {
+            // With a code, a Google sign-in comes back to its error page,
+            // the profile when it was meant to bring this racer in.
             throw new APIError("BAD_REQUEST", {
-              message: "Sign out of this browser's racer first.",
+              code: "SIGN_OUT_FIRST",
+              message: "Sign out of this browser's account first.",
             });
           }
           // Nothing reads where or on what a session started.
@@ -256,7 +304,7 @@ export const auth = betterAuth({
             (user.image !== undefined && user.image !== null)
           ) {
             throw new APIError("BAD_REQUEST", {
-              message: "Racer identity is managed through account onboarding.",
+              message: "Your username is chosen during account setup.",
             });
           }
           return { data: user };

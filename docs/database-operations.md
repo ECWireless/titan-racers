@@ -249,12 +249,13 @@ corepack pnpm db:anonymize-user --username racer_name
 ```
 
 A wallet-first racer has no real email, so it is found by any linked wallet,
-and a racer kept in one browser has neither, so it is found by username. A
+and a racer kept in one browser has neither, so it is found by username, or
+by a username it kept when another racer was brought into it. A
 racer who started in one browser keeps its placeholder email even after
 linking Google, so when an email lookup finds no one, ask for the username.
 This transaction deletes sessions, linked provider accounts, wallets and
 their sign-in nonces, passkeys and their pending challenges, and leaderboard
-bests with their ghosts, removes
+bests with their ghosts, and usernames kept from merges; it removes
 privileged roles, clears the profile image and verification state,
 and replaces the name and email with non-personal tombstone values. The
 opaque user row and baseline player role remain so immutable course

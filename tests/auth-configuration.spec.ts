@@ -139,15 +139,15 @@ test("blocks generic Better Auth identity updates after account creation", async
   expect(beforeUpdate).toBeDefined();
 
   await expect(beforeUpdate?.({ name: "new_name" })).rejects.toMatchObject({
-    message: "Racer identity is managed through account onboarding.",
+    message: "Your username is chosen during account setup.",
   });
   await expect(beforeUpdate?.({ username: "new_username" })).rejects.toMatchObject({
-    message: "Racer identity is managed through account onboarding.",
+    message: "Your username is chosen during account setup.",
   });
   await expect(
     beforeUpdate?.({ image: "https://example.invalid/avatar.png" }),
   ).rejects.toMatchObject({
-    message: "Racer identity is managed through account onboarding.",
+    message: "Your username is chosen during account setup.",
   });
   await expect(beforeUpdate?.({ image: null })).resolves.toEqual({
     data: { image: null },

@@ -204,6 +204,43 @@ export const rateLimits = pgTable("rate_limits", {
   lastRequest: bigint("last_request", { mode: "number" }).notNull(),
 });
 
+// A racer's earlier usernames, kept for them so a ghost link never passes to
+// someone else. A merge adds the username of the racer it brought in.
+export const racerFormerUsernames = pgTable(
+  "racer_former_usernames",
+  {
+    username: text("username").primaryKey(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    retiredAt: timestamp("retired_at", { mode: "date", withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => [index("racer_former_usernames_user_id_idx").on(table.userId)],
+);
+
+// One row per racer kept in one browser that was brought into another racer
+// and deleted. It names only the racer that kept its history.
+export const racerMerges = pgTable(
+  "racer_merges",
+  {
+    id: uuid("id").primaryKey(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    // When the brought-in racer was started, for the dashboard's sign-ups.
+    mergedRacerCreatedAt: timestamp("merged_racer_created_at", {
+      mode: "date",
+      withTimezone: true,
+    }).notNull(),
+    mergedAt: timestamp("merged_at", { mode: "date", withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => [index("racer_merges_user_id_idx").on(table.userId)],
+);
+
 export const applicationRole = pgEnum("application_role", [
   "player",
   "assembler",

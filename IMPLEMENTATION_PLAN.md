@@ -17,8 +17,8 @@ accepted; the app, README, and durable docs take over from there.
 
 - **Done:** Phases 0–5 (PRs #1–#24, the Phase 3 closeout and its
   follow-ups, #30–#57 with the PR 4.5.2 closeout, and #59–#63), and PRs 6.0
-  (#64) and 6.1 (#65).
-- **Now:** Phase 6, PR 6.2 (implemented, in review).
+  (#64), 6.1 (#65), and 6.2 (#66).
+- **Now:** Phase 6, PR 6.3 (implemented, in review).
 
 ## Guiding Decisions
 
@@ -204,8 +204,9 @@ Decisions from completed phases that later phases rely on:
   there is no watch mode.
 - **Login is Google, SIWE browser wallets** (EIP-6963, messages naming
   Base, chain 8453), **and passkeys** (PR 6.2). Racers link methods
-  explicitly; email never links accounts, accounts never merge (PR 6.3 plans
-  an explicit merge), and the last method cannot be unlinked.
+  explicitly; email never links accounts, accounts merge only when a racer kept
+  in one browser is brought into another (PR 6.3), and the last method
+  cannot be unlinked.
   WalletConnect, smart-contract wallets, ENS, embedded wallets, balances, and
   on-chain actions need a separately accepted scope.
 - **Guests race freely without progression, or start a racer kept in this
@@ -260,6 +261,19 @@ Phase decisions:
   lift migration 0012's trigger, keep old names reserved, redirect
   ghost links, limit renames, and revisit the run route's fixed-username
   assumption.
+- **A racer kept in one browser can be brought into a racer you sign in to**
+  (PR 6.3), any number of times. The racer you sign in to keeps everything:
+  the brought-in racer proves itself by its live session, the other by a
+  fresh sign-in in the same flow, and a failed merge leaves both as they
+  were. Results and run summaries move to it (the only change a result can
+  take), each board keeps the faster best, and the brought-in racer is
+  deleted. Its username stays reserved for the racer that kept it, and its
+  ghost links race that racer; a racer with no username yet takes it. A
+  racer that owns karts or courses can't be brought in, so Phase 8 and 9
+  authoring revisits this. Racers with login methods still never merge.
+- **"Continue anonymously" is an alternative to signing in,** shown apart
+  from the sign-in methods on the profile and below Sign in on a guest's
+  result (PR 6.3).
 
 **PR 6.0: Leaderboards across course publications**
 
@@ -292,7 +306,7 @@ Phase decisions:
 - [x] A racer gets an account without Google or a wallet, kept in this
       browser, and keeps it by adding a passkey, Google, or a wallet. The
       account stays the racer's canonical ID; methods link to it, and
-      accounts never merge. Any racer can add a passkey and sign in with it.
+      linking never merges accounts. Any racer can add a passkey and sign in with it.
 - [x] Until one is added, say plainly that clearing the browser or
       switching devices loses the account for good.
 - [x] The dashboard counts browser racers as signed in, with this-browser
@@ -300,13 +314,16 @@ Phase decisions:
 
 **PR 6.3: Merge racers**
 
-- [ ] Needs its own debrief. A racer can bring a racer kept in one browser
-      into another of theirs, for example when the Google account they try
-      to link already belongs to their other racer, proving both. Race
-      results are immutable, two bests on one board keep the faster, and a
-      freed username's ghost links must not pass to someone else. It also
-      covers a Google account that got its own racer because its sign-in,
-      already under way, was refused for a racer kept only in this browser.
+- [x] A racer kept in one browser is brought into another of theirs after a
+      confirmation, for example when the Google account or wallet they try
+      to link already belongs to their other racer, or when a Google sign-in
+      already under way was refused and made its own racer.
+- [x] Results and run summaries move to the racer kept, each board keeps
+      the faster best, the brought-in racer is deleted, and its username's
+      ghost links race the racer kept.
+- [x] The dashboard counts a brought-in racer as kept.
+- [x] "Continue anonymously" replaces "Continue on this browser" as an
+      alternative to signing in, on the profile and on a guest's result.
 
 **PR 6.4: Private rooms and race lifecycle**
 
@@ -427,6 +444,8 @@ Publishing is immediate, with no approval queue.
 
 - [ ] Role-aware player kart editor without admin or roster controls.
 - [ ] Players create, edit, and save only their own private drafts.
+- [ ] A racer kept in one browser that owns a kart can't be brought into
+      another (PR 6.3): decide whether a merge moves its karts.
 - [ ] Players assemble with Phase 7's CAD-style tools.
 - [ ] Players remix a published kart whose license allows it: the draft starts
       from that revision, and the published remix credits the original
@@ -501,6 +520,8 @@ courses start from.
 
 - [ ] Role-aware player course editor without admin-only controls.
 - [ ] Players create, edit, and save only their own private drafts.
+- [ ] A racer kept in one browser that owns a course can't be brought into
+      another (PR 6.3): decide whether a merge moves its courses.
 - [ ] Owners publish validated revisions immediately and unpublish their own
       courses while keeping history, attribution, and past race identity.
 - [ ] Server-side ownership checks, validation, bounded text, and publish rate

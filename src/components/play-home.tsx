@@ -1217,7 +1217,7 @@ export function PlayHome() {
                       className="px-2 py-1 text-sm leading-5 text-titan-ice"
                       id="home-sign-out-warning"
                     >
-                      Sign out and lose this racer? It lives only in this
+                      Sign out and lose this account? It lives only in this
                       browser, so there&apos;s no way back in.
                     </p>
                     <button

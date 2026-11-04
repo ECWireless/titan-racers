@@ -197,6 +197,13 @@
       "when": 1793768241364,
       "tag": "0027_passkeys",
       "breakpoints": true
+    },
+    {
+      "idx": 28,
+      "version": "7",
+      "when": 1793807962744,
+      "tag": "0028_racer_merges",
+      "breakpoints": true
     }
   ]
 }

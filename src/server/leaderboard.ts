@@ -185,19 +185,25 @@ export async function loadBoardGhost(
 
 /**
  * A course's newest published revision and a racer found by their public
- * username, so a link names no internal ID. Null without either, or for a
- * racer who no longer has that username.
+ * username, so a link names no internal ID. A username a racer kept when
+ * another was brought into it finds that racer. Null without either, or for
+ * a deleted racer.
  */
 async function findLinkedRacer(courseId: string, username: string) {
   const published = await loadLatestPublishedRevision(courseId);
   if (!published) return null;
   const [racer] = (
-    await db.execute<{ id: string }>(sql`
-      select id from users
+    await db.execute<{ id: string; username: string }>(sql`
+      select id, username from users
       where username = ${username} and anonymized_at is null
+      union all
+      select users.id, users.username from racer_former_usernames former
+      join users on users.id = former.user_id
+      where former.username = ${username} and users.anonymized_at is null
+      limit 1
     `)
   ).rows;
-  return racer ? { published, userId: racer.id } : null;
+  return racer ? { published, userId: racer.id, username: racer.username } : null;
 }
 
 /**
@@ -231,6 +237,6 @@ export async function loadRacerStanding(courseId: string, username: string) {
     entries: standing.entries,
     rank: standing.rank,
     timeMicroseconds: standing.best,
-    username,
+    username: linked.username,
   };
 }

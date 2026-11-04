@@ -121,7 +121,8 @@ course versions' boards stay to look at, read-only.
 - The client never sends a time, medal, or rank.
 - A result is the submitting racer's; one from a ticket naming no racer is
   `claimed`. The guest's gameplay run summary is never linked to them.
-- Results are immutable; rejected results keep no recording.
+- Results are immutable, except that a merge moves them to the racer kept
+  (migration 0028); rejected results keep no recording.
 - A best's recording holds at most `MAX_RUN_SAMPLES` (20,000) samples, about
   480 KB; a two-minute race is about 58 KB.
 - Gold, silver, and bronze are the board's current first, second, and third

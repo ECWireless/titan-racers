@@ -53,7 +53,7 @@ export async function POST(request: Request) {
       return errorResponse(
         409,
         "WALLET_LINKED_ELSEWHERE",
-        "That wallet belongs to another racer.",
+        "That wallet belongs to another account.",
       );
     }
     throw error;

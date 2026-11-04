@@ -59,7 +59,7 @@ export function authorizationErrorResponse(status: 401 | 403 | 428 | 503) {
       : status === 403
         ? "Required role missing."
         : status === 428
-          ? "Racer account setup required."
+          ? "Account setup required."
         : "Authentication is not configured.";
 
   return Response.json(

@@ -1062,7 +1062,7 @@ test.describe("home screen", () => {
     sessionGate = null;
     openSessionGate();
     await page.getByRole("button", { name: "Sign out" }).click();
-    const confirm = page.getByRole("group", { name: /Sign out and lose this racer/ });
+    const confirm = page.getByRole("group", { name: /Sign out and lose this account/ });
     await expect(confirm.getByRole("button", { name: "Keep racing" })).toBeFocused();
     await confirm.getByRole("button", { name: "Keep racing" }).click();
     await expect(confirm).toHaveCount(0);
@@ -2378,6 +2378,10 @@ test.describe("home screen", () => {
       "href",
       "/onboarding?returnTo=%2Fleaderboard",
     );
+    // Instead of signing in, a guest can continue anonymously.
+    await page.route("**/api/auth/sign-in/anonymous", (route) =>
+      route.fulfill({ body: "{}", contentType: "application/json" }),
+    );
     // A guest has no ghost to share, so no link to copy.
     await expect(
       finishDialog.getByRole("button", { name: "Copy link" }),
@@ -2395,6 +2399,8 @@ test.describe("home screen", () => {
     });
     expect(held.expiresAt).toBeGreaterThan(Date.now() + 25 * 60 * 1_000);
     expect(submissions).toBe(0);
+    await standing.getByRole("button", { name: "Continue anonymously" }).click();
+    await expect(page).toHaveURL(/\/onboarding\?returnTo=%2Fleaderboard$/);
   });
 
   test("races the course best or your own, hidden on the kart and by its switch", async ({

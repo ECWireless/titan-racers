@@ -28,7 +28,7 @@ export async function sessionUserIdOrResponse(
   }
   if (requireUsername && !user.username) {
     return Response.json(
-      { error: "Racer account setup required." },
+      { error: "Account setup required." },
       { status: 428 },
     );
   }
