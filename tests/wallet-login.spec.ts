@@ -161,6 +161,8 @@ test.describe("wallet login", () => {
     const wallet = newWallet();
 
     const replayed = await signedWalletBody(wallet);
+    // Its unused alias, which the limiter doesn't count, is off.
+    expect((await authPost("/siwe/get-nonce", {})).status).toBe(404);
     expect((await authPost("/siwe/verify", replayed)).status).toBe(200);
     expect((await authPost("/siwe/verify", replayed)).status).toBe(401);
 

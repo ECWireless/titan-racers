@@ -59,7 +59,7 @@ export const adminOverviewSchema = z.strictObject({
       browser: countSchema,
       browserKept: countSchema,
       google: countSchema,
-      // Racers whose earliest remaining login method is a passkey.
+      // Racers who joined with Google or a wallet and now have only passkeys.
       passkey: countSchema,
       wallet: countSchema,
     }),

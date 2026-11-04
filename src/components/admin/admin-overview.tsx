@@ -196,7 +196,7 @@ function Overview({
             <MetricRows rows={[
               ["Google sign-ups", racers.signUps.google],
               ["Wallet sign-ups", racers.signUps.wallet],
-              ["Passkey sign-ups", racers.signUps.passkey],
+              ["Passkey only", racers.signUps.passkey],
               ["This-browser sign-ups", racers.signUps.browser],
               ["Kept with a login method", racers.signUps.browserKept],
             ]} />

@@ -252,8 +252,9 @@ Phase decisions:
   replace its session, and Sign out asks first. Sessions last 400 days,
   renewed at most daily, and store no IP or user agent.
 - **Sign-ins are rate limited in Postgres,** counted only on exact sign-in
-  paths: 10 new browser racers per network an hour (a count resets only after
-  an hour with none) and 10 passkey option requests a minute.
+  paths, with 10 new browser racers per network an hour; the
+  [identity system](skills/project-systems/identity-course-persistence/README.md)
+  owns the limits and what the counts keep.
 - **Usernames stay fixed for now,** without being called permanent in player
   copy. Attribution already uses the racer ID, so a later rename PR needs to
   lift migration 0012's trigger, keep old names reserved, redirect
@@ -303,7 +304,9 @@ Phase decisions:
       into another of theirs, for example when the Google account they try
       to link already belongs to their other racer, proving both. Race
       results are immutable, two bests on one board keep the faster, and a
-      freed username's ghost links must not pass to someone else.
+      freed username's ghost links must not pass to someone else. It also
+      covers a Google account that got its own racer because its sign-in,
+      already under way, was refused for a racer kept only in this browser.
 
 **PR 6.4: Private rooms and race lifecycle**
 

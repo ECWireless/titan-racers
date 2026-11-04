@@ -26,9 +26,9 @@ const baseURL = process.env.BETTER_AUTH_URL ?? "http://localhost:3000";
 const DAY_SECONDS = 24 * 60 * 60;
 const KEEP_DEFAULT_LIMIT = (_request: Request, current: { max: number; window: number }) =>
   current;
-// Each request for passkey options stores a challenge, and a racer needs
-// only a few.
-const PASSKEY_OPTIONS_LIMIT = { max: 10, window: 60 };
+// Each wallet nonce or passkey options request stores a challenge without
+// needing a session, and a racer needs only a few.
+const CHALLENGE_LIMIT = { max: 10, window: 60 };
 
 // The passkey plugin keeps the racer's email with each registration
 // challenge; it needs only the racer's ID.
@@ -93,6 +93,8 @@ export const auth = betterAuth({
     "/passkey/delete-passkey",
     "/passkey/list-user-passkeys",
     "/passkey/update-passkey",
+    // An unused alias of /siwe/nonce.
+    "/siwe/get-nonce",
   ],
   session: {
     // A racer kept in this browser exists only through this cookie, so it
@@ -113,10 +115,10 @@ export const auth = betterAuth({
       "/sign-in/anonymous": { max: 10, window: 60 * 60 },
       "/sign-in/social": KEEP_DEFAULT_LIMIT,
       "/callback/google": KEEP_DEFAULT_LIMIT,
-      "/siwe/nonce": KEEP_DEFAULT_LIMIT,
+      "/siwe/nonce": CHALLENGE_LIMIT,
       "/siwe/verify": KEEP_DEFAULT_LIMIT,
-      "/passkey/generate-authenticate-options": PASSKEY_OPTIONS_LIMIT,
-      "/passkey/generate-register-options": PASSKEY_OPTIONS_LIMIT,
+      "/passkey/generate-authenticate-options": CHALLENGE_LIMIT,
+      "/passkey/generate-register-options": CHALLENGE_LIMIT,
       "/passkey/verify-authentication": KEEP_DEFAULT_LIMIT,
       "/**": false,
     },
@@ -224,6 +226,12 @@ export const auth = betterAuth({
           // Nothing reads where or on what a session started.
           return { data: { ...session, ipAddress: null, userAgent: null } };
         },
+      },
+      // Sessions an earlier build wrote lose theirs when they renew.
+      update: {
+        before: async (session) => ({
+          data: { ...session, ipAddress: null, userAgent: null },
+        }),
       },
     },
     user: {

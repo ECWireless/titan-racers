@@ -431,6 +431,26 @@ test.describe("admin overview page", () => {
     });
   });
 
+  test("won't switch accounts away from a racer kept only in this browser", async ({ page }) => {
+    await page.route("**/api/admin/overview?*", (route) =>
+      route.fulfill({ json: { error: "Required role missing." }, status: 403 }),
+    );
+    await page.route("**/api/profile", (route) =>
+      route.fulfill({ json: { loginMethods: [], status: "complete", username: "nova_racer" } }),
+    );
+    let signOuts = 0;
+    await page.route("**/api/auth/sign-out", (route) => {
+      signOuts += 1;
+      return route.fulfill({ json: { success: true } });
+    });
+    await page.goto("/admin");
+    await page.getByRole("button", { name: "Choose another account" }).click();
+    await expect(
+      page.getByText("This racer lives only in this browser, so switching accounts would lose it."),
+    ).toBeVisible();
+    expect(signOuts).toBe(0);
+  });
+
   test("shows the period's races, racers, leaderboard, karts, and sharing", async ({ page }) => {
     const requested: string[] = [];
     await page.route("**/api/admin/overview?*", (route) => {
@@ -456,7 +476,7 @@ test.describe("admin overview page", () => {
 
     const racing = page.getByRole("region", { name: "Who's racing" });
     await expect(racing).toContainText("Guest races8 · 73%");
-    await expect(racing).toContainText("Passkey sign-ups1");
+    await expect(racing).toContainText("Passkey only1");
     await expect(racing).toContainText("This-browser sign-ups2");
     await expect(racing).toContainText("Kept with a login method1");
     await expect(page.getByRole("region", { name: "Leaderboard" })).toContainText(

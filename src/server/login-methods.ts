@@ -77,15 +77,17 @@ export async function listLoginMethods(userId: string): Promise<LoginMethod[]> {
   ]
     .sort((a, b) => (a.createdAt?.getTime() ?? 0) - (b.createdAt?.getTime() ?? 0))
     // Passkeys with the same label are numbered so each can be told apart.
-    .map(({ id, kind, label }, index, methods) => {
+    .map(({ id, kind, label }, _index, methods) => {
+      if (kind !== "passkey") return { id, kind, label };
       const twins = methods.filter((method) => method.label === label);
+      const numbered =
+        twins.length > 1
+          ? `${label} ${twins.findIndex((method) => method.id === id) + 1}`
+          : label;
       return {
         id,
         kind,
-        label:
-          kind === "passkey" && twins.length > 1
-            ? `${label} ${twins.findIndex((method) => method.id === id) + 1}`
-            : label,
+        label: label === "Passkey" ? numbered : `Passkey · ${numbered}`,
       };
     });
 }

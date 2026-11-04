@@ -103,9 +103,7 @@ function walletFailureMessage(purpose: WalletPurpose, status?: number) {
 function loginMethodName(method: LoginMethod) {
   if (method.kind === "google") return "Google";
   if (method.kind === "wallet") return `Wallet ${method.label}`;
-  return method.label.startsWith("Passkey")
-    ? method.label
-    : `Passkey · ${method.label}`;
+  return method.label;
 }
 
 // Better Auth returns to the profile with ?error= when Google linking fails.
@@ -162,9 +160,11 @@ function WalletChooser({
 
 // A racer with no login method can't sign back in, so signing out asks first.
 function SignOutConfirmation({
+  disabled,
   onCancel,
   onConfirm,
 }: {
+  disabled: boolean;
   onCancel: () => void;
   onConfirm: () => void;
 }) {
@@ -191,6 +191,7 @@ function SignOutConfirmation({
         </button>
         <button
           className="titan-button titan-button-secondary"
+          disabled={disabled}
           type="button"
           onClick={onConfirm}
         >
@@ -628,6 +629,12 @@ export function ProfileAccess({
       setConfirmingSignOut(false);
       setUsername("");
       setProfileState({ status: "unauthenticated" });
+      // The sign-out control is gone, so focus the first way back in.
+      requestAnimationFrame(() =>
+        profileRef.current
+          ?.querySelector<HTMLElement>("[data-controller-default='true']")
+          ?.focus(),
+      );
     } catch {
       setFeedback({
         kind: "error",
@@ -702,6 +709,7 @@ export function ProfileAccess({
 
   const signOutControl = confirmingSignOut ? (
     <SignOutConfirmation
+      disabled={savePending}
       onCancel={() => {
         setConfirmingSignOut(false);
         requestAnimationFrame(() =>
@@ -914,6 +922,12 @@ export function ProfileAccess({
             >
               {savePending ? "Creating account…" : "Create racer account"}
             </button>
+            {onlyThisBrowser ? (
+              <p className="border border-titan-hazard/45 bg-titan-hazard/[0.06] px-4 py-3 text-sm leading-6 text-titan-ice">
+                {BROWSER_ONLY_WARNING} Once you have a username, add a
+                passkey, Google, or a wallet to keep it.
+              </p>
+            ) : null}
             {signOutControl}
           </form>
         ) : (

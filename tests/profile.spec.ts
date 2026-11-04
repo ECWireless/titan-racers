@@ -364,6 +364,9 @@ test.describe("racer onboarding and profile", () => {
     ).toHaveRole("alert");
     await start.click();
     await expect(page.getByLabel("Username")).toHaveValue("racer4821");
+    await expect(page.getByText(/lives only in this browser/)).toContainText(
+      "Once you have a username, add a passkey, Google, or a wallet to keep it.",
+    );
   });
 
   test("warns a racer kept only in this browser and confirms signing out", async ({
@@ -406,8 +409,8 @@ test.describe("racer onboarding and profile", () => {
     await page.getByRole("button", { name: "Sign out" }).click();
     await page.getByRole("button", { name: "Sign out anyway" }).click();
     await expect(
-      page.getByRole("button", { name: "Continue on this browser" }),
-    ).toBeVisible();
+      page.getByRole("button", { name: "Continue with Google" }),
+    ).toBeFocused();
     expect(signOuts).toBe(1);
   });
 

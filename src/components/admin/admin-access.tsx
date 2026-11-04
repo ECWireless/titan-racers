@@ -14,6 +14,7 @@ import {
   SignOutIcon,
   TelemetryIcon,
 } from "@/components/menu-icons";
+import { switchingAccountsBlocker } from "@/lib/browser-racer";
 import { racerOnboardingPath } from "@/lib/racer-username";
 
 const REPORTING_RANGES: Array<{ label: string; value: GameplayDashboardRange }> = [
@@ -95,6 +96,14 @@ export function useAdminSession<T>(
   }: { replaceCurrentSession?: boolean } = {}) {
     setSignInPending(true);
     try {
+      const blocker = replaceCurrentSession
+        ? await switchingAccountsBlocker()
+        : null;
+      if (blocker) {
+        setAccessState({ message: blocker, status: "error" });
+        setSignInPending(false);
+        return;
+      }
       if (replaceCurrentSession) await signOutRequest();
       const response = await fetch("/api/auth/sign-in/social", {
         body: JSON.stringify({

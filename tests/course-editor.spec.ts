@@ -256,6 +256,33 @@ test.describe("protected course editor access", () => {
     expect(authRequests).toEqual(["sign-out", "sign-in"]);
   });
 
+  test("won't switch accounts away from a racer kept only in this browser", async ({
+    page,
+  }) => {
+    const authRequests: string[] = [];
+    await page.route(courseApiPattern, (route) =>
+      route.fulfill({ json: { error: "Required role missing." }, status: 403 }),
+    );
+    await page.route("**/api/profile", (route) =>
+      route.fulfill({ json: { loginMethods: [], status: "complete", username: "nova_racer" } }),
+    );
+    for (const path of ["**/api/auth/sign-out", "**/api/auth/sign-in/social"]) {
+      await page.route(path, (route) => {
+        authRequests.push(new URL(route.request().url()).pathname);
+        return route.fulfill({ json: {} });
+      });
+    }
+
+    await page.goto("/admin/courses/rough-course");
+    await page.getByRole("button", { name: "Choose another Google account" }).click();
+    await expect(
+      page.getByText(
+        "This racer lives only in this browser, so switching accounts would lose it. Add a passkey, Google, or a wallet from your profile first.",
+      ),
+    ).toBeVisible();
+    expect(authRequests).toEqual([]);
+  });
+
   test("lets an authorized admin initialize a missing seed course", async ({
     page,
   }) => {

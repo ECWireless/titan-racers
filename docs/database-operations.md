@@ -216,7 +216,10 @@ Both need no keys or environment variables beyond `BETTER_AUTH_URL`; the
 describes them. Passkeys belong to `BETTER_AUTH_URL`'s hostname
 (`play.titanracers.com` in production): changing it locks out racers whose
 only method is a passkey, and passkeys made on a QA host work only there.
-Sign-in rate limits are counted in the `rate_limits` table in production only.
+Sign-in rate limits are counted in the `rate_limits` table in production only;
+its rows hold client IPs, tied to no racer. After deploying, check its keys
+start with real addresses rather than `no-trusted-ip`, which would mean the
+host sent more than one address in `x-forwarded-for`.
 
 ## First Admin Bootstrap
 
@@ -246,7 +249,9 @@ corepack pnpm db:anonymize-user --username racer_name
 ```
 
 A wallet-first racer has no real email, so it is found by any linked wallet,
-and a racer kept in one browser has neither, so it is found by username.
+and a racer kept in one browser has neither, so it is found by username. A
+racer who started in one browser keeps its placeholder email even after
+linking Google, so when an email lookup finds no one, ask for the username.
 This transaction deletes sessions, linked provider accounts, wallets and
 their sign-in nonces, passkeys and their pending challenges, and leaderboard
 bests with their ghosts, removes

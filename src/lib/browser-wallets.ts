@@ -14,7 +14,6 @@ type Eip1193Provider = {
 export type BrowserWallet = { id: string; name: string; provider: Eip1193Provider };
 
 export type SignedWalletMessage = {
-  address: `0x${string}`;
   message: string;
   signature: string;
 };
@@ -119,5 +118,5 @@ export async function signWalletMessage(
         address,
       ]),
     );
-  return { address, message, signature };
+  return { message, signature };
 }

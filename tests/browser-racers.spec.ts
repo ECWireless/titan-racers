@@ -6,7 +6,7 @@ import { eq, inArray, like } from "drizzle-orm";
 import { generatePrivateKey, privateKeyToAccount } from "viem/accounts";
 import { createSiweMessage } from "viem/siwe";
 
-import { POST as postAuth } from "../src/app/api/auth/[...all]/route";
+import { GET as getAuth, POST as postAuth } from "../src/app/api/auth/[...all]/route";
 import {
   DELETE as deleteLoginMethod,
   POST as postLoginMethod,
@@ -115,6 +115,33 @@ test.describe("racers kept in this browser", () => {
       status: "incomplete",
       suggestedUsername: expect.stringMatching(/^racer\d{4}$/),
     });
+  });
+
+  test("renews a day-old session to 400 days and clears what an earlier build kept", async () => {
+    const racer = await browserRacer();
+    // As if two days had passed on a session the earlier build wrote.
+    await db
+      .update(sessions)
+      .set({
+        expiresAt: new Date(Date.now() + (FOUR_HUNDRED_DAYS - 2 * 24 * 60 * 60) * 1000),
+        ipAddress: "203.0.113.9",
+        userAgent: "Old browser",
+      })
+      .where(eq(sessions.userId, racer.id));
+    const renewed = await getAuth(
+      new Request(`${ORIGIN}/api/auth/get-session`, { headers: { cookie: racer.cookie } }),
+    );
+    expect(renewed.status).toBe(200);
+    expect(
+      renewed.headers.getSetCookie().find((cookie) => cookie.includes("session_token=")),
+    ).toContain(`Max-Age=${FOUR_HUNDRED_DAYS}`);
+    const [row] = await db
+      .select({ expiresAt: sessions.expiresAt, ipAddress: sessions.ipAddress, userAgent: sessions.userAgent })
+      .from(sessions)
+      .where(eq(sessions.userId, racer.id));
+    expect(row.ipAddress).toBeNull();
+    expect(row.userAgent).toBeNull();
+    expect(row.expiresAt.getTime()).toBeGreaterThan(Date.now() + (FOUR_HUNDRED_DAYS - 60) * 1000);
   });
 
   test("starts only when signed out, and is never deleted", async () => {

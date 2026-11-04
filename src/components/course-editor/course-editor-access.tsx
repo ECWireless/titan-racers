@@ -11,6 +11,7 @@ import {
 import type { OfficialCourseId } from "@/game/course/course-ids";
 import { coursePublicationSummarySchema } from "@/game/course/course-publication";
 import { COURSE_EDITOR_OBJECT_LIMIT } from "@/game/editor/course-editor-document";
+import { switchingAccountsBlocker } from "@/lib/browser-racer";
 import { racerOnboardingPath } from "@/lib/racer-username";
 
 import { CourseEditorShell } from "./course-editor-shell";
@@ -133,6 +134,14 @@ export function CourseEditorAccess({
     setSignInPending(true);
 
     try {
+      const blocker = replaceCurrentSession
+        ? await switchingAccountsBlocker()
+        : null;
+      if (blocker) {
+        setAccessState({ message: blocker, status: "error" });
+        setSignInPending(false);
+        return;
+      }
       if (replaceCurrentSession) {
         const signOutResponse = await fetch("/api/auth/sign-out", {
           body: JSON.stringify({}),

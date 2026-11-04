@@ -123,9 +123,10 @@ same identity, role, and request-guard boundaries; see the
    `play.titanracers.com`), never the request's; passkeys are saved on the
    device (`residentKey: "required"`), and adding one needs only a live session
    (`freshAge: 0`), as linking Google or a wallet does.
-2. The device shows the racer's username: the client replaces the options'
-   display name, which the plugin sets to the account email. A verification
-   hook strips each registration challenge to the racer's ID.
+2. The device shows the racer's username: the plugin sets the WebAuthn user
+   name and display name to the account email, so the profile asks with
+   `?name=<username>` and the client replaces the display name. A
+   verification hook strips each registration challenge to the racer's ID.
 3. Each credential belongs to one racer (`passkeys.credential_id` is unique).
    A passkey is a login method: our route lists and removes it under the
    last-method rule, and the plugin's delete, list, and rename routes are off.
@@ -187,14 +188,18 @@ same identity, role, and request-guard boundaries; see the
 - Racers never merge. Results, bests, and authorship point to the racer ID,
   never the username, so usernames could become changeable later; today
   migration 0012's trigger keeps them fixed and ghost links name them.
-- Sessions store no IP address or user agent.
+- Sessions store no IP address or user agent: new ones never do, migration
+  0026 cleared existing ones, and renewal clears any an earlier build wrote.
 - Better Auth's limiter counts only exact sign-in paths, in Postgres so every
   instance shares it (production only): 10 new browser racers per network an
-  hour, 10 passkey option requests a minute, and Better Auth's defaults for
-  Google, wallet, and passkey sign-in. Every other path, unknown ones
-  included, writes no row. A count resets only after a full quiet window, and
-  expired rows are pruned when a later counted request reuses an expired
-  bucket.
+  hour, 10 wallet nonce or passkey options requests a minute, and Better
+  Auth's defaults for Google, wallet, and passkey sign-in. Every other path,
+  unknown ones included, writes no row; `/siwe/get-nonce` is disabled. A
+  count resets a full window after the last request it allowed.
+- `rate_limits` rows hold the client IP (an IPv6 address by its /64 network)
+  with the path, a count, and a time, tied to no racer. Expired rows are
+  deleted only when a later counted request renews an expired bucket, so on
+  a quiet site they can stay longer than their window.
 - A login method never moves between racers, and the last one cannot be
   unlinked. Database triggers refuse new sessions, login methods, wallets, and
   passkeys for anonymized racers, so a sign-in or Google link racing anonymization
