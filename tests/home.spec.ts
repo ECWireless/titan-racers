@@ -1014,6 +1014,67 @@ test.describe("home screen", () => {
     await expect(page.getByRole("link", { name: "Dashboard" })).toHaveCount(0);
   });
 
+  test("renews the session on each visit and asks before signing out a racer kept only in this browser", async ({
+    page,
+  }) => {
+    let sessionChecks = 0;
+    let signOuts = 0;
+    let loginMethods: unknown[] = [{ id: "google", kind: "google", label: "Google" }];
+    let profileChecks = 0;
+    let sessionGate: Promise<void> | null = null;
+    let openSessionGate = () => {};
+    await page.route("**/api/auth/get-session", async (route) => {
+      sessionChecks += 1;
+      if (sessionGate) await sessionGate;
+      return route.fulfill({
+        json: { session: { id: "session" }, user: { id: "racer", isAnonymous: true } },
+      });
+    });
+    await page.route("**/api/admin", (route) => route.fulfill({ json: { admin: false } }));
+    await page.route("**/api/profile", (route) => {
+      profileChecks += 1;
+      return route.fulfill({
+        json: { loginMethods, status: "complete", username: "nova_racer" },
+      });
+    });
+    await page.route("**/api/auth/sign-out", (route) => {
+      signOuts += 1;
+      return route.fulfill({ json: { success: true } });
+    });
+    await page.goto("/");
+    await expect.poll(() => sessionChecks).toBe(1);
+
+    // A racer who started here but added Google signs out straight away.
+    const utilityMenu = page.getByRole("button", { name: "Open utility menu" });
+    await utilityMenu.click();
+    await expect.poll(() => profileChecks).toBe(1);
+    await page.getByRole("button", { name: "Sign out" }).click();
+    await expect(utilityMenu).toBeFocused();
+    expect(signOuts).toBe(1);
+
+    // Reopened after another tab switched to a racer kept only here: no
+    // Sign out is offered until the menu has checked again.
+    loginMethods = [];
+    sessionGate = new Promise((resolve) => (openSessionGate = resolve));
+    await utilityMenu.click();
+    await expect.poll(() => sessionChecks).toBe(3);
+    await expect(page.getByRole("button", { name: "Sign out" })).toHaveCount(0);
+    sessionGate = null;
+    openSessionGate();
+    await page.getByRole("button", { name: "Sign out" }).click();
+    const confirm = page.getByRole("group", { name: /Sign out and lose this racer/ });
+    await expect(confirm.getByRole("button", { name: "Keep racing" })).toBeFocused();
+    await confirm.getByRole("button", { name: "Keep racing" }).click();
+    await expect(confirm).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "Sign out" })).toBeFocused();
+    expect(signOuts).toBe(1);
+
+    await page.getByRole("button", { name: "Sign out" }).click();
+    await page.getByRole("button", { name: "Sign out anyway" }).click();
+    await expect(utilityMenu).toBeFocused();
+    expect(signOuts).toBe(2);
+  });
+
   test("selects and races only currently published official karts", async ({
     page,
   }) => {

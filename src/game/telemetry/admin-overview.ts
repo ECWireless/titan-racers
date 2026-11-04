@@ -53,7 +53,16 @@ export const adminOverviewSchema = z.strictObject({
   racers: z.strictObject({
     // Distinct signed-in racers who started a race.
     active: countSchema,
-    signUps: z.strictObject({ google: countSchema, wallet: countSchema }),
+    signUps: z.strictObject({
+      // Racers started on one browser, and how many have since added a
+      // login method.
+      browser: countSchema,
+      browserKept: countSchema,
+      google: countSchema,
+      // Racers who joined with Google or a wallet and now have only passkeys.
+      passkey: countSchema,
+      wallet: countSchema,
+    }),
   }),
   leaderboard: z.strictObject({
     // Guests' runs sent once they signed in, among the verified and rejected.

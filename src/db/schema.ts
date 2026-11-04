@@ -1,4 +1,5 @@
 import {
+  bigint,
   boolean,
   check,
   customType,
@@ -47,6 +48,9 @@ export const users = pgTable(
       mode: "date",
       withTimezone: true,
     }),
+    // Set by Better Auth for a racer started on one browser with no login
+    // method; it records how the racer began and never changes.
+    isAnonymous: boolean("is_anonymous").default(false).notNull(),
   },
   (table) => [
     uniqueIndex("users_username_uidx").on(table.username),
@@ -165,6 +169,40 @@ export const walletAddresses = pgTable(
     uniqueIndex("wallet_addresses_address_uidx").on(table.address),
   ],
 );
+
+// A racer's passkeys (WebAuthn credentials): a public key and its ID, no
+// secret. A credential belongs to one racer.
+export const passkeys = pgTable(
+  "passkeys",
+  {
+    id: text("id").primaryKey(),
+    name: text("name"),
+    publicKey: text("public_key").notNull(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    credentialID: text("credential_id").notNull(),
+    counter: integer("counter").notNull(),
+    deviceType: text("device_type").notNull(),
+    backedUp: boolean("backed_up").notNull(),
+    transports: text("transports"),
+    createdAt: timestamp("created_at", { mode: "date", withTimezone: true }),
+    aaguid: text("aaguid"),
+  },
+  (table) => [
+    index("passkeys_user_id_idx").on(table.userId),
+    uniqueIndex("passkeys_credential_id_uidx").on(table.credentialID),
+  ],
+);
+
+// Better Auth's request counts per client IP and path, shared by every
+// server instance.
+export const rateLimits = pgTable("rate_limits", {
+  id: text("id").primaryKey(),
+  key: text("key").notNull().unique(),
+  count: integer("count").notNull(),
+  lastRequest: bigint("last_request", { mode: "number" }).notNull(),
+});
 
 export const applicationRole = pgEnum("application_role", [
   "player",
@@ -702,6 +740,8 @@ export const authSchema = {
   sessions,
   accounts,
   verifications,
+  rateLimits,
+  passkeys,
   // Better Auth pluralizes model names by appending "s".
   walletAddresss: walletAddresses,
 };

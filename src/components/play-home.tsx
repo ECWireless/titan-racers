@@ -274,6 +274,10 @@ export function PlayHome() {
   const [signedIn, setSignedIn] = useState<boolean | null>(null);
   // Admins also get the dashboard; the server checks the role again there.
   const [admin, setAdmin] = useState(false);
+  // A racer with no login method can't sign back in, so Sign out asks first.
+  const [onlyThisBrowser, setOnlyThisBrowser] = useState(false);
+  const [confirmingSignOut, setConfirmingSignOut] = useState(false);
+  const keepRacingRef = useRef<HTMLButtonElement | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   const [soloPending, setSoloPending] = useState(false);
   const [rosterPending, setRosterPending] = useState(true);
@@ -530,26 +534,63 @@ export function PlayHome() {
     };
   }, [racerGhost]);
 
+  // Each visit renews a signed-in racer's session cookie (at most daily);
+  // a racer kept in this browser exists only through it.
+  useEffect(() => {
+    void fetch("/api/auth/get-session", { cache: "no-store" }).catch(
+      () => undefined,
+    );
+  }, []);
+
   useEffect(() => {
     if (!utilityMenuOpen) return;
     let active = true;
     void fetch("/api/auth/get-session", { cache: "no-store" })
       .then((response) => (response.ok ? response.json() : null))
-      .then(async (session: { session?: unknown } | null) => {
-        if (!active) return;
-        setSignedIn(Boolean(session?.session));
-        const isAdmin = session?.session
-          ? await fetch("/api/admin", { cache: "no-store" })
-              .then((response) => (response.ok ? response.json() : null))
-              .then((role: { admin?: unknown } | null) => role?.admin === true)
-          : false;
-        if (active) setAdmin(isAdmin);
-      })
+      .then(
+        async (
+          session: {
+            session?: unknown;
+            user?: { isAnonymous?: unknown };
+          } | null,
+        ) => {
+          if (!active) return;
+          setSignedIn(Boolean(session?.session));
+          // Ask first until the racer is known to have a login method.
+          const startedHere = session?.user?.isAnonymous === true;
+          setOnlyThisBrowser(startedHere);
+          const [isAdmin, methods] = session?.session
+            ? await Promise.all([
+                fetch("/api/admin", { cache: "no-store" })
+                  .then((response) => (response.ok ? response.json() : null))
+                  .then(
+                    (role: { admin?: unknown } | null) => role?.admin === true,
+                  ),
+                // Only a racer who started on this browser can lack a method.
+                startedHere
+                  ? fetch("/api/profile", { cache: "no-store" })
+                      .then((response) => (response.ok ? response.json() : null))
+                      .then(
+                        (profile: { loginMethods?: unknown[] } | null) =>
+                          profile?.loginMethods?.length ?? null,
+                      )
+                  : null,
+              ])
+            : [false, null];
+          if (!active) return;
+          setAdmin(isAdmin);
+          if (methods !== null) setOnlyThisBrowser(methods === 0);
+        },
+      )
       .catch(() => undefined);
     return () => {
       active = false;
     };
   }, [utilityMenuOpen]);
+
+  useEffect(() => {
+    if (confirmingSignOut) keepRacingRef.current?.focus();
+  }, [confirmingSignOut]);
 
   async function signOut() {
     const response = await fetch("/api/auth/sign-out", {
@@ -564,6 +605,7 @@ export function PlayHome() {
     setToast(null);
     setSignedIn(false);
     setAdmin(false);
+    setOnlyThisBrowser(false);
     setUtilityMenuOpen(false);
     utilityMenuButtonRef.current?.focus();
   }
@@ -1108,7 +1150,13 @@ export function PlayHome() {
             className="grid size-12 place-content-center gap-1.5 border border-titan-ice/28 bg-titan-black/72 text-titan-ice shadow-[0_12px_32px_rgb(0_0_0/0.4)] backdrop-blur transition hover:border-titan-hazard hover:text-titan-hazard focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-titan-hazard"
             ref={utilityMenuButtonRef}
             type="button"
-            onClick={() => setUtilityMenuOpen((open) => !open)}
+            onClick={() => {
+              setConfirmingSignOut(false);
+              // Another tab may have changed who is signed in, so offer
+              // neither Sign in nor Sign out until this opening checks.
+              if (!utilityMenuOpen) setSignedIn(null);
+              setUtilityMenuOpen(!utilityMenuOpen);
+            }}
           >
             <span className="h-0.5 w-6 bg-current" />
             <span className="h-0.5 w-6 bg-current" />
@@ -1159,11 +1207,54 @@ export function PlayHome() {
                     Sign in
                   </Link>
                 ) : null}
-                {signedIn ? (
+                {signedIn && confirmingSignOut ? (
+                  <div
+                    aria-labelledby="home-sign-out-warning"
+                    className="grid gap-1 border border-red-300/45 p-2"
+                    role="group"
+                  >
+                    <p
+                      className="px-2 py-1 text-sm leading-5 text-titan-ice"
+                      id="home-sign-out-warning"
+                    >
+                      Sign out and lose this racer? It lives only in this
+                      browser, so there&apos;s no way back in.
+                    </p>
+                    <button
+                      className={`${UTILITY_MENU_ITEM} text-left`}
+                      ref={keepRacingRef}
+                      type="button"
+                      onClick={() => {
+                        setConfirmingSignOut(false);
+                        requestAnimationFrame(() =>
+                          document.getElementById("home-sign-out-trigger")?.focus(),
+                        );
+                      }}
+                    >
+                      <span className="font-mono text-xs font-bold uppercase tracking-[0.14em]">
+                        Keep racing
+                      </span>
+                    </button>
+                    <button
+                      className={`${UTILITY_MENU_ITEM} text-left`}
+                      type="button"
+                      onClick={() => void signOut()}
+                    >
+                      <span className="font-mono text-xs font-bold uppercase tracking-[0.14em]">
+                        Sign out anyway
+                      </span>
+                    </button>
+                  </div>
+                ) : signedIn ? (
                   <button
                     className={`${UTILITY_MENU_ITEM} text-left`}
+                    id="home-sign-out-trigger"
                     type="button"
-                    onClick={() => void signOut()}
+                    onClick={() =>
+                      onlyThisBrowser
+                        ? setConfirmingSignOut(true)
+                        : void signOut()
+                    }
                   >
                     <SignOutIcon />
                     {/* The global `button { font: inherit }` overrides the

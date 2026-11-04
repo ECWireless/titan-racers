@@ -16,9 +16,9 @@ accepted; the app, README, and durable docs take over from there.
 ## Status
 
 - **Done:** Phases 0–5 (PRs #1–#24, the Phase 3 closeout and its
-  follow-ups, #30–#57 with the PR 4.5.2 closeout, and #59–#63), and PR 6.0
-  (#64).
-- **Now:** Phase 6, PR 6.1 (implemented, in review).
+  follow-ups, #30–#57 with the PR 4.5.2 closeout, and #59–#63), and PRs 6.0
+  (#64) and 6.1 (#65).
+- **Now:** Phase 6, PR 6.2 (implemented, in review).
 
 ## Guiding Decisions
 
@@ -114,7 +114,7 @@ These still constrain every remaining phase.
 | Role | Can do |
 | --- | --- |
 | Guest | Race official and published community karts and courses, join private rooms, see local results. Cannot submit leaderboard times or save designs. |
-| Player | Everything a guest can, plus a persistent racer identity and history, leaderboard submission, building, remixing, and publishing their own karts (Phase 8) and courses (Phase 9), and one thumbs-up per community course. |
+| Player | Signs in with Google, a wallet, or a passkey, or starts a racer kept in one browser. Everything a guest can, plus a persistent racer identity and history, leaderboard submission, building, remixing, and publishing their own karts (Phase 8) and courses (Phase 9), and one thumbs-up per community course. |
 | Admin | Protected course and kart editors; create, revise, publish, and unpublish official karts and courses; feature or safety-unpublish community karts and courses without deleting history; inspect derived kart stats, never override them. Several admins are allowed. |
 
 ## Visual Direction
@@ -202,14 +202,19 @@ Decisions from completed phases that later phases rely on:
   server. Ghost links name a public username, never an ID, and race that
   racer's best on the current board. Replay is Race again with a ghost;
   there is no watch mode.
-- **Login is Google plus SIWE browser wallets** (EIP-6963, messages naming
-  Base, chain 8453). Racers link methods explicitly; email never links
-  accounts, accounts never merge, and the last method cannot be unlinked.
+- **Login is Google, SIWE browser wallets** (EIP-6963, messages naming
+  Base, chain 8453), **and passkeys** (PR 6.2). Racers link methods
+  explicitly; email never links accounts, accounts never merge (PR 6.3 plans
+  an explicit merge), and the last method cannot be unlinked.
   WalletConnect, smart-contract wallets, ENS, embedded wallets, balances, and
   on-chain actions need a separately accepted scope.
-- **Guests race freely without progression;** a guest's qualifying run waits
-  on the device and joins the board as theirs if they sign in and have a
-  username within 30 minutes of its start.
+- **Guests race freely without progression, or start a racer kept in this
+  browser** (PR 6.2): a full racer, with no login method until they add a
+  passkey, Google, or a wallet, and warned until then that clearing the
+  browser or switching devices loses it for good. A guest's qualifying run
+  waits on the device and joins the board as theirs if they sign in (starting
+  a racer on this browser counts) and have a username within 30 minutes of
+  its start.
 - **Home is a step-by-step flow** (first screen, kart, course, mode and
   ghost), one history entry a step, with no Quick race, and menus sound on
   every action except in the admin tools.
@@ -241,6 +246,20 @@ Phase decisions:
   plan for development, Workers Paid ($5/month) before a public share.
   Vercel's WebSockets were ruled out: a room has no single home across
   instances, and connections close at the function's time limit.
+- **A racer kept in this browser is Better Auth's anonymous user and stays
+  the lasting ID** (PR 6.2): methods link to it, and the plugin's
+  merge-and-delete is off. Until it has a login method, no other sign-in may
+  replace its session, and Sign out asks first. Sessions last 400 days,
+  renewed at most daily, and store no IP or user agent.
+- **Sign-ins are rate limited in Postgres,** counted only on exact sign-in
+  paths, with 10 new browser racers per network an hour; the
+  [identity system](skills/project-systems/identity-course-persistence/README.md)
+  owns the limits and what the counts keep.
+- **Usernames stay fixed for now,** without being called permanent in player
+  copy. Attribution already uses the racer ID, so a later rename PR needs to
+  lift migration 0012's trigger, keep old names reserved, redirect
+  ghost links, limit renames, and revisit the run route's fixed-username
+  assumption.
 
 **PR 6.0: Leaderboards across course publications**
 
@@ -261,23 +280,35 @@ Phase decisions:
       and how many finish, sign-ups and active signed-in racers with the
       guest and signed-in share, leaderboard submissions and new bests, and
       races per official kart, ghost choices, and links copied. Guests have
-      no lasting identity, so racer counts are signed-in only. PR 6.3 adds
+      no lasting identity, so racer counts are signed-in only. PR 6.4 adds
       room counts.
 - [x] Races record their signed-in racer from the server's session. Home's
       menu opens the dashboard, which links the operational telemetry view.
 
 **PR 6.2: Accounts without Google or a wallet**
 
-- [ ] Research and agree the standard first: Better Auth anonymous accounts,
-      passkeys, or both.
-- [ ] A racer gets an account without Google or a wallet, kept in this
+- [x] Research and agree the standard first: both, on Better Auth 1.7.16,
+      whose passkey plugin carries the GHSA-gv75 origin fix.
+- [x] A racer gets an account without Google or a wallet, kept in this
       browser, and keeps it by adding a passkey, Google, or a wallet. The
       account stays the racer's canonical ID; methods link to it, and
-      accounts never merge.
-- [ ] Until one is added, say plainly that clearing the browser or
+      accounts never merge. Any racer can add a passkey and sign in with it.
+- [x] Until one is added, say plainly that clearing the browser or
       switching devices loses the account for good.
+- [x] The dashboard counts browser racers as signed in, with this-browser
+      and kept sign-ups.
 
-**PR 6.3: Private rooms and race lifecycle**
+**PR 6.3: Merge racers**
+
+- [ ] Needs its own debrief. A racer can bring a racer kept in one browser
+      into another of theirs, for example when the Google account they try
+      to link already belongs to their other racer, proving both. Race
+      results are immutable, two bests on one board keep the faster, and a
+      freed username's ghost links must not pass to someone else. It also
+      covers a Google account that got its own racer because its sign-in,
+      already under way, was refused for a racer kept only in this browser.
+
+**PR 6.4: Private rooms and race lifecycle**
 
 - [ ] Create a private room and join by link; 2–4 players, guests welcome.
 - [ ] Choosing a kart marks a player ready; the host starts a synchronized
@@ -289,7 +320,7 @@ Phase decisions:
 - [ ] Rooms race official karts on Falls View Park, recording each kart's
       revision and the course's, as Phase 5's results do.
 
-**PR 6.4: Motion and resilience**
+**PR 6.5: Motion and resilience**
 
 - [ ] Define server authority, update cadence, prediction, interpolation,
       reconciliation, and bounded correction.
@@ -301,7 +332,7 @@ Phase decisions:
 - [ ] A four-kart room stays within the phone budget on the lead's iPhone
       (`?perf=1`).
 
-**PR 6.5: Kart-to-kart collisions**
+**PR 6.6: Kart-to-kart collisions**
 
 - [ ] Resolve each kart-to-kart contact once, authoritatively, using both karts'
       mass, relative velocity, contact normal, and angle of attack.

@@ -79,8 +79,8 @@ course versions' boards stay to look at, read-only.
 2. After the finish frame, the race sends the ticket and its recording to
    `POST /api/runs`. A run on a ticket naming no racer is kept on the
    device instead (the fastest such run wins), and the result asks the
-   player to sign in or choose a username. It is sent once their account
-   is complete, after any sign-in or onboarding, or when they open
+   player to sign in or choose a username. Starting a racer on this browser
+   counts as signing in. It is sent once their account is complete, after any sign-in or onboarding, or when they open
    `/leaderboard`, which sends it before loading the board and says what
    became of it.
 3. The server reads the ticket (signature, expiry, and the same racer, or

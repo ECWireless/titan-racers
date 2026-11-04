@@ -1,12 +1,13 @@
 # Identity And Course Persistence System
 
-**Maturity:** Validated (PR 2.3.2; wallet login PR 5.2).
+**Maturity:** Validated (PR 2.3.2; wallet login PR 5.2; racers kept in this
+browser and passkeys PR 6.2).
 
 ## Purpose And Scope
 
 This system owns canonical application identities, linked Better Auth provider
-accounts, Postgres-backed sessions and roles, Google and wallet login, explicit
-login-method linking, centralized server-side admin authorization, immutable course revisions, and protected
+accounts, Postgres-backed sessions and roles, Google, wallet, and passkey login,
+racers kept in one browser, explicit login-method linking, sign-in rate limits, centralized server-side admin authorization, immutable course revisions, and protected
 course load/save APIs.
 
 It keeps the portable course document defined by
@@ -23,13 +24,17 @@ same identity, role, and request-guard boundaries; see the
 - `drizzle/` contains the reviewed version-controlled Postgres migrations,
   including database triggers for default player roles and immutable revisions.
 - `src/db/client.ts` owns the shared node-postgres pool and Drizzle client.
-- `src/lib/auth.ts` configures Better Auth's Drizzle adapter, the Google
-  provider with an account-selection prompt for every sign-in, explicit-only
-  account linking, and the SIWE plugin.
+- `src/lib/auth.ts` configures Better Auth (1.7): its Drizzle adapter, the
+  Google provider with an account-selection prompt for every sign-in,
+  explicit-only account linking, the SIWE, anonymous, and passkey plugins,
+  session lifetime, the sign-in rate limits, and the guards that keep a racer
+  kept in this browser from being replaced.
 - `src/lib/siwe.ts` owns the sign-in chain (Base, 8453), the placeholder email
   domain, and offline EOA signature checks with viem.
 - `src/lib/browser-wallets.ts` discovers EIP-6963 wallets and asks one for a
   signed Sign-In with Ethereum message.
+- `src/components/profile-access.tsx` runs sign-in, the username step, and the
+  profile's login methods, with `@simplewebauthn/browser` for passkey prompts.
 - `src/server/login-methods.ts` and `src/app/api/profile/login-methods/route.ts`
   list, link, and unlink a signed-in racer's login methods;
   `src/server/session-user.ts` resolves the racer for profile routes.
@@ -71,7 +76,8 @@ same identity, role, and request-guard boundaries; see the
 1. Signed out, the profile offers one wallet button (a chooser when several
    EIP-6963 wallets announce). The wallet signs a message naming this host,
    Base, and a single-use server nonce; Better Auth's SIWE plugin verifies it
-   with viem's offline check, so smart-contract wallets never verify.
+   with viem's offline check, so smart-contract wallets never verify. Without
+   a browser wallet, no wallet button shows.
 2. A new wallet creates a racer with a generated ID, a placeholder email
    `<address>@wallet.invalid` that is never shown, and a `racer` username
    seed. The racer then claims a username through onboarding.
@@ -79,14 +85,51 @@ same identity, role, and request-guard boundaries; see the
    racer may link several wallets and one Google account (a partial unique
    index on `accounts`).
 4. The plugin's verify signs in as the wallet's racer and ignores the session,
-   so linking a wallet uses our profile route, which consumes the same nonce,
-   repeats the plugin's checks, and writes the wallet row and its `siwe`
+   so linking a wallet uses our profile route, which reads the address and
+   nonce from the signed message (accepting only a canonical message),
+   consumes the nonce, repeats the plugin's checks, and writes the wallet row and its `siwe`
    account together. Google links through Better Auth's `/link-social`, which
    allows a different email because wallet-first racers have a placeholder.
 5. Our route unlinks any method but the last, deleting a wallet's row with its
    account and replacing a placeholder email built from that wallet. Better
    Auth's `/unlink-account` is disabled because it would leave the wallet row,
    which still signs in.
+
+## Racers Kept In This Browser
+
+1. Signed out, "Continue on this browser" asks Better Auth's anonymous plugin
+   for a racer with no login method; nothing creates one automatically. It is
+   a full racer (username, leaderboard, bests, ghosts), and `users.is_anonymous`
+   records that it began this way and never changes.
+2. The racer is the lasting ID. Google, wallets, and passkeys link to it; the
+   plugin's merge-and-delete is off (`disableDeleteAnonymousUser`, no
+   `onLinkAccount`, `/delete-anonymous-user` disabled), so it is never merged
+   or deleted. Starting one is refused while any racer is signed in.
+3. Until it has a login method, the profile warns it can be lost, Sign out asks
+   first (profile, onboarding, and home's menu), and no other sign-in may
+   replace its session: a before-hook refuses Google, wallet, and passkey
+   sign-in, and a session hook refuses OAuth callbacks already under way.
+4. It exists only through its session cookie, so sessions last 400 days (the
+   browser cap) and renew at most daily. Only Better Auth's own responses renew
+   the cookie: home calls `/api/auth/get-session` on each visit, and our
+   server-side session checks pass `disableRefresh` so they never extend a
+   session without its cookie.
+
+## Passkeys
+
+1. Any signed-in racer adds a passkey from the profile; signed out, "Continue
+   with a passkey" signs in. `@better-auth/passkey` binds passkeys to the
+   configured `BETTER_AUTH_URL` origin and hostname (production
+   `play.titanracers.com`), never the request's; passkeys are saved on the
+   device (`residentKey: "required"`), and adding one needs only a live session
+   (`freshAge: 0`), as linking Google or a wallet does.
+2. The device shows the racer's username: the plugin sets the WebAuthn user
+   name and display name to the account email, so the profile asks with
+   `?name=<username>` and the client replaces the display name. A
+   verification hook strips each registration challenge to the racer's ID.
+3. Each credential belongs to one racer (`passkeys.credential_id` is unique).
+   A passkey is a login method: our route lists and removes it under the
+   last-method rule, and the plugin's delete, list, and rename routes are off.
 
 ## Course Revision Flow
 
@@ -138,12 +181,28 @@ same identity, role, and request-guard boundaries; see the
 - Guest racing and the existing product UI do not require a database session.
 - Secrets and connection strings remain outside version control.
 - OAuth provider token material is not retained in Postgres.
-- Anonymization removes sessions, provider credentials, wallets, privileged
-  roles, leaderboard bests, and profile PII while retaining only
-  the opaque user ID needed for attribution.
+- Anonymization removes sessions, provider credentials, wallets, passkeys and
+  their pending challenges, privileged roles, leaderboard bests, and profile
+  PII while retaining only the opaque user ID needed for attribution.
+  `db:anonymize-user` finds a racer by email, wallet, or username.
+- Racers never merge. Results, bests, and authorship point to the racer ID,
+  never the username, so usernames could become changeable later; today
+  migration 0012's trigger keeps them fixed and ghost links name them.
+- Sessions store no IP address or user agent: new ones never do, migration
+  0026 cleared existing ones, and renewal clears any an earlier build wrote.
+- Better Auth's limiter counts only exact sign-in paths, in Postgres so every
+  instance shares it (production only): 10 new browser racers per network an
+  hour, 10 wallet nonce or passkey options requests a minute, and Better
+  Auth's defaults for Google, wallet, and passkey sign-in. Every other path,
+  unknown ones included, writes no row; `/siwe/get-nonce` is disabled. A
+  count resets a full window after the last request it allowed.
+- `rate_limits` rows hold the client IP (an IPv6 address by its /64 network)
+  with the path, a count, and a time, tied to no racer. Expired rows are
+  deleted only when a later counted request renews an expired bucket, so on
+  a quiet site they can stay longer than their window.
 - A login method never moves between racers, and the last one cannot be
-  unlinked. Database triggers refuse new sessions, login methods, and wallets
-  for anonymized racers, so a sign-in or Google link racing anonymization
+  unlinked. Database triggers refuse new sessions, login methods, wallets, and
+  passkeys for anonymized racers, so a sign-in or Google link racing anonymization
   cannot restore one.
 - Course documents contain no revision IDs, author IDs, timestamps, or other
   database metadata.
@@ -160,11 +219,20 @@ same identity, role, and request-guard boundaries; see the
 ## Verification
 
 - `tests/auth-configuration.spec.ts` covers the environment-independent Google
-  account-selection policy.
+  account-selection policy and the no-merge, no-delete anonymous plugin
+  settings.
+- `tests/browser-racers.spec.ts` covers starting a racer in this browser, its
+  400-day cookie, refusals while signed in, sign-ins that can't replace it,
+  keeping it with a wallet, and the database-backed limiter.
+- `tests/passkeys.spec.ts` drives the real passkey endpoints with a software
+  authenticator (the test host `127.0.0.1` is not a valid browser RP ID):
+  adding, signing in, replay and cross-racer refusal, a foreign origin, the
+  last-method rule, the limiter, challenge contents, and anonymization.
 - `tests/wallet-login.spec.ts` covers wallet sign-in and rejection, linking,
   unlinking, Google link initiation, and anonymization by wallet with real
-  signatures; `tests/profile.spec.ts` covers the wallet chooser and the
-  login-method list.
+  signatures; `tests/profile.spec.ts` covers the wallet chooser, the
+  login-method list, the browser-racer warning and sign-out confirmation, and
+  the passkey buttons with stubbed device prompts.
 - `tests/course-persistence.spec.ts` covers default roles, role denial and
   approval, real Better Auth sessions, protected API load/save, Google OAuth
   initiation including the generated account-selection parameter, immutable
@@ -179,6 +247,13 @@ same identity, role, and request-guard boundaries; see the
 
 - [Better Auth Google provider: Always ask to select an account](https://better-auth.com/docs/authentication/google#always-ask-to-select-an-account)
   defines the server-side `prompt: "select_account"` configuration used here.
+- [Better Auth anonymous plugin](https://better-auth.com/docs/plugins/anonymous),
+  [passkey plugin](https://better-auth.com/docs/plugins/passkey), and the
+  [1.7 upgrade guide](https://better-auth.com/docs/guides/1-7-upgrade-guide);
+  passkeys need 1.7.16 for the
+  [GHSA-gv75-j3v8-3crm](https://github.com/better-auth/better-auth/security/advisories/GHSA-gv75-j3v8-3crm)
+  fix. [WebAuthn Level 3](https://www.w3.org/TR/webauthn-3/) defines RP IDs and
+  user handles.
 - [EIP-4361 (Sign-In with Ethereum)](https://eips.ethereum.org/EIPS/eip-4361)
   and [EIP-6963 (multi-wallet discovery)](https://eips.ethereum.org/EIPS/eip-6963)
   define the message and wallet discovery used for wallet login.
@@ -187,6 +262,12 @@ same identity, role, and request-guard boundaries; see the
 
 - Not supported: WalletConnect, smart-contract wallets, ENS, embedded wallets,
   and on-chain actions. Unlinking does not end that method's live sessions.
+- Not supported: merging racers (planned as PR 6.3), passkey-first sign-up,
+  passkey autofill, email or password login, and pruning abandoned browser
+  racers.
+- Passkeys belong to one hostname. Changing the production domain would lock
+  out racers whose only method is a passkey, and passkeys made on the QA host
+  work only there.
 - Automated Neon preview branches and production deployment migrations are not
   configured. Production migration is currently a deliberate laptop operation.
 - The early hosted preview may share the production database by explicit

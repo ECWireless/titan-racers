@@ -14,7 +14,6 @@ type Eip1193Provider = {
 export type BrowserWallet = { id: string; name: string; provider: Eip1193Provider };
 
 export type SignedWalletMessage = {
-  address: `0x${string}`;
   message: string;
   signature: string;
 };
@@ -89,7 +88,7 @@ export async function signWalletMessage(
   const address = getAddress(accounts[0]);
 
   const nonceResponse = await fetch("/api/auth/siwe/nonce", {
-    body: JSON.stringify({ chainId: SIWE_CHAIN_ID, walletAddress: address }),
+    body: "{}",
     credentials: "include",
     headers: { "content-type": "application/json" },
     method: "POST",
@@ -119,5 +118,5 @@ export async function signWalletMessage(
         address,
       ]),
     );
-  return { address, message, signature };
+  return { message, signature };
 }

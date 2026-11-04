@@ -15,8 +15,10 @@ export type AuthorizationResult =
   | { authorized: true; userId: string }
   | { authorized: false; status: 401 | 403 | 428 | 503 };
 
+// Only Better Auth's own responses renew a session, since they renew the
+// cookie with it.
 const resolveSession: SessionResolver = (headers) =>
-  auth.api.getSession({ headers });
+  auth.api.getSession({ headers, query: { disableRefresh: true } });
 
 export async function authorizeRole(
   request: Request,

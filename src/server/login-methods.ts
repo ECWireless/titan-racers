@@ -1,11 +1,17 @@
 import { randomUUID } from "node:crypto";
 
-import { and, asc, eq, sql } from "drizzle-orm";
+import { getAuthenticatorName } from "@better-auth/passkey";
+import { and, eq, sql } from "drizzle-orm";
 import { getAddress } from "viem";
-import { parseSiweMessage, validateSiweMessage } from "viem/siwe";
+import {
+  createSiweMessage,
+  parseSiweMessage,
+  type SiweMessage,
+  validateSiweMessage,
+} from "viem/siwe";
 
 import { db } from "@/db/client";
-import { accounts, users, walletAddresses } from "@/db/schema";
+import { accounts, passkeys, users, walletAddresses } from "@/db/schema";
 import { auth } from "@/lib/auth";
 import {
   SIWE_CHAIN_ID,
@@ -15,7 +21,7 @@ import {
 
 export type LoginMethod = {
   id: string;
-  kind: "google" | "wallet";
+  kind: "google" | "passkey" | "wallet";
   label: string;
 };
 
@@ -29,43 +35,87 @@ function walletAddressOf(accountId: string) {
 }
 
 export async function listLoginMethods(userId: string): Promise<LoginMethod[]> {
-  const rows = await db
-    .select({
-      accountId: accounts.accountId,
-      id: accounts.id,
-      providerId: accounts.providerId,
-    })
-    .from(accounts)
-    .where(eq(accounts.userId, userId))
-    .orderBy(asc(accounts.createdAt));
-  return rows.map(({ accountId, id, providerId }) => {
-    if (providerId !== "siwe") return { id, kind: "google", label: "Google" };
-    const address = walletAddressOf(accountId);
-    return {
+  const [accountRows, passkeyRows] = await Promise.all([
+    db
+      .select({
+        accountId: accounts.accountId,
+        createdAt: accounts.createdAt,
+        id: accounts.id,
+        providerId: accounts.providerId,
+      })
+      .from(accounts)
+      .where(eq(accounts.userId, userId)),
+    db
+      .select({
+        aaguid: passkeys.aaguid,
+        createdAt: passkeys.createdAt,
+        id: passkeys.id,
+      })
+      .from(passkeys)
+      .where(eq(passkeys.userId, userId)),
+  ]);
+  return [
+    ...accountRows.map(({ accountId, createdAt, id, providerId }) => {
+      if (providerId !== "siwe") {
+        return { createdAt, id, kind: "google" as const, label: "Google" };
+      }
+      const address = walletAddressOf(accountId);
+      return {
+        createdAt,
+        id,
+        kind: "wallet" as const,
+        label: `${address.slice(0, 6)}…${address.slice(-4)}`,
+      };
+    }),
+    ...passkeyRows.map(({ aaguid, createdAt, id }) => ({
+      createdAt,
       id,
-      kind: "wallet",
-      label: `${address.slice(0, 6)}…${address.slice(-4)}`,
-    };
-  });
+      kind: "passkey" as const,
+      // The password manager holding it, when its model is known.
+      label: getAuthenticatorName(aaguid ?? undefined) ?? "Passkey",
+    })),
+  ]
+    .sort((a, b) => (a.createdAt?.getTime() ?? 0) - (b.createdAt?.getTime() ?? 0))
+    // Passkeys with the same label are numbered so each can be told apart.
+    .map(({ id, kind, label }, _index, methods) => {
+      if (kind !== "passkey") return { id, kind, label };
+      const twins = methods.filter((method) => method.label === label);
+      const numbered =
+        twins.length > 1
+          ? `${label} ${twins.findIndex((method) => method.id === id) + 1}`
+          : label;
+      return {
+        id,
+        kind,
+        label: label === "Passkey" ? numbered : `Passkey · ${numbered}`,
+      };
+    });
 }
 
 // Better Auth's SIWE verify signs in as the wallet's racer and ignores the
 // session, so linking checks the same nonce and message itself.
 export async function linkWallet(
   userId: string,
-  input: { message: string; signature: string; walletAddress: string },
+  input: { message: string; signature: string },
 ) {
+  const message = parseSiweMessage(input.message);
   let address: `0x${string}`;
   try {
-    address = getAddress(input.walletAddress);
+    address = getAddress(message.address ?? "");
+    // Only a canonical message counts: with a repeated field, viem and the
+    // plugin could each read a different nonce from one signature.
+    if (createSiweMessage(message as SiweMessage) !== input.message) {
+      throw new WalletNotVerifiedError();
+    }
   } catch {
     throw new WalletNotVerifiedError();
   }
+  if (!message.nonce) throw new WalletNotVerifiedError();
   const context = await auth.$context;
+  // The plugin stores each nonce under itself, not the wallet.
   const verification = await context.internalAdapter.consumeVerificationValue(
-    `siwe:${address}:${SIWE_CHAIN_ID}`,
+    `siwe:${message.nonce}`,
   );
-  const message = parseSiweMessage(input.message);
   if (
     !verification ||
     message.chainId !== SIWE_CHAIN_ID ||
@@ -113,11 +163,11 @@ export async function linkWallet(
   });
 }
 
-// Removes a login method unless it is the racer's last. A wallet's SIWE row
-// goes with its account, or the plugin would still sign it in, and a
-// placeholder email built from the wallet goes too, or the wallet could never
-// create a new racer.
-export async function unlinkLoginMethod(userId: string, accountRowId: string) {
+// Removes a login method unless it is the racer's last; passkeys count. A
+// wallet's SIWE row goes with its account, or the plugin would still sign it
+// in, and a placeholder email built from the wallet goes too, or the wallet
+// could never create a new racer.
+export async function unlinkLoginMethod(userId: string, methodId: string) {
   await db.transaction(async (transaction) => {
     await transaction.execute(
       sql`select 1 from ${users} where ${users.id} = ${userId} for update`,
@@ -130,9 +180,20 @@ export async function unlinkLoginMethod(userId: string, accountRowId: string) {
       })
       .from(accounts)
       .where(eq(accounts.userId, userId));
-    const method = methods.find(({ id }) => id === accountRowId);
-    if (!method) throw new LoginMethodNotFoundError();
-    if (methods.length <= 1) throw new LastLoginMethodError();
+    const userPasskeys = await transaction
+      .select({ id: passkeys.id })
+      .from(passkeys)
+      .where(eq(passkeys.userId, userId));
+    const passkeyMethod = userPasskeys.find(({ id }) => id === methodId);
+    const method = methods.find(({ id }) => id === methodId);
+    if (!method && !passkeyMethod) throw new LoginMethodNotFoundError();
+    if (methods.length + userPasskeys.length <= 1) {
+      throw new LastLoginMethodError();
+    }
+    if (!method) {
+      await transaction.delete(passkeys).where(eq(passkeys.id, methodId));
+      return;
+    }
 
     await transaction.delete(accounts).where(eq(accounts.id, method.id));
     if (method.providerId === "siwe") {

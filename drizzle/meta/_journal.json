@@ -183,6 +183,20 @@
       "when": 1793736048743,
       "tag": "0025_leaderboards_across_publications",
       "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "7",
+      "when": 1793764191282,
+      "tag": "0026_browser_racers",
+      "breakpoints": true
+    },
+    {
+      "idx": 27,
+      "version": "7",
+      "when": 1793768241364,
+      "tag": "0027_passkeys",
+      "breakpoints": true
     }
   ]
 }

@@ -13,7 +13,13 @@ import {
 import { GET as getProfile } from "../src/app/api/profile/route";
 import { db } from "../src/db/client";
 
-import { accounts, sessions, users, walletAddresses } from "../src/db/schema";
+import {
+  accounts,
+  sessions,
+  users,
+  verifications,
+  walletAddresses,
+} from "../src/db/schema";
 import { SIWE_CHAIN_ID } from "../src/lib/siwe";
 import { anonymizeUserByWallet } from "../src/server/user-anonymization";
 import { testAuth } from "./support/test-auth";
@@ -48,10 +54,7 @@ async function signedWalletBody(
     signer = wallet,
   }: { chainId?: number; domain?: string; signer?: Wallet } = {},
 ) {
-  const nonceResponse = await authPost("/siwe/nonce", {
-    chainId,
-    walletAddress: wallet.address,
-  });
+  const nonceResponse = await authPost("/siwe/nonce", {});
   expect(nonceResponse.status).toBe(200);
   const { nonce } = (await nonceResponse.json()) as { nonce: string };
   const message = createSiweMessage({
@@ -63,12 +66,7 @@ async function signedWalletBody(
     uri: ORIGIN,
     version: "1",
   });
-  return {
-    chainId,
-    message,
-    signature: await signer.signMessage({ message }),
-    walletAddress: wallet.address,
-  };
+  return { message, signature: await signer.signMessage({ message }) };
 }
 
 function sessionCookie(response: Response) {
@@ -88,11 +86,6 @@ function loginMethodsRequest(method: "DELETE" | "POST", cookie: string, body: un
     headers: { "content-type": "application/json", cookie, origin: ORIGIN },
     method,
   });
-}
-
-async function linkBody(wallet: Wallet) {
-  const { message, signature, walletAddress } = await signedWalletBody(wallet);
-  return { message, signature, walletAddress };
 }
 
 // A Google-first racer with a live session.
@@ -168,6 +161,8 @@ test.describe("wallet login", () => {
     const wallet = newWallet();
 
     const replayed = await signedWalletBody(wallet);
+    // Its unused alias, which the limiter doesn't count, is off.
+    expect((await authPost("/siwe/get-nonce", {})).status).toBe(404);
     expect((await authPost("/siwe/verify", replayed)).status).toBe(200);
     expect((await authPost("/siwe/verify", replayed)).status).toBe(401);
 
@@ -191,6 +186,14 @@ test.describe("wallet login", () => {
     const wallet = newWallet();
     const response = await authPost("/siwe/verify", await signedWalletBody(wallet));
     const { user } = (await response.json()) as { user: { id: string } };
+    // Better Auth 1.6 named nonces after the wallet.
+    const legacyNonce = `siwe:${wallet.address}:${SIWE_CHAIN_ID}`;
+    await db.insert(verifications).values({
+      expiresAt: new Date(Date.now() - 60_000),
+      id: randomUUID(),
+      identifier: legacyNonce,
+      value: "abcdefgh12345678",
+    });
 
     await expect(
       anonymizeUserByWallet(wallet.address.toLowerCase()),
@@ -200,6 +203,12 @@ test.describe("wallet login", () => {
         db.select().from(table).where(eq(table.userId, user.id)),
       ).resolves.toEqual([]);
     }
+    await expect(
+      db
+        .select()
+        .from(verifications)
+        .where(eq(verifications.identifier, legacyNonce)),
+    ).resolves.toEqual([]);
     const [anonymized] = await db
       .select({ email: users.email, name: users.name })
       .from(users)
@@ -240,7 +249,7 @@ test.describe("wallet login", () => {
   test("links a wallet to the signed-in racer, never to another racer", async () => {
     const racer = await googleRacer();
     const wallet = newWallet();
-    const body = await linkBody(wallet);
+    const body = await signedWalletBody(wallet);
 
     const linked = await postLoginMethod(
       loginMethodsRequest("POST", racer.cookie, body),
@@ -265,7 +274,7 @@ test.describe("wallet login", () => {
 
     const other = await authPost("/siwe/verify", await signedWalletBody(newWallet()));
     const taken = await postLoginMethod(
-      loginMethodsRequest("POST", sessionCookie(other), await linkBody(wallet)),
+      loginMethodsRequest("POST", sessionCookie(other), await signedWalletBody(wallet)),
     );
     expect(taken.status).toBe(409);
     await expect(
@@ -276,11 +285,43 @@ test.describe("wallet login", () => {
     ).resolves.toEqual([{ userId: racer.id }]);
   });
 
+  test("links only a canonical, unused message signed by the wallet", async () => {
+    const racer = await googleRacer();
+    const wallet = newWallet();
+    const link = (body: unknown) =>
+      postLoginMethod(loginMethodsRequest("POST", racer.cookie, body));
+
+    // Sign-in gives this wallet its own racer; its nonce is then spent.
+    const usedAtSignIn = await signedWalletBody(newWallet());
+    expect((await authPost("/siwe/verify", usedAtSignIn)).status).toBe(200);
+    // A repeated Nonce field, where viem and the plugin read different nonces.
+    const { nonce: second } = (await (await authPost("/siwe/nonce", {})).json()) as {
+      nonce: string;
+    };
+    const canonical = await signedWalletBody(wallet);
+    const repeated = `${canonical.message}\nNonce: ${second}`;
+    for (const body of [
+      usedAtSignIn,
+      await signedWalletBody(wallet, { signer: newWallet() }),
+      await signedWalletBody(wallet, { domain: "evil.example" }),
+      await signedWalletBody(wallet, { chainId: 10 }),
+      { message: repeated, signature: await wallet.signMessage({ message: repeated }) },
+    ]) {
+      expect((await link(body)).status).toBe(401);
+    }
+    await expect(
+      db
+        .select()
+        .from(walletAddresses)
+        .where(eq(walletAddresses.userId, racer.id)),
+    ).resolves.toEqual([]);
+  });
+
   test("unlinks while another login method remains", async () => {
     const racer = await googleRacer();
     const wallet = newWallet();
     const linked = await postLoginMethod(
-      loginMethodsRequest("POST", racer.cookie, await linkBody(wallet)),
+      loginMethodsRequest("POST", racer.cookie, await signedWalletBody(wallet)),
     );
     const [google, walletMethod] = ((await linked.json()) as LoginMethodsBody)
       .loginMethods;

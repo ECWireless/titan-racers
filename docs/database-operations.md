@@ -209,6 +209,18 @@ written, that wallet keeps failing to sign in; anonymize the half-created
 racer with `--email <address>@wallet.invalid` (lowercase, below), then sign in
 again.
 
+## Racers Kept In This Browser And Passkeys
+
+Both need no keys or environment variables beyond `BETTER_AUTH_URL`; the
+[identity system](../skills/project-systems/identity-course-persistence/README.md)
+describes them. Passkeys belong to `BETTER_AUTH_URL`'s hostname
+(`play.titanracers.com` in production): changing it locks out racers whose
+only method is a passkey, and passkeys made on a QA host work only there.
+Sign-in rate limits are counted in the `rate_limits` table in production only;
+its rows hold client IPs, tied to no racer. After deploying, check its keys
+start with real addresses rather than `no-trusted-ip`, which would mean the
+host sent more than one address in `x-forwarded-for`.
+
 ## First Admin Bootstrap
 
 Google login authenticates an identity but does not grant administrative
@@ -233,16 +245,21 @@ From a trusted machine, anonymize an account with:
 ```bash
 corepack pnpm db:anonymize-user --email account@example.com
 corepack pnpm db:anonymize-user --wallet 0x0000000000000000000000000000000000000000
+corepack pnpm db:anonymize-user --username racer_name
 ```
 
-A wallet-first racer has no real email, so it is found by any linked wallet.
+A wallet-first racer has no real email, so it is found by any linked wallet,
+and a racer kept in one browser has neither, so it is found by username. A
+racer who started in one browser keeps its placeholder email even after
+linking Google, so when an email lookup finds no one, ask for the username.
 This transaction deletes sessions, linked provider accounts, wallets and
-their sign-in nonces, and leaderboard bests with their ghosts, removes
+their sign-in nonces, passkeys and their pending challenges, and leaderboard
+bests with their ghosts, removes
 privileged roles, clears the profile image and verification state,
 and replaces the name and email with non-personal tombstone values. The
 opaque user row and baseline player role remain so immutable course
-revisions and race results keep referential integrity. The supplied email or
-wallet and real profile values are never written to documentation or logs.
+revisions and race results keep referential integrity. The supplied email,
+wallet, or username and real profile values are never written to documentation or logs.
 
 ## Official Course Seed Reset
 

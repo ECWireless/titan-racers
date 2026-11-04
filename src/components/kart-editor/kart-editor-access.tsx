@@ -14,6 +14,7 @@ import {
   OFFICIAL_KART_IDS,
   type OfficialKartId,
 } from "@/game/kart/official-kart-roster";
+import { switchingAccountsBlocker } from "@/lib/browser-racer";
 import { racerOnboardingPath } from "@/lib/racer-username";
 
 import { KartEditorShell } from "./kart-editor-shell";
@@ -96,6 +97,14 @@ export function KartEditorAccess({ kartId }: { kartId: string }) {
   }: { replaceCurrentSession?: boolean } = {}) {
     setSignInPending(true);
     try {
+      const blocker = replaceCurrentSession
+        ? await switchingAccountsBlocker()
+        : null;
+      if (blocker) {
+        setAccessState({ message: blocker, status: "error" });
+        setSignInPending(false);
+        return;
+      }
       if (replaceCurrentSession) {
         const signOutResponse = await fetch("/api/auth/sign-out", {
           body: JSON.stringify({}),
@@ -300,7 +309,7 @@ function AccessMessage({ accessState }: { accessState: AccessState }) {
   if (accessState.status === "onboarding-required") {
     return (
       <p className="border border-titan-hazard/35 bg-titan-hazard/[0.06] px-4 py-3 text-sm text-titan-ice/78">
-        Choose your permanent racer username before opening protected tools.
+        Choose your racer username before opening protected tools.
       </p>
     );
   }

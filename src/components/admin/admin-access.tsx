@@ -14,6 +14,7 @@ import {
   SignOutIcon,
   TelemetryIcon,
 } from "@/components/menu-icons";
+import { switchingAccountsBlocker } from "@/lib/browser-racer";
 import { racerOnboardingPath } from "@/lib/racer-username";
 
 const REPORTING_RANGES: Array<{ label: string; value: GameplayDashboardRange }> = [
@@ -95,6 +96,14 @@ export function useAdminSession<T>(
   }: { replaceCurrentSession?: boolean } = {}) {
     setSignInPending(true);
     try {
+      const blocker = replaceCurrentSession
+        ? await switchingAccountsBlocker()
+        : null;
+      if (blocker) {
+        setAccessState({ message: blocker, status: "error" });
+        setSignInPending(false);
+        return;
+      }
       if (replaceCurrentSession) await signOutRequest();
       const response = await fetch("/api/auth/sign-in/social", {
         body: JSON.stringify({
@@ -155,7 +164,7 @@ export function ProtectedAdminAccess({
       : accessState.status === "unauthenticated"
         ? "Sign in with an approved admin account to continue."
         : accessState.status === "onboarding-required"
-          ? "Choose your permanent racer username before opening protected tools."
+          ? "Choose your racer username before opening protected tools."
           : accessState.status === "forbidden"
             ? "This account does not have admin access."
             : accessState.message;

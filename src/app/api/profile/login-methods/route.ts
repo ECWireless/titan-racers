@@ -15,7 +15,6 @@ import { sessionUserIdOrResponse } from "@/server/session-user";
 const linkWalletSchema = z.strictObject({
   message: z.string().min(1).max(2_000),
   signature: z.string().min(1).max(1_000),
-  walletAddress: z.string(),
 });
 const unlinkSchema = z.strictObject({ id: z.string().min(1).max(200) });
 
