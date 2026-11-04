@@ -1,3 +1,4 @@
+import { parseReportingTimeZone } from "@/game/telemetry/admin-overview";
 import {
   gameplayDashboardSchema,
   gameplayDashboardRangeSchema,
@@ -11,7 +12,7 @@ import { loadGameplayDashboard } from "@/server/gameplay-dashboard-repository";
 
 type DashboardDependencies = {
   authorize?: typeof authorizeRole;
-  load?: (range: GameplayDashboardRange) => Promise<unknown>;
+  load?: (range: GameplayDashboardRange, timeZone: string) => Promise<unknown>;
 };
 
 export async function getTelemetryDashboard(
@@ -25,15 +26,17 @@ export async function getTelemetryDashboard(
     return authorizationErrorResponse(authorization.status);
   }
 
+  const params = new URL(request.url).searchParams;
   const parsedRange = gameplayDashboardRangeSchema.safeParse(
-    new URL(request.url).searchParams.get("range") ?? "7d",
+    params.get("range") ?? "7d",
   );
-  if (!parsedRange.success) {
-    return Response.json({ error: "Invalid telemetry range." }, { status: 400 });
+  const timeZone = parseReportingTimeZone(params.get("tz") ?? "UTC");
+  if (!parsedRange.success || !timeZone) {
+    return Response.json({ error: "Invalid range or time zone." }, { status: 400 });
   }
 
   const dashboard = gameplayDashboardSchema.safeParse(
-    await load(parsedRange.data),
+    await load(parsedRange.data, timeZone),
   );
   if (!dashboard.success) {
     return Response.json(

@@ -12,15 +12,7 @@ import {
   gameplayRunFailureCodeSchema,
   ghostRacedSchema,
 } from "@/game/telemetry/gameplay-run-events";
-
-function rangeStart(range: GameplayDashboardRange, now: Date) {
-  if (range === "all") {
-    return null;
-  }
-
-  const days = range === "7d" ? 7 : 30;
-  return new Date(now.getTime() - days * 24 * 60 * 60 * 1_000);
-}
+import { loadRangeStart } from "@/server/admin-overview-repository";
 
 /**
  * Sign-ups by the login method each racer joined with (their first login
@@ -66,9 +58,11 @@ async function loadSoloPlayAccounts(since: Date | null): Promise<SoloPlayAccount
 
 export async function loadGameplayDashboard(
   range: GameplayDashboardRange,
+  timeZone = "UTC",
   now = new Date(),
 ) {
-  const since = rangeStart(range, now);
+  // The overview's calendar days, so the two pages' totals agree.
+  const since = await loadRangeStart(range, timeZone, now);
   const query = db
     .select({
       automaticPauseCount: gameplayRuns.automaticPauseCount,
