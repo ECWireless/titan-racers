@@ -89,7 +89,7 @@ export async function signWalletMessage(
   const address = getAddress(accounts[0]);
 
   const nonceResponse = await fetch("/api/auth/siwe/nonce", {
-    body: JSON.stringify({ chainId: SIWE_CHAIN_ID, walletAddress: address }),
+    body: "{}",
     credentials: "include",
     headers: { "content-type": "application/json" },
     method: "POST",

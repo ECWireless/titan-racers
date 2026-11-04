@@ -311,10 +311,7 @@ test.describe("racer onboarding and profile", () => {
       );
     });
     await page.route("**/api/auth/siwe/nonce", async (route) => {
-      expect(route.request().postDataJSON()).toEqual({
-        chainId: 8453,
-        walletAddress,
-      });
+      expect(route.request().postDataJSON()).toEqual({});
       await route.fulfill({
         body: JSON.stringify({ nonce: "abcdefgh12345678" }),
         contentType: "application/json",
@@ -336,10 +333,9 @@ test.describe("racer onboarding and profile", () => {
     await expect(testWallet).toBeFocused();
     await testWallet.click();
     await expect(page.getByLabel("Username")).toHaveValue("racer4821");
-    expect(verifyBody).toMatchObject({
-      chainId: 8453,
+    expect(verifyBody).toEqual({
+      message: expect.any(String),
       signature: "0xabc123",
-      walletAddress,
     });
     expect(verifyBody?.message).toContain(
       `${new URL(page.url()).host} wants you to sign in with your Ethereum account:\n${walletAddress}`,

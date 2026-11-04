@@ -23,7 +23,6 @@ import {
   RACER_USERNAME_REQUIREMENTS,
   safeRacerReturnTo,
 } from "@/lib/racer-username";
-import { SIWE_CHAIN_ID } from "@/lib/siwe";
 
 const loginMethodsSchema = z.array(
   z.strictObject({
@@ -305,10 +304,8 @@ export function ProfileAccess({
           : "/api/profile/login-methods",
         {
           body: JSON.stringify({
-            ...(purpose === "sign-in" ? { chainId: SIWE_CHAIN_ID } : {}),
             message: signed.message,
             signature: signed.signature,
-            walletAddress: signed.address,
           }),
           credentials: "include",
           headers: { "content-type": "application/json" },

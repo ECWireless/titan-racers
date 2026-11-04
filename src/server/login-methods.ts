@@ -2,7 +2,12 @@ import { randomUUID } from "node:crypto";
 
 import { and, asc, eq, sql } from "drizzle-orm";
 import { getAddress } from "viem";
-import { parseSiweMessage, validateSiweMessage } from "viem/siwe";
+import {
+  createSiweMessage,
+  parseSiweMessage,
+  type SiweMessage,
+  validateSiweMessage,
+} from "viem/siwe";
 
 import { db } from "@/db/client";
 import { accounts, users, walletAddresses } from "@/db/schema";
@@ -53,19 +58,26 @@ export async function listLoginMethods(userId: string): Promise<LoginMethod[]> {
 // session, so linking checks the same nonce and message itself.
 export async function linkWallet(
   userId: string,
-  input: { message: string; signature: string; walletAddress: string },
+  input: { message: string; signature: string },
 ) {
+  const message = parseSiweMessage(input.message);
   let address: `0x${string}`;
   try {
-    address = getAddress(input.walletAddress);
+    address = getAddress(message.address ?? "");
+    // Only a canonical message counts: with a repeated field, viem and the
+    // plugin could each read a different nonce from one signature.
+    if (createSiweMessage(message as SiweMessage) !== input.message) {
+      throw new WalletNotVerifiedError();
+    }
   } catch {
     throw new WalletNotVerifiedError();
   }
+  if (!message.nonce) throw new WalletNotVerifiedError();
   const context = await auth.$context;
+  // The plugin stores each nonce under itself, not the wallet.
   const verification = await context.internalAdapter.consumeVerificationValue(
-    `siwe:${address}:${SIWE_CHAIN_ID}`,
+    `siwe:${message.nonce}`,
   );
-  const message = parseSiweMessage(input.message);
   if (
     !verification ||
     message.chainId !== SIWE_CHAIN_ID ||

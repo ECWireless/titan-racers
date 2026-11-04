@@ -64,6 +64,9 @@ async function anonymizeUser(transaction: Transaction, userId: string) {
   // Leaderboard bests and ghosts go; results stay under the opaque ID.
   await transaction.delete(boardBests).where(eq(boardBests.userId, userId));
   await transaction.delete(accounts).where(eq(accounts.userId, userId));
+  // Better Auth 1.6 keyed wallet nonces by address (`siwe:<address>:<chain>`),
+  // and expired rows can linger, so rows from before 1.7 may still name the
+  // wallet. 1.7 keys nonces by the nonce alone.
   await transaction
     .delete(verifications)
     .where(

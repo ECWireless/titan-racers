@@ -20,9 +20,9 @@
     "docs:generate-kart-catalog": "tsx scripts/generate-kart-catalog.ts"
   },
   "dependencies": {
-    "@better-auth/drizzle-adapter": "^1.6.23",
+    "@better-auth/drizzle-adapter": "^1.7.16",
     "@vercel/analytics": "^2.0.1",
-    "better-auth": "^1.6.23",
+    "better-auth": "^1.7.16",
     "dotenv": "^17.4.2",
     "drizzle-orm": "^0.45.2",
     "next": "^16.2.6",
@@ -31,7 +31,7 @@
     "react": "^19.2.6",
     "react-dom": "^19.2.6",
     "viem": "^2.57.14",
-    "zod": "^4.4.3"
+    "zod": "^4.6.7"
   },
   "devDependencies": {
     "@playwright/test": "^1.61.1",
