@@ -33,9 +33,14 @@ async function isRecordableRaceIdentity(identity: GameplayRaceIdentity) {
   return course && kart;
 }
 
+/**
+ * Records one milestone. A start by a signed-in racer (`userId` from the
+ * server session) is attributed to them; later events never change that.
+ */
 export async function recordGameplayRunEvent(
   event: GameplayRunEvent,
   receivedAt = new Date(),
+  userId: string | null = null,
 ) {
   if (event.type === "run_started") {
     const identified = event.schemaVersion === 3 ? event : null;
@@ -45,6 +50,8 @@ export async function recordGameplayRunEvent(
     const inserted = await db
       .insert(gameplayRuns)
       .values({
+        attribution: userId ? "authenticated" : "guest",
+        userId,
         courseId: event.courseId,
         courseRevision: identified?.courseRevision ?? null,
         kartId: identified?.kartId ?? null,

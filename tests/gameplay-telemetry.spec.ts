@@ -32,6 +32,7 @@ import {
   saveKartRevision,
 } from "../src/server/kart-repository";
 import { recordGameplayRunEvent } from "../src/server/gameplay-telemetry-repository";
+import { signedInUserIdOrNull } from "../src/server/session-user";
 import { CURRENT_PHYSICS_VERSION } from "../src/game/physics/physics-version";
 import { createBundledOfficialKartRoster } from "../src/game/kart/official-kart-roster";
 
@@ -427,6 +428,60 @@ test.describe("gameplay telemetry routes", () => {
     ).toBe(400);
     expect((await postGameplayRun(requestFor(valid), record)).status).toBe(201);
     expect(recorded).toHaveLength(1);
+  });
+
+  test("attributes only a run start, to the racer the server session names", async () => {
+    const recorded: Array<{ type: string; userId: string | null }> = [];
+    const record = async (
+      event: GameplayRunEvent,
+      _receivedAt?: Date,
+      userId: string | null = null,
+    ) => {
+      recorded.push({ type: event.type, userId });
+      return "updated" as const;
+    };
+    const sessionLookups: string[] = [];
+    const signedIn = async (request: Request) => {
+      sessionLookups.push(request.url);
+      return "session-racer";
+    };
+    const runId = randomUUID();
+
+    await postGameplayRun(
+      requestFor({ courseId: "rough-course", runId, schemaVersion: 1, type: "run_started" }),
+      record,
+      signedIn,
+    );
+    await postGameplayRun(
+      requestFor({ runId, schemaVersion: 3, type: "run_shared" }),
+      record,
+      signedIn,
+    );
+    await postGameplayRun(
+      requestFor({ courseId: "rough-course", runId, schemaVersion: 1, type: "run_started" }),
+      record,
+      async () => null,
+    );
+
+    expect(sessionLookups).toHaveLength(1);
+    expect(recorded).toEqual([
+      { type: "run_started", userId: "session-racer" },
+      { type: "run_shared", userId: null },
+      { type: "run_started", userId: null },
+    ]);
+  });
+
+  test("treats a start without a valid session as a guest's", async () => {
+    const noCookie = requestFor({});
+    const junkCookie = requestFor({}, {
+      headers: {
+        "content-type": "application/json",
+        cookie: "better-auth.session_token=forged.value",
+        origin: ORIGIN,
+      },
+    });
+    expect(await signedInUserIdOrNull(noCookie)).toBeNull();
+    expect(await signedInUserIdOrNull(junkCookie)).toBeNull();
   });
 
   test("protects dashboard reads with the database-backed role boundary", async () => {
@@ -1096,6 +1151,45 @@ test.describe("gameplay telemetry Postgres integration", () => {
       await db
         .delete(gameplayRuns)
         .where(eq(gameplayRuns.id, concurrentRunId));
+    }
+  });
+
+  test("stores a signed-in start as that racer's run, which a later start cannot relabel", async () => {
+    const userId = `telemetry-signed-in-${randomUUID()}`;
+    const signedInRunId = randomUUID();
+    const guestRunId = randomUUID();
+    const start = (runId: string) =>
+      ({ courseId: "rough-course", runId, schemaVersion: 1, type: "run_started" }) as const;
+    const read = async (id: string) =>
+      (
+        await db
+          .select({ attribution: gameplayRuns.attribution, userId: gameplayRuns.userId })
+          .from(gameplayRuns)
+          .where(eq(gameplayRuns.id, id))
+      )[0];
+    try {
+      await db.insert(users).values({
+        email: `${userId}@example.invalid`,
+        emailVerified: true,
+        id: userId,
+        name: "Telemetry signed-in racer",
+      });
+      expect(await recordGameplayRunEvent(start(signedInRunId), new Date(), userId)).toBe(
+        "created",
+      );
+      expect(await recordGameplayRunEvent(start(guestRunId))).toBe("created");
+      // A repeated start, signed in or not, leaves the first attribution.
+      expect(await recordGameplayRunEvent(start(signedInRunId))).toBe("ignored");
+      expect(await recordGameplayRunEvent(start(guestRunId), new Date(), userId)).toBe(
+        "ignored",
+      );
+
+      expect(await read(signedInRunId)).toEqual({ attribution: "authenticated", userId });
+      expect(await read(guestRunId)).toEqual({ attribution: "guest", userId: null });
+    } finally {
+      await db.delete(gameplayRuns).where(eq(gameplayRuns.id, signedInRunId));
+      await db.delete(gameplayRuns).where(eq(gameplayRuns.id, guestRunId));
+      await db.delete(users).where(eq(users.id, userId));
     }
   });
 
