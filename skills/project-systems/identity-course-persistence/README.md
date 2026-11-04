@@ -128,9 +128,12 @@ same identity, role, and request-guard boundaries; see the
 1. The profile of a racer with no login method offers "Already have an
    account? Bring @name into it", and a Google or wallet link that belongs to
    another racer opens the same confirmation. Confirming posts
-   `/api/profile/merge`, which stores a 10-minute request in `verifications`
+   `/api/profile/merge`, which stores a 5-minute request in `verifications`
    for that session (`racer-merge:<sessionId>`), then signs in with Google, a
-   passkey, or a wallet. The live session proves the brought-in racer; the
+   passkey, or a wallet. Cancelling, a passkey or wallet sign-in that doesn't
+   merge, a failed Google start, or this tab coming back from a Google attempt
+   that didn't merge deletes the request (`DELETE /api/profile/merge`); a
+   retry waits for that first. The live session proves the brought-in racer; the
    fresh sign-in proves the other.
 2. When the new session belongs to another racer and the request is live,
    Better Auth's session-create hook runs `mergeRacers()` in one transaction:
@@ -144,8 +147,10 @@ same identity, role, and request-guard boundaries; see the
    everything; racers can be brought in any number of times.
 3. Migration 0028 lets a result change only its user ID, and a run summary's
    user ID move, only for the pair named in the transaction-local
-   `titan.racer_merge` setting. A per-username advisory lock (`lock_racer_username`) keeps a name
-   from being taken between leaving one racer and reaching the other. Former
+   `titan.racer_merge` setting. Any role that can update those tables can set
+   it, so it guards against app bugs, not other database roles. A
+   per-username advisory lock (`lock_racer_username`) keeps a name from being
+   taken between leaving one racer and reaching the other. Former
    usernames can't be claimed, and ghost links and anonymization by username
    find the racer that kept them.
 4. A failed merge moves nothing and raises `RACER_MERGE_FAILED`, which
@@ -226,9 +231,9 @@ same identity, role, and request-guard boundaries; see the
 - Secrets and connection strings remain outside version control.
 - OAuth provider token material is not retained in Postgres.
 - Anonymization removes sessions, provider credentials, wallets, passkeys and
-  their pending challenges, privileged roles, leaderboard bests, former
-  usernames, and profile PII while retaining only the opaque user ID needed
-  for attribution.
+  their pending challenges and merge requests, privileged roles, leaderboard
+  bests, former usernames, and profile PII while retaining only the opaque
+  user ID needed for attribution.
   `db:anonymize-user` finds a racer by email, wallet, or username.
 - Racers merge only explicitly: a racer kept in one browser, with no login
   method, into the racer that signs in there after it asks. Results, bests,

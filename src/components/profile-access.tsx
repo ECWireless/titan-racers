@@ -100,6 +100,23 @@ function writeMergingRacer(username: string | null) {
   }
 }
 
+// A merge sign-in this tab started and didn't finish leaves no request
+// behind for a later sign-in here to use. A new request waits for it, so a
+// slow cancel never removes a retry's.
+let mergeCancelled: Promise<void> = Promise.resolve();
+
+function cancelMergeRequest() {
+  mergeCancelled = fetch("/api/profile/merge", {
+    body: "{}",
+    credentials: "include",
+    headers: { "content-type": "application/json" },
+    method: "DELETE",
+  }).then(
+    () => {},
+    () => {},
+  );
+}
+
 // What a sign-in meant to bring this browser's racer into another did.
 function mergeOutcome(state: ProfileState, broughtIn: string) {
   if (state.status === "loading" || state.status === "error") return null;
@@ -169,9 +186,12 @@ function googleErrorCode() {
 }
 
 function googleLinkErrorMessage(code: string) {
-  return code === "account_already_linked_to_different_user"
-    ? "That Google account is already linked to another account."
-    : "Google could not be linked. Please retry.";
+  if (code === "account_already_linked_to_different_user") {
+    return "That Google account is already linked to another account.";
+  }
+  // A Google sign-in meant to bring this racer in, refused.
+  if (code === "RACER_MERGE_FAILED" || code === "SIGN_OUT_FIRST") return MERGE_FAILED;
+  return "Google could not be linked. Please retry.";
 }
 
 function WalletChooser({
@@ -458,7 +478,24 @@ export function ProfileAccess({
       // says what it did.
       const broughtIn = mode === "profile" ? readMergingRacer() : null;
       if (broughtIn) writeMergingRacer(null);
-      const merged = broughtIn ? mergeOutcome(nextState, broughtIn) : null;
+      // Only this tab's own Google attempt is withdrawn; another tab's may
+      // still be under way.
+      if (
+        broughtIn &&
+        nextState.status === "complete" &&
+        nextState.loginMethods.length === 0
+      ) {
+        cancelMergeRequest();
+      }
+      let merged = broughtIn ? mergeOutcome(nextState, broughtIn) : null;
+      // An error from Google's return means no merge, even if this racer
+      // gained a login method meanwhile. Without one, a racer still kept
+      // only here left Google's page some other way, so nothing was tried.
+      if (errorCode && merged?.kind === "success") {
+        merged = { kind: "error", message: MERGE_FAILED };
+      } else if (!errorCode && merged?.message === MERGE_FAILED) {
+        merged = null;
+      }
       if (carryOn(nextState)) return;
       setProfileState(nextState);
       if (merged) {
@@ -498,13 +535,20 @@ export function ProfileAccess({
     setProfileState(nextState);
     const merged = mergeOutcome(nextState, broughtIn);
     setFeedback(merged);
-    if (merged?.kind === "success") setConfirmingMerge(false);
+    if (merged?.kind === "success") {
+      setConfirmingMerge(false);
+      // The confirmation that held focus is gone.
+      requestAnimationFrame(() =>
+        document.getElementById("login-methods-heading")?.focus(),
+      );
+    }
   }
 
   // Back from Google's page without finishing, nothing is under way.
   useEffect(() => {
     const restored = (event: PageTransitionEvent) => {
       if (!event.persisted) return;
+      if (readMergingRacer()) cancelMergeRequest();
       writeMergingRacer(null);
       setSignInPending(null);
     };
@@ -539,6 +583,7 @@ export function ProfileAccess({
       window.location.assign(payload.url);
     } catch {
       writeMergingRacer(null);
+      if (broughtIn) cancelMergeRequest();
       setFeedback({
         kind: "error",
         message: broughtIn
@@ -565,6 +610,7 @@ export function ProfileAccess({
     const broughtIn = profileState.username;
     setSignInPending(method);
     setFeedback(null);
+    await mergeCancelled;
     try {
       const response = await fetch("/api/profile/merge", {
         body: "{}",
@@ -637,6 +683,9 @@ export function ProfileAccess({
         ),
       });
     } finally {
+      // Once merged this session asked nothing, so only an unfinished
+      // request goes.
+      if (broughtIn) cancelMergeRequest();
       setSignInPending(null);
     }
   }
@@ -768,6 +817,7 @@ export function ProfileAccess({
             : walletFailureMessage(purpose),
       });
     } finally {
+      if (broughtIn) cancelMergeRequest();
       setSignInPending(null);
     }
   }
@@ -1157,6 +1207,7 @@ export function ProfileAccess({
                 <h2
                   className="font-mono text-xs font-bold uppercase tracking-[0.16em] text-titan-muted"
                   id="login-methods-heading"
+                  tabIndex={-1}
                 >
                   Login methods
                 </h2>
@@ -1232,13 +1283,17 @@ export function ProfileAccess({
                       walletChoice === "merge" ? (
                         <WalletChooser
                           wallets={wallets}
-                          onCancel={() => setWalletChoice(null)}
+                          onCancel={() => {
+                            cancelMergeRequest();
+                            setWalletChoice(null);
+                          }}
                           onChoose={(wallet) => void runWalletAction("merge", wallet)}
                         />
                       ) : null
                     }
                     wallets={wallets.length > 0}
                     onCancel={() => {
+                      cancelMergeRequest();
                       setConfirmingMerge(false);
                       requestAnimationFrame(() =>
                         document.getElementById("merge-trigger")?.focus(),

@@ -156,6 +156,7 @@ export const auth = betterAuth({
         !(await hasRacerMergeRequest(current.session.id, current.user.id))
       ) {
         throw new APIError("BAD_REQUEST", {
+          code: "SIGN_OUT_FIRST",
           message: "Sign out of this browser's account first.",
         });
       }
@@ -241,7 +242,12 @@ export const auth = betterAuth({
                 toUserId: session.userId,
               });
             } catch (error) {
-              console.error("Racer merge failed", error);
+              // Query errors carry their parameters, so only the kind is logged.
+              console.error("Racer merge failed", {
+                code: (error as { cause?: { code?: unknown } })?.cause?.code,
+                name: error instanceof Error ? error.name : typeof error,
+                reason: error instanceof RacerMergeError ? error.message : undefined,
+              });
               if (error instanceof RacerMergeError) {
                 await cancelRacerMergeRequest(current.session.id);
               }

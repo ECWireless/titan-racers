@@ -184,7 +184,7 @@ function Overview({
           </Panel>
 
           <Panel
-            note="Races count as signed in from this dashboard's release on; earlier races all show as guest. Sign-ups count each racer by how they joined, or the earliest login method they still have; racers started on one browser count as signed in, and as kept once they add a login method."
+            note="Races count as signed in from this dashboard's release on; earlier races all show as guest. Sign-ups count each racer by how they joined, or the earliest login method they still have; racers started on one browser count as signed in, and as kept once they add a login method or are brought into another racer."
             title="Who's racing"
           >
             <SplitBar

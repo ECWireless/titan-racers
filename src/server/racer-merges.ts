@@ -16,8 +16,9 @@ import {
 } from "@/db/schema";
 
 // A merge runs during the sign-in that proves the other racer, so the
-// request lasts only long enough to finish one.
-const REQUEST_LIFETIME_MS = 10 * 60 * 1000;
+// request lasts only long enough to finish one, and the profile cancels it
+// when that sign-in is abandoned.
+const REQUEST_LIFETIME_MS = 5 * 60 * 1000;
 
 function requestIdentifier(sessionId: string) {
   return `racer-merge:${sessionId}`;

@@ -99,6 +99,11 @@ async function anonymizeUser(transaction: Transaction, userId: string) {
         sql`lower(${verifications.identifier}) = ${email.toLowerCase()}`,
         // Passkey registration challenges name the racer by ID.
         like(verifications.value, `%"userData":{"id":"${userId}"%`),
+        // So do requests to bring it into another racer.
+        and(
+          like(verifications.identifier, "racer-merge:%"),
+          eq(verifications.value, userId),
+        ),
         ...wallets.map(({ address }) =>
           like(verifications.identifier, `siwe:${address}:%`),
         ),

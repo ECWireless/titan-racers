@@ -414,6 +414,8 @@ test.describe("racer onboarding and profile", () => {
   }) => {
     let merged = false;
     let requests = 0;
+    let cancels = 0;
+    const order: string[] = [];
     await page.route(profileApiPattern, async (route) => {
       await route.fulfill({
         body: JSON.stringify(
@@ -429,7 +431,15 @@ test.describe("racer onboarding and profile", () => {
       });
     });
     await page.route("**/api/profile/merge", async (route) => {
-      requests += 1;
+      const method = route.request().method();
+      if (method === "DELETE") {
+        cancels += 1;
+        // A slow cancel still lands before the retry's request.
+        await new Promise((resolve) => setTimeout(resolve, 400));
+      } else {
+        requests += 1;
+      }
+      order.push(method);
       await route.fulfill({ status: 204 });
     });
     await page.route("**/api/auth/sign-in/social", async (route) => {
@@ -464,13 +474,15 @@ test.describe("racer onboarding and profile", () => {
     await expect(page.getByText("@nova_racer is now part of @elliott.")).toHaveRole(
       "status",
     );
-    expect(requests).toBe(1);
+    expect(order).toEqual(["DELETE", "POST"]);
+    expect(cancels).toBe(1);
   });
 
   test("says nothing was brought together when the Google sign-in can't start", async ({
     page,
   }) => {
     let linked = false;
+    let cancels = 0;
     await page.route(profileApiPattern, async (route) => {
       await route.fulfill({
         body: JSON.stringify({
@@ -481,7 +493,10 @@ test.describe("racer onboarding and profile", () => {
         contentType: "application/json",
       });
     });
-    await page.route("**/api/profile/merge", (route) => route.fulfill({ status: 204 }));
+    await page.route("**/api/profile/merge", async (route) => {
+      if (route.request().method() === "DELETE") cancels += 1;
+      await route.fulfill({ status: 204 });
+    });
     await page.route("**/api/auth/sign-in/social", (route) =>
       route.fulfill({ body: "{}", contentType: "application/json", status: 400 }),
     );
@@ -492,6 +507,9 @@ test.describe("racer onboarding and profile", () => {
     await expect(
       page.getByText("Your accounts couldn't be merged. Please retry."),
     ).toHaveRole("alert");
+    // The request made before Google failed to start is withdrawn, and
+    // loading the profile left any other tab's alone.
+    await expect.poll(() => cancels).toBe(1);
 
     // Linking Google later is just linking, never a merge.
     linked = true;
@@ -499,6 +517,30 @@ test.describe("racer onboarding and profile", () => {
     await page.goto("/profile");
     await expect(page.getByRole("listitem")).toHaveText(/Google/);
     await expect(page.getByText("Your accounts are now one.")).toHaveCount(0);
+
+    // A merge refused on Google's return isn't a success, even when this
+    // racer gained a login method in another tab meanwhile.
+    await page.evaluate(() =>
+      sessionStorage.setItem("titan-racers.merging-racer", "nova_racer"),
+    );
+    await page.goto("about:blank");
+    await page.goto("/profile?error=RACER_MERGE_FAILED");
+    await expect(
+      page.getByText("Your accounts couldn't be merged. Please retry."),
+    ).toHaveRole("alert");
+    await expect(page.getByText("Your accounts are now one.")).toHaveCount(0);
+
+    // Leaving Google's page some other way tried nothing, so says nothing,
+    // and withdraws this tab's request.
+    linked = false;
+    await page.evaluate(() =>
+      sessionStorage.setItem("titan-racers.merging-racer", "nova_racer"),
+    );
+    await page.goto("about:blank");
+    await page.goto("/profile");
+    await expect(page.getByRole("button", { name: "Bring @nova_racer into it" })).toBeVisible();
+    await expect(page.getByText("Your accounts couldn't be merged. Please retry.")).toHaveCount(0);
+    await expect.poll(() => cancels).toBe(2);
   });
 
   test("offers to bring the racer into the one Google belongs to, and says when signing in must finish it", async ({

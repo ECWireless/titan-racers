@@ -9,7 +9,10 @@ import { createSiweMessage } from "viem/siwe";
 
 import { POST as postAuth } from "../src/app/api/auth/[...all]/route";
 import { POST as postLoginMethod } from "../src/app/api/profile/login-methods/route";
-import { POST as postMergeRequest } from "../src/app/api/profile/merge/route";
+import {
+  DELETE as cancelMergeRequest,
+  POST as postMergeRequest,
+} from "../src/app/api/profile/merge/route";
 import { db, pool } from "../src/db/client";
 import {
   boardBests,
@@ -272,7 +275,10 @@ test.describe("racer merge database rules", () => {
 
 const ORIGIN = process.env.BETTER_AUTH_URL ?? "http://127.0.0.1:3873";
 
-function request(path: string, init: { body?: unknown; cookie?: string } = {}) {
+function request(
+  path: string,
+  init: { body?: unknown; cookie?: string; method?: string } = {},
+) {
   return new Request(`${ORIGIN}${path}`, {
     body: JSON.stringify(init.body ?? {}),
     headers: {
@@ -280,7 +286,7 @@ function request(path: string, init: { body?: unknown; cookie?: string } = {}) {
       origin: ORIGIN,
       ...(init.cookie ? { cookie: init.cookie } : {}),
     },
-    method: "POST",
+    method: init.method ?? "POST",
   });
 }
 
@@ -524,5 +530,25 @@ test.describe("bringing a racer kept in one browser into another", () => {
     ).resolves.toHaveLength(1);
     // It no longer asks, so it can switch racers as any kept racer can.
     expect((await walletSignIn(kept.wallet, brought.cookie)).status).toBe(200);
+  });
+
+  test("lets no later sign-in bring a racer in once it cancels", async () => {
+    const brought = await browserRacer(null);
+    const kept = await walletRacer(null);
+    await postMergeRequest(request("/api/profile/merge", { cookie: brought.cookie }));
+    const cancelled = await cancelMergeRequest(
+      request("/api/profile/merge", { cookie: brought.cookie, method: "DELETE" }),
+    );
+    expect(cancelled.status).toBe(204);
+
+    const refused = await walletSignIn(kept.wallet, brought.cookie);
+    await expect(refused.json()).resolves.toMatchObject({ code: "SIGN_OUT_FIRST" });
+    await expect(
+      db.select({ id: users.id }).from(users).where(eq(users.id, brought.id)),
+    ).resolves.toHaveLength(1);
+    // Signed out, there is nothing to cancel.
+    expect(
+      (await cancelMergeRequest(request("/api/profile/merge", { method: "DELETE" }))).status,
+    ).toBe(401);
   });
 });
