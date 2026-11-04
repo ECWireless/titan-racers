@@ -31,7 +31,7 @@ export async function POST(request: Request) {
     return errorResponse(
       409,
       "ALREADY_KEPT",
-      "Only a racer kept in this browser can be brought into another.",
+      "Only an account kept in this browser can be brought into another.",
     );
   }
   await requestRacerMerge(current.session.id, current.user.id);

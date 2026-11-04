@@ -455,7 +455,7 @@ test.describe("admin overview page", () => {
     await page.goto("/admin");
     await page.getByRole("button", { name: "Choose another account" }).click();
     await expect(
-      page.getByText("This racer lives only in this browser, so switching accounts would lose it."),
+      page.getByText("This account lives only in this browser, so switching accounts would lose it."),
     ).toBeVisible();
     expect(signOuts).toBe(0);
   });

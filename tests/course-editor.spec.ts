@@ -122,7 +122,7 @@ test.describe("protected course editor access", () => {
   }) => {
     await page.route(courseApiPattern, async (route) => {
       await route.fulfill({
-        body: JSON.stringify({ error: "Racer account setup required." }),
+        body: JSON.stringify({ error: "Account setup required." }),
         contentType: "application/json",
         status: 428,
       });
@@ -132,7 +132,7 @@ test.describe("protected course editor access", () => {
 
     await expect(
       page.getByText(
-        "Choose your racer username before opening protected tools.",
+        "Choose your username before opening protected tools.",
       ),
     ).toBeVisible();
     await expect(
@@ -277,7 +277,7 @@ test.describe("protected course editor access", () => {
     await page.getByRole("button", { name: "Choose another Google account" }).click();
     await expect(
       page.getByText(
-        "This racer lives only in this browser, so switching accounts would lose it. Add a passkey, Google, or a wallet from your profile first.",
+        "This account lives only in this browser, so switching accounts would lose it. From your profile, add a passkey, Google, or a wallet, or bring it into your other account.",
       ),
     ).toBeVisible();
     expect(authRequests).toEqual([]);

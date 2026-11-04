@@ -353,7 +353,7 @@ function AccessMessage({
   if (accessState.status === "onboarding-required") {
     return (
       <p className="border border-titan-hazard/35 bg-titan-hazard/[0.06] px-4 py-3 text-sm text-titan-ice/78">
-        Choose your racer username before opening protected tools.
+        Choose your username before opening protected tools.
       </p>
     );
   }

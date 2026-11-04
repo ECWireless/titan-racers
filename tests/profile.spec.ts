@@ -139,10 +139,10 @@ test.describe("racer onboarding and profile", () => {
 
     await input.fill("  Nova---Racer  ");
     await expect(page.getByText("Public credit: @nova_racer")).toBeVisible();
-    await page.getByRole("button", { name: "Create racer account" }).click();
+    await page.getByRole("button", { name: "Create account" }).click();
 
     expect(savedPayload).toEqual({ username: "nova_racer" });
-    await expect(page.getByText("@nova_racer")).toBeVisible();
+    await expect(page.getByText("@nova_racer", { exact: true })).toBeVisible();
     await expect(
       page.getByRole("link", { name: "Continue" }),
     ).toHaveAttribute("href", "/admin/karts");
@@ -159,7 +159,7 @@ test.describe("racer onboarding and profile", () => {
 
     await page.goto("/onboarding?returnTo=%2Fprofile");
     await expect(page).toHaveURL(/\/profile$/);
-    await expect(page.getByText("@nova_racer")).toBeVisible();
+    await expect(page.getByText("@nova_racer", { exact: true })).toBeVisible();
     await expect(page.getByRole("link", { name: "Continue" })).toHaveCount(0);
   });
 
@@ -230,7 +230,7 @@ test.describe("racer onboarding and profile", () => {
     });
 
     await page.goto("/profile");
-    await expect(page.getByText("@nova_racer")).toBeVisible();
+    await expect(page.getByText("@nova_racer", { exact: true })).toBeVisible();
     await expect(page.getByRole("textbox")).toHaveCount(0);
     await expect(page.getByRole("button", { name: /save|create/i })).toHaveCount(0);
   });
@@ -310,9 +310,9 @@ test.describe("racer onboarding and profile", () => {
 
     await page.goto("/profile");
     await expect(
-      page.getByRole("heading", { name: "Racer account" }),
+      page.getByRole("heading", { name: "Account" }),
     ).toBeVisible();
-    await expect(page.getByText("Racer profile")).toHaveCount(0);
+    await expect(page.getByText("Profile", { exact: true })).toHaveCount(0);
     // Without a browser wallet there is no wallet option at all.
     await expect(
       page.getByRole("button", { name: "Continue with wallet" }),
@@ -321,7 +321,7 @@ test.describe("racer onboarding and profile", () => {
     await expect(page).toHaveURL(/oauth=started/);
   });
 
-  test("starts a racer on this browser, or says when this network made too many", async ({
+  test("continues anonymously, or says when this network made too many", async ({
     page,
   }) => {
     let started = false;
@@ -352,15 +352,10 @@ test.describe("racer onboarding and profile", () => {
     });
 
     await page.goto("/profile");
-    const start = page.getByRole("button", { name: "Continue on this browser" });
-    await expect(start).toHaveAccessibleDescription(
-      "No Google or wallet needed. Your racer stays in this browser until you add a passkey, Google, or a wallet.",
-    );
+    const start = page.getByRole("button", { name: "Continue anonymously" });
     await start.click();
     await expect(
-      page.getByText(
-        "Too many new racers from this network. Try again later, or continue with Google or a wallet.",
-      ),
+      page.getByText("Too many new accounts from this network. Try again later, or sign in."),
     ).toHaveRole("alert");
     await start.click();
     await expect(page.getByLabel("Username")).toHaveValue("racer4821");
@@ -391,7 +386,7 @@ test.describe("racer onboarding and profile", () => {
     await page.goto("/profile");
     const methods = page.getByRole("region", { name: "Login methods" });
     await expect(methods).toContainText(
-      "This racer lives only in this browser. Clearing your browsing data, switching devices, or a year away loses it for good. Add a passkey, Google, or a wallet to keep it.",
+      "This account lives only in this browser. Clearing your browsing data, switching devices, or a year away loses it for good. Add a passkey, Google, or a wallet to keep it.",
     );
     await expect(methods.getByRole("listitem")).toHaveCount(0);
     await expect(
@@ -399,7 +394,7 @@ test.describe("racer onboarding and profile", () => {
     ).toBeVisible();
 
     await page.getByRole("button", { name: "Sign out" }).click();
-    const confirm = page.getByRole("group", { name: /Sign out and lose this racer/ });
+    const confirm = page.getByRole("group", { name: /Sign out and lose this account/ });
     await expect(confirm.getByRole("button", { name: "Keep racing" })).toBeFocused();
     await confirm.getByRole("button", { name: "Keep racing" }).click();
     await expect(confirm).toHaveCount(0);
@@ -412,6 +407,138 @@ test.describe("racer onboarding and profile", () => {
       page.getByRole("button", { name: "Continue with Google" }),
     ).toBeFocused();
     expect(signOuts).toBe(1);
+  });
+
+  test("brings a racer kept in this browser into another after confirming", async ({
+    page,
+  }) => {
+    let merged = false;
+    let requests = 0;
+    await page.route(profileApiPattern, async (route) => {
+      await route.fulfill({
+        body: JSON.stringify(
+          merged
+            ? {
+                loginMethods: [{ id: "google-1", kind: "google", label: "Google" }],
+                status: "complete",
+                username: "elliott",
+              }
+            : { loginMethods: [], status: "complete", username: "nova_racer" },
+        ),
+        contentType: "application/json",
+      });
+    });
+    await page.route("**/api/profile/merge", async (route) => {
+      requests += 1;
+      await route.fulfill({ status: 204 });
+    });
+    await page.route("**/api/auth/sign-in/social", async (route) => {
+      expect(route.request().postDataJSON()).toMatchObject({
+        errorCallbackURL: "/profile",
+        provider: "google",
+      });
+      merged = true;
+      // Google returns through onboarding, which carries on to the profile.
+      await route.fulfill({
+        body: JSON.stringify({
+          url: "http://127.0.0.1:3873/onboarding?returnTo=%2Fprofile",
+        }),
+        contentType: "application/json",
+      });
+    });
+
+    await page.goto("/profile");
+    await page.getByRole("button", { name: "Bring @nova_racer into it" }).click();
+    const confirm = page.getByRole("group", {
+      name: "Bring @nova_racer into your other account?",
+    });
+    await expect(confirm).toHaveAccessibleDescription(/This can't be undone\.$/);
+    await expect(confirm.getByRole("button", { name: "Cancel" })).toBeFocused();
+    await confirm.getByRole("button", { name: "Cancel" }).click();
+    await expect(confirm).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "Bring @nova_racer into it" })).toBeFocused();
+    expect(requests).toBe(0);
+
+    await page.getByRole("button", { name: "Bring @nova_racer into it" }).click();
+    await confirm.getByRole("button", { name: "Continue with Google" }).click();
+    await expect(page.getByText("@nova_racer is now part of @elliott.")).toHaveRole(
+      "status",
+    );
+    expect(requests).toBe(1);
+  });
+
+  test("says nothing was brought together when the Google sign-in can't start", async ({
+    page,
+  }) => {
+    let linked = false;
+    await page.route(profileApiPattern, async (route) => {
+      await route.fulfill({
+        body: JSON.stringify({
+          loginMethods: linked ? [{ id: "google-1", kind: "google", label: "Google" }] : [],
+          status: "complete",
+          username: "nova_racer",
+        }),
+        contentType: "application/json",
+      });
+    });
+    await page.route("**/api/profile/merge", (route) => route.fulfill({ status: 204 }));
+    await page.route("**/api/auth/sign-in/social", (route) =>
+      route.fulfill({ body: "{}", contentType: "application/json", status: 400 }),
+    );
+
+    await page.goto("/profile");
+    await page.getByRole("button", { name: "Bring @nova_racer into it" }).click();
+    await page.getByRole("button", { name: "Continue with Google" }).click();
+    await expect(
+      page.getByText("Your accounts couldn't be merged. Please retry."),
+    ).toHaveRole("alert");
+
+    // Linking Google later is just linking, never a merge.
+    linked = true;
+    await page.goto("about:blank");
+    await page.goto("/profile");
+    await expect(page.getByRole("listitem")).toHaveText(/Google/);
+    await expect(page.getByText("Your accounts are now one.")).toHaveCount(0);
+  });
+
+  test("offers to bring the racer into the one Google belongs to, and says when signing in must finish it", async ({
+    page,
+  }) => {
+    let signedOut = false;
+    await page.route(profileApiPattern, async (route) => {
+      await route.fulfill(
+        signedOut
+          ? { body: "{}", contentType: "application/json", status: 401 }
+          : {
+              body: JSON.stringify({
+                loginMethods: [],
+                status: "complete",
+                username: "nova_racer",
+              }),
+              contentType: "application/json",
+            },
+      );
+    });
+
+    await page.goto("/profile?error=account_already_linked_to_different_user");
+    await expect(page.getByText("That Google account is already linked to another account.")).toHaveRole(
+      "alert",
+    );
+    await expect(
+      page.getByRole("group", { name: "Bring @nova_racer into your other account?" }),
+    ).toBeVisible();
+
+    // A merge that committed before its sign-in did leaves this browser
+    // signed out, with everything waiting in the other racer.
+    await page.evaluate(() =>
+      sessionStorage.setItem("titan-racers.merging-racer", "nova_racer"),
+    );
+    signedOut = true;
+    await page.goto("about:blank");
+    await page.goto("/profile");
+    await expect(page.getByText("Sign in to your other account to finish.")).toHaveRole(
+      "alert",
+    );
   });
 
   test("adds a passkey, which keeps a racer started on this browser", async ({
@@ -500,7 +627,7 @@ test.describe("racer onboarding and profile", () => {
       (window as typeof window & { cancelPasskey?: boolean }).cancelPasskey = false;
     });
     await passkey.click();
-    await expect(page.getByText("@nova_racer")).toBeVisible();
+    await expect(page.getByText("@nova_racer", { exact: true })).toBeVisible();
   });
 
   test("signs in with a chosen browser wallet", async ({ page }) => {
@@ -591,7 +718,7 @@ test.describe("racer onboarding and profile", () => {
 
     await page.goto("/onboarding");
     await page.getByRole("textbox", { name: "Username" }).fill("ab");
-    await page.getByRole("button", { name: "Create racer account" }).click();
+    await page.getByRole("button", { name: "Create account" }).click();
 
     await expect(page.locator("p[role='alert']")).toHaveText(
       RACER_USERNAME_REQUIREMENTS,
@@ -621,7 +748,7 @@ test.describe("racer onboarding and profile", () => {
     await page.goto("/onboarding");
     const input = page.getByRole("textbox", { name: "Username" });
     await input.fill("wanted_name");
-    await page.getByRole("button", { name: "Create racer account" }).click();
+    await page.getByRole("button", { name: "Create account" }).click();
 
     await expect(input).toHaveValue("wanted_name");
     await expect(page.locator("p[role='alert']")).toHaveText(
@@ -644,7 +771,7 @@ test.describe("racer onboarding and profile", () => {
     });
 
     await page.goto("/onboarding");
-    await page.getByRole("button", { name: "Create racer account" }).click();
+    await page.getByRole("button", { name: "Create account" }).click();
     await expect(page.locator("p[role='alert']")).toHaveText(
       "Your username could not be created. Your entry is still here.",
     );
@@ -677,7 +804,7 @@ test.describe("racer onboarding and profile", () => {
     await page.goto("/onboarding");
     const input = page.getByRole("textbox", { name: "Username" });
     await input.fill("  Locked Snapshot  ");
-    await page.getByRole("button", { name: "Create racer account" }).click();
+    await page.getByRole("button", { name: "Create account" }).click();
 
     await expect(input).toBeDisabled();
     await expect(
@@ -713,7 +840,7 @@ test.describe("racer onboarding and profile", () => {
 
     await page.goto("/onboarding");
     const profile = page.locator('[data-controller-menu-ready="true"]');
-    const create = page.getByRole("button", { name: "Create racer account" });
+    const create = page.getByRole("button", { name: "Create account" });
     await expect(profile).toHaveCount(1);
 
     await setStandardTestGamepad(page);

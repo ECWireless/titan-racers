@@ -18,8 +18,13 @@ import {
 } from "react";
 import { z } from "zod";
 
+import { OrDivider } from "@/components/or-divider";
 import { useControllerMenuNavigation } from "@/game/input/use-controller-menu-navigation";
 import { sendHeldRun } from "@/game/race/held-run";
+import {
+  ANONYMOUS_START_FAILURES,
+  continueAnonymously,
+} from "@/lib/browser-racer";
 import {
   type BrowserWallet,
   signWalletMessage,
@@ -59,7 +64,7 @@ const racerIdentitySchema = z.discriminatedUnion("status", [
 const loginMethodsResponseSchema = z.object({
   loginMethods: loginMethodsSchema,
 });
-type WalletPurpose = "link" | "sign-in";
+type WalletPurpose = "link" | "merge" | "sign-in";
 const usernameClaimResponseSchema = z.object({
   code: z.string().optional(),
   status: z.literal("complete").optional(),
@@ -68,9 +73,57 @@ const usernameClaimResponseSchema = z.object({
 const usernameClaimFailure =
   "Your username could not be created. Your entry is still here.";
 const BROWSER_ONLY_WARNING =
-  "This racer lives only in this browser. Clearing your browsing data, switching devices, or a year away loses it for good.";
+  "This account lives only in this browser. Clearing your browsing data, switching devices, or a year away loses it for good.";
 
 const noSubscription = () => () => {};
+
+// The username of the racer this browser is bringing into another, kept
+// across the Google sign-in that finishes it; passkeys and wallets finish
+// on the page.
+const MERGING_KEY = "titan-racers.merging-racer";
+const MERGE_FAILED = "Your accounts couldn't be merged. Please retry.";
+
+function readMergingRacer() {
+  try {
+    return sessionStorage.getItem(MERGING_KEY);
+  } catch {
+    return null;
+  }
+}
+
+function writeMergingRacer(username: string | null) {
+  try {
+    if (username) sessionStorage.setItem(MERGING_KEY, username);
+    else sessionStorage.removeItem(MERGING_KEY);
+  } catch {
+    // Without storage the merge still happens; only the notice is lost.
+  }
+}
+
+// What a sign-in meant to bring this browser's racer into another did.
+function mergeOutcome(state: ProfileState, broughtIn: string) {
+  if (state.status === "loading" || state.status === "error") return null;
+  if (state.status === "unauthenticated") {
+    return {
+      kind: "error" as const,
+      message: "Sign in to your other account to finish.",
+    };
+  }
+  // Still the racer kept only here, so nothing was brought together.
+  if (state.loginMethods.length === 0) {
+    return { kind: "error" as const, message: MERGE_FAILED };
+  }
+  return {
+    kind: "success" as const,
+    message:
+      state.status === "complete" && state.username !== broughtIn
+        ? `@${broughtIn} is now part of @${state.username}.`
+        : "Your accounts are now one.",
+  };
+}
+
+const ALREADY_KEPT =
+  "This account already has a login method, so it can't be brought into another.";
 
 class PasskeyRateLimitError extends Error {}
 
@@ -83,7 +136,7 @@ function passkeyFailureMessage(error: unknown, fallback: string) {
     return "The passkey request was cancelled.";
   }
   if (error instanceof Error && error.name === "InvalidStateError") {
-    return "This device already has a passkey for your racer.";
+    return "This device already has a passkey for your account.";
   }
   return fallback;
 }
@@ -94,7 +147,8 @@ function walletFailureMessage(purpose: WalletPurpose, status?: number) {
   if (status === 401) {
     return "Your wallet's signature could not be verified. Please retry. Smart-contract wallets aren't supported.";
   }
-  if (status === 409) return "That wallet belongs to another racer.";
+  if (status === 409) return "That wallet belongs to another account.";
+  if (purpose === "merge") return MERGE_FAILED;
   return purpose === "sign-in"
     ? "Wallet sign-in could not be completed. Please retry."
     : "The wallet could not be linked. Please retry.";
@@ -106,13 +160,17 @@ function loginMethodName(method: LoginMethod) {
   return method.label;
 }
 
-// Better Auth returns to the profile with ?error= when Google linking fails.
-function googleLinkErrorMessage() {
+// Better Auth returns to the profile with ?error= when Google linking, or a
+// Google sign-in bringing this racer into another, fails.
+function googleErrorCode() {
   const code = new URLSearchParams(window.location.search).get("error");
-  if (!code) return null;
-  window.history.replaceState(null, "", "/profile");
+  if (code) window.history.replaceState(null, "", "/profile");
+  return code;
+}
+
+function googleLinkErrorMessage(code: string) {
   return code === "account_already_linked_to_different_user"
-    ? "That Google account belongs to another racer."
+    ? "That Google account is already linked to another account."
     : "Google could not be linked. Please retry.";
 }
 
@@ -158,6 +216,95 @@ function WalletChooser({
   );
 }
 
+// Bringing this browser's racer into another can't be undone, so it says
+// what happens first, then the player signs in to the other racer there.
+function MergeConfirmation({
+  onCancel,
+  onChoose,
+  passkeys,
+  pending,
+  username,
+  walletChooser,
+  wallets,
+}: {
+  onCancel: () => void;
+  onChoose: (method: "google" | "passkey" | "wallet") => void;
+  passkeys: boolean;
+  pending: string | null;
+  username: string;
+  walletChooser: React.ReactNode;
+  wallets: boolean;
+}) {
+  const cancelRef = useRef<HTMLButtonElement | null>(null);
+  const choosingWallet = Boolean(walletChooser);
+  // Cancel is the safe default: on opening, after choosing no wallet, and
+  // once a sign-in that didn't finish here lets go.
+  const idle = pending === null;
+  useEffect(() => {
+    if (!choosingWallet && idle) cancelRef.current?.focus();
+  }, [choosingWallet, idle]);
+  const walletPending =
+    pending !== null && !["google", "passkey"].includes(pending);
+  return (
+    <div
+      aria-describedby="merge-details"
+      aria-labelledby="merge-heading"
+      className="grid gap-4 border border-titan-hazard/45 p-4"
+      role="group"
+    >
+      <p className="font-bold text-titan-ice" id="merge-heading">
+        Bring @{username} into your other account?
+      </p>
+      <p className="text-sm leading-6 text-titan-ice/76" id="merge-details">
+        Sign in to your other account to finish. @{username}&apos;s best times
+        and ghosts move to it, and the faster time counts. This can&apos;t be
+        undone.
+      </p>
+      {walletChooser ?? (
+        <div className="grid gap-3">
+          <button
+            className="titan-button titan-button-primary"
+            disabled={pending !== null}
+            type="button"
+            onClick={() => onChoose("google")}
+          >
+            {pending === "google" ? "Connecting…" : "Continue with Google"}
+          </button>
+          {wallets ? (
+            <button
+              className="titan-button titan-button-secondary"
+              disabled={pending !== null}
+              type="button"
+              onClick={() => onChoose("wallet")}
+            >
+              {walletPending ? "Check your wallet…" : "Continue with wallet"}
+            </button>
+          ) : null}
+          {passkeys ? (
+            <button
+              className="titan-button titan-button-secondary"
+              disabled={pending !== null}
+              type="button"
+              onClick={() => onChoose("passkey")}
+            >
+              {pending === "passkey" ? "Check your device…" : "Continue with a passkey"}
+            </button>
+          ) : null}
+          <button
+            className="titan-button titan-button-secondary"
+            disabled={pending !== null}
+            ref={cancelRef}
+            type="button"
+            onClick={onCancel}
+          >
+            Cancel
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // A racer with no login method can't sign back in, so signing out asks first.
 function SignOutConfirmation({
   disabled,
@@ -177,7 +324,7 @@ function SignOutConfirmation({
       role="group"
     >
       <p className="text-sm leading-6 text-titan-ice" id="sign-out-warning">
-        Sign out and lose this racer? It lives only in this browser, so
+        Sign out and lose this account? It lives only in this browser, so
         there&apos;s no way back in.
       </p>
       <div className="flex flex-wrap gap-3">
@@ -217,14 +364,14 @@ async function loadProfile(): Promise<ProfileState> {
     if (response.status === 401) return { status: "unauthenticated" };
     if (!response.ok) {
       return {
-        message: "Your racer identity could not be loaded.",
+        message: "Your account couldn't be loaded.",
         status: "error",
       };
     }
     return racerIdentitySchema.parse(await response.json());
   } catch {
     return {
-      message: "Your racer identity response was unavailable or invalid.",
+      message: "Your account couldn't be loaded.",
       status: "error",
     };
   }
@@ -264,6 +411,7 @@ export function ProfileAccess({
   );
   const [unlinkPending, setUnlinkPending] = useState<string | null>(null);
   const [confirmingSignOut, setConfirmingSignOut] = useState(false);
+  const [confirmingMerge, setConfirmingMerge] = useState(false);
   const methodChangePending = signInPending !== null || unlinkPending !== null;
   const walletPending =
     signInPending !== null &&
@@ -304,10 +452,26 @@ export function ProfileAccess({
   useEffect(() => {
     let active = true;
     void loadProfile().then((nextState) => {
-      if (!active || carryOn(nextState)) return;
+      if (!active) return;
+      const errorCode = mode === "profile" ? googleErrorCode() : null;
+      // Onboarding passes a finished Google merge on to the profile, which
+      // says what it did.
+      const broughtIn = mode === "profile" ? readMergingRacer() : null;
+      if (broughtIn) writeMergingRacer(null);
+      const merged = broughtIn ? mergeOutcome(nextState, broughtIn) : null;
+      if (carryOn(nextState)) return;
       setProfileState(nextState);
-      const linkError = mode === "profile" ? googleLinkErrorMessage() : null;
-      if (linkError) setFeedback({ kind: "error", message: linkError });
+      if (merged) {
+        setFeedback(merged);
+      } else if (errorCode) {
+        setFeedback({ kind: "error", message: googleLinkErrorMessage(errorCode) });
+        // A racer kept only here can be brought into the one that has it.
+        setConfirmingMerge(
+          errorCode === "account_already_linked_to_different_user" &&
+            nextState.status === "complete" &&
+            nextState.loginMethods.length === 0,
+        );
+      }
       if (nextState.status === "incomplete") {
         setUsername(nextState.suggestedUsername);
       }
@@ -328,7 +492,27 @@ export function ProfileAccess({
     }
   }
 
-  async function signInWithGoogle() {
+  // A passkey or wallet merge finishes on the page.
+  async function finishMerge(broughtIn: string) {
+    const nextState = await loadProfile();
+    setProfileState(nextState);
+    const merged = mergeOutcome(nextState, broughtIn);
+    setFeedback(merged);
+    if (merged?.kind === "success") setConfirmingMerge(false);
+  }
+
+  // Back from Google's page without finishing, nothing is under way.
+  useEffect(() => {
+    const restored = (event: PageTransitionEvent) => {
+      if (!event.persisted) return;
+      writeMergingRacer(null);
+      setSignInPending(null);
+    };
+    window.addEventListener("pageshow", restored);
+    return () => window.removeEventListener("pageshow", restored);
+  }, []);
+
+  async function signInWithGoogle({ broughtIn }: { broughtIn?: string } = {}) {
     setSignInPending("google");
     setFeedback(null);
     const destination = racerOnboardingPath(
@@ -338,6 +522,8 @@ export function ProfileAccess({
       const response = await fetch("/api/auth/sign-in/social", {
         body: JSON.stringify({
           callbackURL: destination,
+          // A refused merge comes back here to say so.
+          ...(broughtIn ? { errorCallbackURL: "/profile" } : {}),
           newUserCallbackURL: destination,
           provider: "google",
         }),
@@ -349,50 +535,67 @@ export function ProfileAccess({
       const payload = z
         .object({ url: z.string().url() })
         .parse(await response.json());
+      writeMergingRacer(broughtIn ?? null);
       window.location.assign(payload.url);
     } catch {
+      writeMergingRacer(null);
       setFeedback({
         kind: "error",
-        message: "Google sign-in could not be started. Please retry.",
+        message: broughtIn
+          ? MERGE_FAILED
+          : "Google sign-in could not be started. Please retry.",
       });
       setSignInPending(null);
     }
   }
 
-  async function signInOnThisBrowser() {
+  async function signInAnonymously() {
     setSignInPending("browser");
     setFeedback(null);
+    const started = await continueAnonymously();
+    if (started === "started") await retryProfile();
+    else setFeedback({ kind: "error", message: ANONYMOUS_START_FAILURES[started] });
+    setSignInPending(null);
+  }
+
+  // Asks to bring this browser's racer into the racer it signs in to next,
+  // then starts that sign-in.
+  async function startMerge(method: "google" | "passkey" | "wallet") {
+    if (profileState.status !== "complete" || signInPending !== null) return;
+    const broughtIn = profileState.username;
+    setSignInPending(method);
+    setFeedback(null);
     try {
-      const response = await fetch("/api/auth/sign-in/anonymous", {
+      const response = await fetch("/api/profile/merge", {
         body: "{}",
         credentials: "include",
         headers: { "content-type": "application/json" },
         method: "POST",
       });
-      if (response.status === 429) {
-        setFeedback({
-          kind: "error",
-          message:
-            "Too many new racers from this network. Try again later, or continue with Google or a wallet.",
-        });
+      if (response.status === 409) {
+        setConfirmingMerge(false);
+        await retryProfile();
+        setFeedback({ kind: "error", message: ALREADY_KEPT });
+        setSignInPending(null);
         return;
       }
-      // Refused when this browser is already signed in: show that racer.
-      if (!response.ok && response.status !== 400) {
-        throw new Error("Browser sign-in failed.");
-      }
-      await retryProfile();
+      if (!response.ok) throw new Error("The merge could not be requested.");
     } catch {
-      setFeedback({
-        kind: "error",
-        message: "A racer could not be started on this browser. Please retry.",
-      });
-    } finally {
+      setFeedback({ kind: "error", message: MERGE_FAILED });
       setSignInPending(null);
+      return;
+    }
+    if (method === "google") {
+      void signInWithGoogle({ broughtIn });
+    } else if (method === "passkey") {
+      void signInWithPasskey({ broughtIn });
+    } else {
+      setSignInPending(null);
+      chooseWallet("merge");
     }
   }
 
-  async function signInWithPasskey() {
+  async function signInWithPasskey({ broughtIn }: { broughtIn?: string } = {}) {
     setSignInPending("passkey");
     setFeedback(null);
     try {
@@ -416,18 +619,21 @@ export function ProfileAccess({
         setFeedback({
           kind: "error",
           message:
-            "That passkey couldn't sign you in. It may have been removed from your racer.",
+            "That passkey couldn't sign you in. It may have been removed from your account.",
         });
         return;
       }
       if (!verified.ok) throw new Error("Passkey sign-in failed.");
-      await retryProfile();
+      if (broughtIn) await finishMerge(broughtIn);
+      else await retryProfile();
     } catch (error) {
       setFeedback({
         kind: "error",
         message: passkeyFailureMessage(
           error,
-          "Passkey sign-in could not be completed. Please retry.",
+          broughtIn
+            ? MERGE_FAILED
+            : "Passkey sign-in could not be completed. Please retry.",
         ),
       });
     } finally {
@@ -436,6 +642,7 @@ export function ProfileAccess({
   }
 
   async function addPasskey(racerUsername: string) {
+    writeMergingRacer(null);
     setSignInPending("passkey");
     setFeedback(null);
     try {
@@ -501,20 +708,24 @@ export function ProfileAccess({
   }
 
   async function runWalletAction(purpose: WalletPurpose, wallet: BrowserWallet) {
+    const broughtIn =
+      purpose === "merge" && profileState.status === "complete"
+        ? profileState.username
+        : null;
     setWalletChoice(null);
     setSignInPending(wallet.id);
     setFeedback(null);
     try {
       const signed = await signWalletMessage(
         wallet,
-        purpose === "sign-in"
-          ? "Sign in to Titan Racers."
-          : "Link this wallet to your Titan Racers racer.",
+        purpose === "link"
+          ? "Link this wallet to your Titan Racers account."
+          : "Sign in to Titan Racers.",
       );
       const response = await fetch(
-        purpose === "sign-in"
-          ? "/api/auth/siwe/verify"
-          : "/api/profile/login-methods",
+        purpose === "link"
+          ? "/api/profile/login-methods"
+          : "/api/auth/siwe/verify",
         {
           body: JSON.stringify({
             message: signed.message,
@@ -530,6 +741,14 @@ export function ProfileAccess({
           kind: "error",
           message: walletFailureMessage(purpose, response.status),
         });
+        // A racer kept only here can be brought into the one that has it.
+        if (purpose === "link" && response.status === 409 && onlyThisBrowser) {
+          setConfirmingMerge(true);
+        }
+        return;
+      }
+      if (broughtIn) {
+        await finishMerge(broughtIn);
         return;
       }
       if (purpose === "sign-in") {
@@ -554,6 +773,7 @@ export function ProfileAccess({
   }
 
   async function linkGoogle() {
+    writeMergingRacer(null);
     setSignInPending("google");
     setFeedback(null);
     try {
@@ -693,7 +913,7 @@ export function ProfileAccess({
         status: "complete",
         username: claimedUsername,
       }));
-      setFeedback({ kind: "success", message: "Racer account complete." });
+      setFeedback({ kind: "success", message: "Account created." });
     } catch (error) {
       setFeedback({
         kind: "error",
@@ -734,10 +954,10 @@ export function ProfileAccess({
 
   const heading =
     profileState.status === "complete"
-      ? "Racer ID"
+      ? "Your account"
       : profileState.status === "incomplete"
         ? "Claim your username"
-        : "Racer account";
+        : "Account";
 
   return (
     <main
@@ -774,7 +994,7 @@ export function ProfileAccess({
             <p className="font-mono text-xs font-bold uppercase tracking-[0.22em] text-titan-hazard">
               {profileState.status === "incomplete"
                 ? "Complete account creation"
-                : "Racer profile"}
+                : "Profile"}
             </p>
           ) : null}
           <h1 className="text-4xl font-black uppercase tracking-[-0.04em] sm:text-5xl">
@@ -790,7 +1010,7 @@ export function ProfileAccess({
 
         {profileState.status === "loading" ? (
           <p className="font-mono text-sm text-titan-ice/70" role="status">
-            Loading racer account…
+            Loading your account…
           </p>
         ) : profileState.status === "unauthenticated" ? (
           <div className="grid gap-5">
@@ -832,26 +1052,15 @@ export function ProfileAccess({
                   : "Continue with a passkey"}
               </button>
             ) : null}
-            <div className="grid gap-2">
-              <button
-                aria-describedby="this-browser-note"
-                className="titan-button titan-button-secondary"
-                disabled={signInPending !== null}
-                type="button"
-                onClick={() => void signInOnThisBrowser()}
-              >
-                {signInPending === "browser"
-                  ? "Starting…"
-                  : "Continue on this browser"}
-              </button>
-              <p
-                className="text-xs leading-5 text-titan-muted"
-                id="this-browser-note"
-              >
-                No Google or wallet needed. Your racer stays in this browser
-                until you add a passkey, Google, or a wallet.
-              </p>
-            </div>
+            <OrDivider />
+            <button
+              className="titan-button titan-button-secondary"
+              disabled={signInPending !== null}
+              type="button"
+              onClick={() => void signInAnonymously()}
+            >
+              {signInPending === "browser" ? "Starting…" : "Continue anonymously"}
+            </button>
           </div>
         ) : profileState.status === "error" ? (
           <div className="grid gap-5">
@@ -920,7 +1129,7 @@ export function ProfileAccess({
               disabled={savePending}
               type="submit"
             >
-              {savePending ? "Creating account…" : "Create racer account"}
+              {savePending ? "Creating account…" : "Create account"}
             </button>
             {onlyThisBrowser ? (
               <p className="border border-titan-hazard/45 bg-titan-hazard/[0.06] px-4 py-3 text-sm leading-6 text-titan-ice">
@@ -952,10 +1161,29 @@ export function ProfileAccess({
                   Login methods
                 </h2>
                 {onlyThisBrowser ? (
-                  <p className="border border-titan-hazard/45 bg-titan-hazard/[0.06] px-4 py-3 text-sm leading-6 text-titan-ice">
-                    {BROWSER_ONLY_WARNING} Add a passkey, Google, or a wallet
-                    to keep it.
-                  </p>
+                  <div className="grid gap-3 border border-titan-hazard/45 bg-titan-hazard/[0.06] px-4 py-3 text-sm leading-6 text-titan-ice">
+                    <p>
+                      {BROWSER_ONLY_WARNING} Add a passkey, Google, or a
+                      wallet to keep it.
+                    </p>
+                    {confirmingMerge ? null : (
+                      <p>
+                        Already have an account?{" "}
+                        <button
+                          className="inline-flex min-h-11 items-center font-bold text-titan-hazard underline underline-offset-4 disabled:text-titan-muted"
+                          disabled={methodChangePending}
+                          id="merge-trigger"
+                          type="button"
+                          onClick={() => {
+                            setFeedback(null);
+                            setConfirmingMerge(true);
+                          }}
+                        >
+                          Bring @{profileState.username} into it
+                        </button>
+                      </p>
+                    )}
+                  </div>
                 ) : (
                   <ul className="grid gap-2">
                     {profileState.loginMethods.map((method) => (
@@ -995,7 +1223,30 @@ export function ProfileAccess({
                     Add another login method before removing this one.
                   </p>
                 ) : null}
-                {walletChoice === "link" ? (
+                {confirmingMerge && onlyThisBrowser ? (
+                  <MergeConfirmation
+                    passkeys={passkeysSupported}
+                    pending={signInPending}
+                    username={profileState.username}
+                    walletChooser={
+                      walletChoice === "merge" ? (
+                        <WalletChooser
+                          wallets={wallets}
+                          onCancel={() => setWalletChoice(null)}
+                          onChoose={(wallet) => void runWalletAction("merge", wallet)}
+                        />
+                      ) : null
+                    }
+                    wallets={wallets.length > 0}
+                    onCancel={() => {
+                      setConfirmingMerge(false);
+                      requestAnimationFrame(() =>
+                        document.getElementById("merge-trigger")?.focus(),
+                      );
+                    }}
+                    onChoose={(method) => void startMerge(method)}
+                  />
+                ) : walletChoice === "link" ? (
                   <WalletChooser
                     wallets={wallets}
                     onCancel={() => cancelWalletChoice("link")}

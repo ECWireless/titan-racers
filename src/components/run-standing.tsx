@@ -1,7 +1,14 @@
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useState } from "react";
 
+import {
+  ANONYMOUS_START_FAILURES,
+  continueAnonymously,
+} from "@/lib/browser-racer";
 import { racerOnboardingPath } from "@/lib/racer-username";
 import { MedalIcon } from "@/components/medal-icon";
+import { OrDivider } from "@/components/or-divider";
 import { formatRaceTime } from "@/game/race/race-presentation";
 import { MEDAL_LABELS, medalForRank } from "@/game/race/race-medals";
 import type {
@@ -28,6 +35,45 @@ const NOTES = {
   pending: "Verifying run…",
   rejected: "This run could not be verified.",
 };
+
+const HELD_RUN_PATH = racerOnboardingPath("/leaderboard");
+
+// Instead of signing in, a guest can start a racer kept in this browser;
+// choosing a username then puts the waiting run on the board.
+function ContinueAnonymously() {
+  const router = useRouter();
+  const [pending, setPending] = useState(false);
+  const [failure, setFailure] = useState<string | null>(null);
+  async function start() {
+    setPending(true);
+    setFailure(null);
+    const started = await continueAnonymously();
+    if (started === "started") {
+      router.push(HELD_RUN_PATH);
+      return;
+    }
+    setFailure(ANONYMOUS_START_FAILURES[started]);
+    setPending(false);
+  }
+  return (
+    <>
+      <OrDivider />
+      <button
+        className="titan-button titan-button-secondary"
+        disabled={pending}
+        type="button"
+        onClick={() => void start()}
+      >
+        {pending ? "Starting…" : "Continue anonymously"}
+      </button>
+      {failure ? (
+        <p className="text-xs leading-5 text-red-300" role="alert">
+          {failure}
+        </p>
+      ) : null}
+    </>
+  );
+}
 
 function NewTag() {
   return (
@@ -110,12 +156,10 @@ export function RunStandingSummary({
             minute: "2-digit",
           })}
         </p>
-        <Link
-          className="titan-button titan-button-primary"
-          href={racerOnboardingPath("/leaderboard")}
-        >
+        <Link className="titan-button titan-button-primary" href={HELD_RUN_PATH}>
           {standing.reason === "login" ? "Sign in" : "Choose username"}
         </Link>
+        {standing.reason === "login" ? <ContinueAnonymously /> : null}
       </div>
     );
   } else if (standing) {

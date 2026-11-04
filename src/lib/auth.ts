@@ -145,7 +145,7 @@ export const auth = betterAuth({
       // never replaces a signed-in racer.
       if (ctx.path === "/sign-in/anonymous") {
         throw new APIError("BAD_REQUEST", {
-          message: "Sign out before starting a new racer.",
+          message: "Sign out before starting a new account.",
         });
       }
       // Refused before a wallet sign-in creates its racer, unless this
@@ -156,7 +156,7 @@ export const auth = betterAuth({
         !(await hasRacerMergeRequest(current.session.id, current.user.id))
       ) {
         throw new APIError("BAD_REQUEST", {
-          message: "Sign out of this browser's racer first.",
+          message: "Sign out of this browser's account first.",
         });
       }
     }),
@@ -247,17 +247,22 @@ export const auth = betterAuth({
               }
               throw new APIError("BAD_REQUEST", {
                 code: "RACER_MERGE_FAILED",
-                message: "Your racers couldn't be brought together. Please retry.",
+                message: "Your accounts couldn't be merged. Please retry.",
               });
             }
+            // The request ran out just as it was used.
             if (!merged) {
               throw new APIError("BAD_REQUEST", {
-                message: "Sign out of this browser's racer first.",
+                code: "RACER_MERGE_FAILED",
+                message: "Your accounts couldn't be merged. Please retry.",
               });
             }
           } else if (switching && (await isOnlyInThisBrowser(current.user.id))) {
+            // With a code, a Google sign-in comes back to its error page,
+            // the profile when it was meant to bring this racer in.
             throw new APIError("BAD_REQUEST", {
-              message: "Sign out of this browser's racer first.",
+              code: "SIGN_OUT_FIRST",
+              message: "Sign out of this browser's account first.",
             });
           }
           // Nothing reads where or on what a session started.
@@ -293,7 +298,7 @@ export const auth = betterAuth({
             (user.image !== undefined && user.image !== null)
           ) {
             throw new APIError("BAD_REQUEST", {
-              message: "Racer identity is managed through account onboarding.",
+              message: "Your username is chosen during account setup.",
             });
           }
           return { data: user };
