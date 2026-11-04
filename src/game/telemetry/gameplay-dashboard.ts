@@ -19,7 +19,6 @@ export type GameplayDashboardRange = z.infer<
 
 export type GameplayDashboardRun = {
   automaticPauseCount: number;
-  attribution: "authenticated" | "guest";
   completedRaceTimeMs: number | null;
   deploymentVersion: string;
   discardedTimeMs: number;
@@ -37,10 +36,6 @@ export type GameplayDashboardRun = {
 const countSchema = z.number().int().nonnegative();
 
 export const gameplayDashboardSchema = z.strictObject({
-  attribution: z.strictObject({
-    anonymous: countSchema,
-    authenticated: countSchema,
-  }),
   inputFamilies: z.strictObject({
     gamepad: countSchema,
     keyboard: countSchema,
@@ -193,11 +188,6 @@ export function aggregateGameplayDashboard(
     denominator === 0 ? 0 : numerator / denominator;
 
   return {
-    attribution: {
-      anonymous: runs.filter((run) => run.attribution === "guest").length,
-      authenticated: runs.filter((run) => run.attribution === "authenticated")
-        .length,
-    },
     failureGroups: [...failures.values()]
       .sort(
         (left, right) =>

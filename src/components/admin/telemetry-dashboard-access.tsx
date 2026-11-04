@@ -32,16 +32,17 @@ export function TelemetryDashboardAccess() {
     status: "loading",
   });
   const session = useAdminSession(RETURN_PATH, setAccessState);
+  const { signedOut } = session;
 
   useEffect(() => {
     let active = true;
     void loadTelemetry(range).then((nextState) => {
-      if (active) setAccessState(nextState);
+      if (active && !signedOut.current) setAccessState(nextState);
     });
     return () => {
       active = false;
     };
-  }, [range]);
+  }, [range, signedOut]);
 
   if (accessState.status !== "ready") {
     return (
@@ -115,9 +116,9 @@ function TelemetryDashboard({
               Gameplay Telemetry
             </h1>
             <p className="max-w-2xl text-sm text-titan-ice/62">
-              Anonymous run-level summaries for the current solo time trial
-              course. No raw controls, kart paths, IP addresses, user agents,
-              or persistent guest identities.
+              Run-level summaries for the current solo time trial course,
+              counts only. No raw controls, kart paths, IP addresses, user
+              agents, or persistent guest identities.
             </p>
           </div>
           <AdminNav current="/admin/telemetry" signOutPending={signOutPending} onSignOut={onSignOut} />
@@ -237,11 +238,6 @@ function TelemetryDashboard({
             </div>
           )}
         </section>
-
-        <footer className="flex flex-wrap justify-between gap-3 border-t border-titan-ice/10 py-5 font-mono text-[0.65rem] uppercase tracking-[0.1em] text-titan-muted">
-          <span>Anonymous runs: {dashboard.attribution.anonymous}</span>
-          <span>Authenticated runs: {dashboard.attribution.authenticated}</span>
-        </footer>
       </div>
     </main>
   );

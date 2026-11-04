@@ -12,7 +12,7 @@ import { loadRangeStart } from "@/server/admin-overview-repository";
 
 export async function loadGameplayDashboard(
   range: GameplayDashboardRange,
-  timeZone = "UTC",
+  timeZone: string,
   now = new Date(),
 ) {
   // The overview's calendar days, so the two pages' totals agree.
@@ -20,7 +20,6 @@ export async function loadGameplayDashboard(
   const query = db
     .select({
       automaticPauseCount: gameplayRuns.automaticPauseCount,
-      attribution: gameplayRuns.attribution,
       completedRaceTimeMs: gameplayRuns.completedRaceTimeMs,
       deploymentVersion: gameplayRuns.deploymentVersion,
       discardedTimeMs: gameplayRuns.discardedTimeMs,

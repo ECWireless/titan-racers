@@ -7,15 +7,18 @@ const countSchema = z.number().int().nonnegative();
 /**
  * The admin's IANA time zone, canonicalized, or null if it is not one.
  * Offsets such as "+05:00" are refused: Postgres reads their sign the other
- * way round.
+ * way round. Names start with a letter, as "CET" and "America/Denver" do,
+ * and must canonicalize to "UTC" or a Region/City zone, since Postgres reads
+ * a bare name such as "CET" as a fixed abbreviation with no summer time.
  */
 export function parseReportingTimeZone(value: string): string | null {
-  if (value.length > 64 || !/^(UTC|[A-Za-z]+(\/[A-Za-z0-9_+-]+)+)$/.test(value)) {
+  if (value.length > 64 || !/^[A-Za-z][A-Za-z0-9_+-]*(\/[A-Za-z0-9_+-]+)*$/.test(value)) {
     return null;
   }
   try {
-    return new Intl.DateTimeFormat("en-US", { timeZone: value }).resolvedOptions()
+    const zone = new Intl.DateTimeFormat("en-US", { timeZone: value }).resolvedOptions()
       .timeZone;
+    return zone === "UTC" || zone.includes("/") ? zone : null;
   } catch {
     return null;
   }

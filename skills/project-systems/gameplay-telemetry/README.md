@@ -33,16 +33,12 @@ identity.
 - `src/game/telemetry/gameplay-dashboard.ts` owns pure aggregate semantics and
   the strict response contract.
 - `src/server/admin-overview-repository.ts` owns the `/admin` dashboard's SQL
-  for the current solo course: races started and finished per local calendar
-  day (per Monday-start week for all time, empty buckets filled), guest and
-  signed-in races, distinct signed-in racers, sign-ups by each racer's first
-  login method (`accounts`; anonymized racers have none left), leaderboard
-  runs (`race_results`) with new personal bests and course records (a
-  verified run strictly faster than every earlier one, the racer's or the
-  board's, in submission order), races per official kart, ghost choices, Race
-  again, and copied result links. `loadRangeStart` starts 7- and 30-day ranges
-  at the first instant of their first day in the admin's IANA time zone, even
-  where clocks change across midnight; the telemetry view shares it.
+  counts for the current solo course, by local calendar day (Monday weeks for
+  all time), from `gameplay_runs`, `accounts` (sign-ups by each racer's first
+  login method), and `race_results` (new bests in submission order).
+  `loadRangeStart` starts 7- and 30-day ranges in the admin's IANA time zone
+  (see [calendar-day trends](../../tools/browser-postgres-telemetry/README.md#postgres-mapping));
+  the telemetry view shares it.
 - `src/game/telemetry/admin-overview.ts` owns the dashboard's strict counts-only
   contract and time-zone parsing (IANA names only, never offsets).
 - `src/server/gameplay-dashboard-repository.ts` loads only the selected summary
@@ -50,7 +46,7 @@ identity.
   one course.
 - `src/app/api/admin/overview/route.ts` and `src/app/api/admin/telemetry/route.ts`
   enforce the database-backed admin role before returning aggregates; both
-  take `range` and `tz`, and the overview answers `no-store`. Home's menu
+  take `range` and `tz`, and both answer `no-store`. Home's menu
   links `/admin` for admins, asking `GET /api/admin`, which says only whether
   the viewer is one.
 - `src/components/admin/admin-overview.tsx` owns the dashboard: headline tiles,

@@ -32,7 +32,11 @@ test.describe("admin overview contract", () => {
   test("accepts IANA time zones and refuses offsets and junk", () => {
     expect(parseReportingTimeZone("America/Denver")).toBe("America/Denver");
     expect(parseReportingTimeZone("UTC")).toBe("UTC");
-    for (const value of ["+05:00", "-07", "Not/AZone", "", "UTC; select 1", "Denver"]) {
+    // Names without a region are zones too, under their Region/City name.
+    for (const value of ["CET", "EST5EDT", "GMT"]) {
+      expect(parseReportingTimeZone(value)).toMatch(/^(UTC|\w+\/\w+)/);
+    }
+    for (const value of ["+05:00", "-07", "GMT+5", "UTC-3", "Not/AZone", "", "UTC; select 1", "Denver"]) {
       expect(parseReportingTimeZone(value)).toBeNull();
     }
   });
@@ -96,7 +100,13 @@ test.describe("admin overview contract", () => {
     expect(response.status).toBe(200);
     expect(response.headers.get("cache-control")).toBe("no-store");
     expect(adminOverviewSchema.parse(await response.json())).toEqual(empty);
-    expect(loads).toEqual([["30d", "America/Denver"]]);
+    expect((await getAdminOverview(request("?tz=CET"), { authorize: admin, load })).status).toBe(
+      200,
+    );
+    expect(loads).toEqual([
+      ["30d", "America/Denver"],
+      ["7d", parseReportingTimeZone("CET")!],
+    ]);
   });
 });
 
@@ -111,43 +121,6 @@ test.describe("admin overview Postgres integration", () => {
   // Everything happens in early 2001, on a fresh course, so other races
   // and boards stay out of the counts. 2001-01-01 was a Monday.
   const now = new Date("2001-01-07T12:00:00Z");
-
-  test("counts sign-ups by the login method each racer joined with", async () => {
-    const signUps = async () => (await loadAdminOverview("7d", "UTC")).racers.signUps;
-    const before = await signUps();
-    const joinedAt = Date.now();
-    const userId = randomUUID();
-    await db.insert(users).values({
-      email: `${userId}@wallet.invalid`,
-      id: userId,
-      name: "Wallet racer",
-    });
-    try {
-      await db.insert(accounts).values([
-        // Joined with a wallet, then linked Google: counted once, as a wallet.
-        {
-          accountId: `0x${userId}`,
-          createdAt: new Date(joinedAt),
-          id: randomUUID(),
-          providerId: "siwe",
-          userId,
-        },
-        {
-          accountId: `google-${userId}`,
-          createdAt: new Date(joinedAt + 1_000),
-          id: randomUUID(),
-          providerId: "google",
-          userId,
-        },
-      ]);
-      expect(await signUps()).toEqual({
-        google: before.google,
-        wallet: before.wallet + 1,
-      });
-    } finally {
-      await db.delete(users).where(inArray(users.id, [userId]));
-    }
-  });
 
   test("starts a range at the first instant of its first local day", async () => {
     // Havana falls back from 01:00 to midnight on 2026-11-01, so that day
@@ -189,7 +162,9 @@ test.describe("admin overview Postgres integration", () => {
       ]);
       await db.insert(accounts).values([
         { accountId: racerA, id: randomUUID(), providerId: "google", userId: racerA },
-        { accountId: racerB, id: randomUUID(), providerId: "siwe", userId: racerB },
+        // B joined with a wallet, then linked Google: counted once, as a wallet.
+        { accountId: racerB, createdAt: new Date("2001-01-04T12:00:00Z"), id: randomUUID(), providerId: "siwe", userId: racerB },
+        { accountId: `google-${racerB}`, createdAt: new Date("2001-01-05T12:00:00Z"), id: randomUUID(), providerId: "google", userId: racerB },
         { accountId: earlier, id: randomUUID(), providerId: "google", userId: earlier },
       ]);
       await saveCourseRevision({

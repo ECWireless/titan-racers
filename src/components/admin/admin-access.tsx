@@ -1,9 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { z } from "zod";
 
+import { parseReportingTimeZone } from "@/game/telemetry/admin-overview";
 import type { GameplayDashboardRange } from "@/game/telemetry/gameplay-dashboard";
 import {
   CourseEditorIcon,
@@ -60,10 +61,10 @@ export async function loadAdminData<T>(
   }
 }
 
-/** The admin's browser time zone, or UTC when the browser has none. */
+/** The admin's browser time zone, or UTC when it has none the server takes. */
 export function browserTimeZone() {
   const zone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-  return zone && zone !== "Etc/Unknown" ? zone : "UTC";
+  return (zone && parseReportingTimeZone(zone)) || "UTC";
 }
 
 async function signOutRequest() {
@@ -78,7 +79,8 @@ async function signOutRequest() {
 
 /**
  * Google sign-in and sign-out for a protected admin page; signing in returns
- * to `returnPath`.
+ * to `returnPath`. `signedOut` lets a load still in flight at sign-out be
+ * dropped rather than show the page again.
  */
 export function useAdminSession<T>(
   returnPath: string,
@@ -86,6 +88,7 @@ export function useAdminSession<T>(
 ) {
   const [signInPending, setSignInPending] = useState(false);
   const [signOutPending, setSignOutPending] = useState(false);
+  const signedOut = useRef(false);
 
   async function signIn({
     replaceCurrentSession = false,
@@ -119,6 +122,7 @@ export function useAdminSession<T>(
     setSignOutPending(true);
     try {
       await signOutRequest();
+      signedOut.current = true;
       setAccessState({ status: "unauthenticated" });
     } catch {
       setAccessState({ message: "Sign out failed. Please retry.", status: "error" });
@@ -127,7 +131,7 @@ export function useAdminSession<T>(
     }
   }
 
-  return { signIn, signInPending, signOut, signOutPending };
+  return { signedOut, signIn, signInPending, signOut, signOutPending };
 }
 
 export function ProtectedAdminAccess({
@@ -264,8 +268,8 @@ const ADMIN_LINKS = [
   ["Racing", "/", <RaceFlagIcon key="racing" />],
   ["Dashboard", "/admin", <DashboardIcon key="dashboard" />],
   ["Telemetry", "/admin/telemetry", <TelemetryIcon key="telemetry" />],
-  ["Course editor", "/admin/courses", <CourseEditorIcon key="courses" />],
-  ["Kart editor", "/admin/karts", <KartBuilderIcon key="karts" />],
+  ["Course Editor", "/admin/courses", <CourseEditorIcon key="courses" />],
+  ["Kart Builder", "/admin/karts", <KartBuilderIcon key="karts" />],
 ] as const;
 
 const ICON_BUTTON =

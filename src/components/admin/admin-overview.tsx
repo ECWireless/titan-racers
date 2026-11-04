@@ -38,16 +38,17 @@ export function AdminOverviewAccess() {
     status: "loading",
   });
   const session = useAdminSession(RETURN_PATH, setAccessState);
+  const { signedOut } = session;
 
   useEffect(() => {
     let active = true;
     void loadOverview(range).then((nextState) => {
-      if (active) setAccessState(nextState);
+      if (active && !signedOut.current) setAccessState(nextState);
     });
     return () => {
       active = false;
     };
-  }, [range]);
+  }, [range, signedOut]);
 
   if (accessState.status !== "ready") {
     return (
@@ -127,9 +128,9 @@ function Overview({
               Dashboard
             </h1>
             <p className="max-w-2xl text-sm text-titan-ice/62">
-              Falls View Park at a glance: races, racers, the leaderboard,
-              karts, and sharing. Counts only. Days run midnight to midnight
-              in {overview.timeZone}.
+              The official course at a glance: races, racers, the
+              leaderboard, karts, and sharing. Counts only. Days run midnight
+              to midnight in {overview.timeZone}.
             </p>
           </div>
           <AdminNav current="/admin" signOutPending={signOutPending} onSignOut={onSignOut} />

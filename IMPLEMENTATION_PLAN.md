@@ -263,10 +263,8 @@ Phase decisions:
       races per official kart, ghost choices, and links copied. Guests have
       no lasting identity, so racer counts are signed-in only. PR 6.3 adds
       room counts.
-- [x] Races record their signed-in racer from the server's session, so
-      signed-in counts start with this PR; earlier races all count as
-      guests'. Home's menu opens the dashboard, which links the operational
-      telemetry view.
+- [x] Races record their signed-in racer from the server's session. Home's
+      menu opens the dashboard, which links the operational telemetry view.
 
 **PR 6.2: Accounts without Google or a wallet**
 
