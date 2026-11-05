@@ -16,6 +16,7 @@ import {
   verifyRoomReport,
   type RoomTokenFields,
 } from "../src/game/room/room-signing";
+import { crossingAt, kartAt, straightRoomCourse } from "./support/room-course";
 import {
   freePort,
   type RoomServerReport,
@@ -53,7 +54,8 @@ function tokenFields(
     room,
     courseId: "falls-view-park",
     courseRevision: 11,
-    gateCount: 2,
+    // One lap past a checkpoint at 2 m: two gates.
+    course: straightRoomCourse(1, [2]),
     physicsVersion: "support-heave-v1",
     karts: [{ id: "kestrel", revision: 3 }],
     player: {
@@ -174,34 +176,29 @@ test("two players race a room from lobby to results", async () => {
   const racingAt = countdown.race!.racingAt!;
   expect(racingAt - Date.now()).toBeGreaterThan(2_000);
 
-  const pose = { t: 0, p: [1, 2, 3], q: [0, 0, 0, 1], s: 5, r: false };
-  ada.send({ type: "state", ...pose });
-  // Faster than four times the agreed rate is dropped.
-  ada.send({ type: "state", ...pose, t: 1 });
-  expect(
-    await guest.next((message) => message.type === "state"),
-  ).toEqual({ type: "state", from: "p1", ...pose });
-  await new Promise((resolve) => setTimeout(resolve, 100));
-  ada.send({ type: "state", ...pose, t: 2 });
-  await guest.next((m) => m.type === "state" && m.t === 2);
-  expect(
-    guest.messages.filter((m) => m.type === "state").map((m) => m.t),
-  ).toEqual([0, 2]);
+  // Each state is checked before it is relayed: the first on its grid
+  // slot, and none again at the same race time.
+  const grid = kartAt(0, -1, { p: [-1, 0.2, -0.5] });
+  ada.send({ type: "state", ...kartAt(0, 5) });
+  ada.send({ type: "state", ...grid });
+  ada.send({ type: "state", ...grid });
+  expect(await guest.next((message) => message.type === "state")).toEqual({
+    type: "state",
+    from: "p1",
+    ...grid,
+  });
 
   await new Promise((resolve) =>
-    setTimeout(resolve, racingAt - Date.now() + 100),
+    setTimeout(resolve, racingAt - Date.now() + 600),
   );
   for (const [client, lead] of [
     [ada, 0],
     [guest, 300],
   ] as const) {
     await new Promise((resolve) => setTimeout(resolve, lead));
-    client.send({ type: "gate", raceId, gates: 1 });
-    client.send({
-      type: "finish",
-      raceId,
-      timeMicroseconds: (Date.now() - racingAt) * 1_000,
-    });
+    const t = (Date.now() - racingAt - 50) * 1_000;
+    client.send({ type: "state", ...crossingAt(t - 100_000, 2) });
+    client.send({ type: "state", ...crossingAt(t, 0) });
   }
   const done = await ada.next(
     (m): m is Snapshot => isRoom(m) && m.lastRace !== null,
@@ -212,6 +209,10 @@ test("two players race a room from lobby to results", async () => {
     "@ada",
     "Guest 1",
   ]);
+  // Ada's grid state and two crossings; her refused states went nowhere.
+  expect(
+    guest.messages.filter((m) => m.type === "state").map((m) => m.t),
+  ).toHaveLength(3);
 
   await expect.poll(() => reports.length, { timeout: 10_000 }).toBe(1);
   const [{ signature, body }] = reports;

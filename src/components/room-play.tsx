@@ -186,7 +186,6 @@ export function RoomPlay({ code }: { code: string }) {
           course,
           kart,
           room: {
-            raceId,
             slot,
             opponents,
             raceMicroseconds: (localTime) =>

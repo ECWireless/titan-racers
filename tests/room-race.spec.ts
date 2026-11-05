@@ -7,6 +7,7 @@ import { createBalancedKartDocument } from "../src/game/kart/balanced-kart-docum
 import { deriveKartSnapshot } from "../src/game/kart/kart-derivation";
 import { CURRENT_PHYSICS_VERSION } from "../src/game/physics/physics-version";
 import { RACE_LAP_COUNT } from "../src/game/race/race-course";
+import { createRoomCourse } from "../src/game/room/room-course";
 import { createRoomCode, ROOM_PROTOCOL } from "../src/game/room/room-protocol";
 import {
   randomRoomPlayerKey,
@@ -31,7 +32,6 @@ const COURSE = {
   ...FALLS_VIEW_PARK_DOCUMENT,
   checkpoints: FALLS_VIEW_PARK_DOCUMENT.checkpoints.slice(0, 1),
 };
-const GATE_COUNT = RACE_LAP_COUNT * (COURSE.checkpoints.length + 1);
 
 type Vector = { x: number; y: number; z: number };
 
@@ -94,7 +94,7 @@ async function joinAs(page: Page, code: string, username: string | null) {
             room: code,
             courseId: COURSE.courseId,
             courseRevision: 1,
-            gateCount: GATE_COUNT,
+            course: createRoomCourse(COURSE),
             physicsVersion: CURRENT_PHYSICS_VERSION,
             karts: [{ id: KART.kartId, revision: 1 }],
             player: {
@@ -166,22 +166,34 @@ async function step(
   );
 }
 
-/** Moves the kart across a gate and steps once, so the race counts it. */
+// The room checks that a kart could have got to each gate at 30 m/s, and
+// Falls View Park's start and first checkpoint are 65 m apart.
+const TRAVEL_MS = 2_500;
+// A crossing step moves 0.2 m, under 30 m/s.
+const CROSSING_METRES = 0.1;
+
+/**
+ * Waits as long as driving there would take, moves the kart to just before
+ * a gate, and steps: the room hears it there at the time it arrived. Then
+ * steps once across, so the race and the room count it.
+ */
 async function cross(
   canvas: Locator,
   { forward, position }: { forward: Vector; position: Vector },
 ) {
+  await canvas.page().waitForTimeout(TRAVEL_MS);
+  const along = (sign: number) => ({
+    x: position.x + sign * CROSSING_METRES * forward.x,
+    y: position.y + sign * CROSSING_METRES * forward.y,
+    z: position.z + sign * CROSSING_METRES * forward.z,
+  });
+  await step(canvas, {
+    currentPosition: along(-1),
+    previousPosition: along(-1),
+  });
   const { state } = await step(canvas, {
-    currentPosition: {
-      x: position.x + forward.x,
-      y: position.y + forward.y,
-      z: position.z + forward.z,
-    },
-    previousPosition: {
-      x: position.x - forward.x,
-      y: position.y - forward.y,
-      z: position.z - forward.z,
-    },
+    currentPosition: along(1),
+    previousPosition: along(-1),
   });
   return state.lastProgressionResult.kind;
 }

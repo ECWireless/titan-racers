@@ -10,7 +10,7 @@ import { kartStableIdSchema } from "../kart/kart-assembly-document";
  * a message's shape or meaning changes, then deploy the room server and the
  * app back to back.
  */
-export const ROOM_PROTOCOL = 1;
+export const ROOM_PROTOCOL = 2;
 
 export const ROOM_MAX_PLAYERS = 4;
 export const ROOM_MIN_RACERS = 2;
@@ -81,16 +81,28 @@ const bounded = (limit: number) => z.number().min(-limit).max(limit);
 const microseconds = z.number().int().min(0).max(ROOM_RACE_LIMIT_MS * 1_000);
 /** A stored revision: positive, and within Postgres's integer. */
 export const roomRevisionSchema = z.number().int().positive().max(2 ** 31 - 1);
-const gates = z.number().int().min(0).max(1_000);
 
-/** A kart pose: race time, root position, visual rotation, steer, reset. */
+const position = z.tuple([bounded(2e6), bounded(2e6), bounded(2e6)]);
+
+/**
+ * A kart's state at one fixed step: race time, root position, visual
+ * rotation, velocity, steer, and reset. The room checks each one; see
+ * room-rules.ts.
+ */
 const kartState = {
   t: microseconds,
-  p: z.tuple([bounded(2e6), bounded(2e6), bounded(2e6)]),
+  p: position,
   q: z.tuple([bounded(1.01), bounded(1.01), bounded(1.01), bounded(1.01)]),
+  /** Metres a second, so a curve between two states needs no third. */
+  v: z.tuple([bounded(100), bounded(100), bounded(100)]),
   s: bounded(90),
   /** The first state after a reset teleport; never blend into it. */
   r: z.boolean(),
+  /**
+   * The step that crosses a gate also carries where the kart was one step
+   * before, so the room checks the same crossing the race did.
+   */
+  g: position.optional(),
 };
 
 const clientMessageSchema = z.discriminatedUnion("type", [
@@ -99,12 +111,6 @@ const clientMessageSchema = z.discriminatedUnion("type", [
   z.strictObject({ type: z.literal("start") }),
   z.strictObject({ type: z.literal("loaded"), raceId }),
   z.strictObject({ type: z.literal("state"), ...kartState }),
-  z.strictObject({ type: z.literal("gate"), raceId, gates }),
-  z.strictObject({
-    type: z.literal("finish"),
-    raceId,
-    timeMicroseconds: microseconds,
-  }),
 ]);
 export type RoomClientMessage = z.infer<typeof clientMessageSchema>;
 

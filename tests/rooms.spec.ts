@@ -13,7 +13,7 @@ import { FALLS_VIEW_PARK_COURSE_ID } from "../src/game/course/course-ids";
 import { createBalancedKartDocument } from "../src/game/kart/balanced-kart-document";
 import { OFFICIAL_KART_IDS } from "../src/game/kart/official-kart-roster";
 import { CURRENT_PHYSICS_VERSION } from "../src/game/physics/physics-version";
-import { RACE_LAP_COUNT } from "../src/game/race/race-course";
+import { createRoomCourse } from "../src/game/room/room-course";
 import {
   createRoomCode,
   ROOM_PROTOCOL,
@@ -195,8 +195,8 @@ test.describe("private rooms", () => {
       room: code,
       courseId: FALLS_VIEW_PARK_COURSE_ID,
       courseRevision: publication.revision,
-      gateCount:
-        RACE_LAP_COUNT * (publication.document.checkpoints.length + 1),
+      // JSON carries -0 as 0.
+      course: JSON.parse(JSON.stringify(createRoomCourse(publication.document))),
       physicsVersion: CURRENT_PHYSICS_VERSION,
       player: { username: null, signedIn: false },
     });

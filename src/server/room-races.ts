@@ -6,7 +6,7 @@ import {
   ACCEPTED_PHYSICS_VERSIONS,
   CURRENT_PHYSICS_VERSION,
 } from "@/game/physics/physics-version";
-import { RACE_LAP_COUNT } from "@/game/race/race-course";
+import { createRoomCourse } from "@/game/room/room-course";
 import {
   ROOM_PROTOCOL,
   ROOM_RACE_LIMIT_MS,
@@ -14,7 +14,9 @@ import {
 } from "@/game/room/room-protocol";
 import {
   randomRoomPlayerKey,
+  ROOM_COURSE_CHECKPOINT_LIMIT,
   roomPlayerKey,
+  RoomTokenTooLongError,
   signRoomToken,
 } from "@/game/room/room-signing";
 import {
@@ -53,20 +55,21 @@ export async function issueRoomToken(
     throw new RoomsUnavailableError();
   });
   // A bundled roster means the database is out, so no result could be kept.
+  // A course with more checkpoints than a token carries can't host rooms.
   if (
     !publication ||
+    publication.document.checkpoints.length > ROOM_COURSE_CHECKPOINT_LIMIT ||
     roster.source !== "published" ||
     roster.karts.length === 0
   ) {
     throw new RoomsUnavailableError();
   }
-  return signRoomToken(secret, {
+  const fields = {
     protocol: ROOM_PROTOCOL,
     room: roomCode,
     courseId: publication.courseId,
     courseRevision: publication.revision,
-    // Each checkpoint and the finish line, every lap.
-    gateCount: RACE_LAP_COUNT * (publication.document.checkpoints.length + 1),
+    course: createRoomCourse(publication.document),
     physicsVersion: CURRENT_PHYSICS_VERSION,
     karts: roster.karts.map(({ runtime }) => ({
       id: runtime.kartId,
@@ -79,6 +82,12 @@ export async function issueRoomToken(
       username: user?.username ?? null,
       signedIn: user !== null,
     },
+  };
+  return signRoomToken(secret, fields).catch((error: unknown) => {
+    if (error instanceof RoomTokenTooLongError) {
+      throw new RoomsUnavailableError();
+    }
+    throw error;
   });
 }
 

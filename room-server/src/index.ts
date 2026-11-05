@@ -5,14 +5,12 @@ import {
   parseClientMessage,
   ROOM_CLOSE,
   ROOM_PROTOCOL,
-  ROOM_STATE_HZ,
   type RoomClientMessage,
   type RoomRaceReport,
   type RoomServerMessage,
 } from "../../src/game/room/room-protocol";
 import {
   applyRoomEvent,
-  canRelayState,
   createRoomState,
   nextRoomDeadline,
   roomSnapshot,
@@ -97,15 +95,10 @@ type PendingReport = {
 };
 
 /**
- * A client may send states at up to four times the agreed rate, so network
- * jitter that bunches two never drops one.
- */
-const MIN_STATE_GAP_MS = 1_000 / (4 * ROOM_STATE_HZ);
-/**
  * What a socket may send before it is closed, since each frame is billed: a
  * burst, refilled each second. A client sends about a dozen frames a second,
  * and a stalled network can deliver many at once. Messages that change the
- * room, each a write, get a smaller allowance.
+ * room, and kart states it stores, each a write, get a smaller allowance.
  */
 const FRAME_BUDGET = { burst: 300, perSecond: 30 };
 const ACTION_BUDGET = { burst: 20, perSecond: 5 };
@@ -162,17 +155,11 @@ function eventFor(
       return { type: "start", now, playerId, raceId: crypto.randomUUID() };
     case "loaded":
       return { type: "loaded", now, playerId, raceId: message.raceId };
-    case "gate":
-      return { ...message, now, playerId };
-    case "finish":
-      return { ...message, now, playerId };
   }
 }
 
 export class Room extends DurableObject<Env> {
   private state: RoomState | null;
-  /** When each seat last had a state relayed; lost on hibernation. */
-  private lastStateAt = new Map<string, number>();
   /** What each socket may still send; lost on hibernation. */
   private allowances = new WeakMap<WebSocket, Allowance>();
 
@@ -262,10 +249,23 @@ export class Room extends DurableObject<Env> {
       return;
     }
     if (message.type === "state") {
-      const last = this.lastStateAt.get(playerId) ?? -Infinity;
-      if (now - last < MIN_STATE_GAP_MS) return;
-      if (!canRelayState(this.state, playerId)) return;
-      this.lastStateAt.set(playerId, now);
+      const outcome = applyRoomEvent(this.state, {
+        type: "state",
+        now,
+        playerId,
+        state: message,
+      });
+      // A state that is stored (a gate or a reset) is a write, so it
+      // spends from the smaller allowance.
+      if (outcome.changed || outcome.persist) {
+        allowance.actions -= 1;
+        if (allowance.actions < 0) {
+          this.drop(socket, ROOM_CLOSE.protocol);
+          return;
+        }
+      }
+      this.commit(outcome);
+      if (!outcome.accepted) return;
       const relayed = JSON.stringify({ ...message, from: playerId });
       for (const other of this.ctx.getWebSockets()) {
         if (other !== socket && seatOf(other)) send(other, relayed);
@@ -335,7 +335,7 @@ export class Room extends DurableObject<Env> {
   private commit(outcome: RoomOutcome) {
     this.state = outcome.state;
     // Nothing changed, so nothing is written: each write is billed.
-    if (!outcome.changed && !outcome.report) return;
+    if (!outcome.changed && !outcome.persist && !outcome.report) return;
     const kv = this.ctx.storage.kv;
     kv.put("room", outcome.state);
     const emptySince = kv.get<number>("emptySince");

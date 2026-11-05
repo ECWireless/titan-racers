@@ -11,13 +11,15 @@ export type RaceQuaternion = {
   z: number;
 };
 
-export type DirectedRaceGate = {
+/** A gate's shape and direction, which is all a crossing needs. */
+export type RaceGateGeometry = {
   center: RaceVector3;
   forward: RaceVector3;
   halfExtents: RaceVector3;
-  id: string;
   worldToLocalRotation: RaceQuaternion;
 };
+
+export type DirectedRaceGate = RaceGateGeometry & { id: string };
 
 export type GateCrossingOptions = {
   boundsTolerance?: number;
@@ -69,7 +71,7 @@ function rotateVector(
 }
 
 export function crossesDirectedRaceGate(
-  gate: DirectedRaceGate,
+  gate: RaceGateGeometry,
   previousPosition: RaceVector3,
   currentPosition: RaceVector3,
   options: GateCrossingOptions = {},

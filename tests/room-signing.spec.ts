@@ -1,9 +1,16 @@
 import { expect, test } from "@playwright/test";
 
+import {
+  FALLS_VIEW_PARK_DOCUMENT,
+  getCourseStartTransform,
+} from "../src/game/course/course-document";
+import { createRoomCourse } from "../src/game/room/room-course";
 import { ROOM_PROTOCOL } from "../src/game/room/room-protocol";
 import {
   randomRoomPlayerKey,
   readRoomToken,
+  ROOM_COURSE_CHECKPOINT_LIMIT,
+  RoomTokenTooLongError,
   ROOM_REPORT_WINDOW_MS,
   ROOM_TOKEN_CLOCK_SKEW_MS,
   ROOM_TOKEN_LIFETIME_MS,
@@ -13,6 +20,7 @@ import {
   verifyRoomReport,
   type RoomTokenFields,
 } from "../src/game/room/room-signing";
+import { straightRoomCourse } from "./support/room-course";
 
 const SECRET = "a-room-server-secret-of-at-least-32-chars";
 const NOW = 1_800_000_000_000;
@@ -23,7 +31,7 @@ function fields(player: Partial<RoomTokenFields["player"]> = {}) {
     room: "abcdefghjk",
     courseId: "falls-view-park",
     courseRevision: 11,
-    gateCount: 8,
+    course: straightRoomCourse(2, [10, 20]),
     physicsVersion: "support-heave-v1",
     karts: [{ id: "kestrel", revision: 3 }],
     player: {
@@ -98,6 +106,94 @@ test.describe("room tokens", () => {
     expect(await roomPlayerKey(SECRET, "abcdefghjm", "user-1")).not.toBe(key);
     expect(await roomPlayerKey(SECRET, "abcdefghjk", "user-2")).not.toBe(key);
     expect(randomRoomPlayerKey()).not.toBe(randomRoomPlayerKey());
+  });
+});
+
+test.describe("room courses", () => {
+  test("fit a token at the most checkpoints a room allows", async () => {
+    const [checkpoint] = FALLS_VIEW_PARK_DOCUMENT.checkpoints;
+    // Far out and turned every way, so every number is long.
+    const awkward = (index: number) => -9_876.543_21 + index / 7;
+    const largest = createRoomCourse({
+      ...FALLS_VIEW_PARK_DOCUMENT,
+      checkpoints: Array.from(
+        { length: ROOM_COURSE_CHECKPOINT_LIMIT },
+        (_, index) => ({
+          ...checkpoint,
+          id: `checkpoint-${index}`,
+          position: { x: awkward(index), y: awkward(-index), z: awkward(index) },
+          rotation: { x: 13.7 + index, y: 47.3 - index, z: 5.1 * index },
+          recovery: {
+            ...checkpoint.recovery,
+            position: { x: awkward(-index), y: 1 / 3, z: awkward(index) },
+          },
+        }),
+      ),
+    });
+    const most = {
+      ...fields({ username: "a".repeat(20), signedIn: true }),
+      karts: Array.from({ length: 16 }, (_, index) => ({
+        id: `kart-with-a-long-name-${index}`,
+        revision: 2 ** 31 - 1,
+      })),
+    };
+    for (const course of [
+      createRoomCourse(FALLS_VIEW_PARK_DOCUMENT),
+      largest,
+    ]) {
+      const token = await signRoomToken(SECRET, { ...most, course }, NOW);
+      // JSON carries -0 as 0.
+      expect((await readRoomToken(SECRET, token, NOW))?.course).toEqual(
+        JSON.parse(JSON.stringify(course)),
+      );
+    }
+    // With every number at full length, a course is too long for a URL.
+    const lengthen = (value: unknown): unknown =>
+      typeof value === "number"
+        ? Math.abs(value) <= 1.01
+          ? -0.123_456_789_012_345_67
+          : -9_999.123_456_789_012
+        : Array.isArray(value)
+          ? value.map(lengthen)
+          : Object.fromEntries(
+              Object.entries(value as object).map(([key, child]) => [
+                key,
+                lengthen(child),
+              ]),
+            );
+    const unrounded = {
+      ...(lengthen(largest) as typeof largest),
+      lapCount: largest.lapCount,
+    };
+    await expect(
+      signRoomToken(SECRET, { ...most, course: unrounded }, NOW),
+    ).rejects.toBeInstanceOf(RoomTokenTooLongError);
+  });
+
+  test("line up each grid slot as PlayCanvas would", async () => {
+    const { Quat, Vec3 } = await import(
+      "playcanvas/build/playcanvas/src/index.js"
+    );
+    const start = getCourseStartTransform(FALLS_VIEW_PARK_DOCUMENT);
+    const rotation = new Quat().setFromEulerAngles(
+      start.rotation.x,
+      start.rotation.y,
+      start.rotation.z,
+    );
+    // Two by two: 0.5 m either side of the line's centre, rows 0.8 m apart.
+    const offsets = [
+      [-0.5, 0],
+      [0.5, 0],
+      [-0.5, 0.8],
+      [0.5, 0.8],
+    ];
+    createRoomCourse(FALLS_VIEW_PARK_DOCUMENT).grid.forEach((slot, index) => {
+      const [right, back] = offsets[index];
+      const offset = rotation.transformVector(new Vec3(right, 0, back));
+      expect(slot.x).toBeCloseTo(start.position.x + offset.x, 9);
+      expect(slot.y).toBeCloseTo(start.position.y + offset.y, 9);
+      expect(slot.z).toBeCloseTo(start.position.z + offset.z, 9);
+    });
   });
 });
 

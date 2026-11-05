@@ -250,13 +250,16 @@ import {
   type GhostKartVisual,
 } from "@/game/ghost/ghost-kart-visual";
 import { createGhostPose, GhostPlayback } from "@/game/ghost/ghost-playback";
-import { ROOM_RACE_LIMIT_MS } from "@/game/room/room-protocol";
+import { roomGridStart } from "@/game/room/room-course";
+import {
+  ROOM_RACE_LIMIT_MS,
+  type RoomClientMessage,
+} from "@/game/room/room-protocol";
 import {
   type CanvasRoom,
   ROOM_CATCH_UP_US,
   ROOM_OPPONENT_DELAY_US,
   ROOM_STATE_INTERVAL_MS,
-  roomGridOffset,
 } from "@/game/room/room-race";
 import { DEFAULT_FIXED_STEP_SECONDS } from "@/game/runtime/fixed-step-clock";
 import {
@@ -510,6 +513,8 @@ function setTouchJoystickPresentation(
   }
 }
 
+
+type RoomKartStateMessage = Extract<RoomClientMessage, { type: "state" }>;
 export function SoloTimeTrialCanvas({
   courseDocument = ROUGH_COURSE_DOCUMENT,
   courseRevision = null,
@@ -708,20 +713,11 @@ export function SoloTimeTrialCanvas({
   const { START_POSITION, START_ROTATION } = useMemo(() => {
     const startTransform = getCourseStartTransform(COURSE_DOCUMENT);
     // A room's karts line up two by two behind the start.
-    const grid = ROOM ? roomGridOffset(ROOM.slot) : { back: 0, right: 0 };
-    const gridOffset = new pc.Quat()
-      .setFromEulerAngles(
-        startTransform.rotation.x,
-        startTransform.rotation.y,
-        startTransform.rotation.z,
-      )
-      .transformVector(new pc.Vec3(grid.right, 0, grid.back));
+    const start = ROOM
+      ? roomGridStart(COURSE_DOCUMENT, ROOM.slot)
+      : startTransform.position;
     return {
-      START_POSITION: new pc.Vec3(
-        startTransform.position.x + gridOffset.x,
-        startTransform.position.y + gridOffset.y,
-        startTransform.position.z + gridOffset.z,
-      ),
+      START_POSITION: new pc.Vec3(start.x, start.y, start.z),
       START_ROTATION: new pc.Vec3(
         startTransform.rotation.x,
         startTransform.rotation.y,
@@ -962,8 +958,7 @@ export function SoloTimeTrialCanvas({
       let raceStartReported = false;
       const ghostRecorder = new GhostRecorder();
       const ghostAssemblyRotation = new pc.Quat();
-      // A room hears of each gate, and that a reset teleported the kart.
-      let roomGates = 0;
+      // A room hears that a reset teleported the kart.
       let roomResetPending = false;
       // The last finished race's recording.
       let finishedGhostTrace: GhostSample[] | null = null;
@@ -3358,12 +3353,68 @@ export function SoloTimeTrialCanvas({
         kartController.update(latestDrivingInput, dt);
       });
 
+      // A room checks every state against the one before, as the run check
+      // does a recording, so each is one fixed step's pose, and a step that
+      // crosses a gate goes with where the kart was the step before.
+      const roomRotation = new pc.Quat();
+      const roundTo = (value: number, places: number) =>
+        Math.round(value * 10 ** places) / 10 ** places;
+      const roomPoint = ({ x, y, z }: Position3): [number, number, number] => [
+        roundTo(x, 3),
+        roundTo(y, 3),
+        roundTo(z, 3),
+      ];
+      const clampSpeed = (value: number) =>
+        roundTo(Math.min(99, Math.max(-99, value)), 2);
+      // The room wants a step between states, so one goes only after a
+      // step: a paused kart sends nothing.
+      let roomStepsSinceState = 0;
+      let lastRoomStateMicroseconds = -Infinity;
+      // The finish's state waits for its final time, at frame end.
+      let roomFinishState: RoomKartStateMessage | null = null;
+      const roomKartState = (
+        t: number,
+        gateFrom?: Position3,
+      ): RoomKartStateMessage => {
+        roomRotation.mul2(kart.getRotation(), KART_ASSEMBLY_TO_PRINCIPAL_ROTATION);
+        const velocity = kart.rigidbody?.linearVelocity ?? pc.Vec3.ZERO;
+        const state: RoomKartStateMessage = {
+          type: "state",
+          t,
+          p: roomPoint(kart.getPosition()),
+          q: [
+            roundTo(roomRotation.x, 4),
+            roundTo(roomRotation.y, 4),
+            roundTo(roomRotation.z, 4),
+            roundTo(roomRotation.w, 4),
+          ],
+          v: [
+            clampSpeed(velocity.x),
+            clampSpeed(velocity.y),
+            clampSpeed(velocity.z),
+          ],
+          s: roundTo(kartController.state.steerAngle, 1),
+          // Recovery holds the kart off the gates; a reset waits for the
+          // next regular state.
+          r: !gateFrom && roomResetPending,
+        };
+        if (gateFrom) state.g = roomPoint(gateFrom);
+        else roomResetPending = false;
+        return state;
+      };
+      const sendRoomState = (state: RoomKartStateMessage) => {
+        roomStepsSinceState = 0;
+        lastRoomStateMicroseconds = state.t;
+        ROOM?.send(state);
+      };
+
       runtime.onPostFixedStep((dt) => {
         collisionObserver.endStep();
         captureCollisionMetrics();
         captureCameraImpact();
 
         kartController.postUpdate(latestDrivingInput, dt);
+        roomStepsSinceState += 1;
         captureManualRightingAtUprightApex();
         captureAudioEvents(dt);
 
@@ -3393,14 +3444,13 @@ export function SoloTimeTrialCanvas({
             progressionResult.kind === "checkpoint" ||
             progressionResult.kind === "lap" ||
             progressionResult.kind === "finished";
-          // The finish goes once its final time is known (frame end).
-          if (
-            ROOM &&
-            (progressionResult.kind === "checkpoint" ||
-              progressionResult.kind === "lap")
-          ) {
-            roomGates += 1;
-            ROOM.send({ type: "gate", raceId: ROOM.raceId, gates: roomGates });
+          if (ROOM && crossedGate) {
+            const state = roomKartState(
+              raceSession.raceMicroseconds,
+              previousRacePosition,
+            );
+            if (progressionResult.kind === "finished") roomFinishState = state;
+            else sendRoomState(state);
           }
           if (lastRaceProgressionResult.kind === "finished") {
             raceFinishedThisFrame = true;
@@ -3479,20 +3529,13 @@ export function SoloTimeTrialCanvas({
         const room = ROOM;
         const countdownMicroseconds =
           raceSession.snapshot.countdownRemainingMicroseconds;
-        const roomRotation = new pc.Quat();
         // The race clock advances by frame timestamps; reading the room's
         // at the same moment keeps this frame's own work from counting
         // twice.
         const frameTime = () =>
           (document.timeline.currentTime as number | null) ??
           performance.now();
-        const round = (value: number, places: number) =>
-          Math.round(value * 10 ** places) / 10 ** places;
         let lastRoomStateAt = -Infinity;
-        let lastRoomStateSentAt = -Infinity;
-        // A state from the finish is sent, so others see the line, spaced
-        // enough that the room server doesn't drop it as too soon.
-        let finalRoomStateSent = false;
         runtime.onFrameEnd(() => {
           const roomTime = room.raceMicroseconds(frameTime());
           if (roomTime === null) return;
@@ -3508,44 +3551,37 @@ export function SoloTimeTrialCanvas({
           if (raceSession.catchUpToRoomTime(roomTime, ROOM_CATCH_UP_US) > 0) {
             publishRacePresentation();
           }
-          const finished = raceSession.lifecycleState === "finished";
+          // The finishing state is the last, timed as the result is: with
+          // any stall in its frame.
+          if (raceSession.lifecycleState === "finished") {
+            if (roomFinishState) {
+              roomFinishState.t = Math.min(
+                raceSession.snapshot.elapsedRaceMicroseconds,
+                ROOM_RACE_LIMIT_MS * 1_000,
+              );
+              sendRoomState(roomFinishState);
+              roomFinishState = null;
+            }
+            return;
+          }
           const now = performance.now();
+          const t = raceSession.raceMicroseconds;
           if (
-            finalRoomStateSent ||
-            (finished
-              ? now - lastRoomStateSentAt < ROOM_STATE_INTERVAL_MS / 2
-              : now - lastRoomStateAt < ROOM_STATE_INTERVAL_MS) ||
-            raceSession.raceMicroseconds > ROOM_RACE_LIMIT_MS * 1_000
+            now - lastRoomStateAt < ROOM_STATE_INTERVAL_MS ||
+            roomStepsSinceState === 0 ||
+            // The countdown holds race time at zero.
+            t <= lastRoomStateMicroseconds ||
+            t > ROOM_RACE_LIMIT_MS * 1_000
           ) {
             return;
           }
-          finalRoomStateSent = finished;
-          lastRoomStateSentAt = now;
           // Kept on the interval's grid, so frame timing doesn't slow it,
-          // but never two sends so close the room server drops one.
+          // without a burst after a stall.
           lastRoomStateAt = Math.max(
             lastRoomStateAt + ROOM_STATE_INTERVAL_MS,
             now - ROOM_STATE_INTERVAL_MS / 2,
           );
-          const position = kart.getPosition();
-          roomRotation.mul2(
-            kart.getRotation(),
-            KART_ASSEMBLY_TO_PRINCIPAL_ROTATION,
-          );
-          room.send({
-            type: "state",
-            t: raceSession.raceMicroseconds,
-            p: [round(position.x, 3), round(position.y, 3), round(position.z, 3)],
-            q: [
-              round(roomRotation.x, 4),
-              round(roomRotation.y, 4),
-              round(roomRotation.z, 4),
-              round(roomRotation.w, 4),
-            ],
-            s: round(kartController.state.steerAngle, 1),
-            r: roomResetPending,
-          });
-          roomResetPending = false;
+          sendRoomState(roomKartState(t));
         });
       }
 
@@ -3554,16 +3590,6 @@ export function SoloTimeTrialCanvas({
           return;
         }
         raceFinishedThisFrame = false;
-        if (ROOM) {
-          ROOM.send({
-            type: "finish",
-            raceId: ROOM.raceId,
-            timeMicroseconds: Math.min(
-              raceSession.snapshot.elapsedRaceMicroseconds,
-              ROOM_RACE_LIMIT_MS * 1_000,
-            ),
-          });
-        }
         // A stall in the finishing frame is charged to the result after the
         // finishing step was recorded; the ghost ends on the official time.
         const finalSample = finishedGhostTrace?.at(-1);

@@ -14,7 +14,6 @@ import {
  * presentation only; nothing here touches the kart's own physics.
  */
 export type CanvasRoom = {
-  raceId: string;
   slot: number;
   opponents: Array<{ id: string; kart: GhostKart }>;
   /**
@@ -41,19 +40,6 @@ export const ROOM_OPPONENT_DELAY_US = 200_000;
 export const ROOM_CATCH_UP_US = 50_000;
 /** A kart's state goes to the room this often. */
 export const ROOM_STATE_INTERVAL_MS = 1_000 / ROOM_STATE_HZ;
-
-// Two by two behind the start line, a lane either side of its centre:
-// 1:10 karts are about 0.3 m wide and 0.45 m long.
-const GRID_LANE_METRES = 0.5;
-const GRID_ROW_METRES = 0.8;
-
-/** A grid slot's offset from the course start, in the start's own axes. */
-export function roomGridOffset(slot: number) {
-  return {
-    right: (slot % 2 === 0 ? -1 : 1) * GRID_LANE_METRES,
-    back: Math.floor(slot / 2) * GRID_ROW_METRES,
-  };
-}
 
 /** How an opponent's kart is drawn and posed, from its published snapshot. */
 export function opponentKart(
