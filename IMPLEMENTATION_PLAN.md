@@ -17,8 +17,8 @@ accepted; the app, README, and durable docs take over from there.
 
 - **Done:** Phases 0–5 (PRs #1–#24, the Phase 3 closeout and its
   follow-ups, #30–#57 with the PR 4.5.2 closeout, and #59–#63), and PRs 6.0
-  (#64), 6.1 (#65), 6.2 (#66), and 6.3 (#67).
-- **Now:** Phase 6, PR 6.4.
+  (#64), 6.1 (#65), 6.2 (#66), 6.3 (#67), and 6.4 (#68).
+- **Now:** Phase 6, PR 6.5.
 
 ## Guiding Decisions
 
@@ -240,11 +240,20 @@ Phase decisions:
   kart-to-kart contact. Clients simulate their own kart as solo does and send
   its state; opponents' karts are presentation only. No server-side kart
   physics.
+- **The room times each kart from its own states** (PR 6.5), with solo's run
+  check made step by step and shared: a start on its grid slot, at most
+  30 m/s between states, resets only to its newest reset point, and gates
+  crossed in order by a pair of states at each crossing. No state's race
+  time may run ahead of the room's clock. The join token carries the
+  course's gates and reset points, fixed at the room's first join. A state
+  that fails is neither counted nor relayed. The page predicts its own gates
+  and finish for its HUD; the room's snapshot decides standings and results.
 - **Cloudflare Durable Objects host rooms** over WebSockets, one object per
   room, on Cloudflare's own API with our own reconnect. The room rules are a
   transport-free TypeScript module. The app signs room join tokens, and the
-  room server sends results to the app rather than touching Postgres. Free
-  plan for development, Workers Paid ($5/month) before a public share.
+  room server sends results to the app rather than touching Postgres.
+  Workers Paid ($5/month) from PR 6.5's deploy: the Free plan may count
+  each of 30 states a second as a request, against 100,000 a day.
   Vercel's WebSockets were ruled out: a room has no single home across
   instances, and connections close at the function's time limit.
 - **A racer kept in this browser is Better Auth's anonymous user and stays
@@ -281,16 +290,34 @@ Phase decisions:
   owns join tokens, the lifecycle, and what a race stores.
 - **Players show as @username, or "Guest N" without one;** the room server
   never sees an account ID.
-- **The longest-present player hosts** a room of up to 4. Choosing a kart
-  marks a player ready, and the host starts once at least 2 are. Pause
-  stops your kart while the room's clock runs on.
+- **The longest-present connected player hosts** a room of up to 4.
+  Choosing a kart marks a player ready, and the host starts once at least 2
+  are. Pause stops your kart while the room's clock runs on.
 - **A room race ends** when every active player has finished, 30 s after
-  the first finisher, or at 10 minutes. Leaving or losing the connection
-  means not finishing, until PR 6.5's reconnect.
+  the first finisher, or at 10 minutes. Leaving, or staying disconnected
+  for over 30 s, means not finishing.
+- **A dropped connection keeps its seat for 30 s** (PR 6.5), in the lobby or
+  a race, while the page reconnects by itself and the kart keeps driving.
+  The page and the room each treat a silent connection as dropped within
+  seconds in a race, with a ping every second, and within half a minute
+  between races, when rarer pings let the room sleep. A guest's page holds a
+  random seat secret that the app folds into its room key, so it retakes its
+  seat. On return the room names the last state it accepted and the page
+  resends the rest in batches the room's send limits allow, so a finish
+  during an outage keeps its own time. A reload is still a new visit that
+  waits for the next race. A seat held when a race starts sits it out. A
+  page that can't race (its course failed to load, or its kart was
+  republished) tells the room, which drops it at once.
 - **Room results stay off leaderboards,** stored once without account IDs
   or usernames. Rooms record no ghosts, run tickets, or run summaries.
-- **Opponents are opaque karts drawn 200 ms behind,** a baseline PR 6.5
-  revisits. They pass through each other until PR 6.6.
+- **Opponents are opaque karts drawn from 30 states a second** (PR 6.5),
+  each carrying its velocity, so a curve between two states needs no third.
+  Each is drawn behind its own newest state by what its lateness needs
+  (100–350 ms), carried on at most 100 ms past it, and blended back within
+  150 ms; a reset or a long gap snaps. Each kart's drawn pose is kept apart
+  from the states it was drawn from, and only that pose drives its shadow
+  and its sound, heard from the camera with distance, side, and Doppler
+  pitch. They pass through each other until PR 6.6.
 - **One room protocol version is live at a time;** PRs 6.5 and 6.6 raise
   it, deploying the room server and then the app back to back. Production
   rooms use the room server's workers.dev address until titanracers.com's
@@ -366,11 +393,15 @@ Phase decisions:
       correction, and revisit PR 6.4's update cadence and interpolation.
 - [ ] Keep remote presentation separate from authoritative race and collision
       state.
-- [ ] Survive latency, packet loss, reordering, backgrounding, disconnects,
-      reconnects, and host departure without hanging the room.
+- [ ] Survive latency, late and bunched messages, backgrounding,
+      disconnects, reconnects, and host departure without hanging the room.
 - [ ] Keep all input methods, reset, pause, and resilience behavior working.
 - [ ] Opponents are heard, with remote karts' cheaper voices, and cast the
       contact shadow the player's kart does.
+- [ ] The room times each finish from the kart's own checked states, so a
+      modified client can't finish without driving or post a time its
+      states don't support.
+- [ ] A page whose race can't load drops out at once.
 - [ ] A four-kart room stays within the phone budget on the lead's iPhone
       (`?perf=1`).
 
