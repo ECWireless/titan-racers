@@ -27,7 +27,8 @@ lobby and room race, and what a finished room race stores.
 - `src/game/room/room-connection.ts`: the page's WebSocket client, which
   reconnects and resends what the room missed.
 - `src/game/room/room-race.ts`: the canvas's view of its room and opponent
-  tracks (a `GhostPlayback` each, appended as states arrive).
+  tracks; `src/game/room/opponent-motion.ts`: how each opponent is drawn
+  from its states.
 - `room-server/`: the Worker and the `Room` Durable Object, transport only,
   with `wrangler.jsonc` (local defaults and a `production` environment).
 - `src/app/api/rooms/[code]/token/route.ts` and `src/server/room-races.ts`:
@@ -66,9 +67,9 @@ lobby and room race, and what a finished room race stores.
   finish for the HUD. Every event first applies any deadline already
   passed, and one alarm wakes the room for the next, for a deadline or a
   connection about to count as silent. A message that changes nothing
-  writes nothing. A socket may send a burst of 300 frames, refilled at 30 a
-  second, and 20 messages that change the room, refilled at 5 a second;
-  past either it is closed.
+  writes nothing. A socket may send a burst of 600 frames, refilled at 60 a
+  second (a page sends about 32), and 20 messages that change the room,
+  refilled at 5 a second; past either it is closed.
 - A close with code 1000 (Leave room) frees a seat at once; any other
   close, or 5 s of silence while racing (30 s otherwise), holds it for 30 s
   as away: shown as reconnecting, not hosting, and left out of a race that
@@ -102,10 +103,26 @@ lobby and room race, and what a finished room race stores.
   stored only with a reset or the next change, so after a restart the check
   runs from an older one on the same stretch, which only loosens it. A
   stored state (a gate or a reset) spends from the smaller allowance.
-- States go out 10 times a second after a fixed step, plus one at each gate;
-  a paused kart sends none. They are never stored, and are drawn 200 ms
-  behind, held still at the newest rather than extrapolated. Opponents are
-  solid and drawn without physics.
+- States go out 30 times a second after a fixed step, plus one at each gate;
+  a paused kart sends none. They are never stored. Each opponent is drawn
+  behind the room's clock by its own states' recent lateness plus one
+  state gap (100–350 ms over the last 3 s, ignoring resends), along a
+  Hermite curve whose tangents are each state's velocity, capped at 1.5
+  chords so a sender's stall eases rather than loops; gaps over 500 ms
+  hold. The drawn time runs within 10% of real time toward its target, so
+  a delay change or a clock update eases in; over 500 ms off, it snaps.
+  Past the newest state the kart slows to a stop over 100 ms, and late
+  states blend in over 150 ms; a reset, or a correction over 3 m, snaps.
+  Wheels turn at the curve's own speed. Opponents are solid and drawn
+  without physics.
+- Rooms run on Workers Paid (from PR 6.5): four players send about 128
+  messages a second, about 23,000 billed requests an hour of racing,
+  inside the included million a month. Counted one for one, Free's 100,000
+  a day would last about 13 minutes of racing (4 h 20 min at Paid's 20:1).
+- `?net=delay,jitter` (ms) holds back opponents' states on this page, in
+  order, so they bunch, to try the motion on a bad connection; `?perf=1`
+  adds how many opponent frames ran past their newest state, and the
+  longest delay.
 - A race is entered only before it has a start time; a reload mid-race
   sits it out and waits in the lobby. The canvas hides its solo finish, stops once the race
   is over, and the room page shows each race's results as first seen.
@@ -124,11 +141,12 @@ lobby and room race, and what a finished room race stores.
 - Opponents are silent and cast no contact shadow.
 - Opponents are drawn with this page's version of their kart, so across a
   kart republish one can look like its other version, or not appear.
-- No prediction or correction beyond the 200 ms delay.
 - No public matchmaking or room leaderboard.
 
 ## Verification
 
+- `tests/opponent-motion.spec.ts`: the jitter buffer, guesses and their
+  blend, resets, clock jumps, and stalls.
 - `tests/room-rules.spec.ts`, `tests/room-signing.spec.ts`,
   `tests/room-clock.spec.ts`, and the room tests in
   `tests/race-session.spec.ts`: pure rules, state checks, signing, the
@@ -139,8 +157,8 @@ lobby and room race, and what a finished room race stores.
   silent connections in a race and in a sleeping lobby.
 - `tests/rooms.spec.ts`: the token and results routes against Postgres.
 - `tests/room-race.spec.ts`: two browsers race one room on one clock,
-  crossing gates no faster than the room's check allows, one losing its
-  connection with its `loaded` and again for a lap gate
+  crossing gates no faster than the room's check allows, the host losing
+  its connection with its `loaded` and the guest for a lap gate
   (`page.routeWebSocket`).
 - `tests/admin-overview.spec.ts`: the dashboard's room counts.
 

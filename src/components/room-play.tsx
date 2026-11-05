@@ -197,8 +197,9 @@ export function RoomPlay({ code }: { code: string }) {
             opponents,
             raceMicroseconds: (localTime) =>
               connection.raceMicroseconds(localTime),
-            opponentPose: (id, time, out) =>
-              connection.opponents.pose(id, time, out),
+            opponentPose: (id, time, frameSeconds, out) =>
+              connection.opponents.pose(id, time, frameSeconds, out),
+            opponentStats: () => connection.opponents.stats(),
             send: (message) => connection.send(message),
           },
         });

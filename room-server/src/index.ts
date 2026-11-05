@@ -113,11 +113,12 @@ type PendingReport = {
 
 /**
  * What a socket may send before it is closed, since each frame is billed: a
- * burst, refilled each second. A client sends about a dozen frames a second,
- * and a stalled network can deliver many at once. Messages that change the
+ * burst, refilled each second. A client sends about 32 frames a second (30
+ * states, a ping, and gates), and a stalled network can deliver many at
+ * once. Messages that change the
  * room, and kart states it stores, each a write, get a smaller allowance.
  */
-const FRAME_BUDGET = { burst: 300, perSecond: 30 };
+const FRAME_BUDGET = { burst: 600, perSecond: 60 };
 const ACTION_BUDGET = { burst: 20, perSecond: 5 };
 
 type Allowance = { at: number; frames: number; actions: number };

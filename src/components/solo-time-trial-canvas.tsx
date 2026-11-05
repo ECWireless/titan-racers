@@ -258,7 +258,6 @@ import {
 import {
   type CanvasRoom,
   ROOM_CATCH_UP_US,
-  ROOM_OPPONENT_DELAY_US,
   ROOM_STATE_INTERVAL_MS,
 } from "@/game/room/room-race";
 import { DEFAULT_FIXED_STEP_SECONDS } from "@/game/runtime/fixed-step-clock";
@@ -1277,7 +1276,6 @@ export function SoloTimeTrialCanvas({
             return [
               {
                 id,
-                lastTime: 0,
                 visual: createGhostKartVisual(
                   app,
                   opponentKart,
@@ -1292,6 +1290,7 @@ export function SoloTimeTrialCanvas({
         },
       );
       const opponentPose = createGhostPose();
+      let lastOpponentFrameAt: number | null = null;
       runtime.addCleanup(() => {
         for (const { visual } of opponentVisuals) visual.destroy();
       });
@@ -3777,18 +3776,30 @@ export function SoloTimeTrialCanvas({
           lastGhostTimeMicroseconds = ghostTime;
         }
         if (ROOM && opponentVisuals.length > 0) {
-          // Drawn a little in the past, between states actually received.
-          const opponentTime =
-            (ROOM.raceMicroseconds(
-              (document.timeline.currentTime as number | null) ??
-                performance.now(),
-            ) ?? 0) - ROOM_OPPONENT_DELAY_US;
+          // Each is drawn a little in the past, as its states' lateness
+          // needs (opponent-motion.ts). The runtime caps a frame's seconds
+          // for physics; opponents keep to the clock through a hitch.
+          const now =
+            (document.timeline.currentTime as number | null) ??
+            performance.now();
+          const opponentSeconds =
+            lastOpponentFrameAt === null
+              ? frameSeconds
+              : Math.max(0, now - lastOpponentFrameAt) / 1_000;
+          lastOpponentFrameAt = now;
+          const roomTime = ROOM.raceMicroseconds(now);
           for (const opponent of opponentVisuals) {
             opponent.visual.update(
-              ROOM.opponentPose(opponent.id, opponentTime, opponentPose),
-              Math.max(0, opponentTime - opponent.lastTime) / 1_000_000,
+              roomTime === null
+                ? null
+                : ROOM.opponentPose(
+                    opponent.id,
+                    roomTime,
+                    opponentSeconds,
+                    opponentPose,
+                  ),
+              opponentSeconds,
             );
-            opponent.lastTime = opponentTime;
           }
         }
         contactShadow.update(kartVisual, findGroundBelowKart);
@@ -3883,6 +3894,7 @@ export function SoloTimeTrialCanvas({
             recording,
             startup: { buildMs: startedAt - loadedAt, waitMs: loadedAt - mountedAt },
             summary: recording ? null : recorder.summarize(),
+            opponents: ROOM?.opponentStats(),
           });
         };
         runtime.onFrameSample((sample) => {

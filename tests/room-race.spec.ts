@@ -290,7 +290,7 @@ test("two players race a room on one clock to the same results", async ({
   );
   const [host, guest] = pages;
   try {
-    const guestRoom = await cuttableRoom(guest);
+    const [hostRoom, guestRoom] = await Promise.all(pages.map(cuttableRoom));
     await joinAs(host, code, "ada");
     await expect(
       host.getByRole("heading", { name: "Private room" }),
@@ -306,9 +306,11 @@ test("two players race a room on one clock to the same results", async ({
     }
     await expect(hostRacers).toContainText("Ready · Balanced Kart");
     await expect(guest.getByText("The host starts the race.")).toBeVisible();
-    // The guest's word that it loaded is lost with its connection; it says
-    // so again when it reconnects, so the race starts with both.
-    guestRoom.dropNextLoaded();
+    // The host's word that it loaded is lost with its connection; it says
+    // so again when it reconnects, so the race starts with both. (The host
+    // loads first: software WebGL loads the two pages in turn, the second
+    // close to the room's 30 s.)
+    hostRoom.dropNextLoaded();
     await host.getByRole("button", { name: "Start race" }).click();
 
     const canvases = pages.map((page) =>

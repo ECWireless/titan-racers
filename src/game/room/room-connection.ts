@@ -108,6 +108,20 @@ export class RoomConnection {
    */
   private raceNotice: RaceNotice | null = null;
   private removeLifecycleListeners: (() => void) | null = null;
+  /**
+   * `?net=delay,jitter` (milliseconds) holds back opponents' states, as a
+   * slow network would: each by the delay plus up to the jitter, in order,
+   * so they bunch. For trying motion on a bad connection.
+   */
+  private readonly net = (() => {
+    if (typeof window === "undefined") return null;
+    const value = new URLSearchParams(window.location.search).get("net");
+    const [delayMs = 0, jitterMs = 0] = (value ?? "")
+      .split(",")
+      .map((part) => Math.max(0, Number(part) || 0));
+    return delayMs > 0 || jitterMs > 0 ? { delayMs, jitterMs } : null;
+  })();
+  private netDueAt = 0;
 
   constructor(
     private readonly code: string,
@@ -292,9 +306,29 @@ export class RoomConnection {
       case "pong":
         this.clock.addSample(message.t, message.serverAt, performance.now());
         break;
-      case "state":
-        this.opponents.add(message);
+      case "state": {
+        if (!this.net) {
+          this.opponents.add(message, this.raceMicroseconds());
+          break;
+        }
+        const now = performance.now();
+        this.netDueAt = Math.max(
+          this.netDueAt,
+          now + this.net.delayMs + Math.random() * this.net.jitterMs,
+        );
+        // A state held past its race, or this visit, is dropped.
+        const raceId = this.view.room?.race?.id;
+        const generation = this.generation;
+        window.setTimeout(() => {
+          if (
+            generation === this.generation &&
+            raceId === this.view.room?.race?.id
+          ) {
+            this.opponents.add(message, this.raceMicroseconds());
+          }
+        }, this.netDueAt - now);
         break;
+      }
       case "room": {
         const previous = this.view.room?.race?.id;
         if (message.race?.id !== previous) {

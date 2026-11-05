@@ -28,7 +28,7 @@ export const ROOM_SEAT_HOLD_MS = 30_000;
 /** No room race runs longer than this. */
 export const ROOM_RACE_LIMIT_MS = 10 * 60_000;
 /** Opponent states are sent this many times a second. */
-export const ROOM_STATE_HZ = 10;
+export const ROOM_STATE_HZ = 30;
 /** The most states a page resends in one frame after it reconnects. */
 export const ROOM_RESEND_BATCH = 20;
 /** The longest text frame the room server accepts from a client. */
