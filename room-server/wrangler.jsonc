@@ -1,0 +1,31 @@
+// The room server. Local development needs no Cloudflare account:
+// `pnpm rooms:dev` runs it in workerd with ROOM_SERVER_SECRET from
+// room-server/.dev.vars (gitignored). See
+// skills/tools/cloudflare-durable-objects for the platform's limits.
+{
+  "$schema": "../node_modules/wrangler/config-schema.json",
+  "name": "titan-racers-rooms",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-10-20",
+  "durable_objects": {
+    "bindings": [{ "name": "ROOMS", "class_name": "Room" }]
+  },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["Room"] }],
+  "vars": {
+    "APP_ORIGINS": "http://localhost:3000,http://127.0.0.1:3000",
+    "APP_RESULTS_URL": "http://127.0.0.1:3000/api/rooms/results"
+  },
+  "env": {
+    "production": {
+      "workers_dev": false,
+      "routes": [{ "pattern": "rooms.titanracers.com", "custom_domain": true }],
+      "durable_objects": {
+        "bindings": [{ "name": "ROOMS", "class_name": "Room" }]
+      },
+      "vars": {
+        "APP_ORIGINS": "https://play.titanracers.com",
+        "APP_RESULTS_URL": "https://play.titanracers.com/api/rooms/results"
+      }
+    }
+  }
+}
