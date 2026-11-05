@@ -1,6 +1,12 @@
 import { randomBytes } from "node:crypto";
 
-import { expect, type Locator, type Page, test } from "@playwright/test";
+import {
+  expect,
+  type Locator,
+  type Page,
+  test,
+  type WebSocketRoute,
+} from "@playwright/test";
 
 import { FALLS_VIEW_PARK_DOCUMENT } from "../src/game/course/course-document";
 import { createBalancedKartDocument } from "../src/game/kart/balanced-kart-document";
@@ -51,6 +57,8 @@ test.afterAll(async () => {
 });
 
 async function joinAs(page: Page, code: string, username: string | null) {
+  // One seat per page, as the app's keys give, so a reconnect retakes it.
+  const key = randomRoomPlayerKey();
   await Promise.all([
     page.route("**/api/karts/official", (route) =>
       route.fulfill({
@@ -98,7 +106,7 @@ async function joinAs(page: Page, code: string, username: string | null) {
             physicsVersion: CURRENT_PHYSICS_VERSION,
             karts: [{ id: KART.kartId, revision: 1 }],
             player: {
-              key: randomRoomPlayerKey(),
+              key,
               username,
               signedIn: username !== null,
             },
@@ -108,6 +116,54 @@ async function joinAs(page: Page, code: string, username: string | null) {
     ),
   ]);
   await page.goto(`/room/${code}`);
+}
+
+/**
+ * Passes a page's room connections through, so the test can cut one and
+ * keep it down for a while, as a dropped network would.
+ */
+async function cuttableRoom(page: Page) {
+  let down = false;
+  let dropLoaded = false;
+  let live: { page: WebSocketRoute; server: WebSocketRoute } | null = null;
+  const cut = () => {
+    down = true;
+    void live?.server.close({ code: 4100 });
+    void live?.page.close({ code: 4100 });
+    live = null;
+  };
+  await page.routeWebSocket(/\/v1\/rooms\//, (route) => {
+    if (down) {
+      void route.close({ code: 4100 });
+      return;
+    }
+    const server = route.connectToServer();
+    live = { page: route, server };
+    route.onMessage((message) => {
+      // Lost as the connection drops, for a second.
+      if (
+        dropLoaded &&
+        typeof message === "string" &&
+        message.includes('"type":"loaded"')
+      ) {
+        dropLoaded = false;
+        cut();
+        setTimeout(() => (down = false), 1_000);
+        return;
+      }
+      server.send(message);
+    });
+  });
+  return {
+    cut,
+    restore() {
+      down = false;
+    },
+    /** Loses the page's next `loaded` along with its connection. */
+    dropNextLoaded() {
+      dropLoaded = true;
+    },
+  };
 }
 
 async function raceState(canvas: Locator) {
@@ -234,6 +290,7 @@ test("two players race a room on one clock to the same results", async ({
   );
   const [host, guest] = pages;
   try {
+    const guestRoom = await cuttableRoom(guest);
     await joinAs(host, code, "ada");
     await expect(
       host.getByRole("heading", { name: "Private room" }),
@@ -249,6 +306,9 @@ test("two players race a room on one clock to the same results", async ({
     }
     await expect(hostRacers).toContainText("Ready · Balanced Kart");
     await expect(guest.getByText("The host starts the race.")).toBeVisible();
+    // The guest's word that it loaded is lost with its connection; it says
+    // so again when it reconnects, so the race starts with both.
+    guestRoom.dropNextLoaded();
     await host.getByRole("button", { name: "Start race" }).click();
 
     const canvases = pages.map((page) =>
@@ -285,8 +345,19 @@ test("two players race a room on one clock to the same results", async ({
     ).map(({ at, state }) => at - state.elapsedRaceMicroseconds / 1_000);
     expect(Math.abs(hostStart - guestStart)).toBeLessThan(250);
 
+    // The guest's connection drops for a lap gate: its kart drives on, and
+    // the room counts the gate once the page is back.
+    const [checkpoint] = COURSE.checkpoints;
+    expect(await cross(canvases[1], checkpoint)).toBe("checkpoint");
+    guestRoom.cut();
+    const reconnecting = guest.getByText("Reconnecting…").first();
+    await expect(reconnecting).toBeVisible();
+    expect(await cross(canvases[1], START_TARGET)).toBe("lap");
+    guestRoom.restore();
+    await expect(reconnecting).toBeHidden({ timeout: 15_000 });
     // The guest finishes first; both see the same places.
-    await driveTwoLaps(canvases[1]);
+    expect(await cross(canvases[1], checkpoint)).toBe("checkpoint");
+    expect(await cross(canvases[1], START_TARGET)).toBe("finished");
     await expect(guest.getByText(/Finished · 1st/)).toBeVisible();
     await driveTwoLaps(canvases[0]);
     for (const page of pages) {

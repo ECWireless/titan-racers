@@ -64,8 +64,8 @@ function tokenRequest(
   );
 }
 
-async function tokenFor(code: string, headers?: Headers) {
-  const response = await tokenRequest(code, { headers });
+async function tokenFor(code: string, headers?: Headers, body?: string) {
+  const response = await tokenRequest(code, { body, headers });
   expect(response.status).toBe(200);
   const { token } = (await response.json()) as { token: string };
   return (await readRoomToken(SECRET, token))!;
@@ -203,8 +203,20 @@ test.describe("private rooms", () => {
     expect(token.karts.map(({ id }) => id).sort()).toEqual(
       [...OFFICIAL_KART_IDS].sort(),
     );
-    // A guest's key is new each time, so a refresh is a new seat.
+    // A guest's key is new each time, so a refresh is a new seat...
     expect((await tokenFor(code)).player.key).not.toBe(token.player.key);
+    // ...unless its page sends its seat secret, to retake its seat.
+    const seat = (name: string) =>
+      JSON.stringify({ seat: name.repeat(43).slice(0, 43) });
+    const held = (await tokenFor(code, undefined, seat("a"))).player.key;
+    expect(held).not.toBe(token.player.key);
+    expect((await tokenFor(code, undefined, seat("a"))).player.key).toBe(held);
+    expect((await tokenFor(code, undefined, seat("b"))).player.key).not.toBe(
+      held,
+    );
+    expect(
+      (await tokenFor(createRoomCode(), undefined, seat("a"))).player.key,
+    ).not.toBe(held);
   });
 
   test("gives an account the same key in a room, and no account ID", async () => {
@@ -220,6 +232,16 @@ test.describe("private rooms", () => {
     expect((await tokenFor(code, named.headers)).player.key).toBe(
       token.player.key,
     );
+    // An account's seat is its own, whatever secret its page holds.
+    expect(
+      (
+        await tokenFor(
+          code,
+          named.headers,
+          JSON.stringify({ seat: "c".repeat(43) }),
+        )
+      ).player.key,
+    ).toBe(token.player.key);
     expect(
       (await tokenFor(createRoomCode(), named.headers)).player.key,
     ).not.toBe(token.player.key);
@@ -240,7 +262,9 @@ test.describe("private rooms", () => {
   test("refuses joins it can't sign", async () => {
     expect((await tokenRequest("not-a-room")).status).toBe(404);
     const code = createRoomCode();
-    expect((await tokenRequest(code, { body: '{"x":1}' })).status).toBe(400);
+    for (const body of ['{"x":1}', '{"seat":"short"}', "not json"]) {
+      expect((await tokenRequest(code, { body })).status).toBe(400);
+    }
     expect(
       (await tokenRequest(code, { origin: "https://elsewhere.example" }))
         .status,

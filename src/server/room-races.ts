@@ -15,6 +15,7 @@ import {
 import {
   randomRoomPlayerKey,
   ROOM_COURSE_CHECKPOINT_LIMIT,
+  roomGuestKey,
   roomPlayerKey,
   RoomTokenTooLongError,
   signRoomToken,
@@ -40,10 +41,14 @@ export function roomServerSecret() {
   return secret;
 }
 
-/** A join token for one room: a guest's when `user` is null. */
+/**
+ * A join token for one room: a guest's when `user` is null, whose page's
+ * seat secret, if it sent one, lets it retake its seat.
+ */
 export async function issueRoomToken(
   roomCode: string,
   user: { id: string; username: string | null } | null,
+  seat: string | null = null,
 ) {
   const secret = roomServerSecret();
   const [publication, roster] = await Promise.all([
@@ -78,7 +83,9 @@ export async function issueRoomToken(
     player: {
       key: user
         ? await roomPlayerKey(secret, roomCode, user.id)
-        : randomRoomPlayerKey(),
+        : seat
+          ? await roomGuestKey(secret, roomCode, seat)
+          : randomRoomPlayerKey(),
       username: user?.username ?? null,
       signedIn: user !== null,
     },

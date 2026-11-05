@@ -24,7 +24,8 @@ lobby and room race, and what a finished room race stores.
 - `src/game/room/room-signing.ts`: Web Crypto HMAC for join tokens,
   per-room account keys, and signed reports, shared by Node and the Worker.
 - `src/game/room/room-clock.ts`: the client's estimate of the room's clock.
-- `src/game/room/room-connection.ts`: the page's WebSocket client.
+- `src/game/room/room-connection.ts`: the page's WebSocket client, which
+  reconnects and resends what the room missed.
 - `src/game/room/room-race.ts`: the canvas's view of its room and opponent
   tracks (a `GhostPlayback` each, appended as states arrive).
 - `room-server/`: the Worker and the `Room` Durable Object, transport only,
@@ -53,19 +54,39 @@ lobby and room race, and what a finished room race stores.
 - The app signs a 60-second token per connection. A signed-in account,
   including one kept only in a browser, joins with an HMAC of the room code
   and its ID, so a second tab takes the same seat and the room server never
-  sees the ID; a guest's key is random per token. The Worker checks the
+  sees the ID. A guest's key is an HMAC of the room code and a random seat
+  secret its page holds in memory, so the page retakes its seat when it
+  reconnects and a reload is a new guest; without a secret, the key is
+  random. The Worker checks the
   origin, the token, its room, and its protocol version before anything
   reaches the room's object.
-- The room server owns membership, host (the longest present), readiness,
-  the start, gates, finishes, places, and the end; clients simulate only
-  their own kart, and predict their own gates and finish for the HUD. Every event first applies any deadline already passed,
-  and one alarm wakes the room for the next. A message that changes nothing
+- The room server owns membership, host (the longest-present connected
+  player), readiness, the start, gates, finishes, places, and the end;
+  clients simulate only their own kart, and predict their own gates and
+  finish for the HUD. Every event first applies any deadline already
+  passed, and one alarm wakes the room for the next, for a deadline or a
+  connection about to count as silent. A message that changes nothing
   writes nothing. A socket may send a burst of 300 frames, refilled at 30 a
   second, and 20 messages that change the room, refilled at 5 a second;
   past either it is closed.
-- Clients keep the room's clock from pings (every 5 s in a race, 20 s
-  between races so the room can hibernate), keeping the quietest sample
-  with an age penalty. Each frame reads it at the frame's own timestamp and
+- A close with code 1000 (Leave room) frees a seat at once; any other
+  close, or 5 s of silence while racing (30 s otherwise), holds it for 30 s
+  as away: shown as reconnecting, not hosting, and left out of a race that
+  starts meanwhile. Past the hold the seat is given up, as leaving would. A
+  rejoin's welcome names the race time of the last state the room accepted,
+  and the page resends the rest in batches of 20 (only each batch's newest
+  is relayed), holding live states until then, and says again that it
+  loaded or sat out its race; a finish during the outage keeps its own
+  time. Each socket's last-heard time lives in its attachment, to the
+  second, so silence outlives hibernation. The page reconnects by itself (backing off to 5 s,
+  for up to 40 s), treats an unanswered ping as a drop (3 s racing, 8 s
+  otherwise, skipped when its own check ran late), checks at once on
+  becoming visible, and closes on a Chrome freeze to reconnect on resume.
+  A page that can't race (its course or kart failed, or it reloaded into a
+  race under way) sends `sit_out`, which drops it from the race at once.
+- Clients keep the room's clock from pings (every second from a race's
+  start, 20 s between races so the room can hibernate), keeping the
+  quietest sample with an age penalty. Each frame reads it at the frame's own timestamp and
   charges any lag over 50 ms to the race clock, so time lost to a late
   start, a stall, or a pause counts, as the room's does.
 - Each kart state is one fixed step's pose, with its race time and
@@ -86,7 +107,7 @@ lobby and room race, and what a finished room race stores.
   behind, held still at the newest rather than extrapolated. Opponents are
   solid and drawn without physics.
 - A race is entered only before it has a start time; a reload mid-race
-  waits in the lobby. The canvas hides its solo finish, stops once the race
+  sits it out and waits in the lobby. The canvas hides its solo finish, stops once the race
   is over, and the room page shows each race's results as first seen.
   Finishers place by time, everyone else by gates passed, then by the race
   time of their last, whether or not they left.
@@ -98,7 +119,7 @@ lobby and room race, and what a finished room race stores.
 
 ## Known Limits
 
-- No reconnect: leaving or losing the connection means not finishing.
+- A reload is a new visit: it doesn't resume a race, even with the seat.
 - No kart-to-kart contact; karts pass through each other.
 - Opponents are silent and cast no contact shadow.
 - Opponents are drawn with this page's version of their kart, so across a
@@ -114,10 +135,13 @@ lobby and room race, and what a finished room race stores.
   token's course and grid, and clocks (`tests/support/room-course.ts` is a
   straight test course).
 - `tests/room-server.spec.ts`: Node clients against `wrangler dev`
-  (`tests/support/room-server.ts`).
+  (`tests/support/room-server.ts`), including a held seat, its resend, and
+  silent connections in a race and in a sleeping lobby.
 - `tests/rooms.spec.ts`: the token and results routes against Postgres.
 - `tests/room-race.spec.ts`: two browsers race one room on one clock,
-  crossing gates no faster than the room's check allows.
+  crossing gates no faster than the room's check allows, one losing its
+  connection with its `loaded` and again for a lap gate
+  (`page.routeWebSocket`).
 - `tests/admin-overview.spec.ts`: the dashboard's room counts.
 
 ## Related

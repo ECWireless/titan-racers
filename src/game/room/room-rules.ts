@@ -12,6 +12,7 @@ import {
   ROOM_MIN_RACERS,
   ROOM_PROTOCOL,
   ROOM_RACE_LIMIT_MS,
+  ROOM_SEAT_HOLD_MS,
   ROOM_START_DELAY_MS,
   type RoomClientMessage,
   type RoomEndReason,
@@ -54,6 +55,8 @@ export type RoomPlayerState = {
   karts: RoomKart[];
   kartId: string | null;
   ready: boolean;
+  /** When its connection dropped; its seat is held until the hold ends. */
+  awaySince: number | null;
 };
 
 export type RoomEntrantState = {
@@ -87,7 +90,7 @@ export type RoomState = {
   /** The first joiner's course, which every state is checked against. */
   course: RoomCourse;
   physicsVersion: string;
-  /** In join order; the first player hosts. */
+  /** In join order; the first connected player hosts. */
   players: RoomPlayerState[];
   nextPlayer: number;
   nextGuest: number;
@@ -104,6 +107,8 @@ export type RoomState = {
 export type RoomEvent =
   | { type: "join"; now: number; token: RoomToken }
   | { type: "leave"; now: number; playerId: string }
+  | { type: "disconnect"; now: number; playerId: string }
+  | { type: "sit_out"; now: number; playerId: string; raceId: string }
   | { type: "tick"; now: number }
   | { type: "choose_kart"; now: number; playerId: string; kartId: string }
   | { type: "start"; now: number; playerId: string; raceId: string }
@@ -146,14 +151,45 @@ export function createRoomState(token: RoomToken): RoomState {
 }
 
 export function hostId(state: RoomState) {
-  return state.players[0]?.id ?? null;
+  return state.players.find(({ awaySince }) => awaySince === null)?.id ?? null;
+}
+
+/**
+ * For a seat racing on, the race time of the last state the room accepted
+ * from it (-1 for none), so its page resends what came after; else null.
+ */
+export function roomResume(state: RoomState, playerId: string) {
+  const entrant = state.race?.entrants.find(({ id }) => id === playerId);
+  if (
+    state.race?.racingAt == null ||
+    !entrant?.loaded ||
+    entrant.left ||
+    entrant.finishMicroseconds !== null
+  ) {
+    return null;
+  }
+  return entrant.last?.timeMicroseconds ?? -1;
+}
+
+function seatExpiry(state: RoomState) {
+  const away = state.players.flatMap(({ awaySince }) =>
+    awaySince === null ? [] : [awaySince + ROOM_SEAT_HOLD_MS],
+  );
+  return away.length === 0 ? null : Math.min(...away);
 }
 
 export function nextRoomDeadline(state: RoomState) {
   const race = state.race;
-  if (!race) return null;
-  if (race.racingAt === null) return race.loadDeadline;
-  return raceEndsBy(race.racingAt, race.firstFinishAt);
+  const deadlines = [seatExpiry(state)];
+  if (race) {
+    deadlines.push(
+      race.racingAt === null
+        ? race.loadDeadline
+        : raceEndsBy(race.racingAt, race.firstFinishAt),
+    );
+  }
+  const due = deadlines.filter((deadline) => deadline !== null);
+  return due.length === 0 ? null : Math.min(...due);
 }
 
 function raceEndsBy(racingAt: number, firstFinishAt: number | null) {
@@ -178,6 +214,12 @@ export function applyRoomEvent(
       break;
     case "leave":
       changed = leave(state, event.playerId);
+      break;
+    case "disconnect":
+      changed = disconnect(state, event.playerId, event.now);
+      break;
+    case "sit_out":
+      changed = sitOut(state, event.playerId, event.raceId);
       break;
     case "choose_kart":
       changed = chooseKart(state, event.playerId, event.kartId);
@@ -211,7 +253,9 @@ function join(outcome: RoomOutcome, token: RoomToken) {
   }
   const existing = state.players.find(({ key }) => key === token.player.key);
   if (existing) {
-    // The same account from another tab takes its seat.
+    // The same account from another tab, or this page reconnecting, takes
+    // its seat.
+    existing.awaySince = null;
     existing.karts = token.karts;
     if (!existing.karts.some(({ id }) => id === existing.kartId)) {
       existing.kartId = null;
@@ -243,6 +287,7 @@ function join(outcome: RoomOutcome, token: RoomToken) {
     karts: token.karts,
     kartId: null,
     ready: false,
+    awaySince: null,
   });
   outcome.joined = { playerId: id, replaced: false };
   outcome.changed = true;
@@ -262,6 +307,30 @@ function leave(state: RoomState, playerId: string) {
       if (entrant) entrant.left = true;
     }
   }
+  return true;
+}
+
+/** A dropped connection's seat is held; its kart races on meanwhile. */
+function disconnect(state: RoomState, playerId: string, now: number) {
+  const player = state.players.find(({ id }) => id === playerId);
+  if (!player || player.awaySince !== null) return false;
+  player.awaySince = now;
+  return true;
+}
+
+/** A page that can't race this race leaves it, staying in the room. */
+function sitOut(state: RoomState, playerId: string, raceId: string) {
+  const race = state.race;
+  const player = state.players.find(({ id }) => id === playerId);
+  if (!race || race.id !== raceId || !player) return false;
+  const entrant = race.entrants.find(({ id }) => id === playerId);
+  if (!entrant || entrant.left) return false;
+  if (race.racingAt === null) {
+    race.entrants = race.entrants.filter(({ id }) => id !== playerId);
+  } else {
+    entrant.left = true;
+  }
+  player.ready = false;
   return true;
 }
 
@@ -286,9 +355,12 @@ function start(
   { now, playerId, raceId }: { now: number; playerId: string; raceId: string },
 ) {
   if (state.race || hostId(state) !== playerId) return false;
+  // A seat held for a dropped connection sits the race out.
   const ready = state.players.filter(
     (player) =>
-      player.ready && player.karts.some(({ id }) => id === player.kartId),
+      player.ready &&
+      player.awaySince === null &&
+      player.karts.some(({ id }) => id === player.kartId),
   );
   if (ready.length < ROOM_MIN_RACERS) return false;
   state.race = {
@@ -413,6 +485,13 @@ function kartState(
 /** Applies every deadline and end rule that holds at `now`. */
 function settle(outcome: RoomOutcome, now: number) {
   const { state } = outcome;
+  // A seat held past its hold is given up, as leaving would.
+  for (const { id, awaySince } of [...state.players]) {
+    if (awaySince !== null && now >= awaySince + ROOM_SEAT_HOLD_MS) {
+      leave(state, id);
+      outcome.changed = true;
+    }
+  }
   const race = state.race;
   if (!race) return;
 
@@ -539,11 +618,12 @@ export function roomSnapshot(state: RoomState): RoomSnapshot {
     courseRevision: state.courseRevision,
     hostId: hostId(state),
     phase: !race ? "lobby" : race.racingAt === null ? "loading" : "racing",
-    players: state.players.map(({ id, name, kartId, ready }) => ({
+    players: state.players.map(({ id, name, kartId, ready, awaySince }) => ({
       id,
       name,
       kartId,
       ready,
+      connected: awaySince === null,
     })),
     race: race && {
       id: race.id,

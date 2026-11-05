@@ -61,6 +61,7 @@ function derivedKey(untrimmed: string, purpose: string) {
 
 const TOKEN_PURPOSE = "titan-racers room token v1";
 const PLAYER_PURPOSE = "titan-racers room player v1";
+const GUEST_PURPOSE = "titan-racers room guest v1";
 const REPORT_PURPOSE = "titan-racers room report v1";
 
 function toBase64Url(bytes: Uint8Array) {
@@ -238,6 +239,21 @@ export async function roomPlayerKey(
   userId: string,
 ) {
   return sign(secret, PLAYER_PURPOSE, `${roomCode}\n${userId}`);
+}
+
+/** What a page holds to retake its guest seat: 32 random bytes. */
+export const ROOM_SEAT_SECRET_PATTERN = /^[A-Za-z0-9_-]{43}$/;
+
+/**
+ * A guest's key in one room, from a secret only its page holds, so the
+ * page retakes its seat when it reconnects; a new page is a new guest.
+ */
+export async function roomGuestKey(
+  secret: string,
+  roomCode: string,
+  seat: string,
+) {
+  return sign(secret, GUEST_PURPOSE, `${roomCode}\n${seat}`);
 }
 
 export function randomRoomPlayerKey() {

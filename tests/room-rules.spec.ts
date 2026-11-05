@@ -9,6 +9,7 @@ import {
   ROOM_LOAD_MS,
   ROOM_PROTOCOL,
   ROOM_RACE_LIMIT_MS,
+  ROOM_SEAT_HOLD_MS,
   ROOM_START_DELAY_MS,
   roomRaceReportSchema,
   roomSnapshotSchema,
@@ -18,6 +19,7 @@ import {
   createRoomState,
   hostId,
   nextRoomDeadline,
+  roomResume,
   roomSnapshot,
   type RoomEvent,
   type RoomKartState,
@@ -559,6 +561,96 @@ test.describe("room racing", () => {
     expect(unraced.state.race).toBeNull();
     expect(unraced.state.lastRace?.endReason).toBe("everyone_left");
     expect(unraced.report).toBeUndefined();
+  });
+});
+
+test.describe("dropped connections", () => {
+  test("hold a seat for 30 s, hosted meanwhile by the next connected", () => {
+    let state = run(lobby(2), { type: "disconnect", now: 5_000, playerId: "p1" })
+      .state;
+    expect(roomSnapshot(state)).toMatchObject({
+      hostId: "p2",
+      players: [
+        { id: "p1", connected: false, ready: true },
+        { id: "p2", connected: true },
+      ],
+    });
+    expect(nextRoomDeadline(state)).toBe(5_000 + ROOM_SEAT_HOLD_MS);
+    // The same page (or account) comes back to its seat, and hosts again.
+    const back = run(state, { type: "join", now: 6_000, token: token("k0") });
+    expect(back.joined).toEqual({ playerId: "p1", replaced: true });
+    expect(hostId(back.state)).toBe("p1");
+    expect(nextRoomDeadline(back.state)).toBeNull();
+    // Gone past the hold, the seat is given up.
+    state = run(state, {
+      type: "tick",
+      now: 5_000 + ROOM_SEAT_HOLD_MS,
+    }).state;
+    expect(state.players.map(({ id }) => id)).toEqual(["p2"]);
+  });
+
+  test("a held seat sits out a race that starts without it", () => {
+    let state = run(lobby(3), { type: "disconnect", now: 1_500, playerId: "p3" })
+      .state;
+    state = run(state, {
+      type: "start",
+      now: 2_000,
+      playerId: "p1",
+      raceId: RACE,
+    }).state;
+    expect(state.race?.entrants.map(({ id }) => id)).toEqual(["p1", "p2"]);
+  });
+
+  test("race on for a held seat, which resumes after its last state", () => {
+    let state = racing(2);
+    expect(roomResume(state, "p1")).toBe(-1);
+    state = run(
+      state,
+      stateEvent("p1", RACING_AT + 1_050, kartAt(1e6, 5)),
+      { type: "disconnect", now: RACING_AT + 2_000, playerId: "p1" },
+    ).state;
+    expect(roomResume(state, "p1")).toBe(1e6);
+    // States from the outage still count when they arrive.
+    const resumed = run(
+      state,
+      stateEvent("p1", RACING_AT + 9_000, crossingAt(2e6, 10)),
+    );
+    expect(resumed.state.race?.entrants[0].gates).toBe(1);
+    // Past the hold, the racer has left, keeping its place.
+    const gone = run(resumed.state, {
+      type: "tick",
+      now: RACING_AT + 2_000 + ROOM_SEAT_HOLD_MS,
+    }).state;
+    expect(gone.race?.entrants[0]).toMatchObject({ id: "p1", left: true });
+    expect(roomResume(gone, "p1")).toBeNull();
+    expect(roomResume(gone, "p2")).toBe(-1);
+  });
+
+  test("a page that can't race leaves the race at once", () => {
+    let state = run(lobby(3), {
+      type: "start",
+      now: 2_000,
+      playerId: "p1",
+      raceId: RACE,
+    }).state;
+    state = run(
+      state,
+      { type: "loaded", now: 2_500, playerId: "p1", raceId: RACE },
+      { type: "loaded", now: 2_600, playerId: "p2", raceId: RACE },
+      { type: "sit_out", now: 2_700, playerId: "p3", raceId: RACE },
+    ).state;
+    // Everyone left has loaded, so racing starts without waiting.
+    expect(state.race?.racingAt).toBe(2_700 + ROOM_START_DELAY_MS);
+    expect(state.race?.entrants.map(({ id }) => id)).toEqual(["p1", "p2"]);
+    expect(state.players[2]).toMatchObject({ id: "p3", ready: false });
+    // Once racing, sitting out leaves the race.
+    const left = run(state, {
+      type: "sit_out",
+      now: RACING_AT,
+      playerId: "p2",
+      raceId: RACE,
+    }).state;
+    expect(left.race?.entrants[1]).toMatchObject({ id: "p2", left: true });
   });
 });
 

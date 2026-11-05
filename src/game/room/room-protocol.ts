@@ -20,12 +20,19 @@ export const ROOM_LOAD_MS = 30_000;
 export const ROOM_START_DELAY_MS = 4_000;
 /** The race ends this long after its first finisher. */
 export const ROOM_FINISH_GRACE_MS = 30_000;
+/**
+ * A dropped connection keeps its seat this long, in the lobby or a race,
+ * while the page reconnects.
+ */
+export const ROOM_SEAT_HOLD_MS = 30_000;
 /** No room race runs longer than this. */
 export const ROOM_RACE_LIMIT_MS = 10 * 60_000;
 /** Opponent states are sent this many times a second. */
 export const ROOM_STATE_HZ = 10;
+/** The most states a page resends in one frame after it reconnects. */
+export const ROOM_RESEND_BATCH = 20;
 /** The longest text frame the room server accepts from a client. */
-const ROOM_MAX_CLIENT_FRAME_CHARS = 1_024;
+const ROOM_MAX_CLIENT_FRAME_CHARS = 4_096;
 /** The longest text frame a client accepts from the room server. */
 const ROOM_MAX_SERVER_FRAME_CHARS = 16_384;
 
@@ -37,6 +44,8 @@ export const ROOM_CLOSE = {
   token: 4003,
   replaced: 4004,
   protocol: 4005,
+  /** The room heard nothing for too long; the page may reconnect. */
+  silent: 4006,
 } as const;
 
 // 31 letters and digits, without look-alikes (0/o, 1/i/l).
@@ -89,7 +98,7 @@ const position = z.tuple([bounded(2e6), bounded(2e6), bounded(2e6)]);
  * rotation, velocity, steer, and reset. The room checks each one; see
  * room-rules.ts.
  */
-const kartState = {
+const kartStateFields = {
   t: microseconds,
   p: position,
   q: z.tuple([bounded(1.01), bounded(1.01), bounded(1.01), bounded(1.01)]),
@@ -104,13 +113,21 @@ const kartState = {
    */
   g: position.optional(),
 };
+const kartState = z.strictObject(kartStateFields);
 
 const clientMessageSchema = z.discriminatedUnion("type", [
   z.strictObject({ type: z.literal("ping"), t: z.number() }),
   z.strictObject({ type: z.literal("choose_kart"), kartId }),
   z.strictObject({ type: z.literal("start") }),
   z.strictObject({ type: z.literal("loaded"), raceId }),
-  z.strictObject({ type: z.literal("state"), ...kartState }),
+  z.strictObject({ type: z.literal("state"), ...kartStateFields }),
+  /** States the room missed while this page was away, oldest first. */
+  z.strictObject({
+    type: z.literal("states"),
+    states: z.array(kartState).min(1).max(ROOM_RESEND_BATCH),
+  }),
+  /** This page can't race this race (its course or kart failed). */
+  z.strictObject({ type: z.literal("sit_out"), raceId }),
 ]);
 export type RoomClientMessage = z.infer<typeof clientMessageSchema>;
 
@@ -119,6 +136,8 @@ const roomPlayer = z.strictObject({
   name: z.string().min(1).max(40),
   kartId: kartId.nullable(),
   ready: z.boolean(),
+  /** False while the seat is held for a dropped connection. */
+  connected: z.boolean(),
 });
 
 const raceEntrant = z.strictObject({
@@ -180,14 +199,26 @@ export const roomSnapshotSchema = z.strictObject({
 export type RoomSnapshot = z.infer<typeof roomSnapshotSchema>;
 
 const serverMessageSchema = z.discriminatedUnion("type", [
-  z.strictObject({ type: z.literal("welcome"), you: playerId }),
+  z.strictObject({
+    type: z.literal("welcome"),
+    you: playerId,
+    /**
+     * Racing on, the race time of the last state the room accepted from
+     * this seat (-1 for none), so the page resends what came after.
+     */
+    resume: z.number().int().min(-1).max(ROOM_RACE_LIMIT_MS * 1_000).nullable(),
+  }),
   z.strictObject({
     type: z.literal("pong"),
     t: z.number(),
     serverAt: serverTime,
   }),
   roomSnapshotSchema,
-  z.strictObject({ type: z.literal("state"), from: playerId, ...kartState }),
+  z.strictObject({
+    type: z.literal("state"),
+    from: playerId,
+    ...kartStateFields,
+  }),
 ]);
 export type RoomServerMessage = z.infer<typeof serverMessageSchema>;
 
