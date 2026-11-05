@@ -17,8 +17,8 @@ accepted; the app, README, and durable docs take over from there.
 
 - **Done:** Phases 0–5 (PRs #1–#24, the Phase 3 closeout and its
   follow-ups, #30–#57 with the PR 4.5.2 closeout, and #59–#63), and PRs 6.0
-  (#64), 6.1 (#65), and 6.2 (#66).
-- **Now:** Phase 6, PR 6.3 (implemented, in review).
+  (#64), 6.1 (#65), 6.2 (#66), and 6.3 (#67).
+- **Now:** Phase 6, PR 6.4.
 
 ## Guiding Decisions
 
@@ -274,6 +274,49 @@ Phase decisions:
 - **"Continue anonymously" is an alternative to signing in,** shown apart
   from the sign-in methods on the profile and below Sign in on a guest's
   result (PR 6.3).
+- **A room lives only while someone is in it** (PR 6.4). Race Friends
+  makes a random 10-character code and opens `/room/<code>`; nothing is
+  stored until a race finishes. The first player's join token fixes the
+  room's course revision and physics and protocol versions, and its storage
+  is deleted 10 minutes after the last player leaves. Anyone, guests
+  included, may open a room, with no limit on making rooms until the public
+  share.
+- **The app signs a 60-second join token for each connection** with the
+  room code, versions, course revision, official kart revisions, and the
+  player's per-room key, name, and whether they are signed in. A signed-in
+  player's key is an HMAC of the room code and account ID, so the room
+  server never sees an account ID; a guest's key is random. Players show as
+  @username, or "Guest N" without one. One `ROOM_SERVER_SECRET` derives
+  separate keys for tokens and results.
+- **The longest-present player hosts,** passing on when they leave. A room
+  holds at most 4. Choosing a kart marks a player ready; the host starts
+  once at least 2 are ready, and the rest wait for the next race. Anyone
+  still loading after 30 s sits the race out, and racing starts 4 s after
+  the last entrant loads, on the room server's clock. Clients estimate
+  their offset from pings, keeping the shortest round trip, hold the grid,
+  run the usual 3-2-1, and charge any lag to their race clock so it reads
+  the room's. Pause stops your kart while the room's clock runs on.
+- **A room race ends** when every active player has finished, 30 s after
+  the first finisher, or at 10 minutes. Leaving or losing the connection
+  means not finishing, until PR 6.5's reconnect. Finishers place by time
+  and the rest by gates passed. A finish time is the client's race clock,
+  accepted within a narrow window of the server's. Results offer Race again
+  and Leave room.
+- **Room results stay off leaderboards.** The room server sends each
+  finished race to the app, signed over a timestamp and the body; the app
+  checks the course and official kart revisions and stores it once by race
+  ID, without account IDs or usernames. Rooms record no ghosts, run tickets,
+  or solo run summaries.
+- **Opponents are opaque karts,** not see-through like ghosts, drawn about
+  150 ms behind their updates, sent 10 times a second, and smoothed: a
+  baseline PR 6.5 revisits. They pass through each other until PR 6.6 and
+  are silent until PR 6.5.
+- **One room protocol version is live at a time,** carried in the join
+  token; a player on another is told to refresh, as is one whose
+  connection outlived a room-server deploy to a newer version. PRs 6.5 and
+  6.6 raise it, deploying the room server and then the app back to back.
+  Production rooms use a custom domain; development and QA run
+  `wrangler dev` without an account.
 
 **PR 6.0: Leaderboards across course publications**
 
@@ -339,13 +382,14 @@ Phase decisions:
 
 **PR 6.5: Motion and resilience**
 
-- [ ] Define server authority, update cadence, prediction, interpolation,
-      reconciliation, and bounded correction.
+- [ ] Define server authority, prediction, reconciliation, and bounded
+      correction, and revisit PR 6.4's update cadence and interpolation.
 - [ ] Keep remote presentation separate from authoritative race and collision
       state.
 - [ ] Survive latency, packet loss, reordering, backgrounding, disconnects,
       reconnects, and host departure without hanging the room.
 - [ ] Keep all input methods, reset, pause, and resilience behavior working.
+- [ ] Opponents are heard, with remote karts' cheaper voices.
 - [ ] A four-kart room stays within the phone budget on the lead's iPhone
       (`?perf=1`).
 

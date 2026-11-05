@@ -76,3 +76,7 @@ A game-concept node should normally cover:
 - [`game-audio/`](game-audio/README.md): the candidate standard for race
   sound derived one-way from simulation, physically scaled, readable on phone
   speakers, and following the game's lifecycle.
+- [`multiplayer-rooms/`](multiplayer-rooms/README.md): the candidate
+  standard for small private rooms with one authority, a shared start
+  clock, opponents drawn slightly in the past, deadlines on every wait,
+  and one shared result.
