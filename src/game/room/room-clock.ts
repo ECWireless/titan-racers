@@ -7,7 +7,7 @@
  * only as it ages, for the clocks' slow drift.
  */
 /** Milliseconds of round trip that each millisecond of age counts as. */
-export const ROOM_CLOCK_AGE_PENALTY = 2e-4;
+const ROOM_CLOCK_AGE_PENALTY = 2e-4;
 /** Round trips longer than this say too little to keep. */
 const MAX_ROUND_TRIP_MS = 3_000;
 
@@ -52,11 +52,6 @@ export class RoomClock {
     return this.best?.offset ?? 0;
   }
 
-  /** The kept sample's round trip; half of it bounds the offset's error. */
-  get roundTrip() {
-    return this.best?.roundTrip ?? Infinity;
-  }
-
   serverNow(localNow: number) {
     return localNow + this.offset;
   }
@@ -64,12 +59,4 @@ export class RoomClock {
   localTimeOf(serverTime: number) {
     return serverTime - this.offset;
   }
-}
-
-/**
- * The room's race time at a server time, in microseconds: negative through
- * the countdown, zero as racing starts.
- */
-export function roomRaceMicroseconds(racingAt: number, serverNow: number) {
-  return Math.round((serverNow - racingAt) * 1_000);
 }

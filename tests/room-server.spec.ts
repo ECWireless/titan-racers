@@ -307,3 +307,17 @@ test("fills at four, gives a new tab the seat, and drops bad messages", async ()
   expect(left.hostId).toBe(`p${Math.min(...seats)}`);
   for (const client of others.slice(1)) client.socket.close();
 });
+
+test("closes a socket that floods the room", async () => {
+  const room = createRoomCode();
+  const host = await Client.signed(tokenFields(room));
+  await host.next((message) => message.type === "welcome");
+  const flooder = await Client.signed(tokenFields(room));
+  await flooder.next((message) => message.type === "welcome");
+  for (let index = 0; index < 80; index += 1) {
+    flooder.send({ type: "start" });
+  }
+  expect(await flooder.closed).toBe(ROOM_CLOSE.protocol);
+  await host.next((m) => isRoom(m) && m.players.length === 1);
+  host.socket.close();
+});

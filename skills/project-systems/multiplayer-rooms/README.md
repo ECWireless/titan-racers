@@ -39,12 +39,12 @@ lobby and room race, and what a finished room race stores.
 
 ## Behavior And Invariants
 
-- A room exists while someone is in it. Its first join fixes its course,
-  course revision, gate count, and physics and protocol versions. A join
-  on another protocol or physics version, or another course, is refused
-  with "refresh"; later joiners race the room's course revision. Its
-  storage is deleted 10 minutes after it empties and any report is
-  delivered.
+- A room exists while someone is in it. Its first join, or the first after
+  it empties, fixes its course, course revision, gate count, and physics
+  and protocol versions. A join on another protocol or physics version, or
+  another course, is refused with "refresh"; later joiners race the room's
+  course revision. Its storage is deleted 10 minutes after it empties and
+  any report is delivered.
 - The app signs a 60-second token per connection. A signed-in account,
   including one kept only in a browser, joins with an HMAC of the room code
   and its ID, so a second tab takes the same seat and the room server never
@@ -54,17 +54,24 @@ lobby and room race, and what a finished room race stores.
 - The room server owns membership, host (the longest present), readiness,
   the start, gates, finishes, places, and the end; clients simulate only
   their own kart. Every event first applies any deadline already passed,
-  and one alarm wakes the room for the next.
-- Clients keep the room's clock from pings, keeping the quietest sample
+  and one alarm wakes the room for the next. A message that changes nothing
+  writes nothing. A socket may send a burst of 300 frames, refilled at 30 a
+  second, and 20 messages that change the room, refilled at 5 a second;
+  past either it is closed.
+- Clients keep the room's clock from pings (every 5 s in a race, 20 s
+  between races so the room can hibernate), keeping the quietest sample
   with an age penalty. Each frame reads it at the frame's own timestamp and
   charges any lag over 50 ms to the race clock, so time lost to a late
   start, a stall, or a pause counts, as the room's does.
-- States go out 10 times a second (the server relays up to four times
-  that), are never stored, and are drawn 200 ms behind, held at the newest
-  rather than extrapolated. Opponents are solid and drawn without physics.
+- States go out 10 times a second, and once more at the finish (the server
+  relays up to four times that). They are never stored, and are drawn
+  200 ms behind, held still at the newest rather than extrapolated.
+  Opponents are solid and drawn without physics.
 - A race is entered only before it has a start time; a reload mid-race
-  waits in the lobby. The canvas hides its solo finish, and the room page
-  shows each race's results as first seen.
+  waits in the lobby. The canvas hides its solo finish, stops once the race
+  is over, and the room page shows each race's results as first seen.
+  Finishers place by time, everyone else by gates passed, whether or not
+  they left.
 - A finished race is reported once, signed, and stored once by race ID,
   without account IDs or usernames. The app refuses reports for course or
   kart revisions never published; the room server retries only server
@@ -76,6 +83,8 @@ lobby and room race, and what a finished room race stores.
 - No reconnect: leaving or losing the connection means not finishing.
 - No kart-to-kart contact; karts pass through each other.
 - Opponents are silent and cast no contact shadow.
+- Opponents are drawn with this page's version of their kart, so across a
+  kart republish one can look like its other version, or not appear.
 - No prediction or correction beyond the 200 ms delay.
 - No public matchmaking or room leaderboard.
 

@@ -5,6 +5,7 @@ import {
   randomRoomPlayerKey,
   readRoomToken,
   ROOM_REPORT_WINDOW_MS,
+  ROOM_TOKEN_CLOCK_SKEW_MS,
   ROOM_TOKEN_LIFETIME_MS,
   roomPlayerKey,
   signRoomReport,
@@ -49,8 +50,13 @@ test.describe("room tokens", () => {
     expect(
       await readRoomToken(SECRET, token, NOW + ROOM_TOKEN_LIFETIME_MS + 1),
     ).toBeNull();
-    // A token from the future was not issued by a sane clock.
-    expect(await readRoomToken(SECRET, token, NOW - 1)).toBeNull();
+    // The app's clock may run a little ahead, but not far.
+    expect(
+      await readRoomToken(SECRET, token, NOW - ROOM_TOKEN_CLOCK_SKEW_MS),
+    ).not.toBeNull();
+    expect(
+      await readRoomToken(SECRET, token, NOW - ROOM_TOKEN_CLOCK_SKEW_MS - 1),
+    ).toBeNull();
   });
 
   test("refuse tampering, another secret, and malformed tokens", async () => {

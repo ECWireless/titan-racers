@@ -432,6 +432,8 @@ test.describe("room racing", () => {
   test("ends 30 seconds after the first finisher, with the rest unfinished", () => {
     let state = finishAt(racing(3), "p3", RACING_AT + 60_000).state;
     state = passGates(state, "p1", 2, RACING_AT + 1_000);
+    // Leaving keeps the place its progress earned.
+    state = passGates(state, "p2", 3, RACING_AT + 2_000);
     state = run(state, { type: "leave", now: RACING_AT + 65_000, playerId: "p2" })
       .state;
     expect(canRelayState(state, "p2")).toBe(false);
@@ -452,8 +454,8 @@ test.describe("room racing", () => {
       ]),
     ).toEqual([
       ["p3", 59_950_000],
-      ["p1", null],
       ["p2", null],
+      ["p1", null],
     ]);
   });
 

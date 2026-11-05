@@ -4,7 +4,7 @@ import {
   readBoundedBody,
 } from "@/server/request-guards";
 import { issueRoomToken, RoomsUnavailableError } from "@/server/room-races";
-import { signedInUserIdOrNull } from "@/server/session-user";
+import { signedInUserOrNull } from "@/server/session-user";
 
 type RouteContext = { params: Promise<{ code: string }> };
 const NO_STORE_HEADERS = { "cache-control": "no-store" };
@@ -29,7 +29,7 @@ export async function POST(request: Request, context: RouteContext) {
   try {
     const token = await issueRoomToken(
       code,
-      await signedInUserIdOrNull(request),
+      await signedInUserOrNull(request),
     );
     return Response.json({ token }, { headers: NO_STORE_HEADERS });
   } catch (error) {

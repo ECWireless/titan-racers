@@ -49,15 +49,6 @@ const EMPTY_ROOM_MS = 10 * 60_000;
 const REPORT_RETRY_MS = 30_000;
 const REPORT_ATTEMPTS = 20;
 
-const CLOSE_REASONS: Record<number, string> = {
-  [ROOM_CLOSE.closed]: "Room closed",
-  [ROOM_CLOSE.full]: "Room full",
-  [ROOM_CLOSE.version]: "Refresh to join",
-  [ROOM_CLOSE.token]: "Join link expired",
-  [ROOM_CLOSE.replaced]: "Joined from another tab",
-  [ROOM_CLOSE.protocol]: "Bad message",
-};
-
 /**
  * Accepts and closes at once, so the page can read why. It is not a
  * hibernating socket: it only carries the refusal.
@@ -65,7 +56,7 @@ const CLOSE_REASONS: Record<number, string> = {
 function refuse(code: number) {
   const { 0: client, 1: server } = new WebSocketPair();
   server.accept();
-  server.close(code, CLOSE_REASONS[code]);
+  server.close(code);
   return new Response(null, { status: 101, webSocket: client });
 }
 
@@ -110,6 +101,29 @@ type PendingReport = {
  * jitter that bunches two never drops one.
  */
 const MIN_STATE_GAP_MS = 1_000 / (4 * ROOM_STATE_HZ);
+/**
+ * What a socket may send before it is closed, since each frame is billed: a
+ * burst, refilled each second. A client sends about a dozen frames a second,
+ * and a stalled network can deliver many at once. Messages that change the
+ * room, each a write, get a smaller allowance.
+ */
+const FRAME_BUDGET = { burst: 300, perSecond: 30 };
+const ACTION_BUDGET = { burst: 20, perSecond: 5 };
+
+type Allowance = { at: number; frames: number; actions: number };
+
+function refill(allowance: Allowance, now: number) {
+  const seconds = Math.max(0, now - allowance.at) / 1_000;
+  allowance.at = now;
+  allowance.frames = Math.min(
+    FRAME_BUDGET.burst,
+    allowance.frames + seconds * FRAME_BUDGET.perSecond,
+  );
+  allowance.actions = Math.min(
+    ACTION_BUDGET.burst,
+    allowance.actions + seconds * ACTION_BUDGET.perSecond,
+  );
+}
 const REPORT_TIMEOUT_MS = 10_000;
 
 function send(socket: WebSocket, message: RoomServerMessage | string) {
@@ -130,7 +144,7 @@ function seatOf(socket: WebSocket) {
 function retire(socket: WebSocket, code: number) {
   socket.serializeAttachment(null satisfies Attachment);
   try {
-    socket.close(code, CLOSE_REASONS[code]);
+    socket.close(code);
   } catch {
     // Already closing.
   }
@@ -159,6 +173,8 @@ export class Room extends DurableObject<Env> {
   private state: RoomState | null;
   /** When each seat last had a state relayed; lost on hibernation. */
   private lastStateAt = new Map<string, number>();
+  /** What each socket may still send; lost on hibernation. */
+  private allowances = new WeakMap<WebSocket, Allowance>();
 
   constructor(ctx: DurableObjectState, env: Env) {
     super(ctx, env);
@@ -177,7 +193,11 @@ export class Room extends DurableObject<Env> {
 
   async fetch(request: Request) {
     const token = JSON.parse(request.headers.get(TOKEN_HEADER)!) as RoomToken;
-    const outcome = applyRoomEvent(this.state ?? createRoomState(token), {
+    // An emptied room starts afresh, on the joiner's course and versions.
+    const current = this.state?.players.length
+      ? this.state
+      : createRoomState(token);
+    const outcome = applyRoomEvent(current, {
       type: "join",
       now: Date.now(),
       token,
@@ -202,7 +222,27 @@ export class Room extends DurableObject<Env> {
   }
 
   async webSocketMessage(socket: WebSocket, frame: string | ArrayBuffer) {
+    const now = Date.now();
+    let allowance = this.allowances.get(socket);
+    if (allowance) {
+      refill(allowance, now);
+    } else {
+      allowance = {
+        at: now,
+        frames: FRAME_BUDGET.burst,
+        actions: ACTION_BUDGET.burst,
+      };
+      this.allowances.set(socket, allowance);
+    }
+    allowance.frames -= 1;
     const message = parseClientMessage(frame);
+    if (message && message.type !== "ping" && message.type !== "state") {
+      allowance.actions -= 1;
+    }
+    if (allowance.frames < 0 || allowance.actions < 0) {
+      this.drop(socket, ROOM_CLOSE.protocol);
+      return;
+    }
     if (!message) {
       this.drop(socket, ROOM_CLOSE.protocol);
       return;
@@ -212,7 +252,6 @@ export class Room extends DurableObject<Env> {
       retire(socket, ROOM_CLOSE.closed);
       return;
     }
-    const now = Date.now();
     // Busy sockets must not keep an overdue deadline waiting on the alarm.
     const deadline = nextRoomDeadline(this.state);
     if (deadline !== null && deadline <= now) {
@@ -295,11 +334,14 @@ export class Room extends DurableObject<Env> {
 
   private commit(outcome: RoomOutcome) {
     this.state = outcome.state;
+    // Nothing changed, so nothing is written: each write is billed.
+    if (!outcome.changed && !outcome.report) return;
     const kv = this.ctx.storage.kv;
     kv.put("room", outcome.state);
+    const emptySince = kv.get<number>("emptySince");
     if (this.isEmpty()) {
-      if (kv.get("emptySince") === undefined) kv.put("emptySince", Date.now());
-    } else {
+      if (emptySince === undefined) kv.put("emptySince", Date.now());
+    } else if (emptySince !== undefined) {
       kv.delete("emptySince");
     }
     if (outcome.changed) {

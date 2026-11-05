@@ -102,13 +102,16 @@ export class OpponentTracks {
     this.hidden.clear();
   }
 
-  /** Holds the latest pose rather than guess past it. */
+  /** Holds the latest pose, standing still, rather than guess past it. */
   pose(id: string, raceMicroseconds: number, out: GhostPose) {
     const track = this.tracks.get(id);
     if (!track || this.hidden.has(id)) return null;
-    return track.sample(
-      Math.min(raceMicroseconds, track.finishMicroseconds),
+    const held = raceMicroseconds >= track.finishMicroseconds;
+    const pose = track.sample(
+      held ? track.finishMicroseconds : raceMicroseconds,
       out,
     );
+    if (pose && held) pose.speed = 0;
+    return pose;
   }
 }

@@ -37,8 +37,6 @@ linked pages before relying on a number.
   the server's time: clock-sync pings must reach the object.
 - From compatibility date 2026-04-07 the runtime replies to a client's close
   frame itself.
-- Up to 32,768 connections per object; incoming messages up to 32 MiB.
-  About 1,000 requests a second per object is a soft limit.
 
 ## Clock, Storage, And Alarms
 
@@ -71,7 +69,6 @@ linked pages before relying on a number.
 - Deploy with `wrangler login`, or `CLOUDFLARE_API_TOKEN` and
   `CLOUDFLARE_ACCOUNT_ID`. A custom domain needs the zone active on
   Cloudflare.
-- Workers with Durable Objects get no preview or version URLs.
 - By default a deploy waits up to 300 s for each object to hibernate.
   Hibernated sockets survive onto the new code, so a lobby can wake on a
   newer protocol; an object still active at the limit resets and its

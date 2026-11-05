@@ -1,7 +1,6 @@
-import { eq } from "drizzle-orm";
 
 import { db } from "@/db/client";
-import { roomRaceEntries, roomRaces, users } from "@/db/schema";
+import { roomRaceEntries, roomRaces } from "@/db/schema";
 import { FALLS_VIEW_PARK_COURSE_ID } from "@/game/course/course-ids";
 import {
   ACCEPTED_PHYSICS_VERSIONS,
@@ -39,22 +38,15 @@ export function roomServerSecret() {
   return secret;
 }
 
-async function usernameOf(userId: string) {
-  const [user] = await db
-    .select({ username: users.username })
-    .from(users)
-    .where(eq(users.id, userId))
-    .limit(1);
-  return user?.username ?? null;
-}
-
-/** A join token for one room: a guest's when `userId` is null. */
-export async function issueRoomToken(roomCode: string, userId: string | null) {
+/** A join token for one room: a guest's when `user` is null. */
+export async function issueRoomToken(
+  roomCode: string,
+  user: { id: string; username: string | null } | null,
+) {
   const secret = roomServerSecret();
-  const [publication, roster, username] = await Promise.all([
+  const [publication, roster] = await Promise.all([
     loadLatestCoursePublication(FALLS_VIEW_PARK_COURSE_ID),
     loadOfficialKartRoster(),
-    userId ? usernameOf(userId) : null,
   ]).catch(() => {
     // The error itself can name database hosts, so it stays out of logs.
     console.error("Room token lookups failed.");
@@ -81,11 +73,11 @@ export async function issueRoomToken(roomCode: string, userId: string | null) {
       revision: runtime.revision,
     })),
     player: {
-      key: userId
-        ? await roomPlayerKey(secret, roomCode, userId)
+      key: user
+        ? await roomPlayerKey(secret, roomCode, user.id)
         : randomRoomPlayerKey(),
-      username,
-      signedIn: userId !== null,
+      username: user?.username ?? null,
+      signedIn: user !== null,
     },
   });
 }

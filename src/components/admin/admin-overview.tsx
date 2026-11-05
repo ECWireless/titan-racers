@@ -244,7 +244,7 @@ function Overview({
 
         <div className="grid gap-6 lg:grid-cols-2">
           <Panel
-            note="Races run in private rooms, counted from their start, which never count toward the leaderboard or the races above. Races called off before the start aren't recorded."
+            note="Races run in private rooms, counted when they end, which never count toward the leaderboard or the races above. Races called off before the start aren't recorded."
             title="Race Friends"
           >
             <MetricRows rows={[

@@ -3489,6 +3489,10 @@ export function SoloTimeTrialCanvas({
         const round = (value: number, places: number) =>
           Math.round(value * 10 ** places) / 10 ** places;
         let lastRoomStateAt = -Infinity;
+        let lastRoomStateSentAt = -Infinity;
+        // A state from the finish is sent, so others see the line, spaced
+        // enough that the room server doesn't drop it as too soon.
+        let finalRoomStateSent = false;
         runtime.onFrameEnd(() => {
           const roomTime = room.raceMicroseconds(frameTime());
           if (roomTime === null) return;
@@ -3504,16 +3508,25 @@ export function SoloTimeTrialCanvas({
           if (raceSession.catchUpToRoomTime(roomTime, ROOM_CATCH_UP_US) > 0) {
             publishRacePresentation();
           }
-          const lifecycle = raceSession.lifecycleState;
+          const finished = raceSession.lifecycleState === "finished";
           const now = performance.now();
           if (
-            lifecycle === "finished" ||
-            now - lastRoomStateAt < ROOM_STATE_INTERVAL_MS ||
+            finalRoomStateSent ||
+            (finished
+              ? now - lastRoomStateSentAt < ROOM_STATE_INTERVAL_MS / 2
+              : now - lastRoomStateAt < ROOM_STATE_INTERVAL_MS) ||
             raceSession.raceMicroseconds > ROOM_RACE_LIMIT_MS * 1_000
           ) {
             return;
           }
-          lastRoomStateAt = now;
+          finalRoomStateSent = finished;
+          lastRoomStateSentAt = now;
+          // Kept on the interval's grid, so frame timing doesn't slow it,
+          // but never two sends so close the room server drops one.
+          lastRoomStateAt = Math.max(
+            lastRoomStateAt + ROOM_STATE_INTERVAL_MS,
+            now - ROOM_STATE_INTERVAL_MS / 2,
+          );
           const position = kart.getPosition();
           roomRotation.mul2(
             kart.getRotation(),

@@ -25,11 +25,21 @@ export type RoomView = {
 const INITIAL_PINGS = 5;
 const INITIAL_PING_GAP_MS = 150;
 const PING_INTERVAL_MS = 5_000;
+/** Between races the room can sleep, so pings are rarer. */
+const LOBBY_PING_INTERVAL_MS = 20_000;
 const TOKEN_TIMEOUT_MS = 10_000;
 /** Joining that takes longer than this has failed. */
 const WELCOME_TIMEOUT_MS = 15_000;
 /** A ping unanswered for this long means the room is gone. */
 const PING_TIMEOUT_MS = 15_000;
+
+export const CONNECTING_ROOM_VIEW: RoomView = {
+  status: "connecting",
+  you: null,
+  room: null,
+  results: {},
+  closedReason: null,
+};
 
 const CLOSE_COPY: Record<number, string> = {
   [ROOM_CLOSE.closed]: "This room has closed.",
@@ -44,13 +54,7 @@ const LOST_COPY = "Lost connection to the room. Refresh to rejoin.";
 export class RoomConnection {
   readonly clock = new RoomClock();
   readonly opponents = new OpponentTracks();
-  private view: RoomView = {
-    status: "connecting",
-    you: null,
-    room: null,
-    results: {},
-    closedReason: null,
-  };
+  private view = CONNECTING_ROOM_VIEW;
   private lastHeardAt = 0;
   private lastPingAt = 0;
   private readonly listeners = new Set<() => void>();
@@ -125,7 +129,10 @@ export class RoomConnection {
             now - this.lastPingAt > PING_TIMEOUT_MS
           ) {
             this.drop(socket, LOST_COPY);
-          } else {
+          } else if (
+            this.view.room?.race ||
+            now - this.lastPingAt >= LOBBY_PING_INTERVAL_MS
+          ) {
             this.ping();
           }
         }, PING_INTERVAL_MS),

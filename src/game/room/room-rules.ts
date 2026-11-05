@@ -25,7 +25,7 @@ const FINISH_EARLY_US = 2_000_000;
 /** ...or this much later, since the client's clock reads the room's. */
 const FINISH_LATE_US = 250_000;
 
-export type RoomKart = RoomToken["karts"][number];
+type RoomKart = RoomToken["karts"][number];
 
 export type RoomPlayerState = {
   id: string;
@@ -422,8 +422,8 @@ function settle(outcome: RoomOutcome, now: number) {
 }
 
 /**
- * Standing order: finishers by time, then those still racing, then those
- * who left, each by gates passed and who reached their last gate first.
+ * Standing order: finishers by time, then everyone else, whether racing or
+ * gone, by gates passed and who reached their last gate first.
  */
 function compareStanding(a: RoomEntrantState, b: RoomEntrantState) {
   if (a.finishMicroseconds !== null || b.finishMicroseconds !== null) {
@@ -435,7 +435,6 @@ function compareStanding(a: RoomEntrantState, b: RoomEntrantState) {
       a.slot - b.slot
     );
   }
-  if (a.left !== b.left) return a.left ? 1 : -1;
   return (
     b.gates - a.gates ||
     (a.lastGateAt ?? Infinity) - (b.lastGateAt ?? Infinity) ||
@@ -502,10 +501,9 @@ export function roomSnapshot(state: RoomState): RoomSnapshot {
     courseRevision: state.courseRevision,
     hostId: hostId(state),
     phase: !race ? "lobby" : race.racingAt === null ? "loading" : "racing",
-    players: state.players.map(({ id, name, signedIn, kartId, ready }) => ({
+    players: state.players.map(({ id, name, kartId, ready }) => ({
       id,
       name,
-      signedIn,
       kartId,
       ready,
     })),
@@ -517,12 +515,9 @@ export function roomSnapshot(state: RoomState): RoomSnapshot {
         name: entrant.name,
         kartId: entrant.kartId,
         kartRevision: entrant.kartRevision,
-        loaded: entrant.loaded,
-        gates: entrant.gates,
         finishMicroseconds: entrant.finishMicroseconds,
         left: entrant.left,
       })),
-      loadDeadline: race.loadDeadline,
       racingAt: race.racingAt,
       endsBy:
         race.racingAt === null

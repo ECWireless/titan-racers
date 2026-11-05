@@ -22,7 +22,10 @@ import { publishedCourseRuntimeSchema } from "@/game/course/course-publication";
 import { useControllerMenuNavigation } from "@/game/input/use-controller-menu-navigation";
 import { pauseKartThumbnailRendering } from "@/game/kart/kart-thumbnail-renderer";
 import { formatRaceTime } from "@/game/race/race-presentation";
-import { RoomConnection, type RoomView } from "@/game/room/room-connection";
+import {
+  CONNECTING_ROOM_VIEW,
+  RoomConnection,
+} from "@/game/room/room-connection";
 import { ROOM_MIN_RACERS, type RoomSnapshot } from "@/game/room/room-protocol";
 import { type CanvasRoom, opponentKart } from "@/game/room/room-race";
 import { copyLink, copyNoteFor } from "@/lib/share-link";
@@ -52,13 +55,6 @@ type ActiveRace = {
   kart: PlayableOfficialKart;
 };
 
-const CONNECTING_VIEW: RoomView = {
-  status: "connecting",
-  you: null,
-  room: null,
-  results: {},
-  closedReason: null,
-};
 const noSubscription = () => () => {};
 
 const PANEL =
@@ -98,8 +94,8 @@ export function RoomPlay({ code }: { code: string }) {
   }, [connection]);
   const view = useSyncExternalStore(
     connection?.subscribe ?? noSubscription,
-    connection?.getView ?? (() => CONNECTING_VIEW),
-    () => CONNECTING_VIEW,
+    connection?.getView ?? (() => CONNECTING_ROOM_VIEW),
+    () => CONNECTING_ROOM_VIEW,
   );
 
   const [karts, setKarts] = useState<PlayableOfficialKart[] | null>(null);
@@ -136,7 +132,11 @@ export function RoomPlay({ code }: { code: string }) {
   }, [connection, karts, view.status]);
 
   const [activeRace, setActiveRace] = useState<ActiveRace | null>(null);
-  const [raceProblem, setRaceProblem] = useState<string | null>(null);
+  // Why this page sits a race out, shown until that race is over.
+  const [raceProblem, setRaceProblem] = useState<{
+    raceId: string;
+    message: string;
+  } | null>(null);
   // The last race this page loaded, so it is entered only once.
   const enteredRaceRef = useRef<string | null>(null);
   const room = view.room;
@@ -173,9 +173,11 @@ export function RoomPlay({ code }: { code: string }) {
         // The room races the revision it was given; a kart republished
         // since sits this race out rather than race something else.
         if (!kart || kart.revision !== yourEntry.kartRevision) {
-          setRaceProblem(
-            "Your kart was updated since you chose it. Refresh to race the next one.",
-          );
+          setRaceProblem({
+            raceId,
+            message:
+              "Your kart was updated since you chose it. Refresh to race the next one.",
+          });
           return;
         }
         const course = await loadRoomCourse(courseId, courseRevision);
@@ -195,7 +197,10 @@ export function RoomPlay({ code }: { code: string }) {
           },
         });
       } catch {
-        setRaceProblem("The course couldn't be loaded for this race.");
+        setRaceProblem({
+          raceId,
+          message: "The course couldn't be loaded for this race.",
+        });
       }
     })();
   }, [connection, karts, race, room, you, yourEntry]);
@@ -263,7 +268,11 @@ export function RoomPlay({ code }: { code: string }) {
     <RoomLobby
       code={code}
       karts={karts}
-      problem={raceProblem}
+      problem={
+        raceProblem && raceProblem.raceId === room.race?.id
+          ? raceProblem.message
+          : null
+      }
       room={room}
       you={you}
       onChooseKart={chooseKart}
@@ -363,8 +372,11 @@ function RoomLobby({
 
   let startNote: string;
   if (racing && room.race?.entrants.some(({ id }) => id === you)) {
-    // Back from a reload, say, after the race had started.
-    startNote = "A race is under way without you. Choose a kart when it ends.";
+    // Loading the course, or back from a reload after the race started.
+    startNote =
+      room.race.racingAt === null
+        ? "Starting the race…"
+        : "A race is under way without you. Choose a kart when it ends.";
   } else if (racing) {
     startNote = me?.ready
       ? "A race is under way. You're in the next one."
@@ -691,9 +703,10 @@ function RoomRace({
 
   return (
     <>
-      {/* A race that went on without this player isn't run behind it. */}
-      {thumbnailsPaused && !missed ? (
-        <div className="contents" inert={covered || ended}>
+      {/* A race that's over, or went on without this player, isn't run
+          (or heard, or driven) behind the dialog. */}
+      {thumbnailsPaused && !ended ? (
+        <div className="contents" inert={covered}>
           <SoloTimeTrialCanvas
             courseDocument={activeRace.course}
             courseRevision={room.courseRevision}
@@ -784,9 +797,11 @@ function RoomRace({
               />
             ) : (
               <p className="text-sm leading-6 text-titan-ice/76">
-                {race
-                  ? "The race started without you: the course took too long to load on this device."
-                  : "The race was called off: not enough racers were ready in time."}
+                {!race
+                  ? "The race was called off: not enough racers were ready in time."
+                  : scene === "failed"
+                    ? "The race started without you: the course couldn't be loaded on this device."
+                    : "The race started without you: the course took too long to load on this device."}
               </p>
             )}
             <div className="grid gap-3">

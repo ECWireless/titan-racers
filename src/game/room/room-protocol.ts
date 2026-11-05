@@ -25,7 +25,7 @@ export const ROOM_RACE_LIMIT_MS = 10 * 60_000;
 /** Opponent states are sent this many times a second. */
 export const ROOM_STATE_HZ = 10;
 /** The longest text frame the room server accepts from a client. */
-export const ROOM_MAX_CLIENT_FRAME_CHARS = 1_024;
+const ROOM_MAX_CLIENT_FRAME_CHARS = 1_024;
 /** The longest text frame a client accepts from the room server. */
 const ROOM_MAX_SERVER_FRAME_CHARS = 16_384;
 
@@ -38,7 +38,6 @@ export const ROOM_CLOSE = {
   replaced: 4004,
   protocol: 4005,
 } as const;
-export type RoomCloseCode = (typeof ROOM_CLOSE)[keyof typeof ROOM_CLOSE];
 
 // 31 letters and digits, without look-alikes (0/o, 1/i/l).
 const ROOM_CODE_ALPHABET = "abcdefghjkmnpqrstuvwxyz23456789";
@@ -94,7 +93,7 @@ const kartState = {
   r: z.boolean(),
 };
 
-export const clientMessageSchema = z.discriminatedUnion("type", [
+const clientMessageSchema = z.discriminatedUnion("type", [
   z.strictObject({ type: z.literal("ping"), t: z.number() }),
   z.strictObject({ type: z.literal("choose_kart"), kartId }),
   z.strictObject({ type: z.literal("start") }),
@@ -112,7 +111,6 @@ export type RoomClientMessage = z.infer<typeof clientMessageSchema>;
 const roomPlayer = z.strictObject({
   id: playerId,
   name: z.string().min(1).max(40),
-  signedIn: z.boolean(),
   kartId: kartId.nullable(),
   ready: z.boolean(),
 });
@@ -124,8 +122,6 @@ const raceEntrant = z.strictObject({
   name: z.string().min(1).max(40),
   kartId,
   kartRevision: roomRevisionSchema,
-  loaded: z.boolean(),
-  gates,
   finishMicroseconds: microseconds.nullable(),
   left: z.boolean(),
 });
@@ -162,7 +158,6 @@ export const roomSnapshotSchema = z.strictObject({
       id: raceId,
       /** Entrants in standing order. */
       entrants: z.array(raceEntrant).max(ROOM_MAX_PLAYERS),
-      loadDeadline: serverTime,
       racingAt: serverTime.nullable(),
       /** When the race will end at the latest, once racing. */
       endsBy: serverTime.nullable(),
@@ -178,7 +173,7 @@ export const roomSnapshotSchema = z.strictObject({
 });
 export type RoomSnapshot = z.infer<typeof roomSnapshotSchema>;
 
-export const serverMessageSchema = z.discriminatedUnion("type", [
+const serverMessageSchema = z.discriminatedUnion("type", [
   z.strictObject({ type: z.literal("welcome"), you: playerId }),
   z.strictObject({
     type: z.literal("pong"),

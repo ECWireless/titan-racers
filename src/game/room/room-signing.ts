@@ -14,6 +14,8 @@ import {
  * ROOM_SERVER_SECRET; each use derives a key of its own from it.
  */
 export const ROOM_TOKEN_LIFETIME_MS = 60_000;
+/** How far ahead of the room server's clock the app's may run. */
+export const ROOM_TOKEN_CLOCK_SKEW_MS = 5_000;
 /** A result report older or newer than this is refused. */
 export const ROOM_REPORT_WINDOW_MS = 5 * 60_000;
 
@@ -173,15 +175,16 @@ export async function readRoomToken(
   }
   if (!parsed.success) return null;
   const { expiresAt } = parsed.data;
-  return expiresAt < now || expiresAt > now + ROOM_TOKEN_LIFETIME_MS
+  return expiresAt < now ||
+    expiresAt > now + ROOM_TOKEN_LIFETIME_MS + ROOM_TOKEN_CLOCK_SKEW_MS
     ? null
     : parsed.data;
 }
 
 /**
  * A signed-in account's key in one room. The room server can tell the same
- * account joining twice, but never learns the account ID, and keys from
- * different rooms can't be linked.
+ * account joining twice but never sees the account ID, and without the
+ * secret, keys from different rooms can't be linked.
  */
 export async function roomPlayerKey(
   secret: string,
