@@ -206,8 +206,13 @@ export async function saveCourseRevision(input: {
   });
 }
 
+/**
+ * The newest publication, or the newest of one revision: a room races the
+ * revision its first player loaded, even after a newer one is published.
+ */
 export async function loadLatestCoursePublication(
   courseId: string,
+  revision?: number,
 ): Promise<PersistedCoursePublication | null> {
   const [row] = await db
     .select({
@@ -229,7 +234,14 @@ export async function loadLatestCoursePublication(
         eq(courseRevisions.revision, coursePublications.revision),
       ),
     )
-    .where(eq(coursePublications.courseId, courseId))
+    .where(
+      and(
+        eq(coursePublications.courseId, courseId),
+        revision === undefined
+          ? undefined
+          : eq(coursePublications.revision, revision),
+      ),
+    )
     .orderBy(desc(coursePublications.id))
     .limit(1);
 

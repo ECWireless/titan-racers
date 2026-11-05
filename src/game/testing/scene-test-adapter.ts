@@ -192,6 +192,8 @@ export type SceneTestApi = {
     preserveMotion?: boolean,
   ) => void;
   setSimulationPaused: (paused: boolean) => void;
+  /** Stops drawing frames, so a test can step several pages at once. */
+  setRenderingSuspended: (suspended: boolean) => void;
   setStartPosition: (position: Pick<Position3, "x" | "z">) => void;
   stepSimulation: (steps: number) => void;
   stepSimulationWithKartSamples: (steps: number) => KartDebugState[];
@@ -396,6 +398,12 @@ export function attachSceneTestAdapter(
       "setSimulationPaused",
       ((event: CustomEvent<{ paused: boolean }>) => {
         api.setSimulationPaused(event.detail.paused);
+      }) as EventListener,
+    ],
+    [
+      "setRenderingSuspended",
+      ((event: CustomEvent<{ suspended: boolean }>) => {
+        api.setRenderingSuspended(event.detail.suspended);
       }) as EventListener,
     ],
     [

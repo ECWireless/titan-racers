@@ -46,3 +46,7 @@ Prefer primary documentation and direct runtime evidence. Link back to relevant 
 - [`browser-web-audio/`](browser-web-audio/README.md): the candidate mapping
   of race sound to one shared Web Audio context, gesture start, suspend on
   pause and mute, and budgeted generated voices.
+- [`cloudflare-durable-objects/`](cloudflare-durable-objects/README.md):
+  the candidate mapping of rooms to a Worker and one Durable Object per
+  room, with hibernating WebSockets, alarms, local `wrangler dev`, and
+  dated pricing and limits.

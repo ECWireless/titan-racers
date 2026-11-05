@@ -35,19 +35,26 @@ export async function sessionUserIdOrResponse(
   return user.id;
 }
 
-// The signed-in racer a new gameplay run is attributed to, or null for a
-// guest. Telemetry never fails or waits on login: any problem means guest.
-export async function signedInUserIdOrNull(
+// The signed-in account, or null for a guest. Telemetry and rooms never
+// fail or wait on login: any problem means guest.
+export async function signedInUserOrNull(
   request: Request,
-): Promise<string | null> {
+): Promise<{ id: string; username: string | null } | null> {
   try {
     assertSessionEnvironment();
-    const session = await auth.api.getSession({
-      headers: request.headers,
-      query: { disableRefresh: true },
-    });
-    return session?.user.id ?? null;
+    const user = (
+      await auth.api.getSession({
+        headers: request.headers,
+        query: { disableRefresh: true },
+      })
+    )?.user;
+    return user ? { id: user.id, username: user.username ?? null } : null;
   } catch {
     return null;
   }
+}
+
+// The signed-in racer a new gameplay run is attributed to, or null.
+export async function signedInUserIdOrNull(request: Request) {
+  return (await signedInUserOrNull(request))?.id ?? null;
 }

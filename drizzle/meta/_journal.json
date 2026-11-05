@@ -204,6 +204,13 @@
       "when": 1793807962744,
       "tag": "0028_racer_merges",
       "breakpoints": true
+    },
+    {
+      "idx": 29,
+      "version": "7",
+      "when": 1793841894371,
+      "tag": "0029_room_races",
+      "breakpoints": true
     }
   ]
 }

@@ -12,6 +12,7 @@ const eslintConfig = [
       "playwright-report/**",
       "public/vendor/**",
       "test-results/**",
+      "**/.wrangler/**",
       "next-env.d.ts",
       "*.tsbuildinfo",
     ],

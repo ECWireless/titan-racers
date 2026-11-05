@@ -833,11 +833,13 @@ test.describe("home screen", () => {
       page.getByRole("list", { name: "Race setup" }),
     ).toContainText("Balanced Kart");
 
-    const raceFriends = page.getByRole("button", { name: /Race Friends/ });
-    await expect(raceFriends).toHaveAttribute("aria-disabled", "true");
-    // Not available yet, but still focusable and says so.
-    await raceFriends.click({ force: true });
-    await expect(page.getByRole("status").filter({ hasText: "coming soon" })).toBeVisible();
+    // Race Friends makes the start open a private room instead.
+    const raceFriends = page.getByRole("button", { name: "Race Friends" });
+    await raceFriends.click();
+    await expect(raceFriends).toHaveAttribute("aria-pressed", "true");
+    await expect(page.getByRole("button", { name: "Create room" })).toBeVisible();
+    await page.getByRole("button", { name: "Time trial" }).click();
+    await expect(page.getByRole("button", { name: "Start race" })).toBeVisible();
 
     // Back, the browser's back, and Escape each go back a step.
     await page.getByRole("button", { name: "Back" }).click();

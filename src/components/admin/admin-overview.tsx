@@ -104,7 +104,7 @@ function Overview({
   onRangeChange: (range: GameplayDashboardRange) => void;
   onSignOut: () => void;
 }) {
-  const { races, racers, leaderboard } = overview;
+  const { races, racers, leaderboard, rooms } = overview;
   const signUps =
     racers.signUps.browser +
     racers.signUps.google +
@@ -133,8 +133,8 @@ function Overview({
             </h1>
             <p className="max-w-2xl text-sm text-titan-ice/62">
               The official course at a glance: races, racers, the
-              leaderboard, karts, and sharing. Counts only. Days run midnight
-              to midnight in {overview.timeZone}.
+              leaderboard, karts, sharing, and Race Friends rooms. Counts
+              only. Days run midnight to midnight in {overview.timeZone}.
             </p>
           </div>
           <AdminNav current="/admin" signOutPending={signOutPending} onSignOut={onSignOut} />
@@ -238,6 +238,32 @@ function Overview({
             <MetricRows rows={[
               ["Links copied", races.resultsShared],
               ["Race again", races.raceAgain],
+            ]} />
+          </Panel>
+        </div>
+
+        <div className="grid gap-6 lg:grid-cols-2">
+          <Panel
+            note="Races run in private rooms, counted when they end, which never count toward the leaderboard or the races above. Races called off before the start aren't recorded."
+            title="Race Friends"
+          >
+            <MetricRows rows={[
+              ["Room races", rooms.races],
+              ["Rooms raced in", rooms.rooms],
+              ["Racers per race", Math.round((rooms.racers / Math.max(1, rooms.races)) * 10) / 10],
+              ["Guest racers", rooms.guestRacers],
+            ]} />
+            <p className="text-sm text-titan-ice/65">
+              {share(rooms.guestRacers, rooms.racers)} of room racers were guests
+            </p>
+          </Panel>
+
+          <Panel title="How room races ended">
+            <BarRows rows={[
+              ["Everyone finished", rooms.endings.allFinished],
+              ["After the first finish", rooms.endings.afterFirstFinish],
+              ["At the time limit", rooms.endings.timeLimit],
+              ["Everyone left", rooms.endings.everyoneLeft],
             ]} />
           </Panel>
         </div>

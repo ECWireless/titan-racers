@@ -291,9 +291,67 @@ export class RaceSession {
 
     const exactMicroseconds =
       seconds * MICROSECONDS_PER_SECOND + this.subMicrosecondRemainder;
-    let remainingMicroseconds = Math.floor(exactMicroseconds + 1e-9);
-    this.subMicrosecondRemainder = exactMicroseconds - remainingMicroseconds;
+    const wholeMicroseconds = Math.floor(exactMicroseconds + 1e-9);
+    this.subMicrosecondRemainder = exactMicroseconds - wholeMicroseconds;
+    this.advanceMicroseconds(wholeMicroseconds);
+  }
 
+  /**
+   * Rooms race on the room's clock, which never stops for one player: this
+   * brings the session up to the room's race time (negative through the
+   * countdown), charging what it missed, such as a late start, a hitch, a
+   * pause, or the resume hold, as race time. It never rewinds, and charges
+   * nothing for a lag under `minimumMicroseconds` (a frame's jitter).
+   * Returns the microseconds charged.
+   */
+  catchUpToRoomTime(roomRaceMicroseconds: number, minimumMicroseconds = 0) {
+    if (!Number.isFinite(roomRaceMicroseconds)) {
+      throw new Error("Room race time must be finite");
+    }
+    const paused = this.state === "paused" || this.state === "resuming";
+    if (
+      !paused &&
+      this.state !== "countdown" &&
+      this.state !== "racing" &&
+      this.state !== "recovering"
+    ) {
+      return 0;
+    }
+    const countingDown =
+      this.state === "countdown" ||
+      (paused && this.resumableState === "countdown");
+    const sessionMicroseconds = countingDown
+      ? -this.countdownRemainingMicroseconds
+      : this.elapsedRaceMicroseconds;
+    const missed = Math.floor(roomRaceMicroseconds - sessionMicroseconds);
+    if (missed <= 0 || missed < minimumMicroseconds) return 0;
+    if (!paused) {
+      this.advanceMicroseconds(missed);
+      return missed;
+    }
+
+    // Paused or holding to resume: the race runs on without the kart.
+    let remaining = missed;
+    if (this.resumableState === "countdown") {
+      const consumed = Math.min(remaining, this.countdownRemainingMicroseconds);
+      this.countdownRemainingMicroseconds -= consumed;
+      remaining -= consumed;
+      if (this.countdownRemainingMicroseconds > 0) return missed;
+      this.resumableState = "racing";
+    }
+    if (this.resumableState === "recovering") {
+      const consumed = Math.min(remaining, this.recoveryRemainingMicroseconds);
+      this.recoveryRemainingMicroseconds -= consumed;
+      if (this.recoveryRemainingMicroseconds === 0) {
+        this.resumableState = "racing";
+      }
+    }
+    this.elapsedRaceMicroseconds += remaining;
+    return missed;
+  }
+
+  private advanceMicroseconds(microseconds: number) {
+    let remainingMicroseconds = microseconds;
     while (remainingMicroseconds > 0) {
       if (this.state === "countdown") {
         const consumed = Math.min(

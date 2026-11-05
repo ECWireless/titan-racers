@@ -17,8 +17,8 @@ accepted; the app, README, and durable docs take over from there.
 
 - **Done:** Phases 0–5 (PRs #1–#24, the Phase 3 closeout and its
   follow-ups, #30–#57 with the PR 4.5.2 closeout, and #59–#63), and PRs 6.0
-  (#64), 6.1 (#65), and 6.2 (#66).
-- **Now:** Phase 6, PR 6.3 (implemented, in review).
+  (#64), 6.1 (#65), 6.2 (#66), and 6.3 (#67).
+- **Now:** Phase 6, PR 6.4.
 
 ## Guiding Decisions
 
@@ -274,6 +274,27 @@ Phase decisions:
 - **"Continue anonymously" is an alternative to signing in,** shown apart
   from the sign-in methods on the profile and below Sign in on a guest's
   result (PR 6.3).
+- **A room lives only while someone is in it** (PR 6.4). Race Friends
+  opens `/room/<code>` with a random code. Anyone, guests included, may
+  open one, with no limit on making rooms until the public share. The
+  [multiplayer rooms system](skills/project-systems/multiplayer-rooms/README.md)
+  owns join tokens, the lifecycle, and what a race stores.
+- **Players show as @username, or "Guest N" without one;** the room server
+  never sees an account ID.
+- **The longest-present player hosts** a room of up to 4. Choosing a kart
+  marks a player ready, and the host starts once at least 2 are. Pause
+  stops your kart while the room's clock runs on.
+- **A room race ends** when every active player has finished, 30 s after
+  the first finisher, or at 10 minutes. Leaving or losing the connection
+  means not finishing, until PR 6.5's reconnect.
+- **Room results stay off leaderboards,** stored once without account IDs
+  or usernames. Rooms record no ghosts, run tickets, or run summaries.
+- **Opponents are opaque karts drawn 200 ms behind,** a baseline PR 6.5
+  revisits. They pass through each other until PR 6.6.
+- **One room protocol version is live at a time;** PRs 6.5 and 6.6 raise
+  it, deploying the room server and then the app back to back. Production
+  rooms use the room server's workers.dev address until titanracers.com's
+  DNS moves to Cloudflare.
 
 **PR 6.0: Leaderboards across course publications**
 
@@ -327,25 +348,29 @@ Phase decisions:
 
 **PR 6.4: Private rooms and race lifecycle**
 
-- [ ] Create a private room and join by link; 2–4 players, guests welcome.
-- [ ] Choosing a kart marks a player ready; the host starts a synchronized
+- [x] Create a private room and join by link; 2–4 players, guests welcome.
+- [x] Choosing a kart marks a player ready; the host starts a synchronized
       countdown.
-- [ ] Opponents are visible with coherent race progress.
-- [ ] Synchronized results with placements, and replay in the same room. The race ends when all
+- [x] Opponents are visible with coherent race progress.
+- [x] Synchronized results with placements, and replay in the same room. The race ends when all
       active players finish or shortly after the first finisher.
-- [ ] No public matchmaking or ranked multiplayer leaderboard.
-- [ ] Rooms race official karts on Falls View Park, recording each kart's
+- [x] No public matchmaking or ranked multiplayer leaderboard.
+- [x] Rooms race official karts on Falls View Park, recording each kart's
       revision and the course's, as Phase 5's results do.
+- [x] The dashboard counts room races, rooms raced in, racers and guests,
+      and how room races ended.
 
 **PR 6.5: Motion and resilience**
 
-- [ ] Define server authority, update cadence, prediction, interpolation,
-      reconciliation, and bounded correction.
+- [ ] Define server authority, prediction, reconciliation, and bounded
+      correction, and revisit PR 6.4's update cadence and interpolation.
 - [ ] Keep remote presentation separate from authoritative race and collision
       state.
 - [ ] Survive latency, packet loss, reordering, backgrounding, disconnects,
       reconnects, and host departure without hanging the room.
 - [ ] Keep all input methods, reset, pause, and resilience behavior working.
+- [ ] Opponents are heard, with remote karts' cheaper voices, and cast the
+      contact shadow the player's kart does.
 - [ ] A four-kart room stays within the phone budget on the lead's iPhone
       (`?perf=1`).
 

@@ -302,4 +302,89 @@ test.describe("race session", () => {
       "Race time increments must be finite and non-negative",
     );
   });
+
+  test("catches a late start up to the room's race time", () => {
+    const session = new RaceSession(config());
+    expect(session.catchUpToRoomTime(-3_000_000)).toBe(0);
+    session.markReady();
+    session.startCountdown();
+    // The countdown starts 1.2 s late, so it begins at -1.8 s.
+    expect(session.catchUpToRoomTime(-1_800_000)).toBe(1_200_000);
+    expect(session.snapshot.countdownRemainingMicroseconds).toBe(1_800_000);
+    // A hitch carries it past the start into racing.
+    expect(session.catchUpToRoomTime(250_000)).toBe(2_050_000);
+    expect(session.snapshot).toMatchObject({
+      elapsedRaceMicroseconds: 250_000,
+      state: "racing",
+    });
+    // It never rewinds.
+    expect(session.catchUpToRoomTime(100_000)).toBe(0);
+    expect(session.snapshot.elapsedRaceMicroseconds).toBe(250_000);
+    expect(() => session.catchUpToRoomTime(Number.NaN)).toThrow();
+  });
+
+  test("leaves a frame's jitter alone, then catches up all of it", () => {
+    const session = new RaceSession(config());
+    startRace(session);
+    session.advanceTime(1);
+    expect(session.catchUpToRoomTime(1_040_000, 50_000)).toBe(0);
+    expect(session.catchUpToRoomTime(1_060_000, 50_000)).toBe(60_000);
+    expect(session.snapshot.elapsedRaceMicroseconds).toBe(1_060_000);
+  });
+
+  test("keeps the room's race running through a pause and resume", () => {
+    const session = new RaceSession(config());
+    startRace(session);
+    session.advanceTime(2);
+    session.pause();
+    session.advanceTime(5);
+    expect(session.catchUpToRoomTime(7_000_000)).toBe(5_000_000);
+    expect(session.snapshot).toMatchObject({
+      elapsedRaceMicroseconds: 7_000_000,
+      state: "paused",
+    });
+    session.resume();
+    session.advanceTime(1.5);
+    expect(session.snapshot.state).toBe("racing");
+    // The resume hold counted as room time too.
+    expect(session.catchUpToRoomTime(8_500_000)).toBe(1_500_000);
+    expect(session.snapshot.elapsedRaceMicroseconds).toBe(8_500_000);
+  });
+
+  test("starts the race while paused in the countdown", () => {
+    const session = new RaceSession(config());
+    session.markReady();
+    session.startCountdown();
+    session.advanceTime(1);
+    session.pause();
+    expect(session.catchUpToRoomTime(-1_000_000)).toBe(1_000_000);
+    expect(session.snapshot).toMatchObject({
+      countdownRemainingMicroseconds: 1_000_000,
+      resumableState: "countdown",
+    });
+    expect(session.catchUpToRoomTime(500_000)).toBe(1_500_000);
+    expect(session.snapshot).toMatchObject({
+      countdownRemainingMicroseconds: 0,
+      elapsedRaceMicroseconds: 500_000,
+      resumableState: "racing",
+      state: "paused",
+    });
+    // Racing began without the kart, so it resumes through the hold.
+    expect(session.resume()).toBe(true);
+    expect(session.snapshot.state).toBe("resuming");
+  });
+
+  test("finishes a paused recovery on the room's clock", () => {
+    const session = new RaceSession(config());
+    startRace(session);
+    session.requestRecovery();
+    session.advanceTime(0.2);
+    session.pause();
+    expect(session.catchUpToRoomTime(1_000_000)).toBe(800_000);
+    expect(session.snapshot).toMatchObject({
+      elapsedRaceMicroseconds: 1_000_000,
+      recoveryRemainingMicroseconds: 0,
+      resumableState: "racing",
+    });
+  });
 });

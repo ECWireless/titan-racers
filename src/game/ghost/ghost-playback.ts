@@ -18,11 +18,25 @@ export type GhostPose = {
  */
 export class GhostPlayback {
   private index = 0;
-  readonly finishMicroseconds: number;
+  private readonly samples: GhostSample[];
 
-  constructor(private readonly samples: readonly GhostSample[]) {
+  constructor(samples: readonly GhostSample[]) {
     if (samples.length === 0) throw new Error("A ghost needs samples.");
-    this.finishMicroseconds = samples[samples.length - 1].timeMicroseconds;
+    this.samples = [...samples];
+  }
+
+  get finishMicroseconds() {
+    return this.samples[this.samples.length - 1].timeMicroseconds;
+  }
+
+  /**
+   * Adds a later sample, as a room opponent's states arrive. One no later
+   * than the last is dropped, so playback only moves forward.
+   */
+  append(sample: GhostSample) {
+    if (sample.timeMicroseconds > this.finishMicroseconds) {
+      this.samples.push(sample);
+    }
   }
 
   /** Writes the pose into `out` and returns it, or null once finished. */
@@ -44,7 +58,14 @@ export class GhostPlayback {
     const from = samples[this.index];
     const to = samples[this.index + 1];
     const span = to.timeMicroseconds - from.timeMicroseconds;
-    if (to.reset || span <= 0) return writeSample(from, 0, out);
+    // At a reset's own time the ghost has jumped; before it, it holds.
+    if (to.reset || span <= 0) {
+      return writeSample(
+        timeMicroseconds >= to.timeMicroseconds ? to : from,
+        0,
+        out,
+      );
+    }
     const t = Math.min(1, (timeMicroseconds - from.timeMicroseconds) / span);
 
     const before = this.index > 0 && !from.reset ? samples[this.index - 1] : from;

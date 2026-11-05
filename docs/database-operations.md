@@ -221,6 +221,35 @@ its rows hold client IPs, tied to no racer. After deploying, check its keys
 start with real addresses rather than `no-trusted-ip`, which would mean the
 host sent more than one address in `x-forwarded-for`.
 
+## Private Rooms
+
+Rooms run on a separate room server in `room-server/`, a Cloudflare Worker
+with one Durable Object per room. It never touches Postgres; it reports each
+finished race to `/api/rooms/results`, which stores it once in `room_races`
+and `room_race_entries`. These rows name no account, so merges and
+anonymization pass them by.
+
+- **Secret:** the app and the room server share `ROOM_SERVER_SECRET`, at
+  least 32 random characters. Locally it goes in `.env` and in the
+  gitignored `room-server/.dev.vars`; in production, in Vercel and with
+  `pnpm exec wrangler secret put ROOM_SERVER_SECRET --config
+  room-server/wrangler.jsonc --env production`.
+- **Local:** `pnpm rooms:dev` runs the room server on `127.0.0.1:8787`
+  without a Cloudflare account. Set `NEXT_PUBLIC_ROOM_SERVER_URL` to
+  `ws://127.0.0.1:8787`; while it is unset, Race Friends stays "Coming soon".
+- **Deploy order:** apply migrations, deploy the room server
+  (`pnpm rooms:deploy`, with `CLOUDFLARE_API_TOKEN` and
+  `CLOUDFLARE_ACCOUNT_ID`), then set the app's variables and deploy the app.
+  The production room server serves
+  `titan-racers-rooms-production.<account subdomain>.workers.dev`, so
+  `NEXT_PUBLIC_ROOM_SERVER_URL` is that address with `wss://`, and it
+  accepts pages from `play.titanracers.com` only. Serving
+  `rooms.titanracers.com` instead needs the domain's DNS on Cloudflare: add
+  it as a custom-domain route, keep `workers_dev` on while the app's
+  variable changes, then turn it off. A deploy closes live races within about five
+  minutes, so avoid deploying mid-race. A protocol change deploys the room
+  server, then the app, back to back.
+
 ## First Admin Bootstrap
 
 Google login authenticates an identity but does not grant administrative

@@ -5,6 +5,7 @@ import {
   createKartAssemblyVisual,
   poseKartWheelVisual,
 } from "../kart/kart-assembly-visual";
+import type { KartPartFinish } from "../kart/kart-part-visual-geometry";
 import type { GhostKart } from "./device-ghost";
 import type { GhostPose } from "./ghost-playback";
 
@@ -36,16 +37,19 @@ export function createGhostMaterial(sceneExposure: number) {
 
 /**
  * A ghost kart drawn from its own document, posed from recorded samples. It
- * has no physics, sound, or shadow, and draws as one dynamic batch.
+ * has no physics, sound, or shadow, and draws as one dynamic batch. A room
+ * opponent is drawn the same way in its own kart's materials.
  */
 export function createGhostKartVisual(
   app: pc.AppBase,
   kart: GhostKart,
-  material: pc.StandardMaterial,
+  material:
+    | pc.StandardMaterial
+    | ((finish: KartPartFinish) => pc.StandardMaterial),
 ) {
   const { root: visual, wheels: wheelVisuals } = createKartAssemblyVisual(
     kart.document,
-    () => material,
+    material instanceof pc.StandardMaterial ? () => material : material,
     app.graphicsDevice,
   );
   const batchGroup = app.batcher.addGroup(
