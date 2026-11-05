@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { kartStableIdSchema } from "../kart/kart-assembly-document";
+
 /**
  * The private-room wire protocol, shared by the app and the room server.
  * Messages are JSON text frames, `{ type, ... }`, checked strictly. One
@@ -63,9 +65,23 @@ export function isRoomCode(value: unknown): value is string {
 
 const raceId = z.uuid();
 const playerId = z.string().regex(/^p[1-9][0-9]{0,5}$/);
-const kartId = z.string().min(1).max(80);
+const kartId = kartStableIdSchema;
+/** A course ID, as course documents spell them. */
+export const roomCourseIdSchema = z
+  .string()
+  .min(1)
+  .max(80)
+  .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/);
+/** A physics version name, as physics-version.ts spells them. */
+export const roomPhysicsVersionSchema = z
+  .string()
+  .min(1)
+  .max(80)
+  .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/);
 const bounded = (limit: number) => z.number().min(-limit).max(limit);
 const microseconds = z.number().int().min(0).max(ROOM_RACE_LIMIT_MS * 1_000);
+/** A stored revision: positive, and within Postgres's integer. */
+export const roomRevisionSchema = z.number().int().positive().max(2 ** 31 - 1);
 const gates = z.number().int().min(0).max(1_000);
 
 /** A kart pose: race time, root position, visual rotation, steer, reset. */
@@ -107,7 +123,7 @@ const raceEntrant = z.strictObject({
   slot: z.number().int().min(0).max(ROOM_MAX_PLAYERS - 1),
   name: z.string().min(1).max(40),
   kartId,
-  kartRevision: z.number().int().positive(),
+  kartRevision: roomRevisionSchema,
   loaded: z.boolean(),
   gates,
   finishMicroseconds: microseconds.nullable(),
@@ -130,13 +146,14 @@ const raceResultEntry = z.strictObject({
   timeMicroseconds: microseconds.nullable(),
 });
 
-const serverTime = z.number().int().positive();
+// Milliseconds since 1970, before 2100.
+const serverTime = z.number().int().positive().max(4_102_444_800_000);
 
 export const roomSnapshotSchema = z.strictObject({
   type: z.literal("room"),
   code: z.string().regex(ROOM_CODE_PATTERN),
-  courseId: z.string().min(1).max(80),
-  courseRevision: z.number().int().positive(),
+  courseId: roomCourseIdSchema,
+  courseRevision: roomRevisionSchema,
   hostId: playerId.nullable(),
   phase: z.enum(["lobby", "loading", "racing"]),
   players: z.array(roomPlayer).max(ROOM_MAX_PLAYERS),
@@ -205,9 +222,9 @@ export const roomRaceReportSchema = z.strictObject({
   version: z.literal(1),
   raceId,
   roomCode: z.string().regex(ROOM_CODE_PATTERN),
-  courseId: z.string().min(1).max(80),
-  courseRevision: z.number().int().positive(),
-  physicsVersion: z.string().min(1).max(80),
+  courseId: roomCourseIdSchema,
+  courseRevision: roomRevisionSchema,
+  physicsVersion: roomPhysicsVersionSchema,
   racingAt: serverTime,
   endedAt: serverTime,
   endReason: z.enum(ROOM_END_REASONS),
@@ -216,8 +233,9 @@ export const roomRaceReportSchema = z.strictObject({
       z.strictObject({
         place: z.number().int().min(1).max(ROOM_MAX_PLAYERS),
         kartId,
-        kartRevision: z.number().int().positive(),
-        timeMicroseconds: microseconds.nullable(),
+        kartRevision: roomRevisionSchema,
+        // A finish takes time; rules floor it at 1 µs.
+        timeMicroseconds: microseconds.min(1).nullable(),
         signedIn: z.boolean(),
       }),
     )

@@ -21,6 +21,11 @@ import {
   MAX_RUN_SAMPLES,
   RUN_REJECTIONS,
 } from "../game/race/race-verification";
+import {
+  ROOM_END_REASONS,
+  ROOM_MAX_PLAYERS,
+  ROOM_RACE_LIMIT_MS,
+} from "../game/room/room-protocol";
 
 const bytea = customType<{ data: Buffer; driverData: Buffer }>({
   dataType() {
@@ -767,6 +772,83 @@ export const boardBests = pgTable(
       "board_bests_ghost_size",
       sql`octet_length(${table.ghost}) between 32 and ${sql.raw(
         String(8 + 24 * MAX_RUN_SAMPLES),
+      )}`,
+    ),
+  ],
+);
+
+export const roomRaceEndReason = pgEnum(
+  "room_race_end_reason",
+  ROOM_END_REASONS,
+);
+
+// A finished private-room race, reported by the room server. It names no
+// account: rooms never send one, so merges and anonymization pass it by.
+export const roomRaces = pgTable(
+  "room_races",
+  {
+    id: uuid("id").primaryKey(),
+    roomCode: text("room_code").notNull(),
+    courseId: text("course_id").notNull(),
+    courseRevision: integer("course_revision").notNull(),
+    physicsVersion: text("physics_version").notNull(),
+    racingAt: timestamp("racing_at", { mode: "date", withTimezone: true })
+      .notNull(),
+    endedAt: timestamp("ended_at", { mode: "date", withTimezone: true })
+      .notNull(),
+    endReason: roomRaceEndReason("end_reason").notNull(),
+    recordedAt: timestamp("recorded_at", { mode: "date", withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => [
+    foreignKey({
+      name: "room_races_course_revision_fk",
+      columns: [table.courseId, table.courseRevision],
+      foreignColumns: [courseRevisions.courseId, courseRevisions.revision],
+    }).onDelete("restrict"),
+    index("room_races_ended_at_idx").on(table.endedAt),
+    check("room_races_room_code", sql`${table.roomCode} ~ '^[a-z2-9]{10}$'`),
+    check(
+      "room_races_physics_version",
+      sql`char_length(${table.physicsVersion}) between 1 and 80`,
+    ),
+    check(
+      "room_races_duration",
+      sql`${table.endedAt} >= ${table.racingAt}`,
+    ),
+  ],
+);
+
+// Each racer's place, by kart. Who raced is never stored, only whether they
+// were signed in.
+export const roomRaceEntries = pgTable(
+  "room_race_entries",
+  {
+    raceId: uuid("race_id")
+      .notNull()
+      .references(() => roomRaces.id, { onDelete: "restrict" }),
+    place: integer("place").notNull(),
+    kartId: text("kart_id").notNull(),
+    kartRevision: integer("kart_revision").notNull(),
+    // Null for a racer who did not finish.
+    timeMicroseconds: integer("time_microseconds"),
+    signedIn: boolean("signed_in").notNull(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.raceId, table.place] }),
+    check(
+      "room_race_entries_place",
+      sql`${table.place} between 1 and ${sql.raw(String(ROOM_MAX_PLAYERS))}`,
+    ),
+    check(
+      "room_race_entries_kart",
+      sql`char_length(${table.kartId}) between 1 and 80 and ${table.kartRevision} > 0`,
+    ),
+    check(
+      "room_race_entries_time",
+      sql`${table.timeMicroseconds} is null or ${table.timeMicroseconds} between 1 and ${sql.raw(
+        String(ROOM_RACE_LIMIT_MS * 1_000),
       )}`,
     ),
   ],

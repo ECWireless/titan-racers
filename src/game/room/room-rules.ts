@@ -361,10 +361,12 @@ function finish(
   }
   const heard = (event.now - race.racingAt!) * 1_000;
   const claimed = event.timeMicroseconds;
-  entrant.finishMicroseconds =
+  entrant.finishMicroseconds = Math.max(
+    1,
     claimed >= heard - FINISH_EARLY_US && claimed <= heard + FINISH_LATE_US
       ? claimed
-      : heard;
+      : heard,
+  );
   entrant.finishedAt = event.now;
   entrant.gates = state.gateCount;
   entrant.lastGateAt = event.now;
@@ -460,24 +462,27 @@ function endRace(outcome: RoomOutcome, endReason: RoomEndReason, now: number) {
       timeMicroseconds: entrant.finishMicroseconds,
     })),
   };
-  outcome.report = {
-    version: 1,
-    raceId: race.id,
-    roomCode: state.code,
-    courseId: state.courseId,
-    courseRevision: state.courseRevision,
-    physicsVersion: state.physicsVersion,
-    racingAt: race.racingAt!,
-    endedAt: now,
-    endReason,
-    entries: order.map((entrant, index) => ({
-      place: index + 1,
-      kartId: entrant.kartId,
-      kartRevision: entrant.kartRevision,
-      timeMicroseconds: entrant.finishMicroseconds,
-      signedIn: entrant.signedIn,
-    })),
-  };
+  // A race everyone left before the start raced no one, so isn't recorded.
+  if (now >= race.racingAt!) {
+    outcome.report = {
+      version: 1,
+      raceId: race.id,
+      roomCode: state.code,
+      courseId: state.courseId,
+      courseRevision: state.courseRevision,
+      physicsVersion: state.physicsVersion,
+      racingAt: race.racingAt!,
+      endedAt: now,
+      endReason,
+      entries: order.map((entrant, index) => ({
+        place: index + 1,
+        kartId: entrant.kartId,
+        kartRevision: entrant.kartRevision,
+        timeMicroseconds: entrant.finishMicroseconds,
+        signedIn: entrant.signedIn,
+      })),
+    };
+  }
   // Racers choose again for the next race; their kart stays picked.
   const entrantIds = new Set(race.entrants.map(({ id }) => id));
   for (const player of state.players) {

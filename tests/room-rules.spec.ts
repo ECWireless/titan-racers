@@ -483,6 +483,16 @@ test.describe("room racing", () => {
     );
     expect(empty.report?.endReason).toBe("everyone_left");
     expect(empty.state.players).toEqual([]);
+
+    // Leaving before the start leaves nothing to record.
+    const unraced = run(
+      racing(2),
+      { type: "leave", now: RACING_AT - 5, playerId: "p1" },
+      { type: "leave", now: RACING_AT - 4, playerId: "p2" },
+    );
+    expect(unraced.state.race).toBeNull();
+    expect(unraced.state.lastRace?.endReason).toBe("everyone_left");
+    expect(unraced.report).toBeUndefined();
   });
 });
 

@@ -1,6 +1,12 @@
 import { z } from "zod";
 
-import { ROOM_CODE_PATTERN } from "./room-protocol";
+import { kartStableIdSchema } from "../kart/kart-assembly-document";
+import {
+  ROOM_CODE_PATTERN,
+  roomCourseIdSchema,
+  roomPhysicsVersionSchema,
+  roomRevisionSchema,
+} from "./room-protocol";
 
 /**
  * Signatures between the app and the room server, on Web Crypto so the same
@@ -99,17 +105,17 @@ const roomTokenSchema = z.strictObject({
   protocol: z.number().int().positive(),
   room: z.string().regex(ROOM_CODE_PATTERN),
   expiresAt: z.number().int().positive(),
-  courseId: z.string().min(1).max(80),
-  courseRevision: z.number().int().positive(),
+  courseId: roomCourseIdSchema,
+  courseRevision: roomRevisionSchema,
   /** Gates a race passes, finish included, over every lap. */
   gateCount: z.number().int().min(1).max(1_000),
-  physicsVersion: z.string().min(1).max(80),
+  physicsVersion: roomPhysicsVersionSchema,
   /** The official karts this player may race, at their published revisions. */
   karts: z
     .array(
       z.strictObject({
-        id: z.string().min(1).max(80),
-        revision: z.number().int().positive(),
+        id: kartStableIdSchema,
+        revision: roomRevisionSchema,
       }),
     )
     .min(1)
