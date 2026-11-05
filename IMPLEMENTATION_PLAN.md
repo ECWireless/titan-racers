@@ -293,7 +293,8 @@ Phase decisions:
   revisits. They pass through each other until PR 6.6.
 - **One room protocol version is live at a time;** PRs 6.5 and 6.6 raise
   it, deploying the room server and then the app back to back. Production
-  rooms use a custom domain.
+  rooms use the room server's workers.dev address until titanracers.com's
+  DNS moves to Cloudflare.
 
 **PR 6.0: Leaderboards across course publications**
 

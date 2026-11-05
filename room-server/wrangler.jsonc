@@ -16,9 +16,10 @@
     "APP_RESULTS_URL": "http://127.0.0.1:3000/api/rooms/results"
   },
   "env": {
+    // Served at titan-racers-rooms-production.<account subdomain>.workers.dev until
+    // titanracers.com's DNS is on Cloudflare (docs/database-operations.md).
     "production": {
-      "workers_dev": false,
-      "routes": [{ "pattern": "rooms.titanracers.com", "custom_domain": true }],
+      "workers_dev": true,
       "durable_objects": {
         "bindings": [{ "name": "ROOMS", "class_name": "Room" }]
       },

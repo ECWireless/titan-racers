@@ -240,9 +240,13 @@ anonymization pass them by.
 - **Deploy order:** apply migrations, deploy the room server
   (`pnpm rooms:deploy`, with `CLOUDFLARE_API_TOKEN` and
   `CLOUDFLARE_ACCOUNT_ID`), then set the app's variables and deploy the app.
-  The production room server serves `rooms.titanracers.com`, which needs
-  the domain's DNS on Cloudflare, and accepts pages from
-  `play.titanracers.com` only. A deploy closes live races within about five
+  The production room server serves
+  `titan-racers-rooms-production.<account subdomain>.workers.dev`, so
+  `NEXT_PUBLIC_ROOM_SERVER_URL` is that address with `wss://`, and it
+  accepts pages from `play.titanracers.com` only. Serving
+  `rooms.titanracers.com` instead needs the domain's DNS on Cloudflare: add
+  it as a custom-domain route, keep `workers_dev` on while the app's
+  variable changes, then turn it off. A deploy closes live races within about five
   minutes, so avoid deploying mid-race. A protocol change deploys the room
   server, then the app, back to back.
 
