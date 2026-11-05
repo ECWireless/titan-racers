@@ -79,6 +79,7 @@ correction.
 
 ## Related
 
+- [Multiplayer rooms system](../../project-systems/multiplayer-rooms/README.md)
 - [Cloudflare Durable Objects](../../tools/cloudflare-durable-objects/README.md)
 - [Race progression](../race-progression/README.md)
 - [Race presentation](../race-presentation/README.md)

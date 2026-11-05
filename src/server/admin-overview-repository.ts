@@ -59,7 +59,7 @@ export async function loadAdminOverview(
   const startedSince = since ? sql`and started_at >= ${since}` : sql``;
   const localNow = sql`${now}::timestamptz at time zone ${timeZone}`;
 
-  const [activity, totals, karts, signUps, leaderboard] = await Promise.all([
+  const [activity, totals, karts, signUps, leaderboard, rooms] = await Promise.all([
     db.execute<{
       date: string;
       finished: number;
@@ -180,7 +180,27 @@ export async function loadAdminOverview(
       from results
       where true ${since ? sql`and submitted_at >= ${since}` : sql``}
     `),
+    db.execute<Record<string, number>>(sql`
+      select count(distinct race.id)::int as races,
+        count(distinct race.room_code)::int as rooms,
+        count(entry.race_id)::int as racers,
+        count(*) filter (where entry.race_id is not null and not entry.signed_in)::int
+          as guest_racers,
+        count(distinct race.id) filter (where race.end_reason = 'all_finished')::int
+          as all_finished,
+        count(distinct race.id) filter (where race.end_reason = 'after_first_finish')::int
+          as after_first_finish,
+        count(distinct race.id) filter (where race.end_reason = 'time_limit')::int
+          as time_limit,
+        count(distinct race.id) filter (where race.end_reason = 'everyone_left')::int
+          as everyone_left
+      from room_races race
+      left join room_race_entries entry on entry.race_id = race.id
+      where race.course_id = ${courseId}
+        ${since ? sql`and race.ended_at >= ${since}` : sql``}
+    `),
   ]);
+  const room = rooms.rows[0];
 
   const total = totals.rows[0];
   const board = leaderboard.rows[0];
@@ -234,6 +254,18 @@ export async function loadAdminOverview(
       started: total.started,
     },
     range,
+    rooms: {
+      endings: {
+        afterFirstFinish: room.after_first_finish,
+        allFinished: room.all_finished,
+        everyoneLeft: room.everyone_left,
+        timeLimit: room.time_limit,
+      },
+      guestRacers: room.guest_racers,
+      racers: room.racers,
+      races: room.races,
+      rooms: room.rooms,
+    },
     timeZone,
   };
 }

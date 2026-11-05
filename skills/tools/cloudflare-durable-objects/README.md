@@ -14,7 +14,7 @@ linked pages before relying on a number.
 ## Objects And Routing
 
 - A Worker validates each request, then reaches the room's object with
-  `env.ROOM.getByName(code)`. Rejecting bad requests in the Worker keeps
+  `env.ROOMS.getByName(code)`. Rejecting bad requests in the Worker keeps
   them from being billed as Durable Object requests.
 - The first access to a name runs a global uniqueness check, a few hundred
   milliseconds, and the object is created near that first request.
@@ -100,6 +100,7 @@ linked pages before relying on a number.
 ## Related
 
 - [Multiplayer rooms](../../game-concepts/multiplayer-rooms/README.md)
+- [Multiplayer rooms system](../../project-systems/multiplayer-rooms/README.md)
 
 ## Sources
 

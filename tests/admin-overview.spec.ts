@@ -13,6 +13,8 @@ import {
   raceResults,
   racerMerges,
   users,
+  roomRaceEntries,
+  roomRaces,
 } from "../src/db/schema";
 import { FALLS_VIEW_PARK_DOCUMENT } from "../src/game/course/course-document";
 import { BALANCED_KART_ID } from "../src/game/kart/balanced-kart-document";
@@ -53,6 +55,13 @@ test.describe("admin overview contract", () => {
       racers: { active: 0, signUps: { browser: 0, browserKept: 0, google: 0, passkey: 0, wallet: 0 } },
       races: { finished: 0, guest: 0, raceAgain: 0, resultsShared: 0, signedIn: 0, started: 0 },
       range: "30d",
+      rooms: {
+        endings: { afterFirstFinish: 0, allFinished: 0, everyoneLeft: 0, timeLimit: 0 },
+        guestRacers: 0,
+        racers: 0,
+        races: 0,
+        rooms: 0,
+      },
       timeZone: "America/Denver",
     };
     const admin = async () => ({ authorized: true as const, userId: "admin" });
@@ -305,9 +314,66 @@ test.describe("admin overview Postgres integration", () => {
         result(racerB, "2001-01-06T12:00:00Z", 45),
       ]);
 
+      // Room races: two this week in one room, one before it. They're
+      // immutable, so they stay under the fresh course.
+      const roomRace = (
+        endedAt: string,
+        endReason: typeof roomRaces.$inferInsert.endReason,
+        signedIn: boolean[],
+      ) => {
+        const id = randomUUID();
+        const ended = new Date(endedAt);
+        return {
+          entries: signedIn.map((inAccount, index) => ({
+            kartId: BALANCED_KART_ID,
+            kartRevision: 1,
+            place: index + 1,
+            raceId: id,
+            signedIn: inAccount,
+            timeMicroseconds:
+              endReason === "all_finished"
+                ? 60_000_000 + index * 1_000_000
+                : index === 0
+                  ? 60_000_000
+                  : null,
+          })),
+          race: {
+            courseId,
+            courseRevision: 1,
+            endReason,
+            endedAt: ended,
+            id,
+            physicsVersion: CURRENT_PHYSICS_VERSION,
+            racingAt: new Date(ended.getTime() - 90_000),
+            roomCode: endedAt < "2001" ? "bbbbbbbbbb" : "aaaaaaaaaa",
+          },
+        };
+      };
+      const roomRows = [
+        roomRace("2001-01-03T12:00:00Z", "after_first_finish", [true, false, false]),
+        roomRace("2001-01-04T12:00:00Z", "all_finished", [true, true]),
+        roomRace("2000-12-12T12:00:00Z", "everyone_left", [false, false]),
+      ];
+      await db.insert(roomRaces).values(roomRows.map(({ race }) => race));
+      await db
+        .insert(roomRaceEntries)
+        .values(roomRows.flatMap(({ entries }) => entries));
+
       const denver = adminOverviewSchema.parse(
         await loadAdminOverview("7d", "America/Denver", now, courseId),
       );
+      expect(denver.rooms).toEqual({
+        endings: {
+          afterFirstFinish: 1,
+          allFinished: 1,
+          everyoneLeft: 0,
+          timeLimit: 0,
+        },
+        guestRacers: 2,
+        racers: 5,
+        races: 2,
+        rooms: 1,
+      });
       const zero = { finished: 0, signedInRacers: 0, started: 0 };
       expect(denver.bucket).toBe("day");
       expect(denver.activity).toEqual([
@@ -381,6 +447,18 @@ test.describe("admin overview Postgres integration", () => {
         ["2001-01-01", 4],
       ]);
       expect(all.leaderboard).toMatchObject({ courseRecords: 2, personalBests: 3, verified: 5 });
+      expect(all.rooms).toEqual({
+        endings: {
+          afterFirstFinish: 1,
+          allFinished: 1,
+          everyoneLeft: 1,
+          timeLimit: 0,
+        },
+        guestRacers: 4,
+        racers: 7,
+        races: 3,
+        rooms: 2,
+      });
       // A course with no races at all shows this week, empty.
       const empty = await loadAdminOverview("all", "America/Denver", now, `${courseId}-none`);
       expect(empty.activity).toEqual([
@@ -417,6 +495,13 @@ test.describe("admin overview page", () => {
     racers: { active: 2, signUps: { browser: 2, browserKept: 1, google: 3, passkey: 1, wallet: 1 } },
     races: { finished: 7, guest: 8, raceAgain: 4, resultsShared: 2, signedIn: 3, started: 11 },
     range: "7d",
+    rooms: {
+      endings: { afterFirstFinish: 2, allFinished: 3, everyoneLeft: 0, timeLimit: 1 },
+      guestRacers: 4,
+      racers: 15,
+      races: 6,
+      rooms: 2,
+    },
     timeZone: "America/Denver",
   };
 
@@ -497,6 +582,13 @@ test.describe("admin overview page", () => {
     await expect(page.getByRole("region", { name: "Replays and sharing" })).toContainText(
       "Links copied2",
     );
+    const rooms = page.getByRole("region", { name: "Race Friends" });
+    await expect(rooms).toContainText("Room races6");
+    await expect(rooms).toContainText("Racers per race2.5");
+    await expect(rooms).toContainText("27% of room racers were guests");
+    await expect(
+      page.getByRole("region", { name: "How room races ended" }),
+    ).toContainText("Everyone finished3");
     await expect(page.getByRole("link", { name: "Telemetry" })).toHaveAttribute(
       "href",
       "/admin/telemetry",

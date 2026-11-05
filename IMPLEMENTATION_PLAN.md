@@ -308,7 +308,7 @@ Phase decisions:
   ID, without account IDs or usernames. Rooms record no ghosts, run tickets,
   or solo run summaries.
 - **Opponents are opaque karts,** not see-through like ghosts, drawn about
-  150 ms behind their updates, sent 10 times a second, and smoothed: a
+  200 ms behind their updates, sent 10 times a second, and smoothed: a
   baseline PR 6.5 revisits. They pass through each other until PR 6.6 and
   are silent until PR 6.5.
 - **One room protocol version is live at a time,** carried in the join
@@ -370,15 +370,17 @@ Phase decisions:
 
 **PR 6.4: Private rooms and race lifecycle**
 
-- [ ] Create a private room and join by link; 2–4 players, guests welcome.
-- [ ] Choosing a kart marks a player ready; the host starts a synchronized
+- [x] Create a private room and join by link; 2–4 players, guests welcome.
+- [x] Choosing a kart marks a player ready; the host starts a synchronized
       countdown.
-- [ ] Opponents are visible with coherent race progress.
-- [ ] Synchronized results with placements, and replay in the same room. The race ends when all
+- [x] Opponents are visible with coherent race progress.
+- [x] Synchronized results with placements, and replay in the same room. The race ends when all
       active players finish or shortly after the first finisher.
-- [ ] No public matchmaking or ranked multiplayer leaderboard.
-- [ ] Rooms race official karts on Falls View Park, recording each kart's
+- [x] No public matchmaking or ranked multiplayer leaderboard.
+- [x] Rooms race official karts on Falls View Park, recording each kart's
       revision and the course's, as Phase 5's results do.
+- [x] The dashboard counts room races, rooms raced in, racers and guests,
+      and how room races ended.
 
 **PR 6.5: Motion and resilience**
 
@@ -389,7 +391,8 @@ Phase decisions:
 - [ ] Survive latency, packet loss, reordering, backgrounding, disconnects,
       reconnects, and host departure without hanging the room.
 - [ ] Keep all input methods, reset, pause, and resilience behavior working.
-- [ ] Opponents are heard, with remote karts' cheaper voices.
+- [ ] Opponents are heard, with remote karts' cheaper voices, and cast the
+      contact shadow the player's kart does.
 - [ ] A four-kart room stays within the phone budget on the lead's iPhone
       (`?perf=1`).
 

@@ -89,6 +89,20 @@ export const adminOverviewSchema = z.strictObject({
     ownBest: countSchema,
     sharedLink: countSchema,
   }),
+  // Race Friends races run, which record no one, only who was signed in.
+  rooms: z.strictObject({
+    races: countSchema,
+    // Distinct rooms those races were run in.
+    rooms: countSchema,
+    racers: countSchema,
+    guestRacers: countSchema,
+    endings: z.strictObject({
+      afterFirstFinish: countSchema,
+      allFinished: countSchema,
+      everyoneLeft: countSchema,
+      timeLimit: countSchema,
+    }),
+  }),
 });
 
 export type AdminOverview = z.infer<typeof adminOverviewSchema>;
