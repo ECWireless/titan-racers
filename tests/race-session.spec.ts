@@ -323,6 +323,15 @@ test.describe("race session", () => {
     expect(() => session.catchUpToRoomTime(Number.NaN)).toThrow();
   });
 
+  test("leaves a frame's jitter alone, then catches up all of it", () => {
+    const session = new RaceSession(config());
+    startRace(session);
+    session.advanceTime(1);
+    expect(session.catchUpToRoomTime(1_040_000, 50_000)).toBe(0);
+    expect(session.catchUpToRoomTime(1_060_000, 50_000)).toBe(60_000);
+    expect(session.snapshot.elapsedRaceMicroseconds).toBe(1_060_000);
+  });
+
   test("keeps the room's race running through a pause and resume", () => {
     const session = new RaceSession(config());
     startRace(session);

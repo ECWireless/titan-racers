@@ -250,6 +250,14 @@ import {
   type GhostKartVisual,
 } from "@/game/ghost/ghost-kart-visual";
 import { createGhostPose, GhostPlayback } from "@/game/ghost/ghost-playback";
+import { ROOM_RACE_LIMIT_MS } from "@/game/room/room-protocol";
+import {
+  type CanvasRoom,
+  ROOM_CATCH_UP_US,
+  ROOM_OPPONENT_DELAY_US,
+  ROOM_STATE_INTERVAL_MS,
+  roomGridOffset,
+} from "@/game/room/room-race";
 import { DEFAULT_FIXED_STEP_SECONDS } from "@/game/runtime/fixed-step-clock";
 import {
   encodeGhostTrace,
@@ -394,6 +402,11 @@ type SoloTimeTrialCanvasProps = {
   submitsRuns?: boolean;
   /** Test readout of height above the habitat floor and local gravity. */
   showHabitatReadout?: boolean;
+  /**
+   * Races a private room: its clock starts and keeps the race, opponents
+   * are drawn, and the room shows the results. Fixed for the mount.
+   */
+  room?: CanvasRoom;
 };
 type SoloSceneControls = {
   clearInput: () => void;
@@ -515,8 +528,10 @@ export function SoloTimeTrialCanvas({
   sessionLabel,
   showHabitatReadout = false,
   submitsRuns = false,
+  room,
 }: SoloTimeTrialCanvasProps) {
   const COURSE_DOCUMENT = courseDocument;
+  const [ROOM] = useState(room ?? null);
   const raceIdentity = useMemo<GameplayRaceIdentity>(
     () => ({
       courseId: courseDocument.courseId,
@@ -692,11 +707,20 @@ export function SoloTimeTrialCanvas({
   } = kartRuntime;
   const { START_POSITION, START_ROTATION } = useMemo(() => {
     const startTransform = getCourseStartTransform(COURSE_DOCUMENT);
+    // A room's karts line up two by two behind the start.
+    const grid = ROOM ? roomGridOffset(ROOM.slot) : { back: 0, right: 0 };
+    const gridOffset = new pc.Quat()
+      .setFromEulerAngles(
+        startTransform.rotation.x,
+        startTransform.rotation.y,
+        startTransform.rotation.z,
+      )
+      .transformVector(new pc.Vec3(grid.right, 0, grid.back));
     return {
       START_POSITION: new pc.Vec3(
-        startTransform.position.x,
-        startTransform.position.y,
-        startTransform.position.z,
+        startTransform.position.x + gridOffset.x,
+        startTransform.position.y + gridOffset.y,
+        startTransform.position.z + gridOffset.z,
       ),
       START_ROTATION: new pc.Vec3(
         startTransform.rotation.x,
@@ -704,7 +728,7 @@ export function SoloTimeTrialCanvas({
         startTransform.rotation.z,
       ),
     };
-  }, [COURSE_DOCUMENT]);
+  }, [COURSE_DOCUMENT, ROOM]);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const finishMenuRef = useRef<HTMLDivElement | null>(null);
   const restartButtonRef = useRef<HTMLButtonElement | null>(null);
@@ -782,7 +806,8 @@ export function SoloTimeTrialCanvas({
   });
   useControllerMenuNavigation({
     containerRef: finishMenuRef,
-    enabled: racePresentation.state === "finished",
+    // A room shows its own results.
+    enabled: racePresentation.state === "finished" && !ROOM,
     onBack: exitRace,
   });
   useControllerMenuNavigation({
@@ -803,8 +828,9 @@ export function SoloTimeTrialCanvas({
 
   useEffect(() => {
     countdownHeldRef.current = covered;
-    if (!covered) startCountdownRef.current?.();
-  }, [covered]);
+    // A room's countdown waits for the room's clock as well (below).
+    if (!covered && !ROOM) startCountdownRef.current?.();
+  }, [covered, ROOM]);
 
   // Sound runs only while the race is on screen and unpaused. The race audio
   // also follows page focus and visibility itself, finish screen included.
@@ -936,6 +962,9 @@ export function SoloTimeTrialCanvas({
       let raceStartReported = false;
       const ghostRecorder = new GhostRecorder();
       const ghostAssemblyRotation = new pc.Quat();
+      // A room hears of each gate, and that a reset teleported the kart.
+      let roomGates = 0;
+      let roomResetPending = false;
       // The last finished race's recording.
       let finishedGhostTrace: GhostSample[] | null = null;
       let lastRaceProgressionResult: RaceProgressionResult = { kind: "none" };
@@ -1244,6 +1273,32 @@ export function SoloTimeTrialCanvas({
       runtime.addCleanup(() => {
         ghostVisual?.destroy();
         ghostMaterial?.destroy();
+      });
+      // A room's opponents, solid in their own karts and without physics:
+      // they pass through each other and this kart.
+      const opponentVisuals = (ROOM?.opponents ?? []).flatMap(
+        ({ id, kart: opponentKart }) => {
+          try {
+            return [
+              {
+                id,
+                lastTime: 0,
+                visual: createGhostKartVisual(
+                  app,
+                  opponentKart,
+                  getKartVisualMaterial,
+                ),
+              },
+            ];
+          } catch {
+            // A kart this build cannot draw races unseen.
+            return [];
+          }
+        },
+      );
+      const opponentPose = createGhostPose();
+      runtime.addCleanup(() => {
+        for (const { visual } of opponentVisuals) visual.destroy();
       });
       const currentGhostKart: GhostKart = {
         centerOfMass: { ...KART_CENTER_OF_MASS_OFFSET },
@@ -1900,6 +1955,7 @@ export function SoloTimeTrialCanvas({
         }
         kartController.reset();
         ghostRecorder.markReset();
+        roomResetPending = true;
         manualRightingCapturePending = false;
         manualRightingSettling = false;
         manualRightingSettlingRemainingSeconds = 0;
@@ -3203,6 +3259,8 @@ export function SoloTimeTrialCanvas({
             setKartDevelopmentValues: setSceneKartDevelopmentValues,
             setRaceDebugMovement,
             setSimulationPaused: (paused) => runtime.setPaused(paused),
+            setRenderingSuspended: (suspended) =>
+              runtime.setRenderingSuspended(suspended),
             setStartPosition: setSceneStartPosition,
             stepSimulation: (steps) => runtime.stepFixed(steps),
             stepSimulationWithKartSamples: (steps) =>
@@ -3335,6 +3393,15 @@ export function SoloTimeTrialCanvas({
             progressionResult.kind === "checkpoint" ||
             progressionResult.kind === "lap" ||
             progressionResult.kind === "finished";
+          // The finish goes once its final time is known (frame end).
+          if (
+            ROOM &&
+            (progressionResult.kind === "checkpoint" ||
+              progressionResult.kind === "lap")
+          ) {
+            roomGates += 1;
+            ROOM.send({ type: "gate", raceId: ROOM.raceId, gates: roomGates });
+          }
           if (lastRaceProgressionResult.kind === "finished") {
             raceFinishedThisFrame = true;
             inputManager.setEnabled(false);
@@ -3408,11 +3475,82 @@ export function SoloTimeTrialCanvas({
         gameplayTelemetry.recordDiscardedTime(discardedSeconds);
       });
 
+      if (ROOM) {
+        const room = ROOM;
+        const countdownMicroseconds =
+          raceSession.snapshot.countdownRemainingMicroseconds;
+        const roomRotation = new pc.Quat();
+        // The race clock advances by frame timestamps; reading the room's
+        // at the same moment keeps this frame's own work from counting
+        // twice.
+        const frameTime = () =>
+          (document.timeline.currentTime as number | null) ??
+          performance.now();
+        const round = (value: number, places: number) =>
+          Math.round(value * 10 ** places) / 10 ** places;
+        let lastRoomStateAt = -Infinity;
+        runtime.onFrameEnd(() => {
+          const roomTime = room.raceMicroseconds(frameTime());
+          if (roomTime === null) return;
+          // The countdown runs toward the room's start, once uncovered.
+          if (startCountdownRef.current) {
+            if (countdownHeldRef.current || roomTime < -countdownMicroseconds) {
+              return;
+            }
+            startCountdownRef.current();
+          }
+          // A late start, a stall, or a pause is charged as race time, so
+          // this race clock reads the room's.
+          if (raceSession.catchUpToRoomTime(roomTime, ROOM_CATCH_UP_US) > 0) {
+            publishRacePresentation();
+          }
+          const lifecycle = raceSession.lifecycleState;
+          const now = performance.now();
+          if (
+            lifecycle === "finished" ||
+            now - lastRoomStateAt < ROOM_STATE_INTERVAL_MS ||
+            raceSession.raceMicroseconds > ROOM_RACE_LIMIT_MS * 1_000
+          ) {
+            return;
+          }
+          lastRoomStateAt = now;
+          const position = kart.getPosition();
+          roomRotation.mul2(
+            kart.getRotation(),
+            KART_ASSEMBLY_TO_PRINCIPAL_ROTATION,
+          );
+          room.send({
+            type: "state",
+            t: raceSession.raceMicroseconds,
+            p: [round(position.x, 3), round(position.y, 3), round(position.z, 3)],
+            q: [
+              round(roomRotation.x, 4),
+              round(roomRotation.y, 4),
+              round(roomRotation.z, 4),
+              round(roomRotation.w, 4),
+            ],
+            s: round(kartController.state.steerAngle, 1),
+            r: roomResetPending,
+          });
+          roomResetPending = false;
+        });
+      }
+
       runtime.onFrameEnd(() => {
         if (!raceFinishedThisFrame) {
           return;
         }
         raceFinishedThisFrame = false;
+        if (ROOM) {
+          ROOM.send({
+            type: "finish",
+            raceId: ROOM.raceId,
+            timeMicroseconds: Math.min(
+              raceSession.snapshot.elapsedRaceMicroseconds,
+              ROOM_RACE_LIMIT_MS * 1_000,
+            ),
+          });
+        }
         // A stall in the finishing frame is charged to the result after the
         // finishing step was recorded; the ghost ends on the official time.
         const finalSample = finishedGhostTrace?.at(-1);
@@ -3599,6 +3737,21 @@ export function SoloTimeTrialCanvas({
           );
           lastGhostTimeMicroseconds = ghostTime;
         }
+        if (ROOM && opponentVisuals.length > 0) {
+          // Drawn a little in the past, between states actually received.
+          const opponentTime =
+            (ROOM.raceMicroseconds(
+              (document.timeline.currentTime as number | null) ??
+                performance.now(),
+            ) ?? 0) - ROOM_OPPONENT_DELAY_US;
+          for (const opponent of opponentVisuals) {
+            opponent.visual.update(
+              ROOM.opponentPose(opponent.id, opponentTime, opponentPose),
+              Math.max(0, opponentTime - opponent.lastTime) / 1_000_000,
+            );
+            opponent.lastTime = opponentTime;
+          }
+        }
         contactShadow.update(kartVisual, findGroundBelowKart);
 
         chaseCamera.update(frameSeconds, getChaseCameraSnapshot());
@@ -3748,7 +3901,7 @@ export function SoloTimeTrialCanvas({
           gameplayTelemetry.flushRuntimeHealth();
         }
       };
-      if (!countdownHeldRef.current) startCountdownRef.current();
+      if (!countdownHeldRef.current && !ROOM) startCountdownRef.current();
       runtime.addCleanup(() => {
         startCountdownRef.current = null;
         delete activeCanvas.dataset.sceneReady;
@@ -3787,6 +3940,7 @@ export function SoloTimeTrialCanvas({
     };
   }, [
     COURSE_DOCUMENT,
+    ROOM,
     START_POSITION,
     START_ROTATION,
     INITIAL_KART_DEVELOPMENT_VALUES,
@@ -4248,9 +4402,11 @@ export function SoloTimeTrialCanvas({
         data-kart-wheel-color={wheelVisualColor}
         data-testid="solo-time-trial-canvas"
         aria-label={
-          sessionLabel
-            ? `Solo Time Trial race: ${sessionLabel}`
-            : "Solo Time Trial race"
+          ROOM
+            ? "Race Friends race"
+            : sessionLabel
+              ? `Solo Time Trial race: ${sessionLabel}`
+              : "Solo Time Trial race"
         }
         inert={
           gamePaused ||
@@ -4404,7 +4560,9 @@ export function SoloTimeTrialCanvas({
                     Paused
                   </p>
                   <p className="text-sm text-titan-ice/70">
-                    Resume when you&apos;re ready
+                    {ROOM
+                      ? "The race goes on while you're paused"
+                      : "Resume when you're ready"}
                   </p>
                 </div>
                 <div className="grid gap-3">
@@ -4433,13 +4591,13 @@ export function SoloTimeTrialCanvas({
                     className="titan-button titan-button-secondary"
                     onClick={exitRace}
                   >
-                    Exit
+                    {ROOM ? "Leave room" : "Exit"}
                   </button>
                 </div>
               </div>
             </div>
           ) : null}
-          {racePresentation.state === "finished" ? (
+          {racePresentation.state === "finished" && !ROOM ? (
             <div
               aria-labelledby="finish-dialog-title"
               aria-modal="true"

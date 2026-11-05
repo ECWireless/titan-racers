@@ -30,7 +30,6 @@ import type { PersistedResolvedKartSnapshot } from "@/game/kart/kart-derivation"
 import { pauseKartThumbnailRendering } from "@/game/kart/kart-thumbnail-renderer";
 import {
   createBundledOfficialKartRoster,
-  officialKartRosterSchema,
   type OfficialKartRoster,
 } from "@/game/kart/official-kart-roster";
 
@@ -54,6 +53,7 @@ import type { CourseEnclosure } from "@/game/enclosure/island-three";
 import { endRaceAudio, unlockRaceAudio } from "@/game/audio/race-audio";
 import { RACE_LAP_COUNT } from "@/game/race/race-course";
 import { formatRaceTime } from "@/game/race/race-presentation";
+import { createRoomCode } from "@/game/room/room-protocol";
 import { exactRacerUsernameSchema } from "@/lib/racer-username";
 
 import {
@@ -65,7 +65,6 @@ import { keepKartThumbnail } from "./kart-thumbnail";
 import {
   HomeChoice,
   HomeCourseCard,
-  type HomeKart,
   HomeKartCard,
   HomeStartStep,
   type HomeStep,
@@ -81,6 +80,11 @@ import {
   SignOutIcon,
   SoundIcon,
 } from "./menu-icons";
+import {
+  loadOfficialKartRoster,
+  type PlayableOfficialKart,
+  playableOfficialKarts,
+} from "./official-karts";
 import { SoloTimeTrialCanvas } from "./solo-time-trial-canvas";
 import { StoredSoundToggle, VolumeControl } from "./setting-switch";
 
@@ -95,11 +99,6 @@ type CourseLoading = {
   courseName: string;
   enclosure: CourseEnclosure;
   leaving: boolean;
-};
-
-type PlayableOfficialKart = HomeKart & {
-  /** The published revision, or null for the bundled roster. */
-  revision: number | null;
 };
 
 /** A course to race and its published revision, or null for the seed. */
@@ -141,39 +140,6 @@ async function loadPublishedCourse(courseId: string): Promise<RaceCourse> {
     await response.json(),
   );
   return { document, revision };
-}
-
-async function loadOfficialKartRoster() {
-  const response = await fetch("/api/karts/official", {
-    cache: "no-store",
-    signal: AbortSignal.timeout(PUBLISHED_LOAD_TIMEOUT_MS),
-  });
-  if (!response.ok) throw new Error("Official kart roster unavailable.");
-  return officialKartRosterSchema.parse(await response.json());
-}
-
-function playableOfficialKarts(
-  roster: OfficialKartRoster,
-): PlayableOfficialKart[] {
-  return roster.karts.map((entry) =>
-    "runtime" in entry
-      ? {
-          assemblerCredit: entry.assemblerCredit,
-          document: entry.runtime.document,
-          resolvedSnapshot: entry.runtime.resolvedSnapshot,
-          revision: entry.runtime.revision,
-          thumbnailSource: entry.runtime.thumbnailAvailable
-            ? `/api/karts/${entry.runtime.kartId}/thumbnail?revision=${entry.runtime.revision}`
-            : null,
-        }
-      : {
-          assemblerCredit: entry.assemblerCredit,
-          document: entry.document,
-          resolvedSnapshot: entry.resolvedSnapshot,
-          revision: null,
-          thumbnailSource: null,
-        },
-  );
 }
 
 /** A racer named by a ghost link (`?ghost=<username>`), and where from. */
@@ -280,6 +246,9 @@ export function PlayHome() {
   const keepRacingRef = useRef<HTMLButtonElement | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   const [soloPending, setSoloPending] = useState(false);
+  // Race Friends opens a private room; it needs the room server's address.
+  const roomsAvailable = Boolean(process.env.NEXT_PUBLIC_ROOM_SERVER_URL?.trim());
+  const [raceFriends, setRaceFriends] = useState(false);
   const [rosterPending, setRosterPending] = useState(true);
   const [officialKarts, setOfficialKarts] = useState<PlayableOfficialKart[]>([]);
   const [selectedKartId, setSelectedKartId] = useState<string | null>(null);
@@ -1037,19 +1006,37 @@ export function PlayHome() {
               className="grid gap-2 sm:grid-cols-2"
               role="group"
             >
-              <HomeChoice chosen onChoose={() => undefined}>
+              <HomeChoice
+                chosen={!raceFriends}
+                onChoose={() => setRaceFriends(false)}
+              >
                 Time trial
               </HomeChoice>
-              <HomeChoice
-                chosen={false}
-                disabledNote="Coming soon"
-                onChoose={() => setToast("coming soon")}
-              >
-                Race Friends
-              </HomeChoice>
+              {roomsAvailable ? (
+                <HomeChoice
+                  chosen={raceFriends}
+                  onChoose={() => setRaceFriends(true)}
+                >
+                  Race Friends
+                </HomeChoice>
+              ) : (
+                <HomeChoice
+                  chosen={false}
+                  disabledNote="Coming soon"
+                  onChoose={() => setToast("coming soon")}
+                >
+                  Race Friends
+                </HomeChoice>
+              )}
             </div>
+            {raceFriends ? (
+              <p className="text-xs leading-5 text-titan-ice/70">
+                Opens a private room for up to 4. Share its link, and race
+                when your friends have chosen their karts.
+              </p>
+            ) : null}
           </div>
-          <div className="grid gap-2">
+          <div className={raceFriends ? "hidden" : "grid gap-2"}>
             <p
               className="font-mono text-[0.62rem] font-bold uppercase tracking-[0.18em] text-titan-muted"
               id="ghost-choice-label"
@@ -1115,10 +1102,22 @@ export function PlayHome() {
             onClick={(event) => {
               // A double-click's second click is not a second start.
               if (event.detail > 1) return;
+              if (raceFriends && selectedKart) {
+                window.location.assign(
+                  `/room/${createRoomCode()}?kart=${encodeURIComponent(
+                    selectedKart.document.kartId,
+                  )}`,
+                );
+                return;
+              }
               void startSoloTimeTrial();
             }}
           >
-            {soloPending ? "Preparing race…" : "Start race"}
+            {soloPending
+              ? "Preparing race…"
+              : raceFriends
+                ? "Create room"
+                : "Start race"}
           </button>
         </div>
       </HomeStepFrame>

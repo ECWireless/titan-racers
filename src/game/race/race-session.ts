@@ -300,10 +300,11 @@ export class RaceSession {
    * Rooms race on the room's clock, which never stops for one player: this
    * brings the session up to the room's race time (negative through the
    * countdown), charging what it missed, such as a late start, a hitch, a
-   * pause, or the resume hold, as race time. It never rewinds. Returns the
-   * microseconds charged.
+   * pause, or the resume hold, as race time. It never rewinds, and charges
+   * nothing for a lag under `minimumMicroseconds` (a frame's jitter).
+   * Returns the microseconds charged.
    */
-  catchUpToRoomTime(roomRaceMicroseconds: number) {
+  catchUpToRoomTime(roomRaceMicroseconds: number, minimumMicroseconds = 0) {
     if (!Number.isFinite(roomRaceMicroseconds)) {
       throw new Error("Room race time must be finite");
     }
@@ -323,7 +324,7 @@ export class RaceSession {
       ? -this.countdownRemainingMicroseconds
       : this.elapsedRaceMicroseconds;
     const missed = Math.floor(roomRaceMicroseconds - sessionMicroseconds);
-    if (missed <= 0) return 0;
+    if (missed <= 0 || missed < minimumMicroseconds) return 0;
     if (!paused) {
       this.advanceMicroseconds(missed);
       return missed;

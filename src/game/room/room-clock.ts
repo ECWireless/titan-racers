@@ -1,23 +1,25 @@
 /**
  * Estimates the room server's clock from timed pings, NTP-style: a pong's
  * server time is taken to fall midway through its round trip, and the
- * sample with the shortest round trip among the recent ones wins, since it
- * leaves the least room for one-way delays to differ.
+ * sample with the shortest round trip wins, since it leaves the least room
+ * for one-way delays to differ. A busy page (racing on a slow device) reads
+ * its pongs late, so a quiet ping from the lobby beats them; it gives way
+ * only as it ages, for the clocks' slow drift.
  */
-export const ROOM_CLOCK_SAMPLES = 8;
+/** Milliseconds of round trip that each millisecond of age counts as. */
+export const ROOM_CLOCK_AGE_PENALTY = 2e-4;
 /** Round trips longer than this say too little to keep. */
 const MAX_ROUND_TRIP_MS = 3_000;
 
-type ClockSample = { offset: number; roundTrip: number };
+type ClockSample = { offset: number; roundTrip: number; at: number };
 
 export class RoomClock {
-  private samples: ClockSample[] = [];
   private best: ClockSample | null = null;
 
   /**
    * Adds one ping's result: when it was sent and its pong received, on the
-   * local clock, and the server's time in the pong. Returns whether it was
-   * kept.
+   * local clock, and the server's time in the pong. Returns whether it is
+   * now the estimate.
    */
   addSample(sentAt: number, serverAt: number, receivedAt: number) {
     const roundTrip = receivedAt - sentAt;
@@ -29,14 +31,15 @@ export class RoomClock {
     ) {
       return false;
     }
-    this.samples.push({
+    const sample = {
       offset: serverAt - (sentAt + receivedAt) / 2,
       roundTrip,
-    });
-    if (this.samples.length > ROOM_CLOCK_SAMPLES) this.samples.shift();
-    this.best = this.samples.reduce((best, sample) =>
-      sample.roundTrip < best.roundTrip ? sample : best,
-    );
+      at: receivedAt,
+    };
+    const score = ({ roundTrip: trip, at }: ClockSample) =>
+      trip + (receivedAt - at) * ROOM_CLOCK_AGE_PENALTY;
+    if (this.best && score(this.best) < score(sample)) return false;
+    this.best = sample;
     return true;
   }
 

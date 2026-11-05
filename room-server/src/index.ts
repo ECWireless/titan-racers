@@ -105,8 +105,11 @@ type PendingReport = {
   nextAttemptAt: number;
 };
 
-/** A client may send states at up to twice the agreed rate. */
-const MIN_STATE_GAP_MS = 1_000 / (2 * ROOM_STATE_HZ);
+/**
+ * A client may send states at up to four times the agreed rate, so network
+ * jitter that bunches two never drops one.
+ */
+const MIN_STATE_GAP_MS = 1_000 / (4 * ROOM_STATE_HZ);
 const REPORT_TIMEOUT_MS = 10_000;
 
 function send(socket: WebSocket, message: RoomServerMessage | string) {

@@ -83,6 +83,19 @@ test.describe("ghost playback", () => {
     expect(playback.sample(1_025_000, pose)?.position.x).toBeCloseTo(30.2, 4);
   });
 
+  test("grows as a room opponent's states arrive, ending on a reset", () => {
+    const playback = new GhostPlayback([sample(0, 0)]);
+    playback.append(sample(100_000, 1));
+    playback.append(sample(100_000, 9));
+    playback.append(sample(50_000, 9));
+    expect(playback.finishMicroseconds).toBe(100_000);
+    playback.append(sample(200_000, 30, { reset: true }));
+    const pose = createGhostPose();
+    expect(playback.sample(150_000, pose)?.position.x).toBe(1);
+    // Held at its newest state, an opponent who reset shows where it went.
+    expect(playback.sample(200_000, pose)?.position.x).toBe(30);
+  });
+
   test("blends rotation and steering along the shorter way", () => {
     const quarterTurn = { w: Math.SQRT1_2, x: 0, y: Math.SQRT1_2, z: 0 };
     const negated = { w: -quarterTurn.w, x: 0, y: -quarterTurn.y, z: 0 };

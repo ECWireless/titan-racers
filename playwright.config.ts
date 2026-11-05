@@ -13,8 +13,9 @@ export default defineConfig({
     baseURL: "http://127.0.0.1:3873",
     trace: "on-first-retry",
   },
+  // Room specs run their own room server on 8798 (tests/room-race.spec.ts).
   webServer: {
-    command: "NEXT_PUBLIC_GAMEPLAY_TELEMETRY_ENABLED=false NEXT_PUBLIC_TEST_WITHOUT_ENCLOSURE=1 COREPACK_HOME=/tmp/corepack corepack pnpm dev --hostname 127.0.0.1 --port 3873",
+    command: "NEXT_PUBLIC_GAMEPLAY_TELEMETRY_ENABLED=false NEXT_PUBLIC_TEST_WITHOUT_ENCLOSURE=1 NEXT_PUBLIC_ROOM_SERVER_URL=ws://127.0.0.1:8798 COREPACK_HOME=/tmp/corepack corepack pnpm dev --hostname 127.0.0.1 --port 3873",
     url: "http://127.0.0.1:3873",
     reuseExistingServer: !process.env.CI,
     timeout: 120_000,

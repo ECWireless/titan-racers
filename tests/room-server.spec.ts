@@ -1,10 +1,4 @@
-import { type ChildProcess, spawn } from "node:child_process";
 import { randomBytes } from "node:crypto";
-import { mkdtempSync, rmSync } from "node:fs";
-import { createServer, type Server } from "node:http";
-import { type AddressInfo, createServer as createTcpServer } from "node:net";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
 
 import { expect, test } from "@playwright/test";
 
@@ -18,11 +12,15 @@ import {
 } from "../src/game/room/room-protocol";
 import {
   randomRoomPlayerKey,
-  ROOM_REPORT_SIGNATURE_HEADER,
   signRoomToken,
   verifyRoomReport,
   type RoomTokenFields,
 } from "../src/game/room/room-signing";
+import {
+  freePort,
+  type RoomServerReport,
+  startRoomServer,
+} from "./support/room-server";
 
 // Two real clients against the room server under `wrangler dev`.
 test.describe.configure({ mode: "serial" });
@@ -31,113 +29,18 @@ let PORT = 0;
 const ORIGIN = "http://rooms.test";
 const SECRET = randomBytes(32).toString("base64url");
 
-let wrangler: ChildProcess | undefined;
-let wranglerExited: Promise<void> = Promise.resolve();
-let results: Server | undefined;
-let stateDir: string;
-const reports: Array<{ signature: string | null; body: string }> = [];
-
-async function freePort() {
-  const server = createTcpServer();
-  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
-  const { port } = server.address() as AddressInfo;
-  await new Promise<void>((resolve) => server.close(() => resolve()));
-  return port;
-}
+let server: Awaited<ReturnType<typeof startRoomServer>> | undefined;
+let reports: RoomServerReport[] = [];
 
 test.beforeAll(async () => {
   test.setTimeout(90_000);
   PORT = await freePort();
-  results = createServer((request, response) => {
-    let body = "";
-    request.on("data", (chunk) => (body += chunk));
-    request.on("end", () => {
-      const header = request.headers[ROOM_REPORT_SIGNATURE_HEADER];
-      reports.push({
-        signature: typeof header === "string" ? header : null,
-        body,
-      });
-      response.writeHead(201).end("{}");
-    });
-  });
-  const server = results;
-  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
-  const resultsPort = (server.address() as AddressInfo).port;
-  stateDir = mkdtempSync(join(tmpdir(), "room-server-spec-"));
-  wrangler = spawn(
-    "pnpm",
-    [
-      "exec",
-      "wrangler",
-      "dev",
-      "--config",
-      "room-server/wrangler.jsonc",
-      "--ip",
-      "127.0.0.1",
-      "--port",
-      String(PORT),
-      "--persist-to",
-      stateDir,
-      "--show-interactive-dev-session=false",
-      "--var",
-      `ROOM_SERVER_SECRET:${SECRET}`,
-      "--var",
-      `APP_ORIGINS:${ORIGIN}`,
-      "--var",
-      `APP_RESULTS_URL:http://127.0.0.1:${resultsPort}/results`,
-    ],
-    {
-      env: { ...process.env, WRANGLER_SEND_METRICS: "false" },
-      stdio: ["ignore", "pipe", "pipe"],
-      detached: true,
-    },
-  );
-  let output = "";
-  let exited = false;
-  const child = wrangler;
-  wranglerExited = new Promise((resolve) =>
-    child.once("exit", () => {
-      exited = true;
-      resolve();
-    }),
-  );
-  child.stdout?.on("data", (chunk) => (output += chunk));
-  child.stderr?.on("data", (chunk) => (output += chunk));
-  const started = Date.now();
-  while (!exited && Date.now() - started < 80_000) {
-    // Wrangler prints its address once this server is the one listening.
-    if (output.includes(`127.0.0.1:${PORT}`)) {
-      try {
-        const response = await fetch(`http://127.0.0.1:${PORT}/`);
-        if (response.status === 404) return;
-      } catch {
-        // Not accepting yet.
-      }
-    }
-    await new Promise((resolve) => setTimeout(resolve, 250));
-  }
-  throw new Error(`wrangler dev did not start:\n${output}`);
+  server = await startRoomServer({ origins: [ORIGIN], port: PORT, secret: SECRET });
+  reports = server.reports;
 });
 
 test.afterAll(async () => {
-  try {
-    if (wrangler?.pid && wrangler.exitCode === null) {
-      try {
-        process.kill(-wrangler.pid, "SIGTERM");
-      } catch {
-        // Already gone.
-      }
-      await Promise.race([
-        wranglerExited,
-        new Promise((resolve) => setTimeout(resolve, 5_000)),
-      ]);
-    }
-  } finally {
-    await new Promise<void>((resolve) =>
-      results ? results.close(() => resolve()) : resolve(),
-    );
-    if (stateDir) rmSync(stateDir, { recursive: true, force: true });
-  }
+  await server?.stop();
 });
 
 function tokenFields(
@@ -273,7 +176,7 @@ test("two players race a room from lobby to results", async () => {
 
   const pose = { t: 0, p: [1, 2, 3], q: [0, 0, 0, 1], s: 5, r: false };
   ada.send({ type: "state", ...pose });
-  // Faster than twice the agreed rate is dropped.
+  // Faster than four times the agreed rate is dropped.
   ada.send({ type: "state", ...pose, t: 1 });
   expect(
     await guest.next((message) => message.type === "state"),
