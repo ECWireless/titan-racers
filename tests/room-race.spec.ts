@@ -19,6 +19,7 @@ import {
   randomRoomPlayerKey,
   signRoomToken,
 } from "../src/game/room/room-signing";
+import type { RaceAudioDebugState } from "../src/game/audio/race-audio";
 import type { RaceDebugState } from "../src/game/testing/scene-test-adapter";
 import { startRoomServer } from "./support/room-server";
 
@@ -124,7 +125,6 @@ async function joinAs(page: Page, code: string, username: string | null) {
  */
 async function cuttableRoom(page: Page) {
   let down = false;
-  let dropLoaded = false;
   let live: { page: WebSocketRoute; server: WebSocketRoute } | null = null;
   const cut = () => {
     down = true;
@@ -137,31 +137,12 @@ async function cuttableRoom(page: Page) {
       void route.close({ code: 4100 });
       return;
     }
-    const server = route.connectToServer();
-    live = { page: route, server };
-    route.onMessage((message) => {
-      // Lost as the connection drops, for a second.
-      if (
-        dropLoaded &&
-        typeof message === "string" &&
-        message.includes('"type":"loaded"')
-      ) {
-        dropLoaded = false;
-        cut();
-        setTimeout(() => (down = false), 1_000);
-        return;
-      }
-      server.send(message);
-    });
+    live = { page: route, server: route.connectToServer() };
   });
   return {
     cut,
     restore() {
       down = false;
-    },
-    /** Loses the page's next `loaded` along with its connection. */
-    dropNextLoaded() {
-      dropLoaded = true;
     },
   };
 }
@@ -172,6 +153,19 @@ async function raceState(canvas: Locator) {
       new Promise<RaceDebugState>((resolve) => {
         element.dispatchEvent(
           new CustomEvent("getRaceDebugState", {
+            detail: { respond: resolve },
+          }),
+        );
+      }),
+  );
+}
+
+async function audioState(canvas: Locator) {
+  return canvas.evaluate(
+    (element) =>
+      new Promise<RaceAudioDebugState | null>((resolve) => {
+        element.dispatchEvent(
+          new CustomEvent("getAudioDebugState", {
             detail: { respond: resolve },
           }),
         );
@@ -290,7 +284,7 @@ test("two players race a room on one clock to the same results", async ({
   );
   const [host, guest] = pages;
   try {
-    const [hostRoom, guestRoom] = await Promise.all(pages.map(cuttableRoom));
+    const guestRoom = await cuttableRoom(guest);
     await joinAs(host, code, "ada");
     await expect(
       host.getByRole("heading", { name: "Private room" }),
@@ -306,11 +300,6 @@ test("two players race a room on one clock to the same results", async ({
     }
     await expect(hostRacers).toContainText("Ready · Balanced Kart");
     await expect(guest.getByText("The host starts the race.")).toBeVisible();
-    // The host's word that it loaded is lost with its connection; it says
-    // so again when it reconnects, so the race starts with both. (The host
-    // loads first: software WebGL loads the two pages in turn, the second
-    // close to the room's 30 s.)
-    hostRoom.dropNextLoaded();
     await host.getByRole("button", { name: "Start race" }).click();
 
     const canvases = pages.map((page) =>
@@ -346,6 +335,11 @@ test("two players race a room on one clock to the same results", async ({
       await Promise.all(canvases.map((canvas) => step(canvas)))
     ).map(({ at, state }) => at - state.elapsedRaceMicroseconds / 1_000);
     expect(Math.abs(hostStart - guestStart)).toBeLessThan(250);
+    // The host places the guest's voice, a few metres off on the grid.
+    // (Its pitch and level follow drawn speed, which teleports here don't
+    // give: remote-motor-voice.spec.ts covers those.)
+    const placed = (await audioState(canvases[0]))?.opponents.p2;
+    expect(placed?.mix.gain).toBeGreaterThan(0.3);
 
     // The guest's connection drops for a lap gate: its kart drives on, and
     // the room counts the gate once the page is back.

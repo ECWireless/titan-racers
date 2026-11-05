@@ -119,6 +119,11 @@ import {
 import { PlayerInputManager } from "@/game/input/player-input-manager";
 import { isEditableKeyboardTarget } from "@/game/input/keyboard-input";
 import { useControllerMenuNavigation } from "@/game/input/use-controller-menu-navigation";
+import {
+  remoteMotorState,
+  type RemoteMotorState,
+  remoteVoiceMix,
+} from "@/game/audio/remote-motor-voice";
 import { playUiSound } from "@/game/audio/ui-sounds";
 import {
   normalizeTouchJoystick,
@@ -512,6 +517,34 @@ function setTouchJoystickPresentation(
   }
 }
 
+
+/** Opponents further than this from the camera cast no shadow. */
+const OPPONENT_SHADOW_METRES = 40;
+/** Velocities heard from are eased over about this long. */
+const AUDIO_MOTION_EASE_SECONDS = 0.1;
+/** Faster than this between frames is a teleport, not motion. */
+const AUDIO_MAX_SPEED = 40;
+
+/**
+ * Eases `velocity` toward the motion from `from` to `to` over `seconds`;
+ * a teleport (a reset, a camera snap) counts as standing still.
+ */
+function easeVelocity(
+  velocity: pc.Vec3,
+  from: pc.Vec3,
+  to: { x: number; y: number; z: number },
+  seconds: number,
+  ease: number,
+) {
+  if (seconds <= 0) return;
+  let x = (to.x - from.x) / seconds;
+  let y = (to.y - from.y) / seconds;
+  let z = (to.z - from.z) / seconds;
+  if (Math.hypot(x, y, z) > AUDIO_MAX_SPEED) x = y = z = 0;
+  velocity.x += (x - velocity.x) * ease;
+  velocity.y += (y - velocity.y) * ease;
+  velocity.z += (z - velocity.z) * ease;
+}
 
 type RoomKartStateMessage = Extract<RoomClientMessage, { type: "state" }>;
 export function SoloTimeTrialCanvas({
@@ -1271,11 +1304,20 @@ export function SoloTimeTrialCanvas({
       // A room's opponents, solid in their own karts and without physics:
       // they pass through each other and this kart.
       const opponentVisuals = (ROOM?.opponents ?? []).flatMap(
-        ({ id, kart: opponentKart }) => {
+        ({ id, kart: opponentKart, footprint, noLoadSpeed }) => {
           try {
             return [
               {
                 id,
+                footprint,
+                noLoadSpeed,
+                // Its drawn motion, for its voice: smoothed velocity, speed,
+                // and speeding up.
+                position: new pc.Vec3(),
+                velocity: new pc.Vec3(),
+                speed: 0,
+                acceleration: 0,
+                drawn: false,
                 visual: createGhostKartVisual(
                   app,
                   opponentKart,
@@ -1291,6 +1333,14 @@ export function SoloTimeTrialCanvas({
       );
       const opponentPose = createGhostPose();
       let lastOpponentFrameAt: number | null = null;
+      const opponentAudio = new Map<string, RemoteMotorState>();
+      const listenerPosition = new pc.Vec3();
+      const listenerVelocity = new pc.Vec3();
+      const listener = {
+        position: listenerPosition,
+        right: new pc.Vec3(),
+        velocity: listenerVelocity,
+      };
       runtime.addCleanup(() => {
         for (const { visual } of opponentVisuals) visual.destroy();
       });
@@ -2063,6 +2113,14 @@ export function SoloTimeTrialCanvas({
         getKartContactFootprint(KART_SNAPSHOT.geometry.wheelStations),
       );
       runtime.addCleanup(() => contactShadow.destroy());
+      // Opponents darken the ground beneath them as this kart does, laid
+      // under each one's drawn pose.
+      const opponentShadows = opponentVisuals.map(
+        ({ footprint }) => new KartContactShadow(app, footprint),
+      );
+      runtime.addCleanup(() => {
+        for (const shadow of opponentShadows) shadow.destroy();
+      });
       // The wheel-probe filter reaches only drivable surfaces, so the engine
       // can take its closest-hit path without a per-frame filter callback.
       const groundProbeOptions = {
@@ -3788,8 +3846,21 @@ export function SoloTimeTrialCanvas({
               : Math.max(0, now - lastOpponentFrameAt) / 1_000;
           lastOpponentFrameAt = now;
           const roomTime = ROOM.raceMicroseconds(now);
-          for (const opponent of opponentVisuals) {
-            opponent.visual.update(
+          // Heard from the camera, as it stood at the last frame.
+          const ease = 1 - Math.exp(-opponentSeconds / AUDIO_MOTION_EASE_SECONDS);
+          const cameraPosition = camera.getPosition();
+          easeVelocity(
+            listenerVelocity,
+            listenerPosition,
+            cameraPosition,
+            opponentSeconds,
+            ease,
+          );
+          listenerPosition.copy(cameraPosition);
+          listener.right.copy(camera.right);
+          opponentAudio.clear();
+          for (const [index, opponent] of opponentVisuals.entries()) {
+            const pose =
               roomTime === null
                 ? null
                 : ROOM.opponentPose(
@@ -3797,10 +3868,60 @@ export function SoloTimeTrialCanvas({
                     roomTime,
                     opponentSeconds,
                     opponentPose,
-                  ),
-              opponentSeconds,
+                  );
+            opponent.visual.update(pose, opponentSeconds);
+            const shadow = opponentShadows[index];
+            if (!pose) {
+              shadow.entity.enabled = false;
+              opponent.drawn = false;
+              continue;
+            }
+            const { position } = pose;
+            // Too far to see, its shadow needs no ground found.
+            const shadowed =
+              Math.hypot(
+                position.x - cameraPosition.x,
+                position.y - cameraPosition.y,
+                position.z - cameraPosition.z,
+              ) < OPPONENT_SHADOW_METRES;
+            if (shadowed) {
+              shadow.update(opponent.visual.node, findGroundBelowKart);
+            } else {
+              shadow.entity.enabled = false;
+            }
+            if (opponent.drawn) {
+              easeVelocity(
+                opponent.velocity,
+                opponent.position,
+                position,
+                opponentSeconds,
+                ease,
+              );
+              if (opponentSeconds > 0) {
+                const acceleration = (pose.speed - opponent.speed) / opponentSeconds;
+                opponent.acceleration +=
+                  (Math.max(-50, Math.min(50, acceleration)) -
+                    opponent.acceleration) *
+                  ease;
+              }
+            } else {
+              opponent.velocity.set(0, 0, 0);
+              opponent.acceleration = 0;
+            }
+            opponent.position.set(position.x, position.y, position.z);
+            opponent.speed = pose.speed;
+            opponent.drawn = true;
+            opponentAudio.set(
+              opponent.id,
+              remoteMotorState(
+                pose.speed,
+                opponent.acceleration,
+                opponent.noLoadSpeed,
+                remoteVoiceMix(listener, opponent.position, opponent.velocity),
+              ),
             );
           }
+          raceAudioRef.current?.updateOpponents(opponentAudio);
         }
         contactShadow.update(kartVisual, findGroundBelowKart);
 

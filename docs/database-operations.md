@@ -237,6 +237,11 @@ anonymization pass them by.
 - **Local:** `pnpm rooms:dev` runs the room server on `127.0.0.1:8787`
   without a Cloudflare account. Set `NEXT_PUBLIC_ROOM_SERVER_URL` to
   `ws://127.0.0.1:8787`; while it is unset, Race Friends stays "Coming soon".
+  `pnpm rooms:racers <room code> [1-3] [--app URL] [--origin URL]` adds up
+  to three guest racers to a local room, for trying a full room alone:
+  they pick a kart and drive the line through every gate, checked by the
+  room like anyone else. It reads `ROOM_SERVER_SECRET` and refuses any room
+  server but a local one.
 - **Deploy order:** apply migrations, deploy the room server
   (`pnpm rooms:deploy`, with `CLOUDFLARE_API_TOKEN` and
   `CLOUDFLARE_ACCOUNT_ID`), then set the app's variables and deploy the app.

@@ -27,7 +27,11 @@ import {
   RoomConnection,
 } from "@/game/room/room-connection";
 import { ROOM_MIN_RACERS, type RoomSnapshot } from "@/game/room/room-protocol";
-import { type CanvasRoom, opponentKart } from "@/game/room/room-race";
+import {
+  type CanvasRoom,
+  opponentFootprint,
+  opponentKart,
+} from "@/game/room/room-race";
 import { copyLink, copyNoteFor } from "@/lib/share-link";
 
 import {
@@ -168,6 +172,10 @@ export function RoomPlay({ code }: { code: string }) {
             {
               id: entrant.id,
               kart: opponentKart(opponent.document, opponent.resolvedSnapshot),
+              footprint: opponentFootprint(opponent.resolvedSnapshot),
+              noLoadSpeed:
+                opponent.resolvedSnapshot.physicalProfile.drivetrain
+                  .noLoadSpeed,
             },
           ];
     });

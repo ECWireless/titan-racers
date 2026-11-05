@@ -1,5 +1,9 @@
 import type { GhostKart } from "../ghost/device-ghost";
 import type { GhostPose } from "../ghost/ghost-playback";
+import {
+  getKartContactFootprint,
+  type KartContactFootprint,
+} from "../kart/kart-contact-shadow";
 import type { PersistedResolvedKartSnapshot } from "../kart/kart-derivation";
 import type { KartAssemblyDocument } from "../kart/kart-assembly-document";
 import {
@@ -16,7 +20,14 @@ import { OpponentMotion } from "./opponent-motion";
  */
 export type CanvasRoom = {
   slot: number;
-  opponents: Array<{ id: string; kart: GhostKart }>;
+  opponents: Array<{
+    id: string;
+    kart: GhostKart;
+    /** Where its contact shadow falls, in its kart's own axes. */
+    footprint: KartContactFootprint;
+    /** Its motor's top speed, m/s, which its voice's pitch reaches. */
+    noLoadSpeed: number;
+  }>;
   /**
    * The room's race time at a local `performance.now()` time, in
    * microseconds, negative through the countdown; null until racing has a
@@ -42,6 +53,11 @@ export type CanvasRoom = {
 export const ROOM_CATCH_UP_US = 50_000;
 /** A kart's state goes to the room this often. */
 export const ROOM_STATE_INTERVAL_MS = 1_000 / ROOM_STATE_HZ;
+
+/** Where an opponent's contact shadow falls, from its published snapshot. */
+export function opponentFootprint(snapshot: PersistedResolvedKartSnapshot) {
+  return getKartContactFootprint(snapshot.geometry.wheelStations);
+}
 
 /** How an opponent's kart is drawn and posed, from its published snapshot. */
 export function opponentKart(

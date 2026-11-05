@@ -28,7 +28,10 @@ lobby and room race, and what a finished room race stores.
   reconnects and resends what the room missed.
 - `src/game/room/room-race.ts`: the canvas's view of its room and opponent
   tracks; `src/game/room/opponent-motion.ts`: how each opponent is drawn
-  from its states.
+  from its states; `src/game/audio/remote-motor-voice.ts`: how each is
+  heard.
+- `scripts/room-racers.ts` (`pnpm rooms:racers`): local guest racers that
+  drive the gate line, for QA.
 - `room-server/`: the Worker and the `Room` Durable Object, transport only,
   with `wrangler.jsonc` (local defaults and a `production` environment).
 - `src/app/api/rooms/[code]/token/route.ts` and `src/server/room-races.ts`:
@@ -114,7 +117,15 @@ lobby and room race, and what a finished room race stores.
   Past the newest state the kart slows to a stop over 100 ms, and late
   states blend in over 150 ms; a reset, or a correction over 3 m, snaps.
   Wheels turn at the curve's own speed. Opponents are solid and drawn
-  without physics.
+  without physics. Each casts the player's contact shadow under its drawn
+  pose (within 40 m of the camera), and is heard from the camera through
+  an 8-node cut of the motor voice: whine and second-stage mesh through
+  the same shelf, pitched by drawn speed over its own kart's no-load speed
+  and loaded by speeding up. It is staged as the player's motor, at the
+  same level within the camera's 2 m trail, then by the inverse-distance
+  law to silence at 80 m, with a little air absorption, stereo side, and
+  Doppler at 343 m/s. Drawn and camera velocities are eased over 0.1 s, a
+  teleport counting as still.
 - Rooms run on Workers Paid (from PR 6.5): four players send about 128
   messages a second, about 23,000 billed requests an hour of racing,
   inside the included million a month. Counted one for one, Free's 100,000
@@ -138,7 +149,6 @@ lobby and room race, and what a finished room race stores.
 
 - A reload is a new visit: it doesn't resume a race, even with the seat.
 - No kart-to-kart contact; karts pass through each other.
-- Opponents are silent and cast no contact shadow.
 - Opponents are drawn with this page's version of their kart, so across a
   kart republish one can look like its other version, or not appear.
 - No public matchmaking or room leaderboard.
@@ -146,7 +156,9 @@ lobby and room race, and what a finished room race stores.
 ## Verification
 
 - `tests/opponent-motion.spec.ts`: the jitter buffer, guesses and their
-  blend, resets, clock jumps, and stalls.
+  blend, resets, clock jumps, and stalls; `tests/remote-motor-voice.spec.ts`:
+  how an opponent is heard; `tests/room-connection.spec.ts`: the page's
+  reconnect, resend, and repeated `loaded`, against a fake socket.
 - `tests/room-rules.spec.ts`, `tests/room-signing.spec.ts`,
   `tests/room-clock.spec.ts`, and the room tests in
   `tests/race-session.spec.ts`: pure rules, state checks, signing, the
@@ -157,9 +169,9 @@ lobby and room race, and what a finished room race stores.
   silent connections in a race and in a sleeping lobby.
 - `tests/rooms.spec.ts`: the token and results routes against Postgres.
 - `tests/room-race.spec.ts`: two browsers race one room on one clock,
-  crossing gates no faster than the room's check allows, the host losing
-  its connection with its `loaded` and the guest for a lap gate
-  (`page.routeWebSocket`).
+  crossing gates no faster than the room's check allows, the guest losing
+  its connection for a lap gate (`page.routeWebSocket`), and the host
+  hearing the guest.
 - `tests/admin-overview.spec.ts`: the dashboard's room counts.
 
 ## Related
