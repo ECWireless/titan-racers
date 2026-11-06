@@ -17,8 +17,8 @@ accepted; the app, README, and durable docs take over from there.
 
 - **Done:** Phases 0–5 (PRs #1–#24, the Phase 3 closeout and its
   follow-ups, #30–#57 with the PR 4.5.2 closeout, and #59–#63), and PRs 6.0
-  (#64), 6.1 (#65), 6.2 (#66), 6.3 (#67), and 6.4 (#68).
-- **Now:** Phase 6, PR 6.5.
+  (#64), 6.1 (#65), 6.2 (#66), 6.3 (#67), 6.4 (#68), and 6.5 (#69).
+- **Now:** Phase 6, PR 6.6.
 
 ## Guiding Decisions
 
@@ -236,10 +236,10 @@ Phase decisions:
 
 - **A room server decides; each client drives its own kart.** The room
   server owns membership and host, kart choice and ready, the countdown on
-  its clock, progress, finish order, placements, replay, and each
-  kart-to-kart contact. Clients simulate their own kart as solo does and send
-  its state; opponents' karts are presentation only. No server-side kart
-  physics.
+  its clock, progress, finish order, placements, replay, and the record of
+  each kart-to-kart contact. Clients simulate their own kart as solo does
+  and send its state; opponents' karts are drawn and estimated, never
+  simulated. No server-side kart physics.
 - **The room times each kart from its own states** (PR 6.5), with solo's run
   check made step by step and shared: a start on its grid slot, at most
   30 m/s between states, resets only to its newest reset point, and gates
@@ -316,16 +316,32 @@ Phase decisions:
   republished) tells the room, which drops it at once.
 - **Room results stay off leaderboards,** stored once without account IDs
   or usernames. Rooms record no ghosts, run tickets, or run summaries.
-- **Opponents are opaque karts drawn from 30 states a second** (PR 6.5),
+- **Opponents are karts drawn from 30 states a second** (PR 6.5),
   each carrying its velocity, so a curve between two states needs no third.
   Each is drawn behind its own newest state by what its lateness needs
   (100–350 ms), carried on at most 100 ms past it, and blended back within
   150 ms; a reset or a long gap snaps. Each kart's drawn pose is kept apart
   from the states it was drawn from, and only that pose drives its shadow
   and its sound, heard from the camera with distance, side, and Doppler
-  pitch. They pass through each other until PR 6.6.
+  pitch. Within about 3 m of your kart, each is drawn where it is now
+  instead (PR 6.6), easing between the two out to about 8 m, so what you
+  see is what you hit.
+- **Each page answers a contact at once; the room records it once**
+  (PR 6.6), by the
+  [kart-to-kart contact standard](skills/game-concepts/kart-to-kart-contact/README.md).
+  The room sends both pages one contact per touch, the record Phase 8's
+  damage extends; a page that missed it applies the room's push once, while
+  fresh. A kart paused, hidden, dropped, finished, or on a slow connection
+  either way, or just reset until it's clear, is see-through and can't
+  touch; each page also judges its own connection from its pings and says
+  so with its states, so a slow kart is out of touch on every screen,
+  including its own. Accepted, as the standard's known limits: the two
+  karts' shares agree to within each page's estimate rather than exactly; a
+  pusher doesn't know the wall behind a pinned kart, so it stops softly; and
+  during a brief lag spike only one side may be pushed.
 - **One room protocol version is live at a time;** PRs 6.5 and 6.6 raise
-  it, deploying the room server and then the app back to back. Production
+  it, deploying the room server and then the app back to back. It versions
+  every message, so Phase 8 raises it to add damage to contacts. Production
   rooms use the room server's workers.dev address until titanracers.com's
   DNS moves to Cloudflare.
 

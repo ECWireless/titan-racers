@@ -268,7 +268,8 @@ Out of scope:
 - kart damage, detachable parts, or joint breakage;
 - physical wheel rigid bodies;
 - full production course art or final course collision meshes;
-- kart-to-kart multiplayer contact policy;
+- kart-to-kart contact in rooms
+  ([kart-to-kart contact](../kart-to-kart-contact/README.md));
 - a general-purpose material system for every future surface;
 - chase-camera impact response;
 - advanced tire simulation; or
