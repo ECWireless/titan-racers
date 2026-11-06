@@ -255,8 +255,11 @@ Phase decisions:
   room, on Cloudflare's own API with our own reconnect. The room rules are a
   transport-free TypeScript module. The app signs room join tokens, and the
   room server sends results to the app rather than touching Postgres.
-  Workers Paid ($5/month) from PR 6.5's deploy: the Free plan may count
-  each of 30 states a second as a request, against 100,000 a day.
+  The Free plan until usage nears its limit or a shared demo, whichever
+  comes first, then Workers Paid ($5/month): Free may count each of a
+  player's 32 messages a second as a request against 100,000 a day (about
+  13 minutes of four-player racing), and the dashboard's request count
+  after a first race shows whether it does.
   Vercel's WebSockets were ruled out: a room has no single home across
   instances, and connections close at the function's time limit.
 - **A racer kept in this browser is Better Auth's anonymous user and stays

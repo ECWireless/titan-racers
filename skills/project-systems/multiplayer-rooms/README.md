@@ -116,8 +116,8 @@ lobby and room race, and what a finished room race stores.
   within 500 ms of the room's clock, in order, so a reset among them still
   snaps. The finishing state goes twice, half a second apart, so a refused
   one still counts.
-- Four players send about 128 messages a second, which is why rooms run on
-  Workers Paid from PR 6.5 (see [Cloudflare Durable
+- Rooms run on the Free plan; four players send about 128 messages a
+  second, which Free may count one by one (see [Cloudflare Durable
   Objects](../../tools/cloudflare-durable-objects/README.md) for billing).
 - `?net=delay,jitter` (ms) holds back opponents' states on this page, in
   order, so they bunch, to try the motion on a bad connection; `?perf=1`
