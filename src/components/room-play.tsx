@@ -54,6 +54,8 @@ import { SoloTimeTrialCanvas } from "./solo-time-trial-canvas";
 
 type ActiveRace = {
   id: string;
+  /** The seat this page raced from; a reconnect too late gets another. */
+  seat: string;
   room: CanvasRoom;
   course: CourseDocument;
   kart: PlayableOfficialKart;
@@ -198,6 +200,7 @@ export function RoomPlay({ code }: { code: string }) {
         const course = await loadRoomCourse(courseId, courseRevision);
         setActiveRace({
           id: raceId,
+          seat: you!,
           course,
           kart,
           room: {
@@ -651,6 +654,7 @@ function RoomRace({
   const yourEntry = race?.entrants.find(({ id }) => id === you) ?? null;
   // The race went on without this player, or was called off.
   const missed = !results && (!race || !yourEntry || yourEntry.left);
+  const reseated = activeRace.seat !== you;
 
   // Leaving the race, however it ends, ends its sound.
   useEffect(() => () => endRaceAudio(), []);
@@ -848,7 +852,7 @@ function RoomRace({
               <p className="text-sm leading-6 text-titan-ice/76">
                 {!race
                   ? "The race was called off: not enough racers were ready in time."
-                  : yourEntry?.left
+                  : yourEntry?.left || reseated
                     ? "You were disconnected too long to finish this race."
                     : scene === "failed"
                       ? "The race goes on without you: the course couldn't be loaded on this device."

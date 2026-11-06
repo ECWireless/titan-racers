@@ -402,6 +402,34 @@ test.describe("room racing", () => {
     ).toBeUndefined();
   });
 
+  test("counts a crossing between accepted states when its own was refused", () => {
+    let state = racing(2);
+    const second = (at: number) => RACING_AT + at / 1_000 + 50;
+    state = run(state, stateEvent("p1", second(1e6), kartAt(1e6, 9))).state;
+    // The crossing's own state runs ahead of the room's clock: refused.
+    const refused = run(
+      state,
+      stateEvent("p1", RACING_AT + 1_000, crossingAt(1.6e6, 10)),
+    );
+    expect(refused.accepted).toBeUndefined();
+    // The next accepted state, past the gate, counts it.
+    const counted = run(
+      refused.state,
+      stateEvent("p1", second(1.1e6), kartAt(1.1e6, 11)),
+    );
+    expect(counted).toMatchObject({ accepted: true, changed: true });
+    expect(counted.state.race?.entrants[0]).toMatchObject({
+      gates: 1,
+      lastGate: { timeMicroseconds: 1.1e6 },
+    });
+    // Not twice.
+    const onward = run(
+      counted.state,
+      stateEvent("p1", second(1.2e6), kartAt(1.2e6, 12)),
+    );
+    expect(onward.state.race?.entrants[0].gates).toBe(1);
+  });
+
   test("ranks the unfinished by gates, then by when each passed its last", () => {
     let state = passGates(racing(3), "p2", 2, RACING_AT + 3_000).state;
     state = passGates(state, "p3", 2, RACING_AT + 4_000).state;
@@ -426,6 +454,26 @@ test.describe("room racing", () => {
       finishedAt: RACING_AT + 20_000,
     });
     expect(late.state.race?.firstFinishAt).toBe(RACING_AT + 20_000);
+    // The page's repeat of it changes nothing.
+    const repeated = run(
+      late.state,
+      stateEvent("p1", RACING_AT + 20_500, crossingAt(11_000_000, 0)),
+    );
+    expect(repeated).toMatchObject({ changed: false });
+    expect(repeated.state.race).toEqual(late.state.race);
+    // A finish refused for running ahead of the clock counts when the page
+    // sends it again.
+    const early = run(
+      base.state,
+      stateEvent("p1", RACING_AT + 10_500, crossingAt(11_000_000, 0)),
+    );
+    expect(early.state.race?.entrants[0].finishMicroseconds).toBeNull();
+    expect(
+      run(
+        early.state,
+        stateEvent("p1", RACING_AT + 11_100, crossingAt(11_000_000, 0)),
+      ).state.race?.entrants[0].finishMicroseconds,
+    ).toBe(11_000_000);
     // Its states end at the line.
     expect(
       run(late.state, stateEvent("p1", RACING_AT + 21_000, kartAt(12e6, 3)))

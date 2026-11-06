@@ -1,5 +1,6 @@
 import {
   checkRaceStep,
+  crossesNextRaceGate,
   nearRaceResetPoint,
   raceGateCount,
   type RaceCheckSample,
@@ -203,7 +204,9 @@ export function applyRoomEvent(
   current: RoomState,
   event: RoomEvent,
 ): RoomOutcome {
-  const state = structuredClone(current);
+  // The course never changes, so it is shared rather than copied.
+  const { course, ...rest } = current;
+  const state: RoomState = { ...structuredClone(rest), course };
   const outcome: RoomOutcome = { state, changed: false };
   // A deadline that passed before this event holds, however late the alarm.
   settle(outcome, event.now);
@@ -438,7 +441,7 @@ function kartState(
         { ...sample, gate: true },
       ]
     : [{ ...sample, gate: false }];
-  let previous = entrant.last ?? entrant.lastGate;
+  let previous = entrant.last;
   for (const [index, next] of samples.entries()) {
     if (!previous) {
       // Only the race's first state has nothing before it.
@@ -468,9 +471,23 @@ function kartState(
     previous = next;
   }
   outcome.accepted = true;
+  const from = entrant.last;
   entrant.last = { timeMicroseconds: t, position: sample.position };
   if (r) outcome.persist = true;
-  if (!g) return false;
+  // A crossing counts from its own state, or, if that state was refused
+  // (it ran ahead of the clock, say), from the line between two accepted
+  // ones, so one refusal doesn't end a race.
+  const crossed =
+    g ||
+    (!r &&
+      from !== null &&
+      crossesNextRaceGate(
+        state.course,
+        entrant.gates,
+        from.position,
+        sample.position,
+      ));
+  if (!crossed) return false;
 
   entrant.gates += 1;
   entrant.lastGate = entrant.last;

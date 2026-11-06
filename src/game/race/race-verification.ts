@@ -136,6 +136,22 @@ const GATE_OPTIONS = {
 };
 
 /**
+ * Whether the straight line between two moments crosses the next gate after
+ * `gates`, with the check's tolerance.
+ */
+export function crossesNextRaceGate(
+  course: RaceCheckCourse,
+  gates: number,
+  from: RaceVector3,
+  to: RaceVector3,
+) {
+  return (
+    gates < raceGateCount(course) &&
+    crossesDirectedRaceGate(nextGateAfter(course, gates), from, to, GATE_OPTIONS)
+  );
+}
+
+/**
  * One step of the run check, mirroring `RaceSession`'s progression: whether
  * `sample` may follow `previous` once `gates` gates are passed. A sample
  * comes at least `minimumGapMicroseconds` later (a fixed step, unless the

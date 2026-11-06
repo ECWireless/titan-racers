@@ -53,6 +53,8 @@ const REPORT_RETRY_MS = 30_000;
  */
 const SILENT_RACING_MS = 5_000;
 const SILENT_MS = 30_000;
+/** A resent state this far behind the room's clock is history to others. */
+const RESENT_RELAY_US = 500_000;
 /** The close code a page sends to leave; any other holds its seat. */
 const LEAVING = 1000;
 const REPORT_ATTEMPTS = 20;
@@ -95,7 +97,6 @@ export default {
   },
 } satisfies ExportedHandler<Env>;
 
-/** Which seat a socket speaks for; null once retired or refused. */
 /**
  * Which seat a socket speaks for, and when it was last heard (to the
  * second, so it isn't rewritten for every state); null once retired or
@@ -120,8 +121,18 @@ type PendingReport = {
  */
 const FRAME_BUDGET = { burst: 600, perSecond: 60 };
 const ACTION_BUDGET = { burst: 20, perSecond: 5 };
+/**
+ * Resent batches that store something (a gate or a reset) have their own:
+ * a 30 s outage's backlog is about 45 batches, every one of which may.
+ */
+const RESEND_BUDGET = { burst: 60, perSecond: 2 };
 
-type Allowance = { at: number; frames: number; actions: number };
+type Allowance = {
+  at: number;
+  frames: number;
+  actions: number;
+  resends: number;
+};
 
 function refill(allowance: Allowance, now: number) {
   const seconds = Math.max(0, now - allowance.at) / 1_000;
@@ -133,6 +144,10 @@ function refill(allowance: Allowance, now: number) {
   allowance.actions = Math.min(
     ACTION_BUDGET.burst,
     allowance.actions + seconds * ACTION_BUDGET.perSecond,
+  );
+  allowance.resends = Math.min(
+    RESEND_BUDGET.burst,
+    allowance.resends + seconds * RESEND_BUDGET.perSecond,
   );
 }
 const REPORT_TIMEOUT_MS = 10_000;
@@ -249,6 +264,7 @@ export class Room extends DurableObject<Env> {
         at: now,
         frames: FRAME_BUDGET.burst,
         actions: ACTION_BUDGET.burst,
+        resends: RESEND_BUDGET.burst,
       };
       this.allowances.set(socket, allowance);
     }
@@ -290,37 +306,73 @@ export class Room extends DurableObject<Env> {
       return;
     }
     if (message.type === "state" || message.type === "states") {
-      // A resent batch is history: only its newest accepted state is
-      // worth relaying.
-      let relayed: RoomClientMessage | null = null;
-      for (const state of message.type === "state" ? [message] : message.states) {
-        if (!this.state) return;
-        const outcome = applyRoomEvent(this.state, {
-          type: "state",
-          now,
-          playerId,
-          state,
-        });
-        // A state that is stored (a gate or a reset) is a write, so it
-        // spends from the smaller allowance.
-        if (outcome.changed || outcome.persist) {
-          allowance.actions -= 1;
-          if (allowance.actions < 0) {
-            this.drop(socket, ROOM_CLOSE.protocol);
-            return;
-          }
-        }
-        this.commit(outcome);
-        if (outcome.accepted) relayed = { ...state, type: "state" };
-      }
-      if (!relayed) return;
-      const frame = JSON.stringify({ ...relayed, from: playerId });
-      for (const other of this.ctx.getWebSockets()) {
-        if (other !== socket && seatOf(other)) send(other, frame);
-      }
+      this.kartStates(socket, allowance, playerId, message, now);
       return;
     }
     this.commit(applyRoomEvent(this.state, eventFor(message, playerId, now)));
+  }
+
+  /**
+   * Checks a live state, or a resent batch, through the rules. A batch is
+   * stored once, however many gates or resets it holds, and spends one
+   * write from the resend allowance, so a long outage's resend can't
+   * exhaust the live one. Others hear only what is recent enough to draw: a live
+   * state, or a resent one within half a second of the room's clock, in
+   * order, so a reset among them still snaps.
+   */
+  private kartStates(
+    socket: WebSocket,
+    allowance: Allowance,
+    playerId: string,
+    message: Extract<RoomClientMessage, { type: "state" | "states" }>,
+    now: number,
+  ) {
+    const resent = message.type === "states";
+    const states = resent ? message.states : [message];
+    let outcome: RoomOutcome | null = null;
+    let changed = false;
+    let stored = false;
+    let report: RoomOutcome["report"];
+    const relayed: string[] = [];
+    for (const state of states) {
+      outcome = applyRoomEvent(outcome?.state ?? this.state!, {
+        type: "state",
+        now,
+        playerId,
+        state,
+      });
+      changed ||= outcome.changed;
+      stored ||= outcome.changed || Boolean(outcome.persist);
+      report ??= outcome.report;
+      const racingAt = outcome.state.race?.racingAt;
+      const recent =
+        !resent ||
+        (racingAt != null &&
+          state.t >= (now - racingAt) * 1_000 - RESENT_RELAY_US);
+      if (outcome.accepted && recent) {
+        relayed.push(JSON.stringify({ ...state, type: "state", from: playerId }));
+      }
+    }
+    if (!outcome) return;
+    if (stored) {
+      if (resent) allowance.resends -= 1;
+      else allowance.actions -= 1;
+      if (allowance.actions < 0 || allowance.resends < 0) {
+        this.drop(socket, ROOM_CLOSE.protocol);
+        return;
+      }
+    }
+    this.commit({
+      state: outcome.state,
+      changed,
+      persist: stored,
+      report,
+    });
+    for (const frame of relayed) {
+      for (const other of this.ctx.getWebSockets()) {
+        if (other !== socket && seatOf(other)) send(other, frame);
+      }
+    }
   }
 
   async webSocketClose(socket: WebSocket, code: number) {

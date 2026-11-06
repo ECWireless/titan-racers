@@ -60,7 +60,7 @@ const MAX_PAN = 0.85;
 /** About this hard a launch is full load. */
 const FULL_LOAD_ACCELERATION = 6;
 
-export const SILENT_REMOTE_MIX: RemoteVoiceMix = Object.freeze({
+const SILENT_REMOTE_MIX: RemoteVoiceMix = Object.freeze({
   gain: 0,
   pan: 0,
   cutoffHz: 16_000,
@@ -106,6 +106,51 @@ export function remoteVoiceMix(
       1.18,
     ),
   };
+}
+
+/** Velocities heard are eased over about this long. */
+const MOTION_EASE_SECONDS = 0.1;
+/** Faster than this between frames is a teleport, not motion. */
+const MAX_HEARD_SPEED = 40;
+
+/**
+ * Follows something heard (an opponent as drawn, or the camera) frame to
+ * frame: its position, its velocity, and how fast its speed is rising,
+ * each eased; a teleport (a reset, a camera snap) counts as standing still.
+ */
+export class HeardMotion {
+  readonly position = { x: 0, y: 0, z: 0 };
+  readonly velocity = { x: 0, y: 0, z: 0 };
+  acceleration = 0;
+  private speed = 0;
+  private known = false;
+
+  /** Moves it to `position` after `seconds`, at `speed` if given. */
+  follow(position: Vector, seconds: number, speed = 0) {
+    if (this.known && seconds > 0) {
+      const ease = 1 - Math.exp(-seconds / MOTION_EASE_SECONDS);
+      let x = (position.x - this.position.x) / seconds;
+      let y = (position.y - this.position.y) / seconds;
+      let z = (position.z - this.position.z) / seconds;
+      if (Math.hypot(x, y, z) > MAX_HEARD_SPEED) x = y = z = 0;
+      this.velocity.x += (x - this.velocity.x) * ease;
+      this.velocity.y += (y - this.velocity.y) * ease;
+      this.velocity.z += (z - this.velocity.z) * ease;
+      const rising = clamp((speed - this.speed) / seconds, -50, 50);
+      this.acceleration += (rising - this.acceleration) * ease;
+    } else if (!this.known) {
+      Object.assign(this.velocity, { x: 0, y: 0, z: 0 });
+      this.acceleration = 0;
+    }
+    Object.assign(this.position, position);
+    this.speed = speed;
+    this.known = true;
+  }
+
+  /** Out of sight: it starts afresh when next followed. */
+  lose() {
+    this.known = false;
+  }
 }
 
 /** What an opponent's motor is doing, from its drawn motion. */

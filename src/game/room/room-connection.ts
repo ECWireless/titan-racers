@@ -93,6 +93,10 @@ export class RoomConnection {
   private reconnectTimer: number | null = null;
   /** Bumped by each open and close, so only the latest open connects. */
   private generation = 0;
+  /** Bumped by each attempt to connect, so only the latest one counts. */
+  private attempt = 0;
+  /** An attempt is fetching its token or opening its socket. */
+  private connecting = false;
   private readonly seat = randomSeatSecret();
   /** When the connection dropped, while reconnecting. */
   private droppedAt: number | null = null;
@@ -150,6 +154,12 @@ export class RoomConnection {
   }
 
   private async connect(generation: number) {
+    // One attempt at a time: a later one would race this one's handshake.
+    if (this.connecting || this.socket) return;
+    this.connecting = true;
+    const attempt = ++this.attempt;
+    const current = () =>
+      generation === this.generation && attempt === this.attempt;
     let token: string;
     try {
       const response = await fetch(`/api/rooms/${this.code}/token`, {
@@ -162,7 +172,8 @@ export class RoomConnection {
       if (!response.ok) throw new Error(String(response.status));
       ({ token } = (await response.json()) as { token: string });
     } catch {
-      if (generation !== this.generation) return;
+      if (!current()) return;
+      this.connecting = false;
       if (this.droppedAt === null) {
         this.finish("Rooms are unavailable right now. Try again soon.");
       } else {
@@ -170,7 +181,8 @@ export class RoomConnection {
       }
       return;
     }
-    if (generation !== this.generation) return;
+    if (!current()) return;
+    this.connecting = false;
     const socket = new WebSocket(
       `${this.serverUrl}/v1/rooms/${this.code}?token=${encodeURIComponent(token)}`,
     );
@@ -271,10 +283,17 @@ export class RoomConnection {
       this.cancelReconnect();
       void this.connect(this.generation);
     };
+    // Leaving the page (a reload, a closed tab) leaves the room, freeing
+    // the seat; a page kept for the back button only freezes.
+    const hide = (event: PageTransitionEvent) => {
+      if (!event.persisted) this.close();
+    };
     document.addEventListener("visibilitychange", visible);
     document.addEventListener("freeze", freeze);
     document.addEventListener("resume", resume);
+    window.addEventListener("pagehide", hide);
     this.removeLifecycleListeners = () => {
+      window.removeEventListener("pagehide", hide);
       document.removeEventListener("visibilitychange", visible);
       document.removeEventListener("freeze", freeze);
       document.removeEventListener("resume", resume);
@@ -467,6 +486,7 @@ export class RoomConnection {
   /** Leaves the room, freeing the seat at once; a later open joins again. */
   close() {
     this.generation += 1;
+    this.connecting = false;
     this.stopTimers();
     this.cancelReconnect();
     this.removeLifecycleListeners?.();

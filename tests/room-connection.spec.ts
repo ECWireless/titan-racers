@@ -22,6 +22,7 @@ class FakeSocket extends EventTarget {
   static sockets: FakeSocket[] = [];
   readyState = 0;
   readonly sent: Array<{ type: string } & Record<string, unknown>> = [];
+  closedWith: number | null = null;
 
   constructor(readonly url: string) {
     super();
@@ -32,8 +33,9 @@ class FakeSocket extends EventTarget {
     this.sent.push(JSON.parse(data));
   }
 
-  close() {
+  close(code = 1005) {
     this.readyState = 3;
+    this.closedWith = code;
   }
 
   open() {
@@ -55,7 +57,7 @@ class FakeSocket extends EventTarget {
 }
 
 const globals = globalThis as Record<string, unknown>;
-const STUBBED = ["window", "document", "location", "WebSocket", "fetch"];
+const STUBBED = ["window", "document", "WebSocket", "fetch"];
 const saved = new Map(
   STUBBED.filter((key) => key in globals).map((key) => [key, globals[key]]),
 );
@@ -64,8 +66,12 @@ const opened: Array<{ close(): void }> = [];
 
 test.beforeEach(() => {
   FakeSocket.sockets = [];
-  globals.window = Object.assign(globalThis, {
+  globals.window = Object.assign(new EventTarget(), {
     location: { search: "" },
+    setTimeout: globalThis.setTimeout.bind(globalThis),
+    clearTimeout: globalThis.clearTimeout.bind(globalThis),
+    setInterval: globalThis.setInterval.bind(globalThis),
+    clearInterval: globalThis.clearInterval.bind(globalThis),
   });
   globals.document = Object.assign(new EventTarget(), {
     visibilityState: "visible",
@@ -193,5 +199,44 @@ test.describe("the page's room connection", () => {
     connection.send(state(32));
     expect(socket.sent.at(-1)).toMatchObject({ type: "state", t: 32 });
     connection.close();
+  });
+
+  test("freezing holds its seat, and resuming reconnects once", async () => {
+    const connection = await connected(true);
+    const [first] = FakeSocket.sockets;
+    // Frozen: the page closes without leaving, so the room holds its seat.
+    document.dispatchEvent(new Event("freeze"));
+    expect(first.closedWith).toBe(4100);
+    expect(connection.getView().status).toBe("reconnecting");
+    // Resumed while its token is still on the way, twice: one attempt.
+    const answers: Array<() => void> = [];
+    globals.fetch = () =>
+      new Promise((resolve) => {
+        answers.push(() =>
+          resolve({ ok: true, json: async () => ({ token: "signed" }) }),
+        );
+      });
+    document.dispatchEvent(new Event("resume"));
+    document.dispatchEvent(new Event("resume"));
+    await settle(1_200);
+    for (const answer of answers) answer();
+    await settle(50);
+    expect(FakeSocket.sockets).toHaveLength(2);
+    connection.close();
+  });
+
+  test("leaves the room when the page goes, but not when it is kept", async () => {
+    const connection = await connected(false);
+    const [socket] = FakeSocket.sockets;
+    const hide = (persisted: boolean) =>
+      (window as unknown as EventTarget).dispatchEvent(
+        Object.assign(new Event("pagehide"), { persisted }),
+      );
+    hide(true);
+    expect(socket.closedWith).toBeNull();
+    // A reload or a closed tab: closing with 1000 frees the seat at once.
+    hide(false);
+    expect(socket.closedWith).toBe(1000);
+    expect(connection.getView().status).toBe("open");
   });
 });

@@ -63,7 +63,7 @@ function drive(
       frames.push({
         ms,
         x: drawn.position.x,
-        drawnMs: motion.drawnMicroseconds! / 1_000,
+        drawnMs: clock(ms) - motion.drawnDelayUs / 1_000,
         starved: motion.starvedFrames > starvedBefore,
       });
     }

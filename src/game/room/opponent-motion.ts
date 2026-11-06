@@ -65,10 +65,6 @@ export class OpponentMotion {
   };
   private lastDrawnUs: number | null = null;
   private lastRoomUs: number | null = null;
-  /** The race time drawn last frame, in microseconds. */
-  get drawnMicroseconds() {
-    return this.lastDrawnUs;
-  }
   /** How far behind the room's clock it was drawn last frame. */
   get drawnDelayUs() {
     return this.lastRoomUs === null || this.lastDrawnUs === null

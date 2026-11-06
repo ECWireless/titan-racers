@@ -1,6 +1,6 @@
 # Multiplayer Rooms System
 
-**Maturity:** Candidate (PR 6.4, 2026-11-05).
+**Maturity:** Candidate (PR 6.5, 2026-11-05).
 
 ## Purpose And Scope
 
@@ -73,70 +73,60 @@ lobby and room race, and what a finished room race stores.
   writes nothing. A socket may send a burst of 600 frames, refilled at 60 a
   second (a page sends about 32), and 20 messages that change the room,
   refilled at 5 a second; past either it is closed.
-- A close with code 1000 (Leave room) frees a seat at once; any other
-  close, or 5 s of silence while racing (30 s otherwise), holds it for 30 s
-  as away: shown as reconnecting, not hosting, and left out of a race that
-  starts meanwhile. Past the hold the seat is given up, as leaving would. A
-  rejoin's welcome names the race time of the last state the room accepted,
-  and the page resends the rest in batches of 20 (only each batch's newest
-  is relayed), holding live states until then, and says again that it
-  loaded or sat out its race; a finish during the outage keeps its own
-  time. Each socket's last-heard time lives in its attachment, to the
-  second, so silence outlives hibernation. The page reconnects by itself (backing off to 5 s,
-  for up to 40 s), treats an unanswered ping as a drop (3 s racing, 8 s
-  otherwise, skipped when its own check ran late), checks at once on
-  becoming visible, and closes on a Chrome freeze to reconnect on resume.
-  A page that can't race (its course or kart failed, or it reloaded into a
-  race under way) sends `sit_out`, which drops it from the race at once.
+- A close with code 1000 (Leave room, or leaving the page) frees a seat at
+  once; any other close, or 5 s of silence while racing (30 s otherwise),
+  holds it for 30 s as away: shown as reconnecting, not hosting, and left
+  out of a race that starts meanwhile. Past the hold the seat is given up,
+  as leaving would. A rejoin's welcome names the race time of the last
+  state the room accepted; the page resends the rest in batches, holding
+  live states until then, and says again that it loaded or sat out its
+  race, so a finish during the outage keeps its own time. Each socket's
+  last-heard time lives in its attachment, so silence outlives
+  hibernation. The page reconnects by itself, one attempt at a time,
+  treats an unanswered ping as a drop (sooner while racing, never judging
+  when its own check ran late), checks at once on becoming visible, and
+  closes on a Chrome freeze to reconnect on resume. A page that can't race
+  (its course or kart failed, or it reloaded into a race under way) sends
+  `sit_out`, which drops it from the race at once.
 - Clients keep the room's clock from pings (every second from a race's
   start, 20 s between races so the room can hibernate), keeping the
-  quietest sample with an age penalty. Each frame reads it at the frame's own timestamp and
-  charges any lag over 50 ms to the race clock, so time lost to a late
-  start, a stall, or a pause counts, as the room's does.
+  quietest sample with an age penalty. Each frame reads it at the frame's
+  own timestamp and charges any lag over 50 ms to the race clock, so time
+  lost to a late start, a stall, or a pause counts, as the room's does.
 - Each kart state is one fixed step's pose, with its race time and
   velocity. The room checks it against the kart's last accepted state by
-  solo's run check (`checkRaceStep`): a step later, at most 30 m/s, resets
-  only to the newest reset point, and a gate crossed in order. The first is
-  checked against its grid slot, as far as 30 m/s reaches in its race time,
-  and no state's race time may run more than 250 ms ahead of the room's
-  clock. The step that crosses a gate also carries where the kart was the
-  step before, so the room checks the crossing the race did; the finish's
-  is sent at frame end with the result's time, which is the room's. A state
-  that fails is neither counted nor relayed. The last accepted state is
-  stored only with a reset or the next change, so after a restart the check
-  runs from an older one on the same stretch, which only loosens it. A
-  stored state (a gate or a reset) spends from the smaller allowance.
-- States go out 30 times a second after a fixed step, plus one at each gate;
-  a paused kart sends none. They are never stored. Each opponent is drawn
-  behind the room's clock by its own states' recent lateness plus one
-  state gap (100–350 ms over the last 3 s, ignoring resends), along a
-  Hermite curve whose tangents are each state's velocity, capped at 1.5
-  chords so a sender's stall eases rather than loops; gaps over 500 ms
-  hold. The drawn time runs within 10% of real time toward its target, so
-  a delay change or a clock update eases in; over 500 ms off, it snaps.
-  Past the newest state the kart slows to a stop over 100 ms, and late
-  states blend in over 150 ms; a reset, or a correction over 3 m, snaps.
-  Wheels turn at the curve's own speed. Opponents are solid and drawn
-  without physics. Each casts the player's contact shadow under its drawn
-  pose (within 40 m of the camera), and is heard from the camera through
-  an 8-node cut of the motor voice: whine and second-stage mesh through
-  the same shelf, pitched by drawn speed over its own kart's no-load speed
-  and loaded by speeding up. It is staged as the player's motor, at the
-  same level within the camera's 2 m trail, then by the inverse-distance
-  law to silence at 80 m, with a little air absorption, stereo side, and
-  Doppler at 343 m/s. Drawn and camera velocities are eased over 0.1 s, a
-  teleport counting as still.
-- Rooms run on Workers Paid (from PR 6.5): four players send about 128
-  messages a second, about 23,000 billed requests an hour of racing,
-  inside the included million a month. Counted one for one, Free's 100,000
-  a day would last about 13 minutes of racing (4 h 20 min at Paid's 20:1).
+  solo's run check (`checkRaceStep`); the first against its grid slot, as
+  far as the speed cap reaches in its race time. No state's race time may
+  run more than 250 ms ahead of the room's clock; one may lag it, as a
+  resend does. The step that crosses a gate also carries where the kart was
+  the step before, so the room checks the crossing the race did, and a
+  crossing between two accepted states counts too, so one refused state
+  doesn't end a race. The finish's state carries the result's time, which
+  is the room's. A state that fails is neither counted nor relayed. The
+  last accepted state is stored only with a reset or a gate, so after a
+  restart the check runs from an older one, which only loosens it.
+- States go out 30 times a second after a fixed step, plus one at each
+  gate; a paused kart sends none. They are never stored. Opponents are
+  drawn through a jitter buffer (`opponent-motion.ts`), solid and without
+  physics; each casts the player's contact shadow and is heard from the
+  camera (`remote-motor-voice.ts`), staged as the player's own motor.
+- A resent batch is checked state by state but stored once, spending one
+  write from its own allowance (a burst of 60, refilled at 2 a second, a
+  30 s outage's worth), not the live one; others are sent only its states
+  within 500 ms of the room's clock, in order, so a reset among them still
+  snaps. The finishing state goes twice, half a second apart, so a refused
+  one still counts.
+- Four players send about 128 messages a second, which is why rooms run on
+  Workers Paid from PR 6.5 (see [Cloudflare Durable
+  Objects](../../tools/cloudflare-durable-objects/README.md) for billing).
 - `?net=delay,jitter` (ms) holds back opponents' states on this page, in
   order, so they bunch, to try the motion on a bad connection; `?perf=1`
   adds how many opponent frames ran past their newest state, and the
   longest delay.
 - A race is entered only before it has a start time; a reload mid-race
-  sits it out and waits in the lobby. The canvas hides its solo finish, stops once the race
-  is over, and the room page shows each race's results as first seen.
+  sits it out and waits in the lobby. The canvas hides its solo finish,
+  stops once the race is over, and the room page shows each race's results
+  as first seen.
   Finishers place by time, everyone else by gates passed, then by the race
   time of their last, whether or not they left.
 - A finished race is reported once, signed, and stored once by race ID,

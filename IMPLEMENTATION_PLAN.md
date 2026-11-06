@@ -243,11 +243,14 @@ Phase decisions:
 - **The room times each kart from its own states** (PR 6.5), with solo's run
   check made step by step and shared: a start on its grid slot, at most
   30 m/s between states, resets only to its newest reset point, and gates
-  crossed in order by a pair of states at each crossing. No state's race
-  time may run ahead of the room's clock. The join token carries the
-  course's gates and reset points, fixed at the room's first join. A state
-  that fails is neither counted nor relayed. The page predicts its own gates
-  and finish for its HUD; the room's snapshot decides standings and results.
+  crossed in order, by a pair of states at each crossing or between two
+  accepted states. No state's race time may run ahead of the room's clock;
+  it may lag it, as a resend does, so as with solo a forged stream that
+  obeys these rules still passes (accepted: room results stay off
+  leaderboards). The join token carries the course's gates and reset points,
+  fixed at the room's first join. A state that fails is neither counted nor
+  relayed. The page predicts its own gates and finish for its HUD; the
+  room's snapshot decides standings and results.
 - **Cloudflare Durable Objects host rooms** over WebSockets, one object per
   room, on Cloudflare's own API with our own reconnect. The room rules are a
   transport-free TypeScript module. The app signs room join tokens, and the

@@ -120,6 +120,7 @@ import { PlayerInputManager } from "@/game/input/player-input-manager";
 import { isEditableKeyboardTarget } from "@/game/input/keyboard-input";
 import { useControllerMenuNavigation } from "@/game/input/use-controller-menu-navigation";
 import {
+  HeardMotion,
   remoteMotorState,
   type RemoteMotorState,
   remoteVoiceMix,
@@ -517,36 +518,13 @@ function setTouchJoystickPresentation(
   }
 }
 
-
+/** The finishing state is sent again this much later. */
+const ROOM_FINISH_REPEAT_MS = 500;
 /** Opponents further than this from the camera cast no shadow. */
 const OPPONENT_SHADOW_METRES = 40;
-/** Velocities heard from are eased over about this long. */
-const AUDIO_MOTION_EASE_SECONDS = 0.1;
-/** Faster than this between frames is a teleport, not motion. */
-const AUDIO_MAX_SPEED = 40;
-
-/**
- * Eases `velocity` toward the motion from `from` to `to` over `seconds`;
- * a teleport (a reset, a camera snap) counts as standing still.
- */
-function easeVelocity(
-  velocity: pc.Vec3,
-  from: pc.Vec3,
-  to: { x: number; y: number; z: number },
-  seconds: number,
-  ease: number,
-) {
-  if (seconds <= 0) return;
-  let x = (to.x - from.x) / seconds;
-  let y = (to.y - from.y) / seconds;
-  let z = (to.z - from.z) / seconds;
-  if (Math.hypot(x, y, z) > AUDIO_MAX_SPEED) x = y = z = 0;
-  velocity.x += (x - velocity.x) * ease;
-  velocity.y += (y - velocity.y) * ease;
-  velocity.z += (z - velocity.z) * ease;
-}
 
 type RoomKartStateMessage = Extract<RoomClientMessage, { type: "state" }>;
+
 export function SoloTimeTrialCanvas({
   courseDocument = ROUGH_COURSE_DOCUMENT,
   courseRevision = null,
@@ -1311,13 +1289,7 @@ export function SoloTimeTrialCanvas({
                 id,
                 footprint,
                 noLoadSpeed,
-                // Its drawn motion, for its voice: smoothed velocity, speed,
-                // and speeding up.
-                position: new pc.Vec3(),
-                velocity: new pc.Vec3(),
-                speed: 0,
-                acceleration: 0,
-                drawn: false,
+                heard: new HeardMotion(),
                 visual: createGhostKartVisual(
                   app,
                   opponentKart,
@@ -1334,12 +1306,11 @@ export function SoloTimeTrialCanvas({
       const opponentPose = createGhostPose();
       let lastOpponentFrameAt: number | null = null;
       const opponentAudio = new Map<string, RemoteMotorState>();
-      const listenerPosition = new pc.Vec3();
-      const listenerVelocity = new pc.Vec3();
+      const heardCamera = new HeardMotion();
       const listener = {
-        position: listenerPosition,
+        position: heardCamera.position,
         right: new pc.Vec3(),
-        velocity: listenerVelocity,
+        velocity: heardCamera.velocity,
       };
       runtime.addCleanup(() => {
         for (const { visual } of opponentVisuals) visual.destroy();
@@ -3429,6 +3400,11 @@ export function SoloTimeTrialCanvas({
       let lastRoomStateMicroseconds = -Infinity;
       // The finish's state waits for its final time, at frame end.
       let roomFinishState: RoomKartStateMessage | null = null;
+      // It goes once more a moment later: if the room refused it (it ran
+      // ahead of the clock, say), no later state would show the line
+      // crossed. The room ignores a repeat once the kart has finished.
+      let roomFinishRepeat: { state: RoomKartStateMessage; at: number } | null =
+        null;
       const roomKartState = (
         t: number,
         gateFrom?: Position3,
@@ -3617,7 +3593,17 @@ export function SoloTimeTrialCanvas({
                 ROOM_RACE_LIMIT_MS * 1_000,
               );
               sendRoomState(roomFinishState);
+              roomFinishRepeat = {
+                state: roomFinishState,
+                at: performance.now() + ROOM_FINISH_REPEAT_MS,
+              };
               roomFinishState = null;
+            } else if (
+              roomFinishRepeat &&
+              performance.now() >= roomFinishRepeat.at
+            ) {
+              room.send(roomFinishRepeat.state);
+              roomFinishRepeat = null;
             }
             return;
           }
@@ -3847,16 +3833,8 @@ export function SoloTimeTrialCanvas({
           lastOpponentFrameAt = now;
           const roomTime = ROOM.raceMicroseconds(now);
           // Heard from the camera, as it stood at the last frame.
-          const ease = 1 - Math.exp(-opponentSeconds / AUDIO_MOTION_EASE_SECONDS);
           const cameraPosition = camera.getPosition();
-          easeVelocity(
-            listenerVelocity,
-            listenerPosition,
-            cameraPosition,
-            opponentSeconds,
-            ease,
-          );
-          listenerPosition.copy(cameraPosition);
+          heardCamera.follow(cameraPosition, opponentSeconds);
           listener.right.copy(camera.right);
           opponentAudio.clear();
           for (const [index, opponent] of opponentVisuals.entries()) {
@@ -3873,7 +3851,7 @@ export function SoloTimeTrialCanvas({
             const shadow = opponentShadows[index];
             if (!pose) {
               shadow.entity.enabled = false;
-              opponent.drawn = false;
+              opponent.heard.lose();
               continue;
             }
             const { position } = pose;
@@ -3889,35 +3867,15 @@ export function SoloTimeTrialCanvas({
             } else {
               shadow.entity.enabled = false;
             }
-            if (opponent.drawn) {
-              easeVelocity(
-                opponent.velocity,
-                opponent.position,
-                position,
-                opponentSeconds,
-                ease,
-              );
-              if (opponentSeconds > 0) {
-                const acceleration = (pose.speed - opponent.speed) / opponentSeconds;
-                opponent.acceleration +=
-                  (Math.max(-50, Math.min(50, acceleration)) -
-                    opponent.acceleration) *
-                  ease;
-              }
-            } else {
-              opponent.velocity.set(0, 0, 0);
-              opponent.acceleration = 0;
-            }
-            opponent.position.set(position.x, position.y, position.z);
-            opponent.speed = pose.speed;
-            opponent.drawn = true;
+            const { heard } = opponent;
+            heard.follow(position, opponentSeconds, pose.speed);
             opponentAudio.set(
               opponent.id,
               remoteMotorState(
                 pose.speed,
-                opponent.acceleration,
+                heard.acceleration,
                 opponent.noLoadSpeed,
-                remoteVoiceMix(listener, opponent.position, opponent.velocity),
+                remoteVoiceMix(listener, heard.position, heard.velocity),
               ),
             );
           }

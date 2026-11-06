@@ -242,6 +242,11 @@ test("holds a dropped seat, resumes its race, and drops the silent", async () =>
   await ada.next((message) => message.type === "welcome");
   const guest = await Client.signed(tokenFields(room));
   await guest.next((message) => message.type === "welcome");
+  // The guest pings as a racing page does, until it falls silent below.
+  const guestPings = setInterval(
+    () => guest.send({ type: "ping", t: Date.now() }),
+    500,
+  );
   for (const client of [ada, guest]) {
     client.send({ type: "choose_kart", kartId: "kestrel" });
   }
@@ -280,30 +285,45 @@ test("holds a dropped seat, resumes its race, and drops the silent", async () =>
     you: "p1",
     resume: t,
   });
-  back.send({
-    type: "states",
-    states: [kartAt(t + 50_000, 1), crossingAt(t + 200_000, 0)],
-  });
+  // Back, it pings as a racing page does.
+  const pings = setInterval(
+    () => back.send({ type: "ping", t: Date.now() }),
+    500,
+  );
+  // Away, it reset every 20 states (back to the checkpoint at 2 m) for
+  // 25 batches, then crossed the line. Every batch stores a reset, more
+  // than the live allowance's 20, which resends don't spend; and others
+  // hear only what is recent enough to draw.
+  await new Promise((resolve) => setTimeout(resolve, 5_500));
+  for (let batch = 0; batch < 25; batch += 1) {
+    back.send({
+      type: "states",
+      states: Array.from({ length: 20 }, (_, index) =>
+        kartAt(t + 50_000 + (batch * 20 + index) * 9_000, 1, {
+          p: [1, 0.5, 0],
+          r: index === 0,
+        }),
+      ),
+    });
+  }
+  const finishT = (Date.now() - racingAt - 50) * 1_000;
+  back.send({ type: "states", states: [crossingAt(finishT, 0)] });
   const finished = await guest.next(
     (m): m is Snapshot =>
       isRoom(m) && m.race?.entrants[0].finishMicroseconds != null,
   );
   expect(finished.race?.entrants[0]).toMatchObject({
     id: "p1",
-    finishMicroseconds: t + 200_000,
+    finishMicroseconds: finishT,
   });
   expect(finished.hostId).toBe("p1");
-  // Only the batch's newest state is relayed.
-  await guest.next((m) => m.type === "state" && m.t === t + 200_000);
+  await guest.next((m) => m.type === "state" && m.t === finishT);
   expect(
-    guest.messages.filter((m) => m.type === "state" && m.t === t + 50_000),
+    guest.messages.filter((m) => m.type === "state" && m.r),
   ).toHaveLength(0);
 
   // In a race, a connection silent for 5 s is dropped, holding its seat.
-  const pings = setInterval(
-    () => back.send({ type: "ping", t: Date.now() }),
-    500,
-  );
+  clearInterval(guestPings);
   try {
     expect(await guest.closed).toBe(ROOM_CLOSE.silent);
     const silent = await back.next(
