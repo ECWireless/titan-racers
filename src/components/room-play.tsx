@@ -38,6 +38,10 @@ import {
   COURSE_LOADING_FADE_MS,
   CourseLoadingScreen,
 } from "./course-loading-screen";
+import {
+  FrameBudgetOverlay,
+  type FrameBudgetReport,
+} from "./frame-budget-overlay";
 import { HomeKartCard } from "./home-steps";
 import {
   loadOfficialKartRoster,
@@ -648,6 +652,10 @@ function RoomRace({
     "loading",
   );
   const [cover, setCover] = useState<Cover>("on");
+  // `?perf=1`'s report, kept for the results: the race is gone by then.
+  const [perfReport, setPerfReport] = useState<FrameBudgetReport | null>(
+    null,
+  );
   const resultsRef = useRef<HTMLDivElement | null>(null);
   const primaryRef = useRef<HTMLButtonElement | null>(null);
   const race = room.race?.id === activeRace.id ? room.race : null;
@@ -770,6 +778,7 @@ function RoomRace({
             room={activeRace.room}
             submitsRuns={false}
             onExit={onLeaveRoom}
+            onFrameBudgetReport={setPerfReport}
             onLoaded={(ready) => {
               setScene(ready ? "ready" : "failed");
               // A page that can't race says so, so no one waits for it.
@@ -879,6 +888,11 @@ function RoomRace({
               </button>
             </div>
           </div>
+        </div>
+      ) : null}
+      {ended && perfReport ? (
+        <div className="pointer-events-none fixed inset-0 z-[70]">
+          <FrameBudgetOverlay report={perfReport} />
         </div>
       ) : null}
       {cover !== "off" && !ended ? (

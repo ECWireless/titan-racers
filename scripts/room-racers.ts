@@ -60,8 +60,30 @@ function throughGate(gate: Gate, along: number) {
   );
 }
 
+/** Launches build to top speed at about this rate, m/s². */
+const LAUNCH = 4;
+
+/** How far a racer has gone `seconds` after the start, and how fast. */
+function travel(seconds: number, top: number) {
+  const launch = top / LAUNCH;
+  if (seconds <= launch) {
+    return { distance: (LAUNCH * seconds * seconds) / 2, speed: LAUNCH * seconds };
+  }
+  return { distance: top * (seconds - launch / 2), speed: top };
+}
+
+/** When a racer reaches `distance` along its line. */
+function reaching(distance: number, top: number) {
+  const launch = top / LAUNCH;
+  const launched = (LAUNCH * launch * launch) / 2;
+  return distance <= launched
+    ? Math.sqrt((2 * distance) / LAUNCH)
+    : distance / top + launch / 2;
+}
+
 /**
- * The line a racer drives: from its grid slot through each gate in order,
+ * The line a racer drives: from its grid slot straight down the start, as
+ * far as the first checkpoint is ahead, then through each gate in order,
  * lap after lap, meeting each one square on; and where each gate falls.
  */
 function racingLine(course: RoomCourse, slot: number) {
@@ -69,11 +91,19 @@ function racingLine(course: RoomCourse, slot: number) {
     ...course.checkpoints.map(({ gate }) => gate),
     course.startGate,
   ]).flat();
-  const points: Vector[] = [
-    { ...course.grid[slot], y: course.grid[slot].y + RIDE_HEIGHT },
-  ];
+  const grid = { ...course.grid[slot], y: course.grid[slot].y + RIDE_HEIGHT };
+  const ahead = course.startGate.forward;
+  const first = throughGate(gates[0], -1.5);
+  const reach = Math.max(
+    0,
+    (first.x - grid.x) * ahead.x +
+      (first.y - grid.y) * ahead.y +
+      (first.z - grid.z) * ahead.z -
+      10,
+  );
+  const points: Vector[] = [grid, add(grid, ahead, reach)];
   const crossings: number[] = [];
-  let distance = 0;
+  let distance = reach;
   const to = (point: Vector) => {
     distance += length(add(point, points.at(-1)!, -1));
     points.push(point);
@@ -181,7 +211,7 @@ async function main() {
         course,
         kartId: karts[index % karts.length].id,
         // A little apart, so they spread out.
-        speed: 11 + index * 1.5,
+        speed: 9 + index * 1.5,
       });
     }),
   );
@@ -256,25 +286,26 @@ function race(
       if (racingAt === null || crossed > crossings.length - 1) return;
       const t = Math.max(0, (Date.now() + offsetMs - racingAt) * 1_000);
       if (t <= lastT) return;
-      const distance = (t / 1_000_000) * speed;
+      const { distance, speed: now } = travel(t / 1_000_000, speed);
       // Reaching a gate's step before, the crossing step goes instead: it
       // lands just past the gate, a step after where it starts.
-      const crossingT = ((crossings[crossed] + CROSSING) / speed) * 1_000_000;
+      const crossingT =
+        reaching(crossings[crossed] + CROSSING, speed) * 1_000_000;
       const beforeT = crossingT - STEP_US;
       if (t >= beforeT) {
         send(
           kartState(
             crossingT,
-            along(points, (crossingT / 1_000_000) * speed),
-            speed,
-            along(points, (beforeT / 1_000_000) * speed).position,
+            along(points, travel(crossingT / 1_000_000, speed).distance),
+            travel(crossingT / 1_000_000, speed).speed,
+            along(points, travel(beforeT / 1_000_000, speed).distance).position,
           ),
         );
         lastT = crossingT;
         crossed += 1;
         return;
       }
-      send(kartState(t, along(points, distance), t === 0 ? 0 : speed));
+      send(kartState(t, along(points, distance), now));
       lastT = t;
     }, STATE_MS);
   }

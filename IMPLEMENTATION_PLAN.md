@@ -392,20 +392,20 @@ Phase decisions:
 
 **PR 6.5: Motion and resilience**
 
-- [ ] Define server authority, prediction, reconciliation, and bounded
+- [x] Define server authority, prediction, reconciliation, and bounded
       correction, and revisit PR 6.4's update cadence and interpolation.
-- [ ] Keep remote presentation separate from authoritative race and collision
+- [x] Keep remote presentation separate from authoritative race and collision
       state.
-- [ ] Survive latency, late and bunched messages, backgrounding,
+- [x] Survive latency, late and bunched messages, backgrounding,
       disconnects, reconnects, and host departure without hanging the room.
-- [ ] Keep all input methods, reset, pause, and resilience behavior working.
-- [ ] Opponents are heard, with remote karts' cheaper voices, and cast the
+- [x] Keep all input methods, reset, pause, and resilience behavior working.
+- [x] Opponents are heard, with remote karts' cheaper voices, and cast the
       contact shadow the player's kart does.
-- [ ] The room times each finish from the kart's own checked states, so a
+- [x] The room times each finish from the kart's own checked states, so a
       modified client can't finish without driving or post a time its
       states don't support.
-- [ ] A page whose race can't load drops out at once.
-- [ ] A four-kart room stays within the phone budget on the lead's iPhone
+- [x] A page whose race can't load drops out at once.
+- [x] A four-kart room stays within the phone budget on the lead's iPhone
       (`?perf=1`).
 
 **PR 6.6: Kart-to-kart collisions**

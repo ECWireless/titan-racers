@@ -402,6 +402,11 @@ type SoloTimeTrialCanvasProps = {
   onExit: () => void;
   /** Called once the scene is ready to start, or has failed to load. */
   onLoaded?: (ready: boolean) => void;
+  /**
+   * Receives the `?perf=1` report as the race unmounts, for a page that
+   * shows it after the race is gone (a room's results replace the race).
+   */
+  onFrameBudgetReport?: (report: FrameBudgetReport) => void;
   /** Receives the race's own exit, which records it, while mounted. */
   exitRef?: RefObject<(() => void) | null>;
   recordTelemetry?: boolean;
@@ -539,6 +544,7 @@ export function SoloTimeTrialCanvas({
   covered = false,
   onExit,
   onLoaded,
+  onFrameBudgetReport,
   recordTelemetry = true,
   sessionLabel,
   showHabitatReadout = false,
@@ -825,6 +831,11 @@ export function SoloTimeTrialCanvas({
   useEffect(() => {
     onLoadedRef.current = onLoaded;
   }, [onLoaded]);
+
+  const onFrameBudgetReportRef = useRef(onFrameBudgetReport);
+  useEffect(() => {
+    onFrameBudgetReportRef.current = onFrameBudgetReport;
+  }, [onFrameBudgetReport]);
 
   useEffect(() => {
     if (sceneStatus === "initializing" || loadedReportedRef.current) return;
@@ -3963,19 +3974,26 @@ export function SoloTimeTrialCanvas({
         let firstFrameMs: number | null = null;
         let previousState = raceSession.snapshot.state;
         let previousRecorded = false;
-        const publish = (recording: boolean) => {
-          setFrameBudgetReport({
-            backBuffer: {
-              height: app.graphicsDevice.height,
-              width: app.graphicsDevice.width,
-            },
-            firstFrameMs,
-            recording,
-            startup: { buildMs: startedAt - loadedAt, waitMs: loadedAt - mountedAt },
-            summary: recording ? null : recorder.summarize(),
-            opponents: ROOM?.opponentStats(),
-          });
-        };
+        const report = (recording: boolean): FrameBudgetReport => ({
+          backBuffer: {
+            height: app.graphicsDevice.height,
+            width: app.graphicsDevice.width,
+          },
+          firstFrameMs,
+          recording,
+          startup: { buildMs: startedAt - loadedAt, waitMs: loadedAt - mountedAt },
+          summary: recording ? null : recorder.summarize(),
+          opponents: ROOM?.opponentStats(),
+        });
+        const publish = (recording: boolean) =>
+          setFrameBudgetReport(report(recording));
+        // A room can end the race before this kart finishes; what it
+        // recorded goes to the page as the race unmounts, once it drew.
+        runtime.addCleanup(() => {
+          if (firstFrameMs !== null) {
+            onFrameBudgetReportRef.current?.(report(false));
+          }
+        });
         runtime.onFrameSample((sample) => {
           firstFrameMs ??= performance.now() - mountedAt;
           const { state } = raceSession.snapshot;

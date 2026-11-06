@@ -89,6 +89,11 @@ export type OpponentStats = {
 export class OpponentTracks {
   private readonly tracks = new Map<string, OpponentMotion>();
   private readonly hidden = new Set<string>();
+  /**
+   * The last race's figures, kept once its tracks are cleared: the page
+   * reads them as the race view closes, after the room has moved on.
+   */
+  private cleared: OpponentStats | null = null;
 
   /**
    * Adds a relayed state; `receivedAtUs` is the room's race time as it
@@ -97,6 +102,7 @@ export class OpponentTracks {
   add(state: RelayedState, receivedAtUs: number | null) {
     let track = this.tracks.get(state.from);
     if (!track) {
+      this.cleared = null;
       track = new OpponentMotion();
       this.tracks.set(state.from, track);
     }
@@ -119,6 +125,7 @@ export class OpponentTracks {
   }
 
   clear() {
+    this.cleared = this.tracks.size > 0 ? this.stats() : null;
     this.tracks.clear();
     this.hidden.clear();
   }
@@ -135,6 +142,7 @@ export class OpponentTracks {
   }
 
   stats(): OpponentStats {
+    if (this.tracks.size === 0 && this.cleared) return this.cleared;
     let frames = 0;
     let starvedFrames = 0;
     let delayUs = 0;

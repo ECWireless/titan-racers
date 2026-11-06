@@ -6,6 +6,7 @@ import {
   OpponentMotion,
   type OpponentState,
 } from "../src/game/room/opponent-motion";
+import { OpponentTracks } from "../src/game/room/room-race";
 
 const FRAME_MS = 1_000 / 60;
 const STATE_MS = 1_000 / 30;
@@ -247,5 +248,22 @@ test.describe("opponent motion", () => {
       expect(x).toBeGreaterThanOrEqual(SPEED - 1e-9);
       expect(x).toBeLessThanOrEqual(SPEED + 0.5 + 1e-9);
     }
+  });
+
+  test("keeps a race's figures for the readout once its tracks are cleared", () => {
+    const tracks = new OpponentTracks();
+    tracks.add(
+      { type: "state", from: "p2", t: 0, p: [0, 0, 0], q: [0, 0, 0, 1], v: [0, 0, 0], s: 0, r: false },
+      0,
+    );
+    const pose = createGhostPose();
+    for (let frame = 0; frame < 10; frame += 1) {
+      tracks.pose("p2", frame * 16_667, 1 / 60, pose);
+    }
+    const raced = tracks.stats();
+    expect(raced.frames).toBe(10);
+    // The room moves on before the race view reads them.
+    tracks.clear();
+    expect(tracks.stats()).toEqual(raced);
   });
 });
