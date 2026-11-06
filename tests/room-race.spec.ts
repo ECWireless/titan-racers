@@ -17,6 +17,7 @@ import { createRoomCourse } from "../src/game/room/room-course";
 import { createRoomCode, ROOM_PROTOCOL } from "../src/game/room/room-protocol";
 import {
   randomRoomPlayerKey,
+  roomKartContact,
   signRoomToken,
 } from "../src/game/room/room-signing";
 import type { RaceAudioDebugState } from "../src/game/audio/race-audio";
@@ -105,7 +106,13 @@ async function joinAs(page: Page, code: string, username: string | null) {
             courseRevision: 1,
             course: createRoomCourse(COURSE),
             physicsVersion: CURRENT_PHYSICS_VERSION,
-            karts: [{ id: KART.kartId, revision: 1 }],
+            karts: [
+              {
+                id: KART.kartId,
+                revision: 1,
+                contact: roomKartContact(KART_SNAPSHOT),
+              },
+            ],
             player: {
               key,
               username,

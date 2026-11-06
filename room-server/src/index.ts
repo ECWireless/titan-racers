@@ -1,5 +1,12 @@
 import { DurableObject } from "cloudflare:workers";
 
+import type { KartContactShape } from "../../src/game/room/kart-contact";
+import {
+  contactEntrants,
+  RoomContacts,
+  roomContactMessage,
+  type RoomContact,
+} from "../../src/game/room/room-contacts";
 import {
   isRoomCode,
   parseClientMessage,
@@ -16,12 +23,14 @@ import {
   roomResume,
   roomSnapshot,
   type RoomEvent,
+  type RoomKartState,
   type RoomOutcome,
   type RoomState,
 } from "../../src/game/room/room-rules";
 import {
   readRoomToken,
   ROOM_REPORT_SIGNATURE_HEADER,
+  roomContactShape,
   signRoomReport,
   type RoomToken,
 } from "../../src/game/room/room-signing";
@@ -201,6 +210,14 @@ export class Room extends DurableObject<Env> {
   private state: RoomState | null;
   /** What each socket may still send; lost on hibernation. */
   private allowances = new WeakMap<WebSocket, Allowance>();
+  /**
+   * The race's touches between karts, kept in memory only: a race keeps the
+   * room awake, and a restart at worst records a touch in progress twice.
+   */
+  private contacts = new RoomContacts();
+  private contactsRace: string | null = null;
+  /** Each kart's contact shape, by kart and revision. */
+  private shapes = new Map<string, KartContactShape>();
 
   constructor(ctx: DurableObjectState, env: Env) {
     super(ctx, env);
@@ -334,6 +351,7 @@ export class Room extends DurableObject<Env> {
     let stored = false;
     let report: RoomOutcome["report"];
     const relayed: string[] = [];
+    const contacts: RoomContact[] = [];
     for (const state of states) {
       outcome = applyRoomEvent(outcome?.state ?? this.state!, {
         type: "state",
@@ -351,6 +369,12 @@ export class Room extends DurableObject<Env> {
           state.t >= (now - racingAt) * 1_000 - RESENT_RELAY_US);
       if (outcome.accepted && recent) {
         relayed.push(JSON.stringify({ ...state, type: "state", from: playerId }));
+      }
+      // Only live states touch: a resent one is history.
+      if (outcome.accepted && resent) {
+        this.raceContacts(outcome.state)?.resent(playerId, state);
+      } else if (outcome.accepted) {
+        contacts.push(...this.touches(outcome.state, playerId, state, now));
       }
     }
     if (!outcome) return;
@@ -373,6 +397,55 @@ export class Room extends DurableObject<Env> {
         if (other !== socket && seatOf(other)) send(other, frame);
       }
     }
+    for (const contact of contacts) {
+      for (const id of [contact.a, contact.b]) {
+        const frame = JSON.stringify(roomContactMessage(contact, id));
+        for (const seat of this.ctx.getWebSockets(id)) {
+          if (seatOf(seat) === id) send(seat, frame);
+        }
+      }
+    }
+  }
+
+  /** The racing race's contacts, started afresh for each race. */
+  private raceContacts(state: RoomState) {
+    const race = state.race;
+    if (!race || race.racingAt === null) return null;
+    if (this.contactsRace !== race.id) {
+      this.contacts.clear();
+      this.contactsRace = race.id;
+    }
+    return this.contacts;
+  }
+
+  /** The touches a kart's accepted live state opens with the others. */
+  private touches(
+    state: RoomState,
+    playerId: string,
+    kartState: RoomKartState,
+    now: number,
+  ): RoomContact[] {
+    const contacts = this.raceContacts(state);
+    const race = state.race;
+    if (!contacts || !race || race.racingAt === null) return [];
+    const racing = contactEntrants(state).map((entrant) => {
+      // Each kart races with the shape it started with.
+      const key = `${entrant.kartId}@${entrant.kartRevision}`;
+      let shape = this.shapes.get(key);
+      if (!shape) {
+        shape = roomContactShape(entrant.contact);
+        this.shapes.set(key, shape);
+      }
+      return { id: entrant.id, shape };
+    });
+    const kart = racing.find(({ id }) => id === playerId);
+    if (!kart) return [];
+    return contacts.live(
+      kart,
+      kartState,
+      Math.max(0, now - race.racingAt) * 1_000,
+      racing.filter(({ id }) => id !== playerId),
+    );
   }
 
   async webSocketClose(socket: WebSocket, code: number) {

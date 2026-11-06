@@ -3422,6 +3422,7 @@ export function SoloTimeTrialCanvas({
       ): RoomKartStateMessage => {
         roomRotation.mul2(kart.getRotation(), KART_ASSEMBLY_TO_PRINCIPAL_ROTATION);
         const velocity = kart.rigidbody?.linearVelocity ?? pc.Vec3.ZERO;
+        const spin = kart.rigidbody?.angularVelocity ?? pc.Vec3.ZERO;
         const state: RoomKartStateMessage = {
           type: "state",
           t,
@@ -3437,6 +3438,8 @@ export function SoloTimeTrialCanvas({
             clampSpeed(velocity.y),
             clampSpeed(velocity.z),
           ],
+          // Radians a second, held within the same range.
+          w: [clampSpeed(spin.x), clampSpeed(spin.y), clampSpeed(spin.z)],
           s: roundTo(kartController.state.steerAngle, 1),
           // Recovery holds the kart off the gates; a reset waits for the
           // next regular state.

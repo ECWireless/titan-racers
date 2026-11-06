@@ -374,7 +374,7 @@ export class RoomConnection {
   private resend(after: number) {
     const missed = this.backlog
       .filter(({ t }) => t > after)
-      .map(({ t, p, q, v, s, r, g }) => ({ t, p, q, v, s, r, g }));
+      .map(({ t, p, q, v, w, s, r, g, o }) => ({ t, p, q, v, w, s, r, g, o }));
     for (let start = 0; start < missed.length; start += ROOM_RESEND_BATCH) {
       this.sendNow({
         type: "states",

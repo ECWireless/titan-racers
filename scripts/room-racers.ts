@@ -14,6 +14,7 @@ import {
 import {
   randomRoomPlayerKey,
   type RoomCourse,
+  roomKartContact,
   signRoomToken,
 } from "../src/game/room/room-signing";
 
@@ -161,6 +162,7 @@ function kartState(
       round(direction.y * speed, 2),
       round(direction.z * speed, 2),
     ],
+    w: [0, 0, 0],
     s: 0,
     r: false,
     ...(gateFrom ? { g: point(gateFrom) } : {}),
@@ -192,8 +194,18 @@ async function main() {
   ]);
   const course = createRoomCourse(publication.document);
   const karts = (
-    roster.karts as Array<{ runtime: { kartId: string; revision: number } }>
-  ).map(({ runtime }) => ({ id: runtime.kartId, revision: runtime.revision }));
+    roster.karts as Array<{
+      runtime: {
+        kartId: string;
+        revision: number;
+        resolvedSnapshot: Parameters<typeof roomKartContact>[0];
+      };
+    }>
+  ).map(({ runtime }) => ({
+    id: runtime.kartId,
+    revision: runtime.revision,
+    contact: roomKartContact(runtime.resolvedSnapshot),
+  }));
 
   const racers = await Promise.all(
     Array.from({ length: count }, async (_, index) => {

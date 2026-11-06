@@ -4,6 +4,9 @@ import {
   FALLS_VIEW_PARK_DOCUMENT,
   getCourseStartTransform,
 } from "../src/game/course/course-document";
+import { createBalancedKartDocument } from "../src/game/kart/balanced-kart-document";
+import { deriveKartSnapshot } from "../src/game/kart/kart-derivation";
+import { kartContactShape } from "../src/game/room/kart-contact";
 import { createRoomCourse } from "../src/game/room/room-course";
 import { ROOM_PROTOCOL } from "../src/game/room/room-protocol";
 import {
@@ -14,13 +17,15 @@ import {
   ROOM_REPORT_WINDOW_MS,
   ROOM_TOKEN_CLOCK_SKEW_MS,
   ROOM_TOKEN_LIFETIME_MS,
+  roomContactShape,
+  roomKartContact,
   roomPlayerKey,
   signRoomReport,
   signRoomToken,
   verifyRoomReport,
   type RoomTokenFields,
 } from "../src/game/room/room-signing";
-import { straightRoomCourse } from "./support/room-course";
+import { straightRoomCourse, TEST_KART_CONTACT } from "./support/room-course";
 
 const SECRET = "a-room-server-secret-of-at-least-32-chars";
 const NOW = 1_800_000_000_000;
@@ -33,7 +38,7 @@ function fields(player: Partial<RoomTokenFields["player"]> = {}) {
     courseRevision: 11,
     course: straightRoomCourse(2, [10, 20]),
     physicsVersion: "support-heave-v1",
-    karts: [{ id: "kestrel", revision: 3 }],
+    karts: [{ id: "kestrel", revision: 3, contact: TEST_KART_CONTACT }],
     player: {
       key: randomRoomPlayerKey(),
       username: null,
@@ -65,6 +70,22 @@ test.describe("room tokens", () => {
     expect(
       await readRoomToken(SECRET, token, NOW - ROOM_TOKEN_CLOCK_SKEW_MS - 1),
     ).toBeNull();
+  });
+
+  test("carry each kart's contact as its published snapshot gives it", async () => {
+    const snapshot = deriveKartSnapshot(createBalancedKartDocument());
+    expect(roomContactShape(roomKartContact(snapshot))).toEqual(
+      kartContactShape(snapshot),
+    );
+    // Inertia the room couldn't invert is refused before it's signed.
+    const flat = { ...TEST_KART_CONTACT, inertia: [1, 1, 1, 1, 0, 0] };
+    await expect(
+      signRoomToken(
+        SECRET,
+        { ...fields(), karts: [{ id: "kestrel", revision: 3, contact: flat }] } as RoomTokenFields,
+        NOW,
+      ),
+    ).rejects.toThrow();
   });
 
   test("refuse tampering, another secret, and malformed tokens", async () => {
@@ -135,6 +156,7 @@ test.describe("room courses", () => {
       karts: Array.from({ length: 16 }, (_, index) => ({
         id: `kart-with-a-long-name-${index}`,
         revision: 2 ** 31 - 1,
+        contact: TEST_KART_CONTACT,
       })),
     };
     for (const course of [

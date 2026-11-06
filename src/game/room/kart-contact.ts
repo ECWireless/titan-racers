@@ -1,6 +1,4 @@
 import { DEFAULT_KART_COLLISION_CONSTRUCTION } from "../collision/kart-collision-model";
-import type { DeepReadonly } from "../kart/immutable-registry";
-import type { PersistedResolvedKartSnapshot } from "../kart/kart-derivation";
 import type { RaceQuaternion, RaceVector3 } from "../race/race-gate";
 
 /**
@@ -16,6 +14,51 @@ import type { RaceQuaternion, RaceVector3 } from "../race/race-gate";
  */
 
 type Vec3 = RaceVector3;
+
+type SourceVector = { readonly x: number; readonly y: number; readonly z: number };
+type SourceTransform = {
+  readonly position: SourceVector;
+  readonly rotationDegrees: SourceVector;
+};
+
+/**
+ * The parts of a published kart snapshot (any version) contact reads, so
+ * the room server needn't type-check the kart derivation.
+ */
+export type KartContactSource = {
+  readonly geometry: {
+    readonly collisionCompound: ReadonlyArray<
+      | {
+          readonly shape: "box";
+          readonly size: SourceVector;
+          readonly transform: SourceTransform;
+        }
+      | {
+          readonly shape: "cylinder";
+          readonly axis: "x" | "y" | "z";
+          readonly height: number;
+          readonly radius: number;
+          readonly transform: SourceTransform;
+        }
+    >;
+    readonly wheelGuard?: {
+      readonly size: SourceVector;
+      readonly transform: SourceTransform;
+    };
+  };
+  readonly massProperties: {
+    readonly centerOfMass: SourceVector;
+    readonly inertiaTensor: {
+      readonly xx: number;
+      readonly yy: number;
+      readonly zz: number;
+      readonly xy: number;
+      readonly xz: number;
+      readonly yz: number;
+    };
+    readonly totalMass: number;
+  };
+};
 
 /** What contact needs to know about a kart, from its published snapshot. */
 export type KartContactShape = {
@@ -108,17 +151,12 @@ export const KART_CONTACT = {
  * narrow shock towers, which would raise every contact, and the pitch it
  * gives, above where karts really meet.
  */
-export function kartContactShape(
-  snapshot: DeepReadonly<
-    Pick<PersistedResolvedKartSnapshot, "geometry" | "massProperties">
-  >,
-): KartContactShape {
+export function kartContactShape(snapshot: KartContactSource): KartContactShape {
   const { centerOfMass, inertiaTensor, totalMass } = snapshot.massProperties;
+  const guard = snapshot.geometry.wheelGuard;
   const primitives = [
     ...snapshot.geometry.collisionCompound,
-    ...("wheelGuard" in snapshot.geometry
-      ? [{ ...snapshot.geometry.wheelGuard, shape: "box" as const }]
-      : []),
+    ...(guard ? [{ ...guard, shape: "box" as const }] : []),
   ];
   const min = { x: Infinity, y: Infinity, z: Infinity };
   const max = { x: -Infinity, y: -Infinity, z: -Infinity };
@@ -150,8 +188,7 @@ export function kartContactShape(
       }
     }
   }
-  if ("wheelGuard" in snapshot.geometry) {
-    const guard = snapshot.geometry.wheelGuard;
+  if (guard) {
     max.y = Math.min(
       max.y,
       guard.transform.position.y + guard.size.y / 2 - centerOfMass.y,
@@ -466,6 +503,32 @@ export function withKartImpulse(
     velocity: add(body.velocity, scale(impulse, 1 / shape.mass)),
     spin: add(body.spin, times(worldInverseInertia(kart), turn)),
   };
+}
+
+/** Whether two karts' boxes are within `metres` of touching, as posed. */
+export function kartsWithin(
+  a: { shape: KartContactShape; pose: KartPose },
+  b: { shape: KartContactShape; pose: KartPose },
+  metres: number,
+) {
+  return (
+    boxOverlap(worldBox(a.shape, a.pose), worldBox(b.shape, b.pose), metres) !==
+    null
+  );
+}
+
+/** A point moving rigidly with a kart from one of its poses to another. */
+export function carryKartPoint(point: Vec3, from: KartPose, to: KartPose): Vec3 {
+  return carried(point, from, to);
+}
+
+/** A kart's pose `at` (0 to 1) of the way between two of its poses. */
+export function betweenKartPoses(
+  from: KartPose,
+  to: KartPose,
+  at: number,
+): KartPose {
+  return between(from, to, at);
 }
 
 /** Where a kart's motion carries its pose in `seconds`. */

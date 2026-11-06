@@ -12,7 +12,11 @@ import {
   type RoomState,
 } from "../src/game/room/room-rules";
 import type { RoomToken } from "../src/game/room/room-signing";
-import { kartAt, straightRoomCourse } from "./support/room-course";
+import {
+  kartAt,
+  straightRoomCourse,
+  TEST_KART_CONTACT,
+} from "./support/room-course";
 
 // The page's room connection, in Node: a fake WebSocket and token route
 // stand in for the browser's, so a drop and a reconnect can be timed.
@@ -103,7 +107,7 @@ function token(key: string): RoomToken {
     courseRevision: 1,
     course: straightRoomCourse(1, [2]),
     physicsVersion: "support-heave-v1",
-    karts: [{ id: "kestrel", revision: 1 }],
+    karts: [{ id: "kestrel", revision: 1, contact: TEST_KART_CONTACT }],
     player: { key: key.padEnd(43, "x"), username: null, signedIn: false },
   };
 }

@@ -10,7 +10,7 @@ import { kartStableIdSchema } from "../kart/kart-assembly-document";
  * a message's shape or meaning changes, then deploy the room server and the
  * app back to back.
  */
-export const ROOM_PROTOCOL = 2;
+export const ROOM_PROTOCOL = 3;
 
 export const ROOM_MAX_PLAYERS = 4;
 export const ROOM_MIN_RACERS = 2;
@@ -94,9 +94,9 @@ export const roomRevisionSchema = z.number().int().positive().max(2 ** 31 - 1);
 const position = z.tuple([bounded(2e6), bounded(2e6), bounded(2e6)]);
 
 /**
- * A kart's state at one fixed step: race time, root position, visual
- * rotation, velocity, steer, and reset. The room checks each one; see
- * room-rules.ts.
+ * A kart's state at one fixed step: race time, centre of mass, rotation of
+ * its own axes, velocity, spin, steer, and reset. The room checks each one;
+ * see room-rules.ts.
  */
 const kartStateFields = {
   t: microseconds,
@@ -104,6 +104,8 @@ const kartStateFields = {
   q: z.tuple([bounded(1.01), bounded(1.01), bounded(1.01), bounded(1.01)]),
   /** Metres a second, so a curve between two states needs no third. */
   v: z.tuple([bounded(100), bounded(100), bounded(100)]),
+  /** Angular velocity (rad/s), so a kart near another is estimated turning. */
+  w: z.tuple([bounded(100), bounded(100), bounded(100)]),
   s: bounded(90),
   /** The first state after a reset teleport; never blend into it. */
   r: z.boolean(),
@@ -112,8 +114,16 @@ const kartStateFields = {
    * before, so the room checks the same crossing the race did.
    */
   g: position.optional(),
+  /**
+   * Its page can't answer a contact in time (it is paused or hidden, or its
+   * connection is slow either way), so its kart is out of touch: it neither
+   * touches nor is touched.
+   */
+  o: z.literal(true).optional(),
 };
 const kartState = z.strictObject(kartStateFields);
+const triple = (limit: number) =>
+  z.tuple([bounded(limit), bounded(limit), bounded(limit)]);
 
 const clientMessageSchema = z.discriminatedUnion("type", [
   z.strictObject({ type: z.literal("ping"), t: z.number() }),
@@ -218,6 +228,30 @@ const serverMessageSchema = z.discriminatedUnion("type", [
     type: z.literal("state"),
     from: playerId,
     ...kartStateFields,
+  }),
+  /**
+   * The room's one record of a touch between this page's kart and another,
+   * sent to both as it opens. A page that already answered it does nothing
+   * more; one that missed it applies its share once, while fresh. Later
+   * protocol versions attach more to its ID, such as damage.
+   */
+  z.strictObject({
+    type: z.literal("contact"),
+    /** Unique within the race. */
+    id: z.number().int().positive().max(1e9),
+    /** When they first touched, in race time. */
+    t: microseconds,
+    /** The other kart's player. */
+    with: playerId,
+    /** Unit, from this kart toward the other. */
+    n: triple(1.01),
+    /** Where they touched. */
+    p: position,
+    /** How fast they were closing (m/s). */
+    c: z.number().min(0).max(200),
+    /** This kart's impulse (N·s) and angular impulse about its centre of mass. */
+    j: triple(1e3),
+    k: triple(1e3),
   }),
 ]);
 export type RoomServerMessage = z.infer<typeof serverMessageSchema>;

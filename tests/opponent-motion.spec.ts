@@ -253,7 +253,7 @@ test.describe("opponent motion", () => {
   test("keeps a race's figures for the readout once its tracks are cleared", () => {
     const tracks = new OpponentTracks();
     tracks.add(
-      { type: "state", from: "p2", t: 0, p: [0, 0, 0], q: [0, 0, 0, 1], v: [0, 0, 0], s: 0, r: false },
+      { type: "state", from: "p2", t: 0, p: [0, 0, 0], q: [0, 0, 0, 1], v: [0, 0, 0], w: [0, 0, 0], s: 0, r: false },
       0,
     );
     const pose = createGhostPose();

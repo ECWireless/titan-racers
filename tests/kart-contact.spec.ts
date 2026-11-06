@@ -167,7 +167,6 @@ test.describe("kart-to-kart contact", () => {
         ...snapshot.geometry,
         collisionCompound: [
           {
-            id: "probe",
             shape: "box",
             size,
             transform: { position: { x: 0, y: 0.08, z: 0 }, rotationDegrees: turned },

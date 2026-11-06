@@ -1,5 +1,15 @@
+import { createBalancedKartDocument } from "../../src/game/kart/balanced-kart-document";
+import { deriveKartSnapshot } from "../../src/game/kart/kart-derivation";
 import type { RoomKartState } from "../../src/game/room/room-rules";
-import type { RoomCourse } from "../../src/game/room/room-signing";
+import {
+  roomKartContact,
+  type RoomCourse,
+} from "../../src/game/room/room-signing";
+
+/** A Balanced kart's contact, as a room token carries it. */
+export const TEST_KART_CONTACT = roomKartContact(
+  deriveKartSnapshot(createBalancedKartDocument()),
+);
 
 const facingX = {
   forward: { x: 1, y: 0, z: 0 },
@@ -43,6 +53,7 @@ export function kartAt(
     p: [x, 0.5, 0],
     q: [0, 0, 0, 1],
     v: [20, 0, 0],
+    w: [0, 0, 0],
     s: 0,
     r: false,
     ...extra,
