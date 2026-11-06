@@ -1,4 +1,5 @@
 import { RoomClock } from "./room-clock";
+import { ROOM_CONTACT } from "./room-contacts";
 import {
   parseServerMessage,
   ROOM_CLOSE,
@@ -7,13 +8,15 @@ import {
   type RoomClientMessage,
   type RoomSnapshot,
 } from "./room-protocol";
-import { OpponentTracks } from "./room-race";
+import { OpponentTracks, type RoomContactRecord } from "./room-race";
 
 /**
  * A page's connection to its room: it fetches a join token, holds one
  * WebSocket, keeps the room's clock from pings, and collects opponents'
- * states. A dropped connection reconnects by itself to the same seat, and
- * the states the room missed meanwhile are resent, so the kart races on.
+ * states and the room's contact records. A dropped connection reconnects by
+ * itself to the same seat, and the states the room missed meanwhile are
+ * resent, so the kart races on. From its pings it also judges whether it's
+ * quick enough to answer a contact in time.
  */
 export type RoomView = {
   status: "connecting" | "open" | "reconnecting" | "closed";
@@ -112,10 +115,18 @@ export class RoomConnection {
    */
   private raceNotice: RaceNotice | null = null;
   private removeLifecycleListeners: (() => void) | null = null;
+  /** The room's contact records, until the race canvas takes them. */
+  private contacts: RoomContactRecord[] = [];
+  /** The latest ping's round trip, and when one still unanswered went. */
+  private roundTripMs: number | null = null;
+  private pingOutAt: number | null = null;
+  /** Too slow to answer a contact in time, until quick again. */
+  private slow = true;
   /**
-   * `?net=delay,jitter` (milliseconds) holds back opponents' states, as a
-   * slow network would: each by the delay plus up to the jitter, in order,
-   * so they bunch. For trying motion on a bad connection.
+   * `?net=delay,jitter` (milliseconds) holds back opponents' states and the
+   * room's contact records, as a slow network would: each by the delay plus
+   * up to the jitter, in order, so they bunch. For trying motion on a bad
+   * connection.
    */
   private readonly net = (() => {
     if (typeof window === "undefined") return null;
@@ -190,6 +201,7 @@ export class RoomConnection {
     this.resumed = false;
     this.lastHeardAt = performance.now();
     this.lastPingAt = 0;
+    this.pingOutAt = null;
     this.lastCheckAt = performance.now();
     this.timers.push(
       window.setTimeout(() => {
@@ -257,7 +269,32 @@ export class RoomConnection {
     const now = performance.now();
     // An earlier ping still unanswered keeps its own time.
     if (this.lastPingAt <= this.lastHeardAt) this.lastPingAt = now;
+    this.pingOutAt ??= now;
     this.sendNow({ type: "ping", t: now });
+  }
+
+  /**
+   * Whether this page is too slow to answer a contact in time: not
+   * connected, or half its round trip to the room (the latest, or one still
+   * waiting) is beyond the lateness a contact allows. It comes back at a
+   * shorter one, so a jittery connection doesn't flicker. Judged at each
+   * ping, so a second a race.
+   */
+  outOfTouch(now = performance.now()) {
+    if (this.view.status !== "open" || !this.resumed) return true;
+    if (this.roundTripMs === null) return this.slow;
+    const waitingMs = this.pingOutAt === null ? 0 : now - this.pingOutAt;
+    const oneWayUs = (Math.max(this.roundTripMs, waitingMs) / 2) * 1_000;
+    if (oneWayUs > ROOM_CONTACT.lateUs) this.slow = true;
+    else if (oneWayUs < ROOM_CONTACT.backUs) this.slow = false;
+    return this.slow;
+  }
+
+  /** The room's contact records since the last call. */
+  takeContacts() {
+    const taken = this.contacts;
+    this.contacts = [];
+    return taken;
   }
 
   /**
@@ -322,36 +359,28 @@ export class RoomConnection {
         this.update({ status: "open", you: message.you });
         break;
       }
-      case "pong":
-        this.clock.addSample(message.t, message.serverAt, performance.now());
-        break;
-      case "state": {
-        if (!this.net) {
-          this.opponents.add(message, this.raceMicroseconds());
-          break;
-        }
+      case "pong": {
         const now = performance.now();
-        this.netDueAt = Math.max(
-          this.netDueAt,
-          now + this.net.delayMs + Math.random() * this.net.jitterMs,
-        );
-        // A state held past its race, or this visit, is dropped.
-        const raceId = this.view.room?.race?.id;
-        const generation = this.generation;
-        window.setTimeout(() => {
-          if (
-            generation === this.generation &&
-            raceId === this.view.room?.race?.id
-          ) {
-            this.opponents.add(message, this.raceMicroseconds());
-          }
-        }, this.netDueAt - now);
+        this.clock.addSample(message.t, message.serverAt, now);
+        if (now >= message.t) this.roundTripMs = now - message.t;
+        if (this.pingOutAt !== null && message.t >= this.pingOutAt) {
+          this.pingOutAt = null;
+        }
         break;
       }
+      case "state":
+        this.deliver(() =>
+          this.opponents.add(message, this.raceMicroseconds()),
+        );
+        break;
+      case "contact":
+        this.deliver(() => this.contacts.push(message));
+        break;
       case "room": {
         const previous = this.view.room?.race?.id;
         if (message.race?.id !== previous) {
           this.opponents.clear();
+          this.contacts = [];
           this.backlog = [];
         }
         for (const entrant of message.race?.entrants ?? []) {
@@ -368,6 +397,33 @@ export class RoomConnection {
         break;
       }
     }
+  }
+
+  /**
+   * Takes in an opponent's state or a contact record: at once, or as
+   * `?net=` holds it back, in order. One held past its race, or this
+   * visit, is dropped.
+   */
+  private deliver(take: () => void) {
+    if (!this.net) {
+      take();
+      return;
+    }
+    const now = performance.now();
+    this.netDueAt = Math.max(
+      this.netDueAt,
+      now + this.net.delayMs + Math.random() * this.net.jitterMs,
+    );
+    const raceId = this.view.room?.race?.id;
+    const generation = this.generation;
+    window.setTimeout(() => {
+      if (
+        generation === this.generation &&
+        raceId === this.view.room?.race?.id
+      ) {
+        take();
+      }
+    }, this.netDueAt - now);
   }
 
   /** Sends the states after the last the room accepted, oldest first. */

@@ -222,11 +222,14 @@ export function kartContactShape(snapshot: KartContactSource): KartContactShape 
  * the boxes come within half a sub-step's travel, it looks closer, so only a
  * graze that sinks in less than about a millimetre goes unseen. Its points
  * are where the karts first meet, carried back to where they start, each
- * with its own gap.
+ * with its own gap. Coming within `within` metres counts as touching: the
+ * room allows the slop, since the pages' answers stop karts just touching,
+ * which the straight paths between their states can miss.
  */
 export function sweepKartContact(
   a: { shape: KartContactShape; from: KartPose; to: KartPose },
   b: { shape: KartContactShape; from: KartPose; to: KartPose },
+  within = 0,
 ): KartContact | null {
   const reachA = reach(a.shape);
   const reachB = reach(b.shape);
@@ -246,9 +249,8 @@ export function sweepKartContact(
     motionSquared > 0
       ? Math.min(1, Math.max(0, -dot(start, motion) / motionSquared))
       : 0;
-  if (length(add(start, scale(motion, closest))) > reachA + reachB + margin) {
-    return null;
-  }
+  const apart = reachA + reachB + margin + within;
+  if (length(add(start, scale(motion, closest))) > apart) return null;
 
   const travel =
     Math.sqrt(motionSquared) +
@@ -269,13 +271,13 @@ export function sweepKartContact(
   const fine = KART_CONTACT.refineSteps;
   let scannedTo = 0;
   for (let step = 0; step <= steps; step += 1) {
-    if (!sample(step / steps, margin)) continue;
+    if (!sample(step / steps, margin + within)) continue;
     // Within reach of touching: look closer, around this sub-step, for
     // where they really touch. Passing close without touching isn't contact.
     const first = Math.max(scannedTo, step - 1) * fine;
     const last = Math.min(steps, step + 1) * fine;
     for (let index = first; index <= last; index += 1) {
-      const touch = sample(index / (steps * fine), 0);
+      const touch = sample(index / (steps * fine), within);
       if (touch) return contactAt(a, b, touch);
     }
     scannedTo = Math.min(steps, step + 1);

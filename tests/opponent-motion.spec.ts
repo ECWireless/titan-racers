@@ -23,8 +23,10 @@ function state(
     position: { x, y: 0, z: 0 },
     rotation: { w: 1, x: 0, y: 0, z: 0 },
     velocity: { x: SPEED, y: 0, z: 0 },
+    spin: { x: 0, y: 0, z: 0 },
     steerDegrees: 0,
     reset: false,
+    outOfTouch: false,
     ...extra,
   };
 }
@@ -248,6 +250,71 @@ test.describe("opponent motion", () => {
       expect(x).toBeGreaterThanOrEqual(SPEED - 1e-9);
       expect(x).toBeLessThanOrEqual(SPEED + 0.5 + 1e-9);
     }
+  });
+
+  test("estimates the present ahead of the past, and draws it near your kart", () => {
+    const motion = new OpponentMotion();
+    const pose = createGhostPose();
+    // States 60 ms late, at 10 m/s along x.
+    const deliveries = stream(0, 2_000, () => 60);
+    const pending = [...deliveries];
+    let lastMs = 0;
+    const drawnAt = (ms: number, viewerX: number) => {
+      while (pending[0] && pending[0].atMs <= ms) {
+        const { state: next, atMs } = pending.shift()!;
+        motion.add(next, atMs * 1_000);
+      }
+      const drawn = motion.pose(ms * 1_000, (ms - lastMs) / 1_000, pose, {
+        atUs: ms * 1_000,
+        viewer: { x: viewerX, y: 0, z: 0 },
+      });
+      lastMs = ms;
+      return drawn?.position.x ?? NaN;
+    };
+    // Far away, it's drawn in the past...
+    for (let ms = 0; ms <= 1_000; ms += FRAME_MS) drawnAt(ms, 1_000);
+    const pastX = drawnAt(1_000, 1_000);
+    expect(pastX).toBeLessThan((1_000 / 1_000) * SPEED - 0.5);
+    // ...and its present estimate is where it is now.
+    expect(motion.present(1_000_000)!.position.x).toBeCloseTo(SPEED, 2);
+    // Coming near, it eases to the present: each frame its own motion plus
+    // at most the rate's share of the gap between past and present.
+    const gap = SPEED * (OPPONENT_MOTION.minDelayUs / 1e6);
+    const most =
+      NOMINAL_STEP +
+      OPPONENT_MOTION.nearSharePerSecond * (FRAME_MS / 1_000) * gap +
+      0.005;
+    let previous = pastX;
+    let ms = 1_000 + FRAME_MS;
+    for (; ms < 1_600; ms += FRAME_MS) {
+      const x = drawnAt(ms, (ms / 1_000) * SPEED);
+      expect(x - previous).toBeLessThan(most);
+      previous = x;
+    }
+    const nowX = (ms / 1_000) * SPEED;
+    expect(drawnAt(ms, nowX)).toBeCloseTo(nowX, 2);
+  });
+
+  test("fades a new state's correction to the present rather than jumping", () => {
+    const motion = new OpponentMotion();
+    motion.add(state(0), 30_000);
+    motion.add(state(33.3), 63_300);
+    // It braked: the next state is 5 cm short of where it was heading.
+    const braked = state(66.6, 0.616, { velocity: { x: 8, y: 0, z: 0 } });
+    const before = motion.present(96_600)!.position.x;
+    motion.add(braked, 96_600);
+    expect(motion.present(96_600)!.position.x).toBeCloseTo(before, 6);
+    // Faded out within a few of its time constants.
+    const later = 96_600 + 5 * OPPONENT_MOTION.presentFadeUs;
+    const projected = 0.616 + 8 * ((later - 66_600) / 1e6);
+    expect(motion.present(later)!.position.x).toBeCloseTo(projected, 2);
+    // A reset snaps: nothing fades across a teleport.
+    const reset = state(100, 20, {
+      reset: true,
+      velocity: { x: 0, y: 0, z: 0 },
+    });
+    motion.add(reset, 130_000);
+    expect(motion.present(130_000)!.position.x).toBe(20);
   });
 
   test("keeps a race's figures for the readout once its tracks are cleared", () => {

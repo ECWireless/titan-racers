@@ -1,5 +1,7 @@
 import type { GhostPose } from "../ghost/ghost-playback";
 import type { RaceQuaternion, RaceVector3 } from "../race/race-gate";
+import { advanceKartPose, type KartContactBody } from "./kart-contact";
+import { ROOM_CONTACT } from "./room-contacts";
 
 /**
  * How one opponent is drawn from the states it sends: a jitter buffer.
@@ -12,16 +14,53 @@ import type { RaceQuaternion, RaceVector3 } from "../race/race-gate";
  * then shows as a pause, not a lurch), and once states arrive it blends
  * back onto them within 150 ms. A reset, or a long gap, snaps. What it
  * draws is presentation only, apart from the states it is drawn from.
+ *
+ * Near your kart, it is drawn where it is now instead (PR 6.6), the same
+ * estimate your kart's contacts are tested against: carried on from its
+ * newest state by its velocity and spin, plus any push your kart gave it
+ * since. Each new state's correction to that estimate blends out rather
+ * than jumping. It eases between the past and the present with distance.
  */
 
-/** One state as drawn from: race time (µs), position, rotation, velocity. */
+/**
+ * One state as drawn from: race time (µs), its centre of mass's position,
+ * its own axes' rotation, velocity, and spin (rad/s).
+ */
 export type OpponentState = {
   t: number;
   position: RaceVector3;
   rotation: RaceQuaternion;
   velocity: RaceVector3;
+  spin: RaceVector3;
   steerDegrees: number;
   reset: boolean;
+  /** Its page says it can't answer a contact in time. */
+  outOfTouch: boolean;
+};
+
+/** What contact needs of an opponent: where it is, and whether it can touch. */
+export type OpponentEstimate = {
+  /** Its estimated pose and motion at race time `atUs`; null before a state. */
+  present(atUs: number): KartContactBody | null;
+  /**
+   * Whether its states are timely enough at `atUs` to touch, and its page
+   * hasn't said it's out of touch.
+   */
+  touchable(atUs: number): boolean;
+  /** How many resets its states have shown. */
+  readonly resets: number;
+  /** Its newest state's race time, or -Infinity before any. */
+  readonly newestUs: number;
+  /**
+   * A push your kart gave it from `atUs`, kept until a state of its own from
+   * after `forUs` (the touch it answers; by default `atUs`) shows it.
+   */
+  carry(
+    atUs: number,
+    velocity: RaceVector3,
+    spin: RaceVector3,
+    forUs?: number,
+  ): void;
 };
 
 export const OPPONENT_MOTION = {
@@ -50,12 +89,46 @@ export const OPPONENT_MOTION = {
   longGapUs: 500_000,
   /** Kept behind the drawn time, for a step back after a snap. */
   keepUs: 2_000_000,
+  /** Within this of your kart it's drawn at the present... */
+  nearMetres: 3,
+  /** ...and beyond this in the past, easing between with distance... */
+  farMetres: 8,
+  /** ...by at most this share a second. */
+  nearSharePerSecond: 2,
+  /** The present is estimated at most this far past the newest state. */
+  aheadUs: ROOM_CONTACT.lateUs,
+  /**
+   * A new state's correction to the present fades by e each this long, so
+   * one arriving mid-fade carries on from what's drawn without a stall.
+   */
+  presentFadeUs: 40_000,
 };
 
 const IDENTITY = { w: 1, x: 0, y: 0, z: 0 };
 
-export class OpponentMotion {
+export class OpponentMotion implements OpponentEstimate {
   private readonly states: OpponentState[] = [];
+  /** Pushes your kart gave it since its newest state. */
+  private shares: Array<{
+    t: number;
+    forUs: number;
+    velocity: RaceVector3;
+    spin: RaceVector3;
+  }> = [];
+  /** The present estimate's last correction, fading from `atUs`. */
+  private correction: {
+    atUs: number;
+    offset: RaceVector3;
+    rotation: RaceQuaternion;
+  } | null = null;
+  /** How late its newest state arrived, if the clock was known. */
+  private newestLateUs: number | null = null;
+  /** Out of touch by lateness, until a state arrives in time again. */
+  private late = true;
+  /** How much of the present it's drawn at, by distance from your kart. */
+  private nearShare: number | null = null;
+  private nearResets = 0;
+  resets = 0;
   private lateness: Array<{ at: number; lateUs: number }> = [];
   private drawnUs: number | null = null;
   /** What was drawn last frame, and at what time, for a correction. */
@@ -92,7 +165,38 @@ export class OpponentMotion {
   add(state: OpponentState, receivedAtUs: number | null) {
     const newest = this.states.at(-1);
     if (newest && state.t <= newest.t) return;
+    // What the present looked like as it arrived, to blend from.
+    const before =
+      newest && receivedAtUs !== null && !state.reset
+        ? this.present(receivedAtUs)
+        : null;
     this.states.push(state);
+    if (state.reset) this.resets += 1;
+    // A push answering a touch shows only in states after it: one stamped
+    // then is the pose that step began from. A reset leaves none to show.
+    this.shares = state.reset
+      ? []
+      : this.shares.filter(({ forUs }) => forUs >= state.t);
+    this.correction = null;
+    if (before) {
+      const after = this.present(receivedAtUs!)!;
+      const offset = {
+        x: before.position.x - after.position.x,
+        y: before.position.y - after.position.y,
+        z: before.position.z - after.position.z,
+      };
+      if (length(offset) <= OPPONENT_MOTION.blendMaxMetres) {
+        this.correction = {
+          atUs: receivedAtUs!,
+          offset,
+          rotation: multiply(before.rotation, conjugate(after.rotation)),
+        };
+      }
+    }
+    this.newestLateUs = receivedAtUs === null ? null : receivedAtUs - state.t;
+    if (this.newestLateUs === null || this.newestLateUs > ROOM_CONTACT.lateUs) {
+      this.late = true;
+    }
     if (receivedAtUs === null) return;
     const lateUs = receivedAtUs - state.t;
     if (lateUs > OPPONENT_MOTION.latenessOutlierUs) return;
@@ -101,6 +205,80 @@ export class OpponentMotion {
     while (this.lateness[0] && this.lateness[0].at < since) {
       this.lateness.shift();
     }
+  }
+
+  present(atUs: number): KartContactBody | null {
+    const newest = this.states.at(-1);
+    if (!newest) return null;
+    const { aheadUs } = OPPONENT_MOTION;
+    const { velocity, spin } = newest;
+    const body: KartContactBody = {
+      ...advanceKartPose(
+        newest,
+        Math.min(aheadUs, Math.max(0, atUs - newest.t)) / 1_000_000,
+      ),
+      velocity: { ...velocity },
+      spin: { ...spin },
+    };
+    for (const share of this.shares) {
+      if (atUs <= share.t) continue;
+      const pushed = advanceKartPose(
+        { ...body, velocity: share.velocity, spin: share.spin },
+        Math.min(aheadUs, atUs - share.t) / 1_000_000,
+      );
+      body.position = pushed.position;
+      body.rotation = pushed.rotation;
+      body.velocity = add(body.velocity, share.velocity);
+      body.spin = add(body.spin, share.spin);
+    }
+    const { correction } = this;
+    if (correction) {
+      const share = Math.exp(
+        -Math.max(0, atUs - correction.atUs) / OPPONENT_MOTION.presentFadeUs,
+      );
+      if (share > 1e-3) {
+        body.position = add(body.position, scale(correction.offset, share));
+        body.rotation = multiply(
+          nlerp(IDENTITY, correction.rotation, share),
+          body.rotation,
+        );
+      }
+    }
+    return body;
+  }
+
+  touchable(atUs: number) {
+    const newest = this.states.at(-1);
+    if (!newest) return false;
+    const { lateUs, backUs } = ROOM_CONTACT;
+    if (
+      atUs - newest.t > lateUs ||
+      this.newestLateUs === null ||
+      this.newestLateUs > lateUs
+    ) {
+      this.late = true;
+    } else if (this.late && this.newestLateUs < backUs) {
+      this.late = false;
+    }
+    return !this.late && !newest.outOfTouch;
+  }
+
+  get newestUs() {
+    return this.states.at(-1)?.t ?? -Infinity;
+  }
+
+  carry(
+    atUs: number,
+    velocity: RaceVector3,
+    spin: RaceVector3,
+    forUs = atUs,
+  ) {
+    this.shares.push({
+      t: atUs,
+      forUs,
+      velocity: { ...velocity },
+      spin: { ...spin },
+    });
   }
 
   /** How far behind the room's clock this opponent aims to be drawn. */
@@ -120,9 +298,16 @@ export class OpponentMotion {
 
   /**
    * Writes the pose to draw at the room's race time `roomUs`, `frameSeconds`
-   * after the last frame, and returns it; null before any state.
+   * after the last frame, and returns it; null before any state. `near`
+   * gives your kart's position, and the race time it's drawn at, to draw
+   * this one at the present near it.
    */
-  pose(roomUs: number, frameSeconds: number, out: GhostPose): GhostPose | null {
+  pose(
+    roomUs: number,
+    frameSeconds: number,
+    out: GhostPose,
+    near?: { atUs: number; viewer: RaceVector3 },
+  ): GhostPose | null {
     if (this.states.length === 0) return null;
     const { drawnUs, snapped } = this.advance(roomUs, frameSeconds);
     const newestUs = this.states.at(-1)!.t;
@@ -188,7 +373,45 @@ export class OpponentMotion {
     Object.assign(this.lastOutput.position, out.position);
     Object.assign(this.lastOutput.rotation, out.rotation);
     this.prune(drawnUs);
+    if (near) this.drawNear(near, frameSeconds, snapped, out);
     return out;
+  }
+
+  /** Eases the drawn pose toward the present, by distance from your kart. */
+  private drawNear(
+    { atUs, viewer }: { atUs: number; viewer: RaceVector3 },
+    frameSeconds: number,
+    snapped: boolean,
+    out: GhostPose,
+  ) {
+    const present = this.present(atUs)!;
+    const { nearMetres, farMetres, nearSharePerSecond } = OPPONENT_MOTION;
+    const distance = length({
+      x: present.position.x - viewer.x,
+      y: present.position.y - viewer.y,
+      z: present.position.z - viewer.z,
+    });
+    const target = Math.min(
+      1,
+      Math.max(0, (farMetres - distance) / (farMetres - nearMetres)),
+    );
+    // A reset or a snap moves the kart, so its share jumps with it.
+    const step = Math.max(0, frameSeconds) * nearSharePerSecond;
+    this.nearShare =
+      this.nearShare === null || snapped || this.resets !== this.nearResets
+        ? target
+        : this.nearShare +
+          Math.max(-step, Math.min(step, target - this.nearShare));
+    this.nearResets = this.resets;
+    const share = this.nearShare;
+    if (share === 0) return;
+    const newest = this.states.at(-1)!;
+    out.position.x += (present.position.x - out.position.x) * share;
+    out.position.y += (present.position.y - out.position.y) * share;
+    out.position.z += (present.position.z - out.position.z) * share;
+    Object.assign(out.rotation, nlerp(out.rotation, present.rotation, share));
+    out.speed += (length(present.velocity) - out.speed) * share;
+    out.steerDegrees += (newest.steerDegrees - out.steerDegrees) * share;
   }
 
   /** Moves the drawn time toward the room's clock less the delay. */
@@ -313,6 +536,10 @@ function writeState(state: OpponentState, speed: number, out: GhostPose) {
   Object.assign(out.rotation, state.rotation);
   out.steerDegrees = state.steerDegrees;
   out.speed = speed;
+}
+
+function add(a: RaceVector3, b: RaceVector3) {
+  return { x: a.x + b.x, y: a.y + b.y, z: a.z + b.z };
 }
 
 function length({ x, y, z }: RaceVector3) {

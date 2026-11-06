@@ -14,6 +14,8 @@ export type FrameBudgetReport = {
   summary: FrameBudgetSummary | null;
   /** In a room, how opponents drew: how often past their newest state. */
   opponents?: OpponentStats;
+  /** In a room, this kart's contacts with them, and their slowest step. */
+  contacts?: { touchingSteps: number; fills: number; maxStepMs: number };
 };
 
 /** Loading-screen milestones, each from the tap that started the race. */
@@ -37,8 +39,15 @@ export function FrameBudgetOverlay({
   loadTimings?: CourseLoadTimings;
   report: FrameBudgetReport;
 }) {
-  const { backBuffer, firstFrameMs, opponents, recording, startup, summary } =
-    report;
+  const {
+    backBuffer,
+    contacts,
+    firstFrameMs,
+    opponents,
+    recording,
+    startup,
+    summary,
+  } = report;
   const rows: Array<[string, string]> = [
     ["Buffer", `${backBuffer.width}×${backBuffer.height}`],
     ["First frame", milliseconds(firstFrameMs)],
@@ -86,6 +95,12 @@ export function FrameBudgetOverlay({
       rows.push(
         ["Opp starved", `${opponents.starvedFrames} / ${opponents.frames}`],
         ["Opp delay", milliseconds(opponents.delayMs)],
+      );
+    }
+    if (contacts) {
+      rows.push(
+        ["Touch steps", `${contacts.touchingSteps} · ${contacts.fills} filled`],
+        ["Touch max", `${contacts.maxStepMs.toFixed(2)} ms`],
       );
     }
   }

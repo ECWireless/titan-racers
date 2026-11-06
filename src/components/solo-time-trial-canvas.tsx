@@ -253,9 +253,13 @@ import {
 import {
   createGhostKartVisual,
   createGhostMaterial,
+  createSeeThroughSwitch,
   type GhostKartVisual,
 } from "@/game/ghost/ghost-kart-visual";
 import { createGhostPose, GhostPlayback } from "@/game/ghost/ghost-playback";
+import { kartContactShape } from "@/game/room/kart-contact";
+import { PageContacts } from "@/game/room/page-contacts";
+import { ROOM_CONTACT } from "@/game/room/room-contacts";
 import { roomGridStart } from "@/game/room/room-course";
 import {
   ROOM_RACE_LIMIT_MS,
@@ -1242,6 +1246,10 @@ export function SoloTimeTrialCanvas({
       // The ghost being raced, and a new best waiting for the next race.
       // Made on first use, once the scene look has set the exposure.
       let ghostMaterial: pc.StandardMaterial | null = null;
+      // In a room, a kart out of touch is drawn in it too: see-through, and
+      // never confused with a ghost, which rooms don't show.
+      const getSeeThroughMaterial = () =>
+        (ghostMaterial ??= createGhostMaterial(app.scene.exposure));
       let activeGhost: DeviceGhost | null = null;
       let ghostPlayback: GhostPlayback | null = null;
       let ghostVisual: GhostKartVisual | null = null;
@@ -1290,21 +1298,24 @@ export function SoloTimeTrialCanvas({
         ghostVisual?.destroy();
         ghostMaterial?.destroy();
       });
-      // A room's opponents, solid in their own karts and without physics:
-      // they pass through each other and this kart.
+      // A room's opponents, in their own karts and without physics: they
+      // pass through each other, and this kart answers its own contacts
+      // with them (page-contacts.ts). Out of touch, each is see-through.
       const opponentVisuals = (ROOM?.opponents ?? []).flatMap(
-        ({ id, kart: opponentKart, footprint, noLoadSpeed }) => {
+        ({ id, kart: opponentKart, footprint, noLoadSpeed, contact }) => {
           try {
             return [
               {
                 id,
                 footprint,
                 noLoadSpeed,
+                contact,
                 heard: new HeardMotion(),
                 visual: createGhostKartVisual(
                   app,
                   opponentKart,
                   getKartVisualMaterial,
+                  getSeeThroughMaterial,
                 ),
               },
             ];
@@ -1326,6 +1337,27 @@ export function SoloTimeTrialCanvas({
       runtime.addCleanup(() => {
         for (const { visual } of opponentVisuals) visual.destroy();
       });
+      // This kart's contacts with opponents it can draw; out of touch, it's
+      // drawn as they are.
+      const pageContacts = ROOM
+        ? new PageContacts(kartContactShape(KART_SNAPSHOT))
+        : null;
+      const setKartSeeThrough = ROOM
+        ? createSeeThroughSwitch(
+            app,
+            kartVisual,
+            kartBatchGroup.id,
+            getSeeThroughMaterial,
+          )
+        : () => undefined;
+      // Its shader is built under the loading screen, on a frame with this
+      // kart see-through; opponents draw in the same.
+      let seeThroughWarmFrames = ROOM ? 2 : 0;
+      // This kart was teleported, or its states went silent too long, since
+      // the last contact step: it passes through until clear.
+      let kartGhostPending = false;
+      // This step's touches, for the impact sound after it.
+      const kartTouches: Array<{ id: string; closingSpeed: number }> = [];
       const currentGhostKart: GhostKart = {
         centerOfMass: { ...KART_CENTER_OF_MASS_OFFSET },
         document: kartRuntime.document,
@@ -1982,6 +2014,7 @@ export function SoloTimeTrialCanvas({
         kartController.reset();
         ghostRecorder.markReset();
         roomResetPending = true;
+        kartGhostPending = true;
         manualRightingCapturePending = false;
         manualRightingSettling = false;
         manualRightingSettlingRemainingSeconds = 0;
@@ -2287,6 +2320,10 @@ export function SoloTimeTrialCanvas({
           bodyScrapeHard = groundHit !== "soft";
           // Not a course object id, so it can never merge with one.
           consider("\u0000ground", groundSpeed, groundHit);
+        }
+        // Another kart, chassis plate on chassis plate.
+        for (const { id, closingSpeed } of kartTouches) {
+          consider(`\u0000kart:${id}`, closingSpeed, "metal");
         }
         const fresh = freshMaterial
           ? impactAudioGate.admit(freshSpeed, true)
@@ -3274,6 +3311,15 @@ export function SoloTimeTrialCanvas({
             getRaceDebugState: () => ({
               ...raceSession.snapshot,
               lastProgressionResult: lastRaceProgressionResult,
+              ...(pageContacts && {
+                roomContacts: {
+                  ...pageContacts.stats,
+                  ownSeeThrough: pageContacts.ownSeeThrough,
+                  seeThrough: opponentVisuals
+                    .filter(({ id }) => pageContacts.seeThrough(id))
+                    .map(({ id }) => id),
+                },
+              }),
             }),
             getSuspensionDebugState,
             rebuildKartBatches: () => {
@@ -3333,6 +3379,83 @@ export function SoloTimeTrialCanvas({
         return substeps;
       });
 
+      // Each step, before physics, this kart answers its touches with the
+      // room's opponents at once, and takes the push of a room record of
+      // one it missed. A push changes only velocity and spin, so the step's
+      // own contacts with the course still hold.
+      const contactRotation = new pc.Quat();
+      // The slowest step's contacts, for `?perf=1`.
+      let contactStepMaxMs = 0;
+      const stepKartContacts = (dt: number) => {
+        kartTouches.length = 0;
+        const body = kart.rigidbody;
+        if (!ROOM || !pageContacts || !body) return;
+        const lifecycle = raceSession.lifecycleState;
+        if (
+          lifecycle !== "racing" &&
+          lifecycle !== "recovering" &&
+          lifecycle !== "finished"
+        ) {
+          return;
+        }
+        // The race clock has already moved on to this step's end.
+        const atUs = raceSession.raceMicroseconds - Math.round(dt * 1_000_000);
+        const reset = kartGhostPending || lifecycle === "recovering";
+        kartGhostPending = false;
+        const position = kart.getPosition();
+        contactRotation.mul2(
+          kart.getRotation(),
+          KART_ASSEMBLY_TO_PRINCIPAL_ROTATION,
+        );
+        const { linearVelocity: velocity, angularVelocity: spin } = body;
+        const startedAt = performance.now();
+        const opponents = opponentVisuals.flatMap(({ id, contact }) => {
+          const estimate = ROOM.opponentEstimate(id);
+          return estimate ? [{ id, shape: contact, estimate }] : [];
+        });
+        const { impulse, turn, touches } = pageContacts.step({
+          atUs,
+          stepSeconds: dt,
+          body: {
+            position: { x: position.x, y: position.y, z: position.z },
+            rotation: {
+              x: contactRotation.x,
+              y: contactRotation.y,
+              z: contactRotation.z,
+              w: contactRotation.w,
+            },
+            velocity: { x: velocity.x, y: velocity.y, z: velocity.z },
+            spin: { x: spin.x, y: spin.y, z: spin.z },
+          },
+          out: lifecycle !== "racing" || ROOM.outOfTouch(),
+          reset,
+          opponents,
+        });
+        contactStepMaxMs = Math.max(
+          contactStepMaxMs,
+          performance.now() - startedAt,
+        );
+        for (const record of ROOM.takeContacts()) {
+          const push = pageContacts.fill(
+            record,
+            atUs,
+            opponents.find(({ id }) => id === record.with),
+          );
+          if (!push) continue;
+          impulse.x += push.impulse.x;
+          impulse.y += push.impulse.y;
+          impulse.z += push.impulse.z;
+          turn.x += push.turn.x;
+          turn.y += push.turn.y;
+          turn.z += push.turn.z;
+          touches.push({ id: record.with, closingSpeed: push.closingSpeed });
+        }
+        if (touches.length === 0) return;
+        body.applyImpulse(impulse.x, impulse.y, impulse.z);
+        body.applyTorqueImpulse(turn.x, turn.y, turn.z);
+        kartTouches.push(...touches);
+      };
+
       runtime.onFixedStep((dt) => {
         collisionObserver.beginStep();
         manualRightingCooldownSeconds = Math.max(
@@ -3390,6 +3513,7 @@ export function SoloTimeTrialCanvas({
             ? sample.driving
             : NEUTRAL_DRIVING_INPUT;
         kartController.update(latestDrivingInput, dt);
+        stepKartContacts(dt);
       });
 
       // A room checks every state against the one before, as the run check
@@ -3447,9 +3571,20 @@ export function SoloTimeTrialCanvas({
         };
         if (gateFrom) state.g = roomPoint(gateFrom);
         else roomResetPending = false;
+        // Too slow to answer a contact in time: out of touch everywhere.
+        if (ROOM?.outOfTouch()) state.o = true;
         return state;
       };
       const sendRoomState = (state: RoomKartStateMessage) => {
+        // States this far apart (a pause, or a long hitch caught up) put it
+        // out of touch to the room and every other page, as the room judges
+        // a kart's own gaps; so it is here too, until clear.
+        if (
+          Number.isFinite(lastRoomStateMicroseconds) &&
+          state.t - lastRoomStateMicroseconds > ROOM_CONTACT.lateUs
+        ) {
+          kartGhostPending = true;
+        }
         roomStepsSinceState = 0;
         lastRoomStateMicroseconds = state.t;
         ROOM?.send(state);
@@ -3833,10 +3968,23 @@ export function SoloTimeTrialCanvas({
           );
           lastGhostTimeMicroseconds = ghostTime;
         }
+        // Under the loading screen, this kart is drawn once see-through and
+        // once solid, so neither builds a shader mid-race.
+        const warmingSeeThrough =
+          seeThroughWarmFrames > 0 && countdownHeldRef.current;
+        if (!countdownHeldRef.current) seeThroughWarmFrames = 0;
+        setKartSeeThrough(
+          warmingSeeThrough
+            ? seeThroughWarmFrames === 2
+            : (pageContacts?.ownSeeThrough ?? false),
+        );
         if (ROOM && opponentVisuals.length > 0) {
           // Each is drawn a little in the past, as its states' lateness
-          // needs (opponent-motion.ts). The runtime caps a frame's seconds
-          // for physics; opponents keep to the clock through a hitch.
+          // needs (opponent-motion.ts), but near this kart at the present,
+          // at the moment of race time this kart is drawn at (or the
+          // room's, once this kart's clock stops). The runtime caps a
+          // frame's seconds for physics; opponents keep to the clock
+          // through a hitch.
           const now =
             (document.timeline.currentTime as number | null) ??
             performance.now();
@@ -3846,12 +3994,27 @@ export function SoloTimeTrialCanvas({
               : Math.max(0, now - lastOpponentFrameAt) / 1_000;
           lastOpponentFrameAt = now;
           const roomTime = ROOM.raceMicroseconds(now);
+          const lifecycle = raceSession.lifecycleState;
+          const near =
+            roomTime === null
+              ? undefined
+              : {
+                  atUs:
+                    lifecycle === "racing" || lifecycle === "recovering"
+                      ? raceSession.raceMicroseconds -
+                        (1 - accumulatorFraction) *
+                          DEFAULT_FIXED_STEP_SECONDS *
+                          1_000_000
+                      : roomTime,
+                  viewer: interpolatedKartPosition,
+                };
           // Heard from the camera, as it stood at the last frame.
           const cameraPosition = camera.getPosition();
           heardCamera.follow(cameraPosition, opponentSeconds);
           listener.right.copy(camera.right);
           opponentAudio.clear();
           for (const [index, opponent] of opponentVisuals.entries()) {
+            const shadow = opponentShadows[index];
             const pose =
               roomTime === null
                 ? null
@@ -3860,9 +4023,12 @@ export function SoloTimeTrialCanvas({
                     roomTime,
                     opponentSeconds,
                     opponentPose,
+                    near,
                   );
             opponent.visual.update(pose, opponentSeconds);
-            const shadow = opponentShadows[index];
+            opponent.visual.setSeeThrough(
+              pageContacts?.seeThrough(opponent.id) ?? false,
+            );
             if (!pose) {
               shadow.entity.enabled = false;
               opponent.heard.lose();
@@ -3895,6 +4061,7 @@ export function SoloTimeTrialCanvas({
           }
           raceAudioRef.current?.updateOpponents(opponentAudio);
         }
+        if (warmingSeeThrough) seeThroughWarmFrames -= 1;
         contactShadow.update(kartVisual, findGroundBelowKart);
 
         chaseCamera.update(frameSeconds, getChaseCameraSnapshot());
@@ -3987,6 +4154,9 @@ export function SoloTimeTrialCanvas({
           startup: { buildMs: startedAt - loadedAt, waitMs: loadedAt - mountedAt },
           summary: recording ? null : recorder.summarize(),
           opponents: ROOM?.opponentStats(),
+          contacts: pageContacts
+            ? { ...pageContacts.stats, maxStepMs: contactStepMaxMs }
+            : undefined,
         });
         const publish = (recording: boolean) =>
           setFrameBudgetReport(report(recording));

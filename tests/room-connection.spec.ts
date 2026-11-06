@@ -243,4 +243,66 @@ test.describe("the page's room connection", () => {
     expect(socket.closedWith).toBe(1000);
     expect(connection.getView().status).toBe("open");
   });
+
+  test("judges from its pings whether it can answer a contact in time", async () => {
+    const connection = await connected(true);
+    const [socket] = FakeSocket.sockets;
+    // Its first ping goes as the socket opens.
+    await settle(20);
+    // A pong for a ping sent `ago` ms before now.
+    const pong = (ago: number) =>
+      socket.receive({
+        type: "pong",
+        t: performance.now() - ago,
+        serverAt: Date.now(),
+      });
+    // Not judged until a pong comes back.
+    expect(connection.outOfTouch()).toBe(true);
+    pong(60);
+    expect(connection.outOfTouch()).toBe(false);
+    // Half a round trip beyond the lateness a contact allows...
+    pong(600);
+    expect(connection.outOfTouch()).toBe(true);
+    // ...and back only once quick again, not at the edge.
+    pong(400);
+    expect(connection.outOfTouch()).toBe(true);
+    pong(200);
+    expect(connection.outOfTouch()).toBe(false);
+    pong(400);
+    expect(connection.outOfTouch()).toBe(false);
+    // A ping still unanswered counts as it waits.
+    const last = socket.sent.filter(({ type }) => type === "ping").at(-1)!;
+    expect(connection.outOfTouch((last.t as number) + 600)).toBe(true);
+    // Away from the room, it's out of touch.
+    socket.drop();
+    expect(connection.outOfTouch()).toBe(true);
+  });
+
+  test("keeps the room's contact records for the race until taken", async () => {
+    const connection = await connected(true);
+    const [socket] = FakeSocket.sockets;
+    const record = {
+      type: "contact" as const,
+      id: 1,
+      t: 1_000_000,
+      with: "p2",
+      n: [1, 0, 0] as [number, number, number],
+      p: [0, 0.5, 0] as [number, number, number],
+      c: 2,
+      j: [-1, 0, 0] as [number, number, number],
+      k: [0, 0, 0] as [number, number, number],
+    };
+    socket.receive(record);
+    expect(connection.takeContacts()).toEqual([record]);
+    expect(connection.takeContacts()).toEqual([]);
+    // Back to the lobby, any not yet taken are dropped.
+    socket.receive({ ...record, id: 2 });
+    let lobby = createRoomState(token("a"));
+    for (const key of ["a", "b"]) {
+      lobby = applyRoomEvent(lobby, { type: "join", now: 1, token: token(key) })
+        .state;
+    }
+    socket.receive(roomSnapshot(lobby));
+    expect(connection.takeContacts()).toEqual([]);
+  });
 });

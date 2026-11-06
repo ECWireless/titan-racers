@@ -14,14 +14,22 @@ import { deriveKartSnapshot } from "../src/game/kart/kart-derivation";
 import { CURRENT_PHYSICS_VERSION } from "../src/game/physics/physics-version";
 import { RACE_LAP_COUNT } from "../src/game/race/race-course";
 import { createRoomCourse } from "../src/game/room/room-course";
-import { createRoomCode, ROOM_PROTOCOL } from "../src/game/room/room-protocol";
+import {
+  createRoomCode,
+  parseServerMessage,
+  ROOM_PROTOCOL,
+  type RoomServerMessage,
+} from "../src/game/room/room-protocol";
 import {
   randomRoomPlayerKey,
   roomKartContact,
   signRoomToken,
 } from "../src/game/room/room-signing";
 import type { RaceAudioDebugState } from "../src/game/audio/race-audio";
-import type { RaceDebugState } from "../src/game/testing/scene-test-adapter";
+import type {
+  KartDebugState,
+  RaceDebugState,
+} from "../src/game/testing/scene-test-adapter";
 import { startRoomServer } from "./support/room-server";
 
 // Two browsers race one room on a local room server. The token route is
@@ -57,6 +65,26 @@ test.beforeAll(async () => {
 test.afterAll(async () => {
   await server?.stop();
 });
+
+/** A join token for the test's room, as the app signs one. */
+async function roomToken(code: string, username: string | null, key: string) {
+  return signRoomToken(SECRET, {
+    protocol: ROOM_PROTOCOL,
+    room: code,
+    courseId: COURSE.courseId,
+    courseRevision: 1,
+    course: createRoomCourse(COURSE),
+    physicsVersion: CURRENT_PHYSICS_VERSION,
+    karts: [
+      {
+        id: KART.kartId,
+        revision: 1,
+        contact: roomKartContact(KART_SNAPSHOT),
+      },
+    ],
+    player: { key, username, signedIn: username !== null },
+  });
+}
 
 async function joinAs(page: Page, code: string, username: string | null) {
   // One seat per page, as the app's keys give, so a reconnect retakes it.
@@ -97,30 +125,7 @@ async function joinAs(page: Page, code: string, username: string | null) {
       }),
     ),
     page.route(`**/api/rooms/${code}/token`, async (route) =>
-      route.fulfill({
-        json: {
-          token: await signRoomToken(SECRET, {
-            protocol: ROOM_PROTOCOL,
-            room: code,
-            courseId: COURSE.courseId,
-            courseRevision: 1,
-            course: createRoomCourse(COURSE),
-            physicsVersion: CURRENT_PHYSICS_VERSION,
-            karts: [
-              {
-                id: KART.kartId,
-                revision: 1,
-                contact: roomKartContact(KART_SNAPSHOT),
-              },
-            ],
-            player: {
-              key,
-              username,
-              signedIn: username !== null,
-            },
-          }),
-        },
-      }),
+      route.fulfill({ json: { token: await roomToken(code, username, key) } }),
     ),
   ]);
   await page.goto(`/room/${code}`);
@@ -152,6 +157,94 @@ async function cuttableRoom(page: Page) {
       down = false;
     },
   };
+}
+
+/**
+ * Passes a page's room connection through, so the test can also send the
+ * page a message as if from the room.
+ */
+async function injectableRoom(page: Page) {
+  let live: WebSocketRoute | null = null;
+  await page.routeWebSocket(/\/v1\/rooms\//, (route) => {
+    route.connectToServer();
+    live = route;
+  });
+  return {
+    send(message: RoomServerMessage) {
+      (live as WebSocketRoute | null)?.send(JSON.stringify(message));
+    },
+  };
+}
+
+/**
+ * Another racer in the room, from Node: it pings each second, as a page
+ * does while racing, and sends whatever states the test gives it.
+ */
+class Rival {
+  readonly messages: RoomServerMessage[] = [];
+  /** The room's clock less this one's, in ms. */
+  offsetMs = 0;
+  private readonly pings: ReturnType<typeof setInterval>;
+
+  constructor(private readonly socket: WebSocket) {
+    socket.addEventListener("message", (event) => {
+      const message = parseServerMessage(event.data);
+      if (!message) return;
+      this.messages.push(message);
+      if (message.type === "pong") {
+        this.offsetMs = message.serverAt - (message.t + Date.now()) / 2;
+      }
+    });
+    this.pings = setInterval(
+      () => this.send({ type: "ping", t: Date.now() }),
+      1_000,
+    );
+  }
+
+  static async join(code: string) {
+    const token = await roomToken(code, null, randomRoomPlayerKey());
+    // Node's WebSocket (undici) takes headers, so it can send an Origin.
+    const socket = new WebSocket(
+      `ws://127.0.0.1:${ROOM_PORT}/v1/rooms/${code}?token=${token}`,
+      { headers: { origin: "http://127.0.0.1:3873" } } as unknown as string[],
+    );
+    await new Promise((resolve) => socket.addEventListener("open", resolve));
+    return new Rival(socket);
+  }
+
+  send(message: unknown) {
+    if (this.socket.readyState === WebSocket.OPEN) {
+      this.socket.send(JSON.stringify(message));
+    }
+  }
+
+  async next(match: (message: RoomServerMessage) => boolean) {
+    await expect.poll(() => this.messages.some(match)).toBe(true);
+    return this.messages.find(match)!;
+  }
+
+  /** The room's race time now, in µs, given the race's start. */
+  raceMicroseconds(racingAt: number) {
+    return Math.round((Date.now() + this.offsetMs - racingAt) * 1_000);
+  }
+
+  leave() {
+    clearInterval(this.pings);
+    this.socket.close(1000);
+  }
+}
+
+async function kartState(canvas: Locator) {
+  return canvas.evaluate(
+    (element) =>
+      new Promise<KartDebugState>((resolve) => {
+        element.dispatchEvent(
+          new CustomEvent("getKartDebugState", {
+            detail: { respond: resolve },
+          }),
+        );
+      }),
+  );
 }
 
 async function raceState(canvas: Locator) {
@@ -389,5 +482,147 @@ test("two players race a room on one clock to the same results", async ({
     await expect(host.getByRole("button", { name: "Start race" })).toBeEnabled();
   } finally {
     await Promise.all(contexts.map((context) => context.close()));
+  }
+});
+
+test("a kart is pushed at once by another, and a touch it missed once", async ({
+  browser,
+}) => {
+  test.setTimeout(240_000);
+  const code = createRoomCode();
+  const context = await browser.newContext({
+    viewport: { width: 480, height: 320 },
+  });
+  const page = await context.newPage();
+  let rival: Rival | null = null;
+  try {
+    const room = await injectableRoom(page);
+    await joinAs(page, code, "ada");
+    await expect(
+      page.getByRole("heading", { name: "Private room" }),
+    ).toBeVisible();
+    rival = await Rival.join(code);
+    rival.send({ type: "choose_kart", kartId: KART.kartId });
+    await page.getByRole("button", { name: /Balanced Kart/ }).click();
+    await page.getByRole("button", { name: "Start race" }).click();
+    const loading = (await rival.next(
+      (message) => message.type === "room" && message.phase === "loading",
+    )) as Extract<RoomServerMessage, { type: "room" }>;
+    const raceId = loading.race!.id;
+    rival.send({ type: "loaded", raceId });
+
+    const canvas = page.getByTestId("solo-time-trial-canvas");
+    await expect(canvas).toHaveAttribute("data-scene-ready", "true", {
+      timeout: 120_000,
+    });
+    await expect
+      .poll(
+        async () => {
+          const { state } = await raceState(canvas);
+          if (state === "paused") {
+            await page.getByRole("button", { name: "Resume" }).click();
+          }
+          return state;
+        },
+        { timeout: 60_000 },
+      )
+      .toBe("racing");
+    // Undrawn, the page steps its physics in time, as a phone would.
+    await canvas.evaluate((element) =>
+      element.dispatchEvent(
+        new CustomEvent("setRenderingSuspended", {
+          detail: { suspended: true },
+        }),
+      ),
+    );
+    const racing = (await rival.next(
+      (message) =>
+        message.type === "room" && message.race?.racingAt != null,
+    )) as Extract<RoomServerMessage, { type: "room" }>;
+    const racingAt = racing.race!.racingAt!;
+
+    // The rival waits a metre behind the page's kart...
+    const kart = await kartState(canvas);
+    const level = Math.hypot(kart.forward.x, kart.forward.z);
+    const ahead = { x: kart.forward.x / level, z: kart.forward.z / level };
+    const start = { x: kart.x - ahead.x, y: kart.y, z: kart.z - ahead.z };
+    const { w, x, y, z } = kart.rotation;
+    const send = (position: Vector, speed: number) =>
+      rival!.send({
+        type: "state",
+        t: rival!.raceMicroseconds(racingAt),
+        p: [position.x, position.y, position.z].map(
+          (value) => Math.round(value * 1_000) / 1_000,
+        ),
+        q: [x, y, z, w].map((value) => Math.round(value * 1e4) / 1e4),
+        v: [ahead.x * speed, 0, ahead.z * speed].map(
+          (value) => Math.round(value * 100) / 100,
+        ),
+        w: [0, 0, 0],
+        s: 0,
+        r: false,
+      });
+    for (let index = 0; index < 15; index += 1) {
+      send(start, 0);
+      await page.waitForTimeout(33);
+    }
+
+    // ...when the room tells the page, once it's in touch, of a touch it
+    // never had: pushed once, however often it hears it.
+    await expect
+      .poll(async () => (await raceState(canvas)).roomContacts?.ownSeeThrough)
+      .toBe(false);
+    const missed = {
+      type: "contact" as const,
+      id: 999,
+      t: rival.raceMicroseconds(racingAt) - 20_000,
+      with: "p2",
+      n: [-ahead.x, 0, -ahead.z] as [number, number, number],
+      p: [kart.x, kart.y, kart.z] as [number, number, number],
+      c: 0.5,
+      j: [0, 0.2, 0] as [number, number, number],
+      k: [0, 0, 0] as [number, number, number],
+    };
+    room.send(missed);
+    room.send(missed);
+    await expect
+      .poll(async () => (await raceState(canvas)).roomContacts?.fills)
+      .toBe(1);
+
+    // The rival runs into it from behind at 1.5 m/s, for 1.5 m.
+    const driveMs = 1_000;
+    const startedAt = Date.now();
+    let reached = start;
+    for (let elapsed = 0; elapsed < driveMs; elapsed = Date.now() - startedAt) {
+      const metres = 1.5 * (elapsed / 1_000);
+      reached = {
+        x: start.x + ahead.x * metres,
+        y: start.y,
+        z: start.z + ahead.z * metres,
+      };
+      send(reached, 1.5);
+      await page.waitForTimeout(33);
+    }
+    for (let index = 0; index < 15; index += 1) {
+      send(reached, 0);
+      await page.waitForTimeout(33);
+    }
+
+    // The page answered the touch itself, so the room's record of it
+    // pushed nothing more; and its kart was pushed on ahead of the rival,
+    // not passed through.
+    const { roomContacts } = await raceState(canvas);
+    expect(roomContacts?.touchingSteps).toBeGreaterThan(0);
+    expect(roomContacts?.fills).toBe(1);
+    const record = await rival.next((message) => message.type === "contact");
+    expect(record).toMatchObject({ type: "contact", with: "p1" });
+    const pushed = await kartState(canvas);
+    const gap =
+      (pushed.x - reached.x) * ahead.x + (pushed.z - reached.z) * ahead.z;
+    const length = 2 * roomKartContact(KART_SNAPSHOT).box[5];
+    expect(gap).toBeGreaterThan(length - 0.03);
+  } finally {
+    rival?.leave();
+    await context.close();
   }
 });

@@ -22,6 +22,7 @@ import { publishedCourseRuntimeSchema } from "@/game/course/course-publication";
 import { useControllerMenuNavigation } from "@/game/input/use-controller-menu-navigation";
 import { pauseKartThumbnailRendering } from "@/game/kart/kart-thumbnail-renderer";
 import { formatRaceTime } from "@/game/race/race-presentation";
+import { kartContactShape } from "@/game/room/kart-contact";
 import {
   CONNECTING_ROOM_VIEW,
   RoomConnection,
@@ -182,6 +183,7 @@ export function RoomPlay({ code }: { code: string }) {
               noLoadSpeed:
                 opponent.resolvedSnapshot.physicalProfile.drivetrain
                   .noLoadSpeed,
+              contact: kartContactShape(opponent.resolvedSnapshot),
             },
           ];
     });
@@ -212,9 +214,12 @@ export function RoomPlay({ code }: { code: string }) {
             opponents,
             raceMicroseconds: (localTime) =>
               connection.raceMicroseconds(localTime),
-            opponentPose: (id, time, frameSeconds, out) =>
-              connection.opponents.pose(id, time, frameSeconds, out),
+            opponentPose: (id, time, frameSeconds, out, near) =>
+              connection.opponents.pose(id, time, frameSeconds, out, near),
+            opponentEstimate: (id) => connection.opponents.estimate(id),
             opponentStats: () => connection.opponents.stats(),
+            outOfTouch: () => connection.outOfTouch(),
+            takeContacts: () => connection.takeContacts(),
             send: (message) => connection.send(message),
           },
         });

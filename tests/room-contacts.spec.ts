@@ -7,7 +7,7 @@ import {
   roomContactMessage,
   type RoomContact,
 } from "../src/game/room/room-contacts";
-import { sweepKartContact } from "../src/game/room/kart-contact";
+import { KART_CONTACT, sweepKartContact } from "../src/game/room/kart-contact";
 import { ROOM_PROTOCOL } from "../src/game/room/room-protocol";
 import {
   applyRoomEvent,
@@ -232,6 +232,21 @@ test.describe("the room's record of contacts", () => {
     expect(opened).toHaveLength(1);
   });
 
+  test("records a kart that turns back into another between two states", () => {
+    // B backs off from beside A, then lurches back into it within one
+    // state's span: the motion that brought it there wasn't closing.
+    const xs = [0.4, 0.41, 0.2, 0.21];
+    const opened = race(
+      {
+        a: { at: () => ({ x: 0 }) },
+        b: { at: (t) => ({ x: xs[Math.min(3, Math.round(t / STATE_US))] }) },
+      },
+      0.1,
+    );
+    expect(opened).toHaveLength(1);
+    expect(opened[0].response.closingSpeed).toBeGreaterThan(3);
+  });
+
   test("records where a turning kart met another, as it met", () => {
     // A spins in place at 9 rad/s, sweeping a corner into B's side.
     const yaw = (t: number) => 0.2 + 9 * (t / 1e6);
@@ -246,12 +261,17 @@ test.describe("the room's record of contacts", () => {
       position: { x, y: 0.5, z: 0 },
       rotation: { w: Math.cos(angle / 2), x: 0, y: Math.sin(angle / 2), z: 0 },
     });
+    // As the room finds it: within the slop.
     const there = sweepKartContact(
       { shape: SHAPE, from: pose(-0.45, yaw(t)), to: pose(-0.45, yaw(t)) },
       { shape: SHAPE, from: pose(0, 0), to: pose(0, 0) },
+      KART_CONTACT.slopMetres,
     )!;
-    // Where they press: the points touching, not the rest of the face.
-    const pressing = there.points.filter(({ depth }) => depth > -0.002);
+    // Where they press: the points nearest, not the rest of the face.
+    const nearest = Math.max(...there.points.map(({ depth }) => depth));
+    const pressing = there.points.filter(
+      ({ depth }) => depth > nearest - 0.002,
+    );
     expect(pressing.length).toBeGreaterThan(0);
     const centre = pressing.reduce(
       (sum, { point: p }) => ({

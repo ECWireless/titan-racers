@@ -21,8 +21,8 @@ import {
 /**
  * Local QA only: up to three guests join a room on `pnpm rooms:dev`, pick a
  * kart, and drive the line through every gate at a steady pace, so one
- * person can try a full room. They are drawn without physics, so the line
- * passes through anything in the way.
+ * person can try a full room. They have no physics: the room's record of a
+ * touch pushes one off its line, a round trip late, and it steers back.
  *
  *   pnpm rooms:racers <room code> [count] [--app URL] [--origin URL]
  *
@@ -39,6 +39,10 @@ const RIDE_HEIGHT = 0.12;
 const CROSSING = 0.05;
 /** ...a fixed step after the point before it, as the room checks. */
 const STEP_US = STEP_MICROSECONDS;
+/** A push off the line rolls to a stop over about this long (s)... */
+const PUSH_ROLL_SECONDS = 0.4;
+/** ...while the racer steers back onto it over about this long. */
+const PUSH_RETURN_SECONDS = 1.5;
 
 function option(name: string, fallback: string) {
   const index = process.argv.indexOf(name);
@@ -51,6 +55,11 @@ const add = (a: Vector, b: Vector, by = 1) => ({
   z: a.z + b.z * by,
 });
 const length = (a: Vector) => Math.hypot(a.x, a.y, a.z);
+const scaled = (a: Vector, by: number) => ({
+  x: a.x * by,
+  y: a.y * by,
+  z: a.z * by,
+});
 
 /** On the ground under a gate, `along` its forward. */
 function throughGate(gate: Gate, along: number) {
@@ -139,12 +148,47 @@ function along(points: Vector[], distance: number) {
 const round = (value: number, places: number) =>
   Math.round(value * 10 ** places) / 10 ** places;
 
+/**
+ * Where the room's pushes have carried a racer off its line by race time
+ * `t` (µs), and how fast that offset moves.
+ */
+class Pushes {
+  offset: Vector = { x: 0, y: 0, z: 0 };
+  velocity: Vector = { x: 0, y: 0, z: 0 };
+  private lastT: number | null = null;
+
+  /** A push of `impulse` (N·s) on a kart of `mass` (kg); level only. */
+  add(impulse: [number, number, number], mass: number) {
+    this.velocity.x += impulse[0] / mass;
+    this.velocity.z += impulse[2] / mass;
+  }
+
+  at(t: number) {
+    const seconds =
+      this.lastT === null ? 0 : Math.max(0, t - this.lastT) / 1e6;
+    this.lastT = t;
+    if (seconds === 0) return { offset: this.offset, velocity: this.velocity };
+    const before = this.offset;
+    // Carried on by the push, and steered back toward the line.
+    const back = Math.exp(-seconds / PUSH_RETURN_SECONDS);
+    this.offset = add(scaled(this.offset, back), this.velocity, seconds);
+    const roll = Math.exp(-seconds / PUSH_ROLL_SECONDS);
+    this.velocity = scaled(this.velocity, roll);
+    return {
+      offset: this.offset,
+      velocity: scaled(add(this.offset, before, -1), 1 / seconds),
+    };
+  }
+}
+
 function kartState(
   t: number,
-  { position, direction }: ReturnType<typeof along>,
+  { position: onLine, direction }: ReturnType<typeof along>,
   speed: number,
+  push: { offset: Vector; velocity: Vector },
   gateFrom?: Vector,
 ): Extract<RoomClientMessage, { type: "state" }> {
+  const position = add(onLine, push.offset);
   // Facing along the line: karts face -z.
   const yaw = Math.atan2(-direction.x, -direction.z);
   const point = ({ x, y, z }: Vector): [number, number, number] => [
@@ -158,14 +202,14 @@ function kartState(
     p: point(position),
     q: [0, round(Math.sin(yaw / 2), 4), 0, round(Math.cos(yaw / 2), 4)],
     v: [
-      round(direction.x * speed, 2),
+      round(direction.x * speed + push.velocity.x, 2),
       round(direction.y * speed, 2),
-      round(direction.z * speed, 2),
+      round(direction.z * speed + push.velocity.z, 2),
     ],
     w: [0, 0, 0],
     s: 0,
     r: false,
-    ...(gateFrom ? { g: point(gateFrom) } : {}),
+    ...(gateFrom ? { g: point(add(gateFrom, push.offset)) } : {}),
   };
 }
 
@@ -219,9 +263,11 @@ async function main() {
         karts,
         player: { key: randomRoomPlayerKey(), username: null, signedIn: false },
       });
+      const kart = karts[index % karts.length];
       return race(`${server}/v1/rooms/${code}?token=${token}`, origin, {
         course,
-        kartId: karts[index % karts.length].id,
+        kartId: kart.id,
+        mass: kart.contact.mass,
         // A little apart, so they spread out.
         speed: 9 + index * 1.5,
       });
@@ -240,7 +286,12 @@ async function main() {
 function race(
   url: string,
   origin: string,
-  { course, kartId, speed }: { course: RoomCourse; kartId: string; speed: number },
+  {
+    course,
+    kartId,
+    mass,
+    speed,
+  }: { course: RoomCourse; kartId: string; mass: number; speed: number },
 ) {
   // Node's WebSocket (undici) takes headers, so it can send an Origin.
   const socket = new WebSocket(url, {
@@ -255,6 +306,7 @@ function race(
   let offsetMs = 0;
   let snapshot: Extract<RoomServerMessage, { type: "room" }> | null = null;
   let driving: ReturnType<typeof setInterval> | null = null;
+  let pushes = new Pushes();
 
   const pings = setInterval(() => send({ type: "ping", t: Date.now() }), 1_000);
   socket.addEventListener("message", (event) => {
@@ -265,6 +317,7 @@ function race(
       const now = Date.now();
       offsetMs = message.serverAt - (message.t + now) / 2;
     }
+    if (message.type === "contact") pushes.add(message.j, mass);
     if (message.type !== "room") return;
     snapshot = message;
     const me = message.players.find(({ id }) => id === you);
@@ -276,6 +329,7 @@ function race(
       send({ type: "loaded", raceId: message.race!.id });
     }
     if (message.phase === "racing" && entry && !driving) {
+      pushes = new Pushes();
       driving = drive(entry.slot, message.race!.id);
     }
     if (message.phase !== "racing" && driving) {
@@ -310,6 +364,7 @@ function race(
             crossingT,
             along(points, travel(crossingT / 1_000_000, speed).distance),
             travel(crossingT / 1_000_000, speed).speed,
+            pushes.at(crossingT),
             along(points, travel(beforeT / 1_000_000, speed).distance).position,
           ),
         );
@@ -317,7 +372,7 @@ function race(
         crossed += 1;
         return;
       }
-      send(kartState(t, along(points, distance), now));
+      send(kartState(t, along(points, distance), now, pushes.at(t)));
       lastT = t;
     }, STATE_MS);
   }

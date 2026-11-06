@@ -60,8 +60,11 @@ export type RoomContact = {
 };
 
 type Track = {
-  /** Each state's pose, with the motion that brought it there. */
-  states: Array<{ t: number; body: KartContactBody }>;
+  /**
+   * Each state's pose, with the motion that brought it there; `seen` says
+   * there was one to see (a state after a reset, or the first, has none).
+   */
+  states: Array<{ t: number; body: KartContactBody; seen: boolean }>;
   late: boolean;
   /**
    * Out of touch. It comes back once it's clear of every other kart, so it
@@ -177,9 +180,11 @@ export class RoomContacts {
         if (!fromB || !toB) continue;
         const fromA = own(startUs);
         const toA = own(endUs);
+        // Within the slop counts: pages stop karts just touching.
         const contact = sweepKartContact(
           { shape: kart.shape, from: fromA, to: toA },
           { shape: other.shape, from: fromB, to: toB },
+          KART_CONTACT.slopMetres,
         );
         if (contact) {
           const touch = this.touch(key, kart, other, contact, {
@@ -235,6 +240,15 @@ export class RoomContacts {
     return opened;
   }
 
+  /** The motion the room saw bring a kart to race time `atUs`, if any. */
+  private motionInto(kartId: string, atUs: number) {
+    const { states } = this.tracks.get(kartId)!;
+    let index = states.length - 1;
+    while (index > 0 && states[index].t > atUs) index -= 1;
+    const { body, seen } = states[index];
+    return seen ? { velocity: body.velocity, spin: body.spin } : null;
+  }
+
   /**
    * A touch found in one segment both karts' states cover: the same touch
    * as the pair's last, which it extends, or a new one, which it opens.
@@ -268,14 +282,39 @@ export class RoomContacts {
       if (!apartSince) seen.lastUs = Math.max(seen.lastUs, touchUs);
       return null;
     }
-    // Both karts' motion over the segment swept, from its start.
+    // As they met: each kart with the motion the room saw bring it to the
+    // segment, since the segment's own may already show the pages' answers;
+    // or, without one, or one that doesn't close them (a kart turned back
+    // into the other), the segment's own. Its nearest point just touching.
     const seconds = segmentUs / 1_000_000;
-    const response = resolveKartContact(
-      { shape: kart.shape, body: { ...fromA, ...moved(fromA, toA, seconds) } },
-      { shape: other.shape, body: { ...fromB, ...moved(fromB, toB, seconds) } },
-      contact,
-      seconds,
-    );
+    const nearest = Math.max(...contact.points.map(({ depth }) => depth));
+    const met =
+      nearest < 0
+        ? {
+            ...contact,
+            points: contact.points.map((point) => ({
+              ...point,
+              depth: point.depth - nearest,
+            })),
+          }
+        : contact;
+    const segmentA = moved(fromA, toA, seconds);
+    const segmentB = moved(fromB, toB, seconds);
+    const answer = (
+      motionA: typeof segmentA,
+      motionB: typeof segmentB,
+    ) =>
+      resolveKartContact(
+        { shape: kart.shape, body: { ...fromA, ...motionA } },
+        { shape: other.shape, body: { ...fromB, ...motionB } },
+        met,
+        seconds,
+      );
+    const response =
+      answer(
+        this.motionInto(kart.id, startUs) ?? segmentA,
+        this.motionInto(other.id, startUs) ?? segmentB,
+      ) ?? answer(segmentA, segmentB);
     if (!response) return null;
     this.touched.set(key, { lastUs: touchUs, apartUs: -Infinity });
     // Where they met: the answer's point, carried on with each kart to the
@@ -332,8 +371,9 @@ export class RoomContacts {
 function record(track: Track, state: RoomKartState) {
   // A reset teleports: nothing before it is a motion to sweep.
   if (state.r) track.states = [];
-  const body = observed(state, track.states.at(-1));
-  track.states.push({ t: state.t, body });
+  const previous = track.states.at(-1);
+  const body = observed(state, previous);
+  track.states.push({ t: state.t, body, seen: previous !== undefined });
   while (
     track.states.length > 2 &&
     track.states[0].t < state.t - ROOM_CONTACT.keepUs

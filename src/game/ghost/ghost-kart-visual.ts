@@ -36,9 +36,38 @@ export function createGhostMaterial(sceneExposure: number) {
 }
 
 /**
+ * Switches a kart's drawn parts between their own materials and the
+ * see-through one `seeThrough` gives, rebuilding its batch on each switch.
+ */
+export function createSeeThroughSwitch(
+  app: pc.AppBase,
+  root: pc.Entity,
+  batchGroupId: number,
+  seeThrough: () => pc.Material,
+) {
+  const parts: Array<{ instance: pc.MeshInstance; solid: pc.Material }> = [];
+  root.forEach((node) => {
+    if (!(node instanceof pc.Entity) || !node.render) return;
+    for (const instance of node.render.meshInstances) {
+      parts.push({ instance, solid: instance.material });
+    }
+  });
+  let current = false;
+  return (on: boolean) => {
+    if (on === current) return;
+    current = on;
+    for (const { instance, solid } of parts) {
+      instance.material = on ? seeThrough() : solid;
+    }
+    app.batcher.markGroupDirty(batchGroupId);
+  };
+}
+
+/**
  * A ghost kart drawn from its own document, posed from recorded samples. It
  * has no physics, sound, or shadow, and draws as one dynamic batch. A room
- * opponent is drawn the same way in its own kart's materials.
+ * opponent is drawn the same way in its own kart's materials, or in
+ * `seeThrough`'s while it's out of touch.
  */
 export function createGhostKartVisual(
   app: pc.AppBase,
@@ -46,6 +75,7 @@ export function createGhostKartVisual(
   material:
     | pc.StandardMaterial
     | ((finish: KartPartFinish) => pc.StandardMaterial),
+  seeThrough?: () => pc.Material,
 ) {
   const { root: visual, wheels: wheelVisuals } = createKartAssemblyVisual(
     kart.document,
@@ -85,6 +115,9 @@ export function createGhostKartVisual(
   const rotation = new pc.Quat();
   const position = new pc.Vec3();
   let faded = false;
+  const setSeeThrough = seeThrough
+    ? createSeeThroughSwitch(app, visual, batchGroup.id, seeThrough)
+    : () => undefined;
 
   return {
     /**
@@ -127,6 +160,8 @@ export function createGhostKartVisual(
       }
     },
     visible: () => root.enabled && !faded,
+    /** Draws it see-through, or solid again. */
+    setSeeThrough,
     /** The kart as drawn, in its assembly's axes, for its contact shadow. */
     node: visual,
     destroy() {
