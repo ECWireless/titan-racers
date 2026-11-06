@@ -10,7 +10,12 @@ import type { KartAssemblyDocument } from "@/game/kart/kart-assembly-document";
 import type { PersistedResolvedKartSnapshot } from "@/game/kart/kart-derivation";
 
 import { KartThumbnail } from "./kart-thumbnail";
-import { LeaderboardIcon, RaceFlagIcon, RaceGhostIcon } from "./menu-icons";
+import {
+  LeaderboardIcon,
+  MultiplayerIcon,
+  RaceFlagIcon,
+  RaceGhostIcon,
+} from "./menu-icons";
 
 // The first screen's icons, at the size of its titles.
 const MENU_ICON = "size-7";
@@ -121,19 +126,24 @@ export function HomeStepFrame({
   );
 }
 
-/** The first screen: race, or see the leaderboard. */
+/** The first screen: a time trial, multiplayer, or the leaderboard. */
 export function HomeStartStep({
   challenge,
+  multiplayerAvailable,
   note,
-  onRace,
+  onMultiplayer,
   onRaceChallenge,
+  onTimeTrial,
 }: {
   /** A ghost link's racer, with their time once known. */
   challenge: { time: string | null; username: string } | null;
+  /** Without a room server, Multiplayer only says it's coming soon. */
+  multiplayerAvailable: boolean;
   /** Why a ghost link's racer is not offered. */
   note: string | null;
-  onRace: () => void;
+  onMultiplayer: () => void;
   onRaceChallenge: () => void;
+  onTimeTrial: () => void;
 }) {
   return (
     <section
@@ -162,9 +172,22 @@ export function HomeStartStep({
           controllerDefault={!challenge}
           detail="Pick a kart, a course, and a ghost"
           icon={<RaceFlagIcon className={MENU_ICON} />}
-          label="Race"
+          label="Time Trial"
           primary={!challenge}
-          onClick={onRace}
+          onClick={onTimeTrial}
+        />
+        <MenuItem
+          controllerDefault={false}
+          detail={
+            multiplayerAvailable
+              ? "A private room for up to 4"
+              : "Coming soon"
+          }
+          icon={<MultiplayerIcon className={MENU_ICON} />}
+          label="Multiplayer"
+          primary={false}
+          unavailable={!multiplayerAvailable}
+          onClick={onMultiplayer}
         />
         <Link
           aria-describedby="home-leaderboard-detail"
@@ -196,6 +219,7 @@ function MenuItem({
   label,
   onClick,
   primary,
+  unavailable = false,
 }: {
   controllerDefault: boolean;
   detail: string;
@@ -203,6 +227,8 @@ function MenuItem({
   label: string;
   onClick: () => void;
   primary: boolean;
+  /** Not yet available: it sounds so, and its detail says why. */
+  unavailable?: boolean;
 }) {
   const id = useId();
   return (
@@ -211,6 +237,7 @@ function MenuItem({
       aria-labelledby={`${id}-label`}
       className={`${OPTION} ${primary ? OPTION_CHOSEN : OPTION_IDLE} home-menu-item`}
       data-controller-default={controllerDefault ? "true" : undefined}
+      aria-disabled={unavailable ? "true" : undefined}
       type="button"
       {...firstClickOnly(onClick)}
     >
@@ -340,24 +367,26 @@ export function HomeKartCard({
   );
 }
 
-/** One course: picking it moves on to the mode. */
+/** One course: picking it moves on to the last step. */
 export function HomeCourseCard({
+  chosen,
+  controllerDefault = true,
   course,
   laps,
   onChoose,
 }: {
+  /** In a room's choice of courses, whether it's the one chosen. */
+  chosen?: boolean;
+  controllerDefault?: boolean;
   course: CourseDocument;
   laps: number;
-  onChoose: () => void;
+  /** Without it, the card only shows the course, as to a room's guests. */
+  onChoose?: () => void;
 }) {
   const thumbnail = COURSE_THUMBNAILS[course.courseId];
-  return (
-    <button
-      className={`${OPTION} ${OPTION_CHOSEN} content-start gap-4 p-4`}
-      data-controller-default="true"
-      type="button"
-      {...firstClickOnly(onChoose)}
-    >
+  const card = `${OPTION} ${OPTION_CHOSEN} content-start gap-4 p-4`;
+  const content = (
+    <>
       <span className="relative block aspect-video w-full overflow-hidden border border-titan-ice/12 bg-titan-steel/20">
         {thumbnail ? (
           <Image
@@ -377,42 +406,45 @@ export function HomeCourseCard({
           {laps} laps · Island Three
         </span>
       </span>
+    </>
+  );
+  if (!onChoose) return <div className={card}>{content}</div>;
+  return (
+    <button
+      aria-pressed={chosen}
+      className={card}
+      data-controller-default={controllerDefault ? "true" : undefined}
+      type="button"
+      {...firstClickOnly(onChoose)}
+    >
+      {content}
     </button>
   );
 }
 
-/** A choice on the mode screen, pressed while it is the one chosen. */
+/** A choice on the last step, pressed while it is the one chosen. */
 export function HomeChoice({
   children,
   chosen,
   className = "",
-  disabledNote,
   onChoose,
 }: {
   children: ReactNode;
   chosen: boolean;
   className?: string;
-  /** Shown on a choice not yet available, which then only says so. */
-  disabledNote?: string;
   onChoose: () => void;
 }) {
   return (
     <button
-      aria-disabled={disabledNote ? "true" : undefined}
-      aria-pressed={disabledNote ? undefined : chosen}
+      aria-pressed={chosen}
       className={`${OPTION} ${chosen ? OPTION_CHOSEN : OPTION_IDLE} min-h-12 content-center px-4 py-3 ${
-        disabledNote ? "text-titan-ice/45" : chosen ? "text-titan-hazard" : "text-titan-ice/80"
+        chosen ? "text-titan-hazard" : "text-titan-ice/80"
       } ${className}`}
       type="button"
       {...firstClickOnly(onChoose)}
     >
-      <span className="flex items-center justify-between gap-3 font-mono text-xs font-bold uppercase tracking-[0.14em]">
+      <span className="flex items-center gap-3 font-mono text-xs font-bold uppercase tracking-[0.14em]">
         <span className="truncate">{children}</span>
-        {disabledNote ? (
-          <span className="shrink-0 border border-titan-ice/20 px-2 py-1 text-[0.56rem] tracking-[0.12em] text-titan-ice/60">
-            {disabledNote}
-          </span>
-        ) : null}
       </span>
     </button>
   );

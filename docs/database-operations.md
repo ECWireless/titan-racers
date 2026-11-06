@@ -236,7 +236,7 @@ anonymization pass them by.
   room-server/wrangler.jsonc --env production`.
 - **Local:** `pnpm rooms:dev` runs the room server on `127.0.0.1:8787`
   without a Cloudflare account. Set `NEXT_PUBLIC_ROOM_SERVER_URL` to
-  `ws://127.0.0.1:8787`; while it is unset, Race Friends stays "Coming soon".
+  `ws://127.0.0.1:8787`; while it is unset, Multiplayer stays "Coming soon".
   `pnpm rooms:racers <room code> [1-3] [--app URL] [--origin URL]` adds up
   to three guest racers to a local room, for trying a full room alone:
   they pick a kart and drive the line through every gate, checked by the

@@ -294,7 +294,7 @@ CPU work and draw calls are the headroom signals.
 
 ### Baseline
 
-| Measure | Before lighting (PR 4.1.2 start) | After lighting baseline | Part visuals (PR 4.1.3) | Authored primitives (PR 4.1.4) | Sandbox surfaces (PR 4.2.1) | Surface physics (PR 4.2.2) | Collision substeps (PR 4.2.3) | Surface effects (PR 4.2.4) | Surface scans (PR 4.2.5) | Handbrake clutch (PR 4.2.6) | Island Three (PR 4.3.1) | Habitat physics (PR 4.3.2) | Loading screen (PR 4.3.3) | Valley structures (PR 4.3.4) | Dusk and night (PR 4.3.5) | Falls View Park route (PR 4.4.1) | Wheel blur (PR 4.4.1.1) | Utility tunnel (PR 4.4.2) | Nursery and service road (PR 4.4.3) | Stream and levee (PR 4.4.4) | Return lane and finish (PR 4.4.6) | Off-track clearing (PR 4.4.7) | Detail pass (PR 4.4.8) | Race audio and ambience (PR 4.5) | Ghosts (PR 5.1) | Home flow and levee kicker (PR 5.5) | Race Friends, four karts (PR 6.5) |
+| Measure | Before lighting (PR 4.1.2 start) | After lighting baseline | Part visuals (PR 4.1.3) | Authored primitives (PR 4.1.4) | Sandbox surfaces (PR 4.2.1) | Surface physics (PR 4.2.2) | Collision substeps (PR 4.2.3) | Surface effects (PR 4.2.4) | Surface scans (PR 4.2.5) | Handbrake clutch (PR 4.2.6) | Island Three (PR 4.3.1) | Habitat physics (PR 4.3.2) | Loading screen (PR 4.3.3) | Valley structures (PR 4.3.4) | Dusk and night (PR 4.3.5) | Falls View Park route (PR 4.4.1) | Wheel blur (PR 4.4.1.1) | Utility tunnel (PR 4.4.2) | Nursery and service road (PR 4.4.3) | Stream and levee (PR 4.4.4) | Return lane and finish (PR 4.4.6) | Off-track clearing (PR 4.4.7) | Detail pass (PR 4.4.8) | Race audio and ambience (PR 4.5) | Ghosts (PR 5.1) | Home flow and levee kicker (PR 5.5) | Multiplayer, four karts (PR 6.5) |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | Frame p50 / p95 | 17.0 / 18.0 ms | 17.0 / 18.0 ms | 17.0 / 18.0 ms | 17.0 / 18.0–19.0 ms | 17.0 / 18.0 ms | 17.0 / 18.0 ms | 17.0 / 18.0 ms | 17.0 / 18.0 ms | 17.0 / 18.0 ms | 17.0 / 18.0 ms | 17.0 / 18.0 ms | 17.0 / 18.0 ms | 17.0 / 18.0 ms | 17.0 / 18.0 ms | 17.0 / 18.0 ms | 17.0 / 18.0 ms | 17.0 / 18.0 ms | 17.0 / 18.0 ms | 17.0 / 18.0 ms | 17.0 / 18.0–19.0 ms | 17.0 / 18.0–19.0 ms | 17.0 / 18.0 ms | 17.0 / 18.0 ms | 17.0 / 17.0 ms | 17.0 / 18.0 ms | 17.0 / 18.0 ms | 17.0 / 18.0 ms |
 | CPU p50 / p95 | 3 / 4 ms | 3 / 4 ms | 2 / 3 ms | 2 / 3 ms | 2 / 3–4 ms | 2 / 3 ms | 3 / 4 ms | 2 / 3–4 ms | 2–3 / 4 ms | 2 / 3 ms | 2 / 3 ms | 2 / 3–4 ms | 2 / 3 ms | 3 / 4 ms | 2–3 / 3–4 ms | 3 / 4 ms | 3 / 4 ms | 3 / 4 ms | 4 / 5 ms | 4 / 5–6 ms | 5 / 6 ms | 3 / 7 ms | 4 / 7 ms | 3 / 4 ms | 3 / 4–5 ms | 3 / 4 ms | 3 / 4 ms |
@@ -476,7 +476,7 @@ pieces and the step-by-step home add nothing measurable: frame time holds
 draws (an 86 median, 115 at most, 110 forward with no shadow map) match PR
 5.1's night figures.
 
-PR 6.5 was measured with one full race in a Race Friends room on the QA
+PR 6.5 was measured with one full race in a multiplayer room on the QA
 build, the Speed kart against three test racers (`pnpm rooms:racers`), each
 drawn, shadowed, and heard, with no hitches (5,812 frames). Four karts hold
 frame time (17 ms median, p95 18 ms) and CPU work (a 3 ms median, p95 4 ms);

@@ -781,13 +781,13 @@ test.describe("home screen", () => {
     ]);
   });
 
-  test("steps from the first screen through kart, course, and mode, and back", async ({
+  test("steps from the first screen through kart, course, and ghost, and back", async ({
     page,
   }) => {
     await page.goto("/");
 
     await expect(page.getByAltText("Titan Racers")).toBeVisible();
-    await expect(page.getByRole("button", { exact: true, name: "Race" })).toBeVisible();
+    await expect(page.getByRole("button", { exact: true, name: "Time Trial" })).toBeVisible();
     const utilityMenu = page.getByRole("button", {
       name: "Open utility menu",
     });
@@ -820,8 +820,8 @@ test.describe("home screen", () => {
       page.getByRole("main").getByRole("link", { name: "Leaderboard" }),
     ).toHaveAttribute("href", "/leaderboard");
 
-    // Race leads through the kart and the course to the mode.
-    await page.getByRole("button", { exact: true, name: "Race" }).click();
+    // A time trial leads through the kart and the course to the ghost.
+    await page.getByRole("button", { exact: true, name: "Time Trial" }).click();
     const kartTitle = page.getByRole("heading", { name: "Choose your kart" });
     await expect(kartTitle).toBeVisible();
     await chooseKartAndCourse(page);
@@ -833,13 +833,9 @@ test.describe("home screen", () => {
       page.getByRole("list", { name: "Race setup" }),
     ).toContainText("Balanced Kart");
 
-    // Race Friends makes the start open a private room instead.
-    const raceFriends = page.getByRole("button", { name: "Race Friends" });
-    await raceFriends.click();
-    await expect(raceFriends).toHaveAttribute("aria-pressed", "true");
-    await expect(page.getByRole("button", { name: "Create room" })).toBeVisible();
-    await page.getByRole("button", { name: "Time trial" }).click();
-    await expect(page.getByRole("button", { name: "Start race" })).toBeVisible();
+    await expect(
+      page.getByRole("group", { name: "Ghost" }),
+    ).toBeVisible();
 
     // Back, the browser's back, and Escape each go back a step.
     await page.getByRole("button", { name: "Back" }).click();
@@ -850,12 +846,12 @@ test.describe("home screen", () => {
     await expect(kartTitle).toBeVisible();
     await page.keyboard.press("Escape");
     await expect(
-      page.getByRole("button", { exact: true, name: "Race" }),
+      page.getByRole("button", { exact: true, name: "Time Trial" }),
     ).toBeFocused();
     await expect(page).toHaveURL(/\/$/);
 
     // Escape closing the menu on a later step leaves the step as it is.
-    await page.getByRole("button", { exact: true, name: "Race" }).click();
+    await page.getByRole("button", { exact: true, name: "Time Trial" }).click();
     await expect(kartTitle).toBeVisible();
     await utilityMenu.click();
     await page.keyboard.press("Escape");
@@ -887,7 +883,7 @@ test.describe("home screen", () => {
     await expect(kartTitle).toBeVisible();
     await page.goBack();
     await expect(
-      page.getByRole("button", { exact: true, name: "Race" }),
+      page.getByRole("button", { exact: true, name: "Time Trial" }),
     ).toBeVisible();
 
     // A leaderboard row's Race opens on the kart, a step past the first.
@@ -895,7 +891,7 @@ test.describe("home screen", () => {
     await expect(kartTitle).toBeVisible();
     await page.goBack();
     await expect(
-      page.getByRole("button", { exact: true, name: "Race" }),
+      page.getByRole("button", { exact: true, name: "Time Trial" }),
     ).toBeVisible();
 
     // While the karts load, Escape still goes back.
@@ -904,16 +900,26 @@ test.describe("home screen", () => {
       await route.fallback();
     });
     await page.goto("/");
-    await page.getByRole("button", { exact: true, name: "Race" }).click();
+    await page.getByRole("button", { exact: true, name: "Time Trial" }).click();
     await expect(kartTitle).toBeVisible();
     await expect(
       page.getByRole("group", { name: "Official kart selection" }),
     ).toHaveCount(0);
     await page.keyboard.press("Escape");
     await expect(
-      page.getByRole("button", { exact: true, name: "Race" }),
+      page.getByRole("button", { exact: true, name: "Time Trial" }),
     ).toBeVisible();
     await page.unrouteAll({ behavior: "ignoreErrors" });
+  });
+
+  test("Multiplayer opens a new room straight away", async ({ page }) => {
+    await page.goto("/");
+    // The first screen's three, in order.
+    await expect(
+      page.getByRole("main").locator(".home-menu-item"),
+    ).toHaveText([/Time Trial/, /Multiplayer/, /Leaderboard/]);
+    await page.getByRole("button", { exact: true, name: "Multiplayer" }).click();
+    await expect(page).toHaveURL(/\/room\/[a-z2-9]{10}$/);
   });
 
   test("plays menu sounds, keeps one volume, and goes quiet with Sound effects off", async ({
@@ -939,7 +945,7 @@ test.describe("home screen", () => {
     await page.evaluate(() => {
       (window as { __titanUiSounds?: string[] }).__titanUiSounds = [];
     });
-    await page.getByRole("button", { exact: true, name: "Race" }).click();
+    await page.getByRole("button", { exact: true, name: "Time Trial" }).click();
     await expect.poll(sounds).toEqual(["confirm"]);
     await page.keyboard.press("Escape");
     await expect.poll(sounds).toEqual(["confirm", "back"]);
@@ -968,7 +974,7 @@ test.describe("home screen", () => {
     await page.getByRole("switch", { name: "Sound effects" }).click();
     const quietFrom = (await sounds()).length;
     await page.keyboard.press("Escape");
-    await page.getByRole("button", { exact: true, name: "Race" }).click();
+    await page.getByRole("button", { exact: true, name: "Time Trial" }).click();
     await expect(
       page.getByRole("heading", { name: "Choose your kart" }),
     ).toBeVisible();
@@ -1083,7 +1089,7 @@ test.describe("home screen", () => {
     await usePublishedBalancedAndSpeedKarts(page);
 
     await page.goto("/");
-    await page.getByRole("button", { exact: true, name: "Race" }).click();
+    await page.getByRole("button", { exact: true, name: "Time Trial" }).click();
     const selection = page.getByRole("group", {
       name: "Official kart selection",
     });
@@ -1141,7 +1147,7 @@ test.describe("home screen", () => {
       await setStandardTestGamepad(page);
     };
 
-    // Confirm takes Race, which is focused first.
+    // Confirm takes Time Trial, which is focused first.
     await press(0);
     const speed = page
       .getByRole("group", { name: "Official kart selection" })
@@ -1187,7 +1193,7 @@ test.describe("home screen", () => {
     });
 
     await page.goto("/");
-    await page.getByRole("button", { exact: true, name: "Race" }).click();
+    await page.getByRole("button", { exact: true, name: "Time Trial" }).click();
     await expect(
       page.getByText("No official karts are currently published."),
     ).toBeVisible();
@@ -1253,7 +1259,7 @@ test.describe("home screen", () => {
     );
 
     await page.goto("/");
-    await page.getByRole("button", { exact: true, name: "Race" }).click();
+    await page.getByRole("button", { exact: true, name: "Time Trial" }).click();
     await expect(
       page.locator('[data-kart-thumbnail-source="persisted"]').first(),
     ).toBeVisible();
@@ -1285,7 +1291,7 @@ test.describe("home screen", () => {
       route.fulfill({ status: 503 }),
     );
     await page.goto("/");
-    await page.getByRole("button", { exact: true, name: "Race" }).click();
+    await page.getByRole("button", { exact: true, name: "Time Trial" }).click();
     await expect(
       page.locator('[data-kart-thumbnail-source="rendering"]').first(),
     ).toBeVisible();
@@ -1298,7 +1304,7 @@ test.describe("home screen", () => {
 
     await page.goBack();
     await expect(page).toHaveURL("/");
-    await page.getByRole("button", { exact: true, name: "Race" }).click();
+    await page.getByRole("button", { exact: true, name: "Time Trial" }).click();
     // Queued local renders drain one PlayCanvas application at a time.
     await expect(
       page.locator('[data-kart-thumbnail-source="generated"]').first(),
@@ -2589,7 +2595,7 @@ test.describe("home screen", () => {
       ),
     ).toBeVisible();
     await expect(page.getByRole("button", { name: /^Race @/ })).toHaveCount(0);
-    await page.getByRole("button", { exact: true, name: "Race" }).click();
+    await page.getByRole("button", { exact: true, name: "Time Trial" }).click();
     await chooseKartAndCourse(page);
     await expect(
       page.getByRole("group", { name: "Ghost" }).getByRole("button", {
@@ -2816,7 +2822,7 @@ test.describe("home screen", () => {
     );
     await page.setViewportSize({ height: 270, width: 480 });
     await page.goto("/?enclosure");
-    await page.getByRole("button", { exact: true, name: "Race" }).click();
+    await page.getByRole("button", { exact: true, name: "Time Trial" }).click();
     await chooseKartAndCourse(page);
     const solo = page.getByRole("button", { name: "Start race" });
     const cover = page.getByTestId("course-loading-screen");
@@ -4494,7 +4500,7 @@ test.describe("home screen", () => {
     await setStandardTestGamepad(page);
     await page.waitForTimeout(50);
 
-    // Confirm takes Race, then each step opens on its choice: the kart,
+    // Confirm takes Time Trial, then each step opens on its choice: the kart,
     // the course, and Start race.
     const confirm = async () => {
       await setStandardTestGamepad(page, { buttons: { 0: 1 } });

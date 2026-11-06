@@ -3,7 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { type ReactNode, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { FALLS_VIEW_PARK_COURSE_ID } from "@/game/course/course-ids";
 import {
@@ -22,6 +22,7 @@ import { formatRaceTime } from "@/game/race/race-presentation";
 import { racerOnboardingPath } from "@/lib/racer-username";
 import { copyLink, ghostLinkUrl, copyNoteFor } from "@/lib/share-link";
 
+import { ActionHint } from "./action-hint";
 import { MedalIcon } from "./medal-icon";
 import {
   CheckIcon,
@@ -73,48 +74,6 @@ function timesSetBetween(board: LeaderboardResponse["earlier"][number]) {
       ? {}
       : { year: "numeric" }),
   }).formatRange(first, last);
-}
-
-// The editors' tooltip look, shown above a row's button.
-const HINT_CLASS =
-  "pointer-events-none absolute bottom-full left-1/2 z-10 mb-2 w-max -translate-x-1/2 border border-titan-ice/20 bg-titan-black/96 px-2 py-1.5 text-[0.62rem] font-bold uppercase tracking-[0.08em] text-titan-ice shadow-[0_8px_30px_rgb(0_0_0/0.6)] transition-opacity duration-150";
-
-/**
- * A tooltip over a row's button, on hover or focus, or while `shown`. It is
- * hidden from screen readers, which hear the button's own name.
- */
-function RowActionHint({
-  align = "center",
-  children,
-  hint,
-  shown = null,
-}: {
-  /** "end" keeps a hint by the card's right edge on screen. */
-  align?: "center" | "end";
-  children: ReactNode;
-  hint: string;
-  /** Shown regardless of hover or focus; false hides it even then. */
-  shown?: boolean | null;
-}) {
-  return (
-    <span className="group relative">
-      {children}
-      <span
-        aria-hidden="true"
-        className={`${HINT_CLASS} ${
-          align === "end" ? "left-auto right-0 translate-x-0" : ""
-        } ${
-          shown
-            ? "opacity-100"
-            : shown === false
-              ? "opacity-0"
-              : "opacity-0 group-has-[:focus-visible]:opacity-100 group-hover:opacity-100"
-        }`}
-      >
-        {hint}
-      </span>
-    </span>
-  );
 }
 
 const rowActionClass =
@@ -328,7 +287,7 @@ export function LeaderboardView({ boardNumber }: { boardNumber: number | null })
                 }}
                 ref={earlierRef}
               >
-                <RowActionHint
+                <ActionHint
                   align="end"
                   hint="Course versions"
                   // The open list says the rest.
@@ -350,7 +309,7 @@ export function LeaderboardView({ boardNumber }: { boardNumber: number | null })
                   >
                     <CourseVersionsIcon />
                   </button>
-                </RowActionHint>
+                </ActionHint>
                 {earlierOpen ? (
                   <ul
                     className="absolute right-0 top-[calc(100%+0.5rem)] z-20 grid w-64 gap-1 border border-titan-ice/20 bg-titan-black/98 p-1 shadow-[0_18px_55px_rgb(0_0_0/0.65)]"
@@ -465,7 +424,7 @@ export function LeaderboardView({ boardNumber }: { boardNumber: number | null })
                 </span>
                 {readOnly ? null : (
                 <span className="flex gap-1">
-                  <RowActionHint hint="Race ghost">
+                  <ActionHint hint="Race ghost">
                     {/* Each row's one stop on the way down the board,
                         starting on your own; Copy link is to its right. */}
                     <Link
@@ -476,8 +435,8 @@ export function LeaderboardView({ boardNumber }: { boardNumber: number | null })
                     >
                       <RaceGhostIcon />
                     </Link>
-                  </RowActionHint>
-                  <RowActionHint
+                  </ActionHint>
+                  <ActionHint
                     hint={
                       copiedUsername === entry.username
                         ? "Copied"
@@ -497,7 +456,7 @@ export function LeaderboardView({ boardNumber }: { boardNumber: number | null })
                         <CopyLinkIcon />
                       )}
                     </button>
-                  </RowActionHint>
+                  </ActionHint>
                 </span>
                 )}
               </li>

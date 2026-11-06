@@ -582,7 +582,7 @@ test.describe("admin overview page", () => {
     await expect(page.getByRole("region", { name: "Replays and sharing" })).toContainText(
       "Links copied2",
     );
-    const rooms = page.getByRole("region", { name: "Race Friends" });
+    const rooms = page.getByRole("region", { name: "Multiplayer" });
     await expect(rooms).toContainText("Room races6");
     await expect(rooms).toContainText("Racers per race2.5");
     await expect(rooms).toContainText("27% of room racers were guests");

@@ -125,8 +125,8 @@ Courier-style mono labels, bold uppercase headings, widely tracked operational
 labels, sharp industrial borders, and restrained panels.
 
 The HUD should feel like a racing operations interface, not a lore panel or a
-neon arcade skin. The main multiplayer call to action should read like
-"Race Friends".
+neon arcade skin. Multiplayer is called "Multiplayer" everywhere a player
+sees it.
 
 ## How We Work
 
@@ -216,9 +216,12 @@ Decisions from completed phases that later phases rely on:
   waits on the device and joins the board as theirs if they sign in (starting
   a racer on this browser counts) and have a username within 30 minutes of
   its start.
-- **Home is a step-by-step flow** (first screen, kart, course, mode and
-  ghost), one history entry a step, with no Quick race, and menus sound on
-  every action except in the admin tools.
+- **Home is a step-by-step flow**, one history entry a step, with no Quick
+  race, and menus sound on every action except in the admin tools. Its
+  first screen offers Time Trial, Multiplayer, and Leaderboard (PR 6.6). A
+  time trial goes on to the kart, course, and ghost; Multiplayer opens a new
+  room, where each racer chooses a kart and the host the course (only Falls
+  View Park so far).
 - **Component engineering is a separate later phase.** Kart assembly uses
   sealed, freely available parts with no progression tiers. If component
   engineering is planned, progression unlocks engineered *parts*, an engineered
@@ -289,7 +292,7 @@ Phase decisions:
 - **"Continue anonymously" is an alternative to signing in,** shown apart
   from the sign-in methods on the profile and below Sign in on a guest's
   result (PR 6.3).
-- **A room lives only while someone is in it** (PR 6.4). Race Friends
+- **A room lives only while someone is in it** (PR 6.4). Multiplayer
   opens `/room/<code>` with a random code. Anyone, guests included, may
   open one, with no limit on making rooms until the public share. The
   [multiplayer rooms system](skills/project-systems/multiplayer-rooms/README.md)
@@ -435,6 +438,9 @@ Phase decisions:
       corrections.
 - [ ] Version the room's sync messages so Phase 8's joint damage can extend
       them.
+- [x] Home's first screen offers Time Trial, Multiplayer, and Leaderboard.
+      Multiplayer opens a room at once, whose lobby shows the host's course,
+      and multiplayer is called Multiplayer everywhere.
 
 **Done when:** a host creates a room, a guest joins by link, both ready up and
 race, and results resolve without hanging; the room can replay; and rubbing,

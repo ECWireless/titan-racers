@@ -4,7 +4,7 @@
 
 ## Purpose And Scope
 
-How Titan Racers runs Race Friends: private rooms of 2–4 on Falls View
+How Titan Racers runs multiplayer: private rooms of 2–4 on Falls View
 Park, following the [rooms standard](../../game-concepts/multiplayer-rooms/README.md)
 on [Cloudflare Durable Objects](../../tools/cloudflare-durable-objects/README.md).
 It owns join tokens, the room server, the room rules and protocol, the

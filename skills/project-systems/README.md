@@ -49,9 +49,9 @@ The source code and authoritative project documents remain the final authority f
   fixed-step integration, and checkpoint recovery.
 - [Ghosts](ghosts/README.md): the race recording format and recorder, ghost
   playback and look, your best on this device, and the Ghost switch.
-- [Multiplayer rooms](multiplayer-rooms/README.md): Race Friends' join
-  tokens, room server, rules and protocol, room clock, lobby and room race,
-  and stored room results.
+- [Multiplayer rooms](multiplayer-rooms/README.md): join tokens, room
+  server, rules and protocol, room clock, lobby and room race, and stored
+  room results.
 - [Leaderboard](leaderboard/README.md): signed run tickets, the server's
   check of a run's recording, results, each racer's best per board, the
   leaderboard page, and podium medals.

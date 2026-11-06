@@ -4724,7 +4724,7 @@ export function SoloTimeTrialCanvas({
         data-testid="solo-time-trial-canvas"
         aria-label={
           ROOM
-            ? "Race Friends race"
+            ? "Multiplayer race"
             : sessionLabel
               ? `Solo Time Trial race: ${sessionLabel}`
               : "Solo Time Trial race"

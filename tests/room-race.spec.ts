@@ -390,6 +390,20 @@ test("two players race a room on one clock to the same results", async ({
       host.getByRole("heading", { name: "Private room" }),
     ).toBeVisible();
     await joinAs(guest, code, null);
+    // The host chooses the course; the guest sees it.
+    await expect(
+      host
+        .getByRole("group", { name: "Choose the course" })
+        .getByRole("button", { name: new RegExp(COURSE.name) }),
+    ).toHaveAttribute("aria-pressed", "true");
+    await expect(
+      guest
+        .getByRole("group", { name: "Course · chosen by the host" })
+        .getByText(COURSE.name),
+    ).toBeVisible();
+    await expect(
+      guest.getByRole("button", { name: new RegExp(COURSE.name) }),
+    ).toHaveCount(0);
     const hostRacers = host.getByRole("list", { name: "Racers in this room" });
     await expect(hostRacers).toContainText("@ada (you)");
     await expect(hostRacers).toContainText("Guest 1");

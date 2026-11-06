@@ -21,6 +21,7 @@ import { FALLS_VIEW_PARK_COURSE_ID } from "@/game/course/course-ids";
 import { publishedCourseRuntimeSchema } from "@/game/course/course-publication";
 import { useControllerMenuNavigation } from "@/game/input/use-controller-menu-navigation";
 import { pauseKartThumbnailRendering } from "@/game/kart/kart-thumbnail-renderer";
+import { RACE_LAP_COUNT } from "@/game/race/race-course";
 import { formatRaceTime } from "@/game/race/race-presentation";
 import { kartContactShape } from "@/game/room/kart-contact";
 import {
@@ -43,7 +44,9 @@ import {
   FrameBudgetOverlay,
   type FrameBudgetReport,
 } from "./frame-budget-overlay";
-import { HomeKartCard } from "./home-steps";
+import { HomeCourseCard, HomeKartCard } from "./home-steps";
+import { ActionHint } from "./action-hint";
+import { CheckIcon, CopyLinkIcon } from "./menu-icons";
 import {
   loadOfficialKartRoster,
   type PlayableOfficialKart,
@@ -123,24 +126,6 @@ export function RoomPlay({ code }: { code: string }) {
       cancelled = true;
     };
   }, []);
-
-  // A kart chosen on home comes along in the link, once.
-  const kartFromHomeRef = useRef<string | null | undefined>(undefined);
-  useEffect(() => {
-    if (view.status !== "open" || !connection) return;
-    if (kartFromHomeRef.current === undefined) {
-      const params = new URLSearchParams(window.location.search);
-      kartFromHomeRef.current = params.get("kart");
-      if (params.has("kart")) {
-        window.history.replaceState(null, "", window.location.pathname);
-      }
-    }
-    const kartId = kartFromHomeRef.current;
-    if (kartId && karts?.some(({ document }) => document.kartId === kartId)) {
-      kartFromHomeRef.current = null;
-      connection.send({ type: "choose_kart", kartId });
-    }
-  }, [connection, karts, view.status]);
 
   const [activeRace, setActiveRace] = useState<ActiveRace | null>(null);
   // Why this page sits a race out, shown until that race is over.
@@ -254,7 +239,7 @@ export function RoomPlay({ code }: { code: string }) {
   if (!serverUrl) {
     return (
       <RoomMessage
-        message="Racing friends is coming soon."
+        message="Multiplayer is coming soon."
         onLeave={leaveRoom}
       />
     );
@@ -411,6 +396,17 @@ function RoomLobby({
   onStart: () => void;
 }) {
   const [copyNote, setCopyNote] = useState<string | null>(null);
+  // Said over the button for a moment after a copy, as the leaderboard's.
+  const [copied, setCopied] = useState<"copied" | "failed" | null>(null);
+  const copiedTimerRef = useRef<number | null>(null);
+  useEffect(
+    () => () => {
+      if (copiedTimerRef.current !== null) {
+        window.clearTimeout(copiedTimerRef.current);
+      }
+    },
+    [],
+  );
   const me = room.players.find(({ id }) => id === you);
   const host = room.hostId === you;
   // A seat held for a dropped connection sits the next race out.
@@ -419,6 +415,11 @@ function RoomLobby({
   ).length;
   const away = room.players.some(({ connected }) => !connected);
   const racing = room.race !== null;
+  // The host chooses the course; the official circuit is the only one yet.
+  const course =
+    room.courseId === FALLS_VIEW_PARK_COURSE_ID
+      ? BUNDLED_COURSE_DOCUMENTS[FALLS_VIEW_PARK_COURSE_ID]
+      : null;
   const kartName = (kartId: string | null) =>
     karts.find(({ document }) => document.kartId === kartId)?.document.name ??
     null;
@@ -437,7 +438,7 @@ function RoomLobby({
   } else if (ready < ROOM_MIN_RACERS) {
     startNote =
       room.players.length < ROOM_MIN_RACERS
-        ? "Share the link: you need at least one friend to race."
+        ? "Share the link: a race needs at least 2 players."
         : away
           ? "Waiting for everyone to reconnect and choose a kart."
           : "Waiting for everyone to choose a kart.";
@@ -455,34 +456,50 @@ function RoomLobby({
   return (
     <RoomFrame>
       <section aria-labelledby="room-title" className="grid gap-6">
-        <div className="grid gap-2">
-          <p className={LABEL}>Race Friends · Falls View Park</p>
-          <h1
-            className="text-3xl font-black uppercase tracking-[-0.04em] sm:text-5xl"
-            id="room-title"
+        <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
+          <div className="grid gap-2">
+            <p className={LABEL}>Multiplayer</p>
+            <h1
+              className="text-3xl font-black uppercase tracking-[-0.04em] sm:text-5xl"
+              id="room-title"
+            >
+              Private room
+            </h1>
+            <p className="max-w-xl text-sm leading-6 text-titan-ice/72">
+              Up to 4 can race. Anyone with this room&apos;s link can join,
+              with or without an account.
+            </p>
+          </div>
+          <ActionHint
+            className="grid"
+            hint={copied === "failed" ? "Couldn't copy" : "Copied"}
+            shown={copied !== null}
           >
-            Private room
-          </h1>
-          <p className="max-w-xl text-sm leading-6 text-titan-ice/72">
-            Up to 4 can race. Anyone with this room&apos;s link can join, with
-            or without an account.
-          </p>
-        </div>
-        <div className="flex flex-wrap items-center gap-3">
-          <button
-            className="titan-button titan-button-secondary"
-            type="button"
-            onClick={async () => {
-              setCopyNote(null);
-              const outcome = await copyLink(
-                new URL(`/room/${code}`, window.location.origin).href,
-              );
-              setCopyNote(copyNoteFor(outcome));
-            }}
-          >
-            Copy room link
-          </button>
-          <p aria-live="polite" className="font-mono text-xs text-titan-ice/76">
+            <button
+              className="titan-button titan-button-secondary gap-3"
+              type="button"
+              onClick={async () => {
+                // Cleared first, so a repeated note is announced again.
+                setCopyNote(null);
+                const outcome = await copyLink(
+                  new URL(`/room/${code}`, window.location.origin).href,
+                );
+                setCopyNote(copyNoteFor(outcome));
+                setCopied(outcome);
+                if (copiedTimerRef.current !== null) {
+                  window.clearTimeout(copiedTimerRef.current);
+                }
+                copiedTimerRef.current = window.setTimeout(() => {
+                  copiedTimerRef.current = null;
+                  setCopied(null);
+                }, 1_600);
+              }}
+            >
+              {copied === "copied" ? <CheckIcon /> : <CopyLinkIcon />}
+              Copy room link
+            </button>
+          </ActionHint>
+          <p aria-live="polite" className="sr-only">
             {copyNote}
           </p>
         </div>
@@ -533,6 +550,27 @@ function RoomLobby({
         </div>
 
         <div className="grid gap-3">
+          <h2 className={LABEL} id="room-course-label">
+            {host ? "Choose the course" : "Course · chosen by the host"}
+          </h2>
+          {course ? (
+            <div
+              aria-labelledby="room-course-label"
+              className="grid gap-4 md:grid-cols-3"
+              role="group"
+            >
+              <HomeCourseCard
+                chosen
+                controllerDefault={false}
+                course={course}
+                laps={RACE_LAP_COUNT}
+                onChoose={host ? () => undefined : undefined}
+              />
+            </div>
+          ) : null}
+        </div>
+
+        <div className="grid gap-3">
           <h2 className={LABEL}>Choose your kart</h2>
           {karts.length === 0 ? (
             <p className={PANEL} role="status">
@@ -558,28 +596,33 @@ function RoomLobby({
           )}
         </div>
 
-        <div className="grid max-w-xl gap-3">
-          <p aria-live="polite" className="text-sm leading-6 text-titan-ice/76">
+        <div className="grid gap-3 border-t border-titan-ice/12 pt-6">
+          <p
+            aria-live="polite"
+            className="text-center text-sm leading-6 text-titan-ice/76"
+          >
             {problem ?? startNote}
           </p>
-          {host ? (
+          <div className="grid gap-3 sm:grid-flow-col sm:auto-cols-fr">
+            {host ? (
+              <button
+                className="titan-button titan-button-primary min-h-16 text-base"
+                data-ui-sound="start"
+                disabled={racing || ready < ROOM_MIN_RACERS || !me?.ready}
+                type="button"
+                onClick={onStart}
+              >
+                Start race
+              </button>
+            ) : null}
             <button
-              className="titan-button titan-button-primary min-h-16 text-base"
-              data-ui-sound="start"
-              disabled={racing || ready < ROOM_MIN_RACERS || !me?.ready}
+              className="titan-button titan-button-secondary sm:order-first"
               type="button"
-              onClick={onStart}
+              onClick={onLeave}
             >
-              Start race
+              Leave room
             </button>
-          ) : null}
-          <button
-            className="titan-button titan-button-secondary"
-            type="button"
-            onClick={onLeave}
-          >
-            Leave room
-          </button>
+          </div>
         </div>
       </section>
     </RoomFrame>
