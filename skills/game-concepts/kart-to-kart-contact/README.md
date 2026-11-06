@@ -26,11 +26,11 @@ in touch rather than briefly.
   sends its state, with nothing rolled back or re-simulated (Fiedler);
   unlike Fiedler's cubes, ownership never moves. Each client resolves its
   own kart's contacts as they happen, against where each nearby opponent is
-  now, and applies its own kart's share. The server finds the same contact in both karts' states
-  with the same resolver, resolves it once, and sends it to both clients as
-  its one record. A client that already answered it does nothing more; one
-  that missed it applies the server's share once, while it is still fresh.
-  A response already made stands. Waiting for the server instead costs a
+  now, and applies its own kart's share. The server finds the same contact
+  in both karts' states with the same resolver, resolves it once, and sends
+  it to both clients as its one record. A client that already answered it
+  does nothing more; one that missed it applies the server's share once,
+  while it is still fresh. A response already made stands. Waiting for the server instead costs a
   round trip (both karts' states up, the reply down), during which karts
   sink into each other by closing speed times the delay, and a fast head-on
   passes right through.
@@ -40,7 +40,11 @@ in touch rather than briefly.
   wrong. Near the player, estimate each opponent's present pose from its
   newest state, velocity, and angular velocity (dead reckoning), test
   contact against that estimate, and draw it there, blending out each new
-  state's error rather than jumping (Murphy's projective velocity blending).
+  state's error rather than jumping (after Murphy's projective velocity
+  blending), fading it exponentially so a state arriving mid-fade carries
+  on from what's drawn. Trust the velocity a state reports:
+  a push between two states barely shows in the motion between them, so a
+  bound by that motion breaks honest contacts.
   Further away, keep drawing in the past for smoothness, easing between the
   two with distance at a bounded rate.
 - **One two-body impulse.** Split the relative velocity at the contact point
@@ -61,7 +65,9 @@ in touch rather than briefly.
 - **Carry the other kart's share.** A client applies the other kart's share
   to its estimate of that kart until that kart's own states from after the
   contact arrive. Otherwise the estimate keeps driving into the player for
-  its lateness, as if the other kart couldn't be moved.
+  its lateness, as if the other kart couldn't be moved. A client that
+  applies the server's share of a touch it missed carries the other kart's
+  opposite push too, while that kart's states don't yet reach the touch.
 - **Sweep the motion.** Test the motion between samples, not only its ends,
   in sub-steps short enough that the closing distance per sub-step is a
   fraction of the smallest kart dimension, for closing speeds up to twice
@@ -70,17 +76,24 @@ in touch rather than briefly.
 - **Out of touch is see-through.** A kart that can't respond in time
   (paused, hidden, disconnected, finished, or with its states arriving late)
   neither touches nor is touched, and is drawn see-through so passing
-  through it reads. So is a kart just reset, until it is clear of the
-  others. Each client also judges its own connection from its round trip to
-  the server and says so with its states, so a kart whose link is slow
-  either way is out of touch to everyone, itself included. A kart goes out
-  of touch and comes back at different lateness limits, so a jittery
-  connection doesn't flicker. The server applies the same rule and ignores
+  through it reads. So is a kart just reset, or whose own states went
+  silent too long (a pause, or a long hitch caught up), until it is clear
+  of the others: the server judges a kart's own gaps the same way. Each
+  client also judges its own connection from its round trip to the server
+  and says so with its states, so a kart whose link is slow either way is
+  out of touch to everyone, itself included. A kart goes out of touch and
+  comes back at different lateness limits, so a jittery connection doesn't
+  flicker. The server applies the same rule and ignores
   resent states for contact.
 - **One record per touch.** The server opens one contact per pair at first
-  touch and keeps it until they separate. It sends both clients one message
-  as it opens, with an ID, its race time, normal, point, closing speed, and
-  that kart's opening impulse. A client matches it to its own answer by the
+  touch and keeps it until they separate. Since clients' answers stop karts
+  just touching, it counts karts within the overlap slop as touching, and
+  resolves a new touch from the motion it saw bring each kart to it: the
+  motion between states may already show the clients' answers. A kart with
+  no motion seen yet, or one that turned back into the other, is resolved
+  from the motion through it. It sends both clients one message as it
+  opens, with an ID, its race time, normal, point, closing speed, and that
+  kart's opening impulse. A client matches it to its own answer by the
   pair and a nearby race time; rubbing after the opening is answered by
   each client every step. Later systems, such as damage, attach to the ID
   under a new protocol version.
@@ -106,24 +119,38 @@ in touch rather than briefly.
 
 - The two shares agree to within each client's estimate of the other kart,
   not exactly.
-- A client resolving a contact doesn't know the other kart's other contacts:
-  a kart pinned against a wall is free to move in the pusher's resolution,
-  so the pusher stops softly rather than dead.
+- A client resolving a contact doesn't know the other kart's other
+  contacts, so a kart that can't be moved (pinned on a wall, or a scripted
+  test racer) lets its pusher sink in gradually.
 - Lateness is judged at intervals, so during a brief spike, before both
   sides agree, only one kart may be pushed.
+- If both clients miss the same touch, one may push its own kart again
+  after the server's share.
+- A client modified to report a higher velocity can push harder on other
+  clients than its kart moves; the server's record, from the motion it
+  saw, can't be pushed so.
 
 ## Validation
 
 - Pure tests of the resolver: rubbing, glancing, rear-end, head-on up to
-  twice top speed, pileup, airborne, off-centre spin, and conserved momentum.
+  twice top speed, pileup, airborne, off-centre spin, and conserved momentum
+  (`tests/kart-contact.spec.ts`).
 - Pure tests of the server's one record per touch, in either arrival order,
-  with late and resent states, and around resets.
+  with late and resent states, and around resets
+  (`tests/room-contacts.spec.ts`).
 - Pure tests of the present estimate, the shares it carries, and each
-  client's judgment of lateness, its own included.
+  client's judgment of lateness, its own included
+  (`tests/opponent-motion.spec.ts`, `tests/page-contacts.spec.ts`,
+  `tests/room-connection.spec.ts`), and two clients simulated through the
+  server's tracker: a head-on and a rear-end answered at once on both and
+  recorded once at their closing speed, a late client filled in once, and a
+  kart out of touch passing through.
 - A browser test with a scripted opponent and room: the response comes at
-  once, nothing passes through, and a missed contact is filled in once.
+  once, nothing passes through, and a missed contact is filled in once
+  (`tests/room-race.spec.ts`).
 - Two devices: rear-end, side-by-side rubbing, head-on, pinning against a
-  wall, and a pileup each read as one contact on both screens.
+  wall, and a pileup each read as one contact on both screens. In PR 6.6
+  all but the pileup passed on an iPhone and a second device.
 
 ## Related
 

@@ -203,10 +203,11 @@ fixed step, but `maximumImpulse` is the largest single-substep impulse;
 - Substeps cap at 8, so point speeds above about 48 m/s exceed the 0.05 m
   per-substep bound; future materially higher speed envelopes require new
   controlled tests and retuning.
-- Substeps are chosen from the player kart's motion only; kart-to-kart contact
-  in multiplayer should select from the fastest dynamic body.
-- Not implemented: kart-to-kart contact policy, damage and detachable parts,
-  physical wheel bodies, per-child kart materials, and per-surface material
-  authoring.
+- Substeps are chosen from the player kart's motion only. Kart-to-kart
+  contact in rooms (PR 6.6) runs outside Ammo, once a fixed step, sweeping
+  the step's motion itself; see the
+  [multiplayer rooms system](../multiplayer-rooms/README.md).
+- Not implemented: damage and detachable parts, physical wheel bodies,
+  per-child kart materials, and per-surface material authoring.
 - Representative mobile performance acceptance is deferred to the public demo
   polish phase.

@@ -338,10 +338,16 @@ Phase decisions:
   either way, or just reset until it's clear, is see-through and can't
   touch; each page also judges its own connection from its pings and says
   so with its states, so a slow kart is out of touch on every screen,
-  including its own. Accepted, as the standard's known limits: the two
-  karts' shares agree to within each page's estimate rather than exactly; a
-  pusher doesn't know the wall behind a pinned kart, so it stops softly; and
-  during a brief lag spike only one side may be pushed.
+  including its own. The room counts karts within the 5 mm slop as touching
+  and resolves each touch from the motion it saw bring them in, so a touch
+  both pages answered is still recorded at its real speed. Pages trust each
+  other's reported velocity, since a bound by observed motion broke honest
+  pushes. Accepted, as the standard's known limits: the two karts' shares
+  agree to within each page's estimate rather than exactly; a pusher
+  doesn't know the wall behind a pinned kart, so it sinks in gradually;
+  during a brief lag spike only one side may be pushed; if both pages miss
+  a touch, one may push again; and a modified page can push harder on
+  other pages than its kart moves, though not in the room's record.
 - **One room protocol version is live at a time;** PRs 6.5 and 6.6 raise
   it, deploying the room server and then the app back to back. It versions
   every message, so Phase 8 raises it to add damage to contacts. Production
@@ -432,11 +438,11 @@ Phase decisions:
 
 **PR 6.6: Kart-to-kart collisions**
 
-- [ ] Resolve each kart-to-kart contact once, authoritatively, using both karts'
+- [x] Resolve each kart-to-kart contact once, authoritatively, using both karts'
       mass, relative velocity, contact normal, and angle of attack.
-- [ ] Sync collision impulses without remote tunneling or explosive
+- [x] Sync collision impulses without remote tunneling or explosive
       corrections.
-- [ ] Version the room's sync messages so Phase 8's joint damage can extend
+- [x] Version the room's sync messages so Phase 8's joint damage can extend
       them.
 - [x] Home's first screen offers Time Trial, Multiplayer, and Leaderboard.
       Multiplayer opens a room at once, whose lobby shows the host's course,
