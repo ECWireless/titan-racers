@@ -1,5 +1,9 @@
 import type { GhostKart } from "../ghost/device-ghost";
-import { GhostPlayback, type GhostPose } from "../ghost/ghost-playback";
+import type { GhostPose } from "../ghost/ghost-playback";
+import {
+  getKartContactFootprint,
+  type KartContactFootprint,
+} from "../kart/kart-contact-shadow";
 import type { PersistedResolvedKartSnapshot } from "../kart/kart-derivation";
 import type { KartAssemblyDocument } from "../kart/kart-assembly-document";
 import {
@@ -7,6 +11,7 @@ import {
   type RoomClientMessage,
   type RoomServerMessage,
 } from "./room-protocol";
+import { OpponentMotion } from "./opponent-motion";
 
 /**
  * What a race canvas needs from its room: the room's clock, its grid slot,
@@ -14,45 +19,44 @@ import {
  * presentation only; nothing here touches the kart's own physics.
  */
 export type CanvasRoom = {
-  raceId: string;
   slot: number;
-  opponents: Array<{ id: string; kart: GhostKart }>;
+  opponents: Array<{
+    id: string;
+    kart: GhostKart;
+    /** Where its contact shadow falls, in its kart's own axes. */
+    footprint: KartContactFootprint;
+    /** Its motor's top speed, m/s, which its voice's pitch reaches. */
+    noLoadSpeed: number;
+  }>;
   /**
    * The room's race time at a local `performance.now()` time, in
    * microseconds, negative through the countdown; null until racing has a
    * start time.
    */
   raceMicroseconds(localTime: number): number | null;
-  /** Writes an opponent's pose at a race time, or returns null to hide it. */
+  /**
+   * Writes the pose to draw an opponent at the room's race time now,
+   * `frameSeconds` after the last frame, or returns null to hide it.
+   */
   opponentPose(
     id: string,
     raceMicroseconds: number,
+    frameSeconds: number,
     out: GhostPose,
   ): GhostPose | null;
+  /** How opponents have drawn this race, for `?perf=1`. */
+  opponentStats(): OpponentStats;
   send(message: RoomClientMessage): void;
 };
 
-/**
- * Opponents are drawn this far behind the room's clock, between samples:
- * two state gaps, so a late or bunched state rarely leaves it guessing.
- */
-export const ROOM_OPPONENT_DELAY_US = 200_000;
 /** Missed time below this is a frame's jitter, not worth charging. */
 export const ROOM_CATCH_UP_US = 50_000;
 /** A kart's state goes to the room this often. */
 export const ROOM_STATE_INTERVAL_MS = 1_000 / ROOM_STATE_HZ;
 
-// Two by two behind the start line, a lane either side of its centre:
-// 1:10 karts are about 0.3 m wide and 0.45 m long.
-const GRID_LANE_METRES = 0.5;
-const GRID_ROW_METRES = 0.8;
-
-/** A grid slot's offset from the course start, in the start's own axes. */
-export function roomGridOffset(slot: number) {
-  return {
-    right: (slot % 2 === 0 ? -1 : 1) * GRID_LANE_METRES,
-    back: Math.floor(slot / 2) * GRID_ROW_METRES,
-  };
+/** Where an opponent's contact shadow falls, from its published snapshot. */
+export function opponentFootprint(snapshot: PersistedResolvedKartSnapshot) {
+  return getKartContactFootprint(snapshot.geometry.wheelStations);
 }
 
 /** How an opponent's kart is drawn and posed, from its published snapshot. */
@@ -73,23 +77,46 @@ export function opponentKart(
 
 type RelayedState = Extract<RoomServerMessage, { type: "state" }>;
 
-/** Each opponent's received states, played back like a ghost. */
-export class OpponentTracks {
-  private readonly tracks = new Map<string, GhostPlayback>();
-  private readonly hidden = new Set<string>();
+export type OpponentStats = {
+  /** Opponent frames drawn, and those past the newest state. */
+  frames: number;
+  starvedFrames: number;
+  /** The furthest any opponent was drawn behind last frame, in ms. */
+  delayMs: number;
+};
 
-  add(state: RelayedState) {
-    const sample = {
-      timeMicroseconds: state.t,
-      position: { x: state.p[0], y: state.p[1], z: state.p[2] },
-      rotation: { x: state.q[0], y: state.q[1], z: state.q[2], w: state.q[3] },
-      steerDegrees: state.s,
-      reset: state.r,
-      gate: false,
-    };
-    const track = this.tracks.get(state.from);
-    if (track) track.append(sample);
-    else this.tracks.set(state.from, new GhostPlayback([sample]));
+/** Each opponent's received states, and how each is drawn from them. */
+export class OpponentTracks {
+  private readonly tracks = new Map<string, OpponentMotion>();
+  private readonly hidden = new Set<string>();
+  /**
+   * The last race's figures, kept once its tracks are cleared: the page
+   * reads them as the race view closes, after the room has moved on.
+   */
+  private cleared: OpponentStats | null = null;
+
+  /**
+   * Adds a relayed state; `receivedAtUs` is the room's race time as it
+   * arrived, if known.
+   */
+  add(state: RelayedState, receivedAtUs: number | null) {
+    let track = this.tracks.get(state.from);
+    if (!track) {
+      this.cleared = null;
+      track = new OpponentMotion();
+      this.tracks.set(state.from, track);
+    }
+    track.add(
+      {
+        t: state.t,
+        position: { x: state.p[0], y: state.p[1], z: state.p[2] },
+        rotation: { x: state.q[0], y: state.q[1], z: state.q[2], w: state.q[3] },
+        velocity: { x: state.v[0], y: state.v[1], z: state.v[2] },
+        steerDegrees: state.s,
+        reset: state.r,
+      },
+      receivedAtUs,
+    );
   }
 
   /** An opponent who left the race is no longer drawn. */
@@ -98,20 +125,32 @@ export class OpponentTracks {
   }
 
   clear() {
+    this.cleared = this.tracks.size > 0 ? this.stats() : null;
     this.tracks.clear();
     this.hidden.clear();
   }
 
-  /** Holds the latest pose, standing still, rather than guess past it. */
-  pose(id: string, raceMicroseconds: number, out: GhostPose) {
+  pose(
+    id: string,
+    raceMicroseconds: number,
+    frameSeconds: number,
+    out: GhostPose,
+  ) {
     const track = this.tracks.get(id);
     if (!track || this.hidden.has(id)) return null;
-    const held = raceMicroseconds >= track.finishMicroseconds;
-    const pose = track.sample(
-      held ? track.finishMicroseconds : raceMicroseconds,
-      out,
-    );
-    if (pose && held) pose.speed = 0;
-    return pose;
+    return track.pose(raceMicroseconds, frameSeconds, out);
+  }
+
+  stats(): OpponentStats {
+    if (this.tracks.size === 0 && this.cleared) return this.cleared;
+    let frames = 0;
+    let starvedFrames = 0;
+    let delayUs = 0;
+    for (const track of this.tracks.values()) {
+      frames += track.frames;
+      starvedFrames += track.starvedFrames;
+      delayUs = Math.max(delayUs, track.drawnDelayUs);
+    }
+    return { frames, starvedFrames, delayMs: delayUs / 1_000 };
   }
 }

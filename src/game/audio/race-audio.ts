@@ -12,6 +12,11 @@ import {
 import { createParameterSmoother } from "./audio-synthesis";
 import { createMotorVoice } from "./motor-voice";
 import {
+  createRemoteMotorVoice,
+  type RemoteMotorState,
+  SILENT_REMOTE_MOTOR,
+} from "./remote-motor-voice";
+import {
   SILENT_MOTOR,
   type AudioSurface,
   type AudioWheel,
@@ -49,6 +54,8 @@ const MIX_DB = {
   impact: 8,
   landing: 2.4,
   motor: -5.6,
+  // Staged as the player's motor: the same level at the camera's distance.
+  opponents: -5.6,
   scrub: -1.8,
   tireRoll: -1.4,
 };
@@ -365,6 +372,8 @@ export type RaceAudioDebugState = {
   muted: boolean;
   /** Motor, tire roll, and scrub may sound: the world is moving. */
   continuousVoices: boolean;
+  /** Each room opponent's motor as last set. */
+  opponents: Record<string, RemoteMotorState>;
   wheels: readonly AudioWheel[];
   bodyScrape: number;
   bodyScrapeHard: boolean;
@@ -395,6 +404,11 @@ export type RaceAudio = {
   /** Opens or closes the motor, tire roll, and scrub. */
   setContinuousVoices: (open: boolean) => void;
   updateMotor: (state: MotorAudioState) => void;
+  /**
+   * Room opponents' motors, by opponent; one missing falls silent. Up to
+   * three have voices.
+   */
+  updateOpponents: (opponents: ReadonlyMap<string, RemoteMotorState>) => void;
   updateWheels: (wheels: readonly AudioWheel[]) => void;
   /** A tipped kart's body sliding on the ground: 0–1, on hard ground or not. */
   updateBodyScrape: (level: number, hard: boolean) => void;
@@ -405,6 +419,9 @@ export type RaceAudio = {
   updateAmbience: (indoors: number, stream: number) => void;
   dispose: () => void;
 };
+
+/** A room has at most three opponents. */
+const MAX_OPPONENT_VOICES = 3;
 
 /** Event history kept for tests; old entries drop off. */
 const DEBUG_HISTORY = 16;
@@ -467,10 +484,17 @@ export function createRaceAudio(soundOn: boolean): RaceAudio | null {
     impact: bus(MIX_DB.impact, kartBus),
     landing: bus(MIX_DB.landing, kartBus),
     motor: bus(MIX_DB.motor, continuousGate),
+    opponents: bus(MIX_DB.opponents, continuousGate),
     scrub: bus(MIX_DB.scrub, continuousGate),
     tireRoll: bus(MIX_DB.tireRoll, continuousGate),
   };
   const motorVoice = createMotorVoice(context, buses.motor);
+  // Made as opponents first sound, and kept for the race.
+  const opponentVoices = new Map<
+    string,
+    ReturnType<typeof createRemoteMotorVoice>
+  >();
+  const opponentStates: Record<string, RemoteMotorState> = {};
   const bodyScrapeVoice = createBodyScrapeVoice(context, buses.bodyScrape);
   let bodyScrape = 0;
   let scrapeHard = false;
@@ -617,6 +641,7 @@ export function createRaceAudio(soundOn: boolean): RaceAudio | null {
       motor,
       muted: !soundEnabled,
       continuousVoices: continuousOpen,
+      opponents: { ...opponentStates },
       wheels: wheels.map((wheel) => ({ ...wheel })),
     }),
     // Cues may land just before the context resumes, such as the first
@@ -683,6 +708,25 @@ export function createRaceAudio(soundOn: boolean): RaceAudio | null {
       soundEnabled = on;
       apply();
     },
+    updateOpponents(opponents) {
+      if (disposed) return;
+      const time = context.currentTime;
+      const running = context.state === "running";
+      for (const [id, state] of opponents) {
+        opponentStates[id] = state;
+        let voice = opponentVoices.get(id);
+        if (!voice && opponentVoices.size < MAX_OPPONENT_VOICES) {
+          voice = createRemoteMotorVoice(context, buses.opponents);
+          opponentVoices.set(id, voice);
+        }
+        if (running) voice?.update(state, time);
+      }
+      for (const [id, voice] of opponentVoices) {
+        if (opponents.has(id)) continue;
+        opponentStates[id] = SILENT_REMOTE_MOTOR;
+        if (running) voice.update(SILENT_REMOTE_MOTOR, time);
+      }
+    },
     updateMotor(state) {
       motor = state;
       // A suspended context's clock stands still; queuing changes there
@@ -738,6 +782,7 @@ export function createRaceAudio(soundOn: boolean): RaceAudio | null {
         window.removeEventListener(name, retryInGesture, { capture: true }),
       );
       motorVoice.dispose();
+      for (const voice of opponentVoices.values()) voice.dispose();
       bodyScrapeVoice.dispose();
       contactVoices?.tires.dispose();
       contactVoices?.scrub.dispose();

@@ -27,13 +27,21 @@ import {
   RoomConnection,
 } from "@/game/room/room-connection";
 import { ROOM_MIN_RACERS, type RoomSnapshot } from "@/game/room/room-protocol";
-import { type CanvasRoom, opponentKart } from "@/game/room/room-race";
+import {
+  type CanvasRoom,
+  opponentFootprint,
+  opponentKart,
+} from "@/game/room/room-race";
 import { copyLink, copyNoteFor } from "@/lib/share-link";
 
 import {
   COURSE_LOADING_FADE_MS,
   CourseLoadingScreen,
 } from "./course-loading-screen";
+import {
+  FrameBudgetOverlay,
+  type FrameBudgetReport,
+} from "./frame-budget-overlay";
 import { HomeKartCard } from "./home-steps";
 import {
   loadOfficialKartRoster,
@@ -50,6 +58,8 @@ import { SoloTimeTrialCanvas } from "./solo-time-trial-canvas";
 
 type ActiveRace = {
   id: string;
+  /** The seat this page raced from; a reconnect too late gets another. */
+  seat: string;
   room: CanvasRoom;
   course: CourseDocument;
   kart: PlayableOfficialKart;
@@ -146,11 +156,17 @@ export function RoomPlay({ code }: { code: string }) {
 
   useEffect(() => {
     if (!connection || !race || !yourEntry || !karts) return;
-    // A race already under way can't be joined from scratch (a reload, or
-    // a second tab, takes the seat back): the player waits for the next.
-    if (enteredRaceRef.current === race.id || race.racingAt !== null) return;
+    if (enteredRaceRef.current === race.id) return;
     enteredRaceRef.current = race.id;
     const raceId = race.id;
+    // A race already under way can't be joined from scratch (a reload, or
+    // a second tab, takes the seat back): this page sits it out, so no one
+    // waits for it, and the player waits for the next.
+    const sitOut = () => connection.send({ type: "sit_out", raceId });
+    if (race.racingAt !== null) {
+      sitOut();
+      return;
+    }
     const kartFor = (kartId: string) =>
       karts.find(({ document }) => document.kartId === kartId);
     const kart = kartFor(yourEntry.kartId);
@@ -162,6 +178,10 @@ export function RoomPlay({ code }: { code: string }) {
             {
               id: entrant.id,
               kart: opponentKart(opponent.document, opponent.resolvedSnapshot),
+              footprint: opponentFootprint(opponent.resolvedSnapshot),
+              noLoadSpeed:
+                opponent.resolvedSnapshot.physicalProfile.drivetrain
+                  .noLoadSpeed,
             },
           ];
     });
@@ -173,6 +193,7 @@ export function RoomPlay({ code }: { code: string }) {
         // The room races the revision it was given; a kart republished
         // since sits this race out rather than race something else.
         if (!kart || kart.revision !== yourEntry.kartRevision) {
+          sitOut();
           setRaceProblem({
             raceId,
             message:
@@ -183,20 +204,22 @@ export function RoomPlay({ code }: { code: string }) {
         const course = await loadRoomCourse(courseId, courseRevision);
         setActiveRace({
           id: raceId,
+          seat: you!,
           course,
           kart,
           room: {
-            raceId,
             slot,
             opponents,
             raceMicroseconds: (localTime) =>
               connection.raceMicroseconds(localTime),
-            opponentPose: (id, time, out) =>
-              connection.opponents.pose(id, time, out),
+            opponentPose: (id, time, frameSeconds, out) =>
+              connection.opponents.pose(id, time, frameSeconds, out),
+            opponentStats: () => connection.opponents.stats(),
             send: (message) => connection.send(message),
           },
         });
       } catch {
+        sitOut();
         setRaceProblem({
           raceId,
           message: "The course couldn't be loaded for this race.",
@@ -243,46 +266,67 @@ export function RoomPlay({ code }: { code: string }) {
     return <RoomMessage message="Joining the room…" onLeave={leaveRoom} />;
   }
 
+  // The race and lobby carry on while the page reconnects.
+  const reconnecting =
+    view.status === "reconnecting" ? <ReconnectingNotice /> : null;
+
   if (activeRace) {
     return (
-      <RoomRace
-        activeRace={activeRace}
-        connection={connection!}
-        key={activeRace.id}
-        karts={karts}
-        results={view.results[activeRace.id] ?? null}
-        room={room}
-        you={you}
-        onLeaveRace={leaveRace}
-        onLeaveRoom={leaveRoom}
-        onRaceAgain={() => {
-          const kartId = activeRace.kart.document.kartId;
-          leaveRace();
-          chooseKart(kartId);
-        }}
-      />
+      <>
+        {reconnecting}
+        <RoomRace
+          activeRace={activeRace}
+          connection={connection!}
+          key={activeRace.id}
+          karts={karts}
+          results={view.results[activeRace.id] ?? null}
+          room={room}
+          you={you}
+          onLeaveRace={leaveRace}
+          onLeaveRoom={leaveRoom}
+          onRaceAgain={() => {
+            const kartId = activeRace.kart.document.kartId;
+            leaveRace();
+            chooseKart(kartId);
+          }}
+          />
+      </>
     );
   }
 
   return (
-    <RoomLobby
-      code={code}
-      karts={karts}
-      problem={
-        raceProblem && raceProblem.raceId === room.race?.id
-          ? raceProblem.message
-          : null
-      }
-      room={room}
-      you={you}
-      onChooseKart={chooseKart}
-      onLeave={leaveRoom}
-      onStart={() => {
-        unlockRaceAudio();
-        setRaceProblem(null);
-        connection?.send({ type: "start" });
-      }}
-    />
+    <>
+      {reconnecting}
+      <RoomLobby
+        code={code}
+        karts={karts}
+        problem={
+          raceProblem && raceProblem.raceId === room.race?.id
+            ? raceProblem.message
+            : null
+        }
+        room={room}
+        you={you}
+        onChooseKart={chooseKart}
+        onLeave={leaveRoom}
+        onStart={() => {
+          unlockRaceAudio();
+          setRaceProblem(null);
+          connection?.send({ type: "start" });
+        }}
+        />
+    </>
+  );
+}
+
+function ReconnectingNotice() {
+  return (
+    <p
+      className="pointer-events-none fixed inset-x-0 top-[max(0.75rem,env(safe-area-inset-top))] z-[70] mx-auto w-fit border border-titan-hazard/50 bg-titan-black/90 px-4 py-2 font-mono text-xs font-bold uppercase tracking-[0.18em] text-titan-hazard"
+      role="status"
+    >
+      Reconnecting…
+    </p>
   );
 }
 
@@ -364,7 +408,11 @@ function RoomLobby({
   const [copyNote, setCopyNote] = useState<string | null>(null);
   const me = room.players.find(({ id }) => id === you);
   const host = room.hostId === you;
-  const ready = room.players.filter((player) => player.ready).length;
+  // A seat held for a dropped connection sits the next race out.
+  const ready = room.players.filter(
+    (player) => player.ready && player.connected,
+  ).length;
+  const away = room.players.some(({ connected }) => !connected);
   const racing = room.race !== null;
   const kartName = (kartId: string | null) =>
     karts.find(({ document }) => document.kartId === kartId)?.document.name ??
@@ -385,11 +433,15 @@ function RoomLobby({
     startNote =
       room.players.length < ROOM_MIN_RACERS
         ? "Share the link: you need at least one friend to race."
-        : "Waiting for everyone to choose a kart.";
+        : away
+          ? "Waiting for everyone to reconnect and choose a kart."
+          : "Waiting for everyone to choose a kart.";
   } else if (host) {
     startNote =
       ready < room.players.length
-        ? "Anyone who hasn't chosen a kart waits for the next race."
+        ? away
+          ? "Anyone reconnecting or still choosing waits for the next race."
+          : "Anyone who hasn't chosen a kart waits for the next race."
         : "Everyone's ready.";
   } else {
     startNote = "The host starts the race.";
@@ -464,9 +516,11 @@ function RoomLobby({
                   ) : null}
                 </span>
                 <span className="font-mono text-xs uppercase tracking-[0.12em] text-titan-ice/70">
-                  {player.ready
-                    ? `Ready · ${kartName(player.kartId) ?? "Kart"}`
-                    : "Choosing a kart"}
+                  {!player.connected
+                    ? "Reconnecting…"
+                    : player.ready
+                      ? `Ready · ${kartName(player.kartId) ?? "Kart"}`
+                      : "Choosing a kart"}
                 </span>
               </li>
             ))}
@@ -598,12 +652,17 @@ function RoomRace({
     "loading",
   );
   const [cover, setCover] = useState<Cover>("on");
+  // `?perf=1`'s report, kept for the results: the race is gone by then.
+  const [perfReport, setPerfReport] = useState<FrameBudgetReport | null>(
+    null,
+  );
   const resultsRef = useRef<HTMLDivElement | null>(null);
   const primaryRef = useRef<HTMLButtonElement | null>(null);
   const race = room.race?.id === activeRace.id ? room.race : null;
   const yourEntry = race?.entrants.find(({ id }) => id === you) ?? null;
   // The race went on without this player, or was called off.
-  const missed = !results && (!race || !yourEntry);
+  const missed = !results && (!race || !yourEntry || yourEntry.left);
+  const reseated = activeRace.seat !== you;
 
   // Leaving the race, however it ends, ends its sound.
   useEffect(() => () => endRaceAudio(), []);
@@ -719,11 +778,14 @@ function RoomRace({
             room={activeRace.room}
             submitsRuns={false}
             onExit={onLeaveRoom}
+            onFrameBudgetReport={setPerfReport}
             onLoaded={(ready) => {
               setScene(ready ? "ready" : "failed");
-              if (ready) {
-                connection.send({ type: "loaded", raceId: activeRace.id });
-              }
+              // A page that can't race says so, so no one waits for it.
+              connection.send({
+                type: ready ? "loaded" : "sit_out",
+                raceId: activeRace.id,
+              });
             }}
           />
         </div>
@@ -799,9 +861,11 @@ function RoomRace({
               <p className="text-sm leading-6 text-titan-ice/76">
                 {!race
                   ? "The race was called off: not enough racers were ready in time."
-                  : scene === "failed"
-                    ? "The race started without you: the course couldn't be loaded on this device."
-                    : "The race started without you: the course took too long to load on this device."}
+                  : yourEntry?.left || reseated
+                    ? "You were disconnected too long to finish this race."
+                    : scene === "failed"
+                      ? "The race goes on without you: the course couldn't be loaded on this device."
+                      : "The race started without you: the course took too long to load on this device."}
               </p>
             )}
             <div className="grid gap-3">
@@ -824,6 +888,11 @@ function RoomRace({
               </button>
             </div>
           </div>
+        </div>
+      ) : null}
+      {ended && perfReport ? (
+        <div className="pointer-events-none fixed inset-0 z-[70]">
+          <FrameBudgetOverlay report={perfReport} />
         </div>
       ) : null}
       {cover !== "off" && !ended ? (

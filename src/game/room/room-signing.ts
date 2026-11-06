@@ -3,6 +3,7 @@ import { z } from "zod";
 import { kartStableIdSchema } from "../kart/kart-assembly-document";
 import {
   ROOM_CODE_PATTERN,
+  ROOM_MAX_PLAYERS,
   roomCourseIdSchema,
   roomPhysicsVersionSchema,
   roomRevisionSchema,
@@ -16,6 +17,8 @@ import {
 export const ROOM_TOKEN_LIFETIME_MS = 60_000;
 /** How far ahead of the room server's clock the app's may run. */
 export const ROOM_TOKEN_CLOCK_SKEW_MS = 5_000;
+/** Room tokens travel in a URL, which Cloudflare caps at 16 KB. */
+export const ROOM_TOKEN_MAX_CHARS = 12_288;
 /** A result report older or newer than this is refused. */
 export const ROOM_REPORT_WINDOW_MS = 5 * 60_000;
 
@@ -58,6 +61,7 @@ function derivedKey(untrimmed: string, purpose: string) {
 
 const TOKEN_PURPOSE = "titan-racers room token v1";
 const PLAYER_PURPOSE = "titan-racers room player v1";
+const GUEST_PURPOSE = "titan-racers room guest v1";
 const REPORT_PURPOSE = "titan-racers room report v1";
 
 function toBase64Url(bytes: Uint8Array) {
@@ -102,6 +106,43 @@ async function verify(
 
 const PLAYER_KEY_PATTERN = /^[A-Za-z0-9_-]{43}$/;
 
+const vector = z.strictObject({
+  x: z.number().min(-1e5).max(1e5),
+  y: z.number().min(-1e5).max(1e5),
+  z: z.number().min(-1e5).max(1e5),
+});
+const unit = z.number().min(-1.01).max(1.01);
+const gate = z.strictObject({
+  center: vector,
+  forward: z.strictObject({ x: unit, y: unit, z: unit }),
+  halfExtents: vector,
+  worldToLocalRotation: z.strictObject({ w: unit, x: unit, y: unit, z: unit }),
+});
+/** The most checkpoints a room's course may have, so its token fits a URL. */
+export const ROOM_COURSE_CHECKPOINT_LIMIT = 16;
+
+/**
+ * What the room checks each kart's states against: the course's gates and
+ * reset points, as `createRaceSessionConfig` has them, and where each grid
+ * slot starts.
+ */
+export const roomCourseSchema = z.strictObject({
+  lapCount: z.number().int().min(1).max(10),
+  grid: z.array(vector).length(ROOM_MAX_PLAYERS),
+  startGate: gate,
+  startRecovery: z.strictObject({ position: vector }),
+  checkpoints: z
+    .array(
+      z.strictObject({
+        gate,
+        recovery: z.strictObject({ position: vector }),
+      }),
+    )
+    .min(1)
+    .max(ROOM_COURSE_CHECKPOINT_LIMIT),
+});
+export type RoomCourse = z.infer<typeof roomCourseSchema>;
+
 const roomTokenSchema = z.strictObject({
   version: z.literal(1),
   protocol: z.number().int().positive(),
@@ -109,8 +150,7 @@ const roomTokenSchema = z.strictObject({
   expiresAt: z.number().int().positive(),
   courseId: roomCourseIdSchema,
   courseRevision: roomRevisionSchema,
-  /** Gates a race passes, finish included, over every lap. */
-  gateCount: z.number().int().min(1).max(1_000),
+  course: roomCourseSchema,
   physicsVersion: roomPhysicsVersionSchema,
   /** The official karts this player may race, at their published revisions. */
   karts: z
@@ -139,6 +179,9 @@ const roomTokenSchema = z.strictObject({
 export type RoomToken = z.infer<typeof roomTokenSchema>;
 export type RoomTokenFields = Omit<RoomToken, "version" | "expiresAt">;
 
+/** A token too long for its URL: its course has too much to carry. */
+export class RoomTokenTooLongError extends Error {}
+
 export async function signRoomToken(
   secret: string,
   fields: RoomTokenFields,
@@ -150,7 +193,11 @@ export async function signRoomToken(
     expiresAt: now + ROOM_TOKEN_LIFETIME_MS,
   });
   const payload = toBase64Url(encoder.encode(JSON.stringify(token)));
-  return `${payload}.${await sign(secret, TOKEN_PURPOSE, payload)}`;
+  const signed = `${payload}.${await sign(secret, TOKEN_PURPOSE, payload)}`;
+  if (signed.length > ROOM_TOKEN_MAX_CHARS) {
+    throw new RoomTokenTooLongError();
+  }
+  return signed;
 }
 
 /** A token the app signed that has not expired, or null. */
@@ -159,7 +206,7 @@ export async function readRoomToken(
   token: string,
   now = Date.now(),
 ) {
-  if (token.length > 4_096) return null;
+  if (token.length > ROOM_TOKEN_MAX_CHARS) return null;
   const [payload, signature, extra] = token.split(".");
   if (!payload || !signature || extra !== undefined) return null;
   if (!(await verify(secret, TOKEN_PURPOSE, payload, signature))) return null;
@@ -192,6 +239,21 @@ export async function roomPlayerKey(
   userId: string,
 ) {
   return sign(secret, PLAYER_PURPOSE, `${roomCode}\n${userId}`);
+}
+
+/** What a page holds to retake its guest seat: 32 random bytes. */
+export const ROOM_SEAT_SECRET_PATTERN = /^[A-Za-z0-9_-]{43}$/;
+
+/**
+ * A guest's key in one room, from a secret only its page holds, so the
+ * page retakes its seat when it reconnects; a new page is a new guest.
+ */
+export async function roomGuestKey(
+  secret: string,
+  roomCode: string,
+  seat: string,
+) {
+  return sign(secret, GUEST_PURPOSE, `${roomCode}\n${seat}`);
 }
 
 export function randomRoomPlayerKey() {

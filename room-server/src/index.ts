@@ -5,16 +5,15 @@ import {
   parseClientMessage,
   ROOM_CLOSE,
   ROOM_PROTOCOL,
-  ROOM_STATE_HZ,
   type RoomClientMessage,
   type RoomRaceReport,
   type RoomServerMessage,
 } from "../../src/game/room/room-protocol";
 import {
   applyRoomEvent,
-  canRelayState,
   createRoomState,
   nextRoomDeadline,
+  roomResume,
   roomSnapshot,
   type RoomEvent,
   type RoomOutcome,
@@ -47,6 +46,17 @@ const TOKEN_HEADER = "x-room-token";
 /** An empty room's storage is deleted this long after its last player left. */
 const EMPTY_ROOM_MS = 10 * 60_000;
 const REPORT_RETRY_MS = 30_000;
+/**
+ * A connection silent this long is treated as dropped: pages ping every
+ * second in a race, and every 20 s otherwise, when the room may sleep. A
+ * page busy loading a course is given the longer limit.
+ */
+const SILENT_RACING_MS = 5_000;
+const SILENT_MS = 30_000;
+/** A resent state this far behind the room's clock is history to others. */
+const RESENT_RELAY_US = 500_000;
+/** The close code a page sends to leave; any other holds its seat. */
+const LEAVING = 1000;
 const REPORT_ATTEMPTS = 20;
 
 /**
@@ -87,8 +97,14 @@ export default {
   },
 } satisfies ExportedHandler<Env>;
 
-/** Which seat a socket speaks for; null once retired or refused. */
-type Attachment = { playerId: string } | null;
+/**
+ * Which seat a socket speaks for, and when it was last heard (to the
+ * second, so it isn't rewritten for every state); null once retired or
+ * refused. It outlives hibernation, so a silent socket stays silent.
+ */
+type Attachment = { playerId: string; heardAt: number } | null;
+/** How finely a socket's last-heard time is kept. */
+const HEARD_GRAIN_MS = 1_000;
 
 type PendingReport = {
   report: RoomRaceReport;
@@ -97,20 +113,26 @@ type PendingReport = {
 };
 
 /**
- * A client may send states at up to four times the agreed rate, so network
- * jitter that bunches two never drops one.
- */
-const MIN_STATE_GAP_MS = 1_000 / (4 * ROOM_STATE_HZ);
-/**
  * What a socket may send before it is closed, since each frame is billed: a
- * burst, refilled each second. A client sends about a dozen frames a second,
- * and a stalled network can deliver many at once. Messages that change the
- * room, each a write, get a smaller allowance.
+ * burst, refilled each second. A client sends about 32 frames a second (30
+ * states, a ping, and gates), and a stalled network can deliver many at
+ * once. Messages that change the
+ * room, and kart states it stores, each a write, get a smaller allowance.
  */
-const FRAME_BUDGET = { burst: 300, perSecond: 30 };
+const FRAME_BUDGET = { burst: 600, perSecond: 60 };
 const ACTION_BUDGET = { burst: 20, perSecond: 5 };
+/**
+ * Resent batches that store something (a gate or a reset) have their own:
+ * a 30 s outage's backlog is about 45 batches, every one of which may.
+ */
+const RESEND_BUDGET = { burst: 60, perSecond: 2 };
 
-type Allowance = { at: number; frames: number; actions: number };
+type Allowance = {
+  at: number;
+  frames: number;
+  actions: number;
+  resends: number;
+};
 
 function refill(allowance: Allowance, now: number) {
   const seconds = Math.max(0, now - allowance.at) / 1_000;
@@ -122,6 +144,10 @@ function refill(allowance: Allowance, now: number) {
   allowance.actions = Math.min(
     ACTION_BUDGET.burst,
     allowance.actions + seconds * ACTION_BUDGET.perSecond,
+  );
+  allowance.resends = Math.min(
+    RESEND_BUDGET.burst,
+    allowance.resends + seconds * RESEND_BUDGET.perSecond,
   );
 }
 const REPORT_TIMEOUT_MS = 10_000;
@@ -136,8 +162,12 @@ function send(socket: WebSocket, message: RoomServerMessage | string) {
   }
 }
 
+function attachmentOf(socket: WebSocket) {
+  return socket.deserializeAttachment() as Attachment;
+}
+
 function seatOf(socket: WebSocket) {
-  return (socket.deserializeAttachment() as Attachment)?.playerId ?? null;
+  return attachmentOf(socket)?.playerId ?? null;
 }
 
 /** Stops a socket speaking for its seat, then closes it. */
@@ -151,7 +181,7 @@ function retire(socket: WebSocket, code: number) {
 }
 
 function eventFor(
-  message: Exclude<RoomClientMessage, { type: "ping" | "state" }>,
+  message: Exclude<RoomClientMessage, { type: "ping" | "state" | "states" }>,
   playerId: string,
   now: number,
 ): RoomEvent {
@@ -162,17 +192,13 @@ function eventFor(
       return { type: "start", now, playerId, raceId: crypto.randomUUID() };
     case "loaded":
       return { type: "loaded", now, playerId, raceId: message.raceId };
-    case "gate":
-      return { ...message, now, playerId };
-    case "finish":
-      return { ...message, now, playerId };
+    case "sit_out":
+      return { type: "sit_out", now, playerId, raceId: message.raceId };
   }
 }
 
 export class Room extends DurableObject<Env> {
   private state: RoomState | null;
-  /** When each seat last had a state relayed; lost on hibernation. */
-  private lastStateAt = new Map<string, number>();
   /** What each socket may still send; lost on hibernation. */
   private allowances = new WeakMap<WebSocket, Allowance>();
 
@@ -215,8 +241,15 @@ export class Room extends DurableObject<Env> {
       }
     }
     this.ctx.acceptWebSocket(server, [playerId]);
-    server.serializeAttachment({ playerId } satisfies Attachment);
-    send(server, { type: "welcome", you: playerId });
+    server.serializeAttachment({
+      playerId,
+      heardAt: Date.now(),
+    } satisfies Attachment);
+    send(server, {
+      type: "welcome",
+      you: playerId,
+      resume: roomResume(outcome.state, playerId),
+    });
     this.commit(outcome);
     return new Response(null, { status: 101, webSocket: client });
   }
@@ -231,12 +264,22 @@ export class Room extends DurableObject<Env> {
         at: now,
         frames: FRAME_BUDGET.burst,
         actions: ACTION_BUDGET.burst,
+        resends: RESEND_BUDGET.burst,
       };
       this.allowances.set(socket, allowance);
     }
     allowance.frames -= 1;
+    const heard = attachmentOf(socket);
+    if (heard && now - heard.heardAt >= HEARD_GRAIN_MS) {
+      socket.serializeAttachment({ ...heard, heardAt: now } satisfies Attachment);
+    }
     const message = parseClientMessage(frame);
-    if (message && message.type !== "ping" && message.type !== "state") {
+    if (
+      message &&
+      message.type !== "ping" &&
+      message.type !== "state" &&
+      message.type !== "states"
+    ) {
       allowance.actions -= 1;
     }
     if (allowance.frames < 0 || allowance.actions < 0) {
@@ -257,45 +300,142 @@ export class Room extends DurableObject<Env> {
     if (deadline !== null && deadline <= now) {
       this.commit(applyRoomEvent(this.state, { type: "tick", now }));
     }
+    this.dropSilent(now);
     if (message.type === "ping") {
       send(socket, { type: "pong", t: message.t, serverAt: now });
       return;
     }
-    if (message.type === "state") {
-      const last = this.lastStateAt.get(playerId) ?? -Infinity;
-      if (now - last < MIN_STATE_GAP_MS) return;
-      if (!canRelayState(this.state, playerId)) return;
-      this.lastStateAt.set(playerId, now);
-      const relayed = JSON.stringify({ ...message, from: playerId });
-      for (const other of this.ctx.getWebSockets()) {
-        if (other !== socket && seatOf(other)) send(other, relayed);
-      }
+    if (message.type === "state" || message.type === "states") {
+      this.kartStates(socket, allowance, playerId, message, now);
       return;
     }
     this.commit(applyRoomEvent(this.state, eventFor(message, playerId, now)));
   }
 
-  async webSocketClose(socket: WebSocket) {
-    this.left(socket);
+  /**
+   * Checks a live state, or a resent batch, through the rules. A batch is
+   * stored once, however many gates or resets it holds, and spends one
+   * write from the resend allowance, so a long outage's resend can't
+   * exhaust the live one. Others hear only what is recent enough to draw: a live
+   * state, or a resent one within half a second of the room's clock, in
+   * order, so a reset among them still snaps.
+   */
+  private kartStates(
+    socket: WebSocket,
+    allowance: Allowance,
+    playerId: string,
+    message: Extract<RoomClientMessage, { type: "state" | "states" }>,
+    now: number,
+  ) {
+    const resent = message.type === "states";
+    const states = resent ? message.states : [message];
+    let outcome: RoomOutcome | null = null;
+    let changed = false;
+    let stored = false;
+    let report: RoomOutcome["report"];
+    const relayed: string[] = [];
+    for (const state of states) {
+      outcome = applyRoomEvent(outcome?.state ?? this.state!, {
+        type: "state",
+        now,
+        playerId,
+        state,
+      });
+      changed ||= outcome.changed;
+      stored ||= outcome.changed || Boolean(outcome.persist);
+      report ??= outcome.report;
+      const racingAt = outcome.state.race?.racingAt;
+      const recent =
+        !resent ||
+        (racingAt != null &&
+          state.t >= (now - racingAt) * 1_000 - RESENT_RELAY_US);
+      if (outcome.accepted && recent) {
+        relayed.push(JSON.stringify({ ...state, type: "state", from: playerId }));
+      }
+    }
+    if (!outcome) return;
+    if (stored) {
+      if (resent) allowance.resends -= 1;
+      else allowance.actions -= 1;
+      if (allowance.actions < 0 || allowance.resends < 0) {
+        this.drop(socket, ROOM_CLOSE.protocol);
+        return;
+      }
+    }
+    this.commit({
+      state: outcome.state,
+      changed,
+      persist: stored,
+      report,
+    });
+    for (const frame of relayed) {
+      for (const other of this.ctx.getWebSockets()) {
+        if (other !== socket && seatOf(other)) send(other, frame);
+      }
+    }
+  }
+
+  async webSocketClose(socket: WebSocket, code: number) {
+    this.closed(socket, code === LEAVING ? "leave" : "disconnect");
   }
 
   async webSocketError(socket: WebSocket) {
-    this.left(socket);
+    this.closed(socket, "disconnect");
   }
 
   /** Closes a misbehaving socket and frees its seat at once. */
   private drop(socket: WebSocket, code: number) {
     const playerId = seatOf(socket);
     retire(socket, code);
-    if (playerId) this.vacate(playerId);
+    if (playerId) this.vacate(playerId, "leave");
   }
 
-  private left(socket: WebSocket) {
+  private closed(socket: WebSocket, how: "leave" | "disconnect") {
     const playerId = seatOf(socket);
-    if (playerId) this.vacate(playerId, socket);
+    if (playerId) this.vacate(playerId, how, socket);
   }
 
-  private vacate(playerId: string, closing?: WebSocket) {
+  /**
+   * Treats each silent socket as dropped: a page that vanished without a
+   * close (a phone off the network) would otherwise hold its seat.
+   */
+  private dropSilent(now: number) {
+    const racing = this.state?.race?.racingAt != null;
+    for (const socket of this.ctx.getWebSockets()) {
+      const heard = attachmentOf(socket);
+      if (
+        heard &&
+        now - heard.heardAt > (racing ? SILENT_RACING_MS : SILENT_MS)
+      ) {
+        retire(socket, ROOM_CLOSE.silent);
+        this.vacate(heard.playerId, "disconnect", socket);
+      }
+    }
+  }
+
+  /** When the next socket would fall silent, for the alarm. */
+  private silenceDeadline() {
+    const racing = this.state?.race?.racingAt != null;
+    const times = this.ctx
+      .getWebSockets()
+      .flatMap((socket) => {
+        const heard = attachmentOf(socket);
+        return heard
+          ? [heard.heardAt + (racing ? SILENT_RACING_MS : SILENT_MS)]
+          : [];
+      });
+    return times.length === 0 ? null : Math.min(...times) + 1;
+  }
+
+  /**
+   * A seat's last socket closed: a page leaving frees it, and any other
+   * close holds it while the page reconnects.
+   */
+  private vacate(
+    playerId: string,
+    how: "leave" | "disconnect",
+    closing?: WebSocket,
+  ) {
     if (!this.state) return;
     // A seat another tab took over is still held.
     const held = this.ctx
@@ -303,12 +443,13 @@ export class Room extends DurableObject<Env> {
       .some((socket) => socket !== closing && seatOf(socket) === playerId);
     if (held) return;
     this.commit(
-      applyRoomEvent(this.state, { type: "leave", now: Date.now(), playerId }),
+      applyRoomEvent(this.state, { type: how, now: Date.now(), playerId }),
     );
   }
 
   async alarm() {
     const now = Date.now();
+    this.dropSilent(now);
     if (this.state) {
       this.commit(applyRoomEvent(this.state, { type: "tick", now }));
     }
@@ -335,7 +476,7 @@ export class Room extends DurableObject<Env> {
   private commit(outcome: RoomOutcome) {
     this.state = outcome.state;
     // Nothing changed, so nothing is written: each write is billed.
-    if (!outcome.changed && !outcome.report) return;
+    if (!outcome.changed && !outcome.persist && !outcome.report) return;
     const kv = this.ctx.storage.kv;
     kv.put("room", outcome.state);
     const emptySince = kv.get<number>("emptySince");
@@ -422,6 +563,8 @@ export class Room extends DurableObject<Env> {
     const times = reports.map(({ nextAttemptAt }) => nextAttemptAt);
     const deadline = this.state ? nextRoomDeadline(this.state) : null;
     if (deadline !== null) times.push(deadline);
+    const silence = this.silenceDeadline();
+    if (silence !== null) times.push(silence);
     const emptySince = this.ctx.storage.kv.get<number>("emptySince");
     // Cleanup waits for reports, whose retries wake the room meanwhile.
     if (emptySince !== undefined && reports.length === 0) {

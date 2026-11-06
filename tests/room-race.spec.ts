@@ -1,17 +1,25 @@
 import { randomBytes } from "node:crypto";
 
-import { expect, type Locator, type Page, test } from "@playwright/test";
+import {
+  expect,
+  type Locator,
+  type Page,
+  test,
+  type WebSocketRoute,
+} from "@playwright/test";
 
 import { FALLS_VIEW_PARK_DOCUMENT } from "../src/game/course/course-document";
 import { createBalancedKartDocument } from "../src/game/kart/balanced-kart-document";
 import { deriveKartSnapshot } from "../src/game/kart/kart-derivation";
 import { CURRENT_PHYSICS_VERSION } from "../src/game/physics/physics-version";
 import { RACE_LAP_COUNT } from "../src/game/race/race-course";
+import { createRoomCourse } from "../src/game/room/room-course";
 import { createRoomCode, ROOM_PROTOCOL } from "../src/game/room/room-protocol";
 import {
   randomRoomPlayerKey,
   signRoomToken,
 } from "../src/game/room/room-signing";
+import type { RaceAudioDebugState } from "../src/game/audio/race-audio";
 import type { RaceDebugState } from "../src/game/testing/scene-test-adapter";
 import { startRoomServer } from "./support/room-server";
 
@@ -31,7 +39,6 @@ const COURSE = {
   ...FALLS_VIEW_PARK_DOCUMENT,
   checkpoints: FALLS_VIEW_PARK_DOCUMENT.checkpoints.slice(0, 1),
 };
-const GATE_COUNT = RACE_LAP_COUNT * (COURSE.checkpoints.length + 1);
 
 type Vector = { x: number; y: number; z: number };
 
@@ -51,6 +58,8 @@ test.afterAll(async () => {
 });
 
 async function joinAs(page: Page, code: string, username: string | null) {
+  // One seat per page, as the app's keys give, so a reconnect retakes it.
+  const key = randomRoomPlayerKey();
   await Promise.all([
     page.route("**/api/karts/official", (route) =>
       route.fulfill({
@@ -94,11 +103,11 @@ async function joinAs(page: Page, code: string, username: string | null) {
             room: code,
             courseId: COURSE.courseId,
             courseRevision: 1,
-            gateCount: GATE_COUNT,
+            course: createRoomCourse(COURSE),
             physicsVersion: CURRENT_PHYSICS_VERSION,
             karts: [{ id: KART.kartId, revision: 1 }],
             player: {
-              key: randomRoomPlayerKey(),
+              key,
               username,
               signedIn: username !== null,
             },
@@ -110,12 +119,53 @@ async function joinAs(page: Page, code: string, username: string | null) {
   await page.goto(`/room/${code}`);
 }
 
+/**
+ * Passes a page's room connections through, so the test can cut one and
+ * keep it down for a while, as a dropped network would.
+ */
+async function cuttableRoom(page: Page) {
+  let down = false;
+  let live: { page: WebSocketRoute; server: WebSocketRoute } | null = null;
+  const cut = () => {
+    down = true;
+    void live?.server.close({ code: 4100 });
+    void live?.page.close({ code: 4100 });
+    live = null;
+  };
+  await page.routeWebSocket(/\/v1\/rooms\//, (route) => {
+    if (down) {
+      void route.close({ code: 4100 });
+      return;
+    }
+    live = { page: route, server: route.connectToServer() };
+  });
+  return {
+    cut,
+    restore() {
+      down = false;
+    },
+  };
+}
+
 async function raceState(canvas: Locator) {
   return canvas.evaluate(
     (element) =>
       new Promise<RaceDebugState>((resolve) => {
         element.dispatchEvent(
           new CustomEvent("getRaceDebugState", {
+            detail: { respond: resolve },
+          }),
+        );
+      }),
+  );
+}
+
+async function audioState(canvas: Locator) {
+  return canvas.evaluate(
+    (element) =>
+      new Promise<RaceAudioDebugState | null>((resolve) => {
+        element.dispatchEvent(
+          new CustomEvent("getAudioDebugState", {
             detail: { respond: resolve },
           }),
         );
@@ -166,22 +216,34 @@ async function step(
   );
 }
 
-/** Moves the kart across a gate and steps once, so the race counts it. */
+// The room checks that a kart could have got to each gate at 30 m/s, and
+// Falls View Park's start and first checkpoint are 65 m apart.
+const TRAVEL_MS = 2_500;
+// A crossing step moves 0.2 m, under 30 m/s.
+const CROSSING_METRES = 0.1;
+
+/**
+ * Waits as long as driving there would take, moves the kart to just before
+ * a gate, and steps: the room hears it there at the time it arrived. Then
+ * steps once across, so the race and the room count it.
+ */
 async function cross(
   canvas: Locator,
   { forward, position }: { forward: Vector; position: Vector },
 ) {
+  await canvas.page().waitForTimeout(TRAVEL_MS);
+  const along = (sign: number) => ({
+    x: position.x + sign * CROSSING_METRES * forward.x,
+    y: position.y + sign * CROSSING_METRES * forward.y,
+    z: position.z + sign * CROSSING_METRES * forward.z,
+  });
+  await step(canvas, {
+    currentPosition: along(-1),
+    previousPosition: along(-1),
+  });
   const { state } = await step(canvas, {
-    currentPosition: {
-      x: position.x + forward.x,
-      y: position.y + forward.y,
-      z: position.z + forward.z,
-    },
-    previousPosition: {
-      x: position.x - forward.x,
-      y: position.y - forward.y,
-      z: position.z - forward.z,
-    },
+    currentPosition: along(1),
+    previousPosition: along(-1),
   });
   return state.lastProgressionResult.kind;
 }
@@ -222,6 +284,7 @@ test("two players race a room on one clock to the same results", async ({
   );
   const [host, guest] = pages;
   try {
+    const guestRoom = await cuttableRoom(guest);
     await joinAs(host, code, "ada");
     await expect(
       host.getByRole("heading", { name: "Private room" }),
@@ -272,9 +335,25 @@ test("two players race a room on one clock to the same results", async ({
       await Promise.all(canvases.map((canvas) => step(canvas)))
     ).map(({ at, state }) => at - state.elapsedRaceMicroseconds / 1_000);
     expect(Math.abs(hostStart - guestStart)).toBeLessThan(250);
+    // The host places the guest's voice, a few metres off on the grid.
+    // (Its pitch and level follow drawn speed, which teleports here don't
+    // give: remote-motor-voice.spec.ts covers those.)
+    const placed = (await audioState(canvases[0]))?.opponents.p2;
+    expect(placed?.mix.gain).toBeGreaterThan(0.3);
 
+    // The guest's connection drops for a lap gate: its kart drives on, and
+    // the room counts the gate once the page is back.
+    const [checkpoint] = COURSE.checkpoints;
+    expect(await cross(canvases[1], checkpoint)).toBe("checkpoint");
+    guestRoom.cut();
+    const reconnecting = guest.getByText("Reconnecting…").first();
+    await expect(reconnecting).toBeVisible();
+    expect(await cross(canvases[1], START_TARGET)).toBe("lap");
+    guestRoom.restore();
+    await expect(reconnecting).toBeHidden({ timeout: 15_000 });
     // The guest finishes first; both see the same places.
-    await driveTwoLaps(canvases[1]);
+    expect(await cross(canvases[1], checkpoint)).toBe("checkpoint");
+    expect(await cross(canvases[1], START_TARGET)).toBe("finished");
     await expect(guest.getByText(/Finished · 1st/)).toBeVisible();
     await driveTwoLaps(canvases[0]);
     for (const page of pages) {

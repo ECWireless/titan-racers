@@ -88,10 +88,10 @@ linked pages before relying on a number.
 
 - A WebSocket upgrade counts as one Worker request and one Durable Object
   request. Outgoing messages and protocol pings are not billed.
-- On Paid, 20 incoming messages count as one request. The pricing page
-  attaches that ratio only to the Paid column, so treat Free as unstated:
-  counted one for one, four players at 10 messages a second use Free's
-  daily requests in about 40 minutes of racing.
+- On Paid, 20 incoming messages count as one request ("for compute
+  requests billing-only"). The pricing page attaches that ratio by footnote
+  only to the Paid column, so treat Free's daily limit as unstated: it may
+  count each message.
 - Over a Free limit, operations fail until 00:00 UTC.
 
 ## Related

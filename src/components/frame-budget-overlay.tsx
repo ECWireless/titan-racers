@@ -1,3 +1,4 @@
+import type { OpponentStats } from "@/game/room/room-race";
 import type { FrameBudgetSummary } from "@/game/runtime/frame-budget";
 
 export type FrameBudgetReport = {
@@ -11,6 +12,8 @@ export type FrameBudgetReport = {
    */
   startup: { buildMs: number; waitMs: number };
   summary: FrameBudgetSummary | null;
+  /** In a room, how opponents drew: how often past their newest state. */
+  opponents?: OpponentStats;
 };
 
 /** Loading-screen milestones, each from the tap that started the race. */
@@ -34,7 +37,8 @@ export function FrameBudgetOverlay({
   loadTimings?: CourseLoadTimings;
   report: FrameBudgetReport;
 }) {
-  const { backBuffer, firstFrameMs, recording, startup, summary } = report;
+  const { backBuffer, firstFrameMs, opponents, recording, startup, summary } =
+    report;
   const rows: Array<[string, string]> = [
     ["Buffer", `${backBuffer.width}×${backBuffer.height}`],
     ["First frame", milliseconds(firstFrameMs)],
@@ -78,6 +82,12 @@ export function FrameBudgetOverlay({
       ],
       ["Shadow maps p50", String(summary.shadowMapUpdates.median)],
     );
+    if (opponents) {
+      rows.push(
+        ["Opp starved", `${opponents.starvedFrames} / ${opponents.frames}`],
+        ["Opp delay", milliseconds(opponents.delayMs)],
+      );
+    }
   }
   return (
     <dl

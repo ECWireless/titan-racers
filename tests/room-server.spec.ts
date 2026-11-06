@@ -16,6 +16,7 @@ import {
   verifyRoomReport,
   type RoomTokenFields,
 } from "../src/game/room/room-signing";
+import { crossingAt, kartAt, straightRoomCourse } from "./support/room-course";
 import {
   freePort,
   type RoomServerReport,
@@ -53,7 +54,8 @@ function tokenFields(
     room,
     courseId: "falls-view-park",
     courseRevision: 11,
-    gateCount: 2,
+    // One lap past a checkpoint at 2 m: two gates.
+    course: straightRoomCourse(1, [2]),
     physicsVersion: "support-heave-v1",
     karts: [{ id: "kestrel", revision: 3 }],
     player: {
@@ -144,7 +146,7 @@ test("two players race a room from lobby to results", async () => {
   const guest = await Client.signed(tokenFields(room));
   expect(
     await guest.next((message) => message.type === "welcome"),
-  ).toEqual({ type: "welcome", you: "p2" });
+  ).toEqual({ type: "welcome", you: "p2", resume: null });
   await ada.next((m) => isRoom(m) && m.players.length === 2);
 
   const sentAt = Date.now();
@@ -174,34 +176,29 @@ test("two players race a room from lobby to results", async () => {
   const racingAt = countdown.race!.racingAt!;
   expect(racingAt - Date.now()).toBeGreaterThan(2_000);
 
-  const pose = { t: 0, p: [1, 2, 3], q: [0, 0, 0, 1], s: 5, r: false };
-  ada.send({ type: "state", ...pose });
-  // Faster than four times the agreed rate is dropped.
-  ada.send({ type: "state", ...pose, t: 1 });
-  expect(
-    await guest.next((message) => message.type === "state"),
-  ).toEqual({ type: "state", from: "p1", ...pose });
-  await new Promise((resolve) => setTimeout(resolve, 100));
-  ada.send({ type: "state", ...pose, t: 2 });
-  await guest.next((m) => m.type === "state" && m.t === 2);
-  expect(
-    guest.messages.filter((m) => m.type === "state").map((m) => m.t),
-  ).toEqual([0, 2]);
+  // Each state is checked before it is relayed: the first on its grid
+  // slot, and none again at the same race time.
+  const grid = kartAt(0, -1, { p: [-1, 0.2, -0.5] });
+  ada.send({ type: "state", ...kartAt(0, 5) });
+  ada.send({ type: "state", ...grid });
+  ada.send({ type: "state", ...grid });
+  expect(await guest.next((message) => message.type === "state")).toEqual({
+    type: "state",
+    from: "p1",
+    ...grid,
+  });
 
   await new Promise((resolve) =>
-    setTimeout(resolve, racingAt - Date.now() + 100),
+    setTimeout(resolve, racingAt - Date.now() + 600),
   );
   for (const [client, lead] of [
     [ada, 0],
     [guest, 300],
   ] as const) {
     await new Promise((resolve) => setTimeout(resolve, lead));
-    client.send({ type: "gate", raceId, gates: 1 });
-    client.send({
-      type: "finish",
-      raceId,
-      timeMicroseconds: (Date.now() - racingAt) * 1_000,
-    });
+    const t = (Date.now() - racingAt - 50) * 1_000;
+    client.send({ type: "state", ...crossingAt(t - 100_000, 2) });
+    client.send({ type: "state", ...crossingAt(t, 0) });
   }
   const done = await ada.next(
     (m): m is Snapshot => isRoom(m) && m.lastRace !== null,
@@ -212,6 +209,10 @@ test("two players race a room from lobby to results", async () => {
     "@ada",
     "Guest 1",
   ]);
+  // Ada's grid state and two crossings; her refused states went nowhere.
+  expect(
+    guest.messages.filter((m) => m.type === "state").map((m) => m.t),
+  ).toHaveLength(3);
 
   await expect.poll(() => reports.length, { timeout: 10_000 }).toBe(1);
   const [{ signature, body }] = reports;
@@ -223,12 +224,147 @@ test("two players race a room from lobby to results", async () => {
     false,
   ]);
 
-  ada.socket.close();
+  // Leaving frees the seat at once.
+  ada.socket.close(1000);
   const after = await guest.next(
     (m): m is Snapshot => isRoom(m) && m.players.length === 1,
   );
   expect(after.hostId).toBe("p2");
-  guest.socket.close();
+  guest.socket.close(1000);
+});
+
+test("holds a dropped seat, resumes its race, and drops the silent", async () => {
+  test.setTimeout(60_000);
+  const room = createRoomCode();
+  const key = randomRoomPlayerKey();
+  const adaFields = tokenFields(room, { key, username: "ada", signedIn: true });
+  const ada = await Client.signed(adaFields);
+  await ada.next((message) => message.type === "welcome");
+  const guest = await Client.signed(tokenFields(room));
+  await guest.next((message) => message.type === "welcome");
+  // The guest pings as a racing page does, until it falls silent below.
+  const guestPings = setInterval(
+    () => guest.send({ type: "ping", t: Date.now() }),
+    500,
+  );
+  for (const client of [ada, guest]) {
+    client.send({ type: "choose_kart", kartId: "kestrel" });
+  }
+  await ada.next((m) => isRoom(m) && m.players.every(({ ready }) => ready));
+  ada.send({ type: "start" });
+  const loading = await guest.next(
+    (m): m is Snapshot => isRoom(m) && m.phase === "loading",
+  );
+  const raceId = loading.race!.id;
+  for (const client of [ada, guest]) client.send({ type: "loaded", raceId });
+  const racingAt = (
+    await guest.next(
+      (m): m is Snapshot => isRoom(m) && m.race?.racingAt != null,
+    )
+  ).race!.racingAt!;
+  await new Promise((resolve) =>
+    setTimeout(resolve, racingAt - Date.now() + 600),
+  );
+  const t = (Date.now() - racingAt - 50) * 1_000;
+  ada.send({ type: "state", ...crossingAt(t, 2) });
+  await guest.next((m) => m.type === "state" && m.t === t);
+
+  // A dropped connection holds its seat; the host passes on meanwhile.
+  ada.socket.close(4100);
+  const away = await guest.next(
+    (m): m is Snapshot =>
+      isRoom(m) && m.players.some(({ connected }) => !connected),
+  );
+  expect(away.hostId).toBe("p2");
+  expect(away.race?.entrants).toHaveLength(2);
+
+  // Back, it hears where the room left off and resends the rest.
+  const back = await Client.signed(adaFields);
+  expect(await back.next((m) => m.type === "welcome")).toEqual({
+    type: "welcome",
+    you: "p1",
+    resume: t,
+  });
+  // Back, it pings as a racing page does.
+  const pings = setInterval(
+    () => back.send({ type: "ping", t: Date.now() }),
+    500,
+  );
+  // Away, it reset every 20 states (back to the checkpoint at 2 m) for
+  // 25 batches, then crossed the line. Every batch stores a reset, more
+  // than the live allowance's 20, which resends don't spend; and others
+  // hear only what is recent enough to draw.
+  await new Promise((resolve) => setTimeout(resolve, 5_500));
+  for (let batch = 0; batch < 25; batch += 1) {
+    back.send({
+      type: "states",
+      states: Array.from({ length: 20 }, (_, index) =>
+        kartAt(t + 50_000 + (batch * 20 + index) * 9_000, 1, {
+          p: [1, 0.5, 0],
+          r: index === 0,
+        }),
+      ),
+    });
+  }
+  const finishT = (Date.now() - racingAt - 50) * 1_000;
+  back.send({ type: "states", states: [crossingAt(finishT, 0)] });
+  const finished = await guest.next(
+    (m): m is Snapshot =>
+      isRoom(m) && m.race?.entrants[0].finishMicroseconds != null,
+  );
+  expect(finished.race?.entrants[0]).toMatchObject({
+    id: "p1",
+    finishMicroseconds: finishT,
+  });
+  expect(finished.hostId).toBe("p1");
+  await guest.next((m) => m.type === "state" && m.t === finishT);
+  expect(
+    guest.messages.filter((m) => m.type === "state" && m.r),
+  ).toHaveLength(0);
+
+  // In a race, a connection silent for 5 s is dropped, holding its seat.
+  clearInterval(guestPings);
+  try {
+    expect(await guest.closed).toBe(ROOM_CLOSE.silent);
+    const silent = await back.next(
+      (m): m is Snapshot =>
+        isRoom(m) &&
+        m.players.some(({ id, connected }) => id === "p2" && !connected),
+      15_000,
+    );
+    expect(silent.race?.entrants[1]).toMatchObject({ id: "p2", left: false });
+  } finally {
+    clearInterval(pings);
+  }
+  back.socket.close(1000);
+});
+
+test("drops a silent lobby connection, even across hibernation", async () => {
+  // Past the room's 10 s idle hibernation and its 30 s silence.
+  test.setTimeout(70_000);
+  const room = createRoomCode();
+  const host = await Client.signed(tokenFields(room));
+  await host.next((message) => message.type === "welcome");
+  const guest = await Client.signed(tokenFields(room));
+  await guest.next((message) => message.type === "welcome");
+  // The guest pings as a lobby page does, rarely enough for the room to
+  // sleep between; the host has vanished without a close.
+  const pings = setInterval(
+    () => guest.send({ type: "ping", t: Date.now() }),
+    15_000,
+  );
+  try {
+    expect(await host.closed).toBe(ROOM_CLOSE.silent);
+    const away = await guest.next(
+      (m): m is Snapshot =>
+        isRoom(m) && m.players.some(({ connected }) => !connected),
+      5_000,
+    );
+    expect(away.hostId).toBe("p2");
+  } finally {
+    clearInterval(pings);
+  }
+  guest.socket.close(1000);
 });
 
 test("refuses bad joins with a reason the page can show", async () => {
@@ -280,6 +416,7 @@ test("fills at four, gives a new tab the seat, and drops bad messages", async ()
   expect(await tab.next((message) => message.type === "welcome")).toEqual({
     type: "welcome",
     you: "p1",
+    resume: null,
   });
   expect(await first.closed).toBe(ROOM_CLOSE.replaced);
   expect(
@@ -290,7 +427,7 @@ test("fills at four, gives a new tab the seat, and drops bad messages", async ()
   expect(await others[0].closed).toBe(ROOM_CLOSE.protocol);
   await tab.next((m) => isRoom(m) && m.players.length === 3);
   // The new tab leaving frees the seat.
-  tab.socket.close();
+  tab.socket.close(1000);
   const left = await others[1].next(
     (m): m is Snapshot =>
       isRoom(m) &&

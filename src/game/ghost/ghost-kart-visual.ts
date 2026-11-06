@@ -127,6 +127,8 @@ export function createGhostKartVisual(
       }
     },
     visible: () => root.enabled && !faded,
+    /** The kart as drawn, in its assembly's axes, for its contact shadow. */
+    node: visual,
     destroy() {
       root.destroy();
       app.batcher.removeGroup(batchGroup.id);

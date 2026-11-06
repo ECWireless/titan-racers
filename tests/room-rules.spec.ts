@@ -9,26 +9,32 @@ import {
   ROOM_LOAD_MS,
   ROOM_PROTOCOL,
   ROOM_RACE_LIMIT_MS,
+  ROOM_SEAT_HOLD_MS,
   ROOM_START_DELAY_MS,
   roomRaceReportSchema,
   roomSnapshotSchema,
 } from "../src/game/room/room-protocol";
 import {
   applyRoomEvent,
-  canRelayState,
   createRoomState,
   hostId,
   nextRoomDeadline,
+  roomResume,
   roomSnapshot,
   type RoomEvent,
+  type RoomKartState,
   type RoomOutcome,
   type RoomState,
 } from "../src/game/room/room-rules";
 import type { RoomToken } from "../src/game/room/room-signing";
+import { crossingAt, kartAt, straightRoomCourse } from "./support/room-course";
 
 const RACE = "00000000-0000-4000-8000-000000000001";
-const NEXT_RACE = "00000000-0000-4000-8000-000000000002";
+
+// The start line at 0, checkpoints at 10 and 20, and two laps: six gates.
+const COURSE = straightRoomCourse(2, [10, 20]);
 const GATES = 6;
+const GATE_X = [10, 20, 0];
 
 function token(
   key: string,
@@ -42,7 +48,7 @@ function token(
     expiresAt: 1,
     courseId: "falls-view-park",
     courseRevision: 11,
-    gateCount: GATES,
+    course: COURSE,
     physicsVersion: "support-heave-v1",
     karts: [
       { id: "kestrel", revision: 3 },
@@ -104,27 +110,38 @@ function racing(count: number) {
 
 const RACING_AT = 3_000 + ROOM_START_DELAY_MS;
 
-function passGates(state: RoomState, playerId: string, upTo: number, at: number) {
-  for (let gates = 1; gates <= upTo; gates += 1) {
-    state = run(state, {
-      type: "gate",
-      now: at + gates,
-      playerId,
-      raceId: RACE,
-      gates,
-    }).state;
-  }
-  return state;
+/** A state the room hears at `now`. */
+function stateEvent(playerId: string, now: number, state: RoomKartState) {
+  return { type: "state", now, playerId, state } satisfies RoomEvent;
 }
 
+/**
+ * Crosses gates up to `upTo`, a second apart and each heard 50 ms after
+ * its race time, the last at `lastHeardAt`.
+ */
+function passGates(
+  state: RoomState,
+  playerId: string,
+  upTo: number,
+  lastHeardAt: number,
+) {
+  let outcome: RoomOutcome = { state, changed: false };
+  const passed =
+    state.race?.entrants.find(({ id }) => id === playerId)?.gates ?? 0;
+  for (let gates = passed + 1; gates <= upTo; gates += 1) {
+    const now = lastHeardAt - (upTo - gates) * 1_000;
+    const t = (now - RACING_AT - 50) * 1_000;
+    outcome = run(
+      outcome.state,
+      stateEvent(playerId, now, crossingAt(t, GATE_X[(gates - 1) % 3])),
+    );
+  }
+  return outcome;
+}
+
+/** Drives every gate, finishing 50 ms of race time before `now`. */
 function finishAt(state: RoomState, playerId: string, now: number) {
-  return run(passGates(state, playerId, GATES - 1, now - 100), {
-    type: "finish",
-    now,
-    playerId,
-    raceId: RACE,
-    timeMicroseconds: (now - RACING_AT) * 1_000 - 50_000,
-  });
+  return passGates(state, playerId, GATES, now);
 }
 
 test.describe("room joining", () => {
@@ -258,7 +275,12 @@ test.describe("room start", () => {
     expect(state.race?.racingAt).toBe(RACING_AT);
     expect(roomSnapshot(state).phase).toBe("racing");
     expect(nextRoomDeadline(state)).toBe(RACING_AT + ROOM_RACE_LIMIT_MS);
-    expect(canRelayState(state, "p1")).toBe(true);
+    // Through the countdown, karts wait on the grid at race time zero.
+    const waiting = run(
+      state,
+      stateEvent("p1", RACING_AT - 2_000, kartAt(0, -1, { p: [-1, 0.2, -0.5] })),
+    );
+    expect(waiting).toMatchObject({ accepted: true, changed: false });
   });
 
   test("entrants still loading at the deadline sit the race out", () => {
@@ -303,67 +325,160 @@ test.describe("room start", () => {
 });
 
 test.describe("room racing", () => {
-  test("ignores gates before racing and out of order", () => {
+  test("relays and counts only states that follow the kart's last", () => {
+    const state = racing(2);
+    const accepted = (...events: RoomEvent[]) =>
+      run(state, ...events).accepted === true;
+    const second = (at: number) => RACING_AT + at / 1_000 + 50;
+    // Its first state is checked against its grid slot, as far as 30 m/s
+    // reaches in its race time.
+    expect(accepted(stateEvent("p1", second(1e6), kartAt(1e6, 25)))).toBe(true);
+    expect(accepted(stateEvent("p1", second(5e5), kartAt(5e5, 25)))).toBe(
+      false,
+    );
+    // ...measured in three dimensions, past a reset's landing.
+    const offGrid = (x: number, y: number) =>
+      accepted(stateEvent("p1", second(1e6), kartAt(1e6, x, { p: [x, y, -0.5] })));
+    expect(offGrid(19.3, 22.5)).toBe(true);
+    expect(offGrid(20.8, 24)).toBe(false);
+    // No state's race time runs ahead of the room's clock.
+    expect(accepted(stateEvent("p1", RACING_AT + 500, kartAt(1e6, 0)))).toBe(
+      false,
+    );
+    // Faster than 30 m/s from the last accepted state.
+    const moving = run(state, stateEvent("p1", second(1e6), kartAt(1e6, 5)));
+    const next = (event: RoomEvent) => run(moving.state, event);
+    expect(next(stateEvent("p1", second(1.1e6), kartAt(1.1e6, 8))).accepted)
+      .toBe(true);
+    expect(
+      next(stateEvent("p1", second(1.1e6), kartAt(1.1e6, 8.1))).accepted,
+    ).toBeUndefined();
+    // A state no later than the last.
+    expect(
+      next(stateEvent("p1", second(1e6), kartAt(1e6, 5))).accepted,
+    ).toBeUndefined();
+    // A gate out of order, or a crossing whose step before is too far.
+    expect(next(stateEvent("p1", second(2e6), crossingAt(2e6, 20))).accepted)
+      .toBeUndefined();
+    expect(
+      next(
+        stateEvent(
+          "p1",
+          second(2e6),
+          kartAt(2e6, 10.1, { g: [9.6, 0.5, 0] }),
+        ),
+      ).accepted,
+    ).toBeUndefined();
+    const crossed = next(stateEvent("p1", second(2e6), crossingAt(2e6, 10)));
+    expect(crossed).toMatchObject({ accepted: true, changed: true });
+    expect(crossed.state.race?.entrants[0]).toMatchObject({
+      gates: 1,
+      lastGate: { timeMicroseconds: 2e6 },
+    });
+    // A reset lands only on the newest reset point.
+    const reset = (x: number) =>
+      run(
+        crossed.state,
+        stateEvent("p1", second(3e6), kartAt(3e6, x, { p: [x, 1, 0], r: true })),
+      ).accepted;
+    expect(reset(-1)).toBeUndefined();
+    expect(reset(9)).toBe(true);
+    // A restart must not check later states from before the reset.
+    expect(
+      run(
+        crossed.state,
+        stateEvent("p1", second(3e6), kartAt(3e6, 9, { p: [9, 1, 0], r: true })),
+      ),
+    ).toMatchObject({ accepted: true, changed: false, persist: true });
+    // Racers who left or finished send nothing more.
+    const left = run(moving.state, {
+      type: "leave",
+      now: second(1.05e6),
+      playerId: "p1",
+    });
+    expect(
+      run(left.state, stateEvent("p1", second(1.1e6), kartAt(1.1e6, 8)))
+        .accepted,
+    ).toBeUndefined();
+  });
+
+  test("counts a crossing between accepted states when its own was refused", () => {
     let state = racing(2);
-    const early = run(state, {
-      type: "gate",
-      now: RACING_AT - 1,
-      playerId: "p1",
-      raceId: RACE,
+    const second = (at: number) => RACING_AT + at / 1_000 + 50;
+    state = run(state, stateEvent("p1", second(1e6), kartAt(1e6, 9))).state;
+    // The crossing's own state runs ahead of the room's clock: refused.
+    const refused = run(
+      state,
+      stateEvent("p1", RACING_AT + 1_000, crossingAt(1.6e6, 10)),
+    );
+    expect(refused.accepted).toBeUndefined();
+    // The next accepted state, past the gate, counts it.
+    const counted = run(
+      refused.state,
+      stateEvent("p1", second(1.1e6), kartAt(1.1e6, 11)),
+    );
+    expect(counted).toMatchObject({ accepted: true, changed: true });
+    expect(counted.state.race?.entrants[0]).toMatchObject({
       gates: 1,
+      lastGate: { timeMicroseconds: 1.1e6 },
     });
-    expect(early.changed).toBe(false);
-    const skipped = run(state, {
-      type: "gate",
-      now: RACING_AT + 10,
-      playerId: "p1",
-      raceId: RACE,
-      gates: 2,
-    });
-    expect(skipped.changed).toBe(false);
-    const stale = run(state, {
-      type: "gate",
-      now: RACING_AT + 10,
-      playerId: "p1",
-      raceId: NEXT_RACE,
-      gates: 1,
-    });
-    expect(stale.changed).toBe(false);
-    state = passGates(state, "p2", 2, RACING_AT + 10);
+    // Not twice.
+    const onward = run(
+      counted.state,
+      stateEvent("p1", second(1.2e6), kartAt(1.2e6, 12)),
+    );
+    expect(onward.state.race?.entrants[0].gates).toBe(1);
+  });
+
+  test("ranks the unfinished by gates, then by when each passed its last", () => {
+    let state = passGates(racing(3), "p2", 2, RACING_AT + 3_000).state;
+    state = passGates(state, "p3", 2, RACING_AT + 4_000).state;
+    state = passGates(state, "p1", 1, RACING_AT + 9_000).state;
     expect(roomSnapshot(state).race?.entrants.map(({ id }) => id)).toEqual([
       "p2",
+      "p3",
       "p1",
     ]);
   });
 
-  test("a finish needs every gate before it", () => {
-    const state = passGates(racing(2), "p1", GATES - 2, RACING_AT + 10);
-    const outcome = run(state, {
-      type: "finish",
-      now: RACING_AT + 60_000,
-      playerId: "p1",
-      raceId: RACE,
-      timeMicroseconds: 59_950_000,
+  test("times a finish from the kart's own finishing state", () => {
+    const base = passGates(racing(2), "p1", GATES - 1, RACING_AT + 10_000);
+    // Heard late, as after a reconnect, it keeps its own time.
+    const late = run(
+      base.state,
+      stateEvent("p1", RACING_AT + 20_000, crossingAt(11_000_000, 0)),
+    );
+    expect(late.state.race?.entrants[0]).toMatchObject({
+      id: "p1",
+      finishMicroseconds: 11_000_000,
+      finishedAt: RACING_AT + 20_000,
     });
-    expect(outcome.changed).toBe(false);
-  });
-
-  test("keeps a finish time near the server's and otherwise uses its own", () => {
-    const now = RACING_AT + 60_000;
-    const base = passGates(racing(3), "p1", GATES - 1, RACING_AT + 10);
-    const finishWith = (timeMicroseconds: number) =>
-      run(base, {
-        type: "finish",
-        now,
-        playerId: "p1",
-        raceId: RACE,
-        timeMicroseconds,
-      }).state.race?.entrants.find(({ id }) => id === "p1")
-        ?.finishMicroseconds;
-    expect(finishWith(59_900_000)).toBe(59_900_000);
-    expect(finishWith(58_000_000)).toBe(58_000_000);
-    expect(finishWith(57_000_000)).toBe(60_000_000);
-    expect(finishWith(60_300_000)).toBe(60_000_000);
+    expect(late.state.race?.firstFinishAt).toBe(RACING_AT + 20_000);
+    // The page's repeat of it changes nothing.
+    const repeated = run(
+      late.state,
+      stateEvent("p1", RACING_AT + 20_500, crossingAt(11_000_000, 0)),
+    );
+    expect(repeated).toMatchObject({ changed: false });
+    expect(repeated.state.race).toEqual(late.state.race);
+    // A finish refused for running ahead of the clock counts when the page
+    // sends it again.
+    const early = run(
+      base.state,
+      stateEvent("p1", RACING_AT + 10_500, crossingAt(11_000_000, 0)),
+    );
+    expect(early.state.race?.entrants[0].finishMicroseconds).toBeNull();
+    expect(
+      run(
+        early.state,
+        stateEvent("p1", RACING_AT + 11_100, crossingAt(11_000_000, 0)),
+      ).state.race?.entrants[0].finishMicroseconds,
+    ).toBe(11_000_000);
+    // Its states end at the line.
+    expect(
+      run(late.state, stateEvent("p1", RACING_AT + 21_000, kartAt(12e6, 3)))
+        .accepted,
+    ).toBeUndefined();
   });
 
   test("ends when everyone still racing has finished", () => {
@@ -430,13 +545,12 @@ test.describe("room racing", () => {
   });
 
   test("ends 30 seconds after the first finisher, with the rest unfinished", () => {
-    let state = finishAt(racing(3), "p3", RACING_AT + 60_000).state;
-    state = passGates(state, "p1", 2, RACING_AT + 1_000);
+    let state = passGates(racing(3), "p1", 2, RACING_AT + 3_000).state;
     // Leaving keeps the place its progress earned.
-    state = passGates(state, "p2", 3, RACING_AT + 2_000);
+    state = passGates(state, "p2", 3, RACING_AT + 4_000).state;
+    state = finishAt(state, "p3", RACING_AT + 60_000).state;
     state = run(state, { type: "leave", now: RACING_AT + 65_000, playerId: "p2" })
       .state;
-    expect(canRelayState(state, "p2")).toBe(false);
     const early = run(state, {
       type: "tick",
       now: RACING_AT + 60_000 + ROOM_FINISH_GRACE_MS - 1,
@@ -498,6 +612,96 @@ test.describe("room racing", () => {
   });
 });
 
+test.describe("dropped connections", () => {
+  test("hold a seat for 30 s, hosted meanwhile by the next connected", () => {
+    let state = run(lobby(2), { type: "disconnect", now: 5_000, playerId: "p1" })
+      .state;
+    expect(roomSnapshot(state)).toMatchObject({
+      hostId: "p2",
+      players: [
+        { id: "p1", connected: false, ready: true },
+        { id: "p2", connected: true },
+      ],
+    });
+    expect(nextRoomDeadline(state)).toBe(5_000 + ROOM_SEAT_HOLD_MS);
+    // The same page (or account) comes back to its seat, and hosts again.
+    const back = run(state, { type: "join", now: 6_000, token: token("k0") });
+    expect(back.joined).toEqual({ playerId: "p1", replaced: true });
+    expect(hostId(back.state)).toBe("p1");
+    expect(nextRoomDeadline(back.state)).toBeNull();
+    // Gone past the hold, the seat is given up.
+    state = run(state, {
+      type: "tick",
+      now: 5_000 + ROOM_SEAT_HOLD_MS,
+    }).state;
+    expect(state.players.map(({ id }) => id)).toEqual(["p2"]);
+  });
+
+  test("a held seat sits out a race that starts without it", () => {
+    let state = run(lobby(3), { type: "disconnect", now: 1_500, playerId: "p3" })
+      .state;
+    state = run(state, {
+      type: "start",
+      now: 2_000,
+      playerId: "p1",
+      raceId: RACE,
+    }).state;
+    expect(state.race?.entrants.map(({ id }) => id)).toEqual(["p1", "p2"]);
+  });
+
+  test("race on for a held seat, which resumes after its last state", () => {
+    let state = racing(2);
+    expect(roomResume(state, "p1")).toBe(-1);
+    state = run(
+      state,
+      stateEvent("p1", RACING_AT + 1_050, kartAt(1e6, 5)),
+      { type: "disconnect", now: RACING_AT + 2_000, playerId: "p1" },
+    ).state;
+    expect(roomResume(state, "p1")).toBe(1e6);
+    // States from the outage still count when they arrive.
+    const resumed = run(
+      state,
+      stateEvent("p1", RACING_AT + 9_000, crossingAt(2e6, 10)),
+    );
+    expect(resumed.state.race?.entrants[0].gates).toBe(1);
+    // Past the hold, the racer has left, keeping its place.
+    const gone = run(resumed.state, {
+      type: "tick",
+      now: RACING_AT + 2_000 + ROOM_SEAT_HOLD_MS,
+    }).state;
+    expect(gone.race?.entrants[0]).toMatchObject({ id: "p1", left: true });
+    expect(roomResume(gone, "p1")).toBeNull();
+    expect(roomResume(gone, "p2")).toBe(-1);
+  });
+
+  test("a page that can't race leaves the race at once", () => {
+    let state = run(lobby(3), {
+      type: "start",
+      now: 2_000,
+      playerId: "p1",
+      raceId: RACE,
+    }).state;
+    state = run(
+      state,
+      { type: "loaded", now: 2_500, playerId: "p1", raceId: RACE },
+      { type: "loaded", now: 2_600, playerId: "p2", raceId: RACE },
+      { type: "sit_out", now: 2_700, playerId: "p3", raceId: RACE },
+    ).state;
+    // Everyone left has loaded, so racing starts without waiting.
+    expect(state.race?.racingAt).toBe(2_700 + ROOM_START_DELAY_MS);
+    expect(state.race?.entrants.map(({ id }) => id)).toEqual(["p1", "p2"]);
+    expect(state.players[2]).toMatchObject({ id: "p3", ready: false });
+    // Once racing, sitting out leaves the race.
+    const left = run(state, {
+      type: "sit_out",
+      now: RACING_AT,
+      playerId: "p2",
+      raceId: RACE,
+    }).state;
+    expect(left.race?.entrants[1]).toMatchObject({ id: "p2", left: true });
+  });
+});
+
 test.describe("room deadlines", () => {
   test("hold even when the event that notices them is late", () => {
     let state = run(lobby(2), {
@@ -530,13 +734,14 @@ test.describe("room deadlines", () => {
     expect(afterGrace.state.lastRace?.endReason).toBe("after_first_finish");
     expect(afterGrace.state.lastRace?.entries[1].timeMicroseconds).toBeNull();
 
-    const pastLimit = run(passGates(racing(2), "p1", GATES - 1, RACING_AT), {
-      type: "finish",
-      now: RACING_AT + ROOM_RACE_LIMIT_MS + 1_000,
-      playerId: "p1",
-      raceId: RACE,
-      timeMicroseconds: ROOM_RACE_LIMIT_MS * 1_000,
-    });
+    const pastLimit = run(
+      passGates(racing(2), "p1", GATES - 1, RACING_AT + 10_000).state,
+      stateEvent(
+        "p1",
+        RACING_AT + ROOM_RACE_LIMIT_MS + 1_000,
+        crossingAt(ROOM_RACE_LIMIT_MS * 1_000, 0),
+      ),
+    );
     expect(pastLimit.report?.endReason).toBe("time_limit");
     expect(roomRaceReportSchema.safeParse(pastLimit.report).success).toBe(true);
     expect(
@@ -585,15 +790,19 @@ test.describe("room protocol", () => {
           t: 1_000,
           p: [1, 2, 3],
           q: [0, 0, 0, 1],
+          v: [1, 0, -2],
           s: 4,
           r: false,
+          g: [1, 2, 2.9],
         }),
       ),
     ).not.toBeNull();
     for (const frame of [
       '{"type":"start","extra":1}',
       '{"type":"choose_kart"}',
-      '{"type":"state","t":1,"p":[1,2],"q":[0,0,0,1],"s":0,"r":false}',
+      '{"type":"state","t":1,"p":[1,2,3],"q":[0,0,0,1],"s":0,"r":false}',
+      '{"type":"state","t":1,"p":[1,2,3],"q":[0,0,0,1],"v":[0,0,0],"s":0,"r":false,"g":[1,2]}',
+      '{"type":"gate","raceId":"00000000-0000-4000-8000-000000000001","gates":1}',
       "not json",
       JSON.stringify({ type: "ping", t: 1, pad: "x".repeat(1_100) }),
       42,

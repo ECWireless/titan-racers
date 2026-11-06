@@ -12,6 +12,7 @@
     "test:e2e": "playwright test",
     "rooms:dev": "WRANGLER_SEND_METRICS=false wrangler dev --config room-server/wrangler.jsonc",
     "rooms:check": "WRANGLER_SEND_METRICS=false wrangler deploy --config room-server/wrangler.jsonc --env production --dry-run --outdir .wrangler/dry-run",
+    "rooms:racers": "tsx scripts/room-racers.ts",
     "rooms:deploy": "WRANGLER_SEND_METRICS=false wrangler deploy --config room-server/wrangler.jsonc --env production",
     "db:generate": "drizzle-kit generate",
     "db:check": "drizzle-kit check",

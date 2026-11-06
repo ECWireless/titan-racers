@@ -1,10 +1,13 @@
 import type { GhostSample } from "../ghost/ghost-trace";
 import { DEFAULT_FIXED_STEP_SECONDS } from "../runtime/fixed-step-clock";
-import { crossesDirectedRaceGate, type RaceVector3 } from "./race-gate";
-import type { RaceSessionConfig } from "./race-session";
+import {
+  crossesDirectedRaceGate,
+  type RaceGateGeometry,
+  type RaceVector3,
+} from "./race-gate";
 
 /** Each sample is its own fixed step, so samples are at least one apart. */
-const STEP_MICROSECONDS = Math.floor(DEFAULT_FIXED_STEP_SECONDS * 1_000_000);
+export const STEP_MICROSECONDS = Math.floor(DEFAULT_FIXED_STEP_SECONDS * 1_000_000);
 
 const RACE_CHECK_LIMITS = {
   /** Above any kart's drive (at most 23 m/s) plus a fall across a course. */
@@ -54,11 +57,72 @@ type RaceCheckResult =
   | { verified: true; timeMicroseconds: number }
   | { verified: false; reason: RaceCheckRejection };
 
-function nearResetPoint(position: RaceVector3, point: RaceVector3) {
+/**
+ * What the run check needs of a course: its gates in order, each
+ * checkpoint's reset point, the start's, and the lap count. A race
+ * session's config is one.
+ */
+export type RaceCheckCourse = {
+  checkpoints: ReadonlyArray<{
+    gate: RaceGateGeometry;
+    recovery: { position: RaceVector3 };
+  }>;
+  lapCount: number;
+  startGate: RaceGateGeometry;
+  startRecovery: { position: RaceVector3 };
+};
+
+/** One checked moment of a race: a recorded sample, or a room state. */
+export type RaceCheckSample = Pick<
+  GhostSample,
+  "gate" | "position" | "reset" | "timeMicroseconds"
+>;
+
+/** Gates a race passes, finish included, over every lap. */
+export function raceGateCount(course: RaceCheckCourse) {
+  return course.lapCount * (course.checkpoints.length + 1);
+}
+
+/**
+ * Where a reset may land after `gates` crossings: the last checkpoint
+ * passed this lap, else the start.
+ */
+function resetPointAfter(course: RaceCheckCourse, gates: number) {
+  const index = gates % (course.checkpoints.length + 1);
+  return index === 0
+    ? course.startRecovery.position
+    : course.checkpoints[index - 1].recovery.position;
+}
+
+function nextGateAfter(course: RaceCheckCourse, gates: number) {
+  const index = gates % (course.checkpoints.length + 1);
+  return course.checkpoints[index]?.gate ?? course.startGate;
+}
+
+/**
+ * Whether a position is within a reset's landing of a point, or within
+ * what the speed cap covers in `microseconds` of that landing.
+ */
+export function nearRaceResetPoint(
+  position: RaceVector3,
+  point: RaceVector3,
+  microseconds = 0,
+) {
+  const outside = Math.hypot(
+    Math.max(
+      0,
+      Math.hypot(position.x - point.x, position.z - point.z) -
+        RACE_CHECK_LIMITS.resetHorizontalMetres,
+    ),
+    Math.max(
+      0,
+      Math.abs(position.y - point.y) - RACE_CHECK_LIMITS.resetVerticalMetres,
+    ),
+  );
   return (
-    Math.hypot(position.x - point.x, position.z - point.z) <=
-      RACE_CHECK_LIMITS.resetHorizontalMetres &&
-    Math.abs(position.y - point.y) <= RACE_CHECK_LIMITS.resetVerticalMetres
+    outside <=
+    (RACE_CHECK_LIMITS.maxSpeedMetresPerSecond * Math.max(0, microseconds)) /
+      1_000_000
   );
 }
 
@@ -66,94 +130,108 @@ function distance(left: RaceVector3, right: RaceVector3) {
   return Math.hypot(left.x - right.x, left.y - right.y, left.z - right.z);
 }
 
+const GATE_OPTIONS = {
+  boundsTolerance: RACE_CHECK_LIMITS.gateToleranceMetres,
+  planeTolerance: RACE_CHECK_LIMITS.gateToleranceMetres,
+};
+
+/**
+ * Whether the straight line between two moments crosses the next gate after
+ * `gates`, with the check's tolerance.
+ */
+export function crossesNextRaceGate(
+  course: RaceCheckCourse,
+  gates: number,
+  from: RaceVector3,
+  to: RaceVector3,
+) {
+  return (
+    gates < raceGateCount(course) &&
+    crossesDirectedRaceGate(nextGateAfter(course, gates), from, to, GATE_OPTIONS)
+  );
+}
+
+/**
+ * One step of the run check, mirroring `RaceSession`'s progression: whether
+ * `sample` may follow `previous` once `gates` gates are passed. A sample
+ * comes at least `minimumGapMicroseconds` later (a fixed step, unless the
+ * caller knows better) and no faster than the speed cap. A reset may land
+ * only on the race's newest reset point, as the race picks when that point
+ * has ground, so a reset never moves a kart forwards; recovery holds the
+ * kart off the gates, so a reset never crosses one. A gate-flagged sample
+ * must cross the next gate from `previous`. Returns why it fails, or null.
+ */
+export function checkRaceStep(
+  course: RaceCheckCourse,
+  gates: number,
+  previous: Pick<RaceCheckSample, "position" | "timeMicroseconds">,
+  sample: RaceCheckSample,
+  minimumGapMicroseconds = STEP_MICROSECONDS,
+): RaceCheckRejection | null {
+  if (gates >= raceGateCount(course)) return "after-finish";
+  const gapMicroseconds = sample.timeMicroseconds - previous.timeMicroseconds;
+  if (gapMicroseconds < minimumGapMicroseconds) return "too-fast";
+  if (sample.reset) {
+    return sample.gate ||
+      !nearRaceResetPoint(sample.position, resetPointAfter(course, gates))
+      ? "bad-reset"
+      : null;
+  }
+  if (
+    distance(previous.position, sample.position) >
+    (RACE_CHECK_LIMITS.maxSpeedMetresPerSecond * gapMicroseconds) / 1_000_000 +
+      RACE_CHECK_LIMITS.sampleToleranceMetres
+  ) {
+    return "too-fast";
+  }
+  if (
+    sample.gate &&
+    !crossesDirectedRaceGate(
+      nextGateAfter(course, gates),
+      previous.position,
+      sample.position,
+      GATE_OPTIONS,
+    )
+  ) {
+    return "wrong-gate";
+  }
+  return null;
+}
+
 /**
  * Checks a finished race's recording against its course, as the server does
- * before a run counts, mirroring `RaceSession`'s progression. Only
- * gate-flagged samples count as crossings, each must cross the expected gate,
- * and the
- * speed between samples is capped. A reset may land only on the race's newest
- * reset point (the last checkpoint passed this lap, else the start), as the
- * race picks when that point has ground, so a reset never moves a kart
- * forwards. The time is the finishing crossing's. A forged recording that
- * obeys these rules still passes.
+ * before a run counts: it starts on the start's reset point, then passes
+ * `checkRaceStep` sample by sample, and its time is the finishing
+ * crossing's. A forged recording that obeys these rules still passes.
  */
 export function verifyRaceRecording(
-  config: RaceSessionConfig,
-  samples: readonly GhostSample[],
+  course: RaceCheckCourse,
+  samples: readonly RaceCheckSample[],
 ): RaceCheckResult {
   const reject = (reason: RaceCheckRejection): RaceCheckResult => ({
     reason,
     verified: false,
   });
-  const gateOptions = {
-    boundsTolerance: RACE_CHECK_LIMITS.gateToleranceMetres,
-    planeTolerance: RACE_CHECK_LIMITS.gateToleranceMetres,
-  };
   if (samples.length > MAX_RUN_SAMPLES) return reject("too-long");
   const first = samples[0];
   if (
     !first ||
-    !nearResetPoint(first.position, config.startRecovery.position)
+    !nearRaceResetPoint(first.position, course.startRecovery.position)
   ) {
     return reject("off-start");
   }
 
-  let lap = 1;
-  let checkpointIndex = 0;
-  let resetPoint = config.startRecovery.position;
-  let finishMicroseconds: number | null = null;
-
+  const gateCount = raceGateCount(course);
+  let gates = 0;
   for (let index = 1; index < samples.length; index += 1) {
-    if (finishMicroseconds !== null) return reject("after-finish");
-    const previous = samples[index - 1];
     const sample = samples[index];
-    const gapMicroseconds = sample.timeMicroseconds - previous.timeMicroseconds;
-    if (gapMicroseconds < STEP_MICROSECONDS) return reject("too-fast");
-
-    // Recovery holds the kart off the gates, so a reset never crosses one.
-    if (sample.reset) {
-      if (sample.gate || !nearResetPoint(sample.position, resetPoint)) {
-        return reject("bad-reset");
-      }
-      continue;
-    }
-
-    if (
-      distance(previous.position, sample.position) >
-      (RACE_CHECK_LIMITS.maxSpeedMetresPerSecond * gapMicroseconds) /
-        1_000_000 +
-        RACE_CHECK_LIMITS.sampleToleranceMetres
-    ) {
-      return reject("too-fast");
-    }
-    if (!sample.gate) continue;
-
-    const checkpoint = config.checkpoints[checkpointIndex];
-    if (
-      !crossesDirectedRaceGate(
-        checkpoint?.gate ?? config.startGate,
-        previous.position,
-        sample.position,
-        gateOptions,
-      )
-    ) {
-      return reject("wrong-gate");
-    }
-    if (checkpoint) {
-      checkpointIndex += 1;
-      resetPoint = checkpoint.recovery.position;
-      continue;
-    }
-    resetPoint = config.startRecovery.position;
-    if (lap === config.lapCount) {
-      finishMicroseconds = sample.timeMicroseconds;
-    } else {
-      lap += 1;
-      checkpointIndex = 0;
-    }
+    const rejection = checkRaceStep(course, gates, samples[index - 1], sample);
+    if (rejection) return reject(rejection);
+    if (sample.gate) gates += 1;
   }
 
-  if (finishMicroseconds === null) return reject("unfinished");
+  if (gates < gateCount) return reject("unfinished");
+  const finishMicroseconds = samples.at(-1)!.timeMicroseconds;
   if (finishMicroseconds > RACE_CHECK_LIMITS.maxRaceMicroseconds) {
     return reject("too-long");
   }

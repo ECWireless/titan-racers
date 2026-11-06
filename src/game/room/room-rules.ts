@@ -1,31 +1,52 @@
 import {
+  checkRaceStep,
+  crossesNextRaceGate,
+  nearRaceResetPoint,
+  raceGateCount,
+  type RaceCheckSample,
+  STEP_MICROSECONDS,
+} from "../race/race-verification";
+import {
   ROOM_FINISH_GRACE_MS,
   ROOM_LOAD_MS,
   ROOM_MAX_PLAYERS,
   ROOM_MIN_RACERS,
   ROOM_PROTOCOL,
   ROOM_RACE_LIMIT_MS,
+  ROOM_SEAT_HOLD_MS,
   ROOM_START_DELAY_MS,
+  type RoomClientMessage,
   type RoomEndReason,
   type RoomRaceReport,
   type RoomSnapshot,
 } from "./room-protocol";
-import type { RoomToken } from "./room-signing";
+import type { RoomCourse, RoomToken } from "./room-signing";
 
 /**
  * A private room's rules, free of any transport: each event takes the room
  * state and returns the next, so the room server only stores state, relays
- * kart states, and broadcasts snapshots. Every wait has a deadline, checked
- * on every event; nextRoomDeadline says when to check again if nothing
- * happens.
+ * the kart states it accepts, and broadcasts snapshots. Every wait has a
+ * deadline, checked on every event; nextRoomDeadline says when to check
+ * again if nothing happens.
+ *
+ * Each client drives its own kart, and the room decides what counts: it
+ * checks every state against the one before, as solo's run check does a
+ * recording, and times gates and finishes from the states that pass.
  */
 
-/** A finish time may be this much earlier than the server heard it... */
-const FINISH_EARLY_US = 2_000_000;
-/** ...or this much later, since the client's clock reads the room's. */
-const FINISH_LATE_US = 250_000;
+/**
+ * A state's race time may run this far ahead of the room's clock, since
+ * the page's estimate of that clock is off by up to half a round trip.
+ */
+const ROOM_CLOCK_SLACK_US = 250_000;
 
 type RoomKart = RoomToken["karts"][number];
+export type RoomKartState = Omit<
+  Extract<RoomClientMessage, { type: "state" }>,
+  "type"
+>;
+/** An accepted state, as later states are checked against it. */
+type CheckedState = Pick<RaceCheckSample, "position" | "timeMicroseconds">;
 
 export type RoomPlayerState = {
   id: string;
@@ -35,6 +56,8 @@ export type RoomPlayerState = {
   karts: RoomKart[];
   kartId: string | null;
   ready: boolean;
+  /** When its connection dropped; its seat is held until the hold ends. */
+  awaySince: number | null;
 };
 
 export type RoomEntrantState = {
@@ -47,7 +70,14 @@ export type RoomEntrantState = {
   kartRevision: number;
   loaded: boolean;
   gates: number;
-  lastGateAt: number | null;
+  /** The state that passed the latest gate, which orders the unfinished. */
+  lastGate: CheckedState | null;
+  /**
+   * The latest accepted state. It changes with every state but is stored
+   * only with a reset or the next change, so after a restart it can be an
+   * older one on the same stretch, which only loosens the next check.
+   */
+  last: CheckedState | null;
   finishMicroseconds: number | null;
   finishedAt: number | null;
   left: boolean;
@@ -58,9 +88,10 @@ export type RoomState = {
   code: string;
   courseId: string;
   courseRevision: number;
-  gateCount: number;
+  /** The first joiner's course, which every state is checked against. */
+  course: RoomCourse;
   physicsVersion: string;
-  /** In join order; the first player hosts. */
+  /** In join order; the first connected player hosts. */
   players: RoomPlayerState[];
   nextPlayer: number;
   nextGuest: number;
@@ -77,30 +108,26 @@ export type RoomState = {
 export type RoomEvent =
   | { type: "join"; now: number; token: RoomToken }
   | { type: "leave"; now: number; playerId: string }
+  | { type: "disconnect"; now: number; playerId: string }
+  | { type: "sit_out"; now: number; playerId: string; raceId: string }
   | { type: "tick"; now: number }
   | { type: "choose_kart"; now: number; playerId: string; kartId: string }
   | { type: "start"; now: number; playerId: string; raceId: string }
   | { type: "loaded"; now: number; playerId: string; raceId: string }
-  | {
-      type: "gate";
-      now: number;
-      playerId: string;
-      raceId: string;
-      gates: number;
-    }
-  | {
-      type: "finish";
-      now: number;
-      playerId: string;
-      raceId: string;
-      timeMicroseconds: number;
-    };
+  | { type: "state"; now: number; playerId: string; state: RoomKartState };
 
 export type RoomOutcome = {
   state: RoomState;
   /** The snapshot changed, so broadcast it. */
   changed: boolean;
   joined?: { playerId: string; replaced: boolean };
+  /** A kart state passed its checks, so relay it. */
+  accepted?: boolean;
+  /**
+   * Store the state without broadcasting it: an accepted reset, which a
+   * restart must not forget, since later states are checked from it.
+   */
+  persist?: boolean;
   /** Why a join was refused; the socket closes with that code. */
   refused?: "full" | "version";
   /** A finished race, to send to the app. */
@@ -114,7 +141,7 @@ export function createRoomState(token: RoomToken): RoomState {
     code: token.room,
     courseId: token.courseId,
     courseRevision: token.courseRevision,
-    gateCount: token.gateCount,
+    course: token.course,
     physicsVersion: token.physicsVersion,
     players: [],
     nextPlayer: 1,
@@ -125,22 +152,45 @@ export function createRoomState(token: RoomToken): RoomState {
 }
 
 export function hostId(state: RoomState) {
-  return state.players[0]?.id ?? null;
+  return state.players.find(({ awaySince }) => awaySince === null)?.id ?? null;
 }
 
-/** Whether a player's kart states should reach the others. */
-export function canRelayState(state: RoomState, playerId: string) {
+/**
+ * For a seat racing on, the race time of the last state the room accepted
+ * from it (-1 for none), so its page resends what came after; else null.
+ */
+export function roomResume(state: RoomState, playerId: string) {
   const entrant = state.race?.entrants.find(({ id }) => id === playerId);
-  return Boolean(
-    state.race?.racingAt != null && entrant && !entrant.left && entrant.loaded,
+  if (
+    state.race?.racingAt == null ||
+    !entrant?.loaded ||
+    entrant.left ||
+    entrant.finishMicroseconds !== null
+  ) {
+    return null;
+  }
+  return entrant.last?.timeMicroseconds ?? -1;
+}
+
+function seatExpiry(state: RoomState) {
+  const away = state.players.flatMap(({ awaySince }) =>
+    awaySince === null ? [] : [awaySince + ROOM_SEAT_HOLD_MS],
   );
+  return away.length === 0 ? null : Math.min(...away);
 }
 
 export function nextRoomDeadline(state: RoomState) {
   const race = state.race;
-  if (!race) return null;
-  if (race.racingAt === null) return race.loadDeadline;
-  return raceEndsBy(race.racingAt, race.firstFinishAt);
+  const deadlines = [seatExpiry(state)];
+  if (race) {
+    deadlines.push(
+      race.racingAt === null
+        ? race.loadDeadline
+        : raceEndsBy(race.racingAt, race.firstFinishAt),
+    );
+  }
+  const due = deadlines.filter((deadline) => deadline !== null);
+  return due.length === 0 ? null : Math.min(...due);
 }
 
 function raceEndsBy(racingAt: number, firstFinishAt: number | null) {
@@ -154,7 +204,9 @@ export function applyRoomEvent(
   current: RoomState,
   event: RoomEvent,
 ): RoomOutcome {
-  const state = structuredClone(current);
+  // The course never changes, so it is shared rather than copied.
+  const { course, ...rest } = current;
+  const state: RoomState = { ...structuredClone(rest), course };
   const outcome: RoomOutcome = { state, changed: false };
   // A deadline that passed before this event holds, however late the alarm.
   settle(outcome, event.now);
@@ -166,6 +218,12 @@ export function applyRoomEvent(
     case "leave":
       changed = leave(state, event.playerId);
       break;
+    case "disconnect":
+      changed = disconnect(state, event.playerId, event.now);
+      break;
+    case "sit_out":
+      changed = sitOut(state, event.playerId, event.raceId);
+      break;
     case "choose_kart":
       changed = chooseKart(state, event.playerId, event.kartId);
       break;
@@ -175,11 +233,8 @@ export function applyRoomEvent(
     case "loaded":
       changed = loaded(state, event.playerId, event.raceId);
       break;
-    case "gate":
-      changed = gate(state, event);
-      break;
-    case "finish":
-      changed = finish(state, event);
+    case "state":
+      changed = kartState(outcome, event);
       break;
     case "tick":
       break;
@@ -201,7 +256,9 @@ function join(outcome: RoomOutcome, token: RoomToken) {
   }
   const existing = state.players.find(({ key }) => key === token.player.key);
   if (existing) {
-    // The same account from another tab takes its seat.
+    // The same account from another tab, or this page reconnecting, takes
+    // its seat.
+    existing.awaySince = null;
     existing.karts = token.karts;
     if (!existing.karts.some(({ id }) => id === existing.kartId)) {
       existing.kartId = null;
@@ -233,6 +290,7 @@ function join(outcome: RoomOutcome, token: RoomToken) {
     karts: token.karts,
     kartId: null,
     ready: false,
+    awaySince: null,
   });
   outcome.joined = { playerId: id, replaced: false };
   outcome.changed = true;
@@ -252,6 +310,30 @@ function leave(state: RoomState, playerId: string) {
       if (entrant) entrant.left = true;
     }
   }
+  return true;
+}
+
+/** A dropped connection's seat is held; its kart races on meanwhile. */
+function disconnect(state: RoomState, playerId: string, now: number) {
+  const player = state.players.find(({ id }) => id === playerId);
+  if (!player || player.awaySince !== null) return false;
+  player.awaySince = now;
+  return true;
+}
+
+/** A page that can't race this race leaves it, staying in the room. */
+function sitOut(state: RoomState, playerId: string, raceId: string) {
+  const race = state.race;
+  const player = state.players.find(({ id }) => id === playerId);
+  if (!race || race.id !== raceId || !player) return false;
+  const entrant = race.entrants.find(({ id }) => id === playerId);
+  if (!entrant || entrant.left) return false;
+  if (race.racingAt === null) {
+    race.entrants = race.entrants.filter(({ id }) => id !== playerId);
+  } else {
+    entrant.left = true;
+  }
+  player.ready = false;
   return true;
 }
 
@@ -276,9 +358,12 @@ function start(
   { now, playerId, raceId }: { now: number; playerId: string; raceId: string },
 ) {
   if (state.race || hostId(state) !== playerId) return false;
+  // A seat held for a dropped connection sits the race out.
   const ready = state.players.filter(
     (player) =>
-      player.ready && player.karts.some(({ id }) => id === player.kartId),
+      player.ready &&
+      player.awaySince === null &&
+      player.karts.some(({ id }) => id === player.kartId),
   );
   if (ready.length < ROOM_MIN_RACERS) return false;
   state.race = {
@@ -293,7 +378,8 @@ function start(
         .revision,
       loaded: false,
       gates: 0,
-      lastGateAt: null,
+      lastGate: null,
+      last: null,
       finishMicroseconds: null,
       finishedAt: null,
       left: false,
@@ -315,68 +401,114 @@ function loaded(state: RoomState, playerId: string, raceId: string) {
   return true;
 }
 
-function racingEntrant(
-  state: RoomState,
-  playerId: string,
-  raceId: string,
-  now: number,
-) {
-  const racingAt = state.race?.racingAt;
-  if (racingAt == null || now < racingAt) return null;
-  const entrant = entrantOf(state, playerId, raceId);
-  return entrant && entrant.finishMicroseconds === null ? entrant : null;
+function vector([x, y, z]: readonly [number, number, number]) {
+  return { x, y, z };
 }
 
-// Every gate but the last; the finish message passes the last.
-function gate(
-  state: RoomState,
-  event: { now: number; playerId: string; raceId: string; gates: number },
+/**
+ * Checks one kart state; one that passes is relayed, and one that crosses
+ * a gate counts it, timing the finish from its own race time. It must
+ * follow the kart's last accepted state by the run check's rules, and its
+ * race time may not run ahead of the room's clock. The first is checked
+ * against its grid slot, as far as the speed cap reaches in its race time.
+ * Returns whether the snapshot changed.
+ */
+function kartState(
+  outcome: RoomOutcome,
+  event: { now: number; playerId: string; state: RoomKartState },
 ) {
-  const entrant = racingEntrant(state, event.playerId, event.raceId, event.now);
-  if (
-    !entrant ||
-    event.gates !== entrant.gates + 1 ||
-    event.gates >= state.gateCount
-  ) {
-    return false;
-  }
-  entrant.gates = event.gates;
-  entrant.lastGateAt = event.now;
-  return true;
-}
-
-function finish(
-  state: RoomState,
-  event: {
-    now: number;
-    playerId: string;
-    raceId: string;
-    timeMicroseconds: number;
-  },
-) {
-  const entrant = racingEntrant(state, event.playerId, event.raceId, event.now);
+  const { state } = outcome;
   const race = state.race;
-  if (!entrant || !race || entrant.gates !== state.gateCount - 1) {
+  if (!race || race.racingAt === null) return false;
+  const entrant = race.entrants.find(({ id }) => id === event.playerId);
+  if (!entrant?.loaded || entrant.left || entrant.finishMicroseconds !== null) {
     return false;
   }
-  const heard = (event.now - race.racingAt!) * 1_000;
-  const claimed = event.timeMicroseconds;
-  entrant.finishMicroseconds = Math.max(
-    1,
-    claimed >= heard - FINISH_EARLY_US && claimed <= heard + FINISH_LATE_US
-      ? claimed
-      : heard,
-  );
-  entrant.finishedAt = event.now;
-  entrant.gates = state.gateCount;
-  entrant.lastGateAt = event.now;
-  race.firstFinishAt ??= event.now;
+  const { t, p, r, g } = event.state;
+  // Through the countdown, a kart waits on the grid at race time zero.
+  const roomMicroseconds = Math.max(0, event.now - race.racingAt) * 1_000;
+  if (t > roomMicroseconds + ROOM_CLOCK_SLACK_US) return false;
+
+  const sample = { timeMicroseconds: t, position: vector(p), reset: r };
+  const samples: RaceCheckSample[] = g
+    ? [
+        {
+          timeMicroseconds: t - STEP_MICROSECONDS,
+          position: vector(g),
+          reset: false,
+          gate: false,
+        },
+        { ...sample, gate: true },
+      ]
+    : [{ ...sample, gate: false }];
+  let previous = entrant.last;
+  for (const [index, next] of samples.entries()) {
+    if (!previous) {
+      // Only the race's first state has nothing before it.
+      if (
+        next.reset ||
+        next.gate ||
+        !nearRaceResetPoint(
+          next.position,
+          state.course.grid[entrant.slot],
+          next.timeMicroseconds,
+        )
+      ) {
+        return false;
+      }
+    } else if (
+      checkRaceStep(
+        state.course,
+        entrant.gates,
+        previous,
+        next,
+        // A crossing's step before may be the state just accepted.
+        g && index === 0 ? 0 : STEP_MICROSECONDS,
+      )
+    ) {
+      return false;
+    }
+    previous = next;
+  }
+  outcome.accepted = true;
+  const from = entrant.last;
+  entrant.last = { timeMicroseconds: t, position: sample.position };
+  if (r) outcome.persist = true;
+  // A crossing counts from its own state, or, if that state was refused
+  // (it ran ahead of the clock, say), from the line between two accepted
+  // ones, so one refusal doesn't end a race.
+  const crossed =
+    g ||
+    (!r &&
+      from !== null &&
+      crossesNextRaceGate(
+        state.course,
+        entrant.gates,
+        from.position,
+        sample.position,
+      ));
+  if (!crossed) return false;
+
+  entrant.gates += 1;
+  entrant.lastGate = entrant.last;
+  if (entrant.gates === raceGateCount(state.course)) {
+    entrant.finishMicroseconds = Math.max(1, t);
+    entrant.finishedAt = event.now;
+    race.firstFinishAt ??= event.now;
+  }
   return true;
 }
 
 /** Applies every deadline and end rule that holds at `now`. */
 function settle(outcome: RoomOutcome, now: number) {
   const { state } = outcome;
+  // A seat held past its hold is given up, as leaving would.
+  for (const { id, awaySince } of [...state.players]) {
+    if (awaySince !== null && now >= awaySince + ROOM_SEAT_HOLD_MS) {
+      leave(state, id);
+      outcome.changed = true;
+    }
+  }
   const race = state.race;
   if (!race) return;
 
@@ -423,7 +555,8 @@ function settle(outcome: RoomOutcome, now: number) {
 
 /**
  * Standing order: finishers by time, then everyone else, whether racing or
- * gone, by gates passed and who reached their last gate first.
+ * gone, by gates passed and who reached their last gate soonest in race
+ * time.
  */
 function compareStanding(a: RoomEntrantState, b: RoomEntrantState) {
   if (a.finishMicroseconds !== null || b.finishMicroseconds !== null) {
@@ -437,7 +570,8 @@ function compareStanding(a: RoomEntrantState, b: RoomEntrantState) {
   }
   return (
     b.gates - a.gates ||
-    (a.lastGateAt ?? Infinity) - (b.lastGateAt ?? Infinity) ||
+    (a.lastGate?.timeMicroseconds ?? Infinity) -
+      (b.lastGate?.timeMicroseconds ?? Infinity) ||
     a.slot - b.slot
   );
 }
@@ -501,11 +635,12 @@ export function roomSnapshot(state: RoomState): RoomSnapshot {
     courseRevision: state.courseRevision,
     hostId: hostId(state),
     phase: !race ? "lobby" : race.racingAt === null ? "loading" : "racing",
-    players: state.players.map(({ id, name, kartId, ready }) => ({
+    players: state.players.map(({ id, name, kartId, ready, awaySince }) => ({
       id,
       name,
       kartId,
       ready,
+      connected: awaySince === null,
     })),
     race: race && {
       id: race.id,
