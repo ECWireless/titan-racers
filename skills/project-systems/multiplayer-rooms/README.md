@@ -1,6 +1,6 @@
 # Multiplayer Rooms System
 
-**Maturity:** Candidate (PR 6.6, 2026-11-06).
+**Maturity:** Validated (PRs 6.4–6.6, 2026-11-07).
 
 ## Purpose And Scope
 

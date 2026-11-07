@@ -1,6 +1,6 @@
 # Kart-To-Kart Contact
 
-**Maturity:** Candidate (PR 6.6, 2026-11-06).
+**Maturity:** Validated (PR 6.6, 2026-11-07).
 
 ## Purpose And Scope
 
