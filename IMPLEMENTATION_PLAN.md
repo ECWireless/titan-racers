@@ -346,8 +346,10 @@ Phase decisions:
   agree to within each page's estimate rather than exactly; a pusher
   doesn't know the wall behind a pinned kart, so it sinks in gradually;
   during a brief lag spike only one side may be pushed; if both pages miss
-  a touch, one may push again; and a modified page can push harder on
-  other pages than its kart moves, though not in the room's record.
+  a touch, one may push again; in a chain, a kart knocked into another
+  sinks in by about the delay times the speed before they part; and a
+  modified page can push harder on other pages than its kart moves (the
+  room's record is bounded only by its own checks on each state).
 - **One room protocol version is live at a time;** PRs 6.5 and 6.6 raise
   it, deploying the room server and then the app back to back. It versions
   every message, so Phase 8 raises it to add damage to contacts. Production
@@ -447,6 +449,9 @@ Phase decisions:
 - [x] Home's first screen offers Time Trial, Multiplayer, and Leaderboard.
       Multiplayer opens a room at once, whose lobby shows the host's course,
       and multiplayer is called Multiplayer everywhere.
+
+A pileup wasn't tried on devices (the lead skipped it); the simulated
+three-kart pileup across three pages covers it.
 
 **Done when:** a host creates a room, a guest joins by link, both ready up and
 race, and results resolve without hanging; the room can replay; and rubbing,

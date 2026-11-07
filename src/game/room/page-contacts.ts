@@ -63,7 +63,11 @@ export class PageContacts {
   private readonly pairs = new Map<string, Pair>();
   /** This kart is out of touch, or back but not yet clear of every other. */
   private ghost = false;
-  private readonly seen = new Set<number>();
+  /**
+   * Records seen, by ID and race time: a room that restarts mid-race
+   * numbers its records afresh.
+   */
+  private readonly seen = new Set<string>();
   readonly stats: PageContactStats = { touchingSteps: 0, fills: 0 };
 
   constructor(private readonly shape: KartContactShape) {}
@@ -170,8 +174,9 @@ export class PageContacts {
     atUs: number,
     other?: Pick<PageContactOpponent, "shape" | "estimate">,
   ) {
-    if (this.seen.has(record.id)) return null;
-    this.seen.add(record.id);
+    const key = `${record.id}@${record.t}`;
+    if (this.seen.has(key)) return null;
+    this.seen.add(key);
     if (this.ghost || atUs - record.t > PAGE_CONTACT.freshUs) return null;
     const { matchUs } = PAGE_CONTACT;
     const answered = this.pairs

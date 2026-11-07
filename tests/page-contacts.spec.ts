@@ -2,6 +2,7 @@ import { expect, test } from "@playwright/test";
 
 import {
   advanceKartPose,
+  KART_CONTACT,
   withKartImpulse,
   type KartContactBody,
 } from "../src/game/room/kart-contact";
@@ -83,61 +84,100 @@ type PageSetup = {
 };
 
 /**
- * Runs two pages and a room for `seconds`: each page steps its kart at
- * 120 Hz, answering its touches, and sends a state every fourth step.
+ * Runs pages and a room for `seconds`: each page steps its kart at 120 Hz,
+ * answering its touches against its estimate of every other, and sends a
+ * state every fourth step.
  */
-function race(a: PageSetup, b: PageSetup, seconds: number) {
+function race(setups: PageSetup[], seconds: number) {
   const room = new RoomContacts();
-  const pages = [a, b].map((setup, index) => ({
+  const pages = setups.map((setup, index) => ({
     ...setup,
-    id: index === 0 ? "a" : "b",
+    id: "abcd"[index],
     contacts: new PageContacts(SHAPE),
-    other: new OpponentMotion(),
+    others: new Map<string, OpponentMotion>(),
     records: [] as RoomContactRecord[],
-    impulse: { x: 0, y: 0, z: 0 },
     touchedAtUs: null as number | null,
   }));
+  for (const page of pages) {
+    for (const other of pages) {
+      if (other !== page) page.others.set(other.id, new OpponentMotion());
+    }
+  }
   const events: Array<{ atUs: number; run: () => void }> = [];
   const schedule = (atUs: number, run: () => void) => {
     let index = events.length;
     while (index > 0 && events[index - 1].atUs > atUs) index -= 1;
     events.splice(index, 0, { atUs, run });
   };
-  const roomRecords: Array<{ t: number; closingSpeed: number }> = [];
+  const roomRecords: Array<{
+    t: number;
+    pair: string;
+    closingSpeed: number;
+  }> = [];
+  // Each state goes up to the room, which may open records for the two
+  // karts in a touch, and on to every other page.
+  const send = (page: (typeof pages)[number], t: number) => {
+    const state = sent(t, page.body, page.out);
+    const arrivedUs = t + page.upUs;
+    schedule(arrivedUs, () => {
+      const others = pages
+        .filter((other) => other !== page)
+        .map(({ id }) => ({ id, shape: SHAPE }));
+      for (const contact of room.live(
+        { id: page.id, shape: SHAPE },
+        state,
+        arrivedUs,
+        others,
+      )) {
+        roomRecords.push({
+          t: contact.t,
+          pair: [contact.a, contact.b].sort().join(""),
+          closingSpeed: contact.response.closingSpeed,
+        });
+        for (const to of pages) {
+          if (to.id !== contact.a && to.id !== contact.b) continue;
+          schedule(arrivedUs + to.downUs, () =>
+            to.records.push(roomContactMessage(contact, to.id)),
+          );
+        }
+      }
+    });
+    for (const other of pages) {
+      if (other === page) continue;
+      const relayedUs = arrivedUs + other.downUs;
+      schedule(relayedUs, () =>
+        other.others.get(page.id)!.add(opponentState(state), relayedUs),
+      );
+    }
+  };
   let closest = Infinity;
   const steps = Math.round(seconds / STEP_SECONDS);
   // Each sends where it starts, as from the grid.
-  for (const [index, page] of pages.entries()) {
-    const state = sent(0, page.body, page.out);
-    schedule(page.upUs, () =>
-      room.live({ id: page.id, shape: SHAPE }, state, page.upUs, [
-        { id: pages[1 - index].id, shape: SHAPE },
-      ]),
-    );
-    const relayedUs = page.upUs + pages[1 - index].downUs;
-    schedule(relayedUs, () =>
-      pages[1 - index].other.add(opponentState(state), relayedUs),
-    );
-  }
+  for (const page of pages) send(page, 0);
   for (let step = 0; step < steps; step += 1) {
     const atUs = step * STEP_US;
     while (events[0] && events[0].atUs <= atUs) events.shift()!.run();
-    for (const [index, page] of pages.entries()) {
-      const other = pages[1 - index];
+    for (const page of pages) {
+      const opponents = [...page.others].map(([id, estimate]) => ({
+        id,
+        shape: SHAPE,
+        estimate,
+      }));
       const answer = page.contacts.step({
         atUs,
         stepSeconds: STEP_SECONDS,
         body: page.body,
         out: page.out ?? false,
         reset: false,
-        opponents: [{ id: other.id, shape: SHAPE, estimate: page.other }],
+        opponents,
       });
       const { impulse, turn } = answer;
       for (const record of page.records.splice(0)) {
-        const push = page.contacts.fill(record, atUs, {
-          shape: SHAPE,
-          estimate: page.other,
-        });
+        const push = page.contacts.fill(
+          record,
+          atUs,
+          opponents.find(({ id }) => id === record.with),
+        );
         if (!push) continue;
         for (const axis of ["x", "y", "z"] as const) {
           impulse[axis] += push.impulse[axis];
@@ -145,9 +185,6 @@ function race(a: PageSetup, b: PageSetup, seconds: number) {
         }
       }
       if (answer.touches.length > 0) page.touchedAtUs ??= atUs;
-      for (const axis of ["x", "y", "z"] as const) {
-        page.impulse[axis] += impulse[axis];
-      }
       const pushed = withKartImpulse(
         { shape: SHAPE, body: page.body },
         impulse,
@@ -155,39 +192,15 @@ function race(a: PageSetup, b: PageSetup, seconds: number) {
       );
       page.body = { ...pushed, ...advanceKartPose(pushed, STEP_SECONDS) };
     }
-    closest = Math.min(
-      closest,
-      Math.abs(pages[0].body.position.z - pages[1].body.position.z),
-    );
-    if (step % 4 !== 3) continue;
-    const t = atUs + STEP_US;
     for (const [index, page] of pages.entries()) {
-      const other = pages[1 - index];
-      const state = sent(t, page.body, page.out);
-      schedule(t + page.upUs, () => {
-        const arrivedUs = t + page.upUs;
-        for (const contact of room.live(
-          { id: page.id, shape: SHAPE },
-          state,
-          arrivedUs,
-          [{ id: other.id, shape: SHAPE }],
-        )) {
-          roomRecords.push({
-            t: contact.t,
-            closingSpeed: contact.response.closingSpeed,
-          });
-          for (const to of pages) {
-            schedule(arrivedUs + to.downUs, () =>
-              to.records.push(roomContactMessage(contact, to.id)),
-            );
-          }
-        }
-      });
-      const relayedUs = t + page.upUs + other.downUs;
-      schedule(relayedUs, () =>
-        other.other.add(opponentState(state), relayedUs),
-      );
+      for (const other of pages.slice(index + 1)) {
+        closest = Math.min(
+          closest,
+          Math.abs(page.body.position.z - other.body.position.z),
+        );
+      }
     }
+    if (step % 4 === 3) for (const page of pages) send(page, atUs + STEP_US);
   }
   return { pages, roomRecords, closest };
 }
@@ -198,8 +211,10 @@ test.describe("a page's kart-to-kart contacts", () => {
   test("a head-on stops both karts at once, with nothing passing through", () => {
     // Closing at 10 m/s, twice a kart's top speed.
     const { pages, roomRecords, closest } = race(
-      { body: body(1.5, -5), ...QUICK },
-      { body: body(-1.5, 5), ...QUICK },
+      [
+        { body: body(1.5, -5), ...QUICK },
+        { body: body(-1.5, 5), ...QUICK },
+      ],
       1,
     );
     const [a, b] = pages;
@@ -224,8 +239,10 @@ test.describe("a page's kart-to-kart contacts", () => {
   test("a rear-end shares the push, as each kart's mass gives", () => {
     // One kart waits; the other runs into it at 3 m/s.
     const { pages, roomRecords, closest } = race(
-      { body: body(-1, 0), ...QUICK },
-      { body: body(0, -3), ...QUICK },
+      [
+        { body: body(-1, 0), ...QUICK },
+        { body: body(0, -3), ...QUICK },
+      ],
       1,
     );
     const [ahead, behind] = pages;
@@ -241,12 +258,48 @@ test.describe("a page's kart-to-kart contacts", () => {
     expect(ahead.contacts.stats.fills + behind.contacts.stats.fills).toBe(0);
   });
 
+  test("a pileup of three, each on its own page, never passes through", () => {
+    // Two karts wait nose to tail; a third runs into the back of them.
+    const gap = 0.002;
+    const { pages, roomRecords, closest } = race(
+      [
+        { body: body(-1, 0), ...QUICK },
+        { body: body(-1 + LENGTH + gap, 0), ...QUICK },
+        { body: body(1, -4), ...QUICK },
+      ],
+      1.5,
+    );
+    // The kart knocked on hits the one ahead before that one's page can
+    // know, so it sinks in by about the delay times the speed, but never
+    // through: the push apart then parts them.
+    expect(closest).toBeGreaterThan(LENGTH - 0.2);
+    const zs = pages.map(({ body: { position } }) => position.z);
+    expect(zs[1] - zs[0]).toBeGreaterThan(LENGTH - KART_CONTACT.slopMetres);
+    expect(zs[2] - zs[1]).toBeGreaterThan(LENGTH - KART_CONTACT.slopMetres);
+    // The two hit were pushed on, none came back at the one behind, and
+    // most of the momentum carried through.
+    const [front, middle, back] = pages.map(({ body }) => body.velocity.z);
+    expect(front).toBeLessThan(-0.5);
+    expect(middle).toBeLessThan(-0.5);
+    expect(front).toBeLessThanOrEqual(middle + 0.05);
+    expect(middle).toBeLessThanOrEqual(back + 0.05);
+    const total = front + middle + back;
+    expect(total).toBeGreaterThan(-4.05);
+    expect(total).toBeLessThan(-2.5);
+    // The room recorded both pairs that met.
+    const pairs = roomRecords.map(({ pair }) => pair);
+    expect(pairs).toContain("ab");
+    expect(pairs).toContain("bc");
+  });
+
   test("a page that sees the other too late to answer takes the room's record once", () => {
     // The waiting kart's page hears the other 0.3 s late, beyond the
     // lateness a contact allows; the room and the other page hear it soon.
     const { pages, roomRecords } = race(
-      { body: body(-1, 0), upUs: 30_000, downUs: 270_000 },
-      { body: body(0, -3), ...QUICK },
+      [
+        { body: body(-1, 0), upUs: 30_000, downUs: 270_000 },
+        { body: body(0, -3), ...QUICK },
+      ],
       1,
     );
     const [ahead, behind] = pages;
@@ -260,8 +313,10 @@ test.describe("a page's kart-to-kart contacts", () => {
 
   test("a kart out of touch passes through, on every page and in the room", () => {
     const { pages, roomRecords } = race(
-      { body: body(-1, 0), ...QUICK },
-      { body: body(0, -3), ...QUICK, out: true },
+      [
+        { body: body(-1, 0), ...QUICK },
+        { body: body(0, -3), ...QUICK, out: true },
+      ],
       1,
     );
     const [ahead, behind] = pages;
@@ -337,12 +392,15 @@ test.describe("a page's out-of-touch rules and the room's records", () => {
     expect(contacts.fill(record(1_000_000, push), 1_100_000)?.impulse).toEqual(
       push,
     );
-    // The same record again, by id.
+    // The same record again.
     expect(contacts.fill(record(1_000_000, push), 1_100_000)).toBeNull();
+    // A room that restarted numbers afresh: its ID again at another time
+    // is another touch.
+    expect(contacts.fill(record(1_050_000, push), 1_100_000)).not.toBeNull();
     // Too old to push now.
     const staleUs = 1_000_000 + PAGE_CONTACT.freshUs + 1;
     expect(contacts.fill(record(1_000_000, push, 2), staleUs)).toBeNull();
-    expect(contacts.stats.fills).toBe(1);
+    expect(contacts.stats.fills).toBe(2);
 
     // A touch this page answered: the room's record of it adds nothing.
     const estimate = standing(-0.4, 2_000_000);
@@ -354,7 +412,7 @@ test.describe("a page's out-of-touch rules and the room's records", () => {
     );
     expect(answer.touches).toHaveLength(1);
     expect(contacts.fill(record(2_050_000, push, 3), 2_200_000)).toBeNull();
-    expect(contacts.stats.fills).toBe(1);
+    expect(contacts.stats.fills).toBe(2);
   });
 
   test("a pushed record carries the other kart's share, so it isn't answered again", () => {

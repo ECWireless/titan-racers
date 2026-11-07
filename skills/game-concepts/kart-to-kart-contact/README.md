@@ -30,10 +30,10 @@ in touch rather than briefly.
   in both karts' states with the same resolver, resolves it once, and sends
   it to both clients as its one record. A client that already answered it
   does nothing more; one that missed it applies the server's share once,
-  while it is still fresh. A response already made stands. Waiting for the server instead costs a
-  round trip (both karts' states up, the reply down), during which karts
-  sink into each other by closing speed times the delay, and a fast head-on
-  passes right through.
+  while it is still fresh. A response already made stands. Waiting for the
+  server instead costs a round trip (both karts' states up, the reply
+  down), during which karts sink into each other by closing speed times
+  the delay, and a fast head-on passes right through.
 - **Contact at the present, not in the past.** Opponents drawn from a jitter
   buffer sit behind their true positions by speed times delay, several kart
   lengths at racing speed, so a contact tested or shown against them is
@@ -47,6 +47,11 @@ in touch rather than briefly.
   bound by that motion breaks honest contacts.
   Further away, keep drawing in the past for smoothness, easing between the
   two with distance at a bounded rate.
+- **Push apart along the shallowest share.** Karts are long and flat, so
+  pick the contact normal by the overlap's share of the two boxes' reach,
+  not its depth: karts pressed deep end to end still push apart end to end,
+  where the least depth would turn up through their shallow height and let
+  them pass through.
 - **One two-body impulse.** Split the relative velocity at the contact point
   into its normal and contact-plane parts. The normal impulse removes the
   closing speed, plus any restitution, given both karts' mass and their
@@ -126,6 +131,10 @@ in touch rather than briefly.
   sides agree, only one kart may be pushed.
 - If both clients miss the same touch, one may push its own kart again
   after the server's share.
+- In a chain, a kart knocked into another by a third reaches it before that
+  kart's client can know, so it sinks in by about the delay times the
+  closing speed (10–20 cm at 2–4 m/s on a quick connection) before the push
+  apart parts them.
 - A client modified to report a higher velocity can push harder on other
   clients than its kart moves; the server's record, from the motion it
   saw, can't be pushed so.
@@ -141,16 +150,15 @@ in touch rather than briefly.
 - Pure tests of the present estimate, the shares it carries, and each
   client's judgment of lateness, its own included
   (`tests/opponent-motion.spec.ts`, `tests/page-contacts.spec.ts`,
-  `tests/room-connection.spec.ts`), and two clients simulated through the
+  `tests/room-connection.spec.ts`), and clients simulated through the
   server's tracker: a head-on and a rear-end answered at once on both and
-  recorded once at their closing speed, a late client filled in once, and a
-  kart out of touch passing through.
+  recorded once at their closing speed, a three-kart pileup, a late client
+  filled in once, and a kart out of touch passing through.
 - A browser test with a scripted opponent and room: the response comes at
   once, nothing passes through, and a missed contact is filled in once
   (`tests/room-race.spec.ts`).
 - Two devices: rear-end, side-by-side rubbing, head-on, pinning against a
-  wall, and a pileup each read as one contact on both screens. In PR 6.6
-  all but the pileup passed on an iPhone and a second device.
+  wall, and a pileup each read as one contact on both screens.
 
 ## Related
 

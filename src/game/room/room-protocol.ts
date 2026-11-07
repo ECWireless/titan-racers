@@ -237,7 +237,10 @@ const serverMessageSchema = z.discriminatedUnion("type", [
    */
   z.strictObject({
     type: z.literal("contact"),
-    /** Unique within the race. */
+    /**
+     * Unique within the race, unless the room restarts mid-race; with `t`,
+     * it names the touch.
+     */
     id: z.number().int().positive().max(1e9),
     /** When they first touched, in race time. */
     t: microseconds,

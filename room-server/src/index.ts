@@ -1,6 +1,5 @@
 import { DurableObject } from "cloudflare:workers";
 
-import type { KartContactShape } from "../../src/game/room/kart-contact";
 import {
   contactEntrants,
   RoomContacts,
@@ -216,8 +215,6 @@ export class Room extends DurableObject<Env> {
    */
   private contacts = new RoomContacts();
   private contactsRace: string | null = null;
-  /** Each kart's contact shape, by kart and revision. */
-  private shapes = new Map<string, KartContactShape>();
 
   constructor(ctx: DurableObjectState, env: Env) {
     super(ctx, env);
@@ -428,16 +425,11 @@ export class Room extends DurableObject<Env> {
     const contacts = this.raceContacts(state);
     const race = state.race;
     if (!contacts || !race || race.racingAt === null) return [];
-    const racing = contactEntrants(state).map((entrant) => {
-      // Each kart races with the shape it started with.
-      const key = `${entrant.kartId}@${entrant.kartRevision}`;
-      let shape = this.shapes.get(key);
-      if (!shape) {
-        shape = roomContactShape(entrant.contact);
-        this.shapes.set(key, shape);
-      }
-      return { id: entrant.id, shape };
-    });
+    // Each kart races with the shape it started with.
+    const racing = contactEntrants(state).map((entrant) => ({
+      id: entrant.id,
+      shape: roomContactShape(entrant.contact),
+    }));
     const kart = racing.find(({ id }) => id === playerId);
     if (!kart) return [];
     return contacts.live(

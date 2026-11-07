@@ -488,7 +488,10 @@ function RoomLobby({
                 setCopied(outcome);
                 if (copiedTimerRef.current !== null) {
                   window.clearTimeout(copiedTimerRef.current);
+                  copiedTimerRef.current = null;
                 }
+                // A failure stays until the next press, so it's seen.
+                if (outcome !== "copied") return;
                 copiedTimerRef.current = window.setTimeout(() => {
                   copiedTimerRef.current = null;
                   setCopied(null);
@@ -604,9 +607,16 @@ function RoomLobby({
             {problem ?? startNote}
           </p>
           <div className="grid gap-3 sm:grid-flow-col sm:auto-cols-fr">
+            <button
+              className="titan-button titan-button-secondary"
+              type="button"
+              onClick={onLeave}
+            >
+              Leave room
+            </button>
             {host ? (
               <button
-                className="titan-button titan-button-primary min-h-16 text-base"
+                className="titan-button titan-button-primary min-h-16 text-base max-sm:order-first"
                 data-ui-sound="start"
                 disabled={racing || ready < ROOM_MIN_RACERS || !me?.ready}
                 type="button"
@@ -615,13 +625,6 @@ function RoomLobby({
                 Start race
               </button>
             ) : null}
-            <button
-              className="titan-button titan-button-secondary sm:order-first"
-              type="button"
-              onClick={onLeave}
-            >
-              Leave room
-            </button>
           </div>
         </div>
       </section>

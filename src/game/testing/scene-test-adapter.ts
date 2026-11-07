@@ -133,12 +133,11 @@ export type PresentationDebugState = {
 
 export type RaceDebugState = RaceSessionSnapshot & {
   lastProgressionResult: RaceProgressionResult;
-  /** In a room: this kart's contacts, and who is drawn see-through. */
+  /** In a room: this kart's contacts, and whether it's out of touch. */
   roomContacts?: {
     touchingSteps: number;
     fills: number;
     ownSeeThrough: boolean;
-    seeThrough: string[];
   };
 };
 

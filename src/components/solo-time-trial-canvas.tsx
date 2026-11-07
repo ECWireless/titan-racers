@@ -3315,9 +3315,6 @@ export function SoloTimeTrialCanvas({
                 roomContacts: {
                   ...pageContacts.stats,
                   ownSeeThrough: pageContacts.ownSeeThrough,
-                  seeThrough: opponentVisuals
-                    .filter(({ id }) => pageContacts.seeThrough(id))
-                    .map(({ id }) => id),
                 },
               }),
             }),
@@ -3386,8 +3383,20 @@ export function SoloTimeTrialCanvas({
       const contactRotation = new pc.Quat();
       // The slowest step's contacts, for `?perf=1`.
       let contactStepMaxMs = 0;
+      // When the last step ran: a long pause between (a pause, or a hitch)
+      // left this kart silent to every other page, so it passes through
+      // until clear, as they and the room treat it.
+      let lastContactStepAt: number | null = null;
       const stepKartContacts = (dt: number) => {
         kartTouches.length = 0;
+        const steppedAt = performance.now();
+        if (
+          lastContactStepAt !== null &&
+          steppedAt - lastContactStepAt > ROOM_CONTACT.lateUs / 1_000
+        ) {
+          kartGhostPending = true;
+        }
+        lastContactStepAt = steppedAt;
         const body = kart.rigidbody;
         if (!ROOM || !pageContacts || !body) return;
         const lifecycle = raceSession.lifecycleState;
@@ -3571,8 +3580,16 @@ export function SoloTimeTrialCanvas({
         };
         if (gateFrom) state.g = roomPoint(gateFrom);
         else roomResetPending = false;
-        // Too slow to answer a contact in time: out of touch everywhere.
-        if (ROOM?.outOfTouch()) state.o = true;
+        // Out of touch here (too slow to answer in time, recovering,
+        // finished, or not yet clear after one of those): out of touch
+        // everywhere.
+        if (
+          ROOM?.outOfTouch() ||
+          raceSession.lifecycleState !== "racing" ||
+          pageContacts?.ownSeeThrough
+        ) {
+          state.o = true;
+        }
         return state;
       };
       const sendRoomState = (state: RoomKartStateMessage) => {
@@ -3631,8 +3648,13 @@ export function SoloTimeTrialCanvas({
               raceSession.raceMicroseconds,
               previousRacePosition,
             );
-            if (progressionResult.kind === "finished") roomFinishState = state;
-            else sendRoomState(state);
+            if (progressionResult.kind === "finished") {
+              // A finished kart touches nothing more.
+              state.o = true;
+              roomFinishState = state;
+            } else {
+              sendRoomState(state);
+            }
           }
           if (lastRaceProgressionResult.kind === "finished") {
             raceFinishedThisFrame = true;

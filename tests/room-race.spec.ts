@@ -625,11 +625,13 @@ test("a kart is pushed at once by another, and a touch it missed once", async ({
     // The page answered the touch itself, so the room's record of it
     // pushed nothing more; and its kart was pushed on ahead of the rival,
     // not passed through.
+    const record = await rival.next((message) => message.type === "contact");
+    expect(record).toMatchObject({ type: "contact", with: "p1" });
+    // The page's copy of the record has had time to arrive too.
+    await page.waitForTimeout(500);
     const { roomContacts } = await raceState(canvas);
     expect(roomContacts?.touchingSteps).toBeGreaterThan(0);
     expect(roomContacts?.fills).toBe(1);
-    const record = await rival.next((message) => message.type === "contact");
-    expect(record).toMatchObject({ type: "contact", with: "p1" });
     const pushed = await kartState(canvas);
     const gap =
       (pushed.x - reached.x) * ahead.x + (pushed.z - reached.z) * ahead.z;

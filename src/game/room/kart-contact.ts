@@ -552,6 +552,8 @@ type WorldBox = {
 
 type Overlap = {
   depth: number;
+  /** The depth as a share of both boxes' reach along the normal. */
+  share: number;
   /** From box a toward box b. */
   normal: Vec3;
   feature:
@@ -584,8 +586,11 @@ function radiusAlong(box: WorldBox, axis: Vec3) {
 /**
  * The two boxes' overlap along the axis that separates them least, or null
  * when some axis separates them by more than `margin`; a negative overlap is
- * a gap within it. A face's axis wins over two edges' unless the edges'
- * overlap is clearly smaller, so near-aligned karts meet face on.
+ * a gap within it. Least is by share of the boxes' reach along the axis, so
+ * flat karts pressed deep into each other end to end still push apart end to
+ * end, not up through their shallow height. A face's axis wins over two
+ * edges' unless the edges' overlap is clearly smaller, so near-aligned karts
+ * meet face on.
  */
 function boxOverlap(a: WorldBox, b: WorldBox, margin: number): Overlap | null {
   const between = sub(b.center, a.center);
@@ -593,17 +598,20 @@ function boxOverlap(a: WorldBox, b: WorldBox, margin: number): Overlap | null {
   let edges: Overlap | null = null;
   const test = (axis: Vec3, feature: Overlap["feature"]) => {
     const distance = dot(between, axis);
-    const depth = radiusAlong(a, axis) + radiusAlong(b, axis) - Math.abs(distance);
+    const reachAlong = radiusAlong(a, axis) + radiusAlong(b, axis);
+    const depth = reachAlong - Math.abs(distance);
     if (depth < -margin) return false;
+    const share = depth / reachAlong;
     const best = feature.kind === "edges" ? edges : face;
-    // Equal depths go to the same axis whichever kart comes first.
+    // Equal shares go to the same axis whichever kart comes first.
     if (
       !best ||
-      depth < best.depth - 1e-9 ||
-      (depth <= best.depth + 1e-9 && lineKey(axis) < lineKey(best.normal))
+      share < best.share - 1e-9 ||
+      (share <= best.share + 1e-9 && lineKey(axis) < lineKey(best.normal))
     ) {
       const found = {
         depth,
+        share,
         normal: distance < 0 ? scale(axis, -1) : axis,
         feature,
       };
@@ -631,8 +639,8 @@ function boxOverlap(a: WorldBox, b: WorldBox, margin: number): Overlap | null {
   const edgeOverlap = edges as Overlap | null;
   if (!faceOverlap) return edgeOverlap;
   return edgeOverlap &&
-    edgeOverlap.depth <
-      faceOverlap.depth - 0.05 * Math.abs(faceOverlap.depth) - 5e-4
+    edgeOverlap.share <
+      faceOverlap.share - 0.05 * Math.abs(faceOverlap.share) - 1e-3
     ? edgeOverlap
     : faceOverlap;
 }

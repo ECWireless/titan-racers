@@ -164,11 +164,7 @@ what a finished room race stores.
 ## Known Limits
 
 - A reload is a new visit: it doesn't resume a race, even with the seat.
-- Contact's known limits, from its standard: the two shares agree only to
-  within each page's estimate; a kart that can't be moved (pinned, or a
-  scripted test racer) lets its pusher sink in; a brief lag spike may push
-  only one side; if both pages miss a touch, one may push again; and a
-  modified page can claim more velocity on other pages than its kart has.
+- Contact keeps its [standard's known limits](../../game-concepts/kart-to-kart-contact/README.md#known-limits).
 - Each touch is one box per kart, the hull to the wheel guard's top: a
   graze under about a millimetre can go unseen, and a hard angled hit
   briefly sinks a centimetre or two in free flight.
