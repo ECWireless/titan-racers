@@ -138,11 +138,16 @@ The labelled two-axis group provides instructions and four-arrow keyboard
 operation. Pedals retain native button semantics, `aria-pressed`, and Space or
 Enter hold/release behavior.
 
-Only driving controls use `touch-action: none`. Each control captures and tracks
-its pointer ID, so joystick and digital-pedal input coexist and one pointer
-release does not clear another. Pointer up, pointer cancel, lost
-capture, blur, hidden visibility, pause, reset, and teardown release retained
-state and presentation.
+The driving controls and the race canvas use `touch-action: none`; the race
+screen around them (`.race-screen` in `src/app/globals.css`) uses
+`manipulation` and blocks text selection and iOS's long-press menu, so a held
+press never selects, opens a menu, or zooms while pause and results still
+scroll. Menus outside the race keep browser gestures.
+
+Each control captures and tracks its pointer ID, so joystick and digital-pedal
+input coexist and one pointer release does not clear another. Pointer up,
+pointer cancel, lost capture, blur, hidden visibility, pause, reset, and
+teardown release retained state and presentation.
 
 ## Controller Contract
 

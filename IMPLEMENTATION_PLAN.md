@@ -90,7 +90,7 @@ These still constrain every remaining phase.
 - Own-best, course-best, and shared ghosts.
 - Login-gated solo leaderboard.
 - Gold, silver, and bronze for each official course board's top three.
-- Admin kart builder; after Phase 7, player-built community karts with
+- Admin kart builder; from Phase 9, player-built community karts with
   immediate publishing, discovery, and admin safety unpublishing.
 - CAD-style kart assembly, kart remixes, and assembler royalties that are
   tracked and displayed, never paid.
@@ -164,9 +164,10 @@ Details live in git history, `docs/kart-system/`, and `skills/project-systems/`.
 
 Decisions from completed phases that later phases rely on:
 
-- `rough-course` is the permanent editor and physics sandbox. The official track
-  uses its own course ID, `falls-view-park` (`agricultural-zone` until PR
-  4.3.4), and publishing or guest play must never mix the two.
+- `rough-course` is the permanent editor and physics sandbox. Official courses
+  use their own course IDs (Falls View Park's is `falls-view-park`,
+  `agricultural-zone` until PR 4.3.4), and publishing or guest play must never
+  mix them with the sandbox.
 - Gameplay telemetry stays small: one summarized record per run, with no raw
   input, per-frame, hardware-identity, or player-journey capture.
 - Course revision history and restore, real-time collaboration, and multi-author
@@ -264,9 +265,9 @@ integration review, from `2ffc5a20` (PR #70), before its last PR merges.
 
 **PR 6.7: Touch selection and the plan addendum**
 
-- [ ] Pressing or holding anywhere on a race screen never selects text,
+- [x] Pressing or holding anywhere on a race screen never selects text,
       opens the long-press menu, or zooms. Text boxes still select and paste.
-- [ ] Two more official courses join the plan (Phases 8 and 10).
+- [x] Two more official courses join the plan (Phases 8 and 10).
 
 **PR 6.8: Fastest lap**
 
@@ -385,14 +386,14 @@ Park's rural parkland and Phase 10's city.
 - [ ] Debrief its site in Island Three, its route, and its layout at kart
       scale before building.
 - [ ] Decide whether this course or Phase 10's shows lower gravity. One of
-      them must. The end-cap terraces climb to 0.7 R (about 0.3 g), and the
-      hub at the axis is lower still; a course on either needs the placement
-      rules in `docs/island-three.md`, which keep courses clear of the caps
-      and the axis, to change.
+      them must. Gravity falls with distance from the axis: the end-cap
+      terraces top out at 0.7 R (about 0.7 g), so clearly low gravity means
+      a course near the hub. Either needs the placement rules in
+      `docs/island-three.md`, which keep courses clear of the caps and the
+      axis, to change.
 - [ ] Remove rough-course and Falls View Park assumptions from shared race
-      systems while keeping official-course selection and recovery working
-      (moved from community courses), and let a room's host pick either
-      official course.
+      systems while keeping official-course selection and recovery working,
+      and let a room's host pick either official course.
 
 **Done when:** the second course is published, races two laps solo and in a
 room, has its own leaderboard, and holds the phone budget.

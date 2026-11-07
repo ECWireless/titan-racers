@@ -216,8 +216,9 @@ runtime-resilience system owns the broader focus and visibility policy.
 - Disabling keyboard because touch or a controller exists violates concurrent
   input expectations and makes capability detection a user lockout.
 - Device-name heuristics for controller layouts are brittle and privacy-noisy.
-- A canvas-wide `touch-action: none` unnecessarily blocks browser interaction
-  outside the driving controls.
+- Leaving browser gestures on a full-screen race lets held or repeated
+  presses select text, open the long-press menu, or zoom mid-race; blocking
+  them beyond the race takes scrolling and zoom from menus that need them.
 - Polling menu input only from the paused simulation loop makes the pause menu
   impossible to operate because that loop is intentionally stopped.
 - Firing one focus move per render frame makes held sticks skip unpredictably

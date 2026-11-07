@@ -74,8 +74,13 @@ adapter owns pointer IDs and normalized state.
   pointer's action.
 - Permit multiple pointer IDs so joystick and pedal input work
   together.
-- Use `touch-action: none` and selection suppression on the driving controls,
-  not the full canvas or page.
+- Use `touch-action: none` and selection suppression on the driving controls.
+  `touch-action` narrows from an element down through its descendants, so
+  `manipulation` on a container blocks double-tap zoom while scrolling
+  children still pan, and `none` also blocks pinch zoom. iOS Safari needs
+  `-webkit-user-select` and `-webkit-touch-callout: none` to stop selection
+  and its long-press menu. The race screen's choices live in the
+  [player-input system](../../project-systems/player-input/README.md).
 - Do not infer release from pointer position leaving the element after capture.
 - Release all pointers on pause, hidden visibility, blur, unmount, or scene
   teardown.
