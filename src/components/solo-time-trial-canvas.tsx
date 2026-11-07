@@ -4733,7 +4733,7 @@ export function SoloTimeTrialCanvas({
     )?.visualColor ?? "";
 
   return (
-    <main className="fixed inset-0 z-50 bg-black">
+    <main className="race-screen fixed inset-0 z-50 bg-black">
       <canvas
         aria-keyshortcuts={
           !gamePaused &&
@@ -4744,6 +4744,7 @@ export function SoloTimeTrialCanvas({
         }
         ref={canvasRef}
         id="application"
+        onContextMenu={(event) => event.preventDefault()}
         data-collision-fixtures={includeCollisionFixtures ? "true" : "false"}
         data-course-document-id={COURSE_DOCUMENT.courseId}
         data-course-document-name={COURSE_DOCUMENT.name}
@@ -4769,7 +4770,7 @@ export function SoloTimeTrialCanvas({
           sceneStatus !== "ready"
         }
         tabIndex={0}
-        className={`block h-[100dvh] w-[100dvw] touch-manipulation ${
+        className={`block h-[100dvh] w-[100dvw] touch-none ${
           driveCursorHidden &&
           !gamePaused &&
           racePresentation.state !== "finished" &&

@@ -5,10 +5,10 @@ Titan Racers is a browser-playable demo built to prove one idea:
 > Race tiny buildable karts through forbidden service routes inside humanity's
 > last Titan colony.
 
-Demo v1 is done when solo racing, official and community karts built from
-primitives, ghosts, leaderboard-ready results, CAD-style kart assembly with
-remixes and tracked royalties, community kart and course publishing, private
-multiplayer, and controller support all work.
+Demo v1 is done when solo racing on three official courses, official and
+community karts built from primitives, ghosts, leaderboard-ready results,
+CAD-style kart assembly with remixes and tracked royalties, community kart and
+course publishing, private multiplayer, and controller support all work.
 
 This file is the source of truth for remaining scope. Delete it once Demo v1 is
 accepted; the app, README, and durable docs take over from there.
@@ -18,8 +18,9 @@ accepted; the app, README, and durable docs take over from there.
 - **Done:** Phases 0–6 (PRs #1–#24, the Phase 3 closeout and its
   follow-ups, #30–#57 with the PR 4.5.2 closeout, #59–#63, and #64–#70
   with the Phase 6 closeout).
-- **Next:** Phase 7, after its debrief. PR #70 raises the room protocol to
-  3: deploy the room server just before it merges, with no race running.
+- **Now:** the [Phase 6 addendum](#phase-6-addendum-feedback-before-phase-7),
+  PR 6.7.
+- **Next:** Phase 7, after its debrief.
 
 ## Guiding Decisions
 
@@ -47,7 +48,7 @@ These still constrain every remaining phase.
   checks only shape the UI. No public role-promotion endpoint or deployment
   allowlist grants roles.
 - **"Assembler" is a capability, not a role.** Admins assemble official karts
-  now; every logged-in player gets the same tools in Phase 8.
+  now; every logged-in player gets the same tools in Phase 9.
 - **Kart cards stay practical.** Short machine-focused descriptors, no lore.
 - **Match the existing Titan Racers site** (see [Visual Direction](#visual-direction)).
 - **Ship separately from the marketing site,** likely at `play.titanracers.com`.
@@ -79,7 +80,8 @@ These still constrain every remaining phase.
 ### In Demo v1
 
 - Mobile-friendly web app with fast guest entry into racing.
-- One official track: the Falls View Park Circuit.
+- Three official courses that move from rural to town to city: the Falls
+  View Park Circuit, then one in Phase 8 and one in Phase 10.
 - Two-lap solo time trial with a result screen after every race.
 - Three official karts (Balanced, Speed, Handling) with distinct handling, each
   showing name, assembler credit, visual identity, stat bars, and a short
@@ -87,8 +89,8 @@ These still constrain every remaining phase.
 - Keyboard, touch, and gamepad controls, plus fast reset.
 - Own-best, course-best, and shared ghosts.
 - Login-gated solo leaderboard.
-- Gold, silver, and bronze for the Falls View Park board's top three.
-- Admin kart builder; after Phase 7, player-built community karts with
+- Gold, silver, and bronze for each official course board's top three.
+- Admin kart builder; from Phase 9, player-built community karts with
   immediate publishing, discovery, and admin safety unpublishing.
 - CAD-style kart assembly, kart remixes, and assembler royalties that are
   tracked and displayed, never paid.
@@ -106,7 +108,7 @@ These still constrain every remaining phase.
 - Global ranked multiplayer or robust anti-cheat.
 - Hand-finished production art or a real-world kit export pipeline. Phase 4
   set a demo-sized visual baseline instead.
-- Damage beyond the simple joint-breakage model in Phase 8.
+- Damage beyond the simple joint-breakage model in Phase 9.
 - Fuel or battery simulation, advanced tire physics, or punishing collisions.
 - Player-editable numerical tuning or raw handling controls.
 
@@ -115,7 +117,7 @@ These still constrain every remaining phase.
 | Role | Can do |
 | --- | --- |
 | Guest | Race official and published community karts and courses, join private rooms, see local results. Cannot submit leaderboard times or save designs. |
-| Player | Signs in with Google, a wallet, or a passkey, or starts a racer kept in one browser. Everything a guest can, plus a persistent racer identity and history, leaderboard submission, building, remixing, and publishing their own karts (Phase 8) and courses (Phase 9), and one thumbs-up per community course. |
+| Player | Signs in with Google, a wallet, or a passkey, or starts a racer kept in one browser. Everything a guest can, plus a persistent racer identity and history, leaderboard submission, building, remixing, and publishing their own karts (Phase 9) and courses (Phase 11), and one thumbs-up per community course. |
 | Admin | Protected course and kart editors; create, revise, publish, and unpublish official karts and courses; feature or safety-unpublish community karts and courses without deleting history; inspect derived kart stats, never override them. Several admins are allowed. |
 
 ## Visual Direction
@@ -162,9 +164,10 @@ Details live in git history, `docs/kart-system/`, and `skills/project-systems/`.
 
 Decisions from completed phases that later phases rely on:
 
-- `rough-course` is the permanent editor and physics sandbox. The official track
-  uses its own course ID, `falls-view-park` (`agricultural-zone` until PR
-  4.3.4), and publishing or guest play must never mix the two.
+- `rough-course` is the permanent editor and physics sandbox. Official courses
+  use their own course IDs (Falls View Park's is `falls-view-park`,
+  `agricultural-zone` until PR 4.3.4), and publishing or guest play must never
+  mix them with the sandbox.
 - Gameplay telemetry stays small: one summarized record per run, with no raw
   input, per-frame, hardware-identity, or player-journey capture.
 - Course revision history and restore, real-time collaboration, and multi-author
@@ -181,8 +184,8 @@ Decisions from completed phases that later phases rely on:
   upload assets.
 - **Island Three is the enclosure for every course,** and courses name their
   enclosure and placement. Physics is true-scale rotating-habitat gravity and
-  Coriolis under versioned physics; near-axis, low-gravity racing belongs to
-  a later course.
+  Coriolis under versioned physics; low-gravity racing belongs to Phase 8's
+  or Phase 10's course.
 - **Race sound is one-way from physics.** Sound is generated with Web Audio,
   and CC0 recordings are used where synthesis does not read. A kart's voices
   are the motor, tire roll, and scrub (16 nodes each) and a body scrape (5),
@@ -223,7 +226,7 @@ Decisions from completed phases that later phases rely on:
   user, with its merge-and-delete off), and can be brought into an account
   you sign in to, which keeps everything (PR 6.3); accounts with login
   methods never merge, and one that owns karts or courses can't be brought
-  in, so Phases 8 and 9 revisit that. Sign-ins are rate limited in
+  in, so Phases 9 and 11 revisit that. Sign-ins are rate limited in
   Postgres. Usernames stay fixed for now, never called permanent; a rename
   PR must lift migration 0012's trigger and keep old names reserved.
 - **A room server decides; each page drives its own kart** (Phase 6). The
@@ -235,12 +238,12 @@ Decisions from completed phases that later phases rely on:
   simulated, and contact follows the
   [kart-to-kart contact standard](skills/game-concepts/kart-to-kart-contact/README.md):
   each page answers its own kart at once, and the room records each touch
-  once, the record Phase 8's damage extends.
+  once, the record Phase 9's damage extends.
 - **One room protocol version is live at a time,** raised for each change
   to its messages (3 after Phase 6): deploy the room server just before the
   app's PR merges, with no race running. Rooms stay on Cloudflare's Free
   plan until a shared demo; before any shared link, move to Workers Paid
-  with the protections Phase 10 lists.
+  with the protections Phase 12 lists.
 - **Home is a step-by-step flow**, one history entry a step, with no Quick
   race, and menus sound on every action except in the admin tools. Its
   first screen offers Time Trial, Multiplayer, and Leaderboard (PR 6.6). A
@@ -254,6 +257,59 @@ Decisions from completed phases that later phases rely on:
   stats can be overridden.
 
 ## Remaining Phases
+
+### Phase 6 Addendum: Feedback Before Phase 7
+
+**Goal:** act on playtest feedback before Phase 7. The addendum gets its own
+integration review, from `2ffc5a20` (PR #70), before its last PR merges.
+
+**PR 6.7: Touch selection and the plan addendum**
+
+- [x] Pressing or holding anywhere on a race screen never selects text,
+      opens the long-press menu, or zooms. Text boxes still select and paste.
+- [x] Two more official courses join the plan (Phases 8 and 10).
+
+**PR 6.8: Fastest lap**
+
+- [ ] Show a racer's fastest lap. Its debrief decides whether it is shown only
+      on the page, or checked by the server and shown on the leaderboard.
+
+**PR 6.9: Course interactables, starting with the utility-tunnel door**
+
+- [ ] Research and record a standard for course objects that change state
+      during a race, built to serve later interactables, not only this door.
+- [ ] The utility tunnel's door, with a small room behind it: a hard enough
+      hit breaks its latch and swings it open on its hinge.
+- [ ] The room records each opening once, so every racer sees the same door
+      (room protocol 4). It closes again when a new race starts.
+- [ ] The room behind the door leads nowhere, so it opens no new route and
+      the leaderboard carries on.
+
+**Exploration, no PR: contrast and a more distinctive look**
+
+- [ ] Draft two or three directions for more contrast and a less generic
+      look, and compare them before anything is built. Any of this may be
+      dropped. "Match the existing Titan Racers site" holds unless an
+      accepted direction changes it.
+
+**PR 6.10: Home and the main site**
+
+- [ ] Replace home's AI-generated background and bring home closer to the
+      game's look, with whatever the exploration accepts.
+- [ ] Update the main Titan Racers site to match. Where it lives is settled
+      at the debrief.
+
+**PR 6.11: Filling the park**
+
+- [ ] Claude and Codex each build park furniture and planting (benches,
+      other trees, bushes, flowers) for in and around the course, then judge
+      each other's work under rules agreed at the debrief.
+- [ ] Everything stays within the phone budget.
+
+**Done when:** races on a phone can't select or zoom the page; the fastest lap
+shows; the tunnel door opens the same way for every racer in a room; home, the
+main site, and the park reflect the accepted look; and the addendum's
+integration review is resolved.
 
 ### Phase 7: CAD Assembly And Kart Royalties
 
@@ -291,7 +347,7 @@ Phase decisions:
       points between parts.
 - [ ] Exploded and x-ray views, with suspension posed from wheel travel, and
       measured-dimension readouts. Presentation only.
-- [ ] Ships in the admin kart builder; players get it in Phase 8.
+- [ ] Ships in the admin kart builder; players get it in Phase 9.
 
 **PR 7.3: Assembler credit and royalties**
 
@@ -302,7 +358,7 @@ Phase decisions:
       published kart, computed from the race results and kart revisions that
       Phases 5 and 6 record, with no new telemetry. Kart cards and assembler
       profiles show it.
-- [ ] Official karts come first; community karts and remixes join in Phase 8.
+- [ ] Official karts come first; community karts and remixes join in Phase 9.
 
 **Done when:** a rebuilt part shows on every kart that uses it without changing
 any derived stats, within the phone budget; karts assemble by mounting points
@@ -322,7 +378,27 @@ References (concepts, not dependencies):
 - [teardown](https://github.com/elvarofficial/teardown) (MIT): one input drives
   every pose; isolate, x-ray, cut away, or explode the part doing the work.
 
-### Phase 8: Community Karts And Structural Breakage
+### Phase 8: Second Official Course
+
+**Goal:** a second official course, in a village or town, between Falls View
+Park's rural parkland and Phase 10's city.
+
+- [ ] Debrief its site in Island Three, its route, and its layout at kart
+      scale before building.
+- [ ] Decide whether this course or Phase 10's shows lower gravity. One of
+      them must. Gravity falls with distance from the axis: the end-cap
+      terraces top out at 0.7 R (about 0.7 g), so clearly low gravity means
+      a course near the hub. Either needs the placement rules in
+      `docs/island-three.md`, which keep courses clear of the caps and the
+      axis, to change.
+- [ ] Remove rough-course and Falls View Park assumptions from shared race
+      systems while keeping official-course selection and recovery working,
+      and let a room's host pick either official course.
+
+**Done when:** the second course is published, races two laps solo and in a
+room, has its own leaderboard, and holds the phone budget.
+
+### Phase 9: Community Karts And Structural Breakage
 
 **Goal:** every logged-in player can build, publish, and race karts, and karts
 can break in a readable, forgiving way.
@@ -331,7 +407,7 @@ Reuse the Phase 3 kart document, derivation, editor, and revision pipeline. No
 second format, raw tuning, or creator-set stat or joint-strength numbers.
 Publishing is immediate, with no approval queue.
 
-**PR 8.1: Player kart ownership and publishing**
+**PR 9.1: Player kart ownership and publishing**
 
 - [ ] Role-aware player kart editor without admin or roster controls.
 - [ ] Players create, edit, and save only their own private drafts.
@@ -355,7 +431,7 @@ Publishing is immediate, with no approval queue.
 - [ ] Send `no-store` on every admin and profile response, cap JSON request
       sizes, and restrict or server-render thumbnail PNG chunks.
 
-**PR 8.2: Community kart discovery, play, and safety**
+**PR 9.2: Community kart discovery, play, and safety**
 
 - [ ] Public catalog that clearly separates official and community karts.
 - [ ] Anyone can race any published community kart in casual modes.
@@ -366,7 +442,7 @@ Publishing is immediate, with no approval queue.
       eligibility, history, or audit data. Unpublished karts leave discovery
       and guest play.
 
-**PR 8.3: Structural joints and forgiving breakage**
+**PR 9.3: Structural joints and forgiving breakage**
 
 - [ ] Research and approve the damage standard and its PlayCanvas/Ammo mapping
       first.
@@ -398,7 +474,17 @@ Publishing is immediate, with no approval queue.
 Not in this phase: external assets, marketplace behavior, collaborative editing,
 comments, and leaderboard eligibility for community karts.
 
-### Phase 9: Community Courses
+### Phase 10: Third Official Course
+
+**Goal:** a third official course, in a city, after Phase 8's town.
+
+- [ ] Debrief its site, route, and layout at kart scale before building.
+- [ ] Show lower gravity, unless Phase 8's course already does.
+
+**Done when:** the third course is published, races two laps solo and in a
+room, has its own leaderboard, and holds the phone budget.
+
+### Phase 11: Community Courses
 
 **Goal:** players publish, discover, race, and curate courses with no approval
 queue.
@@ -407,7 +493,7 @@ Reuse the existing course document, revisions, and editor. No second format or
 editor. The Starter Course (`rough-course`) is the template new community
 courses start from.
 
-**PR 9.1: Player course ownership and publishing**
+**PR 11.1: Player course ownership and publishing**
 
 - [ ] Role-aware player course editor without admin-only controls.
 - [ ] Players create, edit, and save only their own private drafts.
@@ -424,17 +510,15 @@ courses start from.
       handwheels, elbows, bicycles, and a clearing's footprint have no
       preset or inspector field yet, and the editor cannot duplicate.
 
-**PR 9.2: Public course discovery and play**
+**PR 11.2: Public course discovery and play**
 
-- [ ] Public catalog separating the official circuit from community courses,
+- [ ] Public catalog separating the official courses from community courses,
       with featured, popular, and new views.
 - [ ] Anyone can launch a published course, and each race records the course ID
       and publication revision.
 - [ ] A host can pick a published community course for a private room.
-- [ ] Remove rough-course and Falls View Park assumptions from shared race
-      systems while keeping official-course selection and recovery working.
 
-**PR 9.3: Ranking, featuring, and safety**
+**PR 11.3: Ranking, featuring, and safety**
 
 - [ ] One reversible thumbs-up per player per course. No downvotes or star
       ratings.
@@ -449,7 +533,7 @@ new views stay distinct, and authoring and discovery work on narrow screens.
 Not in this phase: custom course assets, collaborative editing, comments, and
 course-specific ghosts or leaderboards.
 
-### Phase 10: Public Demo Polish
+### Phase 12: Public Demo Polish
 
 **Goal:** make it ready to share.
 

@@ -162,7 +162,7 @@ same identity, role, and request-guard boundaries; see the
 5. Only a Google merge marks itself in `sessionStorage`, to report the outcome
    after the redirect; passkey and wallet merges finish in place. A racer that
    owns a kart or course can't be brought in yet (its delete is refused);
-   Phases 8 and 9 revisit this.
+   Phases 9 and 11 revisit this.
 
 ## Passkeys
 
