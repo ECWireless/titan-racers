@@ -609,6 +609,15 @@ button[aria-disabled="true"] {
   display: none;
 }
 
+/* A race is pressed and held, never read: no text selection, long-press
+   menu, or double-tap zoom anywhere on it (its canvas blocks pinch zoom too). */
+.race-screen {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+  touch-action: manipulation;
+}
+
 .race-touch-controls,
 .race-touch-reset {
   display: none;

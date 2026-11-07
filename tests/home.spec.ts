@@ -4184,6 +4184,27 @@ test.describe("home screen", () => {
       .poll(async () => getKartDebugState(canvas))
       .toMatchObject({ supportCount: 4 });
 
+    // Holding anywhere on the race selects nothing, opens no menu, and
+    // zooms nothing.
+    expect(
+      await canvas.evaluate((element) => {
+        const screen = getComputedStyle(element.closest(".race-screen")!);
+        return {
+          canvasTouchAction: getComputedStyle(element).touchAction,
+          menuShown: element.dispatchEvent(
+            new MouseEvent("contextmenu", { bubbles: true, cancelable: true }),
+          ),
+          touchAction: screen.touchAction,
+          userSelect: screen.userSelect,
+        };
+      }),
+    ).toEqual({
+      canvasTouchAction: "none",
+      menuShown: false,
+      touchAction: "manipulation",
+      userSelect: "none",
+    });
+
     const accelerate = page.getByRole("button", { name: "Accelerate" });
     const joystick = page.getByRole("group", { name: "Drive joystick" });
     const brake = page.getByRole("button", { name: "Brake / Reverse" });
