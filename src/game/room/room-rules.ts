@@ -20,7 +20,11 @@ import {
   type RoomRaceReport,
   type RoomSnapshot,
 } from "./room-protocol";
-import type { RoomCourse, RoomToken } from "./room-signing";
+import type {
+  RoomCourse,
+  RoomKartContact,
+  RoomToken,
+} from "./room-signing";
 
 /**
  * A private room's rules, free of any transport: each event takes the room
@@ -68,6 +72,8 @@ export type RoomEntrantState = {
   signedIn: boolean;
   kartId: string;
   kartRevision: number;
+  /** Its kart's contact shape, fixed for the race as it started. */
+  contact: RoomKartContact;
   loaded: boolean;
   gates: number;
   /** The state that passed the latest gate, which orders the unfinished. */
@@ -368,22 +374,25 @@ function start(
   if (ready.length < ROOM_MIN_RACERS) return false;
   state.race = {
     id: raceId,
-    entrants: ready.map((player, slot) => ({
-      id: player.id,
-      slot,
-      name: player.name,
-      signedIn: player.signedIn,
-      kartId: player.kartId!,
-      kartRevision: player.karts.find(({ id }) => id === player.kartId)!
-        .revision,
-      loaded: false,
-      gates: 0,
-      lastGate: null,
-      last: null,
-      finishMicroseconds: null,
-      finishedAt: null,
-      left: false,
-    })),
+    entrants: ready.map((player, slot) => {
+      const kart = player.karts.find(({ id }) => id === player.kartId)!;
+      return {
+        id: player.id,
+        slot,
+        name: player.name,
+        signedIn: player.signedIn,
+        kartId: kart.id,
+        kartRevision: kart.revision,
+        contact: kart.contact,
+        loaded: false,
+        gates: 0,
+        lastGate: null,
+        last: null,
+        finishMicroseconds: null,
+        finishedAt: null,
+        left: false,
+      };
+    }),
     loadDeadline: now + ROOM_LOAD_MS,
     racingAt: null,
     firstFinishAt: null,

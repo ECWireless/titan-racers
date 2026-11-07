@@ -6,17 +6,20 @@ import {
 } from "../kart/kart-contact-shadow";
 import type { PersistedResolvedKartSnapshot } from "../kart/kart-derivation";
 import type { KartAssemblyDocument } from "../kart/kart-assembly-document";
+import type { RaceVector3 } from "../race/race-gate";
+import type { KartContactShape } from "./kart-contact";
 import {
   ROOM_STATE_HZ,
   type RoomClientMessage,
   type RoomServerMessage,
 } from "./room-protocol";
-import { OpponentMotion } from "./opponent-motion";
+import { OpponentMotion, type OpponentEstimate } from "./opponent-motion";
 
 /**
  * What a race canvas needs from its room: the room's clock, its grid slot,
- * the opponents to draw, and a way to report its own kart. Opponents are
- * presentation only; nothing here touches the kart's own physics.
+ * the opponents to draw and touch, the room's contact records, and a way to
+ * report its own kart. Opponents have no physics of their own; the canvas
+ * answers its own kart's contacts with them.
  */
 export type CanvasRoom = {
   slot: number;
@@ -27,6 +30,8 @@ export type CanvasRoom = {
     footprint: KartContactFootprint;
     /** Its motor's top speed, m/s, which its voice's pitch reaches. */
     noLoadSpeed: number;
+    /** Its contact box, mass, and inertia. */
+    contact: KartContactShape;
   }>;
   /**
    * The room's race time at a local `performance.now()` time, in
@@ -36,18 +41,28 @@ export type CanvasRoom = {
   raceMicroseconds(localTime: number): number | null;
   /**
    * Writes the pose to draw an opponent at the room's race time now,
-   * `frameSeconds` after the last frame, or returns null to hide it.
+   * `frameSeconds` after the last frame, or returns null to hide it; `near`
+   * draws it at the present near your kart (`OpponentMotion.pose`).
    */
   opponentPose(
     id: string,
     raceMicroseconds: number,
     frameSeconds: number,
     out: GhostPose,
+    near?: { atUs: number; viewer: RaceVector3 },
   ): GhostPose | null;
+  /** Where an opponent is now, for contact; null while it isn't drawn. */
+  opponentEstimate(id: string): OpponentEstimate | null;
   /** How opponents have drawn this race, for `?perf=1`. */
   opponentStats(): OpponentStats;
+  /** Whether this page's connection is too slow to answer a contact in time. */
+  outOfTouch(): boolean;
+  /** The room's contact records that arrived since the last call. */
+  takeContacts(): RoomContactRecord[];
   send(message: RoomClientMessage): void;
 };
+
+export type RoomContactRecord = Extract<RoomServerMessage, { type: "contact" }>;
 
 /** Missed time below this is a frame's jitter, not worth charging. */
 export const ROOM_CATCH_UP_US = 50_000;
@@ -112,8 +127,10 @@ export class OpponentTracks {
         position: { x: state.p[0], y: state.p[1], z: state.p[2] },
         rotation: { x: state.q[0], y: state.q[1], z: state.q[2], w: state.q[3] },
         velocity: { x: state.v[0], y: state.v[1], z: state.v[2] },
+        spin: { x: state.w[0], y: state.w[1], z: state.w[2] },
         steerDegrees: state.s,
         reset: state.r,
+        outOfTouch: state.o === true,
       },
       receivedAtUs,
     );
@@ -135,10 +152,16 @@ export class OpponentTracks {
     raceMicroseconds: number,
     frameSeconds: number,
     out: GhostPose,
+    near?: { atUs: number; viewer: RaceVector3 },
   ) {
+    const track = this.estimate(id);
+    return track?.pose(raceMicroseconds, frameSeconds, out, near) ?? null;
+  }
+
+  /** An opponent's motion, while it's drawn. */
+  estimate(id: string) {
     const track = this.tracks.get(id);
-    if (!track || this.hidden.has(id)) return null;
-    return track.pose(raceMicroseconds, frameSeconds, out);
+    return !track || this.hidden.has(id) ? null : track;
   }
 
   stats(): OpponentStats {

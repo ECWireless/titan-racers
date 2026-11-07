@@ -2,6 +2,11 @@ import { z } from "zod";
 
 import { kartStableIdSchema } from "../kart/kart-assembly-document";
 import {
+  kartContactShape,
+  type KartContactShape,
+  type KartContactSource,
+} from "./kart-contact";
+import {
   ROOM_CODE_PATTERN,
   ROOM_MAX_PLAYERS,
   roomCourseIdSchema,
@@ -143,6 +148,80 @@ export const roomCourseSchema = z.strictObject({
 });
 export type RoomCourse = z.infer<typeof roomCourseSchema>;
 
+/**
+ * What the room needs to find and answer a kart's contacts: its contact
+ * box's centre and half extents from its centre of mass, its mass, and its
+ * inertia (xx, yy, zz, xy, xz, yz), all as kartContactShape rounds them.
+ */
+const roomKartContactSchema = z
+  .strictObject({
+    box: z.tuple([
+      z.number().min(-1).max(1),
+      z.number().min(-1).max(1),
+      z.number().min(-1).max(1),
+      z.number().positive().max(1),
+      z.number().positive().max(1),
+      z.number().positive().max(1),
+    ]),
+    mass: z.number().min(0.5).max(5),
+    inertia: z.tuple([
+      z.number().positive().max(1),
+      z.number().positive().max(1),
+      z.number().positive().max(1),
+      z.number().min(-1).max(1),
+      z.number().min(-1).max(1),
+      z.number().min(-1).max(1),
+    ]),
+  })
+  .refine(
+    ({ inertia: [xx, yy, zz, xy, xz, yz] }) =>
+      xx * yy - xy * xy > 0 &&
+      xx * (yy * zz - yz * yz) -
+        xy * (xy * zz - yz * xz) +
+        xz * (xy * yz - yy * xz) >
+        0,
+    { message: "Inertia must be positive definite." },
+  );
+export type RoomKartContact = z.infer<typeof roomKartContactSchema>;
+
+/** A published kart's contact, as a room token carries it. */
+export function roomKartContact(snapshot: KartContactSource): RoomKartContact {
+  const { center, halfExtents, mass, inertia } = kartContactShape(snapshot);
+  return {
+    box: [
+      center.x,
+      center.y,
+      center.z,
+      halfExtents.x,
+      halfExtents.y,
+      halfExtents.z,
+    ],
+    mass,
+    inertia: [
+      inertia.xx,
+      inertia.yy,
+      inertia.zz,
+      inertia.xy,
+      inertia.xz,
+      inertia.yz,
+    ],
+  };
+}
+
+/** The contact shape a room token's kart carries. */
+export function roomContactShape({
+  box: [cx, cy, cz, hx, hy, hz],
+  mass,
+  inertia: [xx, yy, zz, xy, xz, yz],
+}: RoomKartContact): KartContactShape {
+  return {
+    center: { x: cx, y: cy, z: cz },
+    halfExtents: { x: hx, y: hy, z: hz },
+    mass,
+    inertia: { xx, yy, zz, xy, xz, yz },
+  };
+}
+
 const roomTokenSchema = z.strictObject({
   version: z.literal(1),
   protocol: z.number().int().positive(),
@@ -152,12 +231,16 @@ const roomTokenSchema = z.strictObject({
   courseRevision: roomRevisionSchema,
   course: roomCourseSchema,
   physicsVersion: roomPhysicsVersionSchema,
-  /** The official karts this player may race, at their published revisions. */
+  /**
+   * The official karts this player may race, at their published revisions,
+   * each with its contact shape.
+   */
   karts: z
     .array(
       z.strictObject({
         id: kartStableIdSchema,
         revision: roomRevisionSchema,
+        contact: roomKartContactSchema,
       }),
     )
     .min(1)

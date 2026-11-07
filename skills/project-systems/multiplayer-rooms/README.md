@@ -1,14 +1,16 @@
 # Multiplayer Rooms System
 
-**Maturity:** Candidate (PR 6.5, 2026-11-05).
+**Maturity:** Validated (PRs 6.4–6.6, 2026-11-07).
 
 ## Purpose And Scope
 
-How Titan Racers runs Race Friends: private rooms of 2–4 on Falls View
+How Titan Racers runs multiplayer: private rooms of 2–4 on Falls View
 Park, following the [rooms standard](../../game-concepts/multiplayer-rooms/README.md)
 on [Cloudflare Durable Objects](../../tools/cloudflare-durable-objects/README.md).
 It owns join tokens, the room server, the room rules and protocol, the
-lobby and room race, and what a finished room race stores.
+lobby and room race, kart-to-kart contact by the
+[contact standard](../../game-concepts/kart-to-kart-contact/README.md), and
+what a finished room race stores.
 
 ## Source Ownership
 
@@ -28,8 +30,14 @@ lobby and room race, and what a finished room race stores.
   reconnects and resends what the room missed.
 - `src/game/room/room-race.ts`: the canvas's view of its room and opponent
   tracks; `src/game/room/opponent-motion.ts`: how each opponent is drawn
-  from its states; `src/game/audio/remote-motor-voice.ts`: how each is
-  heard.
+  from its states, and its present estimate for contact;
+  `src/game/audio/remote-motor-voice.ts`: how each is heard.
+- `src/game/room/kart-contact.ts`: the contact resolver the page and the
+  room share (each kart's contact box from its snapshot, the swept test,
+  and the two-body impulse); `src/game/room/page-contacts.ts`: a page's
+  answers to its own kart's touches, the room records it fills in, and who
+  is out of touch; `src/game/room/room-contacts.ts`: the room's one record
+  per touch, in memory.
 - `scripts/room-racers.ts` (`pnpm rooms:racers`): local guest racers that
   drive the gate line, for QA.
 - `room-server/`: the Worker and the `Room` Durable Object, transport only,
@@ -40,7 +48,8 @@ lobby and room race, and what a finished room race stores.
 - `src/app/room/[code]/page.tsx` and `src/components/room-play.tsx`: the
   lobby, the race view, and results.
 - `src/components/solo-time-trial-canvas.tsx`, its `room` prop: the grid
-  slot, the countdown and clock, kart states, and drawing opponents.
+  slot, the countdown and clock, kart states, drawing opponents, and each
+  step's contacts (`stepKartContacts`).
 - `src/server/admin-overview-repository.ts`: the dashboard's room counts.
 - Operations (secrets, local dev, deploy order):
   [`docs/database-operations.md`](../../../docs/database-operations.md#private-rooms).
@@ -106,10 +115,27 @@ lobby and room race, and what a finished room race stores.
   last accepted state is stored only with a reset or a gate, so after a
   restart the check runs from an older one, which only loosens it.
 - States go out 30 times a second after a fixed step, plus one at each
-  gate; a paused kart sends none. They are never stored. Opponents are
-  drawn through a jitter buffer (`opponent-motion.ts`), solid and without
-  physics; each casts the player's contact shadow and is heard from the
-  camera (`remote-motor-voice.ts`), staged as the player's own motor.
+  gate; a paused kart sends none. They are never stored. Each carries the
+  kart's velocity and spin, and `o` while its page judges its own round
+  trip too slow to answer a contact (protocol 3). Opponents are drawn
+  through a jitter buffer (`opponent-motion.ts`), without physics, but
+  within about 3 m of the player at its present estimate, easing back to
+  the buffer by 8 m; each casts the player's contact shadow and is heard
+  from the camera (`remote-motor-voice.ts`), staged as the player's own
+  motor.
+- Contact (PR 6.6): each fixed step, before physics, the page sweeps its
+  own kart against each opponent's present estimate (its newest state
+  carried on by its velocity and spin, plus pushes this kart gave it),
+  applies its own share of the impulse, and carries the other's share. The
+  room finds each touch in the live states it accepts, within the 5 mm
+  slop, resolves it from the motion it saw bring each kart in, and sends
+  both pages one `contact` record; a page that didn't answer it applies its
+  share once, within 500 ms. A kart out of touch (states late or silent,
+  `o`, just reset, finished, or its own states 250 ms apart) is drawn in
+  the ghost material and touches nothing until clear. Touches knock like
+  metal; `?perf=1` counts touching steps, fills, and the slowest step. The
+  room keeps records in memory only, so a restart mid-race may record a
+  touch in progress twice.
 - A resent batch is checked state by state but stored once, spending one
   write from its own allowance (a burst of 60, refilled at 2 a second, a
   30 s outage's worth), not the live one; others are sent only its states
@@ -119,10 +145,10 @@ lobby and room race, and what a finished room race stores.
 - Rooms run on the Free plan; four players send about 128 messages a
   second, which Free may count one by one (see [Cloudflare Durable
   Objects](../../tools/cloudflare-durable-objects/README.md) for billing).
-- `?net=delay,jitter` (ms) holds back opponents' states on this page, in
-  order, so they bunch, to try the motion on a bad connection; `?perf=1`
-  adds how many opponent frames ran past their newest state, and the
-  longest delay.
+- `?net=delay,jitter` (ms) holds back opponents' states and the room's
+  contact records on this page, in order, so they bunch, to try the motion
+  on a bad connection; `?perf=1` adds how many opponent frames ran past
+  their newest state, and the longest delay.
 - A race is entered only before it has a start time; a reload mid-race
   sits it out and waits in the lobby. The canvas hides its solo finish,
   stops once the race is over, and the room page shows each race's results
@@ -138,7 +164,12 @@ lobby and room race, and what a finished room race stores.
 ## Known Limits
 
 - A reload is a new visit: it doesn't resume a race, even with the seat.
-- No kart-to-kart contact; karts pass through each other.
+- Contact keeps its [standard's known limits](../../game-concepts/kart-to-kart-contact/README.md#known-limits).
+- Each touch is one box per kart, the hull to the wheel guard's top: a
+  graze under about a millimetre can go unseen, and a hard angled hit
+  briefly sinks a centimetre or two in free flight.
+- The test racers (`pnpm rooms:racers`) are pushed only by the room's
+  records, a round trip late, so they feel heavier than a player.
 - Opponents are drawn with this page's version of their kart, so across a
   kart republish one can look like its other version, or not appear.
 - No public matchmaking or room leaderboard.
@@ -146,9 +177,15 @@ lobby and room race, and what a finished room race stores.
 ## Verification
 
 - `tests/opponent-motion.spec.ts`: the jitter buffer, guesses and their
-  blend, resets, clock jumps, and stalls; `tests/remote-motor-voice.spec.ts`:
-  how an opponent is heard; `tests/room-connection.spec.ts`: the page's
-  reconnect, resend, and repeated `loaded`, against a fake socket.
+  blend, resets, clock jumps, and stalls, and the present estimate and
+  near drawing; `tests/remote-motor-voice.spec.ts`: how an opponent is
+  heard; `tests/room-connection.spec.ts`: the page's reconnect, resend,
+  repeated `loaded`, judgment of its own round trip, and the records it
+  keeps, against a fake socket.
+- `tests/kart-contact.spec.ts`: the resolver; `tests/room-contacts.spec.ts`:
+  the room's one record per touch; `tests/page-contacts.spec.ts`: a page's
+  answers and out-of-touch rules, and two pages simulated through the
+  room's tracker.
 - `tests/room-rules.spec.ts`, `tests/room-signing.spec.ts`,
   `tests/room-clock.spec.ts`, and the room tests in
   `tests/race-session.spec.ts`: pure rules, state checks, signing, the
@@ -161,7 +198,8 @@ lobby and room race, and what a finished room race stores.
 - `tests/room-race.spec.ts`: two browsers race one room on one clock,
   crossing gates no faster than the room's check allows, the guest losing
   its connection for a lap gate (`page.routeWebSocket`), and the host
-  hearing the guest.
+  hearing the guest; and a page pushed at once by a Node rival, with a
+  missed touch's record pushed once.
 - `tests/admin-overview.spec.ts`: the dashboard's room counts.
 
 ## Related
@@ -170,3 +208,4 @@ lobby and room race, and what a finished room race stores.
 - [Cloudflare Durable Objects](../../tools/cloudflare-durable-objects/README.md)
 - [Race progression](../race-progression/README.md)
 - [Ghosts](../ghosts/README.md): the playback opponents reuse.
+- [Kart-to-kart contact standard](../../game-concepts/kart-to-kart-contact/README.md)

@@ -27,7 +27,12 @@ import {
   type RoomState,
 } from "../src/game/room/room-rules";
 import type { RoomToken } from "../src/game/room/room-signing";
-import { crossingAt, kartAt, straightRoomCourse } from "./support/room-course";
+import {
+  crossingAt,
+  kartAt,
+  straightRoomCourse,
+  TEST_KART_CONTACT,
+} from "./support/room-course";
 
 const RACE = "00000000-0000-4000-8000-000000000001";
 
@@ -51,8 +56,8 @@ function token(
     course: COURSE,
     physicsVersion: "support-heave-v1",
     karts: [
-      { id: "kestrel", revision: 3 },
-      { id: "mule", revision: 2 },
+      { id: "kestrel", revision: 3, contact: TEST_KART_CONTACT },
+      { id: "mule", revision: 2, contact: TEST_KART_CONTACT },
     ],
     player: {
       key: key.padEnd(43, "x"),
@@ -759,7 +764,10 @@ test.describe("room deadlines", () => {
     state = run(state, {
       type: "join",
       now: 1_600,
-      token: { ...token("k1"), karts: [{ id: "kestrel", revision: 4 }] },
+      token: {
+        ...token("k1"),
+        karts: [{ id: "kestrel", revision: 4, contact: TEST_KART_CONTACT }],
+      },
     }).state;
     expect(state.players[1]).toMatchObject({ kartId: null, ready: false });
     const outcome = run(state, {
@@ -791,9 +799,11 @@ test.describe("room protocol", () => {
           p: [1, 2, 3],
           q: [0, 0, 0, 1],
           v: [1, 0, -2],
+          w: [0, 0.5, 0],
           s: 4,
           r: false,
           g: [1, 2, 2.9],
+          o: true,
         }),
       ),
     ).not.toBeNull();
@@ -801,7 +811,11 @@ test.describe("room protocol", () => {
       '{"type":"start","extra":1}',
       '{"type":"choose_kart"}',
       '{"type":"state","t":1,"p":[1,2,3],"q":[0,0,0,1],"s":0,"r":false}',
-      '{"type":"state","t":1,"p":[1,2,3],"q":[0,0,0,1],"v":[0,0,0],"s":0,"r":false,"g":[1,2]}',
+      // Spin is part of every state from protocol 3, and "out of touch" is
+      // only ever said, never denied.
+      '{"type":"state","t":1,"p":[1,2,3],"q":[0,0,0,1],"v":[0,0,0],"s":0,"r":false}',
+      '{"type":"state","t":1,"p":[1,2,3],"q":[0,0,0,1],"v":[0,0,0],"w":[0,0,0],"s":0,"r":false,"o":false}',
+      '{"type":"state","t":1,"p":[1,2,3],"q":[0,0,0,1],"v":[0,0,0],"w":[0,0,0],"s":0,"r":false,"g":[1,2]}',
       '{"type":"gate","raceId":"00000000-0000-4000-8000-000000000001","gates":1}',
       "not json",
       JSON.stringify({ type: "ping", t: 1, pad: "x".repeat(1_100) }),
@@ -812,5 +826,24 @@ test.describe("room protocol", () => {
     expect(
       parseServerMessage(JSON.stringify(roomSnapshot(racing(2)))),
     ).not.toBeNull();
+    const contact = {
+      type: "contact",
+      id: 1,
+      t: 2_000_000,
+      with: "p2",
+      n: [1, 0, 0],
+      p: [3, 0.5, 0],
+      c: 4.2,
+      j: [-3.1, 0, 0.01],
+      k: [0, 0.02, 0],
+    };
+    expect(parseServerMessage(JSON.stringify(contact))).toEqual(contact);
+    for (const bad of [
+      { ...contact, c: -1 },
+      { ...contact, with: "someone" },
+      { ...contact, damage: 1 },
+    ]) {
+      expect(parseServerMessage(JSON.stringify(bad))).toBeNull();
+    }
   });
 });

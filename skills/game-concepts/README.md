@@ -80,3 +80,7 @@ A game-concept node should normally cover:
   standard for small private rooms with one authority, a shared start
   clock, opponents drawn slightly in the past, deadlines on every wait,
   and one shared result.
+- [`kart-to-kart-contact/`](kart-to-kart-contact/README.md): the candidate
+  standard for karts touching in a room: each client answers its own
+  kart's contacts at once against opponents' present poses, and the server
+  records each contact once.

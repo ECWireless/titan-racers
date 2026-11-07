@@ -166,7 +166,7 @@ const subscribeToNothing = () => () => {};
 const HISTORY_STEP_KEY = "titanHomeStep";
 const HISTORY_KART_KEY = "titanHomeKart";
 const HISTORY_COURSE_SKIPPED_KEY = "titanHomeCourseSkipped";
-// A race adds its own entry on the mode's, so back leaves the race.
+// A race adds its own entry on the last step's, so back leaves the race.
 const HISTORY_RACING_KEY = "titanHomeRacing";
 const HOME_STEPS: readonly HomeStep[] = ["start", "kart", "course", "race"];
 
@@ -246,9 +246,8 @@ export function PlayHome() {
   const keepRacingRef = useRef<HTMLButtonElement | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   const [soloPending, setSoloPending] = useState(false);
-  // Race Friends opens a private room; it needs the room server's address.
+  // Multiplayer opens a private room; it needs the room server's address.
   const roomsAvailable = Boolean(process.env.NEXT_PUBLIC_ROOM_SERVER_URL?.trim());
-  const [raceFriends, setRaceFriends] = useState(false);
   const [rosterPending, setRosterPending] = useState(true);
   const [officialKarts, setOfficialKarts] = useState<PlayableOfficialKart[]>([]);
   const [selectedKartId, setSelectedKartId] = useState<string | null>(null);
@@ -361,8 +360,8 @@ export function PlayHome() {
         window.history.back();
         return;
       }
-      // Back from a race leaves it, landing on the mode. The choices made
-      // since stand.
+      // Back from a race leaves it, landing on the last step. The choices
+      // made since stand.
       if (racingRef.current) exitRaceRef.current();
       setStep(historyStep(event.state) ?? "start");
       setFocusRequest((request) => request + 1);
@@ -871,7 +870,7 @@ export function PlayHome() {
     [
       ["kart", "Kart", selectedKart?.document.name ?? null],
       ["course", "Course", stepCourse.name],
-      ["race", "Mode", null],
+      ["race", "Ghost", null],
     ] as const
   ).map(([railStep, label, value]) => ({
     current: railStep === step,
@@ -907,8 +906,16 @@ export function PlayHome() {
               }
             : null
         }
+        multiplayerAvailable={roomsAvailable}
         note={racerGhostNote}
-        onRace={() => {
+        // A new room, where each racer chooses a kart and the host the
+        // course.
+        onMultiplayer={() => {
+          if (roomsAvailable) {
+            window.location.assign(`/room/${createRoomCode()}`);
+          }
+        }}
+        onTimeTrial={() => {
           setCourseSkipped(false);
           showStep("kart", { courseSkipped: false });
         }}
@@ -997,48 +1004,6 @@ export function PlayHome() {
           <div className="grid gap-2">
             <p
               className="font-mono text-[0.62rem] font-bold uppercase tracking-[0.18em] text-titan-muted"
-              id="mode-choice-label"
-            >
-              Mode
-            </p>
-            <div
-              aria-labelledby="mode-choice-label"
-              className="grid gap-2 sm:grid-cols-2"
-              role="group"
-            >
-              <HomeChoice
-                chosen={!raceFriends}
-                onChoose={() => setRaceFriends(false)}
-              >
-                Time trial
-              </HomeChoice>
-              {roomsAvailable ? (
-                <HomeChoice
-                  chosen={raceFriends}
-                  onChoose={() => setRaceFriends(true)}
-                >
-                  Race Friends
-                </HomeChoice>
-              ) : (
-                <HomeChoice
-                  chosen={false}
-                  disabledNote="Coming soon"
-                  onChoose={() => setToast("coming soon")}
-                >
-                  Race Friends
-                </HomeChoice>
-              )}
-            </div>
-            {raceFriends ? (
-              <p className="text-xs leading-5 text-titan-ice/70">
-                Opens a private room for up to 4. Share its link, and race
-                when your friends have chosen their karts.
-              </p>
-            ) : null}
-          </div>
-          <div className={raceFriends ? "hidden" : "grid gap-2"}>
-            <p
-              className="font-mono text-[0.62rem] font-bold uppercase tracking-[0.18em] text-titan-muted"
               id="ghost-choice-label"
             >
               Ghost
@@ -1102,22 +1067,10 @@ export function PlayHome() {
             onClick={(event) => {
               // A double-click's second click is not a second start.
               if (event.detail > 1) return;
-              if (raceFriends && selectedKart) {
-                window.location.assign(
-                  `/room/${createRoomCode()}?kart=${encodeURIComponent(
-                    selectedKart.document.kartId,
-                  )}`,
-                );
-                return;
-              }
               void startSoloTimeTrial();
             }}
           >
-            {soloPending
-              ? "Preparing race…"
-              : raceFriends
-                ? "Create room"
-                : "Start race"}
+            {soloPending ? "Preparing race…" : "Start race"}
           </button>
         </div>
       </HomeStepFrame>

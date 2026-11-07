@@ -16,6 +16,7 @@ import {
   randomRoomPlayerKey,
   ROOM_COURSE_CHECKPOINT_LIMIT,
   roomGuestKey,
+  roomKartContact,
   roomPlayerKey,
   RoomTokenTooLongError,
   signRoomToken,
@@ -79,6 +80,7 @@ export async function issueRoomToken(
     karts: roster.karts.map(({ runtime }) => ({
       id: runtime.kartId,
       revision: runtime.revision,
+      contact: roomKartContact(runtime.resolvedSnapshot),
     })),
     player: {
       key: user

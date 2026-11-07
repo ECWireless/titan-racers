@@ -133,7 +133,7 @@ function Overview({
             </h1>
             <p className="max-w-2xl text-sm text-titan-ice/62">
               The official course at a glance: races, racers, the
-              leaderboard, karts, sharing, and Race Friends rooms. Counts
+              leaderboard, karts, sharing, and multiplayer rooms. Counts
               only. Days run midnight to midnight in {overview.timeZone}.
             </p>
           </div>
@@ -245,7 +245,7 @@ function Overview({
         <div className="grid gap-6 lg:grid-cols-2">
           <Panel
             note="Races run in private rooms, counted when they end, which never count toward the leaderboard or the races above. Races called off before the start aren't recorded."
-            title="Race Friends"
+            title="Multiplayer"
           >
             <MetricRows rows={[
               ["Room races", rooms.races],

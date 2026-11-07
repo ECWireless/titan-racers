@@ -89,7 +89,7 @@ export const adminOverviewSchema = z.strictObject({
     ownBest: countSchema,
     sharedLink: countSchema,
   }),
-  // Race Friends races run, which record no one, only who was signed in.
+  // Multiplayer races run, which record no one, only who was signed in.
   rooms: z.strictObject({
     races: countSchema,
     // Distinct rooms those races were run in.

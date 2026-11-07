@@ -1,6 +1,6 @@
 # Multiplayer Rooms
 
-**Maturity:** Candidate (PR 6.5, 2026-11-05).
+**Maturity:** Validated (PRs 6.4–6.6, 2026-11-07).
 
 ## Purpose And Scope
 
@@ -17,14 +17,15 @@ presentation from [race presentation](../race-presentation/README.md), with
 one override: in a room, time spent paused, hidden, or stalled counts toward
 the player's race time, since the room's race does not stop for one player.
 It does not own kart-to-kart contact
-([collisions](../collisions/README.md)).
+([kart-to-kart contact](../kart-to-kart-contact/README.md)), which
+overrides how opponents near the player's kart are drawn and estimated.
 
 ## Standard
 
 - **One authority per room.** A single room server owns membership, host,
   readiness, the start time, progress, finish order, and placements. Each
   client simulates only its own kart and reports it; opponents are
-  presentation.
+  drawn and estimated, never simulated.
 - **Explicit lifecycle.** Lobby, loading, countdown, racing, and results are
   distinct phases with one owner of each transition. Every wait has a
   deadline, so one slow, silent, or departed player can never hang the room.
@@ -83,8 +84,8 @@ It does not own kart-to-kart contact
   a newer state shows the error, blend it out over a short fixed time. Snap
   only for a teleport (a reset) or a long gap.
 - **Keep the drawn pose apart from the state behind it.** Visuals, shadow,
-  and sound read the drawn pose; standings, plausibility checks, and
-  contacts read received states.
+  and sound read the drawn pose; standings and plausibility checks read
+  received states, and contacts an estimate built from them.
 - **Order by time, not arrival.** Each state carries its race time; an
   older or repeated one is dropped.
 
@@ -146,7 +147,7 @@ It does not own kart-to-kart contact
 - [Race progression](../race-progression/README.md)
 - [Race presentation](../race-presentation/README.md)
 - [Runtime resilience](../runtime-resilience/README.md)
-- [Collisions](../collisions/README.md)
+- [Kart-to-kart contact](../kart-to-kart-contact/README.md)
 
 ## Sources
 

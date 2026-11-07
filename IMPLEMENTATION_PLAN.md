@@ -15,10 +15,11 @@ accepted; the app, README, and durable docs take over from there.
 
 ## Status
 
-- **Done:** Phases 0–5 (PRs #1–#24, the Phase 3 closeout and its
-  follow-ups, #30–#57 with the PR 4.5.2 closeout, and #59–#63), and PRs 6.0
-  (#64), 6.1 (#65), 6.2 (#66), 6.3 (#67), and 6.4 (#68).
-- **Now:** Phase 6, PR 6.5.
+- **Done:** Phases 0–6 (PRs #1–#24, the Phase 3 closeout and its
+  follow-ups, #30–#57 with the PR 4.5.2 closeout, #59–#63, and #64–#70
+  with the Phase 6 closeout).
+- **Next:** Phase 7, after its debrief. PR #70 raises the room protocol to
+  3: deploy the room server just before it merges, with no race running.
 
 ## Guiding Decisions
 
@@ -125,8 +126,8 @@ Courier-style mono labels, bold uppercase headings, widely tracked operational
 labels, sharp industrial borders, and restrained panels.
 
 The HUD should feel like a racing operations interface, not a lore panel or a
-neon arcade skin. The main multiplayer call to action should read like
-"Race Friends".
+neon arcade skin. Multiplayer is called "Multiplayer" everywhere a player
+sees it.
 
 ## How We Work
 
@@ -157,6 +158,7 @@ Details live in git history, `docs/kart-system/`, and `skills/project-systems/`.
 | 3. Kart dynamics and admin kart builder | Handling model cut from 62 tuning values to 16 with clear owners; versioned kart documents, approved part registry, deterministic derivation, immutable revisions, and publication; admin kart builder; editor controller input; three official karts in public selection with thumbnails and racer usernames; integration review and its two fixes. | #19, #21–#24, closeout |
 | 4. Visual baseline, Island Three, and Falls View Park | One shared kart visual builder, a lighting baseline and phone budget, and presentation-only part visuals; sandbox surfaces with grass physics, substepped high-speed collisions, and tire marks and clippings; the Island Three enclosure with true-scale rotating-habitat physics, a loading screen, valleys, and dusk; the Falls View Park Circuit, built section by section and published; generated race audio, kart sound, race cues, and lean ambience, with CC0 recordings where synthesis did not read; the kart editor's suspension swap; integration review. | #30–#57, closeout |
 | 5. Solo, ghosts, results, leaderboard | Races record their course and kart revisions; one see-through ghost recorded at 20 Hz, from your device, the course best, your account best, or a friend's link; Google plus SIWE wallet login and account linking; signed run tickets and server-verified runs, a best and its ghost per racer per board, and a leaderboard with podium medals; a guest's run kept until they sign in, link copying, and ghost links by username; a Phase 5 dashboard panel; a step-by-step home with keyboard, touch, and controller navigation, course pictures, menu sounds and one Volume, the levee kicker, and link preview cards; integration review. | #59–#63 |
+| 6. Private multiplayer | Leaderboards across course publications, with earlier versions kept; a clearer admin dashboard; accounts kept in a browser, passkeys, and sign-in rate limits; bringing a browser's account into another; private rooms of up to 4 on Cloudflare Durable Objects, with a lobby, one room clock, results, and Race again; opponents drawn smoothly through lateness, with their sound, and races that survive dropped connections; kart-to-kart contact answered at once on each page and recorded once by the room; Multiplayer on home's first screen; integration review. | #64–#70 |
 
 Decisions from completed phases that later phases rely on:
 
@@ -170,7 +172,8 @@ Decisions from completed phases that later phases rely on:
 - **One visual identity and one phone budget.** `docs/visual-identity.md`
   owns the art direction and the budget (CPU median ≤ 5 ms on the lead's
   iPhone, measured with `?perf=1` on a production build); every later phase
-  holds it. With sound on, the closed Phases 4 and 5 measured 3.0 / 4.0 ms.
+  holds it. With sound on, the closed Phases 4 and 5 measured 3.0 / 4.0 ms,
+  and Phase 6's two-player room with contact 3 / 6 ms.
 - **Karts are 1:10 RC scale.** Part visuals are presentation only and never
   change derivation, revisions, or hashes.
 - **Assets are code-built geometry, CC0 textures and sounds, and
@@ -216,9 +219,34 @@ Decisions from completed phases that later phases rely on:
   waits on the device and joins the board as theirs if they sign in (starting
   a racer on this browser counts) and have a username within 30 minutes of
   its start.
-- **Home is a step-by-step flow** (first screen, kart, course, mode and
-  ghost), one history entry a step, with no Quick race, and menus sound on
-  every action except in the admin tools.
+- **Accounts kept in a browser are lasting IDs** (Better Auth's anonymous
+  user, with its merge-and-delete off), and can be brought into an account
+  you sign in to, which keeps everything (PR 6.3); accounts with login
+  methods never merge, and one that owns karts or courses can't be brought
+  in, so Phases 8 and 9 revisit that. Sign-ins are rate limited in
+  Postgres. Usernames stay fixed for now, never called permanent; a rename
+  PR must lift migration 0012's trigger and keep old names reserved.
+- **A room server decides; each page drives its own kart** (Phase 6). The
+  [multiplayer rooms system](skills/project-systems/multiplayer-rooms/README.md)
+  owns rooms on Cloudflare Durable Objects: membership and host, kart
+  choice, one clock, each kart timed from its own checked states, results
+  stored without account IDs and kept off leaderboards, and the record of
+  each kart-to-kart contact. Opponents are drawn and estimated, never
+  simulated, and contact follows the
+  [kart-to-kart contact standard](skills/game-concepts/kart-to-kart-contact/README.md):
+  each page answers its own kart at once, and the room records each touch
+  once, the record Phase 8's damage extends.
+- **One room protocol version is live at a time,** raised for each change
+  to its messages (3 after Phase 6): deploy the room server just before the
+  app's PR merges, with no race running. Rooms stay on Cloudflare's Free
+  plan until a shared demo; before any shared link, move to Workers Paid
+  with the protections Phase 10 lists.
+- **Home is a step-by-step flow**, one history entry a step, with no Quick
+  race, and menus sound on every action except in the admin tools. Its
+  first screen offers Time Trial, Multiplayer, and Leaderboard (PR 6.6). A
+  time trial goes on to the kart, course, and ghost; Multiplayer opens a new
+  room, where each racer chooses a kart and the host the course (only Falls
+  View Park so far).
 - **Component engineering is a separate later phase.** Kart assembly uses
   sealed, freely available parts with no progression tiers. If component
   engineering is planned, progression unlocks engineered *parts*, an engineered
@@ -226,205 +254,6 @@ Decisions from completed phases that later phases rely on:
   stats can be overridden.
 
 ## Remaining Phases
-
-### Phase 6: Private Multiplayer
-
-**Goal:** make the demo social, with kart-to-kart contact handled by one
-authoritative system.
-
-Phase decisions:
-
-- **A room server decides; each client drives its own kart.** The room
-  server owns membership and host, kart choice and ready, the countdown on
-  its clock, progress, finish order, placements, replay, and each
-  kart-to-kart contact. Clients simulate their own kart as solo does and send
-  its state; opponents' karts are presentation only. No server-side kart
-  physics.
-- **The room times each kart from its own states** (PR 6.5), with solo's run
-  check made step by step and shared: a start on its grid slot, at most
-  30 m/s between states, resets only to its newest reset point, and gates
-  crossed in order, by a pair of states at each crossing or between two
-  accepted states. No state's race time may run ahead of the room's clock;
-  it may lag it, as a resend does, so as with solo a forged stream that
-  obeys these rules still passes (accepted: room results stay off
-  leaderboards). The join token carries the course's gates and reset points,
-  fixed at the room's first join. A state that fails is neither counted nor
-  relayed. The page predicts its own gates and finish for its HUD; the
-  room's snapshot decides standings and results.
-- **Cloudflare Durable Objects host rooms** over WebSockets, one object per
-  room, on Cloudflare's own API with our own reconnect. The room rules are a
-  transport-free TypeScript module. The app signs room join tokens, and the
-  room server sends results to the app rather than touching Postgres.
-  The Free plan until usage nears its limit or a shared demo, whichever
-  comes first, then Workers Paid ($5/month): Free may count each of a
-  player's 32 messages a second as a request against 100,000 a day (about
-  13 minutes of four-player racing), and the dashboard's request count
-  after a first race shows whether it does.
-  Vercel's WebSockets were ruled out: a room has no single home across
-  instances, and connections close at the function's time limit.
-- **A racer kept in this browser is Better Auth's anonymous user and stays
-  the lasting ID** (PR 6.2): methods link to it, and the plugin's
-  merge-and-delete is off. Until it has a login method, no other sign-in may
-  replace its session, and Sign out asks first. Sessions last 400 days,
-  renewed at most daily, and store no IP or user agent.
-- **Sign-ins are rate limited in Postgres,** counted only on exact sign-in
-  paths, with 10 new browser racers per network an hour; the
-  [identity system](skills/project-systems/identity-course-persistence/README.md)
-  owns the limits and what the counts keep.
-- **Usernames stay fixed for now,** without being called permanent in player
-  copy. Attribution already uses the racer ID, so a later rename PR needs to
-  lift migration 0012's trigger, keep old names reserved, redirect
-  ghost links, limit renames, and revisit the run route's fixed-username
-  assumption.
-- **A racer kept in one browser can be brought into a racer you sign in to**
-  (PR 6.3), any number of times. The racer you sign in to keeps everything:
-  the brought-in racer proves itself by its live session, the other by a
-  fresh sign-in in the same flow, and a failed merge leaves both as they
-  were. Results and run summaries move to it (the only change a result can
-  take), each board keeps the faster best, and the brought-in racer is
-  deleted. Its username stays reserved for the racer that kept it, and its
-  ghost links race that racer; a racer with no username yet takes it. A
-  racer that owns karts or courses can't be brought in, so Phase 8 and 9
-  authoring revisits this. Racers with login methods still never merge.
-- **"Continue anonymously" is an alternative to signing in,** shown apart
-  from the sign-in methods on the profile and below Sign in on a guest's
-  result (PR 6.3).
-- **A room lives only while someone is in it** (PR 6.4). Race Friends
-  opens `/room/<code>` with a random code. Anyone, guests included, may
-  open one, with no limit on making rooms until the public share. The
-  [multiplayer rooms system](skills/project-systems/multiplayer-rooms/README.md)
-  owns join tokens, the lifecycle, and what a race stores.
-- **Players show as @username, or "Guest N" without one;** the room server
-  never sees an account ID.
-- **The longest-present connected player hosts** a room of up to 4.
-  Choosing a kart marks a player ready, and the host starts once at least 2
-  are. Pause stops your kart while the room's clock runs on.
-- **A room race ends** when every active player has finished, 30 s after
-  the first finisher, or at 10 minutes. Leaving, or staying disconnected
-  for over 30 s, means not finishing.
-- **A dropped connection keeps its seat for 30 s** (PR 6.5), in the lobby or
-  a race, while the page reconnects by itself and the kart keeps driving.
-  The page and the room each treat a silent connection as dropped within
-  seconds in a race, with a ping every second, and within half a minute
-  between races, when rarer pings let the room sleep. A guest's page holds a
-  random seat secret that the app folds into its room key, so it retakes its
-  seat. On return the room names the last state it accepted and the page
-  resends the rest in batches the room's send limits allow, so a finish
-  during an outage keeps its own time. A reload is still a new visit that
-  waits for the next race. A seat held when a race starts sits it out. A
-  page that can't race (its course failed to load, or its kart was
-  republished) tells the room, which drops it at once.
-- **Room results stay off leaderboards,** stored once without account IDs
-  or usernames. Rooms record no ghosts, run tickets, or run summaries.
-- **Opponents are opaque karts drawn from 30 states a second** (PR 6.5),
-  each carrying its velocity, so a curve between two states needs no third.
-  Each is drawn behind its own newest state by what its lateness needs
-  (100–350 ms), carried on at most 100 ms past it, and blended back within
-  150 ms; a reset or a long gap snaps. Each kart's drawn pose is kept apart
-  from the states it was drawn from, and only that pose drives its shadow
-  and its sound, heard from the camera with distance, side, and Doppler
-  pitch. They pass through each other until PR 6.6.
-- **One room protocol version is live at a time;** PRs 6.5 and 6.6 raise
-  it, deploying the room server and then the app back to back. Production
-  rooms use the room server's workers.dev address until titanracers.com's
-  DNS moves to Cloudflare.
-
-**PR 6.0: Leaderboards across course publications**
-
-- [x] Publishing a course revision keeps its current leaderboard unless the
-      admin chooses "Start a new leaderboard" (off by default), for changes
-      that affect times; a physics change still always starts one. Boards
-      are numbered per course instead of tied to a revision, and each run is
-      still verified against the gates of the revision it raced.
-- [x] After a new leaderboard starts, `/leaderboard` keeps every earlier
-      course version's board to look at, read-only, behind a quiet Course
-      versions icon, so earlier times are honoured rather than hidden.
-- [x] Admins reach the dashboard from home's menu, and signing in from the
-      menu returns home.
-
-**PR 6.1: A clearer admin dashboard**
-
-- [x] An at-a-glance admin dashboard: races started and finished over time
-      and how many finish, sign-ups and active signed-in racers with the
-      guest and signed-in share, leaderboard submissions and new bests, and
-      races per official kart, ghost choices, and links copied. Guests have
-      no lasting identity, so racer counts are signed-in only. PR 6.4 adds
-      room counts.
-- [x] Races record their signed-in racer from the server's session. Home's
-      menu opens the dashboard, which links the operational telemetry view.
-
-**PR 6.2: Accounts without Google or a wallet**
-
-- [x] Research and agree the standard first: both, on Better Auth 1.7.16,
-      whose passkey plugin carries the GHSA-gv75 origin fix.
-- [x] A racer gets an account without Google or a wallet, kept in this
-      browser, and keeps it by adding a passkey, Google, or a wallet. The
-      account stays the racer's canonical ID; methods link to it, and
-      linking never merges accounts. Any racer can add a passkey and sign in with it.
-- [x] Until one is added, say plainly that clearing the browser or
-      switching devices loses the account for good.
-- [x] The dashboard counts browser racers as signed in, with this-browser
-      and kept sign-ups.
-
-**PR 6.3: Merge racers**
-
-- [x] A racer kept in one browser is brought into another of theirs after a
-      confirmation, for example when the Google account or wallet they try
-      to link already belongs to their other racer, or when a Google sign-in
-      already under way was refused and made its own racer.
-- [x] Results and run summaries move to the racer kept, each board keeps
-      the faster best, the brought-in racer is deleted, and its username's
-      ghost links race the racer kept.
-- [x] The dashboard counts a brought-in racer as kept.
-- [x] "Continue anonymously" replaces "Continue on this browser" as an
-      alternative to signing in, on the profile and on a guest's result.
-
-**PR 6.4: Private rooms and race lifecycle**
-
-- [x] Create a private room and join by link; 2–4 players, guests welcome.
-- [x] Choosing a kart marks a player ready; the host starts a synchronized
-      countdown.
-- [x] Opponents are visible with coherent race progress.
-- [x] Synchronized results with placements, and replay in the same room. The race ends when all
-      active players finish or shortly after the first finisher.
-- [x] No public matchmaking or ranked multiplayer leaderboard.
-- [x] Rooms race official karts on Falls View Park, recording each kart's
-      revision and the course's, as Phase 5's results do.
-- [x] The dashboard counts room races, rooms raced in, racers and guests,
-      and how room races ended.
-
-**PR 6.5: Motion and resilience**
-
-- [x] Define server authority, prediction, reconciliation, and bounded
-      correction, and revisit PR 6.4's update cadence and interpolation.
-- [x] Keep remote presentation separate from authoritative race and collision
-      state.
-- [x] Survive latency, late and bunched messages, backgrounding,
-      disconnects, reconnects, and host departure without hanging the room.
-- [x] Keep all input methods, reset, pause, and resilience behavior working.
-- [x] Opponents are heard, with remote karts' cheaper voices, and cast the
-      contact shadow the player's kart does.
-- [x] The room times each finish from the kart's own checked states, so a
-      modified client can't finish without driving or post a time its
-      states don't support.
-- [x] A page whose race can't load drops out at once.
-- [x] A four-kart room stays within the phone budget on the lead's iPhone
-      (`?perf=1`).
-
-**PR 6.6: Kart-to-kart collisions**
-
-- [ ] Resolve each kart-to-kart contact once, authoritatively, using both karts'
-      mass, relative velocity, contact normal, and angle of attack.
-- [ ] Sync collision impulses without remote tunneling or explosive
-      corrections.
-- [ ] Version the room's sync messages so Phase 8's joint damage can extend
-      them.
-
-**Done when:** a host creates a room, a guest joins by link, both ready up and
-race, and results resolve without hanging; the room can replay; and rubbing,
-glancing, rear-end, head-on, pileup, airborne, wall-pinning, and concurrent
-kart/environment contacts each resolve once and stay in sync under latency and
-disconnects.
 
 ### Phase 7: CAD Assembly And Kart Royalties
 
@@ -639,7 +468,30 @@ course-specific ghosts or leaderboards.
       explicit pause…", and "navigates guest menus end-to-end with a
       standard controller snapshot") and two in `gameplay-telemetry.spec`
       ("flushes one coarse health summary…" and "reports ordered run
-      milestones…", which time out clicking Exit).
+      milestones…", which time out clicking Exit). Three more in
+      `home.spec` failed there in Phase 6, on `main` too: "releases a
+      thumbnail pause when home unmounts during queue drain", "keeps the
+      rough-race HUD clear of mobile utilities", and "launches the slowest
+      and fastest karts off the levee kicker onto the crest". Serial
+      groups skip the tests after a failure, so fix these first.
+- [ ] Before any shared room link (Phase 6's integration review): Workers
+      Paid, a rate limit on the room token route, and rooms on the custom
+      domain behind a rate-limiting rule, so a script can't spend the
+      day's room budget.
+- [ ] Left from Phase 6's integration review:
+      - security: removing a login method needs a recent session when
+        another remains; prune old rows from `rate_limits`; send
+        `/room/[code]` to analytics without the code; admin routes log only
+        an error's name and code;
+      - rooms: a Try again button on "Refresh to…" messages; "(left)" for
+        screen readers in the standings; say a race ended while you were
+        reconnecting rather than that it was called off; one Back label;
+      - accounts: an "Already have an account?" sign-in from a mistaken
+        Continue anonymously, and passkey and wallet sign-in for admins;
+      - cleanup: one copy of the room code's vector and quaternion helpers,
+        and one Node room test client;
+      - tests: a second race in the same room, a kart pinned against a
+        wall, and the 9 ms contact step on the iPhone.
 - [ ] Analytics review: confirm we can measure time to first race, race start
       and completion, replays, room joins, shares, login after a race,
       leaderboard submissions, community publishing and play, thumbs-ups,

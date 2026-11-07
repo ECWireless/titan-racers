@@ -48,7 +48,11 @@ process.env.ROOM_SERVER_SECRET = SECRET;
 
 function tokenRequest(
   code: string,
-  { body = "{}", headers = new Headers(), origin = ORIGIN } = {},
+  {
+    body = JSON.stringify({ protocol: ROOM_PROTOCOL }),
+    headers = new Headers(),
+    origin = ORIGIN,
+  } = {},
 ) {
   return postRoomToken(
     new Request(`${ORIGIN}/api/rooms/${code}/token`, {
@@ -207,7 +211,10 @@ test.describe("private rooms", () => {
     expect((await tokenFor(code)).player.key).not.toBe(token.player.key);
     // ...unless its page sends its seat secret, to retake its seat.
     const seat = (name: string) =>
-      JSON.stringify({ seat: name.repeat(43).slice(0, 43) });
+      JSON.stringify({
+        seat: name.repeat(43).slice(0, 43),
+        protocol: ROOM_PROTOCOL,
+      });
     const held = (await tokenFor(code, undefined, seat("a"))).player.key;
     expect(held).not.toBe(token.player.key);
     expect((await tokenFor(code, undefined, seat("a"))).player.key).toBe(held);
@@ -238,7 +245,7 @@ test.describe("private rooms", () => {
         await tokenFor(
           code,
           named.headers,
-          JSON.stringify({ seat: "c".repeat(43) }),
+          JSON.stringify({ seat: "c".repeat(43), protocol: ROOM_PROTOCOL }),
         )
       ).player.key,
     ).toBe(token.player.key);
@@ -264,6 +271,11 @@ test.describe("private rooms", () => {
     const code = createRoomCode();
     for (const body of ['{"x":1}', '{"seat":"short"}', "not json"]) {
       expect((await tokenRequest(code, { body })).status).toBe(400);
+    }
+    // A page left open across a deploy, on another protocol or from before
+    // pages said theirs, is told the game has updated.
+    for (const body of ["{}", JSON.stringify({ protocol: ROOM_PROTOCOL - 1 })]) {
+      expect((await tokenRequest(code, { body })).status).toBe(409);
     }
     expect(
       (await tokenRequest(code, { origin: "https://elsewhere.example" }))

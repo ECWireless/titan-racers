@@ -28,7 +28,7 @@ A logged-in racer's best is stored and checked by the
 - `src/game/ghost/board-ghost.ts`: fetching the board's course best, your
   account best, or a named racer's best
   (`GET /api/leaderboards/[courseId]/ghost`).
-- `src/components/play-home.tsx`: the mode step's ghost choice (a ghost
+- `src/components/play-home.tsx`: a time trial's ghost choice (a ghost
   link's racer, Course best, Your best, or No ghost, which is the Ghost
   switch), and loading the board's ghost before a solo race mounts.
 - A ghost link's preview belongs to

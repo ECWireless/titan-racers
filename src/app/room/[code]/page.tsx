@@ -5,7 +5,7 @@ import { RoomPlay } from "@/components/room-play";
 import { isRoomCode } from "@/game/room/room-protocol";
 
 export const metadata: Metadata = {
-  title: "Race Friends · Titan Racers",
+  title: "Multiplayer · Titan Racers",
   // A room's link is its invitation; keep it out of search.
   robots: { index: false, follow: false },
 };

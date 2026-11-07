@@ -16,7 +16,12 @@ import {
   verifyRoomReport,
   type RoomTokenFields,
 } from "../src/game/room/room-signing";
-import { crossingAt, kartAt, straightRoomCourse } from "./support/room-course";
+import {
+  crossingAt,
+  kartAt,
+  straightRoomCourse,
+  TEST_KART_CONTACT,
+} from "./support/room-course";
 import {
   freePort,
   type RoomServerReport,
@@ -57,7 +62,7 @@ function tokenFields(
     // One lap past a checkpoint at 2 m: two gates.
     course: straightRoomCourse(1, [2]),
     physicsVersion: "support-heave-v1",
-    karts: [{ id: "kestrel", revision: 3 }],
+    karts: [{ id: "kestrel", revision: 3, contact: TEST_KART_CONTACT }],
     player: {
       key: randomRoomPlayerKey(),
       username: null,
@@ -230,6 +235,69 @@ test("two players race a room from lobby to results", async () => {
     (m): m is Snapshot => isRoom(m) && m.players.length === 1,
   );
   expect(after.hostId).toBe("p2");
+  guest.socket.close(1000);
+});
+
+test("sends both karts one record of a touch between them", async () => {
+  test.setTimeout(60_000);
+  const room = createRoomCode();
+  const ada = await Client.signed(tokenFields(room));
+  await ada.next((message) => message.type === "welcome");
+  const guest = await Client.signed(tokenFields(room));
+  await guest.next((message) => message.type === "welcome");
+  for (const client of [ada, guest]) {
+    client.send({ type: "choose_kart", kartId: "kestrel" });
+  }
+  await ada.next((m) => isRoom(m) && m.players.every(({ ready }) => ready));
+  ada.send({ type: "start" });
+  const loading = await guest.next(
+    (m): m is Snapshot => isRoom(m) && m.phase === "loading",
+  );
+  for (const client of [ada, guest]) {
+    client.send({ type: "loaded", raceId: loading.race!.id });
+  }
+  const countdown = await guest.next(
+    (m): m is Snapshot => isRoom(m) && m.race?.racingAt != null,
+  );
+  const racingAt = countdown.race!.racingAt!;
+  await new Promise((resolve) =>
+    setTimeout(resolve, racingAt - Date.now() + 200),
+  );
+
+  // From side by side on the grid, Ada drives across into the guest at
+  // 3 m/s; both send live states 30 times a second.
+  const start = Date.now();
+  while (Date.now() - start < 600) {
+    const t = Math.max(0, (Date.now() - racingAt - 50) * 1_000);
+    const across = Math.min(0.6, 3 * ((Date.now() - start) / 1_000));
+    ada.send({
+      type: "state",
+      ...kartAt(t, -1, { p: [-1, 0.2, -0.5 + across], v: [0, 0, 3] }),
+    });
+    guest.send({
+      type: "state",
+      ...kartAt(t, -1, { p: [-1, 0.2, 0.5], v: [0, 0, 0] }),
+    });
+    await new Promise((resolve) => setTimeout(resolve, 33));
+  }
+
+  const isContact = (
+    message: RoomServerMessage,
+  ): message is Extract<RoomServerMessage, { type: "contact" }> =>
+    message.type === "contact";
+  const toAda = await ada.next(isContact);
+  const toGuest = await guest.next(isContact);
+  expect(toAda).toMatchObject({ with: "p2", id: toGuest.id, t: toGuest.t });
+  expect(toGuest).toMatchObject({ with: "p1" });
+  expect(toAda.n[2]).toBeGreaterThan(0.99);
+  // Ada is held back; the guest pushed on.
+  expect(toAda.j[2]).toBeLessThan(0);
+  expect(toGuest.j[2]).toBeCloseTo(-toAda.j[2], 4);
+  // Pressed together, they stay one touch.
+  expect(ada.messages.filter(isContact)).toHaveLength(1);
+  expect(guest.messages.filter(isContact)).toHaveLength(1);
+
+  ada.socket.close(1000);
   guest.socket.close(1000);
 });
 
