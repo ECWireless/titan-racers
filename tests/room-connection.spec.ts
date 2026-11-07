@@ -244,6 +244,24 @@ test.describe("the page's room connection", () => {
     expect(connection.getView().status).toBe("open");
   });
 
+  test("asks for its protocol, and says to refresh when the game has updated", async () => {
+    const requests: string[] = [];
+    globals.fetch = async (_url: string, init: { body: string }) => {
+      requests.push(init.body);
+      return { ok: false, status: 409, json: async () => ({}) };
+    };
+    const { RoomConnection } = await import("../src/game/room/room-connection");
+    const connection = new RoomConnection("abcdefghjk", "ws://rooms.test");
+    opened.push(connection);
+    await connection.open();
+    expect(JSON.parse(requests[0])).toMatchObject({ protocol: ROOM_PROTOCOL });
+    expect(FakeSocket.sockets).toHaveLength(0);
+    expect(connection.getView()).toMatchObject({
+      status: "closed",
+      closedReason: "The game has updated. Refresh to join this room.",
+    });
+  });
+
   test("judges from its pings whether it can answer a contact in time", async () => {
     const connection = await connected(true);
     const [socket] = FakeSocket.sockets;

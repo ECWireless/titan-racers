@@ -3,6 +3,7 @@ import { ROOM_CONTACT } from "./room-contacts";
 import {
   parseServerMessage,
   ROOM_CLOSE,
+  ROOM_PROTOCOL,
   ROOM_RESEND_BATCH,
   ROOM_SEAT_HOLD_MS,
   type RoomClientMessage,
@@ -174,12 +175,19 @@ export class RoomConnection {
     let token: string;
     try {
       const response = await fetch(`/api/rooms/${this.code}/token`, {
-        body: JSON.stringify({ seat: this.seat }),
+        body: JSON.stringify({ seat: this.seat, protocol: ROOM_PROTOCOL }),
         cache: "no-store",
         headers: { "content-type": "application/json" },
         method: "POST",
         signal: AbortSignal.timeout(TOKEN_TIMEOUT_MS),
       });
+      // A deploy since this page loaded: it can't race the room's protocol.
+      if (response.status === 409) {
+        if (!current()) return;
+        this.connecting = false;
+        this.finish(CLOSE_COPY[ROOM_CLOSE.version]);
+        return;
+      }
       if (!response.ok) throw new Error(String(response.status));
       ({ token } = (await response.json()) as { token: string });
     } catch {

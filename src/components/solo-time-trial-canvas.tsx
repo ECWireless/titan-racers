@@ -404,7 +404,11 @@ type SoloTimeTrialCanvasProps = {
    */
   covered?: boolean;
   onExit: () => void;
-  /** Called once the scene is ready to start, or has failed to load. */
+  /**
+   * Called once the scene is ready to start, or has failed to load; and
+   * once more, with false, if a ready scene later fails for good (its
+   * graphics lost and not restored).
+   */
   onLoaded?: (ready: boolean) => void;
   /**
    * Receives the `?perf=1` report as the race unmounts, for a page that
@@ -757,7 +761,8 @@ export function SoloTimeTrialCanvas({
   const countdownHeldRef = useRef(covered);
   const startCountdownRef = useRef<(() => void) | null>(null);
   const onLoadedRef = useRef(onLoaded);
-  const loadedReportedRef = useRef(false);
+  // What `onLoaded` last said: nothing yet, ready, or failed.
+  const loadedReportedRef = useRef<boolean | null>(null);
   const touchPedalElementsRef = useRef<
     Partial<Record<TouchPedalAction, HTMLButtonElement>>
   >({});
@@ -842,9 +847,14 @@ export function SoloTimeTrialCanvas({
   }, [onFrameBudgetReport]);
 
   useEffect(() => {
-    if (sceneStatus === "initializing" || loadedReportedRef.current) return;
-    loadedReportedRef.current = true;
-    onLoadedRef.current?.(sceneStatus === "ready");
+    if (sceneStatus === "initializing") return;
+    if (loadedReportedRef.current === null) {
+      loadedReportedRef.current = sceneStatus === "ready";
+      onLoadedRef.current?.(loadedReportedRef.current);
+    } else if (loadedReportedRef.current && sceneStatus === "failed") {
+      loadedReportedRef.current = false;
+      onLoadedRef.current?.(false);
+    }
   }, [sceneStatus]);
 
   useEffect(() => {
@@ -3664,14 +3674,16 @@ export function SoloTimeTrialCanvas({
             setDriveCursorHidden(false);
           }
         }
-        // Record while race time runs, and the step that finished it.
+        // Record while race time runs, and the step that finished it. A
+        // room race keeps no recording: it makes no ghost and no run.
         const finishedThisStep =
           crossedGate && lastRaceProgressionResult.kind === "finished";
         const lifecycle = raceSession.lifecycleState;
         if (
-          lifecycle === "racing" ||
-          lifecycle === "recovering" ||
-          finishedThisStep
+          !ROOM &&
+          (lifecycle === "racing" ||
+            lifecycle === "recovering" ||
+            finishedThisStep)
         ) {
           ghostRecorder.recordStep(
             raceSession.raceMicroseconds,

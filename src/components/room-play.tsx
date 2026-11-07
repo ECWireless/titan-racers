@@ -396,6 +396,26 @@ function RoomLobby({
   onStart: () => void;
 }) {
   const [copyNote, setCopyNote] = useState<string | null>(null);
+  // Opening, or back from a race, it focuses what comes next: Start race
+  // for a host who can start, or the kart choice.
+  const lobbyRef = useRef<HTMLElement | null>(null);
+  useEffect(() => {
+    const frame = requestAnimationFrame(() => {
+      const lobby = lobbyRef.current;
+      const start = lobby?.querySelector<HTMLButtonElement>(
+        "[data-room-start]:not(:disabled)",
+      );
+      const kart =
+        lobby?.querySelector<HTMLElement>(
+          '[aria-label="Official kart selection"] [aria-pressed="true"]',
+        ) ??
+        lobby?.querySelector<HTMLElement>(
+          '[aria-label="Official kart selection"] button',
+        );
+      (start ?? kart)?.focus();
+    });
+    return () => cancelAnimationFrame(frame);
+  }, []);
   // Said over the button for a moment after a copy, as the leaderboard's.
   const [copied, setCopied] = useState<"copied" | "failed" | null>(null);
   const copiedTimerRef = useRef<number | null>(null);
@@ -435,13 +455,14 @@ function RoomLobby({
     startNote = me?.ready
       ? "A race is under way. You're in the next one."
       : "A race is under way. Choose a kart to race the next one.";
+  } else if (room.players.length < ROOM_MIN_RACERS) {
+    startNote = "Share the link: a race needs at least 2 players.";
+  } else if (host && !me?.ready) {
+    startNote = "Choose your kart to start the race.";
   } else if (ready < ROOM_MIN_RACERS) {
-    startNote =
-      room.players.length < ROOM_MIN_RACERS
-        ? "Share the link: a race needs at least 2 players."
-        : away
-          ? "Waiting for everyone to reconnect and choose a kart."
-          : "Waiting for everyone to choose a kart.";
+    startNote = away
+      ? "Waiting for everyone to reconnect and choose a kart."
+      : "Waiting for everyone to choose a kart.";
   } else if (host) {
     startNote =
       ready < room.players.length
@@ -455,7 +476,11 @@ function RoomLobby({
 
   return (
     <RoomFrame>
-      <section aria-labelledby="room-title" className="grid gap-6">
+      <section
+        aria-labelledby="room-title"
+        className="grid gap-6"
+        ref={lobbyRef}
+      >
         <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
           <div className="grid gap-2">
             <p className={LABEL}>Multiplayer</p>
@@ -617,6 +642,7 @@ function RoomLobby({
             {host ? (
               <button
                 className="titan-button titan-button-primary min-h-16 text-base max-sm:order-first"
+                data-room-start=""
                 data-ui-sound="start"
                 disabled={racing || ready < ROOM_MIN_RACERS || !me?.ready}
                 type="button"
@@ -699,7 +725,8 @@ function RoomRace({
   onRaceAgain: () => void;
 }) {
   const [thumbnailsPaused, setThumbnailsPaused] = useState(false);
-  const [scene, setScene] = useState<"loading" | "ready" | "failed">(
+  // "lost": ready, then its graphics stopped for good mid-race.
+  const [scene, setScene] = useState<"loading" | "ready" | "failed" | "lost">(
     "loading",
   );
   const [cover, setCover] = useState<Cover>("on");
@@ -776,7 +803,8 @@ function RoomRace({
   useControllerMenuNavigation({
     containerRef: resultsRef,
     enabled: ended,
-    onBack: backToRoom,
+    // Back only goes back: racing again is the button's to choose.
+    onBack: onLeaveRace,
   });
   // The dialog takes focus as it opens, from the race now inert beneath.
   useEffect(() => {
@@ -831,7 +859,9 @@ function RoomRace({
             onExit={onLeaveRoom}
             onFrameBudgetReport={setPerfReport}
             onLoaded={(ready) => {
-              setScene(ready ? "ready" : "failed");
+              setScene((was) =>
+                ready ? "ready" : was === "ready" ? "lost" : "failed",
+              );
               // A page that can't race says so, so no one waits for it.
               connection.send({
                 type: ready ? "loaded" : "sit_out",
@@ -912,11 +942,13 @@ function RoomRace({
               <p className="text-sm leading-6 text-titan-ice/76">
                 {!race
                   ? "The race was called off: not enough racers were ready in time."
-                  : yourEntry?.left || reseated
-                    ? "You were disconnected too long to finish this race."
-                    : scene === "failed"
-                      ? "The race goes on without you: the course couldn't be loaded on this device."
-                      : "The race started without you: the course took too long to load on this device."}
+                  : scene === "lost"
+                    ? "The race goes on without you: this device's graphics stopped."
+                    : yourEntry?.left || reseated
+                      ? "You were disconnected too long to finish this race."
+                      : scene === "failed"
+                        ? "The race goes on without you: the course couldn't be loaded on this device."
+                        : "The race started without you: the course took too long to load on this device."}
               </p>
             )}
             <div className="grid gap-3">

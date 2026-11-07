@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { isRoomCode } from "@/game/room/room-protocol";
+import { isRoomCode, ROOM_PROTOCOL } from "@/game/room/room-protocol";
 import { ROOM_SEAT_SECRET_PATTERN } from "@/game/room/room-signing";
 import {
   protectedJsonMutationError,
@@ -12,6 +12,8 @@ import { signedInUserOrNull } from "@/server/session-user";
 type RouteContext = { params: Promise<{ code: string }> };
 const joinRequestSchema = z.strictObject({
   seat: z.string().regex(ROOM_SEAT_SECRET_PATTERN).optional(),
+  /** The page's room protocol; a page from before 3 sends none. */
+  protocol: z.number().int().positive().max(1_000).optional(),
 });
 const NO_STORE_HEADERS = { "cache-control": "no-store" };
 
@@ -22,7 +24,9 @@ function jsonError(error: string, status: number) {
 /**
  * Signs a short-lived join token for one room, as whoever is signed in or
  * as a guest, whose page may send a seat secret to retake its seat on a
- * reconnect. Joining never creates or changes an account.
+ * reconnect. A page on another protocol, left open across a deploy, is
+ * told to refresh rather than given a token it would join on and then
+ * fail. Joining never creates or changes an account.
  */
 export async function POST(request: Request, context: RouteContext) {
   const mutationError = protectedJsonMutationError(request);
@@ -38,6 +42,9 @@ export async function POST(request: Request, context: RouteContext) {
   }
   if (!parsed?.success) {
     return jsonError("Invalid room join request.", 400);
+  }
+  if (parsed.data.protocol !== ROOM_PROTOCOL) {
+    return jsonError("The game has updated.", 409);
   }
   try {
     const token = await issueRoomToken(
