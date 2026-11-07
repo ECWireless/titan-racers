@@ -88,6 +88,15 @@ export function TelemetryIcon() {
   );
 }
 
+/** An arrow pointing left: back. */
+export function BackIcon() {
+  return (
+    <MenuIcon>
+      <path d="M19.5 12h-15M10.5 6l-6 6 6 6" />
+    </MenuIcon>
+  );
+}
+
 /** A clock turned back: the course's versions. */
 export function CourseVersionsIcon() {
   return (

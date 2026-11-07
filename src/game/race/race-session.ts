@@ -238,13 +238,15 @@ export class RaceSession {
     return true;
   }
 
+  /** A finished or paused race starts over from a fresh countdown. */
   restart() {
-    if (this.state !== "finished") {
+    if (this.state !== "finished" && this.state !== "paused") {
       return false;
     }
 
     this.state = "countdown";
     this.resumableState = null;
+    this.resumeCountdownRemainingMicroseconds = 0;
     this.resumedAtElapsedMicroseconds = null;
     this.countdownRemainingMicroseconds = toConfiguredMicroseconds(
       this.config.countdownSeconds,

@@ -54,7 +54,7 @@ export const RUN_REJECTIONS = [
 export type RunRejection = (typeof RUN_REJECTIONS)[number];
 
 type RaceCheckResult =
-  | { verified: true; timeMicroseconds: number }
+  | { verified: true; fastestLapMicroseconds: number; timeMicroseconds: number }
   | { verified: false; reason: RaceCheckRejection };
 
 /**
@@ -202,7 +202,8 @@ export function checkRaceStep(
  * Checks a finished race's recording against its course, as the server does
  * before a run counts: it starts on the start's reset point, then passes
  * `checkRaceStep` sample by sample, and its time is the finishing
- * crossing's. A forged recording that obeys these rules still passes.
+ * crossing's. Each crossing of the start gate ends a lap, timed as the race
+ * times it. A forged recording that obeys these rules still passes.
  */
 export function verifyRaceRecording(
   course: RaceCheckCourse,
@@ -222,12 +223,23 @@ export function verifyRaceRecording(
   }
 
   const gateCount = raceGateCount(course);
+  const gatesPerLap = course.checkpoints.length + 1;
   let gates = 0;
+  let lapStartMicroseconds = 0;
+  let fastestLapMicroseconds = Infinity;
   for (let index = 1; index < samples.length; index += 1) {
     const sample = samples[index];
     const rejection = checkRaceStep(course, gates, samples[index - 1], sample);
     if (rejection) return reject(rejection);
-    if (sample.gate) gates += 1;
+    if (!sample.gate) continue;
+    gates += 1;
+    if (gates % gatesPerLap === 0) {
+      fastestLapMicroseconds = Math.min(
+        fastestLapMicroseconds,
+        sample.timeMicroseconds - lapStartMicroseconds,
+      );
+      lapStartMicroseconds = sample.timeMicroseconds;
+    }
   }
 
   if (gates < gateCount) return reject("unfinished");
@@ -235,5 +247,9 @@ export function verifyRaceRecording(
   if (finishMicroseconds > RACE_CHECK_LIMITS.maxRaceMicroseconds) {
     return reject("too-long");
   }
-  return { timeMicroseconds: finishMicroseconds, verified: true };
+  return {
+    fastestLapMicroseconds,
+    timeMicroseconds: finishMicroseconds,
+    verified: true,
+  };
 }

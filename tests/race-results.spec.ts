@@ -580,6 +580,86 @@ test.describe("verified runs", () => {
     );
   });
 
+  test("ranks each best race's fastest lap, the race set first first", async () => {
+    const board = await publishedBoard();
+    const [quick, steady, late] = [await racer(), await racer(), await racer()];
+    // A real run keeps the fastest lap the race itself timed.
+    const real = race(10);
+    await submit(quick.headers, board.ticket(quick.id), encode(real.samples));
+    await expect(
+      db
+        .select({ lap: raceResults.fastestLapMicroseconds })
+        .from(raceResults)
+        .where(eq(raceResults.userId, quick.id)),
+    ).resolves.toEqual([{ lap: real.fastestLapMicroseconds }]);
+
+    // Checked runs with chosen times, so the lap order differs from the race.
+    const ghost = Buffer.from(encodeGhostTrace(real.samples));
+    const run = async (userId: string, time: number, lap: number) =>
+      recordRunSubmission(readRunTicket(board.ticket(userId))!, userId, {
+        fastestLapMicroseconds: lap,
+        ghost,
+        timeMicroseconds: time,
+        verified: true,
+      });
+    const lap = real.fastestLapMicroseconds;
+    await run(steady.id, 90e6, lap + 1e6);
+    // A slower race's quicker lap is not the best race's, so it doesn't count.
+    await run(steady.id, 95e6, lap - 1e6);
+    await run(late.id, 120e6, lap);
+
+    const { board: listed } = leaderboardResponseSchema.parse(
+      await loadLeaderboard(board.courseId, late.id),
+    );
+    const rows = (entries: NonNullable<typeof listed>["entries"]) =>
+      entries.map(({ fastestLapMicroseconds, rank, timeMicroseconds, username }) => ({
+        fastestLapMicroseconds,
+        rank,
+        timeMicroseconds,
+        username,
+      }));
+    const names = await Promise.all(
+      [quick, steady, late].map(async ({ id }) => {
+        const [{ username }] = await db
+          .select({ username: users.username })
+          .from(users)
+          .where(eq(users.id, id));
+        return username!;
+      }),
+    );
+    const quickRow = {
+      fastestLapMicroseconds: lap,
+      timeMicroseconds: real.timeMicroseconds,
+      username: names[0],
+    };
+    const steadyRow = {
+      fastestLapMicroseconds: lap + 1e6,
+      timeMicroseconds: 90e6,
+      username: names[1],
+    };
+    const lateRow = {
+      fastestLapMicroseconds: lap,
+      timeMicroseconds: 120e6,
+      username: names[2],
+    };
+    expect(rows(listed!.entries)).toEqual(
+      [quickRow, steadyRow, lateRow]
+        .sort((left, right) => left.timeMicroseconds - right.timeMicroseconds)
+        .map((row, index) => ({ ...row, rank: index + 1 })),
+    );
+    // The same lap ranks whoever set it first higher.
+    expect(rows(listed!.lapEntries)).toEqual([
+      { ...quickRow, rank: 1 },
+      { ...lateRow, rank: 2 },
+      { ...steadyRow, rank: 3 },
+    ]);
+    expect(listed!.viewer).toEqual({
+      fastestLap: { rank: 2, timeMicroseconds: lap },
+      rank: 3,
+      timeMicroseconds: 120e6,
+    });
+  });
+
   test("serves the course best to anyone and a racer's own best to them", async () => {
     const board = await publishedBoard();
     const fastest = await racer();

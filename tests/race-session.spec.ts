@@ -223,6 +223,26 @@ test.describe("race session", () => {
     });
   });
 
+  test("restarts a paused race, but not a running one", () => {
+    const session = new RaceSession(config());
+    startRace(session);
+    session.advanceTime(5);
+    expect(cross(session, 1).kind).toBe("checkpoint");
+
+    expect(session.restart()).toBe(false);
+    expect(session.pause()).toBe(true);
+    expect(session.restart()).toBe(true);
+    expect(session.snapshot).toMatchObject({
+      completedLapMicroseconds: [],
+      countdownRemainingMicroseconds: 3_000_000,
+      elapsedRaceMicroseconds: 0,
+      expectedTargetId: "checkpoint-1",
+      state: "countdown",
+    });
+    // Nothing is left to resume.
+    expect(session.resume()).toBe(false);
+  });
+
   test("charges recovery time, pauses it, and resumes from the safe transform", () => {
     const session = new RaceSession(config());
     startRace(session);

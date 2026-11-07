@@ -71,6 +71,7 @@ test.describe("race presentation", () => {
       cue: null,
       currentLap: 1,
       elapsedTime: "0:00.0",
+      fastestLap: null,
       lapCount: 1,
       lapTimes: [],
       state: "loading",
@@ -137,6 +138,7 @@ test.describe("race presentation", () => {
     ).toMatchObject({
       announcement: "Race finished in 0:11.875",
       elapsedTime: "0:11.875",
+      fastestLap: 1,
       lapTimes: ["0:06.125", "0:05.750"],
       state: "finished",
     });

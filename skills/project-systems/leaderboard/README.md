@@ -5,9 +5,10 @@
 ## Purpose And Scope
 
 How a logged-in racer's run becomes a verified result: signed run tickets,
-the server's check of the run's ghost recording, results, each racer's best
-and its ghost per board, the leaderboard page with podium medals, and the
-standing on the result screen. Runs are verified, not
+the server's check of the run's ghost recording, results and their fastest
+laps, each racer's best and its ghost per board, the leaderboard page ranked
+by total time or fastest lap with podium medals, and the standing on the
+result screen. Runs are verified, not
 cheat-proof: a forged recording that obeys the checks still passes.
 
 The recording format and recorder belong to [ghosts](../ghosts/README.md),
@@ -54,10 +55,11 @@ course versions' boards stay to look at, read-only.
 - `src/components/medal-icon.tsx`: the podium medal on rows and results.
 - `src/components/run-standing.tsx`: the result screen's standing, or its
   prompt to sign in or choose a username.
-- `src/db/schema.ts`, `drizzle/0021_*`, `0023_*`, and `0025_*`:
+- `src/db/schema.ts`, `drizzle/0021_*`, `0023_*`, `0025_*`, and `0030_*`:
   `leaderboards` (numbered per course by a trigger), `race_results` (with
-  `claimed`), `board_bests`, and `course_publications.new_leaderboard`, with
-  their triggers.
+  `claimed` and `fastest_lap_microseconds`), `board_bests`, and
+  `course_publications.new_leaderboard`, with their triggers. 0030 filled
+  each existing best's fastest lap from its recording.
 - The course editor's publish dialog, which asks whether a publication keeps
   the board ([course editor](../course-editor/README.md)).
 - `src/components/solo-time-trial-canvas.tsx`: a ticket request at each run
@@ -88,16 +90,21 @@ course versions' boards stay to look at, read-only.
    the recording strictly, checks it against that course revision's stored
    gates, and requires the real time since the ticket to be at least the
    race time.
-   The time is the server's own.
-4. The result is stored under the ticket's ID, verified or rejected with a
-   reason, so each ticket counts once (409 after). A verified run replaces
-   the racer's best on its board only when faster, keeping its recording. The
-   response is the server's time, rank, entries, personal best, and the
-   racer's username, which the result screen shows with the medal for a
+   The time is the server's own, and so is each lap: a crossing of the
+   start gate ends one.
+4. The result is stored under the ticket's ID, verified (with its fastest
+   lap) or rejected with a reason, so each ticket counts once (409 after). A
+   verified run replaces the racer's best on its board only when faster,
+   keeping its recording. The response is the server's time, rank, entries,
+   personal best, and the racer's username, which the result screen shows
+   with the medal for a
    top-three rank.
 5. `/leaderboard` shows the official course's current board: the board its
    newest published revision races on under the current physics, the top 50
-   bests with their karts, and the viewer's own rank if they are lower. A
+   bests with their karts, and the viewer's own rank if they are lower.
+   Fastest lap (`?sort=lap`, switched on the page without reloading) ranks
+   the same best races by their fastest lap; each row shows the other time
+   below. A
    quiet Course versions icon beside the page's label lists the latest
    version and every earlier board with times, newest first by the revision
    that started it, named by when its times were set. An earlier one
@@ -118,7 +125,10 @@ course versions' boards stay to look at, read-only.
 - Board numbers say which board, not their order: one first raced late can
   be numbered after a newer one. Ties rank by who set the time first, at the
   submission's full timestamp precision.
-- The client never sends a time, medal, or rank.
+- The client never sends a time, lap, medal, or rank.
+- Both rankings list each racer's best race, so a row's ghost holds the lap
+  it shows; a quicker lap in a slower race does not count. Laps tie by who
+  set the race first. Medals go by total time only.
 - A result is the submitting racer's; one from a ticket naming no racer is
   `claimed`. The guest's gameplay run summary is never linked to them.
 - Results are immutable, except that a merge moves them to the racer kept
@@ -134,10 +144,11 @@ course versions' boards stay to look at, read-only.
 ## Verification
 
 - `tests/race-results.spec.ts`: tickets, submissions, bests, the board and
-  its podium, boards kept and started across publications and their
-  numbers, earlier boards, a ghost link's standing and preview, and
-  anonymization against Postgres.
-- `tests/leaderboard.spec.ts`: the page, its podium, its empty state,
+  its podium, fastest laps and their ranking, boards kept and started
+  across publications and their numbers, earlier boards, a ghost link's
+  standing and preview, and anonymization against Postgres.
+- `tests/leaderboard.spec.ts`: the page, its podium, the Fastest lap
+  ranking, its empty state,
   sending a kept run, and the Course versions list.
 - `tests/social-card.spec.ts`: the preview tags, including the head that
   link-preview crawlers read, and the card.
@@ -151,5 +162,8 @@ course versions' boards stay to look at, read-only.
 - A recording does not prove which kart raced it.
 - A run kept on a shared device goes to whoever signs in there next.
 - A kept board's times may come from earlier revisions.
+- A best the earlier build stored after 0030 ran has no lap, and is left
+  off the Fastest lap ranking until beaten. Apply 0030 just before the
+  build that keeps laps goes live.
 - A guest's kept run is matched by course revision, so on a kept board a run
   on the newer revision replaces a faster one kept from the older.

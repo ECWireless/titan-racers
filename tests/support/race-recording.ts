@@ -136,6 +136,9 @@ export function recordRace(
       const samples = recorder.finish();
       if (!samples) throw new Error("The recorder overflowed.");
       return {
+        fastestLapMicroseconds: Math.min(
+          ...session.snapshot.completedLapMicroseconds,
+        ),
         samples: decodeGhostTrace(encodeGhostTrace(samples)),
         timeMicroseconds: session.raceMicroseconds,
       };

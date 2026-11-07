@@ -19,26 +19,43 @@ const EARLIER = [
   },
 ];
 
+// Username, best time, fastest lap, and whether it is the viewer's.
+const RACERS = [
+  ["quick_racer", 78_500_000, 38_900_000, false],
+  ["steady_racer", 92_250_000, 44_000_000, true],
+  ["third_racer", 101_000_000, 49_500_000, false],
+  ["new_racer", 130_000_000, 38_100_000, false],
+] as const;
+
 function board({ earlier = [] as typeof EARLIER, listed = true } = {}) {
+  const entry = (
+    [username, timeMicroseconds, fastestLapMicroseconds, viewer]: (typeof RACERS)[number],
+    index: number,
+  ) => ({
+    fastestLapMicroseconds,
+    kartName: "Balanced Kart",
+    rank: index + 1,
+    timeMicroseconds,
+    username,
+    viewer: listed && viewer,
+  });
   return {
     earlier,
     board: {
       courseName: "Falls View Park",
-      entries: [
-        ["quick_racer", 78_500_000, false],
-        ["steady_racer", 92_250_000, true],
-        ["third_racer", 101_000_000, false],
-        ["new_racer", 130_000_000, false],
-      ].map(([username, timeMicroseconds, viewer], index) => ({
-        kartName: "Balanced Kart",
-        rank: index + 1,
-        timeMicroseconds,
-        username,
-        viewer: listed && viewer,
-      })),
+      entries: RACERS.map(entry),
+      lapEntries: [...RACERS].sort((left, right) => left[2] - right[2]).map(entry),
       viewer: listed
-        ? { rank: 2, timeMicroseconds: 92_250_000 }
-        : { rank: 61, timeMicroseconds: 190_000_000 },
+        ? {
+            fastestLap: { rank: 3, timeMicroseconds: 44_000_000 },
+            rank: 2,
+            timeMicroseconds: 92_250_000,
+          }
+        : {
+            fastestLap: { rank: 58, timeMicroseconds: 61_000_000 },
+            rank: 61,
+            timeMicroseconds: 190_000_000,
+          },
     },
   };
 }
@@ -87,6 +104,44 @@ test.describe("leaderboard page", () => {
     await expect(rows.nth(3).getByRole("img")).toHaveCount(0);
     await expect(rows.nth(1)).toHaveAttribute("aria-current", "true");
     await expect(page.getByText(/Your best/)).toHaveCount(0);
+    await expect(rows.nth(0)).toContainText("Fastest lap 0:38.900");
+  });
+
+  test("ranks by fastest lap, without medals, and keeps the choice in the address", async ({
+    page,
+  }) => {
+    await page.route("**/api/leaderboards/falls-view-park", (route) =>
+      route.fulfill({ json: board({ listed: false }) }),
+    );
+    await page.goto("/leaderboard");
+    const total = page.getByRole("button", { name: "Total time" });
+    await expect(total).toHaveAttribute("aria-pressed", "true");
+
+    // Both rankings came with the board, so switching asks for nothing.
+    const requests: string[] = [];
+    page.on("request", (request) => requests.push(request.url()));
+    await page.getByRole("button", { name: "Fastest lap" }).click();
+    await expect(page).toHaveURL(/\/leaderboard\?sort=lap$/);
+    const rows = page
+      .getByRole("list", { name: "Fastest laps" })
+      .getByRole("listitem");
+    await expect(rows).toHaveCount(4);
+    await expect(rows.nth(0)).toContainText("@new_racer");
+    await expect(rows.nth(0)).toContainText("0:38.100");
+    await expect(rows.nth(0)).toContainText("Total 2:10.000");
+    await expect(page.getByRole("img", { name: /Gold/ })).toHaveCount(0);
+    await expect(page.getByText("Your fastest lap: 1:01.000, rank 58")).toBeVisible();
+    expect(requests).toEqual([]);
+
+    // A link to it opens on the same ranking.
+    await page.reload();
+    await expect(page.getByRole("button", { name: "Fastest lap" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+    await total.click();
+    await expect(page).toHaveURL(/\/leaderboard$/);
+    await expect(page.getByRole("list", { name: "Best times" })).toBeVisible();
   });
 
   test("steps a controller down the board from the viewer's row, one stop a row", async ({
@@ -146,7 +201,12 @@ test.describe("leaderboard page", () => {
     await page.route("**/api/leaderboards/falls-view-park", (route) =>
       route.fulfill({
         json: {
-          board: { courseName: "Falls View Park", entries: [], viewer: null },
+          board: {
+            courseName: "Falls View Park",
+            entries: [],
+            lapEntries: [],
+            viewer: null,
+          },
           earlier: [],
         },
       }),
@@ -255,6 +315,7 @@ test.describe("leaderboard page", () => {
                 board: {
                   courseName: "Falls View Park",
                   entries: [],
+                  lapEntries: [],
                   viewer: null,
                 },
                 earlier: EARLIER,

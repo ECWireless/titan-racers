@@ -51,47 +51,92 @@ export async function loadLeaderboard(
   if (leaderboardId === undefined) return null;
   if (leaderboardId === null) {
     return {
-      board: { courseName: published.courseName, entries: [], viewer: null },
+      board: {
+        courseName: published.courseName,
+        entries: [],
+        lapEntries: [],
+        viewer: null,
+      },
       earlier,
     };
   }
 
+  // Each racer's best race, its kart, and its fastest lap, ranked by time
+  // and by lap, each tie going to the race set first.
   const { rows } = await db.execute<{
+    fastest_lap_microseconds: number | null;
     kart_name: string;
+    lap_rank: string | null;
     time_microseconds: number;
+    time_rank: string;
     user_id: string;
     username: string;
   }>(sql`
-    select
-      users.username,
-      best.user_id,
-      best.time_microseconds,
-      coalesce(kart.document ->> 'name', result.kart_id) as kart_name
-    from board_bests best
-    join users on users.id = best.user_id
-    join race_results result on result.id = best.result_id
+    with ranked as (
+      select best.user_id, best.time_microseconds,
+        result.fastest_lap_microseconds, result.kart_id, result.kart_revision,
+        row_number() over (
+          order by best.time_microseconds, best.achieved_at, best.user_id
+        ) as time_rank,
+        case when result.fastest_lap_microseconds is not null then
+          row_number() over (
+            order by result.fastest_lap_microseconds nulls last,
+              best.achieved_at, best.user_id
+          )
+        end as lap_rank
+      from board_bests best
+      join race_results result on result.id = best.result_id
+      where best.leaderboard_id = ${leaderboardId}
+    )
+    select users.username, ranked.user_id, ranked.time_microseconds,
+      ranked.fastest_lap_microseconds, ranked.time_rank, ranked.lap_rank,
+      coalesce(kart.document ->> 'name', ranked.kart_id) as kart_name
+    from ranked
+    join users on users.id = ranked.user_id
     left join kart_revisions kart
-      on kart.kart_id = result.kart_id and kart.revision = result.kart_revision
-    where best.leaderboard_id = ${leaderboardId}
-    order by best.time_microseconds, best.achieved_at, best.user_id
-    limit ${BOARD_SIZE}
+      on kart.kart_id = ranked.kart_id and kart.revision = ranked.kart_revision
+    where ranked.time_rank <= ${BOARD_SIZE}
+      or ranked.lap_rank <= ${BOARD_SIZE}
+      or ranked.user_id = ${viewerUserId}
   `);
-  const standing = viewerUserId
-    ? await racerStanding(db, leaderboardId, viewerUserId)
-    : null;
+  const racers = rows.map((row) => ({
+    ...row,
+    lapRank: row.lap_rank === null ? null : Number(row.lap_rank),
+    timeRank: Number(row.time_rank),
+  }));
+  const entry = (row: (typeof racers)[number], rank: number) => ({
+    fastestLapMicroseconds: row.fastest_lap_microseconds,
+    kartName: row.kart_name,
+    rank,
+    timeMicroseconds: row.time_microseconds,
+    username: row.username,
+    viewer: row.user_id === viewerUserId,
+  });
+  const viewer = racers.find((row) => row.user_id === viewerUserId);
 
   return {
     board: {
       courseName: published.courseName,
-      entries: rows.map((row, index) => ({
-        kartName: row.kart_name,
-        rank: index + 1,
-        timeMicroseconds: row.time_microseconds,
-        username: row.username,
-        viewer: row.user_id === viewerUserId,
-      })),
-      viewer: standing
-        ? { rank: standing.rank, timeMicroseconds: standing.best }
+      entries: racers
+        .filter((row) => row.timeRank <= BOARD_SIZE)
+        .sort((left, right) => left.timeRank - right.timeRank)
+        .map((row) => entry(row, row.timeRank)),
+      lapEntries: racers
+        .filter((row) => row.lapRank !== null && row.lapRank <= BOARD_SIZE)
+        .sort((left, right) => left.lapRank! - right.lapRank!)
+        .map((row) => entry(row, row.lapRank!)),
+      viewer: viewer
+        ? {
+            fastestLap:
+              viewer.lapRank === null
+                ? null
+                : {
+                    rank: viewer.lapRank,
+                    timeMicroseconds: viewer.fastest_lap_microseconds!,
+                  },
+            rank: viewer.timeRank,
+            timeMicroseconds: viewer.time_microseconds,
+          }
         : null,
     },
     earlier,
