@@ -2295,6 +2295,9 @@ test.describe("home screen", () => {
       standing.getByRole("link", { name: "View leaderboard" }),
     ).toHaveAttribute("href", "/leaderboard");
     await expect(finishDialog.getByRole("listitem")).toHaveCount(2);
+    await expect(
+      finishDialog.getByRole("listitem").filter({ hasText: "Fastest" }),
+    ).toHaveCount(1);
     await expect(finishDialog).toContainText("Balanced Kart");
     await expect(
       finishDialog.getByRole("button", { name: "Race again" }),
@@ -3694,6 +3697,66 @@ test.describe("home screen", () => {
     await expect(page.getByTestId("habitat-readout")).toHaveText(
       "ALT 3,500 m · 0.125 g",
     );
+  });
+
+  test("restarts a race from the pause menu with a fresh countdown", async ({
+    page,
+  }, testInfo) => {
+    testInfo.setTimeout(60_000);
+    test.skip(
+      testInfo.project.name !== "desktop",
+      "The pause menu's restart only needs one run.",
+    );
+    await page.addInitScript(() => {
+      (
+        window as typeof window & { __TITAN_RACERS_TELEMETRY_TEST__?: boolean }
+      ).__TITAN_RACERS_TELEMETRY_TEST__ = true;
+    });
+    const telemetryEvents: Array<Record<string, unknown>> = [];
+    await page.route("**/api/telemetry/gameplay-runs", async (route) => {
+      telemetryEvents.push(route.request().postDataJSON());
+      await route.fulfill({ status: 202 });
+    });
+    await page.goto("/?sandbox-course");
+    await startSoloRace(page);
+    const canvas = page.getByTestId("solo-time-trial-canvas");
+    await advanceRaceToRacing(canvas);
+    await stepSimulation(canvas, 120);
+
+    await page
+      .locator(".race-pause-button")
+      .evaluate((button: HTMLButtonElement) => button.click());
+    const dialog = page.getByRole("dialog", { name: "Paused" });
+    // Held still in the same task, so no frame runs out the new countdown.
+    await dialog
+      .getByRole("button", { name: "Restart" })
+      .evaluate((button: HTMLButtonElement) => {
+        button.click();
+        document
+          .querySelector('[data-testid="solo-time-trial-canvas"]')!
+          .dispatchEvent(
+            new CustomEvent("setSimulationPaused", { detail: { paused: true } }),
+          );
+      });
+    await expect(dialog).not.toBeVisible();
+    await expect(canvas).toBeFocused();
+    expect(await getRaceDebugState(canvas)).toMatchObject({
+      elapsedRaceMicroseconds: 0,
+      resumableState: null,
+      state: "countdown",
+    });
+    // The left run ends as exited, and the new one is not a Race again.
+    await expect
+      .poll(() =>
+        telemetryEvents
+          .filter(({ type }) => type === "run_ended" || type === "run_started")
+          .map(({ outcome, raceAgain, type }) => ({ outcome, raceAgain, type })),
+      )
+      .toEqual([
+        { outcome: undefined, raceAgain: false, type: "run_started" },
+        { outcome: "exited", raceAgain: undefined, type: "run_ended" },
+        { outcome: undefined, raceAgain: false, type: "run_started" },
+      ]);
   });
 
   test("pauses and resumes from the mobile race HUD", async ({

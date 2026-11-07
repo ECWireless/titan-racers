@@ -84,9 +84,10 @@ function firstIndex(
 test.describe("race recording verification", () => {
   const clean = recordRace(SQUARE, SQUARE_ROUTE);
 
-  test("verifies a recorded race and takes the time from its finish", () => {
+  test("verifies a recorded race, timing it and its fastest lap as the race did", () => {
     expect(clean.samples.filter(({ gate }) => gate)).toHaveLength(6);
     expect(verifyRaceRecording(SQUARE, clean.samples)).toEqual({
+      fastestLapMicroseconds: clean.fastestLapMicroseconds,
       timeMicroseconds: clean.timeMicroseconds,
       verified: true,
     });
@@ -102,6 +103,7 @@ test.describe("race recording verification", () => {
       2 * (config.checkpoints.length + 1),
     );
     expect(verifyRaceRecording(config, race.samples)).toEqual({
+      fastestLapMicroseconds: race.fastestLapMicroseconds,
       timeMicroseconds: race.timeMicroseconds,
       verified: true,
     });
@@ -173,6 +175,7 @@ test.describe("race recording verification", () => {
     );
 
     expect(verifyRaceRecording(SQUARE, creeping.samples)).toEqual({
+      fastestLapMicroseconds: creeping.fastestLapMicroseconds,
       timeMicroseconds: creeping.timeMicroseconds,
       verified: true,
     });
@@ -221,6 +224,7 @@ test.describe("race recording verification", () => {
       reset: { atMicroseconds: 10_000_000, resumeAt: 1 },
     });
     expect(verifyRaceRecording(SQUARE, reset.samples)).toEqual({
+      fastestLapMicroseconds: reset.fastestLapMicroseconds,
       timeMicroseconds: reset.timeMicroseconds,
       verified: true,
     });

@@ -211,6 +211,13 @@
       "when": 1793841894371,
       "tag": "0029_room_races",
       "breakpoints": true
+    },
+    {
+      "idx": 30,
+      "version": "7",
+      "when": 1794074256479,
+      "tag": "0030_fastest_laps",
+      "breakpoints": true
     }
   ]
 }

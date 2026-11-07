@@ -2782,9 +2782,12 @@ export function SoloTimeTrialCanvas({
         requestTouchReset: () => inputManager.requestTouchReset(),
         hideGhost: () => ghostVisual?.update(null, 0),
         restartRace: () => {
+          // A restart from the pause menu leaves its run unfinished.
+          const abandoned = raceSession.snapshot.state !== "finished";
           if (!raceSession.restart()) {
             return false;
           }
+          if (abandoned) gameplayTelemetry.exit();
 
           if (pendingGhost) {
             installGhost(pendingGhost);
@@ -2799,7 +2802,7 @@ export function SoloTimeTrialCanvas({
           }
           gameplayTelemetry.start(raceIdentityRef.current, {
             ghost: activeGhost && ghostOnRef.current ? activeGhostKind : "none",
-            raceAgain: true,
+            raceAgain: !abandoned,
           });
           if (submitsRuns) {
             runTicketRef.current = requestRunTicket(raceIdentityRef.current);
@@ -4678,6 +4681,8 @@ export function SoloTimeTrialCanvas({
   }
 
   function restartRace() {
+    // Inside the gesture, which iPhone Safari needs to resume sound.
+    unlockRaceAudio(soundOn);
     if (!sceneApiRef.current?.restartRace()) {
       return;
     }
@@ -4931,6 +4936,17 @@ export function SoloTimeTrialCanvas({
                   >
                     Resume
                   </button>
+                  {/* A room's race runs on its own clock. */}
+                  {ROOM ? null : (
+                    <button
+                      type="button"
+                      className="titan-button titan-button-secondary"
+                      data-ui-sound="start"
+                      onClick={restartRace}
+                    >
+                      Restart
+                    </button>
+                  )}
                   <SoundToggle on={soundOn} onChange={setSoundOn} />
                   <VolumeControl />
                   {ghosts ? (
@@ -4990,8 +5006,21 @@ export function SoloTimeTrialCanvas({
                     >
                       <span className="uppercase tracking-[0.12em] text-titan-ice/60">
                         Lap {index + 1}
+                        {index === racePresentation.fastestLap ? (
+                          <span className="ml-2 text-titan-hazard">
+                            · Fastest
+                          </span>
+                        ) : null}
                       </span>
-                      <span className="font-bold tabular-nums">{lapTime}</span>
+                      <span
+                        className={`font-bold tabular-nums ${
+                          index === racePresentation.fastestLap
+                            ? "text-titan-hazard"
+                            : ""
+                        }`}
+                      >
+                        {lapTime}
+                      </span>
                     </li>
                   ))}
                 </ol>

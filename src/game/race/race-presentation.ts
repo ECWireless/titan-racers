@@ -10,6 +10,8 @@ export type RacePresentationSnapshot = {
   cue: string | null;
   currentLap: number;
   elapsedTime: string;
+  /** The fastest completed lap's index, once there are two to compare. */
+  fastestLap: number | null;
   lapCount: number;
   lapTimes: string[];
   state: RaceSessionSnapshot["state"];
@@ -64,6 +66,7 @@ export function createLoadingRacePresentationSnapshot(): RacePresentationSnapsho
     currentLap: 1,
     elapsedTime: "0:00.0",
     lapCount: 1,
+    fastestLap: null,
     lapTimes: [],
     state: "loading",
   };
@@ -192,6 +195,11 @@ function getAnnouncement(
   return "";
 }
 
+function fastestLapIndex(laps: readonly number[]) {
+  if (laps.length < 2) return null;
+  return laps.indexOf(Math.min(...laps));
+}
+
 export function createRacePresentationSnapshot(
   snapshot: RaceSessionSnapshot,
   result: RaceProgressionResult = { kind: "none" },
@@ -205,6 +213,7 @@ export function createRacePresentationSnapshot(
       snapshot.elapsedRaceMicroseconds,
       snapshot.state === "finished" ? 3 : 1,
     ),
+    fastestLap: fastestLapIndex(snapshot.completedLapMicroseconds),
     lapCount: snapshot.lapCount,
     lapTimes: snapshot.completedLapMicroseconds.map((lapTime) =>
       formatRaceTime(lapTime, 3),
@@ -223,6 +232,7 @@ export function racePresentationSnapshotsEqual(
     left.cue === right.cue &&
     left.currentLap === right.currentLap &&
     left.elapsedTime === right.elapsedTime &&
+    left.fastestLap === right.fastestLap &&
     left.lapCount === right.lapCount &&
     left.state === right.state &&
     left.lapTimes.length === right.lapTimes.length &&

@@ -201,7 +201,12 @@ async function loadRaceConfig(courseId: string, revision: number) {
 }
 
 type CheckedRun =
-  | { ghost: Uint8Array; timeMicroseconds: number; verified: true }
+  | {
+      fastestLapMicroseconds: number;
+      ghost: Uint8Array;
+      timeMicroseconds: number;
+      verified: true;
+    }
   | { reason: RunRejection; verified: false };
 
 /**
@@ -231,7 +236,12 @@ export async function checkSubmittedRun(
   if ((now - ticket.issuedAt) * 1_000 < verdict.timeMicroseconds) {
     return { reason: "too-early", verified: false };
   }
-  return { ghost, timeMicroseconds: verdict.timeMicroseconds, verified: true };
+  return {
+    fastestLapMicroseconds: verdict.fastestLapMicroseconds,
+    ghost,
+    timeMicroseconds: verdict.timeMicroseconds,
+    verified: true,
+  };
 }
 
 /**
@@ -269,6 +279,7 @@ export async function recordRunSubmission(
       .insert(raceResults)
       .values({
         claimed: ticket.userId === null,
+        fastestLapMicroseconds: run.verified ? run.fastestLapMicroseconds : null,
         id: ticket.id,
         kartId: ticket.kartId,
         kartRevision: ticket.kartRevision,

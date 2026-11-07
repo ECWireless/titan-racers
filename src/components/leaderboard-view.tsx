@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 
 import { FALLS_VIEW_PARK_COURSE_ID } from "@/game/course/course-ids";
@@ -25,6 +25,7 @@ import { copyLink, ghostLinkUrl, copyNoteFor } from "@/lib/share-link";
 import { ActionHint } from "./action-hint";
 import { MedalIcon } from "./medal-icon";
 import {
+  BackIcon,
   CheckIcon,
   CopyLinkIcon,
   CourseVersionsIcon,
@@ -61,6 +62,20 @@ async function loadBoard(boardNumber: number | null): Promise<BoardState> {
 }
 
 const time = (microseconds: number) => formatRaceTime(microseconds, 3);
+
+/** A board's page, current when `number` is null, ranked by lap or time. */
+function boardHref(number: number | null, byLap: boolean) {
+  const query = new URLSearchParams();
+  if (number !== null) query.set("board", String(number));
+  if (byLap) query.set("sort", "lap");
+  const search = query.toString();
+  return search ? `/leaderboard?${search}` : "/leaderboard";
+}
+
+const RANKINGS = [
+  { byLap: false, label: "Total time" },
+  { byLap: true, label: "Fastest lap" },
+] as const;
 
 /** When an earlier board's times were set, as "2–3 Nov" in the racer's locale. */
 function timesSetBetween(board: LeaderboardResponse["earlier"][number]) {
@@ -135,6 +150,8 @@ function HeldRunStatus({ note }: { note: HeldRunNote | HeldRunWait }) {
  */
 export function LeaderboardView({ boardNumber }: { boardNumber: number | null }) {
   const router = useRouter();
+  // Both rankings are loaded, so switching only rewrites the address.
+  const byLap = useSearchParams().get("sort") === "lap";
   const mainRef = useRef<HTMLElement>(null);
   // The board loaded for a choice; switching shows loading until it comes.
   const [loaded, setLoaded] = useState<{
@@ -189,7 +206,9 @@ export function LeaderboardView({ boardNumber }: { boardNumber: number | null })
       const next = await loadBoard(boardNumber);
       if (!active) return;
       if (next.status === "missing") {
-        router.replace("/leaderboard");
+        // Keeps the ranking in view without reloading for each switch.
+        const sort = new URLSearchParams(window.location.search).get("sort");
+        router.replace(boardHref(null, sort === "lap"));
         return;
       }
       setHeldRunNote((current) => takeHeldRunNote() ?? wait ?? current);
@@ -236,7 +255,9 @@ export function LeaderboardView({ boardNumber }: { boardNumber: number | null })
     },
     [],
   );
-  const viewerListed = board?.entries.some((entry) => entry.viewer) ?? false;
+  const rows = (byLap ? board?.lapEntries : board?.entries) ?? [];
+  const viewerListed = rows.some((entry) => entry.viewer);
+  const viewerStanding = byLap ? board?.viewer?.fastestLap : board?.viewer;
 
   return (
     <main
@@ -260,13 +281,16 @@ export function LeaderboardView({ boardNumber }: { boardNumber: number | null })
               className="h-10 w-auto sm:h-12"
             />
           </Link>
-          <Link
-            className="titan-button titan-button-secondary"
-            data-ui-sound="back"
-            href="/"
-          >
-            Back
-          </Link>
+          <ActionHint align="end" hint="Back">
+            <Link
+              aria-label="Back"
+              className={rowActionClass}
+              data-ui-sound="back"
+              href="/"
+            >
+              <BackIcon />
+            </Link>
+          </ActionHint>
         </header>
 
         <div className="grid gap-3">
@@ -317,12 +341,12 @@ export function LeaderboardView({ boardNumber }: { boardNumber: number | null })
                   >
                     {[
                       {
-                        href: "/leaderboard",
+                        href: boardHref(null, byLap),
                         label: "Latest course version",
                         number: null,
                       },
                       ...earlier.map((version) => ({
-                        href: `/leaderboard?board=${version.number}`,
+                        href: boardHref(version.number, byLap),
                         label: `Course version · ${timesSetBetween(version)}`,
                         number: version.number,
                       })),
@@ -383,86 +407,144 @@ export function LeaderboardView({ boardNumber }: { boardNumber: number | null })
             {readOnly ? "No earlier times" : "No times yet"}
           </p>
         ) : (
-          <ol aria-label="Best times" className="grid gap-1">
-            {board.entries.map((entry) => {
-              const medal = medalForRank(entry.rank);
-              return (
-              <li
-                aria-current={entry.viewer ? "true" : undefined}
-                // With no buttons, the rows themselves are the stops down
-                // the board, starting on your own.
-                data-controller-default={
-                  readOnly && entry.viewer ? "true" : undefined
-                }
-                tabIndex={readOnly ? 0 : undefined}
-                className={`grid ${
-                  readOnly
-                    ? "grid-cols-[2rem_1fr_auto] py-3"
-                    : "grid-cols-[2rem_1fr_auto_auto] py-2"
-                } items-center gap-2 border px-2 focus-within:border-titan-hazard focus-visible:border-titan-hazard focus-visible:outline-none sm:gap-3 sm:px-3 ${
-                  entry.viewer
-                    ? "border-titan-hazard/70 bg-titan-hazard/8"
-                    : "border-titan-ice/10"
-                }`}
-                key={entry.rank}
-              >
-                {medal ? (
-                  <MedalIcon rank={entry.rank} tier={medal} />
-                ) : (
-                  <span className="text-center font-mono text-sm font-bold tabular-nums text-titan-ice/72">
-                    {entry.rank}
+          <div className="grid gap-3">
+            <div
+              aria-label="Rank by"
+              className="flex w-fit border border-titan-ice/12"
+              role="group"
+            >
+              {RANKINGS.map((option) => (
+                <button
+                  aria-pressed={option.byLap === byLap}
+                  className={`h-8 whitespace-nowrap px-2 font-mono text-[0.68rem] font-bold uppercase tracking-[0.04em] transition sm:px-3 sm:tracking-[0.14em] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-titan-hazard ${
+                    option.byLap === byLap
+                      ? "bg-titan-ice/8 text-titan-hazard"
+                      : "text-titan-ice/50 hover:text-titan-ice"
+                  }`}
+                  key={option.label}
+                  type="button"
+                  onClick={() =>
+                    window.history.replaceState(
+                      null,
+                      "",
+                      boardHref(boardNumber, option.byLap),
+                    )
+                  }
+                >
+                  {option.label}
+                </button>
+              ))}
+            </div>
+            {rows.length === 0 ? (
+              <p className="border border-titan-ice/10 px-3 py-4 text-center font-mono text-sm text-titan-ice/60">
+                No laps yet
+              </p>
+            ) : (
+            <ol
+              aria-label={byLap ? "Fastest laps" : "Best times"}
+              className="grid gap-1"
+            >
+              {rows.map((entry) => {
+                // Medals are for the race, not a lap.
+                const medal = byLap ? null : medalForRank(entry.rank);
+                return (
+                <li
+                  aria-current={entry.viewer ? "true" : undefined}
+                  // With no buttons, the rows themselves are the stops down
+                  // the board, starting on your own.
+                  data-controller-default={
+                    readOnly && entry.viewer ? "true" : undefined
+                  }
+                  tabIndex={readOnly ? 0 : undefined}
+                  className={`grid ${
+                    readOnly
+                      ? "grid-cols-[2rem_1fr_auto] py-3"
+                      : "grid-cols-[2rem_1fr_auto_auto] py-2"
+                  } items-center gap-2 border px-2 focus-within:border-titan-hazard focus-visible:border-titan-hazard focus-visible:outline-none sm:gap-3 sm:px-3 ${
+                    entry.viewer
+                      ? "border-titan-hazard/70 bg-titan-hazard/8"
+                      : "border-titan-ice/10"
+                  }`}
+                  key={entry.rank}
+                >
+                  {medal ? (
+                    <MedalIcon rank={entry.rank} tier={medal} />
+                  ) : (
+                    <span className="text-center font-mono text-sm font-bold tabular-nums text-titan-ice/72">
+                      {entry.rank}
+                    </span>
+                  )}
+                  <span className="grid min-w-0">
+                    <span className="truncate font-bold">@{entry.username}</span>
+                    <span className="truncate text-xs text-titan-ice/60">
+                      {entry.kartName}
+                    </span>
                   </span>
-                )}
-                <span className="grid min-w-0">
-                  <span className="truncate font-bold">@{entry.username}</span>
-                  <span className="truncate text-xs text-titan-ice/60">
-                    {entry.kartName}
-                  </span>
-                </span>
-                <span className="font-mono text-sm font-bold tabular-nums">
-                  {time(entry.timeMicroseconds)}
-                </span>
-                {readOnly ? null : (
-                <span className="flex gap-1">
-                  <ActionHint hint="Race ghost">
-                    {/* Each row's one stop on the way down the board,
-                        starting on your own; Copy link is to its right. */}
-                    <Link
-                      aria-label={`Race @${entry.username}'s ghost`}
-                      className={rowActionClass}
-                      data-controller-default={entry.viewer ? "true" : undefined}
-                      href={`/?ghost=${encodeURIComponent(entry.username)}&from=leaderboard`}
-                    >
-                      <RaceGhostIcon />
-                    </Link>
-                  </ActionHint>
-                  <ActionHint
-                    hint={
-                      copiedUsername === entry.username
-                        ? "Copied"
-                        : "Copy ghost link"
-                    }
-                    shown={copiedUsername === entry.username || null}
-                  >
-                    <button
-                      aria-label={`Copy @${entry.username}'s ghost link`}
-                      className={rowActionClass}
-                      type="button"
-                      onClick={() => void copyGhostLink(entry.username)}
-                    >
-                      {copiedUsername === entry.username ? (
-                        <CheckIcon />
-                      ) : (
-                        <CopyLinkIcon />
+                  <span className="grid text-right font-mono tabular-nums">
+                    <span className="text-sm font-bold">
+                      {time(
+                        byLap
+                          ? entry.fastestLapMicroseconds!
+                          : entry.timeMicroseconds,
                       )}
-                    </button>
-                  </ActionHint>
-                </span>
-                )}
-              </li>
-              );
-            })}
-          </ol>
+                    </span>
+                    {/* Phones keep the name's room; the switch says which. */}
+                    {byLap || entry.fastestLapMicroseconds !== null ? (
+                      <span className="text-xs text-titan-ice/60">
+                        <span className="sr-only sm:not-sr-only">
+                          {byLap ? "Total " : "Fastest lap "}
+                        </span>
+                        {time(
+                          byLap
+                            ? entry.timeMicroseconds
+                            : entry.fastestLapMicroseconds!,
+                        )}
+                      </span>
+                    ) : null}
+                  </span>
+                  {readOnly ? null : (
+                  <span className="flex gap-1">
+                    <ActionHint hint="Race ghost">
+                      {/* Each row's one stop on the way down the board,
+                          starting on your own; Copy link is to its right. */}
+                      <Link
+                        aria-label={`Race @${entry.username}'s ghost`}
+                        className={rowActionClass}
+                        data-controller-default={entry.viewer ? "true" : undefined}
+                        href={`/?ghost=${encodeURIComponent(entry.username)}&from=leaderboard`}
+                      >
+                        <RaceGhostIcon />
+                      </Link>
+                    </ActionHint>
+                    <ActionHint
+                      hint={
+                        copiedUsername === entry.username
+                          ? "Copied"
+                          : "Copy ghost link"
+                      }
+                      shown={copiedUsername === entry.username || null}
+                    >
+                      <button
+                        aria-label={`Copy @${entry.username}'s ghost link`}
+                        className={rowActionClass}
+                        type="button"
+                        onClick={() => void copyGhostLink(entry.username)}
+                      >
+                        {copiedUsername === entry.username ? (
+                          <CheckIcon />
+                        ) : (
+                          <CopyLinkIcon />
+                        )}
+                      </button>
+                    </ActionHint>
+                  </span>
+                  )}
+                </li>
+                );
+              })}
+            </ol>
+            )}
+          </div>
         )}
 
         <p
@@ -472,14 +554,14 @@ export function LeaderboardView({ boardNumber }: { boardNumber: number | null })
           {copyNote}
         </p>
 
-        {board?.viewer && !viewerListed ? (
+        {viewerStanding && !viewerListed ? (
           <p
             className="font-mono text-sm text-titan-ice/76 outline-none focus-visible:text-titan-hazard"
             data-controller-default="true"
             tabIndex={0}
           >
-            Your best: {time(board.viewer.timeMicroseconds)}, rank{" "}
-            {board.viewer.rank}
+            {byLap ? "Your fastest lap" : "Your best"}:{" "}
+            {time(viewerStanding.timeMicroseconds)}, rank {viewerStanding.rank}
           </p>
         ) : null}
       </section>

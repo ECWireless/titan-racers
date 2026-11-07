@@ -46,7 +46,9 @@ ghosts, telemetry, multiplayer, or final Falls View Park presentation.
 6. Finish wins over a simultaneous pause edge, disables retained driving input,
    and focuses `Race again`.
 7. Replay resets session, kart, velocities, camera/presentation discontinuity,
-   input, progression samples, and focus before a new countdown.
+   input, progression samples, and focus before a new countdown. Race again
+   replays a finished race; the pause menu's Restart starts a solo race over
+   before it finishes, ending its run summary as exited.
 
 ## Accepted Invariants
 
@@ -62,9 +64,9 @@ ghosts, telemetry, multiplayer, or final Falls View Park presentation.
   input from the finished race.
 - Bundled-coordinate browser fixtures cannot consume mutable publication data;
   publication behavior is covered through explicit route overrides.
-- The finish dialog names the kart raced and shows a logged-in racer's
-  verified standing ([leaderboard](../leaderboard/README.md)). Race
-  progress is not persisted.
+- The finish dialog marks the race's fastest lap, names the kart raced,
+  and shows a logged-in racer's verified standing
+  ([leaderboard](../leaderboard/README.md)). Race progress is not persisted.
 
 ## Verification
 

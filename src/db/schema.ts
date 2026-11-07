@@ -712,6 +712,8 @@ export const raceResults = pgTable(
     status: raceResultStatus("status").notNull(),
     rejection: text("rejection"),
     timeMicroseconds: integer("time_microseconds"),
+    // A verified run's fastest lap; null before laps were kept (0030).
+    fastestLapMicroseconds: integer("fastest_lap_microseconds"),
     ticketIssuedAt: timestamp("ticket_issued_at", {
       mode: "date",
       withTimezone: true,
@@ -738,6 +740,10 @@ export const raceResults = pgTable(
         or (${table.status} = 'rejected' and ${table.timeMicroseconds} is null and ${table.rejection} is not null and ${table.rejection} in (${sql.raw(
           RUN_REJECTIONS.map((reason) => `'${reason}'`).join(", "),
         )}))`,
+    ),
+    check(
+      "race_results_fastest_lap",
+      sql`${table.fastestLapMicroseconds} is null or (${table.status} = 'verified' and ${table.fastestLapMicroseconds} between 1 and ${table.timeMicroseconds})`,
     ),
   ],
 );

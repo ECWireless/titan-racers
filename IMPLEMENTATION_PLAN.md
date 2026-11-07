@@ -17,9 +17,9 @@ accepted; the app, README, and durable docs take over from there.
 
 - **Done:** Phases 0–6 (PRs #1–#24, the Phase 3 closeout and its
   follow-ups, #30–#57 with the PR 4.5.2 closeout, #59–#63, and #64–#70
-  with the Phase 6 closeout).
+  with the Phase 6 closeout), and the addendum's PR 6.7 (#71).
 - **Now:** the [Phase 6 addendum](#phase-6-addendum-feedback-before-phase-7),
-  PR 6.7.
+  PR 6.8.
 - **Next:** Phase 7, after its debrief.
 
 ## Guiding Decisions
@@ -271,8 +271,15 @@ integration review, from `2ffc5a20` (PR #70), before its last PR merges.
 
 **PR 6.8: Fastest lap**
 
-- [ ] Show a racer's fastest lap. Its debrief decides whether it is shown only
-      on the page, or checked by the server and shown on the leaderboard.
+- [x] The server finds each lap in its check of a run's recording and keeps
+      the run's fastest lap.
+- [x] The leaderboard lists each account's best race, ranked by Total time
+      or by that race's Fastest lap, each showing the other as a second
+      line. Medals stay with total time.
+- [x] The result screen marks the race's fastest lap.
+- [x] The pause menu can restart a solo race from a fresh countdown.
+- [x] Existing bests get their fastest lap from their kept recordings, once,
+      when the migration reaches production.
 
 **PR 6.9: Course interactables, starting with the utility-tunnel door**
 
