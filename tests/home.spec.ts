@@ -228,6 +228,12 @@ async function getCollisionDebugState(canvas: Locator) {
         barrelPhysicsGroup: number | null;
         barrelPhysicsMask: number | null;
         barrelPhysicsRestitution: number | null;
+        courseDoors: Array<{
+          id: string;
+          lampLit: boolean;
+          latched: boolean;
+          openAngle: number;
+        }>;
         courseEntityCount: number;
         directionalLightCount: number;
         groundCollisionHalfExtentX: number | null;
@@ -1507,6 +1513,41 @@ test.describe("home screen", () => {
     await advanceRaceToRacing(canvas);
     await expectKartLight(indoors);
     await crossPortals();
+  });
+
+  test("opens tunnel door 4 to a hard hit and lights its store room", async ({
+    page,
+  }, testInfo) => {
+    testInfo.setTimeout(300_000);
+    test.skip(
+      testInfo.project.name !== "desktop",
+      "The door's hinge only needs to run once.",
+    );
+    await page.setViewportSize({ height: 270, width: 480 });
+    await page.route("**/api/courses/*/published", (route) =>
+      route.fulfill({ status: 404 }),
+    );
+    await page.goto("/");
+    await startSoloRace(page);
+    const canvas = page.getByTestId("solo-time-trial-canvas");
+    await advanceRaceToRacing(canvas);
+    await setSimulationPaused(canvas, true);
+    expect((await getCollisionDebugState(canvas)).courseDoors).toEqual([
+      { id: "tunnel-door-4", lampLit: false, latched: true, openAngle: 0 },
+    ]);
+
+    // Square on, 0.75 m from its hinge, at 10 m/s: across the north
+    // tunnel from its far wall.
+    const kart = await getKartDebugState(canvas);
+    await setKartDebugPose(canvas, {
+      linearVelocity: { x: -10, y: 0, z: 0 },
+      position: { x: 79.2, y: kart.y, z: -22.25 },
+      rotation: { x: 0, y: 90, z: 0 },
+    });
+    await stepSimulation(canvas, 120);
+    const [door] = (await getCollisionDebugState(canvas)).courseDoors;
+    expect(door).toMatchObject({ lampLit: true, latched: false });
+    expect(door.openAngle).toBeGreaterThan(0.2);
   });
 
   test("recovers a kart that drives into Falls View Park's stream", async ({

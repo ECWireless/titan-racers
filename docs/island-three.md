@@ -226,7 +226,7 @@ toward the window darkens the habitat the same way.
   on the same schedule and without shadows; their light does not change
   the race's exposure (Falls View Park's are placed in the
   [visual identity](visual-identity.md#light)). Indoor tunnel and work lamps
-  share a separate twenty-lamp limit
+  share a separate twenty-four-lamp limit
   ([course data](../skills/project-systems/course-data/README.md)).
 
 Everything rotates together, so the light holds still for a whole race. The

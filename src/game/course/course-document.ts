@@ -8,9 +8,10 @@ import {
 } from "../enclosure/island-three";
 import { getApprovedSurfaceMaterial } from "../kart/kart-material-registry";
 import { COURSE_ARC_MAXIMUM_WIDTH_RATIO } from "./course-arc";
-import fallsViewParkDocumentJson from "./falls-view-park.v11.json";
+import { getCourseDoorType } from "./course-door-types";
+import fallsViewParkDocumentJson from "./falls-view-park.v12.json";
 import type { OfficialCourseId } from "./course-ids";
-import roughCourseDocumentJson from "./rough-course.v11.json";
+import roughCourseDocumentJson from "./rough-course.v12.json";
 
 export const courseIdSchema = z
   .string()
@@ -194,9 +195,11 @@ export const COURSE_TREE_LIMIT = 2_000;
  * Indoor lamps (tunnel luminaires and, from schema version eight, the
  * youth's work lights) light only indoor objects, and share their own limit.
  */
-export const COURSE_INDOOR_LAMP_LIMIT = 20;
-// Courses before schema version eight had at most this many tunnel lamps.
+export const COURSE_INDOOR_LAMP_LIMIT = 24;
+// Courses before schema version eight had at most this many tunnel lamps,
+// and before version twelve at most the second.
 const LEGACY_COURSE_INDOOR_LAMP_LIMIT = 16;
+const V8_COURSE_INDOOR_LAMP_LIMIT = 20;
 export const COURSE_STREET_LAMP_LIMIT = 8;
 // A course's footprint stays this close to its placement, inside the
 // clearing's fence.
@@ -795,11 +798,12 @@ function validateCourseObjectsV8(
   document: Omit<z.infer<typeof courseDocumentV9BaseSchema>, "schemaVersion">,
   context: z.RefinementCtx,
   outdoorOverheadSupport = false,
+  indoorLampLimit = V8_COURSE_INDOOR_LAMP_LIMIT,
 ) {
   validateCourseObjectsV7(
     document,
     context,
-    COURSE_INDOOR_LAMP_LIMIT,
+    indoorLampLimit,
     outdoorOverheadSupport,
   );
   document.objects.forEach((object, index) => {
@@ -856,8 +860,14 @@ function validateCourseObjectsV9(
   document: Omit<z.infer<typeof courseDocumentV9BaseSchema>, "schemaVersion">,
   context: z.RefinementCtx,
   outdoorOverheadSupport = false,
+  indoorLampLimit = V8_COURSE_INDOOR_LAMP_LIMIT,
 ) {
-  validateCourseObjectsV8(document, context, outdoorOverheadSupport);
+  validateCourseObjectsV8(
+    document,
+    context,
+    outdoorOverheadSupport,
+    indoorLampLimit,
+  );
   if (countCourseLamps(document, "street") > COURSE_STREET_LAMP_LIMIT) {
     context.addIssue({
       code: "custom",
@@ -941,48 +951,228 @@ const UNBEVELLED_FINISHES = new Set<string>([
   "water",
 ]);
 
-export const courseDocumentSchema = courseDocumentV10BaseSchema
+const courseDocumentV11BaseSchema = courseDocumentV10BaseSchema.extend({
+  objects: courseDocumentV10BaseSchema.shape.objects.element
+    .extend({
+      collision: z
+        .discriminatedUnion("shape", [
+          ...courseDocumentV10BaseSchema.shape.objects.element.shape.collision.unwrap()
+            .options,
+          elbowCollisionSchema,
+        ])
+        .nullable(),
+      kit: z.enum(COURSE_KITS).optional(),
+      sign: z
+        .string()
+        // Long text stops here, before the pattern reads it.
+        .max(COURSE_SIGN_MAXIMUM_LENGTH, { abort: true })
+        .regex(COURSE_SIGN_PATTERN)
+        .optional(),
+      visual: z.discriminatedUnion("shape", [
+        primitiveVisualV11Schema,
+        arcVisualSchema.extend({ material: visualMaterialV11Schema }),
+      ]),
+    })
+    .array()
+    .min(1)
+    .max(5_000),
+  schemaVersion: z.literal(11),
+});
+
+function validateCourseObjectsV11(
+  document: Omit<z.infer<typeof courseDocumentV11BaseSchema>, "schemaVersion">,
+  context: z.RefinementCtx,
+  indoorLampLimit = V8_COURSE_INDOOR_LAMP_LIMIT,
+) {
+  // The earlier rules read no finish that version eleven adds.
+  validateCourseObjectsV9(
+    document as unknown as Parameters<typeof validateCourseObjectsV9>[0],
+    context,
+    true,
+    indoorLampLimit,
+  );
+  document.objects.forEach((object, index) => {
+    if (
+      object.kit === "crowd-barrier" &&
+      (object.visual.shape !== "box" ||
+        object.visual.material === "water" ||
+        object.visual.material === "hedge" ||
+        !isUpright(object.transform.rotation) ||
+        object.overhead ||
+        object.lamp ||
+        object.planting ||
+        object.bicycle)
+    ) {
+      context.addIssue({
+        code: "custom",
+        message:
+          "A crowd barrier is an upright box that is not a lamp, roof, bed, bicycle, hedge, or water",
+        path: ["objects", index, "kit"],
+      });
+    }
+    const { visual } = object;
+    const free =
+      !object.overhead && !object.lamp && !object.planting && !object.bicycle;
+    const plain = !object.collision && free;
+    if (
+      object.kit === "elbow" &&
+      (visual.shape !== "cylinder" ||
+        visual.scale.x !== visual.scale.z ||
+        visual.scale.x !== visual.scale.y ||
+        UNBEVELLED_FINISHES.has(visual.material) ||
+        !free ||
+        (object.collision !== null && object.collision.shape !== "elbow"))
+    ) {
+      context.addIssue({
+        code: "custom",
+        message:
+          "An elbow is a uniform cylinder, as wide as its pipe, of a solid's finish, colliding as its bend or not at all",
+        path: ["objects", index, "kit"],
+      });
+    }
+    if (
+      object.collision?.shape === "elbow" &&
+      (object.kit !== "elbow" ||
+        visual.shape === "arc" ||
+        visual.scale.x > COURSE_ELBOW_COLLISION_MAXIMUM_DIAMETER)
+    ) {
+      context.addIssue({
+        code: "custom",
+        message: `Only an elbow at most ${COURSE_ELBOW_COLLISION_MAXIMUM_DIAMETER} m across collides as an elbow`,
+        path: ["objects", index, "collision"],
+      });
+    }
+    if (
+      object.kit === "handwheel" &&
+      (visual.shape !== "cylinder" ||
+        visual.scale.x !== visual.scale.z ||
+        UNBEVELLED_FINISHES.has(visual.material) ||
+        !plain)
+    ) {
+      context.addIssue({
+        code: "custom",
+        message:
+          "A handwheel is a round cylinder, without collision, of a solid's finish",
+        path: ["objects", index, "kit"],
+      });
+    }
+    if (
+      object.sign !== undefined &&
+      (visual.shape !== "box" ||
+        visual.scale.z > COURSE_SIGN_MAXIMUM_THICKNESS ||
+        visual.material === "water" ||
+        visual.material === "hedge" ||
+        object.kit ||
+        visual.bevel ||
+        !plain)
+    ) {
+      context.addIssue({
+        code: "custom",
+        message: `A sign is a box at most ${COURSE_SIGN_MAXIMUM_THICKNESS * 1000} mm thick along its local Z, without collision, kit, or bevel`,
+        path: ["objects", index, "sign"],
+      });
+    }
+    if (
+      visual.shape !== "arc" &&
+      visual.bevel &&
+      (UNBEVELLED_FINISHES.has(visual.material) ||
+        object.kit ||
+        object.bicycle ||
+        (visual.shape === "cylinder" && visual.scale.x !== visual.scale.z))
+    ) {
+      context.addIssue({
+        code: "custom",
+        message:
+          "A bevel is cut on a solid's box or round cylinder, not a surface, timber, kit, or bicycle",
+        path: ["objects", index, "visual", "bevel"],
+      });
+    }
+  });
+}
+
+const courseDocumentV11Schema = courseDocumentV11BaseSchema.superRefine(
+  (document, context) => validateCourseObjectsV11(document, context),
+);
+
+// Version twelve adds doors, the parts they carry, and 24 indoor lamps. A
+// door is an upright box hung on a hinge along its local −X (left) or +X
+// (right) edge and held shut by a latch, of a versioned door type
+// (course-door-types.ts). It swings toward its local +Z (front) or −Z (back)
+// face up to its stop, and may name an indoor lamp that stays dark until it
+// opens. A part attached to a door moves with it and never collides.
+const courseDoorSchema = z.strictObject({
+  hinge: z.enum(["left", "right"]),
+  lamp: courseIdSchema.optional(),
+  opens: z.enum(["front", "back"]),
+  stop: z.number().finite().min(10).max(180),
+  type: z
+    .strictObject({
+      id: z.string().max(80),
+      version: z.number().int().positive(),
+    })
+    .refine((reference) => Boolean(getCourseDoorType(reference)), {
+      message: "Unsupported door type version",
+    }),
+});
+
+export const courseDocumentSchema = courseDocumentV11BaseSchema
   .extend({
-    objects: courseDocumentV10BaseSchema.shape.objects.element
+    objects: courseDocumentV11BaseSchema.shape.objects.element
       .extend({
-        collision: z
-          .discriminatedUnion("shape", [
-            ...courseDocumentV10BaseSchema.shape.objects.element.shape.collision.unwrap()
-              .options,
-            elbowCollisionSchema,
-          ])
-          .nullable(),
-        kit: z.enum(COURSE_KITS).optional(),
-        sign: z
-          .string()
-          // Long text stops here, before the pattern reads it.
-          .max(COURSE_SIGN_MAXIMUM_LENGTH, { abort: true })
-          .regex(COURSE_SIGN_PATTERN)
-          .optional(),
-        visual: z.discriminatedUnion("shape", [
-          primitiveVisualV11Schema,
-          arcVisualSchema.extend({ material: visualMaterialV11Schema }),
-        ]),
+        attachedTo: courseIdSchema.optional(),
+        door: courseDoorSchema.optional(),
       })
       .array()
       .min(1)
       .max(5_000),
-    schemaVersion: z.literal(11),
+    schemaVersion: z.literal(12),
   })
   .superRefine((document, context) => {
-    // The earlier rules read no finish that version eleven adds.
-    validateCourseObjectsV9(
-      document as unknown as Parameters<typeof validateCourseObjectsV9>[0],
-      context,
-      true,
-    );
+    validateCourseObjectsV11(document, context, COURSE_INDOOR_LAMP_LIMIT);
+    const objects = new Map(document.objects.map((object) => [object.id, object]));
+    const switchedLamps = new Set<string>();
     document.objects.forEach((object, index) => {
+      const { door, visual } = object;
       if (
-        object.kit === "crowd-barrier" &&
-        (object.visual.shape !== "box" ||
-          object.visual.material === "water" ||
-          object.visual.material === "hedge" ||
+        door &&
+        (visual.shape !== "box" ||
+          object.collision?.shape !== "box" ||
+          object.collision.role !== "solid-obstacle" ||
           !isUpright(object.transform.rotation) ||
+          object.attachedTo ||
+          object.overhead ||
+          object.lamp ||
+          object.planting ||
+          object.bicycle ||
+          object.kit ||
+          object.sign !== undefined)
+      ) {
+        context.addIssue({
+          code: "custom",
+          message:
+            "A door is an upright box colliding as a solid box, and is not attached, a lamp, roof, bed, bicycle, kit, or sign",
+          path: ["objects", index, "door"],
+        });
+      }
+      if (door?.lamp !== undefined) {
+        const lamp = objects.get(door.lamp);
+        if (
+          !lamp?.lamp ||
+          !(COURSE_INDOOR_LAMP_KINDS as readonly string[]).includes(lamp.lamp) ||
+          switchedLamps.has(door.lamp)
+        ) {
+          context.addIssue({
+            code: "custom",
+            message: "A door switches an indoor lamp that no other door does",
+            path: ["objects", index, "door", "lamp"],
+          });
+        }
+        switchedLamps.add(door.lamp);
+      }
+      if (
+        object.attachedTo !== undefined &&
+        (!objects.get(object.attachedTo)?.door ||
+          object.collision !== null ||
           object.overhead ||
           object.lamp ||
           object.planting ||
@@ -991,85 +1181,8 @@ export const courseDocumentSchema = courseDocumentV10BaseSchema
         context.addIssue({
           code: "custom",
           message:
-            "A crowd barrier is an upright box that is not a lamp, roof, bed, bicycle, hedge, or water",
-          path: ["objects", index, "kit"],
-        });
-      }
-      const { visual } = object;
-      const free =
-        !object.overhead && !object.lamp && !object.planting && !object.bicycle;
-      const plain = !object.collision && free;
-      if (
-        object.kit === "elbow" &&
-        (visual.shape !== "cylinder" ||
-          visual.scale.x !== visual.scale.z ||
-          visual.scale.x !== visual.scale.y ||
-          UNBEVELLED_FINISHES.has(visual.material) ||
-          !free ||
-          (object.collision !== null && object.collision.shape !== "elbow"))
-      ) {
-        context.addIssue({
-          code: "custom",
-          message:
-            "An elbow is a uniform cylinder, as wide as its pipe, of a solid's finish, colliding as its bend or not at all",
-          path: ["objects", index, "kit"],
-        });
-      }
-      if (
-        object.collision?.shape === "elbow" &&
-        (object.kit !== "elbow" ||
-          visual.shape === "arc" ||
-          visual.scale.x > COURSE_ELBOW_COLLISION_MAXIMUM_DIAMETER)
-      ) {
-        context.addIssue({
-          code: "custom",
-          message: `Only an elbow at most ${COURSE_ELBOW_COLLISION_MAXIMUM_DIAMETER} m across collides as an elbow`,
-          path: ["objects", index, "collision"],
-        });
-      }
-      if (
-        object.kit === "handwheel" &&
-        (visual.shape !== "cylinder" ||
-          visual.scale.x !== visual.scale.z ||
-          UNBEVELLED_FINISHES.has(visual.material) ||
-          !plain)
-      ) {
-        context.addIssue({
-          code: "custom",
-          message:
-            "A handwheel is a round cylinder, without collision, of a solid's finish",
-          path: ["objects", index, "kit"],
-        });
-      }
-      if (
-        object.sign !== undefined &&
-        (visual.shape !== "box" ||
-          visual.scale.z > COURSE_SIGN_MAXIMUM_THICKNESS ||
-          visual.material === "water" ||
-          visual.material === "hedge" ||
-          object.kit ||
-          visual.bevel ||
-          !plain)
-      ) {
-        context.addIssue({
-          code: "custom",
-          message: `A sign is a box at most ${COURSE_SIGN_MAXIMUM_THICKNESS * 1000} mm thick along its local Z, without collision, kit, or bevel`,
-          path: ["objects", index, "sign"],
-        });
-      }
-      if (
-        visual.shape !== "arc" &&
-        visual.bevel &&
-        (UNBEVELLED_FINISHES.has(visual.material) ||
-          object.kit ||
-          object.bicycle ||
-          (visual.shape === "cylinder" && visual.scale.x !== visual.scale.z))
-      ) {
-        context.addIssue({
-          code: "custom",
-          message:
-            "A bevel is cut on a solid's box or round cylinder, not a surface, timber, kit, or bicycle",
-          path: ["objects", index, "visual", "bevel"],
+            "A part is attached to a door, and never collides or is a lamp, roof, bed, or bicycle",
+          path: ["objects", index, "attachedTo"],
         });
       }
     });
@@ -1459,9 +1572,13 @@ export function parseCourseDocument(input: unknown): CourseDocument {
     return parseCourseDocument({ ...courseDocumentV9Schema.parse(input), schemaVersion: 10 });
   }
 
-  // Versions ten and eleven upgrade unchanged.
+  // Versions ten, eleven, and twelve upgrade unchanged.
   if (hasSchemaVersion(input, 10)) {
     return parseCourseDocument({ ...courseDocumentV10Schema.parse(input), schemaVersion: 11 });
+  }
+
+  if (hasSchemaVersion(input, 11)) {
+    return parseCourseDocument({ ...courseDocumentV11Schema.parse(input), schemaVersion: 12 });
   }
 
   const document = courseDocumentSchema.parse(input);

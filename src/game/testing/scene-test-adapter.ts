@@ -16,6 +16,12 @@ type CanvasPoint = { x: number; y: number } | null;
 
 export type CollisionDebugState = {
   barrelCollisionAxis: number | null;
+  courseDoors: Array<{
+    id: string;
+    lampLit: boolean;
+    latched: boolean;
+    openAngle: number;
+  }>;
   barrelCollisionHeight: number | null;
   barrelCollisionRadius: number | null;
   barrelMaterialMapped: boolean;

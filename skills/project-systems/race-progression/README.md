@@ -37,7 +37,7 @@ final Falls View Park course; races are recorded as
   checkpoint direction, and recovery contract plus immutable version-one
   normalization. Candidate v2 directions are aligned to the full rotated gate
   face in memory so historical diagonal values remain playable.
-- `src/game/course/rough-course.v11.json` owns the canonical rough-loop gate and
+- `src/game/course/rough-course.v12.json` owns the canonical rough-loop gate and
   recovery placements.
 - `src/components/solo-time-trial-canvas.tsx` samples input, advances race time,
   evaluates post-physics kart movement, applies recovery transforms and velocity

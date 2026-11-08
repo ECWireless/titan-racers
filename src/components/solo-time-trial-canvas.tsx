@@ -111,6 +111,7 @@ import {
 } from "@/game/enclosure/enclosure-view";
 import { getHabitatLight } from "@/game/enclosure/habitat-light";
 import { getApprovedEnclosure, sceneLux } from "@/game/enclosure/island-three";
+import { addCourseDoors } from "@/game/course/course-doors";
 import { addCourseLamps, courseLampLux } from "@/game/course/course-lamps";
 import {
   addCourseTrees,
@@ -1143,6 +1144,10 @@ export function SoloTimeTrialCanvas({
           tunnelLampsOn: true,
         }),
       );
+      // Doors swing on their hinges, so they and the parts and lamps they
+      // carry stay out of the static batch.
+      const courseDoors = addCourseDoors(app, COURSE_DOCUMENT, courseEntities);
+      if (courseDoors) runtime.addCleanup(() => courseDoors.destroy());
       const treeMaterials = createCourseTreeMaterials(
         app.graphicsDevice,
         courseSurfaceImages?.leaves ?? null,
@@ -1165,6 +1170,7 @@ export function SoloTimeTrialCanvas({
       );
       courseEntities.forEach((entity, id) => {
         if (obstacleEntities.has(id as CourseTestObstacleId)) return;
+        if (courseDoors?.movingIds.has(id)) return;
         entity.forEach((node) => {
           const visual = (node as pc.Entity).render ?? (node as pc.Entity).model;
           if (visual) visual.batchGroupId = courseBatch.id;
@@ -2815,6 +2821,9 @@ export function SoloTimeTrialCanvas({
           raceStartReported = false;
           lastRaceProgressionResult = { kind: "none" };
           lastRaceAnnouncementResult = { kind: "none" };
+          // Every race starts with its doors shut; a kart's own reset leaves
+          // them as they are.
+          courseDoors?.reset();
           resetKart();
           runtime.setPaused(false);
           setGamePaused(false);
@@ -2854,6 +2863,7 @@ export function SoloTimeTrialCanvas({
           barrelPhysicsMask: obstacleAEntity?.rigidbody?.mask ?? null,
           barrelPhysicsRestitution:
             obstacleAEntity?.rigidbody?.restitution ?? null,
+          courseDoors: courseDoors?.describe() ?? [],
           courseEntityCount: courseEntities.size,
           directionalLightCount: lightingEntities.size,
           groundCollisionHalfExtentX: ground?.collision?.halfExtents?.x ?? null,
@@ -3386,6 +3396,7 @@ export function SoloTimeTrialCanvas({
           collisionMetrics.maximumPhysicsSubsteps,
           substeps,
         );
+        courseDoors?.setSubstepSeconds(stepSeconds / substeps);
         return substeps;
       });
 
@@ -3624,6 +3635,21 @@ export function SoloTimeTrialCanvas({
         collisionObserver.endStep();
         captureCollisionMetrics();
         captureCameraImpact();
+        // A door's latch and stops sound from where it is, fading with
+        // distance from the kart.
+        for (const event of courseDoors?.step(dt) ?? []) {
+          const kartPosition = kart.getPosition();
+          const distance = Math.hypot(
+            event.position.x - kartPosition.x,
+            event.position.y - kartPosition.y,
+            event.position.z - kartPosition.z,
+          );
+          const reach = Math.min(1, 3 / Math.max(distance, 1));
+          raceAudio?.playDoor(
+            event.kind === "unlatched" ? "latch" : "stop",
+            (event.kind === "unlatched" ? 0.7 : Math.min(1, event.speed / 2)) * reach,
+          );
+        }
 
         kartController.postUpdate(latestDrivingInput, dt);
         roomStepsSinceState += 1;

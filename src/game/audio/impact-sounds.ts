@@ -966,6 +966,48 @@ const TIRE_LEVEL: Record<AudioSurface, number> = {
 };
 
 /** `strength` 0–1: 0.1 a small hop, 1 the spin jump's landing (about 1 m). */
+/**
+ * A course door's own sounds, `strength` 0–1. Its latch gives with a short
+ * metal clack and the plate's ring; its leaf meets a rubber stop, or its
+ * frame, with a dull thud whose weight is the leaf's. Five nodes at most.
+ */
+export function playDoorSound(
+  context: BaseAudioContext,
+  output: AudioNode,
+  kind: "latch" | "stop",
+  strength: number,
+  time: number,
+) {
+  const bank = prepareImpactSounds(context);
+  const s = Math.min(1, Math.max(0, strength));
+  const level = 0.1 + 0.9 * Math.pow(s, 0.8);
+  if (kind === "latch") {
+    playSegment(
+      context,
+      bank,
+      "crack",
+      gainInto(context, level * 0.7, output, time),
+      time,
+      between(1.25, 1.4),
+    );
+    playSegment(
+      context,
+      bank,
+      "rail",
+      gainInto(context, level * 0.25, output, time),
+      time,
+      between(1.1, 1.2),
+    );
+    return;
+  }
+  const lowpass = context.createBiquadFilter();
+  lowpass.type = "lowpass";
+  lowpass.Q.setValueAtTime(0, time);
+  lowpass.frequency.setValueAtTime(220 + 380 * s, time);
+  lowpass.connect(gainInto(context, level * 0.9, output, time));
+  playSegment(context, bank, "drum", lowpass, time, between(0.55, 0.62));
+}
+
 export function playLandingSound(
   context: BaseAudioContext,
   output: AudioNode,

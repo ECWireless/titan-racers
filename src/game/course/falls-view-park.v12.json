@@ -11406,7 +11406,7 @@
       "collision": {
         "friction": 0.7,
         "halfExtents": {
-          "x": 14.031,
+          "x": 7.781,
           "y": 1.8,
           "z": 0.15
         },
@@ -11437,7 +11437,7 @@
         "position": {
           "x": 78.6,
           "y": 1.8,
-          "z": -24.031
+          "z": -30.281
         },
         "rotation": {
           "x": 0,
@@ -11448,8 +11448,118 @@
       "visual": {
         "material": "obstacleBlock",
         "scale": {
-          "x": 28.062,
+          "x": 15.562,
           "y": 3.6,
+          "z": 0.3
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "obstacle",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 5.75,
+          "y": 1.8,
+          "z": 0.15
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "solid-obstacle",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.standard-course",
+          "version": 1
+        }
+      },
+      "editable": true,
+      "id": "tunnel-north-wall-r-2",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 78.6,
+          "y": 1.8,
+          "z": -15.75
+        },
+        "rotation": {
+          "x": 0,
+          "y": -90,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "obstacleBlock",
+        "scale": {
+          "x": 11.5,
+          "y": 3.6,
+          "z": 0.3
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "obstacle",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 0.5,
+          "y": 0.75,
+          "z": 0.15
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "solid-obstacle",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.standard-course",
+          "version": 1
+        }
+      },
+      "editable": true,
+      "id": "tunnel-door-4-lintel",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 78.6,
+          "y": 2.85,
+          "z": -22
+        },
+        "rotation": {
+          "x": 0,
+          "y": -90,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "obstacleBlock",
+        "scale": {
+          "x": 1,
+          "y": 1.5,
           "z": 0.3
         },
         "shape": "box"
@@ -14376,6 +14486,7 @@
       }
     },
     {
+      "attachedTo": "tunnel-door-4",
       "availability": "standard",
       "category": "feature",
       "collision": null,
@@ -14385,7 +14496,7 @@
       "sign": "4",
       "transform": {
         "position": {
-          "x": 78.7685,
+          "x": 78.7505,
           "y": 1.6,
           "z": -22
         },
@@ -14902,14 +15013,50 @@
     },
     {
       "availability": "standard",
-      "category": "feature",
-      "collision": null,
+      "category": "obstacle",
+      "collision": {
+        "friction": 0.5,
+        "halfExtents": {
+          "x": 0.5,
+          "y": 1.05,
+          "z": 0.05
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": -0.0275
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "solid-obstacle",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.standard-course",
+          "version": 1
+        }
+      },
+      "door": {
+        "hinge": "left",
+        "lamp": "tunnel-store-room-light",
+        "opens": "back",
+        "stop": 90,
+        "type": {
+          "id": "door.worn-steel",
+          "version": 1
+        }
+      },
       "editable": true,
       "id": "tunnel-door-4",
       "indoors": true,
       "transform": {
         "position": {
-          "x": 78.761,
+          "x": 78.7275,
           "y": 1.05,
           "z": -22
         },
@@ -14925,12 +15072,13 @@
         "scale": {
           "x": 1,
           "y": 2.1,
-          "z": 0.01
+          "z": 0.045
         },
         "shape": "box"
       }
     },
     {
+      "attachedTo": "tunnel-door-4",
       "availability": "standard",
       "category": "feature",
       "collision": null,
@@ -14939,7 +15087,7 @@
       "indoors": true,
       "transform": {
         "position": {
-          "x": 78.768,
+          "x": 78.752,
           "y": 0.125,
           "z": -22
         },
@@ -14960,6 +15108,7 @@
       }
     },
     {
+      "attachedTo": "tunnel-door-4",
       "availability": "standard",
       "category": "feature",
       "collision": null,
@@ -14968,7 +15117,37 @@
       "indoors": true,
       "transform": {
         "position": {
-          "x": 78.791,
+          "x": 78.775,
+          "y": 1,
+          "z": -22.38
+        },
+        "rotation": {
+          "x": 0,
+          "y": 90,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "steel",
+        "scale": {
+          "x": 0.12,
+          "y": 0.03,
+          "z": 0.05
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "attachedTo": "tunnel-door-4",
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-door-4-handle-back",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 78.68,
           "y": 1,
           "z": -22.38
         },
@@ -63005,9 +63184,316 @@
         },
         "shape": "box"
       }
+    },
+    {
+      "availability": "standard",
+      "category": "surface",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 1.2,
+          "y": 0.04,
+          "z": 1.8
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": -0.039,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "drivable-surface",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.standard-course",
+          "version": 1
+        }
+      },
+      "editable": true,
+      "id": "tunnel-store-room-floor",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 77.55,
+          "y": -0.001,
+          "z": -23.28
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "concrete",
+        "scale": {
+          "x": 2.4,
+          "y": 0.002,
+          "z": 3.6
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "obstacle",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 1.2,
+          "y": 1.25,
+          "z": 0.15
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "solid-obstacle",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.standard-course",
+          "version": 1
+        }
+      },
+      "editable": true,
+      "id": "tunnel-store-room-wall-north",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 77.25,
+          "y": 1.25,
+          "z": -21.33
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "obstacleBlock",
+        "scale": {
+          "x": 2.4,
+          "y": 2.5,
+          "z": 0.3
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "obstacle",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 1.2,
+          "y": 1.25,
+          "z": 0.15
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "solid-obstacle",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.standard-course",
+          "version": 1
+        }
+      },
+      "editable": true,
+      "id": "tunnel-store-room-wall-south",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 77.25,
+          "y": 1.25,
+          "z": -25.23
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "obstacleBlock",
+        "scale": {
+          "x": 2.4,
+          "y": 2.5,
+          "z": 0.3
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "obstacle",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 0.15,
+          "y": 1.25,
+          "z": 1.8
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "solid-obstacle",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.standard-course",
+          "version": 1
+        }
+      },
+      "editable": true,
+      "id": "tunnel-store-room-wall-back",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 76.2,
+          "y": 1.25,
+          "z": -23.28
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "obstacleBlock",
+        "scale": {
+          "x": 0.3,
+          "y": 2.5,
+          "z": 3.6
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "obstacle",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 1.2,
+          "y": 0.1,
+          "z": 2.1
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "solid-obstacle",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.standard-course",
+          "version": 1
+        }
+      },
+      "editable": true,
+      "id": "tunnel-store-room-roof",
+      "indoors": true,
+      "overhead": true,
+      "transform": {
+        "position": {
+          "x": 77.25,
+          "y": 2.4,
+          "z": -23.28
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "obstacleBlock",
+        "scale": {
+          "x": 2.4,
+          "y": 0.2,
+          "z": 4.2
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-store-room-light",
+      "indoors": true,
+      "label": "Store room light",
+      "lamp": "work",
+      "transform": {
+        "position": {
+          "x": 77.4,
+          "y": 2.27,
+          "z": -23.28
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "hazard",
+        "scale": {
+          "x": 0.22,
+          "y": 0.06,
+          "z": 0.16
+        },
+        "shape": "box"
+      }
     }
   ],
-  "schemaVersion": 11,
+  "schemaVersion": 12,
   "start": {
     "gateHalfExtents": {
       "x": 2.85,

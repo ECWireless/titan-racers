@@ -26,11 +26,21 @@ runtime:
   changes the substep length every fixed step, so that impulse goes stale.
 
 Build constraints in Ammo, on bodies from `rigidbody.body`, into
-`app.systems.rigidbody.dynamicsWorld`. The one-body constructors
-(`btHingeConstraint(body, frame, false)`, `btPoint2PointConstraint(body,
-pivot)`) join a body to the world. Pass `true` to `addConstraint` so the
-joined bodies don't collide. On teardown, remove each constraint and
+`app.systems.rigidbody.dynamicsWorld`. Pass `true` to `addConstraint` so
+the joined bodies don't collide. On teardown, remove each constraint and
 `Ammo.destroy` it before its bodies.
+
+- `btPoint2PointConstraint(body, pivot)` joins a body to the world at the
+  pivot's present world position.
+- The one-body hinge, `btHingeConstraint(body, frame, false)`, moves its
+  world frame's origin to the world but keeps its basis local. A body that
+  isn't turned 0° about the axis then reads its own turn as hinge angle
+  (a door turned 90° reads 90° open). Use the two-body form against a fixed
+  static body that isn't in the world (mass 0, a 1 mm sphere, identity
+  pose, as PlayCanvas's `getFixedBody`), with the world frame the body's
+  pose times its local frame.
+- Give a new body its entity's pose (`rigidbody.teleport`) before fixing a
+  constraint to it.
 
 ## Breaking Thresholds
 

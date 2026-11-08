@@ -831,8 +831,8 @@ export class DynamicKartController implements KartController {
 
   /**
    * Points the solver's gravity at the habitat field for this position and
-   * records local up. The kart is the only dynamic body, so world gravity is
-   * its gravity.
+   * records local up. Course doors take no world gravity (course-doors.ts),
+   * so world gravity is the kart's alone.
    */
   private applyHabitatGravity(position: pc.Vec3) {
     const gravity = this.habitatField.gravity(position);
