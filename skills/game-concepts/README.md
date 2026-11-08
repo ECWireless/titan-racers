@@ -84,3 +84,7 @@ A game-concept node should normally cover:
   standard for karts touching in a room: each client answers its own
   kart's contacts at once against opponents' present poses, and the server
   records each contact once.
+- [`course-interactables/`](course-interactables/README.md): the candidate
+  standard for course objects that change state during a race: real
+  mechanisms with physical strengths, reset at each race start, kept out
+  of what counts, and recorded once in a room.

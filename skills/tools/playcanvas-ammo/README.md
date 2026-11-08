@@ -20,6 +20,8 @@ ownership lives in
   sweeps, filtering, and visible-suspension presentation.
 - [`collisions/`](collisions/README.md): collision geometry, contact
   observation, material combining, and CCD.
+- [`constraints/`](constraints/README.md): hinges, breakable latches, and
+  why the engine's joint component isn't used.
 - [`chase-camera/`](chase-camera/README.md): camera state, collision-driven
   impulses, obstruction raycasts, and interpolation.
 - [`course-editing/`](course-editing/README.md): course construction,
