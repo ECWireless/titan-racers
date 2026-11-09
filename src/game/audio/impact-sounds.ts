@@ -965,7 +965,6 @@ const TIRE_LEVEL: Record<AudioSurface, number> = {
   water: 0.45,
 };
 
-/** `strength` 0–1: 0.1 a small hop, 1 the spin jump's landing (about 1 m). */
 /**
  * A course door's own sounds, `strength` 0–1. Its latch gives with a short
  * metal clack and the plate's ring; its leaf meets a rubber stop, or its
@@ -1008,6 +1007,7 @@ export function playDoorSound(
   playSegment(context, bank, "drum", lowpass, time, between(0.55, 0.62));
 }
 
+/** `strength` 0–1: 0.1 a small hop, 1 the spin jump's landing (about 1 m). */
 export function playLandingSound(
   context: BaseAudioContext,
   output: AudioNode,

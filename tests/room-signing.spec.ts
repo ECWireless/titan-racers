@@ -8,12 +8,11 @@ import { createBalancedKartDocument } from "../src/game/kart/balanced-kart-docum
 import { deriveKartSnapshot } from "../src/game/kart/kart-derivation";
 import { kartContactShape } from "../src/game/room/kart-contact";
 import { createRoomCourse } from "../src/game/room/room-course";
-import { ROOM_PROTOCOL } from "../src/game/room/room-protocol";
+import { ROOM_DOOR_LIMIT, ROOM_PROTOCOL } from "../src/game/room/room-protocol";
 import {
   randomRoomPlayerKey,
   readRoomToken,
   ROOM_COURSE_CHECKPOINT_LIMIT,
-  ROOM_COURSE_DOOR_LIMIT,
   RoomTokenTooLongError,
   ROOM_REPORT_WINDOW_MS,
   ROOM_TOKEN_CLOCK_SKEW_MS,
@@ -139,9 +138,10 @@ test.describe("room courses", () => {
     const door = FALLS_VIEW_PARK_DOCUMENT.objects.find(({ door }) => door)!;
     const largest = createRoomCourse({
       ...FALLS_VIEW_PARK_DOCUMENT,
-      objects: Array.from({ length: ROOM_COURSE_DOOR_LIMIT }, (_, index) => ({
+      objects: Array.from({ length: ROOM_DOOR_LIMIT }, (_, index) => ({
         ...door,
-        id: `utility-tunnel-store-room-door-${index}`,
+        // As long as a course object's ID may be.
+        id: `door-${index}-`.padEnd(80, "x"),
         transform: {
           ...door.transform,
           position: { x: awkward(index), y: awkward(-index), z: awkward(index) },

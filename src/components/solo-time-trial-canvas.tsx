@@ -264,6 +264,7 @@ import { ROOM_CONTACT } from "@/game/room/room-contacts";
 import { roomGridStart } from "@/game/room/room-course";
 import { dueRoomDoorOpenings } from "@/game/room/room-doors";
 import {
+  ROOM_DOOR_SWING_LIMIT,
   ROOM_RACE_LIMIT_MS,
   type RoomClientMessage,
 } from "@/game/room/room-protocol";
@@ -3649,9 +3650,9 @@ export function SoloTimeTrialCanvas({
             applied: roomDoorsOpen,
             nowUs: raceSession.raceMicroseconds,
             shownUs: (id) =>
-              ROOM.opponents.some((opponent) => opponent.id === id)
-                ? (ROOM.opponentEstimate(id)?.shownUs ?? null)
-                : undefined,
+              id === ROOM.you
+                ? undefined
+                : (ROOM.opponentEstimate(id)?.shownUs ?? null),
           });
           for (const { door, swing } of due) {
             courseDoors.open(door, swing);
@@ -3672,7 +3673,10 @@ export function SoloTimeTrialCanvas({
               type: "open",
               door: event.id,
               t: raceSession.raceMicroseconds,
-              w: Math.min(50, Math.round(event.speed * 100) / 100),
+              w: Math.min(
+                ROOM_DOOR_SWING_LIMIT,
+                Math.round(event.speed * 100) / 100,
+              ),
             });
           }
           const kartPosition = kart.getPosition();

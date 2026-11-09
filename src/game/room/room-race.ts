@@ -23,6 +23,8 @@ import type { RoomDoorOpening } from "./room-doors";
  * answers its own kart's contacts with them.
  */
 export type CanvasRoom = {
+  /** This page's seat. */
+  you: string;
   slot: number;
   opponents: Array<{
     id: string;

@@ -67,13 +67,13 @@ export type AmmoDoorApi = {
   btVector3: new (x: number, y: number, z: number) => object;
   destroy(object: object): void;
 };
-export type AmmoDoorWorld = {
+type AmmoDoorWorld = {
   addConstraint(constraint: object, disableCollisionsBetweenLinkedBodies: boolean): void;
   removeConstraint(constraint: object): void;
 };
 
 /** Where a door's hinge and latch sit, in its leaf's unscaled local frame. */
-export type CourseDoorFrame = {
+type CourseDoorFrame = {
   /** +1 when opening turns the leaf positively about local +Y. */
   axis: 1 | -1;
   hinge: Vec3;
@@ -394,9 +394,9 @@ function carry(body: pc.Entity, entity: pc.Entity) {
   entity.setRotation(rotation);
 }
 
-export type CourseDoorStep = CourseDoorEvent & { id: string; position: Vec3 };
+type CourseDoorStep = CourseDoorEvent & { id: string; position: Vec3 };
 
-export type CourseDoors = {
+type CourseDoors = {
   /** Each door's state, for tests. */
   describe(): Array<{ id: string; lampLit: boolean; latched: boolean; openAngle: number }>;
   /** Doors, their parts, and their lamps: drawn apart from the static batch. */

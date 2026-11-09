@@ -2,7 +2,7 @@ import type { CourseMeshGeometry } from "./course-bevel";
 import { drawLuckyLadyPoster } from "./posters/lucky-lady";
 
 /** A poster's print: drawn once per page into a canvas of its size. */
-export type CoursePoster = {
+type CoursePoster = {
   /** Draws the print, filling the canvas, top left at the origin. */
   draw(context: CanvasRenderingContext2D, width: number, height: number): void;
   /** The print's size in texels; its board keeps this shape. */

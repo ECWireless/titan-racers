@@ -49,7 +49,7 @@ const ROOM_CLOCK_SLACK_US = 250_000;
  * closed centre, across the ground: a kart's length past its leaf, and a
  * state's interval of driving.
  */
-export const ROOM_DOOR_REACH_METRES = 1.5;
+const ROOM_DOOR_REACH_METRES = 1.5;
 
 type RoomKart = RoomToken["karts"][number];
 export type RoomKartState = Omit<
@@ -427,7 +427,7 @@ function loaded(state: RoomState, playerId: string, raceId: string) {
 }
 
 /**
- * A door's first opening this race counts, if its claimant is racing and
+ * A door's first opening this race counts, if its claimant is still racing and
  * its last accepted state was near the door: a later claim, or one from
  * afar, changes nothing. Returns whether the snapshot changed.
  */
@@ -443,6 +443,7 @@ function openDoor(
   if (
     !entrant?.loaded ||
     entrant.left ||
+    entrant.finishMicroseconds !== null ||
     !entrant.last ||
     !position ||
     race.doors.some((opening) => opening.door === door)

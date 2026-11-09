@@ -284,25 +284,25 @@ integration review, from `2ffc5a20` (PR #70), before its last PR merges.
 
 **PR 6.9: Course interactables, starting with the utility-tunnel door**
 
-- [ ] A standard for course objects that change state during a race,
+- [x] A standard for course objects that change state during a race,
       built to serve later interactables, with notes on the engine's hinges
       and breakable latches.
-- [ ] Door 4 of the utility tunnel becomes a real steel door of about
+- [x] Door 4 of the utility tunnel becomes a real steel door of about
       40 kg on its hinge, held by a worn latch that a square hit at about
       4.5 m/s (16 km/h) breaks, so a kart driven across the tunnel at it
       opens it. It swings into a small store room under the berm behind the
       tunnel wall. A push, or a hit near the hinge, never
       opens it. The other doors stay painted.
-- [ ] The room's light comes on when the door opens, the latch clacks, and
+- [x] The room's light comes on when the door opens, the latch clacks, and
       the door thuds on its stop. A course may have 24 indoor lamps.
-- [ ] The room's contents and its poster of The Lucky Lady, the homebuilt
+- [x] The room's contents and its poster of The Lucky Lady, the homebuilt
       homestead spacecraft of O'Neill's The High Frontier, are a Claude-vs-Codex contest: each
       builds both to one brief, the lead judges blind from the same three
       renders after a cross-critique, and poster and room are judged
       separately. The poster is drawn by code, at A1.
-- [ ] The door closes at each race start, Restart, and Race again, never on
+- [x] The door closes at each race start, Restart, and Race again, never on
       a kart's reset. Ghosts drive through it.
-- [ ] In a room (protocol 4), the opener's page opens the door at once and
+- [x] In a room (protocol 4), the opener's page opens the door at once and
       tells the room, which keeps the race's first opening if the opener
       was within about 1.5 m of the door, and tells everyone. Other pages
       open it when they see the opener reach it, and a returning page finds

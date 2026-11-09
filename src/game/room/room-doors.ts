@@ -28,8 +28,8 @@ export function dueRoomDoorOpenings(
     /** This page's race time now. */
     nowUs: number;
     /**
-     * The race time an opponent was shown at last frame (null while it
-     * isn't drawn); undefined for this page's own kart.
+     * The race time another kart was shown at last frame (null while it
+     * isn't drawn here); undefined for this page's own kart.
      */
     shownUs(id: string): number | null | undefined;
   },

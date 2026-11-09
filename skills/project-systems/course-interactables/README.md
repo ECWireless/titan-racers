@@ -58,11 +58,10 @@ sound, light, or reset.
   the Speed kart's 34 N, or a 12 m/s hit 0.1 m from the hinge, never does.
   The tunnel is 4.5 m wide: a Balanced kart driven across it from a
   standstill at the far wall reaches about 7 m/s, so a deliberate run
-  opens the door, and a glancing touch in the racing line does not. (A
-  first calibration, 10.5 N·s, needed 7.5 m/s, which only that best run
-  reached.) Little of a hit is left once the latch takes
-  its share: a 2 kg kart swings the door only partway, a 17 m/s one to its
-  stop, and a kart can push it the rest of the way.
+  opens the door, and a glancing touch in the racing line does not. Little
+  of a hit is left once the latch takes its share: a 2 kg kart swings the
+  door only partway, a 17 m/s one to its stop, and a kart can push it the
+  rest of the way.
 - Door 4 is the north tunnel's, 1.0 × 2.1 m and 45 mm thick, flush with the
   wall's tunnel face. It hangs on its north edge and opens 90° into the
   store room, to rest by the room's north wall. Its handle on each face,
@@ -74,19 +73,13 @@ sound, light, or reset.
   door 4 opens; its packing light (a tunnel lamp, the 22nd) is always on,
   as a light left on in a store is, and lights the room clearly. It leads
   nowhere, so the run check, gates, and recordings are unchanged.
-- The room is a homesteader's store, at true scale, each thing built from
-  its real parts: a steel-framed workbench with a vise, a tray of seed
-  packets, and an open ledger on its worktop, and a toolbox, seed trays, and
-  paint tins on its lower shelf; a seed-drawer cabinet and tins on the shelf
-  above; two slatted apple crates; a 200 L water drum with a hand pump and
-  two jerrycans along the tunnel wall; a watering can and a yard broom. No
-  solid in it is painted in a road-paint finish (`line`, `hazard`): paint is
-  drawn toward the camera, so such a solid's edge-on faces show through the
-  wall. Its poster, on a plywood board facing the doorway, is The Lucky
-  Lady: the homebuilt sphere that carries a family out to homestead the
-  asteroids in G. K. O'Neill's The High Frontier (1976), drawn here as
-  Island Three's send-off print. The room's design won a Claude-vs-Codex contest judged by
-  the lead.
+- The room is a homesteader's store at true scale, each thing built from
+  its real parts. No solid in it is painted in a road-paint finish
+  (`line`, `hazard`): paint is drawn toward the camera, so such a solid's
+  edge-on faces show through the wall. Its poster, on a plywood board
+  facing the doorway, is The Lucky Lady, the homebuilt sphere that carries
+  a family out to homestead the asteroids in G. K. O'Neill's The High
+  Frontier (1976).
 - In a room (protocol 4), the page whose kart breaks a latch has the door
   open at once and sends `open`: the door, the step's race time, and its
   free edge's speed. The room keeps a race's first claim per door, if the
@@ -110,14 +103,14 @@ sound, light, or reset.
 
 - `tests/course-doors.spec.ts`: door 4's hinge and latch on the vendored
   Ammo build in Node: a turned door hangs closed, the latch's strength at
-  1–8 substeps, a push and a hit near the hinge, the stop, and a reset.
+  1–8 substeps, a push and a hit near the hinge, the stop, a reset, and
+  another page's opening, swinging or at rest.
 - `tests/course-document.spec.ts`: the schema's door, lamp, and part rules.
 - `tests/home.spec.ts` ("opens tunnel door 4 to a hard hit"): a kart driven
   into door 4 in a race opens it and lights the store room.
 - `tests/room-rules.spec.ts` ("room doors"), `tests/room-doors.spec.ts`,
-  `tests/room-connection.spec.ts`, and `tests/course-doors.spec.ts`: the
-  room's first plausible claim, when a page applies another's, a claim's
-  resend, and a remote swing and rest on real Ammo.
+  and `tests/room-connection.spec.ts`: the room's first plausible claim,
+  when a page applies another's, and a claim's resend.
 - `tests/room-race.spec.ts` (the two door tests): a page's kart opens door
   4 and the room keeps it; a rival's opening swings the page's door with
   its clack.

@@ -8,6 +8,7 @@ import {
 } from "@/game/physics/physics-version";
 import { createRoomCourse } from "@/game/room/room-course";
 import {
+  ROOM_DOOR_LIMIT,
   ROOM_PROTOCOL,
   ROOM_RACE_LIMIT_MS,
   type RoomRaceReport,
@@ -15,7 +16,6 @@ import {
 import {
   randomRoomPlayerKey,
   ROOM_COURSE_CHECKPOINT_LIMIT,
-  ROOM_COURSE_DOOR_LIMIT,
   roomGuestKey,
   roomKartContact,
   roomPlayerKey,
@@ -68,7 +68,7 @@ export async function issueRoomToken(
     !publication ||
     publication.document.checkpoints.length > ROOM_COURSE_CHECKPOINT_LIMIT ||
     publication.document.objects.filter(({ door }) => door).length >
-      ROOM_COURSE_DOOR_LIMIT ||
+      ROOM_DOOR_LIMIT ||
     roster.source !== "published" ||
     roster.karts.length === 0
   ) {

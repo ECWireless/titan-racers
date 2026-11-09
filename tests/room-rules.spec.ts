@@ -643,6 +643,12 @@ test.describe("room doors", () => {
       run(near("p1"), open("p1", second(1.1e6), 1.1e6, "back-door")).changed,
     ).toBe(false);
     expect(run(near("p1"), open("p1", second(1e6), 1.5e6)).changed).toBe(false);
+    // From a kart that has left, or finished.
+    const left = run(near("p1"), { type: "leave", now: second(1.01e6), playerId: "p1" });
+    expect(run(left.state, open("p1", second(1.02e6), 1.02e6)).changed).toBe(false);
+    const finished = run(near("p1"), { type: "tick", now: second(1.01e6) }).state;
+    finished.race!.entrants[0].finishMicroseconds = 1e6;
+    expect(run(finished, open("p1", second(1.02e6), 1.02e6)).changed).toBe(false);
 
     const opened = run(near("p1"), open("p1", second(1.02e6), 1.02e6));
     expect(opened.changed).toBe(true);
@@ -666,6 +672,7 @@ test.describe("room doors", () => {
     for (const bad of [
       { ...claim, door: "Tunnel Door" },
       { ...claim, w: -1 },
+      { ...claim, w: 25 },
       { ...claim, t: -5 },
       { ...claim, by: "p1" },
     ]) {

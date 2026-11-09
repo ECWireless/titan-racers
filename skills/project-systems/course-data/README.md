@@ -262,7 +262,7 @@ Version twelve adds `door`, which hangs an upright box colliding as a
 solid box on a hinge (`course-doors.ts`): `type`, a versioned door type
 (`course-door-types.ts`) giving its mass, latch, and hinge friction;
 `hinge`, its local −X (`left`) or +X (`right`) edge; `opens`, toward its
-local +Z (`front`) or −Z (`back`) face; `stop`, 10–180°; and an optional
+local +Z (`front`) or −Z (`back`) face; `stop`, 10–170°; and an optional
 `lamp`, an indoor lamp that no other door names, dark until the door opens.
 `attachedTo` names the door a part is drawn on: it moves with the door and
 never collides. `poster` (a versioned print, `course-posters.ts`) draws

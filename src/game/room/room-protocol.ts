@@ -13,7 +13,7 @@ import { kartStableIdSchema } from "../kart/kart-assembly-document";
 export const ROOM_PROTOCOL = 4;
 
 export const ROOM_MAX_PLAYERS = 4;
-/** The most doors a room's course may have. */
+/** The most doors a room's course may have, so its token fits a URL. */
 export const ROOM_DOOR_LIMIT = 4;
 export const ROOM_MIN_RACERS = 2;
 /** Entrants have this long to load before the race goes on without them. */
@@ -128,8 +128,10 @@ const kartState = z.strictObject(kartStateFields);
 export const roomObjectIdSchema = z
   .string()
   .min(1)
-  .max(120)
+  .max(80)
   .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/);
+/** No kart drives faster than this, so no door it opens swings faster. */
+export const ROOM_DOOR_SWING_LIMIT = 20;
 /**
  * A door this page's kart opened (protocol 4): when, in race time, and how
  * fast its free edge was swinging (m/s), so other pages swing it alike.
@@ -137,7 +139,7 @@ export const roomObjectIdSchema = z
 const doorOpeningFields = {
   door: roomObjectIdSchema,
   t: microseconds,
-  w: z.number().min(0).max(50),
+  w: z.number().min(0).max(ROOM_DOOR_SWING_LIMIT),
 };
 const triple = (limit: number) =>
   z.tuple([bounded(limit), bounded(limit), bounded(limit)]);

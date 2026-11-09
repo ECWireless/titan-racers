@@ -1117,7 +1117,8 @@ const courseDoorSchema = z.strictObject({
   hinge: z.enum(["left", "right"]),
   lamp: courseIdSchema.optional(),
   opens: z.enum(["front", "back"]),
-  stop: z.number().finite().min(10).max(180),
+  // Bullet's hinge angle wraps at ±180°, so a stop stays clear of it.
+  stop: z.number().finite().min(10).max(170),
   type: z
     .strictObject({
       id: z.string().max(80),
