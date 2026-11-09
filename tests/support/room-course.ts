@@ -19,7 +19,8 @@ const facingX = {
 
 /**
  * A straight room course along x: the start line at 0 and a checkpoint at
- * each of `checkpoints`, all facing +x, with the grid just behind the line.
+ * each of `checkpoints`, all facing +x, with the grid just behind the line,
+ * and a door beside the track at x 20, 1 m off its line.
  */
 export function straightRoomCourse(
   lapCount: number,
@@ -39,6 +40,7 @@ export function straightRoomCourse(
       gate: { center: { x, y: 1, z: 0 }, ...facingX },
       recovery: { position: { x: x - 1, y: 0, z: 0 } },
     })),
+    doors: [{ id: "side-door", position: { x: 20, y: 1.05, z: 1 } }],
   };
 }
 

@@ -40,7 +40,7 @@ multiplayer kart contact policy, or general recovery-system expansion.
 - `src/game/runtime/playcanvas-application.ts` provides distinct pre-physics
   and post-physics fixed-step callbacks so collision observation brackets the
   Ammo solve.
-- `src/game/course/rough-course.v11.json` defines the accepted sparse play
+- `src/game/course/rough-course.v12.json` defines the accepted sparse play
   course: two cylinder obstacles, a tall jump ramp beside the lap, low ramps
   on the lap (kicker, bridge, inspection table), and controlled straight, thin-wall,
   convex-corner, and concave-corner impact fixtures. The validated
@@ -207,6 +207,9 @@ fixed step, but `maximumImpulse` is the largest single-substep impulse;
   contact in rooms (PR 6.6) runs outside Ammo, once a fixed step, sweeping
   the step's motion itself; see the
   [multiplayer rooms system](../multiplayer-rooms/README.md).
+- Course doors are the only other dynamic bodies: a hung leaf in the solid
+  obstacle group that only karts touch, so it swings past its frame and
+  walls ([course interactables](../course-interactables/README.md)).
 - Not implemented: damage and detachable parts, physical wheel bodies,
   per-child kart materials, and per-surface material authoring.
 - Representative mobile performance acceptance is deferred to the public demo

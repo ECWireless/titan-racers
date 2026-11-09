@@ -195,6 +195,7 @@ export function RoomPlay({ code }: { code: string }) {
           course,
           kart,
           room: {
+            you: you!,
             slot,
             opponents,
             raceMicroseconds: (localTime) =>
@@ -205,6 +206,7 @@ export function RoomPlay({ code }: { code: string }) {
             opponentStats: () => connection.opponents.stats(),
             outOfTouch: () => connection.outOfTouch(),
             takeContacts: () => connection.takeContacts(),
+            doorOpenings: () => connection.doorOpenings(),
             send: (message) => connection.send(message),
           },
         });

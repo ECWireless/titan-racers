@@ -51,6 +51,8 @@ export type OpponentEstimate = {
   readonly resets: number;
   /** Its newest state's race time, or -Infinity before any. */
   readonly newestUs: number;
+  /** The race time it was shown at last frame; null before its first. */
+  readonly shownUs: number | null;
   /**
    * A push your kart gave it from `atUs`, kept until a state of its own from
    * after `forUs` (the touch it answers; by default `atUs`) shows it.
@@ -138,6 +140,11 @@ export class OpponentMotion implements OpponentEstimate {
   };
   private lastDrawnUs: number | null = null;
   private lastRoomUs: number | null = null;
+  /**
+   * The race time it was shown at last frame: its drawn time, eased toward
+   * the present as near drawing eases its pose; null before its first.
+   */
+  shownUs: number | null = null;
   /** How far behind the room's clock it was drawn last frame. */
   get drawnDelayUs() {
     return this.lastRoomUs === null || this.lastDrawnUs === null
@@ -373,7 +380,11 @@ export class OpponentMotion implements OpponentEstimate {
     Object.assign(this.lastOutput.position, out.position);
     Object.assign(this.lastOutput.rotation, out.rotation);
     this.prune(drawnUs);
-    if (near) this.drawNear(near, frameSeconds, snapped, out);
+    this.shownUs = drawnUs;
+    if (near) {
+      this.drawNear(near, frameSeconds, snapped, out);
+      this.shownUs += (near.atUs - drawnUs) * (this.nearShare ?? 0);
+    }
     return out;
   }
 

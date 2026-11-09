@@ -297,6 +297,18 @@ test.describe("course editor document commands", () => {
     ).toBe(oneCheckpoint);
   });
 
+  test("deletes a door with the parts on it, and keeps the lamp it lights", () => {
+    const document = structuredClone(FALLS_VIEW_PARK_DOCUMENT);
+    const door = document.objects.find(({ id }) => id === "tunnel-door-4")!;
+    const deleted = deleteCourseSelection(document, { id: door.id, kind: "object" });
+    expect(deleted.objects.some(({ id }) => id === door.id)).toBe(false);
+    expect(deleted.objects.some(({ attachedTo }) => attachedTo === door.id)).toBe(false);
+    expect(deleted.objects.length).toBeLessThan(document.objects.length - 1);
+    expect(
+      deleteCourseSelection(document, { id: door.door!.lamp!, kind: "object" }),
+    ).toBe(document);
+  });
+
   test("translates checkpoint recovery position with its gate", () => {
     const document = structuredClone(ROUGH_COURSE_DOCUMENT);
     const checkpoint = document.checkpoints[0];

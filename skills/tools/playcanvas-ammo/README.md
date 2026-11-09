@@ -20,6 +20,8 @@ ownership lives in
   sweeps, filtering, and visible-suspension presentation.
 - [`collisions/`](collisions/README.md): collision geometry, contact
   observation, material combining, and CCD.
+- [`constraints/`](constraints/README.md): hinges, breakable latches, and
+  why the engine's joint component isn't used.
 - [`chase-camera/`](chase-camera/README.md): camera state, collision-driven
   impulses, obstruction raycasts, and interpolation.
 - [`course-editing/`](course-editing/README.md): course construction,
@@ -107,8 +109,9 @@ validated data source shared by support, visuals, steering, and drivetrain
 - Position-dependent gravity: set `app.systems.rigidbody.gravity` each fixed
   step. PlayCanvas pushes a changed value to Bullet in its update, but
   Bullet's `setGravity` only reaches active bodies. It suits this world
-  because the kart is the only dynamic body and the forces applied to it every
-  step keep it active.
+  because the kart is the only body world gravity moves (other dynamic
+  bodies set `BT_DISABLE_WORLD_GRAVITY`; see [constraints](constraints/README.md))
+  and the forces applied to it every step keep it active.
 - Forces from `applyForce` accumulate across Bullet's internal substeps and
   clear after the whole step, so one force per fixed step acts for all of it.
   Inertial forces such as Coriolis are mass times acceleration by definition;

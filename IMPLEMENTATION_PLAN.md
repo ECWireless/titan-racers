@@ -17,9 +17,10 @@ accepted; the app, README, and durable docs take over from there.
 
 - **Done:** Phases 0–6 (PRs #1–#24, the Phase 3 closeout and its
   follow-ups, #30–#57 with the PR 4.5.2 closeout, #59–#63, and #64–#70
-  with the Phase 6 closeout), and the addendum's PR 6.7 (#71).
+  with the Phase 6 closeout), and the addendum's PRs 6.7 (#71) and 6.8
+  (#72).
 - **Now:** the [Phase 6 addendum](#phase-6-addendum-feedback-before-phase-7),
-  PR 6.8.
+  PR 6.9.
 - **Next:** Phase 7, after its debrief.
 
 ## Guiding Decisions
@@ -283,14 +284,32 @@ integration review, from `2ffc5a20` (PR #70), before its last PR merges.
 
 **PR 6.9: Course interactables, starting with the utility-tunnel door**
 
-- [ ] Research and record a standard for course objects that change state
-      during a race, built to serve later interactables, not only this door.
-- [ ] The utility tunnel's door, with a small room behind it: a hard enough
-      hit breaks its latch and swings it open on its hinge.
-- [ ] The room records each opening once, so every racer sees the same door
-      (room protocol 4). It closes again when a new race starts.
-- [ ] The room behind the door leads nowhere, so it opens no new route and
-      the leaderboard carries on.
+- [x] A standard for course objects that change state during a race,
+      built to serve later interactables, with notes on the engine's hinges
+      and breakable latches.
+- [x] Door 4 of the utility tunnel becomes a real steel door of about
+      40 kg on its hinge, held by a worn latch that a square hit at about
+      4.5 m/s (16 km/h) breaks, so a kart driven across the tunnel at it
+      opens it. It swings into a small store room under the berm behind the
+      tunnel wall. A push, or a hit near the hinge, never
+      opens it. The other doors stay painted.
+- [x] The room's light comes on when the door opens, the latch clacks, and
+      the door thuds on its stop. A course may have 24 indoor lamps.
+- [x] The room's contents and its poster of The Lucky Lady, the homebuilt
+      homestead spacecraft of O'Neill's The High Frontier, are a Claude-vs-Codex contest: each
+      builds both to one brief, the lead judges blind from the same three
+      renders after a cross-critique, and poster and room are judged
+      separately. The poster is drawn by code, at A1.
+- [x] The door closes at each race start, Restart, and Race again, never on
+      a kart's reset. Ghosts drive through it.
+- [x] In a room (protocol 4), the opener's page opens the door at once and
+      tells the room, which keeps the race's first opening if the opener
+      was within about 1.5 m of the door, and tells everyone. Other pages
+      open it when they see the opener reach it, and a returning page finds
+      it open.
+- [ ] The room leads nowhere, so the run check, gates, recordings, and
+      leaderboard are unchanged: the course's new revision publishes with
+      New leaderboard off.
 
 **Exploration, no PR: contrast and a more distinctive look**
 

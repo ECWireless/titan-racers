@@ -8,7 +8,7 @@ import { createBalancedKartDocument } from "../src/game/kart/balanced-kart-docum
 import { deriveKartSnapshot } from "../src/game/kart/kart-derivation";
 import { kartContactShape } from "../src/game/room/kart-contact";
 import { createRoomCourse } from "../src/game/room/room-course";
-import { ROOM_PROTOCOL } from "../src/game/room/room-protocol";
+import { ROOM_DOOR_LIMIT, ROOM_PROTOCOL } from "../src/game/room/room-protocol";
 import {
   randomRoomPlayerKey,
   readRoomToken,
@@ -131,12 +131,22 @@ test.describe("room tokens", () => {
 });
 
 test.describe("room courses", () => {
-  test("fit a token at the most checkpoints a room allows", async () => {
+  test("fit a token at the most checkpoints and doors a room allows", async () => {
     const [checkpoint] = FALLS_VIEW_PARK_DOCUMENT.checkpoints;
     // Far out and turned every way, so every number is long.
     const awkward = (index: number) => -9_876.543_21 + index / 7;
+    const door = FALLS_VIEW_PARK_DOCUMENT.objects.find(({ door }) => door)!;
     const largest = createRoomCourse({
       ...FALLS_VIEW_PARK_DOCUMENT,
+      objects: Array.from({ length: ROOM_DOOR_LIMIT }, (_, index) => ({
+        ...door,
+        // As long as a course object's ID may be.
+        id: `door-${index}-`.padEnd(80, "x"),
+        transform: {
+          ...door.transform,
+          position: { x: awkward(index), y: awkward(-index), z: awkward(index) },
+        },
+      })),
       checkpoints: Array.from(
         { length: ROOM_COURSE_CHECKPOINT_LIMIT },
         (_, index) => ({
@@ -171,7 +181,9 @@ test.describe("room courses", () => {
     }
     // With every number at full length, a course is too long for a URL.
     const lengthen = (value: unknown): unknown =>
-      typeof value === "number"
+      typeof value === "string"
+        ? value
+        : typeof value === "number"
         ? Math.abs(value) <= 1.01
           ? -0.123_456_789_012_345_67
           : -9_999.123_456_789_012

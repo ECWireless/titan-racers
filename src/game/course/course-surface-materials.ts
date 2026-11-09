@@ -18,6 +18,7 @@ import {
   type CourseSurfaceImages,
 } from "./course-surface-textures";
 import type { CourseVisualMaterial } from "./course-document";
+import { getCoursePoster, type CoursePosterReference } from "./course-posters";
 import { getCourseSignGlyphs } from "./course-sign";
 import { COURSE_WATER_FLOW_SPEED } from "./course-water";
 import { applyAdaptedEnvironmentAtlas } from "../render/scene-look";
@@ -673,6 +674,51 @@ export function createCourseSurfaceMaterials(
       return material;
     },
   };
+  // Posters' prints: each drawn once, on first use, into its own texture,
+  // on matt paper. A print's colours are sRGB, as the canvas draws them.
+  const posterMaterials = new Map<string, pc.StandardMaterial>();
+  const posterPrints = new Map<string, pc.Texture>();
+  const posters = {
+    material(reference: CoursePosterReference, indoors: boolean) {
+      const name = `${reference.id}@${reference.version}`;
+      const key = `${name}:${indoors && interior ? "indoor" : "outdoor"}`;
+      const cached = posterMaterials.get(key);
+      if (cached) return cached;
+      let print = posterPrints.get(name);
+      if (!print) {
+        const poster = getCoursePoster(reference)!;
+        const canvas = document.createElement("canvas");
+        canvas.width = poster.width;
+        canvas.height = poster.height;
+        poster.draw(canvas.getContext("2d")!, poster.width, poster.height);
+        print = new pc.Texture(device, {
+          name: `course-poster-${name}`,
+          format: pc.PIXELFORMAT_SRGBA8,
+          mipmaps: true,
+          minFilter: pc.FILTER_LINEAR_MIPMAP_LINEAR,
+          magFilter: pc.FILTER_LINEAR,
+          addressU: pc.ADDRESS_CLAMP_TO_EDGE,
+          addressV: pc.ADDRESS_CLAMP_TO_EDGE,
+        });
+        print.setSource(canvas);
+        posterPrints.set(name, print);
+      }
+      const material = new pc.StandardMaterial();
+      material.diffuseMap = print;
+      material.useMetalness = true;
+      material.metalness = 0;
+      material.gloss = 0.2;
+      // The print lies on its box's face, as a sign's letters stand on it.
+      material.depthBias = -1;
+      material.slopeDepthBias = -0.25;
+      if (indoors && interior) {
+        applyAdaptedEnvironmentAtlas(material, interior.atlas, interior.adaptation);
+      }
+      material.update();
+      posterMaterials.set(key, material);
+      return material;
+    },
+  };
   let waterSeconds = 0;
   return {
     /** Moves the water's ripples downstream by a frame's time. */
@@ -691,6 +737,7 @@ export function createCourseSurfaceMaterials(
     },
     indoorMaterials,
     materials,
+    posters,
     signs,
     topFaces,
     /**
@@ -772,6 +819,8 @@ export function createCourseSurfaceMaterials(
       Object.values(topFaces).forEach(releaseTopFaceMesh);
       signMaterials.forEach((material) => material.destroy());
       signLetters?.destroy();
+      posterMaterials.forEach((material) => material.destroy());
+      posterPrints.forEach((texture) => texture.destroy());
       grain.destroy();
       ripples.destroy();
       scanTextures.forEach((texture) => texture.destroy());

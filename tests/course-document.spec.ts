@@ -41,10 +41,28 @@ function cloneSeed() {
   return structuredClone(ROUGH_COURSE_DOCUMENT);
 }
 
+// Falls View Park as a version-eleven course could hold it: its door 4
+// carrying nothing and not hung, and its store room dark (within 20 indoor
+// lamps).
+function versionElevenFallsViewPark() {
+  const document = structuredClone(FALLS_VIEW_PARK_DOCUMENT);
+  // The store room's lamps and poster are version twelve's.
+  document.objects = document.objects.filter(
+    (object) =>
+      object.poster === undefined &&
+      !(object.lamp && object.id.startsWith("tunnel-store-room-")),
+  );
+  for (const object of document.objects) {
+    delete object.door;
+    delete object.attachedTo;
+  }
+  return document;
+}
+
 // Falls View Park as a version-ten course could hold it: no kits, and its
 // kerbs in the walls' concrete.
 function versionTenFallsViewPark() {
-  const document = structuredClone(FALLS_VIEW_PARK_DOCUMENT);
+  const document = versionElevenFallsViewPark();
   document.objects = document.objects.filter((object) => object.sign === undefined);
   for (const object of document.objects) {
     delete object.kit;
@@ -181,7 +199,7 @@ function findObject(id: string) {
 }
 
 test("parses the versioned rough course with stable IDs and ordered checkpoints", () => {
-  expect(ROUGH_COURSE_DOCUMENT.schemaVersion).toBe(11);
+  expect(ROUGH_COURSE_DOCUMENT.schemaVersion).toBe(12);
   expect(ROUGH_COURSE_DOCUMENT.units).toBe("meters");
   expect(ROUGH_COURSE_DOCUMENT.start.id).toBe("start-position");
   expect(ROUGH_COURSE_DOCUMENT.checkpoints).toHaveLength(3);
@@ -373,6 +391,7 @@ test("adds indoor objects, overhead objects, and tunnel lamps from schema versio
   tunnel.objects = tunnel.objects.filter(
     (object) => object.lamp !== "tunnel" && object.lamp !== "work",
   );
+  tunnel.objects.forEach((object) => delete object.door?.lamp);
   tunnel.objects.push(
     ...Array.from({ length: COURSE_INDOOR_LAMP_LIMIT }, (_, index) => tunnelLamp(index)),
     {
@@ -748,8 +767,90 @@ function toObjectFrame(
   return { x: local.x, y: local.y, z: local.z };
 }
 
+test("validates doors, the lamps they switch, and the parts they carry", () => {
+  const index = (id: string) =>
+    FALLS_VIEW_PARK_DOCUMENT.objects.findIndex((object) => object.id === id);
+  const door = index("tunnel-door-4");
+  const handle = index("tunnel-door-4-handle");
+  const lintel = index("tunnel-door-4-lintel");
+  const issuePaths = (edit: (document: CourseDocument) => void) => {
+    const document = structuredClone(FALLS_VIEW_PARK_DOCUMENT);
+    edit(document);
+    return courseDocumentSchema
+      .safeParse(document)
+      .error?.issues.map(({ path }) => path);
+  };
+
+  expect(issuePaths(() => {})).toBeUndefined();
+  expect(
+    issuePaths((document) => (document.objects[door]!.door!.type.version = 2)),
+  ).toContainEqual(["objects", door, "door", "type"]);
+  expect(
+    issuePaths((document) => (document.objects[door]!.collision = null)),
+  ).toContainEqual(["objects", door, "door"]);
+  expect(
+    issuePaths(
+      (document) => (document.objects[door]!.door!.lamp = "tunnel-door-4-lintel"),
+    ),
+  ).toContainEqual(["objects", door, "door", "lamp"]);
+  expect(
+    issuePaths(
+      (document) => (document.objects[handle]!.attachedTo = "tunnel-door-4-lintel"),
+    ),
+  ).toContainEqual(["objects", handle, "attachedTo"]);
+  expect(
+    issuePaths((document) => {
+      document.objects[handle]!.collision = structuredClone(
+        document.objects[lintel]!.collision,
+      );
+    }),
+  ).toContainEqual(["objects", handle, "attachedTo"]);
+  // Version eleven has no doors, and a version-eleven course, with its
+  // kits, signs, and elbows, upgrades unchanged.
+  expect(() =>
+    parseCourseDocument({ ...FALLS_VIEW_PARK_DOCUMENT, schemaVersion: 11 }),
+  ).toThrow();
+  const legacy = versionElevenFallsViewPark();
+  expect(parseCourseDocument({ ...legacy, schemaVersion: 11 })).toEqual(legacy);
+});
+
+test("validates posters: a known print on a thin board of its shape", () => {
+  const poster = FALLS_VIEW_PARK_DOCUMENT.objects.findIndex(
+    (object) => object.id === "tunnel-store-room-poster",
+  );
+  const issuePaths = (edit: (object: CourseDocument["objects"][number]) => void) => {
+    const document = structuredClone(FALLS_VIEW_PARK_DOCUMENT);
+    edit(document.objects[poster]!);
+    return courseDocumentSchema
+      .safeParse(document)
+      .error?.issues.map(({ path }) => path);
+  };
+
+  expect(FALLS_VIEW_PARK_DOCUMENT.objects[poster]!.poster).toEqual({
+    id: "poster.lucky-lady",
+    version: 1,
+  });
+  expect(issuePaths(() => {})).toBeUndefined();
+  expect(issuePaths((object) => (object.poster!.version = 2))).toContainEqual([
+    "objects",
+    poster,
+    "poster",
+  ]);
+  for (const edit of [
+    (object: CourseDocument["objects"][number]) => {
+      if (object.visual.shape !== "arc") object.visual.scale.x = 0.841;
+    },
+    (object: CourseDocument["objects"][number]) => {
+      if (object.visual.shape !== "arc") object.visual.scale.z = 0.02;
+    },
+    (object: CourseDocument["objects"][number]) => (object.sign = "A1"),
+  ]) {
+    expect(issuePaths(edit)).toContainEqual(["objects", poster, "poster"]);
+  }
+});
+
 test("serializes the seeds deterministically and round trips without changes", () => {
-  for (const seed of ["rough-course.v11.json", "falls-view-park.v11.json"]) {
+  for (const seed of ["rough-course.v12.json", "falls-view-park.v12.json"]) {
     const source = readFileSync(
       join(process.cwd(), "src/game/course", seed),
       "utf8",
@@ -761,7 +862,7 @@ test("serializes the seeds deterministically and round trips without changes", (
   }
   expect(serializeCourseDocument(ROUGH_COURSE_DOCUMENT)).toBe(
     readFileSync(
-      join(process.cwd(), "src/game/course/rough-course.v11.json"),
+      join(process.cwd(), "src/game/course/rough-course.v12.json"),
       "utf8",
     ),
   );
@@ -794,7 +895,7 @@ test("normalizes version-one course data without mutating the stored input", () 
   expect(withoutDerived(normalized)).toEqual(
     withoutDerived(ROUGH_COURSE_DOCUMENT),
   );
-  expect(normalized.schemaVersion).toBe(11);
+  expect(normalized.schemaVersion).toBe(12);
 });
 
 test("normalizes a valid one-checkpoint version-one course", () => {
@@ -989,7 +1090,7 @@ test("normalizes v2 to standard surfaces without inferring physics from visuals"
   const input = createVersionTwoSeed();
   const stored = structuredClone(input);
   const normalized = parseCourseDocument(input);
-  expect(normalized.schemaVersion).toBe(11);
+  expect(normalized.schemaVersion).toBe(12);
   // Legacy karts keep spawning on the start gate.
   expect(normalized.start.spawnDistance).toBe(0);
   for (const object of normalized.objects) {
@@ -1435,7 +1536,11 @@ test("upgrades v10 unchanged and draws each crowd barrier as one kit in v11", ()
 
 test("letters signs, bevels solids, and draws handwheels in v11 only", () => {
   const objects = FALLS_VIEW_PARK_DOCUMENT.objects;
-  expect(objects.filter((o) => o.sign !== undefined).map((o) => o.sign)).toEqual([
+  // The store room's own signs are its fittings, not the course's.
+  const signs = objects.filter(
+    (o) => o.sign !== undefined && !o.id.startsWith("tunnel-store-room-"),
+  );
+  expect(signs.map((o) => o.sign)).toEqual([
     "1",
     "2",
     "3",

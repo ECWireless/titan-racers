@@ -32,6 +32,10 @@ import {
   getCourseKit,
 } from "./course-kits";
 import { createCourseSignGeometry, type CourseSignGlyphs } from "./course-sign";
+import {
+  createCoursePosterGeometry,
+  type CoursePosterReference,
+} from "./course-posters";
 import { CourseSurfaceResolver } from "./course-surface-resolver";
 import { createCourseTimberGeometry } from "./course-timber";
 import {
@@ -70,7 +74,8 @@ export type CourseObjectProjection = ReturnType<typeof projectCourseObject>;
 // attachment so the complete course batch can be committed atomically. A
 // generated mesh replaces the visual primitive: an arc's surface, a timber
 // box or round with its grain laid along it, a bevelled solid, a handwheel, a
-// sign's lettering, a water surface, or the top face of a thin surface layer.
+// sign's lettering, a poster's print, a water surface, or the top face of a
+// thin surface layer.
 type CourseEntityFactory = (
   projection: CourseObjectProjection,
   material: pc.StandardMaterial,
@@ -89,6 +94,11 @@ type CourseSignFinishes = {
   material(finish: CourseVisualMaterial, indoors: boolean): pc.StandardMaterial;
 };
 
+/** Posters' prints, each its own texture. */
+type CoursePosterFinishes = {
+  material(poster: CoursePosterReference, indoors: boolean): pc.StandardMaterial;
+};
+
 type BuildRoughCourseOptions = {
   createEntity?: CourseEntityFactory;
   document?: CourseDocument;
@@ -99,6 +109,8 @@ type BuildRoughCourseOptions = {
    */
   indoorMaterials?: RoughCourseMaterials | null;
   materials: RoughCourseMaterials;
+  /** Without them, a poster draws as its plain box. */
+  posters?: CoursePosterFinishes;
   /** Without them, a sign draws as its plain box. */
   signs?: CourseSignFinishes;
   topFaces?: CourseTopFaceMeshes;
@@ -158,6 +170,7 @@ export function buildRoughCourse(
     includeCollisionFixtures = false,
     indoorMaterials = null,
     materials,
+    posters,
     signs,
     topFaces,
   }: BuildRoughCourseOptions,
@@ -179,12 +192,20 @@ export function buildRoughCourse(
         const finishes = (object.indoors && indoorMaterials) || materials;
         const indoors = finishes !== materials;
         const lettered = object.sign !== undefined && signs !== undefined;
-        const generated = createCourseObjectMesh(app.graphicsDevice, object, signs);
+        const printed = object.poster !== undefined && posters !== undefined;
+        const generated = createCourseObjectMesh(
+          app.graphicsDevice,
+          object,
+          signs,
+          printed,
+        );
         let entity: pc.Entity;
         try {
           entity = createEntity(
             projection,
-            lettered
+            printed
+              ? posters.material(object.poster!, indoors)
+              : lettered
               ? signs.material(projection.visual.material, indoors)
               : drawsCourseGrassUnlayered(object)
                 ? projection.visual.material === "lawn"
@@ -403,13 +424,15 @@ function addCourseKit(
 
 /**
  * The mesh an object draws in place of its primitive, if any (see
- * CourseEntityFactory). Given `signs`, a sign draws its lettering; its mesh
- * instance frees the mesh on destroy.
+ * CourseEntityFactory). Given `signs`, a sign draws its lettering, and
+ * `printed`, a poster its print; its mesh instance frees the mesh on
+ * destroy.
  */
 function createCourseObjectMesh(
   device: pc.GraphicsDevice,
   object: CourseObject,
   signs?: CourseSignFinishes,
+  printed = false,
 ): CourseObjectMesh | undefined {
   const { visual } = object;
   const solid = (geometry: CourseMeshGeometry) => ({
@@ -422,6 +445,9 @@ function createCourseObjectMesh(
       castShadows: false,
       mesh: createCourseMesh(device, createCourseWaterSurfaceGeometry(visual.scale)),
     };
+  }
+  if (printed) {
+    return { castShadows: false, mesh: createCourseMesh(device, createCoursePosterGeometry()) };
   }
   if (signs && object.sign !== undefined) {
     return {

@@ -25,7 +25,7 @@ own editor commands or persistence UI.
 ## Source Ownership
 
 - `src/game/course/course-document.ts` defines strict Zod legacy schemas and the
-  canonical version-eleven schema, deterministic legacy normalization,
+  canonical version-twelve schema, deterministic legacy normalization,
   cross-document ID and checkpoint-order refinements, gate-face direction
   alignment, canonical sorting, serialization, inferred TypeScript types, and
   validated seed export.
@@ -33,14 +33,14 @@ own editor commands or persistence UI.
   courses with bundled seeds, and the guest solo course (`falls-view-park`)
   explicit; `course-publication.ts`
   validates protected publication and privacy-minimized public runtime shapes.
-- `src/game/course/rough-course.v11.json` is the canonical portable rough-course
+- `src/game/course/rough-course.v12.json` is the canonical portable rough-course
   sandbox seed. It contains the start/finish gate, three ordered checkpoints
   whose gates reach from the infield into the grass, with directed gate and
   recovery data, an infield barrier, ordinary surfaces and objects, camera
   fixtures, and opt-in collision fixtures.
   It permanently restores only course ID `rough-course`; the official
   Falls View Park document uses the distinct ID `falls-view-park`, seeded by
-  `falls-view-park.v11.json`. Its route is the plan's and the visual
+  `falls-view-park.v12.json`. Its route is the plan's and the visual
   identity's to describe (PR 4.4 in
   [the implementation plan](../../../IMPLEMENTATION_PLAN.md);
   [visual identity](../../../docs/visual-identity.md#course-surfaces)). The
@@ -50,7 +50,10 @@ own editor commands or persistence UI.
   the floor of its clearing outside them; its drivable lawn is 20 m tiles,
   0.5 m deep; its storm drain is the narrowest standard culvert every
   official kart fits through; its crowd barriers are kits, each its kick
-  plank; and its levee kicker, centred on the crest in its first quarter,
+  plank; its north tunnel's door 4 hangs on its hinge before a store room
+  that leads nowhere, where The Lucky Lady's poster hangs
+  ([course interactables](../course-interactables/README.md));
+  and its levee kicker, centred on the crest in its first quarter,
   lands the slowest and fastest official karts back on the crest
   (`tests/home.spec.ts`). Course pictures for home's course choice are static
   captures in `public/images/courses/`, mapped in
@@ -139,10 +142,10 @@ own editor commands or persistence UI.
 
 ## Document Contract
 
-Canonical version eleven is strict JSON using metres, Y-up positions, and Euler
+Canonical version twelve is strict JSON using metres, Y-up positions, and Euler
 degrees. It contains:
 
-- literal schema version `11`;
+- literal schema version `12`;
 - a stable course ID and name;
 - one stable start ID, transform (the start/finish gate), bounded start-gate
   half-extents, and a spawn distance (0–10 m) placing the kart behind the gate
@@ -172,7 +175,8 @@ along its local -Z. A course has at most twelve floodlights
 luminaire's housing, with its lens and downward light beneath it, and
 version eight's `lamp: "work"` is the youth's battery work light, hung
 the same way. Tunnel and work lamps are indoor lamps: a course has at most
-twenty (`COURSE_INDOOR_LAMP_LIMIT`; sixteen before version eight), counted
+twenty-four (`COURSE_INDOOR_LAMP_LIMIT`; sixteen before version eight, and
+twenty before version twelve), counted
 apart from the floodlights. Version six also adds `indoors: true`, for objects lit only by
 indoor light (tunnel and work lamps stand indoors, floodlights and street
 lamps outdoors), and
@@ -254,6 +258,20 @@ one that is not a space, painted
 in its finish on the local +Z face of a box at most 10 mm thick with no
 collision, kit, or bevel. Version-ten documents upgrade unchanged.
 
+Version twelve adds `door`, which hangs an upright box colliding as a
+solid box, unturned on it, on a hinge (`course-doors.ts`): `type`, a versioned door type
+(`course-door-types.ts`) giving its mass, latch, and hinge friction;
+`hinge`, its local −X (`left`) or +X (`right`) edge; `opens`, toward its
+local +Z (`front`) or −Z (`back`) face; `stop`, 10–170°; and an optional
+`lamp`, an indoor lamp that no other door names, dark until the door opens.
+`attachedTo` names the door a part is drawn on: it moves with the door and
+never collides. `poster` (a versioned print, `course-posters.ts`) draws
+its print, drawn by code once per page at up to 512 × 768 texels, as one
+quad over a box's local +Z face. The box is in the print's shape within
+2%, at most 10 mm thick, never collides, and is nothing else: not a door,
+lamp, roof, bed, bicycle, kit, or sign, and not bevelled. Each print is
+one texture and one draw. Version-eleven documents upgrade unchanged.
+
 Coordinates and dimensions are finite and bounded to the accepted authoring
 envelope. Unknown fields and unsupported enum values fail rather than being
 silently stripped. The complete document validates before scene construction.
@@ -261,14 +279,16 @@ silently stripped. The complete document validates before scene construction.
 ## Legacy Normalization
 
 Stored revisions are immutable, so `parseCourseDocument` keeps strict
-version-one to version-ten schemas and normalizes them in memory to version
-eleven; canonical serialization and every new save use version eleven. Version
+version-one to version-eleven schemas and normalizes them in memory to
+version twelve; canonical serialization and every new save use version
+twelve. Version
 four allows mirror angles only up to 85° and no lamps, version five no
 indoor, overhead, or arc objects and no tunnel lamps, and version six no
 planting or hedges and at most eight floodlights, and version seven no
 water, gravel, concrete, work lamps, or bicycles and at most sixteen indoor
 lamps, and version eight no street lamps, and version nine no clearing, and
-version ten no kits, kerbs, bevels, or signs; all upgrade unchanged.
+version ten no kits, kerbs, bevels, or signs, and version eleven no doors
+and at most twenty indoor lamps; all upgrade unchanged.
 Version two adds
 `start.gateHalfExtents`, `checkpoints[].forward`, and
 `checkpoints[].recovery`.
@@ -288,7 +308,7 @@ Version two adds
 - Degenerate coincident anchors or directions that cannot identify a face are
   rejected rather than invented.
 - A loaded version-one row is normalized in memory, and its next save creates a
-  new version-eleven revision. Persistence responses report the normalized schema
+  new version-twelve revision. Persistence responses report the normalized schema
   version consistently.
 
 Every legacy collider normalizes to `surface.standard-course@1`, including

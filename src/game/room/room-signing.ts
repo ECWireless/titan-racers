@@ -8,8 +8,10 @@ import {
 } from "./kart-contact";
 import {
   ROOM_CODE_PATTERN,
+  ROOM_DOOR_LIMIT,
   ROOM_MAX_PLAYERS,
   roomCourseIdSchema,
+  roomObjectIdSchema,
   roomPhysicsVersionSchema,
   roomRevisionSchema,
 } from "./room-protocol";
@@ -128,8 +130,8 @@ export const ROOM_COURSE_CHECKPOINT_LIMIT = 16;
 
 /**
  * What the room checks each kart's states against: the course's gates and
- * reset points, as `createRaceSessionConfig` has them, and where each grid
- * slot starts.
+ * reset points, as `createRaceSessionConfig` has them, where each grid
+ * slot starts, and its doors.
  */
 export const roomCourseSchema = z.strictObject({
   lapCount: z.number().int().min(1).max(10),
@@ -145,6 +147,10 @@ export const roomCourseSchema = z.strictObject({
     )
     .min(1)
     .max(ROOM_COURSE_CHECKPOINT_LIMIT),
+  /** Each door's closed centre, which an opener must be near. */
+  doors: z
+    .array(z.strictObject({ id: roomObjectIdSchema, position: vector }))
+    .max(ROOM_DOOR_LIMIT),
 });
 export type RoomCourse = z.infer<typeof roomCourseSchema>;
 

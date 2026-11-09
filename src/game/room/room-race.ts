@@ -14,6 +14,7 @@ import {
   type RoomServerMessage,
 } from "./room-protocol";
 import { OpponentMotion, type OpponentEstimate } from "./opponent-motion";
+import type { RoomDoorOpening } from "./room-doors";
 
 /**
  * What a race canvas needs from its room: the room's clock, its grid slot,
@@ -22,6 +23,8 @@ import { OpponentMotion, type OpponentEstimate } from "./opponent-motion";
  * answers its own kart's contacts with them.
  */
 export type CanvasRoom = {
+  /** This page's seat. */
+  you: string;
   slot: number;
   opponents: Array<{
     id: string;
@@ -59,6 +62,8 @@ export type CanvasRoom = {
   outOfTouch(): boolean;
   /** The room's contact records that arrived since the last call. */
   takeContacts(): RoomContactRecord[];
+  /** The doors opened in the room's race so far. */
+  doorOpenings(): readonly RoomDoorOpening[];
   send(message: RoomClientMessage): void;
 };
 

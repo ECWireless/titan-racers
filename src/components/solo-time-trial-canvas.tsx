@@ -111,6 +111,7 @@ import {
 } from "@/game/enclosure/enclosure-view";
 import { getHabitatLight } from "@/game/enclosure/habitat-light";
 import { getApprovedEnclosure, sceneLux } from "@/game/enclosure/island-three";
+import { addCourseDoors } from "@/game/course/course-doors";
 import { addCourseLamps, courseLampLux } from "@/game/course/course-lamps";
 import {
   addCourseTrees,
@@ -261,7 +262,9 @@ import { kartContactShape } from "@/game/room/kart-contact";
 import { PageContacts } from "@/game/room/page-contacts";
 import { ROOM_CONTACT } from "@/game/room/room-contacts";
 import { roomGridStart } from "@/game/room/room-course";
+import { dueRoomDoorOpenings } from "@/game/room/room-doors";
 import {
+  ROOM_DOOR_SWING_LIMIT,
   ROOM_RACE_LIMIT_MS,
   type RoomClientMessage,
 } from "@/game/room/room-protocol";
@@ -1125,6 +1128,7 @@ export function SoloTimeTrialCanvas({
       } = buildRoughCourse(app, {
         indoorMaterials: courseSurfaces.indoorMaterials,
         materials: courseSurfaces.materials,
+        posters: courseSurfaces.posters,
         signs: courseSurfaces.signs,
         topFaces: courseSurfaces.topFaces,
         document: COURSE_DOCUMENT,
@@ -1143,6 +1147,13 @@ export function SoloTimeTrialCanvas({
           tunnelLampsOn: true,
         }),
       );
+      // Doors swing on their hinges, so they and the parts and lamps they
+      // carry stay out of the static batch.
+      const courseDoors = addCourseDoors(app, COURSE_DOCUMENT, courseEntities);
+      if (courseDoors) runtime.addCleanup(() => courseDoors.destroy());
+      // In a room, the doors open on this page, by its own kart or as the
+      // room's records say another's did.
+      const roomDoorsOpen = new Set<string>();
       const treeMaterials = createCourseTreeMaterials(
         app.graphicsDevice,
         courseSurfaceImages?.leaves ?? null,
@@ -1165,6 +1176,7 @@ export function SoloTimeTrialCanvas({
       );
       courseEntities.forEach((entity, id) => {
         if (obstacleEntities.has(id as CourseTestObstacleId)) return;
+        if (courseDoors?.movingIds.has(id)) return;
         entity.forEach((node) => {
           const visual = (node as pc.Entity).render ?? (node as pc.Entity).model;
           if (visual) visual.batchGroupId = courseBatch.id;
@@ -2815,6 +2827,10 @@ export function SoloTimeTrialCanvas({
           raceStartReported = false;
           lastRaceProgressionResult = { kind: "none" };
           lastRaceAnnouncementResult = { kind: "none" };
+          // Every race starts with its doors shut; a kart's own reset leaves
+          // them as they are.
+          courseDoors?.reset();
+          roomDoorsOpen.clear();
           resetKart();
           runtime.setPaused(false);
           setGamePaused(false);
@@ -2854,6 +2870,7 @@ export function SoloTimeTrialCanvas({
           barrelPhysicsMask: obstacleAEntity?.rigidbody?.mask ?? null,
           barrelPhysicsRestitution:
             obstacleAEntity?.rigidbody?.restitution ?? null,
+          courseDoors: courseDoors?.describe() ?? [],
           courseEntityCount: courseEntities.size,
           directionalLightCount: lightingEntities.size,
           groundCollisionHalfExtentX: ground?.collision?.halfExtents?.x ?? null,
@@ -3386,6 +3403,7 @@ export function SoloTimeTrialCanvas({
           collisionMetrics.maximumPhysicsSubsteps,
           substeps,
         );
+        courseDoors?.setSubstepSeconds(stepSeconds / substeps);
         return substeps;
       });
 
@@ -3624,6 +3642,55 @@ export function SoloTimeTrialCanvas({
         collisionObserver.endStep();
         captureCollisionMetrics();
         captureCameraImpact();
+        // In a room, another page's opening waits until its opener is seen
+        // reaching the door, then swings it as it swung there; one long
+        // past opens it at rest (room-doors.ts).
+        if (ROOM && courseDoors) {
+          const due = dueRoomDoorOpenings(ROOM.doorOpenings(), {
+            applied: roomDoorsOpen,
+            nowUs: raceSession.raceMicroseconds,
+            shownUs: (id) =>
+              id === ROOM.you
+                ? undefined
+                : (ROOM.opponentEstimate(id)?.shownUs ?? null),
+          });
+          for (const { door, swing } of due) {
+            courseDoors.open(door, swing);
+            roomDoorsOpen.add(door);
+          }
+        }
+        // A door's latch and stops sound from where it is, fading with
+        // distance from the kart. One this kart opened goes to the room.
+        for (const event of courseDoors?.step(dt) ?? []) {
+          if (
+            ROOM &&
+            event.kind === "unlatched" &&
+            !event.remote &&
+            !roomDoorsOpen.has(event.id)
+          ) {
+            roomDoorsOpen.add(event.id);
+            ROOM.send({
+              type: "open",
+              door: event.id,
+              t: raceSession.raceMicroseconds,
+              w: Math.min(
+                ROOM_DOOR_SWING_LIMIT,
+                Math.round(event.speed * 100) / 100,
+              ),
+            });
+          }
+          const kartPosition = kart.getPosition();
+          const distance = Math.hypot(
+            event.position.x - kartPosition.x,
+            event.position.y - kartPosition.y,
+            event.position.z - kartPosition.z,
+          );
+          const reach = Math.min(1, 3 / Math.max(distance, 1));
+          raceAudio?.playDoor(
+            event.kind === "unlatched" ? "latch" : "stop",
+            (event.kind === "unlatched" ? 0.7 : Math.min(1, event.speed / 2)) * reach,
+          );
+        }
 
         kartController.postUpdate(latestDrivingInput, dt);
         roomStepsSinceState += 1;

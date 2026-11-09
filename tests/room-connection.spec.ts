@@ -205,6 +205,32 @@ test.describe("the page's room connection", () => {
     connection.close();
   });
 
+  test("resends a door claim the room may have missed among its states, in order", async () => {
+    const connection = await connected(true);
+    const state = (t: number) => ({ type: "state" as const, ...kartAt(t, 0) });
+    const claim = (t: number) =>
+      ({ type: "open", door: "side-door", t, w: 2.5 }) as const;
+    for (let t = 1; t <= 3; t += 1) connection.send(state(t));
+    // Sent before the room's last accepted state, so it arrived.
+    connection.send(claim(2));
+    FakeSocket.sockets[0].drop();
+    for (let t = 4; t <= 6; t += 1) connection.send(state(t));
+    connection.send(claim(5));
+    const socket = await reconnect();
+    // Like states, a claim waits for the room to say what it missed.
+    expect(socket.sent.filter(({ type }) => type === "open")).toEqual([]);
+    socket.receive({ type: "welcome", you: "p1", resume: 3 });
+    const sent = socket.sent.flatMap((message) =>
+      message.type === "states"
+        ? (message.states as Array<{ t: number }>).map(({ t }) => `state ${t}`)
+        : message.type === "open"
+          ? [`open ${message.t}`]
+          : [],
+    );
+    expect(sent).toEqual(["state 4", "state 5", "open 5", "state 6"]);
+    connection.close();
+  });
+
   test("freezing holds its seat, and resuming reconnects once", async () => {
     const connection = await connected(true);
     const [first] = FakeSocket.sockets;

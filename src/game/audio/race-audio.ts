@@ -5,6 +5,7 @@ import {
 } from "./contact-voices";
 import { playCueSound } from "./cue-sounds";
 import {
+  playDoorSound,
   playImpactSound,
   playLandingSound,
   prepareImpactSounds,
@@ -365,6 +366,7 @@ export type RaceAudioDebugState = {
   recordedAsphalt: boolean;
   contextState: string;
   cues: RaceCue[];
+  doors: Array<{ kind: "latch" | "stop"; strength: number }>;
   impacts: Array<{ material: ImpactMaterial; strength: number }>;
   landings: Array<{ strength: number; surface: AudioSurface }>;
   motor: MotorAudioState;
@@ -389,6 +391,8 @@ export type RaceAudioDebugState = {
 export type RaceAudio = {
   getDebugState: () => RaceAudioDebugState;
   playCue: (cue: RaceCue) => void;
+  /** A course door's latch giving or leaf meeting a stop, `strength` 0–1. */
+  playDoor: (kind: "latch" | "stop", strength: number) => void;
   playImpact: (strength: number, material: ImpactMaterial) => void;
   playLanding: (strength: number, surface: AudioSurface) => void;
   /**
@@ -552,6 +556,7 @@ export function createRaceAudio(soundOn: boolean): RaceAudio | null {
   // The generated asphalt plays until the recording arrives, or for good if
   // it cannot load.
   const cues: RaceCue[] = [];
+  const doors: RaceAudioDebugState["doors"] = [];
   const impacts: RaceAudioDebugState["impacts"] = [];
   const landings: RaceAudioDebugState["landings"] = [];
   let wheels: readonly AudioWheel[] = [];
@@ -636,6 +641,7 @@ export function createRaceAudio(soundOn: boolean): RaceAudio | null {
       },
       contextState: context.state,
       cues: [...cues],
+      doors: [...doors],
       impacts: [...impacts],
       landings: [...landings],
       motor,
@@ -654,6 +660,11 @@ export function createRaceAudio(soundOn: boolean): RaceAudio | null {
       }
       remember(cues, cue);
       playCueSound(context, buses.cue, cue, context.currentTime);
+    },
+    playDoor(kind, strength) {
+      if (context.state !== "running") return;
+      remember(doors, { kind, strength });
+      playDoorSound(context, buses.impact, kind, strength, context.currentTime);
     },
     playImpact(strength, material) {
       if (context.state !== "running") return;

@@ -1,6 +1,6 @@
 # Multiplayer Rooms System
 
-**Maturity:** Validated (PRs 6.4–6.6, 2026-11-07).
+**Maturity:** Validated (PRs 6.4–6.6, 2026-11-07; doors, PR 6.9).
 
 ## Purpose And Scope
 
@@ -38,6 +38,8 @@ what a finished room race stores.
   answers to its own kart's touches, the room records it fills in, and who
   is out of touch; `src/game/room/room-contacts.ts`: the room's one record
   per touch, in memory.
+- `src/game/room/room-doors.ts`: when a page opens a door another's kart
+  opened (protocol 4; see [course interactables](../course-interactables/README.md)).
 - `scripts/room-racers.ts` (`pnpm rooms:racers`): local guest racers that
   drive the gate line, for QA.
 - `room-server/`: the Worker and the `Room` Durable Object, transport only,
@@ -136,6 +138,12 @@ what a finished room race stores.
   metal; `?perf=1` counts touching steps, fills, and the slowest step. The
   room keeps records in memory only, so a restart mid-race may record a
   touch in progress twice.
+- Doors (protocol 4): the token's course carries each door's closed
+  centre (at most four). A page sends `open` when its kart breaks a door's
+  latch; the room keeps the race's first claim per door from a racing kart
+  whose last accepted state was within 1.5 m, and the snapshot lists the
+  race's openings. Other pages swing the door once the opener is drawn
+  reaching it, or open it at rest when the opening is long past.
 - A resent batch is checked state by state but stored once, spending one
   write from its own allowance (a burst of 60, refilled at 2 a second, a
   30 s outage's worth), not the live one; others are sent only its states
@@ -200,6 +208,9 @@ what a finished room race stores.
   its connection for a lap gate (`page.routeWebSocket`), and the host
   hearing the guest; and a page pushed at once by a Node rival, with a
   missed touch's record pushed once.
+- `tests/room-doors.spec.ts` and the room door tests in
+  `tests/room-rules.spec.ts`, `tests/room-connection.spec.ts`, and
+  `tests/room-race.spec.ts`: door openings in a room.
 - `tests/admin-overview.spec.ts`: the dashboard's room counts.
 
 ## Related
