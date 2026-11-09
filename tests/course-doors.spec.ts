@@ -202,3 +202,38 @@ test("a hard hit swings it to its stop, and a reset closes and latches it again"
   expect(joint.latched).toBe(true);
   remove();
 });
+
+test("another page's opening swings it to its stop as it swung there, or sets it at rest", () => {
+  // Turned as on the course, so the hinge's world axis is not the leaf's own.
+  const door = body(doorType.mass, new ammo.btBoxShape(new ammo.btVector3(0.5, 1.05, 0.05)), [
+    78.7275, 1.05, -22,
+  ], Math.PI / 2);
+  const joint = hang(door);
+  const run = (seconds: number) => {
+    const events: CourseDoorEvent[] = [];
+    for (let step = 0; step < seconds * 120; step += 1) {
+      world.stepSimulation(1 / 120, 1, 1 / 120);
+      const event = joint.step(1 / 120);
+      if (event) events.push(event);
+    }
+    return events;
+  };
+  joint.open(3);
+  const swing = run(0.05);
+  expect(swing[0]).toEqual({ kind: "unlatched", speed: 3, remote: true });
+  expect(joint.latched).toBe(false);
+  // Its free edge moves at about the given speed, the hinge holding its pin.
+  expect(joint.openAngle).toBeGreaterThan(0.05 * 3 * 0.8);
+  expect(joint.openAngle).toBeLessThan(0.05 * 3 * 1.1);
+  const events = run(2);
+  expect(events.map(({ kind }) => kind)).toContain("stopped");
+  expect(joint.openAngle).toBeGreaterThan(frame.stop - 0.26);
+
+  joint.reset();
+  joint.open(null);
+  expect(joint.latched).toBe(false);
+  expect(run(0.5)).toEqual([]);
+  expect(Math.abs(joint.openAngle - frame.stop)).toBeLessThan(0.02);
+  joint.destroy();
+  world.removeRigidBody(door);
+});

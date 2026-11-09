@@ -10,9 +10,11 @@ import { kartStableIdSchema } from "../kart/kart-assembly-document";
  * a message's shape or meaning changes, then deploy the room server and the
  * app back to back.
  */
-export const ROOM_PROTOCOL = 3;
+export const ROOM_PROTOCOL = 4;
 
 export const ROOM_MAX_PLAYERS = 4;
+/** The most doors a room's course may have. */
+export const ROOM_DOOR_LIMIT = 4;
 export const ROOM_MIN_RACERS = 2;
 /** Entrants have this long to load before the race goes on without them. */
 export const ROOM_LOAD_MS = 30_000;
@@ -122,6 +124,21 @@ const kartStateFields = {
   o: z.literal(true).optional(),
 };
 const kartState = z.strictObject(kartStateFields);
+/** A course object's ID, as course documents spell them. */
+export const roomObjectIdSchema = z
+  .string()
+  .min(1)
+  .max(120)
+  .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/);
+/**
+ * A door this page's kart opened (protocol 4): when, in race time, and how
+ * fast its free edge was swinging (m/s), so other pages swing it alike.
+ */
+const doorOpeningFields = {
+  door: roomObjectIdSchema,
+  t: microseconds,
+  w: z.number().min(0).max(50),
+};
 const triple = (limit: number) =>
   z.tuple([bounded(limit), bounded(limit), bounded(limit)]);
 
@@ -138,6 +155,7 @@ const clientMessageSchema = z.discriminatedUnion("type", [
   }),
   /** This page can't race this race (its course or kart failed). */
   z.strictObject({ type: z.literal("sit_out"), raceId }),
+  z.strictObject({ type: z.literal("open"), ...doorOpeningFields }),
 ]);
 export type RoomClientMessage = z.infer<typeof clientMessageSchema>;
 
@@ -196,6 +214,10 @@ export const roomSnapshotSchema = z.strictObject({
       racingAt: serverTime.nullable(),
       /** When the race will end at the latest, once racing. */
       endsBy: serverTime.nullable(),
+      /** The doors opened this race, each by its first opener, in order. */
+      doors: z
+        .array(z.strictObject({ ...doorOpeningFields, by: playerId }))
+        .max(ROOM_DOOR_LIMIT),
     })
     .nullable(),
   lastRace: z

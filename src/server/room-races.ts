@@ -15,6 +15,7 @@ import {
 import {
   randomRoomPlayerKey,
   ROOM_COURSE_CHECKPOINT_LIMIT,
+  ROOM_COURSE_DOOR_LIMIT,
   roomGuestKey,
   roomKartContact,
   roomPlayerKey,
@@ -61,10 +62,13 @@ export async function issueRoomToken(
     throw new RoomsUnavailableError();
   });
   // A bundled roster means the database is out, so no result could be kept.
-  // A course with more checkpoints than a token carries can't host rooms.
+  // A course with more checkpoints or doors than a token carries can't
+  // host rooms.
   if (
     !publication ||
     publication.document.checkpoints.length > ROOM_COURSE_CHECKPOINT_LIMIT ||
+    publication.document.objects.filter(({ door }) => door).length >
+      ROOM_COURSE_DOOR_LIMIT ||
     roster.source !== "published" ||
     roster.karts.length === 0
   ) {

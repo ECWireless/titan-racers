@@ -75,5 +75,10 @@ export function createRoomCourse(document: CourseDocument): RoomCourse {
       gate: gateGeometry(gate),
       recovery: { position: rounded(recovery.position) },
     })),
+    doors: document.objects.flatMap((object) =>
+      object.door
+        ? [{ id: object.id, position: rounded(object.transform.position) }]
+        : [],
+    ),
   };
 }

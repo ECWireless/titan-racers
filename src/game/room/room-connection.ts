@@ -31,6 +31,7 @@ export type RoomView = {
 
 type KartStateMessage = Extract<RoomClientMessage, { type: "state" }>;
 type RaceNotice = Extract<RoomClientMessage, { type: "loaded" | "sit_out" }>;
+type DoorClaim = Extract<RoomClientMessage, { type: "open" }>;
 
 const INITIAL_PINGS = 5;
 const INITIAL_PING_GAP_MS = 150;
@@ -107,6 +108,11 @@ export class RoomConnection {
   private reconnectAttempt = 0;
   /** This race's states, kept to resend what the room missed. */
   private backlog: KartStateMessage[] = [];
+  /**
+   * This race's door claims, resent among the missed states at their race
+   * times, so the room checks each against where the kart then was.
+   */
+  private claims: DoorClaim[] = [];
   /** Live states wait until the room has said what it missed. */
   private resumed = false;
   /**
@@ -353,6 +359,7 @@ export class RoomConnection {
         // Back too late for the seat: a new one, with nothing to resend.
         if (this.view.you !== null && message.you !== this.view.you) {
           this.backlog = [];
+          this.claims = [];
         }
         if (
           this.raceNotice &&
@@ -390,6 +397,7 @@ export class RoomConnection {
           this.opponents.clear();
           this.contacts = [];
           this.backlog = [];
+          this.claims = [];
         }
         for (const entrant of message.race?.entrants ?? []) {
           if (entrant.left) this.opponents.hide(entrant.id);
@@ -439,12 +447,26 @@ export class RoomConnection {
     const missed = this.backlog
       .filter(({ t }) => t > after)
       .map(({ t, p, q, v, w, s, r, g, o }) => ({ t, p, q, v, w, s, r, g, o }));
-    for (let start = 0; start < missed.length; start += ROOM_RESEND_BATCH) {
-      this.sendNow({
-        type: "states",
-        states: missed.slice(start, start + ROOM_RESEND_BATCH),
-      });
+    // A claim made after the last state the room took may not have reached
+    // it; one before did, ahead of that state. The room ignores a repeat.
+    const claims = this.claims.filter(({ t }) => t > after);
+    const sendStates = (states: typeof missed) => {
+      for (let start = 0; start < states.length; start += ROOM_RESEND_BATCH) {
+        this.sendNow({
+          type: "states",
+          states: states.slice(start, start + ROOM_RESEND_BATCH),
+        });
+      }
+    };
+    let sent = 0;
+    for (const claim of claims) {
+      let end = sent;
+      while (end < missed.length && missed[end].t <= claim.t) end += 1;
+      sendStates(missed.slice(sent, end));
+      sent = end;
+      this.sendNow(claim);
     }
+    sendStates(missed.slice(sent));
   }
 
   /**
@@ -460,7 +482,16 @@ export class RoomConnection {
       if (this.backlog.length > BACKLOG_LIMIT) this.backlog.shift();
       if (!this.resumed) return;
     }
+    if (message.type === "open") {
+      this.claims.push(message);
+      if (!this.resumed) return;
+    }
     this.sendNow(message);
+  }
+
+  /** The doors opened in the room's race so far, as its snapshot has them. */
+  doorOpenings() {
+    return this.view.room?.race?.doors ?? [];
   }
 
   private sendNow(message: RoomClientMessage) {

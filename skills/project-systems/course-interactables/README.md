@@ -27,6 +27,10 @@ sound, light, or reset.
   course and its lamps are built, keeps them out of the static batch, sets
   their hinge friction from each step's substeps, plays their events, and
   closes them on Restart and Race again.
+- `src/game/room/room-doors.ts`: when a page applies another's opening;
+  `room-rules.ts` keeps each door's first claim, `room-protocol.ts` carries
+  the claim (`open`) and the race's openings, and `room-connection.ts`
+  resends a claim with the states the room missed (protocol 4).
 - `src/game/course/falls-view-park.v12.json`: door 4, its parts, and the
   store room.
 - `src/game/course/course-posters.ts` and `posters/lucky-lady.ts`: the
@@ -83,6 +87,19 @@ sound, light, or reset.
   asteroids in G. K. O'Neill's The High Frontier (1976), drawn here as
   Island Three's send-off print. The room's design won a Claude-vs-Codex contest judged by
   the lead.
+- In a room (protocol 4), the page whose kart breaks a latch has the door
+  open at once and sends `open`: the door, the step's race time, and its
+  free edge's speed. The room keeps a race's first claim per door, if the
+  claimant is racing and its last accepted state was within 1.5 m of the
+  door's closed centre across the ground, and lists the race's openings in
+  its snapshot, so a returning page finds them. A claim made while the
+  connection is down is resent in order among the missed states, so the
+  room checks it against where the kart then was. Every other page swings
+  the door at that speed once the opener, as drawn there, reaches the
+  claim's race time, so the hit is seen first; an opening 1.5 s past, or
+  whose opener isn't drawn, opens at rest on its stop, lamp lit and
+  silent. After that each page's door answers only its own kart. A room's
+  course carries at most four doors.
 - Doors close at a race's start (the course is built closed), on Restart,
   and on Race again (`courseDoors.reset()` in `restartRace`). A kart's own
   reset or recovery leaves them as they are.
@@ -97,6 +114,13 @@ sound, light, or reset.
 - `tests/course-document.spec.ts`: the schema's door, lamp, and part rules.
 - `tests/home.spec.ts` ("opens tunnel door 4 to a hard hit"): a kart driven
   into door 4 in a race opens it and lights the store room.
+- `tests/room-rules.spec.ts` ("room doors"), `tests/room-doors.spec.ts`,
+  `tests/room-connection.spec.ts`, and `tests/course-doors.spec.ts`: the
+  room's first plausible claim, when a page applies another's, a claim's
+  resend, and a remote swing and rest on real Ammo.
+- `tests/room-race.spec.ts` (the two door tests): a page's kart opens door
+  4 and the room keeps it; a rival's opening swings the page's door with
+  its clack.
 
 ## Known Limits
 

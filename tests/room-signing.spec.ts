@@ -13,6 +13,7 @@ import {
   randomRoomPlayerKey,
   readRoomToken,
   ROOM_COURSE_CHECKPOINT_LIMIT,
+  ROOM_COURSE_DOOR_LIMIT,
   RoomTokenTooLongError,
   ROOM_REPORT_WINDOW_MS,
   ROOM_TOKEN_CLOCK_SKEW_MS,
@@ -131,12 +132,21 @@ test.describe("room tokens", () => {
 });
 
 test.describe("room courses", () => {
-  test("fit a token at the most checkpoints a room allows", async () => {
+  test("fit a token at the most checkpoints and doors a room allows", async () => {
     const [checkpoint] = FALLS_VIEW_PARK_DOCUMENT.checkpoints;
     // Far out and turned every way, so every number is long.
     const awkward = (index: number) => -9_876.543_21 + index / 7;
+    const door = FALLS_VIEW_PARK_DOCUMENT.objects.find(({ door }) => door)!;
     const largest = createRoomCourse({
       ...FALLS_VIEW_PARK_DOCUMENT,
+      objects: Array.from({ length: ROOM_COURSE_DOOR_LIMIT }, (_, index) => ({
+        ...door,
+        id: `utility-tunnel-store-room-door-${index}`,
+        transform: {
+          ...door.transform,
+          position: { x: awkward(index), y: awkward(-index), z: awkward(index) },
+        },
+      })),
       checkpoints: Array.from(
         { length: ROOM_COURSE_CHECKPOINT_LIMIT },
         (_, index) => ({
@@ -171,7 +181,9 @@ test.describe("room courses", () => {
     }
     // With every number at full length, a course is too long for a URL.
     const lengthen = (value: unknown): unknown =>
-      typeof value === "number"
+      typeof value === "string"
+        ? value
+        : typeof value === "number"
         ? Math.abs(value) <= 1.01
           ? -0.123_456_789_012_345_67
           : -9_999.123_456_789_012

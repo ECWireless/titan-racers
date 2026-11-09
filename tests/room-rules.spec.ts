@@ -617,6 +617,63 @@ test.describe("room racing", () => {
   });
 });
 
+test.describe("room doors", () => {
+  // The test course's door stands at x 20, 1 m off the line.
+  const second = (at: number) => RACING_AT + at / 1_000 + 50;
+  const open = (playerId: string, now: number, t: number, door = "side-door") =>
+    ({ type: "open", now, playerId, claim: { door, t, w: 2.5 } }) satisfies RoomEvent;
+  const near = (playerId: string, state = racing(2)) =>
+    run(state, stateEvent(playerId, second(1e6), kartAt(1e6, 19.5))).state;
+
+  test("keep a door's first claim from a racing kart near it", () => {
+    expect(roomSnapshot(racing(2)).race?.doors).toEqual([]);
+    // Not yet racing, or with no accepted state, nothing opens.
+    const loading = run(lobby(2), {
+      type: "start",
+      now: 2_000,
+      playerId: "p1",
+      raceId: RACE,
+    }).state;
+    expect(run(loading, open("p1", 2_500, 0)).changed).toBe(false);
+    expect(run(racing(2), open("p1", second(1e6), 1e6)).changed).toBe(false);
+    // From afar, of a door the course hasn't, or ahead of the room's clock.
+    const far = run(racing(2), stateEvent("p1", second(1e6), kartAt(1e6, 10)));
+    expect(run(far.state, open("p1", second(1.1e6), 1.1e6)).changed).toBe(false);
+    expect(
+      run(near("p1"), open("p1", second(1.1e6), 1.1e6, "back-door")).changed,
+    ).toBe(false);
+    expect(run(near("p1"), open("p1", second(1e6), 1.5e6)).changed).toBe(false);
+
+    const opened = run(near("p1"), open("p1", second(1.02e6), 1.02e6));
+    expect(opened.changed).toBe(true);
+    const doors = [{ door: "side-door", t: 1.02e6, w: 2.5, by: "p1" }];
+    expect(roomSnapshot(opened.state).race?.doors).toEqual(doors);
+    expect(
+      parseServerMessage(JSON.stringify(roomSnapshot(opened.state))),
+    ).not.toBeNull();
+    // A later claim, even from a kart beside it, changes nothing.
+    const again = run(
+      near("p2", opened.state),
+      open("p2", second(1.05e6), 1.05e6),
+    );
+    expect(again.changed).toBe(false);
+    expect(roomSnapshot(again.state).race?.doors).toEqual(doors);
+  });
+
+  test("parse a claim strictly", () => {
+    const claim = { type: "open", door: "tunnel-door-4", t: 1_000, w: 3.2 };
+    expect(parseClientMessage(JSON.stringify(claim))).toEqual(claim);
+    for (const bad of [
+      { ...claim, door: "Tunnel Door" },
+      { ...claim, w: -1 },
+      { ...claim, t: -5 },
+      { ...claim, by: "p1" },
+    ]) {
+      expect(parseClientMessage(JSON.stringify(bad))).toBeNull();
+    }
+  });
+});
+
 test.describe("dropped connections", () => {
   test("hold a seat for 30 s, hosted meanwhile by the next connected", () => {
     let state = run(lobby(2), { type: "disconnect", now: 5_000, playerId: "p1" })

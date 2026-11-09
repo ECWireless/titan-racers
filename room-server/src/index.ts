@@ -202,6 +202,10 @@ function eventFor(
       return { type: "loaded", now, playerId, raceId: message.raceId };
     case "sit_out":
       return { type: "sit_out", now, playerId, raceId: message.raceId };
+    case "open": {
+      const { door, t, w } = message;
+      return { type: "open", now, playerId, claim: { door, t, w } };
+    }
   }
 }
 

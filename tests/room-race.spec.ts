@@ -27,6 +27,7 @@ import {
 } from "../src/game/room/room-signing";
 import type { RaceAudioDebugState } from "../src/game/audio/race-audio";
 import type {
+  CollisionDebugState,
   KartDebugState,
   RaceDebugState,
 } from "../src/game/testing/scene-test-adapter";
@@ -637,6 +638,187 @@ test("a kart is pushed at once by another, and a touch it missed once", async ({
       (pushed.x - reached.x) * ahead.x + (pushed.z - reached.z) * ahead.z;
     const length = 2 * roomKartContact(KART_SNAPSHOT).box[5];
     expect(gap).toBeGreaterThan(length - 0.03);
+  } finally {
+    rival?.leave();
+    await context.close();
+  }
+});
+
+/**
+ * A page racing a room against a Node rival, from the lobby to racing, its
+ * scene drawn so its opponents are shown. Returns what the door tests need.
+ */
+async function racingAgainstRival(page: Page, code: string) {
+  await joinAs(page, code, "ada");
+  await expect(page.getByRole("heading", { name: "Private room" })).toBeVisible();
+  const rival = await Rival.join(code);
+  rival.send({ type: "choose_kart", kartId: KART.kartId });
+  await page.getByRole("button", { name: /Balanced Kart/ }).click();
+  await page.getByRole("button", { name: "Start race" }).click();
+  const loading = (await rival.next(
+    (message) => message.type === "room" && message.phase === "loading",
+  )) as Extract<RoomServerMessage, { type: "room" }>;
+  rival.send({ type: "loaded", raceId: loading.race!.id });
+  const canvas = page.getByTestId("solo-time-trial-canvas");
+  await expect(canvas).toHaveAttribute("data-scene-ready", "true", {
+    timeout: 120_000,
+  });
+  await expect
+    .poll(
+      async () => {
+        const { state } = await raceState(canvas);
+        if (state === "paused") {
+          await page.getByRole("button", { name: "Resume" }).click();
+        }
+        return state;
+      },
+      { timeout: 60_000 },
+    )
+    .toBe("racing");
+  const racing = (await rival.next(
+    (message) => message.type === "room" && message.race?.racingAt != null,
+  )) as Extract<RoomServerMessage, { type: "room" }>;
+  return { canvas, racingAt: racing.race!.racingAt!, rival };
+}
+
+async function doorState(canvas: Locator, id: string) {
+  const doors = await canvas.evaluate(
+    (element) =>
+      new Promise<CollisionDebugState["courseDoors"]>((resolve) => {
+        element.dispatchEvent(
+          new CustomEvent("getCollisionDebugState", {
+            detail: {
+              respond: (state: CollisionDebugState) => resolve(state.courseDoors),
+            },
+          }),
+        );
+      }),
+  );
+  return doors.find((door) => door.id === id)!;
+}
+
+const DOOR = COURSE.objects.find(({ id }) => id === "tunnel-door-4")!;
+// In the tunnel, 0.6 m out from door 4's latch half, across the ground.
+const BY_DOOR = {
+  x: DOOR.transform.position.x + 0.6,
+  z: DOOR.transform.position.z - 0.25,
+};
+// The room's 30 m/s check allows the drive from the grid to the door.
+const DOOR_TRAVEL_MS =
+  (Math.hypot(
+    BY_DOOR.x - COURSE.start.position.x,
+    BY_DOOR.z - COURSE.start.position.z,
+  ) /
+    20) *
+  1_000;
+
+test("a kart that opens a door tells the room, which keeps the opening", async ({
+  browser,
+}) => {
+  test.setTimeout(240_000);
+  const code = createRoomCode();
+  const context = await browser.newContext({ viewport: { width: 480, height: 320 } });
+  const page = await context.newPage();
+  let rival: Rival | null = null;
+  try {
+    const race = await racingAgainstRival(page, code);
+    rival = race.rival;
+    const { canvas } = race;
+    const { y } = await kartState(canvas);
+    const pose = (speed: number) =>
+      canvas.evaluate(
+        (element, detail) =>
+          element.dispatchEvent(new CustomEvent("setKartDebugPose", { detail })),
+        {
+          pose: {
+            linearVelocity: { x: -speed, y: 0, z: 0 },
+            position: { x: BY_DOOR.x, y, z: BY_DOOR.z },
+            // Facing −X, at the door.
+            rotation: { x: 0, y: 90, z: 0 },
+          },
+        },
+      );
+    // Paused while it "drives" there, the page sends no states; then the
+    // room hears it by the door, at the time it arrived.
+    await step(canvas);
+    await page.waitForTimeout(DOOR_TRAVEL_MS);
+    await pose(0);
+    await step(canvas);
+    await page.waitForTimeout(100);
+    await step(canvas);
+    await page.waitForTimeout(100);
+    // A square hit at 9 m/s on the latch half breaks the latch.
+    await pose(9);
+    await canvas.evaluate((element) =>
+      element.dispatchEvent(
+        new CustomEvent("stepSimulation", { detail: { steps: 120 } }),
+      ),
+    );
+    expect(await doorState(canvas, DOOR.id)).toMatchObject({
+      latched: false,
+      lampLit: true,
+    });
+    const opened = (await rival.next(
+      (message) => message.type === "room" && (message.race?.doors.length ?? 0) > 0,
+    )) as Extract<RoomServerMessage, { type: "room" }>;
+    expect(opened.race!.doors).toEqual([
+      expect.objectContaining({ door: DOOR.id, by: "p1" }),
+    ]);
+  } finally {
+    rival?.leave();
+    await context.close();
+  }
+});
+
+test("another's opening swings the door once its opener is shown reaching it", async ({
+  browser,
+}) => {
+  test.setTimeout(240_000);
+  const code = createRoomCode();
+  const context = await browser.newContext({ viewport: { width: 480, height: 320 } });
+  const page = await context.newPage();
+  let rival: Rival | null = null;
+  try {
+    const race = await racingAgainstRival(page, code);
+    rival = race.rival;
+    const { canvas, racingAt } = race;
+    const { y } = await kartState(canvas);
+    // The rival drives to the door as fast as the room allows...
+    await page.waitForTimeout(DOOR_TRAVEL_MS);
+    const send = () => {
+      const t = rival!.raceMicroseconds(racingAt);
+      rival!.send({
+        type: "state",
+        t,
+        p: [BY_DOOR.x, y, BY_DOOR.z].map((value) => Math.round(value * 1_000) / 1_000),
+        q: [0, 0.7071, 0, 0.7071],
+        v: [0, 0, 0],
+        w: [0, 0, 0],
+        s: 0,
+        r: false,
+      });
+      return t;
+    };
+    for (let index = 0; index < 10; index += 1) {
+      send();
+      await page.waitForTimeout(33);
+    }
+    expect((await doorState(canvas, DOOR.id)).latched).toBe(true);
+    // ...and opens it, waiting there.
+    rival.send({ type: "open", door: DOOR.id, t: send(), w: 3 });
+    for (let index = 0; index < 45; index += 1) {
+      send();
+      await page.waitForTimeout(33);
+    }
+    await expect
+      .poll(async () => (await doorState(canvas, DOOR.id)).latched)
+      .toBe(false);
+    const door = await doorState(canvas, DOOR.id);
+    expect(door.lampLit).toBe(true);
+    // It swung, as the opener's hit swung it, with its latch's clack.
+    expect((await audioState(canvas))?.doors.map(({ kind }) => kind)).toContain(
+      "latch",
+    );
   } finally {
     rival?.leave();
     await context.close();

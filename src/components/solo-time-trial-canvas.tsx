@@ -262,6 +262,7 @@ import { kartContactShape } from "@/game/room/kart-contact";
 import { PageContacts } from "@/game/room/page-contacts";
 import { ROOM_CONTACT } from "@/game/room/room-contacts";
 import { roomGridStart } from "@/game/room/room-course";
+import { dueRoomDoorOpenings } from "@/game/room/room-doors";
 import {
   ROOM_RACE_LIMIT_MS,
   type RoomClientMessage,
@@ -1149,6 +1150,9 @@ export function SoloTimeTrialCanvas({
       // carry stay out of the static batch.
       const courseDoors = addCourseDoors(app, COURSE_DOCUMENT, courseEntities);
       if (courseDoors) runtime.addCleanup(() => courseDoors.destroy());
+      // In a room, the doors open on this page, by its own kart or as the
+      // room's records say another's did.
+      const roomDoorsOpen = new Set<string>();
       const treeMaterials = createCourseTreeMaterials(
         app.graphicsDevice,
         courseSurfaceImages?.leaves ?? null,
@@ -2825,6 +2829,7 @@ export function SoloTimeTrialCanvas({
           // Every race starts with its doors shut; a kart's own reset leaves
           // them as they are.
           courseDoors?.reset();
+          roomDoorsOpen.clear();
           resetKart();
           runtime.setPaused(false);
           setGamePaused(false);
@@ -3636,9 +3641,40 @@ export function SoloTimeTrialCanvas({
         collisionObserver.endStep();
         captureCollisionMetrics();
         captureCameraImpact();
+        // In a room, another page's opening waits until its opener is seen
+        // reaching the door, then swings it as it swung there; one long
+        // past opens it at rest (room-doors.ts).
+        if (ROOM && courseDoors) {
+          const due = dueRoomDoorOpenings(ROOM.doorOpenings(), {
+            applied: roomDoorsOpen,
+            nowUs: raceSession.raceMicroseconds,
+            shownUs: (id) =>
+              ROOM.opponents.some((opponent) => opponent.id === id)
+                ? (ROOM.opponentEstimate(id)?.shownUs ?? null)
+                : undefined,
+          });
+          for (const { door, swing } of due) {
+            courseDoors.open(door, swing);
+            roomDoorsOpen.add(door);
+          }
+        }
         // A door's latch and stops sound from where it is, fading with
-        // distance from the kart.
+        // distance from the kart. One this kart opened goes to the room.
         for (const event of courseDoors?.step(dt) ?? []) {
+          if (
+            ROOM &&
+            event.kind === "unlatched" &&
+            !event.remote &&
+            !roomDoorsOpen.has(event.id)
+          ) {
+            roomDoorsOpen.add(event.id);
+            ROOM.send({
+              type: "open",
+              door: event.id,
+              t: raceSession.raceMicroseconds,
+              w: Math.min(50, Math.round(event.speed * 100) / 100),
+            });
+          }
           const kartPosition = kart.getPosition();
           const distance = Math.hypot(
             event.position.x - kartPosition.x,

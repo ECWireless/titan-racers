@@ -205,6 +205,7 @@ export function RoomPlay({ code }: { code: string }) {
             opponentStats: () => connection.opponents.stats(),
             outOfTouch: () => connection.outOfTouch(),
             takeContacts: () => connection.takeContacts(),
+            doorOpenings: () => connection.doorOpenings(),
             send: (message) => connection.send(message),
           },
         });

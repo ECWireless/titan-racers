@@ -119,8 +119,11 @@ export function getCourseDoorFrame(
 }
 
 export type CourseDoorEvent =
-  /** The latch gave; `speed` is the free edge's, m/s. */
-  | { kind: "unlatched"; speed: number }
+  /**
+   * The latch gave; `speed` is the free edge's, m/s. `remote` when another
+   * page's kart opened it (`open`).
+   */
+  | { kind: "unlatched"; speed: number; remote?: true }
   /** The leaf met its open stop or its frame. */
   | { kind: "stopped"; speed: number };
 
@@ -133,6 +136,8 @@ export class CourseDoorJoint {
   private angle = 0;
   private atStop = true;
   private speed = 0;
+  /** An opening `open` set swinging, reported on the next step. */
+  private pending: CourseDoorEvent | null = null;
 
   constructor(
     private readonly ammo: AmmoDoorApi,
@@ -214,7 +219,8 @@ export class CourseDoorJoint {
     const previous = this.angle;
     this.angle = this.hinge.getHingeAngle();
     const speed = (Math.abs(this.angle - previous) / stepSeconds) * this.frame.width;
-    let event: CourseDoorEvent | null = null;
+    let event: CourseDoorEvent | null = this.pending;
+    this.pending = null;
     if (this.latch && this.angle > UNLATCHED_ANGLE) {
       // A broken constraint can't be re-enabled here; it is replaced on reset.
       this.removeLatch();
@@ -231,8 +237,66 @@ export class CourseDoorJoint {
     return event;
   }
 
+  /**
+   * Opens the door as another page's kart did: its latch gone, and its leaf
+   * swinging open with its free edge at `swing` m/s, or at rest on its stop
+   * (null). A latched door only; a swing reports its unlatching next step.
+   */
+  open(swing: number | null) {
+    if (!this.latch) return;
+    this.removeLatch();
+    const origin = this.closed.getOrigin();
+    const turn = this.closed.getRotation();
+    const closed = { w: turn.w(), x: turn.x(), y: turn.y(), z: turn.z() };
+    const at = { x: origin.x(), y: origin.y(), z: origin.z() };
+    // Opening turns the leaf positively about this world axis, at its pin.
+    const axis = rotate(closed, { x: 0, y: this.frame.axis, z: 0 });
+    const offset = rotate(closed, this.frame.hinge);
+    const pin = { x: at.x + offset.x, y: at.y + offset.y, z: at.z + offset.z };
+    const arm = { x: at.x - pin.x, y: at.y - pin.y, z: at.z - pin.z };
+    const { body } = this;
+    if (swing === null) {
+      const half = this.frame.stop / 2;
+      const sin = Math.sin(half);
+      const opening = { w: Math.cos(half), x: axis.x * sin, y: axis.y * sin, z: axis.z * sin };
+      const moved = rotate(opening, arm);
+      const pose = transform(
+        this.ammo,
+        { x: pin.x + moved.x, y: pin.y + moved.y, z: pin.z + moved.z },
+        multiply(opening, closed),
+      );
+      body.setWorldTransform(pose);
+      body.setInterpolationWorldTransform(pose);
+      body.getMotionState().setWorldTransform(pose);
+      this.ammo.destroy(pose);
+      this.withVector(0, 0, 0, (zero) => {
+        body.setLinearVelocity(zero);
+        body.setAngularVelocity(zero);
+        body.setInterpolationLinearVelocity(zero);
+        body.setInterpolationAngularVelocity(zero);
+      });
+      this.angle = this.frame.stop;
+      this.atStop = true;
+      this.speed = 0;
+    } else {
+      const rate = swing / this.frame.width;
+      const spin = { x: axis.x * rate, y: axis.y * rate, z: axis.z * rate };
+      this.withVector(spin.x, spin.y, spin.z, (vector) => body.setAngularVelocity(vector));
+      // The leaf's centre swings about the pin: spin × arm.
+      this.withVector(
+        spin.y * arm.z - spin.z * arm.y,
+        spin.z * arm.x - spin.x * arm.z,
+        spin.x * arm.y - spin.y * arm.x,
+        (vector) => body.setLinearVelocity(vector),
+      );
+      this.pending = { kind: "unlatched", speed: swing, remote: true };
+    }
+    body.activate(true);
+  }
+
   /** Closes and latches the door, at rest. */
   reset() {
+    this.pending = null;
     this.removeLatch();
     const { body } = this;
     body.setWorldTransform(this.closed);
@@ -340,6 +404,11 @@ export type CourseDoors = {
   setSubstepSeconds(seconds: number): void;
   /** After each fixed step: what each door did. */
   step(stepSeconds: number): CourseDoorStep[];
+  /**
+   * Opens a latched door as another page's kart did, swinging (free edge,
+   * m/s) or at rest on its stop (null), and lights its lamp.
+   */
+  open(id: string, swing: number | null): void;
   /** Every door closed and latched, its lamp dark: a race's start. */
   reset(): void;
   destroy(): void;
@@ -453,6 +522,12 @@ export function addCourseDoors(
         const { x, y, z } = body.getPosition();
         return [{ ...event, id, position: { x, y, z } }];
       });
+    },
+    open(id, swing) {
+      const door = hung.find((candidate) => candidate.id === id);
+      if (!door?.joint.latched) return;
+      door.joint.open(swing);
+      door.light(true);
     },
     reset() {
       hung.forEach(({ joint, light }) => {

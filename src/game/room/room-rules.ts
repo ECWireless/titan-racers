@@ -20,6 +20,7 @@ import {
   type RoomRaceReport,
   type RoomSnapshot,
 } from "./room-protocol";
+import type { RoomDoorOpening } from "./room-doors";
 import type {
   RoomCourse,
   RoomKartContact,
@@ -43,6 +44,12 @@ import type {
  * the page's estimate of that clock is off by up to half a round trip.
  */
 const ROOM_CLOCK_SLACK_US = 250_000;
+/**
+ * A door's opener's last accepted state is at most this far from the door's
+ * closed centre, across the ground: a kart's length past its leaf, and a
+ * state's interval of driving.
+ */
+export const ROOM_DOOR_REACH_METRES = 1.5;
 
 type RoomKart = RoomToken["karts"][number];
 export type RoomKartState = Omit<
@@ -107,9 +114,13 @@ export type RoomState = {
     loadDeadline: number;
     racingAt: number | null;
     firstFinishAt: number | null;
+    /** Doors opened this race, each by its first plausible claim. */
+    doors: RoomDoorOpening[];
   } | null;
   lastRace: RoomSnapshot["lastRace"];
 };
+
+type RoomDoorClaim = Omit<Extract<RoomClientMessage, { type: "open" }>, "type">;
 
 export type RoomEvent =
   | { type: "join"; now: number; token: RoomToken }
@@ -120,7 +131,8 @@ export type RoomEvent =
   | { type: "choose_kart"; now: number; playerId: string; kartId: string }
   | { type: "start"; now: number; playerId: string; raceId: string }
   | { type: "loaded"; now: number; playerId: string; raceId: string }
-  | { type: "state"; now: number; playerId: string; state: RoomKartState };
+  | { type: "state"; now: number; playerId: string; state: RoomKartState }
+  | { type: "open"; now: number; playerId: string; claim: RoomDoorClaim };
 
 export type RoomOutcome = {
   state: RoomState;
@@ -241,6 +253,9 @@ export function applyRoomEvent(
       break;
     case "state":
       changed = kartState(outcome, event);
+      break;
+    case "open":
+      changed = openDoor(state, event);
       break;
     case "tick":
       break;
@@ -396,6 +411,7 @@ function start(
     loadDeadline: now + ROOM_LOAD_MS,
     racingAt: null,
     firstFinishAt: null,
+    doors: [],
   };
   state.lastRace = null;
   return true;
@@ -407,6 +423,39 @@ function loaded(state: RoomState, playerId: string, raceId: string) {
     return false;
   }
   entrant.loaded = true;
+  return true;
+}
+
+/**
+ * A door's first opening this race counts, if its claimant is racing and
+ * its last accepted state was near the door: a later claim, or one from
+ * afar, changes nothing. Returns whether the snapshot changed.
+ */
+function openDoor(
+  state: RoomState,
+  event: { now: number; playerId: string; claim: RoomDoorClaim },
+) {
+  const race = state.race;
+  if (!race || race.racingAt === null) return false;
+  const { door, t, w } = event.claim;
+  const entrant = race.entrants.find(({ id }) => id === event.playerId);
+  const position = state.course.doors.find(({ id }) => id === door)?.position;
+  if (
+    !entrant?.loaded ||
+    entrant.left ||
+    !entrant.last ||
+    !position ||
+    race.doors.some((opening) => opening.door === door)
+  ) {
+    return false;
+  }
+  const roomMicroseconds = Math.max(0, event.now - race.racingAt) * 1_000;
+  if (t > roomMicroseconds + ROOM_CLOCK_SLACK_US) return false;
+  const { x, z } = entrant.last.position;
+  if (Math.hypot(x - position.x, z - position.z) > ROOM_DOOR_REACH_METRES) {
+    return false;
+  }
+  race.doors.push({ door, t, w, by: entrant.id });
   return true;
 }
 
@@ -667,6 +716,7 @@ export function roomSnapshot(state: RoomState): RoomSnapshot {
         race.racingAt === null
           ? null
           : raceEndsBy(race.racingAt, race.firstFinishAt),
+      doors: race.doors,
     },
     lastRace: state.lastRace,
   };
