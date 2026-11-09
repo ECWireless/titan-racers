@@ -83,15 +83,46 @@ function body(
   return rigid;
 }
 
+/**
+ * Door 4's body as PlayCanvas builds it for a leaf at `leaf`, turned `yaw`
+ * about up: its box collider, at the collider's offset from the leaf.
+ */
+function doorBody(leaf: [number, number, number], yaw = 0) {
+  const { x, y, z } = doorCollision.halfExtents;
+  const offset = doorCollision.offset.position;
+  return body(
+    doorType.mass,
+    new ammo.btBoxShape(new ammo.btVector3(x, y, z)),
+    [
+      leaf[0] + offset.x * Math.cos(yaw) + offset.z * Math.sin(yaw),
+      leaf[1] + offset.y,
+      leaf[2] - offset.x * Math.sin(yaw) + offset.z * Math.cos(yaw),
+    ],
+    yaw,
+  );
+}
+
+/** Where a point on the leaf, in the leaf's own frame, is in the world. */
+function onLeaf(door: any, point: { x: number; y: number; z: number }) {
+  const pose = door.getWorldTransform();
+  const at = pose.getOrigin();
+  const q = pose.getRotation();
+  const offset = doorCollision.offset.position;
+  const v = { x: point.x - offset.x, y: point.y - offset.y, z: point.z - offset.z };
+  const [w, qx, qy, qz] = [q.w(), q.x(), q.y(), q.z()];
+  const cx = qy * v.z - qz * v.y;
+  const cy = qz * v.x - qx * v.z;
+  const cz = qx * v.y - qy * v.x;
+  return {
+    x: at.x() + v.x + 2 * (w * cx + qy * cz - qz * cy),
+    y: at.y() + v.y + 2 * (w * cy + qz * cx - qx * cz),
+    z: at.z() + v.z + 2 * (w * cz + qx * cy - qy * cx),
+  };
+}
+
 /** A hung door 4, and a kart that drives into it square at `x` across it. */
 function scene() {
-  const shape = new ammo.btCompoundShape();
-  const offset = new ammo.btTransform();
-  offset.setIdentity();
-  offset.setOrigin(new ammo.btVector3(0, 0, doorCollision.offset.position.z));
-  const { x, y, z } = doorCollision.halfExtents;
-  shape.addChildShape(offset, new ammo.btBoxShape(new ammo.btVector3(x, y, z)));
-  const door = body(doorType.mass, shape, [0, 0, 0]);
+  const door = doorBody([0, 0, 0]);
   door.setFriction(0.5);
   const joint = hang(door);
   const kart = body(KART.mass, new ammo.btBoxShape(new ammo.btVector3(...KART.halfExtents)), [
@@ -143,14 +174,15 @@ function scene() {
 test("door 4 is a worn steel door hung on its north edge, opening into the store room", () => {
   expect(doorType).toEqual({ hingeFriction: 2, latchImpulse: 5.5, mass: 40 });
   expect(frame).toMatchObject({ axis: 1, stop: Math.PI / 2, width: 1 });
-  expect(frame.hinge).toEqual({ x: -0.5, y: 0, z: -0.0225 });
+  // The leaf's hinge edge on its back face, in its body's frame: 27.5 mm
+  // behind the leaf, where its collider sits.
+  expect(frame.hinge.x).toBe(-0.5);
+  expect(frame.hinge.z).toBeCloseTo(-0.0225 + 0.0275, 9);
 });
 
 test("a door turned on the course hangs closed and latched", () => {
   // Door 4 is turned 90° about the habitat's up, as on the course.
-  const door = body(doorType.mass, new ammo.btBoxShape(new ammo.btVector3(0.5, 1.05, 0.05)), [
-    78.7275, 1.05, -22,
-  ], Math.PI / 2);
+  const door = doorBody([78.7275, 1.05, -22], Math.PI / 2);
   const joint = hang(door);
   for (let step = 0; step < 60; step += 1) {
     world.stepSimulation(1 / 120, 1, 1 / 120);
@@ -205,10 +237,17 @@ test("a hard hit swings it to its stop, and a reset closes and latches it again"
 
 test("another page's opening swings it to its stop as it swung there, or sets it at rest", () => {
   // Turned as on the course, so the hinge's world axis is not the leaf's own.
-  const door = body(doorType.mass, new ammo.btBoxShape(new ammo.btVector3(0.5, 1.05, 0.05)), [
-    78.7275, 1.05, -22,
-  ], Math.PI / 2);
+  const door = doorBody([78.7275, 1.05, -22], Math.PI / 2);
   const joint = hang(door);
+  // The leaf's hinge edge stays where it is drawn as the leaf turns.
+  const edge = { x: -0.5, y: 0.8, z: -0.0225 };
+  const hingeEdge = onLeaf(door, edge);
+  const stays = () => {
+    const now = onLeaf(door, edge);
+    expect(
+      Math.hypot(now.x - hingeEdge.x, now.y - hingeEdge.y, now.z - hingeEdge.z),
+    ).toBeLessThan(0.003);
+  };
   const run = (seconds: number) => {
     const events: CourseDoorEvent[] = [];
     for (let step = 0; step < seconds * 120; step += 1) {
@@ -228,12 +267,14 @@ test("another page's opening swings it to its stop as it swung there, or sets it
   const events = run(2);
   expect(events.map(({ kind }) => kind)).toContain("stopped");
   expect(joint.openAngle).toBeGreaterThan(frame.stop - 0.26);
+  stays();
 
   joint.reset();
   joint.open(null);
   expect(joint.latched).toBe(false);
   expect(run(0.5)).toEqual([]);
   expect(Math.abs(joint.openAngle - frame.stop)).toBeLessThan(0.02);
+  stays();
   joint.destroy();
   world.removeRigidBody(door);
 });

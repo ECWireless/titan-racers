@@ -60,9 +60,10 @@ damage to karts, or objects that move on their own (lifts, traffic).
   swing speed), so the hit is seen before the door moves. A record long
   past is applied at rest.
 - **After the change, each client's copy is its own.** The object's motion
-  is not streamed. Each client's copy answers only its own kart, and every
-  copy settles at the same rest (a stop), so they converge without sync.
-  This is only acceptable for objects that cannot change standings.
+  is not streamed: clients share the change, not its pose, so a door may
+  rest at a different angle on each. Each client's copy answers only its
+  own kart. This is only acceptable for objects that cannot change
+  standings.
 - **Sound and light follow the state.** A latch's clack, a stop's thud, or
   a lamp that comes on is driven one-way from the simulation, like all race
   sound ([game audio](../game-audio/README.md)).
@@ -93,7 +94,8 @@ damage to karts, or objects that move on their own (lifts, traffic).
 - The server's first claim, plausibility check, and snapshot, as pure
   rules.
 - Two clients: the opener's change shown at once, the other's after the
-  opener is seen to reach it, and both at the same rest.
+  opener is seen to reach it, and both showing the change (open), each at
+  its own pose.
 - The run check, gates, and recordings unchanged by an open or closed
   object.
 

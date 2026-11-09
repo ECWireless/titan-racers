@@ -1510,6 +1510,10 @@ test.describe("home screen", () => {
     await page.getByRole("button", { name: "Exit", exact: true }).click();
     await page.getByRole("button", { name: "Start race" }).click();
     canvas = page.getByTestId("solo-time-trial-canvas");
+    // Falls View Park loads slowly under software WebGL.
+    await expect(canvas).toHaveAttribute("data-scene-ready", "true", {
+      timeout: 120_000,
+    });
     await advanceRaceToRacing(canvas);
     await expectKartLight(indoors);
     await crossPortals();
@@ -1548,6 +1552,34 @@ test.describe("home screen", () => {
     const [door] = (await getCollisionDebugState(canvas)).courseDoors;
     expect(door).toMatchObject({ lampLit: true, latched: false });
     expect(door.openAngle).toBeGreaterThan(0.2);
+
+    // The kart's own reset leaves it open; Restart shuts and latches it.
+    await canvas.evaluate((element) =>
+      element.dispatchEvent(new CustomEvent("requestRaceRecovery")),
+    );
+    await stepSimulation(canvas, 120);
+    expect((await getCollisionDebugState(canvas)).courseDoors[0]).toMatchObject({
+      lampLit: true,
+      latched: false,
+    });
+    await page
+      .locator(".race-pause-button")
+      .evaluate((button: HTMLButtonElement) => button.click());
+    // Held still in the same task, so no frame runs out the new countdown.
+    await page
+      .getByRole("dialog", { name: "Paused" })
+      .getByRole("button", { name: "Restart" })
+      .evaluate((button: HTMLButtonElement) => {
+        button.click();
+        document
+          .querySelector('[data-testid="solo-time-trial-canvas"]')!
+          .dispatchEvent(
+            new CustomEvent("setSimulationPaused", { detail: { paused: true } }),
+          );
+      });
+    expect((await getCollisionDebugState(canvas)).courseDoors).toEqual([
+      { id: "tunnel-door-4", lampLit: false, latched: true, openAngle: 0 },
+    ]);
   });
 
   test("recovers a kart that drives into Falls View Park's stream", async ({

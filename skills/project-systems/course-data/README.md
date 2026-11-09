@@ -259,7 +259,7 @@ in its finish on the local +Z face of a box at most 10 mm thick with no
 collision, kit, or bevel. Version-ten documents upgrade unchanged.
 
 Version twelve adds `door`, which hangs an upright box colliding as a
-solid box on a hinge (`course-doors.ts`): `type`, a versioned door type
+solid box, unturned on it, on a hinge (`course-doors.ts`): `type`, a versioned door type
 (`course-door-types.ts`) giving its mass, latch, and hinge friction;
 `hinge`, its local −X (`left`) or +X (`right`) edge; `opens`, toward its
 local +Z (`front`) or −Z (`back`) face; `stop`, 10–170°; and an optional

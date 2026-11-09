@@ -805,10 +805,13 @@ test("validates doors, the lamps they switch, and the parts they carry", () => {
       );
     }),
   ).toContainEqual(["objects", handle, "attachedTo"]);
-  // Version eleven has no doors.
+  // Version eleven has no doors, and a version-eleven course, with its
+  // kits, signs, and elbows, upgrades unchanged.
   expect(() =>
     parseCourseDocument({ ...FALLS_VIEW_PARK_DOCUMENT, schemaVersion: 11 }),
   ).toThrow();
+  const legacy = versionElevenFallsViewPark();
+  expect(parseCourseDocument({ ...legacy, schemaVersion: 11 })).toEqual(legacy);
 });
 
 test("validates posters: a known print on a thin board of its shape", () => {

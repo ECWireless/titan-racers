@@ -148,7 +148,7 @@ it, or those starts are refused (racing is unaffected). To roll back code,
 keep it: earlier builds never send the new value.
 
 Courses are saved as schema version twelve (doors and the parts they carry,
-and 24 indoor lamps, from PR 6.9); earlier rows load unchanged, with no
+posters, and 24 indoor lamps, from PR 6.9); earlier rows load unchanged, with no
 migration. A build from before a course's version cannot read it: rolling the
 code back after a save breaks the editor and the published-course route for
 that course, though players fall back to the bundled course. That holds for

@@ -1153,6 +1153,7 @@ export const courseDocumentSchema = courseDocumentV11BaseSchema
         (visual.shape !== "box" ||
           object.collision?.shape !== "box" ||
           object.collision.role !== "solid-obstacle" ||
+          Object.values(object.collision.offset.rotation).some((angle) => angle !== 0) ||
           !isUpright(object.transform.rotation) ||
           object.attachedTo ||
           object.overhead ||
@@ -1165,7 +1166,7 @@ export const courseDocumentSchema = courseDocumentV11BaseSchema
         context.addIssue({
           code: "custom",
           message:
-            "A door is an upright box colliding as a solid box, and is not attached, a lamp, roof, bed, bicycle, kit, or sign",
+            "A door is an upright box colliding as an unturned solid box, and is not attached, a lamp, roof, bed, bicycle, kit, or sign",
           path: ["objects", index, "door"],
         });
       }
@@ -1611,7 +1612,7 @@ export function parseCourseDocument(input: unknown): CourseDocument {
     return parseCourseDocument({ ...courseDocumentV9Schema.parse(input), schemaVersion: 10 });
   }
 
-  // Versions ten, eleven, and twelve upgrade unchanged.
+  // Version ten upgrades to eleven, and eleven to twelve, unchanged.
   if (hasSchemaVersion(input, 10)) {
     return parseCourseDocument({ ...courseDocumentV10Schema.parse(input), schemaVersion: 11 });
   }

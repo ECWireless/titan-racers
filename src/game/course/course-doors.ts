@@ -72,7 +72,11 @@ type AmmoDoorWorld = {
   removeConstraint(constraint: object): void;
 };
 
-/** Where a door's hinge and latch sit, in its leaf's unscaled local frame. */
+/**
+ * Where a door's hinge and latch sit, in its body's frame: the leaf's
+ * unscaled local frame, moved by its collider's offset, since PlayCanvas
+ * puts a body with an offset collider at the collider.
+ */
 type CourseDoorFrame = {
   /** +1 when opening turns the leaf positively about local +Y. */
   axis: 1 | -1;
@@ -100,19 +104,22 @@ const DISABLE_WORLD_GRAVITY = 1;
 /**
  * The hinge pin runs up the leaf's hinge edge on the face it opens toward,
  * where a door's knuckles are; the latch holds the free edge at mid-height.
+ * A door's collider is never turned on its leaf (course-document.ts).
  */
 export function getCourseDoorFrame(
-  object: Pick<CourseObject, "door" | "visual">,
+  object: Pick<CourseObject, "collision" | "door" | "visual">,
 ): CourseDoorFrame {
-  const { door, visual } = object;
+  const { collision, door, visual } = object;
   if (!door || visual.shape !== "box") throw new Error("Not a door");
   const side = door.hinge === "left" ? -1 : 1;
   const face = door.opens === "front" ? 1 : -1;
   const { x: width, z: thickness } = visual.scale;
+  const { x, y, z } =
+    collision?.shape === "box" ? collision.offset.position : { x: 0, y: 0, z: 0 };
   return {
     axis: side === face ? 1 : -1,
-    hinge: { x: (side * width) / 2, y: 0, z: (face * thickness) / 2 },
-    latch: { x: -side * (width / 2 - LATCH_INSET), y: 0, z: 0 },
+    hinge: { x: (side * width) / 2 - x, y: -y, z: (face * thickness) / 2 - z },
+    latch: { x: -side * (width / 2 - LATCH_INSET) - x, y: -y, z: -z },
     stop: (door.stop * Math.PI) / 180,
     width,
   };

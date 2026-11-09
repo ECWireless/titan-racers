@@ -585,9 +585,14 @@ export function deleteCourseSelection(
   }
 
   if (selection.kind === "object") {
-    return parseCourseDocument({
+    // A door goes with the parts drawn on it. A deletion another object
+    // still needs, such as the lamp a door lights, keeps the course.
+    return parseOrKeep(document, {
       ...document,
-      objects: document.objects.filter((object) => object.id !== selection.id),
+      objects: document.objects.filter(
+        (object) =>
+          object.id !== selection.id && object.attachedTo !== selection.id,
+      ),
     });
   }
 
