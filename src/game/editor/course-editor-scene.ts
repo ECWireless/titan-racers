@@ -863,6 +863,7 @@ export class CourseEditorScene {
 
     const { courseEntities } = buildRoughCourse(this.app, {
       createEntity: createProjectionEntity,
+      posters: this.courseSurfaces.posters,
       signs: this.courseSurfaces.signs,
       topFaces: this.courseSurfaces.topFaces,
       document: this.currentDocument,

@@ -46,8 +46,11 @@ function cloneSeed() {
 // lamps).
 function versionElevenFallsViewPark() {
   const document = structuredClone(FALLS_VIEW_PARK_DOCUMENT);
+  // The store room's lamps and poster are version twelve's.
   document.objects = document.objects.filter(
-    (object) => object.id !== "tunnel-store-room-light",
+    (object) =>
+      object.poster === undefined &&
+      !(object.lamp && object.id.startsWith("tunnel-store-room-")),
   );
   for (const object of document.objects) {
     delete object.door;
@@ -808,6 +811,41 @@ test("validates doors, the lamps they switch, and the parts they carry", () => {
   ).toThrow();
 });
 
+test("validates posters: a known print on a thin board of its shape", () => {
+  const poster = FALLS_VIEW_PARK_DOCUMENT.objects.findIndex(
+    (object) => object.id === "tunnel-store-room-poster",
+  );
+  const issuePaths = (edit: (object: CourseDocument["objects"][number]) => void) => {
+    const document = structuredClone(FALLS_VIEW_PARK_DOCUMENT);
+    edit(document.objects[poster]!);
+    return courseDocumentSchema
+      .safeParse(document)
+      .error?.issues.map(({ path }) => path);
+  };
+
+  expect(FALLS_VIEW_PARK_DOCUMENT.objects[poster]!.poster).toEqual({
+    id: "poster.lucky-lady",
+    version: 1,
+  });
+  expect(issuePaths(() => {})).toBeUndefined();
+  expect(issuePaths((object) => (object.poster!.version = 2))).toContainEqual([
+    "objects",
+    poster,
+    "poster",
+  ]);
+  for (const edit of [
+    (object: CourseDocument["objects"][number]) => {
+      if (object.visual.shape !== "arc") object.visual.scale.x = 0.841;
+    },
+    (object: CourseDocument["objects"][number]) => {
+      if (object.visual.shape !== "arc") object.visual.scale.z = 0.02;
+    },
+    (object: CourseDocument["objects"][number]) => (object.sign = "A1"),
+  ]) {
+    expect(issuePaths(edit)).toContainEqual(["objects", poster, "poster"]);
+  }
+});
+
 test("serializes the seeds deterministically and round trips without changes", () => {
   for (const seed of ["rough-course.v12.json", "falls-view-park.v12.json"]) {
     const source = readFileSync(
@@ -1495,7 +1533,11 @@ test("upgrades v10 unchanged and draws each crowd barrier as one kit in v11", ()
 
 test("letters signs, bevels solids, and draws handwheels in v11 only", () => {
   const objects = FALLS_VIEW_PARK_DOCUMENT.objects;
-  expect(objects.filter((o) => o.sign !== undefined).map((o) => o.sign)).toEqual([
+  // The store room's own signs are its fittings, not the course's.
+  const signs = objects.filter(
+    (o) => o.sign !== undefined && !o.id.startsWith("tunnel-store-room-"),
+  );
+  expect(signs.map((o) => o.sign)).toEqual([
     "1",
     "2",
     "3",

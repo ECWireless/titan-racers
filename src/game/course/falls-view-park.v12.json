@@ -63491,6 +63491,4651 @@
         },
         "shape": "box"
       }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-store-room-poster",
+      "indoors": true,
+      "label": "The Lucky Lady",
+      "poster": {
+        "id": "poster.lucky-lady",
+        "version": 1
+      },
+      "transform": {
+        "position": {
+          "x": 76.385,
+          "y": 1,
+          "z": -22.05
+        },
+        "rotation": {
+          "x": 0,
+          "y": 90,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "line",
+        "scale": {
+          "x": 0.594,
+          "y": 0.841,
+          "z": 0.001
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-store-room-poster-board",
+      "indoors": true,
+      "label": "Plywood poster backing",
+      "transform": {
+        "position": {
+          "x": 76.366,
+          "y": 1,
+          "z": -22.05
+        },
+        "rotation": {
+          "x": 0,
+          "y": 90,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "timber",
+        "scale": {
+          "x": 0.66,
+          "y": 0.91,
+          "z": 0.025
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-store-room-bench-top",
+      "indoors": true,
+      "label": "Salvaged timber worktop",
+      "transform": {
+        "position": {
+          "x": 76.65,
+          "y": 0.845,
+          "z": -24.02
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "timber",
+        "scale": {
+          "x": 0.58,
+          "y": 0.07,
+          "z": 1.75
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-store-room-shelf",
+      "indoors": true,
+      "label": "Wall supply shelf",
+      "transform": {
+        "position": {
+          "x": 76.53,
+          "y": 1.65,
+          "z": -24.02
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "timber",
+        "scale": {
+          "x": 0.35,
+          "y": 0.045,
+          "z": 1.65
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-store-room-shelf-bracket-1",
+      "indoors": true,
+      "label": "Shelf steel bracket",
+      "transform": {
+        "position": {
+          "x": 76.46,
+          "y": 1.515,
+          "z": -24.64
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "steel",
+        "scale": {
+          "x": 0.19,
+          "y": 0.23,
+          "z": 0.035
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-store-room-shelf-bracket-2",
+      "indoors": true,
+      "label": "Shelf steel bracket",
+      "transform": {
+        "position": {
+          "x": 76.46,
+          "y": 1.515,
+          "z": -23.4
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "steel",
+        "scale": {
+          "x": 0.19,
+          "y": 0.23,
+          "z": 0.035
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-store-room-packing-light",
+      "indoors": true,
+      "label": "Seed packing ceiling strip",
+      "lamp": "tunnel",
+      "transform": {
+        "position": {
+          "x": 77.15,
+          "y": 2.23,
+          "z": -23.9
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "ramp",
+        "scale": {
+          "x": 0.6,
+          "y": 0.08,
+          "z": 0.22
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-store-room-bench-leg-1",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 76.41,
+          "y": 0.405,
+          "z": -24.84
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "bevel": 0.004,
+        "material": "steel",
+        "scale": {
+          "x": 0.045,
+          "y": 0.81,
+          "z": 0.045
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-store-room-bench-leg-2",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 76.89,
+          "y": 0.405,
+          "z": -24.84
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "bevel": 0.004,
+        "material": "steel",
+        "scale": {
+          "x": 0.045,
+          "y": 0.81,
+          "z": 0.045
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-store-room-bench-leg-3",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 76.41,
+          "y": 0.405,
+          "z": -23.2
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "bevel": 0.004,
+        "material": "steel",
+        "scale": {
+          "x": 0.045,
+          "y": 0.81,
+          "z": 0.045
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-store-room-bench-leg-4",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 76.89,
+          "y": 0.405,
+          "z": -23.2
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "bevel": 0.004,
+        "material": "steel",
+        "scale": {
+          "x": 0.045,
+          "y": 0.81,
+          "z": 0.045
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-store-room-bench-rail-1",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 76.41,
+          "y": 0.78,
+          "z": -24.02
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "steel",
+        "scale": {
+          "x": 0.04,
+          "y": 0.06,
+          "z": 1.595
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-store-room-bench-rail-2",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 76.89,
+          "y": 0.78,
+          "z": -24.02
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "steel",
+        "scale": {
+          "x": 0.04,
+          "y": 0.06,
+          "z": 1.595
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-store-room-bench-end-rail-1",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 76.65,
+          "y": 0.78,
+          "z": -24.84
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "steel",
+        "scale": {
+          "x": 0.435,
+          "y": 0.06,
+          "z": 0.04
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-store-room-bench-stretcher-1",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 76.65,
+          "y": 0.14,
+          "z": -24.84
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "steel",
+        "scale": {
+          "x": 0.435,
+          "y": 0.04,
+          "z": 0.04
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-store-room-bench-end-rail-2",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 76.65,
+          "y": 0.78,
+          "z": -23.2
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "steel",
+        "scale": {
+          "x": 0.435,
+          "y": 0.06,
+          "z": 0.04
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-store-room-bench-stretcher-2",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 76.65,
+          "y": 0.14,
+          "z": -23.2
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "steel",
+        "scale": {
+          "x": 0.435,
+          "y": 0.04,
+          "z": 0.04
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "obstacle",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 0.29,
+          "y": 0.1,
+          "z": 0.875
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": -0.07249999999999998,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "solid-obstacle",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.standard-course",
+          "version": 1
+        }
+      },
+      "editable": true,
+      "id": "tunnel-store-room-bench-shelf",
+      "indoors": true,
+      "label": "Workbench lower shelf",
+      "transform": {
+        "position": {
+          "x": 76.65,
+          "y": 0.1725,
+          "z": -24.02
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "timber",
+        "scale": {
+          "x": 0.52,
+          "y": 0.025,
+          "z": 1.6
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-store-room-toolbox",
+      "indoors": true,
+      "label": "Red steel toolbox",
+      "transform": {
+        "position": {
+          "x": 76.63,
+          "y": 0.27,
+          "z": -24.45
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "bevel": 0.008,
+        "material": "obstacleBarrel",
+        "scale": {
+          "x": 0.22,
+          "y": 0.17,
+          "z": 0.44
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-store-room-toolbox-lid",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 76.63,
+          "y": 0.3775,
+          "z": -24.45
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "bevel": 0.006,
+        "material": "obstacleBarrel",
+        "scale": {
+          "x": 0.228,
+          "y": 0.045,
+          "z": 0.448
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-store-room-toolbox-handle",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 76.63,
+          "y": 0.447,
+          "z": -24.45
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "steel",
+        "scale": {
+          "x": 0.022,
+          "y": 0.022,
+          "z": 0.26
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-store-room-toolbox-handle-post-1",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 76.63,
+          "y": 0.42,
+          "z": -24.57
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "steel",
+        "scale": {
+          "x": 0.016,
+          "y": 0.05,
+          "z": 0.016
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-store-room-toolbox-latch-1",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 76.744,
+          "y": 0.355,
+          "z": -24.57
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "steel",
+        "scale": {
+          "x": 0.008,
+          "y": 0.045,
+          "z": 0.035
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-store-room-toolbox-handle-post-2",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 76.63,
+          "y": 0.42,
+          "z": -24.33
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "steel",
+        "scale": {
+          "x": 0.016,
+          "y": 0.05,
+          "z": 0.016
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-store-room-toolbox-latch-2",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 76.744,
+          "y": 0.355,
+          "z": -24.33
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "steel",
+        "scale": {
+          "x": 0.008,
+          "y": 0.045,
+          "z": 0.035
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-store-room-seed-tray-1",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 76.64,
+          "y": 0.205,
+          "z": -23.86
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "ramp",
+        "scale": {
+          "x": 0.34,
+          "y": 0.04,
+          "z": 0.22
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-store-room-seed-tray-lip-1",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 76.64,
+          "y": 0.229,
+          "z": -23.86
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "ramp",
+        "scale": {
+          "x": 0.36,
+          "y": 0.008,
+          "z": 0.24
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-store-room-seed-tray-2",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 76.64,
+          "y": 0.255,
+          "z": -23.854
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "ramp",
+        "scale": {
+          "x": 0.34,
+          "y": 0.04,
+          "z": 0.22
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-store-room-seed-tray-lip-2",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 76.64,
+          "y": 0.279,
+          "z": -23.854
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "ramp",
+        "scale": {
+          "x": 0.36,
+          "y": 0.008,
+          "z": 0.24
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-store-room-seed-tray-3",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 76.64,
+          "y": 0.305,
+          "z": -23.86
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "ramp",
+        "scale": {
+          "x": 0.34,
+          "y": 0.04,
+          "z": 0.22
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-store-room-seed-tray-lip-3",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 76.64,
+          "y": 0.329,
+          "z": -23.86
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "ramp",
+        "scale": {
+          "x": 0.36,
+          "y": 0.008,
+          "z": 0.24
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-store-room-seed-tray-4",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 76.64,
+          "y": 0.355,
+          "z": -23.854
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "ramp",
+        "scale": {
+          "x": 0.34,
+          "y": 0.04,
+          "z": 0.22
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-store-room-seed-tray-lip-4",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 76.64,
+          "y": 0.379,
+          "z": -23.854
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "ramp",
+        "scale": {
+          "x": 0.36,
+          "y": 0.008,
+          "z": 0.24
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-store-room-paint-tin-1",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 76.55,
+          "y": 0.28,
+          "z": -23.42
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "bevel": 0.004,
+        "material": "ramp",
+        "scale": {
+          "x": 0.17,
+          "y": 0.19,
+          "z": 0.17
+        },
+        "shape": "cylinder"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-store-room-paint-tin-lid-1",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 76.55,
+          "y": 0.381,
+          "z": -23.42
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "steel",
+        "scale": {
+          "x": 0.176,
+          "y": 0.012,
+          "z": 0.176
+        },
+        "shape": "cylinder"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-store-room-paint-tin-2",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 76.76,
+          "y": 0.26,
+          "z": -23.46
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "bevel": 0.004,
+        "material": "ramp",
+        "scale": {
+          "x": 0.17,
+          "y": 0.15,
+          "z": 0.17
+        },
+        "shape": "cylinder"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-store-room-paint-tin-lid-2",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 76.76,
+          "y": 0.341,
+          "z": -23.46
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "steel",
+        "scale": {
+          "x": 0.176,
+          "y": 0.012,
+          "z": 0.176
+        },
+        "shape": "cylinder"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-store-room-vise-base",
+      "indoors": true,
+      "label": "Bench vise",
+      "transform": {
+        "position": {
+          "x": 76.86,
+          "y": 0.895,
+          "z": -23.36
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "bevel": 0.005,
+        "material": "steel",
+        "scale": {
+          "x": 0.16,
+          "y": 0.03,
+          "z": 0.15
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-store-room-vise-body",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 76.845,
+          "y": 0.955,
+          "z": -23.36
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "bevel": 0.008,
+        "material": "steel",
+        "scale": {
+          "x": 0.1,
+          "y": 0.09,
+          "z": 0.13
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-store-room-vise-jaw-fixed",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 76.901,
+          "y": 0.975,
+          "z": -23.36
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "ramp",
+        "scale": {
+          "x": 0.012,
+          "y": 0.05,
+          "z": 0.16
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-store-room-vise-slide",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 76.96,
+          "y": 0.93,
+          "z": -23.36
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "steel",
+        "scale": {
+          "x": 0.16,
+          "y": 0.04,
+          "z": 0.06
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-store-room-vise-jaw-moving",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 77,
+          "y": 0.955,
+          "z": -23.36
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "bevel": 0.008,
+        "material": "steel",
+        "scale": {
+          "x": 0.05,
+          "y": 0.09,
+          "z": 0.13
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-store-room-vise-jaw-moving-plate",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 76.969,
+          "y": 0.975,
+          "z": -23.36
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "ramp",
+        "scale": {
+          "x": 0.012,
+          "y": 0.05,
+          "z": 0.16
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-store-room-vise-screw",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 77.06,
+          "y": 0.94,
+          "z": -23.36
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 90
+        }
+      },
+      "visual": {
+        "material": "steel",
+        "scale": {
+          "x": 0.024,
+          "y": 0.07,
+          "z": 0.024
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-store-room-vise-handle",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 77.095,
+          "y": 0.91,
+          "z": -23.36
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "steel",
+        "scale": {
+          "x": 0.014,
+          "y": 0.22,
+          "z": 0.014
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-store-room-vise-handle-knob-1",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 77.095,
+          "y": 0.8,
+          "z": -23.36
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "bevel": 0.004,
+        "material": "steel",
+        "scale": {
+          "x": 0.028,
+          "y": 0.02,
+          "z": 0.028
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-store-room-vise-handle-knob-2",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 77.095,
+          "y": 1.02,
+          "z": -23.36
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "bevel": 0.004,
+        "material": "steel",
+        "scale": {
+          "x": 0.028,
+          "y": 0.02,
+          "z": 0.028
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-store-room-packing-tray",
+      "indoors": true,
+      "label": "Seed packing tray",
+      "transform": {
+        "position": {
+          "x": 76.66,
+          "y": 0.884,
+          "z": -23.88
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "steel",
+        "scale": {
+          "x": 0.36,
+          "y": 0.008,
+          "z": 0.44
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-store-room-packing-tray-rim-1",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 76.483,
+          "y": 0.8975,
+          "z": -23.88
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "steel",
+        "scale": {
+          "x": 0.006,
+          "y": 0.035,
+          "z": 0.44
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-store-room-packing-tray-rim-2",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 76.837,
+          "y": 0.8975,
+          "z": -23.88
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "steel",
+        "scale": {
+          "x": 0.006,
+          "y": 0.035,
+          "z": 0.44
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-store-room-packing-tray-rim-3",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 76.66,
+          "y": 0.8975,
+          "z": -24.097
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "steel",
+        "scale": {
+          "x": 0.36,
+          "y": 0.035,
+          "z": 0.006
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-store-room-packing-tray-rim-4",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 76.66,
+          "y": 0.8975,
+          "z": -23.663
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "steel",
+        "scale": {
+          "x": 0.36,
+          "y": 0.035,
+          "z": 0.006
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-store-room-seed-packet-1",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 76.54,
+          "y": 0.945,
+          "z": -23.986
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 14
+        }
+      },
+      "visual": {
+        "material": "kerb",
+        "scale": {
+          "x": 0.005,
+          "y": 0.12,
+          "z": 0.15
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-store-room-seed-packet-2",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 76.595,
+          "y": 0.945,
+          "z": -23.98
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 14
+        }
+      },
+      "visual": {
+        "material": "obstacleBarrel",
+        "scale": {
+          "x": 0.005,
+          "y": 0.12,
+          "z": 0.15
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-store-room-seed-packet-3",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 76.65,
+          "y": 0.945,
+          "z": -23.974
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 14
+        }
+      },
+      "visual": {
+        "material": "kerb",
+        "scale": {
+          "x": 0.005,
+          "y": 0.12,
+          "z": 0.15
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-store-room-seed-packet-4",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 76.705,
+          "y": 0.945,
+          "z": -23.986
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 14
+        }
+      },
+      "visual": {
+        "material": "kerb",
+        "scale": {
+          "x": 0.005,
+          "y": 0.12,
+          "z": 0.15
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-store-room-seed-packet-5",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 76.76,
+          "y": 0.945,
+          "z": -23.98
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 14
+        }
+      },
+      "visual": {
+        "material": "obstacleBarrel",
+        "scale": {
+          "x": 0.005,
+          "y": 0.12,
+          "z": 0.15
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-store-room-seed-packet-6",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 76.54,
+          "y": 0.945,
+          "z": -23.786
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 14
+        }
+      },
+      "visual": {
+        "material": "obstacleBarrel",
+        "scale": {
+          "x": 0.005,
+          "y": 0.12,
+          "z": 0.15
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-store-room-seed-packet-7",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 76.595,
+          "y": 0.945,
+          "z": -23.78
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 14
+        }
+      },
+      "visual": {
+        "material": "kerb",
+        "scale": {
+          "x": 0.005,
+          "y": 0.12,
+          "z": 0.15
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-store-room-seed-packet-8",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 76.65,
+          "y": 0.945,
+          "z": -23.774
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 14
+        }
+      },
+      "visual": {
+        "material": "kerb",
+        "scale": {
+          "x": 0.005,
+          "y": 0.12,
+          "z": 0.15
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-store-room-seed-packet-9",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 76.705,
+          "y": 0.945,
+          "z": -23.786
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 14
+        }
+      },
+      "visual": {
+        "material": "obstacleBarrel",
+        "scale": {
+          "x": 0.005,
+          "y": 0.12,
+          "z": 0.15
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-store-room-seed-packet-10",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 76.76,
+          "y": 0.945,
+          "z": -23.78
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 14
+        }
+      },
+      "visual": {
+        "material": "kerb",
+        "scale": {
+          "x": 0.005,
+          "y": 0.12,
+          "z": 0.15
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-store-room-ledger-cover",
+      "indoors": true,
+      "label": "Open seed ledger",
+      "transform": {
+        "position": {
+          "x": 76.66,
+          "y": 0.883,
+          "z": -24.45
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "ramp",
+        "scale": {
+          "x": 0.3,
+          "y": 0.006,
+          "z": 0.42
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-store-room-ledger-pages-1",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 76.66,
+          "y": 0.893,
+          "z": -24.553
+        },
+        "rotation": {
+          "x": -4,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "kerb",
+        "scale": {
+          "x": 0.28,
+          "y": 0.012,
+          "z": 0.2
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-store-room-ledger-pages-2",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 76.66,
+          "y": 0.893,
+          "z": -24.347
+        },
+        "rotation": {
+          "x": 4,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "kerb",
+        "scale": {
+          "x": 0.28,
+          "y": 0.012,
+          "z": 0.2
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-store-room-ledger-pencil",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 76.69,
+          "y": 0.906,
+          "z": -24.45
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 90
+        }
+      },
+      "visual": {
+        "material": "timber",
+        "scale": {
+          "x": 0.008,
+          "y": 0.17,
+          "z": 0.008
+        },
+        "shape": "cylinder"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-store-room-seed-tin-1",
+      "indoors": true,
+      "label": "Seed tin",
+      "transform": {
+        "position": {
+          "x": 76.5,
+          "y": 0.945,
+          "z": -24.76
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "bevel": 0.003,
+        "material": "obstacleBarrel",
+        "scale": {
+          "x": 0.1,
+          "y": 0.13,
+          "z": 0.1
+        },
+        "shape": "cylinder"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-store-room-seed-tin-lid-1",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 76.5,
+          "y": 1.017,
+          "z": -24.76
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "steel",
+        "scale": {
+          "x": 0.106,
+          "y": 0.014,
+          "z": 0.106
+        },
+        "shape": "cylinder"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-store-room-seed-tin-2",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 76.62,
+          "y": 0.93,
+          "z": -24.79
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "bevel": 0.003,
+        "material": "ramp",
+        "scale": {
+          "x": 0.09,
+          "y": 0.1,
+          "z": 0.09
+        },
+        "shape": "cylinder"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-store-room-seed-tin-lid-2",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 76.62,
+          "y": 0.987,
+          "z": -24.79
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "steel",
+        "scale": {
+          "x": 0.096,
+          "y": 0.014,
+          "z": 0.096
+        },
+        "shape": "cylinder"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-store-room-seed-cabinet",
+      "indoors": true,
+      "label": "Seed drawer cabinet",
+      "transform": {
+        "position": {
+          "x": 76.53,
+          "y": 1.8075,
+          "z": -24.4
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "timber",
+        "scale": {
+          "x": 0.3,
+          "y": 0.27,
+          "z": 0.42
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-store-room-seed-drawer-1",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 76.686,
+          "y": 1.7225,
+          "z": -24.4
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "timber",
+        "scale": {
+          "x": 0.012,
+          "y": 0.075,
+          "z": 0.39
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-store-room-seed-drawer-knob-1",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 76.7,
+          "y": 1.7225,
+          "z": -24.4
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 90
+        }
+      },
+      "visual": {
+        "material": "steel",
+        "scale": {
+          "x": 0.022,
+          "y": 0.02,
+          "z": 0.022
+        },
+        "shape": "cylinder"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-store-room-seed-drawer-2",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 76.686,
+          "y": 1.8075,
+          "z": -24.4
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "timber",
+        "scale": {
+          "x": 0.012,
+          "y": 0.075,
+          "z": 0.39
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-store-room-seed-drawer-knob-2",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 76.7,
+          "y": 1.8075,
+          "z": -24.4
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 90
+        }
+      },
+      "visual": {
+        "material": "steel",
+        "scale": {
+          "x": 0.022,
+          "y": 0.02,
+          "z": 0.022
+        },
+        "shape": "cylinder"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-store-room-seed-drawer-3",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 76.686,
+          "y": 1.8925,
+          "z": -24.4
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "timber",
+        "scale": {
+          "x": 0.012,
+          "y": 0.075,
+          "z": 0.39
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-store-room-seed-drawer-knob-3",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 76.7,
+          "y": 1.8925,
+          "z": -24.4
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 90
+        }
+      },
+      "visual": {
+        "material": "steel",
+        "scale": {
+          "x": 0.022,
+          "y": 0.02,
+          "z": 0.022
+        },
+        "shape": "cylinder"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-store-room-shelf-tin-1",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 76.55,
+          "y": 1.7525,
+          "z": -23.88
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "bevel": 0.003,
+        "material": "ramp",
+        "scale": {
+          "x": 0.12,
+          "y": 0.16,
+          "z": 0.12
+        },
+        "shape": "cylinder"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-store-room-shelf-tin-lid-1",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 76.55,
+          "y": 1.8395,
+          "z": -23.88
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "steel",
+        "scale": {
+          "x": 0.126,
+          "y": 0.014,
+          "z": 0.126
+        },
+        "shape": "cylinder"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-store-room-shelf-tin-2",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 76.55,
+          "y": 1.7325,
+          "z": -23.68
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "bevel": 0.003,
+        "material": "obstacleBarrel",
+        "scale": {
+          "x": 0.1,
+          "y": 0.12,
+          "z": 0.1
+        },
+        "shape": "cylinder"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-store-room-shelf-tin-lid-2",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 76.55,
+          "y": 1.7995,
+          "z": -23.68
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "steel",
+        "scale": {
+          "x": 0.106,
+          "y": 0.014,
+          "z": 0.106
+        },
+        "shape": "cylinder"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-store-room-shelf-tin-3",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 76.55,
+          "y": 1.7725,
+          "z": -23.5
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "bevel": 0.003,
+        "material": "steel",
+        "scale": {
+          "x": 0.11,
+          "y": 0.2,
+          "z": 0.11
+        },
+        "shape": "cylinder"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-store-room-shelf-tin-lid-3",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 76.55,
+          "y": 1.8795,
+          "z": -23.5
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "steel",
+        "scale": {
+          "x": 0.116,
+          "y": 0.014,
+          "z": 0.116
+        },
+        "shape": "cylinder"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-store-room-crate-1-post-1",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 77.0475,
+          "y": 0.15,
+          "z": -25.0425
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "timber",
+        "scale": {
+          "x": 0.035,
+          "y": 0.3,
+          "z": 0.035
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-store-room-crate-1-post-2",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 77.6125,
+          "y": 0.15,
+          "z": -25.0425
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "timber",
+        "scale": {
+          "x": 0.035,
+          "y": 0.3,
+          "z": 0.035
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-store-room-crate-1-post-3",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 77.0475,
+          "y": 0.15,
+          "z": -24.6775
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "timber",
+        "scale": {
+          "x": 0.035,
+          "y": 0.3,
+          "z": 0.035
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-store-room-crate-1-post-4",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 77.6125,
+          "y": 0.15,
+          "z": -24.6775
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "timber",
+        "scale": {
+          "x": 0.035,
+          "y": 0.3,
+          "z": 0.035
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-store-room-crate-1-slat-1",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 77.33,
+          "y": 0.045,
+          "z": -25.054
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "timber",
+        "scale": {
+          "x": 0.6,
+          "y": 0.075,
+          "z": 0.012
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-store-room-crate-1-slat-2",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 77.33,
+          "y": 0.15,
+          "z": -25.054
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "timber",
+        "scale": {
+          "x": 0.6,
+          "y": 0.075,
+          "z": 0.012
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-store-room-crate-1-slat-3",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 77.33,
+          "y": 0.255,
+          "z": -25.054
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "timber",
+        "scale": {
+          "x": 0.6,
+          "y": 0.075,
+          "z": 0.012
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-store-room-crate-1-slat-4",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 77.33,
+          "y": 0.045,
+          "z": -24.666
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "timber",
+        "scale": {
+          "x": 0.6,
+          "y": 0.075,
+          "z": 0.012
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-store-room-crate-1-slat-5",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 77.33,
+          "y": 0.15,
+          "z": -24.666
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "timber",
+        "scale": {
+          "x": 0.6,
+          "y": 0.075,
+          "z": 0.012
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-store-room-crate-1-slat-6",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 77.33,
+          "y": 0.255,
+          "z": -24.666
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "timber",
+        "scale": {
+          "x": 0.6,
+          "y": 0.075,
+          "z": 0.012
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-store-room-crate-1-end-1",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 77.036,
+          "y": 0.095,
+          "z": -24.86
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "timber",
+        "scale": {
+          "x": 0.012,
+          "y": 0.19,
+          "z": 0.4
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-store-room-crate-1-end-rail-1",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 77.036,
+          "y": 0.275,
+          "z": -24.86
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "timber",
+        "scale": {
+          "x": 0.012,
+          "y": 0.05,
+          "z": 0.4
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-store-room-crate-1-end-2",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 77.624,
+          "y": 0.095,
+          "z": -24.86
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "timber",
+        "scale": {
+          "x": 0.012,
+          "y": 0.19,
+          "z": 0.4
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-store-room-crate-1-end-rail-2",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 77.624,
+          "y": 0.275,
+          "z": -24.86
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "timber",
+        "scale": {
+          "x": 0.012,
+          "y": 0.05,
+          "z": 0.4
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "obstacle",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 0.31,
+          "y": 0.3,
+          "z": 0.21
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0.294,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "solid-obstacle",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.standard-course",
+          "version": 1
+        }
+      },
+      "editable": true,
+      "id": "tunnel-store-room-crate-1-floor",
+      "indoors": true,
+      "label": "Slatted apple crate",
+      "transform": {
+        "position": {
+          "x": 77.33,
+          "y": 0.006,
+          "z": -24.86
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "timber",
+        "scale": {
+          "x": 0.6,
+          "y": 0.012,
+          "z": 0.4
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-store-room-crate-2-post-1",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 77.0427,
+          "y": 0.45,
+          "z": -25.0072
+        },
+        "rotation": {
+          "x": 0,
+          "y": 5,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "timber",
+        "scale": {
+          "x": 0.035,
+          "y": 0.3,
+          "z": 0.035
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-store-room-crate-2-post-2",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 77.6055,
+          "y": 0.45,
+          "z": -25.0564
+        },
+        "rotation": {
+          "x": 0,
+          "y": 5,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "timber",
+        "scale": {
+          "x": 0.035,
+          "y": 0.3,
+          "z": 0.035
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-store-room-crate-2-post-3",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 77.0745,
+          "y": 0.45,
+          "z": -24.6436
+        },
+        "rotation": {
+          "x": 0,
+          "y": 5,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "timber",
+        "scale": {
+          "x": 0.035,
+          "y": 0.3,
+          "z": 0.035
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-store-room-crate-2-post-4",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 77.6373,
+          "y": 0.45,
+          "z": -24.6928
+        },
+        "rotation": {
+          "x": 0,
+          "y": 5,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "timber",
+        "scale": {
+          "x": 0.035,
+          "y": 0.3,
+          "z": 0.035
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-store-room-crate-2-slat-1",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 77.3231,
+          "y": 0.345,
+          "z": -25.0433
+        },
+        "rotation": {
+          "x": 0,
+          "y": 5,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "timber",
+        "scale": {
+          "x": 0.6,
+          "y": 0.075,
+          "z": 0.012
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-store-room-crate-2-slat-2",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 77.3231,
+          "y": 0.45,
+          "z": -25.0433
+        },
+        "rotation": {
+          "x": 0,
+          "y": 5,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "timber",
+        "scale": {
+          "x": 0.6,
+          "y": 0.075,
+          "z": 0.012
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-store-room-crate-2-slat-3",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 77.3231,
+          "y": 0.555,
+          "z": -25.0433
+        },
+        "rotation": {
+          "x": 0,
+          "y": 5,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "timber",
+        "scale": {
+          "x": 0.6,
+          "y": 0.075,
+          "z": 0.012
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-store-room-crate-2-slat-4",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 77.3569,
+          "y": 0.345,
+          "z": -24.6567
+        },
+        "rotation": {
+          "x": 0,
+          "y": 5,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "timber",
+        "scale": {
+          "x": 0.6,
+          "y": 0.075,
+          "z": 0.012
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-store-room-crate-2-slat-5",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 77.3569,
+          "y": 0.45,
+          "z": -24.6567
+        },
+        "rotation": {
+          "x": 0,
+          "y": 5,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "timber",
+        "scale": {
+          "x": 0.6,
+          "y": 0.075,
+          "z": 0.012
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-store-room-crate-2-slat-6",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 77.3569,
+          "y": 0.555,
+          "z": -24.6567
+        },
+        "rotation": {
+          "x": 0,
+          "y": 5,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "timber",
+        "scale": {
+          "x": 0.6,
+          "y": 0.075,
+          "z": 0.012
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-store-room-crate-2-end-1",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 77.0471,
+          "y": 0.395,
+          "z": -24.8244
+        },
+        "rotation": {
+          "x": 0,
+          "y": 5,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "timber",
+        "scale": {
+          "x": 0.012,
+          "y": 0.19,
+          "z": 0.4
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-store-room-crate-2-end-rail-1",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 77.0471,
+          "y": 0.575,
+          "z": -24.8244
+        },
+        "rotation": {
+          "x": 0,
+          "y": 5,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "timber",
+        "scale": {
+          "x": 0.012,
+          "y": 0.05,
+          "z": 0.4
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-store-room-crate-2-end-2",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 77.6329,
+          "y": 0.395,
+          "z": -24.8756
+        },
+        "rotation": {
+          "x": 0,
+          "y": 5,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "timber",
+        "scale": {
+          "x": 0.012,
+          "y": 0.19,
+          "z": 0.4
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-store-room-crate-2-end-rail-2",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 77.6329,
+          "y": 0.575,
+          "z": -24.8756
+        },
+        "rotation": {
+          "x": 0,
+          "y": 5,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "timber",
+        "scale": {
+          "x": 0.012,
+          "y": 0.05,
+          "z": 0.4
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-store-room-crate-2-floor",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 77.34,
+          "y": 0.306,
+          "z": -24.85
+        },
+        "rotation": {
+          "x": 0,
+          "y": 5,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "timber",
+        "scale": {
+          "x": 0.6,
+          "y": 0.012,
+          "z": 0.4
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "obstacle",
+      "collision": {
+        "axis": 1,
+        "friction": 0.7,
+        "height": 0.88,
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "radius": 0.2975,
+        "restitution": 0,
+        "role": "solid-obstacle",
+        "shape": "cylinder",
+        "surfaceMaterial": {
+          "id": "surface.standard-course",
+          "version": 1
+        }
+      },
+      "editable": true,
+      "id": "tunnel-store-room-water-drum",
+      "indoors": true,
+      "label": "Drinking water drum",
+      "transform": {
+        "position": {
+          "x": 78.1,
+          "y": 0.44,
+          "z": -24.74
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "bevel": 0.012,
+        "material": "obstacleBarrel",
+        "scale": {
+          "x": 0.585,
+          "y": 0.84,
+          "z": 0.585
+        },
+        "shape": "cylinder"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-store-room-water-drum-hoop-1",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 78.1,
+          "y": 0.01,
+          "z": -24.74
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "obstacleBarrel",
+        "scale": {
+          "x": 0.595,
+          "y": 0.02,
+          "z": 0.595
+        },
+        "shape": "cylinder"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-store-room-water-drum-hoop-2",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 78.1,
+          "y": 0.87,
+          "z": -24.74
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "obstacleBarrel",
+        "scale": {
+          "x": 0.595,
+          "y": 0.02,
+          "z": 0.595
+        },
+        "shape": "cylinder"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-store-room-water-drum-hoop-3",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 78.1,
+          "y": 0.3,
+          "z": -24.74
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "obstacleBarrel",
+        "scale": {
+          "x": 0.595,
+          "y": 0.02,
+          "z": 0.595
+        },
+        "shape": "cylinder"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-store-room-water-drum-hoop-4",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 78.1,
+          "y": 0.58,
+          "z": -24.74
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "obstacleBarrel",
+        "scale": {
+          "x": 0.595,
+          "y": 0.02,
+          "z": 0.595
+        },
+        "shape": "cylinder"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-store-room-water-drum-bung",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 78.25,
+          "y": 0.886,
+          "z": -24.69
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "steel",
+        "scale": {
+          "x": 0.07,
+          "y": 0.012,
+          "z": 0.07
+        },
+        "shape": "cylinder"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-store-room-pump-tube",
+      "indoors": true,
+      "label": "Drum hand pump",
+      "transform": {
+        "position": {
+          "x": 77.93,
+          "y": 1.05,
+          "z": -24.74
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "steel",
+        "scale": {
+          "x": 0.045,
+          "y": 0.34,
+          "z": 0.045
+        },
+        "shape": "cylinder"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-store-room-pump-flange",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 77.93,
+          "y": 0.89,
+          "z": -24.74
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "steel",
+        "scale": {
+          "x": 0.085,
+          "y": 0.02,
+          "z": 0.085
+        },
+        "shape": "cylinder"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-store-room-pump-body",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 77.93,
+          "y": 1.27,
+          "z": -24.74
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 90
+        }
+      },
+      "visual": {
+        "bevel": 0.01,
+        "material": "steel",
+        "scale": {
+          "x": 0.13,
+          "y": 0.07,
+          "z": 0.13
+        },
+        "shape": "cylinder"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-store-room-pump-spout",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 77.93,
+          "y": 1.25,
+          "z": -24.64
+        },
+        "rotation": {
+          "x": 90,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "steel",
+        "scale": {
+          "x": 0.03,
+          "y": 0.16,
+          "z": 0.03
+        },
+        "shape": "cylinder"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-store-room-pump-spout-tip",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 77.93,
+          "y": 1.235,
+          "z": -24.56
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "steel",
+        "scale": {
+          "x": 0.03,
+          "y": 0.06,
+          "z": 0.03
+        },
+        "shape": "cylinder"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-store-room-pump-crank",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 77.887,
+          "y": 1.335,
+          "z": -24.7025
+        },
+        "rotation": {
+          "x": 30,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "steel",
+        "scale": {
+          "x": 0.014,
+          "y": 0.15,
+          "z": 0.024
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-store-room-pump-crank-knob",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 77.852,
+          "y": 1.3999,
+          "z": -24.665
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 90
+        }
+      },
+      "visual": {
+        "material": "timber",
+        "scale": {
+          "x": 0.026,
+          "y": 0.06,
+          "z": 0.026
+        },
+        "shape": "cylinder"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "obstacle",
+      "collision": {
+        "friction": 0.7,
+        "halfExtents": {
+          "x": 0.0825,
+          "y": 0.235,
+          "z": 0.36
+        },
+        "offset": {
+          "position": {
+            "x": 0,
+            "y": 0.02,
+            "z": 0.19
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "restitution": 0,
+        "role": "solid-obstacle",
+        "shape": "box",
+        "surfaceMaterial": {
+          "id": "surface.standard-course",
+          "version": 1
+        }
+      },
+      "editable": true,
+      "id": "tunnel-store-room-jerrycan-1",
+      "indoors": true,
+      "label": "Water jerrycans",
+      "transform": {
+        "position": {
+          "x": 78.27,
+          "y": 0.215,
+          "z": -24.2
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "bevel": 0.02,
+        "material": "ramp",
+        "scale": {
+          "x": 0.165,
+          "y": 0.43,
+          "z": 0.345
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-store-room-jerrycan-1-seam",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 78.27,
+          "y": 0.22,
+          "z": -24.2
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "ramp",
+        "scale": {
+          "x": 0.008,
+          "y": 0.44,
+          "z": 0.355
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-store-room-jerrycan-1-handle-base",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 78.27,
+          "y": 0.44,
+          "z": -24.24
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "ramp",
+        "scale": {
+          "x": 0.06,
+          "y": 0.03,
+          "z": 0.12
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-store-room-jerrycan-1-handle-1",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 78.27,
+          "y": 0.462,
+          "z": -24.28
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "ramp",
+        "scale": {
+          "x": 0.11,
+          "y": 0.018,
+          "z": 0.016
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-store-room-jerrycan-1-handle-2",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 78.27,
+          "y": 0.462,
+          "z": -24.24
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "ramp",
+        "scale": {
+          "x": 0.11,
+          "y": 0.018,
+          "z": 0.016
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-store-room-jerrycan-1-handle-3",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 78.27,
+          "y": 0.462,
+          "z": -24.2
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "ramp",
+        "scale": {
+          "x": 0.11,
+          "y": 0.018,
+          "z": 0.016
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-store-room-jerrycan-1-spout",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 78.27,
+          "y": 0.45,
+          "z": -24.075
+        },
+        "rotation": {
+          "x": 30,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "steel",
+        "scale": {
+          "x": 0.045,
+          "y": 0.06,
+          "z": 0.045
+        },
+        "shape": "cylinder"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-store-room-jerrycan-1-cap",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 78.27,
+          "y": 0.477,
+          "z": -24.059
+        },
+        "rotation": {
+          "x": 30,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "steel",
+        "scale": {
+          "x": 0.052,
+          "y": 0.02,
+          "z": 0.052
+        },
+        "shape": "cylinder"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-store-room-jerrycan-2",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 78.27,
+          "y": 0.215,
+          "z": -23.82
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "bevel": 0.02,
+        "material": "obstacleBarrel",
+        "scale": {
+          "x": 0.165,
+          "y": 0.43,
+          "z": 0.345
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-store-room-jerrycan-2-seam",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 78.27,
+          "y": 0.22,
+          "z": -23.82
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "obstacleBarrel",
+        "scale": {
+          "x": 0.008,
+          "y": 0.44,
+          "z": 0.355
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-store-room-jerrycan-2-handle-base",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 78.27,
+          "y": 0.44,
+          "z": -23.86
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "obstacleBarrel",
+        "scale": {
+          "x": 0.06,
+          "y": 0.03,
+          "z": 0.12
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-store-room-jerrycan-2-handle-1",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 78.27,
+          "y": 0.462,
+          "z": -23.9
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "obstacleBarrel",
+        "scale": {
+          "x": 0.11,
+          "y": 0.018,
+          "z": 0.016
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-store-room-jerrycan-2-handle-2",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 78.27,
+          "y": 0.462,
+          "z": -23.86
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "obstacleBarrel",
+        "scale": {
+          "x": 0.11,
+          "y": 0.018,
+          "z": 0.016
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-store-room-jerrycan-2-handle-3",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 78.27,
+          "y": 0.462,
+          "z": -23.82
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "obstacleBarrel",
+        "scale": {
+          "x": 0.11,
+          "y": 0.018,
+          "z": 0.016
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-store-room-jerrycan-2-spout",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 78.27,
+          "y": 0.45,
+          "z": -23.695
+        },
+        "rotation": {
+          "x": 30,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "steel",
+        "scale": {
+          "x": 0.045,
+          "y": 0.06,
+          "z": 0.045
+        },
+        "shape": "cylinder"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-store-room-jerrycan-2-cap",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 78.27,
+          "y": 0.477,
+          "z": -23.679
+        },
+        "rotation": {
+          "x": 30,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "steel",
+        "scale": {
+          "x": 0.052,
+          "y": 0.02,
+          "z": 0.052
+        },
+        "shape": "cylinder"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-store-room-watering-can",
+      "indoors": true,
+      "label": "Watering can",
+      "transform": {
+        "position": {
+          "x": 76.62,
+          "y": 0.12,
+          "z": -22.72
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "bevel": 0.01,
+        "material": "ramp",
+        "scale": {
+          "x": 0.2,
+          "y": 0.24,
+          "z": 0.2
+        },
+        "shape": "cylinder"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-store-room-watering-can-rim",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 76.62,
+          "y": 0.246,
+          "z": -22.72
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "steel",
+        "scale": {
+          "x": 0.206,
+          "y": 0.012,
+          "z": 0.206
+        },
+        "shape": "cylinder"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-store-room-watering-can-spout",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 76.62,
+          "y": 0.1693,
+          "z": -22.4998
+        },
+        "rotation": {
+          "x": 50,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "ramp",
+        "scale": {
+          "x": 0.024,
+          "y": 0.34,
+          "z": 0.024
+        },
+        "shape": "cylinder"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-store-room-watering-can-rose",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 76.62,
+          "y": 0.285,
+          "z": -22.3619
+        },
+        "rotation": {
+          "x": 50,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "ramp",
+        "scale": {
+          "x": 0.055,
+          "y": 0.025,
+          "z": 0.055
+        },
+        "shape": "cylinder"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-store-room-watering-can-handle",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 76.62,
+          "y": 0.33,
+          "z": -22.73
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "ramp",
+        "scale": {
+          "x": 0.02,
+          "y": 0.02,
+          "z": 0.2
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-store-room-watering-can-handle-post-1",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 76.62,
+          "y": 0.29,
+          "z": -22.82
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "ramp",
+        "scale": {
+          "x": 0.016,
+          "y": 0.085,
+          "z": 0.016
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-store-room-watering-can-handle-post-2",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 76.62,
+          "y": 0.29,
+          "z": -22.64
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "ramp",
+        "scale": {
+          "x": 0.016,
+          "y": 0.085,
+          "z": 0.016
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-store-room-watering-can-grip",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 76.62,
+          "y": 0.15,
+          "z": -22.842
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "ramp",
+        "scale": {
+          "x": 0.02,
+          "y": 0.15,
+          "z": 0.02
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-store-room-watering-can-grip-stub-1",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 76.62,
+          "y": 0.085,
+          "z": -22.825
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "ramp",
+        "scale": {
+          "x": 0.016,
+          "y": 0.016,
+          "z": 0.03
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-store-room-watering-can-grip-stub-2",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 76.62,
+          "y": 0.215,
+          "z": -22.825
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "ramp",
+        "scale": {
+          "x": 0.016,
+          "y": 0.016,
+          "z": 0.03
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-store-room-broom-head",
+      "indoors": true,
+      "label": "Yard broom",
+      "transform": {
+        "position": {
+          "x": 76.98,
+          "y": 0.075,
+          "z": -21.84
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "timber",
+        "scale": {
+          "x": 0.32,
+          "y": 0.045,
+          "z": 0.06
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-store-room-broom-bristles",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 76.98,
+          "y": 0.0275,
+          "z": -21.84
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "steel",
+        "scale": {
+          "x": 0.3,
+          "y": 0.055,
+          "z": 0.045
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "tunnel-store-room-broom-handle",
+      "indoors": true,
+      "transform": {
+        "position": {
+          "x": 76.98,
+          "y": 0.6738,
+          "z": -21.6646
+        },
+        "rotation": {
+          "x": 17,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "timber",
+        "scale": {
+          "x": 0.028,
+          "y": 1.2,
+          "z": 0.028
+        },
+        "shape": "cylinder"
+      }
     }
   ],
   "schemaVersion": 12,

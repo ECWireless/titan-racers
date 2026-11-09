@@ -9,6 +9,7 @@ import {
 import { getApprovedSurfaceMaterial } from "../kart/kart-material-registry";
 import { COURSE_ARC_MAXIMUM_WIDTH_RATIO } from "./course-arc";
 import { getCourseDoorType } from "./course-door-types";
+import { getCoursePoster } from "./course-posters";
 import fallsViewParkDocumentJson from "./falls-view-park.v12.json";
 import type { OfficialCourseId } from "./course-ids";
 import roughCourseDocumentJson from "./rough-course.v12.json";
@@ -1100,6 +1101,18 @@ const courseDocumentV11Schema = courseDocumentV11BaseSchema.superRefine(
 // (course-door-types.ts). It swings toward its local +Z (front) or −Z (back)
 // face up to its stop, and may name an indoor lamp that stays dark until it
 // opens. A part attached to a door moves with it and never collides.
+// It also adds posters: a versioned print (course-posters.ts) on a thin
+// box's local +Z face, in the print's shape.
+const coursePosterSchema = z
+  .strictObject({
+    id: z.string().max(80),
+    version: z.number().int().positive(),
+  })
+  .refine((reference) => Boolean(getCoursePoster(reference)), {
+    message: "Unsupported poster version",
+  });
+// A print fills its board, so the board keeps the print's shape this nearly.
+const COURSE_POSTER_SHAPE_TOLERANCE = 0.02;
 const courseDoorSchema = z.strictObject({
   hinge: z.enum(["left", "right"]),
   lamp: courseIdSchema.optional(),
@@ -1121,6 +1134,7 @@ export const courseDocumentSchema = courseDocumentV11BaseSchema
       .extend({
         attachedTo: courseIdSchema.optional(),
         door: courseDoorSchema.optional(),
+        poster: coursePosterSchema.optional(),
       })
       .array()
       .min(1)
@@ -1183,6 +1197,30 @@ export const courseDocumentSchema = courseDocumentV11BaseSchema
           message:
             "A part is attached to a door, and never collides or is a lamp, roof, bed, or bicycle",
           path: ["objects", index, "attachedTo"],
+        });
+      }
+      const print = object.poster && getCoursePoster(object.poster);
+      if (
+        print &&
+        (visual.shape !== "box" ||
+          visual.scale.z > COURSE_SIGN_MAXIMUM_THICKNESS ||
+          Math.abs(
+            (visual.scale.x / visual.scale.y) * (print.height / print.width) - 1,
+          ) > COURSE_POSTER_SHAPE_TOLERANCE ||
+          object.collision !== null ||
+          visual.bevel ||
+          door ||
+          object.overhead ||
+          object.lamp ||
+          object.planting ||
+          object.bicycle ||
+          object.kit ||
+          object.sign !== undefined)
+      ) {
+        context.addIssue({
+          code: "custom",
+          message: `A poster is a box in its print's shape, at most ${COURSE_SIGN_MAXIMUM_THICKNESS * 1000} mm thick along its local Z, that never collides and is nothing else`,
+          path: ["objects", index, "poster"],
         });
       }
     });

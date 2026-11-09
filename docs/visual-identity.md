@@ -491,3 +491,13 @@ and one missed touch pushed from the room's record. Kart contact holds frame tim
 draws peak at 85. One hitch; the slowest single contact step took 9 ms,
 cause not yet known (possibly the first touch warming up), and the
 overlay's "Touch max" row watches it.
+
+PR 6.9 was measured on the iPhone with one solo two-lap race on the QA
+build, the Balanced kart stopping at tunnel door 4, knocking it open, and
+driving into the store room. Started with Race again on a warm page, it had
+no hitches (8,437 frames): frame time holds (17 ms median, p95 19 ms), CPU
+work is a 3 ms median with p95 4 ms, and draws are a 92 median and 129 at
+most (127 forward, no shadow map), up about seven from PR 5.1's night
+figures for the door, the room's contents, and the poster. The warm first
+frame took 512 ms. The race before it, the first on a new build, had four
+hitches and a 5.7 s first frame while the phone compiled its shaders anew.

@@ -16,10 +16,12 @@ const COURSE_DOOR_TYPES: Readonly<
 > = {
   // A hollow steel utility door, 1.0 × 2.1 m and 45 mm thick, on a hinge
   // that turns freely. Its worn latch gives to a 1.85 kg kart hitting it
-  // square, low and halfway across its latch side, at about 7.5 m/s: it
-  // holds at 6.5 m/s and gives at 8.5 (tests/course-doors.spec.ts).
+  // square and low: at about 4.5 m/s halfway across its latch side, about
+  // 6 m/s at its middle, and about 10 m/s beside its hinge. A kart crossing
+  // a 4.5 m tunnel from a standstill at its far wall reaches about 7 m/s
+  // (tests/course-doors.spec.ts).
   "door.worn-steel": {
-    1: { hingeFriction: 2, latchImpulse: 10.5, mass: 40 },
+    1: { hingeFriction: 2, latchImpulse: 5.5, mass: 40 },
   },
 };
 

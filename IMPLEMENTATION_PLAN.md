@@ -289,13 +289,14 @@ integration review, from `2ffc5a20` (PR #70), before its last PR merges.
       and breakable latches.
 - [ ] Door 4 of the utility tunnel becomes a real steel door of about
       40 kg on its hinge, held by a worn latch that a square hit at about
-      7.5 m/s (27 km/h) breaks. It swings into a small store room under the
-      berm behind the tunnel wall. A push, or a hit near the hinge, never
+      4.5 m/s (16 km/h) breaks, so a kart driven across the tunnel at it
+      opens it. It swings into a small store room under the berm behind the
+      tunnel wall. A push, or a hit near the hinge, never
       opens it. The other doors stay painted.
 - [ ] The room's light comes on when the door opens, the latch clacks, and
       the door thuds on its stop. A course may have 24 indoor lamps.
-- [ ] The room's contents and its poster of The Lady Lucky, a homebuilt
-      spacecraft for homesteading, are a Claude-vs-Codex contest: each
+- [ ] The room's contents and its poster of The Lucky Lady, the homebuilt
+      homestead spacecraft of O'Neill's The High Frontier, are a Claude-vs-Codex contest: each
       builds both to one brief, the lead judges blind from the same three
       renders after a cross-critique, and poster and room are judged
       separately. The poster is drawn by code, at A1.

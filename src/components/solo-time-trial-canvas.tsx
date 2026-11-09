@@ -1126,6 +1126,7 @@ export function SoloTimeTrialCanvas({
       } = buildRoughCourse(app, {
         indoorMaterials: courseSurfaces.indoorMaterials,
         materials: courseSurfaces.materials,
+        posters: courseSurfaces.posters,
         signs: courseSurfaces.signs,
         topFaces: courseSurfaces.topFaces,
         document: COURSE_DOCUMENT,

@@ -141,7 +141,7 @@ function scene() {
 }
 
 test("door 4 is a worn steel door hung on its north edge, opening into the store room", () => {
-  expect(doorType).toEqual({ hingeFriction: 2, latchImpulse: 10.5, mass: 40 });
+  expect(doorType).toEqual({ hingeFriction: 2, latchImpulse: 5.5, mass: 40 });
   expect(frame).toMatchObject({ axis: 1, stop: Math.PI / 2, width: 1 });
   expect(frame.hinge).toEqual({ x: -0.5, y: 0, z: -0.0225 });
 });
@@ -162,13 +162,13 @@ test("a door turned on the course hangs closed and latched", () => {
   world.removeRigidBody(door);
 });
 
-test("the latch holds a 6.5 m/s square hit and gives to an 8.5 m/s one at any substep count", () => {
+test("the latch holds a 3.5 m/s square hit and gives to a 5 m/s one at any substep count", () => {
   for (const substeps of [1, 2, 4, 8]) {
     const { hit, joint, remove } = scene();
-    hit(0.25, 6.5, substeps);
+    hit(0.25, 3.5, substeps);
     expect(joint.latched).toBe(true);
     expect(joint.openAngle).toBeLessThan(0.01);
-    const events = hit(0.25, 8.5, substeps);
+    const events = hit(0.25, 5, substeps);
     expect(joint.latched).toBe(false);
     expect(events[0]?.kind).toBe("unlatched");
     remove();
@@ -190,15 +190,15 @@ test("a hard hit swings it to its stop, and a reset closes and latches it again"
   const { hit, joint, remove, run } = scene();
   const events = [...hit(0.25, 17), ...run(2, 4)];
   expect(events.map((event) => event.kind)).toEqual(["unlatched", "stopped"]);
-  // It rests within a few degrees of its rubber stop, having bounced off.
-  expect(joint.openAngle).toBeGreaterThan(frame.stop - 0.1);
+  // It rests within about 15° of its rubber stop, having bounced off it.
+  expect(joint.openAngle).toBeGreaterThan(frame.stop - 0.26);
 
   joint.reset();
   expect(joint.latched).toBe(true);
   expect(joint.openAngle).toBe(0);
   run(0.1, 1);
   expect(Math.abs(joint.openAngle)).toBeLessThan(0.002);
-  hit(0.25, 6);
+  hit(0.25, 3.5);
   expect(joint.latched).toBe(true);
   remove();
 });

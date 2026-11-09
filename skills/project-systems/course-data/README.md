@@ -51,7 +51,8 @@ own editor commands or persistence UI.
   0.5 m deep; its storm drain is the narrowest standard culvert every
   official kart fits through; its crowd barriers are kits, each its kick
   plank; its north tunnel's door 4 hangs on its hinge before a store room
-  that leads nowhere ([course interactables](../course-interactables/README.md));
+  that leads nowhere, where The Lucky Lady's poster hangs
+  ([course interactables](../course-interactables/README.md));
   and its levee kicker, centred on the crest in its first quarter,
   lands the slowest and fastest official karts back on the crest
   (`tests/home.spec.ts`). Course pictures for home's course choice are static
@@ -264,7 +265,12 @@ solid box on a hinge (`course-doors.ts`): `type`, a versioned door type
 local +Z (`front`) or −Z (`back`) face; `stop`, 10–180°; and an optional
 `lamp`, an indoor lamp that no other door names, dark until the door opens.
 `attachedTo` names the door a part is drawn on: it moves with the door and
-never collides. Version-eleven documents upgrade unchanged.
+never collides. `poster` (a versioned print, `course-posters.ts`) draws
+its print, drawn by code once per page at up to 512 × 768 texels, as one
+quad over a box's local +Z face. The box is in the print's shape within
+2%, at most 10 mm thick, never collides, and is nothing else: not a door,
+lamp, roof, bed, bicycle, kit, or sign, and not bevelled. Each print is
+one texture and one draw. Version-eleven documents upgrade unchanged.
 
 Coordinates and dimensions are finite and bounded to the accepted authoring
 envelope. Unknown fields and unsupported enum values fail rather than being
