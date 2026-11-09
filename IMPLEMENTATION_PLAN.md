@@ -17,10 +17,10 @@ accepted; the app, README, and durable docs take over from there.
 
 - **Done:** Phases 0–6 (PRs #1–#24, the Phase 3 closeout and its
   follow-ups, #30–#57 with the PR 4.5.2 closeout, #59–#63, and #64–#70
-  with the Phase 6 closeout), and the addendum's PRs 6.7 (#71) and 6.8
-  (#72).
+  with the Phase 6 closeout), and the addendum's PRs 6.7 (#71), 6.8
+  (#72), and 6.9 (#73), and its look exploration.
 - **Now:** the [Phase 6 addendum](#phase-6-addendum-feedback-before-phase-7),
-  PR 6.9.
+  PR 6.10.
 - **Next:** Phase 7, after its debrief.
 
 ## Guiding Decisions
@@ -123,10 +123,18 @@ These still constrain every remaining phase.
 
 ## Visual Direction
 
-Match the current Titan Racers site: near-black base, ice text, orange and
-hazard-yellow signals, steel-blue technical accents, Arial/Helvetica-style sans,
-Courier-style mono labels, bold uppercase headings, widely tracked operational
-labels, sharp industrial borders, and restrained panels.
+**Floodlit** (accepted in the Phase 6 addendum): every screen looks like a
+race at dusk under its floodlights. It keeps the Titan Racers site's palette
+and type, re-weighted:
+
+- Pages are mostly true black, divided by thin rules rather than panels.
+- A screen leads with at most one real in-game render, fading hard into
+  black. No AI-generated imagery.
+- Arial/Helvetica-style sans and Courier-style mono labels: heavy uppercase
+  headlines, larger than before, and widely tracked operational labels.
+- Ice text. Orange marks only a screen's next action; hazard yellow marks
+  focus; blue stays for the ghost and rare technical accents.
+- The logo stays top-left, unchanged.
 
 The HUD should feel like a racing operations interface, not a lore panel or a
 neon arcade skin. Multiplayer is called "Multiplayer" everywhere a player
@@ -307,23 +315,26 @@ integration review, from `2ffc5a20` (PR #70), before its last PR merges.
       was within about 1.5 m of the door, and tells everyone. Other pages
       open it when they see the opener reach it, and a returning page finds
       it open.
-- [ ] The room leads nowhere, so the run check, gates, recordings, and
+- [x] The room leads nowhere, so the run check, gates, recordings, and
       leaderboard are unchanged: the course's new revision publishes with
       New leaderboard off.
 
 **Exploration, no PR: contrast and a more distinctive look**
 
-- [ ] Draft two or three directions for more contrast and a less generic
-      look, and compare them before anything is built. Any of this may be
-      dropped. "Match the existing Titan Racers site" holds unless an
-      accepted direction changes it.
+- [x] Draft two or three directions for more contrast and a less generic
+      look, and compare them before anything is built. Floodlit was
+      accepted (see [Visual Direction](#visual-direction)); it keeps the
+      site's palette and type.
 
 **PR 6.10: Home and the main site**
 
-- [ ] Replace home's AI-generated background and bring home closer to the
-      game's look, with whatever the exploration accepts.
-- [ ] Update the main Titan Racers site to match. Where it lives is settled
-      at the debrief.
+- [ ] Home's AI-generated background gives way to real renders captured on a
+      GPU, and the home flow takes the Floodlit look.
+- [ ] The result screen, leaderboard, rooms, and racing display follow.
+- [ ] The main site (`titan-racers-site`, a sibling repository, its own PR)
+      takes the look, with real renders in place of its four AI images, and
+      drops every RaidGuild Forge reference. The Forge is shutting down, so
+      its newsletter signup gives way to a link to play the demo.
 
 **PR 6.11: Filling the park**
 
@@ -602,6 +613,9 @@ course-specific ghosts or leaderboards.
         and one Node room test client;
       - tests: a second race in the same room, a kart pinned against a
         wall, and the 9 ms contact step on the iPhone.
+- [ ] The main site's own newsletter list, replacing the RaidGuild Forge's
+      (PR 6.10): a subscriber table, confirmation emails, and an email
+      provider, collecting only an email address.
 - [ ] Analytics review: confirm we can measure time to first race, race start
       and completion, replays, room joins, shares, login after a race,
       leaderboard submissions, community publishing and play, thumbs-ups,
