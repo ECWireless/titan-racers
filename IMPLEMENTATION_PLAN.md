@@ -328,8 +328,8 @@ integration review, from `2ffc5a20` (PR #70), before its last PR merges.
 
 **PR 6.10: Home and the main site**
 
-- [ ] Home's AI-generated background gives way to real renders captured on a
-      GPU, and the home flow takes the Floodlit look.
+- [ ] Home's AI-generated background gives way to real in-game renders,
+      and the home flow takes the Floodlit look.
 - [ ] The result screen, leaderboard, rooms, and racing display follow.
 - [ ] The main site (`titan-racers-site`, a sibling repository, its own PR)
       takes the look, with real renders in place of its four AI images, and
@@ -343,10 +343,26 @@ integration review, from `2ffc5a20` (PR #70), before its last PR merges.
       each other's work under rules agreed at the debrief.
 - [ ] Everything stays within the phone budget.
 
+**PR 6.12: Room logs, from a four-player playtest**
+
+- [ ] The room server keeps its logs (Cloudflare Workers Logs), and notes
+      each time a kart goes out of touch and why: a slow connection, a gap
+      in its states, its page saying so, a reset, or a reconnect. No
+      account details are logged. Deployed between sessions, since a
+      room-server deploy ends live races.
+- [ ] A four-player test (2026-11-09) saw karts turn see-through and races
+      stutter with all four together, while the room server stayed light
+      and error-free. With the logs and `?perf=1` on a phone or two, find
+      the cause and fix it if it's small. One guess to test first: a page's
+      hitch puts its kart out of touch, it can't come back while touching
+      the pack, and each switch between solid and see-through rebuilds the
+      kart's draw batch, which may hitch again.
+
 **Done when:** races on a phone can't select or zoom the page; the fastest lap
 shows; the tunnel door opens the same way for every racer in a room; home, the
-main site, and the park reflect the accepted look; and the addendum's
-integration review is resolved.
+main site, and the park reflect the accepted look; a four-player room's
+see-through karts can be traced to a cause; and the addendum's integration
+review is resolved.
 
 ### Phase 7: CAD Assembly And Kart Royalties
 

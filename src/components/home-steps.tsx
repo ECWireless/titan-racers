@@ -10,15 +10,6 @@ import type { KartAssemblyDocument } from "@/game/kart/kart-assembly-document";
 import type { PersistedResolvedKartSnapshot } from "@/game/kart/kart-derivation";
 
 import { KartThumbnail } from "./kart-thumbnail";
-import {
-  LeaderboardIcon,
-  MultiplayerIcon,
-  RaceFlagIcon,
-  RaceGhostIcon,
-} from "./menu-icons";
-
-// The first screen's icons, at the size of its titles.
-const MENU_ICON = "size-7";
 
 /** The home flow's steps, in order. A race starts from the last. */
 export type HomeStep = "start" | "kart" | "course" | "race";
@@ -35,12 +26,46 @@ const COURSE_THUMBNAILS: Partial<Record<string, string>> = {
   [FALLS_VIEW_PARK_COURSE_ID]: "/images/courses/falls-view-park.webp",
 };
 
-// Every choice in the flow: a panel whose border turns gold when focused or
-// hovered, as a console menu marks its current item.
+// Every choice after the first screen: solid black on a thin rule, whose
+// rule turns hazard yellow when focused or hovered, as a console menu marks
+// its current item.
 const OPTION =
-  "home-option grid min-w-0 border bg-titan-black/72 text-left shadow-[0_20px_60px_rgb(0_0_0/0.35)] backdrop-blur transition motion-reduce:transition-none";
+  "home-option grid min-w-0 border bg-titan-black text-left transition motion-reduce:transition-none";
 const OPTION_IDLE = "border-titan-ice/18";
-const OPTION_CHOSEN = "border-titan-hazard bg-titan-black/90";
+// Chosen is ice; hazard yellow is kept for focus.
+const OPTION_CHOSEN = "border-titan-ice";
+
+/**
+ * Home's backdrop: Falls View Park at dusk, a render from the game, falling
+ * off hard to black. On a phone or a tablet held upright it fills the top of
+ * the screen above the menu; on a wide screen it fills the screen behind a
+ * fall-off on the left. `dim` darkens it behind the steps after the first.
+ */
+export function HomeBackdrop({ dim }: { dim: boolean }) {
+  return (
+    <div aria-hidden="true" className="pointer-events-none absolute inset-0">
+      <div className="absolute inset-x-0 top-0 h-[62svh] lg:inset-0 lg:h-auto">
+        <Image
+          alt=""
+          className="object-cover object-[62%_50%] lg:object-[50%_62%]"
+          fill
+          priority
+          sizes="100vw"
+          src="/images/home/falls-view-park-habitat.webp"
+        />
+      </div>
+      <div className="absolute inset-x-0 top-0 h-32 bg-[linear-gradient(180deg,rgb(7_7_6/0.7),rgb(7_7_6/0))]" />
+      <div className="absolute inset-x-0 top-[38svh] h-[24.5svh] bg-[linear-gradient(180deg,rgb(7_7_6/0)_0%,var(--titan-black)_92%)] lg:hidden" />
+      <div className="absolute inset-0 hidden bg-[linear-gradient(90deg,var(--titan-black)_0%,rgb(7_7_6/0.84)_32%,rgb(7_7_6/0)_70%)] lg:block" />
+      <div className="absolute inset-x-0 bottom-0 hidden h-[12%] bg-[linear-gradient(0deg,var(--titan-black),rgb(7_7_6/0))] lg:block" />
+      <div
+        className={`absolute inset-0 bg-titan-black/65 transition-opacity duration-300 motion-reduce:transition-none ${
+          dim ? "opacity-100" : "opacity-0"
+        }`}
+      />
+    </div>
+  );
+}
 
 /**
  * A choice that moves the flow on, where a double-click's second click
@@ -79,7 +104,7 @@ export function HomeStepFrame({
       <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
         <button
           data-ui-sound="back"
-          className="flex min-h-11 items-center gap-2 border border-titan-ice/24 bg-titan-black/60 px-4 text-titan-ice/80 transition hover:border-titan-hazard hover:text-titan-hazard focus-visible:border-titan-hazard focus-visible:text-titan-hazard focus-visible:outline-none"
+          className="flex min-h-11 items-center gap-2 border border-titan-ice/50 bg-transparent px-4 text-titan-ice transition hover:border-titan-hazard hover:text-titan-hazard focus-visible:border-titan-hazard focus-visible:text-titan-hazard focus-visible:outline-none"
           type="button"
           onClick={onBack}
         >
@@ -116,7 +141,7 @@ export function HomeStepFrame({
         </ol>
       </div>
       <h1
-        className="text-3xl font-black uppercase tracking-[-0.04em] sm:text-5xl"
+        className="text-[2.5rem] font-bold uppercase leading-[0.95] tracking-[-0.01em] sm:text-7xl"
         id={titleId}
       >
         {title}
@@ -126,7 +151,10 @@ export function HomeStepFrame({
   );
 }
 
-/** The first screen: a time trial, multiplayer, or the leaderboard. */
+/**
+ * The first screen: a time trial, multiplayer, or the leaderboard. The next
+ * action is one orange block; the rest are rows on thin rules.
+ */
 export function HomeStartStep({
   challenge,
   multiplayerAvailable,
@@ -148,11 +176,15 @@ export function HomeStartStep({
   return (
     <section
       aria-labelledby="home-start-title"
-      className="home-step grid max-w-xl content-center gap-6"
+      className="home-step grid w-full max-w-xl content-center"
     >
       <h1 className="sr-only" id="home-start-title">
         Main menu
       </h1>
+      {/* What the backdrop shows. */}
+      <p className="mb-3.5 font-mono text-xs font-bold uppercase tracking-[0.2em] text-titan-muted">
+        Falls View Park · dusk
+      </p>
       <div className="grid gap-3">
         {challenge ? (
           <MenuItem
@@ -162,7 +194,6 @@ export function HomeStartStep({
                 ? `Their best: ${challenge.time}`
                 : "Loading their best…"
             }
-            icon={<RaceGhostIcon className={MENU_ICON} />}
             label={`Race @${challenge.username}'s ghost`}
             primary
             onClick={onRaceChallenge}
@@ -171,7 +202,6 @@ export function HomeStartStep({
         <MenuItem
           controllerDefault={!challenge}
           detail="Pick a kart, a course, and a ghost"
-          icon={<RaceFlagIcon className={MENU_ICON} />}
           label="Time Trial"
           primary={!challenge}
           onClick={onTimeTrial}
@@ -183,7 +213,6 @@ export function HomeStartStep({
               ? "A private room for up to 4"
               : "Coming soon"
           }
-          icon={<MultiplayerIcon className={MENU_ICON} />}
           label="Multiplayer"
           primary={false}
           unavailable={!multiplayerAvailable}
@@ -192,19 +221,18 @@ export function HomeStartStep({
         <Link
           aria-describedby="home-leaderboard-detail"
           aria-labelledby="home-leaderboard-label"
-          className={`${OPTION} ${OPTION_IDLE} home-menu-item`}
+          className={MENU_ROW}
           href="/leaderboard"
         >
           <MenuItemContent
             detail="Best times and ghosts to race"
-            icon={<LeaderboardIcon className={MENU_ICON} />}
             id="home-leaderboard"
             label="Leaderboard"
           />
         </Link>
       </div>
       {note ? (
-        <p className="text-sm leading-6 text-titan-ice/76" role="status">
+        <p className="mt-4 text-sm leading-6 text-titan-ice/76" role="status">
           {note}
         </p>
       ) : null}
@@ -212,10 +240,13 @@ export function HomeStartStep({
   );
 }
 
+const MENU_ITEM = "home-menu-item min-w-0 text-left";
+const MENU_PRIMARY = `${MENU_ITEM} home-menu-primary bg-titan-orange px-[1.125rem] py-4 text-titan-black`;
+const MENU_ROW = `${MENU_ITEM} home-menu-row px-[1.125rem] py-3 text-titan-ice`;
+
 function MenuItem({
   controllerDefault,
   detail,
-  icon,
   label,
   onClick,
   primary,
@@ -223,7 +254,6 @@ function MenuItem({
 }: {
   controllerDefault: boolean;
   detail: string;
-  icon: ReactNode;
   label: string;
   onClick: () => void;
   primary: boolean;
@@ -235,7 +265,7 @@ function MenuItem({
     <button
       aria-describedby={`${id}-detail`}
       aria-labelledby={`${id}-label`}
-      className={`${OPTION} ${primary ? OPTION_CHOSEN : OPTION_IDLE} home-menu-item`}
+      className={primary ? MENU_PRIMARY : MENU_ROW}
       data-controller-default={controllerDefault ? "true" : undefined}
       aria-disabled={unavailable ? "true" : undefined}
       type="button"
@@ -243,46 +273,42 @@ function MenuItem({
     >
       <MenuItemContent
         detail={detail}
-        icon={icon}
         id={id}
         label={label}
-        large={primary}
+        primary={primary}
       />
     </button>
   );
 }
 
 /**
- * A first-screen item's inside: its icon, its name and what it leads to,
- * and an arrow that slides on when it is the current item.
+ * A first-screen item's inside: its name, what it leads to, and an arrow
+ * that slides on when it is the current item.
  */
 function MenuItemContent({
   detail,
-  icon,
   id,
   label,
-  large = false,
+  primary = false,
 }: {
   detail: string;
-  icon: ReactNode;
   id: string;
   label: string;
-  large?: boolean;
+  primary?: boolean;
 }) {
   return (
     <>
-      <span className="text-titan-hazard">{icon}</span>
       <span className="grid min-w-0 gap-1">
         <span
-          className={`truncate font-black uppercase tracking-[-0.03em] ${
-            large ? "text-3xl sm:text-4xl" : "text-2xl"
-          }`}
+          className="home-menu-label break-words text-[2.125rem] font-bold uppercase leading-none tracking-[0.01em] sm:text-[2.5rem]"
           id={`${id}-label`}
         >
           {label}
         </span>
         <span
-          className="font-mono text-[0.68rem] font-bold uppercase tracking-[0.14em] text-titan-ice/60"
+          className={`text-sm leading-[1.3] ${
+            primary ? "text-titan-black" : "text-titan-muted"
+          }`}
           id={`${id}-detail`}
         >
           {detail}
@@ -290,7 +316,7 @@ function MenuItemContent({
       </span>
       <span
         aria-hidden="true"
-        className="home-menu-arrow font-mono text-2xl font-bold text-titan-hazard"
+        className="home-menu-arrow font-mono text-3xl font-bold"
       >
         ›
       </span>
@@ -333,7 +359,7 @@ export function HomeKartCard({
         <strong className="text-xl font-black uppercase tracking-[-0.03em]">
           {kart.document.name}
         </strong>
-        <span className="font-mono text-[0.62rem] font-bold uppercase tracking-[0.12em] text-titan-hazard">
+        <span className="font-mono text-[0.62rem] font-bold uppercase tracking-[0.12em] text-titan-muted">
           Assembled by {kart.assemblerCredit}
         </span>
       </span>
@@ -402,7 +428,7 @@ export function HomeCourseCard({
         <strong className="text-xl font-black uppercase tracking-[-0.03em]">
           {course.name}
         </strong>
-        <span className="font-mono text-[0.62rem] font-bold uppercase tracking-[0.12em] text-titan-hazard">
+        <span className="font-mono text-[0.62rem] font-bold uppercase tracking-[0.12em] text-titan-muted">
           {laps} laps · Island Three
         </span>
       </span>
@@ -438,7 +464,7 @@ export function HomeChoice({
     <button
       aria-pressed={chosen}
       className={`${OPTION} ${chosen ? OPTION_CHOSEN : OPTION_IDLE} min-h-12 content-center px-4 py-3 ${
-        chosen ? "text-titan-hazard" : "text-titan-ice/80"
+        chosen ? "text-titan-ice" : "text-titan-ice/70"
       } ${className}`}
       type="button"
       {...firstClickOnly(onChoose)}
