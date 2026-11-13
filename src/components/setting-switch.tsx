@@ -77,13 +77,13 @@ function SettingSwitch({
         aria-hidden="true"
         className={`relative h-5 w-10 shrink-0 border transition-colors motion-reduce:transition-none ${
           on
-            ? "border-titan-hazard bg-titan-hazard/25"
+            ? "border-titan-ice bg-titan-ice/15"
             : "border-titan-ice/30 bg-titan-black"
         }`}
       >
         <span
           className={`absolute top-[3px] size-3 transition-[left,background-color] motion-reduce:transition-none ${
-            on ? "left-[23px] bg-titan-hazard" : "left-[3px] bg-titan-ice/45"
+            on ? "left-[23px] bg-titan-ice" : "left-[3px] bg-titan-ice/45"
           }`}
         />
       </span>

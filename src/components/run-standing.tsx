@@ -77,7 +77,7 @@ function ContinueAnonymously() {
 
 function NewTag() {
   return (
-    <span className="ml-2 border border-titan-hazard/60 px-1.5 py-0.5 text-[0.62rem] font-bold uppercase tracking-[0.14em] text-titan-hazard">
+    <span className="ml-2 border border-titan-ice/50 px-1.5 py-0.5 text-[0.62rem] font-bold uppercase tracking-[0.14em] text-titan-ice">
       New
     </span>
   );
@@ -92,7 +92,7 @@ function StandingRow({
 }) {
   return (
     <div className="flex items-center justify-between gap-4">
-      <dt className="uppercase tracking-[0.12em] text-titan-ice/60">{label}</dt>
+      <dt className="uppercase tracking-[0.12em] text-titan-muted">{label}</dt>
       <dd className="font-bold tabular-nums">{children}</dd>
     </div>
   );
@@ -130,7 +130,7 @@ export function RunStandingSummary({
           ) : null}
         </dl>
         <Link
-          className="justify-self-center text-xs font-bold uppercase tracking-[0.16em] text-titan-hazard underline-offset-4 hover:underline"
+          className="justify-self-center text-xs font-bold uppercase tracking-[0.16em] text-titan-ice underline decoration-titan-ice/40 underline-offset-4 transition hover:text-titan-hazard hover:decoration-titan-hazard focus-visible:text-titan-hazard focus-visible:outline-none"
           href="/leaderboard"
         >
           View leaderboard
@@ -143,13 +143,13 @@ export function RunStandingSummary({
         ? "this time"
         : `your best, ${formatRaceTime(standing.heldTimeMicroseconds, 3)},`;
     content = (
-      <div className="grid gap-3 border border-titan-hazard/70 bg-titan-hazard/10 p-4">
+      <div className="grid gap-3 border border-titan-ice/18 p-4">
         <p className="text-base font-bold leading-6 text-titan-ice">
           {standing.reason === "login"
             ? `Sign in to put ${time} on the leaderboard.`
             : `Choose a username to put ${time} on the leaderboard.`}
         </p>
-        <p className="font-mono text-xs font-bold uppercase tracking-[0.14em] text-titan-hazard">
+        <p className="font-mono text-xs font-bold uppercase tracking-[0.14em] text-titan-muted">
           Kept until{" "}
           {new Date(standing.expiresAt).toLocaleTimeString([], {
             hour: "numeric",

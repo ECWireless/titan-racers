@@ -131,6 +131,17 @@ export function SoundIcon() {
   );
 }
 
+/** Two racers, side by side: multiplayer. */
+export function MultiplayerIcon({ className }: { className?: string } = {}) {
+  return (
+    <MenuIcon className={className}>
+      <circle cx="9" cy="8" r="3.25" />
+      <path d="M2.5 20.5c1-3.5 3.4-5.5 6.5-5.5s5.5 2 6.5 5.5" />
+      <path d="M15.5 4.9a3.25 3.25 0 0 1 0 6.2M17.5 15.2c2 .8 3.3 2.5 4 5.3" />
+    </MenuIcon>
+  );
+}
+
 export function RaceGhostIcon({ className }: { className?: string } = {}) {
   return (
     <MenuIcon className={className}>

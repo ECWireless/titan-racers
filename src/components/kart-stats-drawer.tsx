@@ -25,13 +25,13 @@ export function KartStatsDrawer({
   return (
     <section
       aria-labelledby="kart-stats-title"
-      className="fixed bottom-[max(0.75rem,env(safe-area-inset-bottom))] right-[max(0.75rem,env(safe-area-inset-right))] top-[4.25rem] z-[25] flex w-[min(22rem,calc(100vw-1.5rem))] flex-col overflow-hidden border border-titan-ice/25 bg-titan-black/94 text-titan-ice shadow-[0_24px_90px_rgb(0_0_0/0.62)] backdrop-blur"
+      className="fixed bottom-[max(0.75rem,env(safe-area-inset-bottom))] right-[max(0.75rem,env(safe-area-inset-right))] top-[4.25rem] z-[25] flex w-[min(22rem,calc(100vw-1.5rem))] flex-col overflow-hidden border border-titan-ice/18 bg-titan-black/94 text-titan-ice"
       id="kart-stats-drawer"
     >
       <div className="flex items-start justify-between gap-4 border-b border-titan-ice/15 p-3">
         <div className="grid gap-1">
           <h2
-            className="font-mono text-xs font-black uppercase tracking-[0.16em] text-titan-hazard"
+            className="font-mono text-xs font-black uppercase tracking-[0.16em] text-titan-ice"
             id="kart-stats-title"
           >
             Kart stats

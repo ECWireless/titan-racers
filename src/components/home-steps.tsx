@@ -10,6 +10,12 @@ import type { KartAssemblyDocument } from "@/game/kart/kart-assembly-document";
 import type { PersistedResolvedKartSnapshot } from "@/game/kart/kart-derivation";
 
 import { KartThumbnail } from "./kart-thumbnail";
+import {
+  LeaderboardIcon,
+  MultiplayerIcon,
+  RaceFlagIcon,
+  RaceGhostIcon,
+} from "./menu-icons";
 
 /** The home flow's steps, in order. A race starts from the last. */
 export type HomeStep = "start" | "kart" | "course" | "race";
@@ -34,6 +40,14 @@ const OPTION =
 const OPTION_IDLE = "border-titan-ice/18";
 // Chosen is ice; hazard yellow is kept for focus.
 const OPTION_CHOSEN = "border-titan-ice";
+
+// The first screen's buttons keep their earlier panel, translucent over the
+// backdrop. Only focus or hover turns one yellow.
+const MENU_OPTION =
+  "home-option grid min-w-0 border bg-titan-black/72 text-left shadow-[0_20px_60px_rgb(0_0_0/0.35)] backdrop-blur transition motion-reduce:transition-none";
+
+// The first screen's icons, at the size of its titles.
+const MENU_ICON = "size-7";
 
 /**
  * Home's backdrop: Falls View Park at dusk, a render from the game, falling
@@ -151,10 +165,7 @@ export function HomeStepFrame({
   );
 }
 
-/**
- * The first screen: a time trial, multiplayer, or the leaderboard. The next
- * action is one orange block; the rest are rows on thin rules.
- */
+/** The first screen: a time trial, multiplayer, or the leaderboard. */
 export function HomeStartStep({
   challenge,
   multiplayerAvailable,
@@ -176,15 +187,11 @@ export function HomeStartStep({
   return (
     <section
       aria-labelledby="home-start-title"
-      className="home-step grid w-full max-w-xl content-center"
+      className="home-step grid max-w-xl content-center gap-6"
     >
       <h1 className="sr-only" id="home-start-title">
         Main menu
       </h1>
-      {/* What the backdrop shows. */}
-      <p className="mb-3.5 font-mono text-xs font-bold uppercase tracking-[0.2em] text-titan-muted">
-        Falls View Park · dusk
-      </p>
       <div className="grid gap-3">
         {challenge ? (
           <MenuItem
@@ -194,6 +201,7 @@ export function HomeStartStep({
                 ? `Their best: ${challenge.time}`
                 : "Loading their best…"
             }
+            icon={<RaceGhostIcon className={MENU_ICON} />}
             label={`Race @${challenge.username}'s ghost`}
             primary
             onClick={onRaceChallenge}
@@ -202,6 +210,7 @@ export function HomeStartStep({
         <MenuItem
           controllerDefault={!challenge}
           detail="Pick a kart, a course, and a ghost"
+          icon={<RaceFlagIcon className={MENU_ICON} />}
           label="Time Trial"
           primary={!challenge}
           onClick={onTimeTrial}
@@ -213,6 +222,7 @@ export function HomeStartStep({
               ? "A private room for up to 4"
               : "Coming soon"
           }
+          icon={<MultiplayerIcon className={MENU_ICON} />}
           label="Multiplayer"
           primary={false}
           unavailable={!multiplayerAvailable}
@@ -221,18 +231,19 @@ export function HomeStartStep({
         <Link
           aria-describedby="home-leaderboard-detail"
           aria-labelledby="home-leaderboard-label"
-          className={MENU_ROW}
+          className={`${MENU_OPTION} ${OPTION_IDLE} home-menu-item`}
           href="/leaderboard"
         >
           <MenuItemContent
             detail="Best times and ghosts to race"
+            icon={<LeaderboardIcon className={MENU_ICON} />}
             id="home-leaderboard"
             label="Leaderboard"
           />
         </Link>
       </div>
       {note ? (
-        <p className="mt-4 text-sm leading-6 text-titan-ice/76" role="status">
+        <p className="text-sm leading-6 text-titan-ice/76" role="status">
           {note}
         </p>
       ) : null}
@@ -240,13 +251,10 @@ export function HomeStartStep({
   );
 }
 
-const MENU_ITEM = "home-menu-item min-w-0 text-left";
-const MENU_PRIMARY = `${MENU_ITEM} home-menu-primary bg-titan-orange px-[1.125rem] py-4 text-titan-black`;
-const MENU_ROW = `${MENU_ITEM} home-menu-row px-[1.125rem] py-3 text-titan-ice`;
-
 function MenuItem({
   controllerDefault,
   detail,
+  icon,
   label,
   onClick,
   primary,
@@ -254,6 +262,7 @@ function MenuItem({
 }: {
   controllerDefault: boolean;
   detail: string;
+  icon: ReactNode;
   label: string;
   onClick: () => void;
   primary: boolean;
@@ -265,7 +274,7 @@ function MenuItem({
     <button
       aria-describedby={`${id}-detail`}
       aria-labelledby={`${id}-label`}
-      className={primary ? MENU_PRIMARY : MENU_ROW}
+      className={`${MENU_OPTION} ${OPTION_IDLE} home-menu-item`}
       data-controller-default={controllerDefault ? "true" : undefined}
       aria-disabled={unavailable ? "true" : undefined}
       type="button"
@@ -273,42 +282,46 @@ function MenuItem({
     >
       <MenuItemContent
         detail={detail}
+        icon={icon}
         id={id}
         label={label}
-        primary={primary}
+        large={primary}
       />
     </button>
   );
 }
 
 /**
- * A first-screen item's inside: its name, what it leads to, and an arrow
- * that slides on when it is the current item.
+ * A first-screen item's inside: its icon, its name and what it leads to,
+ * and an arrow that slides on when it is the current item.
  */
 function MenuItemContent({
   detail,
+  icon,
   id,
   label,
-  primary = false,
+  large = false,
 }: {
   detail: string;
+  icon: ReactNode;
   id: string;
   label: string;
-  primary?: boolean;
+  large?: boolean;
 }) {
   return (
     <>
+      <span className="text-titan-hazard">{icon}</span>
       <span className="grid min-w-0 gap-1">
         <span
-          className="home-menu-label break-words text-[2.125rem] font-bold uppercase leading-none tracking-[0.01em] sm:text-[2.5rem]"
+          className={`truncate font-black uppercase tracking-[-0.03em] ${
+            large ? "text-3xl sm:text-4xl" : "text-2xl"
+          }`}
           id={`${id}-label`}
         >
           {label}
         </span>
         <span
-          className={`text-sm leading-[1.3] ${
-            primary ? "text-titan-black" : "text-titan-muted"
-          }`}
+          className="font-mono text-[0.68rem] font-bold uppercase tracking-[0.14em] text-titan-ice/60"
           id={`${id}-detail`}
         >
           {detail}
@@ -316,7 +329,7 @@ function MenuItemContent({
       </span>
       <span
         aria-hidden="true"
-        className="home-menu-arrow font-mono text-3xl font-bold"
+        className="home-menu-arrow font-mono text-2xl font-bold text-titan-hazard"
       >
         ›
       </span>

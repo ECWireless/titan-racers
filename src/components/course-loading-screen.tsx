@@ -74,10 +74,10 @@ export function CourseLoadingScreen({
         className="absolute inset-x-0 bottom-0 grid justify-items-start gap-4 bg-[linear-gradient(0deg,rgb(7_7_6/0.85)_0%,rgb(7_7_6/0.6)_60%,rgb(7_7_6/0)_100%)] px-5 pb-[max(1.5rem,env(safe-area-inset-bottom))] pt-16 sm:px-8 sm:pb-8 lg:px-12"
       >
         <div className="grid gap-1">
-          <p className="font-mono text-xs font-bold uppercase tracking-[0.22em] text-titan-hazard">
+          <p className="font-mono text-xs font-bold uppercase tracking-[0.22em] text-titan-muted">
             Island Three
           </p>
-          <p className="text-2xl font-black uppercase tracking-[-0.03em] sm:text-3xl">
+          <p className="text-3xl font-bold uppercase leading-[0.95] tracking-[-0.01em] sm:text-5xl">
             {courseName}
           </p>
         </div>
