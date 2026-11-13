@@ -1,6 +1,3 @@
-import * as pc from "playcanvas";
-
-import { PHYSICS_GROUP, PHYSICS_MASK } from "../physics/collision-groups";
 import { rotateByEulerAngles, type CourseDocument } from "./course-document";
 import {
   buildParkBench,
@@ -14,7 +11,6 @@ import {
   type ParkGeometry,
 } from "./course-park-geometry";
 import { hashString } from "./course-tree-geometry";
-import type { CourseTreeMaterials } from "./course-trees";
 
 type V = [number, number, number];
 
@@ -26,13 +22,12 @@ let cached:
 
 /**
  * A course's park pieces in place, merged by finish, with their collision
- * boxes. Built once per page for the last document asked for, and shared
- * by the editor and the race; callers read it and never change it.
+ * boxes: course-trees.ts draws one mesh per finish and adds the boxes.
+ * Built once per page for the last document asked for, and shared by the
+ * editor and the race; callers read it and never change it.
  */
 export function getCourseParkGeometry(document: CourseDocument) {
-  const objects = document.objects.filter(
-    (object) => object.park && object.availability === "standard",
-  );
+  const objects = document.objects.filter((object) => object.park);
   const key = JSON.stringify(objects);
   if (cached?.key !== key) {
     cached = { key, geometry: buildCourseParkGeometry(objects) };
@@ -43,9 +38,10 @@ export function getCourseParkGeometry(document: CourseDocument) {
 function buildCourseParkGeometry(objects: CourseDocument["objects"]) {
   const meshes = createEmptyParkMeshes();
   const colliders: Array<{
-    center: V;
     halfExtents: V;
     id: string;
+    position: V;
+    /** A tree's trunk, which the chase camera looks past. */
     tree: boolean;
     yaw: number;
   }> = [];
@@ -66,7 +62,7 @@ function buildCourseParkGeometry(objects: CourseDocument["objects"]) {
               ? buildParkOrnamentalTree(value)
               : kind === "shrub"
                 ? buildParkShrub(value)
-                : buildParkFlowerBed(size, value);
+                : buildParkFlowerBed(value);
     // The editor can express an upright yaw as (180, 180 - y, 180).
     const right = rotateByEulerAngles(object.transform.rotation, {
       x: 1,
@@ -103,93 +99,13 @@ function buildCourseParkGeometry(objects: CourseDocument["objects"]) {
     for (const box of geometry.colliders) {
       const [cx, cy, cz] = box.center;
       colliders.push({
-        center: [cx * cos + cz * sin + x, cy + base, -cx * sin + cz * cos + z],
         halfExtents: box.halfExtents,
         id: object.id,
+        position: [cx * cos + cz * sin + x, cy + base, -cx * sin + cz * cos + z],
         tree: kind === "shade-tree" || kind === "ornamental-tree",
         yaw: (angle * 180) / Math.PI,
       });
     }
   }
   return { meshes, colliders };
-}
-
-/**
- * Draws a course's park furniture and planting as one mesh per finish, in
- * the course's own timber, kerb concrete, and mulch, the trees' bark and
- * leaves, and the bicycles' coating. With `colliders`, each piece also
- * gets its static boxes; a tree's trunk is untagged as an obstacle, so the
- * chase camera looks past it. Destroying the returned entity frees it all.
- */
-export function addCoursePark(
-  app: pc.AppBase,
-  document: CourseDocument,
-  {
-    colliders,
-    materials,
-    surfaces,
-  }: {
-    colliders: boolean;
-    materials: CourseTreeMaterials;
-    surfaces: Record<"kerb" | "mulch" | "timber", pc.Material>;
-  },
-) {
-  const root = new pc.Entity("course-park");
-  const geometry = getCourseParkGeometry(document);
-  if (geometry.colliders.length === 0) return root;
-  // Flower rays and stalks are single sheets, lit on both faces.
-  const solid = materials.bicycleCoat.clone();
-  solid.cull = pc.CULLFACE_NONE;
-  solid.twoSidedLighting = true;
-  solid.update();
-  root.on("destroy", () => solid.destroy());
-  const finishes: Record<(typeof PARK_FINISHES)[number], pc.Material | null> = {
-    timber: surfaces.timber,
-    solid,
-    bark: materials.bark,
-    boughs: materials.boughs,
-    leaves: materials.leaves,
-    kerb: surfaces.kerb,
-    mulch: surfaces.mulch,
-  };
-  for (const finish of PARK_FINISHES) {
-    const material = finishes[finish];
-    const data = geometry.meshes[finish];
-    if (!material || data.indices.length === 0) continue;
-    const mesh = new pc.Mesh(app.graphicsDevice);
-    mesh.setPositions(data.positions);
-    mesh.setNormals(data.normals);
-    mesh.setUvs(0, data.uvs!);
-    mesh.setColors(data.colors!);
-    mesh.setIndices(data.indices);
-    mesh.update();
-    const entity = new pc.Entity(`course-park-${finish}`);
-    entity.addComponent("render", {
-      // A bed's soil and its flowers' leaves lie inside its kerbs' shadow.
-      castShadows: finish !== "leaves" && finish !== "mulch",
-      meshInstances: [new pc.MeshInstance(mesh, material)],
-    });
-    root.addChild(entity);
-  }
-  if (colliders) {
-    geometry.colliders.forEach((box, index) => {
-      const entity = new pc.Entity(`${box.id}-collision-${index}`);
-      entity.setPosition(...box.center);
-      entity.setEulerAngles(0, box.yaw, 0);
-      if (!box.tree) entity.tags.add("obstacle");
-      entity.addComponent("collision", {
-        type: "box",
-        halfExtents: new pc.Vec3(...box.halfExtents),
-      });
-      entity.addComponent("rigidbody", {
-        type: pc.BODYTYPE_STATIC,
-        friction: 0.6,
-        restitution: 0,
-        group: PHYSICS_GROUP.solidObstacle,
-        mask: PHYSICS_MASK.solidObstacle,
-      });
-      root.addChild(entity);
-    });
-  }
-  return root;
 }

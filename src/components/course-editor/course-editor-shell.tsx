@@ -461,12 +461,12 @@ export function CourseEditorShell({
   // The start has no size, a curve is sized by its Arc controls, and a
   // bicycle or a park piece keeps its real size.
   const curveSelected = selectedObject?.visual.shape === "arc";
-  const bicycleSelected = Boolean(
+  const realSizeSelected = Boolean(
     selectedObject?.bicycle || selectedObject?.park,
   );
   const transformRule = getCourseEditorTransformRule(selectedObject);
   const scaleUnavailable =
-    selection.kind === "start" || curveSelected || bicycleSelected;
+    selection.kind === "start" || curveSelected || realSizeSelected;
   // Scale falls back to Move while it is unavailable rather than stranding
   // the selection without handles.
   const tool =
@@ -1196,7 +1196,7 @@ export function CourseEditorShell({
       >
         <EditorToolbar
           additiveSelectionEnabled={additiveSelectionEnabled}
-          bicycleSelected={bicycleSelected}
+          realSizeSelected={realSizeSelected}
           collisionVisible={collisionVisible}
           curveSelected={curveSelected}
           cameraHelpOpen={cameraHelpOpen}
@@ -1370,7 +1370,7 @@ export function CourseEditorShell({
                 ? selectedObject.visual.arc
                 : null
             }
-            scalable={!bicycleSelected}
+            scalable={!realSizeSelected}
             transformRule={transformRule}
             selection={selection}
             selectionCount={selections.length}
@@ -1432,7 +1432,7 @@ export function CourseEditorShell({
                     ? selectedObject.visual.arc
                     : null
                 }
-                scalable={!bicycleSelected}
+                scalable={!realSizeSelected}
                 transformRule={transformRule}
                 selection={selection}
                 selectionCount={selections.length}
@@ -1948,7 +1948,7 @@ function PublishDialog({
 
 function EditorToolbar({
   additiveSelectionEnabled,
-  bicycleSelected,
+  realSizeSelected,
   cameraHelpOpen,
   collisionVisible,
   controllerAxis,
@@ -1968,7 +1968,7 @@ function EditorToolbar({
   tool,
 }: {
   additiveSelectionEnabled: boolean;
-  bicycleSelected: boolean;
+  realSizeSelected: boolean;
   cameraHelpOpen: boolean;
   collisionVisible: boolean;
   controllerAxis: "x" | "y" | "z";
@@ -1995,7 +1995,7 @@ function EditorToolbar({
           disabled={
             (multipleObjectsSelected && candidate !== "translate") ||
             (candidate === "scale" &&
-              (selection.kind === "start" || curveSelected || bicycleSelected))
+              (selection.kind === "start" || curveSelected || realSizeSelected))
           }
           key={candidate}
           label={
@@ -2014,7 +2014,7 @@ function EditorToolbar({
                   ? "Scale is unavailable for the start position"
                   : curveSelected
                     ? "Size a curve with its Arc controls in the inspector"
-                    : bicycleSelected
+                    : realSizeSelected
                       ? "This piece keeps its real size"
                       : "Scale selection by axis (3)"
           }

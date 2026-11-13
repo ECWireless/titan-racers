@@ -107,15 +107,11 @@ own editor commands or persistence UI.
 - `src/game/course/course-park-geometry.ts` builds the six park pieces
   (bench, litter bin, shade tree, ornamental tree, shrub, flower bed) in
   metres, each with its collision boxes; trees, shrubs, and beds vary by a
-  seed. `course-park.ts` gives each piece its object's ID as that seed,
-  merges a course's pieces into one mesh per finish (timber, coated solids,
-  bark, boughs, leaf sprays, kerb concrete, and mulch: seven draws), and
-  adds their static boxes; `course-prewarm.ts` prepares the geometry and
-  `course-trees.ts` adds it under the trees' root. Only a tree's trunk
-  omits the `obstacle` tag. `tests/course-park.spec.ts` covers each piece's
-  size, colliders, and facing, the bench's clear under-seat, variation by
-  seed, Falls View Park's budget (60k triangles, 8 draws, 150 bodies), and
-  its pieces' 1.5 m clearance from the route.
+  seed. `course-park.ts` gives each piece its object's ID as that seed and
+  merges a course's pieces by finish, with their boxes in place;
+  `course-prewarm.ts` prepares that, and `course-trees.ts` draws and
+  collides it (see [scene lighting](../scene-lighting/README.md)). Only a
+  tree's trunk omits the `obstacle` tag.
 - `src/game/course/course-water.ts` finds a document's water boxes and their
   flow, and tells the race when a kart's centre of mass is under water, so
   it is drowned and recovered.
@@ -287,11 +283,11 @@ one texture and one draw. Version-eleven documents upgrade unchanged.
 Version thirteen adds `park: "bench" | "bin" | "shade-tree" |
 "ornamental-tree" | "shrub" | "flower-bed"`. Each is an upright outdoor box
 without authored collision or another marker. Its box encloses the piece,
-which stands on the box's base, turned by its yaw. A fixed piece's box is
-its size in `COURSE_PARK_SIZES`; a flower bed's is 1.2–3 m long, 0.8–1.5 m
-wide, and 0.7 m high. The race draws the piece and its colliders in place
-of the box; the editor keeps the box, unseen, to select and move, as for
-bicycles. Version-twelve documents upgrade unchanged.
+which stands on the box's base, turned by its yaw, and is its size in
+`COURSE_PARK_SIZES`. The race draws the piece and its colliders in place
+of the box; the editor keeps the box, unseen, to select, move, and turn,
+as for bicycles, and redraws the piece when a move ends. Version-twelve
+documents upgrade unchanged.
 
 Coordinates and dimensions are finite and bounded to the accepted authoring
 envelope. Unknown fields and unsupported enum values fail rather than being

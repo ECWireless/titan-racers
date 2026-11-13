@@ -1238,7 +1238,7 @@ const courseDocumentV12Schema = courseDocumentV12BaseSchema.superRefine(
 // Version thirteen adds a park's furniture and planting. Each piece is a
 // box of its real size, which a race draws as the piece, standing on the
 // box's base (see course-park-geometry.ts).
-export const COURSE_PARK_KINDS = [
+const COURSE_PARK_KINDS = [
   "bench",
   "bin",
   "shade-tree",
@@ -1246,13 +1246,14 @@ export const COURSE_PARK_KINDS = [
   "shrub",
   "flower-bed",
 ] as const;
-/** Each fixed piece's box, in metres; a flower bed's length and width vary. */
+/** Each piece's box, in metres. */
 export const COURSE_PARK_SIZES = {
   bench: { x: 1.8, y: 0.86, z: 0.65 },
   bin: { x: 0.56, y: 0.92, z: 0.56 },
   "shade-tree": { x: 7.8, y: 10.5, z: 7.8 },
   "ornamental-tree": { x: 3.8, y: 4.8, z: 3.8 },
   shrub: { x: 1.5, y: 1.15, z: 1.5 },
+  "flower-bed": { x: 2.4, y: 0.7, z: 1.1 },
 } as const;
 export const courseDocumentSchema = courseDocumentV12BaseSchema
   .extend({
@@ -1293,22 +1294,15 @@ export const courseDocumentSchema = courseDocumentV12BaseSchema
         });
         return;
       }
-      const size = visual.scale;
-      const fixed = park === "flower-bed" ? null : COURSE_PARK_SIZES[park];
-      const fits = fixed
-        ? (["x", "y", "z"] as const).every(
-            (axis) => Math.abs(size[axis] - fixed[axis]) < 1e-6,
-          )
-        : size.x >= 1.2 &&
-          size.x <= 3 &&
-          size.z >= 0.8 &&
-          size.z <= 1.5 &&
-          Math.abs(size.y - 0.7) < 1e-6;
-      if (!fits) {
+      const size = COURSE_PARK_SIZES[park];
+      if (
+        (["x", "y", "z"] as const).some(
+          (axis) => Math.abs(visual.scale[axis] - size[axis]) > 1e-6,
+        )
+      ) {
         context.addIssue({
           code: "custom",
-          message:
-            "A park piece's box is its real size; a flower bed is 1.2–3 m by 0.8–1.5 m, and 0.7 m high",
+          message: "A park piece's box is its real size",
           path: ["objects", index, "visual", "scale"],
         });
       }

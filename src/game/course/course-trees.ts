@@ -3,7 +3,8 @@ import * as pc from "playcanvas";
 import { PHYSICS_GROUP, PHYSICS_MASK } from "../physics/collision-groups";
 import { createBicycleGeometry } from "./course-bicycle-geometry";
 import type { CourseBicycle, CourseDocument } from "./course-document";
-import { addCoursePark } from "./course-park";
+import { getCourseParkGeometry } from "./course-park";
+import { PARK_FINISHES } from "./course-park-geometry";
 import {
   createCourseHedgeGeometry,
   createNurseryStakeGeometry,
@@ -27,8 +28,9 @@ const LEAF_TINT = [0.95, 1, 0.85] as const;
 
 /**
  * Bark, the leaf sprays shared by trees and hedges, the park's boughs of
- * them, and the parked bicycles' two finishes, for one scene. Without the leaf images there are
- * no leaves, and trees stand bare. The caller destroys them.
+ * them, the parked bicycles' two finishes, and the park's coated solids,
+ * for one scene. Without the leaf images there are no leaves, and trees
+ * stand bare. The caller destroys them.
  */
 export function createCourseTreeMaterials(
   device: pc.GraphicsDevice,
@@ -98,18 +100,26 @@ export function createCourseTreeMaterials(
   };
   const bicycleCoat = bicycle(false);
   const bicycleMetal = bicycle(true);
+  // The park's coated solids. Flower rays and stalks are single sheets,
+  // lit on both faces.
+  const parkCoat = bicycle(false);
+  parkCoat.cull = pc.CULLFACE_NONE;
+  parkCoat.twoSidedLighting = true;
+  parkCoat.update();
   return {
     bark,
     bicycleCoat,
     bicycleMetal,
     boughs,
     leaves,
+    parkCoat,
     destroy() {
       bark.destroy();
       bicycleCoat.destroy();
       bicycleMetal.destroy();
       boughs?.destroy();
       leaves?.destroy();
+      parkCoat.destroy();
       textures.forEach((texture) => texture.destroy());
     },
   };
@@ -301,10 +311,11 @@ export function createCourseBicycleGeometry(document: CourseDocument) {
  * under one root entity: each tree variant's bark and leaves, and every
  * stake, as one instanced draw each, culled as a whole, the hedges' leaves
  * as one mesh, the bicycles' two finishes as one mesh each, and the park's
- * furniture and planting (see course-park.ts). With `colliders`, each tree
- * also gets a static box taking in its stem and stake, and each bicycle
- * boxes around what a kart can reach of it; untagged as obstacles, they
- * leave the chase camera's view clear.
+ * furniture and planting as one mesh per finish. With `colliders`, each
+ * tree also gets a static box taking in its stem and stake, each bicycle
+ * boxes around what a kart can reach of it, and each park piece its own
+ * boxes; untagged as obstacles, trees and bicycles leave the chase
+ * camera's view clear.
  */
 export function addCourseTrees(
   app: pc.AppBase,
@@ -433,14 +444,43 @@ export function addCourseTrees(
     );
   }
 
+  // The park's furniture and planting, one mesh per finish. Its slats,
+  // trunks, and crowns cast shadows; its low kerbs, steel, and flowers
+  // would add a draw to each shadow cascade for shadows too small to see.
+  const park = getCourseParkGeometry(document);
+  const parkFinishes = {
+    timber: surfaces.timber,
+    solid: materials.parkCoat,
+    bark: materials.bark,
+    boughs: materials.boughs,
+    leaves: materials.leaves,
+    kerb: surfaces.kerb,
+    mulch: surfaces.mulch,
+  };
+  for (const finish of PARK_FINISHES) {
+    const material = parkFinishes[finish];
+    if (!material) continue;
+    addDraw(
+      `course-park-${finish}`,
+      park.meshes[finish],
+      material,
+      undefined,
+      finish === "timber" || finish === "bark" || finish === "boughs",
+    );
+  }
+
   if (colliders) {
     const addCollider = (
       name: string,
       { halfExtents, position, yaw }: ReturnType<typeof getCourseTreeCollider>,
+      obstacle = false,
     ) => {
       const collider = new pc.Entity(name);
       collider.setPosition(...position);
       collider.setEulerAngles(0, yaw, 0);
+      // The chase camera keeps clear of what is tagged, and looks past
+      // trees and bicycles.
+      if (obstacle) collider.tags.add("obstacle");
       collider.addComponent("collision", {
         halfExtents: new pc.Vec3(...halfExtents),
         type: "box",
@@ -463,9 +503,12 @@ export function addCourseTrees(
         getCourseTreeCollider(tree),
       ),
     );
+    // Named for its object, which gives a hit its sound.
+    park.colliders.forEach((box, index) =>
+      addCollider(`${box.id}-collision-${index + 1}`, box, !box.tree),
+    );
   }
 
-  root.addChild(addCoursePark(app, document, { colliders, materials, surfaces }));
   app.root.addChild(root);
   return {
     root,

@@ -224,8 +224,7 @@ Materials), and so do course surfaces (see Course Surfaces).
   4.8 m, stand singly and in groves over red-barked dogwoods and raised
   beds of dwarf Shasta daisies. A crown is its branches and boughs alone,
   with nothing solid inside it, and each tree, shrub, and bed grows its own
-  way. Trunks, furniture, shrubs, and beds collide; leaves do not, and the
-  chase camera looks past trees.
+  way. Trunks, furniture, shrubs, and beds collide.
 
 ### Surface Scans
 
@@ -273,7 +272,7 @@ Park trees and shrubs carry boughs of those sprays: four 2 m cards baked by
 sprays at their real size, in a 512 px atlas (about 8 mm a pixel) beside
 them. Each is drawn smaller, as its leaves are: a beech's at about three
 quarters (7–10 cm leaves), a mespilus's and a dogwood's at about half. They
-are tinted per tree and shaded by how deep they sit in the crown and in
+are tinted per species and shaded by how deep they sit in the crown and in
 their own branch's lobe of it.
 
 ## Phone Performance Budget

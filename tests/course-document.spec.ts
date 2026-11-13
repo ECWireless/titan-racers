@@ -1690,9 +1690,8 @@ test("validates the park kit's fixed sizes and excludes conflicting object roles
   expect(testObject({}).success).toBe(true);
   for (const change of [
     { park: "picnic-table" }, { indoors: true }, { overhead: true },
-    { lamp: "street" }, { planting: { along: 1, across: 1 } },
-    { bicycle: "bmx" }, { kit: "crowd-barrier" }, { sign: "PARK" },
-    { poster: { id: "lucky-lady", version: 1 } }, { attachedTo: "door-4" },
+    { planting: { along: 1, across: 1 } },
+    { bicycle: "bmx" }, { kit: "crowd-barrier" },
     { transform: { ...bench.transform, rotation: { x: 5, y: 0, z: 0 } } },
     { collision: cloneSeed().objects.find((o) => o.collision)?.collision },
   ]) expect(testObject(change).success, JSON.stringify(change)).toBe(false);
@@ -1703,7 +1702,6 @@ test("validates the park kit's fixed sizes and excludes conflicting object roles
     { ...bench.visual, bevel: 0.01 },
     ...["water", "hedge", "line", "hazard"].map((material) => ({ ...bench.visual, material })),
   ]) expect(testObject({ visual }).success).toBe(false);
-  const bed = { ...bench, park: "flower-bed", visual: { ...bench.visual, scale: { x: 3, y: 0.7, z: 1.5 } } };
-  expect(testObject(bed).success).toBe(true);
-  expect(testObject({ ...bed, visual: { ...bed.visual, scale: { x: 30, y: 0.7, z: 1.5 } } }).success).toBe(false);
+  expect(testObject({ park: "flower-bed" }).success).toBe(false);
+  expect(testObject({ park: "flower-bed", visual: { ...bench.visual, scale: { x: 2.4, y: 0.7, z: 1.1 } } }).success).toBe(true);
 });

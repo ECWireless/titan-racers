@@ -1052,12 +1052,12 @@ function getScalableGeometry(
   document: CourseDocument,
   selection: CourseEditorSelection,
 ) {
-  const bicycle =
+  const realSize =
     selection.kind === "object" &&
     document.objects.some(
       ({ bicycle, id, park }) => (bicycle || park) && id === selection.id,
     );
-  return selection.kind === "start" || bicycle
+  return selection.kind === "start" || realSize
     ? null
     : getSelectionGeometry(document, selection);
 }

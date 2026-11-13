@@ -193,13 +193,13 @@ export function getImpactMaterial(look: string): ImpactMaterial {
   return IMPACT_MATERIALS[look] ?? "concrete";
 }
 
-/** What a kart hits of a park piece: a bench's or bin's slats, a trunk, a
- * shrub's stems, or a bed's kerb. */
+/** What a kart hits of a park piece: a bench's steel legs, a bin's slats, a
+ * trunk, a shrub's stems, or a bed's kerb. */
 export const PARK_IMPACT_MATERIALS: Record<
   NonNullable<CourseObject["park"]>,
   ImpactMaterial
 > = {
-  bench: "wood",
+  bench: "metal",
   bin: "wood",
   "shade-tree": "wood",
   "ornamental-tree": "wood",

@@ -69,13 +69,14 @@ phone budget. Art direction and the budget itself live in
   hedges show their plain box. It also draws the parked bicycles: all
   bikes' coated and rubber parts as one merged mesh, which casts shadows,
   and their bare metal as another, which does not.
-- `src/game/course/course-park.ts` draws the park's furniture and planting
-  as one mesh per finish, in the course's timber, kerb, and mulch finishes,
-  the trees' bark and leaf sprays, the bicycles' coating (two-sided, for
-  flower rays), and the boughs' material, which `course-trees.ts` makes
-  like the sprays' from their own 512 px atlas with a lower alpha
-  threshold, so a far crown stays as full as a near one. Everything but a
-  bed's soil and its flowers' leaves casts shadows; the park adds no lights.
+- `course-trees.ts` also draws the park's furniture and planting
+  (`course-park.ts`) as one mesh per finish, seven draws: the course's
+  timber, kerb, and mulch finishes, the trees' bark and leaf sprays, a
+  two-sided copy of the bicycles' coating (for flower rays), and the
+  boughs' material, made like the sprays' from their own 512 px atlas with
+  a lower alpha threshold, so a far crown stays as full as a near one.
+  Timber, bark, and boughs cast shadows, so the sun's two cascades add up
+  to six draws by day; the park adds no lights.
 - `src/game/course/course-lamps.ts` puts a floodlight's arm, luminaire,
   and downward spot light on each `lamp` object's mast, at real brightness
   from the enclosure's lux scale and the habitat's lamp schedule, with no

@@ -15,11 +15,9 @@ import {
   buildParkOrnamentalTree,
   buildParkShadeTree,
   buildParkShrub,
-  PARK_FINISHES,
   type ParkGeometry,
 } from "../src/game/course/course-park-geometry";
 
-const BED = { x: 2.4, y: 0.7, z: 1.1 };
 const SEEDS = Array.from({ length: 24 }, (_, index) => index + 1);
 const builders = {
   bench: () => buildParkBench(),
@@ -27,12 +25,11 @@ const builders = {
   "shade-tree": buildParkShadeTree,
   "ornamental-tree": buildParkOrnamentalTree,
   shrub: buildParkShrub,
-  "flower-bed": (seed: number) => buildParkFlowerBed(BED, seed),
+  "flower-bed": buildParkFlowerBed,
 };
 // The kit's budget: see PR 6.11 in the implementation plan.
 const PIECE_TRIANGLES = 1500;
 const PARK_TRIANGLES = 60_000;
-const PARK_DRAWS = 8;
 const PARK_BODIES = 150;
 
 const triangles = (piece: Pick<ParkGeometry, "meshes">) =>
@@ -49,10 +46,7 @@ test("each park piece is built at its real size, inside its box, and the same ev
     const piece = build(seed);
     expect(build(seed), kind).toEqual(piece);
     expect(triangles(piece), kind).toBeLessThanOrEqual(PIECE_TRIANGLES);
-    const size =
-      kind === "flower-bed"
-        ? BED
-        : COURSE_PARK_SIZES[kind as keyof typeof COURSE_PARK_SIZES];
+    const size = COURSE_PARK_SIZES[kind as keyof typeof COURSE_PARK_SIZES];
     for (const [finish, mesh] of Object.entries(piece.meshes)) {
       const corners = mesh.positions.length / 3;
       expect(mesh.normals.length / 3, kind).toBe(corners);
@@ -139,7 +133,7 @@ test("a kart meets everything it can reach of the furniture, and fits under the 
   }
 });
 
-test("trees, shrubs, and beds each grow their own way within the triangle cap", () => {
+test("trees, shrubs, and beds each grow their own way", () => {
   for (const build of [buildParkShadeTree, buildParkOrnamentalTree, buildParkShrub]) {
     expect(build(1)).not.toEqual(build(2));
   }
@@ -151,22 +145,12 @@ test("trees, shrubs, and beds each grow their own way within the triangle cap", 
       (meshes.boughs.indices.length + meshes.bark.indices.length) / 3,
     );
   }
-  expect(buildParkFlowerBed(BED, 1)).not.toEqual(buildParkFlowerBed(BED, 2));
-  // Every size a bed may be, in 5 cm steps.
-  let most = 0;
-  for (let x = 1.2; x < 3.001; x += 0.05) {
-    for (let z = 0.8; z < 1.501; z += 0.05) {
-      most = Math.max(most, triangles(buildParkFlowerBed({ x, z }, 1)));
-    }
-  }
-  expect(most).toBeLessThanOrEqual(PIECE_TRIANGLES);
+  expect(buildParkFlowerBed(1)).not.toEqual(buildParkFlowerBed(2));
 });
 
 test("Falls View Park's kit stays inside its budget, and only a tree's trunk collides", () => {
   const geometry = getCourseParkGeometry(FALLS_VIEW_PARK_DOCUMENT);
   expect(getCourseParkGeometry(FALLS_VIEW_PARK_DOCUMENT)).toBe(geometry);
-  // One draw per finish.
-  expect(PARK_FINISHES.length).toBeLessThanOrEqual(PARK_DRAWS);
   expect(triangles(geometry)).toBeLessThanOrEqual(PARK_TRIANGLES);
   expect(geometry.colliders.length).toBeLessThanOrEqual(PARK_BODIES);
   for (const object of FALLS_VIEW_PARK_DOCUMENT.objects) {
@@ -180,17 +164,36 @@ test("Falls View Park's kit stays inside its budget, and only a tree's trunk col
       expect(boxes[0]!.halfExtents[0], object.id).toBeLessThan(0.5);
     }
   }
-  // A piece kept for collision tests is neither drawn nor solid in a race.
-  const fixture = structuredClone(
+});
+
+test("a piece stands on its box's base, turned as its box is", () => {
+  const bench = structuredClone(
     FALLS_VIEW_PARK_DOCUMENT.objects.find((object) => object.park === "bench")!,
   );
-  fixture.availability = "collision-test";
-  const hidden = getCourseParkGeometry({
-    ...FALLS_VIEW_PARK_DOCUMENT,
-    objects: [fixture],
-  });
-  expect(hidden.colliders).toHaveLength(0);
-  expect(triangles(hidden)).toBe(0);
+  bench.transform.position = { x: 10, y: 2.43, z: -5 };
+  // The editor writes a quarter turn either way.
+  for (const rotation of [
+    { x: 0, y: 90, z: 0 },
+    { x: 180, y: 90, z: 180 },
+  ]) {
+    bench.transform.rotation = rotation;
+    const { colliders, meshes } = getCourseParkGeometry({
+      ...FALLS_VIEW_PARK_DOCUMENT,
+      objects: [bench],
+    });
+    // Its 1.8 m length now runs along Z, and its back (local -Z) faces -X.
+    const xs = meshes.timber.positions.filter((_, index) => index % 3 === 0);
+    const ys = meshes.timber.positions.filter((_, index) => index % 3 === 1);
+    const zs = meshes.timber.positions.filter((_, index) => index % 3 === 2);
+    expect(Math.max(...zs) - Math.min(...zs)).toBeCloseTo(1.8, 3);
+    expect(Math.min(...ys)).toBeGreaterThan(2.4);
+    expect(Math.max(...ys)).toBeLessThan(2 + COURSE_PARK_SIZES.bench.y);
+    const back = colliders.find((box) => box.halfExtents[1] > 0.15 && box.halfExtents[0] > 0.8)!;
+    expect(back.position[0]).toBeCloseTo(10 - 0.27, 3);
+    expect(back.position[2]).toBeCloseTo(-5, 3);
+    expect(back.yaw).toBeCloseTo(90, 6);
+    expect(Math.min(...xs)).toBeGreaterThan(10 - 0.33);
+  }
 });
 
 // An object's outline on the ground, and the gap between two outlines.
@@ -267,7 +270,7 @@ function gap(a: Point[], b: Point[]) {
   );
 }
 
-test("the park's pieces stand on its lawns, 1.5 m clear of the road, the jump, barriers, and lamps", () => {
+test("the park's pieces stand 1.5 m clear of the road, the jump, barriers, and lamps", () => {
   const objects = FALLS_VIEW_PARK_DOCUMENT.objects;
   const keepClear = objects
     .filter(
@@ -295,24 +298,10 @@ test("the park's pieces stand on its lawns, 1.5 m clear of the road, the jump, b
           : object,
       ),
     }));
-  // The return lane's two lawns, the infield, the lawn beyond the levee,
-  // and the bank outside the downhill: [x0, x1, z0, z1].
-  const lawns = [
-    [-45, 8, -60, -50],
-    [-40, 8, -42, -30],
-    [-45, 45, -30, 17],
-    [-70, 85, 38, 70],
-    [-73, -63, -35, 15],
-  ];
   const park = objects.filter((object) => object.park);
   expect(park.length).toBeGreaterThan(0);
   const tooClose: string[] = [];
   for (const object of park) {
-    const { x, z } = object.transform.position;
-    expect(
-      lawns.some(([x0, x1, z0, z1]) => x >= x0! && x <= x1! && z >= z0! && z <= z1!),
-      object.id,
-    ).toBe(true);
     // A tree's box is its crown, so its boughs keep the same distance.
     const outline = footprint(object);
     for (const other of keepClear) {

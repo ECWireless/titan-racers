@@ -8,7 +8,15 @@ import {
   createCourseBevelGeometry,
   createCourseMeshBuilder,
 } from "./course-bevel";
-import { addLeafCard, type TreeMeshData } from "./course-tree-geometry";
+import { COURSE_PARK_SIZES } from "./course-document";
+import {
+  add,
+  addLeafCard,
+  cross,
+  normalize as unit,
+  scale as mul,
+  type TreeMeshData,
+} from "./course-tree-geometry";
 
 type V = [number, number, number];
 type ParkCollider = { center: V; halfExtents: V };
@@ -49,16 +57,8 @@ const piece = (): ParkGeometry => ({
 });
 
 const ONE = { x: 1, y: 1, z: 1 };
-const add = (a: V, b: V): V => [a[0] + b[0], a[1] + b[1], a[2] + b[2]];
 const sub = (a: V, b: V): V => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
-const mul = (a: V, s: number): V => [a[0] * s, a[1] * s, a[2] * s];
 const dot = (a: V, b: V) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
-const cross = (a: V, b: V): V => [
-  a[1] * b[2] - a[2] * b[1],
-  a[2] * b[0] - a[0] * b[2],
-  a[0] * b[1] - a[1] * b[0],
-];
-const unit = (a: V): V => mul(a, 1 / Math.hypot(...a));
 const smooth = (from: number, to: number, value: number) => {
   const t = Math.min(1, Math.max(0, (value - from) / (to - from)));
   return t * t * (3 - 2 * t);
@@ -388,10 +388,11 @@ export function buildParkShadeTree(seed: number): ParkGeometry {
   };
   const girth = 0.22 + 0.04 * rng();
   const lean: V = [(rng() - 0.5) * 0.5, 0, (rng() - 0.5) * 0.5];
+  // The trunk stands straight out of the lawn, then leans as it rises.
   const leader = (height: number): V => [
-    lean[0] * (height / 8) ** 2,
+    lean[0] * (Math.max(0, height - 0.3) / 8) ** 2,
     height,
-    lean[2] * (height / 8) ** 2,
+    lean[2] * (Math.max(0, height - 0.3) / 8) ** 2,
   ];
   const heights = [0, 0.3, 1.5, 3, 5.2, 7.6];
   const radii = [1.35, 1.05, 0.95, 0.85, 0.5, 0.15];
@@ -470,7 +471,8 @@ export function buildParkShadeTree(seed: number): ParkGeometry {
   for (const lobe of lobes) {
     addLobe(boughs, crown, lobe.centre, lobe.radius, each, 1.5, rng);
   }
-  collider(p, [0, 1.5, 0], [girth * 2.4, 3, girth * 2.4]);
+  // Wide enough to take in most of the root flare at a kart's height.
+  collider(p, [0, 1.5, 0], [girth * 3, 3, girth * 3]);
   return p;
 }
 
@@ -571,18 +573,16 @@ const DAISY_DISC: V = [0.62, 0.36, 0.03];
 const KERB_UNIT = 0.915;
 
 /**
- * A raised bed, 0.26 m high: 120 mm precast concrete kerbs with chamfered
- * edges around mulched soil, planted with a drift of dwarf Shasta daisies
- * (Leucanthemum × superbum), 25–45 cm high with 7 cm heads.
+ * A raised bed, 2.4 m by 1.1 m and 0.26 m high: 120 mm precast concrete
+ * kerbs with chamfered edges around mulched soil, planted with a drift of
+ * dwarf Shasta daisies (Leucanthemum × superbum), 25–45 cm high with 7 cm
+ * heads.
  */
-export function buildParkFlowerBed(
-  size: { x: number; z: number },
-  seed: number,
-): ParkGeometry {
+export function buildParkFlowerBed(seed: number): ParkGeometry {
   const p = piece();
   const rng = random(seed);
   const { kerb, mulch, solid, leaves } = p.meshes;
-  const { x, z } = size;
+  const { x, z } = COURSE_PARK_SIZES["flower-bed"];
   for (const sign of [-1, 1]) {
     const long = Math.ceil(x / KERB_UNIT);
     for (let i = 0; i < long; i++) {
@@ -606,13 +606,9 @@ export function buildParkFlowerBed(
   // The daisies stand a hand apart, each in its own patch of the bed.
   const bedX = x - 0.54;
   const bedZ = z - 0.54;
-  const plants = Math.min(50, Math.round(bedX * bedZ * 30));
-  const columns = Math.max(1, Math.round(Math.sqrt((plants * bedX) / bedZ)));
-  // Whole rows, and no more plants than a bed's triangles allow.
-  const rows = Math.max(
-    1,
-    Math.min(Math.ceil(plants / columns), Math.floor(55 / columns)),
-  );
+  const plants = Math.round(bedX * bedZ * 30);
+  const columns = Math.round(Math.sqrt((plants * bedX) / bedZ));
+  const rows = Math.ceil(plants / columns);
   for (let plant = 0; plant < columns * rows; plant++) {
     const px = (((plant % columns) + 0.15 + 0.7 * rng()) / columns - 0.5) * bedX;
     const pz = ((Math.floor(plant / columns) + 0.15 + 0.7 * rng()) / rows - 0.5) * bedZ;
