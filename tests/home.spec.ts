@@ -2914,6 +2914,13 @@ test.describe("home screen", () => {
     await solo.click();
     const startedAt = Date.now();
     await expect(cover).toBeVisible();
+    // The same cover stays up as the race mounts beneath it: remounting it
+    // would restart its view of the habitat.
+    await cover.evaluate((element) => {
+      element.dataset.firstCover = "true";
+    });
+    await expect(page.getByTestId("solo-time-trial-canvas")).toBeAttached();
+    await expect(cover).toHaveAttribute("data-first-cover", "true");
     await expect(cover).toHaveCount(0, { timeout: 90_000 });
     expect(Date.now() - startedAt).toBeGreaterThanOrEqual(2_500);
     expect(

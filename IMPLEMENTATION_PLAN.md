@@ -328,10 +328,10 @@ integration review, from `2ffc5a20` (PR #70), before its last PR merges.
 
 **PR 6.10: Home and the main site**
 
-- [ ] Home's AI-generated background gives way to real in-game renders,
+- [x] Home's AI-generated background gives way to a real in-game render,
       and the home flow takes the Floodlit look.
-- [ ] The result screen, leaderboard, rooms, and racing display follow.
-- [ ] The main site (`titan-racers-site`, a sibling repository, its own PR)
+- [x] The result screen, leaderboard, rooms, and racing display follow.
+- [x] The main site (`titan-racers-site`, a sibling repository, its own PR)
       takes the look, with real renders in place of its four AI images, and
       drops every RaidGuild Forge reference. The Forge is shutting down, so
       its newsletter signup gives way to a link to play the demo.

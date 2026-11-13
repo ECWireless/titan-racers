@@ -820,7 +820,9 @@ export function PlayHome() {
         }.`
       : null;
   const loadingScreen = courseLoading ? (
+    // Keyed, as home and the race place it at different positions.
     <CourseLoadingScreen
+      key="course-loading"
       courseName={courseLoading.courseName}
       enclosure={courseLoading.enclosure}
       leaving={courseLoading.leaving}
@@ -830,8 +832,8 @@ export function PlayHome() {
     />
   ) : null;
 
-  // The loading screen keeps one place in the tree across both modes, so it
-  // is not remounted when the race mounts beneath it.
+  // The loading screen keeps its key across both modes, so it is not
+  // remounted when the race mounts beneath it.
   if (mode === "solo") {
     return (
       <>
