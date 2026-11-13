@@ -60,6 +60,7 @@ import {
   getRaceCue,
   ImpactAudioGate,
   LandingAudioDetector,
+  PARK_IMPACT_MATERIALS,
   resolveImpactMaterial,
   SILENT_MOTOR,
   TIPPED_UPRIGHTNESS,
@@ -1162,7 +1163,7 @@ export function SoloTimeTrialCanvas({
       const trees = addCourseTrees(app, COURSE_DOCUMENT, {
         colliders: true,
         materials: treeMaterials,
-        timber: courseSurfaces.materials.timber,
+        surfaces: courseSurfaces.materials,
       });
       runtime.addCleanup(() => trees.destroy());
 
@@ -2219,6 +2220,13 @@ export function SoloTimeTrialCanvas({
         { material: ImpactMaterial; order: number }
       >();
       COURSE_DOCUMENT.objects.forEach((object, order) => {
+        // A park piece's colliders are its own (see course-park.ts).
+        if (object.park) {
+          solidImpactMaterials.set(
+            object.id,
+            PARK_IMPACT_MATERIALS[object.park],
+          );
+        }
         const role = object.collision?.role;
         if (!role) return;
         const material = getImpactMaterial(object.visual.material);

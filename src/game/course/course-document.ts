@@ -10,9 +10,9 @@ import { getApprovedSurfaceMaterial } from "../kart/kart-material-registry";
 import { COURSE_ARC_MAXIMUM_WIDTH_RATIO } from "./course-arc";
 import { getCourseDoorType } from "./course-door-types";
 import { getCoursePoster } from "./course-posters";
-import fallsViewParkDocumentJson from "./falls-view-park.v12.json";
+import fallsViewParkDocumentJson from "./falls-view-park.v13.json";
 import type { OfficialCourseId } from "./course-ids";
-import roughCourseDocumentJson from "./rough-course.v12.json";
+import roughCourseDocumentJson from "./rough-course.v13.json";
 
 export const courseIdSchema = z
   .string()
@@ -1129,7 +1129,7 @@ const courseDoorSchema = z.strictObject({
     }),
 });
 
-export const courseDocumentSchema = courseDocumentV11BaseSchema
+const courseDocumentV12BaseSchema = courseDocumentV11BaseSchema
   .extend({
     objects: courseDocumentV11BaseSchema.shape.objects.element
       .extend({
@@ -1141,88 +1141,175 @@ export const courseDocumentSchema = courseDocumentV11BaseSchema
       .min(1)
       .max(5_000),
     schemaVersion: z.literal(12),
+  });
+function validateCourseObjectsV12(
+  document: Omit<z.infer<typeof courseDocumentV12BaseSchema>, "schemaVersion">,
+  context: z.RefinementCtx,
+) {
+  validateCourseObjectsV11(document, context, COURSE_INDOOR_LAMP_LIMIT);
+  const objects = new Map(document.objects.map((object) => [object.id, object]));
+  const switchedLamps = new Set<string>();
+  document.objects.forEach((object, index) => {
+    const { door, visual } = object;
+    if (
+      door &&
+      (visual.shape !== "box" ||
+        object.collision?.shape !== "box" ||
+        object.collision.role !== "solid-obstacle" ||
+        Object.values(object.collision.offset.rotation).some((angle) => angle !== 0) ||
+        !isUpright(object.transform.rotation) ||
+        object.attachedTo ||
+        object.overhead ||
+        object.lamp ||
+        object.planting ||
+        object.bicycle ||
+        object.kit ||
+        object.sign !== undefined)
+    ) {
+      context.addIssue({
+        code: "custom",
+        message:
+          "A door is an upright box colliding as an unturned solid box, and is not attached, a lamp, roof, bed, bicycle, kit, or sign",
+        path: ["objects", index, "door"],
+      });
+    }
+    if (door?.lamp !== undefined) {
+      const lamp = objects.get(door.lamp);
+      if (
+        !lamp?.lamp ||
+        !(COURSE_INDOOR_LAMP_KINDS as readonly string[]).includes(lamp.lamp) ||
+        switchedLamps.has(door.lamp)
+      ) {
+        context.addIssue({
+          code: "custom",
+          message: "A door switches an indoor lamp that no other door does",
+          path: ["objects", index, "door", "lamp"],
+        });
+      }
+      switchedLamps.add(door.lamp);
+    }
+    if (
+      object.attachedTo !== undefined &&
+      (!objects.get(object.attachedTo)?.door ||
+        object.collision !== null ||
+        object.overhead ||
+        object.lamp ||
+        object.planting ||
+        object.bicycle)
+    ) {
+      context.addIssue({
+        code: "custom",
+        message:
+          "A part is attached to a door, and never collides or is a lamp, roof, bed, or bicycle",
+        path: ["objects", index, "attachedTo"],
+      });
+    }
+    const print = object.poster && getCoursePoster(object.poster);
+    if (
+      print &&
+      (visual.shape !== "box" ||
+        visual.scale.z > COURSE_SIGN_MAXIMUM_THICKNESS ||
+        Math.abs(
+          (visual.scale.x / visual.scale.y) * (print.height / print.width) - 1,
+        ) > COURSE_POSTER_SHAPE_TOLERANCE ||
+        object.collision !== null ||
+        visual.bevel ||
+        door ||
+        object.overhead ||
+        object.lamp ||
+        object.planting ||
+        object.bicycle ||
+        object.kit ||
+        object.sign !== undefined)
+    ) {
+      context.addIssue({
+        code: "custom",
+        message: `A poster is a box in its print's shape, at most ${COURSE_SIGN_MAXIMUM_THICKNESS * 1000} mm thick along its local Z, that never collides and is nothing else`,
+        path: ["objects", index, "poster"],
+      });
+    }
+  });
+}
+
+const courseDocumentV12Schema = courseDocumentV12BaseSchema.superRefine(
+  validateCourseObjectsV12,
+);
+
+// Version thirteen adds a park's furniture and planting. Each piece is a
+// box of its real size, which a race draws as the piece, standing on the
+// box's base (see course-park-geometry.ts).
+export const COURSE_PARK_KINDS = [
+  "bench",
+  "bin",
+  "shade-tree",
+  "ornamental-tree",
+  "shrub",
+  "flower-bed",
+] as const;
+/** Each fixed piece's box, in metres; a flower bed's length and width vary. */
+export const COURSE_PARK_SIZES = {
+  bench: { x: 1.8, y: 0.86, z: 0.65 },
+  bin: { x: 0.56, y: 0.92, z: 0.56 },
+  "shade-tree": { x: 7.8, y: 10.5, z: 7.8 },
+  "ornamental-tree": { x: 3.8, y: 4.8, z: 3.8 },
+  shrub: { x: 1.5, y: 1.15, z: 1.5 },
+} as const;
+export const courseDocumentSchema = courseDocumentV12BaseSchema
+  .extend({
+    schemaVersion: z.literal(13),
+    objects: courseDocumentV12BaseSchema.shape.objects.element
+      .extend({ park: z.enum(COURSE_PARK_KINDS).optional() })
+      .array()
+      .min(1)
+      .max(5_000),
   })
   .superRefine((document, context) => {
-    validateCourseObjectsV11(document, context, COURSE_INDOOR_LAMP_LIMIT);
-    const objects = new Map(document.objects.map((object) => [object.id, object]));
-    const switchedLamps = new Set<string>();
+    validateCourseObjectsV12(document, context);
     document.objects.forEach((object, index) => {
-      const { door, visual } = object;
+      if (!object.park) return;
+      const { visual, park } = object;
       if (
-        door &&
-        (visual.shape !== "box" ||
-          object.collision?.shape !== "box" ||
-          object.collision.role !== "solid-obstacle" ||
-          Object.values(object.collision.offset.rotation).some((angle) => angle !== 0) ||
-          !isUpright(object.transform.rotation) ||
-          object.attachedTo ||
-          object.overhead ||
-          object.lamp ||
-          object.planting ||
-          object.bicycle ||
-          object.kit ||
-          object.sign !== undefined)
+        visual.shape !== "box" ||
+        !isUpright(object.transform.rotation) ||
+        object.collision !== null ||
+        object.indoors ||
+        object.overhead ||
+        object.lamp ||
+        object.planting ||
+        object.bicycle ||
+        object.kit ||
+        object.door ||
+        object.attachedTo ||
+        object.sign !== undefined ||
+        object.poster ||
+        ["hedge", "water", "line", "hazard"].includes(visual.material) ||
+        visual.bevel
       ) {
         context.addIssue({
           code: "custom",
           message:
-            "A door is an upright box colliding as an unturned solid box, and is not attached, a lamp, roof, bed, bicycle, kit, or sign",
-          path: ["objects", index, "door"],
+            "A park piece is an upright outdoor box without collision that is nothing else, and not bevelled, a hedge, water, or road paint",
+          path: ["objects", index, "park"],
         });
+        return;
       }
-      if (door?.lamp !== undefined) {
-        const lamp = objects.get(door.lamp);
-        if (
-          !lamp?.lamp ||
-          !(COURSE_INDOOR_LAMP_KINDS as readonly string[]).includes(lamp.lamp) ||
-          switchedLamps.has(door.lamp)
-        ) {
-          context.addIssue({
-            code: "custom",
-            message: "A door switches an indoor lamp that no other door does",
-            path: ["objects", index, "door", "lamp"],
-          });
-        }
-        switchedLamps.add(door.lamp);
-      }
-      if (
-        object.attachedTo !== undefined &&
-        (!objects.get(object.attachedTo)?.door ||
-          object.collision !== null ||
-          object.overhead ||
-          object.lamp ||
-          object.planting ||
-          object.bicycle)
-      ) {
+      const size = visual.scale;
+      const fixed = park === "flower-bed" ? null : COURSE_PARK_SIZES[park];
+      const fits = fixed
+        ? (["x", "y", "z"] as const).every(
+            (axis) => Math.abs(size[axis] - fixed[axis]) < 1e-6,
+          )
+        : size.x >= 1.2 &&
+          size.x <= 3 &&
+          size.z >= 0.8 &&
+          size.z <= 1.5 &&
+          Math.abs(size.y - 0.7) < 1e-6;
+      if (!fits) {
         context.addIssue({
           code: "custom",
           message:
-            "A part is attached to a door, and never collides or is a lamp, roof, bed, or bicycle",
-          path: ["objects", index, "attachedTo"],
-        });
-      }
-      const print = object.poster && getCoursePoster(object.poster);
-      if (
-        print &&
-        (visual.shape !== "box" ||
-          visual.scale.z > COURSE_SIGN_MAXIMUM_THICKNESS ||
-          Math.abs(
-            (visual.scale.x / visual.scale.y) * (print.height / print.width) - 1,
-          ) > COURSE_POSTER_SHAPE_TOLERANCE ||
-          object.collision !== null ||
-          visual.bevel ||
-          door ||
-          object.overhead ||
-          object.lamp ||
-          object.planting ||
-          object.bicycle ||
-          object.kit ||
-          object.sign !== undefined)
-      ) {
-        context.addIssue({
-          code: "custom",
-          message: `A poster is a box in its print's shape, at most ${COURSE_SIGN_MAXIMUM_THICKNESS * 1000} mm thick along its local Z, that never collides and is nothing else`,
-          path: ["objects", index, "poster"],
+            "A park piece's box is its real size; a flower bed is 1.2–3 m by 0.8–1.5 m, and 0.7 m high",
+          path: ["objects", index, "visual", "scale"],
         });
       }
     });
@@ -1619,6 +1706,13 @@ export function parseCourseDocument(input: unknown): CourseDocument {
 
   if (hasSchemaVersion(input, 11)) {
     return parseCourseDocument({ ...courseDocumentV11Schema.parse(input), schemaVersion: 12 });
+  }
+
+  if (hasSchemaVersion(input, 12)) {
+    return parseCourseDocument({
+      ...courseDocumentV12Schema.parse(input),
+      schemaVersion: 13,
+    });
   }
 
   const document = courseDocumentSchema.parse(input);

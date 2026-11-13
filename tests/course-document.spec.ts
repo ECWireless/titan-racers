@@ -49,6 +49,7 @@ function versionElevenFallsViewPark() {
   // The store room's lamps and poster are version twelve's.
   document.objects = document.objects.filter(
     (object) =>
+      object.park === undefined &&
       object.poster === undefined &&
       !(object.lamp && object.id.startsWith("tunnel-store-room-")),
   );
@@ -199,7 +200,7 @@ function findObject(id: string) {
 }
 
 test("parses the versioned rough course with stable IDs and ordered checkpoints", () => {
-  expect(ROUGH_COURSE_DOCUMENT.schemaVersion).toBe(12);
+  expect(ROUGH_COURSE_DOCUMENT.schemaVersion).toBe(13);
   expect(ROUGH_COURSE_DOCUMENT.units).toBe("meters");
   expect(ROUGH_COURSE_DOCUMENT.start.id).toBe("start-position");
   expect(ROUGH_COURSE_DOCUMENT.checkpoints).toHaveLength(3);
@@ -850,7 +851,7 @@ test("validates posters: a known print on a thin board of its shape", () => {
 });
 
 test("serializes the seeds deterministically and round trips without changes", () => {
-  for (const seed of ["rough-course.v12.json", "falls-view-park.v12.json"]) {
+  for (const seed of ["rough-course.v13.json", "falls-view-park.v13.json"]) {
     const source = readFileSync(
       join(process.cwd(), "src/game/course", seed),
       "utf8",
@@ -862,7 +863,7 @@ test("serializes the seeds deterministically and round trips without changes", (
   }
   expect(serializeCourseDocument(ROUGH_COURSE_DOCUMENT)).toBe(
     readFileSync(
-      join(process.cwd(), "src/game/course/rough-course.v12.json"),
+      join(process.cwd(), "src/game/course/rough-course.v13.json"),
       "utf8",
     ),
   );
@@ -895,7 +896,7 @@ test("normalizes version-one course data without mutating the stored input", () 
   expect(withoutDerived(normalized)).toEqual(
     withoutDerived(ROUGH_COURSE_DOCUMENT),
   );
-  expect(normalized.schemaVersion).toBe(12);
+  expect(normalized.schemaVersion).toBe(13);
 });
 
 test("normalizes a valid one-checkpoint version-one course", () => {
@@ -1090,7 +1091,7 @@ test("normalizes v2 to standard surfaces without inferring physics from visuals"
   const input = createVersionTwoSeed();
   const stored = structuredClone(input);
   const normalized = parseCourseDocument(input);
-  expect(normalized.schemaVersion).toBe(12);
+  expect(normalized.schemaVersion).toBe(13);
   // Legacy karts keep spawning on the start gate.
   expect(normalized.start.spawnDistance).toBe(0);
   for (const object of normalized.objects) {
@@ -1670,4 +1671,39 @@ test("opens a storm drain through the north wall that every official kart fits",
     expect(width - dimensions.x, document.kartId).toBeGreaterThan(0.12);
     expect(height - dimensions.y, document.kartId).toBeGreaterThan(0.25);
   }
+});
+
+test("upgrades version twelve unchanged and serializes park markers only as version thirteen", () => {
+  const legacy = structuredClone(FALLS_VIEW_PARK_DOCUMENT);
+  legacy.objects = legacy.objects.filter((object) => !object.park);
+  const normalized = parseCourseDocument({ ...legacy, schemaVersion: 12 });
+  expect(normalized).toEqual(legacy);
+  expect(normalized.schemaVersion).toBe(13);
+  const bench = structuredClone(FALLS_VIEW_PARK_DOCUMENT.objects.find((object) => object.park === "bench")!);
+  expect(() => parseCourseDocument({ ...legacy, schemaVersion: 12, objects: [...legacy.objects, bench] })).toThrow();
+  expect(parseCourseDocument(JSON.parse(serializeCourseDocument(FALLS_VIEW_PARK_DOCUMENT)))).toEqual(FALLS_VIEW_PARK_DOCUMENT);
+});
+
+test("validates the park kit's fixed sizes and excludes conflicting object roles", () => {
+  const bench = FALLS_VIEW_PARK_DOCUMENT.objects.find((object) => object.park === "bench")!;
+  const testObject = (change: Record<string, unknown>) => courseDocumentSchema.safeParse({ ...cloneSeed(), objects: [{ ...structuredClone(bench), ...change }] });
+  expect(testObject({}).success).toBe(true);
+  for (const change of [
+    { park: "picnic-table" }, { indoors: true }, { overhead: true },
+    { lamp: "street" }, { planting: { along: 1, across: 1 } },
+    { bicycle: "bmx" }, { kit: "crowd-barrier" }, { sign: "PARK" },
+    { poster: { id: "lucky-lady", version: 1 } }, { attachedTo: "door-4" },
+    { transform: { ...bench.transform, rotation: { x: 5, y: 0, z: 0 } } },
+    { collision: cloneSeed().objects.find((o) => o.collision)?.collision },
+  ]) expect(testObject(change).success, JSON.stringify(change)).toBe(false);
+  if (bench.visual.shape !== "box") throw new Error("bench box");
+  for (const visual of [
+    { ...bench.visual, shape: "cylinder" },
+    { ...bench.visual, scale: { ...bench.visual.scale, x: 2 } },
+    { ...bench.visual, bevel: 0.01 },
+    ...["water", "hedge", "line", "hazard"].map((material) => ({ ...bench.visual, material })),
+  ]) expect(testObject({ visual }).success).toBe(false);
+  const bed = { ...bench, park: "flower-bed", visual: { ...bench.visual, scale: { x: 3, y: 0.7, z: 1.5 } } };
+  expect(testObject(bed).success).toBe(true);
+  expect(testObject({ ...bed, visual: { ...bed.visual, scale: { x: 30, y: 0.7, z: 1.5 } } }).success).toBe(false);
 });

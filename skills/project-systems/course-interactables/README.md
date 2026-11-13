@@ -31,7 +31,7 @@ sound, light, or reset.
   `room-rules.ts` keeps each door's first claim, `room-protocol.ts` carries
   the claim (`open`) and the race's openings, and `room-connection.ts`
   resends a claim with the states the room missed (protocol 4).
-- `src/game/course/falls-view-park.v12.json`: door 4, its parts, and the
+- `src/game/course/falls-view-park.v13.json`: door 4, its parts, and the
   store room.
 - `src/game/course/course-posters.ts` and `posters/lucky-lady.ts`: the
   store room's print of The Lucky Lady.

@@ -1,3 +1,4 @@
+import { getCourseParkGeometry } from "./course-park";
 import { getHabitatLight } from "../enclosure/habitat-light";
 import type { CourseDocument } from "./course-document";
 import { courseLampLux } from "./course-lamps";
@@ -33,6 +34,7 @@ export function prewarmCourseScene(document: CourseDocument) {
       (_, variant) => () => createNurseryTreeGeometry(variant),
     ),
     createNurseryStakeGeometry,
+    () => getCourseParkGeometry(document),
     () => createCourseHedgeGeometry(document),
     ...(document.objects.some((object) => object.sign !== undefined)
       ? [getCourseSignGlyphs]

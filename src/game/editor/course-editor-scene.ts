@@ -376,7 +376,7 @@ export class CourseEditorScene {
     this.trees = addCourseTrees(this.app, this.currentDocument, {
       colliders: false,
       materials: this.treeMaterials,
-      timber: this.materials.timber,
+      surfaces: this.materials,
     });
   }
 
@@ -805,10 +805,10 @@ export class CourseEditorScene {
     this.updateCamera();
   }
 
-  /** The visual of each bicycle's box. */
-  private bicycleBoxes() {
+  /** Selection boxes for bicycles and the permanent park kit. */
+  private pieceBoxes() {
     return this.currentDocument.objects.flatMap((object) => {
-      const entity = object.bicycle
+      const entity = object.bicycle || object.park
         ? this.documentEntities.get(
             selectionKey({ id: object.id, kind: "object" }),
           )
@@ -824,10 +824,10 @@ export class CourseEditorScene {
       return;
     }
 
-    // Trees, hedge leaves, and bicycles are drawn, not picked: their beds,
-    // hedges, and the bicycles' unseen boxes are. A sign picks by an unseen
+    // Planting, bicycles, and park pieces are drawn, not picked: their
+    // beds, hedges, or unseen boxes are. A sign picks by an unseen
     // plate its box's size, as its letters leave gaps.
-    const pickBoxes = [...this.bicycleBoxes(), ...this.signPlates];
+    const pickBoxes = [...this.pieceBoxes(), ...this.signPlates];
     if (this.trees) this.trees.root.enabled = false;
     pickBoxes.forEach((box) => (box.enabled = true));
     try {
@@ -884,16 +884,15 @@ export class CourseEditorScene {
         this.selectionByNode.set(entity, selection);
       }
     });
-    // The builder leaves a bicycle's box out; here it stays present to
-    // select and move, but unseen, as the bicycle is drawn in its place.
+    // Bicycle and park selection boxes stay present but unseen in the editor.
     this.currentDocument.objects.forEach((object) => {
-      if (!object.bicycle) return;
+      if (!object.bicycle && !object.park) return;
       const entity = this.documentEntities.get(
         selectionKey({ id: object.id, kind: "object" }),
       );
       if (entity) entity.enabled = true;
     });
-    this.bicycleBoxes().forEach((box) => (box.enabled = false));
+    this.pieceBoxes().forEach((box) => (box.enabled = false));
     this.signPlates = this.currentDocument.objects.flatMap((object) => {
       const entity =
         object.sign !== undefined &&
@@ -944,8 +943,9 @@ export class CourseEditorScene {
     } else if (this.selections.length > 1) {
       return;
     } else if (this.tool === "rotate") {
-      // A crowd barrier stands upright: it turns only about Y.
-      const upright = this.selectedObject()?.kit === "crowd-barrier";
+      // Crowd barriers and park pieces turn only about Y.
+      const selected = this.selectedObject();
+      const upright = selected?.kit === "crowd-barrier" || Boolean(selected?.park);
       (["x", "z", "f", "xyz"] as const).forEach((shape) =>
         this.rotateGizmo.enableShape(shape, !upright),
       );
@@ -953,9 +953,10 @@ export class CourseEditorScene {
     } else if (
       this.primarySelection.kind !== "start" &&
       // Arcs resize by their dimensions in the inspector instead, and a
-      // bicycle keeps its real size.
+      // bicycle or park piece keeps its real size.
       this.selectedObject()?.visual.shape !== "arc" &&
-      !this.selectedObject()?.bicycle
+      !this.selectedObject()?.bicycle &&
+      !this.selectedObject()?.park
     ) {
       this.configureScaleGizmo();
       this.scaleGizmo.attach(entities);

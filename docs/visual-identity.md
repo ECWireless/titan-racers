@@ -218,6 +218,14 @@ Materials), and so do course surfaces (see Course Surfaces).
   keep rows from repeating. Hedges are clipped boxes covered in the same
   sprays. Trunks and stakes collide; leaves do not, and the chase camera
   looks past trees.
+- **The lawns are a public park's.** Hardwood-slatted benches (1.8 m, a
+  0.45 m seat a kart drives under) and litter bins stand by the lanes.
+  Open-grown European beeches, 10.5 m, and multi-stemmed snowy mespilus,
+  4.8 m, stand singly and in groves over red-barked dogwoods and raised
+  beds of dwarf Shasta daisies. A crown is its branches and boughs alone,
+  with nothing solid inside it, and each tree, shrub, and bed grows its own
+  way. Trunks, furniture, shrubs, and beds collide; leaves do not, and the
+  chase camera looks past trees.
 
 ### Surface Scans
 
@@ -259,6 +267,14 @@ Haven, CC0) at about 1 mm a pixel: a twig carrying 9–13.5 cm leaves, in a
 2 × 2 atlas of colour and coverage in `src/game/course/tree-textures/`.
 They draw alpha-tested and two-sided, darkened by vertex colour the deeper
 they sit in a tree's crown or a hedge.
+
+Park trees and shrubs carry boughs of those sprays: four 2 m cards baked by
+`scripts/bake-leaf-boughs.ts`, each a branch whose side twigs carry the
+sprays at their real size, in a 512 px atlas (about 8 mm a pixel) beside
+them. Each is drawn smaller, as its leaves are: a beech's at about three
+quarters (7–10 cm leaves), a mespilus's and a dogwood's at about half. They
+are tinted per tree and shaded by how deep they sit in the crown and in
+their own branch's lobe of it.
 
 ## Phone Performance Budget
 

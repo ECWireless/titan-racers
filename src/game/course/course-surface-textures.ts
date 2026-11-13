@@ -19,6 +19,8 @@ import turfAlbedo from "./surface-textures/turf-albedo.jpg";
 import turfSurface from "./surface-textures/turf-surface.jpg";
 import woodAlbedo from "./surface-textures/wood-albedo.jpg";
 import woodSurface from "./surface-textures/wood-surface.jpg";
+import boughColour from "./tree-textures/leaf-boughs-colour.jpg";
+import boughCoverage from "./tree-textures/leaf-boughs-coverage.png";
 import leafColour from "./tree-textures/leaf-sprays-colour.jpg";
 import leafCoverage from "./tree-textures/leaf-sprays-coverage.png";
 import type { CourseLeafImages } from "./course-trees";
@@ -74,9 +76,22 @@ export function loadCourseSurfaceImages() {
       ]);
       return [surface, { albedo: albedoImage, surface: packedImage }] as const;
     }),
-    // The nursery's leaf sprays, which hedges and young trees share.
-    Promise.all([decodeImage(leafColour.src), decodeImage(leafCoverage.src)]).then(
-      ([colour, coverage]) => ["leaves", { colour, coverage }] as const,
+    // The nursery's leaf sprays, which hedges and young trees share, and
+    // the park's boughs of them.
+    Promise.all(
+      [leafColour, leafCoverage, boughColour, boughCoverage].map((image) =>
+        decodeImage(image.src),
+      ),
+    ).then(
+      ([colour, coverage, boughs, boughsCoverage]) =>
+        [
+          "leaves",
+          {
+            colour: colour!,
+            coverage: coverage!,
+            boughs: { colour: boughs!, coverage: boughsCoverage! },
+          },
+        ] as const,
     ),
   ]).then(
     (entries) => Object.fromEntries(entries) as CourseSurfaceImages,

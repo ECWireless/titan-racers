@@ -147,12 +147,13 @@ ghost it raced. Apply it with `0021`, before deploying the build that sends
 it, or those starts are refused (racing is unaffected). To roll back code,
 keep it: earlier builds never send the new value.
 
-Courses are saved as schema version twelve (doors and the parts they carry,
-posters, and 24 indoor lamps, from PR 6.9); earlier rows load unchanged, with no
+Courses are saved as schema version thirteen (park furniture and planting,
+from PR 6.11); earlier rows load unchanged, with no
 migration. A build from before a course's version cannot read it: rolling the
 code back after a save breaks the editor and the published-course route for
 that course, though players fall back to the bundled course. That holds for
-version twelve (before PR 6.9), version eleven (kits, kerbs, bevels, signs,
+version thirteen (before PR 6.11), version twelve (doors and the parts they
+carry, posters, and 24 indoor lamps, before PR 6.9), version eleven (kits, kerbs, bevels, signs,
 and elbow collision, before PR 4.4.8), version ten (a course's clearing, before PR
 4.4.7), version nine (street lamps, before PR 4.4.6), version eight (water,
 concrete, gravel, work lamps, and parked bicycles, before PR 4.4.4), version
@@ -160,7 +161,7 @@ seven (planted beds, hedges, and twelve floodlights, before PR 4.4.3), version
 six (before PR 4.4.2), version five (course lamps and mirror angles up to 90°,
 before PR 4.3.5), and more than four lamps (before PR 4.4.1). Editors from
 before PR 4.4.8 also refuse courses of more than 1,000 objects, and Falls View
-Park's seed has 1,524. A database
+Park's seed has 1,594. A database
 serves its existing `rough-course` revision, not the walled Starter Course
 seed, until the guarded seed reset below appends the seed and an admin
 publishes it.

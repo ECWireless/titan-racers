@@ -42,7 +42,7 @@ function createRandom(seed: number) {
   };
 }
 
-function hashString(value: string) {
+export function hashString(value: string) {
   let hash = 2166136261;
   for (let i = 0; i < value.length; i++) {
     hash = Math.imul(hash ^ value.charCodeAt(i), 16777619);
@@ -98,15 +98,16 @@ function addTube(
 
 // A leaf spray: a card whose foot sits on the twig's attachment, reaching
 // along `up`. Its normal is bent toward the outside of the crown, so the
-// crown shades as one rounded mass, the same from either face.
-function addLeafCard(
+// crown shades as one rounded mass, the same from either face. Its
+// occlusion is how much of the light reaches it, or its tint times that.
+export function addLeafCard(
   mesh: TreeMeshData,
   foot: Vec3,
   up: Vec3,
   across: Vec3,
   size: number,
   cell: number,
-  shading: (corner: Vec3) => { normal: Vec3; occlusion: number },
+  shading: (corner: Vec3) => { normal: Vec3; occlusion: number | Vec3 },
 ) {
   const first = mesh.positions.length / 3;
   const half = scale(across, size / 2);
@@ -130,7 +131,11 @@ function addLeafCard(
     mesh.positions.push(...corner);
     mesh.normals.push(...normal);
     mesh.uvs!.push(...uvs[index]!);
-    mesh.colors!.push(occlusion, occlusion, occlusion, 1);
+    if (typeof occlusion === "number") {
+      mesh.colors!.push(occlusion, occlusion, occlusion, 1);
+    } else {
+      mesh.colors!.push(...occlusion, 1);
+    }
   });
   mesh.indices.push(first, first + 1, first + 2, first, first + 2, first + 3);
 }

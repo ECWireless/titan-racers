@@ -3,6 +3,7 @@ import * as pc from "playcanvas";
 import { PHYSICS_GROUP, PHYSICS_MASK } from "../physics/collision-groups";
 import { createBicycleGeometry } from "./course-bicycle-geometry";
 import type { CourseBicycle, CourseDocument } from "./course-document";
+import { addCoursePark } from "./course-park";
 import {
   createCourseHedgeGeometry,
   createNurseryStakeGeometry,
@@ -13,10 +14,9 @@ import {
   type TreeMeshData,
 } from "./course-tree-geometry";
 
-export type CourseLeafImages = {
-  colour: HTMLImageElement;
-  coverage: HTMLImageElement;
-};
+type LeafImages = { colour: HTMLImageElement; coverage: HTMLImageElement };
+/** The nursery's leaf sprays, and the park's boughs of them. */
+export type CourseLeafImages = LeafImages & { boughs: LeafImages };
 
 export type CourseTreeMaterials = ReturnType<typeof createCourseTreeMaterials>;
 
@@ -26,8 +26,8 @@ const BARK_COLOR = "#6b6254";
 const LEAF_TINT = [0.95, 1, 0.85] as const;
 
 /**
- * Bark, the leaf sprays shared by trees and hedges, and the parked
- * bicycles' two finishes, for one scene. Without the leaf images there are
+ * Bark, the leaf sprays shared by trees and hedges, the park's boughs of
+ * them, and the parked bicycles' two finishes, for one scene. Without the leaf images there are
  * no leaves, and trees stand bare. The caller destroys them.
  */
 export function createCourseTreeMaterials(
@@ -56,31 +56,35 @@ export function createCourseTreeMaterials(
     textures.push(result);
     return result;
   };
-  let leaves: pc.StandardMaterial | null = null;
-  if (leafImages) {
-    leaves = new pc.StandardMaterial();
+  const foliage = (name: string, images: LeafImages, alphaTest: number) => {
+    const leaves = new pc.StandardMaterial();
     leaves.diffuseMap = texture(
-      "course-leaves-colour",
-      leafImages.colour,
+      `${name}-colour`,
+      images.colour,
       pc.PIXELFORMAT_SRGBA8,
     );
     leaves.diffuse = new pc.Color(...LEAF_TINT);
     // Vertex colours carry how much of the crown shades each spray.
     leaves.diffuseVertexColor = true;
     leaves.opacityMap = texture(
-      "course-leaves-coverage",
-      leafImages.coverage,
+      `${name}-coverage`,
+      images.coverage,
       pc.PIXELFORMAT_RGBA8,
     );
     leaves.opacityMapChannel = "r";
-    leaves.alphaTest = 0.5;
+    leaves.alphaTest = alphaTest;
     leaves.alphaToCoverage = true;
     leaves.cull = pc.CULLFACE_NONE;
     leaves.useMetalness = true;
     leaves.metalness = 0;
     leaves.gloss = 0.3;
     leaves.update();
-  }
+    return leaves;
+  };
+  const leaves = leafImages && foliage("course-leaves", leafImages, 0.5);
+  // A bough's leaves are a few pixels each, and fewer in the distance: a
+  // lower threshold keeps a far crown as full as a near one.
+  const boughs = leafImages && foliage("course-boughs", leafImages.boughs, 0.3);
   // A bicycle's coated and rubber parts, and its bare metal, coloured per
   // vertex in linear albedo (see course-bicycle-geometry.ts).
   const bicycle = (metal: boolean) => {
@@ -98,11 +102,13 @@ export function createCourseTreeMaterials(
     bark,
     bicycleCoat,
     bicycleMetal,
+    boughs,
     leaves,
     destroy() {
       bark.destroy();
       bicycleCoat.destroy();
       bicycleMetal.destroy();
+      boughs?.destroy();
       leaves?.destroy();
       textures.forEach((texture) => texture.destroy());
     },
@@ -294,10 +300,11 @@ export function createCourseBicycleGeometry(document: CourseDocument) {
  * Plants the course's trees, dresses its hedges, and parks its bicycles
  * under one root entity: each tree variant's bark and leaves, and every
  * stake, as one instanced draw each, culled as a whole, the hedges' leaves
- * as one mesh, and the bicycles' two finishes as one mesh each. With
- * `colliders`, each tree also gets a static box taking in its stem and
- * stake, and each bicycle boxes around what a kart can reach of it;
- * untagged as obstacles, they leave the chase camera's view clear.
+ * as one mesh, the bicycles' two finishes as one mesh each, and the park's
+ * furniture and planting (see course-park.ts). With `colliders`, each tree
+ * also gets a static box taking in its stem and stake, and each bicycle
+ * boxes around what a kart can reach of it; untagged as obstacles, they
+ * leave the chase camera's view clear.
  */
 export function addCourseTrees(
   app: pc.AppBase,
@@ -305,11 +312,12 @@ export function addCourseTrees(
   {
     colliders,
     materials,
-    timber,
+    surfaces,
   }: {
     colliders: boolean;
     materials: CourseTreeMaterials;
-    timber: pc.Material;
+    /** The course finishes that stakes and park pieces are made of. */
+    surfaces: Record<"kerb" | "mulch" | "timber", pc.Material>;
   },
 ) {
   const device = app.graphicsDevice;
@@ -400,7 +408,7 @@ export function addCourseTrees(
     addDraw(
       "course-tree-stakes",
       createNurseryStakeGeometry(),
-      timber,
+      surfaces.timber,
       trees.map((tree) => place(tree.stake, 0, 1)),
     );
   }
@@ -457,6 +465,7 @@ export function addCourseTrees(
     );
   }
 
+  root.addChild(addCoursePark(app, document, { colliders, materials, surfaces }));
   app.root.addChild(root);
   return {
     root,

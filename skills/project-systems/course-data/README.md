@@ -25,7 +25,7 @@ own editor commands or persistence UI.
 ## Source Ownership
 
 - `src/game/course/course-document.ts` defines strict Zod legacy schemas and the
-  canonical version-twelve schema, deterministic legacy normalization,
+  canonical version-thirteen schema, deterministic legacy normalization,
   cross-document ID and checkpoint-order refinements, gate-face direction
   alignment, canonical sorting, serialization, inferred TypeScript types, and
   validated seed export.
@@ -33,14 +33,14 @@ own editor commands or persistence UI.
   courses with bundled seeds, and the guest solo course (`falls-view-park`)
   explicit; `course-publication.ts`
   validates protected publication and privacy-minimized public runtime shapes.
-- `src/game/course/rough-course.v12.json` is the canonical portable rough-course
+- `src/game/course/rough-course.v13.json` is the canonical portable rough-course
   sandbox seed. It contains the start/finish gate, three ordered checkpoints
   whose gates reach from the infield into the grass, with directed gate and
   recovery data, an infield barrier, ordinary surfaces and objects, camera
   fixtures, and opt-in collision fixtures.
   It permanently restores only course ID `rough-course`; the official
   Falls View Park document uses the distinct ID `falls-view-park`, seeded by
-  `falls-view-park.v12.json`. Its route is the plan's and the visual
+  `falls-view-park.v13.json`. Its route is the plan's and the visual
   identity's to describe (PR 4.4 in
   [the implementation plan](../../../IMPLEMENTATION_PLAN.md);
   [visual identity](../../../docs/visual-identity.md#course-surfaces)). The
@@ -104,6 +104,18 @@ own editor commands or persistence UI.
   (see [scene lighting](../scene-lighting/README.md)) and adds the static
   colliders, which carry no `obstacle` tag, so the chase camera looks past
   trees.
+- `src/game/course/course-park-geometry.ts` builds the six park pieces
+  (bench, litter bin, shade tree, ornamental tree, shrub, flower bed) in
+  metres, each with its collision boxes; trees, shrubs, and beds vary by a
+  seed. `course-park.ts` gives each piece its object's ID as that seed,
+  merges a course's pieces into one mesh per finish (timber, coated solids,
+  bark, boughs, leaf sprays, kerb concrete, and mulch: seven draws), and
+  adds their static boxes; `course-prewarm.ts` prepares the geometry and
+  `course-trees.ts` adds it under the trees' root. Only a tree's trunk
+  omits the `obstacle` tag. `tests/course-park.spec.ts` covers each piece's
+  size, colliders, and facing, the bench's clear under-seat, variation by
+  seed, Falls View Park's budget (60k triangles, 8 draws, 150 bodies), and
+  its pieces' 1.5 m clearance from the route.
 - `src/game/course/course-water.ts` finds a document's water boxes and their
   flow, and tells the race when a kart's centre of mass is under water, so
   it is drowned and recovered.
@@ -142,10 +154,10 @@ own editor commands or persistence UI.
 
 ## Document Contract
 
-Canonical version twelve is strict JSON using metres, Y-up positions, and Euler
+Canonical version thirteen is strict JSON using metres, Y-up positions, and Euler
 degrees. It contains:
 
-- literal schema version `12`;
+- literal schema version `13`;
 - a stable course ID and name;
 - one stable start ID, transform (the start/finish gate), bounded start-gate
   half-extents, and a spawn distance (0–10 m) placing the kart behind the gate
@@ -272,6 +284,15 @@ quad over a box's local +Z face. The box is in the print's shape within
 lamp, roof, bed, bicycle, kit, or sign, and not bevelled. Each print is
 one texture and one draw. Version-eleven documents upgrade unchanged.
 
+Version thirteen adds `park: "bench" | "bin" | "shade-tree" |
+"ornamental-tree" | "shrub" | "flower-bed"`. Each is an upright outdoor box
+without authored collision or another marker. Its box encloses the piece,
+which stands on the box's base, turned by its yaw. A fixed piece's box is
+its size in `COURSE_PARK_SIZES`; a flower bed's is 1.2–3 m long, 0.8–1.5 m
+wide, and 0.7 m high. The race draws the piece and its colliders in place
+of the box; the editor keeps the box, unseen, to select and move, as for
+bicycles. Version-twelve documents upgrade unchanged.
+
 Coordinates and dimensions are finite and bounded to the accepted authoring
 envelope. Unknown fields and unsupported enum values fail rather than being
 silently stripped. The complete document validates before scene construction.
@@ -279,9 +300,9 @@ silently stripped. The complete document validates before scene construction.
 ## Legacy Normalization
 
 Stored revisions are immutable, so `parseCourseDocument` keeps strict
-version-one to version-eleven schemas and normalizes them in memory to
-version twelve; canonical serialization and every new save use version
-twelve. Version
+version-one to version-twelve schemas and normalizes them in memory to
+version thirteen; canonical serialization and every new save use version
+thirteen. Version
 four allows mirror angles only up to 85° and no lamps, version five no
 indoor, overhead, or arc objects and no tunnel lamps, and version six no
 planting or hedges and at most eight floodlights, and version seven no
@@ -308,7 +329,7 @@ Version two adds
 - Degenerate coincident anchors or directions that cannot identify a face are
   rejected rather than invented.
 - A loaded version-one row is normalized in memory, and its next save creates a
-  new version-twelve revision. Persistence responses report the normalized schema
+  new version-thirteen revision. Persistence responses report the normalized schema
   version consistently.
 
 Every legacy collider normalizes to `surface.standard-course@1`, including

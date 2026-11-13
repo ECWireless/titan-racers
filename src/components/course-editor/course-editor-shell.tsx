@@ -459,9 +459,11 @@ export function CourseEditorShell({
   }
 
   // The start has no size, a curve is sized by its Arc controls, and a
-  // bicycle keeps its real size.
+  // bicycle or a park piece keeps its real size.
   const curveSelected = selectedObject?.visual.shape === "arc";
-  const bicycleSelected = Boolean(selectedObject?.bicycle);
+  const bicycleSelected = Boolean(
+    selectedObject?.bicycle || selectedObject?.park,
+  );
   const transformRule = getCourseEditorTransformRule(selectedObject);
   const scaleUnavailable =
     selection.kind === "start" || curveSelected || bicycleSelected;
@@ -2013,7 +2015,7 @@ function EditorToolbar({
                   : curveSelected
                     ? "Size a curve with its Arc controls in the inspector"
                     : bicycleSelected
-                      ? "A bicycle keeps its real size"
+                      ? "This piece keeps its real size"
                       : "Scale selection by axis (3)"
           }
           onClick={() => onToolChange(candidate)}

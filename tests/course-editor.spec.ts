@@ -325,7 +325,7 @@ test.describe("protected course editor access", () => {
 
     await expect(page.getByTestId("course-editor-shell")).toBeVisible();
     expect(savePayload).toMatchObject({
-      document: { courseId: "rough-course", schemaVersion: 12 },
+      document: { courseId: "rough-course", schemaVersion: 13 },
       expectedRevision: null,
     });
   });
@@ -383,7 +383,7 @@ test.describe("protected course editor access", () => {
       page.getByText("Falls View Park Circuit"),
     ).toBeVisible();
     expect(parkSave).toMatchObject({
-      document: { courseId: "falls-view-park", schemaVersion: 12 },
+      document: { courseId: "falls-view-park", schemaVersion: 13 },
       expectedRevision: null,
     });
 
