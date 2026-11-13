@@ -4953,7 +4953,7 @@ export function SoloTimeTrialCanvas({
           {!gamePaused && racePresentation.cue ? (
             <div
               aria-hidden="true"
-              className="race-lifecycle-cue pointer-events-none absolute inset-0 z-10 grid place-items-center font-mono font-black uppercase text-titan-ice"
+              className="race-lifecycle-cue pointer-events-none absolute inset-0 z-10 grid place-items-center font-sans font-bold uppercase text-titan-ice"
             >
               <span
                 className={
@@ -4972,22 +4972,22 @@ export function SoloTimeTrialCanvas({
             <div
               aria-labelledby="pause-dialog-title"
               aria-modal="true"
-              className="absolute inset-0 z-30 grid place-items-center overflow-y-auto bg-titan-black/72 [place-items:safe_center] px-6 py-4 text-center font-mono text-titan-ice backdrop-blur-sm"
+              className="absolute inset-0 z-30 grid place-items-center overflow-y-auto bg-titan-black/65 [place-items:safe_center] px-6 py-4 text-center font-mono text-titan-ice"
               role="dialog"
               onKeyDown={handleDialogKeyDown}
             >
               <div
-                className="grid w-full max-w-sm gap-5 border border-titan-ice/20 bg-titan-black/94 p-7 shadow-[0_24px_90px_rgb(0_0_0/0.6)]"
+                className="grid w-full max-w-sm gap-5 border border-titan-ice/18 bg-titan-black p-7"
                 ref={pauseMenuRef}
               >
                 <div className="grid gap-2">
                   <p
-                    className="text-xs font-bold uppercase tracking-[0.2em] text-titan-hazard"
+                    className="font-sans text-5xl font-bold uppercase leading-none tracking-[-0.01em]"
                     id="pause-dialog-title"
                   >
                     Paused
                   </p>
-                  <p className="text-sm text-titan-ice/70">
+                  <p className="text-sm text-titan-muted">
                     {ROOM
                       ? "The race goes on while you're paused"
                       : "Resume when you're ready"}
@@ -5040,25 +5040,25 @@ export function SoloTimeTrialCanvas({
             <div
               aria-labelledby="finish-dialog-title"
               aria-modal="true"
-              className="absolute inset-0 z-30 grid place-items-center overflow-y-auto bg-titan-black/76 px-6 py-4 text-center font-mono text-titan-ice backdrop-blur-sm"
+              className="absolute inset-0 z-30 grid place-items-center overflow-y-auto bg-titan-black/65 px-6 py-4 text-center font-mono text-titan-ice"
               role="dialog"
               onKeyDown={handleDialogKeyDown}
             >
               <div
-                className="grid w-full max-w-sm gap-5 border border-titan-hazard/50 bg-titan-black/96 p-7 shadow-[0_24px_90px_rgb(0_0_0/0.7)]"
+                className="grid w-full max-w-sm gap-5 border border-titan-ice/18 bg-titan-black p-7"
                 ref={finishMenuRef}
               >
                 <div className="grid gap-2">
                   <p
-                    className="text-xs font-bold uppercase tracking-[0.2em] text-titan-hazard"
+                    className="text-xs font-bold uppercase tracking-[0.2em] text-titan-muted"
                     id="finish-dialog-title"
                   >
                     Finish
                   </p>
-                  <p className="text-4xl font-black tabular-nums tracking-tight">
+                  <p className="font-sans text-5xl font-bold tabular-nums leading-none tracking-[-0.02em] min-[375px]:text-6xl">
                     {racePresentation.elapsedTime}
                   </p>
-                  <p className="text-xs uppercase tracking-[0.16em] text-titan-ice/60">
+                  <p className="text-xs uppercase tracking-[0.16em] text-titan-muted">
                     {kartDocument.name}
                   </p>
                 </div>
@@ -5074,7 +5074,7 @@ export function SoloTimeTrialCanvas({
                       <span className="uppercase tracking-[0.12em] text-titan-ice/60">
                         Lap {index + 1}
                         {index === racePresentation.fastestLap ? (
-                          <span className="ml-2 text-titan-hazard">
+                          <span className="ml-2 text-titan-ice">
                             · Fastest
                           </span>
                         ) : null}
@@ -5082,8 +5082,8 @@ export function SoloTimeTrialCanvas({
                       <span
                         className={`font-bold tabular-nums ${
                           index === racePresentation.fastestLap
-                            ? "text-titan-hazard"
-                            : ""
+                            ? "text-titan-ice"
+                            : "text-titan-ice/70"
                         }`}
                       >
                         {lapTime}
@@ -5292,12 +5292,12 @@ export function SoloTimeTrialCanvas({
             </div>
           ) : (
             <div
-              className="grid max-w-md gap-4 border border-titan-ice/20 bg-titan-black p-6 shadow-[0_20px_70px_rgb(0_0_0/0.5)]"
+              className="grid max-w-md gap-4 border border-titan-ice/18 bg-titan-black p-6"
               ref={statusMenuRef}
             >
               {sceneStatus === "context_lost" ? (
                 <div className="grid gap-3" role="status" aria-live="polite">
-                  <p className="font-bold uppercase tracking-[0.12em] text-titan-hazard">
+                  <p className="text-2xl font-bold uppercase leading-none">
                     Restoring graphics
                   </p>
                   <p className="text-sm text-titan-ice/78">
@@ -5307,7 +5307,7 @@ export function SoloTimeTrialCanvas({
                 </div>
               ) : (
                 <div className="grid gap-3" role="alert" aria-live="assertive">
-                  <p className="font-bold uppercase tracking-[0.12em] text-titan-hazard">
+                  <p className="text-2xl font-bold uppercase leading-none">
                     {sceneFailureCode?.startsWith("webgl_")
                       ? "Unable to continue the race"
                       : "Unable to start the race"}

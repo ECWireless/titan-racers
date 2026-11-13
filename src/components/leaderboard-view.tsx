@@ -23,6 +23,7 @@ import { racerOnboardingPath } from "@/lib/racer-username";
 import { copyLink, ghostLinkUrl, copyNoteFor } from "@/lib/share-link";
 
 import { ActionHint } from "./action-hint";
+import { HomeBackdrop } from "./home-steps";
 import { MedalIcon } from "./medal-icon";
 import {
   BackIcon,
@@ -261,11 +262,14 @@ export function LeaderboardView({ boardNumber }: { boardNumber: number | null })
 
   return (
     <main
-      className="relative grid min-h-screen place-items-center overflow-hidden bg-titan-black px-5 py-10 text-titan-ice"
+      className="relative min-h-screen bg-titan-black text-titan-ice"
       ref={mainRef}
     >
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_18%,rgb(52_64_74/0.42),transparent_46%),linear-gradient(145deg,rgb(7_7_6),rgb(20_18_15))]" />
-      <section className="relative grid w-full max-w-2xl gap-7 border border-titan-ice/20 bg-titan-black/88 p-6 shadow-[0_28px_100px_rgb(0_0_0/0.62)] sm:p-9">
+      {/* Home's render, dimmed as behind its later steps. */}
+      <div className="pointer-events-none fixed inset-0">
+        <HomeBackdrop dim />
+      </div>
+      <section className="relative mx-auto grid w-full max-w-3xl content-start gap-8 px-4 py-6 sm:px-8">
         <header className="flex flex-wrap items-center justify-between gap-5">
           <Link
             aria-label="Back to racing"
@@ -278,7 +282,7 @@ export function LeaderboardView({ boardNumber }: { boardNumber: number | null })
               width={300}
               height={60}
               priority
-              className="h-10 w-auto sm:h-12"
+              className="h-11 w-auto sm:h-14"
             />
           </Link>
           <ActionHint align="end" hint="Back">
@@ -297,7 +301,7 @@ export function LeaderboardView({ boardNumber }: { boardNumber: number | null })
           {/* The versions sit on the label's line, leaving the title its
               full width. */}
           <div className="flex min-h-9 items-center justify-between gap-3">
-            <p className="font-mono text-xs font-bold uppercase tracking-[0.22em] text-titan-hazard">
+            <p className="font-mono text-xs font-bold uppercase tracking-[0.2em] text-titan-muted">
               Leaderboard
             </p>
             {earlier.length > 0 ? (
@@ -336,7 +340,7 @@ export function LeaderboardView({ boardNumber }: { boardNumber: number | null })
                 </ActionHint>
                 {earlierOpen ? (
                   <ul
-                    className="absolute right-0 top-[calc(100%+0.5rem)] z-20 grid w-64 gap-1 border border-titan-ice/20 bg-titan-black/98 p-1 shadow-[0_18px_55px_rgb(0_0_0/0.65)]"
+                    className="absolute right-0 top-[calc(100%+0.5rem)] z-20 grid w-64 gap-1 border border-titan-ice/18 bg-titan-black p-1"
                     id="course-versions"
                   >
                     {[
@@ -356,8 +360,8 @@ export function LeaderboardView({ boardNumber }: { boardNumber: number | null })
                           aria-current={number === boardNumber ? "page" : undefined}
                           className={`block border px-3 py-2 text-sm transition focus-visible:border-titan-hazard focus-visible:outline-none ${
                             number === boardNumber
-                              ? "border-titan-hazard/60 text-titan-hazard"
-                              : "border-transparent text-titan-ice/78 hover:border-titan-ice/30"
+                              ? "border-titan-ice/60 text-titan-ice"
+                              : "border-transparent text-titan-ice/78 hover:border-titan-hazard hover:text-titan-hazard"
                           }`}
                           href={href}
                           onClick={() => setEarlierOpen(false)}
@@ -371,11 +375,11 @@ export function LeaderboardView({ boardNumber }: { boardNumber: number | null })
               </div>
             ) : null}
           </div>
-          <h1 className="text-4xl font-black uppercase tracking-[-0.04em] sm:text-5xl">
+          <h1 className="text-[2.5rem] font-bold uppercase leading-[0.95] tracking-[-0.01em] sm:text-7xl">
             {courseName}
           </h1>
           {readOnly ? (
-            <p className="font-mono text-xs text-titan-ice/60">
+            <p className="font-mono text-xs text-titan-muted">
               Earlier course version
               {viewing ? ` · times from ${timesSetBetween(viewing)}` : ""}
             </p>
@@ -385,7 +389,7 @@ export function LeaderboardView({ boardNumber }: { boardNumber: number | null })
         <div
           className={
             heldRunNote && !readOnly
-              ? "border border-titan-hazard/50 bg-titan-hazard/6 px-4 py-3"
+              ? "border border-titan-ice/18 bg-titan-black px-4 py-3"
               : "sr-only"
           }
           role="status"
@@ -403,23 +407,23 @@ export function LeaderboardView({ boardNumber }: { boardNumber: number | null })
             The leaderboard is unavailable right now.
           </p>
         ) : !board || board.entries.length === 0 ? (
-          <p className="border border-titan-ice/10 px-3 py-4 text-center font-mono text-sm text-titan-ice/60">
+          <p className="border-y border-titan-ice/12 px-3 py-4 text-center font-mono text-sm text-titan-muted">
             {readOnly ? "No earlier times" : "No times yet"}
           </p>
         ) : (
           <div className="grid gap-3">
             <div
               aria-label="Rank by"
-              className="flex w-fit border border-titan-ice/12"
+              className="flex w-fit border border-titan-ice/18 bg-titan-black"
               role="group"
             >
               {RANKINGS.map((option) => (
                 <button
                   aria-pressed={option.byLap === byLap}
-                  className={`h-8 whitespace-nowrap px-2 font-mono text-[0.68rem] font-bold uppercase tracking-[0.04em] transition sm:px-3 sm:tracking-[0.14em] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-titan-hazard ${
+                  className={`h-8 whitespace-nowrap px-2 transition sm:px-3 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-titan-hazard ${
                     option.byLap === byLap
-                      ? "bg-titan-ice/8 text-titan-hazard"
-                      : "text-titan-ice/50 hover:text-titan-ice"
+                      ? "bg-titan-ice/10 text-titan-ice"
+                      : "text-titan-ice/50 hover:text-titan-hazard"
                   }`}
                   key={option.label}
                   type="button"
@@ -431,18 +435,22 @@ export function LeaderboardView({ boardNumber }: { boardNumber: number | null })
                     )
                   }
                 >
-                  {option.label}
+                  {/* The global `button { font: inherit }` overrides font
+                      classes on the button itself. */}
+                  <span className="font-mono text-[0.68rem] font-bold uppercase tracking-[0.04em] sm:tracking-[0.14em]">
+                    {option.label}
+                  </span>
                 </button>
               ))}
             </div>
             {rows.length === 0 ? (
-              <p className="border border-titan-ice/10 px-3 py-4 text-center font-mono text-sm text-titan-ice/60">
+              <p className="border-y border-titan-ice/12 px-3 py-4 text-center font-mono text-sm text-titan-muted">
                 No laps yet
               </p>
             ) : (
             <ol
               aria-label={byLap ? "Fastest laps" : "Best times"}
-              className="grid gap-1"
+              className="grid border-t border-titan-ice/12"
             >
               {rows.map((entry) => {
                 // Medals are for the race, not a lap.
@@ -460,23 +468,23 @@ export function LeaderboardView({ boardNumber }: { boardNumber: number | null })
                     readOnly
                       ? "grid-cols-[2rem_1fr_auto] py-3"
                       : "grid-cols-[2rem_1fr_auto_auto] py-2"
-                  } items-center gap-2 border px-2 focus-within:border-titan-hazard focus-visible:border-titan-hazard focus-visible:outline-none sm:gap-3 sm:px-3 ${
+                  } items-center gap-2 border-b border-titan-ice/12 px-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-titan-hazard sm:gap-3 sm:px-3 ${
                     entry.viewer
-                      ? "border-titan-hazard/70 bg-titan-hazard/8"
-                      : "border-titan-ice/10"
+                      ? "bg-titan-ice/10 shadow-[inset_2px_0_0_var(--titan-ice)]"
+                      : "bg-titan-black/60"
                   }`}
                   key={entry.rank}
                 >
                   {medal ? (
                     <MedalIcon rank={entry.rank} tier={medal} />
                   ) : (
-                    <span className="text-center font-mono text-sm font-bold tabular-nums text-titan-ice/72">
+                    <span className="text-center font-mono text-sm font-bold tabular-nums text-titan-ice/70">
                       {entry.rank}
                     </span>
                   )}
                   <span className="grid min-w-0">
                     <span className="truncate font-bold">@{entry.username}</span>
-                    <span className="truncate text-xs text-titan-ice/60">
+                    <span className="truncate text-xs text-titan-muted">
                       {entry.kartName}
                     </span>
                   </span>

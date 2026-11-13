@@ -66,6 +66,7 @@ import {
   HomeChoice,
   HomeCourseCard,
   HomeKartCard,
+  HomeBackdrop,
   HomeStartStep,
   type HomeStep,
   HomeStepFrame,
@@ -819,7 +820,9 @@ export function PlayHome() {
         }.`
       : null;
   const loadingScreen = courseLoading ? (
+    // Keyed, as home and the race place it at different positions.
     <CourseLoadingScreen
+      key="course-loading"
       courseName={courseLoading.courseName}
       enclosure={courseLoading.enclosure}
       leaving={courseLoading.leaving}
@@ -829,8 +832,8 @@ export function PlayHome() {
     />
   ) : null;
 
-  // The loading screen keeps one place in the tree across both modes, so it
-  // is not remounted when the race mounts beneath it.
+  // The loading screen keeps its key across both modes, so it is not
+  // remounted when the race mounts beneath it.
   if (mode === "solo") {
     return (
       <>
@@ -936,14 +939,14 @@ export function PlayHome() {
       >
         {rosterPending ? (
           <p
-            className="border border-titan-ice/18 bg-titan-black/68 p-5 font-mono text-sm text-titan-ice/70 backdrop-blur"
+            className="border border-titan-ice/18 bg-titan-black p-5 font-mono text-sm text-titan-ice/70"
             role="status"
           >
             Loading official karts…
           </p>
         ) : officialKarts.length === 0 ? (
           <p
-            className="border border-titan-ice/18 bg-titan-black/68 p-5 text-sm text-titan-ice/72 backdrop-blur"
+            className="border border-titan-ice/18 bg-titan-black p-5 text-sm text-titan-ice/72"
             role="status"
           >
             No official karts are currently published.
@@ -1081,7 +1084,7 @@ export function PlayHome() {
     <section
       inert={courseLoading !== null}
       ref={homeMenuRef}
-      className="relative z-10 mx-auto flex min-h-screen w-full max-w-7xl flex-col px-5 py-6 sm:px-8 lg:px-12"
+      className="relative z-10 mx-auto flex min-h-svh w-full max-w-7xl flex-col px-5 py-6 sm:px-8 lg:px-12"
     >
       <header className="relative flex items-center justify-between gap-6">
         <Image
@@ -1099,7 +1102,7 @@ export function PlayHome() {
             aria-label={
               utilityMenuOpen ? "Close utility menu" : "Open utility menu"
             }
-            className="grid size-12 place-content-center gap-1.5 border border-titan-ice/28 bg-titan-black/72 text-titan-ice shadow-[0_12px_32px_rgb(0_0_0/0.4)] backdrop-blur transition hover:border-titan-hazard hover:text-titan-hazard focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-titan-hazard"
+            className="grid size-12 place-content-center gap-1.5 border border-titan-ice/50 bg-transparent text-titan-ice transition hover:border-titan-hazard hover:text-titan-hazard focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-titan-hazard"
             ref={utilityMenuButtonRef}
             type="button"
             onClick={() => {
@@ -1228,7 +1231,17 @@ export function PlayHome() {
         </div>
       </header>
 
-      <div className="grid flex-1 content-center py-10" key={step} ref={stepRef}>
+      {/* On a phone or an upright tablet, the first screen sits below the
+          backdrop's render. */}
+      <div
+        className={`grid flex-1 py-10 ${
+          step === "start"
+            ? "content-end pb-4 lg:content-center lg:pb-10"
+            : "content-center"
+        }`}
+        key={step}
+        ref={stepRef}
+      >
         {stepContent}
       </div>
       <div
@@ -1251,6 +1264,7 @@ export function PlayHome() {
 
   return (
     <>
+      <HomeBackdrop dim={step !== "start"} />
       {homeScreen}
       {loadingScreen}
     </>
