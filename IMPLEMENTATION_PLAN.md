@@ -18,10 +18,10 @@ accepted; the app, README, and durable docs take over from there.
 - **Done:** Phases 0–6 (PRs #1–#24, the Phase 3 closeout and its
   follow-ups, #30–#57 with the PR 4.5.2 closeout, #59–#63, and #64–#70
   with the Phase 6 closeout), and the addendum's PRs 6.7 (#71), 6.8
-  (#72), and 6.9 (#73), and its look exploration.
+  (#72), 6.9 (#73), and 6.10 (#74), and its look exploration.
 - **Now:** the [Phase 6 addendum](#phase-6-addendum-feedback-before-phase-7),
-  PR 6.10.
-- **Next:** Phase 7, after its debrief.
+  PR 6.11.
+- **Next:** PR 6.12, then Phase 7, after its debrief.
 
 ## Guiding Decisions
 
@@ -338,10 +338,20 @@ integration review, from `2ffc5a20` (PR #70), before its last PR merges.
 
 **PR 6.11: Filling the park**
 
-- [ ] Claude and Codex each build park furniture and planting (benches,
-      other trees, bushes, flowers) for in and around the course, then judge
-      each other's work under rules agreed at the debrief.
-- [ ] Everything stays within the phone budget.
+- [ ] Claude and Codex each build the same kit to one brief, at real size:
+      a park bench, a litter bin, a mature shade tree and a smaller
+      ornamental tree, a shrub, and a flower bed in a raised, edged bed.
+      Each places it on the lawns beside the return lane, either side of
+      the levee, and outside the downhill: clear of the road, within the
+      lamps the park has, and opening no new way onto the route.
+- [ ] A fresh agent of the other family scores each entry from the same
+      renders and numbers. The lead then decides blind, category by
+      category (furniture, trees, low planting, placement), and the
+      winning pieces land together.
+- [ ] Everything stays within the phone budget. The kit adds at most 8
+      draws, 60k triangles (1,500 a piece), one new 512² CC0 atlas, and
+      150 static bodies, and is measured on the iPhone once, at the PR's
+      end.
 
 **PR 6.12: Room logs, from a four-player playtest**
 
