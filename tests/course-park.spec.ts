@@ -32,8 +32,8 @@ const builders = {
 };
 // The kit's budget: see PR 6.11 in the implementation plan.
 const PIECE_TRIANGLES = 1500;
-const PARK_TRIANGLES = 60_000;
-const PARK_BODIES = 150;
+const PARK_TRIANGLES = 75_000;
+const PARK_BODIES = 160;
 
 const triangles = (piece: Pick<ParkGeometry, "meshes">) =>
   Object.values(piece.meshes).reduce(

@@ -70166,6 +70166,847 @@
         },
         "shape": "box"
       }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "park-shade-tree-27",
+      "park": "shade-tree",
+      "transform": {
+        "position": {
+          "x": 112,
+          "y": 5.25,
+          "z": 31
+        },
+        "rotation": {
+          "x": 0,
+          "y": 112.5,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "steel",
+        "scale": {
+          "x": 7.8,
+          "y": 10.5,
+          "z": 7.8
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "park-shade-tree-28",
+      "park": "shade-tree",
+      "transform": {
+        "position": {
+          "x": 121.5,
+          "y": 5.25,
+          "z": 49
+        },
+        "rotation": {
+          "x": 0,
+          "y": 250,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "steel",
+        "scale": {
+          "x": 7.8,
+          "y": 10.5,
+          "z": 7.8
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "park-shade-tree-29",
+      "park": "shade-tree",
+      "transform": {
+        "position": {
+          "x": 108,
+          "y": 5.25,
+          "z": 64
+        },
+        "rotation": {
+          "x": 0,
+          "y": 27.5,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "steel",
+        "scale": {
+          "x": 7.8,
+          "y": 10.5,
+          "z": 7.8
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "park-shade-tree-30",
+      "park": "shade-tree",
+      "transform": {
+        "position": {
+          "x": 118,
+          "y": 5.25,
+          "z": 73
+        },
+        "rotation": {
+          "x": 0,
+          "y": 165,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "steel",
+        "scale": {
+          "x": 7.8,
+          "y": 10.5,
+          "z": 7.8
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "park-shade-tree-31",
+      "park": "shade-tree",
+      "transform": {
+        "position": {
+          "x": 104,
+          "y": 5.25,
+          "z": -3
+        },
+        "rotation": {
+          "x": 0,
+          "y": 302.5,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "steel",
+        "scale": {
+          "x": 7.8,
+          "y": 10.5,
+          "z": 7.8
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "park-shade-tree-32",
+      "park": "shade-tree",
+      "transform": {
+        "position": {
+          "x": 125,
+          "y": 5.25,
+          "z": -1
+        },
+        "rotation": {
+          "x": 0,
+          "y": 80,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "steel",
+        "scale": {
+          "x": 7.8,
+          "y": 10.5,
+          "z": 7.8
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "park-ornamental-tree-19",
+      "park": "ornamental-tree",
+      "transform": {
+        "position": {
+          "x": 138.1,
+          "y": 2.4,
+          "z": 26
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "steel",
+        "scale": {
+          "x": 3.8,
+          "y": 4.8,
+          "z": 3.8
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "park-ornamental-tree-20",
+      "park": "ornamental-tree",
+      "transform": {
+        "position": {
+          "x": 138.1,
+          "y": 2.4,
+          "z": 50
+        },
+        "rotation": {
+          "x": 0,
+          "y": 90,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "steel",
+        "scale": {
+          "x": 3.8,
+          "y": 4.8,
+          "z": 3.8
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "park-ornamental-tree-21",
+      "park": "ornamental-tree",
+      "transform": {
+        "position": {
+          "x": 138.1,
+          "y": 2.4,
+          "z": 62
+        },
+        "rotation": {
+          "x": 0,
+          "y": 180,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "steel",
+        "scale": {
+          "x": 3.8,
+          "y": 4.8,
+          "z": 3.8
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "park-ornamental-tree-22",
+      "park": "ornamental-tree",
+      "transform": {
+        "position": {
+          "x": 138.1,
+          "y": 2.4,
+          "z": 74
+        },
+        "rotation": {
+          "x": 0,
+          "y": 270,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "steel",
+        "scale": {
+          "x": 3.8,
+          "y": 4.8,
+          "z": 3.8
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "park-ornamental-tree-23",
+      "park": "ornamental-tree",
+      "transform": {
+        "position": {
+          "x": 137.2,
+          "y": 2.4,
+          "z": 97.6
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "steel",
+        "scale": {
+          "x": 3.8,
+          "y": 4.8,
+          "z": 3.8
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "park-ornamental-tree-24",
+      "park": "ornamental-tree",
+      "transform": {
+        "position": {
+          "x": 124.5,
+          "y": 2.4,
+          "z": 33
+        },
+        "rotation": {
+          "x": 0,
+          "y": 60,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "steel",
+        "scale": {
+          "x": 3.8,
+          "y": 4.8,
+          "z": 3.8
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "park-ornamental-tree-25",
+      "park": "ornamental-tree",
+      "transform": {
+        "position": {
+          "x": 103.5,
+          "y": 2.4,
+          "z": 51
+        },
+        "rotation": {
+          "x": 0,
+          "y": 197.5,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "steel",
+        "scale": {
+          "x": 3.8,
+          "y": 4.8,
+          "z": 3.8
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "park-ornamental-tree-26",
+      "park": "ornamental-tree",
+      "transform": {
+        "position": {
+          "x": 105.6,
+          "y": 2.4,
+          "z": 84.6
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "steel",
+        "scale": {
+          "x": 3.8,
+          "y": 4.8,
+          "z": 3.8
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "park-ornamental-tree-27",
+      "park": "ornamental-tree",
+      "transform": {
+        "position": {
+          "x": 136.5,
+          "y": 2.4,
+          "z": 6
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "steel",
+        "scale": {
+          "x": 3.8,
+          "y": 4.8,
+          "z": 3.8
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "park-ornamental-tree-28",
+      "park": "ornamental-tree",
+      "transform": {
+        "position": {
+          "x": 95,
+          "y": 2.4,
+          "z": 98
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "steel",
+        "scale": {
+          "x": 3.8,
+          "y": 4.8,
+          "z": 3.8
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "park-shrub-15",
+      "park": "shrub",
+      "transform": {
+        "position": {
+          "x": 123.2,
+          "y": 0.575,
+          "z": 19.6
+        },
+        "rotation": {
+          "x": 0,
+          "y": 15,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "steel",
+        "scale": {
+          "x": 1.5,
+          "y": 1.15,
+          "z": 1.5
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "park-shrub-16",
+      "park": "shrub",
+      "transform": {
+        "position": {
+          "x": 121.6,
+          "y": 0.575,
+          "z": 18.3
+        },
+        "rotation": {
+          "x": 0,
+          "y": 112,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "steel",
+        "scale": {
+          "x": 1.5,
+          "y": 1.15,
+          "z": 1.5
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "park-shrub-17",
+      "park": "shrub",
+      "transform": {
+        "position": {
+          "x": 122.8,
+          "y": 0.575,
+          "z": 21.3
+        },
+        "rotation": {
+          "x": 0,
+          "y": 209,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "steel",
+        "scale": {
+          "x": 1.5,
+          "y": 1.15,
+          "z": 1.5
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "park-shrub-18",
+      "park": "shrub",
+      "transform": {
+        "position": {
+          "x": 100.5,
+          "y": 0.575,
+          "z": 4.6
+        },
+        "rotation": {
+          "x": 0,
+          "y": 306,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "steel",
+        "scale": {
+          "x": 1.5,
+          "y": 1.15,
+          "z": 1.5
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "park-shrub-19",
+      "park": "shrub",
+      "transform": {
+        "position": {
+          "x": 102.2,
+          "y": 0.575,
+          "z": 4.9
+        },
+        "rotation": {
+          "x": 0,
+          "y": 43,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "steel",
+        "scale": {
+          "x": 1.5,
+          "y": 1.15,
+          "z": 1.5
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "park-shrub-20",
+      "park": "shrub",
+      "transform": {
+        "position": {
+          "x": 126.8,
+          "y": 0.575,
+          "z": 58
+        },
+        "rotation": {
+          "x": 0,
+          "y": 140,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "steel",
+        "scale": {
+          "x": 1.5,
+          "y": 1.15,
+          "z": 1.5
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "park-shrub-21",
+      "park": "shrub",
+      "transform": {
+        "position": {
+          "x": 126.4,
+          "y": 0.575,
+          "z": 59.7
+        },
+        "rotation": {
+          "x": 0,
+          "y": 237,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "steel",
+        "scale": {
+          "x": 1.5,
+          "y": 1.15,
+          "z": 1.5
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "park-shrub-22",
+      "park": "shrub",
+      "transform": {
+        "position": {
+          "x": 126.9,
+          "y": 0.575,
+          "z": 61.4
+        },
+        "rotation": {
+          "x": 0,
+          "y": 334,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "steel",
+        "scale": {
+          "x": 1.5,
+          "y": 1.15,
+          "z": 1.5
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "park-shrub-23",
+      "park": "shrub",
+      "transform": {
+        "position": {
+          "x": 132,
+          "y": 0.575,
+          "z": 99.3
+        },
+        "rotation": {
+          "x": 0,
+          "y": 71,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "steel",
+        "scale": {
+          "x": 1.5,
+          "y": 1.15,
+          "z": 1.5
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "park-shrub-24",
+      "park": "shrub",
+      "transform": {
+        "position": {
+          "x": 138.6,
+          "y": 0.575,
+          "z": 93.4
+        },
+        "rotation": {
+          "x": 0,
+          "y": 168,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "steel",
+        "scale": {
+          "x": 1.5,
+          "y": 1.15,
+          "z": 1.5
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "park-shrub-25",
+      "park": "shrub",
+      "transform": {
+        "position": {
+          "x": 111,
+          "y": 0.575,
+          "z": 99.9
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "steel",
+        "scale": {
+          "x": 1.5,
+          "y": 1.15,
+          "z": 1.5
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "park-shrub-26",
+      "park": "shrub",
+      "transform": {
+        "position": {
+          "x": 112.7,
+          "y": 0.575,
+          "z": 100.1
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "steel",
+        "scale": {
+          "x": 1.5,
+          "y": 1.15,
+          "z": 1.5
+        },
+        "shape": "box"
+      }
+    },
+    {
+      "availability": "standard",
+      "category": "feature",
+      "collision": null,
+      "editable": true,
+      "id": "park-shrub-27",
+      "park": "shrub",
+      "transform": {
+        "position": {
+          "x": 118.5,
+          "y": 0.575,
+          "z": 100
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "visual": {
+        "material": "steel",
+        "scale": {
+          "x": 1.5,
+          "y": 1.15,
+          "z": 1.5
+        },
+        "shape": "box"
+      }
     }
   ],
   "schemaVersion": 13,

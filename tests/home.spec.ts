@@ -1386,7 +1386,7 @@ test.describe("home screen", () => {
     );
     // With no loading screen the park is built before the first frame.
     expect((await getCollisionDebugState(canvas)).coursePark).toEqual({
-      colliders: 126,
+      colliders: 155,
       draws: 7,
     });
 
@@ -2942,7 +2942,7 @@ test.describe("home screen", () => {
     expect(
       (await getCollisionDebugState(page.getByTestId("solo-time-trial-canvas")))
         .coursePark,
-    ).toEqual({ colliders: 126, draws: 7 });
+    ).toEqual({ colliders: 155, draws: 7 });
   });
 
   test("keeps the mobile solo canvas sized and kart centered", async ({
