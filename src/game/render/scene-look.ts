@@ -23,6 +23,11 @@ export const EXPOSURE = 1.6;
 const SHADOW_NORMAL_OFFSET_BIAS = 0.05;
 // Cascaded shadows fade out over the last fifth of their reach.
 const SHADOW_FADE_START = 0.8;
+/**
+ * How much more colourful a race is drawn than its light alone makes it:
+ * a dusk course is dim, and dim colour reads as grey.
+ */
+const RACE_SATURATION = 1.15;
 
 let habitatAtlasPixels: Uint8Array | null = null;
 
@@ -30,8 +35,9 @@ let habitatAtlasPixels: Uint8Array | null = null;
  * Applies the shared Titan Racers look to one PlayCanvas application and
  * camera: Neutral tone mapping, exposure, and environment lighting, which
  * replaces the flat scene ambient. The environment is an enclosure's habitat
- * light when given, else the neutral habitat light. Returns a cleanup that
- * releases the environment texture.
+ * light when given, else the neutral habitat light; a race, which gives
+ * one, is also drawn more colourful. Returns a cleanup that releases the
+ * environment texture.
  */
 export function applySceneLook(
   app: pc.AppBase,
@@ -67,6 +73,8 @@ export function applySceneLook(
   });
   app.scene.envAtlas = atlas;
   fadeCascadedShadowEdge(app.graphicsDevice);
+  // Editors and thumbnails show authored colours as they are.
+  if (habitat) gradeToneMapping(app.graphicsDevice);
 
   return () => {
     if (app.scene?.envAtlas === atlas) app.scene.envAtlas = null;
@@ -124,6 +132,33 @@ vec3 fadeShadow(vec3 shadowCoord, vec4 shadowCascadeDistances) {
 			shadow = mix(1.0, shadow, light{i}_shadowIntensity);
 		#endif`,
     ),
+  );
+}
+
+/**
+ * Makes everything a race draws more colourful as it is tone mapped, in
+ * each surface's own shader: no pass over the screen. A colour moves away
+ * from the grey of its own brightness, which keeps its hue and brightness;
+ * one too strong for the screen is brought back toward that grey. Patches
+ * the PlayCanvas 2.20 `tonemappingNeutralPS` chunk for the device.
+ */
+function gradeToneMapping(device: pc.GraphicsDevice) {
+  const chunks = pc.ShaderChunks.get(device, pc.SHADERLANGUAGE_GLSL);
+  const neutral = chunks.get("tonemappingNeutralPS")!;
+  if (neutral.includes("toneMapNeutral")) return;
+  chunks.set(
+    "tonemappingNeutralPS",
+    `${replaceChunkText(neutral, "vec3 toneMap(", "vec3 toneMapNeutral(")}
+vec3 toneMap(vec3 color) {
+  color = toneMapNeutral(color);
+  float grey = dot(color, vec3(0.2126, 0.7152, 0.0722));
+  color = max(mix(vec3(grey), color, ${RACE_SATURATION.toFixed(3)}), 0.0);
+  float peak = max(color.r, max(color.g, color.b));
+  return peak > 1.0
+    ? grey + (color - grey) * (1.0 - grey) / (peak - grey)
+    : color;
+}
+`,
   );
 }
 

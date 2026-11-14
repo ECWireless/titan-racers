@@ -56,8 +56,15 @@ Orange and hazard are signals. Use them sparingly so they stay readable.
 - **Neutral tone mapping.** Khronos PBR Neutral keeps the site's orange and
   hazard yellow on hue. ACES pushes them toward lemon yellow, and no tone
   mapping clips bright highlights.
-- **No post-processing.** Tone mapping runs inside the main shader. There are
-  no bloom, ambient-occlusion, or other full-screen passes.
+- **A race is a little more colourful.** After tone mapping, a race
+  multiplies colourfulness by 1.15, since a dim dusk course otherwise reads
+  as grey. Brightness and hue are kept, contrast is left as the light
+  makes it, and a colour too strong for the screen is brought back toward
+  its grey. Editors, thumbnails, and the loading screen are left as they
+  are.
+- **No post-processing.** Tone mapping and that gain run inside the main
+  shader. There are no bloom, ambient-occlusion, or other full-screen
+  passes.
 - **Shadows reach the karts.** Sun shadows cover the 60 m ahead of the camera
   in two cascades: a sharp one to about 16 m, blended into a coarser one
   beyond, which fades out over its last 12 m rather than ending at an edge.
@@ -95,8 +102,9 @@ Orange and hazard are signals. Use them sparingly so they stay readable.
   sits a little below the floodlit track, but by day a tunnel's start is
   near-black: courses with a tunnel race at dusk or later.
 - **Races load in space.** The loading screen shows Island Three from
-  outside, lit by the same sun and tone mapping as the race, against black
-  space and Saturn ([Island Three](island-three.md#from-outside)). The site's
+  outside, lit by the same sun and tone mapping as the race, without its
+  added colour, against black space and Saturn
+  ([Island Three](island-three.md#from-outside)). The site's
   near-black frames the course name below it.
 
 Neutral deepens the very darkest tones and their color. The near-black

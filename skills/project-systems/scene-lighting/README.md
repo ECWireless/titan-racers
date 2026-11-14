@@ -14,7 +14,12 @@ phone budget. Art direction and the budget itself live in
 
 - `src/game/render/scene-look.ts` applies Neutral tone mapping, sRGB gamma,
   exposure, and the habitat environment to an application and camera, and
-  owns the shadow policy.
+  owns the shadow policy. It also draws a race (an application given a
+  habitat's light) more colourful, and not the editors or thumbnails:
+  `gradeToneMapping` wraps the `tonemappingNeutralPS` chunk's `toneMap`,
+  so every surface multiplies its tone-mapped colourfulness by
+  `RACE_SATURATION` in its own shader. The Neutral curve stays as
+  `toneMapNeutral`.
 - `src/game/render/habitat-environment-atlas.ts` builds the environment atlas
   pixels on the CPU: the neutral habitat light once per page for editors and
   thumbnails, and a race's direction-aware light from its radiance.
@@ -156,8 +161,9 @@ phone budget. Art direction and the budget itself live in
   the course loading screen (`src/components/course-loading-screen.tsx`):
   raw WebGL2 on its own canvas, one full-screen shader that traces the hull,
   mirrors, and Saturn and repeats the scene look's Neutral tone mapping and
-  its base exposure, unadapted, since it looks on from sunlit space, and
-  shows the habitat by day (mirrors at most 80°).
+  its base exposure, unadapted and without the race's added colour, since
+  it looks on from sunlit space, and shows the habitat by day (mirrors at
+  most 80°).
   `src/game/enclosure/habitat-glsl.ts` holds the land, cap, mirror-light,
   and distant-lamp GLSL it shares with the enclosure view.
 - `src/game/runtime/frame-budget.ts` and
@@ -238,9 +244,10 @@ course editor scenes in `src/game/editor/`, and
   budget ([measured](../../../docs/visual-identity.md#baseline)).
 - The course finishes replace the `diffusePS` chunk (scanned finishes also
   `normalMapPS` and `glossPS`), the wheel finishes `diffusePS`, `glossPS`,
-  `metalnessPS`, and the `litUser*` hooks, and the cascaded-shadow fade patches
-  `shadowCascadesPS` and `lightFunctionLightPS`, for chunk version 2.20; the
-  fade throws if its anchor text is gone. Re-verify them, like
+  `metalnessPS`, and the `litUser*` hooks, the cascaded-shadow fade patches
+  `shadowCascadesPS` and `lightFunctionLightPS`, and the race's colour
+  gain patches `tonemappingNeutralPS`, for chunk version 2.20; the fade and
+  the gain throw if their anchor text is gone. Re-verify them, like
   the atlas, on any engine upgrade. Grain pixels and decoded scan images are
   kept, so both re-upload after a lost WebGL context. Scans load as image
   elements, not `ImageBitmap`s, which PlayCanvas avoids on Safari.

@@ -336,7 +336,7 @@ vec3 space(vec3 direction, vec3 du, vec3 dv, float pixelAngle) {
 }
 
 // Khronos PBR Neutral with the race's exposure, then sRGB gamma, as the
-// race's own shaders finish.
+// race's own shaders finish, but for the race's added colour.
 vec3 finish(vec3 color) {
   color *= EXPOSURE;
   float startCompression = 0.8 - 0.04;
