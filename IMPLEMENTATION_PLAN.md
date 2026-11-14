@@ -18,10 +18,11 @@ accepted; the app, README, and durable docs take over from there.
 - **Done:** Phases 0–6 (PRs #1–#24, the Phase 3 closeout and its
   follow-ups, #30–#57 with the PR 4.5.2 closeout, #59–#63, and #64–#70
   with the Phase 6 closeout), and the addendum's PRs 6.7 (#71), 6.8
-  (#72), 6.9 (#73), and 6.10 (#74), and its look exploration.
+  (#72), 6.9 (#73), 6.10 (#74), and 6.11 (#75), and its look
+  exploration.
 - **Now:** the [Phase 6 addendum](#phase-6-addendum-feedback-before-phase-7),
-  PR 6.11.
-- **Next:** PR 6.12, then Phase 7, after its debrief.
+  PR 6.12, its last.
+- **Next:** Phase 7, after its debrief.
 
 ## Guiding Decisions
 
@@ -380,16 +381,25 @@ lead publishes it with New leaderboard off.
 
 - [ ] The room server keeps its logs (Cloudflare Workers Logs), and notes
       each time a kart goes out of touch and why: a slow connection, a gap
-      in its states, its page saying so, a reset, or a reconnect. No
-      account details are logged. Deployed between sessions, since a
-      room-server deploy ends live races.
+      in its states, its page saying so, a reset, a reconnect, or silence.
+      It notes when the kart comes back, and sums each race's outs at its
+      end. Lines name only the room's seat (`p1`–`p4`) and race ID: no
+      names, keys, tokens, room codes, or addresses, and the platform's
+      own request logs are off, since a join's URL carries its token. No
+      protocol change, so it deploys ahead of the PR, between sessions,
+      since a room-server deploy ends live races.
+- [ ] Draws per kart are measured: a solo race with its ghost off and on,
+      and a room with one to three opponents.
 - [ ] A four-player test (2026-11-09) saw karts turn see-through and races
       stutter with all four together, while the room server stayed light
-      and error-free. With the logs and `?perf=1` on a phone or two, find
-      the cause and fix it if it's small. One guess to test first: a page's
-      hitch puts its kart out of touch, it can't come back while touching
-      the pack, and each switch between solid and see-through rebuilds the
-      kart's draw batch, which may hitch again.
+      and error-free. With the logs, a phone with three test racers, and
+      `?perf=1`, trace the cause as far as one phone can, and fix it if
+      it's small; a fix that needs four players to confirm waits for the
+      next four-player test. Guesses to test: a page's hitch puts its kart
+      out of touch, and it can't come back while touching the pack; a
+      page's hitch makes every opponent's states look late there, so all
+      turn see-through at once; and each switch between solid and
+      see-through rebuilds the kart's draw batch, which may hitch again.
 
 **Done when:** races on a phone can't select or zoom the page; the fastest lap
 shows; the tunnel door opens the same way for every racer in a room; home, the
