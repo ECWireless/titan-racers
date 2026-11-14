@@ -338,20 +338,43 @@ integration review, from `2ffc5a20` (PR #70), before its last PR merges.
 
 **PR 6.11: Filling the park**
 
-- [ ] Claude and Codex each build the same kit to one brief, at real size:
+- [x] Claude and Codex each build the same kit to one brief, at real size:
       a park bench, a litter bin, a mature shade tree and a smaller
       ornamental tree, a shrub, and a flower bed in a raised, edged bed.
       Each places it on the lawns beside the return lane, either side of
       the levee, and outside the downhill: clear of the road, within the
       lamps the park has, and opening no new way onto the route.
-- [ ] A fresh agent of the other family scores each entry from the same
+- [x] A fresh agent of the other family scores each entry from the same
       renders and numbers. The lead then decides blind, category by
       category (furniture, trees, low planting, placement), and the
-      winning pieces land together.
-- [ ] Everything stays within the phone budget. The kit adds at most 8
-      draws, 60k triangles (1,500 a piece), one new 512² CC0 atlas, and
-      150 static bodies, and is measured on the iPhone once, at the PR's
-      end.
+      winning pieces land together. Codex's entry won all four. The lead
+      found both entries' trees dated (solid green crowns with a few leaf
+      cards), so the winner's planting was rebuilt as boughs of leaves on
+      real branches: beech, snowy mespilus, dogwood, and Shasta daisies.
+- [x] A kart drives under a bench, and home's picture is rendered again
+      with the park in it.
+- [x] The service road is outside the park, so it gets planting and no
+      furniture: beeches on the lawns either side of it, a row of small
+      trees along its east verge, and shrubs at its bends.
+- [x] Hedges are clipped privet in place of leaf-covered boxes: leaning
+      faces, round shoulders, an uneven clipped line, and boughs of small
+      leaves over a dark core, at half the old hedges' triangles.
+- [x] A race is drawn 1.15 times as colourful, inside each surface's own
+      shader. The lead tried a contrast curve on the phone and turned it
+      down. Home's picture is rendered again to match.
+- [x] Everything stays within the phone budget. The kit is 7 draws, plus
+      up to 6 in the daylight shadow passes, 74.7k triangles (1,500 a
+      piece at most), one new 512² CC0 atlas, and 155 static bodies,
+      measured on the iPhone at the PR's end against `main` in the same
+      sitting.
+- [x] Behind its loading screen, a race grows its hedges' boughs and its
+      park after its first frame, so that frame costs what it did without
+      them. The method is
+      checked against published guidance and kept as a skill
+      (`skills/game-concepts/progressive-loading`).
+
+After merge, the course is seeded as a draft revision at schema 13, and the
+lead publishes it with New leaderboard off.
 
 **PR 6.12: Room logs, from a four-player playtest**
 
@@ -619,8 +642,10 @@ course-specific ghosts or leaderboards.
       `home.spec` failed there in Phase 6, on `main` too: "releases a
       thumbnail pause when home unmounts during queue drain", "keeps the
       rough-race HUD clear of mobile utilities", and "launches the slowest
-      and fastest karts off the levee kicker onto the crest". Serial
-      groups skip the tests after a failure, so fix these first.
+      and fastest karts off the levee kicker onto the crest". "races
+      Falls View Park as the solo course through two laps" timed out
+      there in PR 6.11, on `main` too. Serial groups skip the tests after
+      a failure, so fix these first.
 - [ ] Before any shared room link (Phase 6's integration review): Workers
       Paid, a rate limit on the room token route, and rooms on the custom
       domain behind a rate-limiting rule, so a script can't spend the

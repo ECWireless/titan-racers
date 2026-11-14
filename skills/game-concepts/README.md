@@ -35,6 +35,9 @@ A game-concept node should normally cover:
 - [`gameplay-telemetry/`](gameplay-telemetry/README.md): the validated
   engine-independent standard for minimal, privacy-conscious gameplay-run
   summaries and operator-facing learning.
+- [`progressive-loading/`](progressive-loading/README.md): the candidate
+  standard for when a race's startup work runs: before on an idle menu, at
+  the first frame, or after it in slices behind the loading screen.
 - [`race-presentation/`](race-presentation/README.md): the validated standard
   for legible countdown, lap/time status, recovery, finish results, and
   accessible race-state communication.

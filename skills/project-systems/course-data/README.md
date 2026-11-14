@@ -111,8 +111,9 @@ own editor commands or persistence UI.
   seed. `course-park.ts` gives each piece its object's ID as that seed and
   merges a course's pieces by finish, with their boxes in place;
   `course-prewarm.ts` prepares that, and `course-trees.ts` draws and
-  collides it (see [scene lighting](../scene-lighting/README.md)). Only a
-  tree's trunk omits the `obstacle` tag.
+  collides it, behind a race's loading screen once its first frame is
+  drawn (see [scene lighting](../scene-lighting/README.md)). Only a tree's trunk
+  omits the `obstacle` tag.
 - `src/game/course/course-water.ts` finds a document's water boxes and their
   flow, and tells the race when a kart's centre of mass is under water, so
   it is drowned and recovered.

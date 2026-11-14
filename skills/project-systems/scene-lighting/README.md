@@ -64,6 +64,22 @@ phone budget. Art direction and the budget itself live in
   habitat's light and environment atlas, the trees' and hedges' geometry,
   and its signs' letter atlas, each cached per page. The home screen also
   starts loading physics, so a warm race waits for neither.
+- Behind a loading screen, a race grows its course's hedge boughs and
+  then its park after its first frame, not before
+  ([progressive loading](../../game-concepts/progressive-loading/README.md)):
+  `growCourseHedgeGeometry` in `src/game/course/course-hedge-geometry.ts`
+  sets boughs, and `growCourseParkGeometry` in
+  `src/game/course/course-park.ts` builds a piece at a time, for 8 ms, or
+  half the wait since the last slice where frames are slow; a timer runs
+  the next slice; and warm-up, which grows both the same way, leaves its
+  progress for the race. `addCourseTrees` adds each one's draws (and the
+  park's colliders) once it is whole, and the race reports ready one
+  drawn frame later, so the loading screen and the countdown wait for
+  them. A hidden page builds them at once and waits for no frame. Until
+  ready, a lost graphics context keeps the loading screen up, and a
+  failure is a load failure. With no loading screen (the kart editor's
+  test drive, and tests without the enclosure) and in the course editor,
+  both are built at once, before the first frame.
 - `src/game/course/course-trees.ts` draws a course's trees and hedges
   ([visual identity](../../../docs/visual-identity.md#leaf-sprays)):
   smooth grey-brown bark, and leaf sprays alpha-tested from the baked

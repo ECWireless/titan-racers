@@ -530,3 +530,29 @@ most (127 forward, no shadow map), up about seven from PR 5.1's night
 figures for the door, the room's contents, and the poster. The warm first
 frame took 512 ms. The race before it, the first on a new build, had four
 hitches and a 5.7 s first frame while the phone compiled its shaders anew.
+
+PR 6.11 was measured on the iPhone with two solo two-lap races in one
+sitting, each after a reload, on production builds without the database:
+`main`, then the park. Its 99 pieces, the rebuilt hedges (about 30k
+triangles of boughs, where their sprays were 60k), and the race's colour
+gain add eight draws at most (an 88 median and 138 at most, 136 forward,
+against 87 and 130) and nothing else measurable: frame time holds (17 ms
+median, p95 18 ms), CPU work is a 3 ms median with p95 4 ms, and neither
+race hitched. The first frame took 413 ms against `main`'s 463 ms, with
+260 ms building the course against 285 ms, because the hedges' boughs and
+the park grow after it, behind the loading screen
+([progressive loading](../skills/game-concepts/progressive-loading/README.md)):
+the race was ready after 949 ms (686 ms on `main`) and revealed at 2.5 s on
+both. The 536 ms from its first frame to ready, against `main`'s 223 ms, is
+that growing, in a race home's warm-up had not finished for; an earlier
+race of the day, whose park the warm-up had grown, was ready 192 ms after
+its first frame. Built before the first frame, as the park first was, it
+took that frame to 658 ms against 392 ms; the hedges' boughs, built before
+it, took building the course to 308 ms. The draw maximum leaves twelve of
+the 150 allowed.
+First frames differ by sitting (`main`'s was 392, 408, and 463 ms across
+the day's three), so compare within one. One race of an earlier build that
+day hitched once, and none since. The same `main` build's first race on a
+new address drew a 52 median and 84 at most, with no stored lap to race
+against; whether the ghost accounts for that difference is not yet known,
+so compare draws between races of one sitting.
