@@ -367,6 +367,11 @@ function getKartRootPosition(
 }
 
 const ENABLE_SCENE_TEST_HOOKS = process.env.NODE_ENV !== "production";
+// How long the park grows at a time behind the loading screen, at least:
+// it leaves the screen's own picture most of each frame.
+const PARK_SLICE_MS = 8;
+// How long the park waits for a frame to be drawn before going on without.
+const PARK_FRAME_WAIT_MS = 1_000;
 
 type SceneInitializationTestControl = {
   contextRestoreTimeoutMs?: number;
@@ -1160,9 +1165,13 @@ export function SoloTimeTrialCanvas({
         courseSurfaceImages?.leaves ?? null,
       );
       runtime.addCleanup(() => treeMaterials.destroy());
+      // Behind a loading screen the park grows after the first frame
+      // (below). With none, it would be seen arriving, so it is built now.
+      const parkLater = countdownHeldRef.current;
       const trees = addCourseTrees(app, COURSE_DOCUMENT, {
         colliders: true,
         materials: treeMaterials,
+        parkLater,
         surfaces: courseSurfaces.materials,
       });
       runtime.addCleanup(() => trees.destroy());
@@ -2741,12 +2750,18 @@ export function SoloTimeTrialCanvas({
       runtime.listen(window, "resize", () => runtime.resizeCanvas());
       runtime.listen(window, "orientationchange", () => runtime.resizeCanvas());
 
+      // Set once the race has reported ready: until then the page is still
+      // loading, behind its loading screen.
+      let sceneReady = false;
       const failGraphicsRuntime = (failureCode: GameplayRunFailureCode) => {
         if (contextRestoreTimeoutId !== null) {
           window.clearTimeout(contextRestoreTimeoutId);
           contextRestoreTimeoutId = null;
         }
-        gameplayTelemetry.fail("runtime_failed", failureCode);
+        gameplayTelemetry.fail(
+          sceneReady ? "runtime_failed" : "load_failed",
+          failureCode,
+        );
         runtime.destroy();
         activeRuntime = null;
         sceneApiRef.current = null;
@@ -2762,7 +2777,8 @@ export function SoloTimeTrialCanvas({
         () => {
           pauseForInterruption();
           runtime.setRenderingSuspended(true);
-          setSceneStatus("context_lost");
+          // A race still loading stays behind its loading screen.
+          if (sceneReady) setSceneStatus("context_lost");
           setDriveCursorHidden(false);
           contextRestoreTimeoutId = window.setTimeout(
             () => failGraphicsRuntime("webgl_context_lost"),
@@ -2780,7 +2796,7 @@ export function SoloTimeTrialCanvas({
           }
           try {
             runtime.restoreRendering();
-            setSceneStatus("ready");
+            if (sceneReady) setSceneStatus("ready");
           } catch {
             failGraphicsRuntime("webgl_context_restore_failed");
           }
@@ -2880,6 +2896,14 @@ export function SoloTimeTrialCanvas({
             obstacleAEntity?.rigidbody?.restitution ?? null,
           courseDoors: courseDoors?.describe() ?? [],
           courseEntityCount: courseEntities.size,
+          coursePark: {
+            colliders: trees.root.children.filter((child) =>
+              /^park-.*-collision-\d+$/.test(child.name),
+            ).length,
+            draws: trees.root.children.filter((child) =>
+              child.name.startsWith("course-park-"),
+            ).length,
+          },
           directionalLightCount: lightingEntities.size,
           groundCollisionHalfExtentX: ground?.collision?.halfExtents?.x ?? null,
           groundCollisionOffsetY: ground?.collision?.linearOffset?.y ?? null,
@@ -4303,38 +4327,99 @@ export function SoloTimeTrialCanvas({
       const startedAt = performance.now();
       runtime.start();
       setSceneFailureCode(null);
-      setSceneStatus("ready");
-      gameplayTelemetry.markRuntimeLoaded();
-      // A loading screen holds the countdown until it lifts; the scene
-      // renders behind it meanwhile, so its first frame is already done.
-      startCountdownRef.current = () => {
-        startCountdownRef.current = null;
-        // A context lost behind the loading screen could not pause the
-        // race before its countdown. Nor could a page hidden while loading
-        // whose sound now waits for a tap: its countdown would be silent.
-        const interrupted =
-          document.hidden ||
-          !document.hasFocus() ||
-          contextRestoreTimeoutId !== null ||
-          (soundOnRef.current && raceAudioAwaitsGesture());
-        // The countdown starts only once the race is ready and uncovered, so
-        // open its sound now: React's own update can land a frame or more
-        // later, after the first tick has played into silence.
-        if (!interrupted) {
-          raceAudioActiveRef.current = true;
-          ensureRaceAudio()?.setActive(true);
-        }
-        raceSession.startCountdown();
-        publishRacePresentation();
-        activeCanvas.dataset.sceneReady = "true";
-        activeCanvas.focus();
-        setDriveCursorHidden(true);
-        if (interrupted) {
-          pauseForInterruption();
-          gameplayTelemetry.flushRuntimeHealth();
+      // The park takes longer to grow than the rest of the course takes to
+      // build, so behind a loading screen it grows once the first frame is
+      // drawn, a few milliseconds at a time with the page free to draw
+      // between. The race is ready a frame after it joins, so its upload
+      // and its shaders' compiling are over too, unseen.
+      // A hidden page draws no frames and slows its timers, so there the
+      // park is built at once and neither frame is waited for. Where the
+      // page is slow to draw, a slice lasts half as long as the wait for
+      // it, so the park takes a share of the time and not a frame a piece.
+      let parkTimer = 0;
+      let parkSliceEnded = performance.now();
+      const growPark = () => {
+        app.off("postrender", startPark);
+        try {
+          const budget = document.hidden
+            ? Infinity
+            : Math.max(PARK_SLICE_MS, (performance.now() - parkSliceEnded) / 2);
+          const stands = trees.growPark(budget);
+          parkSliceEnded = performance.now();
+          if (!stands) {
+            parkTimer = window.setTimeout(growPark);
+          } else if (document.hidden) {
+            announceUndrawn();
+          } else {
+            app.once("postrender", announceReady);
+            parkTimer = window.setTimeout(announceUndrawn, PARK_FRAME_WAIT_MS);
+          }
+        } catch (error) {
+          console.error("Unable to build the course's park", error);
+          failGraphicsRuntime("scene_initialization_failed");
         }
       };
-      if (!countdownHeldRef.current && !ROOM) startCountdownRef.current();
+      // Ready without a drawn frame, but not while the graphics context
+      // is lost: its return draws that frame, or its timeout fails the load.
+      const announceUndrawn = () => {
+        if (contextRestoreTimeoutId === null) announceReady();
+        else {
+          parkTimer = window.setTimeout(announceUndrawn, PARK_FRAME_WAIT_MS);
+        }
+      };
+      const startPark = () => {
+        window.clearTimeout(parkTimer);
+        parkSliceEnded = performance.now();
+        parkTimer = window.setTimeout(growPark);
+      };
+      if (parkLater) {
+        app.once("postrender", startPark);
+        parkTimer = window.setTimeout(growPark, PARK_FRAME_WAIT_MS);
+      }
+      runtime.addCleanup(() => {
+        app.off("postrender", startPark);
+        app.off("postrender", announceReady);
+        window.clearTimeout(parkTimer);
+      });
+      const announceReady = () => {
+        if (sceneReady) return;
+        sceneReady = true;
+        app.off("postrender", announceReady);
+        window.clearTimeout(parkTimer);
+        setSceneStatus("ready");
+        gameplayTelemetry.markRuntimeLoaded();
+        // A loading screen holds the countdown until it lifts; the scene
+        // renders behind it meanwhile, so its first frame is already done.
+        startCountdownRef.current = () => {
+          startCountdownRef.current = null;
+          // A context lost behind the loading screen could not pause the
+          // race before its countdown. Nor could a page hidden while loading
+          // whose sound now waits for a tap: its countdown would be silent.
+          const interrupted =
+            document.hidden ||
+            !document.hasFocus() ||
+            contextRestoreTimeoutId !== null ||
+            (soundOnRef.current && raceAudioAwaitsGesture());
+          // The countdown starts only once the race is ready and uncovered, so
+          // open its sound now: React's own update can land a frame or more
+          // later, after the first tick has played into silence.
+          if (!interrupted) {
+            raceAudioActiveRef.current = true;
+            ensureRaceAudio()?.setActive(true);
+          }
+          raceSession.startCountdown();
+          publishRacePresentation();
+          activeCanvas.dataset.sceneReady = "true";
+          activeCanvas.focus();
+          setDriveCursorHidden(true);
+          if (interrupted) {
+            pauseForInterruption();
+            gameplayTelemetry.flushRuntimeHealth();
+          }
+        };
+        if (!countdownHeldRef.current && !ROOM) startCountdownRef.current();
+      };
+      if (!parkLater) announceReady();
       runtime.addCleanup(() => {
         startCountdownRef.current = null;
         delete activeCanvas.dataset.sceneReady;

@@ -235,6 +235,7 @@ async function getCollisionDebugState(canvas: Locator) {
           openAngle: number;
         }>;
         courseEntityCount: number;
+        coursePark: { colliders: number; draws: number };
         directionalLightCount: number;
         groundCollisionHalfExtentX: number | null;
         groundCollisionOffsetY: number | null;
@@ -1383,6 +1384,11 @@ test.describe("home screen", () => {
       "data-course-document-id",
       "falls-view-park",
     );
+    // With no loading screen the park is built before the first frame.
+    expect((await getCollisionDebugState(canvas)).coursePark).toEqual({
+      colliders: 126,
+      draws: 7,
+    });
 
     await advanceRaceToRacing(canvas);
     const { checkpoints, start } = FALLS_VIEW_PARK_DOCUMENT;
@@ -2931,6 +2937,12 @@ test.describe("home screen", () => {
     expect(
       await getRaceDebugState(page.getByTestId("solo-time-trial-canvas")),
     ).toMatchObject({ state: "countdown" });
+    // Behind the cover the park grew after the first frame, and it stands
+    // before the countdown.
+    expect(
+      (await getCollisionDebugState(page.getByTestId("solo-time-trial-canvas")))
+        .coursePark,
+    ).toEqual({ colliders: 126, draws: 7 });
   });
 
   test("keeps the mobile solo canvas sized and kart centered", async ({

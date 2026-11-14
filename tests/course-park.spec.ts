@@ -7,7 +7,10 @@ import {
   rotateByEulerAngles,
   type CourseObject,
 } from "../src/game/course/course-document";
-import { getCourseParkGeometry } from "../src/game/course/course-park";
+import {
+  getCourseParkGeometry,
+  growCourseParkGeometry,
+} from "../src/game/course/course-park";
 import {
   buildParkBench,
   buildParkBin,
@@ -312,4 +315,21 @@ test("the park's pieces stand 1.5 m clear of the road, the jump, barriers, and l
     }
   }
   expect(tooClose).toEqual([]);
+});
+
+test("a park grown a piece at a time is the park built at once", () => {
+  const pieces = FALLS_VIEW_PARK_DOCUMENT.objects.filter(
+    (object) => object.park,
+  );
+  const some = { ...FALLS_VIEW_PARK_DOCUMENT, objects: pieces.slice(0, 9) };
+  const whole = structuredClone(getCourseParkGeometry(some));
+  // Another course's park takes the cache, so this one starts again.
+  getCourseParkGeometry({ ...some, objects: pieces.slice(9, 11) });
+
+  // With no time to spare each call adds one piece, and nothing is handed
+  // over until the last; the same pieces in a new document carry on.
+  for (let call = 1; call < 9; call++) {
+    expect(growCourseParkGeometry(call < 5 ? some : { ...some }, 0)).toBeNull();
+  }
+  expect(growCourseParkGeometry({ ...some }, 0)).toEqual(whole);
 });
