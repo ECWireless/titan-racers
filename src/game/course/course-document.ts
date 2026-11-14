@@ -637,7 +637,8 @@ export function countCourseTrees(document: {
   }, 0);
 }
 
-// A clipped hedge's sides and top carry leaf sprays by area.
+// A clipped hedge's sides and top carry leaf sprays by area, which
+// course-hedge-geometry.ts draws as boughs.
 const HEDGE_SPRAYS_PER_SQUARE_METRE = 24;
 /** Hedge leaves are drawn, so a course has at most this many sprays. */
 export const COURSE_HEDGE_SPRAY_LIMIT = 40_000;

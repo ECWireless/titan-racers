@@ -601,7 +601,7 @@ export function createCourseSurfaceMaterials(
     // leaves.
     timber: finish(hex("#857661"), 0.14, [0.3, 0.18, 0], undefined, "timber"),
     mulch: finish(hex("#4d4136"), 0.06, [0.7, 0.35, 0], undefined, "mulch"),
-    hedge: finish(hex("#46522f"), 0.08, [0.35, 0.25, 0]),
+    hedge: finish(hex("#232b18"), 0.08, [0.35, 0.25, 0]),
     // A working nursery's brushed-concrete trolley lanes, weathered to about
     // 30% reflectance.
     concrete: finish(hex("#8e8d88"), 0.16, [0.3, 0.2, 0], "verge", "concrete"),

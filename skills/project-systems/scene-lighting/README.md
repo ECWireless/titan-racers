@@ -64,9 +64,11 @@ phone budget. Art direction and the budget itself live in
   smooth grey-brown bark, and leaf sprays alpha-tested from the baked
   coverage (alpha to coverage under MSAA), two-sided, and shaded by vertex
   colour. Each tree variant's bark and leaves, and the stakes, are one
-  hardware-instanced draw each; all hedges' sprays are one mesh. The leaf
-  images load with the surface scans; without them trees stand bare and
-  hedges show their plain box. It also draws the parked bicycles: all
+  hardware-instanced draw each; all hedges' boughs are one mesh in the
+  park's bough material, over the dark core each hedge's box draws in the
+  `hedge` finish, which casts its shadow. The leaf images load with the
+  surface scans; without them trees stand bare and hedges show their
+  cores. It also draws the parked bicycles: all
   bikes' coated and rubber parts as one merged mesh, which casts shadows,
   and their bare metal as another, which does not.
 - `course-trees.ts` also draws the park's furniture and planting

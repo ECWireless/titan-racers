@@ -24,6 +24,10 @@ import {
 } from "./course-clearing";
 import { createCourseBevelGeometry, type CourseMeshGeometry } from "./course-bevel";
 import {
+  createCourseHedgeCoreGeometry,
+  isCourseHedge,
+} from "./course-hedge-geometry";
+import {
   type CourseKitBox,
   createCourseElbowGeometry,
   createCourseHandwheelGeometry,
@@ -466,6 +470,8 @@ function createCourseObjectMesh(
   if (visual.bevel) {
     return solid(createCourseBevelGeometry(visual.shape, visual.scale, visual.bevel));
   }
+  // A hedge draws its dark core; course-trees.ts covers it in boughs.
+  if (isCourseHedge(object)) return solid(createCourseHedgeCoreGeometry(visual.scale));
   return undefined;
 }
 

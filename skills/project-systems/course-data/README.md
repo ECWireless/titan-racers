@@ -99,9 +99,10 @@ own editor commands or persistence UI.
   [scene lighting](../scene-lighting/README.md)) and the top-face meshes.
 - `src/game/course/course-tree-geometry.ts` builds the planted beds' trees
   (where each stands, its three variants' bark, leaf sprays, and stake, and
-  its one collider box round stem and stake) and the hedges' leaf sprays
-  from a validated document, deterministically; `course-trees.ts` draws them
-  (see [scene lighting](../scene-lighting/README.md)) and adds the static
+  its one collider box round stem and stake) from a validated document,
+  deterministically, and `course-hedge-geometry.ts` each hedge's clipped
+  form: its boughs and the dark core its box draws; `course-trees.ts` draws
+  them (see [scene lighting](../scene-lighting/README.md)) and adds the static
   colliders, which carry no `obstacle` tag, so the chase camera looks past
   trees.
 - `src/game/course/course-park-geometry.ts` builds the six park pieces
@@ -131,7 +132,7 @@ own editor commands or persistence UI.
 - `tests/course-arc.spec.ts` owns the arc generator: segment counts, chord
   error, normals and winding, and collision boxes that meet on the outer face.
 - `tests/course-trees.spec.ts` owns tree placement, colliders, size,
-  triangle budget, winding, and hedge spray coverage.
+  triangle budget, winding, and a hedge's bough coverage, form, and core.
 - `tests/course-clearing.spec.ts` owns the clearing's floor and fence: every
   vertex on the habitat floor, slab tops within the sagitta, no ground inside
   the footprint, support everywhere outside it, and a closed fence whose
@@ -209,9 +210,9 @@ beds. `planting: { along, across }` (0.5–20 m) on an outdoor box that is not
 a lamp or roof grows young trees on its top, in rows along its local X
 `along` apart, the rows `across` apart along its local Z
 (`getCoursePlantingGrid`). A `hedge` finish must also be an outdoor box that
-is not a lamp or roof; its sides and top carry 24 leaf sprays a square
-metre. A course holds at most 2,000 trees (`COURSE_TREE_LIMIT`) and 40,000
-hedge sprays (`COURSE_HEDGE_SPRAY_LIMIT`).
+is not a lamp or roof; its sides and top count 24 leaf sprays a square
+metre, drawn as one bough for every two. A course holds at most 2,000 trees
+(`COURSE_TREE_LIMIT`) and 40,000 hedge sprays (`COURSE_HEDGE_SPRAY_LIMIT`).
 
 Version eight adds the `concrete`, `gravel`, and `water` finishes, work
 lamps, and parked bicycles. Water is an outdoor box without collision that

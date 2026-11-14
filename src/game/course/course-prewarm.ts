@@ -1,3 +1,4 @@
+import { growCourseHedgeGeometry } from "./course-hedge-geometry";
 import { growCourseParkGeometry } from "./course-park";
 import { getHabitatLight } from "../enclosure/habitat-light";
 import type { CourseDocument } from "./course-document";
@@ -5,7 +6,6 @@ import { courseLampLux } from "./course-lamps";
 import { getCourseSignGlyphs } from "./course-sign";
 import { prewarmCourseSurfacePixels } from "./course-surface-materials";
 import {
-  createCourseHedgeGeometry,
   createNurseryStakeGeometry,
   createNurseryTreeGeometry,
   NURSERY_TREE_VARIANTS,
@@ -37,9 +37,10 @@ export function prewarmCourseScene(document: CourseDocument) {
       (_, variant) => () => createNurseryTreeGeometry(variant),
     ),
     createNurseryStakeGeometry,
-    // The park is the longest of these, so it grows a slice a step.
+    // The park and the hedges are the longest of these, so each grows a
+    // slice a step.
     () => growCourseParkGeometry(document, PARK_SLICE_MS) !== null,
-    () => createCourseHedgeGeometry(document),
+    () => growCourseHedgeGeometry(document, PARK_SLICE_MS) !== null,
     ...(document.objects.some((object) => object.sign !== undefined)
       ? [getCourseSignGlyphs]
       : []),

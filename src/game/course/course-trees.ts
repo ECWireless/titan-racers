@@ -3,10 +3,10 @@ import * as pc from "playcanvas";
 import { PHYSICS_GROUP, PHYSICS_MASK } from "../physics/collision-groups";
 import { createBicycleGeometry } from "./course-bicycle-geometry";
 import type { CourseBicycle, CourseDocument } from "./course-document";
+import { growCourseHedgeGeometry } from "./course-hedge-geometry";
 import { growCourseParkGeometry } from "./course-park";
 import { PARK_FINISHES } from "./course-park-geometry";
 import {
-  createCourseHedgeGeometry,
   createNurseryStakeGeometry,
   createNurseryTreeGeometry,
   getCourseTreeCollider,
@@ -27,10 +27,10 @@ const BARK_COLOR = "#6b6254";
 const LEAF_TINT = [0.95, 1, 0.85] as const;
 
 /**
- * Bark, the leaf sprays shared by trees and hedges, the park's boughs of
- * them, the parked bicycles' two finishes, and the park's coated solids,
- * for one scene. Without the leaf images there are no leaves, and trees
- * stand bare. The caller destroys them.
+ * Bark, the trees' leaf sprays, the boughs of them that the park and the
+ * hedges carry, the parked bicycles' two finishes, and the park's coated
+ * solids, for one scene. Without the leaf images there are no leaves:
+ * trees stand bare, and hedges show their cores. The caller destroys them.
  */
 export function createCourseTreeMaterials(
   device: pc.GraphicsDevice,
@@ -309,7 +309,7 @@ export function createCourseBicycleGeometry(document: CourseDocument) {
 /**
  * Plants the course's trees, dresses its hedges, and parks its bicycles
  * under one root entity: each tree variant's bark and leaves, and every
- * stake, as one instanced draw each, culled as a whole, the hedges' leaves
+ * stake, as one instanced draw each, culled as a whole, the hedges' boughs
  * as one mesh, the bicycles' two finishes as one mesh each, and the park's
  * furniture and planting as one mesh per finish. With `colliders`, each
  * tree also gets a static box taking in its stem and stake, each bicycle
@@ -329,8 +329,8 @@ export function addCourseTrees(
     colliders: boolean;
     materials: CourseTreeMaterials;
     /**
-     * Leaves the park out until `growPark` has built it, for a race, which
-     * grows it behind its loading screen.
+     * Leaves the hedges' boughs and the park out until `growPark` has
+     * built them, for a race, which grows them behind its loading screen.
      */
     parkLater?: boolean;
     /** The course finishes that stakes and park pieces are made of. */
@@ -439,16 +439,6 @@ export function addCourseTrees(
     undefined,
     false,
   );
-  if (materials.leaves) {
-    // The hedge's box beneath already casts its shadow.
-    addDraw(
-      "course-hedge-leaves",
-      createCourseHedgeGeometry(document),
-      materials.leaves,
-      undefined,
-      false,
-    );
-  }
 
   const addCollider = (
     name: string,
@@ -498,9 +488,17 @@ export function addCourseTrees(
     kerb: surfaces.kerb,
     mulch: surfaces.mulch,
   };
+  let hedgesStand = !materials.boughs;
   let parkStands = false;
   const growPark = (budgetMs: number) => {
     if (parkStands) return true;
+    if (!hedgesStand) {
+      const boughs = growCourseHedgeGeometry(document, budgetMs);
+      if (!boughs) return false;
+      hedgesStand = true;
+      // The hedge's core beneath already casts its shadow.
+      addDraw("course-hedge-leaves", boughs, materials.boughs!, undefined, false);
+    }
     const park = growCourseParkGeometry(document, budgetMs);
     if (!park) return false;
     parkStands = true;
@@ -529,8 +527,9 @@ export function addCourseTrees(
   return {
     root,
     /**
-     * Builds more of the park, for up to `budgetMs`, and adds its draws
-     * and colliders once it is whole. True once the park stands.
+     * Builds more of the hedges' boughs, then of the park, for up to
+     * `budgetMs` each, and adds each one's draws (and the park's
+     * colliders) once it is whole. True once both stand.
      */
     growPark,
     destroy() {

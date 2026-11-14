@@ -215,9 +215,13 @@ Materials), and so do course surfaces (see Course Surfaces).
   three-year nursery standards at real
   size: a 3.2 m leader on a 1.8 m clear stem, tied to a 1.2 m stake, with a
   crown of leaf sprays. Three variants, turned and sized a little apiece,
-  keep rows from repeating. Hedges are clipped boxes covered in the same
-  sprays. Trunks and stakes collide; leaves do not, and the chase camera
-  looks past trees.
+  keep rows from repeating. Hedges are privet clipped by hand, not boxes:
+  their faces lean in about 15 cm toward a narrower top, their shoulders
+  are round, and their faces and top wander a few centimetres along their
+  length. Their leaves are small boughs set through the outer 20 cm, some
+  standing out as shoots grown since the last cut, over a dark core, and
+  they stop a ragged few centimetres above the lawn. Trunks and stakes
+  collide; leaves do not, and the chase camera looks past trees.
 - **The lawns are a public park's.** Hardwood-slatted benches (1.8 m, a
   0.45 m seat a kart drives under) and litter bins stand by the lanes.
   Open-grown European beeches, 10.5 m, and multi-stemmed snowy mespilus,
@@ -260,12 +264,12 @@ race.
 
 ### Leaf Sprays
 
-Course trees and hedges share four leaf sprays, 0.5 m cards baked by
+Course trees carry four leaf sprays, 0.5 m cards baked by
 `scripts/bake-leaf-sprays.ts` from Island Tree 01's scanned leaves (Poly
 Haven, CC0) at about 1 mm a pixel: a twig carrying 9–13.5 cm leaves, in a
 2 × 2 atlas of colour and coverage in `src/game/course/tree-textures/`.
 They draw alpha-tested and two-sided, darkened by vertex colour the deeper
-they sit in a tree's crown or a hedge.
+they sit in a tree's crown.
 
 Park trees and shrubs carry boughs of those sprays: four 2 m cards baked by
 `scripts/bake-leaf-boughs.ts`, each a branch whose side twigs carry the
@@ -273,7 +277,9 @@ sprays at their real size, in a 512 px atlas (about 8 mm a pixel) beside
 them. Each is drawn smaller, as its leaves are: a beech's at about three
 quarters (7–10 cm leaves), a mespilus's and a dogwood's at about half. They
 are tinted per species and shaded by how deep they sit in the crown and in
-their own branch's lobe of it.
+their own branch's lobe of it. A hedge carries the same boughs at a quarter
+to a third (privet's 3–6 cm leaves), one for every two sprays its faces
+count, shaded by how deep they sit behind its clipped face.
 
 ## Phone Performance Budget
 

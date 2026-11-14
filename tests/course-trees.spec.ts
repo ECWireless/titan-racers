@@ -6,7 +6,12 @@ import {
   isCoursePrimitiveObject,
 } from "../src/game/course/course-document";
 import {
+  createCourseHedgeCoreGeometry,
   createCourseHedgeGeometry,
+  growCourseHedgeGeometry,
+  HEDGE_SPRAYS_PER_BOUGH,
+} from "../src/game/course/course-hedge-geometry";
+import {
   createNurseryTreeGeometry,
   getCourseTreeCollider,
   getCourseTreeInstances,
@@ -137,7 +142,7 @@ test("builds young trees at real size within a small triangle budget", () => {
   }
 });
 
-test("covers a hedge's sides and top with leaf sprays by area", () => {
+test("covers a hedge's clipped faces and top with boughs by area, over its core", () => {
   const hedge = {
     id: "hedge",
     transform: {
@@ -153,14 +158,98 @@ test("covers a hedge's sides and top with leaf sprays by area", () => {
   const leaves = createCourseHedgeGeometry(withObjects(hedge, bed));
   const area = 2 * (1.2 * 2.4) + 2 * (10 * 2.4) + 1.2 * 10;
 
-  // About 24 sprays a square metre.
-  expect(leaves.indices.length / 6).toBeCloseTo(area * 24, -1);
-  // Sprays lie close along its faces, never far inside or outside them.
+  // A bough for every two sprays: about 12 a square metre.
+  expect(leaves.indices.length / 6).toBeCloseTo(
+    (area * 24) / HEDGE_SPRAYS_PER_BOUGH,
+    -1,
+  );
+  // Boughs keep to the box, but for a shoot's tip, and above the lawn.
+  let foot = 0;
+  let head = 0;
   for (let index = 0; index < leaves.positions.length; index += 3) {
-    expect(Math.abs(leaves.positions[index]!)).toBeLessThan(0.6 + 0.35);
-    expect(Math.abs(leaves.positions[index + 2]!)).toBeLessThan(5 + 0.35);
-    expect(leaves.positions[index + 1]!).toBeGreaterThan(-0.05);
-    expect(leaves.positions[index + 1]!).toBeLessThan(2.4 + 0.35);
+    const [x, y, z] = leaves.positions.slice(index, index + 3) as [number, number, number];
+    expect(Math.abs(x)).toBeLessThan(0.6 + 0.07);
+    expect(Math.abs(z)).toBeLessThan(5 + 0.07);
+    expect(y).toBeGreaterThan(0);
+    expect(y).toBeLessThan(2.4 + 0.07);
+    if (y < 0.5) foot = Math.max(foot, Math.abs(x));
+    if (y > 2) head = Math.max(head, Math.abs(x));
+  }
+  // Its faces lean in toward a narrower top.
+  expect(head).toBeLessThan(foot - 0.08);
+  // The core stands inside them, 0.2 m back at its foot and more above.
+  const core = createCourseHedgeCoreGeometry({ x: 1.2, y: 2.4, z: 10 });
+  // Closed: four sides, a top, and a foot.
+  expect(core.indices).toHaveLength(6 * 6);
+  for (let index = 0; index < core.positions.length; index += 3) {
+    const x = core.positions[index]! * 1.2;
+    const y = core.positions[index + 1]! * 2.4;
+    expect(Math.abs(x)).toBeLessThanOrEqual(y < 0 ? 0.4 + 1e-9 : 0.2);
+    expect(y).toBeLessThanOrEqual(1.2 - 0.26 + 1e-9);
   }
   expect(createCourseHedgeGeometry(withObjects(bed)).indices).toHaveLength(0);
+});
+
+test("hedges grown a few boughs at a time are the hedges built at once", () => {
+  const hedge = (id: string) =>
+    ({
+      id,
+      transform: {
+        position: { x: 0, y: 1.2, z: 0 },
+        rotation: { x: 0, y: 40, z: 0 },
+      },
+      visual: { material: "hedge", scale: { x: 1.2, y: 2.4, z: 6 }, shape: "box" },
+    }) as CourseDocument["objects"][number];
+  const whole = structuredClone(
+    createCourseHedgeGeometry(withObjects(hedge("a"), hedge("b"))),
+  );
+  // Another course's hedges take the cache, so these start over.
+  createCourseHedgeGeometry(withObjects(hedge("c")));
+  let slices = 0;
+  let grown = growCourseHedgeGeometry(withObjects(hedge("a"), hedge("b")), 0);
+  while (!grown) {
+    slices++;
+    grown = growCourseHedgeGeometry(withObjects(hedge("a"), hedge("b")), 0);
+  }
+  expect(slices).toBeGreaterThan(5);
+  expect(grown).toEqual(whole);
+  // Whole, they are handed back as they are.
+  expect(growCourseHedgeGeometry(withObjects(hedge("a"), hedge("b")), 0)).toBe(grown);
+});
+
+test("a low, thin, or turned hedge keeps its boughs to its box", () => {
+  for (const [x, y, z] of [
+    [1.2, 0.4, 3],
+    [1.2, 0.1, 6],
+    [0.3, 2.4, 3],
+    [0.3, 0.3, 2],
+    [6, 5, 1.2],
+  ] as const) {
+    const hedge = {
+      id: `hedge-${x}-${y}-${z}`,
+      transform: {
+        position: { x: 20, y: 3 + y / 2, z: -7 },
+        rotation: { x: 0, y: 30, z: 0 },
+      },
+      visual: { material: "hedge", scale: { x, y, z }, shape: "box" },
+    } as CourseDocument["objects"][number];
+    const leaves = createCourseHedgeGeometry(withObjects(hedge));
+    expect(leaves.indices.length).toBeGreaterThan(0);
+    const cos = Math.cos(Math.PI / 6);
+    const sin = Math.sin(Math.PI / 6);
+    let outside = 0;
+    for (let index = 0; index < leaves.positions.length; index += 3) {
+      // Back into the hedge's own frame, about its box's centre.
+      const dx = leaves.positions[index]! - 20;
+      const dz = leaves.positions[index + 2]! + 7;
+      outside = Math.max(
+        outside,
+        Math.abs(dx * cos - dz * sin) - x / 2,
+        Math.abs(dx * sin + dz * cos) - z / 2,
+        Math.abs(leaves.positions[index + 1]! - 3 - y / 2) - y / 2,
+      );
+      expect(Math.hypot(...leaves.normals.slice(index, index + 3))).toBeCloseTo(1, 5);
+    }
+    expect(outside, hedge.id).toBeLessThan(0.07);
+  }
 });

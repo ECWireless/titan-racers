@@ -27,6 +27,7 @@ import {
   type CourseDocument,
   isCourseRoundCylinder,
 } from "../course/course-document";
+import { isCourseHedge } from "../course/course-hedge-geometry";
 import { getCourseElbowCollisionCylinders } from "../course/course-kits";
 import { createCourseSurfaceMaterials } from "../course/course-surface-materials";
 import type { CourseSurfaceImages } from "../course/course-surface-textures";
@@ -134,7 +135,7 @@ export class CourseEditorScene {
   private treeMaterials: CourseTreeMaterials;
   private trees: ReturnType<typeof addCourseTrees> | null = null;
   // Unseen plates that pick each sign between its letters.
-  private signPlates: pc.Entity[] = [];
+  private pickPlates: pc.Entity[] = [];
   private selections: CourseEditorSelections;
   private selectionEntities: pc.Entity[] = [];
   private tool: CourseEditorTool = "translate";
@@ -825,9 +826,10 @@ export class CourseEditorScene {
     }
 
     // Planting, bicycles, and park pieces are drawn, not picked: their
-    // beds, hedges, or unseen boxes are. A sign picks by an unseen
-    // plate its box's size, as its letters leave gaps.
-    const pickBoxes = [...this.pieceBoxes(), ...this.signPlates];
+    // beds or unseen boxes are. A sign or a hedge picks by an unseen
+    // plate its box's size: letters leave gaps, and a hedge's box draws
+    // only the core inside its leaves.
+    const pickBoxes = [...this.pieceBoxes(), ...this.pickPlates];
     if (this.trees) this.trees.root.enabled = false;
     pickBoxes.forEach((box) => (box.enabled = true));
     try {
@@ -893,9 +895,9 @@ export class CourseEditorScene {
       if (entity) entity.enabled = true;
     });
     this.pieceBoxes().forEach((box) => (box.enabled = false));
-    this.signPlates = this.currentDocument.objects.flatMap((object) => {
+    this.pickPlates = this.currentDocument.objects.flatMap((object) => {
       const entity =
-        object.sign !== undefined &&
+        (object.sign !== undefined || isCourseHedge(object)) &&
         this.documentEntities.get(selectionKey({ id: object.id, kind: "object" }));
       if (!entity) return [];
       const plate = new pc.Entity(`${object.id}-pick-plate`);
