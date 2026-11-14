@@ -1,13 +1,10 @@
-// Young nursery trees and clipped hedges, built at real size in metres.
+// Young nursery trees, built at real size in metres.
 // Trees are feathered standards about three years old: a staked stem clear
 // to 1.8 m, a few scaffold branches, and a crown of leaf sprays (cards from
 // leaf-sprays-colour.jpg, 0.5 m square, each a twig carrying scanned leaves).
 // Everything here is plain geometry; course-trees.ts draws and collides it.
 import {
   type CourseDocument,
-  type CourseObject,
-  type CoursePrimitiveObject,
-  getCourseHedgeSprayCounts,
   getCoursePlantingGrid,
   rotateCourseDirection,
 } from "./course-document";
@@ -42,7 +39,7 @@ function createRandom(seed: number) {
   };
 }
 
-function hashString(value: string) {
+export function hashString(value: string) {
   let hash = 2166136261;
   for (let i = 0; i < value.length; i++) {
     hash = Math.imul(hash ^ value.charCodeAt(i), 16777619);
@@ -50,14 +47,14 @@ function hashString(value: string) {
   return hash >>> 0;
 }
 
-const add = (a: Vec3, b: Vec3): Vec3 => [a[0] + b[0], a[1] + b[1], a[2] + b[2]];
-const scale = (a: Vec3, s: number): Vec3 => [a[0] * s, a[1] * s, a[2] * s];
-const cross = (a: Vec3, b: Vec3): Vec3 => [
+export const add = (a: Vec3, b: Vec3): Vec3 => [a[0] + b[0], a[1] + b[1], a[2] + b[2]];
+export const scale = (a: Vec3, s: number): Vec3 => [a[0] * s, a[1] * s, a[2] * s];
+export const cross = (a: Vec3, b: Vec3): Vec3 => [
   a[1] * b[2] - a[2] * b[1],
   a[2] * b[0] - a[0] * b[2],
   a[0] * b[1] - a[1] * b[0],
 ];
-const normalize = (a: Vec3): Vec3 => scale(a, 1 / Math.hypot(...a));
+export const normalize = (a: Vec3): Vec3 => scale(a, 1 / Math.hypot(...a));
 
 // A tapered tube through points, each ring perpendicular to the path.
 function addTube(
@@ -98,15 +95,16 @@ function addTube(
 
 // A leaf spray: a card whose foot sits on the twig's attachment, reaching
 // along `up`. Its normal is bent toward the outside of the crown, so the
-// crown shades as one rounded mass, the same from either face.
-function addLeafCard(
+// crown shades as one rounded mass, the same from either face. Its
+// occlusion is how much of the light reaches it, or its tint times that.
+export function addLeafCard(
   mesh: TreeMeshData,
   foot: Vec3,
   up: Vec3,
   across: Vec3,
   size: number,
   cell: number,
-  shading: (corner: Vec3) => { normal: Vec3; occlusion: number },
+  shading: (corner: Vec3) => { normal: Vec3; occlusion: number | Vec3 },
 ) {
   const first = mesh.positions.length / 3;
   const half = scale(across, size / 2);
@@ -130,7 +128,11 @@ function addLeafCard(
     mesh.positions.push(...corner);
     mesh.normals.push(...normal);
     mesh.uvs!.push(...uvs[index]!);
-    mesh.colors!.push(occlusion, occlusion, occlusion, 1);
+    if (typeof occlusion === "number") {
+      mesh.colors!.push(occlusion, occlusion, occlusion, 1);
+    } else {
+      mesh.colors!.push(...occlusion, 1);
+    }
   });
   mesh.indices.push(first, first + 1, first + 2, first, first + 2, first + 3);
 }
@@ -139,7 +141,6 @@ function addLeafCard(
 // shared; callers read it and never change it.
 const nurseryTrees = new Map<number, ReturnType<typeof buildNurseryTreeGeometry>>();
 let nurseryStake: TreeMeshData | undefined;
-let courseHedges: { key: string; leaves: TreeMeshData } | undefined;
 
 /**
  * One young tree, standing at the origin with its leader up +Y: its stem
@@ -395,123 +396,4 @@ export function getCourseTreeCollider(tree: CourseTreeInstance) {
     ] as Vec3,
     yaw: (Math.atan2(-dz, dx) * 180) / Math.PI,
   };
-}
-
-function isCourseHedge(object: CourseObject): object is CoursePrimitiveObject {
-  return object.visual.material === "hedge" && object.visual.shape === "box";
-}
-
-/**
- * Leaf sprays over each hedge's sides and top, in world space: lying close
- * along its faces, the outermost lighter, so the box reads as clipped
- * foliage.
- */
-export function createCourseHedgeGeometry(document: CourseDocument) {
-  const hedges = document.objects.filter(isCourseHedge);
-  const key = JSON.stringify(hedges);
-  if (courseHedges?.key !== key) {
-    courseHedges = { key, leaves: buildCourseHedgeGeometry(hedges) };
-  }
-  return courseHedges.leaves;
-}
-
-function buildCourseHedgeGeometry(hedges: CoursePrimitiveObject[]) {
-  const leaves: TreeMeshData = {
-    colors: [],
-    indices: [],
-    normals: [],
-    positions: [],
-    uvs: [],
-  };
-  hedges.forEach((object) => {
-    const random = createRandom(hashString(object.id));
-    const { position, rotation } = object.transform;
-    const size = object.visual.scale;
-    const direction = (local: Vec3): Vec3 => {
-      const world = rotateCourseDirection(
-        { x: local[0], y: local[1], z: local[2] },
-        { x: 0, y: 0, z: 0 },
-        rotation,
-      );
-      return [world.x, world.y, world.z];
-    };
-    const toWorld = (local: Vec3) =>
-      add([position.x, position.y, position.z], direction(local));
-    const half: Vec3 = [size.x / 2, size.y / 2, size.z / 2];
-    // Each face's outward normal and the two axes spanning it, in the order
-    // getCourseHedgeSprayCounts counts them.
-    const faces: Array<[Vec3, Vec3, Vec3]> = [
-      [
-        [1, 0, 0],
-        [0, 0, 1],
-        [0, 1, 0],
-      ],
-      [
-        [-1, 0, 0],
-        [0, 0, 1],
-        [0, 1, 0],
-      ],
-      [
-        [0, 0, 1],
-        [1, 0, 0],
-        [0, 1, 0],
-      ],
-      [
-        [0, 0, -1],
-        [1, 0, 0],
-        [0, 1, 0],
-      ],
-      [
-        [0, 1, 0],
-        [1, 0, 0],
-        [0, 0, 1],
-      ],
-    ];
-    const extent = (axis: Vec3) =>
-      2 * Math.abs(axis[0] * half[0] + axis[1] * half[1] + axis[2] * half[2]);
-    const counts = getCourseHedgeSprayCounts(size);
-    faces.forEach(([normal, u, v], face) => {
-      const outward = normalize(direction(normal));
-      for (let index = 0; index < counts[face]!; index++) {
-        const cardSize = LEAF_CARD * (0.8 + random() * 0.3);
-        // Sprays lie mostly along the face, rolled any way, tilted out a little.
-        const roll = random() * Math.PI * 2;
-        // Each stays within the face, so none hang past its edges.
-        const reach =
-          ((Math.abs(Math.cos(roll)) + Math.abs(Math.sin(roll))) * cardSize) /
-          2;
-        const spread = (axis: Vec3) =>
-          (random() - 0.5) * Math.max(0, extent(axis) - 2 * reach);
-        const depth = random();
-        const local = add(
-          add(
-            [normal[0] * half[0], normal[1] * half[1], normal[2] * half[2]],
-            add(scale(u, spread(u)), scale(v, spread(v))),
-          ),
-          scale(normal, -0.06 + depth * 0.1),
-        );
-        const along = normalize(
-          add(
-            add(
-              scale(direction(u), Math.cos(roll)),
-              scale(direction(v), Math.sin(roll)),
-            ),
-            scale(outward, 0.05 + random() * 0.2),
-          ),
-        );
-        const across = normalize(cross(outward, along));
-        const foot = add(toWorld(local), scale(along, -cardSize / 2));
-        addLeafCard(
-          leaves,
-          foot,
-          along,
-          across,
-          cardSize,
-          Math.floor(random() * 4),
-          () => ({ normal: outward, occlusion: 0.7 + 0.3 * depth }),
-        );
-      }
-    });
-  });
-  return leaves;
 }

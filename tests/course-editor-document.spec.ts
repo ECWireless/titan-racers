@@ -534,17 +534,19 @@ test.describe("course editor document commands", () => {
     expect(scaleSelectionAxis(document, selection, "x", 2)).toBe(document);
     expect(scaleSelectionUniformly(document, selection, 2)).toBe(document);
 
-    // Nor does a bicycle, which keeps its real size.
-    const bicycle = {
-      id: FALLS_VIEW_PARK_DOCUMENT.objects.find(({ bicycle }) => bicycle)!.id,
-      kind: "object",
-    } as const;
-    expect(
-      scaleSelectionAxis(FALLS_VIEW_PARK_DOCUMENT, bicycle, "y", 1.1),
-    ).toBe(FALLS_VIEW_PARK_DOCUMENT);
-    expect(scaleSelectionUniformly(FALLS_VIEW_PARK_DOCUMENT, bicycle, 2)).toBe(
-      FALLS_VIEW_PARK_DOCUMENT,
-    );
+    // Nor does a bicycle or a park piece, which keep their real size.
+    for (const piece of [
+      FALLS_VIEW_PARK_DOCUMENT.objects.find(({ bicycle }) => bicycle)!,
+      FALLS_VIEW_PARK_DOCUMENT.objects.find(({ park }) => park === "bench")!,
+    ]) {
+      const selection = { id: piece.id, kind: "object" } as const;
+      expect(
+        scaleSelectionAxis(FALLS_VIEW_PARK_DOCUMENT, selection, "y", 1.1),
+      ).toBe(FALLS_VIEW_PARK_DOCUMENT);
+      expect(
+        scaleSelectionUniformly(FALLS_VIEW_PARK_DOCUMENT, selection, 2),
+      ).toBe(FALLS_VIEW_PARK_DOCUMENT);
+    }
 
     const arc = { height: 0.6, innerRadius: 6.12345, sweep: 120, width: 0.4 };
     const resized = updateSelectionArc(document, selection, arc);

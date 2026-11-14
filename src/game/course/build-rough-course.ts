@@ -24,6 +24,10 @@ import {
 } from "./course-clearing";
 import { createCourseBevelGeometry, type CourseMeshGeometry } from "./course-bevel";
 import {
+  createCourseHedgeCoreGeometry,
+  isCourseHedge,
+} from "./course-hedge-geometry";
+import {
   type CourseKitBox,
   createCourseElbowGeometry,
   createCourseHandwheelGeometry,
@@ -241,9 +245,9 @@ export function buildRoughCourse(
           if (indoors) keepCourseVisualIndoors(frame);
         }
         if (indoors) keepCourseVisualIndoors(entity);
-        // A bicycle is drawn with the trees, in place of its box, which
-        // only the editor keeps, unseen, to select.
-        if (object.bicycle) entity.enabled = false;
+        // Bicycles and park pieces draw with the trees; only the editor
+        // keeps their unseen selection boxes.
+        if (object.bicycle || object.park) entity.enabled = false;
         courseEntities.set(object.id, entity);
 
         if (object.availability === "collision-test") {
@@ -466,6 +470,8 @@ function createCourseObjectMesh(
   if (visual.bevel) {
     return solid(createCourseBevelGeometry(visual.shape, visual.scale, visual.bevel));
   }
+  // A hedge draws its dark core; course-trees.ts covers it in boughs.
+  if (isCourseHedge(object)) return solid(createCourseHedgeCoreGeometry(visual.scale));
   return undefined;
 }
 

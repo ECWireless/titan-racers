@@ -64,7 +64,10 @@ export function HomeBackdrop({ dim }: { dim: boolean }) {
           className="object-cover object-[62%_50%] lg:object-[50%_62%]"
           fill
           priority
-          sizes="100vw"
+          // The 16:9 picture covers its box, so it is drawn wider than a
+          // tall screen: 62svh tall on a phone, the screen's height on a
+          // wide one.
+          sizes="(min-width: 1024px) and (max-aspect-ratio: 16/9) 178vh, (min-width: 1024px) 100vw, (max-aspect-ratio: 11/10) 110vh, 100vw"
           src="/images/home/falls-view-park-habitat.webp"
         />
       </div>

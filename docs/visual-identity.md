@@ -56,8 +56,15 @@ Orange and hazard are signals. Use them sparingly so they stay readable.
 - **Neutral tone mapping.** Khronos PBR Neutral keeps the site's orange and
   hazard yellow on hue. ACES pushes them toward lemon yellow, and no tone
   mapping clips bright highlights.
-- **No post-processing.** Tone mapping runs inside the main shader. There are
-  no bloom, ambient-occlusion, or other full-screen passes.
+- **A race is a little more colourful.** After tone mapping, a race
+  multiplies colourfulness by 1.15, since a dim dusk course otherwise reads
+  as grey. Brightness and hue are kept, contrast is left as the light
+  makes it, and a colour too strong for the screen is brought back toward
+  its grey. Editors, thumbnails, and the loading screen are left as they
+  are.
+- **No post-processing.** Tone mapping and that gain run inside the main
+  shader. There are no bloom, ambient-occlusion, or other full-screen
+  passes.
 - **Shadows reach the karts.** Sun shadows cover the 60 m ahead of the camera
   in two cascades: a sharp one to about 16 m, blended into a coarser one
   beyond, which fades out over its last 12 m rather than ending at an edge.
@@ -95,8 +102,9 @@ Orange and hazard are signals. Use them sparingly so they stay readable.
   sits a little below the floodlit track, but by day a tunnel's start is
   near-black: courses with a tunnel race at dusk or later.
 - **Races load in space.** The loading screen shows Island Three from
-  outside, lit by the same sun and tone mapping as the race, against black
-  space and Saturn ([Island Three](island-three.md#from-outside)). The site's
+  outside, lit by the same sun and tone mapping as the race, without its
+  added colour, against black space and Saturn
+  ([Island Three](island-three.md#from-outside)). The site's
   near-black frames the course name below it.
 
 Neutral deepens the very darkest tones and their color. The near-black
@@ -215,9 +223,20 @@ Materials), and so do course surfaces (see Course Surfaces).
   three-year nursery standards at real
   size: a 3.2 m leader on a 1.8 m clear stem, tied to a 1.2 m stake, with a
   crown of leaf sprays. Three variants, turned and sized a little apiece,
-  keep rows from repeating. Hedges are clipped boxes covered in the same
-  sprays. Trunks and stakes collide; leaves do not, and the chase camera
-  looks past trees.
+  keep rows from repeating. Hedges are privet clipped by hand, not boxes:
+  their faces lean in about 15 cm toward a narrower top, their shoulders
+  are round, and their faces and top wander a few centimetres along their
+  length. Their leaves are small boughs set through the outer 20 cm, some
+  standing out as shoots grown since the last cut, over a dark core, and
+  they stop a ragged few centimetres above the lawn. Trunks and stakes
+  collide; leaves do not, and the chase camera looks past trees.
+- **The lawns are a public park's.** Hardwood-slatted benches (1.8 m, a
+  0.45 m seat a kart drives under) and litter bins stand by the lanes.
+  Open-grown European beeches, 10.5 m, and multi-stemmed snowy mespilus,
+  4.8 m, stand singly and in groves over red-barked dogwoods and raised
+  beds of dwarf Shasta daisies. A crown is its branches and boughs alone,
+  with nothing solid inside it, and each tree, shrub, and bed grows its own
+  way. Trunks, furniture, shrubs, and beds collide.
 
 ### Surface Scans
 
@@ -253,12 +272,22 @@ race.
 
 ### Leaf Sprays
 
-Course trees and hedges share four leaf sprays, 0.5 m cards baked by
+Course trees carry four leaf sprays, 0.5 m cards baked by
 `scripts/bake-leaf-sprays.ts` from Island Tree 01's scanned leaves (Poly
 Haven, CC0) at about 1 mm a pixel: a twig carrying 9–13.5 cm leaves, in a
 2 × 2 atlas of colour and coverage in `src/game/course/tree-textures/`.
 They draw alpha-tested and two-sided, darkened by vertex colour the deeper
-they sit in a tree's crown or a hedge.
+they sit in a tree's crown.
+
+Park trees and shrubs carry boughs of those sprays: four 2 m cards baked by
+`scripts/bake-leaf-boughs.ts`, each a branch whose side twigs carry the
+sprays at their real size, in a 512 px atlas (about 8 mm a pixel) beside
+them. Each is drawn smaller, as its leaves are: a beech's at about three
+quarters (7–10 cm leaves), a mespilus's and a dogwood's at about half. They
+are tinted per species and shaded by how deep they sit in the crown and in
+their own branch's lobe of it. A hedge carries the same boughs at a quarter
+to a third (privet's 3–6 cm leaves), one for every two sprays its faces
+count, shaded by how deep they sit behind its clipped face.
 
 ## Phone Performance Budget
 
@@ -501,3 +530,29 @@ most (127 forward, no shadow map), up about seven from PR 5.1's night
 figures for the door, the room's contents, and the poster. The warm first
 frame took 512 ms. The race before it, the first on a new build, had four
 hitches and a 5.7 s first frame while the phone compiled its shaders anew.
+
+PR 6.11 was measured on the iPhone with two solo two-lap races in one
+sitting, each after a reload, on production builds without the database:
+`main`, then the park. Its 99 pieces, the rebuilt hedges (about 30k
+triangles of boughs, where their sprays were 60k), and the race's colour
+gain add eight draws at most (an 88 median and 138 at most, 136 forward,
+against 87 and 130) and nothing else measurable: frame time holds (17 ms
+median, p95 18 ms), CPU work is a 3 ms median with p95 4 ms, and neither
+race hitched. The first frame took 413 ms against `main`'s 463 ms, with
+260 ms building the course against 285 ms, because the hedges' boughs and
+the park grow after it, behind the loading screen
+([progressive loading](../skills/game-concepts/progressive-loading/README.md)):
+the race was ready after 949 ms (686 ms on `main`) and revealed at 2.5 s on
+both. The 536 ms from its first frame to ready, against `main`'s 223 ms, is
+that growing, in a race home's warm-up had not finished for; an earlier
+race of the day, whose park the warm-up had grown, was ready 192 ms after
+its first frame. Built before the first frame, as the park first was, it
+took that frame to 658 ms against 392 ms; the hedges' boughs, built before
+it, took building the course to 308 ms. The draw maximum leaves twelve of
+the 150 allowed.
+First frames differ by sitting (`main`'s was 392, 408, and 463 ms across
+the day's three), so compare within one. One race of an earlier build that
+day hitched once, and none since. The same `main` build's first race on a
+new address drew a 52 median and 84 at most, with no stored lap to race
+against; whether the ghost accounts for that difference is not yet known,
+so compare draws between races of one sitting.

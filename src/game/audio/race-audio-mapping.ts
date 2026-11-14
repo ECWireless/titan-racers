@@ -1,3 +1,5 @@
+import type { CourseObject } from "../course/course-document";
+
 /**
  * Turns kart state into sound parameters. Pure and presentation only: it reads
  * physics results and never feeds anything back into them.
@@ -190,6 +192,20 @@ const IMPACT_MATERIALS: Readonly<Record<string, ImpactMaterial>> = {
 export function getImpactMaterial(look: string): ImpactMaterial {
   return IMPACT_MATERIALS[look] ?? "concrete";
 }
+
+/** What a kart hits of a park piece: a bench's steel legs, a bin's slats, a
+ * trunk, a shrub's stems, or a bed's kerb. */
+export const PARK_IMPACT_MATERIALS: Record<
+  NonNullable<CourseObject["park"]>,
+  ImpactMaterial
+> = {
+  bench: "metal",
+  bin: "wood",
+  "shade-tree": "wood",
+  "ornamental-tree": "wood",
+  shrub: "soft",
+  "flower-bed": "concrete",
+};
 
 export type AudioWheel = {
   /** 0–1 vertical load: about 0.25 at rest, about 1 on a hard landing. */

@@ -14,7 +14,12 @@ phone budget. Art direction and the budget itself live in
 
 - `src/game/render/scene-look.ts` applies Neutral tone mapping, sRGB gamma,
   exposure, and the habitat environment to an application and camera, and
-  owns the shadow policy.
+  owns the shadow policy. It also draws a race (an application given a
+  habitat's light) more colourful, and not the editors or thumbnails:
+  `gradeToneMapping` wraps the `tonemappingNeutralPS` chunk's `toneMap`,
+  so every surface multiplies its tone-mapped colourfulness by
+  `RACE_SATURATION` in its own shader. The Neutral curve stays as
+  `toneMapNeutral`.
 - `src/game/render/habitat-environment-atlas.ts` builds the environment atlas
   pixels on the CPU: the neutral habitat light once per page for editors and
   thumbnails, and a race's direction-aware light from its radiance.
@@ -59,16 +64,42 @@ phone budget. Art direction and the budget itself live in
   habitat's light and environment atlas, the trees' and hedges' geometry,
   and its signs' letter atlas, each cached per page. The home screen also
   starts loading physics, so a warm race waits for neither.
+- Behind a loading screen, a race grows its course's hedge boughs and
+  then its park after its first frame, not before
+  ([progressive loading](../../game-concepts/progressive-loading/README.md)):
+  `growCourseHedgeGeometry` in `src/game/course/course-hedge-geometry.ts`
+  sets boughs, and `growCourseParkGeometry` in
+  `src/game/course/course-park.ts` builds a piece at a time, for 8 ms, or
+  half the wait since the last slice where frames are slow; a timer runs
+  the next slice; and warm-up, which grows both the same way, leaves its
+  progress for the race. `addCourseTrees` adds each one's draws (and the
+  park's colliders) once it is whole, and the race reports ready one
+  drawn frame later, so the loading screen and the countdown wait for
+  them. A hidden page builds them at once and waits for no frame. Until
+  ready, a lost graphics context keeps the loading screen up, and a
+  failure is a load failure. With no loading screen (the kart editor's
+  test drive, and tests without the enclosure) and in the course editor,
+  both are built at once, before the first frame.
 - `src/game/course/course-trees.ts` draws a course's trees and hedges
   ([visual identity](../../../docs/visual-identity.md#leaf-sprays)):
   smooth grey-brown bark, and leaf sprays alpha-tested from the baked
   coverage (alpha to coverage under MSAA), two-sided, and shaded by vertex
   colour. Each tree variant's bark and leaves, and the stakes, are one
-  hardware-instanced draw each; all hedges' sprays are one mesh. The leaf
-  images load with the surface scans; without them trees stand bare and
-  hedges show their plain box. It also draws the parked bicycles: all
+  hardware-instanced draw each; all hedges' boughs are one mesh in the
+  park's bough material, over the dark core each hedge's box draws in the
+  `hedge` finish, which casts its shadow. The leaf images load with the
+  surface scans; without them trees stand bare and hedges show their
+  cores. It also draws the parked bicycles: all
   bikes' coated and rubber parts as one merged mesh, which casts shadows,
   and their bare metal as another, which does not.
+- `course-trees.ts` also draws the park's furniture and planting
+  (`course-park.ts`) as one mesh per finish, seven draws: the course's
+  timber, kerb, and mulch finishes, the trees' bark and leaf sprays, a
+  two-sided copy of the bicycles' coating (for flower rays), and the
+  boughs' material, made like the sprays' from their own 512 px atlas with
+  a lower alpha threshold, so a far crown stays as full as a near one.
+  Timber, bark, and boughs cast shadows, so the sun's two cascades add up
+  to six draws by day; the park adds no lights.
 - `src/game/course/course-lamps.ts` puts a floodlight's arm, luminaire,
   and downward spot light on each `lamp` object's mast, at real brightness
   from the enclosure's lux scale and the habitat's lamp schedule, with no
@@ -146,8 +177,9 @@ phone budget. Art direction and the budget itself live in
   the course loading screen (`src/components/course-loading-screen.tsx`):
   raw WebGL2 on its own canvas, one full-screen shader that traces the hull,
   mirrors, and Saturn and repeats the scene look's Neutral tone mapping and
-  its base exposure, unadapted, since it looks on from sunlit space, and
-  shows the habitat by day (mirrors at most 80°).
+  its base exposure, unadapted and without the race's added colour, since
+  it looks on from sunlit space, and shows the habitat by day (mirrors at
+  most 80°).
   `src/game/enclosure/habitat-glsl.ts` holds the land, cap, mirror-light,
   and distant-lamp GLSL it shares with the enclosure view.
 - `src/game/runtime/frame-budget.ts` and
@@ -228,9 +260,10 @@ course editor scenes in `src/game/editor/`, and
   budget ([measured](../../../docs/visual-identity.md#baseline)).
 - The course finishes replace the `diffusePS` chunk (scanned finishes also
   `normalMapPS` and `glossPS`), the wheel finishes `diffusePS`, `glossPS`,
-  `metalnessPS`, and the `litUser*` hooks, and the cascaded-shadow fade patches
-  `shadowCascadesPS` and `lightFunctionLightPS`, for chunk version 2.20; the
-  fade throws if its anchor text is gone. Re-verify them, like
+  `metalnessPS`, and the `litUser*` hooks, the cascaded-shadow fade patches
+  `shadowCascadesPS` and `lightFunctionLightPS`, and the race's colour
+  gain patches `tonemappingNeutralPS`, for chunk version 2.20; the fade and
+  the gain throw if their anchor text is gone. Re-verify them, like
   the atlas, on any engine upgrade. Grain pixels and decoded scan images are
   kept, so both re-upload after a lost WebGL context. Scans load as image
   elements, not `ImageBitmap`s, which PlayCanvas avoids on Safari.

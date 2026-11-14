@@ -3,8 +3,10 @@ import * as pc from "playcanvas";
 import { PHYSICS_GROUP, PHYSICS_MASK } from "../physics/collision-groups";
 import { createBicycleGeometry } from "./course-bicycle-geometry";
 import type { CourseBicycle, CourseDocument } from "./course-document";
+import { growCourseHedgeGeometry } from "./course-hedge-geometry";
+import { growCourseParkGeometry } from "./course-park";
+import { PARK_FINISHES } from "./course-park-geometry";
 import {
-  createCourseHedgeGeometry,
   createNurseryStakeGeometry,
   createNurseryTreeGeometry,
   getCourseTreeCollider,
@@ -13,10 +15,9 @@ import {
   type TreeMeshData,
 } from "./course-tree-geometry";
 
-export type CourseLeafImages = {
-  colour: HTMLImageElement;
-  coverage: HTMLImageElement;
-};
+type LeafImages = { colour: HTMLImageElement; coverage: HTMLImageElement };
+/** The nursery's leaf sprays, and the park's boughs of them. */
+export type CourseLeafImages = LeafImages & { boughs: LeafImages };
 
 export type CourseTreeMaterials = ReturnType<typeof createCourseTreeMaterials>;
 
@@ -26,9 +27,10 @@ const BARK_COLOR = "#6b6254";
 const LEAF_TINT = [0.95, 1, 0.85] as const;
 
 /**
- * Bark, the leaf sprays shared by trees and hedges, and the parked
- * bicycles' two finishes, for one scene. Without the leaf images there are
- * no leaves, and trees stand bare. The caller destroys them.
+ * Bark, the trees' leaf sprays, the boughs of them that the park and the
+ * hedges carry, the parked bicycles' two finishes, and the park's coated
+ * solids, for one scene. Without the leaf images there are no leaves:
+ * trees stand bare, and hedges show their cores. The caller destroys them.
  */
 export function createCourseTreeMaterials(
   device: pc.GraphicsDevice,
@@ -56,31 +58,35 @@ export function createCourseTreeMaterials(
     textures.push(result);
     return result;
   };
-  let leaves: pc.StandardMaterial | null = null;
-  if (leafImages) {
-    leaves = new pc.StandardMaterial();
+  const foliage = (name: string, images: LeafImages, alphaTest: number) => {
+    const leaves = new pc.StandardMaterial();
     leaves.diffuseMap = texture(
-      "course-leaves-colour",
-      leafImages.colour,
+      `${name}-colour`,
+      images.colour,
       pc.PIXELFORMAT_SRGBA8,
     );
     leaves.diffuse = new pc.Color(...LEAF_TINT);
     // Vertex colours carry how much of the crown shades each spray.
     leaves.diffuseVertexColor = true;
     leaves.opacityMap = texture(
-      "course-leaves-coverage",
-      leafImages.coverage,
+      `${name}-coverage`,
+      images.coverage,
       pc.PIXELFORMAT_RGBA8,
     );
     leaves.opacityMapChannel = "r";
-    leaves.alphaTest = 0.5;
+    leaves.alphaTest = alphaTest;
     leaves.alphaToCoverage = true;
     leaves.cull = pc.CULLFACE_NONE;
     leaves.useMetalness = true;
     leaves.metalness = 0;
     leaves.gloss = 0.3;
     leaves.update();
-  }
+    return leaves;
+  };
+  const leaves = leafImages && foliage("course-leaves", leafImages, 0.5);
+  // A bough's leaves are a few pixels each, and fewer in the distance: a
+  // lower threshold keeps a far crown as full as a near one.
+  const boughs = leafImages && foliage("course-boughs", leafImages.boughs, 0.3);
   // A bicycle's coated and rubber parts, and its bare metal, coloured per
   // vertex in linear albedo (see course-bicycle-geometry.ts).
   const bicycle = (metal: boolean) => {
@@ -94,16 +100,26 @@ export function createCourseTreeMaterials(
   };
   const bicycleCoat = bicycle(false);
   const bicycleMetal = bicycle(true);
+  // The park's coated solids. Flower rays and stalks are single sheets,
+  // lit on both faces.
+  const parkCoat = bicycle(false);
+  parkCoat.cull = pc.CULLFACE_NONE;
+  parkCoat.twoSidedLighting = true;
+  parkCoat.update();
   return {
     bark,
     bicycleCoat,
     bicycleMetal,
+    boughs,
     leaves,
+    parkCoat,
     destroy() {
       bark.destroy();
       bicycleCoat.destroy();
       bicycleMetal.destroy();
+      boughs?.destroy();
       leaves?.destroy();
+      parkCoat.destroy();
       textures.forEach((texture) => texture.destroy());
     },
   };
@@ -293,11 +309,13 @@ export function createCourseBicycleGeometry(document: CourseDocument) {
 /**
  * Plants the course's trees, dresses its hedges, and parks its bicycles
  * under one root entity: each tree variant's bark and leaves, and every
- * stake, as one instanced draw each, culled as a whole, the hedges' leaves
- * as one mesh, and the bicycles' two finishes as one mesh each. With
- * `colliders`, each tree also gets a static box taking in its stem and
- * stake, and each bicycle boxes around what a kart can reach of it;
- * untagged as obstacles, they leave the chase camera's view clear.
+ * stake, as one instanced draw each, culled as a whole, the hedges' boughs
+ * as one mesh, the bicycles' two finishes as one mesh each, and the park's
+ * furniture and planting as one mesh per finish. With `colliders`, each
+ * tree also gets a static box taking in its stem and stake, each bicycle
+ * boxes around what a kart can reach of it, and each park piece its own
+ * boxes; untagged as obstacles, trees and bicycles leave the chase
+ * camera's view clear.
  */
 export function addCourseTrees(
   app: pc.AppBase,
@@ -305,11 +323,18 @@ export function addCourseTrees(
   {
     colliders,
     materials,
-    timber,
+    parkLater = false,
+    surfaces,
   }: {
     colliders: boolean;
     materials: CourseTreeMaterials;
-    timber: pc.Material;
+    /**
+     * Leaves the hedges' boughs and the park out until `growPark` has
+     * built them, for a race, which grows them behind its loading screen.
+     */
+    parkLater?: boolean;
+    /** The course finishes that stakes and park pieces are made of. */
+    surfaces: Record<"kerb" | "mulch" | "timber", pc.Material>;
   },
 ) {
   const device = app.graphicsDevice;
@@ -400,7 +425,7 @@ export function addCourseTrees(
     addDraw(
       "course-tree-stakes",
       createNurseryStakeGeometry(),
-      timber,
+      surfaces.timber,
       trees.map((tree) => place(tree.stake, 0, 1)),
     );
   }
@@ -414,38 +439,32 @@ export function addCourseTrees(
     undefined,
     false,
   );
-  if (materials.leaves) {
-    // The hedge's box beneath already casts its shadow.
-    addDraw(
-      "course-hedge-leaves",
-      createCourseHedgeGeometry(document),
-      materials.leaves,
-      undefined,
-      false,
-    );
-  }
 
+  const addCollider = (
+    name: string,
+    { halfExtents, position, yaw }: ReturnType<typeof getCourseTreeCollider>,
+    obstacle = false,
+  ) => {
+    const collider = new pc.Entity(name);
+    collider.setPosition(...position);
+    collider.setEulerAngles(0, yaw, 0);
+    // The chase camera keeps clear of what is tagged, and looks past
+    // trees and bicycles.
+    if (obstacle) collider.tags.add("obstacle");
+    collider.addComponent("collision", {
+      halfExtents: new pc.Vec3(...halfExtents),
+      type: "box",
+    });
+    collider.addComponent("rigidbody", {
+      friction: 0.6,
+      group: PHYSICS_GROUP.solidObstacle,
+      mask: PHYSICS_MASK.solidObstacle,
+      restitution: 0,
+      type: pc.BODYTYPE_STATIC,
+    });
+    root.addChild(collider);
+  };
   if (colliders) {
-    const addCollider = (
-      name: string,
-      { halfExtents, position, yaw }: ReturnType<typeof getCourseTreeCollider>,
-    ) => {
-      const collider = new pc.Entity(name);
-      collider.setPosition(...position);
-      collider.setEulerAngles(0, yaw, 0);
-      collider.addComponent("collision", {
-        halfExtents: new pc.Vec3(...halfExtents),
-        type: "box",
-      });
-      collider.addComponent("rigidbody", {
-        friction: 0.6,
-        group: PHYSICS_GROUP.solidObstacle,
-        mask: PHYSICS_MASK.solidObstacle,
-        restitution: 0,
-        type: pc.BODYTYPE_STATIC,
-      });
-      root.addChild(collider);
-    };
     getCourseBicycleColliders(document).forEach((box, index) =>
       addCollider(`course-bicycle-collider-${index + 1}`, box),
     );
@@ -457,9 +476,62 @@ export function addCourseTrees(
     );
   }
 
+  // The park's furniture and planting, one mesh per finish. Its slats,
+  // trunks, and crowns cast shadows; its low kerbs, steel, and flowers
+  // would add a draw to each shadow cascade for shadows too small to see.
+  const parkFinishes = {
+    timber: surfaces.timber,
+    solid: materials.parkCoat,
+    bark: materials.bark,
+    boughs: materials.boughs,
+    leaves: materials.leaves,
+    kerb: surfaces.kerb,
+    mulch: surfaces.mulch,
+  };
+  let hedgesStand = !materials.boughs;
+  let parkStands = false;
+  const growPark = (budgetMs: number) => {
+    if (parkStands) return true;
+    if (!hedgesStand) {
+      const boughs = growCourseHedgeGeometry(document, budgetMs);
+      if (!boughs) return false;
+      hedgesStand = true;
+      // The hedge's core beneath already casts its shadow.
+      addDraw("course-hedge-leaves", boughs, materials.boughs!, undefined, false);
+    }
+    const park = growCourseParkGeometry(document, budgetMs);
+    if (!park) return false;
+    parkStands = true;
+    for (const finish of PARK_FINISHES) {
+      const material = parkFinishes[finish];
+      if (!material) continue;
+      addDraw(
+        `course-park-${finish}`,
+        park.meshes[finish],
+        material,
+        undefined,
+        finish === "timber" || finish === "bark" || finish === "boughs",
+      );
+    }
+    if (colliders) {
+      // Named for its object, which gives a hit its sound.
+      park.colliders.forEach((box, index) =>
+        addCollider(`${box.id}-collision-${index + 1}`, box, !box.tree),
+      );
+    }
+    return true;
+  };
+  if (!parkLater) growPark(Infinity);
+
   app.root.addChild(root);
   return {
     root,
+    /**
+     * Builds more of the hedges' boughs, then of the park, for up to
+     * `budgetMs` each, and adds each one's draws (and the park's
+     * colliders) once it is whole. True once both stand.
+     */
+    growPark,
     destroy() {
       root.destroy();
       buffers.forEach((buffer) => buffer.destroy());

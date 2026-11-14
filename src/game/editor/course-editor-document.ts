@@ -1006,6 +1006,13 @@ export function getCourseEditorTransformRule(object: CourseObject | undefined) {
   if (object?.kit === "elbow") {
     return { note: "An elbow scales as a whole.", scales: ["x"] as const, turns };
   }
+  if (object?.park) {
+    return {
+      note: "A park piece stands upright at its real size.",
+      scales: [] as const,
+      turns: ["y"] as const,
+    };
+  }
   if (object && isCourseRoundCylinder(object)) {
     return {
       note: "X and Z stay paired as one diameter; Y changes thickness.",
@@ -1039,16 +1046,18 @@ export function scaleSelectionUniformly(
   });
 }
 
-// What a scale can change: not the start, which has no size, nor a bicycle,
-// which keeps its real size.
+// What a scale can change: not the start, which has no size, nor a bicycle
+// or a park piece, which keep their real size.
 function getScalableGeometry(
   document: CourseDocument,
   selection: CourseEditorSelection,
 ) {
-  const bicycle =
+  const realSize =
     selection.kind === "object" &&
-    document.objects.some(({ bicycle, id }) => bicycle && id === selection.id);
-  return selection.kind === "start" || bicycle
+    document.objects.some(
+      ({ bicycle, id, park }) => (bicycle || park) && id === selection.id,
+    );
+  return selection.kind === "start" || realSize
     ? null
     : getSelectionGeometry(document, selection);
 }
