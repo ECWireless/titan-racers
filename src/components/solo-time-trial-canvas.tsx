@@ -5072,12 +5072,12 @@ export function SoloTimeTrialCanvas({
             <div
               aria-labelledby="pause-dialog-title"
               aria-modal="true"
-              className="absolute inset-0 z-30 grid place-items-center overflow-y-auto bg-titan-black/65 [place-items:safe_center] px-6 py-4 text-center font-mono text-titan-ice"
+              className="absolute inset-0 z-30 grid place-items-center overflow-y-auto bg-titan-black/72 [place-items:safe_center] px-6 py-4 text-center font-mono text-titan-ice backdrop-blur-sm"
               role="dialog"
               onKeyDown={handleDialogKeyDown}
             >
               <div
-                className="grid w-full max-w-sm gap-5 border border-titan-ice/18 bg-titan-black p-7"
+                className="grid w-full max-w-sm gap-5 border border-titan-ice/20 bg-titan-black/94 p-7 shadow-[0_24px_90px_rgb(0_0_0/0.6)]"
                 ref={pauseMenuRef}
               >
                 <div className="grid gap-2">
@@ -5087,7 +5087,7 @@ export function SoloTimeTrialCanvas({
                   >
                     Paused
                   </p>
-                  <p className="text-sm text-titan-muted">
+                  <p className="text-sm text-titan-ice/70">
                     {ROOM
                       ? "The race goes on while you're paused"
                       : "Resume when you're ready"}
@@ -5140,17 +5140,17 @@ export function SoloTimeTrialCanvas({
             <div
               aria-labelledby="finish-dialog-title"
               aria-modal="true"
-              className="absolute inset-0 z-30 grid place-items-center overflow-y-auto bg-titan-black/65 px-6 py-4 text-center font-mono text-titan-ice"
+              className="absolute inset-0 z-30 grid place-items-center overflow-y-auto bg-titan-black/76 px-6 py-4 text-center font-mono text-titan-ice backdrop-blur-sm"
               role="dialog"
               onKeyDown={handleDialogKeyDown}
             >
               <div
-                className="grid w-full max-w-sm gap-5 border border-titan-ice/18 bg-titan-black p-7"
+                className="grid w-full max-w-sm gap-5 border border-titan-hazard/50 bg-titan-black/96 p-7 shadow-[0_24px_90px_rgb(0_0_0/0.7)]"
                 ref={finishMenuRef}
               >
                 <div className="grid gap-2">
                   <p
-                    className="text-xs font-bold uppercase tracking-[0.2em] text-titan-muted"
+                    className="text-xs font-bold uppercase tracking-[0.2em] text-titan-hazard"
                     id="finish-dialog-title"
                   >
                     Finish
@@ -5158,7 +5158,7 @@ export function SoloTimeTrialCanvas({
                   <p className="font-sans text-5xl font-bold tabular-nums leading-none tracking-[-0.02em] min-[375px]:text-6xl">
                     {racePresentation.elapsedTime}
                   </p>
-                  <p className="text-xs uppercase tracking-[0.16em] text-titan-muted">
+                  <p className="text-xs uppercase tracking-[0.16em] text-titan-ice/60">
                     {kartDocument.name}
                   </p>
                 </div>
@@ -5174,7 +5174,7 @@ export function SoloTimeTrialCanvas({
                       <span className="uppercase tracking-[0.12em] text-titan-ice/60">
                         Lap {index + 1}
                         {index === racePresentation.fastestLap ? (
-                          <span className="ml-2 text-titan-ice">
+                          <span className="ml-2 text-titan-hazard">
                             · Fastest
                           </span>
                         ) : null}
@@ -5182,8 +5182,8 @@ export function SoloTimeTrialCanvas({
                       <span
                         className={`font-bold tabular-nums ${
                           index === racePresentation.fastestLap
-                            ? "text-titan-ice"
-                            : "text-titan-ice/70"
+                            ? "text-titan-hazard"
+                            : ""
                         }`}
                       >
                         {lapTime}
@@ -5392,12 +5392,12 @@ export function SoloTimeTrialCanvas({
             </div>
           ) : (
             <div
-              className="grid max-w-md gap-4 border border-titan-ice/18 bg-titan-black p-6"
+              className="grid max-w-md gap-4 border border-titan-ice/20 bg-titan-black p-6 shadow-[0_20px_70px_rgb(0_0_0/0.5)]"
               ref={statusMenuRef}
             >
               {sceneStatus === "context_lost" ? (
                 <div className="grid gap-3" role="status" aria-live="polite">
-                  <p className="text-2xl font-bold uppercase leading-none">
+                  <p className="text-2xl font-bold uppercase leading-none text-titan-hazard">
                     Restoring graphics
                   </p>
                   <p className="text-sm text-titan-ice/78">
@@ -5407,7 +5407,7 @@ export function SoloTimeTrialCanvas({
                 </div>
               ) : (
                 <div className="grid gap-3" role="alert" aria-live="assertive">
-                  <p className="text-2xl font-bold uppercase leading-none">
+                  <p className="text-2xl font-bold uppercase leading-none text-titan-hazard">
                     {sceneFailureCode?.startsWith("webgl_")
                       ? "Unable to continue the race"
                       : "Unable to start the race"}

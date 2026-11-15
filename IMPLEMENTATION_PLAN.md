@@ -138,8 +138,11 @@ and type, re-weighted:
 - The logo stays top-left, unchanged.
 
 The HUD should feel like a racing operations interface, not a lore panel or a
-neon arcade skin. Multiplayer is called "Multiplayer" everywhere a player
-sees it.
+neon arcade skin. The race's screens and the app's controls keep their look
+from before Floodlit, in Floodlit's type: the HUD's clipped plates with
+orange and hazard rules, translucent panels over a blurred race, and a
+hazard-yellow border or rule marking what is selected. Hover stays a quiet
+ice. Multiplayer is called "Multiplayer" everywhere a player sees it.
 
 ## How We Work
 
@@ -400,6 +403,15 @@ lead publishes it with New leaderboard off.
       page's hitch makes every opponent's states look late there, so all
       turn see-through at once; and each switch between solid and
       see-through rebuilds the kart's draw batch, which may hitch again.
+
+**Also in PR 6.12**
+
+- [ ] At the lead's request, the HUD, the pause and result screens, home's
+      choices, and the controls return to their look from before PR 6.10,
+      keeping Floodlit's type and the white Paused title. The room lobby
+      keeps its ruled list of racers over home's dimmed render, and the
+      leaderboard keeps its Floodlit page with yellow marking what's
+      selected.
 
 **Done when:** races on a phone can't select or zoom the page; the fastest lap
 shows; the tunnel door opens the same way for every racer in a room; home, the

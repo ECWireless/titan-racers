@@ -360,8 +360,8 @@ export function LeaderboardView({ boardNumber }: { boardNumber: number | null })
                           aria-current={number === boardNumber ? "page" : undefined}
                           className={`block border px-3 py-2 text-sm transition focus-visible:border-titan-hazard focus-visible:outline-none ${
                             number === boardNumber
-                              ? "border-titan-ice/60 text-titan-ice"
-                              : "border-transparent text-titan-ice/78 hover:border-titan-hazard hover:text-titan-hazard"
+                              ? "border-titan-hazard/60 text-titan-hazard"
+                              : "border-transparent text-titan-ice/78 hover:border-titan-ice/30"
                           }`}
                           href={href}
                           onClick={() => setEarlierOpen(false)}
@@ -422,8 +422,8 @@ export function LeaderboardView({ boardNumber }: { boardNumber: number | null })
                   aria-pressed={option.byLap === byLap}
                   className={`h-8 whitespace-nowrap px-2 transition sm:px-3 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-titan-hazard ${
                     option.byLap === byLap
-                      ? "bg-titan-ice/10 text-titan-ice"
-                      : "text-titan-ice/50 hover:text-titan-hazard"
+                      ? "bg-titan-ice/8 text-titan-hazard"
+                      : "text-titan-ice/50 hover:text-titan-ice"
                   }`}
                   key={option.label}
                   type="button"
@@ -470,7 +470,7 @@ export function LeaderboardView({ boardNumber }: { boardNumber: number | null })
                       : "grid-cols-[2rem_1fr_auto_auto] py-2"
                   } items-center gap-2 border-b border-titan-ice/12 px-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-titan-hazard sm:gap-3 sm:px-3 ${
                     entry.viewer
-                      ? "bg-titan-ice/10 shadow-[inset_2px_0_0_var(--titan-ice)]"
+                      ? "bg-titan-hazard/8 shadow-[inset_2px_0_0_var(--titan-hazard)]"
                       : "bg-titan-black/60"
                   }`}
                   key={entry.rank}
