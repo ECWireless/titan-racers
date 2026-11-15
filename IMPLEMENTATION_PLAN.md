@@ -17,12 +17,9 @@ accepted; the app, README, and durable docs take over from there.
 
 - **Done:** Phases 0–6 (PRs #1–#24, the Phase 3 closeout and its
   follow-ups, #30–#57 with the PR 4.5.2 closeout, #59–#63, and #64–#70
-  with the Phase 6 closeout), and the addendum's PRs 6.7 (#71), 6.8
-  (#72), 6.9 (#73), 6.10 (#74), and 6.11 (#75), and its look
-  exploration.
-- **Now:** the [Phase 6 addendum](#phase-6-addendum-feedback-before-phase-7),
-  PR 6.12, its last.
-- **Next:** Phase 7, after its debrief.
+  with the Phase 6 closeout), and the Phase 6 addendum (#71–#76).
+- **Now:** [Phase 7](#phase-7-cad-assembly-and-kart-royalties), PR 7.1.
+- **Next:** PR 7.2, after its debrief.
 
 ## Guiding Decisions
 
@@ -72,8 +69,8 @@ These still constrain every remaining phase.
   storage is needed. Textures and models are reviewed repository assets that
   ship with the app (see Completed Phases). Add a reviewed S3-compatible boundary only
   if player uploads arrive after Demo v1.
-- **CAD authoring:** text-to-cad for admin part models, used only in
-  development and never in the app runtime (Phase 7).
+- **CAD authoring:** build123d (on OpenCASCADE) for admin part models, used
+  only in development and never in the app runtime (Phase 7).
 - **Multiplayer transport:** Cloudflare Workers with a Durable Object per
   room over WebSockets (Phase 6), deployed apart from the app.
 
@@ -176,6 +173,7 @@ Details live in git history, `docs/kart-system/`, and `skills/project-systems/`.
 | 4. Visual baseline, Island Three, and Falls View Park | One shared kart visual builder, a lighting baseline and phone budget, and presentation-only part visuals; sandbox surfaces with grass physics, substepped high-speed collisions, and tire marks and clippings; the Island Three enclosure with true-scale rotating-habitat physics, a loading screen, valleys, and dusk; the Falls View Park Circuit, built section by section and published; generated race audio, kart sound, race cues, and lean ambience, with CC0 recordings where synthesis did not read; the kart editor's suspension swap; integration review. | #30–#57, closeout |
 | 5. Solo, ghosts, results, leaderboard | Races record their course and kart revisions; one see-through ghost recorded at 20 Hz, from your device, the course best, your account best, or a friend's link; Google plus SIWE wallet login and account linking; signed run tickets and server-verified runs, a best and its ghost per racer per board, and a leaderboard with podium medals; a guest's run kept until they sign in, link copying, and ghost links by username; a Phase 5 dashboard panel; a step-by-step home with keyboard, touch, and controller navigation, course pictures, menu sounds and one Volume, the levee kicker, and link preview cards; integration review. | #59–#63 |
 | 6. Private multiplayer | Leaderboards across course publications, with earlier versions kept; a clearer admin dashboard; accounts kept in a browser, passkeys, and sign-in rate limits; bringing a browser's account into another; private rooms of up to 4 on Cloudflare Durable Objects, with a lobby, one room clock, results, and Race again; opponents drawn smoothly through lateness, with their sound, and races that survive dropped connections; kart-to-kart contact answered at once on each page and recorded once by the room; Multiplayer on home's first screen; integration review. | #64–#70 |
+| 6 addendum. Feedback before Phase 7 | Race screens that never select text, zoom, or open the long-press menu; each race's fastest lap on the result screen and as a second leaderboard ranking; Restart in the pause menu; course objects that change state during a race, starting with the utility tunnel's door 4 and its store room, the same for every racer in a room; the Floodlit look on home, the result screen, leaderboard, rooms, and the main site, with real renders in place of AI images; a park of benches, bins, trees, shrubs, and flower beds, clipped privet hedges, and service-road planting, grown behind the loading screen; races drawn 1.15 times as colourful; room-server logs and a fix for doubled draws; integration review. | #71–#76 |
 
 Decisions from completed phases that later phases rely on:
 
@@ -191,7 +189,12 @@ Decisions from completed phases that later phases rely on:
   owns the art direction and the budget (CPU median ≤ 5 ms on the lead's
   iPhone, measured with `?perf=1` on a production build); every later phase
   holds it. With sound on, the closed Phases 4 and 5 measured 3.0 / 4.0 ms,
-  and Phase 6's two-player room with contact 3 / 6 ms.
+  and Phase 6's two-player room with contact 3 / 6 ms. Heavy startup work
+  (the park and the hedges' boughs) grows after a race's first frame,
+  behind its loading screen
+  ([progressive loading](skills/game-concepts/progressive-loading/README.md)).
+  First frames vary from sitting to sitting, so compare one with `main`'s
+  in the same sitting.
 - **Karts are 1:10 RC scale.** Part visuals are presentation only and never
   change derivation, revisions, or hashes.
 - **Assets are code-built geometry, CC0 textures and sounds, and
@@ -215,9 +218,19 @@ Decisions from completed phases that later phases rely on:
   a username, in an official kart, on a published revision under the current
   physics, is eligible; community karts stay casual and multiplayer results
   stay room-only. Medals are the board's current top three, display-only and
-  never stored. Runs through the storm drain stay eligible because gates
+  never stored. The server's check also finds each lap and keeps a run's
+  fastest (PR 6.8): the leaderboard ranks each racer's best race by total
+  time or by that race's fastest lap, and medals stay with total time.
+  Runs through the storm drain stay eligible because gates
   count only in order and its chute is the only way back in; re-check if a
   course change opens another way back in.
+- **Course objects that change state are real mechanisms** (PR 6.9), under
+  the [course interactables standard](skills/game-concepts/course-interactables/README.md):
+  physical strengths, closed again at each race start, Restart, and Race
+  again but never on a kart's reset, and passed through by ghosts. Nothing
+  they do counts toward a run, so a course that adds one publishes with New
+  leaderboard off. In a room, the opener's page acts at once and the room
+  keeps the race's first opening.
 - **Ghosts are 20 Hz recordings, one on track at a time,** never telemetry
   and never re-simulated; only a racer's best per board keeps one on the
   server. Ghost links name a public username, never an ID, and race that
@@ -253,7 +266,9 @@ Decisions from completed phases that later phases rely on:
   simulated, and contact follows the
   [kart-to-kart contact standard](skills/game-concepts/kart-to-kart-contact/README.md):
   each page answers its own kart at once, and the room records each touch
-  once, the record Phase 9's damage extends.
+  once, the record Phase 9's damage extends. The room server's logs name
+  only a seat (`p1`–`p4`) and a race ID, and the platform's own request
+  logs stay off, since a join's URL carries its token (PR 6.12).
 - **One room protocol version is live at a time,** raised for each change
   to its messages (4 since PR 6.9): deploy the room server just before the
   app's PR merges, with no race running. Rooms stay on Cloudflare's Free
@@ -273,155 +288,6 @@ Decisions from completed phases that later phases rely on:
 
 ## Remaining Phases
 
-### Phase 6 Addendum: Feedback Before Phase 7
-
-**Goal:** act on playtest feedback before Phase 7. The addendum gets its own
-integration review, from `2ffc5a20` (PR #70), before its last PR merges.
-
-**PR 6.7: Touch selection and the plan addendum**
-
-- [x] Pressing or holding anywhere on a race screen never selects text,
-      opens the long-press menu, or zooms. Text boxes still select and paste.
-- [x] Two more official courses join the plan (Phases 8 and 10).
-
-**PR 6.8: Fastest lap**
-
-- [x] The server finds each lap in its check of a run's recording and keeps
-      the run's fastest lap.
-- [x] The leaderboard lists each account's best race, ranked by Total time
-      or by that race's Fastest lap, each showing the other as a second
-      line. Medals stay with total time.
-- [x] The result screen marks the race's fastest lap.
-- [x] The pause menu can restart a solo race from a fresh countdown.
-- [x] Existing bests get their fastest lap from their kept recordings, once,
-      when the migration reaches production.
-
-**PR 6.9: Course interactables, starting with the utility-tunnel door**
-
-- [x] A standard for course objects that change state during a race,
-      built to serve later interactables, with notes on the engine's hinges
-      and breakable latches.
-- [x] Door 4 of the utility tunnel becomes a real steel door of about
-      40 kg on its hinge, held by a worn latch that a square hit at about
-      4.5 m/s (16 km/h) breaks, so a kart driven across the tunnel at it
-      opens it. It swings into a small store room under the berm behind the
-      tunnel wall. A push, or a hit near the hinge, never
-      opens it. The other doors stay painted.
-- [x] The room's light comes on when the door opens, the latch clacks, and
-      the door thuds on its stop. A course may have 24 indoor lamps.
-- [x] The room's contents and its poster of The Lucky Lady, the homebuilt
-      homestead spacecraft of O'Neill's The High Frontier, are a Claude-vs-Codex contest: each
-      builds both to one brief, the lead judges blind from the same three
-      renders after a cross-critique, and poster and room are judged
-      separately. The poster is drawn by code, at A1.
-- [x] The door closes at each race start, Restart, and Race again, never on
-      a kart's reset. Ghosts drive through it.
-- [x] In a room (protocol 4), the opener's page opens the door at once and
-      tells the room, which keeps the race's first opening if the opener
-      was within about 1.5 m of the door, and tells everyone. Other pages
-      open it when they see the opener reach it, and a returning page finds
-      it open.
-- [x] The room leads nowhere, so the run check, gates, recordings, and
-      leaderboard are unchanged: the course's new revision publishes with
-      New leaderboard off.
-
-**Exploration, no PR: contrast and a more distinctive look**
-
-- [x] Draft two or three directions for more contrast and a less generic
-      look, and compare them before anything is built. Floodlit was
-      accepted (see [Visual Direction](#visual-direction)); it keeps the
-      site's palette and type.
-
-**PR 6.10: Home and the main site**
-
-- [x] Home's AI-generated background gives way to a real in-game render,
-      and the home flow takes the Floodlit look.
-- [x] The result screen, leaderboard, rooms, and racing display follow.
-- [x] The main site (`titan-racers-site`, a sibling repository, its own PR)
-      takes the look, with real renders in place of its four AI images, and
-      drops every RaidGuild Forge reference. The Forge is shutting down, so
-      its newsletter signup gives way to a link to play the demo.
-
-**PR 6.11: Filling the park**
-
-- [x] Claude and Codex each build the same kit to one brief, at real size:
-      a park bench, a litter bin, a mature shade tree and a smaller
-      ornamental tree, a shrub, and a flower bed in a raised, edged bed.
-      Each places it on the lawns beside the return lane, either side of
-      the levee, and outside the downhill: clear of the road, within the
-      lamps the park has, and opening no new way onto the route.
-- [x] A fresh agent of the other family scores each entry from the same
-      renders and numbers. The lead then decides blind, category by
-      category (furniture, trees, low planting, placement), and the
-      winning pieces land together. Codex's entry won all four. The lead
-      found both entries' trees dated (solid green crowns with a few leaf
-      cards), so the winner's planting was rebuilt as boughs of leaves on
-      real branches: beech, snowy mespilus, dogwood, and Shasta daisies.
-- [x] A kart drives under a bench, and home's picture is rendered again
-      with the park in it.
-- [x] The service road is outside the park, so it gets planting and no
-      furniture: beeches on the lawns either side of it, a row of small
-      trees along its east verge, and shrubs at its bends.
-- [x] Hedges are clipped privet in place of leaf-covered boxes: leaning
-      faces, round shoulders, an uneven clipped line, and boughs of small
-      leaves over a dark core, at half the old hedges' triangles.
-- [x] A race is drawn 1.15 times as colourful, inside each surface's own
-      shader. The lead tried a contrast curve on the phone and turned it
-      down. Home's picture is rendered again to match.
-- [x] Everything stays within the phone budget. The kit is 7 draws, plus
-      up to 6 in the daylight shadow passes, 74.7k triangles (1,500 a
-      piece at most), one new 512² CC0 atlas, and 155 static bodies,
-      measured on the iPhone at the PR's end against `main` in the same
-      sitting.
-- [x] Behind its loading screen, a race grows its hedges' boughs and its
-      park after its first frame, so that frame costs what it did without
-      them. The method is
-      checked against published guidance and kept as a skill
-      (`skills/game-concepts/progressive-loading`).
-
-After merge, the course is seeded as a draft revision at schema 13, and the
-lead publishes it with New leaderboard off.
-
-**PR 6.12: Room logs, from a four-player playtest**
-
-- [x] The room server keeps its logs (Cloudflare Workers Logs), and notes
-      each time a kart goes out of touch and why: a slow connection, a gap
-      in its states, its page saying so, a reset, a reconnect, or silence.
-      It notes when the kart comes back, and sums each race's outs at its
-      end. Lines name only the room's seat (`p1`, `p2`, …) and race ID: no
-      names, keys, tokens, room codes, or addresses, and the platform's
-      own request logs are off, since a join's URL carries its token. No
-      protocol change, so it deploys ahead of the PR, between sessions,
-      since a room-server deploy ends live races.
-- [x] Draws per kart are measured: a ghost or opponent is two draws, but
-      one shown before a race's first frame had PlayCanvas draw every
-      course and kart batch twice all race. That is fixed
-      ([numbers](docs/visual-identity.md#baseline)).
-- [x] A four-player test (2026-11-09) saw karts turn see-through and races
-      stutter with all four together, while the room server stayed light
-      and error-free. Traced as far as one device can: a room race with
-      three test racers, in the lead's browser, had no hitches, and the
-      lead's kart never went out of touch. The test racers never hitch, so
-      they can't recreate four phones each drawing the course twice, the
-      likely start of the stutter and of karts dropping out of touch.
-- [ ] Deferred: the next four-player test's room logs confirm whether
-      karts still turn see-through.
-
-**Also in PR 6.12**
-
-- [x] At the lead's request, the HUD, the pause and result screens, home's
-      choices, and the controls return to their look from before PR 6.10,
-      keeping Floodlit's type and white Paused and Results titles. The
-      room lobby keeps its ruled list of racers over home's dimmed render,
-      and the leaderboard keeps its Floodlit page with yellow marking
-      what's selected.
-
-**Done when:** races on a phone can't select or zoom the page; the fastest lap
-shows; the tunnel door opens the same way for every racer in a room; home, the
-main site, and the park reflect the accepted look; a four-player room's
-see-through karts can be traced with the room's logs, with a likely cause
-found; and the addendum's integration review is resolved.
-
 ### Phase 7: CAD Assembly And Kart Royalties
 
 **Goal:** make kart assembly feel like CAD, rebuild selected approved parts with
@@ -433,22 +299,44 @@ Phase decisions:
 - **Racing and assembly only.** Players assemble approved parts and engineer
   nothing. Only admins engineer parts, and the component-engineering boundary
   in `docs/kart-system/components-and-materials.md` still holds.
-- **CAD stays out of the game.** text-to-cad (build123d on OpenCASCADE) is an
-  admin authoring tool used only in development, never in the app runtime.
+- **CAD stays out of the game.** build123d (on OpenCASCADE) is an admin
+  authoring tool used only in development, never in the app runtime; the
+  game reads the meshes it writes. text-to-cad is not used: its installer
+  sets itself up in every agent app it finds, and it sends usage stats and
+  checks for updates by default.
 - **Royalties are tracked and displayed, never paid.** Payments, balances, and
   on-chain actions need a separately accepted scope.
 
 **PR 7.1: Admin parts with new approaches**
 
-- [ ] Review text-to-cad and set it up for development only: telemetry off,
-      no installer that configures every agent app, and a license check
-      before committing any vendor model from `step.parts`.
-- [ ] Rebuild selected approved parts' visuals from CAD models, or from
-      code-built linkages posed from one input. Visuals stay presentation-only,
-      so derivation, revisions, and hashes do not change; mass measured from
-      CAD enters only through new part versions.
-- [ ] A per-kart triangle and draw budget for part visuals that keeps a
-      four-kart room within the phone budget.
+- [ ] build123d is pinned in a development-only Python environment under
+      `cad/`. Each part is a script of named parameters, modelled on a real
+      1:10 part, with no vendor models.
+- [ ] Each script writes a committed mesh, triangles per finish, that the
+      part's code-built visual reads directly: no model loader, so the race,
+      editor, thumbnails, ghost, and opponents use it unchanged. Running a
+      script again reproduces its mesh exactly.
+- [ ] The motor, the three transmissions, and the steering servo get CAD
+      visuals. Tie rods follow the steering, and rear driveshafts follow
+      each wheel's travel, posed from the same inputs as the wheels.
+- [ ] Visuals stay presentation-only, so registry fingerprints, derivation,
+      revisions, and hashes do not change. Each CAD part's measured mass and
+      centre of mass are reported beside the registry's; any correction
+      joins PR 7.2's new part versions, so the official karts change once.
+- [ ] Claude Fable 5.2, Claude Opus 5.5, and Codex `gpt-6-astra` each build
+      the parts and linkages to one brief on the shared pipeline. Two fresh
+      judges from models that built nothing (Claude Sonnet 5.5 and Codex
+      `gpt-6.1-sol`) score all three from the same renders and numbers, and
+      the lead decides blind, category by category: motor, transmission,
+      servo, and linkages.
+- [ ] Each official kart stays within 20k triangles (tested), each CAD part
+      within 2,000, the racer's own kart within 30 draws, and a ghost or
+      opponent at 2, so a four-kart room holds the phone budget. Measured
+      on the iPhone at the PR's end with a room race against three test
+      racers and a reloaded solo race.
+
+After merge, the official karts' thumbnails are captured again at the new
+render version from the admin roster.
 
 **PR 7.2: CAD-style assembly**
 
@@ -671,6 +559,9 @@ course-specific ghosts or leaderboards.
       Falls View Park as the solo course through two laps" timed out
       there in PR 6.11, on `main` too. Serial groups skip the tests after
       a failure, so fix these first.
+- [ ] The next four-player room test's logs (Cloudflare Workers Logs)
+      confirm whether karts still turn see-through after PR 6.12's fix for
+      doubled draws.
 - [ ] Before any shared room link (Phase 6's integration review): Workers
       Paid, a rate limit on the room token route, and rooms on the custom
       domain behind a rate-limiting rule, so a script can't spend the
