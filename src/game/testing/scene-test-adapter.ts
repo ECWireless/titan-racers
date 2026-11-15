@@ -173,8 +173,12 @@ export type SceneTestApi = {
   getCameraDebugState: () => CameraDebugState;
   getCollisionDebugState: () => CollisionDebugState;
   getCollisionResponseDebugState: () => CollisionResponseDebugState;
-  /** The ghost being raced: its finish time, and whether it is drawn now. */
+  /**
+   * The ghost being raced: its finish time, and whether it is drawn now;
+   * and how many course and kart parts are batched twice.
+   */
   getGhostDebugState: () => {
+    batchedTwice: number;
     finishMicroseconds: number | null;
     visible: boolean;
   };

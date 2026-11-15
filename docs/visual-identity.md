@@ -543,16 +543,18 @@ race hitched. The first frame took 413 ms against `main`'s 463 ms, with
 the park grow after it, behind the loading screen
 ([progressive loading](../skills/game-concepts/progressive-loading/README.md)):
 the race was ready after 949 ms (686 ms on `main`) and revealed at 2.5 s on
-both. The 536 ms from its first frame to ready, against `main`'s 223 ms, is
-that growing, in a race home's warm-up had not finished for; an earlier
-race of the day, whose park the warm-up had grown, was ready 192 ms after
-its first frame. Built before the first frame, as the park first was, it
-took that frame to 658 ms against 392 ms; the hedges' boughs, built before
-it, took building the course to 308 ms. The draw maximum leaves twelve of
-the 150 allowed.
-First frames differ by sitting (`main`'s was 392, 408, and 463 ms across
-the day's three), so compare within one. One race of an earlier build that
-day hitched once, and none since. The same `main` build's first race on a
-new address drew a 52 median and 84 at most, with no stored lap to race
-against; whether the ghost accounts for that difference is not yet known,
-so compare draws between races of one sitting.
+both. First frames differ by sitting, so compare within one. Both races
+raced a stored ghost, so their draws were doubled (PR 6.12, below).
+
+PR 6.12 was measured on the iPhone with two solo two-lap races in one
+sitting, each after a reload and racing a stored ghost, on production builds
+without the database: `main` drew a 91 median and 136 at most (131
+forward), and the fix 58 and 90 (85 forward). A ghost or room opponent
+shown before a race's first frame had every course and kart batch drawn
+twice all race (see [ghosts](../skills/project-systems/ghosts/README.md));
+the ghost itself is two draws. Frame time (17 ms median, p95 18 ms), CPU
+work (3 ms, p95 4 ms), and hitches (none) are unchanged; the first frame
+took 388 ms against 409 ms and the race was ready after 887 ms against
+952 ms, as the course is batched once rather than twice. A room race with
+three test racers, in the lead's browser at 1440×812, drew a 64 median and
+125 at most, with no hitches.

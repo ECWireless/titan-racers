@@ -71,8 +71,10 @@ type ActiveRace = {
 
 const noSubscription = () => () => {};
 
-// Sections are divided by a rule, not boxed.
-const PANEL = "grid gap-4 border-t border-titan-ice/12 pt-5";
+const PANEL =
+  "grid gap-4 border border-titan-ice/18 bg-titan-black/72 p-5 backdrop-blur";
+// The racers are divided by a rule, not boxed.
+const RULED = "grid gap-4 border-t border-titan-ice/12 pt-5";
 const LABEL =
   "font-mono text-[0.62rem] font-bold uppercase tracking-[0.18em] text-titan-muted";
 
@@ -314,7 +316,7 @@ export function RoomPlay({ code }: { code: string }) {
 function ReconnectingNotice() {
   return (
     <p
-      className="pointer-events-none fixed inset-x-0 top-[max(0.75rem,env(safe-area-inset-top))] z-[70] mx-auto w-fit border border-titan-ice/18 bg-titan-black px-4 py-2 font-mono text-xs font-bold uppercase tracking-[0.18em] text-titan-ice"
+      className="pointer-events-none fixed inset-x-0 top-[max(0.75rem,env(safe-area-inset-top))] z-[70] mx-auto w-fit border border-titan-hazard/50 bg-titan-black/90 px-4 py-2 font-mono text-xs font-bold uppercase tracking-[0.18em] text-titan-hazard"
       role="status"
     >
       Reconnecting…
@@ -554,7 +556,7 @@ function RoomLobby({
           </div>
         ) : null}
 
-        <div className={PANEL}>
+        <div className={RULED}>
           <h2 className={LABEL}>
             Racers {room.players.length}/4
           </h2>
@@ -686,7 +688,7 @@ function RoomResultsList({
           className="grid grid-cols-[2.5rem_minmax(0,1fr)_auto] items-center gap-3 text-sm"
           key={entry.id}
         >
-          <span className="font-mono font-black text-titan-ice">
+          <span className="font-mono font-black text-titan-hazard">
             {placeLabel(entry.place)}
           </span>
           <span className="grid min-w-0">
@@ -884,13 +886,13 @@ function RoomRace({
       {race && !covered && results === null ? (
         <section
           aria-label="Standings"
-          className="pointer-events-none fixed left-[max(0.75rem,env(safe-area-inset-left))] top-24 z-[60] grid gap-1 border border-titan-ice/18 bg-titan-black/80 p-2 font-mono text-xs text-titan-ice/70"
+          className="pointer-events-none fixed left-[max(0.75rem,env(safe-area-inset-left))] top-24 z-[60] grid gap-1 border border-titan-ice/18 bg-titan-black/72 p-2 font-mono text-xs text-titan-ice backdrop-blur"
         >
           <ol className="grid gap-1">
             {race.entrants.map((entrant, index) => (
               <li
                 className={`flex gap-2 ${
-                  entrant.id === you ? "font-bold text-titan-ice" : ""
+                  entrant.id === you ? "text-titan-hazard" : ""
                 } ${entrant.left ? "text-titan-ice/45 line-through" : ""}`}
                 key={entrant.id}
               >
@@ -913,11 +915,11 @@ function RoomRace({
           className="pointer-events-none fixed inset-x-0 top-1/3 z-[60] grid place-items-center px-4 text-center font-mono text-titan-ice"
           role="status"
         >
-          <p className="border border-titan-ice/18 bg-titan-black px-6 py-4">
-            <span className="block font-sans text-3xl font-bold uppercase leading-none">
+          <p className="border border-titan-hazard/50 bg-titan-black/90 px-6 py-4">
+            <span className="block font-sans text-3xl font-bold uppercase leading-none text-titan-hazard">
               Finished · {placeLabel(yourPlace)}
             </span>
-            <span className="mt-2 block text-sm text-titan-muted">
+            <span className="mt-1 block text-sm text-titan-ice/76">
               Waiting for the others
             </span>
           </p>
@@ -927,12 +929,12 @@ function RoomRace({
         <div
           aria-labelledby="room-results-title"
           aria-modal="true"
-          className="fixed inset-0 z-[60] grid place-items-center overflow-y-auto bg-titan-black/65 px-4 py-4 font-mono text-titan-ice [place-items:safe_center]"
+          className="fixed inset-0 z-[60] grid place-items-center overflow-y-auto bg-titan-black/76 px-4 py-4 font-mono text-titan-ice backdrop-blur-sm [place-items:safe_center]"
           role="dialog"
           onKeyDown={keepFocusInDialog}
         >
           <div
-            className="grid w-full max-w-md gap-5 border border-titan-ice/18 bg-titan-black p-6"
+            className="grid w-full max-w-md gap-5 border border-titan-hazard/50 bg-titan-black/96 p-6 shadow-[0_24px_90px_rgb(0_0_0/0.7)]"
             ref={resultsRef}
           >
             <p

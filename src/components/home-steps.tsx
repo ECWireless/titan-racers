@@ -32,19 +32,12 @@ const COURSE_THUMBNAILS: Partial<Record<string, string>> = {
   [FALLS_VIEW_PARK_COURSE_ID]: "/images/courses/falls-view-park.webp",
 };
 
-// Every choice after the first screen: solid black on a thin rule, whose
-// rule turns hazard yellow when focused or hovered, as a console menu marks
-// its current item.
+// Every choice in the flow: a panel whose border turns gold when focused or
+// hovered, as a console menu marks its current item.
 const OPTION =
-  "home-option grid min-w-0 border bg-titan-black text-left transition motion-reduce:transition-none";
-const OPTION_IDLE = "border-titan-ice/18";
-// Chosen is ice; hazard yellow is kept for focus.
-const OPTION_CHOSEN = "border-titan-ice";
-
-// The first screen's buttons keep their earlier panel, translucent over the
-// backdrop. Only focus or hover turns one yellow.
-const MENU_OPTION =
   "home-option grid min-w-0 border bg-titan-black/72 text-left shadow-[0_20px_60px_rgb(0_0_0/0.35)] backdrop-blur transition motion-reduce:transition-none";
+const OPTION_IDLE = "border-titan-ice/18";
+const OPTION_CHOSEN = "border-titan-hazard bg-titan-black/90";
 
 // The first screen's icons, at the size of its titles.
 const MENU_ICON = "size-7";
@@ -121,7 +114,7 @@ export function HomeStepFrame({
       <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
         <button
           data-ui-sound="back"
-          className="flex min-h-11 items-center gap-2 border border-titan-ice/50 bg-transparent px-4 text-titan-ice transition hover:border-titan-hazard hover:text-titan-hazard focus-visible:border-titan-hazard focus-visible:text-titan-hazard focus-visible:outline-none"
+          className="flex min-h-11 items-center gap-2 border border-titan-ice/24 bg-titan-black/60 px-4 text-titan-ice/80 transition hover:border-titan-hazard hover:text-titan-hazard focus-visible:border-titan-hazard focus-visible:text-titan-hazard focus-visible:outline-none"
           type="button"
           onClick={onBack}
         >
@@ -234,7 +227,7 @@ export function HomeStartStep({
         <Link
           aria-describedby="home-leaderboard-detail"
           aria-labelledby="home-leaderboard-label"
-          className={`${MENU_OPTION} ${OPTION_IDLE} home-menu-item`}
+          className={`${OPTION} ${OPTION_IDLE} home-menu-item`}
           href="/leaderboard"
         >
           <MenuItemContent
@@ -277,7 +270,7 @@ function MenuItem({
     <button
       aria-describedby={`${id}-detail`}
       aria-labelledby={`${id}-label`}
-      className={`${MENU_OPTION} ${OPTION_IDLE} home-menu-item`}
+      className={`${OPTION} ${OPTION_IDLE} home-menu-item`}
       data-controller-default={controllerDefault ? "true" : undefined}
       aria-disabled={unavailable ? "true" : undefined}
       type="button"
@@ -375,7 +368,7 @@ export function HomeKartCard({
         <strong className="text-xl font-black uppercase tracking-[-0.03em]">
           {kart.document.name}
         </strong>
-        <span className="font-mono text-[0.62rem] font-bold uppercase tracking-[0.12em] text-titan-muted">
+        <span className="font-mono text-[0.62rem] font-bold uppercase tracking-[0.12em] text-titan-hazard">
           Assembled by {kart.assemblerCredit}
         </span>
       </span>
@@ -444,7 +437,7 @@ export function HomeCourseCard({
         <strong className="text-xl font-black uppercase tracking-[-0.03em]">
           {course.name}
         </strong>
-        <span className="font-mono text-[0.62rem] font-bold uppercase tracking-[0.12em] text-titan-muted">
+        <span className="font-mono text-[0.62rem] font-bold uppercase tracking-[0.12em] text-titan-hazard">
           {laps} laps · Island Three
         </span>
       </span>
@@ -480,7 +473,7 @@ export function HomeChoice({
     <button
       aria-pressed={chosen}
       className={`${OPTION} ${chosen ? OPTION_CHOSEN : OPTION_IDLE} min-h-12 content-center px-4 py-3 ${
-        chosen ? "text-titan-ice" : "text-titan-ice/70"
+        chosen ? "text-titan-hazard" : "text-titan-ice/80"
       } ${className}`}
       type="button"
       {...firstClickOnly(onChoose)}

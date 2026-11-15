@@ -44,6 +44,8 @@ what a finished room race stores.
   drive the gate line, for QA.
 - `room-server/`: the Worker and the `Room` Durable Object, transport only,
   with `wrangler.jsonc` (local defaults and a `production` environment).
+- `src/game/room/room-log.ts`: the room server's log lines, from its
+  changes of state and each kart going out of touch and back.
 - `src/app/api/rooms/[code]/token/route.ts` and `src/server/room-races.ts`:
   issuing join tokens; `src/app/api/rooms/results/route.ts`: storing
   reports in `room_races` and `room_race_entries` (migration 0029).
@@ -150,6 +152,10 @@ what a finished room race stores.
   within 500 ms of the room's clock, in order, so a reset among them still
   snaps. The finishing state goes twice, half a second apart, so a refused
   one still counts.
+- The room server logs seats, races, and each kart going out of touch
+  (with why) and back, at most 40 such lines a seat a race, naming seats
+  and races by the room's IDs only
+  ([operations](../../../docs/database-operations.md#private-rooms)).
 - Rooms run on the Free plan; four players send about 128 messages a
   second, which Free may count one by one (see [Cloudflare Durable
   Objects](../../tools/cloudflare-durable-objects/README.md) for billing).
@@ -197,7 +203,8 @@ what a finished room race stores.
 - `tests/room-rules.spec.ts`, `tests/room-signing.spec.ts`,
   `tests/room-clock.spec.ts`, and the room tests in
   `tests/race-session.spec.ts`: pure rules, state checks, signing, the
-  token's course and grid, and clocks (`tests/support/room-course.ts` is a
+  token's course and grid, clocks, and the room's log lines (with no
+  account in them; out and back, with why, in `tests/room-contacts.spec.ts`) (`tests/support/room-course.ts` is a
   straight test course).
 - `tests/room-server.spec.ts`: Node clients against `wrangler dev`
   (`tests/support/room-server.ts`), including a held seat, its resend, and

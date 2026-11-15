@@ -6,6 +6,7 @@ import {
   roomContactMessage,
   type RoomContact,
 } from "../../src/game/room/room-contacts";
+import { RoomLog } from "../../src/game/room/room-log";
 import {
   isRoomCode,
   parseClientMessage,
@@ -213,11 +214,28 @@ export class Room extends DurableObject<Env> {
   private state: RoomState | null;
   /** What each socket may still send; lost on hibernation. */
   private allowances = new WeakMap<WebSocket, Allowance>();
+  /** What the room logs (room-log.ts): never a name, key, or room code. */
+  private log = new RoomLog((line) => console.log(line));
   /**
    * The race's touches between karts, kept in memory only: a race keeps the
    * room awake, and a restart at worst records a touch in progress twice.
    */
-  private contacts = new RoomContacts();
+  private contacts = new RoomContacts((change) => {
+    if (this.contactsRace) {
+      // Only its page's own word, as every countdown and finish has.
+      const expected =
+        change.out &&
+        change.kart === this.settling &&
+        change.why.length === 1 &&
+        change.why[0] === "page";
+      this.log.touch(this.contactsRace, change, expected);
+    }
+  });
+  /**
+   * The kart whose state is being checked, while that state is one every
+   * race has out of touch: its countdown, or its finish.
+   */
+  private settling: string | null = null;
   private contactsRace: string | null = null;
 
   constructor(ctx: DurableObjectState, env: Env) {
@@ -371,6 +389,18 @@ export class Room extends DurableObject<Env> {
       if (outcome.accepted && recent) {
         relayed.push(JSON.stringify({ ...state, type: "state", from: playerId }));
       }
+      // A finisher's last state goes twice, so its repeat is refused.
+      const race = outcome.state.race;
+      const entrant = race?.entrants.find(({ id }) => id === playerId);
+      if (
+        !outcome.accepted &&
+        !resent &&
+        race?.racingAt != null &&
+        entrant?.finishMicroseconds === null &&
+        !entrant.left
+      ) {
+        this.log.refused(race.id, playerId);
+      }
       // Only live states touch: a resent one is history.
       if (outcome.accepted && resent) {
         this.raceContacts(outcome.state)?.resent(playerId, state);
@@ -436,32 +466,54 @@ export class Room extends DurableObject<Env> {
     }));
     const kart = racing.find(({ id }) => id === playerId);
     if (!kart) return [];
-    return contacts.live(
-      kart,
-      kartState,
-      Math.max(0, now - race.racingAt) * 1_000,
-      racing.filter(({ id }) => id !== playerId),
-    );
+    const finished =
+      race.entrants.find(({ id }) => id === playerId)?.finishMicroseconds !=
+      null;
+    this.settling = kartState.t <= 0 || finished ? playerId : null;
+    try {
+      return contacts.live(
+        kart,
+        kartState,
+        Math.max(0, now - race.racingAt) * 1_000,
+        racing.filter(({ id }) => id !== playerId),
+      );
+    } finally {
+      this.settling = null;
+    }
   }
 
   async webSocketClose(socket: WebSocket, code: number) {
-    this.closed(socket, code === LEAVING ? "leave" : "disconnect");
+    this.closed(socket, code === LEAVING ? "leave" : "disconnect", code);
   }
 
   async webSocketError(socket: WebSocket) {
-    this.closed(socket, "disconnect");
+    // 1006: closed abnormally.
+    this.closed(socket, "disconnect", 1006);
   }
 
   /** Closes a misbehaving socket and frees its seat at once. */
   private drop(socket: WebSocket, code: number) {
     const playerId = seatOf(socket);
+    if (playerId) this.log.socket({ event: "dropped", seat: playerId, code });
     retire(socket, code);
     if (playerId) this.vacate(playerId, "leave");
   }
 
-  private closed(socket: WebSocket, how: "leave" | "disconnect") {
+  private closed(
+    socket: WebSocket,
+    how: "leave" | "disconnect",
+    code: number,
+  ) {
     const playerId = seatOf(socket);
-    if (playerId) this.vacate(playerId, how, socket);
+    if (!playerId) return;
+    // An error may be followed by a close: log and vacate once.
+    try {
+      socket.serializeAttachment(null satisfies Attachment);
+    } catch {
+      // Already gone.
+    }
+    this.log.socket({ event: "closed", seat: playerId, code });
+    this.vacate(playerId, how, socket);
   }
 
   /**
@@ -476,6 +528,7 @@ export class Room extends DurableObject<Env> {
         heard &&
         now - heard.heardAt > (racing ? SILENT_RACING_MS : SILENT_MS)
       ) {
+        this.log.socket({ event: "silent", seat: heard.playerId });
         retire(socket, ROOM_CLOSE.silent);
         this.vacate(heard.playerId, "disconnect", socket);
       }
@@ -543,6 +596,7 @@ export class Room extends DurableObject<Env> {
   }
 
   private commit(outcome: RoomOutcome) {
+    this.log.change(this.state, outcome.state);
     this.state = outcome.state;
     // Nothing changed, so nothing is written: each write is billed.
     if (!outcome.changed && !outcome.persist && !outcome.report) return;

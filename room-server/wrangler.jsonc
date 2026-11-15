@@ -23,6 +23,14 @@
       "durable_objects": {
         "bindings": [{ "name": "ROOMS", "class_name": "Room" }]
       },
+      // Keeps the room's own log lines (room-log.ts). Cloudflare's
+      // per-request logs stay off, and query strings are redacted, since a
+      // join's URL carries its token (with a username and seat key).
+      "observability": {
+        "enabled": true,
+        "redact_query_string": true,
+        "logs": { "invocation_logs": false }
+      },
       "vars": {
         "APP_ORIGINS": "https://play.titanracers.com",
         "APP_RESULTS_URL": "https://play.titanracers.com/api/rooms/results"

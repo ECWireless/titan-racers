@@ -86,6 +86,9 @@ A logged-in racer's best is stored and checked by the
   material. Toggling `enabled` rebuilds the batch, so it is kept for rare
   changes (finish, switch, Race again), and the pending rebuild runs at once
   (`batcher.updateAll()`) so a fade applies from the first frame.
+- That rebuild can run before the race's first frame, which PlayCanvas's
+  own first batching would double
+  ([runtime](../../tools/browser-playcanvas-runtime/README.md#batching)).
 
 ## Verification
 

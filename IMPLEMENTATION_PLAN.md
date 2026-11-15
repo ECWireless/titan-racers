@@ -18,10 +18,11 @@ accepted; the app, README, and durable docs take over from there.
 - **Done:** Phases 0–6 (PRs #1–#24, the Phase 3 closeout and its
   follow-ups, #30–#57 with the PR 4.5.2 closeout, #59–#63, and #64–#70
   with the Phase 6 closeout), and the addendum's PRs 6.7 (#71), 6.8
-  (#72), 6.9 (#73), and 6.10 (#74), and its look exploration.
+  (#72), 6.9 (#73), 6.10 (#74), and 6.11 (#75), and its look
+  exploration.
 - **Now:** the [Phase 6 addendum](#phase-6-addendum-feedback-before-phase-7),
-  PR 6.11.
-- **Next:** PR 6.12, then Phase 7, after its debrief.
+  PR 6.12, its last.
+- **Next:** Phase 7, after its debrief.
 
 ## Guiding Decisions
 
@@ -127,18 +128,23 @@ These still constrain every remaining phase.
 race at dusk under its floodlights. It keeps the Titan Racers site's palette
 and type, re-weighted:
 
-- Pages are mostly true black, divided by thin rules rather than panels.
+- Pages are mostly true black, with translucent panels over the render
+  behind them; lists are divided by thin rules.
 - A screen leads with at most one real in-game render, fading hard into
   black. No AI-generated imagery.
 - Arial/Helvetica-style sans and Courier-style mono labels: heavy uppercase
   headlines, larger than before, and widely tracked operational labels.
 - Ice text. Orange marks only a screen's next action; hazard yellow marks
-  focus; blue stays for the ghost and rare technical accents.
+  focus, what is selected, and the HUD's and cards' labels; blue stays for
+  the ghost and rare technical accents.
 - The logo stays top-left, unchanged.
 
 The HUD should feel like a racing operations interface, not a lore panel or a
-neon arcade skin. Multiplayer is called "Multiplayer" everywhere a player
-sees it.
+neon arcade skin. The race's screens and the app's controls keep their look
+from before Floodlit, in Floodlit's type: the HUD's clipped plates with
+orange and hazard rules, and translucent panels over a blurred race. Home's
+controls hover hazard; the leaderboard's hover ice, so its yellow means
+selected. Multiplayer is called "Multiplayer" everywhere a player sees it.
 
 ## How We Work
 
@@ -249,7 +255,7 @@ Decisions from completed phases that later phases rely on:
   each page answers its own kart at once, and the room records each touch
   once, the record Phase 9's damage extends.
 - **One room protocol version is live at a time,** raised for each change
-  to its messages (3 after Phase 6): deploy the room server just before the
+  to its messages (4 since PR 6.9): deploy the room server just before the
   app's PR merges, with no race running. Rooms stay on Cloudflare's Free
   plan until a shared demo; before any shared link, move to Workers Paid
   with the protections Phase 12 lists.
@@ -378,24 +384,43 @@ lead publishes it with New leaderboard off.
 
 **PR 6.12: Room logs, from a four-player playtest**
 
-- [ ] The room server keeps its logs (Cloudflare Workers Logs), and notes
+- [x] The room server keeps its logs (Cloudflare Workers Logs), and notes
       each time a kart goes out of touch and why: a slow connection, a gap
-      in its states, its page saying so, a reset, or a reconnect. No
-      account details are logged. Deployed between sessions, since a
-      room-server deploy ends live races.
-- [ ] A four-player test (2026-11-09) saw karts turn see-through and races
+      in its states, its page saying so, a reset, a reconnect, or silence.
+      It notes when the kart comes back, and sums each race's outs at its
+      end. Lines name only the room's seat (`p1`, `p2`, …) and race ID: no
+      names, keys, tokens, room codes, or addresses, and the platform's
+      own request logs are off, since a join's URL carries its token. No
+      protocol change, so it deploys ahead of the PR, between sessions,
+      since a room-server deploy ends live races.
+- [x] Draws per kart are measured: a ghost or opponent is two draws, but
+      one shown before a race's first frame had PlayCanvas draw every
+      course and kart batch twice all race. That is fixed
+      ([numbers](docs/visual-identity.md#baseline)).
+- [x] A four-player test (2026-11-09) saw karts turn see-through and races
       stutter with all four together, while the room server stayed light
-      and error-free. With the logs and `?perf=1` on a phone or two, find
-      the cause and fix it if it's small. One guess to test first: a page's
-      hitch puts its kart out of touch, it can't come back while touching
-      the pack, and each switch between solid and see-through rebuilds the
-      kart's draw batch, which may hitch again.
+      and error-free. Traced as far as one device can: a room race with
+      three test racers, in the lead's browser, had no hitches, and the
+      lead's kart never went out of touch. The test racers never hitch, so
+      they can't recreate four phones each drawing the course twice, the
+      likely start of the stutter and of karts dropping out of touch.
+- [ ] Deferred: the next four-player test's room logs confirm whether
+      karts still turn see-through.
+
+**Also in PR 6.12**
+
+- [x] At the lead's request, the HUD, the pause and result screens, home's
+      choices, and the controls return to their look from before PR 6.10,
+      keeping Floodlit's type and white Paused and Results titles. The
+      room lobby keeps its ruled list of racers over home's dimmed render,
+      and the leaderboard keeps its Floodlit page with yellow marking
+      what's selected.
 
 **Done when:** races on a phone can't select or zoom the page; the fastest lap
 shows; the tunnel door opens the same way for every racer in a room; home, the
 main site, and the park reflect the accepted look; a four-player room's
-see-through karts can be traced to a cause; and the addendum's integration
-review is resolved.
+see-through karts can be traced with the room's logs, with a likely cause
+found; and the addendum's integration review is resolved.
 
 ### Phase 7: CAD Assembly And Kart Royalties
 

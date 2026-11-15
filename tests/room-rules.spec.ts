@@ -26,6 +26,11 @@ import {
   type RoomOutcome,
   type RoomState,
 } from "../src/game/room/room-rules";
+import {
+  ROOM_LOG_TOUCH_LINES,
+  RoomLog,
+  type RoomLogLine,
+} from "../src/game/room/room-log";
 import type { RoomToken } from "../src/game/room/room-signing";
 import {
   crossingAt,
@@ -909,5 +914,99 @@ test.describe("room protocol", () => {
     ]) {
       expect(parseServerMessage(JSON.stringify(bad))).toBeNull();
     }
+  });
+});
+
+test.describe("the room's log", () => {
+  test("follows seats and races by seat and race ID, never an account", () => {
+    const lines: RoomLogLine[] = [];
+    const log = new RoomLog((line) => lines.push(line));
+    let state: RoomState | null = null;
+    const step = (...events: RoomEvent[]) => {
+      for (const event of events) {
+        const next: RoomState = applyRoomEvent(
+          state ?? createRoomState(token("a")),
+          event,
+        ).state;
+        log.change(state, next);
+        state = next;
+      }
+    };
+    const named = token("k0", { username: "secret_racer", signedIn: true });
+    step(
+      { type: "join", now: 1_000, token: named },
+      { type: "join", now: 1_000, token: token("k1") },
+      { type: "choose_kart", now: 1_000, playerId: "p1", kartId: "kestrel" },
+      { type: "choose_kart", now: 1_000, playerId: "p2", kartId: "mule" },
+      { type: "start", now: 2_000, playerId: "p1", raceId: RACE },
+      { type: "loaded", now: 3_000, playerId: "p1", raceId: RACE },
+      { type: "loaded", now: 3_000, playerId: "p2", raceId: RACE },
+    );
+    // Its countdown and finish are out of touch in every race: not logged.
+    log.touch(RACE, { kart: "p1", out: true, atUs: 0, why: ["page"] }, true);
+    log.touch(RACE, { kart: "p1", out: false, atUs: 40_000, outForUs: 40_000 });
+    // Still out well into the race: its return shows.
+    log.touch(RACE, { kart: "p2", out: true, atUs: 0, why: ["page"] }, true);
+    log.touch(RACE, { kart: "p2", out: false, atUs: 700_000, outForUs: 700_000 });
+    log.touch(RACE, { kart: "p2", out: true, atUs: 1_000_000, why: ["gap", "page"], lateUs: 90_000, gapUs: 400_000 });
+    log.touch(RACE, { kart: "p2", out: false, atUs: 1_600_000, outForUs: 600_000 });
+    log.refused(RACE, "p1");
+    step(
+      { type: "disconnect", now: RACING_AT + 2_000, playerId: "p2" },
+      { type: "join", now: RACING_AT + 3_000, token: token("k1") },
+      { type: "tick", now: RACING_AT + ROOM_RACE_LIMIT_MS },
+      { type: "leave", now: RACING_AT + ROOM_RACE_LIMIT_MS + 1, playerId: "p2" },
+    );
+
+    expect(lines).toEqual([
+      { event: "joined", seat: "p1" },
+      { event: "joined", seat: "p2" },
+      { event: "race_start", race: RACE, karts: 2 },
+      { event: "in", race: RACE, seat: "p2", raceMs: 700, outMs: 700 },
+      { event: "out", race: RACE, seat: "p2", raceMs: 1_000, why: ["gap", "page"], gapMs: 400 },
+      { event: "in", race: RACE, seat: "p2", raceMs: 1_600, outMs: 600 },
+      { event: "away", seat: "p2", race: RACE },
+      { event: "rejoined", seat: "p2", race: RACE },
+      {
+        event: "race_end",
+        race: RACE,
+        reason: "time_limit",
+        seats: {
+          p1: { outs: {}, outMs: 0, refused: 1, unlogged: 0 },
+          p2: { outs: { gap: 1, page: 1 }, outMs: 1_300, refused: 0, unlogged: 0 },
+        },
+      },
+      { event: "left", seat: "p2" },
+    ]);
+    const written = JSON.stringify(lines);
+    for (const secret of ["secret_racer", "k0x", "k1x", "abcdefghjk", "kestrel", "mule"]) {
+      expect(written).not.toContain(secret);
+    }
+  });
+
+  test("counts a race's outs past its line cap without logging them", () => {
+    const lines: RoomLogLine[] = [];
+    const log = new RoomLog((line) => lines.push(line));
+    for (let index = 0; index < ROOM_LOG_TOUCH_LINES; index += 1) {
+      log.touch(RACE, { kart: "p1", out: true, atUs: index * 2_000, why: ["late"], lateUs: 300_000 });
+      log.touch(RACE, { kart: "p1", out: false, atUs: index * 2_000 + 1_000, outForUs: 1_000 });
+    }
+    const started = racing(2);
+    log.change(started, { ...started, race: null });
+
+    expect(
+      lines.filter(({ event }) => event === "out" || event === "in"),
+    ).toHaveLength(ROOM_LOG_TOUCH_LINES);
+    expect(lines.at(-1)).toMatchObject({
+      event: "race_end",
+      reason: "cancelled",
+      seats: {
+        p1: {
+          outs: { late: ROOM_LOG_TOUCH_LINES },
+          outMs: ROOM_LOG_TOUCH_LINES,
+          unlogged: ROOM_LOG_TOUCH_LINES,
+        },
+      },
+    });
   });
 });
