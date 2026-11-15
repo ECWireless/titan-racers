@@ -256,6 +256,22 @@ anonymization pass them by.
   variable changes, then turn it off. A deploy closes live races within about five
   minutes, so avoid deploying mid-race. A protocol change deploys the room
   server, then the app, back to back.
+- **Logs:** the production room server keeps its own log lines in Workers
+  Logs ([limits](../skills/tools/cloudflare-durable-objects/README.md#logs-2026-11-15)).
+  Read them in the Cloudflare dashboard under Workers & Pages →
+  `titan-racers-rooms-production` → Logs, filtering by `event`, `race`, or
+  `seat`. Each line names a seat only as `p1`, `p2`, … and a race by its
+  random ID: `joined`, `away`, `rejoined`, `left`, `closed` (with its close
+  code), `silent`, `dropped`, `race_start`, `out` (a kart going out of
+  touch, with `why`: `late`, `gap`, `page`, `reset`, `resend`, or
+  `silent`), `in` (back, with how long it was out), and `race_end` (each
+  entrant's outs by reason, time out for the outs that ended, and refused
+  live states). A kart's countdown and finish, out of touch in every race,
+  aren't logged, nor is a finisher's repeated last state; a kart still out
+  a quarter-second into the race logs its `in`. Cloudflare's
+  per-request logs are off: a join's URL carries its token, and a race's
+  messages would log thousands of lines. Locally, `pnpm rooms:dev` prints
+  the same lines.
 
 ## First Admin Bootstrap
 

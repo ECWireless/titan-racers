@@ -75,6 +75,19 @@ linked pages before relying on a number.
   sockets close. A racing room never idles, so do not deploy mid-race.
 - Set `WRANGLER_SEND_METRICS=false` to turn off Wrangler's usage telemetry.
 
+## Logs (2026-11-15)
+
+- Workers Logs keeps a Worker's logs, its Durable Objects' included, once
+  its Wrangler config has `observability.enabled`. `console.log` of an
+  object is indexed field by field, so log objects rather than strings.
+- Each request also writes an invocation log of its method and URL; turn
+  it off with `observability.logs.invocation_logs: false`, and redact
+  query strings with `observability.redact_query_string`, when a URL
+  carries a secret.
+- Free keeps 200,000 lines a day for 3 days; Paid includes 20 million a
+  month for 7 days. From 2026-12-01, Workers Logs is priced as Cloudflare
+  Observability.
+
 ## Pricing And Limits (2026-11-04)
 
 | | Free | Workers Paid ($5/month) |
@@ -124,5 +137,7 @@ linked pages before relying on a number.
   <https://developers.cloudflare.com/workers/versions-and-deployments/version-urls/>
 - Code updates:
   <https://developers.cloudflare.com/durable-objects/deployments/durable-objects-code-updates/>
+- Workers Logs:
+  <https://developers.cloudflare.com/workers/observability/logs/workers-logs/>
 - Wrangler telemetry:
   <https://github.com/cloudflare/workers-sdk/blob/main/packages/wrangler/telemetry.md>

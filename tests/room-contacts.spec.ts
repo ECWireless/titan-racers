@@ -6,6 +6,7 @@ import {
   RoomContacts,
   roomContactMessage,
   type RoomContact,
+  type RoomTouchChange,
 } from "../src/game/room/room-contacts";
 import { KART_CONTACT, sweepKartContact } from "../src/game/room/kart-contact";
 import { ROOM_PROTOCOL } from "../src/game/room/room-protocol";
@@ -62,10 +63,14 @@ function stateOf({ at, extra }: Drive, t: number): RoomKartState {
 /**
  * Feeds two karts' live states to the room in the order they arrive, each
  * kart's in the order it sent them, as one socket delivers; returns every
- * touch opened.
+ * touch opened, and adds each kart going out of touch or back to `changes`.
  */
-function race(drives: Record<"a" | "b", Drive>, seconds: number) {
-  const contacts = new RoomContacts();
+function race(
+  drives: Record<"a" | "b", Drive>,
+  seconds: number,
+  changes?: RoomTouchChange[],
+) {
+  const contacts = new RoomContacts((change) => changes?.push(change));
   const arrivals: Array<{ id: "a" | "b"; t: number; arriveUs: number }> = [];
   for (const id of ["a", "b"] as const) {
     const { everyUs = STATE_US, fromUs = 0, silent, lateUs } = drives[id];
@@ -642,6 +647,87 @@ test.describe("the room's record of contacts", () => {
 
     expect(opened).toHaveLength(1);
     expect(opened[0].t).toBeGreaterThan(800_000);
+  });
+
+  test("tells its log each kart going out of touch, why, and coming back", () => {
+    const told = (drives: Record<"a" | "b", Drive>, seconds: number) => {
+      const changes: RoomTouchChange[] = [];
+      race(drives, seconds, changes);
+      return changes;
+    };
+    const summary = (changes: RoomTouchChange[]) =>
+      changes.map((change) =>
+        `${change.kart} ${change.out ? change.why.join("+") : "in"}`,
+      );
+
+    // Late until a second in, then back on time and clear of b.
+    const late = told(
+      {
+        a: { ...rearEnd.a, lateUs: (t) => (t < 1_000_000 ? 300_000 : 100_000) },
+        b: { at: (t) => ({ x: 7.5 + t / 1e6 }) },
+      },
+      2,
+    );
+    expect(summary(late)).toEqual(["a late", "a in"]);
+    expect(late[0]).toMatchObject({ atUs: 0, lateUs: 300_000 });
+    const back = late[1] as Extract<RoomTouchChange, { out: false }>;
+    expect(back.atUs).toBeGreaterThan(1_000_000);
+    expect(back.outForUs).toBe(back.atUs);
+
+    expect(
+      summary(told({ a: { ...rearEnd.a, extra: () => ({ o: true }) }, b: rearEnd.b }, 1)),
+    ).toEqual(["a page"]);
+    expect(
+      summary(
+        told(
+          {
+            a: {
+              at: (t) => ({ x: t < 400_000 ? 0 : -1 }),
+              extra: (t) => ({ r: t === 0 }),
+            },
+            b: { at: () => ({ x: 0.1 }) },
+          },
+          1,
+        ),
+      ),
+    ).toEqual(["a reset", "a in"]);
+    expect(
+      summary(
+        told(
+          {
+            a: { at: () => ({ x: 0 }), resent: (t) => t < 100_000 },
+            b: { at: () => ({ x: 4 }) },
+          },
+          0.5,
+        ),
+      ),
+    ).toEqual(["a resend", "a in"]);
+
+    // B goes quiet: a's states find it silent by the room's clock.
+    const silent = told(
+      {
+        a: { at: () => ({ x: -2 }) },
+        b: { at: () => ({ x: 2 }), silent: (t) => t > 70_000 && t < 450_000 },
+      },
+      1,
+    );
+    expect(summary(silent)).toEqual(["b silent", "b in"]);
+    // Out from its last state, so its time out is the silence it had.
+    expect(silent[0].atUs).toBeLessThan(70_000);
+    const returned = silent[1] as Extract<RoomTouchChange, { out: false }>;
+    expect(returned.outForUs).toBeGreaterThan(380_000);
+    // Both quiet: the first back has a gap in its states, and finds the
+    // other silent.
+    const quiet = (t: number) => t > 70_000 && t < 450_000;
+    const gap = told(
+      {
+        a: { at: () => ({ x: -2 }), silent: quiet },
+        b: { at: () => ({ x: 2 }), silent: quiet },
+      },
+      1,
+    );
+    expect(summary(gap)).toEqual(["a gap", "b silent", "a in", "b in"]);
+    expect((gap[0] as { gapUs: number }).gapUs).toBeGreaterThan(380_000);
   });
 
   test("sweeps every kart that loaded, even one finished, gone, or dropped", () => {

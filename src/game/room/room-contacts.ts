@@ -59,6 +59,34 @@ export type RoomContact = {
   response: KartContactResponse;
 };
 
+/**
+ * Why a kart went out of touch: its states reached the room late (`late`),
+ * two of them were far apart (`gap`), its page said so (`page`), it was
+ * reset (`reset`), it resent states after reconnecting (`resend`), or it
+ * went quiet by the room's clock (`silent`).
+ */
+export type RoomTouchReason =
+  | "late"
+  | "gap"
+  | "page"
+  | "reset"
+  | "resend"
+  | "silent";
+
+/** A kart going out of touch, or coming back, for the room's logs. */
+export type RoomTouchChange =
+  | {
+      kart: string;
+      out: true;
+      /** Race time. */
+      atUs: number;
+      why: RoomTouchReason[];
+      /** How late its state reached the room, and how far it was from the one before. */
+      lateUs?: number;
+      gapUs?: number;
+    }
+  | { kart: string; out: false; atUs: number; outForUs: number };
+
 type Track = {
   /**
    * Each state's pose, with the motion that brought it there; `seen` says
@@ -71,7 +99,8 @@ type Track = {
    * never returns inside one.
    */
   ghost: boolean;
-  /** When it last came back into touch, in race time. */
+  /** When it last went out of touch, and came back, in race time. */
+  outAtUs: number;
   backAtUs: number;
 };
 
@@ -90,6 +119,11 @@ export class RoomContacts {
     { lastUs: number; apartUs: number }
   >();
   private nextId = 1;
+
+  /** `onTouch` hears each kart going out of touch and coming back. */
+  constructor(
+    private readonly onTouch?: (change: RoomTouchChange) => void,
+  ) {}
 
   /** Starts afresh, for a new race. */
   clear() {
@@ -116,15 +150,16 @@ export class RoomContacts {
     const lateUs = roomUs - state.t;
     track.late =
       lateUs > (track.late ? ROOM_CONTACT.backUs : ROOM_CONTACT.lateUs);
-    if (
-      track.late ||
-      state.o === true ||
-      state.r ||
-      // Back from a silence, it may be inside another kart. (Any kart still
-      // sending has already made it a ghost; this covers both going quiet.)
-      (previous && state.t - previous.t > ROOM_CONTACT.lateUs)
-    ) {
-      track.ghost = true;
+    const gapUs = previous ? state.t - previous.t : 0;
+    const why: RoomTouchReason[] = [];
+    if (state.r) why.push("reset");
+    if (track.late) why.push("late");
+    // Back from a silence, it may be inside another kart. (Any kart still
+    // sending has already made it a ghost; this covers both going quiet.)
+    if (gapUs > ROOM_CONTACT.lateUs) why.push("gap");
+    if (state.o === true) why.push("page");
+    if (why.length > 0) {
+      this.goOut(kart.id, track, { atUs: state.t, why, lateUs, gapUs });
     }
     const body = record(track, state);
 
@@ -132,8 +167,10 @@ export class RoomContacts {
       const otherTrack = this.tracks.get(other.id);
       if (!otherTrack) return [];
       // Silent too long by the room's clock, it's out of touch too.
-      if (roomUs - otherTrack.states.at(-1)!.t > ROOM_CONTACT.lateUs) {
-        otherTrack.ghost = true;
+      const lastUs = otherTrack.states.at(-1)!.t;
+      if (roomUs - lastUs > ROOM_CONTACT.lateUs) {
+        // Out from its last state, in its own race time as its return is.
+        this.goOut(other.id, otherTrack, { atUs: lastUs, why: ["silent"] });
       }
       return [{ ...other, track: otherTrack }];
     });
@@ -235,6 +272,12 @@ export class RoomContacts {
       if (clear) {
         track.ghost = false;
         track.backAtUs = state.t;
+        this.onTouch?.({
+          kart: kart.id,
+          out: false,
+          atUs: state.t,
+          outForUs: state.t - track.outAtUs,
+        });
       }
     }
     return opened;
@@ -354,13 +397,31 @@ export class RoomContacts {
   resent(kartId: string, state: RoomKartState) {
     const track = this.trackOf(kartId);
     record(track, state);
+    this.goOut(kartId, track, { atUs: state.t, why: ["resend"] });
+  }
+
+  /** Puts a kart out of touch, telling `onTouch` if it wasn't already. */
+  private goOut(
+    kartId: string,
+    track: Track,
+    change: Omit<Extract<RoomTouchChange, { out: true }>, "kart" | "out">,
+  ) {
+    if (track.ghost) return;
     track.ghost = true;
+    track.outAtUs = change.atUs;
+    this.onTouch?.({ kart: kartId, out: true, ...change });
   }
 
   private trackOf(id: string) {
     let track = this.tracks.get(id);
     if (!track) {
-      track = { states: [], late: false, ghost: false, backAtUs: -Infinity };
+      track = {
+        states: [],
+        late: false,
+        ghost: false,
+        outAtUs: -Infinity,
+        backAtUs: -Infinity,
+      };
       this.tracks.set(id, track);
     }
     return track;
