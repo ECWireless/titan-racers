@@ -15,7 +15,10 @@ import type {
   KartPartFinish,
   KartPartVisualPiece,
 } from "./kart-part-visual-geometry";
-import { buildSuspensionArm } from "./kart-part-visual-geometry";
+import {
+  buildCoilSpring,
+  buildSuspensionArm,
+} from "./kart-part-visual-geometry";
 import {
   buildAuthoredPrimitiveVisual,
   getAuthoredMaterialFinish,
@@ -95,8 +98,6 @@ type KartAssemblyVisual = {
 };
 
 const ARM_ANCHOR_HALF_SPREAD = 0.025;
-const COIL_SEGMENTS_PER_TURN = 12;
-const COIL_WIRE_SIDES = 5;
 
 export function createKartAssemblyVisual(
   document: KartAssemblyDocument,
@@ -530,7 +531,7 @@ function createSuspensionVisual(
   );
   const coil = createPieces(
     `${instance.id}-coil`,
-    [createCoilPiece(coilover.spring, coilRestLength)],
+    [buildCoilSpring(coilover.spring, coilRestLength)],
     skin,
   );
   rig.addChild(arm);
@@ -574,58 +575,6 @@ function findWheelSuspension(document: KartAssemblyDocument, wheelId: string) {
         getApprovedKartComponent(instance.definition)?.category ===
           "suspension",
     );
-}
-
-/**
- * A helix tube from local y = 0 to `length`, so it scales along +Y. The
- * spring is the suspension's own color, as on real coilovers.
- */
-function createCoilPiece(
-  spring: KartCoiloverVisual["spring"],
-  length: number,
-): KartPartVisualPiece {
-  const { meanRadius, turns, wireRadius } = spring;
-  const steps = Math.ceil(turns * COIL_SEGMENTS_PER_TURN);
-  const positions: number[] = [];
-  const normals: number[] = [];
-  const indices: number[] = [];
-  const pitch = length / turns;
-  const circumference = Math.PI * 2 * meanRadius;
-  const tangentScale = Math.hypot(circumference, pitch);
-  for (let step = 0; step <= steps; step += 1) {
-    const t = step / steps;
-    const angle = t * Math.PI * 2 * turns;
-    const cos = Math.cos(angle);
-    const sin = Math.sin(angle);
-    const center = new pc.Vec3(cos * meanRadius, t * length, sin * meanRadius);
-    const tangent = new pc.Vec3(
-      (-sin * circumference) / tangentScale,
-      pitch / tangentScale,
-      (cos * circumference) / tangentScale,
-    );
-    const inward = new pc.Vec3(-cos, 0, -sin);
-    const binormal = new pc.Vec3().cross(tangent, inward);
-    for (let side = 0; side < COIL_WIRE_SIDES; side += 1) {
-      const phi = (side / COIL_WIRE_SIDES) * Math.PI * 2;
-      const normal = inward
-        .clone()
-        .mulScalar(Math.cos(phi))
-        .add(binormal.clone().mulScalar(Math.sin(phi)));
-      const point = center.clone().add(normal.clone().mulScalar(wireRadius));
-      positions.push(point.x, point.y, point.z);
-      normals.push(normal.x, normal.y, normal.z);
-    }
-  }
-  for (let step = 0; step < steps; step += 1) {
-    for (let side = 0; side < COIL_WIRE_SIDES; side += 1) {
-      const a = step * COIL_WIRE_SIDES + side;
-      const b = step * COIL_WIRE_SIDES + ((side + 1) % COIL_WIRE_SIDES);
-      const c = a + COIL_WIRE_SIDES;
-      const d = b + COIL_WIRE_SIDES;
-      indices.push(a, b, c, b, d, c);
-    }
-  }
-  return { finish: "authored-paint", indices, normals, positions };
 }
 
 const renderedColors = new WeakMap<pc.Entity, string>();

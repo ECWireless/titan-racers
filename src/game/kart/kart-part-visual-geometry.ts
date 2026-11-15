@@ -194,59 +194,6 @@ export function buildWheelTire(
   return [tire, rim, collar];
 }
 
-/**
- * Sealed 540-style steel can: rolled shoulders, machined drive end,
- * molded rear insulator and three exposed phase-terminal blades.
- * 888 triangles, four finishes. The 3.2 mm shaft exits toward -Z.
- */
-export function buildMotorBrushlessStandardV1(): KartPartVisualPiece[] {
-  const can = piece("black-oxide-steel");
-  lathe(can, "z", [
-    [-0.019, 0.0165],
-    [-0.018, 0.018],
-    [-0.012, 0.018],
-    [-0.011, 0.017],
-    [0.011, 0.017], // Recessed main barrel between substantial end collars.
-    [0.012, 0.018],
-    [0.018, 0.018],
-    [0.019, 0.0165],
-    [0.019, 0],
-    [-0.019, 0],
-  ], 24);
-
-  const steel = piece("bare-steel");
-  lathe(steel, "z", [
-    [-0.019, 0.0016],
-    [-0.0225, 0.0016],
-    [-0.0225, 0.005], // Raised bearing seat within the construction cylinder.
-    [-0.0215, 0.006],
-    [-0.0215, 0.0155],
-    [-0.019, 0.0165],
-  ], 20);
-  lathe(steel, "z", [
-    [-0.030, 0],
-    [-0.030, 0.0011],
-    [-0.0295, 0.0016], // Half-millimeter lead-in on the shaft end.
-    [-0.0215, 0.0016],
-    [-0.0215, 0],
-  ], 12);
-
-  const insulator = piece("black-polymer");
-  lathe(insulator, "z", [
-    [0.019, 0],
-    [0.019, 0.0165],
-    [0.021, 0.0165],
-    [0.0225, 0.0145],
-    [0.0225, 0],
-  ], 20);
-  const terminals = piece("copper");
-  for (const x of [-0.007, 0, 0.007]) {
-    box(insulator, [x, 0.006, 0.0225], [0.005, 0.0035, 0.001]);
-    box(terminals, [x, 0.006, 0.025], [0.004, 0.0015, 0.004]);
-  }
-  return [can, steel, insulator, terminals];
-}
-
 /** Extrude a convex, counter-clockwise XZ footprint, splitting every edge. */
 function prism(
   mesh: KartPartVisualPiece,
@@ -459,6 +406,66 @@ export type KartCoiloverVisual = {
   /** The helix drawn between the perches. */
   spring: { meanRadius: number; wireRadius: number; turns: number };
 };
+
+const COIL_SEGMENTS_PER_TURN = 12;
+const COIL_WIRE_SIDES = 5;
+
+/**
+ * A helix tube from local y = 0 to `length`, so it scales along +Y. The
+ * spring is the suspension's own color, as on real coilovers.
+ */
+export function buildCoilSpring(
+  spring: KartCoiloverVisual["spring"],
+  length: number,
+): KartPartVisualPiece {
+  const { meanRadius, turns, wireRadius } = spring;
+  const steps = Math.ceil(turns * COIL_SEGMENTS_PER_TURN);
+  const mesh = piece("authored-paint");
+  const pitch = length / turns;
+  const circumference = Math.PI * 2 * meanRadius;
+  const tangentScale = Math.hypot(circumference, pitch);
+  for (let step = 0; step <= steps; step += 1) {
+    const t = step / steps;
+    const angle = t * Math.PI * 2 * turns;
+    const cos = Math.cos(angle);
+    const sin = Math.sin(angle);
+    const tangent: Vec3 = [
+      (-sin * circumference) / tangentScale,
+      pitch / tangentScale,
+      (cos * circumference) / tangentScale,
+    ];
+    const inward: Vec3 = [-cos, 0, -sin];
+    // binormal = tangent × inward
+    const binormal: Vec3 = [
+      tangent[1] * inward[2] - tangent[2] * inward[1],
+      tangent[2] * inward[0] - tangent[0] * inward[2],
+      tangent[0] * inward[1] - tangent[1] * inward[0],
+    ];
+    for (let side = 0; side < COIL_WIRE_SIDES; side += 1) {
+      const phi = (side / COIL_WIRE_SIDES) * Math.PI * 2;
+      const normal: Vec3 = [0, 1, 2].map(
+        (axis) =>
+          inward[axis] * Math.cos(phi) + binormal[axis] * Math.sin(phi),
+      ) as Vec3;
+      mesh.positions.push(
+        cos * meanRadius + normal[0] * wireRadius,
+        t * length + normal[1] * wireRadius,
+        sin * meanRadius + normal[2] * wireRadius,
+      );
+      mesh.normals.push(...normal);
+    }
+  }
+  for (let step = 0; step < steps; step += 1) {
+    for (let side = 0; side < COIL_WIRE_SIDES; side += 1) {
+      const a = step * COIL_WIRE_SIDES + side;
+      const b = step * COIL_WIRE_SIDES + ((side + 1) % COIL_WIRE_SIDES);
+      const c = a + COIL_WIRE_SIDES;
+      const d = b + COIL_WIRE_SIDES;
+      mesh.indices.push(a, b, c, b, d, c);
+    }
+  }
+  return mesh;
+}
 
 export type KartCoiloverSpec = {
   /** Anodized aluminum body; otherwise powder-coated steel. */

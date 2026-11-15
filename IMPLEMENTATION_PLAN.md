@@ -329,11 +329,11 @@ Phase decisions:
       `gpt-6.1-sol`) score all three from the same renders and numbers, and
       the lead decides blind, category by category: motor, transmission,
       servo, and linkages.
-- [ ] Each official kart stays within 20k triangles (tested), each CAD part
-      within 2,000, the racer's own kart within 30 draws, and a ghost or
-      opponent at 2, so a four-kart room holds the phone budget. Measured
-      on the iPhone at the PR's end with a room race against three test
-      racers and a reloaded solo race.
+- [ ] Each official kart stays within 28k triangles, counting its springs
+      and arms (tested), each CAD part within 2,000, the racer's own kart
+      within 30 draws, and a ghost or opponent at 2, so a four-kart room
+      holds the phone budget. Measured on the iPhone at the PR's end with a
+      room race against three test racers and a reloaded solo race.
 
 After merge, the official karts' thumbnails are captured again at the new
 render version from the admin roster.

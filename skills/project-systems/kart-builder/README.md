@@ -66,8 +66,11 @@ revision-bound previews live in [`kart-thumbnails`](../kart-thumbnails/README.md
   spoke, or lettering detail. Materials belong to the caller.
   Physics never reads these entities.
 - **Part visuals:** `kart-part-visuals.ts` maps every approved `id@version`
-  to code-built geometry in `kart-part-visual-geometry.ts` (one piece per
-  finish, in the part's frame). Visuals are not fingerprinted; changing one
+  to code-built geometry in `kart-part-visual-geometry.ts` or to a CAD mesh
+  (one piece per finish, in the part's frame). CAD meshes are written by
+  build123d models in `cad/parts/` and committed to `cad-meshes/`;
+  `kart-cad-meshes.ts` reads them, and their measured mass is a report only
+  ([`build123d-cad`](../../tools/build123d-cad/README.md)). Visuals are not fingerprinted; changing one
   advances the thumbnail render version. A part version without a visual falls
   back to its construction primitives. Coilovers are sized from their
   suspension definition and posed from the mounts: the body rides the chassis
