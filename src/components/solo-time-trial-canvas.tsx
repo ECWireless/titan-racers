@@ -92,6 +92,7 @@ import {
   createCourseInteriorAtlas,
   createCourseInteriorTest,
   createKartInteriorLighting,
+  countPartsBatchedTwice,
   getBatchMeshInstances,
 } from "@/game/course/course-interior";
 import { createCourseSurfaceMaterials } from "@/game/course/course-surface-materials";
@@ -3363,6 +3364,12 @@ export function SoloTimeTrialCanvas({
             getKartVisualDebugState,
             getPresentationDebugState,
             getGhostDebugState: () => ({
+              // A ghost shown before the first frame once doubled every
+              // batch (withoutFirstBatch, playcanvas-application.ts).
+              batchedTwice: countPartsBatchedTwice(app, [
+                courseBatch.id,
+                kartBatchGroup.id,
+              ]),
               finishMicroseconds: ghostPlayback?.finishMicroseconds ?? null,
               visible: ghostVisual?.visible() ?? false,
             }),

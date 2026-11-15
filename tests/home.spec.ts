@@ -411,7 +411,11 @@ async function getGhostDebugState(canvas: Locator) {
 
   return canvas.evaluate(
     (element) =>
-      new Promise<{ finishMicroseconds: number | null; visible: boolean }>(
+      new Promise<{
+        batchedTwice: number;
+        finishMicroseconds: number | null;
+        visible: boolean;
+      }>(
         (resolve) => {
           element.dispatchEvent(
             new CustomEvent("getGhostDebugState", {
@@ -2585,9 +2589,11 @@ test.describe("home screen", () => {
     await expect(canvas).toHaveAttribute("data-scene-ready", "true", {
       timeout: 120_000,
     });
-    expect((await getGhostDebugState(canvas)).finishMicroseconds).toBe(
-      90_000_000,
-    );
+    // Shown (faded) on the grid before the first frame, it doubles no batch.
+    expect(await getGhostDebugState(canvas)).toMatchObject({
+      batchedTwice: 0,
+      finishMicroseconds: 90_000_000,
+    });
 
     // Choosing your own best races this device's.
     await page.keyboard.press("Escape");
@@ -2605,7 +2611,7 @@ test.describe("home screen", () => {
     await setSimulationPaused(canvas, true);
     await stepSimulation(canvas, 3);
     // On the kart it would fight it for the same pixels.
-    expect(await getGhostDebugState(canvas)).toEqual({
+    expect(await getGhostDebugState(canvas)).toMatchObject({
       finishMicroseconds: 100_000_000,
       visible: false,
     });

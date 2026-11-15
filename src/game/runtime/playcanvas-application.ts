@@ -15,6 +15,21 @@ export type PlayCanvasRuntimeDependencies = {
   requestAnimationFrame?: (callback: FrameRequestCallback) => number;
 };
 
+/**
+ * PlayCanvas (2.20.6) batches every group once more on the first frame,
+ * with `batcher.generate()`; with no IDs it matches groups by their string
+ * keys against batches' numeric IDs, so batches built before that frame (a
+ * ghost or opponent shown at once builds them) are kept, and every batch is
+ * drawn twice all race. Without them, the same mismatch leaves every group
+ * dirty, so the first frame builds each batch twice. Each frame's render
+ * already builds changed groups, so dropping that first pass loses nothing.
+ */
+function withoutFirstBatch(app: pc.Application) {
+  const { _firstBatch } = app as unknown as { _firstBatch?: () => void };
+  if (_firstBatch) app.off("prerender", _firstBatch, app);
+  return app;
+}
+
 export class PlayCanvasRuntime {
   readonly app: pc.Application;
   private readonly cleanups: Array<() => void> = [];
@@ -53,7 +68,7 @@ export class PlayCanvasRuntime {
     canvas: HTMLCanvasElement,
     dependencies: PlayCanvasRuntimeDependencies = {},
   ) {
-    this.app = dependencies.app ?? new pc.Application(canvas);
+    this.app = dependencies.app ?? withoutFirstBatch(new pc.Application(canvas));
     this.cancelAnimationFrame =
       dependencies.cancelAnimationFrame ??
       window.cancelAnimationFrame.bind(window);

@@ -157,14 +157,35 @@ export function createKartInteriorLighting(
   };
 }
 
-/** The mesh instances a batch group currently draws with. */
-export function getBatchMeshInstances(app: pc.AppBase, batchGroupId: number) {
+/** A batch group's current batches. */
+function getBatches(app: pc.AppBase, batchGroupId: number) {
   // PlayCanvas 2.20.6 types `getBatches` as private; re-verify it on an
   // engine upgrade.
   const batcher = app.batcher as unknown as {
     getBatches(id: number): readonly pc.Batch[];
   };
-  return batcher
-    .getBatches(batchGroupId)
-    .map(({ meshInstance }) => meshInstance);
+  return batcher.getBatches(batchGroupId);
+}
+
+/** The mesh instances a batch group currently draws with. */
+export function getBatchMeshInstances(app: pc.AppBase, batchGroupId: number) {
+  return getBatches(app, batchGroupId).map(({ meshInstance }) => meshInstance);
+}
+
+/** For tests: parts in more than one of these groups' batches, drawn twice. */
+export function countPartsBatchedTwice(
+  app: pc.AppBase,
+  batchGroupIds: readonly number[],
+) {
+  const batched = new Set<pc.MeshInstance>();
+  let twice = 0;
+  for (const id of batchGroupIds) {
+    for (const { origMeshInstances } of getBatches(app, id)) {
+      for (const part of origMeshInstances) {
+        if (batched.has(part)) twice += 1;
+        batched.add(part);
+      }
+    }
+  }
+  return twice;
 }
