@@ -33,6 +33,17 @@ The app uses PlayCanvas `RESOLUTION_AUTO` and `FILLMODE_FILL_WINDOW`. Call
 back-buffer resolution, camera aspect, and picking coordinates reconcile
 immediately. Do not persist viewport or pixel-ratio values.
 
+## Batching
+
+PlayCanvas 2.20.6 batches every group once more on an application's first
+frame (`_firstBatch`, a `prerender` listener calling `batcher.generate()`).
+With no IDs, `generate` matches the groups' string keys against batches'
+numeric IDs, so batches built before that frame are kept and every group is
+built again: drawn twice for as long as the group stays clean. Each frame's
+`render()` already builds changed groups, so the runtime removes the listener
+(`withoutFirstBatch` in `src/game/runtime/playcanvas-application.ts`); the
+ghost test checks that no part is batched twice.
+
 ## WebGL Context Mapping
 
 PlayCanvas 2.20.6 already registers `webglcontextlost` and

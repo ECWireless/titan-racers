@@ -23,7 +23,7 @@
       "durable_objects": {
         "bindings": [{ "name": "ROOMS", "class_name": "Room" }]
       },
-      // Keeps the room's own log lines (room-log.ts) for 3 days. Cloudflare's
+      // Keeps the room's own log lines (room-log.ts). Cloudflare's
       // per-request logs stay off, and query strings are redacted, since a
       // join's URL carries its token (with a username and seat key).
       "observability": {

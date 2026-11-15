@@ -423,7 +423,8 @@ function RoomLobby({
         lobby?.querySelector<HTMLElement>(
           '[aria-label="Official kart selection"] button',
         );
-      (start ?? kart)?.focus();
+      // Without scrolling: the room opens at its top, with its link.
+      (start ?? kart)?.focus({ preventScroll: true });
     });
     return () => cancelAnimationFrame(frame);
   }, []);
@@ -937,7 +938,7 @@ function RoomRace({
             ref={resultsRef}
           >
             <p
-              className="font-sans text-5xl font-bold uppercase leading-none tracking-[-0.01em] text-titan-hazard"
+              className="font-sans text-5xl font-bold uppercase leading-none tracking-[-0.01em]"
               id="room-results-title"
             >
               {results ? "Results" : "Race over"}

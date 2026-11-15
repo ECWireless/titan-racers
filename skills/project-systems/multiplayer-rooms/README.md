@@ -200,12 +200,11 @@ what a finished room race stores.
   the room's one record per touch; `tests/page-contacts.spec.ts`: a page's
   answers and out-of-touch rules, and two pages simulated through the
   room's tracker.
-- The room's log: in `tests/room-rules.spec.ts` (lines, and no account
-  in them) and `tests/room-contacts.spec.ts` (out and back, with why).
 - `tests/room-rules.spec.ts`, `tests/room-signing.spec.ts`,
   `tests/room-clock.spec.ts`, and the room tests in
   `tests/race-session.spec.ts`: pure rules, state checks, signing, the
-  token's course and grid, and clocks (`tests/support/room-course.ts` is a
+  token's course and grid, clocks, and the room's log lines (with no
+  account in them; out and back, with why, in `tests/room-contacts.spec.ts`) (`tests/support/room-course.ts` is a
   straight test course).
 - `tests/room-server.spec.ts`: Node clients against `wrangler dev`
   (`tests/support/room-server.ts`), including a held seat, its resend, and

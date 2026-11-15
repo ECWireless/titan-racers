@@ -163,7 +163,6 @@ course versions' boards stay to look at, read-only.
 - A run kept on a shared device goes to whoever signs in there next.
 - A kept board's times may come from earlier revisions.
 - A best the earlier build stored after 0030 ran has no lap, and is left
-  off the Fastest lap ranking until beaten. Apply 0030 just before the
-  build that keeps laps goes live.
+  off the Fastest lap ranking until beaten.
 - A guest's kept run is matched by course revision, so on a kept board a run
   on the newer revision replaces a faster one kept from the older.
