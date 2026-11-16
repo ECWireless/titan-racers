@@ -125,7 +125,9 @@ Materials), and so do course surfaces (see Course Surfaces).
   hue kept but their lightness clamped to about 4% (black paint) to 85%
   (white paint) reflectance. Documents keep the authored value.
 - **Parts look like real 1:10 RC parts.** Each approved part version has a
-  code-built visual that matches its registry dimensions.
+  code-built or CAD visual that matches its registry dimensions.
+- **Linkages move as the mechanism does:** tie rods follow the steering
+  and dogbones the suspension.
 - **Wheels show their spin.** The physics has no wheel spin, so a wheel turns
   as its tire implies: with its contact patch on the ground, stopped when
   braked past its grip, and coasting down in the air. Its tread blocks,
@@ -300,7 +302,7 @@ rendering or adds per-frame work reports its measurements against it.
 | Frame time | 60 fps through a full two-lap race: median frame interval ≤ 17 ms, p95 ≤ 20 ms, at most 1 hitch over 50 ms after the countdown. |
 | CPU work per frame | Median ≤ 5 ms (fixed steps, update, and render submit). |
 | Draw calls | ≤ 250 per frame across all passes, and ≤ 30 per kart. |
-| Triangles | ≤ 20k per kart (soft cap). |
+| Triangles | ≤ 28k per kart, counting its springs and arms, and ≤ 2,000 per CAD part (`tests/kart-visual-budget.spec.ts`). |
 | Shadows | One shadow-casting light with one 2048² map holding two 1024² cascades, covering ≤ 60 m. PCF5 filtering on course lights, PCF3 elsewhere. |
 | Resolution | 1× device pixels with MSAA. |
 | Post-processing | None. |
@@ -558,3 +560,19 @@ took 388 ms against 409 ms and the race was ready after 887 ms against
 952 ms, as the course is batched once rather than twice. A room race with
 three test racers, in the lead's browser at 1440×812, drew a 64 median and
 125 at most, with no hitches.
+
+PR 7.1 was measured on the iPhone with two solo two-lap races in one
+sitting, each after a reload, on production builds: the CAD parts, then
+`main`. The CAD motor, transmissions, and servo, and the tie rods and
+driveshafts, add no draws (a 57 median and 90 at most, 84 forward, against
+57 and 91) and leave frame time (17 ms median, p95 18 ms), CPU work (3 ms,
+p95 4 ms against 3 ms), and hitches (none) unchanged. The first frame took
+524 ms against `main`'s 424 ms (334 against 272 ms building, 189 against
+152 ms rendering), and the race was ready after 1,420 ms against 1,198 ms.
+In a desktop browser a Balanced kart's visual takes about 21 ms to build
+against 17.5 ms (106 meshes against 85, 26.9k triangles against 21.6k):
+about 1.5 ms for the CAD parts and 2 ms for the linkages, so the racer's
+and the ghost's karts account for some 20–35 ms of the phone's gap, and the
+rest is within a sitting's spread. The lead accepted it. A four-kart room
+was not measured: the linkages join the kart's batches, so an opponent
+still draws as two.

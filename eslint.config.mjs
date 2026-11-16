@@ -13,6 +13,7 @@ const eslintConfig = [
       "public/vendor/**",
       "test-results/**",
       "**/.wrangler/**",
+      "cad/.venv/**",
       "next-env.d.ts",
       "*.tsbuildinfo",
     ],

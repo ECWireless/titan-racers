@@ -1,16 +1,12 @@
 import type { KartAssemblyPrimitiveInstance } from "./kart-assembly-document";
+import { buildCadPieces, KART_CAD_MESHES } from "./kart-cad-meshes";
 import type { ApprovedComponentDefinition } from "./kart-component-registry";
 import type { DeepReadonly } from "./immutable-registry";
 import {
   buildBatteryLipoStandardV1,
   buildBrakesCombinedStandardV1,
   buildCoilover,
-  buildMotorBrushlessStandardV1,
   buildReceiverEscStandardV1,
-  buildSteeringServoStandardV1,
-  buildTransmissionBalanced5to1V1,
-  buildTransmissionShort8to1V1,
-  buildTransmissionTall4to1V1,
   buildWheelTire,
   type KartCoiloverVisual,
   type KartPartVisualPiece,
@@ -78,18 +74,19 @@ export const KART_PART_VISUALS: Readonly<Record<string, KartPartVisual>> = {
   "battery.lipo-standard@1": pieces(buildBatteryLipoStandardV1),
   "brakes.combined-standard@1": pieces(buildBrakesCombinedStandardV1),
   "control.receiver-esc-standard@1": pieces(buildReceiverEscStandardV1),
-  "motor.brushless-standard@1": pieces(buildMotorBrushlessStandardV1),
-  "steering.servo-standard@1": pieces(buildSteeringServoStandardV1),
   "suspension.compliant-long@1": coilover,
   "suspension.compliant-long@2": coilover,
   "suspension.compliant-long@3": coilover,
   "suspension.firm-short@1": coilover,
   "suspension.firm-short@2": coilover,
-  "transmission.balanced-5to1@1": pieces(buildTransmissionBalanced5to1V1),
-  "transmission.short-8to1@1": pieces(buildTransmissionShort8to1V1),
-  "transmission.tall-4to1@1": pieces(buildTransmissionTall4to1V1),
   "wheel-tire.large-standard@1": wheel,
   "wheel-tire.small-standard@1": wheel,
+  // Parts drawn from their committed CAD meshes (`cad/parts/`). A mesh's
+  // moving pieces (the servo's horn) are drawn and posed by the assembly
+  // visual.
+  ...Object.fromEntries(
+    KART_CAD_MESHES.map((mesh) => [mesh.part, pieces(() => buildCadPieces(mesh))]),
+  ),
 };
 
 export function getKartPartVisual(reference: { id: string; version: number }) {

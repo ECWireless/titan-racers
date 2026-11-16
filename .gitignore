@@ -11,3 +11,7 @@ test-results/
 *.tsbuildinfo
 .wrangler/
 .dev.vars
+
+# Development-only CAD environment (cad/README.md)
+/cad/.venv/
+__pycache__/

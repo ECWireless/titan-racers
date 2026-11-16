@@ -53,3 +53,6 @@ Prefer primary documentation and direct runtime evidence. Link back to relevant 
   the candidate mapping of rooms to a Worker and one Durable Object per
   room, with hibernating WebSockets, alarms, local `wrangler dev`, and
   dated pricing and limits.
+- [`build123d-cad/`](build123d-cad/README.md): the candidate notes on
+  build123d as the development-only CAD tool for kart part visuals: its
+  relative meshing tolerance, small fillets, normals, and measuring mass.

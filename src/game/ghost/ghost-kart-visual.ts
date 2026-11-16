@@ -149,6 +149,9 @@ export function createGhostKartVisual(
       for (const wheel of wheels) {
         if (wheel.steered) {
           wheel.visual.pivot.setLocalEulerAngles(0, pose.steerDegrees, 0);
+          // Its tie rod and the servo's horn follow; with the hub where it
+          // was, nothing else is posed again.
+          poseKartWheelVisual(wheel.visual, wheel.visual.hub.y);
         }
         wheel.spinAngle += (pose.speed * raceSeconds) / wheel.radius;
         wheel.spinAngle %= 2 * Math.PI;
