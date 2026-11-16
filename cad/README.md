@@ -36,9 +36,9 @@ One module per approved part version in `cad/parts/`, named after it
 - `build()`: a dict from finish (`KartPartFinish`, such as `black-oxide-steel`)
   to a solid or list of solids, in the part's own frame: metres, +Y up, the
   same frame its code-built visual used.
-- `mass_bodies()` (optional): `(solid, material)` pairs for a coarse interior,
-  reported as measured mass and centre of mass to compare with the registry. It is
-  never raced: corrections need a new part version.
+- `mass_bodies()` (optional): `(solid, material)` pairs for a coarse
+  interior, reported as measured mass and centre of mass to compare with
+  the registry. It is never raced: corrections need a new part version.
 - `moving()` (optional): a dict from a name to finishes and solids, like
   `build()`'s, for pieces the game poses, drawn at rest in the part's frame.
   The game turns each about its `<name>-pivot` point (the servo's `horn`).

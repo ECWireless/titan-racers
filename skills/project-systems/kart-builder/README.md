@@ -156,7 +156,9 @@ incomplete. Community kart publishing must fix both.
 On the Speed and Handling karts the transmission sits ahead of the rear
 axle, so the dogbones pass through the rear hinge-pin mounts. Tie rods
 stretch to reach their steering arms: about 1% at 20° of steering and up to
-3% at full lock.
+3% at full lock. While an editor drag previews a wheel, servo, or
+transmission, its linkages (like its coilover) stay put until the drag is
+committed and the kart is rebuilt.
 
 Thin solid primitives (2 mm plates) are collision geometry too. Above top
 speed a kart can travel farther per physics step than a thin wall is deep,

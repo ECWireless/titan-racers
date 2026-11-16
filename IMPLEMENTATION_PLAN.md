@@ -309,31 +309,35 @@ Phase decisions:
 
 **PR 7.1: Admin parts with new approaches**
 
-- [ ] build123d is pinned in a development-only Python environment under
+- [x] build123d is pinned in a development-only Python environment under
       `cad/`. Each part is a script of named parameters, modelled on a real
       1:10 part, with no vendor models.
-- [ ] Each script writes a committed mesh, triangles per finish, that the
+- [x] Each script writes a committed mesh, triangles per finish, that the
       part's code-built visual reads directly: no model loader, so the race,
       editor, thumbnails, ghost, and opponents use it unchanged. Running a
       script again reproduces its mesh exactly.
-- [ ] The motor, the three transmissions, and the steering servo get CAD
+- [x] The motor, the three transmissions, and the steering servo get CAD
       visuals. Tie rods follow the steering, and rear driveshafts follow
       each wheel's travel, posed from the same inputs as the wheels.
-- [ ] Visuals stay presentation-only, so registry fingerprints, derivation,
+- [x] Visuals stay presentation-only, so registry fingerprints, derivation,
       revisions, and hashes do not change. Each CAD part's measured mass and
       centre of mass are reported beside the registry's; any correction
       joins PR 7.2's new part versions, so the official karts change once.
-- [ ] Claude Fable 5.2, Claude Opus 5.5, and Codex `gpt-6-astra` each build
+- [x] Claude Fable 5.2, Claude Opus 5.5, and Codex `gpt-6-astra` each build
       the parts and linkages to one brief on the shared pipeline. Two fresh
       judges from models that built nothing (Claude Sonnet 5.5 and Codex
       `gpt-6.1-sol`) score all three from the same renders and numbers, and
       the lead decides blind, category by category: motor, transmission,
-      servo, and linkages.
-- [ ] Each official kart stays within 28k triangles, counting its springs
+      servo, and linkages. Fable's entry won every category and landed
+      whole.
+- [x] Each official kart stays within 28k triangles, counting its springs
       and arms (tested), each CAD part within 2,000, the racer's own kart
       within 30 draws, and a ghost or opponent at 2, so a four-kart room
-      holds the phone budget. Measured on the iPhone at the PR's end with a
-      room race against three test racers and a reloaded solo race.
+      holds the phone budget. Measured on the iPhone at the PR's end
+      against `main` in one sitting
+      ([numbers](docs/visual-identity.md#baseline)): no new draws, and a
+      first frame about 100 ms slower, which the lead accepted. The room
+      race was skipped, as the linkages join the kart's batches.
 
 After merge, the official karts' thumbnails are captured again at the new
 render version from the admin roster.
@@ -350,6 +354,10 @@ render version from the admin roster.
 - [ ] The Speed and Handling karts' transmissions move onto their rear
       axle lines, so their driveshafts clear the hinge-pin mounts they pass
       through since PR 7.1.
+- [ ] Decide whether the new part versions take PR 7.1's CAD-measured mass
+      and centre of mass: against the registry, the servo measures 42%
+      light, the 4:1 and 5:1 transmissions about 35% light, the motor 8%
+      light, and the 8:1 transmission 7% heavy.
 
 **PR 7.3: Assembler credit and royalties**
 

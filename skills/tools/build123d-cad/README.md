@@ -12,8 +12,8 @@ model in `cad/`. Commands and the part-module contract live in
 lives in [`kart-builder`](../../project-systems/kart-builder/README.md).
 
 Models are plain Python scripts of named parameters; the game reads only the
-meshes they write. build123d makes no network calls; why text-to-cad is not
-used is a Phase 7 decision in `IMPLEMENTATION_PLAN.md`.
+meshes they write. The export makes no network calls; why text-to-cad is
+not used is a Phase 7 decision in `IMPLEMENTATION_PLAN.md`.
 
 ## Meshing
 

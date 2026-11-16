@@ -560,3 +560,19 @@ took 388 ms against 409 ms and the race was ready after 887 ms against
 952 ms, as the course is batched once rather than twice. A room race with
 three test racers, in the lead's browser at 1440×812, drew a 64 median and
 125 at most, with no hitches.
+
+PR 7.1 was measured on the iPhone with two solo two-lap races in one
+sitting, each after a reload, on production builds: the CAD parts, then
+`main`. The CAD motor, transmissions, and servo, and the tie rods and
+driveshafts, add no draws (a 57 median and 90 at most, 84 forward, against
+57 and 91) and leave frame time (17 ms median, p95 18 ms), CPU work (3 ms,
+p95 4 ms against 3 ms), and hitches (none) unchanged. The first frame took
+524 ms against `main`'s 424 ms (334 against 272 ms building, 189 against
+152 ms rendering), and the race was ready after 1,420 ms against 1,198 ms.
+In a desktop browser a Balanced kart's visual takes about 21 ms to build
+against 17.5 ms (106 meshes against 85, 26.9k triangles against 21.6k):
+about 1.5 ms for the CAD parts and 2 ms for the linkages, so the racer's
+and the ghost's karts account for some 20–35 ms of the phone's gap, and the
+rest is within a sitting's spread. The lead accepted it. A four-kart room
+was not measured: the linkages join the kart's batches, so an opponent
+still draws as two.
