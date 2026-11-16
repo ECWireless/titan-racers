@@ -65,6 +65,12 @@ revision-bound previews live in [`kart-thumbnails`](../kart-thumbnails/README.md
   index in vertex alpha; a wheel visual without `profile` shows no tread,
   spoke, or lettering detail. Materials belong to the caller.
   Physics never reads these entities.
+- **Linkages:** `kart-linkages.ts` plans a tie rod for each wheel connected
+  to a steering servo and a dogbone for each wheel connected to a
+  transmission, where the part's CAD mesh names the attachment points;
+  `kart-linkage-visual-geometry.ts` builds them, and `poseKartWheelVisual`
+  poses them with the wheel (callers turn a pivot before posing it). A
+  driven wheel's arm is drawn below its pivots to pass under the dogbone.
 - **Part visuals:** `kart-part-visuals.ts` maps every approved `id@version`
   to code-built geometry in `kart-part-visual-geometry.ts` or to a CAD mesh
   (one piece per finish, in the part's frame). CAD meshes are written by
@@ -79,9 +85,13 @@ revision-bound previews live in [`kart-thumbnails`](../kart-thumbnails/README.md
   their role in `kart-primitive-visual-geometry.ts`, built at true size: a box
   root keeps its size as scale (the editor gizmo) and its visual child
   undoes it, so committed resizes rebuild detail and drag previews stretch.
+  A CAD mesh may also carry moving pieces (the servo's horn), which the
+  assembly visual draws under the part and poses, and named points where
+  linkages attach.
   Visuals stay inside construction envelopes except the motor shaft and terminals, the
-  wheel retaining collar, and suspension rig parts, which are posed from
-  mounts rather than the construction cylinder.
+  servo horn's ball studs (and the horn as it turns), the
+  wheel retaining collar, and suspension rig parts and linkages, which are
+  posed from mounts and connections rather than construction shapes.
 - **Editor:** `src/app/admin/karts/` (roster page and per-kart editor);
   `src/components/kart-editor/` (access, shell, canvas, admin roster,
   post-save thumbnail capture); `src/game/editor/kart-editor-document.ts`
@@ -142,6 +152,11 @@ revision-bound previews live in [`kart-thumbnails`](../kart-thumbnails/README.md
 
 Official vs. community status is not server-owned and request hardening is
 incomplete. Community kart publishing must fix both.
+
+On the Speed and Handling karts the transmission sits ahead of the rear
+axle, so the dogbones pass through the rear hinge-pin mounts. Tie rods
+stretch to reach their steering arms: about 1% at 20° of steering and up to
+3% at full lock.
 
 Thin solid primitives (2 mm plates) are collision geometry too. Above top
 speed a kart can travel farther per physics step than a thin wall is deep,

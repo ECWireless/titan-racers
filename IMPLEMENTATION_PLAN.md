@@ -347,6 +347,9 @@ render version from the admin roster.
 - [ ] Exploded and x-ray views, with suspension posed from wheel travel, and
       measured-dimension readouts. Presentation only.
 - [ ] Ships in the admin kart builder; players get it in Phase 9.
+- [ ] The Speed and Handling karts' transmissions move onto their rear
+      axle lines, so their driveshafts clear the hinge-pin mounts they pass
+      through since PR 7.1.
 
 **PR 7.3: Assembler credit and royalties**
 

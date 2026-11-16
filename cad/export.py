@@ -112,9 +112,7 @@ def measure(bodies: list[tuple[Shape, str]]):
     }
 
 
-def export(name: str) -> tuple[pathlib.Path, str, int, dict | None]:
-    module = importlib.import_module(f"parts.{name}")
-    finishes = module.build()
+def mesh_pieces(name: str, finishes: dict) -> list[dict]:
     pieces = []
     for finish in sorted(finishes):
         if finish not in FINISHES:
@@ -122,17 +120,46 @@ def export(name: str) -> tuple[pathlib.Path, str, int, dict | None]:
         solids = finishes[finish]
         shape = Compound(solids) if isinstance(solids, list) else solids
         pieces.append(mesh_piece(finish, shape))
-    triangles = sum(len(p["indices"]) // 3 for p in pieces)
+    return pieces
+
+
+def dump_pieces(pieces: list[dict]) -> str:
+    return ",\n".join(
+        json.dumps(p, separators=(",", ":"), sort_keys=True) for p in pieces
+    )
+
+
+def export(name: str) -> tuple[pathlib.Path, str, int, dict | None]:
+    module = importlib.import_module(f"parts.{name}")
+    pieces = mesh_pieces(name, module.build())
+    # Pieces the game poses (a servo's horn), and named points its linkages
+    # attach to; both in the part's frame, like the rigid pieces.
+    moving = {
+        key: mesh_pieces(name, finishes)
+        for key, finishes in sorted(getattr(module, "moving", dict)().items())
+    }
+    points = {
+        key: [round(c * POSITION_SCALE) + 0 for c in point]
+        for key, point in sorted(getattr(module, "POINTS", {}).items())
+    }
+    triangles = sum(
+        len(p["indices"]) // 3 for group in (pieces, *moving.values()) for p in group
+    )
     if triangles > MAX_TRIANGLES:
         raise ValueError(f"{name}: {triangles} triangles (max {MAX_TRIANGLES})")
     measured = measure(module.mass_bodies()) if hasattr(module, "mass_bodies") else None
+    groups = ",\n".join(
+        f"{json.dumps(key)}:[\n{dump_pieces(group)}\n]" for key, group in moving.items()
+    )
     lines = [
         "{",
         f'"part":{json.dumps(module.PART)},',
         f'"measured":{json.dumps(measured, sort_keys=True)},',
+        f'"points":{json.dumps(points, separators=(",", ":"))},',
         '"pieces":[',
-        ",\n".join(json.dumps(p, separators=(",", ":"), sort_keys=True) for p in pieces),
-        "]}",
+        dump_pieces(pieces),
+        "],",
+        f'"moving":{{\n{groups}\n}}}}' if moving else '"moving":{}}',
     ]
     return OUT / f"{module.PART}.json", "\n".join(lines) + "\n", triangles, measured
 
@@ -142,7 +169,8 @@ def main() -> int:
     parser.add_argument("--check", action="store_true", help="fail on a stale mesh")
     args = parser.parse_args()
     sys.path.insert(0, str(ROOT))
-    names = sorted(p.stem for p in PARTS.glob("*.py") if p.stem != "__init__")
+    # Modules named with a leading underscore are shared helpers, not parts.
+    names = sorted(p.stem for p in PARTS.glob("*.py") if not p.stem.startswith("_"))
     stale = []
     for name in names:
         path, text, triangles, measured = export(name)

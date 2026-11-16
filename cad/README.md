@@ -39,9 +39,20 @@ One module per approved part version in `cad/parts/`, named after it
 - `mass_bodies()` (optional): `(solid, material)` pairs for a coarse interior,
   reported as measured mass and centre of mass to compare with the registry. It is
   never raced: corrections need a new part version.
+- `moving()` (optional): a dict from a name to finishes and solids, like
+  `build()`'s, for pieces the game poses, drawn at rest in the part's frame.
+  The game turns each about its `<name>-pivot` point (the servo's `horn`).
+- `POINTS` (optional): a dict from a name to a point in the part's frame
+  where the kart's linkages meet the part: the servo's `horn-pivot` and
+  `horn-ball-left`/`-right`, a transmission's `output-left`/`-right`.
+
+A module whose name starts with an underscore is shared code, not a part:
+`_shapes.py` (turned profiles and gears) and `_laydown_gearbox.py` (the
+three transmissions' one model).
 
 Keep dimensions as named constants modelled on a real 1:10 part, and import no
-vendor models. Each part stays within 2,000 triangles; the export refuses more.
+vendor models. Each part stays within 2,000 triangles, moving pieces
+included; the export refuses more.
 After adding a part, list its mesh in `KART_CAD_MESHES`
 (`src/game/kart/kart-cad-meshes.ts`) and advance the kart thumbnail render
 version. Pins in `requirements.txt` say how to update them.

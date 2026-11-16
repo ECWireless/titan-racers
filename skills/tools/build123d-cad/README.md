@@ -34,6 +34,19 @@ used is a Phase 7 decision in `IMPLEMENTATION_PLAN.md`.
   for reversed faces. Faces are meshed separately, so normals split at
   every face boundary: hard edges stay hard and tangent fillets shade
   smoothly. The export checks each triangle's winding against its normals.
+- **Facet counts.** At the export's tolerances a full turn of any revolved
+  face of 4 mm radius or more is 42 segments: 84 triangles for a cylinder
+  or the ring beside it, 42 for a disc, and more for a cone, which is also
+  split along its length. A part's 2,000 triangles are about 23 such faces,
+  so a turned profile is drawn with few stations and steps rather than
+  chamfers. Below 4 mm the minimum facet size takes over (16 segments at
+  1.6 mm). Flat faces cost two triangles a side however large, so hex
+  heads, flats, slots, and gear teeth are cheap; a tooth of two flanks and
+  a flat tip is six triangles and its share of the gear's two faces.
+- **Slivers.** A cut or union whose edge lands within a few micrometres of a
+  facet's corner leaves a sliver triangle, which rounding to micrometres
+  can turn inside out. `tests/kart-visual-budget.spec.ts` fails on one; move
+  the feature a fraction of a millimetre.
 - **Determinism.** The same build123d and OpenCASCADE versions mesh the same
   model identically; positions are rounded to whole micrometres and normals
   to 1/10,000, so a rerun writes the same bytes.

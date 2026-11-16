@@ -86,7 +86,10 @@ export function lathe(
         na /= length;
         nr /= length;
       }
-      if (r === 0) return [add(map(a, 0, 0), map(na, 0, 0), [a, r])];
+      // On the axis the surface faces along it, whatever the edge's slope.
+      if (r === 0) {
+        return [add(map(a, 0, 0), map(Math.sign(na) || 1, 0, 0), [a, r])];
+      }
       return Array.from({ length: segments }, (_, i) => {
         const angle = (i * Math.PI * 2) / segments;
         const c = Math.cos(angle);
@@ -243,7 +246,7 @@ function caseBox(
   ], y - size[1] / 2, y + size[1] / 2);
 }
 
-function cylinder(
+export function cylinder(
   mesh: KartPartVisualPiece,
   axis: "x" | "y" | "z",
   center: Vec3,
@@ -303,27 +306,6 @@ export function buildReceiverEscStandardV1(): KartPartVisualPiece[] {
   return [housing, sink, plugs];
 }
 
-/** Molded servo, integral mounting ears and a short single-sided output horn. */
-export function buildSteeringServoStandardV1(): KartPartVisualPiece[] {
-  const housing = piece("authored-polymer");
-  const black = piece("black-polymer");
-  const steel = piece("bare-steel");
-  caseBox(housing, [0, -0.003, 0], [0.029, 0.024, 0.038]);
-  caseBox(black, [0, 0.0095, 0], [0.029, 0.001, 0.038]);
-  caseBox(housing, [0, 0.011, 0], [0.029, 0.002, 0.038]);
-  for (const x of [-0.017, 0.017]) {
-    box(housing, [x, 0.004, 0], [0.007, 0.003, 0.024]);
-    for (const z of [-0.008, 0.008]) {
-      cylinder(steel, "y", [x, 0.006, z], 0.002, 0.001, 8, 0.001);
-    }
-  }
-  cylinder(steel, "y", [0, 0.0125, -0.009], 0.004, 0.001, 12);
-  caseBox(black, [0, 0.01375, 0], [0.008, 0.0015, 0.026], 0.002);
-  cylinder(steel, "y", [0, 0.0145, -0.009], 0.002, 0.001, 8);
-  box(black, [0, -0.009, 0.0195], [0.008, 0.004, 0.003]);
-  return [housing, black, steel];
-}
-
 /** Sealed actuator block; four service outlets and one rear handbrake outlet. */
 export function buildBrakesCombinedStandardV1(): KartPartVisualPiece[] {
   const housing = piece("authored-anodized");
@@ -340,52 +322,6 @@ export function buildBrakesCombinedStandardV1(): KartPartVisualPiece[] {
   }
   cylinder(steel, "z", [0, -0.001, 0.018], 0.003, 0.004, 6, 0.0015);
   return [housing, steel, black];
-}
-
-function gearbox(gearRadius: number, heavy: boolean): KartPartVisualPiece[] {
-  const housing = piece(heavy ? "authored-paint" : "authored-anodized");
-  const metal = piece(heavy ? "bare-steel" : "bare-aluminum");
-  const black = piece("black-oxide-steel");
-  const cover = heavy ? 0.027 : 0.025;
-  const end = heavy ? 0.032 : 0.030;
-  caseBox(housing, [0, 0, -0.002], [cover * 2 - 0.004, 0.016, 0.047]);
-  lathe(housing, "x", [
-    [-cover, 0], [-cover, gearRadius - 0.0015],
-    [-cover + 0.002, gearRadius], [cover - 0.002, gearRadius],
-    [cover, gearRadius - 0.0015], [cover, 0],
-  ], 16, [0, 0, 0.009]);
-  lathe(housing, "x", [
-    [-cover, 0], [-cover, 0.007], [-cover + 0.002, 0.0085],
-    [cover - 0.002, 0.0085], [cover, 0.007], [cover, 0],
-  ], 12, [0, 0, -0.016]);
-  for (const sign of [-1, 1]) {
-    cylinder(metal, "x", [sign * (cover + 0.0005), 0, 0.009],
-      gearRadius - 0.003, 0.001, 8, 0.005);
-    cylinder(black, "x", [sign * (cover + end) / 2, 0, 0.009],
-      0.0055, end - cover, 8, 0.003);
-    for (const z of [-0.018, 0.015]) {
-      cylinder(black, "x", [sign * cover, 0.0045, z], 0.0018, 0.001, 6);
-    }
-  }
-  if (heavy) {
-    for (const z of [-0.023, -0.012, 0.022]) {
-      box(housing, [0, 0, z], [0.050, 0.022, 0.003]);
-    }
-    box(metal, [0, -0.0155, 0], [0.044, 0.003, 0.048]);
-  }
-  return [housing, metal, black];
-}
-
-export function buildTransmissionTall4to1V1(): KartPartVisualPiece[] {
-  return gearbox(0.0105, false);
-}
-
-export function buildTransmissionBalanced5to1V1(): KartPartVisualPiece[] {
-  return gearbox(0.0145, false);
-}
-
-export function buildTransmissionShort8to1V1(): KartPartVisualPiece[] {
-  return gearbox(0.0165, true);
 }
 
 export type KartCoiloverVisual = {
@@ -534,11 +470,13 @@ export function buildCoilover(spec: KartCoiloverSpec): KartCoiloverVisual {
 /**
  * A lower suspension A-arm. Frame: origin at the midpoint between the two
  * chassis pivots, +X points to the hub at (length, 0, 0); the chassis pivots
- * are at (0, 0, ±halfSpread).
+ * are at (0, 0, ±halfSpread). `drop` hangs the legs that far below the
+ * pivots' line, as a driven wheel's arm does to pass under its driveshaft.
  */
 export function buildSuspensionArm(
   length: number,
   halfSpread: number,
+  drop = 0,
 ): KartPartVisualPiece[] {
   const composite = piece("authored-polymer");
   const bushings = piece("bare-steel");
@@ -551,12 +489,12 @@ export function buildSuspensionArm(
     prism(composite, [
       [-nx, z - nz], [length - nx, -nz],
       [length + nx, nz], [nx, z + nz],
-    ], -0.0035, 0.0035);
+    ], -0.0035 - drop, 0.0035 - drop);
     cylinder(bushings, "z", [0, 0, z], 0.0045, 0.010, 8, 0.0015);
   }
-  box(composite, [length * 0.32, 0, 0],
+  box(composite, [length * 0.32, -drop, 0],
     [0.006, 0.005, halfSpread * 1.36]);
-  cylinder(knuckle, "y", [length, 0, 0], 0.006, 0.008, 8, 0.003);
+  cylinder(knuckle, "y", [length, -drop / 2, 0], 0.006, 0.008 + drop, 8, 0.003);
   cylinder(bushings, "y", [length, 0, 0], 0.003, 0.012, 8, 0.0015);
   return [composite, bushings, knuckle];
 }

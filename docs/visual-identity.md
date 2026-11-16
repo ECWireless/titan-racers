@@ -125,7 +125,9 @@ Materials), and so do course surfaces (see Course Surfaces).
   hue kept but their lightness clamped to about 4% (black paint) to 85%
   (white paint) reflectance. Documents keep the authored value.
 - **Parts look like real 1:10 RC parts.** Each approved part version has a
-  code-built visual that matches its registry dimensions.
+  code-built or CAD visual that matches its registry dimensions.
+- **Linkages move as the mechanism does:** tie rods follow the steering
+  and dogbones the suspension.
 - **Wheels show their spin.** The physics has no wheel spin, so a wheel turns
   as its tire implies: with its contact patch on the ground, stopped when
   braked past its grip, and coasting down in the air. Its tread blocks,
