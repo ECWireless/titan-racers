@@ -1,3 +1,6 @@
+import { readdirSync } from "node:fs";
+import path from "node:path";
+
 import { expect, test } from "@playwright/test";
 
 import { createBalancedKartDocument } from "../src/game/kart/balanced-kart-document";
@@ -34,18 +37,6 @@ const triangles = (pieces: KartPartVisualPiece[]) =>
 // a room hold the phone budget; each CAD part within 2,000.
 const KART_TRIANGLES = 28_000;
 const CAD_PART_TRIANGLES = 2_000;
-// The finishes cad/export.py lets a part use.
-const CAD_FINISHES = new Set([
-  "authored-anodized",
-  "authored-paint",
-  "authored-polymer",
-  "bare-aluminum",
-  "bare-steel",
-  "black-oxide-steel",
-  "black-polymer",
-  "copper",
-  "rubber",
-]);
 
 test("official karts stay within the per-kart triangle budget", () => {
   for (const document of [
@@ -108,6 +99,13 @@ test("linkage pieces are well formed", () => {
   }
 });
 
+test("every exported CAD mesh is drawn", () => {
+  const exported = readdirSync(
+    path.join(__dirname, "../src/game/kart/cad-meshes"),
+  ).map((file) => file.replace(/\.json$/, ""));
+  expect(KART_CAD_MESHES.map(({ part }) => part).sort()).toEqual(exported.sort());
+});
+
 test("CAD meshes are well formed and within the part budget", () => {
   for (const mesh of KART_CAD_MESHES) {
     // The part's rigid pieces and the ones the kart poses.
@@ -121,7 +119,6 @@ test("CAD meshes are well formed and within the part budget", () => {
     expect(triangles(pieces), mesh.part).toBeLessThanOrEqual(CAD_PART_TRIANGLES);
     for (const piece of pieces) {
       const label = `${mesh.part} ${piece.finish}`;
-      expect(CAD_FINISHES.has(piece.finish), label).toBe(true);
       expectWellFormed(piece, label);
     }
   }

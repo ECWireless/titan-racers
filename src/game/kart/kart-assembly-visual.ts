@@ -354,6 +354,7 @@ export function createKartAssemblyVisual(
       ({ instanceId }) => instanceId === linkage.wheel.id,
     );
     const horn = movingParts.get(`${linkage.part.id}:horn`);
+    // Planning already matched these categories; the checks narrow types.
     const definition = getApprovedKartComponent(linkage.part.definition);
     const wheelDefinition = getApprovedKartComponent(linkage.wheel.definition);
     if (
@@ -401,6 +402,12 @@ export function createKartAssemblyVisual(
       wheel.suspension,
       wheelFrames.get(wheel.instanceId)!,
       materialsFor(linkage.wheel),
+      // The cup rides the arm, so it selects and highlights with it.
+      materialsFor(
+        document.componentInstances.find(
+          ({ id }) => id === wheel.suspension!.instanceId,
+        )!,
+      ),
       createPieces,
     );
   }
@@ -953,6 +960,7 @@ function createDriveshaftVisual(
   suspension: KartSuspensionVisual,
   wheelFrame: pc.Entity,
   skin: KartVisualSkin,
+  armSkin: KartVisualSkin,
   createPieces: CreatePieces,
 ): KartDriveshaftVisual {
   const position = toPcVector(linkage.part.transform.position);
@@ -985,7 +993,7 @@ function createDriveshaftVisual(
     createPieces(
       `${wheel.instanceId}-axle-cup`,
       buildAxleCup(station, suspension.armRestLength),
-      skin,
+      armSkin,
     ),
   );
   const driveshaft: KartDriveshaftVisual = {
