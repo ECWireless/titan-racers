@@ -2,7 +2,7 @@ import { z } from "zod";
 
 import {
   type KartAssemblyDocument,
-  kartAssemblyDocumentSchema,
+  kartAssemblyDocumentAnyVersionSchema,
 } from "../kart/kart-assembly-document";
 import { CURRENT_PHYSICS_VERSION } from "../physics/physics-version";
 import {
@@ -48,7 +48,8 @@ const storedGhostSchema = z.strictObject({
   courseRevision: z.number().int().positive().nullable(),
   kart: z.strictObject({
     centerOfMass: vectorSchema,
-    document: kartAssemblyDocumentSchema,
+    // Kept across kart schema changes: an older document migrates.
+    document: kartAssemblyDocumentAnyVersionSchema,
     wheels: z
       .array(
         z.strictObject({

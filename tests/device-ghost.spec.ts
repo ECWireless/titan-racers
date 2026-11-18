@@ -128,3 +128,18 @@ test("ignores records that are malformed, tampered, or for another course", () =
   storage.setItem(key("10"), "{not json");
   expect(readDeviceGhost("falls-view-park", 10)).toBeNull();
 });
+
+test("reads back a ghost kept before the kart schema changed", () => {
+  keepDeviceGhostIfBest(ghost(10, 90_000_000));
+  const record = JSON.parse(storage.getItem(key("10"))!);
+  const document = record.kart.document;
+  document.schemaVersion = 2;
+  for (const attachment of document.structuralAttachments) {
+    delete attachment.child.mount;
+    delete attachment.parent.mount;
+  }
+  storage.setItem(key("10"), JSON.stringify(record));
+
+  const stored = readDeviceGhost("falls-view-park", 10);
+  expect(stored?.kart.document).toEqual(createBalancedKartDocument());
+});

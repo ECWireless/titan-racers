@@ -108,6 +108,13 @@ function createLegacyKartAssemblyDocument(
       },
     ),
     schemaVersion: 1,
+    structuralAttachments: document.structuralAttachments.map(
+      ({ child, id, parent }) => ({
+        child: { anchor: child.anchor, instanceId: child.instanceId },
+        id,
+        parent: { anchor: parent.anchor, instanceId: parent.instanceId },
+      }),
+    ),
   });
 }
 
@@ -153,7 +160,7 @@ test.describe("kart persistence and authorization", () => {
       kartId,
       ownerUserId,
       revision: 1,
-      schemaVersion: 2,
+      schemaVersion: 3,
     });
     expect(first.resolvedSnapshotHash).toMatch(/^[0-9a-f]{64}$/);
     await expect(hashResolvedKartSnapshot(first.resolvedSnapshot)).resolves.toBe(
@@ -249,7 +256,7 @@ test.describe("kart persistence and authorization", () => {
         resolvedSnapshot: malformedSnapshot,
         resolvedSnapshotHash: "0".repeat(64),
         revision: 1,
-        schemaVersion: 2,
+        schemaVersion: 3,
       },
       {
         authorUserId: userId,
@@ -260,7 +267,7 @@ test.describe("kart persistence and authorization", () => {
         resolvedSnapshot: mismatchedSnapshot,
         resolvedSnapshotHash: "0".repeat(64),
         revision: 1,
-        schemaVersion: 2,
+        schemaVersion: 3,
       },
     ]);
 
@@ -914,8 +921,13 @@ test.describe("kart persistence and authorization", () => {
     });
 
     const latestRevision = await loadLatestKartRevision(kartId);
-    expect(latestRevision?.schemaVersion).toBe(2);
-    expect(latestRevision?.document.schemaVersion).toBe(2);
+    expect(latestRevision?.schemaVersion).toBe(3);
+    expect(latestRevision?.document.schemaVersion).toBe(3);
+    expect(
+      latestRevision?.document.structuralAttachments.every(
+        ({ child, parent }) => child.mount === null && parent.mount === null,
+      ),
+    ).toBe(true);
     expect(
       latestRevision?.document.componentInstances.find(
         ({ id }) => id === "wheel-front-left",
@@ -937,8 +949,8 @@ test.describe("kart persistence and authorization", () => {
     );
     expect(response.status).toBe(200);
     const payload = await response.json();
-    expect(payload.schemaVersion).toBe(2);
-    expect(payload.document.schemaVersion).toBe(2);
+    expect(payload.schemaVersion).toBe(3);
+    expect(payload.document.schemaVersion).toBe(3);
     expect(
       payload.document.componentInstances.find(
         ({ id }: { id: string }) => id === "battery-main",

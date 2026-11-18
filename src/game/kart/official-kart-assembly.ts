@@ -261,11 +261,16 @@ function createChassis(
       positions.get(child) ??
       componentInstances.find(({ id }) => id === child)!.transform.position;
     attachments.push({
-      child: { anchor: relativeTo(at, childPosition), instanceId: child },
+      child: {
+        anchor: relativeTo(at, childPosition),
+        instanceId: child,
+        mount: null,
+      },
       id: `mount-${child}`,
       parent: {
         anchor: relativeTo(at, positions.get(parent)!),
         instanceId: parent,
+        mount: null,
       },
     });
   };
@@ -638,6 +643,7 @@ export function createOfficialKartAssembly(
         child: {
           anchor: { x: 0, y: 0, z: 0 },
           instanceId: wheelInstance.id,
+          mount: null,
         },
         id: `mount-wheel-${station}`,
         parent: {
@@ -646,6 +652,7 @@ export function createOfficialKartAssembly(
             suspensionInstance.transform.position,
           ),
           instanceId: suspensionInstance.id,
+          mount: null,
         },
       };
     });
@@ -662,7 +669,7 @@ export function createOfficialKartAssembly(
     name: config.name,
     practicalDescriptor: config.practicalDescriptor,
     primitiveInstances: chassis.primitiveInstances,
-    schemaVersion: 2,
+    schemaVersion: 3,
     structuralAttachments: [
       ...chassis.structuralAttachments,
       ...wheelAttachments,

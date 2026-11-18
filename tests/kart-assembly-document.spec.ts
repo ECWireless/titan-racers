@@ -44,17 +44,19 @@ function createDocument() {
         visualColor: "#475763",
       },
     ],
-    schemaVersion: 2 as const,
+    schemaVersion: 3 as const,
     structuralAttachments: [
       {
         child: {
           anchor: { x: 0, y: -0.013, z: 0 },
           instanceId: "battery-main",
+          mount: null as string | null,
         },
         id: "attach-battery-main",
         parent: {
           anchor: { x: 0, y: 0.01, z: 0.04 },
           instanceId: "chassis-plate",
+          mount: null as string | null,
         },
       },
     ],
@@ -66,7 +68,7 @@ function createDocument() {
 test("parses a bounded versioned kart assembly document", () => {
   const document = parseKartAssemblyDocument(createDocument());
 
-  expect(document.schemaVersion).toBe(2);
+  expect(document.schemaVersion).toBe(3);
   expect(document.units).toEqual({ angle: "degrees", length: "meters" });
   expect(document.componentInstances[0].definition).toEqual({
     id: "battery.lipo-standard",
@@ -91,15 +93,66 @@ test("migrates legacy global colors to explicit instance colors", () => {
       },
     ),
     schemaVersion: 1 as const,
+    structuralAttachments: withoutMountNames(current),
     visualIdentity: { accentColor: "#abcdef", primaryColor: "#123456" },
   };
   legacy.componentInstances[0].definition.id = "wheel-tire.small-standard";
 
   const migrated = parseKartAssemblyDocument(legacy);
 
-  expect(migrated.schemaVersion).toBe(2);
+  expect(migrated.schemaVersion).toBe(3);
   expect(migrated.componentInstances[0].visualColor).toBe("#123456");
   expect(migrated.primitiveInstances[0].visualColor).toBe("#475763");
+});
+
+function withoutMountNames(document: ReturnType<typeof createDocument>) {
+  return document.structuralAttachments.map(({ child, id, parent }) => ({
+    child: { anchor: child.anchor, instanceId: child.instanceId },
+    id,
+    parent: { anchor: parent.anchor, instanceId: parent.instanceId },
+  }));
+}
+
+test("migrates schema 2 attachments with no mounting points named", () => {
+  const current = createDocument();
+  const version2 = {
+    ...current,
+    schemaVersion: 2 as const,
+    structuralAttachments: withoutMountNames(current),
+  };
+
+  const migrated = parseKartAssemblyDocument(version2);
+
+  expect(migrated.schemaVersion).toBe(3);
+  expect(migrated.structuralAttachments).toEqual(
+    current.structuralAttachments,
+  );
+  // Schema 2 knows no mounting points, and schema 3 needs them stated.
+  expect(() =>
+    parseKartAssemblyDocument({
+      ...version2,
+      structuralAttachments: current.structuralAttachments,
+    }),
+  ).toThrow();
+  expect(() =>
+    parseKartAssemblyDocument({
+      ...current,
+      structuralAttachments: withoutMountNames(current),
+    }),
+  ).toThrow();
+});
+
+test("keeps the mounting point each attachment end names", () => {
+  const document = createDocument();
+  document.structuralAttachments[0].child.mount = "base";
+  document.structuralAttachments[0].parent.mount = "top";
+
+  const parsed = parseKartAssemblyDocument(document);
+
+  expect(parsed.structuralAttachments[0].child.mount).toBe("base");
+  expect(parsed.structuralAttachments[0].parent.mount).toBe("top");
+  document.structuralAttachments[0].parent.mount = "Top Face";
+  expect(() => parseKartAssemblyDocument(document)).toThrow();
 });
 
 test("serializes kart documents canonically without database or derived state", () => {

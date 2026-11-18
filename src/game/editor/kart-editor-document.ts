@@ -28,6 +28,7 @@ import {
   getLatestApprovedKartComponent,
   type KartComponentCategory,
 } from "../kart/kart-component-registry";
+import { checkKartAttachmentMounts } from "../kart/kart-mounting";
 import { resolveApprovedSuspensionMount } from "../kart/kart-suspension-mounting";
 
 export type KartEditorSelection = {
@@ -831,24 +832,68 @@ export function attachKartInstance(
       transposeMatrix(rotationMatrix(instance.transform.rotationDegrees)),
       subtractVector(worldAnchor, instance.transform.position),
     );
+  const existing = document.structuralAttachments.find(
+    ({ child: endpoint }) => endpoint.instanceId === child.id,
+  );
   const attachmentId =
-    document.structuralAttachments.find(
-      ({ child: endpoint }) => endpoint.instanceId === child.id,
-    )?.id ?? uniqueId(document, `mount-${child.id}`, retainedIds);
+    existing?.id ?? uniqueId(document, `mount-${child.id}`, retainedIds);
+  const attachment = {
+    child: {
+      anchor: localAnchor(child),
+      instanceId: child.id,
+      mount: null as string | null,
+    },
+    id: attachmentId,
+    parent: {
+      anchor: localAnchor(parent),
+      instanceId: parent.id,
+      mount: null as string | null,
+    },
+  };
+  // Mounting points the attachment named stay named while they still meet,
+  // at the point the child carries with it (a footprint slides with its
+  // part, and a motor turns about its own face).
+  if (
+    existing?.parent.instanceId === parent.id &&
+    existing.child.mount !== null &&
+    existing.parent.mount !== null
+  ) {
+    const carried = addVector(
+      child.transform.position,
+      transformVector(
+        rotationMatrix(child.transform.rotationDegrees),
+        existing.child.anchor,
+      ),
+    );
+    const parentLocal = transformVector(
+      transposeMatrix(rotationMatrix(parent.transform.rotationDegrees)),
+      subtractVector(carried, parent.transform.position),
+    );
+    const named = {
+      child: { ...existing.child },
+      id: attachmentId,
+      parent: { ...existing.parent, anchor: parentLocal },
+    };
+    const side = (instance: typeof child | typeof parent) => ({
+      definition:
+        instance.kind === "component"
+          ? (getApprovedKartComponent(instance.definition) ?? null)
+          : null,
+      instance,
+    });
+    const issues = checkKartAttachmentMounts(named, side(parent), side(child));
+    if (issues.length === 0) {
+      attachment.child = named.child;
+      attachment.parent = named.parent;
+    }
+  }
   return parseKartAssemblyDocument({
     ...document,
     structuralAttachments: [
       ...document.structuralAttachments.filter(
         ({ child: endpoint }) => endpoint.instanceId !== child.id,
       ),
-      {
-        child: {
-          anchor: localAnchor(child),
-          instanceId: child.id,
-        },
-        id: attachmentId,
-        parent: { anchor: localAnchor(parent), instanceId: parent.id },
-      },
+      attachment,
     ],
   });
 }

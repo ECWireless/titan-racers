@@ -3,7 +3,7 @@ import { z } from "zod";
 import {
   type KartAssemblyComponentInstance,
   type KartAssemblyDocument,
-  kartAssemblyDocumentSchema,
+  safeParseKartAssemblyDocument,
 } from "./kart-assembly-document";
 import {
   type ApprovedComponentDefinition,
@@ -21,6 +21,7 @@ import {
   transformVector,
   type KartBounds,
 } from "./kart-construction-geometry";
+import { checkKartAttachmentMounts } from "./kart-mounting";
 
 const MAXIMUM_ATTACHMENT_REACH_METERS = 0.075;
 
@@ -443,6 +444,27 @@ function validateStructuralAttachments(
             [...path, endpointName, "anchor"],
           );
         }
+      }
+      const resolved = (instance: typeof parent) => ({
+        definition:
+          instance.kind === "component"
+            ? (components.get(instance.id)?.definition ?? null)
+            : null,
+        instance,
+      });
+      for (const mountIssue of checkKartAttachmentMounts(
+        attachment,
+        resolved(parent),
+        resolved(child),
+      )) {
+        issue(
+          issues,
+          mountIssue.code,
+          mountIssue.message,
+          mountIssue.endpoint
+            ? [...path, mountIssue.endpoint, "mount"]
+            : path,
+        );
       }
     }
     const previousParent = parentByChild.get(attachment.child.instanceId);
@@ -989,7 +1011,8 @@ function validateFunctionalConnections(
 }
 
 export function validateKartAssembly(input: unknown): KartAssemblyValidationResult {
-  const parsed = kartAssemblyDocumentSchema.safeParse(input);
+  // Older schema versions migrate first: they name no mounting points.
+  const parsed = safeParseKartAssemblyDocument(input);
   if (!parsed.success) {
     return { issues: addSchemaIssues(parsed.error), success: false };
   }
