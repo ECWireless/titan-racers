@@ -1,8 +1,13 @@
 import motorBrushlessStandardV1 from "./cad-meshes/motor.brushless-standard@1.json";
+import motorBrushlessStandardV2 from "./cad-meshes/motor.brushless-standard@2.json";
 import steeringServoStandardV1 from "./cad-meshes/steering.servo-standard@1.json";
+import steeringServoStandardV2 from "./cad-meshes/steering.servo-standard@2.json";
 import transmissionBalanced5to1V1 from "./cad-meshes/transmission.balanced-5to1@1.json";
+import transmissionBalanced5to1V2 from "./cad-meshes/transmission.balanced-5to1@2.json";
 import transmissionShort8to1V1 from "./cad-meshes/transmission.short-8to1@1.json";
+import transmissionShort8to1V2 from "./cad-meshes/transmission.short-8to1@2.json";
 import transmissionTall4to1V1 from "./cad-meshes/transmission.tall-4to1@1.json";
+import transmissionTall4to1V2 from "./cad-meshes/transmission.tall-4to1@2.json";
 import type {
   KartPartFinish,
   KartPartVisualPiece,
@@ -25,7 +30,10 @@ type KartCadPiece = {
 export type KartCadMesh = {
   part: string;
   measured: { centerOfMass: number[]; massKg: number } | null;
-  /** Named points, in micrometres, where the kart's linkages meet the part. */
+  /**
+   * Named points, in micrometres: where the kart's linkages meet the part,
+   * and `mount-<id>` for each of its registry mounting points.
+   */
   points: Record<string, number[]>;
   pieces: KartCadPiece[];
   /**
@@ -37,10 +45,15 @@ export type KartCadMesh = {
 
 export const KART_CAD_MESHES: readonly KartCadMesh[] = [
   motorBrushlessStandardV1,
+  motorBrushlessStandardV2,
   steeringServoStandardV1,
+  steeringServoStandardV2,
   transmissionBalanced5to1V1,
+  transmissionBalanced5to1V2,
   transmissionShort8to1V1,
+  transmissionShort8to1V2,
   transmissionTall4to1V1,
+  transmissionTall4to1V2,
 ];
 
 export function getKartCadMesh(reference: { id: string; version: number }) {

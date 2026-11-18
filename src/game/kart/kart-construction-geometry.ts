@@ -375,21 +375,24 @@ export function buildComponentMassElements(
   const massScale = definition.mass / rawMass;
   const instanceRotation = rotationMatrix(instance.transform.rotationDegrees);
 
-  return raw.map(({ construction, properties, shape }) => {
-    const localCenter = addVector(
-      construction.transform.position,
-      centerCorrection,
-    );
-    const center = addVector(
+  // The declared centre of mass moves each element's mass, not its shape:
+  // the solid stays where the part's construction puts it.
+  const placeLocal = (local: KartVector) =>
+    addVector(
       instance.transform.position,
-      transformVector(instanceRotation, localCenter),
+      transformVector(instanceRotation, local),
+    );
+  return raw.map(({ construction, properties, shape }) => {
+    const placed = placeLocal(construction.transform.position);
+    const center = placeLocal(
+      addVector(construction.transform.position, centerCorrection),
     );
     const localRotation = rotationMatrix(
       construction.transform.rotationDegrees,
     );
     const rotation = multiplyMatrix(instanceRotation, localRotation);
     return {
-      bounds: rotatedBounds(center, rotation, shape),
+      bounds: rotatedBounds(placed, rotation, shape),
       center,
       inertiaAtCenter: rotateInertia(
         scaleMatrix(properties.inertia, massScale),
@@ -397,7 +400,7 @@ export function buildComponentMassElements(
       ),
       instanceId: instance.id,
       mass: properties.mass * massScale,
-      solid: convexShape(center, rotation, shape),
+      solid: convexShape(placed, rotation, shape),
     };
   });
 }

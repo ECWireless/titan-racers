@@ -21,10 +21,16 @@ const PINNED_REGISTRY_FINGERPRINTS: Record<string, string> = {
   "interaction:tire-compound.standard-rubber@1+surface.lawn-grass@1/derivation-1": "19dad874e950204c041038bd0e5267d5ecf0106153612c6bc2e2a671109488b3",
   "battery.lipo-standard@1":
     "1c8675000da381b97c235d19db0e854b47c96c3f69699aad9151d9412d6821d1",
+  "battery.lipo-standard@2":
+    "32511707acbe9ec0ae2710fa60fdbfe43778ac448518aecec86fbc8392a8227c",
   "brakes.combined-standard@1":
     "83953ab5008acec5905958e0e60b860f6110273ada3750bd06565b1dd40c5031",
+  "brakes.combined-standard@2":
+    "86ae266709e1f94a85fa47f744b1eb1f88fe3f32f6581dcf20202495fcc67d39",
   "control.receiver-esc-standard@1":
     "1132d5d55fbd22ceef433ded406edf7b99e9e043dc7c267e3d24f05d533c0004",
+  "control.receiver-esc-standard@2":
+    "d67ec3b18516be93b384edc1de4158b8cc5b81c26cf33d884c2b8f3f3556dd5e",
   "interaction:tire-compound.standard-rubber@1+surface.standard-course@1/derivation-1":
     "a56c0234d65433e1d770d3542c46a1c041912ed22676d5fc76e1c8f62eb34f5a",
   "material.engineering-polymer@1":
@@ -37,8 +43,12 @@ const PINNED_REGISTRY_FINGERPRINTS: Record<string, string> = {
     "740521e31fb74a69d3af3b9935ee37e89e8ce5cdb34ae38aefa25e580f623430",
   "motor.brushless-standard@1":
     "f036f3716a3e1374d28588e750eacd7ede3ce58d68b77aa0eea0469512fe8658",
+  "motor.brushless-standard@2":
+    "7d56bada25977300a6d73bfa78e6395530046ecc1ccf02f2bde22b8a54afdb6a",
   "steering.servo-standard@1":
     "8735768a580ab951db69792a6fc07383d0377ddaf1482a69323ca8a734f57ad7",
+  "steering.servo-standard@2":
+    "18ef7ddb67f356d291f89effc40e3b9709329f06d1864319db4c5f6f35edff28",
   "surface.standard-course@1":
     "e9f454dcd4b3d6f8cb6436bf89448ed49373a12df8f4a6bc59e41dfe834290af",
   "suspension.compliant-long@1":
@@ -57,10 +67,16 @@ const PINNED_REGISTRY_FINGERPRINTS: Record<string, string> = {
     "db0784c79307319a1f4a7ae48e9e4fe5196421da9903071afd9a91fe5ba63673",
   "transmission.balanced-5to1@1":
     "53b92e45cb7ba9d9d09bf422d7b6ad09a93c1d6873085eb46cda2f952186d20f",
+  "transmission.balanced-5to1@2":
+    "11985ae314d8ffeebc8c0f1bc92634e640c5226b8419927610a1b0a4132494ca",
   "transmission.short-8to1@1":
     "58574d9ba740526542884dc4d451ea3f33bce61be2151be85563dbd895218e51",
+  "transmission.short-8to1@2":
+    "9e8a87bd5a65d51865e559d448e3c32d349933d4c8852bfa56cba4964ac05950",
   "transmission.tall-4to1@1":
     "5ddba499cde85a26084c576691d306ae161c52f56b1d72bc6c1078f16ae73348",
+  "transmission.tall-4to1@2":
+    "d569ff4ee5e467355fab52a294461d00451230cf35ec46a7f7e179530fd4e0c8",
   "wheel-tire.large-standard@1":
     "f0312ef848755ff072b54280094facbceed80551f2f6c6d7ce478713099eedac",
   "wheel-tire.small-standard@1":

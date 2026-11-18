@@ -52,9 +52,13 @@ for byte in tests; it is not an independently editable numerical source.
 | `motor.brushless-standard@1` — Standard brushless motor | Shared sealed motor; transmission, wheel size, and assembled mass determine its result. |
 | `steering.servo-standard@1` — Standard steering servo | Supplies bounded travel and torque; installed wheel/chassis clearance determines final steering lock. |
 | `brakes.combined-standard@1` — Standard combined brakes | One sealed system with four-wheel service braking and a separate rear handbrake. |
+| `battery.lipo-standard@2`, `control.receiver-esc-standard@2`, `brakes.combined-standard@2` | Version 1 with a `base` mounting point: a footprint under the part that sits, and may slide, on a flat structural face. |
+| `motor.brushless-standard@2` — Standard brushless motor | The real 3650 class's 50 mm can (version 1 shortened it to 43 mm) at its published 190 g, mounted only by its drive-end `motor-face`, which bolts to a gearbox's motor plate. |
+| `steering.servo-standard@2` — Standard steering servo | The Savox SC-1251MG's proportions and published 44.5 g, with the standard-size servo's end tabs, on a `base` footprint. |
 | `transmission.tall-4to1@1` — Tall 4:1 transmission | Favors theoretical speed over unconstrained launch force. |
 | `transmission.balanced-5to1@1` — Balanced 5:1 transmission | Moderates both launch force and theoretical speed for the Balanced Kart baseline. |
 | `transmission.short-8to1@1` — Short 8:1 transmission | Favors unconstrained launch force over theoretical speed. |
+| `transmission.tall-4to1@2`, `transmission.balanced-5to1@2`, `transmission.short-8to1@2` | The laydown gearbox with an aluminium motor plate: the pinion rides on the motor's shaft and meshes with a full-size spur at its front, so the motor sits ahead of the gearbox. Mounting points: a `base` footprint, the `motor-plate`, and a `tower-pad` on the differential housing for a shock tower. Mass is CAD-measured (no real part to weigh). |
 | `suspension.firm-short@1` — Firm short-travel suspension | Compact, firmer construction for a calmer, lower-travel assembly. |
 | `suspension.firm-short@2` — Firm short-travel suspension | The same unit rated for a 30° installation: stiffer spring and damping and a shorter stroke, so at that angle the wheel matches version 1 under the old tilt-blind derivation. Its default mounts lean 30° inward. |
 | `suspension.compliant-long@1` — Compliant long-travel suspension | Historical lightly damped construction retained for immutable saved revisions. |

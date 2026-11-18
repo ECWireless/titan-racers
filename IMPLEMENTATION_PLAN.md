@@ -363,8 +363,11 @@ render version from the admin roster.
       version 5, and the database needs no migration.
 - [ ] Each new version declares the published weight of the real part it
       copies, or else its CAD-measured mass, and takes its centre of mass
-      from CAD: servo 44.5 g, motor 190 g, 4:1 77.3 g, 5:1 78.5 g, and
-      8:1 160 g. The motor and servo take the real parts' proportions.
+      from CAD: servo 44.5 g, motor 190 g, 4:1 103.4 g, 5:1 104.1 g, and
+      8:1 182.9 g. The motor and servo take the real parts' proportions.
+      Each transmission gains a motor plate and a full-size spur, so the
+      motor bolts on ahead of it as on a real laydown gearbox, and a pad on
+      top for the rear tower.
 - [ ] All three official karts get a real 2WD rear end: the gearbox outputs
       sit on the rear axle line, each rear hinge-pin mount splits into a
       block under each arm leg so the driveshaft passes between them, the

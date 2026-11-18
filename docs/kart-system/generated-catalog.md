@@ -1476,6 +1476,1479 @@ A larger wheel with more clearance and rotational inertia.
 }
 ```
 
+### Standard battery — `battery.lipo-standard@2`
+
+A sealed two-cell battery sized for the initial kart roster.
+
+```json
+{
+  "assembly": {
+    "maximumInstances": 1,
+    "mirrorable": false,
+    "rotationAxes": [
+      "x",
+      "y",
+      "z"
+    ]
+  },
+  "category": "battery",
+  "construction": [
+    {
+      "material": {
+        "id": "material.engineering-polymer",
+        "version": 1
+      },
+      "shape": "box",
+      "size": {
+        "x": 0.095,
+        "y": 0.026,
+        "z": 0.048
+      },
+      "transform": {
+        "position": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "rotationDegrees": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      }
+    }
+  ],
+  "id": "battery.lipo-standard",
+  "label": "Standard battery",
+  "mass": 0.24,
+  "mounts": [
+    {
+      "area": {
+        "x": 0.095,
+        "y": 0,
+        "z": 0.048
+      },
+      "direction": "-y",
+      "id": "base",
+      "position": {
+        "x": 0,
+        "y": -0.013,
+        "z": 0
+      },
+      "type": "base"
+    }
+  ],
+  "massCenter": {
+    "x": 0,
+    "y": 0,
+    "z": 0
+  },
+  "ports": [
+    {
+      "direction": "output",
+      "id": "power",
+      "interface": "battery-power",
+      "multiple": false,
+      "position": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      }
+    }
+  ],
+  "summary": "A sealed two-cell battery sized for the initial kart roster.",
+  "tradeoff": "The shared baseline supply keeps performance differences in gearing and construction.",
+  "version": 2,
+  "electrical": {
+    "maximumCurrent": 60,
+    "voltage": 7.4
+  }
+}
+```
+
+### Standard receiver and controller — `control.receiver-esc-standard@2`
+
+A sealed radio receiver and electronic speed controller.
+
+```json
+{
+  "assembly": {
+    "maximumInstances": 1,
+    "mirrorable": false,
+    "rotationAxes": [
+      "x",
+      "y",
+      "z"
+    ]
+  },
+  "category": "receiver-speed-controller",
+  "construction": [
+    {
+      "material": {
+        "id": "material.engineering-polymer",
+        "version": 1
+      },
+      "shape": "box",
+      "size": {
+        "x": 0.052,
+        "y": 0.024,
+        "z": 0.038
+      },
+      "transform": {
+        "position": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "rotationDegrees": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      }
+    }
+  ],
+  "id": "control.receiver-esc-standard",
+  "label": "Standard receiver and controller",
+  "mass": 0.065,
+  "mounts": [
+    {
+      "area": {
+        "x": 0.052,
+        "y": 0,
+        "z": 0.038
+      },
+      "direction": "-y",
+      "id": "base",
+      "position": {
+        "x": 0,
+        "y": -0.012,
+        "z": 0
+      },
+      "type": "base"
+    }
+  ],
+  "massCenter": {
+    "x": 0,
+    "y": 0,
+    "z": 0
+  },
+  "ports": [
+    {
+      "direction": "input",
+      "id": "battery-input",
+      "interface": "battery-power",
+      "multiple": false,
+      "position": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      }
+    },
+    {
+      "direction": "output",
+      "id": "motor-output",
+      "interface": "motor-power",
+      "multiple": false,
+      "position": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      }
+    },
+    {
+      "direction": "output",
+      "id": "steering-output",
+      "interface": "steering-control",
+      "multiple": false,
+      "position": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      }
+    },
+    {
+      "direction": "output",
+      "id": "brake-output",
+      "interface": "brake-control",
+      "multiple": false,
+      "position": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      }
+    }
+  ],
+  "summary": "A sealed radio receiver and electronic speed controller.",
+  "tradeoff": "One shared controller makes motor and construction choices legible.",
+  "version": 2,
+  "electrical": {
+    "maximumMotorCurrent": 60,
+    "maximumVoltage": 8.4
+  }
+}
+```
+
+### Standard brushless motor — `motor.brushless-standard@2`
+
+The sealed baseline motor used by all three official builds.
+
+```json
+{
+  "assembly": {
+    "maximumInstances": 1,
+    "mirrorable": false,
+    "rotationAxes": [
+      "x",
+      "y",
+      "z"
+    ]
+  },
+  "category": "motor",
+  "construction": [
+    {
+      "axis": "z",
+      "height": 0.05,
+      "material": {
+        "id": "material.steel",
+        "version": 1
+      },
+      "radius": 0.018,
+      "shape": "cylinder",
+      "transform": {
+        "position": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "rotationDegrees": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      }
+    }
+  ],
+  "id": "motor.brushless-standard",
+  "label": "Standard brushless motor",
+  "mass": 0.19,
+  "mounts": [
+    {
+      "area": null,
+      "direction": "-z",
+      "id": "motor-face",
+      "position": {
+        "x": 0,
+        "y": 0,
+        "z": -0.025
+      },
+      "type": "motor-face"
+    }
+  ],
+  "massCenter": {
+    "x": 0,
+    "y": 0.00002,
+    "z": -0.00116
+  },
+  "ports": [
+    {
+      "direction": "input",
+      "id": "power-input",
+      "interface": "motor-power",
+      "multiple": false,
+      "position": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      }
+    },
+    {
+      "direction": "output",
+      "id": "shaft-output",
+      "interface": "motor-shaft",
+      "multiple": false,
+      "position": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      }
+    }
+  ],
+  "summary": "The sealed baseline motor used by all three official builds.",
+  "tradeoff": "Gearing, wheel size, and mass determine how its fixed capability feels.",
+  "version": 2,
+  "electrical": {
+    "safeCurrent": 50,
+    "speedConstantRpmPerVolt": 1500,
+    "windingResistance": 0.08
+  }
+}
+```
+
+### Standard steering servo — `steering.servo-standard@2`
+
+A sealed servo with enough travel for the supported steering geometry.
+
+```json
+{
+  "assembly": {
+    "maximumInstances": 1,
+    "mirrorable": false,
+    "rotationAxes": [
+      "x",
+      "y",
+      "z"
+    ]
+  },
+  "category": "steering",
+  "construction": [
+    {
+      "material": {
+        "id": "material.engineering-polymer",
+        "version": 1
+      },
+      "shape": "box",
+      "size": {
+        "x": 0.0202,
+        "y": 0.024,
+        "z": 0.0408
+      },
+      "transform": {
+        "position": {
+          "x": 0,
+          "y": -0.003,
+          "z": 0
+        },
+        "rotationDegrees": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      }
+    },
+    {
+      "material": {
+        "id": "material.engineering-polymer",
+        "version": 1
+      },
+      "shape": "box",
+      "size": {
+        "x": 0.018,
+        "y": 0.0025,
+        "z": 0.0545
+      },
+      "transform": {
+        "position": {
+          "x": 0,
+          "y": -0.00025,
+          "z": 0
+        },
+        "rotationDegrees": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      }
+    }
+  ],
+  "id": "steering.servo-standard",
+  "label": "Standard steering servo",
+  "mass": 0.0445,
+  "mounts": [
+    {
+      "area": {
+        "x": 0.0202,
+        "y": 0,
+        "z": 0.0408
+      },
+      "direction": "-y",
+      "id": "base",
+      "position": {
+        "x": 0,
+        "y": -0.015,
+        "z": 0
+      },
+      "type": "base"
+    }
+  ],
+  "massCenter": {
+    "x": 0,
+    "y": -0.001,
+    "z": 0.00125
+  },
+  "ports": [
+    {
+      "direction": "input",
+      "id": "control-input",
+      "interface": "steering-control",
+      "multiple": false,
+      "position": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      }
+    },
+    {
+      "direction": "output",
+      "id": "link-output",
+      "interface": "steering-link",
+      "multiple": true,
+      "position": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      }
+    }
+  ],
+  "summary": "A sealed servo with enough travel for the supported steering geometry.",
+  "tradeoff": "Final steering lock still derives from linkage and wheel clearance.",
+  "version": 2,
+  "steering": {
+    "maximumTravelDegrees": 30,
+    "maximumTorque": 1.8
+  }
+}
+```
+
+### Standard combined brakes — `brakes.combined-standard@2`
+
+One sealed system for four-wheel service braking and rear handbraking.
+
+```json
+{
+  "assembly": {
+    "maximumInstances": 1,
+    "mirrorable": false,
+    "rotationAxes": [
+      "x",
+      "y",
+      "z"
+    ]
+  },
+  "category": "brakes",
+  "construction": [
+    {
+      "material": {
+        "id": "material.structural-aluminum",
+        "version": 1
+      },
+      "shape": "box",
+      "size": {
+        "x": 0.052,
+        "y": 0.018,
+        "z": 0.04
+      },
+      "transform": {
+        "position": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "rotationDegrees": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      }
+    }
+  ],
+  "id": "brakes.combined-standard",
+  "label": "Standard combined brakes",
+  "mass": 0.1,
+  "mounts": [
+    {
+      "area": {
+        "x": 0.052,
+        "y": 0,
+        "z": 0.04
+      },
+      "direction": "-y",
+      "id": "base",
+      "position": {
+        "x": 0,
+        "y": -0.009,
+        "z": 0
+      },
+      "type": "base"
+    }
+  ],
+  "massCenter": {
+    "x": 0,
+    "y": 0,
+    "z": 0
+  },
+  "ports": [
+    {
+      "direction": "input",
+      "id": "control-input",
+      "interface": "brake-control",
+      "multiple": false,
+      "position": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      }
+    },
+    {
+      "direction": "output",
+      "id": "service-output",
+      "interface": "service-brake",
+      "multiple": true,
+      "position": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      }
+    },
+    {
+      "direction": "output",
+      "id": "handbrake-output",
+      "interface": "wheel-handbrake",
+      "multiple": true,
+      "position": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      }
+    }
+  ],
+  "summary": "One sealed system for four-wheel service braking and rear handbraking.",
+  "tradeoff": "Wheel radius changes the ground force produced by its fixed torque.",
+  "version": 2,
+  "brakes": {
+    "totalHandbrakeTorque": 0.685125,
+    "totalServiceBrakeTorque": 1.5225
+  }
+}
+```
+
+### Tall 4:1 transmission — `transmission.tall-4to1@2`
+
+A tall reduction for higher theoretical road speed.
+
+```json
+{
+  "assembly": {
+    "maximumInstances": 1,
+    "mirrorable": false,
+    "rotationAxes": [
+      "x",
+      "y",
+      "z"
+    ]
+  },
+  "category": "transmission",
+  "construction": [
+    {
+      "axis": "x",
+      "height": 0.019,
+      "material": {
+        "id": "material.structural-aluminum",
+        "version": 1
+      },
+      "radius": 0.0125,
+      "shape": "cylinder",
+      "transform": {
+        "position": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "rotationDegrees": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      }
+    },
+    {
+      "axis": "x",
+      "height": 0.019,
+      "material": {
+        "id": "material.structural-aluminum",
+        "version": 1
+      },
+      "radius": 0.0075,
+      "shape": "cylinder",
+      "transform": {
+        "position": {
+          "x": 0,
+          "y": 0.0089,
+          "z": -0.024429
+        },
+        "rotationDegrees": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      }
+    },
+    {
+      "material": {
+        "id": "material.structural-aluminum",
+        "version": 1
+      },
+      "shape": "box",
+      "size": {
+        "x": 0.019,
+        "y": 0.015,
+        "z": 0.038429
+      },
+      "transform": {
+        "position": {
+          "x": 0,
+          "y": -0.0075,
+          "z": -0.010714499999999998
+        },
+        "rotationDegrees": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      }
+    },
+    {
+      "material": {
+        "id": "material.structural-aluminum",
+        "version": 1
+      },
+      "shape": "box",
+      "size": {
+        "x": 0.019,
+        "y": 0.0125,
+        "z": 0.024429
+      },
+      "transform": {
+        "position": {
+          "x": 0,
+          "y": 0.00625,
+          "z": -0.0122145
+        },
+        "rotationDegrees": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      }
+    },
+    {
+      "material": {
+        "id": "material.structural-aluminum",
+        "version": 1
+      },
+      "shape": "box",
+      "size": {
+        "x": 0.019,
+        "y": 0.004499999999999999,
+        "z": 0.008
+      },
+      "transform": {
+        "position": {
+          "x": 0,
+          "y": 0.01175,
+          "z": 0
+        },
+        "rotationDegrees": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      }
+    },
+    {
+      "axis": "x",
+      "height": 0.0045,
+      "material": {
+        "id": "material.engineering-polymer",
+        "version": 1
+      },
+      "radius": 0.0224,
+      "shape": "cylinder",
+      "transform": {
+        "position": {
+          "x": 0.014,
+          "y": 0.0089,
+          "z": -0.024429
+        },
+        "rotationDegrees": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      }
+    },
+    {
+      "material": {
+        "id": "material.structural-aluminum",
+        "version": 1
+      },
+      "shape": "box",
+      "size": {
+        "x": 0.0024999999999999988,
+        "y": 0.035,
+        "z": 0.05402799999999999
+      },
+      "transform": {
+        "position": {
+          "x": 0.018750000000000003,
+          "y": 0.0025000000000000005,
+          "z": -0.045443
+        },
+        "rotationDegrees": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      }
+    },
+    {
+      "axis": "x",
+      "height": 0.011,
+      "material": {
+        "id": "material.steel",
+        "version": 1
+      },
+      "radius": 0.0055,
+      "shape": "cylinder",
+      "transform": {
+        "position": {
+          "x": -0.0245,
+          "y": 0,
+          "z": 0
+        },
+        "rotationDegrees": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      }
+    },
+    {
+      "axis": "x",
+      "height": 0.011,
+      "material": {
+        "id": "material.steel",
+        "version": 1
+      },
+      "radius": 0.0055,
+      "shape": "cylinder",
+      "transform": {
+        "position": {
+          "x": 0.0245,
+          "y": 0,
+          "z": 0
+        },
+        "rotationDegrees": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      }
+    }
+  ],
+  "id": "transmission.tall-4to1",
+  "label": "Tall 4:1 transmission",
+  "mass": 0.1034,
+  "mounts": [
+    {
+      "area": {
+        "x": 0.0295,
+        "y": 0,
+        "z": 0.08495699999999999
+      },
+      "direction": "-y",
+      "id": "base",
+      "position": {
+        "x": 0.00525,
+        "y": -0.015,
+        "z": -0.029978499999999998
+      },
+      "type": "base"
+    },
+    {
+      "area": null,
+      "direction": "+x",
+      "id": "motor-plate",
+      "position": {
+        "x": 0.02,
+        "y": 0.004,
+        "z": -0.056457
+      },
+      "type": "motor-plate"
+    },
+    {
+      "area": {
+        "x": 0.019,
+        "y": 0,
+        "z": 0.008
+      },
+      "direction": "+y",
+      "id": "tower-pad",
+      "position": {
+        "x": 0,
+        "y": 0.014,
+        "z": 0
+      },
+      "type": "tower-pad"
+    }
+  ],
+  "massCenter": {
+    "x": 0.0056,
+    "y": 0.003,
+    "z": -0.02187
+  },
+  "ports": [
+    {
+      "direction": "input",
+      "id": "shaft-input",
+      "interface": "motor-shaft",
+      "multiple": false,
+      "position": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      }
+    },
+    {
+      "direction": "output",
+      "id": "drive-output",
+      "interface": "wheel-drive",
+      "multiple": true,
+      "position": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      }
+    }
+  ],
+  "summary": "A tall reduction for higher theoretical road speed.",
+  "tradeoff": "Higher no-load speed with less wheel force than the short transmission.",
+  "version": 2,
+  "transmission": {
+    "efficiency": 0.8114144775599887,
+    "motorRotationsPerWheelRotation": 4
+  }
+}
+```
+
+### Balanced 5:1 transmission — `transmission.balanced-5to1@2`
+
+A moderate reduction balancing launch force and road speed.
+
+```json
+{
+  "assembly": {
+    "maximumInstances": 1,
+    "mirrorable": false,
+    "rotationAxes": [
+      "x",
+      "y",
+      "z"
+    ]
+  },
+  "category": "transmission",
+  "construction": [
+    {
+      "axis": "x",
+      "height": 0.019,
+      "material": {
+        "id": "material.structural-aluminum",
+        "version": 1
+      },
+      "radius": 0.0125,
+      "shape": "cylinder",
+      "transform": {
+        "position": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "rotationDegrees": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      }
+    },
+    {
+      "axis": "x",
+      "height": 0.019,
+      "material": {
+        "id": "material.structural-aluminum",
+        "version": 1
+      },
+      "radius": 0.0075,
+      "shape": "cylinder",
+      "transform": {
+        "position": {
+          "x": 0,
+          "y": 0.0113,
+          "z": -0.026055
+        },
+        "rotationDegrees": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      }
+    },
+    {
+      "material": {
+        "id": "material.structural-aluminum",
+        "version": 1
+      },
+      "shape": "box",
+      "size": {
+        "x": 0.019,
+        "y": 0.015,
+        "z": 0.040055
+      },
+      "transform": {
+        "position": {
+          "x": 0,
+          "y": -0.0075,
+          "z": -0.0115275
+        },
+        "rotationDegrees": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      }
+    },
+    {
+      "material": {
+        "id": "material.structural-aluminum",
+        "version": 1
+      },
+      "shape": "box",
+      "size": {
+        "x": 0.019,
+        "y": 0.0125,
+        "z": 0.026055
+      },
+      "transform": {
+        "position": {
+          "x": 0,
+          "y": 0.00625,
+          "z": -0.0130275
+        },
+        "rotationDegrees": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      }
+    },
+    {
+      "material": {
+        "id": "material.structural-aluminum",
+        "version": 1
+      },
+      "shape": "box",
+      "size": {
+        "x": 0.019,
+        "y": 0.004499999999999999,
+        "z": 0.008
+      },
+      "transform": {
+        "position": {
+          "x": 0,
+          "y": 0.01175,
+          "z": 0
+        },
+        "rotationDegrees": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      }
+    },
+    {
+      "axis": "x",
+      "height": 0.0045,
+      "material": {
+        "id": "material.engineering-polymer",
+        "version": 1
+      },
+      "radius": 0.0248,
+      "shape": "cylinder",
+      "transform": {
+        "position": {
+          "x": 0.014,
+          "y": 0.0113,
+          "z": -0.026055
+        },
+        "rotationDegrees": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      }
+    },
+    {
+      "material": {
+        "id": "material.structural-aluminum",
+        "version": 1
+      },
+      "shape": "box",
+      "size": {
+        "x": 0.0024999999999999988,
+        "y": 0.035,
+        "z": 0.054798000000000006
+      },
+      "transform": {
+        "position": {
+          "x": 0.018750000000000003,
+          "y": 0.0025000000000000005,
+          "z": -0.047453999999999996
+        },
+        "rotationDegrees": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      }
+    },
+    {
+      "axis": "x",
+      "height": 0.011,
+      "material": {
+        "id": "material.steel",
+        "version": 1
+      },
+      "radius": 0.0055,
+      "shape": "cylinder",
+      "transform": {
+        "position": {
+          "x": -0.0245,
+          "y": 0,
+          "z": 0
+        },
+        "rotationDegrees": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      }
+    },
+    {
+      "axis": "x",
+      "height": 0.011,
+      "material": {
+        "id": "material.steel",
+        "version": 1
+      },
+      "radius": 0.0055,
+      "shape": "cylinder",
+      "transform": {
+        "position": {
+          "x": 0.0245,
+          "y": 0,
+          "z": 0
+        },
+        "rotationDegrees": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      }
+    }
+  ],
+  "id": "transmission.balanced-5to1",
+  "label": "Balanced 5:1 transmission",
+  "mass": 0.1041,
+  "mounts": [
+    {
+      "area": {
+        "x": 0.0295,
+        "y": 0,
+        "z": 0.087353
+      },
+      "direction": "-y",
+      "id": "base",
+      "position": {
+        "x": 0.00525,
+        "y": -0.015,
+        "z": -0.031176500000000003
+      },
+      "type": "base"
+    },
+    {
+      "area": null,
+      "direction": "+x",
+      "id": "motor-plate",
+      "position": {
+        "x": 0.02,
+        "y": 0.004,
+        "z": -0.058853
+      },
+      "type": "motor-plate"
+    },
+    {
+      "area": {
+        "x": 0.019,
+        "y": 0,
+        "z": 0.008
+      },
+      "direction": "+y",
+      "id": "tower-pad",
+      "position": {
+        "x": 0,
+        "y": 0.014,
+        "z": 0
+      },
+      "type": "tower-pad"
+    }
+  ],
+  "massCenter": {
+    "x": 0.00544,
+    "y": 0.00388,
+    "z": -0.02182
+  },
+  "ports": [
+    {
+      "direction": "input",
+      "id": "shaft-input",
+      "interface": "motor-shaft",
+      "multiple": false,
+      "position": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      }
+    },
+    {
+      "direction": "output",
+      "id": "drive-output",
+      "interface": "wheel-drive",
+      "multiple": true,
+      "position": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      }
+    }
+  ],
+  "summary": "A moderate reduction balancing launch force and road speed.",
+  "tradeoff": "Less road speed than the tall transmission and less wheel force than the short transmission.",
+  "version": 2,
+  "transmission": {
+    "efficiency": 0.8,
+    "motorRotationsPerWheelRotation": 5
+  }
+}
+```
+
+### Short 8:1 transmission — `transmission.short-8to1@2`
+
+A short reduction for strong launch force and lower road speed.
+
+```json
+{
+  "assembly": {
+    "maximumInstances": 1,
+    "mirrorable": false,
+    "rotationAxes": [
+      "x",
+      "y",
+      "z"
+    ]
+  },
+  "category": "transmission",
+  "construction": [
+    {
+      "axis": "x",
+      "height": 0.021,
+      "material": {
+        "id": "material.steel",
+        "version": 1
+      },
+      "radius": 0.014,
+      "shape": "cylinder",
+      "transform": {
+        "position": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "rotationDegrees": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      }
+    },
+    {
+      "axis": "x",
+      "height": 0.021,
+      "material": {
+        "id": "material.steel",
+        "version": 1
+      },
+      "radius": 0.0075,
+      "shape": "cylinder",
+      "transform": {
+        "position": {
+          "x": 0,
+          "y": 0.0125,
+          "z": -0.029023
+        },
+        "rotationDegrees": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      }
+    },
+    {
+      "material": {
+        "id": "material.steel",
+        "version": 1
+      },
+      "shape": "box",
+      "size": {
+        "x": 0.021,
+        "y": 0.017,
+        "z": 0.044523
+      },
+      "transform": {
+        "position": {
+          "x": 0,
+          "y": -0.0085,
+          "z": -0.012261499999999998
+        },
+        "rotationDegrees": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      }
+    },
+    {
+      "material": {
+        "id": "material.steel",
+        "version": 1
+      },
+      "shape": "box",
+      "size": {
+        "x": 0.021,
+        "y": 0.014,
+        "z": 0.029023
+      },
+      "transform": {
+        "position": {
+          "x": 0,
+          "y": 0.007,
+          "z": -0.0145115
+        },
+        "rotationDegrees": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      }
+    },
+    {
+      "material": {
+        "id": "material.steel",
+        "version": 1
+      },
+      "shape": "box",
+      "size": {
+        "x": 0.021,
+        "y": 0.0045000000000000005,
+        "z": 0.008
+      },
+      "transform": {
+        "position": {
+          "x": 0,
+          "y": 0.01325,
+          "z": 0
+        },
+        "rotationDegrees": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      }
+    },
+    {
+      "axis": "x",
+      "height": 0.0045,
+      "material": {
+        "id": "material.engineering-polymer",
+        "version": 1
+      },
+      "radius": 0.028,
+      "shape": "cylinder",
+      "transform": {
+        "position": {
+          "x": 0.015,
+          "y": 0.0125,
+          "z": -0.029023
+        },
+        "rotationDegrees": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      }
+    },
+    {
+      "material": {
+        "id": "material.structural-aluminum",
+        "version": 1
+      },
+      "shape": "box",
+      "size": {
+        "x": 0.0025000000000000022,
+        "y": 0.035,
+        "z": 0.054338
+      },
+      "transform": {
+        "position": {
+          "x": 0.01975,
+          "y": 0.0005000000000000004,
+          "z": -0.050192
+        },
+        "rotationDegrees": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      }
+    },
+    {
+      "axis": "x",
+      "height": 0.011,
+      "material": {
+        "id": "material.steel",
+        "version": 1
+      },
+      "radius": 0.0055,
+      "shape": "cylinder",
+      "transform": {
+        "position": {
+          "x": -0.026500000000000003,
+          "y": 0,
+          "z": 0
+        },
+        "rotationDegrees": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      }
+    },
+    {
+      "axis": "x",
+      "height": 0.011,
+      "material": {
+        "id": "material.steel",
+        "version": 1
+      },
+      "radius": 0.0055,
+      "shape": "cylinder",
+      "transform": {
+        "position": {
+          "x": 0.026500000000000003,
+          "y": 0,
+          "z": 0
+        },
+        "rotationDegrees": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      }
+    }
+  ],
+  "id": "transmission.short-8to1",
+  "label": "Short 8:1 transmission",
+  "mass": 0.1829,
+  "mounts": [
+    {
+      "area": {
+        "x": 0.0315,
+        "y": 0,
+        "z": 0.091361
+      },
+      "direction": "-y",
+      "id": "base",
+      "position": {
+        "x": 0.00525,
+        "y": -0.017,
+        "z": -0.0316805
+      },
+      "type": "base"
+    },
+    {
+      "area": null,
+      "direction": "+x",
+      "id": "motor-plate",
+      "position": {
+        "x": 0.021,
+        "y": 0.002,
+        "z": -0.061361
+      },
+      "type": "motor-plate"
+    },
+    {
+      "area": {
+        "x": 0.021,
+        "y": 0,
+        "z": 0.008
+      },
+      "direction": "+y",
+      "id": "tower-pad",
+      "position": {
+        "x": 0,
+        "y": 0.0155,
+        "z": 0
+      },
+      "type": "tower-pad"
+    }
+  ],
+  "massCenter": {
+    "x": 0.00305,
+    "y": 0.00082,
+    "z": -0.017
+  },
+  "ports": [
+    {
+      "direction": "input",
+      "id": "shaft-input",
+      "interface": "motor-shaft",
+      "multiple": false,
+      "position": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      }
+    },
+    {
+      "direction": "output",
+      "id": "drive-output",
+      "interface": "wheel-drive",
+      "multiple": true,
+      "position": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      }
+    }
+  ],
+  "summary": "A short reduction for strong launch force and lower road speed.",
+  "tradeoff": "More wheel force with lower no-load speed and slightly more mass.",
+  "version": 2,
+  "transmission": {
+    "efficiency": 0.78,
+    "motorRotationsPerWheelRotation": 8
+  }
+}
+```
+
 ## Construction Materials
 
 ### Structural aluminum — `material.structural-aluminum@1`
