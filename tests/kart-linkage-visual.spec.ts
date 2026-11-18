@@ -65,15 +65,16 @@ test("tie rods stay on the horn and steering arms however wheels are posed", () 
       expect(steered[0].tieRod!.rig.hornAngle !== 0, document.kartId).toBe(left !== 0);
       for (const wheel of steered) {
         const tieRod = wheel.tieRod!;
+        const { hornBall: horn, knuckleBall: knuckle, restLength } = tieRod.pose;
         const hornBall = tieRod.rig.horn
           .getWorldTransform()
-          .transformPoint(tieRod.hornBall, new pc.Vec3());
+          .transformPoint(new pc.Vec3(horn.x, horn.y, horn.z), new pc.Vec3());
         const knuckleBall = wheel.pivot
           .getWorldTransform()
-          .transformPoint(tieRod.knuckleBall, new pc.Vec3());
+          .transformPoint(new pc.Vec3(knuckle.x, knuckle.y, knuckle.z), new pc.Vec3());
         const rodEnd = tieRod.rod
           .getWorldTransform()
-          .transformPoint(new pc.Vec3(tieRod.restLength, 0, 0), new pc.Vec3());
+          .transformPoint(new pc.Vec3(restLength, 0, 0), new pc.Vec3());
         expect(tieRod.rod.getPosition().distance(hornBall), document.kartId).toBeLessThan(1e-6);
         expect(rodEnd.distance(knuckleBall), document.kartId).toBeLessThan(1e-6);
         // The horn turns to meet the arms, so the rods barely stretch.
@@ -92,10 +93,12 @@ test("driveshafts stay rigid and in their outdrives through suspension travel", 
       for (const wheel of driven) visual.poseKartWheelVisual(wheel, wheel.hub.y + travel);
       root.syncHierarchy();
       for (const wheel of driven) {
-        const { bone, length, outputAxis, outputPoint } = wheel.driveshaft!;
+        const { bone, pose } = wheel.driveshaft!;
+        const outputAxis = new pc.Vec3(pose.outputAxis.x, pose.outputAxis.y, pose.outputAxis.z);
+        const outputPoint = new pc.Vec3(pose.outputPoint.x, pose.outputPoint.y, pose.outputPoint.z);
         const inner = bone
           .getWorldTransform()
-          .transformPoint(new pc.Vec3(length, 0, 0), new pc.Vec3());
+          .transformPoint(new pc.Vec3(pose.length, 0, 0), new pc.Vec3());
         const fromOutput = inner.clone().sub(outputPoint);
         const along = fromOutput.dot(outputAxis);
         // The inner ball slides along the outdrive's axis, a few millimetres.

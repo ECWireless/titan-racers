@@ -19,9 +19,17 @@ import {
 const BALL_RADIUS = 0.0024;
 /** A ball's centre above the face its stud screws into. */
 export const BALL_STUD_HEIGHT = 0.0038;
-const BALL_CUP_RADIUS = 0.0036;
-const BALL_CUP_HALF_HEIGHT = 0.0022;
-const TURNBUCKLE_RADIUS = 0.0015; // 3 mm threaded rod
+export const BALL_CUP_RADIUS = 0.0036;
+export const BALL_CUP_HALF_HEIGHT = 0.0022;
+export const TURNBUCKLE_RADIUS = 0.0015; // 3 mm threaded rod
+/** The cups' threaded necks and the turnbuckle's wrench flats. */
+export const TIE_ROD_NECK_RADIUS = 0.0023;
+export const TIE_ROD_FLATS_LENGTH = 0.006;
+
+/** How far each cup's neck runs along a tie rod from its ball. */
+export function getTieRodNeckEnd(length: number) {
+  return Math.min(0.012, length * 0.3);
+}
 
 /** A ball about +Y, the stud's axis. */
 function ball(mesh: KartPartVisualPiece, center: Vec3) {
@@ -42,7 +50,7 @@ export function buildTieRod(length: number): KartPartVisualPiece[] {
   const cups = piece("black-polymer");
   const steel = piece("bare-steel");
   const h = BALL_CUP_HALF_HEIGHT;
-  const neckEnd = Math.min(0.012, length * 0.3);
+  const neckEnd = getTieRodNeckEnd(length);
   for (const [x, toward] of [[0, 1], [length, -1]] as const) {
     // The cup's eye, open top and bottom around the ball.
     lathe(cups, "y", [
@@ -53,20 +61,19 @@ export function buildTieRod(length: number): KartPartVisualPiece[] {
     ball(steel, [x, 0, 0]);
     // The cup's threaded neck.
     cylinder(cups, "x", [x + toward * (0.003 + neckEnd) / 2, 0, 0],
-      0.0023, neckEnd - 0.003, 8);
+      TIE_ROD_NECK_RADIUS, neckEnd - 0.003, 8);
   }
   cylinder(steel, "x", [length / 2, 0, 0],
     TURNBUCKLE_RADIUS, length - 2 * neckEnd, 8);
   // The wrench flats at the turnbuckle's centre.
-  cylinder(steel, "x", [length / 2, 0, 0], 0.0023, 0.006, 6);
+  cylinder(steel, "x", [length / 2, 0, 0], TIE_ROD_NECK_RADIUS,
+    TIE_ROD_FLATS_LENGTH, 6);
   return [cups, steel];
 }
 
-export type KartSteeringArmVisual = {
-  /** The tie rod's ball centre. */
-  ball: Vec3;
-  pieces: KartPartVisualPiece[];
-};
+// A steering arm rides just above the suspension arm's tip.
+const STEERING_ARM_BOTTOM = 0.0037;
+const STEERING_ARM_TOP = 0.0077;
 
 /**
  * A steered wheel's steering arm, rigid with its pivot. Frame: the pivot's
@@ -77,32 +84,35 @@ export type KartSteeringArmVisual = {
 export function buildSteeringArm(
   reach: number,
   length: number,
-): KartSteeringArmVisual {
+): KartPartVisualPiece[] {
   const arm = piece("black-polymer");
   const steel = piece("bare-steel");
-  const side = Math.sign(reach);
   const along = Math.sign(length);
-  const x = reach + side * 0.0025;
-  // It rides just above the suspension arm's tip.
-  const bottom = 0.0037;
-  const top = 0.0077;
-  const middle = (bottom + top) / 2;
+  const [x] = getSteeringArmBall(reach, length);
+  const middle = (STEERING_ARM_BOTTOM + STEERING_ARM_TOP) / 2;
+  const height = STEERING_ARM_TOP - STEERING_ARM_BOTTOM;
   box(arm, [x, middle, (length - along * 0.004) / 2],
-    [0.005, top - bottom, Math.abs(length) + 0.004]);
-  cylinder(arm, "y", [x, middle, length], 0.0036, top - bottom, 10);
+    [0.005, height, Math.abs(length) + 0.004]);
+  cylinder(arm, "y", [x, middle, length], 0.0036, height, 10);
   // The stud's hex seat and neck; the tie rod's cup covers its ball.
-  cylinder(steel, "y", [x, top + 0.0008, length], 0.0026, 0.0016, 6);
-  cylinder(steel, "y", [x, top + BALL_STUD_HEIGHT / 2 + 0.0008, length],
+  cylinder(steel, "y", [x, STEERING_ARM_TOP + 0.0008, length], 0.0026, 0.0016, 6);
+  cylinder(steel, "y", [x, STEERING_ARM_TOP + BALL_STUD_HEIGHT / 2 + 0.0008, length],
     0.0012, BALL_STUD_HEIGHT - 0.0016, 6);
-  return {
-    ball: [x, top + BALL_STUD_HEIGHT, length],
-    pieces: [arm, steel],
-  };
+  return [arm, steel];
 }
 
-const DOGBONE_SHAFT_RADIUS = 0.0019; // 3.8 mm
-const DOGBONE_BALL_RADIUS = 0.0034;
-const DOGBONE_PIN_RADIUS = 0.00115;
+/** A steering arm's ball centre in its pivot's frame (`buildSteeringArm`). */
+export function getSteeringArmBall(reach: number, length: number): Vec3 {
+  return [
+    reach + Math.sign(reach) * 0.0025,
+    STEERING_ARM_TOP + BALL_STUD_HEIGHT,
+    length,
+  ];
+}
+
+export const DOGBONE_SHAFT_RADIUS = 0.0019; // 3.8 mm
+export const DOGBONE_BALL_RADIUS = 0.0034;
+export const DOGBONE_PIN_RADIUS = 0.00115;
 const DOGBONE_PIN_LENGTH = 0.0098;
 
 /**

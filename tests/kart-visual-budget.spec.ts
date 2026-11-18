@@ -78,7 +78,7 @@ test("official karts stay within the per-kart triangle budget", () => {
     total +=
       linkages.tieRods.length *
         (triangles(buildTieRod(0.1)) +
-          triangles(buildSteeringArm(0.013, 0.024).pieces)) +
+          triangles(buildSteeringArm(0.013, 0.024))) +
       linkages.driveshafts.length *
         (triangles(buildDogbone(0.1)) + triangles(buildAxleCup(0.07, 0.115)));
     expect(total, document.kartId).toBeLessThanOrEqual(KART_TRIANGLES);
@@ -88,8 +88,8 @@ test("official karts stay within the per-kart triangle budget", () => {
 test("linkage pieces are well formed", () => {
   for (const [name, pieces] of [
     ["tie rod", buildTieRod(0.1)],
-    ["steering arm", buildSteeringArm(0.013, 0.024).pieces],
-    ["mirrored steering arm", buildSteeringArm(-0.013, -0.024).pieces],
+    ["steering arm", buildSteeringArm(0.013, 0.024)],
+    ["mirrored steering arm", buildSteeringArm(-0.013, -0.024)],
     ["dogbone", buildDogbone(0.1)],
     ["axle cup", buildAxleCup(0.07, 0.115)],
   ] as const) {

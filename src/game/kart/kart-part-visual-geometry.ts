@@ -129,6 +129,12 @@ export function box(mesh: KartPartVisualPiece, center: Vec3, size: Vec3): void {
 }
 
 /**
+ * The wheel's inboard web, as a share of its width in from the centre: the
+ * rim's mouth between it and the inboard tire bead is open (`buildWheelTire`).
+ */
+export const WHEEL_WEB_INSET = 0.325;
+
+/**
  * Ribbed RC tire on a deep-dish, anodized industrial wheel. The geometry is
  * all surfaces of revolution; the tire's tread blocks and sidewall marks and
  * the dish's six windows are drawn by the wheel shaders from each vertex's
