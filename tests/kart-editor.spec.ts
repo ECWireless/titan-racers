@@ -376,6 +376,15 @@ test.describe("protected kart builder access", () => {
     const positionX = page
       .getByRole("group", { name: "Position (m)" })
       .getByLabel("x");
+    // Snapped, it slides only as far as the plate's edge and stays on.
+    await positionX.fill("1");
+    await expect(page.getByText("Snapped", { exact: true })).toBeVisible();
+    await expect(positionX).not.toHaveValue("1");
+    await expect(viewport).toHaveAttribute("data-selection-validity", "valid");
+    // Detached, it moves freely, and snaps back on when attached.
+    await page
+      .getByRole("button", { name: "Detach from chassis-plate" })
+      .click();
     await positionX.fill("1");
     await expect(viewport).toHaveAttribute(
       "data-selection-validity",
@@ -448,45 +457,90 @@ test.describe("protected kart builder access", () => {
     expect(mirror.coiloverParentName).toBe("suspension-front-right");
     expect(mirror.coiloverEmissive).toEqual([1, 0.36, 0.04]);
 
-    const points = await getKartEditorTranslateGizmoPoints(viewport, "x");
     const box = await viewport.boundingBox();
-    expect(points?.head).not.toBeNull();
-    expect(points?.origin).not.toBeNull();
     expect(box).not.toBeNull();
-    const xDelta = points!.head!.x - points!.origin!.x;
-    const yDelta = points!.head!.y - points!.origin!.y;
-    const length = Math.hypot(xDelta, yDelta);
-    const startX = box!.x + points!.head!.x;
-    const startY = box!.y + points!.head!.y;
-    await page.mouse.move(startX, startY);
-    await page.mouse.down();
-    try {
-      await expect(viewport).toHaveAttribute(
-        "data-transform-validity",
-        "valid",
-      );
-      const heldSelection = await getKartEditorInstanceVisualState(
-        viewport,
-        "suspension-front-left",
-      );
-      expect(heldSelection.coiloverEmissive).toEqual([0.08, 0.65, 0.9]);
-      await page.mouse.move(
-        startX + (xDelta / length) * 45,
-        startY + (yDelta / length) * 45,
-        { steps: 8 },
-      );
-      await expect(viewport).toHaveAttribute(
-        "data-transform-validity",
-        "invalid",
-      );
-      const invalid = await getKartEditorInstanceVisualState(
-        viewport,
-        "suspension-front-left",
-      );
-      expect(invalid.coiloverEmissive).toEqual([0.95, 0.03, 0.02]);
-    } finally {
-      await page.mouse.up();
-    }
+    const drag = async (
+      axis: "x" | "y",
+      pixels: number,
+      during: () => Promise<void>,
+      after: () => Promise<void>,
+    ) => {
+      const points = await getKartEditorTranslateGizmoPoints(viewport, axis);
+      expect(points?.head).not.toBeNull();
+      expect(points?.origin).not.toBeNull();
+      const xDelta = points!.head!.x - points!.origin!.x;
+      const yDelta = points!.head!.y - points!.origin!.y;
+      const length = Math.hypot(xDelta, yDelta);
+      const startX = box!.x + points!.head!.x;
+      const startY = box!.y + points!.head!.y;
+      await page.mouse.move(startX, startY);
+      await page.mouse.down();
+      try {
+        await during();
+        await page.mouse.move(
+          startX + (xDelta / length) * pixels,
+          startY + (yDelta / length) * pixels,
+          { steps: 8 },
+        );
+        await after();
+      } finally {
+        await page.mouse.up();
+      }
+    };
+
+    // Snapped on its pin, the shock stays put while dragged.
+    const restPosition = await page
+      .getByRole("group", { name: "Position (m)" })
+      .getByLabel("x")
+      .inputValue();
+    await drag(
+      "x",
+      45,
+      async () => {
+        await expect(viewport).toHaveAttribute(
+          "data-transform-validity",
+          "valid",
+        );
+        const heldSelection = await getKartEditorInstanceVisualState(
+          viewport,
+          "suspension-front-left",
+        );
+        expect(heldSelection.coiloverEmissive).toEqual([0.08, 0.65, 0.9]);
+      },
+      async () => {
+        await expect(viewport).toHaveAttribute(
+          "data-transform-validity",
+          "valid",
+        );
+      },
+    );
+    await expect(
+      page.getByRole("group", { name: "Position (m)" }).getByLabel("x"),
+    ).toHaveValue(restPosition);
+
+    // Detached and lifted well clear of its tower (on its own: its snapped
+    // mirror would hold the pair), it moves with its coilover, which shows
+    // it out of reach.
+    await page
+      .getByRole("button", { name: "Detach from shock-tower-front-bar" })
+      .click();
+    await page.getByLabel("Keep mirrored component aligned").uncheck();
+    await drag(
+      "y",
+      120,
+      async () => {},
+      async () => {
+        await expect(viewport).toHaveAttribute(
+          "data-transform-validity",
+          "invalid",
+        );
+        const invalid = await getKartEditorInstanceVisualState(
+          viewport,
+          "suspension-front-left",
+        );
+        expect(invalid.coiloverEmissive).toEqual([0.95, 0.03, 0.02]);
+      },
+    );
   });
 
   test("preserves historical suspension revisions until the editor explicitly upgrades them", async ({

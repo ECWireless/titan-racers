@@ -29,6 +29,7 @@ import {
   collectKartDocumentIds,
   deleteKartInstance,
   detachKartInstance,
+  getKartInstanceSeat,
   getKartEditorInstance,
   getKartMirrorCounterpartIds,
   mirrorKartInstance,
@@ -275,6 +276,9 @@ export function KartEditorShell({
     selectedMirrorCounterpartIds.length === 0 &&
     (selectedInstance.kind === "primitive" ||
       selectedDefinition?.assembly.mirrorable === true);
+  const selectedSeat = selection
+    ? getKartInstanceSeat(document, selection)
+    : null;
   const selectedAttachmentNeedsRefresh =
     selectedStructuralAttachment !== null &&
     derivation.issues.some(
@@ -583,6 +587,7 @@ export function KartEditorShell({
           selection,
           attachmentParentId,
           issuedIdsRef.current,
+          mirrorPair,
         ),
       );
     } catch (error) {
@@ -1955,6 +1960,34 @@ export function KartEditorShell({
                     <p>
                       {selection.id} is detached from {attachmentParentId}. Move
                       it into that parent’s attachment range before attaching.
+                    </p>
+                  </div>
+                ) : null}
+                {selectedSeat?.snapped ? (
+                  <div className="grid gap-1 border border-titan-ice/15 bg-titan-ice/5 p-3 text-sm text-titan-ice">
+                    <p className="font-bold">Snapped</p>
+                    <p>
+                      Its {selectedSeat.childMount.replaceAll("-", " ")} sits
+                      on {selectedSeat.parentId}’s{" "}
+                      {selectedSeat.parentMount.replaceAll("-", " ")}.{" "}
+                      {selectedSeat.hold === "slides"
+                        ? "It slides and turns on that face; detach it to move it elsewhere."
+                        : selectedSeat.hold === "turns"
+                          ? "It turns only about its shaft; detach it to move it."
+                          : "It stays put while attached; detach it to move it."}
+                    </p>
+                  </div>
+                ) : selectedSeat ? (
+                  <div
+                    className="grid gap-1 border border-titan-hazard/50 bg-titan-hazard/10 p-3 text-sm text-titan-ice"
+                    role="alert"
+                  >
+                    <p className="font-bold text-titan-hazard">Not snapped</p>
+                    <p>
+                      {selection.id} isn’t snapped to {selectedSeat.parentId}{" "}
+                      by mounting points, so the kart can’t be saved. Move it
+                      close to a matching mounting point and it snaps on, or
+                      detach it and attach it to a part that has one.
                     </p>
                   </div>
                 ) : null}

@@ -133,3 +133,31 @@ test("a draft's driven wheel without a suspension draws no driveshaft", () => {
   expect(wheel.suspension).toBeNull();
   expect(wheel.driveshaft).toBeNull();
 });
+
+test("the clearance check's shock eye pins run as the drawn shock's do", async () => {
+  const { getCoiloverPin } = await import("../src/game/kart/kart-clearance");
+  const document = createBalancedKartDocument();
+  const suspension = document.componentInstances.find(
+    ({ id }) => id === "suspension-front-left",
+  )!;
+  const mount = suspension.suspensionMount!;
+  // Leaning fore and aft as well as inward, the eyes' pins tilt.
+  mount.chassisAnchor.z += 0.02;
+  const { root } = createVisual(document);
+  const damper = root.findByName("suspension-front-left-damper")!;
+  const drawn = damper
+    .getWorldTransform()
+    .transformVector(new pc.Vec3(0, 0, 1))
+    .normalize();
+  const along = new pc.Vec3(
+    mount.springArmAnchor.x - mount.chassisAnchor.x,
+    mount.springArmAnchor.y - mount.chassisAnchor.y,
+    mount.springArmAnchor.z - mount.chassisAnchor.z,
+  ).normalize();
+  const pin = getCoiloverPin({ x: along.x, y: along.y, z: along.z });
+  expect(Math.abs(pin.z)).toBeLessThan(0.99);
+  // The drawn entity's transform is single precision.
+  expect(pin.x).toBeCloseTo(drawn.x, 6);
+  expect(pin.y).toBeCloseTo(drawn.y, 6);
+  expect(pin.z).toBeCloseTo(drawn.z, 6);
+});

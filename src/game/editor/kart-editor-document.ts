@@ -2,6 +2,7 @@ import type {
   KartAssemblyComponentInstance,
   KartAssemblyDocument,
   KartAssemblyPrimitiveInstance,
+  KartStructuralAttachment,
 } from "../kart/kart-assembly-document";
 import {
   defaultKartComponentVisualColor,
@@ -15,11 +16,11 @@ import {
   combineBounds,
   multiplyMatrix,
   rotationMatrix,
+  scaleVector,
   subtractVector,
   transformVector,
   transposeMatrix,
   type KartBounds,
-  type KartMatrix3,
   type KartVector,
 } from "../kart/kart-construction-geometry";
 import {
@@ -31,8 +32,18 @@ import {
 import {
   checkKartAttachmentMounts,
   findKartAttachmentMounts,
+  getKartAttachmentPoint,
   listKartInstanceMounts,
+  type KartMountSide,
 } from "../kart/kart-mounting";
+import {
+  findKartMountSnap,
+  isKartMountLocked,
+  moveSuspensionMount,
+  rotationDegreesFromMatrix,
+  seatKartMount,
+  type KartInstanceTransform,
+} from "../kart/kart-mount-snapping";
 import { resolveApprovedSuspensionMount } from "../kart/kart-suspension-mounting";
 
 export type KartEditorSelection = {
@@ -257,39 +268,13 @@ function applyInstanceTransform(
   transform: KartAssemblyComponentInstance["transform"],
 ) {
   if (instance.kind === "component" && instance.suspensionMount) {
-    const previousTransform = instance.transform;
-    const previousRotationInverse = transposeMatrix(
-      rotationMatrix(previousTransform.rotationDegrees),
+    instance.suspensionMount = moveSuspensionMount(
+      instance.suspensionMount,
+      instance.transform,
+      transform,
     );
-    const nextRotation = rotationMatrix(transform.rotationDegrees);
-    for (const point of Object.keys(instance.suspensionMount) as Array<
-      keyof NonNullable<ComponentInstanceSuspensionMount>
-    >) {
-      const localPoint = transformVector(
-        previousRotationInverse,
-        subtractVector(
-          instance.suspensionMount[point],
-          previousTransform.position,
-        ),
-      );
-      instance.suspensionMount[point] = addVector(
-        transformVector(nextRotation, localPoint),
-        transform.position,
-      );
-    }
   }
   instance.transform = transform;
-}
-
-function rotationDegreesFromMatrix(matrix: KartMatrix3): KartVector {
-  const y = Math.asin(Math.max(-1, Math.min(1, matrix[2])));
-  const nearGimbalLock = Math.abs(matrix[2]) >= 0.9999999;
-  const x = nearGimbalLock
-    ? Math.atan2(matrix[7], matrix[4])
-    : Math.atan2(-matrix[5], matrix[8]);
-  const z = nearGimbalLock ? 0 : Math.atan2(-matrix[1], matrix[0]);
-  const toDegrees = 180 / Math.PI;
-  return { x: x * toDegrees, y: y * toDegrees, z: z * toDegrees };
 }
 
 function applyTransformWithDescendants(
@@ -337,6 +322,7 @@ function applyTransformWithDescendants(
           rotationDelta,
           rotationMatrix(previousChildTransform.rotationDegrees),
         ),
+        previousChildTransform.rotationDegrees,
       ),
     };
     applyTransformWithDescendants(
@@ -380,18 +366,7 @@ export function updateKartInstanceTransform(
       applyTransformWithDescendants(
         next,
         counterpart,
-        {
-          position: {
-            x: -transform.position.x,
-            y: transform.position.y,
-            z: transform.position.z,
-          },
-          rotationDegrees: {
-            x: transform.rotationDegrees.x,
-            y: -transform.rotationDegrees.y,
-            z: -transform.rotationDegrees.z,
-          },
-        },
+        mirrorKartTransform(transform),
         movedIds,
       );
     }
@@ -435,7 +410,8 @@ export function updateKartPrimitiveGeometry(
     (primitive) => primitive.id === instanceId,
   );
   const originalId = selected?.mirrorOf ?? selected?.id;
-  return parseKartAssemblyDocument({
+  const resized: string[] = [];
+  const next = copyDocument({
     ...document,
     primitiveInstances: document.primitiveInstances.map((primitive) => {
       const belongsToPair =
@@ -448,6 +424,7 @@ export function updateKartPrimitiveGeometry(
       ) {
         return primitive;
       }
+      resized.push(primitive.id);
       return values.shape === "box"
         ? { ...primitive, size: values.size }
         : {
@@ -457,6 +434,88 @@ export function updateKartPrimitiveGeometry(
           };
     }),
   });
+  // A resized part stays snapped: it keeps its seat on its parent, and the
+  // parts snapped to its faces move with them.
+  for (const id of resized) reseatAround(next, id);
+  // Resized together, a mirrored pair stays mirrored, or neither changes.
+  if (mirrorPair && !keepsMirrorsAligned(document, next, new Set(resized))) {
+    return document;
+  }
+  return parseKartAssemblyDocument(next);
+}
+
+/** Seats a named attachment's child again from where it stands. */
+function reseatAttachment(
+  document: KartAssemblyDocument,
+  attachment: KartStructuralAttachment,
+) {
+  const child = findKartEditorInstance(document, attachment.child.instanceId);
+  const parent = findKartEditorInstance(document, attachment.parent.instanceId);
+  if (
+    !child ||
+    !parent ||
+    attachment.child.mount === null ||
+    attachment.parent.mount === null
+  ) {
+    return;
+  }
+  const seat = seatKartMount(
+    mountSide(child),
+    mountSide(parent),
+    attachment.child.mount,
+    attachment.parent.mount,
+    child.transform,
+    attachment.child.anchor,
+  );
+  if (!seat) return;
+  // Already seated, it stays exactly where it is.
+  if (seat.distance > 1e-12 || seat.turn > 1e-12) {
+    applyTransformWithDescendants(
+      document,
+      child,
+      seat.transform,
+      new Set([parent.id]),
+    );
+  }
+  attachment.child.anchor = localPoint(child.transform, seat.point);
+  attachment.parent.anchor = localPoint(parent.transform, seat.point);
+}
+
+/**
+ * Seats again, each from where it stands, the named attachments a change to
+ * part `id` may have parted: the part on its parent, then the parts on it.
+ * Whatever hangs from a part that moves moves with it. A pair that can no
+ * longer meet is left for validation to report.
+ */
+function reseatAround(document: KartAssemblyDocument, id: string) {
+  const reseat = (attachment: KartStructuralAttachment) =>
+    reseatAttachment(document, attachment);
+  const own = document.structuralAttachments.find(
+    ({ child }) => child.instanceId === id,
+  );
+  if (own) {
+    // A shock on its pin or a wheel on its hub stays where it stood while
+    // its part moves, unless its pin or hub has left it.
+    const held = document.structuralAttachments.flatMap((attachment) => {
+      if (attachment.parent.instanceId !== id) return [];
+      const child = findKartEditorInstance(document, attachment.child.instanceId);
+      const kind = child
+        ? listKartInstanceMounts(child, mountSide(child).definition).find(
+            ({ id: mount }) => mount === attachment.child.mount,
+          )?.kind
+        : undefined;
+      return child && kind && isKartMountLocked(kind)
+        ? [{ child, transform: structuredClone(child.transform) }]
+        : [];
+    });
+    reseat(own);
+    for (const { child, transform } of held) {
+      applyTransformWithDescendants(document, child, transform, new Set([id]));
+    }
+  }
+  for (const attachment of document.structuralAttachments) {
+    if (attachment.parent.instanceId === id) reseat(attachment);
+  }
 }
 
 /** Top face of the structural root, or the original chassis top without one. */
@@ -597,6 +656,180 @@ export function addKartComponent(
   };
 }
 
+/**
+ * After a part version swap, a part seated by a named mount keeps its
+ * origin's place across its face and seats again from there (a gearbox
+ * keeps its outputs on the axle line, its new base on the plate), and the
+ * parts on its named mounts go to where the new version has them: the
+ * motor onto the new motor plate, and a post on the tower pad is cut to
+ * the new pad's height, so the tower bar and the suspension on it stay
+ * where they were. Parts joined without named mounts move with the part,
+ * and a mount the new version lacks leaves its attachment unnamed.
+ */
+function reseatSwappedComponent(
+  document: KartAssemblyDocument,
+  before: KartAssemblyComponentInstance,
+  member: KartAssemblyComponentInstance,
+) {
+  const mountOf = (instance: KartEditorInstance, id: string | null) =>
+    id === null
+      ? undefined
+      : listKartInstanceMounts(instance, mountSide(instance).definition).find(
+          (mount) => mount.id === id,
+        );
+  const unname = (attachment: KartStructuralAttachment) => {
+    attachment.child.mount = null;
+    attachment.parent.mount = null;
+  };
+
+  // Its own seat, from where its named mount was.
+  const start = member.transform.position;
+  const own = document.structuralAttachments.find(
+    ({ child }) => child.instanceId === member.id,
+  );
+  const ownParent =
+    own && findKartEditorInstance(document, own.parent.instanceId);
+  if (own && ownParent && own.child.mount !== null && own.parent.mount !== null) {
+    const seat = mountOf(member, own.child.mount)
+      ? seatKartMount(
+          mountSide(member),
+          mountSide(ownParent),
+          own.child.mount,
+          own.parent.mount,
+          member.transform,
+        )
+      : null;
+    if (!seat) {
+      unname(own);
+    } else {
+      applyInstanceTransform(member, seat.transform);
+      own.child.anchor = localPoint(member.transform, seat.point);
+      own.parent.anchor = localPoint(ownParent.transform, seat.point);
+    }
+  }
+  const shift = subtractVector(member.transform.position, start);
+  const carry = (child: KartEditorInstance) =>
+    applyTransformWithDescendants(
+      document,
+      child,
+      {
+        ...child.transform,
+        position: addVector(child.transform.position, shift),
+      },
+      new Set([member.id]),
+    );
+
+  for (const attachment of document.structuralAttachments) {
+    if (attachment.parent.instanceId !== member.id) continue;
+    const child = findKartEditorInstance(document, attachment.child.instanceId);
+    if (!child) continue;
+    const named =
+      attachment.child.mount !== null && attachment.parent.mount !== null;
+    const was = mountOf(before, attachment.parent.mount);
+    const now = mountOf(member, attachment.parent.mount);
+    if (!named || !now || !was) {
+      if (named) unname(attachment);
+      carry(child);
+      continue;
+    }
+    const childMount = mountOf(child, attachment.child.mount);
+    if (
+      childMount?.kind === "face" &&
+      child.kind === "primitive" &&
+      child.shape === "box" &&
+      document.structuralAttachments.some(
+        ({ parent }) => parent.instanceId === child.id,
+      )
+    ) {
+      cutToPad(document, attachment, child, member, now.normal!);
+      continue;
+    }
+    const followed = {
+      ...child.transform,
+      position: addVector(
+        child.transform.position,
+        subtractVector(now.point, was.point),
+      ),
+    };
+    const seat = seatKartMount(
+      mountSide(child),
+      mountSide(member),
+      attachment.child.mount!,
+      attachment.parent.mount!,
+      followed,
+      attachment.child.anchor,
+    );
+    const target = seat?.transform ?? followed;
+    applyTransformWithDescendants(document, child, target, new Set([member.id]));
+    const point = seat?.point ?? worldPoint(target, attachment.child.anchor);
+    attachment.child.anchor = localPoint(target, point);
+    attachment.parent.anchor = localPoint(member.transform, point);
+  }
+}
+
+/**
+ * Seats a box that carries other parts (a tower post) on its parent's new
+ * face from where it stands, growing or shortening it along the face's
+ * normal so its far face, and everything on it, stays put. Slides across
+ * the face move everything with it.
+ */
+function cutToPad(
+  document: KartAssemblyDocument,
+  attachment: KartStructuralAttachment,
+  post: Extract<KartAssemblyPrimitiveInstance, { shape: "box" }>,
+  parent: KartEditorInstance,
+  normal: KartVector,
+) {
+  const seat = seatKartMount(
+    mountSide(post),
+    mountSide(parent),
+    attachment.child.mount!,
+    attachment.parent.mount!,
+    post.transform,
+    attachment.child.anchor,
+  );
+  if (!seat) return;
+  const move = subtractVector(seat.transform.position, post.transform.position);
+  const rise =
+    move.x * normal.x + move.y * normal.y + move.z * normal.z;
+  const across = subtractVector(move, scaleVector(normal, rise));
+  // The post's own axis along the face's normal.
+  const rotation = rotationMatrix(post.transform.rotationDegrees);
+  const localNormal = transformVector(transposeMatrix(rotation), normal);
+  const axis = (["x", "y", "z"] as const).reduce((best, candidate) =>
+    Math.abs(localNormal[candidate]) > Math.abs(localNormal[best])
+      ? candidate
+      : best,
+  );
+  const size = post.size[axis] - rise;
+  if (size <= 0.001) return;
+  // Its children's attachment points, before it changes.
+  const carried = document.structuralAttachments
+    .filter(({ parent: end }) => end.instanceId === post.id)
+    .map((child) => ({
+      child,
+      point: addVector(worldPoint(post.transform, child.parent.anchor), across),
+    }));
+  applyTransformWithDescendants(
+    document,
+    post,
+    { ...post.transform, position: addVector(post.transform.position, across) },
+    new Set([parent.id]),
+  );
+  post.transform = {
+    ...post.transform,
+    position: addVector(post.transform.position, scaleVector(normal, rise / 2)),
+  };
+  post.size = { ...post.size, [axis]: size };
+  for (const { child, point } of carried) {
+    child.parent.anchor = localPoint(post.transform, point);
+  }
+  attachment.child.anchor = localPoint(post.transform, seat.point);
+  attachment.parent.anchor = localPoint(parent.transform, seat.point);
+  // A part on one of its sides may need to slide to stay on it.
+  for (const child of carried) reseatAttachment(document, child.child);
+}
+
 export function replaceKartComponentDefinition(
   document: KartAssemblyDocument,
   instanceId: string,
@@ -624,6 +857,7 @@ export function replaceKartComponentDefinition(
     (candidate) =>
       candidate.id === originalId || candidate.mirrorOf === originalId,
   )) {
+    const before = structuredClone(member);
     member.definition = { id: definition.id, version: definition.version };
     // Mounts are authored in assembly space, so a swap keeps the arm and shock
     // eyes in place; validation reports a unit that cannot span them.
@@ -633,6 +867,7 @@ export function replaceKartComponentDefinition(
         definition,
       );
     }
+    reseatSwappedComponent(next, before, member);
   }
   return parseKartAssemblyDocument(next);
 }
@@ -693,11 +928,47 @@ export function mirrorKartInstance(
   };
 }
 
+type KartEditorInstance =
+  | KartAssemblyComponentInstance
+  | KartAssemblyPrimitiveInstance;
+
+function findKartEditorInstance(document: KartAssemblyDocument, id: string) {
+  return [...document.componentInstances, ...document.primitiveInstances].find(
+    (instance) => instance.id === id,
+  );
+}
+
+function mountSide(instance: KartEditorInstance): KartMountSide {
+  return {
+    definition:
+      instance.kind === "component"
+        ? (getApprovedKartComponent(instance.definition) ?? null)
+        : null,
+    instance,
+  };
+}
+
+/** A point in assembly space, in a transform's own frame. */
+function localPoint(transform: KartInstanceTransform, point: KartVector) {
+  return transformVector(
+    transposeMatrix(rotationMatrix(transform.rotationDegrees)),
+    subtractVector(point, transform.position),
+  );
+}
+
+function worldPoint(transform: KartInstanceTransform, local: KartVector) {
+  return addVector(
+    transform.position,
+    transformVector(rotationMatrix(transform.rotationDegrees), local),
+  );
+}
+
 export function attachKartInstance(
   document: KartAssemblyDocument,
   childSelection: KartEditorSelection,
   parentId: string,
   retainedIds: ReadonlySet<string>,
+  mirrorPair = false,
 ) {
   const child = getKartEditorInstance(document, childSelection);
   const parent = [
@@ -921,6 +1192,33 @@ export function attachKartInstance(
       }
     }
   }
+  // Otherwise the nearest pair within snapping reach is seated: the child
+  // (and whatever hangs from it) moves onto its parent's mount.
+  let base = document;
+  if (attachment.child.mount === null) {
+    const snap = findKartMountSnap(
+      side(child),
+      side(parent),
+      child.transform,
+    );
+    if (snap) {
+      base = updateKartInstanceTransform(
+        document,
+        childSelection,
+        snap.transform,
+      );
+      attachment.child = {
+        ...attachment.child,
+        anchor: localPoint(snap.transform, snap.point),
+        mount: snap.childMount,
+      };
+      attachment.parent = {
+        ...attachment.parent,
+        anchor: localPoint(parent.transform, snap.point),
+        mount: snap.parentMount,
+      };
+    }
+  }
   // Parts that meet at named mounting points are in reach however far apart
   // their construction stands, as a wheel's hub is from its shock.
   if (
@@ -931,10 +1229,29 @@ export function attachKartInstance(
       `Move the component within ${KART_EDITOR_ATTACHMENT_TOLERANCE_METERS} m of the target parent before attaching.`,
     );
   }
+  // Snapped with its mirror kept aligned, a detached mirror moves to match,
+  // ready to attach the same way.
+  if (
+    mirrorPair &&
+    attachment.child.mount !== null &&
+    getKartMirrorCounterpartIds(document, childSelection).every(
+      (id) =>
+        !document.structuralAttachments.some(
+          ({ child: endpoint }) => endpoint.instanceId === id,
+        ),
+    )
+  ) {
+    base = updateKartInstanceTransform(
+      base,
+      childSelection,
+      getKartEditorInstance(base, childSelection)!.transform,
+      true,
+    );
+  }
   return parseKartAssemblyDocument({
-    ...document,
+    ...base,
     structuralAttachments: [
-      ...document.structuralAttachments.filter(
+      ...base.structuralAttachments.filter(
         ({ child: endpoint }) => endpoint.instanceId !== child.id,
       ),
       attachment,
@@ -980,6 +1297,63 @@ function reconcileExistingKartInstanceAttachments(
   return candidate;
 }
 
+export type KartInstanceSeat =
+  | {
+      childMount: string;
+      /** How it moves while snapped. */
+      hold: "locked" | "slides" | "turns";
+      parentId: string;
+      parentMount: string;
+      snapped: true;
+    }
+  | { parentId: string; snapped: false };
+
+/** How an attached part is held on its parent, or null if unattached. */
+export function getKartInstanceSeat(
+  document: KartAssemblyDocument,
+  selection: KartEditorSelection,
+): KartInstanceSeat | null {
+  const attachment = document.structuralAttachments.find(
+    ({ child }) => child.instanceId === selection.id,
+  );
+  if (!attachment) return null;
+  const { child, parent } = attachment;
+  const instance = getKartEditorInstance(document, selection);
+  const kind = instance
+    ? listKartInstanceMounts(instance, mountSide(instance).definition).find(
+        ({ id }) => id === child.mount,
+      )?.kind
+    : undefined;
+  const parentInstance = findKartEditorInstance(document, parent.instanceId);
+  if (
+    child.mount === null ||
+    parent.mount === null ||
+    !kind ||
+    !instance ||
+    !parentInstance ||
+    // Named, but no longer meeting (a part resized under it).
+    !getKartAttachmentPoint(attachment, parentInstance, instance) ||
+    checkKartAttachmentMounts(
+      attachment,
+      mountSide(parentInstance),
+      mountSide(instance),
+    ).length > 0
+  ) {
+    return { parentId: parent.instanceId, snapped: false };
+  }
+  return {
+    childMount: child.mount,
+    hold: isKartMountLocked(kind)
+      ? "locked"
+      : kind === "motor-face"
+        ? "turns"
+        : "slides",
+    parentId: parent.instanceId,
+    parentMount: parent.mount,
+    snapped: true,
+  };
+}
+
 export function canAttachKartInstanceAtCurrentPosition(
   document: KartAssemblyDocument,
   selection: KartEditorSelection,
@@ -995,18 +1369,175 @@ export function canAttachKartInstanceAtCurrentPosition(
   }
 }
 
+/**
+ * Whether every mirrored pair that `document` holds mirrored (placed as
+ * each other's mirror image) is still so in `next`: an edit that keeps a
+ * pair aligned must leave it so.
+ */
+function keepsMirrorsAligned(
+  document: KartAssemblyDocument,
+  next: KartAssemblyDocument,
+  ids: ReadonlySet<string>,
+) {
+  for (const collection of ["componentInstances", "primitiveInstances"] as const) {
+    for (const mirror of document[collection]) {
+      if (!mirror.mirrorOf || (!ids.has(mirror.id) && !ids.has(mirror.mirrorOf))) {
+        continue;
+      }
+      const original = document[collection].find(
+        ({ id }) => id === mirror.mirrorOf,
+      );
+      const nextMirror = next[collection].find(({ id }) => id === mirror.id);
+      const nextOriginal = next[collection].find(
+        ({ id }) => id === mirror.mirrorOf,
+      );
+      if (!original || !nextMirror || !nextOriginal) continue;
+      // As validation requires of a mirror: its transform, not its size.
+      const aligned = (
+        left: KartEditorInstance,
+        right: KartEditorInstance,
+      ) =>
+        sameKartTransform(mirrorKartTransform(left.transform), right.transform);
+      if (aligned(original, mirror) && !aligned(nextOriginal, nextMirror)) {
+        return false;
+      }
+    }
+  }
+  return true;
+}
+
+/** The mirror image of a transform across the kart's centre plane. */
+function mirrorKartTransform(transform: KartInstanceTransform) {
+  // `+ 0` keeps a mirrored 0 from reading as −0.
+  return {
+    position: { ...transform.position, x: -transform.position.x + 0 },
+    rotationDegrees: {
+      x: transform.rotationDegrees.x,
+      y: -transform.rotationDegrees.y + 0,
+      z: -transform.rotationDegrees.z + 0,
+    },
+  };
+}
+
+function sameKartTransform(
+  left: KartInstanceTransform,
+  right: KartInstanceTransform,
+) {
+  const tolerance = 1e-9;
+  const leftRotation = rotationMatrix(left.rotationDegrees);
+  const rightRotation = rotationMatrix(right.rotationDegrees);
+  return (
+    (["x", "y", "z"] as const).every(
+      (axis) => Math.abs(left.position[axis] - right.position[axis]) <= tolerance,
+    ) &&
+    leftRotation.every(
+      (value, index) => Math.abs(value - rightRotation[index]) <= tolerance,
+    )
+  );
+}
+
+/**
+ * Where a part asked to stand at `transform` stands. A snapped part keeps
+ * to its mounting points: a footprint or face slides on its face and turns
+ * only about it, a motor turns only about its shaft, and a wheel on its hub
+ * or a shock on its pin stays put until detached. A part not yet attached
+ * snaps onto its chosen parent's nearest mounting point in reach.
+ */
+function holdKartTransform(
+  document: KartAssemblyDocument,
+  instance: KartEditorInstance,
+  transform: KartInstanceTransform,
+  targetParentId: string,
+): KartInstanceTransform {
+  const attachment = document.structuralAttachments.find(
+    ({ child }) => child.instanceId === instance.id,
+  );
+  if (attachment) {
+    const { child, parent } = attachment;
+    const parentInstance = findKartEditorInstance(document, parent.instanceId);
+    if (child.mount === null || parent.mount === null || !parentInstance) {
+      return transform;
+    }
+    const side = mountSide(instance);
+    const mount = listKartInstanceMounts(instance, side.definition).find(
+      ({ id }) => id === child.mount,
+    );
+    if (!mount || isKartMountLocked(mount.kind)) return instance.transform;
+    return (
+      seatKartMount(
+        side,
+        mountSide(parentInstance),
+        child.mount,
+        parent.mount,
+        transform,
+        child.anchor,
+      )?.transform ?? instance.transform
+    );
+  }
+  const parentInstance = targetParentId
+    ? findKartEditorInstance(document, targetParentId)
+    : undefined;
+  if (!parentInstance || parentInstance.id === instance.id) return transform;
+  return (
+    findKartMountSnap(mountSide(instance), mountSide(parentInstance), transform)
+      ?.transform ?? transform
+  );
+}
+
 export function updateKartInstanceTransformAndAttachment(
   document: KartAssemblyDocument,
   selection: KartEditorSelection,
   transform: KartAssemblyComponentInstance["transform"],
-  _targetParentId: string,
+  targetParentId: string,
   retainedIds: ReadonlySet<string>,
   mirrorPair = false,
 ) {
+  const instance = getKartEditorInstance(document, selection);
+  let held = instance
+    ? holdKartTransform(document, instance, transform, targetParentId)
+    : transform;
+  // A mirrored counterpart keeps to its own mounting points too: where its
+  // seat takes it elsewhere, the pair meets at its seat, and where they
+  // still can't stay mirrored, neither moves.
+  if (mirrorPair && instance) {
+    for (const counterpartId of getKartMirrorCounterpartIds(
+      document,
+      selection,
+    )) {
+      const counterpart = getKartEditorInstance(document, {
+        id: counterpartId,
+        kind: selection.kind,
+      });
+      if (!counterpart) continue;
+      const counterpartHeld = holdKartTransform(
+        document,
+        counterpart,
+        mirrorKartTransform(held),
+        "",
+      );
+      if (sameKartTransform(counterpartHeld, mirrorKartTransform(held))) {
+        continue;
+      }
+      held = holdKartTransform(
+        document,
+        instance,
+        mirrorKartTransform(counterpartHeld),
+        targetParentId,
+      );
+      if (
+        !sameKartTransform(
+          holdKartTransform(document, counterpart, mirrorKartTransform(held), ""),
+          mirrorKartTransform(held),
+        )
+      ) {
+        return document;
+      }
+    }
+  }
   const next = updateKartInstanceTransform(
     document,
     selection,
-    transform,
+    held,
     mirrorPair,
   );
   const targets: Array<{ parentId: string; selection: KartEditorSelection }> =
@@ -1035,7 +1566,27 @@ export function updateKartInstanceTransformAndAttachment(
       });
     }
   }
-  return reconcileExistingKartInstanceAttachments(next, targets, retainedIds);
+  const result = reconcileExistingKartInstanceAttachments(
+    next,
+    targets,
+    retainedIds,
+  );
+  // Seated and reattached, a pair moved together stays mirrored, or
+  // neither moves.
+  if (
+    mirrorPair &&
+    !keepsMirrorsAligned(
+      document,
+      result,
+      new Set([
+        selection.id,
+        ...getKartMirrorCounterpartIds(document, selection),
+      ]),
+    )
+  ) {
+    return document;
+  }
+  return result;
 }
 
 export function updateSuspensionMountPoint(

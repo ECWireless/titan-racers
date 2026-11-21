@@ -251,6 +251,43 @@ test("reports a part sunk into the plate, and not parts bolted flat to it", () =
   expect(clash?.pose).toBeNull();
 });
 
+test("measures a shock's top connector against other parts", () => {
+  // A 2 mm block beside the Balanced front-left shock's top connector, 7 mm
+  // down the shock from its top eye: clear of the body and the tower bar.
+  const place = (beyond: number) => {
+    const document = createBalancedKartDocument();
+    const snapshot = deriveKartSnapshot(document);
+    const { chassisAnchor, springArmAnchor } = document.componentInstances.find(
+      ({ id }) => id === "suspension-front-left",
+    )!.suspensionMount!;
+    const along = {
+      x: springArmAnchor.x - chassisAnchor.x,
+      y: springArmAnchor.y - chassisAnchor.y,
+      z: springArmAnchor.z - chassisAnchor.z,
+    };
+    const length = Math.hypot(along.x, along.y, along.z);
+    // Across the shock and its eye pin (along Z: it leans only inward).
+    const across = { x: -along.y / length, y: along.x / length, z: 0 };
+    const out = 0.003 + 0.001 + beyond;
+    addBlock(
+      document,
+      {
+        x: chassisAnchor.x + (along.x / length) * 0.007 + across.x * out,
+        y: chassisAnchor.y + (along.y / length) * 0.007 + across.y * out,
+        z: chassisAnchor.z,
+      },
+      0.002,
+    );
+    return checkKartClearance(document, snapshot).clashes.find(
+      ({ first, second }) =>
+        first === "suspension-front-left" && second === "test-block",
+    );
+  };
+  // 0.5 mm into the connector, and 1 mm clear of it.
+  expect(place(-0.0005)?.distance).toBeLessThan(-0.0003);
+  expect(place(0.001)).toBeUndefined();
+});
+
 test("turns and lifts each wheel past its own shock and the other parts", () => {
   // Speed with its shocks further out along its arms, as it was built
   // before: its front tires reach them only when steered.

@@ -6,6 +6,8 @@ import {
   getRenderedKartBounds,
 } from "../kart/kart-assembly-visual";
 import type { KartAssemblyDocument } from "../kart/kart-assembly-document";
+import { rotationMatrix } from "../kart/kart-construction-geometry";
+import { rotationDegreesFromMatrix } from "../kart/kart-mount-snapping";
 import type { KartPartFinish } from "../kart/kart-part-visual-geometry";
 import { createKartVisualMaterial } from "../kart/kart-visual-material";
 import { createRenderOnlyApplication } from "../render/render-only-application";
@@ -88,6 +90,8 @@ export class KartEditorScene {
     new EditorSelectionRegistry<KartEditorSelection>();
   private readonly translateGizmo: pc.TranslateGizmo;
   private activeTransformDocument: KartAssemblyDocument | null = null;
+  /** What the active drag last asked for (`readGizmoTransform`). */
+  private gizmoTransform: KartAssemblyDocument["componentInstances"][number]["transform"] | null = null;
   private canvas: HTMLCanvasElement;
   private currentDocument: KartAssemblyDocument;
   private instanceEntities = new Map<string, pc.Entity>();
@@ -432,9 +436,14 @@ export class KartEditorScene {
 
   private commitRuntimeTransform() {
     const baseline = this.activeTransformDocument;
+    const asked = this.gizmoTransform;
     this.activeTransformDocument = null;
+    this.gizmoTransform = null;
     if (!this.interactionEnabled || !baseline || !this.selection) return;
-    const next = this.buildRuntimeTransformDocument(baseline);
+    const next = this.buildRuntimeTransformDocument(
+      baseline,
+      asked ?? this.readGizmoTransform(baseline),
+    );
     if (!next) return;
     this.clearTransformPreview(false);
     this.options.onDocumentChange(
@@ -447,17 +456,51 @@ export class KartEditorScene {
     );
   }
 
-  private buildRuntimeTransformDocument(baseline: KartAssemblyDocument) {
+  /**
+   * The transform the gizmo asks for, as it drags. The preview poses the
+   * entity where the part would stand, so only what the active gizmo drives
+   * is read back from it: translate re-applies its drag to the position and
+   * rotate to the rotation (each from where the drag began), and the rest
+   * comes from where the part stood. The last one read is kept, so the
+   * drag's end commits what was asked, not the previewed pose.
+   */
+  private readGizmoTransform(baseline: KartAssemblyDocument) {
     if (!this.selection) return null;
+    const entity = this.instanceEntities.get(this.selection.id);
+    const instance = [
+      ...baseline.componentInstances,
+      ...baseline.primitiveInstances,
+    ].find(({ id }) => id === this.selection?.id);
+    if (!entity || !instance) return null;
+    this.gizmoTransform = {
+      position:
+        this.tool === "translate"
+          ? toVector(entity.getPosition())
+          : instance.transform.position,
+      // PlayCanvas reads Y back within ±90°; the angles nearest the part's
+      // own are kept, so turning it past 90° doesn't fold them.
+      rotationDegrees:
+        this.tool === "rotate"
+          ? rotationDegreesFromMatrix(
+              rotationMatrix(toVector(entity.getEulerAngles())),
+              instance.transform.rotationDegrees,
+            )
+          : instance.transform.rotationDegrees,
+    };
+    return this.gizmoTransform;
+  }
+
+  private buildRuntimeTransformDocument(
+    baseline: KartAssemblyDocument,
+    asked = this.readGizmoTransform(baseline),
+  ) {
+    if (!this.selection || !asked) return null;
     const entity = this.instanceEntities.get(this.selection.id);
     if (!entity) return null;
     let next = updateKartInstanceTransformAndAttachment(
       baseline,
       this.selection,
-      {
-        position: toVector(entity.getPosition()),
-        rotationDegrees: toVector(entity.getEulerAngles()),
-      },
+      asked,
       this.options.attachmentParentId,
       this.options.retainedIds,
       this.options.mirrorPair,
@@ -478,14 +521,20 @@ export class KartEditorScene {
       ...document.primitiveInstances,
       ...document.componentInstances,
     ]) {
-      if (instance.id === this.selection?.id) continue;
+      // The selection shows where it would stand too: a snapped part keeps
+      // to its mounting points while dragged, and a free one snaps near
+      // its parent's (the gizmo re-applies its drag from where it began).
+      // The rotate gizmo measures its angle about where the part stands,
+      // so while rotating, the selection keeps its place.
       const entity = this.instanceEntities.get(instance.id);
       if (!entity) continue;
-      entity.setPosition(
-        instance.transform.position.x,
-        instance.transform.position.y,
-        instance.transform.position.z,
-      );
+      if (instance.id !== this.selection?.id || this.tool !== "rotate") {
+        entity.setPosition(
+          instance.transform.position.x,
+          instance.transform.position.y,
+          instance.transform.position.z,
+        );
+      }
       entity.setEulerAngles(
         instance.transform.rotationDegrees.x,
         instance.transform.rotationDegrees.y,

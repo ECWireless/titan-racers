@@ -94,6 +94,13 @@ type Coilover = { kind: "hull"; shapes: [Cylinder, Cylinder, Cylinder] };
 type Solid = {
   bounds: KartBounds;
   instanceId: string;
+  /**
+   * A coilover's top connector, posed through its travel: it stays a
+   * target where the moving coilover stands in for its other solid.
+   */
+  connector?: true;
+  /** The part this one is held in, which it is not measured against. */
+  heldBy?: string;
   /** A wheel against its own coilover, which may sit in the rim's mouth. */
   mouth: { shape: KartConvexShape; suspensionId: string } | null;
   shape: KartConvexShape;
@@ -118,7 +125,22 @@ function boundsGap(left: KartBounds, right: KartBounds) {
  * its coilover body at rest, and a wheel is its whole tire and rim, but
  * against its own coilover stops at the web, as the rim's mouth is open.
  */
-function buildSolids(document: KartAssemblyDocument): Solid[] {
+function buildSolids(
+  document: KartAssemblyDocument,
+  snapshot: DeepReadonly<ResolvedKartSnapshot>,
+): Solid[] {
+  // Each suspension's wheel travel, from full droop to full bump.
+  const travelRange = (suspensionId: string) => {
+    const wheelId = document.structuralAttachments.find(
+      ({ parent }) => parent.instanceId === suspensionId,
+    )?.child.instanceId;
+    const station = snapshot.geometry.wheelStations.find(
+      ({ id }) => id === wheelId,
+    );
+    if (!station) return [0];
+    const { maximumWheelTravel, restWheelCompression } = station.suspension;
+    return [-restWheelCompression, 0, maximumWheelTravel - restWheelCompression];
+  };
   const solid = (
     instanceId: string,
     shape: KartConvexShape,
@@ -137,7 +159,23 @@ function buildSolids(document: KartAssemblyDocument): Solid[] {
       const definition = getApprovedKartComponent(instance.definition);
       if (!definition) return [];
       const coilover = getCoiloverShape(instance, 0);
-      if (coilover) return [solid(instance.id, coilover)];
+      if (coilover) {
+        const connector = getCoiloverConnectorShape(
+          instance,
+          travelRange(instance.id),
+        );
+        // Only a pin through a part holds the eye in it.
+        const tower = document.structuralAttachments.find(
+          ({ child, parent }) =>
+            child.instanceId === instance.id && parent.mount === "pin",
+        )?.parent.instanceId;
+        return [
+          solid(instance.id, coilover),
+          ...(connector
+            ? [{ ...solid(instance.id, connector), connector: true as const, heldBy: tower }]
+            : []),
+        ];
+      }
       const elements = buildComponentMassElements(instance, definition);
       const suspension =
         definition.category === "wheel-tire"
@@ -182,6 +220,90 @@ const COILOVER_EYE_CLEARANCE = { arm: 0.011, chassis: 0.01 };
 const COILOVER_EYE = { halfWidth: 0.003, radius: 0.005 };
 const COILOVER_PERCH_HALF_THICKNESS = 0.001;
 const COILOVER_SPRING_RIM = 0.002;
+// The drawn top connector: 6 mm square, from 3 to 11 mm below the top eye.
+const COILOVER_CONNECTOR = {
+  center: 0.007,
+  half: { x: 0.003, y: 0.004, z: 0.003 },
+};
+
+/**
+ * The coilover's eye pins, as the drawn coilover turns them: its +Y frame
+ * axis is turned onto `axis` by the smallest turn (`setFromDirections`), and
+ * the pins run along its +Z, so a shock leaning fore or aft tilts them.
+ */
+export function getCoiloverPin(axis: KartVector): KartVector {
+  // The turn from +Y onto the axis, as a quaternion: (+Y × axis, 1 + +Y·axis).
+  const w = 1 + axis.y;
+  if (w < Number.EPSILON) return { x: 0, y: 0, z: 1 };
+  const norm = Math.hypot(axis.z, axis.x, w);
+  const [x, y, z] = [axis.z / norm, 0, -axis.x / norm];
+  const q = w / norm;
+  // (x, y, z, q) applied to +Z.
+  return {
+    x: 2 * (x * z + q * y),
+    y: 2 * (y * z - q * x),
+    z: 1 - 2 * (x * x + y * y),
+  };
+}
+
+/**
+ * The coilover's top connector, between its top eye and its body (the
+ * drawn 6 mm block, `buildCoilover`), through all of its wheel's travel:
+ * the hull of the block at full droop, at rest, and at full bump. It turns
+ * only a few degrees about the top eye, so the hull bulges past the arc it
+ * sweeps by well under a tenth of a millimetre. Its own tower holds the
+ * eye on a pin through it, so it is not measured against that part.
+ */
+function getCoiloverConnectorShape(
+  instance: KartAssemblyComponentInstance,
+  travels: readonly number[],
+): KartConvexShape | null {
+  const shapes = getCoiloverConnectorPoses(instance, travels);
+  if (shapes.length === 0) return null;
+  return shapes.length === 1 ? shapes[0] : { kind: "hull", shapes };
+}
+
+/** The top connector's block at each of `travels`. */
+function getCoiloverConnectorPoses(
+  instance: KartAssemblyComponentInstance,
+  travels: readonly number[],
+): KartSolidShape[] {
+  const mount = instance.suspensionMount;
+  if (!mount) return [];
+  const lever = (point: KartVector) =>
+    Math.hypot(
+      point.x - mount.armPivot.x,
+      point.y - mount.armPivot.y,
+      point.z - mount.armPivot.z,
+    );
+  const motionRatio = lever(mount.springArmAnchor) / lever(mount.hubAnchor);
+  const shapes: KartSolidShape[] = [];
+  for (const travel of travels) {
+    const along = subtractVector(
+      { ...mount.springArmAnchor, y: mount.springArmAnchor.y + travel * motionRatio },
+      mount.chassisAnchor,
+    );
+    const length = Math.hypot(along.x, along.y, along.z);
+    if (length <= 0) continue;
+    const axis = scaleVector(along, 1 / length);
+    const pin = getCoiloverPin(axis);
+    const across = cross(axis, pin);
+    shapes.push({
+      center: addVector(
+        mount.chassisAnchor,
+        scaleVector(axis, COILOVER_CONNECTOR.center),
+      ),
+      half: COILOVER_CONNECTOR.half,
+      kind: "box",
+      rotation: [
+        across.x, axis.x, pin.x,
+        across.y, axis.y, pin.y,
+        across.z, axis.z, pin.z,
+      ],
+    });
+  }
+  return shapes;
+}
 
 /**
  * A mounted suspension's coilover with its wheel `wheelTravel` above rest:
@@ -221,8 +343,7 @@ function getCoiloverShape(
     length - COILOVER_EYE_CLEARANCE.chassis - COILOVER_EYE_CLEARANCE.arm,
     0,
   );
-  // The eye's pin runs along the arm's hinge, along the kart.
-  const hinge = { x: 0, y: 0, z: 1 };
+  const hinge = getCoiloverPin(axis);
   return {
     kind: "hull",
     shapes: [
@@ -408,7 +529,11 @@ function planPosing(
     const suspension = suspensionId ? instances.get(suspensionId) : undefined;
     return suspension ? getCoiloverShape(suspension, travel) : null;
   };
-  return { coiloverAt, hubAt, lock, stationOf, steerAt, travelAt };
+  const connectorAt = (suspensionId: string | null, travel: number) => {
+    const suspension = suspensionId ? instances.get(suspensionId) : undefined;
+    return suspension ? getCoiloverConnectorPoses(suspension, [travel]) : [];
+  };
+  return { coiloverAt, connectorAt, hubAt, lock, stationOf, steerAt, travelAt };
 }
 
 /**
@@ -548,7 +673,7 @@ export function checkKartClearance(
   document: KartAssemblyDocument,
   snapshot: DeepReadonly<ResolvedKartSnapshot>,
 ): KartClearanceReport {
-  const solids = buildSolids(document);
+  const solids = buildSolids(document, snapshot);
   const deepest = new Map<string, KartClash>();
   const record = (clash: KartClash) => {
     const key = `${clash.first}|${clash.second}`;
@@ -559,7 +684,12 @@ export function checkKartClearance(
   for (let i = 0; i < solids.length; i += 1) {
     for (let j = i + 1; j < solids.length; j += 1) {
       const [a, b] = [solids[i], solids[j]];
-      if (a.instanceId === b.instanceId || boundsGap(a.bounds, b.bounds) > 0) {
+      if (
+        a.instanceId === b.instanceId ||
+        a.heldBy === b.instanceId ||
+        b.heldBy === a.instanceId ||
+        boundsGap(a.bounds, b.bounds) > 0
+      ) {
         continue;
       }
       const measurement = measureConvexPair(
@@ -601,6 +731,8 @@ const WHEEL_STEPS = { steer: 8, travel: 6 };
 
 type WheelPose = {
   coilover: Coilover | null;
+  /** Its own coilover's top connector, at the same travel. */
+  connector: KartSolidShape[];
   /** The whole wheel, and the part outboard of its web. */
   full: Cylinder;
   mouth: Cylinder | null;
@@ -623,10 +755,8 @@ function sweepWheels(
   solids: Solid[],
   record: (clash: KartClash) => void,
 ) {
-  const { coiloverAt, lock, stationOf, steerAt, travelAt } = planPosing(
-    document,
-    snapshot,
-  );
+  const { coiloverAt, connectorAt, lock, stationOf, steerAt, travelAt } =
+    planPosing(document, snapshot);
   for (const wheel of solids) {
     const station = stationOf.get(wheel.instanceId);
     if (!station || wheel.shape.kind !== "cylinder") continue;
@@ -673,6 +803,7 @@ function sweepWheels(
       });
       const pose: WheelPose = {
         coilover: coiloverAt(suspensionId, wheelTravel),
+        connector: connectorAt(suspensionId, wheelTravel),
         full: place(full),
         mouth: mouth ? place(mouth) : null,
         pose: { centerSteerDegrees, wheelTravel },
@@ -702,8 +833,9 @@ function sweepWheels(
     // The wheel's shape, and what it is measured against, for each part.
     const against = (posed: WheelPose[], other: Solid | null) => {
       if (!other) {
-        const coilovers = posed.flatMap(({ coilover }) =>
-          coilover ? coilover.shapes : [],
+        // Its own coilover, top connector and all, against the rim's mouth.
+        const coilovers = posed.flatMap(({ coilover, connector }) =>
+          coilover ? [...coilover.shapes, ...connector] : [],
         );
         const mouths = posed.flatMap(({ mouth: shape }) => (shape ? [shape] : []));
         if (coilovers.length === 0 || mouths.length === 0) return null;
@@ -893,7 +1025,9 @@ function sweepLinkage(
     return sample;
   };
   const target = (solid: Solid, coilovers: Coilover[]): KartConvexShape =>
-    solid.instanceId !== sweep.suspensionId || coilovers.length === 0
+    solid.instanceId !== sweep.suspensionId ||
+    solid.connector ||
+    coilovers.length === 0
       ? solid.shape
       : coilovers.length === 1
         ? coilovers[0]
