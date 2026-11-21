@@ -28,7 +28,11 @@ import {
   getLatestApprovedKartComponent,
   type KartComponentCategory,
 } from "../kart/kart-component-registry";
-import { checkKartAttachmentMounts } from "../kart/kart-mounting";
+import {
+  checkKartAttachmentMounts,
+  findKartAttachmentMounts,
+  listKartInstanceMounts,
+} from "../kart/kart-mounting";
 import { resolveApprovedSuspensionMount } from "../kart/kart-suspension-mounting";
 
 export type KartEditorSelection = {
@@ -802,11 +806,6 @@ export function attachKartInstance(
           childBounds.maximum.z,
         ),
       );
-  if (surfaceGap > KART_EDITOR_ATTACHMENT_TOLERANCE_METERS + 1e-9) {
-    throw new Error(
-      `Move the component within ${KART_EDITOR_ATTACHMENT_TOLERANCE_METERS} m of the target parent before attaching.`,
-    );
-  }
   const worldAnchor = suspensionChassisAnchor ?? {
     x: childAttachmentAxis(
       parentBounds.minimum.x,
@@ -850,9 +849,17 @@ export function attachKartInstance(
       mount: null as string | null,
     },
   };
+  const side = (instance: typeof child | typeof parent) => ({
+    definition:
+      instance.kind === "component"
+        ? (getApprovedKartComponent(instance.definition) ?? null)
+        : null,
+    instance,
+  });
   // Mounting points the attachment named stay named while they still meet,
   // at the point the child carries with it (a footprint slides with its
   // part, and a motor turns about its own face).
+  let named = false;
   if (
     existing?.parent.instanceId === parent.id &&
     existing.child.mount !== null &&
@@ -869,23 +876,60 @@ export function attachKartInstance(
       transposeMatrix(rotationMatrix(parent.transform.rotationDegrees)),
       subtractVector(carried, parent.transform.position),
     );
-    const named = {
+    const kept = {
       child: { ...existing.child },
       id: attachmentId,
       parent: { ...existing.parent, anchor: parentLocal },
     };
-    const side = (instance: typeof child | typeof parent) => ({
-      definition:
-        instance.kind === "component"
-          ? (getApprovedKartComponent(instance.definition) ?? null)
-          : null,
-      instance,
-    });
-    const issues = checkKartAttachmentMounts(named, side(parent), side(child));
+    const issues = checkKartAttachmentMounts(kept, side(parent), side(child));
     if (issues.length === 0) {
-      attachment.child = named.child;
-      attachment.parent = named.parent;
+      attachment.child = kept.child;
+      attachment.parent = kept.parent;
+      named = true;
     }
+  }
+  // Otherwise, a pair of mounting points that meet where the parts touch,
+  // or at one of the child's own mounting points (a face at its centre), is
+  // named there.
+  if (!named) {
+    const candidates = [
+      worldAnchor,
+      ...listKartInstanceMounts(child, side(child).definition).flatMap(
+        (mount) => (mount.kind === "pin" ? [] : [mount.point]),
+      ),
+    ];
+    for (const point of candidates) {
+      const at = (instance: typeof child | typeof parent) =>
+        transformVector(
+          transposeMatrix(rotationMatrix(instance.transform.rotationDegrees)),
+          subtractVector(point, instance.transform.position),
+        );
+      const candidate = {
+        child: { ...attachment.child, anchor: at(child) },
+        id: attachmentId,
+        parent: { ...attachment.parent, anchor: at(parent) },
+      };
+      const found = findKartAttachmentMounts(
+        candidate,
+        side(parent),
+        side(child),
+      );
+      if (found) {
+        attachment.child = { ...candidate.child, mount: found.child };
+        attachment.parent = { ...candidate.parent, mount: found.parent };
+        break;
+      }
+    }
+  }
+  // Parts that meet at named mounting points are in reach however far apart
+  // their construction stands, as a wheel's hub is from its shock.
+  if (
+    attachment.child.mount === null &&
+    surfaceGap > KART_EDITOR_ATTACHMENT_TOLERANCE_METERS + 1e-9
+  ) {
+    throw new Error(
+      `Move the component within ${KART_EDITOR_ATTACHMENT_TOLERANCE_METERS} m of the target parent before attaching.`,
+    );
   }
   return parseKartAssemblyDocument({
     ...document,

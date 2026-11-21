@@ -147,10 +147,13 @@ const AXLE_STUB_RADIUS = 0.0024;
 /** A dogbone's ball centre, inside the cup's mouth. */
 const AXLE_CUP_BALL_DEPTH = 0.0038;
 /** From a driven arm's lower shock eye inboard to its axle cup's back. */
-const AXLE_CUP_EYE_CLEARANCE = 0.006;
+const AXLE_CUP_EYE_CLEARANCE = 0.009;
 
 /** How far a driven wheel's arm hangs below its pivots, under the dogbone. */
 export const DRIVEN_ARM_DROP = 0.006;
+
+/** A lower arm's two chassis pivots sit this far either side of its hub. */
+export const ARM_PIVOT_HALF_SPREAD = 0.025;
 
 /** Along a driven wheel's arm from its pivot, where the dogbone's ball sits. */
 export function getAxleCupStation(armLength: number, shockEyeStation: number) {

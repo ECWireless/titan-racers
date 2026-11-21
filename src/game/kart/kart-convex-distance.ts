@@ -26,7 +26,10 @@ export type KartConvexShape =
   | { kind: "rounded"; points: KartVector[]; radius: number }
   | { kind: "hull"; shapes: KartSolidShape[] };
 
-type KartSolidShape = Exclude<KartConvexShape, { kind: "rounded" | "hull" }>;
+export type KartSolidShape = Exclude<
+  KartConvexShape,
+  { kind: "rounded" | "hull" }
+>;
 
 /**
  * How two solids stand: `distance` is the gap between their surfaces, or,

@@ -10,16 +10,14 @@ export const BALANCED_KART_ID = "balanced-kart";
 const BALANCED_KART_CONFIG = {
   armLength: 0.115,
   chassis: {
-    armMount: { x: 0.016, z: 0.06 },
+    armMount: { x: 0.016, z: 0.01 },
     bumperSize: { x: 0.09, y: 0.02, z: 0.03 },
     equipment: {
       "battery-main": { x: -0.04, yawDegrees: 90, z: -0.035 },
       // Centers the mass on the kart's centerline.
       "brakes-main": { x: -0.0212, z: 0.04 },
       "controller-main": { x: 0.04, z: -0.06 },
-      "motor-main": { x: 0.048, z: 0.035 },
       "steering-main": { x: 0, z: -0.115 },
-      "transmission-main": { x: 0, z: 0.115 },
     },
     plate: {
       bottomY: 0.044,
@@ -27,7 +25,7 @@ const BALANCED_KART_CONFIG = {
       size: { x: 0.134, y: 0.002, z: 0.375 },
     },
     shockTowerThickness: 0.004,
-    topDeck: { bottomY: 0.085, size: { x: 0.04, y: 0.002 } },
+    topDeck: { bottomY: 0.098, size: { x: 0.04, y: 0.002 } },
   },
   kartId: BALANCED_KART_ID,
   motionRatio: Math.sqrt(812.5 / 1_600),

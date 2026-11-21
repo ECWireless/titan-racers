@@ -140,6 +140,12 @@ test("reads back a ghost kept before the kart schema changed", () => {
   }
   storage.setItem(key("10"), JSON.stringify(record));
 
+  // It reads back as the same kart, with no mounts named.
+  const expected = createBalancedKartDocument();
+  for (const { child, parent } of expected.structuralAttachments) {
+    child.mount = null;
+    parent.mount = null;
+  }
   const stored = readDeviceGhost("falls-view-park", 10);
-  expect(stored?.kart.document).toEqual(createBalancedKartDocument());
+  expect(stored?.kart.document).toEqual(expected);
 });

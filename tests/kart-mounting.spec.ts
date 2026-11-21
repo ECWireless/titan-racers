@@ -7,6 +7,7 @@ import type {
   KartAssemblyDocument,
   KartStructuralAttachment,
 } from "../src/game/kart/kart-assembly-document";
+import { checkKartAssemblyFit } from "../src/game/kart/kart-assembly-fit";
 import { validateKartAssembly } from "../src/game/kart/kart-assembly-validation";
 import { getApprovedKartComponent } from "../src/game/kart/kart-component-registry";
 import {
@@ -21,7 +22,10 @@ import {
   findKartAttachmentMounts,
   listKartInstanceMounts,
 } from "../src/game/kart/kart-mounting";
-import { attachKartInstance } from "../src/game/editor/kart-editor-document";
+import {
+  attachKartInstance,
+  detachKartInstance,
+} from "../src/game/editor/kart-editor-document";
 
 type Instance =
   | KartAssemblyDocument["componentInstances"][number]
@@ -101,130 +105,85 @@ function nameFoundMounts(document: KartAssemblyDocument) {
   return unnamed;
 }
 
-const EQUIPMENT = [
-  "battery-main",
-  "brakes-main",
-  "controller-main",
-  "motor-main",
-  "steering-main",
-  "transmission-main",
-];
+const mountNames = (document: KartAssemblyDocument) =>
+  document.structuralAttachments.map(({ child, parent }) => [
+    child.instanceId,
+    child.mount,
+    parent.mount,
+  ]);
 
 for (const [name, create] of [
   ["Balanced", createBalancedKartDocument],
   ["Speed", createSpeedKartDocument],
   ["Handling", createHandlingKartDocument],
 ] as const) {
-  test(`${name}: its chassis, suspension, and wheels meet at named mounts as built`, () => {
+  test(`${name}: every attachment meets at the mounts it names, as built`, () => {
     const document = create();
     expect(document.schemaVersion).toBe(3);
-    expect(
-      document.structuralAttachments.every(
-        ({ child, parent }) => child.mount === null && parent.mount === null,
-      ),
-    ).toBe(true);
-
-    // Only the version 1 equipment, which declares no mounts, stays unnamed.
-    expect(nameFoundMounts(document).sort()).toEqual(EQUIPMENT);
     expect(issueCodes(document)).toEqual([]);
+
+    // The finder names the same mounts from the kart as it stands.
+    const found = structuredClone(document);
+    for (const { child, parent } of found.structuralAttachments) {
+      child.mount = null;
+      parent.mount = null;
+    }
+    expect(nameFoundMounts(found)).toEqual([]);
+    expect(mountNames(found)).toEqual(mountNames(document));
 
     const names = (childId: string) => {
       const { child, parent } = attachmentOf(document, childId);
-      return [child.mount, parent.mount];
+      return [child.mount, parent.instanceId, parent.mount];
     };
-    expect(names("arm-mount-front-left")).toEqual(["bottom", "top"]);
-    expect(names("shock-tower-rear")).toEqual(["bottom", "top"]);
-    expect(names("shock-tower-rear-bar")).toEqual(["bottom", "top"]);
-    expect(names("suspension-front-right")).toEqual(["chassis-anchor", "pin"]);
-    expect(names("wheel-rear-left")).toEqual(["hub", "hub-anchor"]);
-    expect(names("top-deck")).toEqual(["front", "rear"]);
-    expect(names("front-bumper")).toEqual(["rear", "front"]);
-    expect(names("rear-bumper")).toEqual(["front", "rear"]);
-  });
-}
-
-test("version 2 equipment sits on the plate by its base footprint", () => {
-  const document = createBalancedKartDocument();
-  for (const id of [
-    "battery-main",
-    "brakes-main",
-    "controller-main",
-    "steering-main",
-  ]) {
-    const instance = document.componentInstances.find(
-      (candidate) => candidate.id === id,
-    )!;
-    instance.definition.version = 2;
-  }
-  nameFoundMounts(document);
-  for (const id of ["battery-main", "brakes-main", "controller-main", "steering-main"]) {
-    const { child, parent } = attachmentOf(document, id);
-    expect([id, child.mount, parent.mount]).toEqual([id, "base", "top"]);
-  }
-  expect(issueCodes(document)).toEqual([]);
-});
-
-/**
- * Balanced with the version 2 gearbox on the plate by its base, the motor
- * bolted to its plate, and a tower standing on its pad.
- */
-function createMountedDrivetrain() {
-  const document = createBalancedKartDocument();
-  const gearbox = document.componentInstances.find(
-    ({ id }) => id === "transmission-main",
-  )!;
-  gearbox.definition.version = 2;
-  attachAt(
-    attachmentOf(document, "transmission-main"),
-    document,
-    mountPoint(document, "transmission-main", "base"),
-    { child: "base", parent: "top" },
-  );
-
-  const motor = document.componentInstances.find(({ id }) => id === "motor-main")!;
-  motor.definition.version = 2;
-  const plate = mountPoint(document, "transmission-main", "motor-plate");
-  // Turned so its shaft points to -X; its face is 25 mm ahead of its centre.
-  motor.transform = {
-    position: { x: plate.x + 0.025, y: plate.y, z: plate.z },
-    rotationDegrees: { x: 0, y: 90, z: 0 },
-  };
-  const motorAttachment = attachmentOf(document, "motor-main");
-  motorAttachment.parent.instanceId = "transmission-main";
-  attachAt(motorAttachment, document, plate, {
-    child: "motor-face",
-    parent: "motor-plate",
+    expect(names("arm-mount-rear-left-front")).toEqual([
+      "bottom",
+      "chassis-plate",
+      "top",
+    ]);
+    expect(names("shock-tower-front")).toEqual([
+      "bottom",
+      "chassis-plate",
+      "top",
+    ]);
+    expect(names("shock-tower-rear")).toEqual([
+      "bottom",
+      "transmission-main",
+      "tower-pad",
+    ]);
+    expect(names("suspension-front-right")).toEqual([
+      "chassis-anchor",
+      "shock-tower-front-bar",
+      "pin",
+    ]);
+    expect(names("wheel-rear-left")).toEqual([
+      "hub",
+      "suspension-rear-left",
+      "hub-anchor",
+    ]);
+    expect(names("top-deck")).toEqual(["front", "shock-tower-front", "rear"]);
+    expect(names("front-bumper")).toEqual(["rear", "chassis-plate", "front"]);
+    expect(names("battery-main")).toEqual(["base", "chassis-plate", "top"]);
+    expect(names("transmission-main")).toEqual([
+      "base",
+      name === "Handling" ? "transmission-riser" : "chassis-plate",
+      "top",
+    ]);
+    expect(names("motor-main")).toEqual([
+      "motor-face",
+      "transmission-main",
+      "motor-plate",
+    ]);
   });
 
-  const pad = mountPoint(document, "transmission-main", "tower-pad");
-  const tower = structuredClone(
-    document.primitiveInstances.find(({ id }) => id === "shock-tower-rear")!,
-  );
-  if (tower.shape !== "box") throw new Error("The tower is a box.");
-  tower.id = "gearbox-tower";
-  tower.size = { x: 0.03, y: 0.02, z: 0.004 };
-  tower.transform.position = { x: pad.x, y: pad.y + 0.01, z: pad.z };
-  document.primitiveInstances.push(tower);
-  document.structuralAttachments.push({
-    child: { anchor: { x: 0, y: 0, z: 0 }, instanceId: tower.id, mount: null },
-    id: "mount-gearbox-tower",
-    parent: {
-      anchor: { x: 0, y: 0, z: 0 },
-      instanceId: "transmission-main",
-      mount: null,
-    },
+  test(`${name}: is clash-free through travel and lock, so it saves`, () => {
+    expect(checkKartAssemblyFit(create())).toEqual([]);
   });
-  attachAt(attachmentOf(document, tower.id), document, pad, {
-    child: "bottom",
-    parent: "tower-pad",
-  });
-  return document;
 }
 
 test("a motor bolts to a gearbox's plate, and a tower stands on its pad", () => {
-  const document = createMountedDrivetrain();
+  const document = createBalancedKartDocument();
   expect(issueCodes(document)).toEqual([]);
-  for (const id of ["transmission-main", "motor-main", "gearbox-tower"]) {
+  for (const id of ["transmission-main", "motor-main", "shock-tower-rear"]) {
     const attachment = attachmentOf(document, id);
     expect(
       findKartAttachmentMounts(
@@ -241,7 +200,7 @@ test("a motor bolts to a gearbox's plate, and a tower stands on its pad", () => 
 
 test("rejects mounts that do not meet", () => {
   // A motor a millimetre off its plate, or turned to face away.
-  let document = createMountedDrivetrain();
+  let document = createBalancedKartDocument();
   const motor = () =>
     document.componentInstances.find(({ id }) => id === "motor-main")!;
   const motorAttachment = () => attachmentOf(document, "motor-main");
@@ -249,20 +208,24 @@ test("rejects mounts that do not meet", () => {
   motorAttachment().child.anchor.z -= 0.001;
   expect(issueCodes(document)).toContain("separated-mounts");
 
-  document = createMountedDrivetrain();
+  document = createBalancedKartDocument();
   motor().transform.rotationDegrees.y = -90;
   motor().transform.position.x -= 0.05;
   motorAttachment().child.anchor = { x: 0, y: 0, z: -0.025 };
   expect(issueCodes(document)).toEqual(["misaligned-mounts"]);
 
-  // A tower slid off its pad, though still on the gearbox's top.
-  document = createMountedDrivetrain();
+  // A tower's post slid back off its pad, leaving its crossbar off the post.
+  document = createBalancedKartDocument();
   const tower = document.primitiveInstances.find(
-    ({ id }) => id === "gearbox-tower",
+    ({ id }) => id === "shock-tower-rear",
   )!;
   tower.transform.position.z += 0.003;
-  attachmentOf(document, "gearbox-tower").child.anchor.z -= 0.003;
-  expect(issueCodes(document)).toEqual(["mount-outside-face"]);
+  attachmentOf(document, "shock-tower-rear").child.anchor.z -= 0.003;
+  attachmentOf(document, "shock-tower-rear-bar").parent.anchor.z -= 0.003;
+  expect(issueCodes(document)).toEqual([
+    "mount-outside-face",
+    "mount-outside-face",
+  ]);
 });
 
 test("a base footprint rests wholly on a structural face", () => {
@@ -345,6 +308,10 @@ test("documents from schema 2 validate with no mounts named", () => {
   };
   const result = validateKartAssembly(version2);
   expect(result.success).toBe(true);
+  for (const { child, parent } of document.structuralAttachments) {
+    child.mount = null;
+    parent.mount = null;
+  }
   if (result.success) expect(result.assembly.document).toEqual(document);
 });
 
@@ -488,12 +455,6 @@ test("reports a naming problem at the attachment end at fault", () => {
 
 test("the editor keeps named mounts while a moved part still meets them", () => {
   const document = createBalancedKartDocument();
-  const battery = document.componentInstances.find(
-    ({ id }) => id === "battery-main",
-  )!;
-  battery.definition.version = 2;
-  nameFoundMounts(document);
-
   const nudged = structuredClone(document);
   nudged.componentInstances.find(
     ({ id }) => id === "battery-main",
@@ -528,7 +489,7 @@ test("the editor keeps named mounts while a moved part still meets them", () => 
 });
 
 test("the editor keeps drivetrain mounts named across a re-attach", () => {
-  const document = createMountedDrivetrain();
+  const document = createBalancedKartDocument();
   const reattach = (
     edited: KartAssemblyDocument,
     id: string,
@@ -537,7 +498,7 @@ test("the editor keeps drivetrain mounts named across a re-attach", () => {
     const attachment = attachmentOf(
       attachKartInstance(
         edited,
-        { id, kind: id === "gearbox-tower" ? "primitive" : "component" },
+        { id, kind: id === "shock-tower-rear" ? "primitive" : "component" },
         parentId,
         new Set(),
       ),
@@ -553,7 +514,7 @@ test("the editor keeps drivetrain mounts named across a re-attach", () => {
     "motor-face",
     "motor-plate",
   ]);
-  expect(reattach(document, "gearbox-tower", "transmission-main")).toEqual([
+  expect(reattach(document, "shock-tower-rear", "transmission-main")).toEqual([
     "bottom",
     "tower-pad",
   ]);
@@ -568,3 +529,37 @@ test("the editor keeps drivetrain mounts named across a re-attach", () => {
     "top",
   ]);
 });
+
+for (const [name, create] of [
+  ["Balanced", createBalancedKartDocument],
+  ["Speed", createSpeedKartDocument],
+  ["Handling", createHandlingKartDocument],
+] as const) {
+  test(`${name}: the editor names the mounts a re-attached part meets at`, () => {
+    let document = create();
+    for (const [id, kind] of [
+      ["battery-main", "component"],
+      ["motor-main", "component"],
+      ["transmission-main", "component"],
+      ["shock-tower-rear", "primitive"],
+      ["suspension-front-left", "component"],
+      ["wheel-rear-right", "component"],
+    ] as const) {
+      const before = attachmentOf(document, id);
+      const selection = { id, kind };
+      document = attachKartInstance(
+        detachKartInstance(document, selection),
+        selection,
+        before.parent.instanceId,
+        new Set(),
+      );
+      const after = attachmentOf(document, id);
+      expect([id, after.child.mount, after.parent.mount]).toEqual([
+        id,
+        before.child.mount,
+        before.parent.mount,
+      ]);
+    }
+    expect(checkKartAssemblyFit(document)).toEqual([]);
+  });
+}

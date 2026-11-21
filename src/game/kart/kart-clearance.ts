@@ -17,6 +17,7 @@ import {
   measureConvexPair,
   type KartConvexMeasurement,
   type KartConvexShape,
+  type KartSolidShape,
 } from "./kart-convex-distance";
 import type { ResolvedKartSnapshot } from "./kart-derivation";
 import {
@@ -83,6 +84,12 @@ export type KartClearanceReport = {
 };
 
 type Cylinder = Extract<KartConvexShape, { kind: "cylinder" }>;
+
+/**
+ * A coilover as `getCoiloverShape` builds it: the hull of its body, its
+ * lower spring perch, and its arm eye (in that order).
+ */
+type Coilover = { kind: "hull"; shapes: [Cylinder, Cylinder, Cylinder] };
 
 type Solid = {
   bounds: KartBounds;
@@ -167,19 +174,25 @@ function getWheelOutboardOfWeb(
   };
 }
 
-// The drawn coilover's body and lower perch stop this far short of each eye
-// (`buildCoilover`); the eyes are the pin joints it is mounted by.
+// The drawn coilover's body stops this far short of each eye
+// (`buildCoilover`); its lower perch sits at the arm end's.
 const COILOVER_EYE_CLEARANCE = { arm: 0.011, chassis: 0.01 };
+// The drawn arm eye: a ring across the shock on the arm's pin. The spring
+// and the perches reach this far beyond the body's construction radius.
+const COILOVER_EYE = { halfWidth: 0.003, radius: 0.005 };
+const COILOVER_PERCH_HALF_THICKNESS = 0.001;
+const COILOVER_SPRING_RIM = 0.002;
 
 /**
- * A mounted suspension's coilover body with its wheel `wheelTravel` above
- * rest: the arm eye rises by the arm's lever ratio, as the drawn coilover's
- * does.
+ * A mounted suspension's coilover with its wheel `wheelTravel` above rest:
+ * its body and spring, lower perch, and arm eye. The arm eye rises by the arm's lever
+ * ratio, as the drawn coilover's does. The top eye is left out: it rides on
+ * the pin through its tower.
  */
 function getCoiloverShape(
   instance: KartAssemblyComponentInstance,
   wheelTravel: number,
-): Cylinder | null {
+): Coilover | null {
   const definition = getApprovedKartComponent(instance.definition);
   const mount = instance.suspensionMount;
   const body = definition?.construction[0];
@@ -208,15 +221,39 @@ function getCoiloverShape(
     length - COILOVER_EYE_CLEARANCE.chassis - COILOVER_EYE_CLEARANCE.arm,
     0,
   );
+  // The eye's pin runs along the arm's hinge, along the kart.
+  const hinge = { x: 0, y: 0, z: 1 };
   return {
-    axis,
-    center: addVector(
-      mount.chassisAnchor,
-      scaleVector(axis, COILOVER_EYE_CLEARANCE.chassis + bodyLength / 2),
-    ),
-    halfHeight: bodyLength / 2,
-    kind: "cylinder",
-    radius: body.radius,
+    kind: "hull",
+    shapes: [
+      {
+        axis,
+        center: addVector(
+          mount.chassisAnchor,
+          scaleVector(axis, COILOVER_EYE_CLEARANCE.chassis + bodyLength / 2),
+        ),
+        halfHeight: bodyLength / 2,
+        kind: "cylinder",
+        radius: body.radius + COILOVER_SPRING_RIM,
+      },
+      {
+        axis,
+        center: addVector(
+          armEye,
+          scaleVector(axis, -COILOVER_EYE_CLEARANCE.arm),
+        ),
+        halfHeight: COILOVER_PERCH_HALF_THICKNESS,
+        kind: "cylinder",
+        radius: body.radius + COILOVER_SPRING_RIM,
+      },
+      {
+        axis: hinge,
+        center: armEye,
+        halfHeight: COILOVER_EYE.halfWidth,
+        kind: "cylinder",
+        radius: COILOVER_EYE.radius,
+      },
+    ],
   };
 }
 
@@ -296,7 +333,7 @@ const cup = (at: 0 | 1, restLength: number): RodFeature => ({
 
 type LinkageSample = Rod & {
   /** The wheel's own coilover, which travels with it. */
-  coilover: Cylinder | null;
+  coilover: Coilover | null;
   /**
    * How far a driveshaft's inner ball strays from where its cup holds it
    * (0 while it is held), and the nearest point the cup would hold it at.
@@ -330,14 +367,14 @@ type LinkageSweep = {
 };
 
 /**
- * Each tie rod and driveshaft as a function of its pose: wheel travel from
- * full droop (u = 0) to full bump (u = 1), and, for tie rods, steering from
- * lock to lock (v from 0 to 1), as the derived kart can reach them.
+ * How the derived kart poses each wheel: its hub's travel from full droop
+ * (u = 0) to full bump (u = 1), its own steering angle (with Ackermann) for
+ * the kart's centre angle, and its coilover at a travel.
  */
-function planSweeps(
+function planPosing(
   document: KartAssemblyDocument,
   snapshot: DeepReadonly<ResolvedKartSnapshot>,
-): LinkageSweep[] {
+) {
   const { trackWidth, wheelStations, wheelbase } = snapshot.geometry;
   const lock = snapshot.physicalProfile.steering.maximumCenterAngle;
   const stationOf = new Map(
@@ -371,6 +408,20 @@ function planSweeps(
     const suspension = suspensionId ? instances.get(suspensionId) : undefined;
     return suspension ? getCoiloverShape(suspension, travel) : null;
   };
+  return { coiloverAt, hubAt, lock, stationOf, steerAt, travelAt };
+}
+
+/**
+ * Each tie rod and driveshaft as a function of its pose: wheel travel from
+ * full droop (u = 0) to full bump (u = 1), and, for tie rods, steering from
+ * lock to lock (v from 0 to 1), as the derived kart can reach them.
+ */
+function planSweeps(
+  document: KartAssemblyDocument,
+  snapshot: DeepReadonly<ResolvedKartSnapshot>,
+): LinkageSweep[] {
+  const { coiloverAt, hubAt, lock, stationOf, steerAt, travelAt } =
+    planPosing(document, snapshot);
 
   const poses = planKartLinkagePoses(document);
   const sweeps: LinkageSweep[] = [];
@@ -485,8 +536,9 @@ const NEAREST_RANGE = 0.05;
 
 /**
  * Measures a kart for clashes: any two instances whose construction
- * overlaps, and any tie rod or driveshaft that runs into a part anywhere in
- * its travel and steering, or a driveshaft that leaves its outdrive cup.
+ * overlaps, any wheel that runs into a part through its travel and steering,
+ * and any tie rod or driveshaft that runs into a part anywhere in its travel
+ * and steering, or a driveshaft that leaves its outdrive cup.
  * Between sampled poses, each step is measured as the hull of the rod's
  * positions at its corners, swollen by how far it strays between them
  * (`STRAYING_MARGIN`), and halved until it clears or the clash is reported.
@@ -528,6 +580,8 @@ export function checkKartClearance(
     }
   }
 
+  sweepWheels(document, snapshot, solids, record);
+
   const linkages: KartLinkageClearance[] = [];
   for (const sweep of planSweeps(document, snapshot)) {
     const result = sweepLinkage(sweep, solids, record);
@@ -540,6 +594,243 @@ export function checkKartClearance(
     ),
     linkages,
   };
+}
+
+/** Wheel pose steps: travel, and steering from lock to lock. */
+const WHEEL_STEPS = { steer: 8, travel: 6 };
+
+type WheelPose = {
+  coilover: Coilover | null;
+  /** The whole wheel, and the part outboard of its web. */
+  full: Cylinder;
+  mouth: Cylinder | null;
+  pose: KartLinkagePoseSample;
+  steerAngle: number;
+};
+
+/**
+ * Each wheel moved through its travel and, if steered, from lock to lock,
+ * turning about its hub: against its own coilover at the same travel (which
+ * may sit in the rim's mouth), and against every part but its own
+ * suspension and the other wheels. Each step between sampled poses is
+ * measured as the hull of the wheel at its corners, swollen by how far the
+ * turning wheel bulges past that hull, and halved until it clears or the
+ * clash is reported; a clash at a sampled pose is reported there.
+ */
+function sweepWheels(
+  document: KartAssemblyDocument,
+  snapshot: DeepReadonly<ResolvedKartSnapshot>,
+  solids: Solid[],
+  record: (clash: KartClash) => void,
+) {
+  const { coiloverAt, lock, stationOf, steerAt, travelAt } = planPosing(
+    document,
+    snapshot,
+  );
+  for (const wheel of solids) {
+    const station = stationOf.get(wheel.instanceId);
+    if (!station || wheel.shape.kind !== "cylinder") continue;
+    const id = wheel.instanceId;
+    const full = wheel.shape;
+    const mouth = wheel.mouth?.shape.kind === "cylinder" ? wheel.mouth.shape : null;
+    const suspensionId = wheel.mouth?.suspensionId ?? null;
+    const others = solids.filter(
+      ({ instanceId }) =>
+        instanceId !== suspensionId && !stationOf.has(instanceId),
+    );
+    // How far any point of the wheel lies from its hub, which bounds how far
+    // it bulges past the chord of a turn.
+    const reach =
+      Math.hypot(full.radius, full.halfHeight) +
+      Math.hypot(
+        full.center.x - station.position.x,
+        full.center.y - station.position.y,
+        full.center.z - station.position.z,
+      );
+    const cache = new Map<string, WheelPose>();
+    const poseAt = (u: number, v: number): WheelPose => {
+      const key = `${u}:${v}`;
+      const cached = cache.get(key);
+      if (cached) return cached;
+      const wheelTravel = travelAt(id, u);
+      const centerSteerDegrees = station.steered ? (2 * v - 1) * lock : 0;
+      const angle = station.steered ? steerAt(id, centerSteerDegrees) : 0;
+      const turn = (vector: KartVector): KartVector => ({
+        x: vector.x * Math.cos(angle) + vector.z * Math.sin(angle),
+        y: vector.y,
+        z: -vector.x * Math.sin(angle) + vector.z * Math.cos(angle),
+      });
+      const place = (shape: Cylinder): Cylinder => ({
+        ...shape,
+        axis: turn(shape.axis),
+        center: addVector(
+          addVector(
+            station.position,
+            turn(subtractVector(shape.center, station.position)),
+          ),
+          { x: 0, y: wheelTravel, z: 0 },
+        ),
+      });
+      const pose: WheelPose = {
+        coilover: coiloverAt(suspensionId, wheelTravel),
+        full: place(full),
+        mouth: mouth ? place(mouth) : null,
+        pose: { centerSteerDegrees, wheelTravel },
+        steerAngle: angle,
+      };
+      cache.set(key, pose);
+      return pose;
+    };
+
+    const clashing = new Set<string>();
+    const report = (
+      measurement: KartConvexMeasurement,
+      other: string,
+      pose: KartLinkagePoseSample,
+    ) => {
+      clashing.add(other);
+      const swap = other < id;
+      record({
+        distance: measurement.distance,
+        first: swap ? other : id,
+        pointA: swap ? measurement.pointB : measurement.pointA,
+        pointB: swap ? measurement.pointA : measurement.pointB,
+        pose,
+        second: swap ? id : other,
+      });
+    };
+    // The wheel's shape, and what it is measured against, for each part.
+    const against = (posed: WheelPose[], other: Solid | null) => {
+      if (!other) {
+        const coilovers = posed.flatMap(({ coilover }) =>
+          coilover ? coilover.shapes : [],
+        );
+        const mouths = posed.flatMap(({ mouth: shape }) => (shape ? [shape] : []));
+        if (coilovers.length === 0 || mouths.length === 0) return null;
+        return {
+          moving: hullOf(mouths),
+          target: hullOf(coilovers),
+        };
+      }
+      return { moving: hullOf(posed.map(({ full: shape }) => shape)), target: other.shape };
+    };
+    const targets: Array<{ id: string; solid: Solid | null }> = [
+      ...(suspensionId ? [{ id: suspensionId, solid: null }] : []),
+      ...others.map((solid) => ({ id: solid.instanceId, solid })),
+    ];
+
+    const measured = new Set<WheelPose>();
+    const exact = (posed: WheelPose) => {
+      if (measured.has(posed)) return;
+      measured.add(posed);
+      // Every sampled pose is measured, so a clash reports at its deepest.
+      for (const { id: other, solid } of targets) {
+        const pair = against([posed], solid);
+        if (!pair) continue;
+        if (
+          solid &&
+          boundsGap(getConvexShapeBounds(pair.moving), solid.bounds) > 0
+        ) {
+          continue;
+        }
+        const measurement = measureConvexPair(pair.moving, pair.target);
+        if (measurement.distance < -KART_CLEARANCE_TOUCH_TOLERANCE) {
+          report(measurement, other, posed.pose);
+        }
+      }
+    };
+
+    const refine = (
+      [u0, u1]: [number, number],
+      [v0, v1]: [number, number],
+      depth: number,
+      candidates: typeof targets,
+    ): void => {
+      const corners = station.steered
+        ? [poseAt(u0, v0), poseAt(u1, v0), poseAt(u0, v1), poseAt(u1, v1)]
+        : [poseAt(u0, v0), poseAt(u1, v0)];
+      corners.forEach(exact);
+      const turned = Math.abs(corners.at(-1)!.steerAngle - corners[0].steerAngle);
+      const bulge = reach * (1 - Math.cos(turned / 2));
+      // Between travel samples the coilover's eye rises along a straight line,
+      // and its body swings by little; its straying is measured midway.
+      const middle = poseAt((u0 + u1) / 2, (v0 + v1) / 2);
+      const coiloverStray =
+        middle.coilover && corners.every(({ coilover }) => coilover)
+          ? straying(
+              corners.map(({ coilover }) => coiloverPoints(coilover!)),
+              [
+                {
+                  point: coiloverPoints(middle.coilover),
+                  weights: corners.map(() => 1 / corners.length),
+                },
+              ],
+            )
+          : 0;
+      const straddling = candidates.filter(({ id: other, solid }) => {
+        if (clashing.has(other)) return false;
+        const pair = against(corners, solid);
+        if (!pair) return false;
+        if (
+          solid &&
+          boundsGap(getConvexShapeBounds(pair.moving), solid.bounds) >
+            bulge + KART_CLEARANCE_TOUCH_TOLERANCE
+        ) {
+          return false;
+        }
+        const measurement = measureConvexPair(pair.moving, pair.target);
+        measurement.distance -=
+          STRAYING_MARGIN * (bulge + (solid ? 0 : coiloverStray));
+        if (measurement.distance >= -KART_CLEARANCE_TOUCH_TOLERANCE) {
+          return false;
+        }
+        if (depth < MAXIMUM_REFINEMENTS) return true;
+        // Too fine a step to halve again. Against a fixed part, the hull
+        // bounds every pose in the step, so its overlap is reported. A
+        // wheel and its own shock move together, so their hulls may hold
+        // poses that never meet: they report only what the step's centre
+        // pose shows.
+        exact(middle);
+        if (solid && !clashing.has(other)) {
+          report(measurement, other, middle.pose);
+        }
+        return false;
+      });
+      if (straddling.length === 0) return;
+      const um = (u0 + u1) / 2;
+      const vm = (v0 + v1) / 2;
+      for (const uStep of [
+        [u0, um],
+        [um, u1],
+      ] as Array<[number, number]>) {
+        for (const vStep of (station.steered
+          ? [
+              [v0, vm],
+              [vm, v1],
+            ]
+          : [[v0, v1]]) as Array<[number, number]>) {
+          refine(uStep, vStep, depth + 1, straddling);
+        }
+      }
+    };
+
+    const steer = station.steered ? WHEEL_STEPS.steer : 1;
+    for (let i = 0; i < WHEEL_STEPS.travel; i += 1) {
+      for (let j = 0; j < steer; j += 1) {
+        refine(
+          [i / WHEEL_STEPS.travel, (i + 1) / WHEEL_STEPS.travel],
+          station.steered ? [j / steer, (j + 1) / steer] : [0.5, 0.5],
+          0,
+          targets,
+        );
+      }
+    }
+  }
+}
+
+/** The convex hull of solid shapes, or the shape itself. */
+function hullOf(shapes: KartSolidShape[]): KartConvexShape {
+  return shapes.length === 1 ? shapes[0] : { kind: "hull", shapes };
 }
 
 /** A point's straying from where its step's corners would put it by blending. */
@@ -601,17 +892,20 @@ function sweepLinkage(
     }
     return sample;
   };
-  const target = (solid: Solid, coilovers: Cylinder[]) =>
+  const target = (solid: Solid, coilovers: Coilover[]): KartConvexShape =>
     solid.instanceId !== sweep.suspensionId || coilovers.length === 0
       ? solid.shape
       : coilovers.length === 1
         ? coilovers[0]
-        : { kind: "hull" as const, shapes: coilovers };
+        : {
+            kind: "hull",
+            shapes: coilovers.flatMap(({ shapes }): KartSolidShape[] => shapes),
+          };
   /** The rod's deepest feature against `solid`, given its feature shapes. */
   const measure = (
     shapes: KartConvexShape[],
     solid: Solid,
-    coilovers: Cylinder[],
+    coilovers: Coilover[],
     coiloverStraying: number,
   ) => {
     const against = target(solid, coilovers);
@@ -717,9 +1011,11 @@ function sweepLinkage(
       coilovers.length === corners.length
         ? STRAYING_MARGIN *
           straying(
-            coilovers.map(axisEnds),
+            coilovers.map(coiloverPoints),
             between.flatMap(([sample, weights]) =>
-              sample.coilover ? [{ point: axisEnds(sample.coilover), weights }] : [],
+              sample.coilover
+                ? [{ point: coiloverPoints(sample.coilover), weights }]
+                : [],
             ),
           )
         : 0;
@@ -789,10 +1085,11 @@ function sweepLinkage(
   return nearest;
 }
 
-/** A cylinder's axis ends, which carry its motion. */
-function axisEnds({ axis, center, halfHeight }: Cylinder) {
+/** A coilover's body axis ends and arm eye, which carry its motion. */
+function coiloverPoints({ shapes: [body, , eye] }: Coilover) {
   return [
-    addVector(center, scaleVector(axis, halfHeight)),
-    addVector(center, scaleVector(axis, -halfHeight)),
+    addVector(body.center, scaleVector(body.axis, body.halfHeight)),
+    addVector(body.center, scaleVector(body.axis, -body.halfHeight)),
+    eye.center,
   ];
 }

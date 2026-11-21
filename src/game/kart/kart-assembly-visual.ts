@@ -23,6 +23,7 @@ import {
   type KartTieRodPose,
 } from "./kart-linkage-poses";
 import {
+  ARM_PIVOT_HALF_SPREAD,
   buildAxleCup,
   buildDogbone,
   buildSteeringArm,
@@ -148,7 +149,6 @@ type KartAssemblyVisual = {
   wheels: KartWheelVisual[];
 };
 
-const ARM_ANCHOR_HALF_SPREAD = 0.025;
 
 /**
  * Builds a kart's visual. Without a device it builds the same entities with
@@ -555,6 +555,19 @@ function poseKartSuspensionVisual(
   suspension.coil.setLocalScale(1, coilLength / suspension.coilRestLength, 1);
 }
 
+/**
+ * A point in an arm's plan: along it from the pivot toward the hub, and
+ * across it (+Z of the arm's frame, which `poseArm` yaws to face the hub).
+ */
+function inArmPlan(point: pc.Vec3, pivot: pc.Vec3, hub: pc.Vec3) {
+  const hx = hub.x - pivot.x;
+  const hz = hub.z - pivot.z;
+  const length = Math.hypot(hx, hz);
+  const px = point.x - pivot.x;
+  const pz = point.z - pivot.z;
+  return { x: (px * hx + pz * hz) / length, z: (pz * hx - px * hz) / length };
+}
+
 /** Swings the A-arm about its chassis pivots and stretches it to the hub. */
 function poseArm(suspension: KartSuspensionVisual, hub: pc.Vec3) {
   const toHub = hub.clone().sub(suspension.armPivot);
@@ -760,7 +773,12 @@ function createSuspensionVisual(
 
   const arm = createPieces(
     `${instance.id}-arm`,
-    buildSuspensionArm(armRestLength, ARM_ANCHOR_HALF_SPREAD, armDrop),
+    buildSuspensionArm(
+      armRestLength,
+      ARM_PIVOT_HALF_SPREAD,
+      armDrop,
+      inArmPlan(springArmAnchor, armPivot, hubAnchor),
+    ),
     skin,
   );
   const shock = createPieces(

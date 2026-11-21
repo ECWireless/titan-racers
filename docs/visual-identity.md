@@ -145,10 +145,15 @@ Materials), and so do course surfaces (see Course Surfaces).
   with size; everything stays inside the authored envelope, and nothing
   implies missing material (no pockets or holes).
 - **Official karts are open 1:10 RC chassis.** A machined plate carries the
-  electronics, composite hinge-pin mounts deep enough for both arm legs,
-  composite shock towers (a post and a crossbar above the steered wheels), a
-  top deck, and molded bumpers. Shocks lean 30°, a typical 1:10 installation.
-  Lightening pockets wait for derivation support.
+  electronics, a composite hinge-pin block under each arm leg, composite
+  shock towers (a post and a crossbar above the steered wheels), a top deck,
+  and molded bumpers. The laydown gearbox sits on the rear axle line with the
+  motor bolted to its plate and the rear tower on its pad, and the dogbones
+  pass between each rear arm's blocks. Shocks lean 30°, a typical 1:10
+  installation; the front ones sit just ahead of the axle, clear of the tie
+  rods. Every part is snapped by its mounting points and clears the others
+  through full travel and lock. Lightening pockets wait for derivation
+  support.
 
 ## Course Surfaces
 

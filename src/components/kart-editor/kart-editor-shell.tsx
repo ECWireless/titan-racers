@@ -9,6 +9,7 @@ import {
   useRef,
   useState,
 } from "react";
+import { z } from "zod";
 
 import { CommandHistory } from "@/game/editor/command-history";
 import type { EditorControllerViewportHandle } from "@/game/editor/editor-controller-viewport";
@@ -83,6 +84,11 @@ import { EditorSection } from "../editor/editor-section";
 import { KartDerivedEvidence } from "../kart-derived-evidence";
 import { KartEditorCanvas } from "./kart-editor-canvas";
 import { persistKartRevisionThumbnail } from "./persist-kart-thumbnail";
+
+// Why the save route refused a draft.
+const savedIssuesSchema = z.object({
+  issues: z.array(z.object({ message: z.string() })),
+});
 
 type OperationState =
   | { status: "idle" }
@@ -717,6 +723,22 @@ export function KartEditorShell({
           status: "error",
         });
         return;
+      }
+      if (response.status === 400) {
+        // The builder refuses parts that aren't snapped or that clash.
+        const issues = savedIssuesSchema.safeParse(
+          await response.json().catch(() => null),
+        );
+        const [first, ...rest] = issues.success ? issues.data.issues : [];
+        if (first) {
+          setOperation({
+            message: `The draft can't be saved yet${
+              rest.length > 0 ? ` (${rest.length + 1} problems)` : ""
+            }: ${first.message} Local changes are intact.`,
+            status: "error",
+          });
+          return;
+        }
       }
       if (!response.ok) throw new Error("The kart draft could not be saved.");
       const saved = persistedKartRevisionSchema.parse(await response.json());

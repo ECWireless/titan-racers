@@ -365,7 +365,7 @@ test.describe("protected kart builder access", () => {
 
     await page
       .getByLabel("Kart and assembly")
-      .getByRole("button", { name: /motor-main/ })
+      .getByRole("button", { name: /controller-main/ })
       .click();
     await expect(scaleButton).toHaveAttribute(
       "title",

@@ -417,7 +417,7 @@ test.describe("kart persistence and authorization", () => {
     );
     await db.insert(userRoles).values({ role: "assembler", userId: savedUser.id });
     const kartId = `protected-${randomUUID()}`;
-    const document = createValidKartAssembly({ kartId });
+    const document = createBalancedKartDocument(kartId);
     const context = { params: Promise.resolve({ kartId }) };
     const { headers } = await authContext.test.login({ userId: savedUser.id });
     const makeRequest = (
@@ -492,6 +492,39 @@ test.describe("kart persistence and authorization", () => {
     await expect(invalidResponse.json()).resolves.toMatchObject({
       error: "Kart assembly validation failed.",
       issues: expect.any(Array),
+    });
+
+    // The builder saves only karts snapped by their mounting points, clear of
+    // each other.
+    const unsnappedResponse = await putPersistedKart(
+      makeRequest(createValidKartAssembly({ kartId })),
+      context,
+    );
+    expect(unsnappedResponse.status).toBe(400);
+    await expect(unsnappedResponse.json()).resolves.toMatchObject({
+      issues: expect.arrayContaining([
+        expect.objectContaining({ code: "unnamed-mount" }),
+      ]),
+    });
+    const clashing = structuredClone(document);
+    clashing.primitiveInstances.find(
+      ({ id }) => id === "top-deck",
+    )!.transform.position.y -= 0.01;
+    clashing.structuralAttachments.find(
+      ({ child }) => child.instanceId === "top-deck",
+    )!.parent.anchor.y -= 0.01;
+    const clashingResponse = await putPersistedKart(
+      makeRequest(clashing),
+      context,
+    );
+    expect(clashingResponse.status).toBe(400);
+    await expect(clashingResponse.json()).resolves.toMatchObject({
+      issues: [
+        expect.objectContaining({
+          code: "parts-clash",
+          message: expect.stringMatching(/^top-deck and transmission-main overlap by/),
+        }),
+      ],
     });
 
     await expect(db.select().from(karts).where(eq(karts.id, kartId))).resolves.toEqual([]);

@@ -42,7 +42,7 @@ test("edits identity and transforms through schema-valid document commands", () 
   expect(
     moved.primitiveInstances.find(({ id }) => id === "top-deck")?.transform
       .position.y,
-  ).toBeCloseTo(0.096);
+  ).toBeCloseTo(0.109);
 });
 
 test("adds, attaches, mirrors, and deletes bounded primitives", () => {
@@ -219,8 +219,8 @@ test("suppresses mirror alignment for legacy nested counterparts", () => {
 
 test("preserves valid attachments, detaches invalid moves, and requires explicit reattachment", () => {
   const document = createBalancedKartDocument();
-  const selection = { id: "motor-main", kind: "component" } as const;
-  const motor = document.componentInstances.find(
+  const selection = { id: "controller-main", kind: "component" } as const;
+  const controller = document.componentInstances.find(
     ({ id }) => id === selection.id,
   )!;
   const originalAttachment = document.structuralAttachments.find(
@@ -231,8 +231,8 @@ test("preserves valid attachments, detaches invalid moves, and requires explicit
     document,
     selection,
     {
-      ...motor.transform,
-      position: { ...motor.transform.position, x: 0.005 },
+      ...controller.transform,
+      position: { ...controller.transform.position, x: 0.005 },
     },
     "chassis-plate",
     retainedIds,
@@ -248,8 +248,8 @@ test("preserves valid attachments, detaches invalid moves, and requires explicit
     validMove,
     selection,
     {
-      ...motor.transform,
-      position: { ...motor.transform.position, x: 1 },
+      ...controller.transform,
+      position: { ...controller.transform.position, x: 1 },
     },
     "chassis-plate",
     retainedIds,
@@ -265,8 +265,8 @@ test("preserves valid attachments, detaches invalid moves, and requires explicit
     invalidMove,
     selection,
     {
-      ...motor.transform,
-      position: { ...motor.transform.position, x: 0.005 },
+      ...controller.transform,
+      position: { ...controller.transform.position, x: 0.005 },
     },
     "chassis-plate",
     retainedIds,
@@ -292,7 +292,7 @@ test("preserves valid attachments, detaches invalid moves, and requires explicit
     invalidMove,
     selection,
     {
-      ...motor.transform,
+      ...controller.transform,
       position: battery.transform.position,
     },
     battery.id,

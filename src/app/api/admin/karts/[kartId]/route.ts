@@ -4,6 +4,7 @@ import {
   kartStableIdSchema,
   parseKartAssemblyDocument,
 } from "@/game/kart/kart-assembly-document";
+import { checkKartAssemblyFit } from "@/game/kart/kart-assembly-fit";
 import { KartAssemblyValidationError } from "@/game/kart/kart-assembly-validation";
 import {
   authorizationErrorResponse,
@@ -80,6 +81,11 @@ export async function PUT(request: Request, context: RouteContext) {
         { status: 400 },
       );
     }
+
+    // The builder saves only karts whose parts are snapped by their
+    // mounting points and clear of each other.
+    const fit = checkKartAssemblyFit(document);
+    if (fit.length > 0) throw new KartAssemblyValidationError(fit);
 
     const revision = await saveKartRevision({
       authorUserId: authorization.userId,

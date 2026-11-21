@@ -1,7 +1,13 @@
 import { expect, test } from "@playwright/test";
 
 import { createBalancedKartDocument } from "../src/game/kart/balanced-kart-document";
-import { createSpeedKartDocument } from "../src/game/kart/speed-kart-document";
+import {
+  createSpeedKartDocument,
+  SPEED_KART_CONFIG,
+} from "../src/game/kart/speed-kart-document";
+import { createOfficialKartAssembly } from "../src/game/kart/official-kart-assembly";
+import { HANDLING_KART_CONFIG } from "../src/game/kart/handling-kart-document";
+import { getAckermannWheelSteerAngle } from "../src/game/kart/kart-steering";
 import type { KartAssemblyDocument } from "../src/game/kart/kart-assembly-document";
 import { checkKartClearance } from "../src/game/kart/kart-clearance";
 import {
@@ -243,6 +249,107 @@ test("reports a part sunk into the plate, and not parts bolted flat to it", () =
   );
   expect(clash?.distance).toBeCloseTo(-0.002, 6);
   expect(clash?.pose).toBeNull();
+});
+
+test("turns and lifts each wheel past its own shock and the other parts", () => {
+  // Speed with its shocks further out along its arms, as it was built
+  // before: its front tires reach them only when steered.
+  const document = createOfficialKartAssembly({
+    ...SPEED_KART_CONFIG,
+    motionRatio: 0.85,
+  });
+  const snapshot = deriveKartSnapshot(document);
+  const lock = snapshot.physicalProfile.steering.maximumCenterAngle;
+  const { clashes } = checkKartClearance(document, snapshot);
+  const clash = clashes.find(
+    ({ first, second }) =>
+      first === "suspension-front-left" && second === "wheel-front-left",
+  );
+  expect(clash?.distance).toBeLessThan(-0.001);
+  expect(Math.abs(clash!.pose!.centerSteerDegrees)).toBeCloseTo(lock, 6);
+  expect(
+    clashes.some(
+      ({ first, pose }) =>
+        first === "suspension-rear-left" && pose?.centerSteerDegrees !== 0,
+    ),
+  ).toBe(false);
+
+  // Handling's shorter arms as first laid out: its shocks' lower ends reach
+  // the turned rims.
+  const handling = createOfficialKartAssembly({
+    ...HANDLING_KART_CONFIG,
+    armLength: 0.1,
+  });
+  expect(
+    checkKartClearance(handling, deriveKartSnapshot(handling)).clashes.some(
+      ({ first, second }) =>
+        first === "suspension-front-left" && second === "wheel-front-left",
+    ),
+  ).toBe(true);
+
+  // A block just above the built Speed's front-left tire, which it reaches
+  // at full bump.
+  const clean = createSpeedKartDocument();
+  const cleanSnapshot = deriveKartSnapshot(clean);
+  const station = cleanSnapshot.geometry.wheelStations.find(
+    ({ id }) => id === "wheel-front-left",
+  )!;
+  const bump =
+    station.suspension.maximumWheelTravel -
+    station.suspension.restWheelCompression;
+  addBlock(
+    clean,
+    vector([
+      station.position.x,
+      station.position.y + station.radius + bump / 2,
+      station.position.z,
+    ]),
+    0.004,
+  );
+  const above = checkKartClearance(clean, cleanSnapshot).clashes.find(
+    ({ first, second }) => first === "test-block" && second === "wheel-front-left",
+  );
+  expect(above?.pose?.wheelTravel).toBeCloseTo(bump, 6);
+});
+
+test("finds a wheel's clash between its sampled steering angles", () => {
+  // A half-millimetre block just inside the circle the front-left tire's
+  // front outboard corner sweeps, where it passes at 18.75° of centre
+  // steering: midway between the 15° and 22.5° samples.
+  const document = createSpeedKartDocument();
+  const snapshot = deriveKartSnapshot(document);
+  const station = snapshot.geometry.wheelStations.find(
+    ({ id }) => id === "wheel-front-left",
+  )!;
+  const steered = snapshot.geometry.wheelStations.filter(({ steered }) => steered);
+  const centerX =
+    steered.reduce((sum, { position }) => sum + position.x, 0) / steered.length;
+  const angle =
+    (getAckermannWheelSteerAngle(18.75, station.position.x - centerX, {
+      centerOfMassHeight: 0,
+      trackWidth: snapshot.geometry.trackWidth,
+      wheelbase: snapshot.geometry.wheelbase,
+    }) *
+      Math.PI) /
+    180;
+  const corner = { x: -station.width / 2, z: -station.radius };
+  const inward = 1 - 0.0003 / Math.hypot(corner.x, corner.z);
+  addBlock(
+    document,
+    vector([
+      station.position.x +
+        inward * (corner.x * Math.cos(angle) + corner.z * Math.sin(angle)),
+      station.position.y,
+      station.position.z +
+        inward * (-corner.x * Math.sin(angle) + corner.z * Math.cos(angle)),
+    ]),
+    0.0005,
+  );
+  const clash = checkKartClearance(document, snapshot).clashes.find(
+    ({ first, second }) => first === "test-block" && second === "wheel-front-left",
+  );
+  expect(clash?.pose?.centerSteerDegrees).toBeGreaterThan(15.5);
+  expect(clash?.pose?.centerSteerDegrees).toBeLessThan(22);
 });
 
 test("sweeps a driveshaft through its travel and reports where it runs deepest", () => {

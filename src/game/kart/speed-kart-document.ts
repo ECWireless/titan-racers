@@ -7,18 +7,16 @@ import {
 
 export const SPEED_KART_ID = "speed-kart";
 
-const SPEED_KART_CONFIG = {
-  armLength: 0.095,
+export const SPEED_KART_CONFIG = {
+  armLength: 0.125,
   chassis: {
-    armMount: { x: 0.014, z: 0.06 },
+    armMount: { x: 0.014, z: 0.01 },
     bumperSize: { x: 0.15, y: 0.02, z: 0.03 },
     equipment: {
       "battery-main": { x: -0.055, yawDegrees: 90, z: -0.02 },
       "brakes-main": { x: 0, z: 0.055 },
       "controller-main": { x: 0.05, z: -0.05 },
-      "motor-main": { x: 0.052, z: 0.05 },
-      "steering-main": { x: 0, z: -0.14 },
-      "transmission-main": { x: 0, z: 0.135 },
+      "steering-main": { x: 0, z: -0.12 },
     },
     plate: {
       bottomY: 0.058,
@@ -26,14 +24,15 @@ const SPEED_KART_CONFIG = {
       size: { x: 0.194, y: 0.002, z: 0.4 },
     },
     shockTowerThickness: 0.004,
-    topDeck: { bottomY: 0.095, size: { x: 0.04, y: 0.002 } },
+    topDeck: { bottomY: 0.109, size: { x: 0.04, y: 0.002 } },
   },
+  frontShockLead: 0.008,
   kartId: SPEED_KART_ID,
-  motionRatio: 0.85,
+  motionRatio: 0.78,
   name: "Speed Kart",
   practicalDescriptor:
     "Tall gearing, large wheels, and a long wheelbase favor top speed over tight turns.",
-  suspensionComponentPosition: "spring-arm",
+  suspensionComponentPosition: "shock-midpoint",
   suspensionDefinitionId: "suspension.firm-short",
   suspensionDefinitionVersion: 2,
   // The same wheel sag as before, with the shock at a 30° installation.
