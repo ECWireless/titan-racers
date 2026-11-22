@@ -108,6 +108,13 @@ function createLegacyKartAssemblyDocument(
       },
     ),
     schemaVersion: 1,
+    structuralAttachments: document.structuralAttachments.map(
+      ({ child, id, parent }) => ({
+        child: { anchor: child.anchor, instanceId: child.instanceId },
+        id,
+        parent: { anchor: parent.anchor, instanceId: parent.instanceId },
+      }),
+    ),
   });
 }
 
@@ -153,7 +160,7 @@ test.describe("kart persistence and authorization", () => {
       kartId,
       ownerUserId,
       revision: 1,
-      schemaVersion: 2,
+      schemaVersion: 3,
     });
     expect(first.resolvedSnapshotHash).toMatch(/^[0-9a-f]{64}$/);
     await expect(hashResolvedKartSnapshot(first.resolvedSnapshot)).resolves.toBe(
@@ -249,7 +256,7 @@ test.describe("kart persistence and authorization", () => {
         resolvedSnapshot: malformedSnapshot,
         resolvedSnapshotHash: "0".repeat(64),
         revision: 1,
-        schemaVersion: 2,
+        schemaVersion: 3,
       },
       {
         authorUserId: userId,
@@ -260,7 +267,7 @@ test.describe("kart persistence and authorization", () => {
         resolvedSnapshot: mismatchedSnapshot,
         resolvedSnapshotHash: "0".repeat(64),
         revision: 1,
-        schemaVersion: 2,
+        schemaVersion: 3,
       },
     ]);
 
@@ -410,7 +417,7 @@ test.describe("kart persistence and authorization", () => {
     );
     await db.insert(userRoles).values({ role: "assembler", userId: savedUser.id });
     const kartId = `protected-${randomUUID()}`;
-    const document = createValidKartAssembly({ kartId });
+    const document = createBalancedKartDocument(kartId);
     const context = { params: Promise.resolve({ kartId }) };
     const { headers } = await authContext.test.login({ userId: savedUser.id });
     const makeRequest = (
@@ -485,6 +492,39 @@ test.describe("kart persistence and authorization", () => {
     await expect(invalidResponse.json()).resolves.toMatchObject({
       error: "Kart assembly validation failed.",
       issues: expect.any(Array),
+    });
+
+    // The builder saves only karts snapped by their mounting points, clear of
+    // each other.
+    const unsnappedResponse = await putPersistedKart(
+      makeRequest(createValidKartAssembly({ kartId })),
+      context,
+    );
+    expect(unsnappedResponse.status).toBe(400);
+    await expect(unsnappedResponse.json()).resolves.toMatchObject({
+      issues: expect.arrayContaining([
+        expect.objectContaining({ code: "unnamed-mount" }),
+      ]),
+    });
+    const clashing = structuredClone(document);
+    clashing.primitiveInstances.find(
+      ({ id }) => id === "top-deck",
+    )!.transform.position.y -= 0.01;
+    clashing.structuralAttachments.find(
+      ({ child }) => child.instanceId === "top-deck",
+    )!.parent.anchor.y -= 0.01;
+    const clashingResponse = await putPersistedKart(
+      makeRequest(clashing),
+      context,
+    );
+    expect(clashingResponse.status).toBe(400);
+    await expect(clashingResponse.json()).resolves.toMatchObject({
+      issues: [
+        expect.objectContaining({
+          code: "parts-clash",
+          message: expect.stringMatching(/^top-deck and transmission-main overlap by/),
+        }),
+      ],
     });
 
     await expect(db.select().from(karts).where(eq(karts.id, kartId))).resolves.toEqual([]);
@@ -914,8 +954,13 @@ test.describe("kart persistence and authorization", () => {
     });
 
     const latestRevision = await loadLatestKartRevision(kartId);
-    expect(latestRevision?.schemaVersion).toBe(2);
-    expect(latestRevision?.document.schemaVersion).toBe(2);
+    expect(latestRevision?.schemaVersion).toBe(3);
+    expect(latestRevision?.document.schemaVersion).toBe(3);
+    expect(
+      latestRevision?.document.structuralAttachments.every(
+        ({ child, parent }) => child.mount === null && parent.mount === null,
+      ),
+    ).toBe(true);
     expect(
       latestRevision?.document.componentInstances.find(
         ({ id }) => id === "wheel-front-left",
@@ -937,8 +982,8 @@ test.describe("kart persistence and authorization", () => {
     );
     expect(response.status).toBe(200);
     const payload = await response.json();
-    expect(payload.schemaVersion).toBe(2);
-    expect(payload.document.schemaVersion).toBe(2);
+    expect(payload.schemaVersion).toBe(3);
+    expect(payload.document.schemaVersion).toBe(3);
     expect(
       payload.document.componentInstances.find(
         ({ id }: { id: string }) => id === "battery-main",

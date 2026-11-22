@@ -58,6 +58,71 @@ const internalCylinderSchema = z.strictObject({
   transform: kartTransformSchema,
 });
 
+/**
+ * Where a part mounts, in its own frame: a point, the outward direction of
+ * the face it lies on (one of the part's axes), and its type. A footprint
+ * or pad also has a rectangular area on that face, centred on the point,
+ * its size along the two other axes (zero along the direction's). Ids are
+ * unique within a part; assembly documents name mounts by id.
+ *
+ * - `base`: a footprint that sits, and may slide, on a flat structural
+ *   face; all of it rests on that face.
+ * - `motor-face`: a motor's drive-end face, centred on its shaft, which
+ *   bolts to a `motor-plate`. The motor may turn about its shaft: the bolt
+ *   pattern is not modelled.
+ * - `motor-plate`: the face of a gearbox's plate that a motor bolts to,
+ *   centred on the pinion's axis.
+ * - `tower-pad`: a gearbox pad that a shock tower's face stands on; the
+ *   two touch where the attachment point lies, within both.
+ */
+export const kartMountingPointTypeSchema = z.enum([
+  "base",
+  "motor-face",
+  "motor-plate",
+  "tower-pad",
+]);
+
+export const kartMountingDirectionSchema = z.enum([
+  "+x",
+  "-x",
+  "+y",
+  "-y",
+  "+z",
+  "-z",
+]);
+
+const mountingPointSchema = z
+  .strictObject({
+    area: z
+      .strictObject({
+        x: z.number().finite().min(0).max(1),
+        y: z.number().finite().min(0).max(1),
+        z: z.number().finite().min(0).max(1),
+      })
+      .nullable(),
+    direction: kartMountingDirectionSchema,
+    id: kartStableIdSchema,
+    position: kartVectorSchema,
+    type: kartMountingPointTypeSchema,
+  })
+  .superRefine((mount, context) => {
+    const hasArea = mount.type === "base" || mount.type === "tower-pad";
+    const axis = mount.direction[1] as "x" | "y" | "z";
+    if (hasArea !== (mount.area !== null)) {
+      context.addIssue({
+        code: "custom",
+        message: "Base footprints and tower pads, and only they, have an area.",
+      });
+    } else if (mount.area && mount.area[axis] !== 0) {
+      context.addIssue({
+        code: "custom",
+        message: "A mounting area lies on its face: zero along its direction.",
+      });
+    }
+  });
+
+export type KartMountingPoint = z.infer<typeof mountingPointSchema>;
+
 const componentBaseSchema = z.strictObject({
   assembly: z.strictObject({
     maximumInstances: z.number().int().positive().max(8),
@@ -80,6 +145,16 @@ const componentBaseSchema = z.strictObject({
   id: kartStableIdSchema,
   label: z.string().trim().min(1).max(80),
   mass: z.number().finite().positive().max(5),
+  /** Absent before mounting points (version 1 parts). */
+  mounts: z
+    .array(mountingPointSchema)
+    .min(1)
+    .max(8)
+    .refine(
+      (mounts) => new Set(mounts.map(({ id }) => id)).size === mounts.length,
+      "Mounting point ids are unique within a part.",
+    )
+    .optional(),
   massCenter: kartVectorSchema,
   ports: z.array(componentPortSchema).max(12),
   summary: z.string().trim().min(1).max(200),
@@ -215,6 +290,171 @@ function cylinder(
     radius,
     shape: "cylinder" as const,
     transform: zeroTransform,
+  };
+}
+
+function placed<T extends { transform: typeof zeroTransform }>(
+  element: T,
+  position: { x: number; y: number; z: number },
+) {
+  return { ...element, transform: { ...zeroTransform, position } };
+}
+
+/** A footprint on a part's floor, centred under it. */
+function base(size: { x: number; z: number }, floorY: number) {
+  return {
+    area: { x: size.x, y: 0, z: size.z },
+    direction: "-y" as const,
+    id: "base",
+    position: { x: 0, y: floorY, z: 0 },
+    type: "base" as const,
+  };
+}
+
+const sealedPorts = {
+  battery: [
+    {
+      direction: "output" as const,
+      id: "power",
+      interface: "battery-power" as const,
+      multiple: false,
+    },
+  ],
+  transmission: [
+    {
+      direction: "input" as const,
+      id: "shaft-input",
+      interface: "motor-shaft" as const,
+      multiple: false,
+    },
+    {
+      direction: "output" as const,
+      id: "drive-output",
+      interface: "wheel-drive" as const,
+      multiple: true,
+    },
+  ],
+};
+
+/**
+ * A version-2 laydown transmission (`cad/parts/_plate_gearbox.py`), in its
+ * CAD frame: the outdrives lie along X through the origin and the case
+ * stands on `floor` (its differential housing's radius is `caseRear`). Its
+ * construction is the case, the spur, the motor plate, and the two outdrive
+ * cups; the dimensions are the CAD model's.
+ */
+function plateGearbox(gearbox: {
+  caseHalfWidth: number;
+  caseRear: number;
+  cupMouth: number;
+  floor: number;
+  gearX: number;
+  metal: typeof aluminum | typeof steel;
+  motorAxis: { y: number; z: number };
+  padTop: number;
+  plateX: { inner: number; outer: number };
+  spurTip: number;
+  topShaft: { y: number; z: number };
+}) {
+  const width = 2 * gearbox.caseHalfWidth;
+  const differentialRadius = gearbox.caseRear;
+  const topHousing = 0.0075;
+  const plateFront = gearbox.motorAxis.z - 0.016;
+  const plateTop = gearbox.motorAxis.y + 0.016;
+  const plateRear = gearbox.topShaft.z + 0.006;
+  const plateThickness = gearbox.plateX.outer - gearbox.plateX.inner;
+  const padBottom = differentialRadius - 0.003;
+  const span = (low: number, high: number) => ({
+    center: (low + high) / 2,
+    size: high - low,
+  });
+  // The case: both housings round about X, a foot block on the floor
+  // beneath them, a block between them up to the differential housing's
+  // top, and the tower pad; all inside the CAD case's outline.
+  const footZ = span(gearbox.topShaft.z - 0.0055, gearbox.caseRear - 0.004);
+  const caseBlock = (
+    y: { center: number; size: number },
+    z: { center: number; size: number },
+  ) =>
+    placed(box(gearbox.metal, { x: width, y: y.size, z: z.size }), {
+      x: 0,
+      y: y.center,
+      z: z.center,
+    });
+  const housing = (radius: number, y: number, z: number) =>
+    placed(cylinder(gearbox.metal, radius, width, "x"), { x: 0, y, z });
+  const plate = {
+    y: span(gearbox.floor, plateTop),
+    z: span(plateFront, plateRear),
+  };
+  return {
+    construction: [
+      housing(differentialRadius, 0, 0),
+      housing(topHousing, gearbox.topShaft.y, gearbox.topShaft.z),
+      caseBlock(span(gearbox.floor, 0), footZ),
+      caseBlock(
+        span(0, differentialRadius),
+        span(gearbox.topShaft.z, 0),
+      ),
+      caseBlock(span(padBottom, gearbox.padTop), span(-0.004, 0.004)),
+      placed(cylinder(polymer, gearbox.spurTip, 0.0045, "x"), {
+        x: gearbox.gearX,
+        y: gearbox.topShaft.y,
+        z: gearbox.topShaft.z,
+      }),
+      placed(
+        box(aluminum, { x: plateThickness, y: plate.y.size, z: plate.z.size }),
+        {
+          x: (gearbox.plateX.inner + gearbox.plateX.outer) / 2,
+          y: plate.y.center,
+          z: plate.z.center,
+        },
+      ),
+      ...[-1, 1].map((side) =>
+        placed(cylinder(steel, 0.0055, 0.011, "x"), {
+          x: side * (gearbox.cupMouth - 0.0055),
+          y: 0,
+          z: 0,
+        }),
+      ),
+    ],
+    mounts: [
+      // The footprint spans the case's foot and the plate's: an outer bound
+      // of what stands on the floor, which is open between them.
+      {
+        area: {
+          x: gearbox.plateX.outer + gearbox.caseHalfWidth,
+          y: 0,
+          z: gearbox.caseRear - plateFront,
+        },
+        direction: "-y" as const,
+        id: "base",
+        position: {
+          x: (gearbox.plateX.outer - gearbox.caseHalfWidth) / 2,
+          y: gearbox.floor,
+          z: (plateFront + gearbox.caseRear) / 2,
+        },
+        type: "base" as const,
+      },
+      {
+        area: null,
+        direction: "+x" as const,
+        id: "motor-plate",
+        position: {
+          x: gearbox.plateX.outer,
+          y: gearbox.motorAxis.y,
+          z: gearbox.motorAxis.z,
+        },
+        type: "motor-plate" as const,
+      },
+      {
+        area: { x: width, y: 0, z: 0.008 },
+        direction: "+y" as const,
+        id: "tower-pad",
+        position: { x: 0, y: gearbox.padTop, z: 0 },
+        type: "tower-pad" as const,
+      },
+    ],
   };
 }
 
@@ -888,6 +1128,315 @@ export const APPROVED_KART_COMPONENTS = deepFreeze(
         tireCompound: { id: "tire-compound.standard-rubber", version: 1 },
         width: 0.05,
       },
+    },
+    // Version 2 of the sealed parts: each declares where it mounts. The
+    // motor, servo, and transmissions also take their CAD models' shape and
+    // centre of mass, and the published weight of the real part each
+    // copies, or else the CAD-measured mass.
+    {
+      assembly: {
+        maximumInstances: 1,
+        mirrorable: false,
+        rotationAxes: ["x", "y", "z"],
+      },
+      category: "battery",
+      construction: [box(polymer, { x: 0.095, y: 0.026, z: 0.048 })],
+      electrical: { maximumCurrent: 60, voltage: 7.4 },
+      id: "battery.lipo-standard",
+      label: "Standard battery",
+      mass: 0.24,
+      massCenter: { x: 0, y: 0, z: 0 },
+      mounts: [base({ x: 0.095, z: 0.048 }, -0.013)],
+      ports: sealedPorts.battery,
+      summary: "A sealed two-cell battery sized for the initial kart roster.",
+      tradeoff:
+        "The shared baseline supply keeps performance differences in gearing and construction.",
+      version: 2,
+    },
+    {
+      assembly: {
+        maximumInstances: 1,
+        mirrorable: false,
+        rotationAxes: ["x", "y", "z"],
+      },
+      category: "receiver-speed-controller",
+      construction: [box(polymer, { x: 0.052, y: 0.024, z: 0.038 })],
+      electrical: { maximumMotorCurrent: 60, maximumVoltage: 8.4 },
+      id: "control.receiver-esc-standard",
+      label: "Standard receiver and controller",
+      mass: 0.065,
+      massCenter: { x: 0, y: 0, z: 0 },
+      mounts: [base({ x: 0.052, z: 0.038 }, -0.012)],
+      ports: [
+        {
+          direction: "input",
+          id: "battery-input",
+          interface: "battery-power",
+          multiple: false,
+        },
+        {
+          direction: "output",
+          id: "motor-output",
+          interface: "motor-power",
+          multiple: false,
+        },
+        {
+          direction: "output",
+          id: "steering-output",
+          interface: "steering-control",
+          multiple: false,
+        },
+        {
+          direction: "output",
+          id: "brake-output",
+          interface: "brake-control",
+          multiple: false,
+        },
+      ],
+      summary: "A sealed radio receiver and electronic speed controller.",
+      tradeoff:
+        "One shared controller makes motor and construction choices legible.",
+      version: 2,
+    },
+    {
+      assembly: {
+        maximumInstances: 1,
+        mirrorable: false,
+        rotationAxes: ["x", "y", "z"],
+      },
+      category: "motor",
+      // The 50 mm can, mount face to rear face.
+      construction: [cylinder(steel, 0.018, 0.05)],
+      electrical: {
+        safeCurrent: 50,
+        speedConstantRpmPerVolt: 1_500,
+        windingResistance: 0.08,
+      },
+      id: "motor.brushless-standard",
+      label: "Standard brushless motor",
+      // A 3650-class motor's published weight (186–194 g).
+      mass: 0.19,
+      massCenter: { x: 0, y: 0.00002, z: -0.00116 },
+      mounts: [
+        {
+          area: null,
+          direction: "-z",
+          id: "motor-face",
+          position: { x: 0, y: 0, z: -0.025 },
+          type: "motor-face",
+        },
+      ],
+      ports: [
+        {
+          direction: "input",
+          id: "power-input",
+          interface: "motor-power",
+          multiple: false,
+        },
+        {
+          direction: "output",
+          id: "shaft-output",
+          interface: "motor-shaft",
+          multiple: false,
+        },
+      ],
+      summary: "The sealed baseline motor used by all three official builds.",
+      tradeoff:
+        "Gearing, wheel size, and mass determine how its fixed capability feels.",
+      version: 2,
+    },
+    {
+      assembly: {
+        maximumInstances: 1,
+        mirrorable: false,
+        rotationAxes: ["x", "y", "z"],
+      },
+      category: "steering",
+      // The case on its floor and the mounting tabs at each end.
+      construction: [
+        placed(box(polymer, { x: 0.0202, y: 0.024, z: 0.0408 }), {
+          x: 0,
+          y: -0.003,
+          z: 0,
+        }),
+        placed(box(polymer, { x: 0.018, y: 0.0025, z: 0.0545 }), {
+          x: 0,
+          y: -0.00025,
+          z: 0,
+        }),
+      ],
+      id: "steering.servo-standard",
+      label: "Standard steering servo",
+      // The Savox SC-1251MG's published weight.
+      mass: 0.0445,
+      massCenter: { x: 0, y: -0.001, z: 0.00125 },
+      mounts: [base({ x: 0.0202, z: 0.0408 }, -0.015)],
+      ports: [
+        {
+          direction: "input",
+          id: "control-input",
+          interface: "steering-control",
+          multiple: false,
+        },
+        {
+          direction: "output",
+          id: "link-output",
+          interface: "steering-link",
+          multiple: true,
+        },
+      ],
+      steering: { maximumTorque: 1.8, maximumTravelDegrees: 30 },
+      summary:
+        "A sealed servo with enough travel for the supported steering geometry.",
+      tradeoff:
+        "Final steering lock still derives from linkage and wheel clearance.",
+      version: 2,
+    },
+    {
+      assembly: {
+        maximumInstances: 1,
+        mirrorable: false,
+        rotationAxes: ["x", "y", "z"],
+      },
+      brakes: {
+        totalHandbrakeTorque: 0.685125,
+        totalServiceBrakeTorque: 1.5225,
+      },
+      category: "brakes",
+      construction: [box(aluminum, { x: 0.052, y: 0.018, z: 0.04 })],
+      id: "brakes.combined-standard",
+      label: "Standard combined brakes",
+      mass: 0.1,
+      massCenter: { x: 0, y: 0, z: 0 },
+      mounts: [base({ x: 0.052, z: 0.04 }, -0.009)],
+      ports: [
+        {
+          direction: "input",
+          id: "control-input",
+          interface: "brake-control",
+          multiple: false,
+        },
+        {
+          direction: "output",
+          id: "service-output",
+          interface: "service-brake",
+          multiple: true,
+        },
+        {
+          direction: "output",
+          id: "handbrake-output",
+          interface: "wheel-handbrake",
+          multiple: true,
+        },
+      ],
+      summary:
+        "One sealed system for four-wheel service braking and rear handbraking.",
+      tradeoff:
+        "Wheel radius changes the ground force produced by its fixed torque.",
+      version: 2,
+    },
+    {
+      assembly: {
+        maximumInstances: 1,
+        mirrorable: false,
+        rotationAxes: ["x", "y", "z"],
+      },
+      category: "transmission",
+      ...plateGearbox({
+        caseHalfWidth: 0.0095,
+        caseRear: 0.0125,
+        cupMouth: 0.03,
+        floor: -0.015,
+        gearX: 0.014,
+        metal: aluminum,
+        motorAxis: { y: 0.004, z: -0.056457 },
+        padTop: 0.014,
+        plateX: { inner: 0.0175, outer: 0.02 },
+        spurTip: 0.0224,
+        topShaft: { y: 0.0089, z: -0.024429 },
+      }),
+      id: "transmission.tall-4to1",
+      label: "Tall 4:1 transmission",
+      // CAD-measured: no real part to weigh.
+      mass: 0.1034,
+      massCenter: { x: 0.0056, y: 0.003, z: -0.02187 },
+      ports: sealedPorts.transmission,
+      summary: "A tall reduction for higher theoretical road speed.",
+      tradeoff:
+        "Higher no-load speed with less wheel force than the short transmission.",
+      transmission: {
+        efficiency: 0.8114144775599887,
+        motorRotationsPerWheelRotation: 4,
+      },
+      version: 2,
+    },
+    {
+      assembly: {
+        maximumInstances: 1,
+        mirrorable: false,
+        rotationAxes: ["x", "y", "z"],
+      },
+      category: "transmission",
+      ...plateGearbox({
+        caseHalfWidth: 0.0095,
+        caseRear: 0.0125,
+        cupMouth: 0.03,
+        floor: -0.015,
+        gearX: 0.014,
+        metal: aluminum,
+        motorAxis: { y: 0.004, z: -0.058853 },
+        padTop: 0.014,
+        plateX: { inner: 0.0175, outer: 0.02 },
+        spurTip: 0.0248,
+        topShaft: { y: 0.0113, z: -0.026055 },
+      }),
+      id: "transmission.balanced-5to1",
+      label: "Balanced 5:1 transmission",
+      // CAD-measured: no real part to weigh.
+      mass: 0.1041,
+      massCenter: { x: 0.00544, y: 0.00388, z: -0.02182 },
+      ports: sealedPorts.transmission,
+      summary: "A moderate reduction balancing launch force and road speed.",
+      tradeoff:
+        "Less road speed than the tall transmission and less wheel force than the short transmission.",
+      transmission: {
+        efficiency: 0.8,
+        motorRotationsPerWheelRotation: 5,
+      },
+      version: 2,
+    },
+    {
+      assembly: {
+        maximumInstances: 1,
+        mirrorable: false,
+        rotationAxes: ["x", "y", "z"],
+      },
+      category: "transmission",
+      ...plateGearbox({
+        caseHalfWidth: 0.0105,
+        caseRear: 0.014,
+        cupMouth: 0.032,
+        floor: -0.017,
+        gearX: 0.015,
+        metal: steel,
+        motorAxis: { y: 0.002, z: -0.061361 },
+        padTop: 0.0155,
+        plateX: { inner: 0.0185, outer: 0.021 },
+        spurTip: 0.028,
+        topShaft: { y: 0.0125, z: -0.029023 },
+      }),
+      id: "transmission.short-8to1",
+      label: "Short 8:1 transmission",
+      // CAD-measured: no real part to weigh.
+      mass: 0.1829,
+      massCenter: { x: 0.00305, y: 0.00082, z: -0.017 },
+      ports: sealedPorts.transmission,
+      summary:
+        "A short reduction for strong launch force and lower road speed.",
+      tradeoff:
+        "More wheel force with lower no-load speed and slightly more mass.",
+      transmission: { efficiency: 0.78, motorRotationsPerWheelRotation: 8 },
+      version: 2,
     },
   ]),
 );

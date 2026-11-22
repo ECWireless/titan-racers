@@ -71,9 +71,14 @@ const wheel: KartPartVisual = {
 };
 
 export const KART_PART_VISUALS: Readonly<Record<string, KartPartVisual>> = {
+  // Version 2 of these parts only declares where they mount; they look the
+  // same.
   "battery.lipo-standard@1": pieces(buildBatteryLipoStandardV1),
+  "battery.lipo-standard@2": pieces(buildBatteryLipoStandardV1),
   "brakes.combined-standard@1": pieces(buildBrakesCombinedStandardV1),
+  "brakes.combined-standard@2": pieces(buildBrakesCombinedStandardV1),
   "control.receiver-esc-standard@1": pieces(buildReceiverEscStandardV1),
+  "control.receiver-esc-standard@2": pieces(buildReceiverEscStandardV1),
   "suspension.compliant-long@1": coilover,
   "suspension.compliant-long@2": coilover,
   "suspension.compliant-long@3": coilover,

@@ -129,6 +129,12 @@ export function box(mesh: KartPartVisualPiece, center: Vec3, size: Vec3): void {
 }
 
 /**
+ * The wheel's inboard web, as a share of its width in from the centre: the
+ * rim's mouth between it and the inboard tire bead is open (`buildWheelTire`).
+ */
+export const WHEEL_WEB_INSET = 0.325;
+
+/**
  * Ribbed RC tire on a deep-dish, anodized industrial wheel. The geometry is
  * all surfaces of revolution; the tire's tread blocks and sidewall marks and
  * the dish's six windows are drawn by the wheel shaders from each vertex's
@@ -472,11 +478,14 @@ export function buildCoilover(spec: KartCoiloverSpec): KartCoiloverVisual {
  * chassis pivots, +X points to the hub at (length, 0, 0); the chassis pivots
  * are at (0, 0, ±halfSpread). `drop` hangs the legs that far below the
  * pivots' line, as a driven wheel's arm does to pass under its driveshaft.
+ * A shock eye off the legs, at `shockEye` in the arm's plan, gets a tab from
+ * the nearer leg to carry its pin.
  */
 export function buildSuspensionArm(
   length: number,
   halfSpread: number,
   drop = 0,
+  shockEye: { x: number; z: number } | null = null,
 ): KartPartVisualPiece[] {
   const composite = piece("authored-polymer");
   const bushings = piece("bare-steel");
@@ -494,6 +503,14 @@ export function buildSuspensionArm(
   }
   box(composite, [length * 0.32, -drop, 0],
     [0.006, 0.005, halfSpread * 1.36]);
+  if (shockEye) {
+    const leg =
+      Math.sign(shockEye.z) * halfSpread * (1 - shockEye.x / length);
+    if (Math.abs(shockEye.z) > Math.abs(leg)) {
+      box(composite, [shockEye.x, -drop, (shockEye.z + leg) / 2],
+        [0.007, 0.007, Math.abs(shockEye.z - leg) + 0.007]);
+    }
+  }
   cylinder(knuckle, "y", [length, -drop / 2, 0], 0.006, 0.008 + drop, 8, 0.003);
   cylinder(bushings, "y", [length, 0, 0], 0.003, 0.012, 8, 0.0015);
   return [composite, bushings, knuckle];

@@ -10,20 +10,26 @@ import {
   getApprovedKartComponent,
 } from "./kart-component-registry";
 import type { DeepReadonly } from "./immutable-registry";
+import { buildCadMovingPieces, getKartCadMesh } from "./kart-cad-meshes";
 import {
-  buildCadMovingPieces,
-  getCadPoint,
-  getKartCadMesh,
-} from "./kart-cad-meshes";
+  findWheelSuspension,
+  getDriveshaftEnds,
+  getHornAngle,
+  getHornBall,
+  getKnuckleBall,
+  planKartLinkagePoses,
+  type KartDriveshaftPose,
+  type KartServoPose,
+  type KartTieRodPose,
+} from "./kart-linkage-poses";
 import {
+  ARM_PIVOT_HALF_SPREAD,
   buildAxleCup,
   buildDogbone,
   buildSteeringArm,
   buildTieRod,
   DRIVEN_ARM_DROP,
-  getAxleCupStation,
 } from "./kart-linkage-visual-geometry";
-import { planKartLinkages, type KartLinkage } from "./kart-linkages";
 import type {
   KartCoiloverVisual,
   KartPartFinish,
@@ -96,41 +102,24 @@ type KartSteeringRigVisual = {
   horn: pc.Entity;
   /** Radians, as last posed. */
   hornAngle: number;
-  /** The horn's pivot in the servo's frame. */
-  hornPivot: pc.Vec3;
-  /** The servo's travel either way, in radians. */
-  maximumHornAngle: number;
-  /** The servo's frame in assembly axes. */
-  servoPosition: pc.Vec3;
-  servoRotation: pc.Quat;
+  pose: KartServoPose;
+  /** Each rod's wheel steering angle, read from its pivot. */
+  steerAngleOf: (wheelId: string) => number;
   tieRods: KartTieRodVisual[];
 };
 
 type KartTieRodVisual = {
-  /** The horn's ball stud from its pivot, in the servo's frame, at rest. */
-  hornBall: pc.Vec3;
-  /** Horn radians per radian of this wheel's steering, signed. */
-  hornRatio: number;
-  /** The steering arm's ball stud in the wheel pivot's frame. */
-  knuckleBall: pc.Vec3;
   pivot: pc.Entity;
-  restLength: number;
+  pose: KartTieRodPose;
   rig: KartSteeringRigVisual;
   /** Drawn at rest length from the horn's ball along +X, in assembly axes. */
   rod: pc.Entity;
 };
 
 type KartDriveshaftVisual = {
-  /** The axle cup rides the arm this share of the way from pivot to hub. */
-  armFraction: number;
-  armPivot: pc.Vec3;
   /** Rigid, from the axle cup's ball centre along +X, in assembly axes. */
   bone: pc.Entity;
-  length: number;
-  /** Unit, in assembly axes, out of the transmission toward this wheel. */
-  outputAxis: pc.Vec3;
-  /** Where the dogbone's ball sits in the outdrive cup at rest. */
-  outputPoint: pc.Vec3;
+  pose: KartDriveshaftPose;
 };
 
 export type KartWheelVisual = {
@@ -160,13 +149,6 @@ type KartAssemblyVisual = {
   wheels: KartWheelVisual[];
 };
 
-const ARM_ANCHOR_HALF_SPREAD = 0.025;
-// A wheel's inboard web, as a share of its width in from the wheel's centre
-// (`buildWheelTire`), and a steering arm's length as a share of its radius:
-// the arm lies in the mouth of the rim, clear of the web and the tire.
-const WHEEL_WEB_INSET = 0.325;
-const STEERING_ARM_REACH_CLEARANCE = 0.0003;
-const STEERING_ARM_LENGTH = { maximum: 0.024, perWheelRadius: 0.4 };
 
 /**
  * Builds a kart's visual. Without a device it builds the same entities with
@@ -201,9 +183,9 @@ export function createKartAssemblyVisual(
     definition: ReadonlyComponentDefinition;
     instance: KartAssemblyComponentInstance;
   }> = [];
-  const linkages = planKartLinkages(document);
+  const linkages = planKartLinkagePoses(document);
   const drivenWheelIds = new Set(
-    linkages.driveshafts.map(({ wheel }) => wheel.id),
+    linkages.driveshafts.map(({ wheelId }) => wheelId),
   );
   // A CAD part's posed pieces (`<instance>:<name>`), drawn at rest.
   const movingParts = new Map<string, pc.Entity>();
@@ -348,60 +330,47 @@ export function createKartAssemblyVisual(
 
   // Linkages hang from their wheel's assembly frame, so they are posed in
   // assembly axes and shown or hidden with the wheel.
-  const steeringRigs = new Map<string, KartSteeringRigVisual>();
-  for (const linkage of linkages.tieRods) {
-    const wheel = wheels.find(
-      ({ instanceId }) => instanceId === linkage.wheel.id,
-    );
-    const horn = movingParts.get(`${linkage.part.id}:horn`);
-    // Planning already matched these categories; the checks narrow types.
-    const definition = getApprovedKartComponent(linkage.part.definition);
-    const wheelDefinition = getApprovedKartComponent(linkage.wheel.definition);
-    if (
-      !wheel ||
-      !horn ||
-      definition?.category !== "steering" ||
-      wheelDefinition?.category !== "wheel-tire"
-    ) {
-      continue;
+  for (const pose of linkages.servos) {
+    const horn = movingParts.get(`${pose.servoId}:horn`);
+    if (!horn) continue;
+    const pivots = new Map<string, pc.Entity>();
+    const rig: KartSteeringRigVisual = {
+      horn,
+      hornAngle: 0,
+      pose,
+      steerAngleOf: (wheelId) => getSteerAngle(pivots.get(wheelId)!),
+      tieRods: [],
+    };
+    for (const tieRodPose of pose.tieRods) {
+      const wheel = wheels.find(
+        ({ instanceId }) => instanceId === tieRodPose.wheelId,
+      );
+      if (!wheel) continue;
+      wheel.tieRod = createTieRodVisual(
+        tieRodPose,
+        rig,
+        wheel,
+        wheelFrames.get(wheel.instanceId)!,
+        materialsFor(
+          document.componentInstances.find(({ id }) => id === wheel.instanceId)!,
+        ),
+        createPieces,
+      );
+      rig.tieRods.push(wheel.tieRod);
+      pivots.set(wheel.instanceId, wheel.pivot);
     }
-    let rig = steeringRigs.get(linkage.part.id);
-    if (!rig) {
-      rig = {
-        horn,
-        hornAngle: 0,
-        hornPivot: new pc.Vec3(...getCadPoint(linkage.mesh, "horn-pivot")!),
-        maximumHornAngle:
-          definition.steering.maximumTravelDegrees * pc.math.DEG_TO_RAD,
-        servoPosition: toPcVector(linkage.part.transform.position),
-        servoRotation: toPcQuat(linkage.part.transform.rotationDegrees),
-        tieRods: [],
-      };
-      steeringRigs.set(linkage.part.id, rig);
-    }
-    wheel.tieRod = createTieRodVisual(
-      linkage,
-      rig,
-      wheel,
-      wheelDefinition.wheelTire,
-      wheelFrames.get(wheel.instanceId)!,
-      materialsFor(linkage.wheel),
-      createPieces,
-    );
-    rig.tieRods.push(wheel.tieRod);
   }
-  for (const linkage of linkages.driveshafts) {
-    const wheel = wheels.find(
-      ({ instanceId }) => instanceId === linkage.wheel.id,
-    );
+  for (const pose of linkages.driveshafts) {
+    const wheel = wheels.find(({ instanceId }) => instanceId === pose.wheelId);
     // A draft's wheel without a suspension has no arm to carry its cup.
     if (!wheel?.suspension) continue;
     wheel.driveshaft = createDriveshaftVisual(
-      linkage,
-      wheel,
+      pose,
       wheel.suspension,
       wheelFrames.get(wheel.instanceId)!,
-      materialsFor(linkage.wheel),
+      materialsFor(
+        document.componentInstances.find(({ id }) => id === wheel.instanceId)!,
+      ),
       // The cup rides the arm, so it selects and highlights with it.
       materialsFor(
         document.componentInstances.find(
@@ -476,23 +445,12 @@ const scratch = () =>
   });
 
 /**
- * Turns the horn with the steering, then runs the rod from the horn's ball
- * stud to the steering arm's. The horn follows the mean of its wheels'
- * angles through each rod's own ratio, measured on the linkage. Both
- * steering arms' balls swing outboard as their wheels turn, which no horn
- * angle can follow, so the rods stretch slightly to reach.
+ * Turns the horn with the steering, then runs every rod on it from the horn's
+ * ball stud to its steering arm's.
  */
 function poseTieRod(tieRod: KartTieRodVisual) {
   const rig = tieRod.rig;
-  let hornAngle = 0;
-  for (const { hornRatio, pivot } of rig.tieRods) {
-    hornAngle += hornRatio * getSteerAngle(pivot);
-  }
-  hornAngle = pc.math.clamp(
-    hornAngle / rig.tieRods.length,
-    -rig.maximumHornAngle,
-    rig.maximumHornAngle,
-  );
+  const hornAngle = getHornAngle(rig.pose, rig.steerAngleOf);
   if (hornAngle !== rig.hornAngle) {
     rig.hornAngle = hornAngle;
     rig.horn.setLocalRotation(setYaw(scratch().rotation, hornAngle));
@@ -503,9 +461,16 @@ function poseTieRod(tieRod: KartTieRodVisual) {
 }
 
 function aimTieRod(tieRod: KartTieRodVisual, hornAngle: number) {
-  getHornBall(tieRod, hornAngle, scratch().start);
-  getKnuckleBall(tieRod, scratch().end);
-  aimLinkage(tieRod.rod, scratch().start, scratch().end, tieRod.restLength);
+  const { end, start } = scratch();
+  const pivot = tieRod.pivot;
+  getHornBall(tieRod.pose, hornAngle, start);
+  getKnuckleBall(
+    tieRod.pose,
+    pivot.getLocalPosition(),
+    getSteerAngle(pivot),
+    end,
+  );
+  aimLinkage(tieRod.rod, start, end, tieRod.pose.restLength);
 }
 
 /** A wheel pivot's steering angle, in radians about its +Y. */
@@ -518,46 +483,10 @@ function setYaw(rotation: pc.Quat, radians: number) {
   return rotation.set(0, Math.sin(radians / 2), 0, Math.cos(radians / 2));
 }
 
-/** The horn's ball stud, in assembly axes, with the horn at `hornAngle`. */
-function getHornBall(tieRod: KartTieRodVisual, hornAngle: number, out: pc.Vec3) {
-  const rig = tieRod.rig;
-  setYaw(scratch().rotation, hornAngle).transformVector(tieRod.hornBall, out);
-  out.add(rig.hornPivot);
-  return rig.servoRotation.transformVector(out, out).add(rig.servoPosition);
-}
-
-/** The steering arm's ball stud, in assembly axes, as its pivot stands. */
-function getKnuckleBall(tieRod: KartTieRodVisual, out: pc.Vec3) {
-  const pivot = tieRod.pivot;
-  pivot.getLocalRotation().transformVector(tieRod.knuckleBall, out);
-  return out.add(pivot.getLocalPosition());
-}
-
-/**
- * Runs the dogbone from the axle cup to the outdrive. The bone is rigid, so
- * its inner ball slides along the outdrive cup's axis as the hub travels.
- */
 function poseDriveshaft(driveshaft: KartDriveshaftVisual, hub: pc.Vec3) {
-  const { end, offset, start } = scratch();
-  getAxleJoint(driveshaft, hub, start);
-  const { length, outputAxis, outputPoint } = driveshaft;
-  offset.sub2(start, outputPoint);
-  const along = offset.dot(outputAxis);
-  const reach = length * length - offset.lengthSq() + along * along;
-  end
-    .copy(outputAxis)
-    .mulScalar(along - Math.sqrt(Math.max(reach, 0)))
-    .add(outputPoint);
+  const { end, start } = scratch();
+  getDriveshaftEnds(driveshaft.pose, hub, start, end);
   aimLinkage(driveshaft.bone, start, end);
-}
-
-function getAxleJoint(
-  driveshaft: KartDriveshaftVisual,
-  hub: pc.Vec3,
-  out: pc.Vec3,
-) {
-  const { armFraction, armPivot } = driveshaft;
-  return out.sub2(hub, armPivot).mulScalar(armFraction).add(armPivot);
 }
 
 /**
@@ -624,6 +553,19 @@ function poseKartSuspensionVisual(
   );
   suspension.coil.setLocalRotation(rotation);
   suspension.coil.setLocalScale(1, coilLength / suspension.coilRestLength, 1);
+}
+
+/**
+ * A point in an arm's plan: along it from the pivot toward the hub, and
+ * across it (+Z of the arm's frame, which `poseArm` yaws to face the hub).
+ */
+function inArmPlan(point: pc.Vec3, pivot: pc.Vec3, hub: pc.Vec3) {
+  const hx = hub.x - pivot.x;
+  const hz = hub.z - pivot.z;
+  const length = Math.hypot(hx, hz);
+  const px = point.x - pivot.x;
+  const pz = point.z - pivot.z;
+  return { x: (px * hx + pz * hz) / length, z: (pz * hx - px * hz) / length };
 }
 
 /** Swings the A-arm about its chassis pivots and stretches it to the hub. */
@@ -831,7 +773,12 @@ function createSuspensionVisual(
 
   const arm = createPieces(
     `${instance.id}-arm`,
-    buildSuspensionArm(armRestLength, ARM_ANCHOR_HALF_SPREAD, armDrop),
+    buildSuspensionArm(
+      armRestLength,
+      ARM_PIVOT_HALF_SPREAD,
+      armDrop,
+      inArmPlan(springArmAnchor, armPivot, hubAnchor),
+    ),
     skin,
   );
   const shock = createPieces(
@@ -871,83 +818,29 @@ function createSuspensionVisual(
   };
 }
 
-/**
- * A steered wheel's steering arm, under its pivot, and its tie rod from the
- * servo's nearer horn stud.
- */
+/** A steered wheel's steering arm, under its pivot, and its tie rod. */
 function createTieRodVisual(
-  linkage: KartLinkage,
+  pose: KartTieRodPose,
   rig: KartSteeringRigVisual,
   wheel: KartWheelVisual,
-  wheelTire: { radius: number; width: number },
   wheelFrame: pc.Entity,
   skin: KartVisualSkin,
   createPieces: CreatePieces,
 ): KartTieRodVisual {
-  const toAssembly = (point: pc.Vec3) =>
-    rig.servoRotation
-      .transformVector(point, new pc.Vec3())
-      .add(rig.servoPosition);
-  // Linkage planning only draws a tie rod for a horn with both studs.
-  const hornBall = ["horn-ball-left", "horn-ball-right"]
-    .map((name) => new pc.Vec3(...getCadPoint(linkage.mesh, name)!))
-    .reduce((nearest, ball) =>
-      toAssembly(ball).distance(wheel.hub) <
-      toAssembly(nearest).distance(wheel.hub)
-        ? ball
-        : nearest,
-    )
-    .clone()
-    .sub(rig.hornPivot);
-  // The arm lies against the wheel's inboard web and points along the kart
-  // toward the horn, so the rod runs clear of the shock.
-  const horn = toAssembly(rig.hornPivot);
-  const inboard = horn.x < wheel.hub.x ? -1 : 1;
-  const toward = horn.z < wheel.hub.z ? -1 : 1;
-  const arm = buildSteeringArm(
-    inboard *
-      (WHEEL_WEB_INSET * wheelTire.width + STEERING_ARM_REACH_CLEARANCE),
-    toward *
-      Math.min(
-        STEERING_ARM_LENGTH.maximum,
-        STEERING_ARM_LENGTH.perWheelRadius * wheelTire.radius,
-      ),
-  );
   wheel.pivot.addChild(
-    createPieces(`${wheel.instanceId}-steering-arm`, arm.pieces, skin),
+    createPieces(
+      `${wheel.instanceId}-steering-arm`,
+      buildSteeringArm(pose.steeringArm.reach, pose.steeringArm.length),
+      skin,
+    ),
   );
-  const tieRod: KartTieRodVisual = {
-    hornBall,
-    hornRatio: 0,
-    knuckleBall: new pc.Vec3(...arm.ball),
-    pivot: wheel.pivot,
-    restLength: 0,
-    rig,
-    rod: new pc.Entity(),
-  };
-  // The horn angle that keeps the rod's length for a small steering angle,
-  // measured on the linkage itself so any servo placement works.
-  const step = 0.01;
-  const knuckleRest = getKnuckleBall(tieRod, new pc.Vec3());
-  const hornRest = getHornBall(tieRod, 0, new pc.Vec3());
-  const along = knuckleRest.clone().sub(hornRest);
-  tieRod.restLength = along.length();
-  along.normalize();
-  const knuckleStep = setYaw(new pc.Quat(), step)
-    .transformVector(tieRod.knuckleBall, new pc.Vec3())
-    .sub(tieRod.knuckleBall);
-  const hornTravel = getHornBall(tieRod, step, new pc.Vec3())
-    .sub(hornRest)
-    .dot(along);
-  tieRod.hornRatio =
-    Math.abs(hornTravel) > 1e-7 ? knuckleStep.dot(along) / hornTravel : 0;
-  tieRod.rod = createPieces(
+  const rod = createPieces(
     `${wheel.instanceId}-tie-rod`,
-    buildTieRod(tieRod.restLength),
+    buildTieRod(pose.restLength),
     skin,
   );
-  wheelFrame.addChild(tieRod.rod);
-  return tieRod;
+  wheelFrame.addChild(rod);
+  return { pivot: wheel.pivot, pose, rig, rod };
 }
 
 /**
@@ -955,86 +848,27 @@ function createTieRodVisual(
  * shock eye, and its dogbone to the transmission's nearer outdrive.
  */
 function createDriveshaftVisual(
-  linkage: KartLinkage,
-  wheel: KartWheelVisual,
+  pose: KartDriveshaftPose,
   suspension: KartSuspensionVisual,
   wheelFrame: pc.Entity,
   skin: KartVisualSkin,
   armSkin: KartVisualSkin,
   createPieces: CreatePieces,
 ): KartDriveshaftVisual {
-  const position = toPcVector(linkage.part.transform.position);
-  const rotation = toPcQuat(linkage.part.transform.rotationDegrees);
-  const outputs = ["output-left", "output-right"].flatMap((name) => {
-    const point = getCadPoint(linkage.mesh, name);
-    if (!point) return [];
-    return [
-      {
-        axis: rotation.transformVector(
-          new pc.Vec3(Math.sign(point[0]) || 1, 0, 0),
-          new pc.Vec3(),
-        ),
-        point: rotation
-          .transformVector(new pc.Vec3(...point), new pc.Vec3())
-          .add(position),
-      },
-    ];
-  });
-  const output = outputs.reduce((nearest, candidate) =>
-    candidate.point.distance(wheel.hub) < nearest.point.distance(wheel.hub)
-      ? candidate
-      : nearest,
-  );
-  const station = getAxleCupStation(
-    suspension.armRestLength,
-    suspension.motionRatio * suspension.armRestLength,
-  );
   suspension.arm.addChild(
     createPieces(
-      `${wheel.instanceId}-axle-cup`,
-      buildAxleCup(station, suspension.armRestLength),
+      `${pose.wheelId}-axle-cup`,
+      buildAxleCup(pose.axleCupStation, suspension.armRestLength),
       armSkin,
     ),
   );
-  const driveshaft: KartDriveshaftVisual = {
-    armFraction: station / suspension.armRestLength,
-    armPivot: suspension.armPivot,
-    bone: new pc.Entity(),
-    length: 0,
-    outputAxis: output.axis,
-    outputPoint: output.point,
-  };
-  driveshaft.length = getAxleJoint(driveshaft, wheel.hub, new pc.Vec3()).distance(
-    output.point,
-  );
-  driveshaft.bone = createPieces(
-    `${wheel.instanceId}-dogbone`,
-    buildDogbone(driveshaft.length),
+  const bone = createPieces(
+    `${pose.wheelId}-dogbone`,
+    buildDogbone(pose.length),
     skin,
   );
-  wheelFrame.addChild(driveshaft.bone);
-  return driveshaft;
-}
-
-function findWheelSuspension(document: KartAssemblyDocument, wheelId: string) {
-  return document.connections
-    .filter(
-      ({ from, to }) =>
-        (from.instanceId === wheelId && from.portId === "hub-mount") ||
-        (to.instanceId === wheelId && to.portId === "hub-mount"),
-    )
-    .map(({ from, to }) =>
-      from.instanceId === wheelId ? to.instanceId : from.instanceId,
-    )
-    .map((id) =>
-      document.componentInstances.find((instance) => instance.id === id),
-    )
-    .find(
-      (instance): instance is KartAssemblyComponentInstance =>
-        !!instance?.suspensionMount &&
-        getApprovedKartComponent(instance.definition)?.category ===
-          "suspension",
-    );
+  wheelFrame.addChild(bone);
+  return { bone, pose };
 }
 
 const renderedColors = new WeakMap<pc.Entity, string>();
@@ -1112,8 +946,4 @@ function applyCylinderAxis(entity: pc.Entity, axis: "x" | "y" | "z") {
 
 function toPcVector(value: KartVector) {
   return new pc.Vec3(value.x, value.y, value.z);
-}
-
-function toPcQuat(degrees: KartVector) {
-  return new pc.Quat().setFromEulerAngles(degrees.x, degrees.y, degrees.z);
 }

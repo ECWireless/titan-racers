@@ -4,8 +4,11 @@ import type { DeepReadonly } from "@/game/kart/immutable-registry";
 import { EditorSection } from "./editor/editor-section";
 
 export function KartDerivedEvidence({
+  groundClearance,
   snapshot,
 }: {
+  /** The builder's measured ground clearance, in metres, if shown. */
+  groundClearance?: number | null;
   snapshot: DeepReadonly<PersistedResolvedKartSnapshot>;
 }) {
   const inertia = snapshot.massProperties.inertiaTensor;
@@ -33,6 +36,12 @@ export function KartDerivedEvidence({
           label="Wheelbase / track"
           value={`${formatMeters(snapshot.geometry.wheelbase)} / ${formatMeters(snapshot.geometry.trackWidth)}`}
         />
+        {groundClearance !== undefined && groundClearance !== null ? (
+          <Readout
+            label="Ground clearance"
+            value={formatMeters(groundClearance)}
+          />
+        ) : null}
       </EditorSection>
       <EditorSection title="Derived runtime behavior">
         <Readout

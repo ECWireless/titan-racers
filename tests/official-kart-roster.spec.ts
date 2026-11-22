@@ -108,13 +108,14 @@ test("constructs each specialization from approved component revisions", () => {
           .map(({ definition }) => definition.id),
       ),
     ).toEqual(new Set([expected.wheel]));
+    // Every part but the wheels is a version that declares its mounts.
     for (const instance of document.componentInstances) {
       expect(instance.definition.version).toBe(
         instance.definition.id === "suspension.compliant-long"
           ? 3
-          : instance.definition.id === "suspension.firm-short"
-            ? 2
-            : 1,
+          : instance.definition.id.startsWith("wheel-tire.")
+            ? 1
+            : 2,
       );
     }
   }
@@ -133,9 +134,9 @@ test("derives the intended official kart tradeoffs without stat overrides", () =
     handling: handling.playerStats,
     speed: speed.playerStats,
   }).toEqual({
-    balanced: { acceleration: 41, handling: 60, speed: 41, stability: 57 },
-    handling: { acceleration: 76, handling: 81, speed: 10, stability: 76 },
-    speed: { acceleration: 9, handling: 54, speed: 88, stability: 44 },
+    balanced: { acceleration: 45, handling: 60, speed: 41, stability: 56 },
+    handling: { acceleration: 77, handling: 81, speed: 10, stability: 74 },
+    speed: { acceleration: 11, handling: 54, speed: 88, stability: 44 },
   });
   expect({
     balanced: {

@@ -149,9 +149,9 @@ test.describe("kart-to-kart contact", () => {
     expect(BALANCED.halfExtents.x).toBeCloseTo(0.19, 4);
     expect(BALANCED.halfExtents.z).toBeCloseTo(0.2325, 4);
     expect(BALANCED.halfExtents.y).toBeCloseTo(0.036, 4);
-    expect(BALANCED.center.y).toBeCloseTo(0.0159, 4);
-    expect(BALANCED.mass).toBeCloseTo(1.8493, 4);
-    expect(BALANCED.inertia.yy).toBeCloseTo(0.045312, 6);
+    expect(BALANCED.center.y).toBeCloseTo(0.0151, 4);
+    expect(BALANCED.mass).toBeCloseTo(1.7449, 4);
+    expect(BALANCED.inertia.yy).toBeCloseTo(0.045583, 6);
   });
 
   test("the contact box turns parts as PlayCanvas does", async () => {

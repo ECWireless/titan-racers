@@ -239,11 +239,16 @@ export function createValidKartAssembly(
           ? { x: 0, y: chassisY + 0.0525, z: 0.025 }
           : allInstances.get(childId)!.transform.position;
       return {
-        child: { anchor: { x: 0, y: 0, z: 0 }, instanceId: childId },
+        child: {
+          anchor: { x: 0, y: 0, z: 0 },
+          instanceId: childId,
+          mount: null,
+        },
         id: `mount-${childId}`,
         parent: {
           anchor: relativePosition(childPosition, chassisPosition),
           instanceId: "chassis-plate",
+          mount: null,
         },
       };
     }),
@@ -255,6 +260,7 @@ export function createValidKartAssembly(
           child: {
             anchor: { x: 0, y: 0, z: 0 },
             instanceId: wheelInstance.id,
+            mount: null,
           },
           id: `mount-wheel-${station}`,
           parent: {
@@ -263,6 +269,7 @@ export function createValidKartAssembly(
               suspensionInstance.transform.position,
             ),
             instanceId: suspensionInstance.id,
+            mount: null,
           },
         };
       },
@@ -309,7 +316,7 @@ export function createValidKartAssembly(
         ),
       },
     ],
-    schemaVersion: 2,
+    schemaVersion: 3,
     structuralAttachments,
     units: { angle: "degrees", length: "meters" },
     visualIdentity,

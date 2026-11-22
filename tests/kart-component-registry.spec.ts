@@ -26,6 +26,11 @@ import {
   KART_PART_VISUALS,
 } from "../src/game/kart/kart-part-visuals";
 import { renderKartCatalogReference } from "../src/game/kart/kart-catalog-documentation";
+import { getCadPoint, getKartCadMesh } from "../src/game/kart/kart-cad-meshes";
+import {
+  buildComponentMassElements,
+  combineBounds,
+} from "../src/game/kart/kart-construction-geometry";
 import { createValidKartAssembly } from "./support/kart-assembly";
 
 function readRepositoryFile(path: string) {
@@ -60,7 +65,7 @@ test("provides at least one component option in every required category", () => 
     );
   }
 
-  expect(APPROVED_KART_COMPONENTS).toHaveLength(15);
+  expect(APPROVED_KART_COMPONENTS).toHaveLength(23);
 });
 
 test("limits additional component options to accepted physical tradeoffs", () => {
@@ -134,6 +139,88 @@ test("resolves every component-owned material and tire compound reference", () =
       expect(getApprovedTireCompound(tireCompound)).toBeDefined();
     }
   }
+});
+
+test("declares where every version-2 sealed part mounts, as its CAD model does", () => {
+  const sealed = APPROVED_KART_COMPONENTS.filter(
+    ({ category }) => category !== "suspension" && category !== "wheel-tire",
+  );
+  for (const definition of sealed) {
+    const key = `${definition.id}@${definition.version}`;
+    expect(Boolean(definition.mounts), key).toBe(definition.version >= 2);
+    if (!definition.mounts) continue;
+    // Placed at the origin, the construction shows where the part's faces
+    // are: a footprint lies on its floor, within its outline, and a motor's
+    // face is the can's drive end.
+    const bounds = combineBounds(
+      buildComponentMassElements(
+        {
+          definition,
+          id: "part",
+          kind: "component",
+          mirrorOf: null,
+          suspensionMount: null,
+          transform: {
+            position: { x: 0, y: 0, z: 0 },
+            rotationDegrees: { x: 0, y: 0, z: 0 },
+          },
+          visualColor: "#000000",
+        },
+        definition,
+      ).map((element) => element.bounds),
+    );
+    const mesh = getKartCadMesh(definition);
+    const directions = {
+      base: "-y",
+      "motor-face": "-z",
+      "motor-plate": "+x",
+      "tower-pad": "+y",
+    } as const;
+    for (const mount of definition.mounts) {
+      const label = `${key} ${mount.id}`;
+      expect(mount.direction, label).toBe(directions[mount.type]);
+      if (mesh) {
+        const point = getCadPoint(mesh, `mount-${mount.id}`);
+        expect(point, label).not.toBeNull();
+        for (const [index, axis] of (["x", "y", "z"] as const).entries()) {
+          expect(Math.abs(mount.position[axis] - point![index]), label).toBeLessThan(
+            1e-6,
+          );
+        }
+      }
+      if (mount.type === "base") {
+        expect(mount.position.y, label).toBeCloseTo(bounds.minimum.y, 9);
+        expect(mount.position.x - mount.area!.x / 2, label).toBeGreaterThanOrEqual(
+          bounds.minimum.x - 1e-9,
+        );
+        expect(mount.position.x + mount.area!.x / 2, label).toBeLessThanOrEqual(
+          bounds.maximum.x + 1e-9,
+        );
+        expect(mount.position.z - mount.area!.z / 2, label).toBeGreaterThanOrEqual(
+          bounds.minimum.z - 1e-9,
+        );
+        expect(mount.position.z + mount.area!.z / 2, label).toBeLessThanOrEqual(
+          bounds.maximum.z + 1e-9,
+        );
+      }
+      if (mount.type === "tower-pad") {
+        // On the centreline over the outdrives, as wide as the case.
+        const [housing] = definition.construction;
+        expect(housing.shape === "cylinder" && housing.axis, label).toBe("x");
+        expect(mount.position.x, label).toBe(0);
+        expect(mount.position.z, label).toBe(0);
+        expect(mount.area, label).toEqual({
+          x: housing.shape === "cylinder" ? housing.height : 0,
+          y: 0,
+          z: 0.008,
+        });
+      }
+      if (mount.type === "motor-face") {
+        expect(mount.position.z, label).toBeCloseTo(bounds.minimum.z, 9);
+      }
+    }
+  }
+  expect(sealed.filter(({ mounts }) => mounts)).toHaveLength(8);
 });
 
 test("gives every approved part version a presentation visual", () => {

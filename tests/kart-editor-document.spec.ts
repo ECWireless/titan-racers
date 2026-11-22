@@ -8,6 +8,8 @@ import {
   canAttachKartInstanceTo,
   collectKartDocumentIds,
   deleteKartInstance,
+  detachKartInstance,
+  getKartInstanceSeat,
   getKartMirrorCounterpartIds,
   mirrorKartInstance,
   nudgeKartInstance,
@@ -21,6 +23,17 @@ import { shouldTrackKartEditorPointerDown } from "../src/game/editor/kart-editor
 import { createBalancedKartDocument } from "../src/game/kart/balanced-kart-document";
 import { createHandlingKartDocument } from "../src/game/kart/handling-kart-document";
 import { getApprovedKartComponent } from "../src/game/kart/kart-component-registry";
+import {
+  addVector,
+  multiplyMatrix,
+  rotationMatrix,
+  subtractVector,
+  transformVector,
+} from "../src/game/kart/kart-construction-geometry";
+import {
+  findKartMountSnap,
+  rotationDegreesFromMatrix,
+} from "../src/game/kart/kart-mount-snapping";
 import { resolveApprovedSuspensionMount } from "../src/game/kart/kart-suspension-mounting";
 import { validateKartAssembly } from "../src/game/kart/kart-assembly-validation";
 
@@ -42,7 +55,7 @@ test("edits identity and transforms through schema-valid document commands", () 
   expect(
     moved.primitiveInstances.find(({ id }) => id === "top-deck")?.transform
       .position.y,
-  ).toBeCloseTo(0.096);
+  ).toBeCloseTo(0.109);
 });
 
 test("adds, attaches, mirrors, and deletes bounded primitives", () => {
@@ -116,7 +129,7 @@ test("rejects descendant and mirrored-counterpart structural parents", () => {
   ).toThrow(/Mirrored counterparts/);
 });
 
-test("reattaches suspension from its visible chassis anchor", () => {
+test("holds a snapped shock on its pin, and snaps it back once detached", () => {
   const document = createBalancedKartDocument();
   const selection = {
     id: "suspension-front-left",
@@ -126,57 +139,85 @@ test("reattaches suspension from its visible chassis anchor", () => {
     ({ id }) => id === selection.id,
   )!;
   const retainedIds = collectKartDocumentIds(document);
+  const lifted = (instance: typeof suspension, by: number) => ({
+    ...instance.transform,
+    position: {
+      ...instance.transform.position,
+      y: instance.transform.position.y + by,
+    },
+  });
 
-  expect(
-    canAttachKartInstanceAtCurrentPosition(
-      document,
+  // Snapped, it stays put, and its mirror with it.
+  const held = updateKartInstanceTransformAndAttachment(
+    document,
+    selection,
+    lifted(suspension, 0.02),
+    "shock-tower-front-bar",
+    retainedIds,
+    true,
+  );
+  expect(held.componentInstances).toEqual(document.componentInstances);
+  const byId = (attachments: typeof document.structuralAttachments) =>
+    [...attachments].sort((left, right) => left.id.localeCompare(right.id));
+  expect(byId(held.structuralAttachments)).toEqual(
+    byId(document.structuralAttachments),
+  );
+
+  // Detached and lifted until its top eye is 3 mm above the bar, the eye
+  // snaps back onto the bar's pin.
+  const bar = document.primitiveInstances.find(
+    ({ id }) => id === "shock-tower-front-bar",
+  )!;
+  if (bar.shape !== "box") throw new Error("The bar is a box.");
+  const barTop = bar.transform.position.y + bar.size.y / 2;
+  const mirror = { id: "suspension-front-right", kind: "component" } as const;
+  const detached = detachKartInstance(
+    detachKartInstance(document, selection),
+    mirror,
+  );
+  const moved = updateKartInstanceTransformAndAttachment(
+    detached,
+    selection,
+    lifted(
+      suspension,
+      barTop + 0.003 - suspension.suspensionMount!.chassisAnchor.y,
+    ),
+    "",
+    retainedIds,
+    true,
+  );
+  // Its detached mirror snaps to match, and attaches the same way.
+  const reattached = attachKartInstance(
+    attachKartInstance(
+      moved,
       selection,
       "shock-tower-front-bar",
       retainedIds,
+      true,
     ),
-  ).toBe(true);
-  const smallMove = updateKartInstanceTransformAndAttachment(
-    document,
-    selection,
-    {
-      ...suspension.transform,
-      position: {
-        ...suspension.transform.position,
-        y: suspension.transform.position.y + 0.005,
-      },
-    },
+    mirror,
     "shock-tower-front-bar",
     retainedIds,
-    true,
-  );
-  const retainedAttachment = smallMove.structuralAttachments.find(
-    ({ child }) => child.instanceId === selection.id,
-  );
-  expect(retainedAttachment?.parent.instanceId).toBe("shock-tower-front-bar");
-  expect(validateKartAssembly(smallMove).success).toBe(true);
-
-  const movedSuspension = smallMove.componentInstances.find(
-    ({ id }) => id === selection.id,
-  )!;
-  const farMove = updateKartInstanceTransformAndAttachment(
-    smallMove,
-    selection,
-    {
-      ...movedSuspension.transform,
-      position: {
-        ...movedSuspension.transform.position,
-        y: movedSuspension.transform.position.y + 0.02,
-      },
-    },
-    "shock-tower-front-bar",
-    retainedIds,
-    true,
   );
   expect(
-    farMove.structuralAttachments.find(
-      ({ child }) => child.instanceId === selection.id,
-    ),
-  ).toBeUndefined();
+    reattached.structuralAttachments.find(
+      ({ child }) => child.instanceId === mirror.id,
+    )?.child.mount,
+  ).toBe("chassis-anchor");
+  const attachment = reattached.structuralAttachments.find(
+    ({ child }) => child.instanceId === selection.id,
+  );
+  expect(attachment?.child.mount).toBe("chassis-anchor");
+  expect(attachment?.parent.mount).toBe("pin");
+  expect(validateKartAssembly(reattached).success).toBe(true);
+  const eye = reattached.componentInstances.find(
+    ({ id }) => id === selection.id,
+  )!.suspensionMount!.chassisAnchor;
+  // 4 mm in from the bar's top edge, so the bolt has material around it.
+  expect(eye.y).toBeCloseTo(
+    bar.transform.position.y + Math.max(bar.size.y / 2 - 0.004, 0),
+    9,
+  );
 });
 
 test("suppresses mirror alignment for legacy nested counterparts", () => {
@@ -217,92 +258,92 @@ test("suppresses mirror alignment for legacy nested counterparts", () => {
   ).toEqual(counterpartBefore.transform);
 });
 
-test("preserves valid attachments, detaches invalid moves, and requires explicit reattachment", () => {
+test("slides a snapped footprint on its face, and detaches an unsnapped part moved away", () => {
   const document = createBalancedKartDocument();
-  const selection = { id: "motor-main", kind: "component" } as const;
-  const motor = document.componentInstances.find(
+  const selection = { id: "controller-main", kind: "component" } as const;
+  const controller = document.componentInstances.find(
     ({ id }) => id === selection.id,
   )!;
   const originalAttachment = document.structuralAttachments.find(
     ({ child }) => child.instanceId === selection.id,
   )!;
   const retainedIds = collectKartDocumentIds(document);
-  const validMove = updateKartInstanceTransformAndAttachment(
+  const at = (position: Partial<typeof controller.transform.position>) => ({
+    ...controller.transform,
+    position: { ...controller.transform.position, ...position },
+  });
+  const controllerIn = (candidate: typeof document) =>
+    candidate.componentInstances.find(({ id }) => id === selection.id)!;
+  const attachmentIn = (candidate: typeof document) =>
+    candidate.structuralAttachments.find(
+      ({ child }) => child.instanceId === selection.id,
+    );
+
+  // Lifted and tilted, it stays on the plate's top face, turned only about
+  // it.
+  const slid = updateKartInstanceTransformAndAttachment(
     document,
     selection,
     {
-      ...motor.transform,
-      position: { ...motor.transform.position, x: 0.005 },
+      position: { ...controller.transform.position, x: 0.005, y: 0.2 },
+      rotationDegrees: { x: 20, y: 30, z: 0 },
     },
     "chassis-plate",
     retainedIds,
   );
-  const validAttachment = validMove.structuralAttachments.find(
-    ({ child }) => child.instanceId === selection.id,
+  expect(attachmentIn(slid)?.id).toBe(originalAttachment.id);
+  expect(attachmentIn(slid)?.parent.mount).toBe("top");
+  expect(controllerIn(slid).transform.position.y).toBeCloseTo(
+    controller.transform.position.y,
+    9,
   );
-  expect(validAttachment?.id).toBe(originalAttachment.id);
-  expect(validAttachment?.parent.instanceId).toBe("chassis-plate");
-  expect(validateKartAssembly(validMove).success).toBe(true);
+  expect(controllerIn(slid).transform.rotationDegrees.x).toBeCloseTo(0, 6);
+  expect(controllerIn(slid).transform.rotationDegrees.z).toBeCloseTo(0, 6);
+  expect(validateKartAssembly(slid).success).toBe(true);
 
-  const invalidMove = updateKartInstanceTransformAndAttachment(
-    validMove,
+  // Pushed off the side, it stops with its footprint at the plate's edge.
+  const pushed = updateKartInstanceTransformAndAttachment(
+    document,
     selection,
-    {
-      ...motor.transform,
-      position: { ...motor.transform.position, x: 1 },
-    },
+    at({ x: 1 }),
     "chassis-plate",
     retainedIds,
   );
-  expect(
-    invalidMove.structuralAttachments.some(
-      ({ child }) => child.instanceId === selection.id,
-    ),
-  ).toBe(false);
-  expect(validateKartAssembly(invalidMove).success).toBe(false);
+  const plate = document.primitiveInstances.find(
+    ({ id }) => id === "chassis-plate",
+  )!;
+  if (plate.shape !== "box") throw new Error("The plate is a box.");
+  const footprint = getApprovedKartComponent(controller.definition)!.mounts!.find(
+    ({ id }) => id === "base",
+  )!.area!;
+  expect(attachmentIn(pushed)?.parent.mount).toBe("top");
+  expect(controllerIn(pushed).transform.position.x).toBeCloseTo(
+    plate.size.x / 2 - footprint.x / 2,
+    9,
+  );
+  expect(validateKartAssembly(pushed).success).toBe(true);
 
-  const returnedToChassis = updateKartInstanceTransformAndAttachment(
-    invalidMove,
+  // Detached, it moves freely; it attaches to the battery, which has no
+  // face to snap to, by touching it, and that attachment stays unnamed.
+  const free = updateKartInstanceTransformAndAttachment(
+    detachKartInstance(document, selection),
     selection,
-    {
-      ...motor.transform,
-      position: { ...motor.transform.position, x: 0.005 },
-    },
-    "chassis-plate",
+    at({ x: 1 }),
+    "",
     retainedIds,
   );
-  expect(
-    returnedToChassis.structuralAttachments.some(
-      ({ child }) => child.instanceId === selection.id,
-    ),
-  ).toBe(false);
-  expect(
-    canAttachKartInstanceAtCurrentPosition(
-      returnedToChassis,
-      selection,
-      "chassis-plate",
-      retainedIds,
-    ),
-  ).toBe(true);
-
+  expect(controllerIn(free).transform.position.x).toBe(1);
   const battery = document.componentInstances.find(
     ({ id }) => id === "battery-main",
   )!;
   const retargeted = updateKartInstanceTransformAndAttachment(
-    invalidMove,
+    free,
     selection,
-    {
-      ...motor.transform,
-      position: battery.transform.position,
-    },
+    { ...controller.transform, position: battery.transform.position },
     battery.id,
     retainedIds,
   );
-  expect(
-    retargeted.structuralAttachments.find(
-      ({ child }) => child.instanceId === selection.id,
-    ),
-  ).toBeUndefined();
+  expect(attachmentIn(retargeted)).toBeUndefined();
   expect(
     canAttachKartInstanceAtCurrentPosition(
       retargeted,
@@ -311,18 +352,29 @@ test("preserves valid attachments, detaches invalid moves, and requires explicit
       retainedIds,
     ),
   ).toBe(true);
-  const attachedToBattery = attachKartInstance(
+  const onBattery = attachKartInstance(
     retargeted,
     selection,
     battery.id,
     retainedIds,
   );
-  expect(
-    attachedToBattery.structuralAttachments.find(
-      ({ child }) => child.instanceId === selection.id,
-    )?.parent.instanceId,
-  ).toBe(battery.id);
-  expect(validateKartAssembly(attachedToBattery).success).toBe(true);
+  expect(attachmentIn(onBattery)?.parent.instanceId).toBe(battery.id);
+  expect(attachmentIn(onBattery)?.child.mount).toBeNull();
+  expect(getKartInstanceSeat(onBattery, selection)).toEqual({
+    parentId: battery.id,
+    snapped: false,
+  });
+  expect(validateKartAssembly(onBattery).success).toBe(true);
+
+  // Unnamed, it is moved freely, and detached once out of reach.
+  const away = updateKartInstanceTransformAndAttachment(
+    onBattery,
+    selection,
+    at({ x: 1 }),
+    battery.id,
+    retainedIds,
+  );
+  expect(attachmentIn(away)).toBeUndefined();
 });
 
 test("attaches touching construction surfaces when their centers are out of range", () => {
@@ -338,7 +390,7 @@ test("attaches touching construction surfaces when their centers are out of rang
     throw new Error("Balanced Kart construction geometry is unavailable.");
   }
   const moved = updateKartInstanceTransformAndAttachment(
-    document,
+    detachKartInstance(document, selection),
     selection,
     {
       ...deck.transform,
@@ -725,5 +777,586 @@ test("does not start camera gestures from gizmo-consumed pointer downs", () => {
   );
   expect(shouldTrackKartEditorPointerDown({ defaultPrevented: false })).toBe(
     true,
+  );
+});
+
+test("snaps a part onto its parent's nearest mounting point in reach", () => {
+  const document = createBalancedKartDocument();
+  const retainedIds = collectKartDocumentIds(document);
+  const selection = { id: "battery-main", kind: "component" } as const;
+  const battery = document.componentInstances.find(
+    ({ id }) => id === selection.id,
+  )!;
+  const raised = (by: number) => ({
+    position: {
+      ...battery.transform.position,
+      x: battery.transform.position.x + 0.003,
+      y: battery.transform.position.y + by,
+    },
+    rotationDegrees: { x: 5, y: 90, z: 0 },
+  });
+  const detached = detachKartInstance(document, selection);
+
+  // Moved freely, it stays where it is put; near its chosen parent, it
+  // snaps onto the plate without attaching.
+  const free = updateKartInstanceTransformAndAttachment(
+    detached,
+    selection,
+    raised(0.006),
+    "",
+    retainedIds,
+  );
+  expect(
+    free.componentInstances.find(({ id }) => id === selection.id)!.transform,
+  ).toEqual(raised(0.006));
+  const near = updateKartInstanceTransformAndAttachment(
+    detached,
+    selection,
+    raised(0.006),
+    "chassis-plate",
+    retainedIds,
+  );
+  const nearBattery = near.componentInstances.find(
+    ({ id }) => id === selection.id,
+  )!;
+  expect(nearBattery.transform.position.y).toBeCloseTo(
+    battery.transform.position.y,
+    9,
+  );
+  expect(nearBattery.transform.rotationDegrees.x).toBeCloseTo(0, 9);
+  expect(
+    near.structuralAttachments.some(
+      ({ child }) => child.instanceId === selection.id,
+    ),
+  ).toBe(false);
+
+  // Attached from where it was put, it is seated and named.
+  const attached = attachKartInstance(free, selection, "chassis-plate", retainedIds);
+  const attachment = attached.structuralAttachments.find(
+    ({ child }) => child.instanceId === selection.id,
+  )!;
+  expect([attachment.child.mount, attachment.parent.mount]).toEqual([
+    "base",
+    "top",
+  ]);
+  const seated = attached.componentInstances.find(
+    ({ id }) => id === selection.id,
+  )!;
+  expect(seated.transform.position.y).toBeCloseTo(
+    battery.transform.position.y,
+    9,
+  );
+  expect(seated.transform.rotationDegrees.x).toBeCloseTo(0, 9);
+  expect(validateKartAssembly(attached).success).toBe(true);
+  expect(getKartInstanceSeat(attached, selection)).toEqual({
+    childMount: "base",
+    hold: "slides",
+    parentId: "chassis-plate",
+    parentMount: "top",
+    snapped: true,
+  });
+
+  // Out of reach, it doesn't snap; attached by touching, it stays unnamed,
+  // which the builder won't save.
+  const far = updateKartInstanceTransformAndAttachment(
+    detached,
+    selection,
+    raised(0.012),
+    "chassis-plate",
+    retainedIds,
+  );
+  expect(
+    far.componentInstances.find(({ id }) => id === selection.id)!.transform,
+  ).toEqual(raised(0.012));
+  expect(
+    getKartInstanceSeat(
+      attachKartInstance(far, selection, "chassis-plate", retainedIds),
+      selection,
+    ),
+  ).toEqual({ parentId: "chassis-plate", snapped: false });
+});
+
+test("turns a snapped motor only about its shaft", () => {
+  const document = createBalancedKartDocument();
+  const retainedIds = collectKartDocumentIds(document);
+  const selection = { id: "motor-main", kind: "component" } as const;
+  const motor = document.componentInstances.find(
+    ({ id }) => id === selection.id,
+  )!;
+  const motorIn = (candidate: typeof document) =>
+    candidate.componentInstances.find(({ id }) => id === selection.id)!;
+  const face = getApprovedKartComponent(motor.definition)!.mounts!.find(
+    ({ id }) => id === "motor-face",
+  )!.position;
+  const rotation = rotationMatrix(motor.transform.rotationDegrees);
+  const facePoint = addVector(
+    motor.transform.position,
+    transformVector(rotation, face),
+  );
+  // 30° about the shaft (along X: the motor is turned to face the gearbox),
+  // through the motor face.
+  const angle = Math.PI / 6;
+  const aboutShaft = [
+    1, 0, 0,
+    0, Math.cos(angle), -Math.sin(angle),
+    0, Math.sin(angle), Math.cos(angle),
+  ] as Parameters<typeof transformVector>[0];
+  const turned = {
+    position: addVector(
+      facePoint,
+      transformVector(
+        aboutShaft,
+        subtractVector(motor.transform.position, facePoint),
+      ),
+    ),
+    rotationDegrees: rotationDegreesFromMatrix(
+      multiplyMatrix(aboutShaft, rotation),
+    ),
+  };
+  const spun = updateKartInstanceTransformAndAttachment(
+    document,
+    selection,
+    turned,
+    "transmission-main",
+    retainedIds,
+  );
+  for (const axis of ["x", "y", "z"] as const) {
+    expect(motorIn(spun).transform.position[axis]).toBeCloseTo(
+      turned.position[axis],
+      9,
+    );
+  }
+  // It keeps the turn about its shaft.
+  rotationMatrix(motorIn(spun).transform.rotationDegrees).forEach(
+    (value, index) =>
+      expect(value).toBeCloseTo(
+        multiplyMatrix(aboutShaft, rotation)[index],
+        9,
+      ),
+  );
+  expect(getKartInstanceSeat(spun, selection)).toMatchObject({
+    snapped: true,
+  });
+  expect(validateKartAssembly(spun).success).toBe(true);
+
+  // Moved off the plate and tilted, it goes back onto the plate, still
+  // facing it.
+  const pulled = updateKartInstanceTransformAndAttachment(
+    document,
+    selection,
+    {
+      position: addVector(motor.transform.position, { x: 0.01, y: 0.02, z: 0 }),
+      rotationDegrees: { ...motor.transform.rotationDegrees, z: 15 },
+    },
+    "transmission-main",
+    retainedIds,
+  );
+  const pulledFace = addVector(
+    motorIn(pulled).transform.position,
+    transformVector(
+      rotationMatrix(motorIn(pulled).transform.rotationDegrees),
+      face,
+    ),
+  );
+  for (const axis of ["x", "y", "z"] as const) {
+    expect(pulledFace[axis]).toBeCloseTo(facePoint[axis], 9);
+  }
+  expect(validateKartAssembly(pulled).success).toBe(true);
+  expect(getKartInstanceSeat(pulled, selection)).toMatchObject({
+    hold: "turns",
+    snapped: true,
+  });
+});
+
+test("keeps a swapped gearbox seated and carries its motor and rear tower", () => {
+  const document = createBalancedKartDocument();
+  const gearboxBase = (candidate: typeof document) => {
+    const gearbox = candidate.componentInstances.find(
+      ({ id }) => id === "transmission-main",
+    )!;
+    const base = getApprovedKartComponent(gearbox.definition)!.mounts!.find(
+      ({ id }) => id === "base",
+    )!.position;
+    return addVector(
+      gearbox.transform.position,
+      transformVector(rotationMatrix(gearbox.transform.rotationDegrees), base),
+    );
+  };
+  for (const ratio of ["transmission.tall-4to1", "transmission.short-8to1"]) {
+    const swapped = replaceKartComponentDefinition(
+      document,
+      "transmission-main",
+      ratio,
+    );
+    expect(validateKartAssembly(swapped).success, ratio).toBe(true);
+    // Its new base sits on the plate.
+    expect(gearboxBase(swapped).y).toBeCloseTo(gearboxBase(document).y, 9);
+    for (const id of ["transmission-main", "motor-main", "shock-tower-rear"]) {
+      expect(
+        getKartInstanceSeat(swapped, {
+          id,
+          kind: id === "shock-tower-rear" ? "primitive" : "component",
+        })?.snapped,
+        `${ratio} ${id}`,
+      ).toBe(true);
+    }
+    // The tower post is cut to the new pad, so its bar and the rear
+    // suspension stay where they were.
+    for (const id of ["shock-tower-rear-bar"]) {
+      expect(
+        swapped.primitiveInstances.find((primitive) => primitive.id === id)
+          ?.transform,
+      ).toEqual(
+        document.primitiveInstances.find((primitive) => primitive.id === id)
+          ?.transform,
+      );
+    }
+    for (const id of ["suspension-rear-left", "suspension-rear-right"]) {
+      expect(
+        swapped.componentInstances.find((instance) => instance.id === id)
+          ?.suspensionMount,
+      ).toEqual(
+        document.componentInstances.find((instance) => instance.id === id)
+          ?.suspensionMount,
+      );
+    }
+    // The gearbox keeps its outputs on the axle line.
+    const gearboxAt = (candidate: typeof document) =>
+      candidate.componentInstances.find(({ id }) => id === "transmission-main")!
+        .transform.position;
+    expect(gearboxAt(swapped).x).toBe(gearboxAt(document).x);
+    expect(gearboxAt(swapped).z).toBe(gearboxAt(document).z);
+  }
+
+  // A version without the named mounts leaves those attachments unnamed,
+  // and the joints still meet.
+  const historical = replaceKartComponentDefinition(
+    document,
+    "transmission-main",
+    "transmission.short-8to1",
+    1,
+  );
+  expect(validateKartAssembly(historical).success).toBe(true);
+  for (const id of ["transmission-main", "motor-main", "shock-tower-rear"]) {
+    expect(
+      getKartInstanceSeat(historical, {
+        id,
+        kind: id === "shock-tower-rear" ? "primitive" : "component",
+      }),
+    ).toMatchObject({ snapped: false });
+  }
+});
+
+test("converts rotation matrices back to the angles that built them", () => {
+  let worst = 0;
+  for (let index = 0; index < 400; index += 1) {
+    const angles = {
+      x: ((index * 37) % 360) - 180,
+      // Including the gimbal case at ±90°.
+      y: index % 50 === 0 ? 90 : index % 50 === 1 ? -90 : ((index * 53) % 180) - 90,
+      z: ((index * 71) % 360) - 180,
+    };
+    const matrix = rotationMatrix(angles);
+    const back = rotationMatrix(rotationDegreesFromMatrix(matrix));
+    worst = Math.max(worst, ...matrix.map((value, at) => Math.abs(value - back[at])));
+  }
+  expect(worst).toBeLessThan(1e-7);
+});
+
+test("keeps snapped parts snapped when a part is resized", () => {
+  const document = createBalancedKartDocument();
+  const post = document.primitiveInstances.find(
+    ({ id }) => id === "shock-tower-rear",
+  )!;
+  if (post.shape !== "box") throw new Error("The post is a box.");
+  const taller = updateKartPrimitiveGeometry(document, post.id, {
+    shape: "box",
+    size: { ...post.size, y: post.size.y + 0.004 },
+  });
+  expect(validateKartAssembly(taller).success).toBe(true);
+  for (const selection of [
+    { id: "shock-tower-rear", kind: "primitive" },
+    { id: "shock-tower-rear-bar", kind: "primitive" },
+    { id: "suspension-rear-left", kind: "component" },
+  ] as const) {
+    expect(getKartInstanceSeat(taller, selection)?.snapped, selection.id).toBe(
+      true,
+    );
+  }
+  // The post still stands on the pad, so its bar (and the rear shocks on
+  // it) rise by all 4 mm.
+  const barY = (candidate: typeof document) =>
+    candidate.primitiveInstances.find(({ id }) => id === "shock-tower-rear-bar")!
+      .transform.position.y;
+  expect(barY(taller) - barY(document)).toBeCloseTo(0.004, 9);
+
+  // A plate too narrow for a footprint leaves that part unsnapped, which the
+  // panel says.
+  const plate = document.primitiveInstances.find(
+    ({ id }) => id === "chassis-plate",
+  )!;
+  if (plate.shape !== "box") throw new Error("The plate is a box.");
+  const narrow = updateKartPrimitiveGeometry(document, plate.id, {
+    shape: "box",
+    size: { ...plate.size, x: 0.04 },
+  });
+  expect(
+    getKartInstanceSeat(narrow, { id: "battery-main", kind: "component" }),
+  ).toMatchObject({ snapped: false });
+});
+
+test("undoes a tilt a snapped part's face refuses, in place", () => {
+  const document = createBalancedKartDocument();
+  const selection = { id: "controller-main", kind: "component" } as const;
+  const controller = document.componentInstances.find(
+    ({ id }) => id === selection.id,
+  )!;
+  const tilted = updateKartInstanceTransformAndAttachment(
+    document,
+    selection,
+    {
+      ...controller.transform,
+      rotationDegrees: { ...controller.transform.rotationDegrees, x: 25 },
+    },
+    "chassis-plate",
+    collectKartDocumentIds(document),
+  );
+  const after = tilted.componentInstances.find(({ id }) => id === selection.id)!;
+  for (const axis of ["x", "y", "z"] as const) {
+    expect(after.transform.position[axis]).toBeCloseTo(
+      controller.transform.position[axis],
+      12,
+    );
+    expect(after.transform.rotationDegrees[axis]).toBeCloseTo(
+      controller.transform.rotationDegrees[axis],
+      9,
+    );
+  }
+});
+
+test("snaps a footprint onto a round face wherever all of it fits", () => {
+  const document = createBalancedKartDocument();
+  const battery = document.componentInstances.find(
+    ({ id }) => id === "battery-main",
+  )!;
+  const plate = document.primitiveInstances.find(
+    ({ id }) => id === "chassis-plate",
+  )!;
+  const definition = getApprovedKartComponent(battery.definition)!;
+  const floor = definition.mounts!.find(({ id }) => id === "base")!.position.y;
+  // A 70 mm disc whose top is at y = 0.
+  const disc = {
+    ...structuredClone(plate),
+    axis: "y" as const,
+    height: 0.01,
+    id: "disc",
+    radius: 0.07,
+    shape: "cylinder" as const,
+    transform: {
+      position: { x: 0, y: -0.005, z: 0 },
+      rotationDegrees: { x: 0, y: 0, z: 0 },
+    },
+  };
+  const at = (x: number, lift: number) => ({
+    position: { x, y: -floor + lift, z: 0 },
+    rotationDegrees: { x: 0, y: 0, z: 0 },
+  });
+  const snapAt = (x: number, lift: number) =>
+    findKartMountSnap(
+      { definition, instance: battery },
+      { definition: null, instance: disc },
+      at(x, lift),
+    );
+  // 15 mm off centre (its 95 by 48 mm footprint fits to 18.3 mm), 1 mm up,
+  // it drops straight down.
+  const off = snapAt(0.015, 0.001);
+  expect(off?.childMount).toBe("base");
+  expect(off?.transform.position.x).toBeCloseTo(0.015, 12);
+  expect(off?.distance).toBeCloseTo(0.001, 12);
+  // Further out, it comes in only until its far corners are on the disc.
+  const edge = snapAt(0.025, 0)!;
+  expect(edge.transform.position.x).toBeLessThan(0.025);
+  const corner = Math.hypot(edge.transform.position.x + 0.0475, 0.024);
+  expect(corner).toBeCloseTo(0.07, 6);
+});
+
+test("turns a snapped part step by step past 90° about its face", () => {
+  let document = createBalancedKartDocument();
+  const selection = { id: "battery-main", kind: "component" } as const;
+  const retainedIds = collectKartDocumentIds(document);
+  const battery = () =>
+    document.componentInstances.find(({ id }) => id === selection.id)!;
+  expect(battery().transform.rotationDegrees.y).toBe(90);
+  for (let step = 0; step < 2; step += 1) {
+    document = updateKartInstanceTransformAndAttachment(
+      document,
+      selection,
+      {
+        ...battery().transform,
+        rotationDegrees: {
+          ...battery().transform.rotationDegrees,
+          y: battery().transform.rotationDegrees.y + 5,
+        },
+      },
+      "chassis-plate",
+      retainedIds,
+    );
+  }
+  expect(battery().transform.rotationDegrees).toEqual({ x: 0, y: 100, z: 0 });
+  expect(getKartInstanceSeat(document, selection)?.snapped).toBe(true);
+});
+
+test("leaves shocks on a resized bar where they stand while their pins fit", () => {
+  const document = createBalancedKartDocument();
+  const bar = document.primitiveInstances.find(
+    ({ id }) => id === "shock-tower-front-bar",
+  )!;
+  if (bar.shape !== "box") throw new Error("The bar is a box.");
+  const thicker = updateKartPrimitiveGeometry(document, bar.id, {
+    shape: "box",
+    size: { ...bar.size, y: bar.size.y + 0.003 },
+  });
+  expect(validateKartAssembly(thicker).success).toBe(true);
+  for (const id of [
+    "suspension-front-left",
+    "suspension-front-right",
+    "wheel-front-left",
+  ]) {
+    const before = document.componentInstances.find((item) => item.id === id)!;
+    const after = thicker.componentInstances.find((item) => item.id === id)!;
+    expect(after.transform, id).toEqual(before.transform);
+    expect(after.suspensionMount, id).toEqual(before.suspensionMount);
+    expect(
+      getKartInstanceSeat(thicker, { id, kind: "component" })?.snapped,
+      id,
+    ).toBe(true);
+  }
+});
+
+test("keeps the angles nearest those asked for, within the document's turns", () => {
+  // Facing its face needs a small turn back, which keeps Y past 90°.
+  const document = createBalancedKartDocument();
+  const selection = { id: "battery-main", kind: "component" } as const;
+  const battery = document.componentInstances.find(
+    ({ id }) => id === selection.id,
+  )!;
+  const asked = updateKartInstanceTransformAndAttachment(
+    document,
+    selection,
+    { ...battery.transform, rotationDegrees: { x: 3, y: 95, z: 0 } },
+    "chassis-plate",
+    collectKartDocumentIds(document),
+  );
+  const angles = asked.componentInstances.find(({ id }) => id === selection.id)!
+    .transform.rotationDegrees;
+  expect(angles.x).toBeCloseTo(0, 9);
+  expect(angles.y).toBeCloseTo(95, 9);
+  expect(angles.z).toBeCloseTo(0, 9);
+  // At ±90° about Y only X less Z is set, so the Z asked for is kept.
+  const locked = rotationDegreesFromMatrix(
+    rotationMatrix({ x: 30, y: 90, z: 30 }),
+    { x: 30, y: 90, z: 30 },
+  );
+  expect(locked.x).toBeCloseTo(30, 9);
+  expect(locked.y).toBe(90);
+  expect(locked.z).toBe(30);
+  // Near 360°, a further 5° stays within the document's ±360°.
+  const past = rotationDegreesFromMatrix(rotationMatrix({ x: 0, y: 5, z: 0 }), {
+    x: 0,
+    y: 360,
+    z: 0,
+  });
+  expect(past.y).toBeCloseTo(5, 9);
+});
+
+test("refuses a paired resize that would leave a mirror out of place", () => {
+  const document = createBalancedKartDocument();
+  const plate = document.primitiveInstances.find(
+    ({ id }) => id === "chassis-plate",
+  )!;
+  if (plate.shape !== "box") throw new Error("The plate is a box.");
+  // Mirrored boxes on faces 100 and 40 mm long.
+  const box = (
+    id: string,
+    x: number,
+    y: number,
+    length: number,
+    z = 0,
+    mirrorOf: string | null = null,
+  ) => ({
+    ...structuredClone(plate),
+    id,
+    mirrorOf,
+    size: { x: 0.025, y: 0.01, z: length },
+    transform: { position: { x, y, z }, rotationDegrees: { x: 0, y: 0, z: 0 } },
+  });
+  const plateTop = plate.transform.position.y + plate.size.y / 2;
+  const leftParent = box("left-parent", -0.05, plateTop + 0.005, 0.1);
+  const rightParent = box("right-parent", 0.05, plateTop + 0.005, 0.04);
+  const left = box("left-child", -0.05, plateTop + 0.015, 0.02, 0.01);
+  const right = box("right-child", 0.05, plateTop + 0.015, 0.019, 0.01, left.id);
+  document.primitiveInstances.push(leftParent, rightParent, left, right);
+  const ids = collectKartDocumentIds(document);
+  const primitive = (id: string) => ({ id, kind: "primitive" }) as const;
+  let built = document;
+  for (const [child, parent] of [
+    [leftParent.id, plate.id],
+    [rightParent.id, plate.id],
+    [left.id, leftParent.id],
+    [right.id, rightParent.id],
+  ]) {
+    built = attachKartInstance(built, primitive(child), parent, ids);
+  }
+  expect(validateKartAssembly(built).success).toBe(true);
+  // 40 mm long, the right child would have to slide back onto its shorter
+  // face, out of its mirror's place, so neither changes.
+  const resized = updateKartPrimitiveGeometry(
+    built,
+    left.id,
+    { shape: "box", size: { ...left.size, z: 0.04 } },
+    true,
+  );
+  expect(resized).toBe(built);
+});
+
+test("slides a part on the side of a cut tower post to stay on it", () => {
+  const document = createBalancedKartDocument();
+  const post = document.primitiveInstances.find(
+    ({ id }) => id === "shock-tower-rear",
+  )!;
+  if (post.shape !== "box") throw new Error("The post is a box.");
+  const bottom = post.transform.position.y - post.size.y / 2;
+  document.primitiveInstances.push({
+    ...structuredClone(post),
+    id: "side-block",
+    mirrorOf: null,
+    size: { x: 0.01, y: 0.006, z: post.size.z },
+    transform: {
+      position: {
+        x: post.transform.position.x + post.size.x / 2 + 0.005,
+        y: bottom + 0.003,
+        z: post.transform.position.z,
+      },
+      rotationDegrees: { x: 0, y: 0, z: 0 },
+    },
+  });
+  const ids = collectKartDocumentIds(document);
+  const selection = { id: "side-block", kind: "primitive" } as const;
+  const attached = attachKartInstance(document, selection, post.id, ids);
+  expect(getKartInstanceSeat(attached, selection)?.snapped).toBe(true);
+  // The 8:1 pad is 3.5 mm higher, so the post is cut from below, past the
+  // block's lower edge.
+  const swapped = replaceKartComponentDefinition(
+    attached,
+    "transmission-main",
+    "transmission.short-8to1",
+  );
+  expect(validateKartAssembly(swapped).success).toBe(true);
+  expect(getKartInstanceSeat(swapped, selection)?.snapped).toBe(true);
+  const cut = swapped.primitiveInstances.find(({ id }) => id === post.id)!;
+  if (cut.shape !== "box") throw new Error("The post is a box.");
+  const block = swapped.primitiveInstances.find(({ id }) => id === selection.id)!;
+  expect(block.transform.position.y - 0.003).toBeGreaterThanOrEqual(
+    cut.transform.position.y - cut.size.y / 2 - 1e-9,
   );
 });

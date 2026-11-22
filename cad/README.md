@@ -44,15 +44,20 @@ One module per approved part version in `cad/parts/`, named after it
   The game turns each about its `<name>-pivot` point (the servo's `horn`).
 - `POINTS` (optional): a dict from a name to a point in the part's frame
   where the kart's linkages meet the part: the servo's `horn-pivot` and
-  `horn-ball-left`/`-right`, a transmission's `output-left`/`-right`.
+  `horn-ball-left`/`-right`, a transmission's `output-left`/`-right`. A part
+  with mounting points also names each one `mount-<id>`; the registry's
+  mounting points are tested against them.
 
 A module whose name starts with an underscore is shared code, not a part:
-`_shapes.py` (turned profiles and gears) and `_laydown_gearbox.py` (the
-three transmissions' one model).
+`_shapes.py` (turned profiles and gears), `_laydown_gearbox.py` (the three
+version-1 transmissions' one model), and `_plate_gearbox.py` (version 2's,
+with a motor plate).
 
 Keep dimensions as named constants modelled on a real 1:10 part, and import no
 vendor models. Each part stays within 2,000 triangles, moving pieces
 included; the export refuses more.
 After adding a part, list its mesh in `KART_CAD_MESHES`
-(`src/game/kart/kart-cad-meshes.ts`) and advance the kart thumbnail render
-version. Pins in `requirements.txt` say how to update them.
+(`src/game/kart/kart-cad-meshes.ts`). Advance the kart thumbnail render
+version when a change alters how an existing part version looks; a new
+part version changes no saved kart's look. Pins in `requirements.txt` say
+how to update them.

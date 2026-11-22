@@ -90,7 +90,7 @@ const connectionSchema = z.strictObject({
   to: connectionEndpointSchema,
 });
 
-const structuralAttachmentSchema = z.strictObject({
+const structuralAttachmentV1Schema = z.strictObject({
   child: z.strictObject({
     anchor: kartVectorSchema,
     instanceId: kartStableIdSchema,
@@ -100,6 +100,23 @@ const structuralAttachmentSchema = z.strictObject({
     anchor: kartVectorSchema,
     instanceId: kartStableIdSchema,
   }),
+});
+
+/**
+ * Schema 3 names the mounting point each end of a structural attachment
+ * uses (`kart-mounting.ts`), or null where none is named: documents from
+ * schemas 1 and 2 migrate with none.
+ */
+const structuralAttachmentEndpointSchema = z.strictObject({
+  anchor: kartVectorSchema,
+  instanceId: kartStableIdSchema,
+  mount: kartStableIdSchema.nullable(),
+});
+
+const structuralAttachmentSchema = z.strictObject({
+  child: structuralAttachmentEndpointSchema,
+  id: kartStableIdSchema,
+  parent: structuralAttachmentEndpointSchema,
 });
 
 const componentInstanceSchema = componentInstanceV1Schema.extend({
@@ -150,10 +167,10 @@ const kartAssemblyDocumentV1BaseSchema = z.strictObject({
 export const kartAssemblyDocumentV1Schema =
   kartAssemblyDocumentV1BaseSchema.extend({
     schemaVersion: z.literal(1),
-    structuralAttachments: z.array(structuralAttachmentSchema).max(95),
+    structuralAttachments: z.array(structuralAttachmentV1Schema).max(95),
   });
 
-export const kartAssemblyDocumentSchema =
+const kartAssemblyDocumentV2BaseSchema =
   kartAssemblyDocumentV1BaseSchema.extend({
     componentInstances: z.array(componentInstanceSchema).min(1).max(32),
     primitiveInstances: z
@@ -165,7 +182,17 @@ export const kartAssemblyDocumentSchema =
       )
       .min(1)
       .max(64),
+  });
+
+const kartAssemblyDocumentV2Schema =
+  kartAssemblyDocumentV2BaseSchema.extend({
     schemaVersion: z.literal(2),
+    structuralAttachments: z.array(structuralAttachmentV1Schema).max(95),
+  });
+
+export const kartAssemblyDocumentSchema =
+  kartAssemblyDocumentV2BaseSchema.extend({
+    schemaVersion: z.literal(3),
     structuralAttachments: z.array(structuralAttachmentSchema).max(95),
   });
 
@@ -222,12 +249,29 @@ function migrateKartAssemblyDocumentV1(
   };
 }
 
+function migrateKartAssemblyDocumentV2(
+  input: z.infer<typeof kartAssemblyDocumentV2Schema>,
+) {
+  return {
+    ...input,
+    schemaVersion: 3 as const,
+    structuralAttachments: input.structuralAttachments.map(
+      ({ child, id, parent }) => ({
+        child: { ...child, mount: null },
+        id,
+        parent: { ...parent, mount: null },
+      }),
+    ),
+  };
+}
+
 export type KartAssemblyDocumentV1 = z.infer<
   typeof kartAssemblyDocumentV1Schema
 >;
 
 export const kartAssemblyDocumentVersionSchema = z.union([
   kartAssemblyDocumentV1Schema,
+  kartAssemblyDocumentV2Schema,
   kartAssemblyDocumentSchema,
 ]);
 
@@ -236,18 +280,57 @@ export type KartAssemblyComponentInstance =
   KartAssemblyDocument["componentInstances"][number];
 export type KartAssemblyPrimitiveInstance =
   KartAssemblyDocument["primitiveInstances"][number];
+export type KartStructuralAttachment =
+  KartAssemblyDocument["structuralAttachments"][number];
 
-export function parseKartAssemblyDocument(input: unknown): KartAssemblyDocument {
+/**
+ * Parses a document of any schema version, migrating it to the current one;
+ * a failure reports the issues against the version the input declares.
+ */
+export function safeParseKartAssemblyDocument(input: unknown) {
   const version = z
     .object({ schemaVersion: z.number().int() })
     .passthrough()
     .safeParse(input);
-  if (version.success && version.data.schemaVersion === 1) {
-    return kartAssemblyDocumentSchema.parse(
-      migrateKartAssemblyDocumentV1(kartAssemblyDocumentV1Schema.parse(input)),
+  const declared = version.success ? version.data.schemaVersion : null;
+  if (declared === 1 || declared === 2) {
+    const older =
+      declared === 1
+        ? kartAssemblyDocumentV1Schema
+            .transform(migrateKartAssemblyDocumentV1)
+            .safeParse(input)
+        : kartAssemblyDocumentV2Schema.safeParse(input);
+    if (!older.success) return older;
+    return kartAssemblyDocumentSchema.safeParse(
+      migrateKartAssemblyDocumentV2(older.data),
     );
   }
-  return kartAssemblyDocumentSchema.parse(input);
+  return kartAssemblyDocumentSchema.safeParse(input);
+}
+
+/**
+ * A document of any schema version, migrated to the current one: for
+ * documents kept from before a schema change, such as a stored ghost's.
+ */
+export const kartAssemblyDocumentAnyVersionSchema = z
+  .unknown()
+  .transform((input, context) => {
+    const result = safeParseKartAssemblyDocument(input);
+    if (result.success) return result.data;
+    for (const issue of result.error.issues) {
+      context.addIssue({
+        code: "custom",
+        message: issue.message,
+        path: issue.path,
+      });
+    }
+    return z.NEVER;
+  });
+
+export function parseKartAssemblyDocument(input: unknown): KartAssemblyDocument {
+  const result = safeParseKartAssemblyDocument(input);
+  if (!result.success) throw result.error;
+  return result.data;
 }
 
 export function serializeKartAssemblyDocument(input: unknown) {

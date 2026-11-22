@@ -65,15 +65,16 @@ test("tie rods stay on the horn and steering arms however wheels are posed", () 
       expect(steered[0].tieRod!.rig.hornAngle !== 0, document.kartId).toBe(left !== 0);
       for (const wheel of steered) {
         const tieRod = wheel.tieRod!;
+        const { hornBall: horn, knuckleBall: knuckle, restLength } = tieRod.pose;
         const hornBall = tieRod.rig.horn
           .getWorldTransform()
-          .transformPoint(tieRod.hornBall, new pc.Vec3());
+          .transformPoint(new pc.Vec3(horn.x, horn.y, horn.z), new pc.Vec3());
         const knuckleBall = wheel.pivot
           .getWorldTransform()
-          .transformPoint(tieRod.knuckleBall, new pc.Vec3());
+          .transformPoint(new pc.Vec3(knuckle.x, knuckle.y, knuckle.z), new pc.Vec3());
         const rodEnd = tieRod.rod
           .getWorldTransform()
-          .transformPoint(new pc.Vec3(tieRod.restLength, 0, 0), new pc.Vec3());
+          .transformPoint(new pc.Vec3(restLength, 0, 0), new pc.Vec3());
         expect(tieRod.rod.getPosition().distance(hornBall), document.kartId).toBeLessThan(1e-6);
         expect(rodEnd.distance(knuckleBall), document.kartId).toBeLessThan(1e-6);
         // The horn turns to meet the arms, so the rods barely stretch.
@@ -92,10 +93,12 @@ test("driveshafts stay rigid and in their outdrives through suspension travel", 
       for (const wheel of driven) visual.poseKartWheelVisual(wheel, wheel.hub.y + travel);
       root.syncHierarchy();
       for (const wheel of driven) {
-        const { bone, length, outputAxis, outputPoint } = wheel.driveshaft!;
+        const { bone, pose } = wheel.driveshaft!;
+        const outputAxis = new pc.Vec3(pose.outputAxis.x, pose.outputAxis.y, pose.outputAxis.z);
+        const outputPoint = new pc.Vec3(pose.outputPoint.x, pose.outputPoint.y, pose.outputPoint.z);
         const inner = bone
           .getWorldTransform()
-          .transformPoint(new pc.Vec3(length, 0, 0), new pc.Vec3());
+          .transformPoint(new pc.Vec3(pose.length, 0, 0), new pc.Vec3());
         const fromOutput = inner.clone().sub(outputPoint);
         const along = fromOutput.dot(outputAxis);
         // The inner ball slides along the outdrive's axis, a few millimetres.
@@ -129,4 +132,32 @@ test("a draft's driven wheel without a suspension draws no driveshaft", () => {
   )!;
   expect(wheel.suspension).toBeNull();
   expect(wheel.driveshaft).toBeNull();
+});
+
+test("the clearance check's shock eye pins run as the drawn shock's do", async () => {
+  const { getCoiloverPin } = await import("../src/game/kart/kart-clearance");
+  const document = createBalancedKartDocument();
+  const suspension = document.componentInstances.find(
+    ({ id }) => id === "suspension-front-left",
+  )!;
+  const mount = suspension.suspensionMount!;
+  // Leaning fore and aft as well as inward, the eyes' pins tilt.
+  mount.chassisAnchor.z += 0.02;
+  const { root } = createVisual(document);
+  const damper = root.findByName("suspension-front-left-damper")!;
+  const drawn = damper
+    .getWorldTransform()
+    .transformVector(new pc.Vec3(0, 0, 1))
+    .normalize();
+  const along = new pc.Vec3(
+    mount.springArmAnchor.x - mount.chassisAnchor.x,
+    mount.springArmAnchor.y - mount.chassisAnchor.y,
+    mount.springArmAnchor.z - mount.chassisAnchor.z,
+  ).normalize();
+  const pin = getCoiloverPin({ x: along.x, y: along.y, z: along.z });
+  expect(Math.abs(pin.z)).toBeLessThan(0.99);
+  // The drawn entity's transform is single precision.
+  expect(pin.x).toBeCloseTo(drawn.x, 6);
+  expect(pin.y).toBeCloseTo(drawn.y, 6);
+  expect(pin.z).toBeCloseTo(drawn.z, 6);
 });

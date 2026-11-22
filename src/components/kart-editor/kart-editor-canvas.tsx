@@ -2,6 +2,7 @@
 
 import {
   forwardRef,
+  type ReactNode,
   useEffect,
   useImperativeHandle,
   useRef,
@@ -12,8 +13,11 @@ import {
   getKartMirrorCounterpartIds,
   type KartEditorSelection,
 } from "@/game/editor/kart-editor-document";
-import { KartEditorScene } from "@/game/editor/kart-editor-scene";
-import type { EditorTransformTool } from "@/game/editor/editor-viewport";
+import {
+  KartEditorScene,
+  type KartEditorTool,
+  type KartEditorView,
+} from "@/game/editor/kart-editor-scene";
 import type { EditorControllerViewportHandle } from "@/game/editor/editor-controller-viewport";
 import type { KartAssemblyDocument } from "@/game/kart/kart-assembly-document";
 
@@ -24,12 +28,19 @@ type KartEditorCanvasProps = {
   frameRequest: number;
   mirrorPair: boolean;
   onDocumentChange: (label: string, document: KartAssemblyDocument) => void;
+  onGroundClearanceChange: (meters: number | null) => void;
+  onMeasureTargetChange: (target: KartEditorSelection | null) => void;
   onSelectionChange: (selection: KartEditorSelection | null) => void;
+  onSelectionSizeChange: (
+    size: { x: number; y: number; z: number } | null,
+  ) => void;
+  overlay?: ReactNode;
   retainedIds: ReadonlySet<string>;
   selection: KartEditorSelection | null;
   selectionState: "attachable" | "invalid" | "valid";
   snapEnabled: boolean;
-  tool: EditorTransformTool;
+  tool: KartEditorTool;
+  view: KartEditorView;
 };
 
 export const KartEditorCanvas = forwardRef<
@@ -43,17 +54,28 @@ export const KartEditorCanvas = forwardRef<
     frameRequest,
     mirrorPair,
     onDocumentChange,
+    onGroundClearanceChange,
+    onMeasureTargetChange,
     onSelectionChange,
+    onSelectionSizeChange,
+    overlay,
     retainedIds,
     selection,
     selectionState,
     snapEnabled,
     tool,
+    view,
   },
   ref,
 ) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const callbacksRef = useRef({ onDocumentChange, onSelectionChange });
+  const callbacksRef = useRef({
+    onDocumentChange,
+    onGroundClearanceChange,
+    onMeasureTargetChange,
+    onSelectionChange,
+    onSelectionSizeChange,
+  });
   const sceneRef = useRef<KartEditorScene | null>(null);
   const [cameraRevision, setCameraRevision] = useState(0);
   const [cameraPivot, setCameraPivot] = useState("[0,0,0]");
@@ -87,8 +109,14 @@ export const KartEditorCanvas = forwardRef<
           setDocumentBoundsCenter(
             JSON.stringify([center.x, center.y, center.z]),
           ),
+        onGroundClearanceChange: (meters) =>
+          callbacksRef.current.onGroundClearanceChange(meters),
+        onMeasureTargetChange: (target) =>
+          callbacksRef.current.onMeasureTargetChange(target),
         onSelectionChange: (nextSelection) =>
           callbacksRef.current.onSelectionChange(nextSelection),
+        onSelectionSizeChange: (size) =>
+          callbacksRef.current.onSelectionSizeChange(size),
         onTransformStateChange: (state) =>
           setTransformValidity(state ?? "idle"),
         retainedIds,
@@ -110,7 +138,13 @@ export const KartEditorCanvas = forwardRef<
   }, []);
 
   useEffect(() => {
-    callbacksRef.current = { onDocumentChange, onSelectionChange };
+    callbacksRef.current = {
+      onDocumentChange,
+      onGroundClearanceChange,
+      onMeasureTargetChange,
+      onSelectionChange,
+      onSelectionSizeChange,
+    };
     sceneRef.current?.setOptions({
       attachmentParentId,
       mirrorPair,
@@ -122,8 +156,14 @@ export const KartEditorCanvas = forwardRef<
         callbacksRef.current.onDocumentChange(label, nextDocument),
       onDocumentBoundsChange: (center) =>
         setDocumentBoundsCenter(JSON.stringify([center.x, center.y, center.z])),
+      onGroundClearanceChange: (meters) =>
+        callbacksRef.current.onGroundClearanceChange(meters),
+      onMeasureTargetChange: (target) =>
+        callbacksRef.current.onMeasureTargetChange(target),
       onSelectionChange: (nextSelection) =>
         callbacksRef.current.onSelectionChange(nextSelection),
+      onSelectionSizeChange: (size) =>
+        callbacksRef.current.onSelectionSizeChange(size),
       onTransformStateChange: (state) => setTransformValidity(state ?? "idle"),
       retainedIds,
       selectionState,
@@ -132,7 +172,10 @@ export const KartEditorCanvas = forwardRef<
     attachmentParentId,
     mirrorPair,
     onDocumentChange,
+    onGroundClearanceChange,
+    onMeasureTargetChange,
     onSelectionChange,
+    onSelectionSizeChange,
     retainedIds,
     selectionState,
   ]);
@@ -145,6 +188,7 @@ export const KartEditorCanvas = forwardRef<
   useEffect(() => sceneRef.current?.setSelection(selection), [selection]);
   useEffect(() => sceneRef.current?.setSnapEnabled(snapEnabled), [snapEnabled]);
   useEffect(() => sceneRef.current?.setTool(tool), [tool]);
+  useEffect(() => sceneRef.current?.setView(view), [view]);
   useEffect(() => {
     if (frameRequest > 0) sceneRef.current?.frameSelection();
   }, [frameRequest]);
@@ -211,7 +255,25 @@ export const KartEditorCanvas = forwardRef<
       "getKartEditorTranslateGizmoPoints",
       onTranslateGizmoPointsRequest,
     );
+    const onViewStateRequest = (event: Event) => {
+      const detail = (
+        event as CustomEvent<{
+          instanceId: string;
+          respond: (
+            state: ReturnType<KartEditorScene["getInstanceViewState"]>,
+          ) => void;
+        }>
+      ).detail;
+      detail.respond(
+        sceneRef.current?.getInstanceViewState(detail.instanceId) ?? null,
+      );
+    };
+    canvas.addEventListener("getKartEditorInstanceViewState", onViewStateRequest);
     return () => {
+      canvas.removeEventListener(
+        "getKartEditorInstanceViewState",
+        onViewStateRequest,
+      );
       canvas.removeEventListener(
         "getKartEditorInstanceVisualColor",
         onVisualColorRequest,
@@ -236,6 +298,7 @@ export const KartEditorCanvas = forwardRef<
       resolveTranslationStep: (direction) =>
         sceneRef.current?.resolveControllerTranslation(direction) ?? null,
       selectAtCenter: () => sceneRef.current?.selectAtCenter(),
+      canEdit: () => sceneRef.current?.canEdit() ?? false,
     }),
     [],
   );
@@ -259,6 +322,7 @@ export const KartEditorCanvas = forwardRef<
         ref={canvasRef}
         tabIndex={disabled ? -1 : 0}
       />
+      {status === "ready" ? overlay : null}
       {status !== "ready" ? (
         <div
           className="pointer-events-none absolute inset-0 grid place-items-center bg-titan-black/82 px-6 text-center font-mono text-xs font-bold uppercase tracking-[0.16em] text-titan-muted"

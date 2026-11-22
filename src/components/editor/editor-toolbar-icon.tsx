@@ -9,6 +9,7 @@ export type EditorToolbarIconName =
   | "detach"
   | "frame"
   | "help"
+  | "measure"
   | "mirror"
   | "multiSelect"
   | "publish"
@@ -120,6 +121,15 @@ export function EditorToolbarIcon({ name }: { name: EditorToolbarIconName }) {
     return (
       <svg {...common}>
         <path d="M5 21v-9M19 21v-9M3 21h18M4 8h16M8 5l4-3 4 3" />
+      </svg>
+    );
+  }
+  if (name === "measure") {
+    // A ruler laid on the diagonal, with its ticks.
+    return (
+      <svg {...common}>
+        <path d="M3.5 16.5 16.5 3.5l4 4-13 13z" />
+        <path d="M7 13l2 2M10 10l2 2M13 7l2 2" />
       </svg>
     );
   }

@@ -17,9 +17,10 @@ accepted; the app, README, and durable docs take over from there.
 
 - **Done:** Phases 0–6 (PRs #1–#24, the Phase 3 closeout and its
   follow-ups, #30–#57 with the PR 4.5.2 closeout, #59–#63, and #64–#70
-  with the Phase 6 closeout), and the Phase 6 addendum (#71–#76).
-- **Now:** [Phase 7](#phase-7-cad-assembly-and-kart-royalties), PR 7.1.
-- **Next:** PR 7.2, after its debrief.
+  with the Phase 6 closeout), the Phase 6 addendum (#71–#76), and PR 7.1
+  (#77).
+- **Now:** [Phase 7](#phase-7-cad-assembly-and-kart-royalties), PR 7.2.
+- **Next:** PR 7.2.1 (wiring), then PR 7.3 after its debrief.
 
 ## Guiding Decisions
 
@@ -344,20 +345,69 @@ render version from the admin roster.
 
 **PR 7.2: CAD-style assembly**
 
-- [ ] Approved parts declare named mounting points, and compatible parts snap
-      together. New kart schema version; older revisions load unchanged.
-- [ ] Clearance and interference checks from measured overlap and closest
-      points between parts.
-- [ ] Exploded and x-ray views, with suspension posed from wheel travel, and
-      measured-dimension readouts. Presentation only.
-- [ ] Ships in the admin kart builder; players get it in Phase 9.
-- [ ] The Speed and Handling karts' transmissions move onto their rear
-      axle lines, so their driveshafts clear the hinge-pin mounts they pass
-      through since PR 7.1.
-- [ ] Decide whether the new part versions take PR 7.1's CAD-measured mass
-      and centre of mass: against the registry, the servo measures 42%
-      light, the 4:1 and 5:1 transmissions about 35% light, the motor 8%
-      light, and the 8:1 transmission 7% heavy.
+- [x] Parts declare named mounting points, each with a position, an outward
+      direction, and a type: a base footprint that sits and slides on any
+      flat structural face, a motor face that meets a gearbox's motor plate,
+      and a gearbox tower pad. Authored boxes offer their six faces. Parts
+      snap when two points meet with opposed directions, and a footprint
+      rests fully on its face. Suspensions and wheels keep their named
+      points. In the builder a part snaps when dropped or attached within
+      10 mm of a matching point, and then stays on it: a footprint slides
+      and turns on its face, the motor turns about its shaft, and pins and
+      hubs hold still. Detaching frees it.
+- [x] Mounting points ship as new part versions, not a separate registry:
+      the battery, controller, motor, servo, brakes, and three
+      transmissions. The `@1` parts and their CAD meshes stay for older
+      revisions.
+- [x] Kart schema version 3 names the mounting point at each end of a
+      structural attachment. Version 1 and 2 documents migrate with none,
+      so stored revisions load, verify, and race unchanged; a draft saves
+      again once its parts are swapped and snapped. Derivation stays at
+      version 5, and the database needs no migration.
+- [x] Each new version declares the published weight of the real part it
+      copies, or else its CAD-measured mass, and takes its centre of mass
+      from CAD: servo 44.5 g, motor 190 g, 4:1 103.4 g, 5:1 104.1 g, and
+      8:1 182.9 g. The motor and servo take the real parts' proportions.
+      Each transmission gains a motor plate and a full-size spur, so the
+      motor bolts on ahead of it as on a real laydown gearbox, and a pad on
+      top for the rear tower.
+- [x] All three official karts get a real 2WD rear end: the gearbox outputs
+      sit on the rear axle line, each rear hinge-pin mount splits into a
+      block under each arm leg so the driveshaft passes between them, the
+      rear tower stands on the gearbox, and the motor bolts to the gearbox.
+      The karts change once, and the lead drive-checks all three.
+- [x] Clearance and interference checks measure overlap and closest points
+      between parts' solid shapes, and between tie rods and driveshafts
+      swept through suspension travel and steering lock. Either kind of
+      clash blocks saving, as does a part not snapped by mounting points.
+      The builder runs the same check in the background as you edit.
+- [x] Exploded and x-ray views, with the suspension posed from wheel travel
+      and steering, and measured readouts for the kart, the selected part,
+      and the gap between any two parts. Presentation only. The builder
+      shows Build, Explode, and Motion views, with X-ray over any of them;
+      Motion poses all four wheels from one pad, and parts move only in
+      Build. A Measure tool reads the gap from the selection to another
+      part, live as the kart moves. The kart shows its ground clearance,
+      each part its dimensions, and one line says whether the kart can be
+      saved.
+- [x] Ships in the admin kart builder; players get it in Phase 9.
+- [x] Leaderboards keep bests set with the earlier official karts.
+
+After merge, each official kart's stored draft is still schema 2, so it is
+loaded from its bundled design (**Actions → Load official design**), saved,
+and published again from the admin roster.
+
+**PR 7.2.1: Wiring**
+
+- [ ] Cables drawn from each kart's existing functional connections: the
+      battery to the controller, and the controller to the motor, steering
+      servo, and brakes. They run along the parts they cross, follow parts
+      as they move in the builder, and change nothing the kart stores:
+      no document fields, part versions, derivation, or hashes.
+- [ ] Each kart stays within its triangle and draw budgets, and the kart
+      thumbnail render version advances.
+- [ ] The drawn coilover and the clearance check share one set of coilover
+      sizes, so resizing the drawn shock moves its clash shape too.
 
 **PR 7.3: Assembler credit and royalties**
 

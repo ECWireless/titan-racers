@@ -7,19 +7,17 @@ import {
 
 export const HANDLING_KART_ID = "handling-kart";
 
-const HANDLING_KART_CONFIG = {
-  armLength: 0.1,
+export const HANDLING_KART_CONFIG = {
+  armLength: 0.12,
   axleCenterZ: 0.01,
   chassis: {
-    armMount: { x: 0.016, z: 0.06 },
+    armMount: { x: 0.016, z: 0.01 },
     bumperSize: { x: 0.18, y: 0.02, z: 0.03 },
     equipment: {
-      "battery-main": { x: -0.055, yawDegrees: 90, z: -0.06 },
+      "battery-main": { x: -0.055, yawDegrees: 90, z: -0.04 },
       "brakes-main": { x: 0, z: -0.04 },
-      "controller-main": { x: 0.05, z: -0.08 },
-      "motor-main": { x: 0.052, z: -0.02 },
-      "steering-main": { x: 0, z: -0.105 },
-      "transmission-main": { x: 0, z: 0.07 },
+      "controller-main": { x: 0.055, z: -0.07 },
+      "steering-main": { x: 0, z: -0.098 },
     },
     plate: {
       bottomY: 0.044,
@@ -27,8 +25,12 @@ const HANDLING_KART_CONFIG = {
       size: { x: 0.244, y: 0.003, z: 0.31 },
     },
     shockTowerThickness: 0.004,
-    topDeck: { bottomY: 0.085, size: { x: 0.04, y: 0.002 } },
+    topDeck: { bottomY: 0.114, size: { x: 0.04, y: 0.002 } },
+    // Raises the dogbones' inner ends so they stay in their slots at full
+    // bump.
+    transmissionRiser: 0.006,
   },
+  frontShockLead: 0.01,
   kartId: HANDLING_KART_ID,
   motionRatio: 0.8,
   name: "Handling Kart",

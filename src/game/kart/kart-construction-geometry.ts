@@ -1,6 +1,7 @@
 import type { KartAssemblyDocument } from "./kart-assembly-document";
 import type { ApprovedComponentDefinition } from "./kart-component-registry";
 import type { DeepReadonly } from "./immutable-registry";
+import type { KartConvexShape } from "./kart-convex-distance";
 import { getApprovedConstructionMaterial } from "./kart-material-registry";
 
 export type KartVector = { x: number; y: number; z: number };
@@ -27,6 +28,8 @@ export type KartMassElement = {
   inertiaAtCenter: KartMatrix3;
   instanceId: string;
   mass: number;
+  /** The element's shape where it stands, for measuring clearances. */
+  solid: KartConvexShape;
 };
 
 type Shape =
@@ -249,6 +252,24 @@ function rotatedBounds(
   };
 }
 
+function convexShape(
+  center: KartVector,
+  rotation: KartMatrix3,
+  shape: Shape,
+): KartConvexShape {
+  if (shape.shape === "box") {
+    return { center, half: shapeHalfExtents(shape), kind: "box", rotation };
+  }
+  const column = { x: 0, y: 1, z: 2 }[shape.axis];
+  return {
+    axis: { x: rotation[column], y: rotation[3 + column], z: rotation[6 + column] },
+    center,
+    halfHeight: shape.height / 2,
+    kind: "cylinder",
+    radius: shape.radius,
+  };
+}
+
 function rotateInertia(
   inertia: KartMatrix3,
   rotation: KartMatrix3,
@@ -310,6 +331,7 @@ export function buildPrimitiveMassElement(
     inertiaAtCenter: rotateInertia(properties.inertia, rotation),
     instanceId: primitive.id,
     mass: properties.mass,
+    solid: convexShape(primitive.transform.position, rotation, shape),
   };
 }
 
@@ -353,21 +375,24 @@ export function buildComponentMassElements(
   const massScale = definition.mass / rawMass;
   const instanceRotation = rotationMatrix(instance.transform.rotationDegrees);
 
-  return raw.map(({ construction, properties, shape }) => {
-    const localCenter = addVector(
-      construction.transform.position,
-      centerCorrection,
-    );
-    const center = addVector(
+  // The declared centre of mass moves each element's mass, not its shape:
+  // the solid stays where the part's construction puts it.
+  const placeLocal = (local: KartVector) =>
+    addVector(
       instance.transform.position,
-      transformVector(instanceRotation, localCenter),
+      transformVector(instanceRotation, local),
+    );
+  return raw.map(({ construction, properties, shape }) => {
+    const placed = placeLocal(construction.transform.position);
+    const center = placeLocal(
+      addVector(construction.transform.position, centerCorrection),
     );
     const localRotation = rotationMatrix(
       construction.transform.rotationDegrees,
     );
     const rotation = multiplyMatrix(instanceRotation, localRotation);
     return {
-      bounds: rotatedBounds(center, rotation, shape),
+      bounds: rotatedBounds(placed, rotation, shape),
       center,
       inertiaAtCenter: rotateInertia(
         scaleMatrix(properties.inertia, massScale),
@@ -375,6 +400,7 @@ export function buildComponentMassElements(
       ),
       instanceId: instance.id,
       mass: properties.mass * massScale,
+      solid: convexShape(placed, rotation, shape),
     };
   });
 }
