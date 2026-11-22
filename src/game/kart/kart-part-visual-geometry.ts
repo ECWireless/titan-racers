@@ -422,6 +422,29 @@ export type KartCoiloverSpec = {
 const SPRING_STEEL_SHEAR_MODULUS = 79e9;
 
 /**
+ * A drawn coilover's fixed sizes, which its clash shape (`kart-clearance.ts`)
+ * reads too, so the two can't drift apart. Distances run along the shock
+ * from its eyes.
+ */
+export const COILOVER_SIZES = {
+  /** The body begins this far from the chassis eye. */
+  bodyStart: 0.01,
+  /** The 6 mm square block between each eye and its end of the shock. */
+  connector: { center: 0.007, half: { x: 0.003, y: 0.004, z: 0.003 } },
+  /** Each eye: a ring across the shock on its pin. */
+  eye: { halfWidth: 0.003, radius: 0.005 },
+  perch: {
+    /** The lower perch's centre from the arm eye. */
+    lower: 0.011,
+    halfThickness: 0.001,
+    /** How far the perches reach past the construction radius; the spring stays within. */
+    rim: 0.002,
+    /** The upper perch's centre from the chassis eye. */
+    upper: 0.017,
+  },
+} as const;
+
+/**
  * A coilover sized from its suspension definition. The bump-stop ring meets
  * the body at `bumpStart` compression, and the spring wire follows the coil
  * spring rate k = G·d⁴ / (8·n·D³).
@@ -433,7 +456,13 @@ export function buildCoilover(spec: KartCoiloverSpec): KartCoiloverVisual {
   const lower = piece(finish);
   const shaft = piece("bare-steel");
   const bump = piece("rubber");
+  const { bodyStart, connector, eye, perch } = COILOVER_SIZES;
   const radius = spec.constructionRadius - 0.0005;
+  const perchRadius = spec.constructionRadius + perch.rim;
+  const perchThickness = 2 * perch.halfThickness;
+  const connectorSize: Vec3 = [
+    2 * connector.half.x, 2 * connector.half.y, 2 * connector.half.z,
+  ];
   // Sized for today's specs: the long coilover keeps only ~2 mm between the
   // shaft tip and gland, and between bump ring and perch, at full stroke.
   const end = Math.round(spec.extendedLength * 0.53 * 1000) / 1000;
@@ -449,17 +478,17 @@ export function buildCoilover(spec: KartCoiloverSpec): KartCoiloverVisual {
 
   // A closed top and a shaft-sized gland; the shaft tip stays inside the bore.
   lathe(body, "y", [
-    [0.010, 0], [0.010, radius - 0.001], [0.012, radius],
+    [bodyStart, 0], [bodyStart, radius - 0.001], [bodyStart + 0.002, radius],
     [end - 0.004, radius], [end, radius - 0.001],
-    [end, 0.002], [0.012, 0.002], [0.012, 0],
+    [end, 0.002], [bodyStart + 0.002, 0.002], [bodyStart + 0.002, 0],
   ], 12);
-  box(body, [0, 0.007, 0], [0.006, 0.008, 0.006]);
-  cylinder(bodyEye, "z", [0, 0, 0], 0.005, 0.006, 8, 0.0025);
-  cylinder(body, "y", [0, 0.017, 0], radius + 0.0025, 0.002, 8, radius);
+  box(body, [0, connector.center, 0], connectorSize);
+  cylinder(bodyEye, "z", [0, 0, 0], eye.radius, 2 * eye.halfWidth, 8, 0.0025);
+  cylinder(body, "y", [0, perch.upper, 0], perchRadius, perchThickness, 8, radius);
 
-  box(lower, [0, 0.007, 0], [0.006, 0.008, 0.006]);
-  cylinder(shaft, "z", [0, 0, 0], 0.005, 0.006, 8, 0.0025);
-  cylinder(lower, "y", [0, 0.011, 0], radius + 0.0025, 0.002, 8, 0.002);
+  box(lower, [0, connector.center, 0], connectorSize);
+  cylinder(shaft, "z", [0, 0, 0], eye.radius, 2 * eye.halfWidth, 8, 0.0025);
+  cylinder(lower, "y", [0, perch.lower, 0], perchRadius, perchThickness, 8, 0.002);
   cylinder(shaft, "y", [0, (reach + 0.008) / 2, 0], 0.002, reach - 0.008, 8);
   cylinder(bump, "y", [0, bumpTip - bumpHeight / 2, 0],
     0.004, bumpHeight, 8, 0.002);
@@ -467,8 +496,8 @@ export function buildCoilover(spec: KartCoiloverSpec): KartCoiloverVisual {
   return {
     body: [body, bodyEye],
     shaft: [lower, shaft, bump],
-    topPerch: 0.018,
-    bottomPerch: 0.012,
+    topPerch: perch.upper + perch.halfThickness,
+    bottomPerch: perch.lower + perch.halfThickness,
     spring: { meanRadius, turns, wireRadius: wireDiameter / 2 },
   };
 }

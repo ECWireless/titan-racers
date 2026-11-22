@@ -40,7 +40,7 @@ import {
   TIE_ROD_NECK_RADIUS,
   TURNBUCKLE_RADIUS,
 } from "./kart-linkage-visual-geometry";
-import { WHEEL_WEB_INSET } from "./kart-part-visual-geometry";
+import { COILOVER_SIZES, WHEEL_WEB_INSET } from "./kart-part-visual-geometry";
 import { getAckermannWheelSteerAngle } from "./kart-steering";
 import type { DeepReadonly } from "./immutable-registry";
 
@@ -202,20 +202,6 @@ function getWheelOutboardOfWeb(
   };
 }
 
-// The drawn coilover's body stops this far short of each eye
-// (`buildCoilover`); its lower perch sits at the arm end's.
-const COILOVER_EYE_CLEARANCE = { arm: 0.011, chassis: 0.01 };
-// The drawn arm eye: a ring across the shock on the arm's pin. The spring
-// and the perches reach this far beyond the body's construction radius.
-const COILOVER_EYE = { halfWidth: 0.003, radius: 0.005 };
-const COILOVER_PERCH_HALF_THICKNESS = 0.001;
-const COILOVER_SPRING_RIM = 0.002;
-// The drawn top connector: 6 mm square, from 3 to 11 mm below the top eye.
-const COILOVER_CONNECTOR = {
-  center: 0.007,
-  half: { x: 0.003, y: 0.004, z: 0.003 },
-};
-
 /**
  * The coilover's eye pins, as the drawn coilover turns them: its +Y frame
  * axis is turned onto `axis` by the smallest turn (`setFromDirections`), and
@@ -275,24 +261,34 @@ function getCoiloverConnectorPoses(
     );
     const length = Math.hypot(along.x, along.y, along.z);
     if (length <= 0) continue;
-    const axis = scaleVector(along, 1 / length);
-    const pin = getCoiloverPin(axis);
-    const across = cross(axis, pin);
-    shapes.push({
-      center: addVector(
-        mount.chassisAnchor,
-        scaleVector(axis, COILOVER_CONNECTOR.center),
-      ),
-      half: COILOVER_CONNECTOR.half,
-      kind: "box",
-      rotation: [
-        across.x, axis.x, pin.x,
-        across.y, axis.y, pin.y,
-        across.z, axis.z, pin.z,
-      ],
-    });
+    shapes.push(
+      getCoiloverConnectorBlock(mount.chassisAnchor, scaleVector(along, 1 / length)),
+    );
   }
   return shapes;
+}
+
+/**
+ * The drawn top connector's block, below the chassis eye along the
+ * shock's unit `axis`.
+ */
+export function getCoiloverConnectorBlock(
+  chassisEye: KartVector,
+  axis: KartVector,
+): KartSolidShape {
+  const { connector } = COILOVER_SIZES;
+  const pin = getCoiloverPin(axis);
+  const across = cross(axis, pin);
+  return {
+    center: addVector(chassisEye, scaleVector(axis, connector.center)),
+    half: connector.half,
+    kind: "box",
+    rotation: [
+      across.x, axis.x, pin.x,
+      across.y, axis.y, pin.y,
+      across.z, axis.z, pin.z,
+    ],
+  };
 }
 
 /**
@@ -326,13 +322,25 @@ function getCoiloverShape(
     ...mount.springArmAnchor,
     y: mount.springArmAnchor.y + wheelTravel * motionRatio,
   };
-  const along = subtractVector(armEye, mount.chassisAnchor);
+  return getCoiloverClashShape(mount.chassisAnchor, armEye, body.radius);
+}
+
+/**
+ * The drawn coilover's clash shape between its eyes, for a coilover whose
+ * construction cylinder has `constructionRadius`: its body and spring, its
+ * lower perch, and its arm eye. The body runs from where it begins below
+ * the chassis eye to the lower perch, as wide as the perches.
+ */
+export function getCoiloverClashShape(
+  chassisEye: KartVector,
+  armEye: KartVector,
+  constructionRadius: number,
+): Coilover {
+  const { bodyStart, eye, perch } = COILOVER_SIZES;
+  const along = subtractVector(armEye, chassisEye);
   const length = Math.hypot(along.x, along.y, along.z);
   const axis = scaleVector(along, 1 / length);
-  const bodyLength = Math.max(
-    length - COILOVER_EYE_CLEARANCE.chassis - COILOVER_EYE_CLEARANCE.arm,
-    0,
-  );
+  const bodyLength = Math.max(length - bodyStart - perch.lower, 0);
   const hinge = getCoiloverPin(axis);
   return {
     kind: "hull",
@@ -340,29 +348,26 @@ function getCoiloverShape(
       {
         axis,
         center: addVector(
-          mount.chassisAnchor,
-          scaleVector(axis, COILOVER_EYE_CLEARANCE.chassis + bodyLength / 2),
+          chassisEye,
+          scaleVector(axis, bodyStart + bodyLength / 2),
         ),
         halfHeight: bodyLength / 2,
         kind: "cylinder",
-        radius: body.radius + COILOVER_SPRING_RIM,
+        radius: constructionRadius + perch.rim,
       },
       {
         axis,
-        center: addVector(
-          armEye,
-          scaleVector(axis, -COILOVER_EYE_CLEARANCE.arm),
-        ),
-        halfHeight: COILOVER_PERCH_HALF_THICKNESS,
+        center: addVector(armEye, scaleVector(axis, -perch.lower)),
+        halfHeight: perch.halfThickness,
         kind: "cylinder",
-        radius: body.radius + COILOVER_SPRING_RIM,
+        radius: constructionRadius + perch.rim,
       },
       {
         axis: hinge,
         center: armEye,
-        halfHeight: COILOVER_EYE.halfWidth,
+        halfHeight: eye.halfWidth,
         kind: "cylinder",
-        radius: COILOVER_EYE.radius,
+        radius: eye.radius,
       },
     ],
   };
