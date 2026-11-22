@@ -30,7 +30,14 @@ The save API accepts only `{ document, expectedRevision }`. It validates and
 derives the snapshot on the server; client-supplied snapshots or statistics are
 rejected. Reads parse the persisted versioned snapshot, verify its document and
 version metadata, recompute its canonical hash, and fail closed if evidence is
-inconsistent.
+inconsistent. The admin save route also refuses a kart whose parts clash or
+aren't snapped by their mounting points (see
+[Mounting Points And Fit](authored-construction.md#mounting-points-and-fit)).
+
+Document schema version `3` names the mounting point at each end of a
+structural attachment. Version `1` and `2` documents parse with no names, so
+stored revisions verify and race unchanged; a draft saves again only once its
+parts are snapped (official karts by loading their official design).
 
 Snapshot and derivation version `5` are current. They count each shock's
 tilt in its installation ratio, so tilted shocks act as soft as their geometry

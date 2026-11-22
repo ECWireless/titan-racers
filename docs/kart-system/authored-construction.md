@@ -63,7 +63,9 @@ problem; they may not justify hand-editing the resolved results.
 - stable primitive and component instance IDs;
 - immutable `{ id, version }` references to approved definitions;
 - transforms, primitive construction, collision roles, and materials;
-- structural attachments and functional port connections;
+- structural attachments, each naming the mounting point it meets at on
+  either part (schema version 3; versions 1 and 2 migrate with none), and
+  functional port connections;
 - mirroring references; and
 - suspension mounting geometry where required.
 
@@ -94,6 +96,27 @@ After semantic validation, `kart-derivation.ts` checks resolved mass and
 dimensions plus wheel/chassis collision overlap. These checks depend on derived
 geometry, so they do not belong to the portable document validator.
 
+## Mounting Points And Fit
+
+Part versions that declare `mounts` in the registry, suspensions, wheels, and
+authored boxes and cylinders offer named mounting points, each a position, an
+outward direction, and a type. `kart-mounting.ts` lists them and owns the
+rules for two to meet: a `base` footprint rests wholly on a structural face,
+faces meet faces or a gearbox's `tower-pad`, a `motor-face` meets a
+`motor-plate`, a shock's top eye sits on a structural part's `pin`, and a
+wheel's `hub` meets its suspension's hub anchor. Validation
+accepts an attachment with no names, so older revisions still load and race,
+and rejects names that don't meet.
+
+The builder saves more strictly than validation. `kart-assembly-fit.ts`
+requires every structural attachment to name its mounting points and no two
+parts to clash: solid shapes overlapping at rest, or tie rods and
+driveshafts against anything through suspension travel and steering lock,
+including a driveshaft leaving its outdrive cup's slots
+(`kart-clearance.ts`, measured with `kart-convex-distance.ts`). The admin
+save route enforces it, and the builder shows the same result as you edit.
+Fixtures and the repository are not gated.
+
 ## Units
 
 Transforms use metres and degrees. Component construction uses SI units
@@ -110,6 +133,8 @@ evidence; historical snapshot parsers remain pinned to their original version.
 
 - Portable document: `src/game/kart/kart-assembly-document.ts`.
 - Semantic validation: `src/game/kart/kart-assembly-validation.ts`.
+- Mounting points and fit: `src/game/kart/kart-mounting.ts`,
+  `kart-mount-snapping.ts`, `kart-clearance.ts`, and `kart-assembly-fit.ts`.
 - Approved definitions: `src/game/kart/kart-component-registry.ts` and
   `src/game/kart/kart-material-registry.ts`.
 - Official kart documents: `src/game/kart/official-kart-assembly.ts` and
