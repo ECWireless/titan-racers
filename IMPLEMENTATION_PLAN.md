@@ -17,10 +17,10 @@ accepted; the app, README, and durable docs take over from there.
 
 - **Done:** Phases 0–6 (PRs #1–#24, the Phase 3 closeout and its
   follow-ups, #30–#57 with the PR 4.5.2 closeout, #59–#63, and #64–#70
-  with the Phase 6 closeout), the Phase 6 addendum (#71–#76), and PR 7.1
-  (#77).
-- **Now:** [Phase 7](#phase-7-cad-assembly-and-kart-royalties), PR 7.2.
-- **Next:** PR 7.2.1 (wiring), then PR 7.3 after its debrief.
+  with the Phase 6 closeout), the Phase 6 addendum (#71–#76), and PRs 7.1
+  (#77) and 7.2 (#78).
+- **Now:** [Phase 7](#phase-7-cad-assembly-and-kart-royalties), PR 7.2.1.
+- **Next:** PR 7.3 after its debrief.
 
 ## Guiding Decisions
 
@@ -400,14 +400,32 @@ and published again from the admin roster.
 **PR 7.2.1: Wiring**
 
 - [ ] Cables drawn from each kart's existing functional connections: the
-      battery to the controller, and the controller to the motor, steering
-      servo, and brakes. They run along the parts they cross, follow parts
-      as they move in the builder, and change nothing the kart stores:
-      no document fields, part versions, derivation, or hashes.
-- [ ] Each kart stays within its triangle and draw budgets, and the kart
-      thumbnail render version advances.
+      battery to the controller (red and black), the controller to the
+      motor (three phase wires) and to the steering servo and brakes (one
+      lead each). They change nothing the kart stores: no document fields,
+      part versions, derivation, or hashes.
+- [ ] Ports keep saying which connections exist; where a wire leaves a part
+      comes from its visual: named points in the motor's and servo's CAD
+      models, as the linkages use, and points the battery, controller, and
+      brakes export beside the shapes they build. Older part versions get
+      them too.
+- [ ] Cables lie along the parts they cross: routed over a height map of
+      the chassis plate, round the parts resting on it and clear of the
+      space the tie rods and driveshafts sweep. A lead of several wires
+      runs as one bundle. They are left out of the clearance check and the
+      save gate; tests show the official karts' cables clear every part
+      and linkage.
+- [ ] In the builder, cables re-route live as parts are dragged and hide in
+      the Explode view.
+- [ ] No new draw calls: cables reuse the kart's materials and join its
+      batches. The per-kart cap rises to 30k triangles, with each kart's
+      cables within 2,000 (tested), and the kart thumbnail render version
+      advances.
 - [ ] The drawn coilover and the clearance check share one set of coilover
       sizes, so resizing the drawn shock moves its clash shape too.
+
+After merge, the official karts' thumbnails are captured again at the new
+render version from the admin roster.
 
 **PR 7.3: Assembler credit and royalties**
 
