@@ -113,7 +113,10 @@ requires every structural attachment to name its mounting points and no two
 parts to clash: solid shapes overlapping at rest, or tie rods and
 driveshafts against anything through suspension travel and steering lock,
 including a driveshaft leaving its outdrive cup's slots
-(`kart-clearance.ts`, measured with `kart-convex-distance.ts`). The admin
+(`kart-clearance.ts`, measured with `kart-convex-distance.ts`). Linkages are
+swept between sampled poses; the two tie rods on a servo are checked against
+each other only at the sampled poses, so a clash between them that falls
+between samples can be missed. The admin
 save route enforces it, and the builder shows the same result as you edit.
 Fixtures and the repository are not gated.
 

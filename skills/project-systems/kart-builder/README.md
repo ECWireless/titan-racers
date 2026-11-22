@@ -29,17 +29,11 @@ revision-bound previews live in [`kart-thumbnails`](../kart-thumbnails/README.md
   `deriveKartSnapshot`, wheel stations, physical profile, canonical
   serialization, and SHA-256 hash).
 - **Official karts:** `official-kart-assembly.ts` builds each as an open 1:10
-  RC chassis from its config: the plate is the structural root; a composite
-  hinge-pin block sits under each arm leg, so a rear driveshaft passes
-  between an arm's two; each composite shock tower is a narrow post over its
-  axle, with a crossbar above the arms and steered wheels carrying both
-  shock top eyes (suspensions attach to the crossbars); the front post
-  stands on the plate and the rear on the gearbox's tower pad; a top deck
-  spans the posts; bumpers butt against the plate ends. The laydown gearbox
-  sits on the plate (Handling's on a 6 mm riser) with its outputs on the rear axle line and the motor
-  bolted to its plate; the other electronics rest on the plate. Every
-  attachment names its mounting points, and no parts clash through full
-  travel and lock (tested). Every shock leans 30° inward
+  RC chassis from its config, laid out as
+  [visual identity](../../../docs/visual-identity.md#materials) describes, with
+  the plate as structural root and suspensions on the shock towers'
+  crossbars. Every attachment names its mounting points, and no parts clash
+  through full travel and lock (tested). Every shock leans 30° inward
   from its arm eye's travel, on coilover versions rated for that
   installation. The `balanced-/speed-/handling-kart-document.ts` configs own
   arm length, motion ratio, plate, and equipment placement;
@@ -76,8 +70,8 @@ revision-bound previews live in [`kart-thumbnails`](../kart-thumbnails/README.md
   `kart-convex-distance.ts`), sweeps tie rods and driveshafts
   (`kart-linkage-poses.ts`, shared with the visual) through travel and lock,
   poses the kart for the builder's views, and measures the gap between two
-  parts. `kart-assembly-fit.ts` is the save gate's check;
-  `kart-fit-check.ts` runs it in the builder's worker.
+  parts. `kart-assembly-fit.ts` is the save gate's check, which the
+  builder also runs in its worker.
 - **Linkages:** `kart-linkages.ts` plans a tie rod for each wheel connected
   to a steering servo and a dogbone for each wheel connected to a
   transmission, where the part's CAD mesh names the attachment points;

@@ -7,6 +7,7 @@ import {
   addVector,
   buildComponentMassElements,
   buildPrimitiveMassElement,
+  combineBounds,
   scaleVector,
   subtractVector,
   type KartBounds,
@@ -47,10 +48,10 @@ import type { DeepReadonly } from "./immutable-registry";
  * Overlap allowed where parts only touch, such as a part bolted flat to a
  * plate, so rounding never reads as a clash.
  */
-export const KART_CLEARANCE_TOUCH_TOLERANCE = 0.0002;
+const KART_CLEARANCE_TOUCH_TOLERANCE = 0.0002;
 
 /** A pose a linkage was measured at. */
-export type KartLinkagePoseSample = {
+type KartLinkagePoseSample = {
   /** The kart's centre steering angle, in degrees. */
   centerSteerDegrees: number;
   /** The wheel's hub above its rest height, in metres. */
@@ -70,18 +71,7 @@ export type KartClash = KartConvexMeasurement & {
   second: string;
 };
 
-/** A linkage's closest approach to any part over its sampled poses. */
-export type KartLinkageClearance = KartConvexMeasurement & {
-  instanceId: string;
-  linkageId: string;
-  pose: KartLinkagePoseSample;
-};
-
-export type KartClearanceReport = {
-  clashes: KartClash[];
-  /** Each linkage's closest approach, if any part comes within 50 mm. */
-  linkages: KartLinkageClearance[];
-};
+type KartClearanceReport = { clashes: KartClash[] };
 
 type Cylinder = Extract<KartConvexShape, { kind: "cylinder" }>;
 
@@ -475,7 +465,12 @@ const OUTDRIVE_SLIDE = {
 };
 
 type LinkageSweep = {
-  /** The instances the linkage joins, which it may touch. */
+  /**
+   * The instances the linkage joins, which it is never measured against:
+   * its ends sit in them by design. A rod swinging into its own servo's
+   * case, or a driveshaft into its own wheel's rim, goes unreported; the
+   * servo's horn and the dogbone's cups are shaped to keep them clear.
+   */
   ends: Set<string>;
   features: RodFeature[];
   id: string;
@@ -652,12 +647,23 @@ function planSweeps(
   return sweeps;
 }
 
+/** Two solids measured as the clash check measures them. */
+function measureSolids(a: Solid, b: Solid) {
+  return measureConvexPair(
+    a.mouth?.suspensionId === b.instanceId ? a.mouth.shape : a.shape,
+    b.mouth?.suspensionId === a.instanceId ? b.mouth.shape : b.shape,
+  );
+}
+
 /** Each pose axis is sampled this many times to start with. */
 const SAMPLES = 7;
 /** Halvings of a pose step that straddles a clash before it is reported. */
 const MAXIMUM_REFINEMENTS = 4;
-/** Linkages report their closest approach to parts within this range. */
-const NEAREST_RANGE = 0.05;
+/**
+ * A linkage is measured against a part only where their bounds come within
+ * this range, which is well beyond any straying margin.
+ */
+const MEASURE_RANGE = 0.05;
 
 /**
  * Measures a kart for clashes: any two instances whose construction
@@ -692,10 +698,7 @@ export function checkKartClearance(
       ) {
         continue;
       }
-      const measurement = measureConvexPair(
-        a.mouth?.suspensionId === b.instanceId ? a.mouth.shape : a.shape,
-        b.mouth?.suspensionId === a.instanceId ? b.mouth.shape : b.shape,
-      );
+      const measurement = measureSolids(a, b);
       if (measurement.distance < -KART_CLEARANCE_TOUCH_TOLERANCE) {
         const swap = b.instanceId < a.instanceId;
         record({
@@ -712,17 +715,39 @@ export function checkKartClearance(
 
   sweepWheels(document, snapshot, solids, record);
 
-  const linkages: KartLinkageClearance[] = [];
-  for (const sweep of planSweeps(document, snapshot)) {
-    const result = sweepLinkage(sweep, solids, record);
-    if (result) linkages.push(result);
-  }
+  const sweeps = planSweeps(document, snapshot);
+  for (const sweep of sweeps) sweepLinkage(sweep, solids, record);
+  checkTieRodPairs(sweeps, record);
 
   return {
     clashes: [...deepest.values()].sort(
       (left, right) => left.distance - right.distance,
     ),
-    linkages,
+  };
+}
+
+/**
+ * A wheel's shape turned about its hub by a steering angle (positive turns
+ * left), then lifted by its travel.
+ */
+function placeWheelShape(
+  shape: Cylinder,
+  hub: KartVector,
+  angle: number,
+  travel: number,
+): Cylinder {
+  const turn = (vector: KartVector): KartVector => ({
+    x: vector.x * Math.cos(angle) + vector.z * Math.sin(angle),
+    y: vector.y,
+    z: -vector.x * Math.sin(angle) + vector.z * Math.cos(angle),
+  });
+  return {
+    ...shape,
+    axis: turn(shape.axis),
+    center: addVector(
+      addVector(hub, turn(subtractVector(shape.center, hub))),
+      { x: 0, y: travel, z: 0 },
+    ),
   };
 }
 
@@ -785,22 +810,8 @@ function sweepWheels(
       const wheelTravel = travelAt(id, u);
       const centerSteerDegrees = station.steered ? (2 * v - 1) * lock : 0;
       const angle = station.steered ? steerAt(id, centerSteerDegrees) : 0;
-      const turn = (vector: KartVector): KartVector => ({
-        x: vector.x * Math.cos(angle) + vector.z * Math.sin(angle),
-        y: vector.y,
-        z: -vector.x * Math.sin(angle) + vector.z * Math.cos(angle),
-      });
-      const place = (shape: Cylinder): Cylinder => ({
-        ...shape,
-        axis: turn(shape.axis),
-        center: addVector(
-          addVector(
-            station.position,
-            turn(subtractVector(shape.center, station.position)),
-          ),
-          { x: 0, y: wheelTravel, z: 0 },
-        ),
-      });
+      const place = (shape: Cylinder) =>
+        placeWheelShape(shape, station.position, angle, wheelTravel);
       const pose: WheelPose = {
         coilover: coiloverAt(suspensionId, wheelTravel),
         connector: connectorAt(suspensionId, wheelTravel),
@@ -997,14 +1008,88 @@ function straying(
  */
 const STRAYING_MARGIN = 2;
 
+/** A linkage's feature shapes at one sampled pose. */
+function linkageShapes(sweep: LinkageSweep, sample: LinkageSample) {
+  return sweep.features.map(
+    (feature): KartConvexShape => ({
+      kind: "rounded",
+      points: feature.points(sample),
+      radius: feature.radius,
+    }),
+  );
+}
+
+/**
+ * Two tie rods from one servo against each other, at every sampled steering
+ * angle with each wheel at each sampled travel. Sampled, not swept: both
+ * rods move, so a clash only between samples can go unreported.
+ */
+function checkTieRodPairs(
+  sweeps: LinkageSweep[],
+  record: (clash: KartClash) => void,
+) {
+  const rods = sweeps.filter(({ id }) => id.endsWith(":tie-rod"));
+  const steps = Array.from({ length: SAMPLES }, (_, index) => index / (SAMPLES - 1));
+  for (let i = 0; i < rods.length; i += 1) {
+    for (let j = i + 1; j < rods.length; j += 1) {
+      const [a, b] = [rods[i], rods[j]].sort((left, right) =>
+        left.id < right.id ? -1 : 1,
+      );
+      if (![...a.ends].some((end) => b.ends.has(end))) continue;
+      const shapesAt = (sweep: LinkageSweep) => {
+        const cache = new Map<
+          string,
+          { bounds: KartBounds; sample: LinkageSample; shapes: KartConvexShape[] }
+        >();
+        return (u: number, v: number) => {
+          const key = `${u}:${v}`;
+          let entry = cache.get(key);
+          if (!entry) {
+            const sample = sweep.sample(u, v);
+            const shapes = linkageShapes(sweep, sample);
+            entry = {
+              bounds: combineBounds(shapes.map(getConvexShapeBounds)),
+              sample,
+              shapes,
+            };
+            cache.set(key, entry);
+          }
+          return entry;
+        };
+      };
+      const [atA, atB] = [shapesAt(a), shapesAt(b)];
+      for (const v of steps) {
+        for (const ua of steps) {
+          for (const ub of steps) {
+            const [first, second] = [atA(ua, v), atB(ub, v)];
+            if (boundsGap(first.bounds, second.bounds) > 0) continue;
+            for (const shapeA of first.shapes) {
+              for (const shapeB of second.shapes) {
+                const measurement = measureConvexPair(shapeA, shapeB);
+                if (measurement.distance < -KART_CLEARANCE_TOUCH_TOLERANCE) {
+                  record({
+                    ...measurement,
+                    first: a.id,
+                    pose: first.sample.pose,
+                    second: b.id,
+                  });
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
 function sweepLinkage(
   sweep: LinkageSweep,
   solids: Solid[],
   record: (clash: KartClash) => void,
-): KartLinkageClearance | null {
+) {
   const others = solids.filter(({ instanceId }) => !sweep.ends.has(instanceId));
   const clashing = new Set<string>();
-  let nearest: KartLinkageClearance | null = null;
   const report = (
     measurement: KartConvexMeasurement,
     second: string,
@@ -1047,7 +1132,7 @@ function sweepLinkage(
       against === solid.shape ? solid.bounds : getConvexShapeBounds(against);
     let worst: KartConvexMeasurement | null = null;
     for (const shape of shapes) {
-      if (boundsGap(getConvexShapeBounds(shape), bounds) > NEAREST_RANGE) continue;
+      if (boundsGap(getConvexShapeBounds(shape), bounds) > MEASURE_RANGE) continue;
       const measurement = measureConvexPair(shape, against);
       // The coilover's own straying counts against the gap too.
       if (against !== solid.shape) measurement.distance -= coiloverStraying;
@@ -1055,14 +1140,7 @@ function sweepLinkage(
     }
     return worst;
   };
-  const exactShapes = (sample: LinkageSample) =>
-    sweep.features.map(
-      (feature): KartConvexShape => ({
-        kind: "rounded",
-        points: feature.points(sample),
-        radius: feature.radius,
-      }),
-    );
+  const exactShapes = (sample: LinkageSample) => linkageShapes(sweep, sample);
 
   // A driveshaft's ball must stay in its outdrive cup at every pose; the
   // worst pose found is reported once the sweep is done.
@@ -1086,16 +1164,7 @@ function sweepLinkage(
     const coilovers = sample.coilover ? [sample.coilover] : [];
     for (const solid of others) {
       const measurement = measure(shapes, solid, coilovers, 0);
-      if (!measurement) continue;
-      if (!nearest || measurement.distance < nearest.distance) {
-        nearest = {
-          ...measurement,
-          instanceId: solid.instanceId,
-          linkageId: sweep.id,
-          pose: sample.pose,
-        };
-      }
-      if (measurement.distance < -KART_CLEARANCE_TOUCH_TOLERANCE) {
+      if (measurement && measurement.distance < -KART_CLEARANCE_TOUCH_TOLERANCE) {
         report(measurement, solid.instanceId, sample.pose);
       }
     }
@@ -1216,7 +1285,6 @@ function sweepLinkage(
       held.pose,
     );
   }
-  return nearest;
 }
 
 /** A coilover's body axis ends and arm eye, which carry its motion. */
@@ -1237,7 +1305,7 @@ export type KartViewPose = { steer: number; travel: number };
 
 export const KART_REST_POSE: KartViewPose = { steer: 0, travel: 0 };
 
-export type KartWheelViewPose = {
+type KartWheelViewPose = {
   /** The kart's centre steering angle, in degrees (positive turns left). */
   centerSteerDegrees: number;
   /** This wheel's own steering angle, in degrees (0 if not steered). */
@@ -1296,23 +1364,13 @@ function poseSolids(
     const station = stationOf.get(solid.instanceId);
     const wheelPose = wheelPoses.get(solid.instanceId);
     if (station && wheelPose && solid.shape.kind === "cylinder") {
-      const angle = (wheelPose.steerDegrees * Math.PI) / 180;
-      const turn = (vector: KartVector): KartVector => ({
-        x: vector.x * Math.cos(angle) + vector.z * Math.sin(angle),
-        y: vector.y,
-        z: -vector.x * Math.sin(angle) + vector.z * Math.cos(angle),
-      });
-      const place = (shape: Cylinder): Cylinder => ({
-        ...shape,
-        axis: turn(shape.axis),
-        center: addVector(
-          addVector(
-            station.position,
-            turn(subtractVector(shape.center, station.position)),
-          ),
-          { x: 0, y: wheelPose.travel, z: 0 },
-        ),
-      });
+      const place = (shape: Cylinder) =>
+        placeWheelShape(
+          shape,
+          station.position,
+          (wheelPose.steerDegrees * Math.PI) / 180,
+          wheelPose.travel,
+        );
       const shape = place(solid.shape);
       return {
         ...solid,
@@ -1351,14 +1409,6 @@ function restSolids(
     solidsByDocument.set(document, solids);
   }
   return solids;
-}
-
-/** Two solids measured as the clash check measures them. */
-function measureSolids(a: Solid, b: Solid) {
-  return measureConvexPair(
-    a.mouth?.suspensionId === b.instanceId ? a.mouth.shape : a.shape,
-    b.mouth?.suspensionId === a.instanceId ? b.mouth.shape : b.shape,
-  );
 }
 
 /**

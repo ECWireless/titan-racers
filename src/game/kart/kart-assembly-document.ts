@@ -184,7 +184,7 @@ const kartAssemblyDocumentV2BaseSchema =
       .max(64),
   });
 
-export const kartAssemblyDocumentV2Schema =
+const kartAssemblyDocumentV2Schema =
   kartAssemblyDocumentV2BaseSchema.extend({
     schemaVersion: z.literal(2),
     structuralAttachments: z.array(structuralAttachmentV1Schema).max(95),

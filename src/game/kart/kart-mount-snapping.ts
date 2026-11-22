@@ -183,7 +183,7 @@ export function moveSuspensionMount(
 }
 
 /** A copy of an instance standing at `transform`. */
-export function poseKartMountInstance<T extends KartMountInstance>(
+function poseKartMountInstance<T extends KartMountInstance>(
   instance: T,
   transform: KartInstanceTransform,
 ): T {
@@ -338,7 +338,7 @@ function closestWithin(instance: KartMountInstance, point: KartVector) {
   });
 }
 
-export type KartMountSnap = {
+type KartMountSnap = {
   childMount: string;
   /** How far the seated mount moved. */
   distance: number;

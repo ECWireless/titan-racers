@@ -99,6 +99,12 @@ export function planKartLinkagePoses(
 ): KartLinkagePoses {
   const plan = planKartLinkages(document);
   const servos = new Map<string, KartServoPose>();
+  const steered: Array<{
+    balls: KartVector[];
+    servo: KartServoPose;
+    wheel: KartAssemblyComponentInstance;
+    wheelTire: { radius: number; width: number };
+  }> = [];
   for (const { mesh, part, wheel } of plan.tieRods) {
     const definition = getApprovedKartComponent(part.definition);
     const wheelDefinition = getApprovedKartComponent(wheel.definition);
@@ -121,16 +127,29 @@ export function planKartLinkagePoses(
       };
       servos.set(part.id, servo);
     }
-    servo.tieRods.push(
-      planTieRod(
-        servo,
-        wheel,
-        wheelDefinition.wheelTire,
-        ["horn-ball-left", "horn-ball-right"].map((name) =>
-          toVector(getCadPoint(mesh, name)!),
-        ),
+    steered.push({
+      balls: ["horn-ball-left", "horn-ball-right"].map((name) =>
+        toVector(getCadPoint(mesh, name)!),
       ),
-    );
+      servo,
+      wheel,
+      wheelTire: wheelDefinition.wheelTire,
+    });
+  }
+  // Two rods on one servo take a stud each, paired so they run shortest
+  // (and so never cross), however the servo is turned.
+  for (const { balls, servo, wheel, wheelTire } of steered) {
+    const pair = steered.filter((rod) => rod.servo === servo);
+    let ball = nearestHornBall(servo, wheel, balls);
+    if (pair.length === 2 && balls.length === 2) {
+      const reach = (rod: (typeof pair)[number], index: number) =>
+        distance(hornBallInAssembly(servo, balls[index]), rod.wheel.transform.position);
+      const straight = reach(pair[0], 0) + reach(pair[1], 1);
+      const crossed = reach(pair[0], 1) + reach(pair[1], 0);
+      const first = pair[0].wheel === wheel;
+      ball = balls[(straight <= crossed) === first ? 0 : 1];
+    }
+    servo.tieRods.push(planTieRod(servo, wheel, wheelTire, ball));
   }
 
   const driveshafts: KartDriveshaftPose[] = [];
@@ -188,30 +207,39 @@ export function planKartLinkagePoses(
   return { driveshafts, servos: [...servos.values()] };
 }
 
+const hornBallInAssembly = (servo: KartServoPose, ball: KartVector) =>
+  addVector(transformVector(servo.servoRotation, ball), servo.servoPosition);
+
+/** The horn stud nearest a wheel, for a servo steering one wheel alone. */
+function nearestHornBall(
+  servo: KartServoPose,
+  wheel: KartAssemblyComponentInstance,
+  balls: KartVector[],
+) {
+  const hub = wheel.transform.position;
+  return balls.reduce((nearest, ball) =>
+    distance(hornBallInAssembly(servo, ball), hub) <
+    distance(hornBallInAssembly(servo, nearest), hub)
+      ? ball
+      : nearest,
+  );
+}
+
 /**
  * A steered wheel's steering arm, under its pivot, and its tie rod from the
- * servo's nearer horn stud.
+ * given horn stud.
  */
 function planTieRod(
   servo: KartServoPose,
   wheel: KartAssemblyComponentInstance,
   wheelTire: { radius: number; width: number },
-  hornBalls: KartVector[],
+  ball: KartVector,
 ): KartTieRodPose {
   const hub = wheel.transform.position;
-  const toAssembly = (point: KartVector) =>
-    addVector(transformVector(servo.servoRotation, point), servo.servoPosition);
-  const hornBall = subtractVector(
-    hornBalls.reduce((nearest, ball) =>
-      distance(toAssembly(ball), hub) < distance(toAssembly(nearest), hub)
-        ? ball
-        : nearest,
-    ),
-    servo.hornPivot,
-  );
+  const hornBall = subtractVector(ball, servo.hornPivot);
   // The arm lies against the wheel's inboard web and points along the kart
   // toward the horn, so the rod runs clear of the shock.
-  const horn = toAssembly(servo.hornPivot);
+  const horn = hornBallInAssembly(servo, servo.hornPivot);
   const inboard = horn.x < hub.x ? -1 : 1;
   const toward = horn.z < hub.z ? -1 : 1;
   const steeringArm = {

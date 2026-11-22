@@ -8,7 +8,7 @@ import {
 } from "../src/game/kart/kart-clearance";
 import { deriveKartSnapshot } from "../src/game/kart/kart-derivation";
 import { getKartExplodeOffsets } from "../src/game/kart/kart-explode";
-import { runKartFitCheck } from "../src/game/kart/kart-fit-check";
+import { runKartFitCheck } from "../src/game/kart/kart-assembly-fit";
 import { createOfficialKartDocument } from "../src/game/kart/official-kart-roster";
 
 const balanced = () => createOfficialKartDocument("balanced-kart");
@@ -140,12 +140,8 @@ test("explodes each part off the face it is mounted on, carrying what sits on it
   }
 });
 
-test("checks fit as the save gate does: clashes and unsnapped parts", () => {
+test("counts unsnapped parts as the save gate does", () => {
   const document = balanced();
-  const fits = runKartFitCheck(document)!;
-  expect(fits.clashes).toEqual([]);
-  expect(fits.unsnapped).toBe(0);
-
   const unsnapped: KartAssemblyDocument = {
     ...document,
     structuralAttachments: document.structuralAttachments.map(
@@ -159,5 +155,5 @@ test("checks fit as the save gate does: clashes and unsnapped parts", () => {
           : attachment,
     ),
   };
-  expect(runKartFitCheck(unsnapped)!.unsnapped).toBe(1);
+  expect(runKartFitCheck(unsnapped)).toEqual({ clashes: [], unsnapped: 1 });
 });

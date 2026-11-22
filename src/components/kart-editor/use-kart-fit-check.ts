@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 
 import type { KartAssemblyDocument } from "@/game/kart/kart-assembly-document";
-import type { KartFitCheck } from "@/game/kart/kart-fit-check";
+import type { KartFitCheck } from "@/game/kart/kart-assembly-fit";
 
 /** How long edits must settle before the kart is checked again. */
 const SETTLE_MS = 350;
@@ -30,6 +30,11 @@ export function useKartFitCheck(
     document,
     id: 0,
   });
+  // One check at a time: edits made while one runs wait for it, and then
+  // only the latest is checked.
+  const inFlightRef = useRef<number | null>(null);
+  const settledRef = useRef<number | null>(null);
+  const postRef = useRef<() => void>(() => {});
 
   useEffect(() => {
     if (typeof Worker === "undefined") return;
@@ -45,15 +50,34 @@ export function useKartFitCheck(
     worker.onmessage = (
       event: MessageEvent<{ id: number; result: KartFitCheck | null }>,
     ) => {
+      inFlightRef.current = null;
       const latest = latestRef.current;
-      if (event.data.id !== latest.id) return;
-      setChecked({ document: latest.document, result: event.data.result });
+      if (event.data.id === latest.id) {
+        setChecked({ document: latest.document, result: event.data.result });
+      } else if (settledRef.current === latest.id) {
+        postRef.current();
+      }
     };
     worker.onerror = () => setUnavailable(true);
     workerRef.current = worker;
     return () => {
       worker.terminate();
       workerRef.current = null;
+      // A terminated worker never replies.
+      inFlightRef.current = null;
+    };
+  }, []);
+
+  useEffect(() => {
+    postRef.current = () => {
+      const { document: latest, id } = latestRef.current;
+      try {
+        if (!workerRef.current) throw new Error("No fit-check worker.");
+        workerRef.current.postMessage({ document: latest, id });
+        inFlightRef.current = id;
+      } catch {
+        setUnavailable(true);
+      }
     };
   }, []);
 
@@ -61,12 +85,8 @@ export function useKartFitCheck(
     const id = latestRef.current.id + 1;
     latestRef.current = { document, id };
     const timer = window.setTimeout(() => {
-      try {
-        if (!workerRef.current) throw new Error("No fit-check worker.");
-        workerRef.current.postMessage({ document, id });
-      } catch {
-        setUnavailable(true);
-      }
+      settledRef.current = id;
+      if (inFlightRef.current === null) postRef.current();
     }, SETTLE_MS);
     return () => window.clearTimeout(timer);
   }, [document]);

@@ -59,4 +59,5 @@ included; the export refuses more.
 After adding a part, list its mesh in `KART_CAD_MESHES`
 (`src/game/kart/kart-cad-meshes.ts`). Advance the kart thumbnail render
 version when a change alters how an existing part version looks; a new
-part version changes no saved kart's look. Pins in `requirements.txt` say how to update them.
+part version changes no saved kart's look. Pins in `requirements.txt` say
+how to update them.

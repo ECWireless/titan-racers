@@ -468,12 +468,16 @@ export function KartEditorShell({
   );
   // Revisions from an older derivation can be re-saved without edits, except
   // official karts whose design has since changed: they update by loading the
-  // current official design.
+  // current official design, as do official karts saved before mounting
+  // points, whose parts aren't snapped.
   const needsRederivation =
     currentRevision.derivationVersion < KART_DERIVATION_VERSION;
   const officialDesignOutdated = useMemo(
     () =>
-      needsRederivation &&
+      (needsRederivation ||
+        document.structuralAttachments.some(
+          ({ child, parent }) => child.mount === null || parent.mount === null,
+        )) &&
       officialKartId !== undefined &&
       serializeKartAssemblyDocument(createOfficialKartDocument(officialKartId)) !==
         serializeKartAssemblyDocument(document),
@@ -3037,7 +3041,8 @@ function KartFitStatus({ state }: { state: KartFitCheckState }) {
             ? "Assembly is valid and its parts fit."
             : `Can't be saved yet: ${problems.join(" and ")}.`}
       </p>
-      {clashes.length > 0 ? (
+      {/* Clashes found in an earlier draft may be fixed in this one. */}
+      {state.status === "ready" && clashes.length > 0 ? (
         <ul className="grid gap-1 text-xs">
           {clashes.slice(0, 3).map((message) => (
             <li className="border-l-2 border-titan-rust pl-2" key={message}>

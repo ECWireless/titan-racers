@@ -447,6 +447,90 @@ test("finds tie rod clashes between sampled poses, and not near misses", () => {
   }
 });
 
+test("gives each tie rod its own horn stud however the servo is turned", () => {
+  for (const yaw of [0, 90, 180, -90]) {
+    const document = createBalancedKartDocument();
+    document.componentInstances.find(
+      ({ id }) => id === "steering-main",
+    )!.transform.rotationDegrees.y = yaw;
+    const [left, right] = planKartLinkagePoses(document).servos[0].tieRods;
+    expect(left.hornBall, `servo turned ${yaw}°`).not.toEqual(right.hornBall);
+  }
+});
+
+test("finds two tie rods running into each other", () => {
+  // The servo turned on a bracket far out to the side, where the right rod
+  // runs through the left rod's horn end at lock and full bump.
+  const source = createBalancedKartDocument();
+  const plate = source.primitiveInstances.find(({ id }) => id === "chassis-plate")!;
+  const servo = source.componentInstances.find(({ id }) => id === "steering-main")!;
+  const seat = source.structuralAttachments.find(
+    ({ child }) => child.instanceId === "steering-main",
+  )!;
+  if (plate.shape !== "box") throw new Error("The plate is a box.");
+  const [x, y, z, padHeight, railThickness] = [0.4, 0.13, -0.085, 0.025, 0.002];
+  const baseY = plate.transform.position.y + plate.size.y / 2;
+  const post = { x: 0.05, z };
+  const railTop = y - (servo.transform.position.y - baseY) - padHeight;
+  const railX = (x + post.x) / 2;
+  const postHeight = railTop - railThickness - baseY;
+  const box = (id: string, size: KartVector, position: KartVector) => ({
+    ...plate,
+    id,
+    size,
+    transform: { ...plate.transform, position },
+  });
+  const document: KartAssemblyDocument = {
+    ...source,
+    componentInstances: source.componentInstances.map((part) =>
+      part.id === "steering-main"
+        ? { ...part, transform: { position: { x, y, z }, rotationDegrees: { x: 0, y: 155, z: 0 } } }
+        : part,
+    ),
+    primitiveInstances: [
+      ...source.primitiveInstances.filter(({ id }) => id !== "top-deck"),
+      box("servo-post", { x: 0.012, y: postHeight, z: 0.012 }, { x: post.x, y: baseY + postHeight / 2, z }),
+      box("servo-rail", { x: x - post.x + 0.06, y: railThickness, z: 0.055 }, { x: railX, y: railTop - railThickness / 2, z }),
+      box("servo-pad", { x: 0.055, y: padHeight, z: 0.055 }, { x, y: railTop + padHeight / 2, z }),
+    ],
+    structuralAttachments: [
+      ...source.structuralAttachments.filter(
+        ({ child }) => child.instanceId !== "steering-main" && child.instanceId !== "top-deck",
+      ),
+      {
+        child: { anchor: { x: 0, y: -postHeight / 2, z: 0 }, instanceId: "servo-post", mount: "bottom" },
+        id: "mount-servo-post",
+        parent: {
+          anchor: { x: post.x - plate.transform.position.x, y: plate.size.y / 2, z: z - plate.transform.position.z },
+          instanceId: "chassis-plate",
+          mount: "top",
+        },
+      },
+      {
+        child: { anchor: { x: post.x - railX, y: -railThickness / 2, z: 0 }, instanceId: "servo-rail", mount: "bottom" },
+        id: "mount-servo-rail",
+        parent: { anchor: { x: 0, y: postHeight / 2, z: 0 }, instanceId: "servo-post", mount: "top" },
+      },
+      {
+        child: { anchor: { x: 0, y: -padHeight / 2, z: 0 }, instanceId: "servo-pad", mount: "bottom" },
+        id: "mount-servo-pad",
+        parent: { anchor: { x: x - railX, y: railThickness / 2, z: 0 }, instanceId: "servo-rail", mount: "top" },
+      },
+      {
+        ...seat,
+        parent: { anchor: { x: 0, y: padHeight / 2, z: 0 }, instanceId: "servo-pad", mount: "top" },
+      },
+    ],
+  };
+  const clashes = checkKartClearance(document, deriveKartSnapshot(document)).clashes;
+  expect(
+    clashes.some(
+      ({ first, second }) =>
+        first === "wheel-front-left:tie-rod" && second === "wheel-front-right:tie-rod",
+    ),
+  ).toBe(true);
+});
+
 test("reports a driveshaft that leaves its outdrive cup", () => {
   // Off the outdrive's axis beyond the bone's reach, and along it out of the
   // cup's mouth.

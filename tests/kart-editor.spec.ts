@@ -1300,6 +1300,14 @@ test.describe("protected kart builder access", () => {
           createPersistedBalancedRevision({
             ...createBalancedKartDocument(),
             name: "Stale Balanced Draft",
+            // Saved before mounting points: nothing is snapped.
+            structuralAttachments: createBalancedKartDocument().structuralAttachments.map(
+              (attachment) => ({
+                ...attachment,
+                child: { ...attachment.child, mount: null },
+                parent: { ...attachment.parent, mount: null },
+              }),
+            ),
           }),
         ),
         contentType: "application/json",
@@ -1311,6 +1319,10 @@ test.describe("protected kart builder access", () => {
     const saveButton = page.getByRole("button", { name: "Save draft" });
     await expect(page.getByLabel("Name")).toHaveValue("Stale Balanced Draft");
     await expect(saveButton).toBeDisabled();
+    await expect(saveButton).toHaveAttribute(
+      "title",
+      "Load the official design from Actions, then save",
+    );
 
     await page.getByRole("button", { name: "Kart actions" }).click();
     await page.getByRole("button", { name: "Load official design" }).click();

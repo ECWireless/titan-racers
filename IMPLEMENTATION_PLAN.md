@@ -389,8 +389,7 @@ render version from the admin roster.
       Build. A Measure tool reads the gap from the selection to another
       part, live as the kart moves. The kart shows its ground clearance,
       each part its dimensions, and one line says whether the kart can be
-      saved. A tightest-gap readout was tried and dropped: the line it drew
-      was too short and hidden to be of use.
+      saved.
 - [x] Ships in the admin kart builder; players get it in Phase 9.
 - [x] Leaderboards keep bests set with the earlier official karts.
 
@@ -407,6 +406,8 @@ and published again from the admin roster.
       no document fields, part versions, derivation, or hashes.
 - [ ] Each kart stays within its triangle and draw budgets, and the kart
       thumbnail render version advances.
+- [ ] The drawn coilover and the clearance check share one set of coilover
+      sizes, so resizing the drawn shock moves its clash shape too.
 
 **PR 7.3: Assembler credit and royalties**
 

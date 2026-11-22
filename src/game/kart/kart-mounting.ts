@@ -98,7 +98,7 @@ export type KartMountSide = {
   instance: KartMountInstance;
 };
 
-export type KartMountIssue = {
+type KartMountIssue = {
   code: string;
   /** The attachment end at fault, when it is one end's naming. */
   endpoint?: "child" | "parent";
