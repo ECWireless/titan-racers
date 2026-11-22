@@ -399,29 +399,31 @@ and published again from the admin roster.
 
 **PR 7.2.1: Wiring**
 
-- [ ] Cables drawn from each kart's existing functional connections: the
+- [x] Cables drawn from each kart's existing functional connections: the
       battery to the controller (red and black), the controller to the
       motor (three phase wires) and to the steering servo and brakes (one
       lead each). They change nothing the kart stores: no document fields,
       part versions, derivation, or hashes.
-- [ ] Ports keep saying which connections exist; where a wire leaves a part
+- [x] Ports keep saying which connections exist; where a wire leaves a part
       comes from its visual: named points in the motor's and servo's CAD
       models, as the linkages use, and points the battery, controller, and
       brakes export beside the shapes they build. Older part versions get
       them too.
-- [ ] Cables lie along the parts they cross: routed over a height map of
+- [x] Cables lie along the parts they cross: routed over a height map of
       the chassis plate, round the parts resting on it and clear of the
       space the tie rods and driveshafts sweep. A lead of several wires
       runs as one bundle. They are left out of the clearance check and the
       save gate; tests show the official karts' cables clear every part
       and linkage.
-- [ ] In the builder, cables re-route live as parts are dragged and hide in
-      the Explode view.
-- [ ] No new draw calls: cables reuse the kart's materials and join its
+- [x] In the builder, cables re-route live as parts are dragged, hide in
+      the Explode view, and fade in X-ray with the parts around a focus.
+- [x] No new draw calls: cables reuse the kart's materials and join its
       batches. The per-kart cap rises to 30k triangles, with each kart's
       cables within 2,000 (tested), and the kart thumbnail render version
-      advances.
-- [ ] The drawn coilover and the clearance check share one set of coilover
+      advances. Measured on the iPhone
+      ([numbers](docs/visual-identity.md#baseline)): no new draws, and frame
+      time, CPU work, and the first frame unchanged.
+- [x] The drawn coilover and the clearance check share one set of coilover
       sizes, so resizing the drawn shock moves its clash shape too.
 
 After merge, the official karts' thumbnails are captured again at the new

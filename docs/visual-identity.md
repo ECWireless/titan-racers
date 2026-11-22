@@ -581,3 +581,15 @@ and the ghost's karts account for some 20–35 ms of the phone's gap, and the
 rest is within a sitting's spread. The lead accepted it. A four-kart room
 was not measured: the linkages join the kart's batches, so an opponent
 still draws as two.
+
+PR 7.2.1 was measured on the iPhone with two solo two-lap races on the
+Balanced kart, each after a reload, on a production build of the branch.
+The cables add no draws (a 57–58 median and 86–89 at most, 83–85 forward,
+against PR 7.1's 57 and 90) and leave frame time (17 ms median, p95 18 ms)
+and CPU work (3 ms, p95 4 ms) unchanged. The first frame took 437–447 ms
+(287–305 ms building, 141–149 ms rendering), within PR 7.1's spread. One
+race had two hitches and the other none; the race was ready after 1,821
+and 3,880 ms, a spread that follows loading over the network rather than
+the kart, whose cables take about 5 ms to route on a desktop (about 30 ms
+for the first kart a page routes). No room race was measured: the cables
+join the kart's batches, so an opponent still draws as two.
