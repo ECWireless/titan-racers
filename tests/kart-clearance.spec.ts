@@ -9,7 +9,17 @@ import { createOfficialKartAssembly } from "../src/game/kart/official-kart-assem
 import { HANDLING_KART_CONFIG } from "../src/game/kart/handling-kart-document";
 import { getAckermannWheelSteerAngle } from "../src/game/kart/kart-steering";
 import type { KartAssemblyDocument } from "../src/game/kart/kart-assembly-document";
-import { checkKartClearance } from "../src/game/kart/kart-clearance";
+import {
+  checkKartClearance,
+  getCoiloverClashShape,
+  getCoiloverConnectorBlock,
+} from "../src/game/kart/kart-clearance";
+import { APPROVED_KART_COMPONENTS } from "../src/game/kart/kart-component-registry";
+import { getKartPartVisual } from "../src/game/kart/kart-part-visuals";
+import {
+  buildCoilSpring,
+  COILOVER_SIZES,
+} from "../src/game/kart/kart-part-visual-geometry";
 import {
   rotationMatrix,
   type KartVector,
@@ -554,3 +564,71 @@ test("reports a driveshaft that leaves its outdrive cup", () => {
     expect(Math.min(...clashes.map(({ distance }) => distance))).toBeLessThan(-0.001);
   }
 });
+
+test("each drawn coilover lies inside its clash shape", () => {
+  // Every coilover version, stood upright from its chassis eye at the
+  // origin and posed as the kart draws it, fully extended and fully
+  // compressed: its spring built at a rest length between them and
+  // stretched. The top eye rides on its tower's pin, so its ring is left
+  // out of the shape.
+  const coilovers = APPROVED_KART_COMPONENTS.filter(
+    (definition) => definition.category === "suspension",
+  );
+  expect(coilovers.length).toBeGreaterThan(0);
+  for (const definition of coilovers) {
+    const visual = getKartPartVisual(definition);
+    const construction = definition.construction[0];
+    if (visual?.kind !== "coilover" || construction.shape !== "cylinder") {
+      throw new Error(`${definition.id} has no coilover visual.`);
+    }
+    const drawn = visual.build(definition);
+    const { extendedLength, maximumStroke } = definition.suspension;
+    const perches = drawn.topPerch + drawn.bottomPerch;
+    const restCoil = extendedLength - maximumStroke / 2 - perches;
+    const spring = buildCoilSpring(drawn.spring, restCoil);
+    const { eye } = COILOVER_SIZES;
+    const inTopEye = ({ x, y, z }: KartVector) =>
+      Math.hypot(x, y) <= eye.radius + 1e-6 && Math.abs(z) <= eye.halfWidth + 1e-6;
+    for (const length of [extendedLength, extendedLength - maximumStroke]) {
+      const shapes = [
+        getCoiloverClashShape(vector([0, 0, 0]), vector([0, length, 0]), construction.radius),
+        getCoiloverConnectorBlock(vector([0, 0, 0]), vector([0, 1, 0])),
+      ];
+      const stretch = (length - perches) / restCoil;
+      const points = [
+        // Every body piece but the top eye's ring, which lies wholly in it.
+        ...pointsOf(
+          drawn.body.filter(
+            (piece) => !pointsOf([piece], (point) => point).every(inTopEye),
+          ),
+          ([x, y, z]) => [x, y, z],
+        ),
+        // The shaft is turned 180° about Z to face back up the shock.
+        ...pointsOf(drawn.shaft, ([x, y, z]) => [-x, length - y, z]),
+        ...pointsOf([spring], ([x, y, z]) => [x, drawn.topPerch + y * stretch, z]),
+      ];
+      for (const point of points) {
+        const gap = Math.min(
+          ...shapes.map(
+            (shape) =>
+              measureConvexPair({ kind: "rounded", points: [point], radius: 0 }, shape)
+                .distance,
+          ),
+        );
+        expect(gap, `${definition.id}@${definition.version} at ${length} m`)
+          .toBeLessThanOrEqual(1e-5);
+      }
+    }
+  }
+});
+
+function pointsOf(
+  pieces: { positions: number[] }[],
+  place: (point: [number, number, number]) => [number, number, number],
+) {
+  return pieces.flatMap(({ positions }) =>
+    Array.from({ length: positions.length / 3 }, (_, index) =>
+      vector(place([positions[3 * index], positions[3 * index + 1], positions[3 * index + 2]])),
+    ),
+  );
+}

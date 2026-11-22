@@ -307,7 +307,7 @@ rendering or adds per-frame work reports its measurements against it.
 | Frame time | 60 fps through a full two-lap race: median frame interval ≤ 17 ms, p95 ≤ 20 ms, at most 1 hitch over 50 ms after the countdown. |
 | CPU work per frame | Median ≤ 5 ms (fixed steps, update, and render submit). |
 | Draw calls | ≤ 250 per frame across all passes, and ≤ 30 per kart. |
-| Triangles | ≤ 28k per kart, counting its springs and arms, and ≤ 2,000 per CAD part (`tests/kart-visual-budget.spec.ts`). |
+| Triangles | ≤ 30k per kart, counting its springs, arms, and cables, with ≤ 2,000 per CAD part and ≤ 2,000 for its cables (`tests/kart-visual-budget.spec.ts`). |
 | Shadows | One shadow-casting light with one 2048² map holding two 1024² cascades, covering ≤ 60 m. PCF5 filtering on course lights, PCF3 elsewhere. |
 | Resolution | 1× device pixels with MSAA. |
 | Post-processing | None. |
@@ -581,3 +581,13 @@ and the ghost's karts account for some 20–35 ms of the phone's gap, and the
 rest is within a sitting's spread. The lead accepted it. A four-kart room
 was not measured: the linkages join the kart's batches, so an opponent
 still draws as two.
+
+PR 7.2.1 was measured on the iPhone with two solo two-lap races on the
+Balanced kart, each after a reload, on a production build of the branch.
+The cables add no draws (a 57–58 median and 86–89 at most, 83–85 forward,
+against PR 7.1's 57 and 90) and leave frame time (17 ms median, p95 18 ms)
+and CPU work (3 ms, p95 4 ms) unchanged. The first frame took 437–447 ms
+(287–305 ms building, 141–149 ms rendering), within PR 7.1's spread; a
+kart's cables take about 5 ms to route on a desktop (about 30 ms for the
+first a page routes). No room race was measured: the cables join the
+kart's batches, so an opponent still draws as two.

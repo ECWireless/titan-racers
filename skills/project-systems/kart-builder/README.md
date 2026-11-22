@@ -78,6 +78,16 @@ revision-bound previews live in [`kart-thumbnails`](../kart-thumbnails/README.md
   `kart-linkage-visual-geometry.ts` builds them, and `poseKartWheelVisual`
   poses them with the wheel (callers turn a pivot before posing it). A
   driven wheel's arm is drawn below its pivots to pass under the dogbone.
+- **Wiring:** `kart-wiring.ts` routes a cable for each wire of a functional
+  connection whose two ports say where their wires leave
+  (`getKartPartLeads`: CAD `lead-*` points, see `cad/README.md`, or the
+  battery, controller, and brakes builders' leads), clear of parts and
+  linkages. The assembly visual draws them as one entity
+  (`createKartCablesEntity`) in the shared black and authored polymer
+  materials, so a race draws no more; the editor rebuilds it as a drag
+  previews (once a frame, held to the drop when routing runs slow), hides
+  it in Explode, and fades it in X-ray. Cables are presentation only: no
+  document field, and not in the clearance check or save gate.
 - **Part visuals:** `kart-part-visuals.ts` maps every approved `id@version`
   to code-built geometry in `kart-part-visual-geometry.ts` or to a CAD mesh
   (one piece per finish, in the part's frame). CAD meshes are written by
@@ -97,8 +107,9 @@ revision-bound previews live in [`kart-thumbnails`](../kart-thumbnails/README.md
   linkages attach.
   Visuals stay inside construction envelopes except the motor shaft and terminals, the
   servo horn's ball studs (and the horn as it turns), the
-  wheel retaining collar, and suspension rig parts and linkages, which are
-  posed from mounts and connections rather than construction shapes.
+  wheel retaining collar, and suspension rig parts, linkages, and cables,
+  which are posed from mounts and connections rather than construction
+  shapes.
 - **Editor:** `src/app/admin/karts/` (roster page and per-kart editor);
   `src/components/kart-editor/` (access, shell, canvas, admin roster,
   post-save thumbnail capture); `src/game/editor/kart-editor-document.ts`
@@ -158,6 +169,8 @@ revision-bound previews live in [`kart-thumbnails`](../kart-thumbnails/README.md
   `kart-editor-document.spec.ts`.
 - Mounting, fit, and views: `tests/kart-mounting.spec.ts`,
   `kart-clearance.spec.ts`, and `kart-builder-views.spec.ts`.
+- Wiring: `tests/kart-wiring.spec.ts` (and its triangles in
+  `kart-visual-budget.spec.ts`).
 - Persistence and APIs: `tests/kart-persistence.spec.ts`,
   `official-kart-roster-api.spec.ts`, `official-kart-roster.spec.ts`.
 - Browser: `tests/kart-editor.spec.ts`, `official-kart-admin-roster.spec.ts`,
@@ -178,6 +191,12 @@ Tie rods stretch to reach their steering arms: about 1% at 20° of steering and 
 3% at full lock. While an editor drag previews a wheel, servo, or
 transmission, its linkages (like its coilover) stay put until the drag is
 committed and the kart is rebuilt.
+
+Cables keep clear of parts and linkages but not entirely of each other:
+where leads fan into a port, or one leaves its port under a bundle laid
+tight against its part, wires can press into each other by a millimetre or
+two. A lead whose port has no room to leave, or that would run through a
+part crowding its port, is not drawn.
 
 Thin solid primitives (2 mm plates) are collision geometry too. Above top
 speed a kart can travel farther per physics step than a thin wall is deep,

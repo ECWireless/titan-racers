@@ -275,6 +275,21 @@ function lidScrews(mesh: KartPartVisualPiece, x: number, z: number, y: number): 
   }
 }
 
+/**
+ * Where a wire leaves a part, in the part's frame, and the way it leaves (a
+ * unit vector). `plug` draws a plug housing over its first millimetres.
+ */
+export type KartPartLead = { direction: Vec3; plug?: true; position: Vec3 };
+
+/**
+ * A part's wires by functional port, in conductor order: a two-wire power
+ * lead's positive wire first.
+ */
+export type KartPartLeads = Readonly<Record<string, readonly KartPartLead[]>>;
+
+// The battery's two connector seats, on its lid at its +X end.
+const BATTERY_SEAT = { x: 0.04, y: 0.012, z: 0.009 };
+
 /** Hard-case pack with a sealed lid, molded ribs and recessed connector seats. */
 export function buildBatteryLipoStandardV1(): KartPartVisualPiece[] {
   const housing = piece("authored-polymer");
@@ -287,37 +302,75 @@ export function buildBatteryLipoStandardV1(): KartPartVisualPiece[] {
     box(housing, [x, 0.012, 0], [0.004, 0.001, 0.040]);
   }
   box(black, [-0.006, 0.012, 0], [0.030, 0.001, 0.023]);
-  for (const z of [-0.009, 0.009]) {
-    cylinder(black, "y", [0.040, 0.012, z], 0.0035, 0.002, 10, 0.002);
-    cylinder(contacts, "y", [0.040, 0.0115, z], 0.002, 0.001, 10, 0.001);
+  for (const z of [-BATTERY_SEAT.z, BATTERY_SEAT.z]) {
+    cylinder(black, "y", [BATTERY_SEAT.x, BATTERY_SEAT.y, z], 0.0035, 0.002, 10, 0.002);
+    cylinder(contacts, "y", [BATTERY_SEAT.x, BATTERY_SEAT.y - 0.0005, z], 0.002, 0.001, 10, 0.001);
   }
   return [housing, black, contacts];
 }
+
+/** The controller's leads plug into the battery's seats from above. */
+export const BATTERY_LIPO_STANDARD_V1_LEADS: KartPartLeads = {
+  power: [-1, 1].map((side) => ({
+    direction: [0, 1, 0],
+    plug: true,
+    position: [BATTERY_SEAT.x, BATTERY_SEAT.y + 0.001, side * BATTERY_SEAT.z],
+  })),
+};
+
+// The controller's base tray, and its row of receiver plugs on top.
+const ESC_BASE = { size: [0.052, 0.006, 0.038] as Vec3, y: -0.009 };
+const ESC_PLUG = { size: 0.007, x: [-0.015, -0.005, 0.005, 0.015], y: 0.005, z: 0.0145 };
+// Each power wire's spacing where it leaves the tray.
+const POWER_WIRE_PITCH = 0.0045;
 
 /** Low receiver/ESC tray with an extruded heatsink and protected plugs. */
 export function buildReceiverEscStandardV1(): KartPartVisualPiece[] {
   const housing = piece("authored-polymer");
   const sink = piece("bare-aluminum");
   const plugs = piece("black-polymer");
-  caseBox(housing, [0, -0.009, 0], [0.052, 0.006, 0.038]);
+  caseBox(housing, [0, ESC_BASE.y, 0], ESC_BASE.size);
   caseBox(housing, [0, -0.002, 0], [0.048, 0.008, 0.034]);
   box(sink, [0, 0.003, -0.002], [0.042, 0.002, 0.027]);
   for (let i = -3; i <= 3; i++) {
     box(sink, [i * 0.006, 0.0075, -0.002], [0.002, 0.007, 0.027]);
   }
-  for (const x of [-0.015, -0.005, 0.005, 0.015]) {
-    box(plugs, [x, 0.005, 0.0145], [0.007, 0.006, 0.007]);
+  for (const x of ESC_PLUG.x) {
+    box(plugs, [x, ESC_PLUG.y, ESC_PLUG.z], [ESC_PLUG.size, 0.006, ESC_PLUG.size]);
     box(housing, [x, 0.0085, 0.017], [0.004, 0.001, 0.003]);
   }
   return [housing, sink, plugs];
 }
+
+/**
+ * Battery wires leave the tray's front, motor wires its back, and the
+ * steering and brake leads plug into the first two receiver plugs.
+ */
+export const RECEIVER_ESC_STANDARD_V1_LEADS: KartPartLeads = (() => {
+  const tray = (x: number, side: -1 | 1): KartPartLead => ({
+    direction: [0, 0, side],
+    position: [x, ESC_BASE.y, (side * ESC_BASE.size[2]) / 2],
+  });
+  const plug = (x: number): KartPartLead => ({
+    direction: [0, 0, 1],
+    position: [x, ESC_PLUG.y, ESC_PLUG.z + ESC_PLUG.size / 2],
+  });
+  return {
+    "battery-input": [-0.016, -0.016 + POWER_WIRE_PITCH].map((x) => tray(x, -1)),
+    "brake-output": [plug(ESC_PLUG.x[1])],
+    "motor-output": [0, 1, 2].map((n) => tray(0.009 + n * POWER_WIRE_PITCH, 1)),
+    "steering-output": [plug(ESC_PLUG.x[0])],
+  };
+})();
+
+const BRAKE_CASE = { size: [0.052, 0.015, 0.034] as Vec3, y: -0.0015 };
 
 /** Sealed actuator block; four service outlets and one rear handbrake outlet. */
 export function buildBrakesCombinedStandardV1(): KartPartVisualPiece[] {
   const housing = piece("authored-anodized");
   const steel = piece("bare-steel");
   const black = piece("black-oxide-steel");
-  caseBox(housing, [0, -0.0015, 0], [0.052, 0.015, 0.034]);
+  caseBox(housing, [0, BRAKE_CASE.y, 0], BRAKE_CASE.size);
   caseBox(black, [0, 0.0065, 0], [0.050, 0.001, 0.033]);
   caseBox(housing, [0, 0.0075, 0], [0.050, 0.001, 0.033]);
   lidScrews(black, 0.021, 0.012, 0.0085);
@@ -329,6 +382,13 @@ export function buildBrakesCombinedStandardV1(): KartPartVisualPiece[] {
   cylinder(steel, "z", [0, -0.001, 0.018], 0.003, 0.004, 6, 0.0015);
   return [housing, steel, black];
 }
+
+/** Its control lead leaves the middle of its +X side. */
+export const BRAKES_COMBINED_STANDARD_V1_LEADS: KartPartLeads = {
+  "control-input": [
+    { direction: [1, 0, 0], position: [BRAKE_CASE.size[0] / 2, BRAKE_CASE.y, 0] },
+  ],
+};
 
 export type KartCoiloverVisual = {
   /**
@@ -422,6 +482,29 @@ export type KartCoiloverSpec = {
 const SPRING_STEEL_SHEAR_MODULUS = 79e9;
 
 /**
+ * A drawn coilover's fixed sizes, which its clash shape (`kart-clearance.ts`)
+ * reads too, so the two can't drift apart. Distances run along the shock
+ * from its eyes.
+ */
+export const COILOVER_SIZES = {
+  /** The body begins this far from the chassis eye. */
+  bodyStart: 0.01,
+  /** The 6 mm square block between each eye and its end of the shock. */
+  connector: { center: 0.007, half: { x: 0.003, y: 0.004, z: 0.003 } },
+  /** Each eye: a ring across the shock on its pin. */
+  eye: { halfWidth: 0.003, radius: 0.005 },
+  perch: {
+    /** The lower perch's centre from the arm eye. */
+    lower: 0.011,
+    halfThickness: 0.001,
+    /** How far the perches reach past the construction radius; the spring stays within. */
+    rim: 0.002,
+    /** The upper perch's centre from the chassis eye. */
+    upper: 0.017,
+  },
+} as const;
+
+/**
  * A coilover sized from its suspension definition. The bump-stop ring meets
  * the body at `bumpStart` compression, and the spring wire follows the coil
  * spring rate k = G·d⁴ / (8·n·D³).
@@ -433,7 +516,13 @@ export function buildCoilover(spec: KartCoiloverSpec): KartCoiloverVisual {
   const lower = piece(finish);
   const shaft = piece("bare-steel");
   const bump = piece("rubber");
+  const { bodyStart, connector, eye, perch } = COILOVER_SIZES;
   const radius = spec.constructionRadius - 0.0005;
+  const perchRadius = spec.constructionRadius + perch.rim;
+  const perchThickness = 2 * perch.halfThickness;
+  const connectorSize: Vec3 = [
+    2 * connector.half.x, 2 * connector.half.y, 2 * connector.half.z,
+  ];
   // Sized for today's specs: the long coilover keeps only ~2 mm between the
   // shaft tip and gland, and between bump ring and perch, at full stroke.
   const end = Math.round(spec.extendedLength * 0.53 * 1000) / 1000;
@@ -449,17 +538,17 @@ export function buildCoilover(spec: KartCoiloverSpec): KartCoiloverVisual {
 
   // A closed top and a shaft-sized gland; the shaft tip stays inside the bore.
   lathe(body, "y", [
-    [0.010, 0], [0.010, radius - 0.001], [0.012, radius],
+    [bodyStart, 0], [bodyStart, radius - 0.001], [bodyStart + 0.002, radius],
     [end - 0.004, radius], [end, radius - 0.001],
-    [end, 0.002], [0.012, 0.002], [0.012, 0],
+    [end, 0.002], [bodyStart + 0.002, 0.002], [bodyStart + 0.002, 0],
   ], 12);
-  box(body, [0, 0.007, 0], [0.006, 0.008, 0.006]);
-  cylinder(bodyEye, "z", [0, 0, 0], 0.005, 0.006, 8, 0.0025);
-  cylinder(body, "y", [0, 0.017, 0], radius + 0.0025, 0.002, 8, radius);
+  box(body, [0, connector.center, 0], connectorSize);
+  cylinder(bodyEye, "z", [0, 0, 0], eye.radius, 2 * eye.halfWidth, 8, 0.0025);
+  cylinder(body, "y", [0, perch.upper, 0], perchRadius, perchThickness, 8, radius);
 
-  box(lower, [0, 0.007, 0], [0.006, 0.008, 0.006]);
-  cylinder(shaft, "z", [0, 0, 0], 0.005, 0.006, 8, 0.0025);
-  cylinder(lower, "y", [0, 0.011, 0], radius + 0.0025, 0.002, 8, 0.002);
+  box(lower, [0, connector.center, 0], connectorSize);
+  cylinder(shaft, "z", [0, 0, 0], eye.radius, 2 * eye.halfWidth, 8, 0.0025);
+  cylinder(lower, "y", [0, perch.lower, 0], perchRadius, perchThickness, 8, 0.002);
   cylinder(shaft, "y", [0, (reach + 0.008) / 2, 0], 0.002, reach - 0.008, 8);
   cylinder(bump, "y", [0, bumpTip - bumpHeight / 2, 0],
     0.004, bumpHeight, 8, 0.002);
@@ -467,8 +556,8 @@ export function buildCoilover(spec: KartCoiloverSpec): KartCoiloverVisual {
   return {
     body: [body, bodyEye],
     shaft: [lower, shaft, bump],
-    topPerch: 0.018,
-    bottomPerch: 0.012,
+    topPerch: perch.upper + perch.halfThickness,
+    bottomPerch: perch.lower + perch.halfThickness,
     spring: { meanRadius, turns, wireRadius: wireDiameter / 2 },
   };
 }

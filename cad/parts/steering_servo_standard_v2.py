@@ -85,6 +85,8 @@ POINTS = {
     "horn-pivot": (0, HORN_BOTTOM, OUTPUT_Z),
     "horn-ball-left": (-HORN_STUD_OFFSET, BALL_Y, STUD_Z),
     "horn-ball-right": (HORN_STUD_OFFSET, BALL_Y, STUD_Z),
+    # Where its lead leaves the boot, and the way it leaves.
+    "lead-control-input-1": (0, FLOOR + 0.006, CASE_LENGTH / 2 + LEAD_BOOT[2], 0, 0, 1),
 }
 
 

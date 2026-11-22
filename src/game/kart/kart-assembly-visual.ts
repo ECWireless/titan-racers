@@ -45,6 +45,11 @@ import {
   getKartPartVisual,
 } from "./kart-part-visuals";
 import { getKartFinishColor } from "./kart-visual-material";
+import {
+  buildKartCablePieces,
+  KART_CABLE_RED,
+  planKartCables,
+} from "./kart-wiring";
 
 type ReadonlyComponentDefinition = DeepReadonly<ApprovedComponentDefinition>;
 // A wheel's pieces carry its index, so one batched draw can blur each
@@ -144,6 +149,8 @@ export type KartWheelVisual = {
 };
 
 type KartAssemblyVisual = {
+  /** The kart's cables, in assembly axes, or null if it has none. */
+  cables: pc.Entity | null;
   instanceRoots: Map<string, pc.Entity>;
   root: pc.Entity;
   wheels: KartWheelVisual[];
@@ -407,7 +414,43 @@ export function createKartAssemblyVisual(
     }
   }
 
-  return { instanceRoots, root, wheels };
+  const cables = createKartCablesEntity(document, createMaterial, device);
+  if (cables) root.addChild(cables);
+
+  return { cables, instanceRoots, root, wheels };
+}
+
+/**
+ * The key the kart's cables ask the material factory with; no instance id
+ * can take this form.
+ */
+export const KART_CABLES_ID = "#cables";
+
+/**
+ * The kart's cables (`kart-wiring.ts`) as one entity in assembly axes, or
+ * null if it has none. Callers can rebuild it alone as parts move. They
+ * belong to no part, so picking passes through them.
+ */
+export function createKartCablesEntity(
+  document: KartAssemblyDocument,
+  createMaterial: KartVisualMaterialFactory,
+  device: pc.GraphicsDevice | null,
+) {
+  const pieces = buildKartCablePieces(planKartCables(document));
+  if (pieces.length === 0) return null;
+  const entity = createPieceEntity(
+    "cables",
+    pieces,
+    {
+      materialFor: (finish) => createMaterial(finish, KART_CABLES_ID),
+      visualColor: KART_CABLE_RED,
+    },
+    device,
+  );
+  entity.render?.meshInstances.forEach((mesh) => {
+    mesh.pick = false;
+  });
+  return entity;
 }
 
 /**

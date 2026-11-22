@@ -2,7 +2,9 @@ import * as pc from "playcanvas";
 
 import {
   createKartAssemblyVisual,
+  createKartCablesEntity,
   getRenderedKartColor,
+  KART_CABLES_ID,
   getRenderedKartBounds,
   poseKartWheelVisual,
   type KartWheelVisual,
@@ -161,6 +163,16 @@ export class KartEditorScene {
   private instanceEntities = new Map<string, pc.Entity>();
   private instanceMaterialById = new Map<string, pc.StandardMaterial[]>();
   private instanceMaterials: pc.StandardMaterial[] = [];
+  /** The kart's cables, rebuilt alone as a drag moves the parts they join. */
+  private cables: pc.Entity | null = null;
+  /** The drawn kart's root, which the cables hang from. */
+  private kartRoot: pc.Entity | null = null;
+  /** A drag's latest preview, its cables routed once per frame. */
+  private pendingCables: KartAssemblyDocument | null = null;
+  /** Routing ran slow twice running this drag (a big draft): cables wait for the drop. */
+  private cablesHeldForDrag = false;
+  private slowCableRoutes = 0;
+  private cableMaterials = new Map<KartPartFinish, pc.StandardMaterial>();
   private readonly releaseSceneLook: () => void;
   private interactionEnabled = true;
   private lastTouchDistance: number | null = null;
@@ -406,6 +418,8 @@ export class KartEditorScene {
     const wheel = this.wheels.find((candidate) => candidate.instanceId === instanceId);
     return root
       ? {
+          /** The kart's cables, which belong to no one instance. */
+          cablesShown: this.cables?.enabled ?? null,
           ghosted: this.ghostedIds.has(instanceId),
           hubY: wheel?.pivot.getLocalPosition().y ?? null,
           gizmoAttached:
@@ -679,9 +693,52 @@ export class KartEditorScene {
       }
       this.previewedInstanceIds.add(instance.id);
     }
+    if (!this.cablesHeldForDrag) this.pendingCables = document;
+  }
+
+  /** Rebuilds the cables alone, routed for `document`'s parts. */
+  private showCables(document: KartAssemblyDocument) {
+    const parent = this.kartRoot;
+    if (!parent) return;
+    this.cables?.destroy();
+    this.cables = createKartCablesEntity(
+      document,
+      (finish) => this.getCableMaterial(finish),
+      this.app.graphicsDevice,
+    );
+    if (this.cables) {
+      this.cables.enabled = this.explodeShown === 0;
+      // Looked past in X-ray, they cast no shadow until shown again.
+      const render = this.cables.render;
+      if (this.ghostedIds.has(KART_CABLES_ID) && render) {
+        castsShadow.set(render, render.castShadows);
+        render.castShadows = false;
+      }
+      parent.addChild(this.cables);
+    }
+  }
+
+  private getCableMaterial(finish: KartPartFinish) {
+    let material = this.cableMaterials.get(finish);
+    if (!material) {
+      material = this.createInstanceMaterial(KART_CABLES_ID, finish);
+      this.cableMaterials.set(finish, material);
+      // A finish first drawn mid-drag in X-ray fades with the rest.
+      if (this.ghostedIds.has(KART_CABLES_ID)) this.setMaterialGhosted(material, true);
+    }
+    return material;
+  }
+
+  /** An instance's root, or the cables for their material key. */
+  private getXrayEntity(id: string) {
+    return id === KART_CABLES_ID ? this.cables : this.instanceEntities.get(id);
   }
 
   private restorePreviewedInstances() {
+    this.pendingCables = null;
+    this.cablesHeldForDrag = false;
+    this.slowCableRoutes = 0;
+    if (this.previewedInstanceIds.size > 0) this.showCables(this.currentDocument);
     for (const id of this.previewedInstanceIds) {
       const instance = [
         ...this.currentDocument.primitiveInstances,
@@ -740,6 +797,10 @@ export class KartEditorScene {
   private clearTransformPreview(restoreInstances = true) {
     if (restoreInstances) this.restorePreviewedInstances();
     else this.previewedInstanceIds.clear();
+    this.pendingCables = null;
+    this.cablesHeldForDrag = false;
+    this.slowCableRoutes = 0;
+    if (this.cables) this.cables.enabled = this.explodeShown === 0;
     this.transformPreviewState = null;
     this.options.onTransformStateChange(null);
     this.refreshSelectionHighlight();
@@ -771,7 +832,7 @@ export class KartEditorScene {
     const skipped: pc.MeshInstance[] = [];
     if (solidOnly) {
       for (const id of this.ghostedIds) {
-        this.instanceEntities.get(id)?.forEach((node) => {
+        this.getXrayEntity(id)?.forEach((node) => {
           if (!(node instanceof pc.Entity)) return;
           node.render?.meshInstances?.forEach((mesh) => {
             if (!mesh.pick) return;
@@ -812,12 +873,21 @@ export class KartEditorScene {
 
     this.ghostedIds.clear();
     this.ghostedMaterials.clear();
-    const { instanceRoots, root, wheels } = createKartAssemblyVisual(
+    this.cableMaterials.clear();
+    this.pendingCables = null;
+    this.cablesHeldForDrag = false;
+    this.slowCableRoutes = 0;
+    const { cables, instanceRoots, root, wheels } = createKartAssemblyVisual(
       this.currentDocument,
-      (finish, instanceId) => this.createInstanceMaterial(instanceId, finish),
+      (finish, instanceId) =>
+        instanceId === KART_CABLES_ID
+          ? this.getCableMaterial(finish)
+          : this.createInstanceMaterial(instanceId, finish),
       this.app.graphicsDevice,
     );
     this.documentRoot.addChild(root);
+    this.kartRoot = root;
+    this.cables = cables;
     this.wheels = wheels;
     this.assembledPositions = new Map(
       [...instanceRoots].map(([id, entity]) => [
@@ -864,6 +934,20 @@ export class KartEditorScene {
 
   /** Eases the exploded view toward its target, and draws the gap measured. */
   private updateView(deltaSeconds: number) {
+    if (this.pendingCables) {
+      const started = performance.now();
+      this.showCables(this.pendingCables);
+      this.pendingCables = null;
+      // One slow route (a pause for garbage collection) isn't a big draft.
+      this.slowCableRoutes =
+        performance.now() - started > SLOW_CABLE_ROUTING_MS
+          ? this.slowCableRoutes + 1
+          : 0;
+      if (this.slowCableRoutes >= 2) {
+        this.cablesHeldForDrag = true;
+        if (this.cables) this.cables.enabled = false;
+      }
+    }
     const target = this.view.explode;
     if (this.explodeShown !== target) {
       const eased =
@@ -889,11 +973,13 @@ export class KartEditorScene {
         assembled.z + offset.z * amount,
       );
     }
-    // Tie rods and driveshafts join parts that move apart, so they hide.
+    // Tie rods, driveshafts, and cables join parts that move apart, so
+    // they hide.
     for (const wheel of this.wheels) {
       if (wheel.tieRod) wheel.tieRod.rod.enabled = amount === 0;
       if (wheel.driveshaft) wheel.driveshaft.bone.enabled = amount === 0;
     }
+    if (this.cables) this.cables.enabled = amount === 0;
   }
 
   private applyWheelPoses() {
@@ -935,19 +1021,13 @@ export class KartEditorScene {
           )
         : [],
     );
+    // Cables fade with the parts around a focus, and show through structure.
+    if (this.view.xray && focus.size > 0) ghosted.add(KART_CABLES_ID);
     for (const [id, materials] of this.instanceMaterialById) {
       const ghost = ghosted.has(id);
-      for (const material of materials) {
-        if (ghost === this.ghostedMaterials.has(material)) continue;
-        if (ghost) this.ghostedMaterials.add(material);
-        else this.ghostedMaterials.delete(material);
-        material.blendType = ghost ? pc.BLEND_NORMAL : pc.BLEND_NONE;
-        material.opacity = ghost ? XRAY_OPACITY : 1;
-        material.depthWrite = !ghost;
-        material.update();
-      }
+      for (const material of materials) this.setMaterialGhosted(material, ghost);
       if (ghost !== this.ghostedIds.has(id)) {
-        this.instanceEntities.get(id)?.forEach((node) => {
+        this.getXrayEntity(id)?.forEach((node) => {
           const render = node instanceof pc.Entity ? node.render : null;
           if (!render) return;
           // Parts looked past cast no shadow; each keeps its own otherwise.
@@ -971,6 +1051,16 @@ export class KartEditorScene {
       }
     }
     this.ghostedIds = ghosted;
+  }
+
+  private setMaterialGhosted(material: pc.StandardMaterial, ghost: boolean) {
+    if (ghost === this.ghostedMaterials.has(material)) return;
+    if (ghost) this.ghostedMaterials.add(material);
+    else this.ghostedMaterials.delete(material);
+    material.blendType = ghost ? pc.BLEND_NORMAL : pc.BLEND_NONE;
+    material.opacity = ghost ? XRAY_OPACITY : 1;
+    material.depthWrite = !ghost;
+    material.update();
   }
 
   private drawMeasurement() {
@@ -1198,6 +1288,8 @@ function toVector(value: { x: number; y: number; z: number }) {
 }
 
 const castsShadow = new WeakMap<pc.RenderComponent, boolean>();
+// Routing slower than this mid-drag would stutter it.
+const SLOW_CABLE_ROUTING_MS = 12;
 
 // Specs import this module without a working PlayCanvas, so the colors are
 // made when first drawn.
