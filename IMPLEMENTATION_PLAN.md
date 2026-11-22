@@ -413,11 +413,11 @@ and published again from the admin roster.
       the chassis plate, round the parts resting on it and clear of the
       space the tie rods and driveshafts sweep. A lead of several wires
       runs as one bundle. They are left out of the clearance check and the
-      save gate; tests show the official karts' cables clear every part
-      and linkage.
+      save gate; tests show the official karts' cables clear every part's
+      solid shape and every linkage.
 - [x] In the builder, cables re-route live as parts are dragged, hide in
       the Explode view, and fade in X-ray with the parts around a focus.
-- [x] No new draw calls: cables reuse the kart's materials and join its
+- [x] No new race draws: cables reuse the kart's materials and join its
       batches. The per-kart cap rises to 30k triangles, with each kart's
       cables within 2,000 (tested), and the kart thumbnail render version
       advances. Measured on the iPhone

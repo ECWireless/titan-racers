@@ -167,6 +167,11 @@ export class KartEditorScene {
   private cables: pc.Entity | null = null;
   /** The drawn kart's root, which the cables hang from. */
   private kartRoot: pc.Entity | null = null;
+  /** A drag's latest preview, its cables routed once per frame. */
+  private pendingCables: KartAssemblyDocument | null = null;
+  /** Routing ran slow twice running this drag (a big draft): cables wait for the drop. */
+  private cablesHeldForDrag = false;
+  private slowCableRoutes = 0;
   private cableMaterials = new Map<KartPartFinish, pc.StandardMaterial>();
   private readonly releaseSceneLook: () => void;
   private interactionEnabled = true;
@@ -688,7 +693,7 @@ export class KartEditorScene {
       }
       this.previewedInstanceIds.add(instance.id);
     }
-    this.showCables(document);
+    if (!this.cablesHeldForDrag) this.pendingCables = document;
   }
 
   /** Rebuilds the cables alone, routed for `document`'s parts. */
@@ -730,6 +735,9 @@ export class KartEditorScene {
   }
 
   private restorePreviewedInstances() {
+    this.pendingCables = null;
+    this.cablesHeldForDrag = false;
+    this.slowCableRoutes = 0;
     if (this.previewedInstanceIds.size > 0) this.showCables(this.currentDocument);
     for (const id of this.previewedInstanceIds) {
       const instance = [
@@ -789,6 +797,10 @@ export class KartEditorScene {
   private clearTransformPreview(restoreInstances = true) {
     if (restoreInstances) this.restorePreviewedInstances();
     else this.previewedInstanceIds.clear();
+    this.pendingCables = null;
+    this.cablesHeldForDrag = false;
+    this.slowCableRoutes = 0;
+    if (this.cables) this.cables.enabled = this.explodeShown === 0;
     this.transformPreviewState = null;
     this.options.onTransformStateChange(null);
     this.refreshSelectionHighlight();
@@ -862,6 +874,9 @@ export class KartEditorScene {
     this.ghostedIds.clear();
     this.ghostedMaterials.clear();
     this.cableMaterials.clear();
+    this.pendingCables = null;
+    this.cablesHeldForDrag = false;
+    this.slowCableRoutes = 0;
     const { cables, instanceRoots, root, wheels } = createKartAssemblyVisual(
       this.currentDocument,
       (finish, instanceId) =>
@@ -919,6 +934,20 @@ export class KartEditorScene {
 
   /** Eases the exploded view toward its target, and draws the gap measured. */
   private updateView(deltaSeconds: number) {
+    if (this.pendingCables) {
+      const started = performance.now();
+      this.showCables(this.pendingCables);
+      this.pendingCables = null;
+      // One slow route (a pause for garbage collection) isn't a big draft.
+      this.slowCableRoutes =
+        performance.now() - started > SLOW_CABLE_ROUTING_MS
+          ? this.slowCableRoutes + 1
+          : 0;
+      if (this.slowCableRoutes >= 2) {
+        this.cablesHeldForDrag = true;
+        if (this.cables) this.cables.enabled = false;
+      }
+    }
     const target = this.view.explode;
     if (this.explodeShown !== target) {
       const eased =
@@ -1259,6 +1288,8 @@ function toVector(value: { x: number; y: number; z: number }) {
 }
 
 const castsShadow = new WeakMap<pc.RenderComponent, boolean>();
+// Routing slower than this mid-drag would stutter it.
+const SLOW_CABLE_ROUTING_MS = 12;
 
 // Specs import this module without a working PlayCanvas, so the colors are
 // made when first drawn.

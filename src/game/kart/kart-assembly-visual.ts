@@ -446,7 +446,6 @@ export function createKartCablesEntity(
       visualColor: KART_CABLE_RED,
     },
     device,
-    false,
   );
   entity.render?.meshInstances.forEach((mesh) => {
     mesh.pick = false;
@@ -950,8 +949,6 @@ function createPieceEntity(
   pieces: AssemblyPiece[],
   skin: KartVisualSkin,
   device: pc.GraphicsDevice | null,
-  // Whether the skin's color is the kart's authored color (cables' isn't).
-  authoredColor = true,
 ) {
   const entity = new pc.Entity(name);
   if (!device) return entity;
@@ -974,7 +971,7 @@ function createPieceEntity(
         Array.from({ length: piece.positions.length / 3 }, () => rgba).flat(),
       );
       if (piece.profile) mesh.setUvs(1, piece.profile);
-      if (authoredColor && piece.finish.startsWith("authored-")) {
+      if (piece.finish.startsWith("authored-")) {
         renderedColors.set(entity, hex);
       }
       mesh.setIndices(piece.indices);

@@ -1,6 +1,7 @@
 import { expect, test } from "@playwright/test";
 
 import { createBalancedKartDocument } from "../src/game/kart/balanced-kart-document";
+import type { KartAssemblyDocument } from "../src/game/kart/kart-assembly-document";
 import { createHandlingKartDocument } from "../src/game/kart/handling-kart-document";
 import { getKartWheelViewPoses } from "../src/game/kart/kart-clearance";
 import { getApprovedKartComponent } from "../src/game/kart/kart-component-registry";
@@ -81,23 +82,72 @@ function rodGap(point: KartVector, start: KartVector, end: KartVector, radius: n
   );
 }
 
+// Each wired connection's cables: their colours, whether power wire, and
+// their plugs.
+const wiring = (cables: KartCable[]) => {
+  const byConnection: Record<string, string[]> = {};
+  for (const { color, parts, plugs, radius } of cables) {
+    (byConnection[parts.join(" > ")] ??= []).push(
+      `${color} ${radius > 0.0015 ? "power" : "signal"} ${plugs.length} plug`,
+    );
+  }
+  for (const wires of Object.values(byConnection)) wires.sort();
+  return byConnection;
+};
+
 test("each official kart is wired from its functional connections", () => {
   for (const create of OFFICIAL_KARTS) {
     const document = create();
-    const cables = planKartCables(document);
-    // Battery to controller (red and black), three motor phases, and the
-    // servo and brake leads.
-    expect(cables.map(({ color }) => color).sort(), document.kartId).toEqual([
-      "black", "black", "black", "black", "black", "black", "red",
-    ]);
-    const power = cables.filter(({ radius }) => radius > 0.0015);
-    expect(power, document.kartId).toHaveLength(5);
-    expect(cables.flatMap(({ plugs }) => plugs), document.kartId).toHaveLength(2);
+    expect(wiring(planKartCables(document)), document.kartId).toEqual({
+      "battery-main > controller-main": ["black power 1 plug", "red power 1 plug"],
+      "controller-main > brakes-main": ["black signal 0 plug"],
+      "controller-main > motor-main": [
+        "black power 0 plug", "black power 0 plug", "black power 0 plug",
+      ],
+      "controller-main > steering-main": ["black signal 0 plug"],
+    });
+    // A connection taken away takes its cable with it.
+    const unbraked = {
+      ...document,
+      connections: document.connections.filter(
+        ({ to }) => to.instanceId !== "brakes-main" || to.portId !== "control-input",
+      ),
+    };
+    expect(Object.keys(wiring(planKartCables(unbraked))), document.kartId).not.toContain(
+      "controller-main > brakes-main",
+    );
   }
 });
 
-test("official karts' cables clear every part but the two they join", () => {
-  for (const create of OFFICIAL_KARTS) {
+// Parts crowding a port, which the router must route round or leave its
+// lead out: a block at the controller's brake plug, and a 1 mm cube in the
+// side of the battery's red plug housing.
+function createCrowdedPortKart() {
+  const document = createBalancedKartDocument();
+  const box = (id: string, size: number[], position: number[]) =>
+    ({
+      ...document.primitiveInstances[0],
+      id,
+      size: { x: size[0], y: size[1], z: size[2] },
+      transform: {
+        position: { x: position[0], y: position[1], z: position[2] },
+        rotationDegrees: { x: 0, y: 0, z: 0 },
+      },
+    }) as KartAssemblyDocument["primitiveInstances"][number];
+  const [plug] = planKartCables(document).find(({ color }) => color === "red")!.plugs;
+  document.primitiveInstances.push(
+    box("brake-plug-guard", [0.006, 0.017, 0.004], [0.035, 0.0545, -0.0365]),
+    box("battery-plug-guard", [0.001, 0.001, 0.001], [
+      plug.start.x + 0.0028,
+      (plug.start.y + plug.end.y) / 2,
+      plug.start.z,
+    ]),
+  );
+  return document;
+}
+
+test("cables clear every part but the two they join", () => {
+  for (const create of [...OFFICIAL_KARTS, createCrowdedPortKart]) {
     const document = create();
     const solids = [
       ...document.primitiveInstances.map((primitive) => ({
@@ -116,13 +166,18 @@ test("official karts' cables clear every part but the two they join", () => {
     ].map((solid) => ({ ...solid, bounds: getConvexShapeBounds(solid.shape) }));
     for (const cable of planKartCables(document)) {
       const joined = new Set(cable.parts);
-      // Its centreline as a rod catches a thin part it passes through, and
-      // its drawn vertices what rounding and plugs add.
+      // Its centreline and plugs as rods catch a thin part they pass
+      // through, and its drawn vertices what rounding adds.
       const shapes: KartConvexShape[] = [
         ...cable.points.slice(1).map((end, index) => ({
           kind: "rounded" as const,
           points: [cable.points[index], end],
           radius: cable.radius,
+        })),
+        ...cable.plugs.map(({ end, start }) => ({
+          kind: "rounded" as const,
+          points: [start, end],
+          radius: 0.0028,
         })),
         ...drawnPoints(cable).map((point) => ({
           kind: "rounded" as const,

@@ -78,20 +78,16 @@ revision-bound previews live in [`kart-thumbnails`](../kart-thumbnails/README.md
   `kart-linkage-visual-geometry.ts` builds them, and `poseKartWheelVisual`
   poses them with the wheel (callers turn a pivot before posing it). A
   driven wheel's arm is drawn below its pivots to pass under the dogbone.
-- **Wiring:** `kart-wiring.ts` draws a cable for each wire of a functional
-  connection whose two ports say where their wires leave: `lead-<port>-<n>`
-  points in a CAD mesh, or the leads the battery, controller, and brakes
-  export beside their builders (`getKartPartLeads`). It routes each lead as
-  one bundle over a height map of the structural root plate, in the plate's
-  own axes: parts resting on it raise the floor, other parts' undersides
-  and the space the tie rods and driveshafts sweep (droop until the shock
-  is fully extended, through full bump and the servo's throw) are ceilings,
-  and earlier cables are laid over. The assembly visual draws them as one
-  entity (`createKartCablesEntity`) in the shared black and authored
-  polymer materials, so they add no draws; the editor rebuilds that entity
-  as a drag previews, hides it in Explode, and fades it in X-ray. Cables
-  are presentation only: no document field, and not in the clearance check
-  or save gate.
+- **Wiring:** `kart-wiring.ts` routes a cable for each wire of a functional
+  connection whose two ports say where their wires leave
+  (`getKartPartLeads`: CAD `lead-*` points, see `cad/README.md`, or the
+  battery, controller, and brakes builders' leads), clear of parts and
+  linkages. The assembly visual draws them as one entity
+  (`createKartCablesEntity`) in the shared black and authored polymer
+  materials, so a race draws no more; the editor rebuilds it as a drag
+  previews (once a frame, held to the drop when routing runs slow), hides
+  it in Explode, and fades it in X-ray. Cables are presentation only: no
+  document field, and not in the clearance check or save gate.
 - **Part visuals:** `kart-part-visuals.ts` maps every approved `id@version`
   to code-built geometry in `kart-part-visual-geometry.ts` or to a CAD mesh
   (one piece per finish, in the part's frame). CAD meshes are written by
@@ -199,8 +195,8 @@ committed and the kart is rebuilt.
 Cables keep clear of parts and linkages but not entirely of each other:
 where leads fan into a port, or one leaves its port under a bundle laid
 tight against its part, wires can press into each other by a millimetre or
-two. A lead whose port has no room to leave (blocked on every side) is not
-drawn.
+two. A lead whose port has no room to leave, or that would run through a
+part crowding its port, is not drawn.
 
 Thin solid primitives (2 mm plates) are collision geometry too. Above top
 speed a kart can travel farther per physics step than a thin wall is deep,

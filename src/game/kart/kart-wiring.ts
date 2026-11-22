@@ -1,10 +1,13 @@
 import type { KartAssemblyDocument } from "./kart-assembly-document";
 import { getApprovedKartComponent } from "./kart-component-registry";
 import {
+  addVector as add,
   buildComponentMassElements,
   buildPrimitiveMassElement,
   getSuspensionInstallationRatio,
   rotationMatrix,
+  scaleVector as scale,
+  subtractVector as subtract,
   transformVector,
   transposeMatrix,
   type KartBounds,
@@ -20,7 +23,9 @@ import {
 } from "./kart-linkage-poses";
 import {
   getConvexShapeBounds,
+  measureConvexPair,
   type KartConvexShape,
+  type KartSolidShape,
 } from "./kart-convex-distance";
 import {
   BALL_CUP_RADIUS,
@@ -204,13 +209,19 @@ export function planKartCables(document: KartAssemblyDocument): KartCable[] {
       path = routeBundle(grid, start, end, radius, open) ?? path;
     }
     if (!path) continue;
-    for (const cable of layWires(bundle, path, startStubs, endStubs)) {
+    const wires = layWires(bundle, path, startStubs, endStubs);
+    for (const cable of wires) {
       // Curving out of a port, a wire never dips into the plate or under a
       // cable already laid; its ends stay on their ports.
       for (const point of cable.points.slice(1, -1)) {
         const [i, k] = cellOf(grid, point.x, point.z);
         point.y = Math.max(point.y, top + radius, grid.laidTop[i + k * grid.nx] + radius);
       }
+    }
+    // A lead whose wire or plug still runs through a part it doesn't join
+    // (one crowding its port) isn't drawn.
+    if (wires.some((cable) => entersPart(cable, solids))) continue;
+    for (const cable of wires) {
       laid.push({ points: cable.points, radius });
       cables.push({
         ...cable,
@@ -223,6 +234,37 @@ export function planKartCables(document: KartAssemblyDocument): KartCable[] {
     }
   }
   return cables;
+}
+
+// How deep a wire may sit in a part it lies on, as parts only touching do.
+const TOUCH = 0.0002;
+
+function entersPart(cable: KartCable, solids: readonly Solid[]) {
+  const pieces: KartConvexShape[] = [
+    ...cable.points.slice(1).map((end, index) => ({
+      kind: "rounded" as const,
+      points: [cable.points[index], end],
+      radius: cable.radius,
+    })),
+    ...cable.plugs.map(({ end, start }) => ({
+      kind: "rounded" as const,
+      points: [start, end],
+      radius: PLUG.radius,
+    })),
+  ];
+  return pieces.some((wire) => {
+    const reach = getConvexShapeBounds(wire);
+    return solids.some(
+      ({ bounds, instanceId, shape }) =>
+        !cable.parts.includes(instanceId) &&
+        (["x", "y", "z"] as const).every(
+          (axis) =>
+            reach.maximum[axis] >= bounds.minimum[axis] &&
+            reach.minimum[axis] <= bounds.maximum[axis],
+        ) &&
+        measureConvexPair(wire, shape).distance < -TOUCH,
+    );
+  });
 }
 
 function plateFrame(center: KartVector, rotation: KartMatrix3): PlateFrame {
@@ -318,7 +360,8 @@ function planBundles(document: KartAssemblyDocument, frame: PlateFrame): Bundle[
   return bundles;
 }
 
-type Solid = { bounds: KartBounds; instanceId: string };
+/** A part's construction solid, in the plate's axes, and its bounds. */
+type Solid = { bounds: KartBounds; instanceId: string; shape: KartSolidShape };
 /** A wire already laid, as drawn, in the plate's axes. */
 type Laid = { points: KartVector[]; radius: number };
 
@@ -332,43 +375,37 @@ function listSolids(
   frame: PlateFrame,
 ) {
   // Each solid turned into the plate's axes before it is bounded, so a
-  // turned plate doesn't widen what stands on it.
-  const local = (shape: KartConvexShape): KartBounds => {
-    if (shape.kind === "rounded" || shape.kind === "hull") {
-      // Not a construction shape; bound its kart-axis bounds' corners.
-      const { maximum, minimum } = getConvexShapeBounds(shape);
-      const corners = [0, 1, 2, 3, 4, 5, 6, 7].map((corner) =>
-        frame.toLocal({
-          x: corner & 1 ? maximum.x : minimum.x,
-          y: corner & 2 ? maximum.y : minimum.y,
-          z: corner & 4 ? maximum.z : minimum.z,
-        }),
-      );
-      return getConvexShapeBounds({ kind: "rounded", points: corners, radius: 0 });
-    }
+  // turned plate doesn't widen what stands on it. Construction solids are
+  // boxes and cylinders.
+  const solids: Solid[] = [];
+  const addSolid = (instanceId: string, shape: KartConvexShape) => {
+    let local: KartSolidShape;
     if (shape.kind === "cylinder") {
-      return getConvexShapeBounds({
+      local = {
         ...shape,
         axis: frame.toLocalDirection(shape.axis),
         center: frame.toLocal(shape.center),
-      });
+      };
+    } else if (shape.kind === "box") {
+      const r = shape.rotation;
+      const [a, b, c] = [0, 1, 2].map((column) =>
+        frame.toLocalDirection({ x: r[column], y: r[3 + column], z: r[6 + column] }),
+      );
+      local = {
+        ...shape,
+        center: frame.toLocal(shape.center),
+        rotation: [a.x, b.x, c.x, a.y, b.y, c.y, a.z, b.z, c.z],
+      };
+    } else {
+      return;
     }
-    const r = shape.rotation;
-    const [a, b, c] = [0, 1, 2].map((column) =>
-      frame.toLocalDirection({ x: r[column], y: r[3 + column], z: r[6 + column] }),
-    );
-    return getConvexShapeBounds({
-      ...shape,
-      center: frame.toLocal(shape.center),
-      rotation: [a.x, b.x, c.x, a.y, b.y, c.y, a.z, b.z, c.z],
-    });
+    solids.push({ bounds: getConvexShapeBounds(local), instanceId, shape: local });
   };
-  const solids: Solid[] = document.primitiveInstances
-    .filter(({ id }) => id !== plateId)
-    .map((primitive) => ({
-      bounds: local(buildPrimitiveMassElement(primitive).solid),
-      instanceId: primitive.id,
-    }));
+  for (const primitive of document.primitiveInstances) {
+    if (primitive.id !== plateId) {
+      addSolid(primitive.id, buildPrimitiveMassElement(primitive).solid);
+    }
+  }
   for (const instance of document.componentInstances) {
     const definition = getApprovedKartComponent(instance.definition);
     if (
@@ -379,7 +416,7 @@ function listSolids(
       continue;
     }
     for (const element of buildComponentMassElements(instance, definition)) {
-      solids.push({ bounds: local(element.solid), instanceId: instance.id });
+      addSolid(instance.id, element.solid);
     }
   }
   return solids;
@@ -484,8 +521,8 @@ function sampleLinkageSweeps(document: KartAssemblyDocument) {
  * joins, whose wires leave from under them), or the space a linkage
  * sweeps. Each end's stub stands beside its own part, within the margin its
  * part's side keeps, so the floor there is the stub's own height (and any
- * cable already laid there); a lead leaves its port wherever its part puts
- * it, so a little way round each stub is open. Returns the open cells.
+ * other part's or cable's there); a lead leaves its port wherever its part
+ * puts it, so a little way round each stub is open. Returns the open cells.
  */
 function paintGrid(
   grid: Grid,
@@ -501,7 +538,7 @@ function paintGrid(
   floor.fill(top);
   laidTop.fill(-Infinity);
   ceiling.set(linkageLow);
-  for (const { bounds, instanceId } of solids) {
+  const paintSolid = ({ bounds, instanceId }: Solid) => {
     if (bounds.minimum.y <= top + RESTING) {
       paint(grid, bounds.minimum, bounds.maximum, half + SIDE_CLEARANCE, (cell) => {
         floor[cell] = Math.max(floor[cell], bounds.maximum.y);
@@ -512,12 +549,17 @@ function paintGrid(
         ceiling[cell] = Math.min(ceiling[cell], underside);
       });
     }
-  }
+  };
+  // The two parts it joins, then the stubs beside them, then every other
+  // part, so a part standing at a port keeps its floor.
+  const joined = (solid: Solid) => bundle.parts.includes(solid.instanceId);
+  solids.filter(joined).forEach(paintSolid);
   for (const point of stubs) {
     paint(grid, point, point, half + SIDE_CLEARANCE, (cell) => {
       floor[cell] = Math.max(top, Math.min(floor[cell], point.y - radius));
     });
   }
+  solids.filter((solid) => !joined(solid)).forEach(paintSolid);
   for (const wire of laid) {
     // Along each of its segments, its top one radius above its centreline.
     for (let index = 1; index < wire.points.length; index++) {
@@ -726,7 +768,7 @@ function isLevel(
       nextK += deltaK;
     }
   }
-  return true;
+  return false;
 }
 
 class MinHeap {
@@ -1149,13 +1191,6 @@ function tube(
   }
 }
 
-const add = (a: KartVector, b: KartVector) => ({ x: a.x + b.x, y: a.y + b.y, z: a.z + b.z });
-const subtract = (a: KartVector, b: KartVector) => ({
-  x: a.x - b.x,
-  y: a.y - b.y,
-  z: a.z - b.z,
-});
-const scale = (a: KartVector, s: number) => ({ x: a.x * s, y: a.y * s, z: a.z * s });
 const offset = (a: KartVector, direction: KartVector, distance: number) =>
   add(a, scale(direction, distance));
 const dot = (a: KartVector, b: KartVector) => a.x * b.x + a.y * b.y + a.z * b.z;
