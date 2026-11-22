@@ -73,7 +73,18 @@ import {
 import { serializeKartAssemblyDocument } from "@/game/kart/kart-assembly-document";
 import { isEditableKeyboardTarget } from "@/game/input/keyboard-input";
 import { useEditorController } from "@/game/input/use-editor-controller";
-import { KART_EDITOR_TRANSLATE_SNAP } from "@/game/editor/kart-editor-scene";
+import {
+  formatKartGap,
+  KART_EDITOR_TRANSLATE_SNAP,
+  type KartEditorTool,
+  type KartEditorView,
+} from "@/game/editor/kart-editor-scene";
+import {
+  getKartWheelViewPoses,
+  KART_REST_POSE,
+  measureKartPartGap,
+  type KartViewPose,
+} from "@/game/kart/kart-clearance";
 import { endRaceAudio, unlockRaceAudio } from "@/game/audio/race-audio";
 
 import { SoloTimeTrialCanvas } from "../solo-time-trial-canvas";
@@ -84,6 +95,16 @@ import {
 import { EditorSection } from "../editor/editor-section";
 import { KartDerivedEvidence } from "../kart-derived-evidence";
 import { KartEditorCanvas } from "./kart-editor-canvas";
+import {
+  KartExplodeSlider,
+  KartMotionPad,
+  KartViewBar,
+  type KartEditorViewMode,
+} from "./kart-editor-view-controls";
+import {
+  useKartFitCheck,
+  type KartFitCheckState,
+} from "./use-kart-fit-check";
 import { persistKartRevisionThumbnail } from "./persist-kart-thumbnail";
 
 // Why the save route refused a draft.
@@ -169,7 +190,21 @@ export function KartEditorShell({
   });
   const [historyVersion, setHistoryVersion] = useState(0);
   const [selection, setSelection] = useState<KartEditorSelection | null>(null);
-  const [tool, setTool] = useState<EditorTransformTool>("translate");
+  const [tool, setTool] = useState<KartEditorTool>("translate");
+  const [requestedViewMode, setViewMode] =
+    useState<KartEditorViewMode>("build");
+  const [xray, setXray] = useState(false);
+  const [explodeAmount, setExplodeAmount] = useState(0.6);
+  const [pose, setPose] = useState<KartViewPose>(KART_REST_POSE);
+  const [measureTarget, setMeasureTarget] =
+    useState<KartEditorSelection | null>(null);
+  const [groundClearance, setGroundClearance] = useState<number | null>(null);
+  const [selectionSize, setSelectionSize] = useState<{
+    x: number;
+    y: number;
+    z: number;
+  } | null>(null);
+  const poseAnimationRef = useRef<number | null>(null);
   const [snapEnabled, setSnapEnabled] = useState(true);
   const [mirrorPair, setMirrorPair] = useState(false);
   const [frameRequest, setFrameRequest] = useState(0);
@@ -207,6 +242,15 @@ export function KartEditorShell({
   const viewportControllerRef =
     useRef<EditorControllerViewportHandle>(null);
 
+  useEffect(
+    () => () => {
+      if (poseAnimationRef.current !== null) {
+        cancelAnimationFrame(poseAnimationRef.current);
+      }
+    },
+    [],
+  );
+
   useEffect(() => {
     if (testSession || !testModeTriggerRef.current) return;
     const frame = requestAnimationFrame(() => {
@@ -242,6 +286,72 @@ export function KartEditorShell({
       };
     }
   }, [document, validation]);
+  const fitCheck = useKartFitCheck(document);
+  // An assembly that doesn't derive (after an undo, say) has no suspension
+  // to pose, so it shows in Build until it derives again.
+  const viewMode: KartEditorViewMode =
+    requestedViewMode === "motion" && !derivation.snapshot
+      ? "build"
+      : requestedViewMode;
+  const posed =
+    derivation.snapshot !== null &&
+    (viewMode === "motion" || pose.steer !== 0 || pose.travel !== 0);
+  const wheelPoses = useMemo(
+    () =>
+      posed && derivation.snapshot
+        ? getKartWheelViewPoses(document, derivation.snapshot, pose)
+        : null,
+    [derivation.snapshot, document, pose, posed],
+  );
+  const measuredTarget =
+    tool === "measure" &&
+    measureTarget &&
+    getKartEditorInstance(document, measureTarget)
+      ? measureTarget
+      : null;
+  const measurement = useMemo(() => {
+    if (
+      !measuredTarget ||
+      !selection ||
+      viewMode === "explode" ||
+      !derivation.snapshot
+    ) {
+      return null;
+    }
+    try {
+      return measureKartPartGap(
+        document,
+        derivation.snapshot,
+        selection.id,
+        measuredTarget.id,
+        pose,
+      );
+    } catch {
+      return null;
+    }
+  }, [derivation.snapshot, document, measuredTarget, pose, selection, viewMode]);
+  const sceneView = useMemo<KartEditorView>(
+    () => ({
+      editable: viewMode === "build" && !posed,
+      explode: viewMode === "explode" ? explodeAmount : 0,
+      measureTargetId: measuredTarget?.id ?? null,
+      measurement,
+      wheelPoses,
+      xray,
+    }),
+    [
+      explodeAmount,
+      measuredTarget,
+      measurement,
+      posed,
+      viewMode,
+      wheelPoses,
+      xray,
+    ],
+  );
+  const frontWheelId = derivation.snapshot?.geometry.wheelStations.find(
+    ({ steered }) => steered,
+  )?.id;
   const selectedInstance = getKartEditorInstance(document, selection);
   const selectedDefinition =
     selectedInstance?.kind === "component"
@@ -381,6 +491,21 @@ export function KartEditorShell({
       ) {
         return;
       }
+      // Edits show on the kart as it stands, so the view returns to Build;
+      // renaming or recolouring leaves it be, as neither moves a part.
+      if (
+        viewMode !== "build" &&
+        label !== "Rename kart" &&
+        label !== "Edit descriptor" &&
+        !/^Change .+ color$/.test(label)
+      ) {
+        if (poseAnimationRef.current !== null) {
+          cancelAnimationFrame(poseAnimationRef.current);
+          poseAnimationRef.current = null;
+        }
+        setPose(KART_REST_POSE);
+        setViewMode("build");
+      }
       const previous = document;
       issuedIdsRef.current = collectKartDocumentIds(
         nextDocument,
@@ -399,7 +524,7 @@ export function KartEditorShell({
       setHistoryVersion((version) => version + 1);
       setOperation({ status: "idle" });
     },
-    [document, history, signOutPending],
+    [document, history, signOutPending, viewMode],
   );
 
   useEffect(() => {
@@ -491,10 +616,26 @@ export function KartEditorShell({
         redo();
         return;
       }
+      // Escape that closed a menu or panel does only that; otherwise it
+      // clears the measured part, then leaves measuring.
+      if (
+        event.key === "Escape" &&
+        tool === "measure" &&
+        !event.defaultPrevented &&
+        !actionsOpen &&
+        mobilePanel === null
+      ) {
+        if (measureTarget) setMeasureTarget(null);
+        else setTool("translate");
+        return;
+      }
       if (!modifier && !event.altKey && !event.shiftKey) {
-        if (event.key === "1") setTool("translate");
-        if (event.key === "2") setTool("rotate");
-        if (event.key === "3" && scaleAvailable) setTool("scale");
+        if (viewMode === "build") {
+          if (event.key === "1") setTool("translate");
+          if (event.key === "2") setTool("rotate");
+          if (event.key === "3" && scaleAvailable) setTool("scale");
+        }
+        if (event.key === "4" && viewMode !== "explode") setTool("measure");
         if (event.key.toLowerCase() === "f") {
           setFrameRequest((request) => request + 1);
         }
@@ -606,6 +747,8 @@ export function KartEditorShell({
         )
       : null;
     setSelection(nextSelection);
+    // A new selection starts a new measurement.
+    if (nextSelection?.id !== selection?.id) setMeasureTarget(null);
     setAttachmentParentId(nextAttachment?.parent.instanceId ?? "");
     setMirrorPair(
       nextSelection !== null &&
@@ -621,6 +764,46 @@ export function KartEditorShell({
 
   function selectInstance(nextSelection: KartEditorSelection | null) {
     syncEditorSelection(document, nextSelection);
+  }
+
+  function stopPoseAnimation() {
+    if (poseAnimationRef.current !== null) {
+      cancelAnimationFrame(poseAnimationRef.current);
+      poseAnimationRef.current = null;
+    }
+  }
+
+  function changePose(next: KartViewPose) {
+    stopPoseAnimation();
+    setPose(next);
+  }
+
+  /** Eases the wheels back to rest, as a released kart settles. */
+  function settlePose() {
+    stopPoseAnimation();
+    const from = pose;
+    if (from.steer === 0 && from.travel === 0) return;
+    const start = performance.now();
+    const step = (now: number) => {
+      const t = Math.min((now - start) / 260, 1);
+      if (t >= 1) {
+        poseAnimationRef.current = null;
+        setPose(KART_REST_POSE);
+        return;
+      }
+      const left = (1 - t) ** 3;
+      setPose({ steer: from.steer * left, travel: from.travel * left });
+      poseAnimationRef.current = requestAnimationFrame(step);
+    };
+    poseAnimationRef.current = requestAnimationFrame(step);
+  }
+
+  function changeViewMode(mode: KartEditorViewMode) {
+    if (mode === viewMode && mode === requestedViewMode) return;
+    if (requestedViewMode === "motion") settlePose();
+    // Gaps between parts pulled apart aren't real, so measuring stops.
+    if (mode === "explode" && tool === "measure") setTool("translate");
+    setViewMode(mode);
   }
 
   function showCommandError(error: unknown) {
@@ -1103,16 +1286,30 @@ export function KartEditorShell({
     onFrame: () => setFrameRequest((request) => request + 1),
     onHelp: () => setCameraHelpOpen((open) => !open),
     onToolCycle: (direction) => {
+      if (viewMode !== "build") return;
       const tools: EditorTransformTool[] = scaleAvailable
         ? ["translate", "rotate", "scale"]
         : ["translate", "rotate"];
       setTool((current) => {
-        const index = Math.max(0, tools.indexOf(current));
+        // From measuring, cycling starts again at Move.
+        if (current === "measure") return "translate";
+        const index = Math.max(
+          0,
+          tools.indexOf(current as EditorTransformTool),
+        );
         return tools[(index + direction + tools.length) % tools.length];
       });
     },
     onTransformDirection: (direction) => {
-      if (!selection || !selectedInstance) return;
+      // Pulled apart or posed, parts aren't where they stand; the scene
+      // knows when they are home again.
+      if (
+        !viewportControllerRef.current?.canEdit?.() ||
+        !selection ||
+        !selectedInstance
+      ) {
+        return;
+      }
       if (tool === "translate") {
         const step =
           viewportControllerRef.current?.resolveTranslationStep(direction);
@@ -1438,35 +1635,62 @@ export function KartEditorShell({
                 : undefined
             }
             aria-disabled={
-              candidate === "scale" && !scaleAvailable ? true : undefined
+              viewMode !== "build" || (candidate === "scale" && !scaleAvailable)
+                ? true
+                : undefined
             }
-            aria-pressed={tool === candidate}
+            aria-pressed={tool === candidate && viewMode === "build"}
             className={`editor-tool-button ${
-              tool === candidate
+              tool === candidate && viewMode === "build"
                 ? "!border-titan-hazard !bg-titan-hazard/10 !text-titan-hazard"
                 : ""
             } ${
-              candidate === "scale" && !scaleAvailable
+              viewMode !== "build" || (candidate === "scale" && !scaleAvailable)
                 ? "cursor-not-allowed opacity-45"
                 : ""
             }`}
             disabled={workspaceLocked}
             key={candidate}
             title={
-              candidate === "scale" && scaleUnavailableReason
-                ? scaleUnavailableReason
-                : `${
-                    candidate === "translate" ? "Move" : humanize(candidate)
-                  } selection (${index + 1})`
+              viewMode !== "build"
+                ? "Switch to Build to move, turn, or resize parts"
+                : candidate === "scale" && scaleUnavailableReason
+                  ? scaleUnavailableReason
+                  : `${
+                      candidate === "translate" ? "Move" : humanize(candidate)
+                    } selection (${index + 1})`
             }
             type="button"
             onClick={() => {
+              if (viewMode !== "build") return;
               if (candidate !== "scale" || scaleAvailable) setTool(candidate);
             }}
           >
             <EditorToolbarIcon name={candidate} />
           </button>
         ))}
+        <button
+          aria-disabled={viewMode === "explode" ? true : undefined}
+          aria-label="Measure"
+          aria-pressed={tool === "measure"}
+          className={`editor-tool-button ${
+            tool === "measure"
+              ? "!border-titan-hazard !bg-titan-hazard/10 !text-titan-hazard"
+              : ""
+          } ${viewMode === "explode" ? "cursor-not-allowed opacity-45" : ""}`}
+          disabled={workspaceLocked}
+          title={
+            viewMode === "explode"
+              ? "Gaps can't be measured with the parts pulled apart"
+              : "Measure the gap from the selection to another part (4)"
+          }
+          type="button"
+          onClick={() => {
+            if (viewMode !== "explode") setTool("measure");
+          }}
+        >
+          <EditorToolbarIcon name="measure" />
+        </button>
         {controllerConnected ? (
           <EditorControllerAxisIndicator
             axis={controllerAxis}
@@ -1676,12 +1900,50 @@ export function KartEditorShell({
             frameRequest={frameRequest}
             mirrorPair={mirrorPair}
             onDocumentChange={commitDocument}
+            onGroundClearanceChange={setGroundClearance}
+            onMeasureTargetChange={setMeasureTarget}
             onSelectionChange={selectInstance}
+            onSelectionSizeChange={setSelectionSize}
+            overlay={
+              <>
+                <KartViewBar
+                  mode={viewMode}
+                  motionUnavailable={!derivation.snapshot}
+                  xray={xray}
+                  onModeChange={changeViewMode}
+                  onXrayChange={setXray}
+                />
+                {viewMode === "explode" ? (
+                  <KartExplodeSlider
+                    value={explodeAmount}
+                    onChange={setExplodeAmount}
+                  />
+                ) : null}
+                {viewMode === "motion" && derivation.snapshot ? (
+                  <KartMotionPad
+                    pose={pose}
+                    steerDegrees={
+                      pose.steer *
+                      derivation.snapshot.physicalProfile.steering
+                        .maximumCenterAngle
+                    }
+                    travelMillimeters={
+                      (frontWheelId
+                        ? (wheelPoses?.get(frontWheelId)?.travel ?? 0)
+                        : 0) * 1000
+                    }
+                    onPoseChange={changePose}
+                    onReset={settlePose}
+                  />
+                ) : null}
+              </>
+            }
             retainedIds={issuedIdsRef.current}
             selection={selection}
             selectionState={selectionStructureState}
             snapEnabled={snapEnabled}
             tool={tool}
+            view={sceneView}
             ref={viewportControllerRef}
           />
           {controllerConnected ? (
@@ -1704,7 +1966,7 @@ export function KartEditorShell({
           {cameraHelpOpen ? (
             <section
               aria-label="Camera controls"
-              className="absolute left-3 top-3 z-10 grid w-[min(19rem,calc(100%-1.5rem))] gap-3 border border-titan-ice/24 bg-titan-black/92 p-3 font-mono text-[0.68rem] shadow-[0_16px_50px_rgb(0_0_0/0.55)] backdrop-blur"
+              className="absolute left-3 top-14 z-20 grid w-[min(19rem,calc(100%-1.5rem))] gap-3 border border-titan-ice/24 bg-titan-black/92 p-3 font-mono text-[0.68rem] shadow-[0_16px_50px_rgb(0_0_0/0.55)] backdrop-blur"
               id="kart-camera-controls-help"
             >
               <div className="flex items-center justify-between gap-3">
@@ -1745,7 +2007,7 @@ export function KartEditorShell({
               </p>
             </section>
           ) : null}
-          <div className="grid gap-1 border-t border-titan-ice/15 bg-[#0b0d0e] p-3">
+          <div className="grid gap-1 border-t border-titan-ice/15 bg-[#0b0d0e] p-3 pb-[4.25rem] lg:pb-3">
             <button
               aria-busy={testPending}
               className="titan-button titan-button-primary !min-h-11 !py-2"
@@ -1807,6 +2069,36 @@ export function KartEditorShell({
           >
             Close inspector
           </button>
+          <EditorSection title="Live validation">
+            {derivation.snapshot ? (
+              <KartFitStatus state={fitCheck} />
+            ) : (
+              <>
+                <p
+                  className="border border-titan-rust/50 bg-titan-rust/10 p-3 text-sm text-titan-ice"
+                  role="alert"
+                >
+                  Invalid construction cannot be saved or published. Testing
+                  continues to use the last saved revision.
+                </p>
+                <ol className="grid gap-2 text-xs">
+                  {derivation.issues.slice(0, 10).map((issue, index) => (
+                    <li
+                      className="border-l-2 border-titan-rust pl-3"
+                      key={`${issue.code}-${index}`}
+                    >
+                      <span className="font-mono text-[0.62rem] uppercase tracking-[0.08em] text-titan-rust">
+                        {formatIssuePath(issue.path, issue.code)}
+                      </span>
+                      <br />
+                      {issue.message}
+                    </li>
+                  ))}
+                </ol>
+              </>
+            )}
+          </EditorSection>
+
           <EditorSection title="Inspector">
             {selection && selectedInstance ? (
               <>
@@ -1849,6 +2141,55 @@ export function KartEditorShell({
                     ) : null}
                   </div>
                 </div>
+                {tool === "measure" ? (
+                  <div
+                    className="grid gap-2 border border-titan-hazard/40 bg-titan-hazard/5 p-3"
+                    data-testid="kart-measure-panel"
+                  >
+                    <label className="grid gap-1 text-xs">
+                      <span className="font-mono font-bold uppercase tracking-[0.1em] text-titan-muted">
+                        Gap to
+                      </span>
+                      <select
+                        className="editor-input"
+                        value={measuredTarget?.id ?? ""}
+                        onChange={(event) => {
+                          const id = event.target.value;
+                          setMeasureTarget(
+                            id
+                              ? {
+                                  id,
+                                  kind: document.primitiveInstances.some(
+                                    (primitive) => primitive.id === id,
+                                  )
+                                    ? "primitive"
+                                    : "component",
+                                }
+                              : null,
+                          );
+                        }}
+                      >
+                        <option value="">Click a part, or choose one</option>
+                        {[
+                          ...document.primitiveInstances,
+                          ...document.componentInstances,
+                        ]
+                          .filter(({ id }) => id !== selection.id)
+                          .map(({ id }) => (
+                            <option key={id} value={id}>
+                              {id}
+                            </option>
+                          ))}
+                      </select>
+                    </label>
+                    {measurement ? (
+                      <p className="font-mono text-sm font-bold text-titan-ice">
+                        {formatKartGap(measurement.distance)}
+                        {viewMode === "motion" ? " at this pose" : ""}
+                      </p>
+                    ) : null}
+                  </div>
+                ) : null}
                 {selectedDefinition ? (
                   <div className="grid gap-3">
                     <label className="grid gap-1 text-xs">
@@ -1904,6 +2245,7 @@ export function KartEditorShell({
                     </p>
                     <ComponentPhysicalAttributes
                       definition={selectedDefinition}
+                      size={selectionSize}
                     />
                   </div>
                 ) : selectedInstance.kind === "primitive" ? (
@@ -2109,45 +2451,11 @@ export function KartEditorShell({
             )}
           </EditorSection>
 
-          <EditorSection title="Live validation">
-            {derivation.snapshot ? (
-              <div className="grid gap-2">
-                <p
-                  className="border border-emerald-400/30 bg-emerald-400/10 p-3 text-sm text-emerald-100"
-                  role="status"
-                >
-                  Assembly is valid and deterministically derived.
-                </p>
-              </div>
-            ) : (
-              <>
-                <p
-                  className="border border-titan-rust/50 bg-titan-rust/10 p-3 text-sm text-titan-ice"
-                  role="alert"
-                >
-                  Invalid construction cannot be saved or published. Testing
-                  continues to use the last saved revision.
-                </p>
-                <ol className="grid gap-2 text-xs">
-                  {derivation.issues.slice(0, 10).map((issue, index) => (
-                    <li
-                      className="border-l-2 border-titan-rust pl-3"
-                      key={`${issue.code}-${index}`}
-                    >
-                      <span className="font-mono text-[0.62rem] uppercase tracking-[0.08em] text-titan-rust">
-                        {formatIssuePath(issue.path, issue.code)}
-                      </span>
-                      <br />
-                      {issue.message}
-                    </li>
-                  ))}
-                </ol>
-              </>
-            )}
-          </EditorSection>
-
           {derivation.snapshot ? (
-            <KartDerivedEvidence snapshot={derivation.snapshot} />
+            <KartDerivedEvidence
+              groundClearance={groundClearance}
+              snapshot={derivation.snapshot}
+            />
           ) : null}
         </aside>
       </fieldset>
@@ -2531,11 +2839,22 @@ function PrimitivePhysicalAttributes({
 
 function ComponentPhysicalAttributes({
   definition,
+  size,
 }: {
   definition: NonNullable<ReturnType<typeof getApprovedKartComponent>>;
+  /** The part's drawn size along its own axes, in metres. */
+  size: { x: number; y: number; z: number } | null;
 }) {
   const attributes = [
     { label: "Mass", value: `${definition.mass.toFixed(3)} kg` },
+    ...(size
+      ? [
+          {
+            label: "Dimensions",
+            value: [size.x, size.y, size.z].map(formatMillimeters).join(" × "),
+          },
+        ]
+      : []),
   ];
   switch (definition.category) {
     case "battery":
@@ -2661,6 +2980,77 @@ function ComponentPhysicalAttributes({
           value={attribute.value}
         />
       ))}
+    </div>
+  );
+}
+
+/**
+ * Whether the kart will pass the save gate, checked as you edit: no parts
+ * that clash, and every part snapped.
+ */
+function KartFitStatus({ state }: { state: KartFitCheckState }) {
+  const result =
+    state.status === "ready"
+      ? state.result
+      : state.status === "checking"
+        ? state.last
+        : null;
+  if (!result) {
+    return (
+      <p
+        className="border border-emerald-400/30 bg-emerald-400/10 p-3 text-sm text-emerald-100"
+        data-testid="kart-fit-status"
+        role="status"
+      >
+        Assembly is valid.{" "}
+        {state.status === "checking"
+          ? "Checking that its parts fit…"
+          : "Its parts are checked for clashes when you save."}
+      </p>
+    );
+  }
+  const { clashes, unsnapped } = result;
+  const fits = clashes.length === 0 && unsnapped === 0;
+  const problems = [
+    clashes.length > 0
+      ? `${clashes.length} ${clashes.length === 1 ? "clash" : "clashes"}`
+      : null,
+    unsnapped > 0
+      ? `${unsnapped} ${unsnapped === 1 ? "part" : "parts"} not snapped`
+      : null,
+  ].filter(Boolean);
+  return (
+    <div
+      aria-busy={state.status === "checking"}
+      className={`grid gap-2 border p-3 text-sm transition-opacity ${
+        fits
+          ? "border-emerald-400/30 bg-emerald-400/10 text-emerald-100"
+          : "border-titan-rust/50 bg-titan-rust/10 text-titan-ice"
+      } ${state.status === "checking" ? "opacity-60" : ""}`}
+      data-testid="kart-fit-status"
+      role="status"
+    >
+      <p>
+        {state.status === "checking"
+          ? "Checking that its parts fit…"
+          : fits
+            ? "Assembly is valid and its parts fit."
+            : `Can't be saved yet: ${problems.join(" and ")}.`}
+      </p>
+      {clashes.length > 0 ? (
+        <ul className="grid gap-1 text-xs">
+          {clashes.slice(0, 3).map((message) => (
+            <li className="border-l-2 border-titan-rust pl-2" key={message}>
+              {message}
+            </li>
+          ))}
+          {clashes.length > 3 ? (
+            <li className="pl-2 text-titan-muted">
+              and {clashes.length - 3} more
+            </li>
+          ) : null}
+        </ul>
+      ) : null}
     </div>
   );
 }

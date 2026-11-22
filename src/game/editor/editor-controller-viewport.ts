@@ -60,4 +60,6 @@ export type EditorControllerViewportHandle = {
     direction: EditorControllerDirection,
   ) => EditorControllerTranslationStep | null;
   selectAtCenter: () => void;
+  /** Whether the viewport lets parts be moved now, if it ever stops them. */
+  canEdit?: () => boolean;
 };

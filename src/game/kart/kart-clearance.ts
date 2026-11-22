@@ -1227,3 +1227,173 @@ function coiloverPoints({ shapes: [body, , eye] }: Coilover) {
     eye.center,
   ];
 }
+
+/**
+ * A pose to view the kart in, each axis from -1 to 1: wheel travel from full
+ * droop (-1) through rest (0) to full bump (1), and steering from full right
+ * lock (-1) to full left lock (1).
+ */
+export type KartViewPose = { steer: number; travel: number };
+
+export const KART_REST_POSE: KartViewPose = { steer: 0, travel: 0 };
+
+export type KartWheelViewPose = {
+  /** The kart's centre steering angle, in degrees (positive turns left). */
+  centerSteerDegrees: number;
+  /** This wheel's own steering angle, in degrees (0 if not steered). */
+  steerDegrees: number;
+  /** The hub above its rest height, in metres. */
+  travel: number;
+};
+
+/** Each wheel's travel and steering at a view pose, as races pose them. */
+export function getKartWheelViewPoses(
+  document: KartAssemblyDocument,
+  snapshot: DeepReadonly<ResolvedKartSnapshot>,
+  pose: KartViewPose,
+): Map<string, KartWheelViewPose> {
+  const { lock, stationOf, steerAt } = planPosing(document, snapshot);
+  const travel = Math.min(Math.max(pose.travel, -1), 1);
+  const centerSteerDegrees = Math.min(Math.max(pose.steer, -1), 1) * lock;
+  const poses = new Map<string, KartWheelViewPose>();
+  for (const [wheelId, station] of stationOf) {
+    const { maximumWheelTravel, restWheelCompression } = station.suspension;
+    poses.set(wheelId, {
+      centerSteerDegrees,
+      steerDegrees: station.steered
+        ? (steerAt(wheelId, centerSteerDegrees) * 180) / Math.PI
+        : 0,
+      travel:
+        travel >= 0
+          ? travel * (maximumWheelTravel - restWheelCompression)
+          : travel * restWheelCompression,
+    });
+  }
+  return poses;
+}
+
+/**
+ * Each instance's solids at one pose, as the builder draws it: wheels
+ * travel and steer, and coilovers follow their wheel, with their top
+ * connector where it stands at that travel (not swept through it).
+ */
+function poseSolids(
+  document: KartAssemblyDocument,
+  snapshot: DeepReadonly<ResolvedKartSnapshot>,
+  solids: Solid[],
+  pose: KartViewPose,
+): Solid[] {
+  const { coiloverAt, connectorAt, stationOf } = planPosing(document, snapshot);
+  const wheelPoses = getKartWheelViewPoses(document, snapshot, pose);
+  // The wheel each suspension carries, found as the drawn rig finds it.
+  const wheelOfSuspension = new Map(
+    [...wheelPoses.keys()].flatMap((wheelId) => {
+      const suspension = findWheelSuspension(document, wheelId);
+      return suspension ? [[suspension.id, wheelId] as const] : [];
+    }),
+  );
+  return solids.map((solid) => {
+    const station = stationOf.get(solid.instanceId);
+    const wheelPose = wheelPoses.get(solid.instanceId);
+    if (station && wheelPose && solid.shape.kind === "cylinder") {
+      const angle = (wheelPose.steerDegrees * Math.PI) / 180;
+      const turn = (vector: KartVector): KartVector => ({
+        x: vector.x * Math.cos(angle) + vector.z * Math.sin(angle),
+        y: vector.y,
+        z: -vector.x * Math.sin(angle) + vector.z * Math.cos(angle),
+      });
+      const place = (shape: Cylinder): Cylinder => ({
+        ...shape,
+        axis: turn(shape.axis),
+        center: addVector(
+          addVector(
+            station.position,
+            turn(subtractVector(shape.center, station.position)),
+          ),
+          { x: 0, y: wheelPose.travel, z: 0 },
+        ),
+      });
+      const shape = place(solid.shape);
+      return {
+        ...solid,
+        bounds: getConvexShapeBounds(shape),
+        mouth:
+          solid.mouth?.shape.kind === "cylinder"
+            ? { ...solid.mouth, shape: place(solid.mouth.shape) }
+            : solid.mouth,
+        shape,
+      };
+    }
+    const wheelId = wheelOfSuspension.get(solid.instanceId);
+    const travel = wheelId ? (wheelPoses.get(wheelId)?.travel ?? 0) : 0;
+    if (!solid.connector && !wheelId) return solid;
+    const connector = solid.connector
+      ? connectorAt(solid.instanceId, travel)
+      : [];
+    const shape = solid.connector
+      ? connector.length > 0
+        ? hullOf(connector)
+        : null
+      : coiloverAt(solid.instanceId, travel);
+    return shape ? { ...solid, bounds: getConvexShapeBounds(shape), shape } : solid;
+  });
+}
+
+const solidsByDocument = new WeakMap<KartAssemblyDocument, Solid[]>();
+
+function restSolids(
+  document: KartAssemblyDocument,
+  snapshot: DeepReadonly<ResolvedKartSnapshot>,
+) {
+  let solids = solidsByDocument.get(document);
+  if (!solids) {
+    solids = buildSolids(document, snapshot);
+    solidsByDocument.set(document, solids);
+  }
+  return solids;
+}
+
+/** Two solids measured as the clash check measures them. */
+function measureSolids(a: Solid, b: Solid) {
+  return measureConvexPair(
+    a.mouth?.suspensionId === b.instanceId ? a.mouth.shape : a.shape,
+    b.mouth?.suspensionId === a.instanceId ? b.mouth.shape : b.shape,
+  );
+}
+
+/**
+ * The gap between two parts at a view pose, measured on the shapes the clash
+ * check uses: the nearest points of each, and the distance between them
+ * (negative where they overlap). Null if either has no shape.
+ */
+export function measureKartPartGap(
+  document: KartAssemblyDocument,
+  snapshot: DeepReadonly<ResolvedKartSnapshot>,
+  firstId: string,
+  secondId: string,
+  pose: KartViewPose = KART_REST_POSE,
+): KartConvexMeasurement | null {
+  if (firstId === secondId) return null;
+  const solids = poseSolids(
+    document,
+    snapshot,
+    restSolids(document, snapshot).filter(
+      ({ instanceId }) => instanceId === firstId || instanceId === secondId,
+    ),
+    pose,
+  );
+  let nearest: KartConvexMeasurement | null = null;
+  for (const a of solids) {
+    if (a.instanceId !== firstId) continue;
+    for (const b of solids) {
+      if (b.instanceId !== secondId || a.heldBy === secondId || b.heldBy === firstId) {
+        continue;
+      }
+      const measurement = measureSolids(a, b);
+      if (!nearest || measurement.distance < nearest.distance) {
+        nearest = measurement;
+      }
+    }
+  }
+  return nearest;
+}

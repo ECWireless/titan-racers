@@ -139,6 +139,30 @@ async function getKartEditorInstanceVisualState(
   );
 }
 
+async function getKartEditorInstanceViewState(
+  canvas: Locator,
+  instanceId: string,
+) {
+  return canvas.evaluate(
+    (element, requestedInstanceId) =>
+      new Promise<{
+        ghosted: boolean;
+        gizmoAttached: boolean;
+        hubY: number | null;
+        linkagesShown: boolean | null;
+        position: { x: number; y: number; z: number };
+        steerDegrees: number | null;
+      } | null>((resolve) => {
+        element.dispatchEvent(
+          new CustomEvent("getKartEditorInstanceViewState", {
+            detail: { instanceId: requestedInstanceId, respond: resolve },
+          }),
+        );
+      }),
+    instanceId,
+  );
+}
+
 async function getKartEditorTranslateGizmoPoints(
   canvas: Locator,
   axis: "x" | "y" | "z",
@@ -332,9 +356,7 @@ test.describe("protected kart builder access", () => {
         "inert",
         "",
       );
-      await expect(
-        page.getByText("Assembly is valid and deterministically derived."),
-      ).toBeVisible();
+      await expect(page.getByTestId("kart-fit-status")).toBeVisible();
       await page.keyboard.press("Escape");
       await expect(inspectorButton).toBeFocused();
       expect(
@@ -400,9 +422,7 @@ test.describe("protected kart builder access", () => {
     );
     await page.getByRole("button", { name: "Attach to chassis-plate" }).click();
     await expect(viewport).toHaveAttribute("data-selection-validity", "valid");
-    await expect(
-      page.getByText("Assembly is valid and deterministically derived."),
-    ).toBeVisible();
+    await expect(page.getByTestId("kart-fit-status")).toBeVisible();
 
     await page
       .getByLabel("Kart and assembly")
@@ -1035,9 +1055,7 @@ test.describe("protected kart builder access", () => {
       .getByRole("group", { name: "Position (m)" })
       .getByLabel("x")
       .fill("0.01");
-    await expect(
-      page.getByText("Assembly is valid and deterministically derived."),
-    ).toBeVisible();
+    await expect(page.getByTestId("kart-fit-status")).toBeVisible();
     await expect(
       page.getByText(/cannot be published until PR 3.5/),
     ).toHaveCount(0);
@@ -1089,6 +1107,184 @@ test.describe("protected kart builder access", () => {
         .getByLabel("Kart and assembly")
         .getByRole("button", { name: /cylinder-guard-2/ }),
     ).toBeVisible();
+  });
+
+  test("explodes, poses, x-rays, and measures the kart for viewing only", async ({
+    page,
+  }, testInfo) => {
+    test.skip(
+      testInfo.project.name !== "desktop",
+      "The view controls only need to run once.",
+    );
+    const document = createBalancedKartDocument();
+    await page.route(kartApiPattern, async (route) => {
+      await route.fulfill({
+        body: JSON.stringify(createPersistedBalancedRevision(document)),
+        contentType: "application/json",
+        status: 200,
+      });
+    });
+    await page.goto("/admin/karts/balanced-kart");
+    const viewport = page.getByLabel("Kart assembly viewport");
+    await expect(viewport).toHaveAttribute("data-editor-status", "ready");
+    // The clash check runs in a worker once the kart loads.
+    await expect(page.getByTestId("kart-fit-status")).toContainText(
+      "Assembly is valid and its parts fit.",
+    );
+    const battery = await getKartEditorInstanceViewState(viewport, "battery-main");
+    const wheel = await getKartEditorInstanceViewState(
+      viewport,
+      "wheel-front-left",
+    );
+    await page
+      .getByRole("button", { name: /Standard battery/ })
+      .first()
+      .click();
+    await expect
+      .poll(async () =>
+        (await getKartEditorInstanceViewState(viewport, "battery-main"))!
+          .gizmoAttached,
+      )
+      .toBe(true);
+
+    // Explode pulls parts apart and stops editing and measuring.
+    await page.getByRole("radio", { name: "Explode" }).click();
+    await expect
+      .poll(async () =>
+        (await getKartEditorInstanceViewState(viewport, "battery-main"))!
+          .position.y - battery!.position.y,
+      )
+      .toBeGreaterThan(0.02);
+    await expect(page.getByRole("button", { name: "Move" })).toHaveAttribute(
+      "aria-disabled",
+      "true",
+    );
+    await expect(page.getByRole("button", { name: "Measure" })).toHaveAttribute(
+      "aria-disabled",
+      "true",
+    );
+    await expect
+      .poll(async () =>
+        (await getKartEditorInstanceViewState(viewport, "wheel-front-left"))!
+          .linkagesShown,
+      )
+      .toBe(false);
+    await page.getByLabel("How far apart").fill("0");
+    await expect
+      .poll(async () =>
+        (await getKartEditorInstanceViewState(viewport, "battery-main"))!
+          .position.y,
+      )
+      .toBeCloseTo(battery!.position.y, 9);
+    // Pushed back together, Explode still doesn't edit.
+    expect(
+      (await getKartEditorInstanceViewState(viewport, "battery-main"))!
+        .gizmoAttached,
+    ).toBe(false);
+    // An edit from the inspector shows on the kart as it stands, in Build.
+    await page.getByLabel("How far apart").fill("0.6");
+    // The battery slides a little along the plate.
+    const batteryX = page
+      .getByRole("group", { name: "Position (m)" })
+      .getByLabel("x");
+    await batteryX.fill(String(battery!.position.x + 0.002));
+    await batteryX.press("Enter");
+    await expect(page.getByRole("radio", { name: "Build" })).toHaveAttribute(
+      "aria-checked",
+      "true",
+    );
+
+    // Motion poses the wheels from the pad: up is bump, left steers left.
+    await page.getByRole("radio", { name: "Motion" }).click();
+    const pad = page.getByRole("group", { name: /Wheel travel and steering/ });
+    await pad.focus();
+    for (let step = 0; step < 5; step += 1) {
+      await page.keyboard.press("ArrowUp");
+      await page.keyboard.press("ArrowLeft");
+    }
+    await expect(page.getByTestId("kart-motion-readout")).toContainText(
+      /Bump \d+ mm\s*15° L/,
+    );
+    const posed = (await getKartEditorInstanceViewState(
+      viewport,
+      "wheel-front-left",
+    ))!;
+    expect(posed.hubY!).toBeGreaterThan(wheel!.hubY! + 0.005);
+    expect(posed.steerDegrees!).toBeGreaterThan(10);
+    expect(posed.linkagesShown).toBe(true);
+    await page.keyboard.press("Home");
+    await expect(page.getByTestId("kart-motion-readout")).toContainText(
+      /Rest\s*Straight/,
+    );
+
+    // Back in Build the wheels settle at rest and editing returns.
+    await page.getByRole("radio", { name: "Build" }).click();
+    await expect
+      .poll(async () =>
+        (await getKartEditorInstanceViewState(viewport, "wheel-front-left"))!
+          .hubY,
+      )
+      .toBeCloseTo(wheel!.hubY!, 9);
+    await expect(page.getByRole("button", { name: "Move" })).not.toHaveAttribute(
+      "aria-disabled",
+      "true",
+    );
+    await expect
+      .poll(async () =>
+        (await getKartEditorInstanceViewState(viewport, "battery-main"))!
+          .gizmoAttached,
+      )
+      .toBe(true);
+
+    // X-ray looks past all but the selection, and turns off cleanly.
+    await page.getByRole("button", { name: "X-ray" }).click();
+    expect(
+      (await getKartEditorInstanceViewState(viewport, "chassis-plate"))!.ghosted,
+    ).toBe(true);
+    expect(
+      (await getKartEditorInstanceViewState(viewport, "battery-main"))!.ghosted,
+    ).toBe(false);
+    await page.getByRole("button", { name: "X-ray" }).click();
+    expect(
+      (await getKartEditorInstanceViewState(viewport, "chassis-plate"))!.ghosted,
+    ).toBe(false);
+    await page.getByRole("button", { name: "X-ray" }).click();
+
+    // Measure reads the gap from the selection to a part chosen from a list.
+    await page.getByRole("button", { name: "Measure" }).click();
+    await expect(page.getByRole("button", { name: "Measure" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+    expect(
+      (await getKartEditorInstanceViewState(viewport, "transmission-main"))!
+        .ghosted,
+    ).toBe(true);
+    await page
+      .getByTestId("kart-measure-panel")
+      .getByLabel("Gap to")
+      .selectOption("transmission-main");
+    await expect(page.getByTestId("kart-measure-label")).toHaveText(/^\d+\.\d mm$/);
+    await expect(page.getByTestId("kart-measure-panel")).toContainText(
+      (await page.getByTestId("kart-measure-label").innerText()).trim(),
+    );
+    // X-ray leaves both measured parts solid.
+    expect(
+      (await getKartEditorInstanceViewState(viewport, "transmission-main"))!
+        .ghosted,
+    ).toBe(false);
+    expect(
+      (await getKartEditorInstanceViewState(viewport, "battery-main"))!.ghosted,
+    ).toBe(false);
+    // Escape clears the measured part, then leaves measuring.
+    await page.getByLabel("Kart assembly viewport").focus();
+    await page.keyboard.press("Escape");
+    await expect(page.getByTestId("kart-measure-label")).toBeHidden();
+    await page.keyboard.press("Escape");
+    await expect(page.getByRole("button", { name: "Measure" })).toHaveAttribute(
+      "aria-pressed",
+      "false",
+    );
   });
 
   test("loads the bundled official design as an undoable unsaved change", async ({
