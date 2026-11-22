@@ -29,14 +29,20 @@ import {
   getKartPartVisual,
 } from "../src/game/kart/kart-part-visuals";
 import { createSpeedKartDocument } from "../src/game/kart/speed-kart-document";
+import {
+  buildKartCablePieces,
+  planKartCables,
+} from "../src/game/kart/kart-wiring";
 
 const triangles = (pieces: KartPartVisualPiece[]) =>
   pieces.reduce((sum, piece) => sum + piece.indices.length / 3, 0);
 
-// docs/visual-identity.md: each kart within 28k triangles, so four karts in
-// a room hold the phone budget; each CAD part within 2,000.
-const KART_TRIANGLES = 28_000;
+// docs/visual-identity.md: each kart within 30k triangles, so four karts in
+// a room hold the phone budget; each CAD part, and each kart's cables,
+// within 2,000.
+const KART_TRIANGLES = 30_000;
 const CAD_PART_TRIANGLES = 2_000;
+const CABLE_TRIANGLES = 2_000;
 
 test("official karts stay within the per-kart triangle budget", () => {
   for (const document of [
@@ -81,6 +87,12 @@ test("official karts stay within the per-kart triangle budget", () => {
           triangles(buildSteeringArm(0.013, 0.024))) +
       linkages.driveshafts.length *
         (triangles(buildDogbone(0.1)) + triangles(buildAxleCup(0.07, 0.115)));
+    const cables = buildKartCablePieces(planKartCables(document));
+    expect(triangles(cables), document.kartId).toBeLessThanOrEqual(CABLE_TRIANGLES);
+    for (const piece of cables) {
+      expectWellFormed(piece, `${document.kartId} cables ${piece.finish}`);
+    }
+    total += triangles(cables);
     expect(total, document.kartId).toBeLessThanOrEqual(KART_TRIANGLES);
   }
 });

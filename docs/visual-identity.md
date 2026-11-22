@@ -307,7 +307,7 @@ rendering or adds per-frame work reports its measurements against it.
 | Frame time | 60 fps through a full two-lap race: median frame interval ≤ 17 ms, p95 ≤ 20 ms, at most 1 hitch over 50 ms after the countdown. |
 | CPU work per frame | Median ≤ 5 ms (fixed steps, update, and render submit). |
 | Draw calls | ≤ 250 per frame across all passes, and ≤ 30 per kart. |
-| Triangles | ≤ 28k per kart, counting its springs and arms, and ≤ 2,000 per CAD part (`tests/kart-visual-budget.spec.ts`). |
+| Triangles | ≤ 30k per kart, counting its springs, arms, and cables, with ≤ 2,000 per CAD part and ≤ 2,000 for its cables (`tests/kart-visual-budget.spec.ts`). |
 | Shadows | One shadow-casting light with one 2048² map holding two 1024² cascades, covering ≤ 60 m. PCF5 filtering on course lights, PCF3 elsewhere. |
 | Resolution | 1× device pixels with MSAA. |
 | Post-processing | None. |

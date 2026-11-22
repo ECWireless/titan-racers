@@ -275,6 +275,21 @@ function lidScrews(mesh: KartPartVisualPiece, x: number, z: number, y: number): 
   }
 }
 
+/**
+ * Where a wire leaves a part, in the part's frame, and the way it leaves (a
+ * unit vector). `plug` draws a plug housing over its first millimetres.
+ */
+export type KartPartLead = { direction: Vec3; plug?: true; position: Vec3 };
+
+/**
+ * A part's wires by functional port, in conductor order: a two-wire power
+ * lead's positive wire first.
+ */
+export type KartPartLeads = Readonly<Record<string, readonly KartPartLead[]>>;
+
+// The battery's two connector seats, on its lid at its +X end.
+const BATTERY_SEAT = { x: 0.04, y: 0.012, z: 0.009 };
+
 /** Hard-case pack with a sealed lid, molded ribs and recessed connector seats. */
 export function buildBatteryLipoStandardV1(): KartPartVisualPiece[] {
   const housing = piece("authored-polymer");
@@ -287,37 +302,75 @@ export function buildBatteryLipoStandardV1(): KartPartVisualPiece[] {
     box(housing, [x, 0.012, 0], [0.004, 0.001, 0.040]);
   }
   box(black, [-0.006, 0.012, 0], [0.030, 0.001, 0.023]);
-  for (const z of [-0.009, 0.009]) {
-    cylinder(black, "y", [0.040, 0.012, z], 0.0035, 0.002, 10, 0.002);
-    cylinder(contacts, "y", [0.040, 0.0115, z], 0.002, 0.001, 10, 0.001);
+  for (const z of [-BATTERY_SEAT.z, BATTERY_SEAT.z]) {
+    cylinder(black, "y", [BATTERY_SEAT.x, BATTERY_SEAT.y, z], 0.0035, 0.002, 10, 0.002);
+    cylinder(contacts, "y", [BATTERY_SEAT.x, BATTERY_SEAT.y - 0.0005, z], 0.002, 0.001, 10, 0.001);
   }
   return [housing, black, contacts];
 }
+
+/** The controller's leads plug into the battery's seats from above. */
+export const BATTERY_LIPO_STANDARD_V1_LEADS: KartPartLeads = {
+  power: [-1, 1].map((side) => ({
+    direction: [0, 1, 0],
+    plug: true,
+    position: [BATTERY_SEAT.x, BATTERY_SEAT.y + 0.001, side * BATTERY_SEAT.z],
+  })),
+};
+
+// The controller's base tray, and its row of receiver plugs on top.
+const ESC_BASE = { size: [0.052, 0.006, 0.038] as Vec3, y: -0.009 };
+const ESC_PLUG = { size: 0.007, x: [-0.015, -0.005, 0.005, 0.015], y: 0.005, z: 0.0145 };
+// Each power wire's spacing where it leaves the tray.
+const POWER_WIRE_PITCH = 0.0045;
 
 /** Low receiver/ESC tray with an extruded heatsink and protected plugs. */
 export function buildReceiverEscStandardV1(): KartPartVisualPiece[] {
   const housing = piece("authored-polymer");
   const sink = piece("bare-aluminum");
   const plugs = piece("black-polymer");
-  caseBox(housing, [0, -0.009, 0], [0.052, 0.006, 0.038]);
+  caseBox(housing, [0, ESC_BASE.y, 0], ESC_BASE.size);
   caseBox(housing, [0, -0.002, 0], [0.048, 0.008, 0.034]);
   box(sink, [0, 0.003, -0.002], [0.042, 0.002, 0.027]);
   for (let i = -3; i <= 3; i++) {
     box(sink, [i * 0.006, 0.0075, -0.002], [0.002, 0.007, 0.027]);
   }
-  for (const x of [-0.015, -0.005, 0.005, 0.015]) {
-    box(plugs, [x, 0.005, 0.0145], [0.007, 0.006, 0.007]);
+  for (const x of ESC_PLUG.x) {
+    box(plugs, [x, ESC_PLUG.y, ESC_PLUG.z], [ESC_PLUG.size, 0.006, ESC_PLUG.size]);
     box(housing, [x, 0.0085, 0.017], [0.004, 0.001, 0.003]);
   }
   return [housing, sink, plugs];
 }
+
+/**
+ * Battery wires leave the tray's front, motor wires its back, and the
+ * steering and brake leads plug into the first two receiver plugs.
+ */
+export const RECEIVER_ESC_STANDARD_V1_LEADS: KartPartLeads = (() => {
+  const tray = (x: number, side: -1 | 1): KartPartLead => ({
+    direction: [0, 0, side],
+    position: [x, ESC_BASE.y, (side * ESC_BASE.size[2]) / 2],
+  });
+  const plug = (x: number): KartPartLead => ({
+    direction: [0, 0, 1],
+    position: [x, ESC_PLUG.y, ESC_PLUG.z + ESC_PLUG.size / 2],
+  });
+  return {
+    "battery-input": [-0.016, -0.016 + POWER_WIRE_PITCH].map((x) => tray(x, -1)),
+    "brake-output": [plug(ESC_PLUG.x[1])],
+    "motor-output": [0, 1, 2].map((n) => tray(0.009 + n * POWER_WIRE_PITCH, 1)),
+    "steering-output": [plug(ESC_PLUG.x[0])],
+  };
+})();
+
+const BRAKE_CASE = { size: [0.052, 0.015, 0.034] as Vec3, y: -0.0015 };
 
 /** Sealed actuator block; four service outlets and one rear handbrake outlet. */
 export function buildBrakesCombinedStandardV1(): KartPartVisualPiece[] {
   const housing = piece("authored-anodized");
   const steel = piece("bare-steel");
   const black = piece("black-oxide-steel");
-  caseBox(housing, [0, -0.0015, 0], [0.052, 0.015, 0.034]);
+  caseBox(housing, [0, BRAKE_CASE.y, 0], BRAKE_CASE.size);
   caseBox(black, [0, 0.0065, 0], [0.050, 0.001, 0.033]);
   caseBox(housing, [0, 0.0075, 0], [0.050, 0.001, 0.033]);
   lidScrews(black, 0.021, 0.012, 0.0085);
@@ -329,6 +382,13 @@ export function buildBrakesCombinedStandardV1(): KartPartVisualPiece[] {
   cylinder(steel, "z", [0, -0.001, 0.018], 0.003, 0.004, 6, 0.0015);
   return [housing, steel, black];
 }
+
+/** Its control lead leaves the middle of its +X side. */
+export const BRAKES_COMBINED_STANDARD_V1_LEADS: KartPartLeads = {
+  "control-input": [
+    { direction: [1, 0, 0], position: [BRAKE_CASE.size[0] / 2, BRAKE_CASE.y, 0] },
+  ],
+};
 
 export type KartCoiloverVisual = {
   /**

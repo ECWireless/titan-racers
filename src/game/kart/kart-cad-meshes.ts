@@ -32,7 +32,9 @@ export type KartCadMesh = {
   measured: { centerOfMass: number[]; massKg: number } | null;
   /**
    * Named points, in micrometres: where the kart's linkages meet the part,
-   * and `mount-<id>` for each of its registry mounting points.
+   * `mount-<id>` for each of its registry mounting points, and
+   * `lead-<port>-<n>` where a wire leaves it, followed by the unit
+   * direction it leaves in (scaled like the position).
    */
   points: Record<string, number[]>;
   pieces: KartCadPiece[];

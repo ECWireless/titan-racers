@@ -132,6 +132,15 @@ def tabs():
     return solids
 
 
+TAB_TIP = REAR_FACE + TAB_BLOCK_SIZE[2] + TAB_SIZE[2]
+
+# Each phase wire is soldered 1 mm from its tab's tip and leaves along the tab.
+POINTS = {
+    f"lead-power-input-{n}": (index * TAB_SPACING, TAB_HEIGHT, TAB_TIP - 0.001, 0, 0, 1)
+    for n, index in enumerate((-1, 0, 1), start=1)
+}
+
+
 def build():
     return {
         "black-oxide-steel": sleeve(),

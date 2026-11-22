@@ -1,15 +1,26 @@
 import type { KartAssemblyPrimitiveInstance } from "./kart-assembly-document";
-import { buildCadPieces, KART_CAD_MESHES } from "./kart-cad-meshes";
+import {
+  buildCadPieces,
+  getKartCadMesh,
+  KART_CAD_MESHES,
+  type KartCadMesh,
+} from "./kart-cad-meshes";
 import type { ApprovedComponentDefinition } from "./kart-component-registry";
 import type { DeepReadonly } from "./immutable-registry";
 import {
+  BATTERY_LIPO_STANDARD_V1_LEADS,
+  BRAKES_COMBINED_STANDARD_V1_LEADS,
   buildBatteryLipoStandardV1,
   buildBrakesCombinedStandardV1,
   buildCoilover,
   buildReceiverEscStandardV1,
   buildWheelTire,
+  RECEIVER_ESC_STANDARD_V1_LEADS,
   type KartCoiloverVisual,
+  type KartPartLead,
+  type KartPartLeads,
   type KartPartVisualPiece,
+  type Vec3,
 } from "./kart-part-visual-geometry";
 import {
   buildPrimitiveVisual,
@@ -96,6 +107,50 @@ export const KART_PART_VISUALS: Readonly<Record<string, KartPartVisual>> = {
 
 export function getKartPartVisual(reference: { id: string; version: number }) {
   return KART_PART_VISUALS[`${reference.id}@${reference.version}`] ?? null;
+}
+
+// Code-built parts' wires; both versions of each look the same.
+const CODE_BUILT_LEADS: Readonly<Record<string, KartPartLeads>> = {
+  "battery.lipo-standard": BATTERY_LIPO_STANDARD_V1_LEADS,
+  "brakes.combined-standard": BRAKES_COMBINED_STANDARD_V1_LEADS,
+  "control.receiver-esc-standard": RECEIVER_ESC_STANDARD_V1_LEADS,
+};
+
+/**
+ * Where each of a part version's wires leaves it, by functional port: from
+ * its code-built visual, or from its CAD mesh's `lead-<port>-<n>` points
+ * (each a position and the way the wire leaves). Presentation only.
+ */
+export function getKartPartLeads(reference: {
+  id: string;
+  version: number;
+}): KartPartLeads | null {
+  const cad = getKartCadMesh(reference);
+  if (cad) return getCadLeads(cad);
+  return getKartPartVisual(reference) ? CODE_BUILT_LEADS[reference.id] ?? null : null;
+}
+
+const cadLeads = new WeakMap<KartCadMesh, KartPartLeads | null>();
+
+function getCadLeads(mesh: KartCadMesh): KartPartLeads | null {
+  if (cadLeads.has(mesh)) return cadLeads.get(mesh)!;
+  const leads: Record<string, KartPartLead[]> = {};
+  for (const [name, values] of Object.entries(mesh.points)) {
+    const match = /^lead-(.+)-(\d+)$/.exec(name);
+    if (!match) continue;
+    const [x, y, z, dx, dy, dz] = values.map((value) => value / 1_000_000);
+    (leads[match[1]] ??= [])[Number(match[2]) - 1] = {
+      direction: [dx, dy, dz] as Vec3,
+      position: [x, y, z],
+    };
+  }
+  // A port whose wires aren't numbered 1, 2, … without a gap has none.
+  for (const [port, wires] of Object.entries(leads)) {
+    if (Object.keys(wires).length !== wires.length) delete leads[port];
+  }
+  const result = Object.keys(leads).length > 0 ? leads : null;
+  cadLeads.set(mesh, result);
+  return result;
 }
 
 /** The finish a construction material takes when it carries authored color. */

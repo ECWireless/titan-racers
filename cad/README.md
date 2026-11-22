@@ -46,7 +46,11 @@ One module per approved part version in `cad/parts/`, named after it
   where the kart's linkages meet the part: the servo's `horn-pivot` and
   `horn-ball-left`/`-right`, a transmission's `output-left`/`-right`. A part
   with mounting points also names each one `mount-<id>`; the registry's
-  mounting points are tested against them.
+  mounting points are tested against them. Where a wire leaves the part,
+  `lead-<port>-<n>` names the `n`th wire of a functional port (from 1) with
+  six numbers: its position, then the unit direction it leaves in (the
+  motor's `lead-power-input-1` to `-3`, the servo's
+  `lead-control-input-1`).
 
 A module whose name starts with an underscore is shared code, not a part:
 `_shapes.py` (turned profiles and gears), `_laydown_gearbox.py` (the three

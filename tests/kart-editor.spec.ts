@@ -146,6 +146,7 @@ async function getKartEditorInstanceViewState(
   return canvas.evaluate(
     (element, requestedInstanceId) =>
       new Promise<{
+        cablesShown: boolean | null;
         ghosted: boolean;
         gizmoAttached: boolean;
         hubY: number | null;
@@ -1169,6 +1170,10 @@ test.describe("protected kart builder access", () => {
           .linkagesShown,
       )
       .toBe(false);
+    expect(
+      (await getKartEditorInstanceViewState(viewport, "battery-main"))!
+        .cablesShown,
+    ).toBe(false);
     await page.getByLabel("How far apart").fill("0");
     await expect
       .poll(async () =>
@@ -1176,6 +1181,10 @@ test.describe("protected kart builder access", () => {
           .position.y,
       )
       .toBeCloseTo(battery!.position.y, 9);
+    expect(
+      (await getKartEditorInstanceViewState(viewport, "battery-main"))!
+        .cablesShown,
+    ).toBe(true);
     // Pushed back together, Explode still doesn't edit.
     expect(
       (await getKartEditorInstanceViewState(viewport, "battery-main"))!
