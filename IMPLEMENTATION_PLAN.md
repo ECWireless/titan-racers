@@ -18,9 +18,9 @@ accepted; the app, README, and durable docs take over from there.
 - **Done:** Phases 0–6 (PRs #1–#24, the Phase 3 closeout and its
   follow-ups, #30–#57 with the PR 4.5.2 closeout, #59–#63, and #64–#70
   with the Phase 6 closeout), the Phase 6 addendum (#71–#76), and PRs 7.1
-  (#77) and 7.2 (#78).
-- **Now:** [Phase 7](#phase-7-cad-assembly-and-kart-royalties), PR 7.2.1.
-- **Next:** PR 7.3 after its debrief.
+  (#77), 7.2 (#78), and 7.2.1 (#79).
+- **Now:** [Phase 7](#phase-7-cad-assembly-and-kart-royalties), PR 7.3.
+- **Next:** Phase 7's integration review, then Phase 8 after its debrief.
 
 ## Guiding Decisions
 
@@ -429,21 +429,41 @@ and published again from the admin roster.
 After merge, the official karts' thumbnails are captured again at the new
 render version from the admin roster.
 
-**PR 7.3: Assembler credit and royalties**
+**PR 7.3: Scores and royalties**
 
-- [ ] Each published kart revision records its assembler and license terms:
-      whether others may race and remix it, and a payment type of
-      attribution or free.
-- [ ] A server-owned ledger counts races, room uses, and remixes for each
-      published kart, computed from the race results and kart revisions that
-      Phases 5 and 6 record, with no new telemetry. Kart cards and assembler
-      profiles show it.
-- [ ] Official karts come first; community karts and remixes join in Phase 9.
+- [ ] One standard kart licence, shaped like an RSL licence and fixed in
+      code: every published kart may be raced and remixed, and pays a fee
+      of the "use" kind, 10% of the points earned with it. Players never
+      choose terms or see them; a change to the fee applies to every
+      score from then on.
+- [ ] Points come only from time-trial standings: on each official
+      course's current board (its live revision under the current physics),
+      ranked by total time as the leaderboard ranks, the top 20 earn 300,
+      250, 210, 180, and 160, then 150 for 6th down by 10 a place to 10 for
+      20th. Fastest laps, older boards, and multiplayer earn nothing. Points
+      follow the live standings, so they can be lost, and a course's new
+      board starts its points again from zero.
+- [ ] The racer keeps 90% and the kart's assembler gets 10%. An official
+      kart's share goes to Titan Racers, which has no account and is not on
+      the score board, so players' royalties start with community karts.
+- [ ] Scores are worked out on each read from each racer's best per board,
+      with no stored ledger, new telemetry, or migration. Responses name
+      usernames only.
+- [ ] Players see a "score". The leaderboard opens on a score board (rank,
+      racer, score; no medals, which stay with race results), with a course
+      selector that opens a course's race leaderboard as it is today; old
+      board links still work. The profile shows your score, and each kart
+      card what the kart has earned in royalties.
+- [ ] Claude Fable 5.2 and Codex `gpt-6.2-astra` each design the score board
+      and course selector on the same seeded scores, with a stand-in second
+      course, and the lead picks one blind.
 
 **Done when:** a rebuilt part shows on every kart that uses it without changing
 any derived stats, within the phone budget; karts assemble by mounting points
 with clearance checks, and older revisions still race unchanged; and each
-published kart shows its assembler, license, and usage, with nothing paid out.
+published kart credits its assembler and shows what it has earned, and the
+leaderboard ranks racers by score, with nothing paid out. Phase 7's
+integration review runs before the phase closes.
 
 References (concepts, not dependencies):
 
@@ -494,9 +514,10 @@ Publishing is immediate, with no approval queue.
 - [ ] A racer kept in one browser that owns a kart can't be brought into
       another (PR 6.3): decide whether a merge moves its karts.
 - [ ] Players assemble with Phase 7's CAD-style tools.
-- [ ] Players remix a published kart whose license allows it: the draft starts
-      from that revision, and the published remix credits the original
-      assembler and links its source revision.
+- [ ] Players remix any published kart: the draft starts from that
+      revision, and the published remix credits the original assembler and
+      links its source revision. Decide whether a remix passes part of its
+      royalty back to the original's assembler.
 - [ ] Debrief speed-carrying drifts: a handbrake drift should flow on out of
       the corner, but sliding asphalt grip scrubs most of the speed. Options
       to weigh: a drift tire with lower sliding grip, a wheel-spin model, or
@@ -516,8 +537,12 @@ Publishing is immediate, with no approval queue.
 - [ ] Public catalog that clearly separates official and community karts.
 - [ ] Anyone can race any published community kart in casual modes.
 - [ ] Players can bring a published community kart into a private room.
-- [ ] Community karts' races, room uses, and remixes count in the Phase 7
-      ledger.
+- [ ] Decide how community karts earn points: they race casually and never
+      reach a leaderboard, so under PR 7.3's scores their assemblers earn
+      nothing. Also decide how the royalty splits once part engineers share
+      it, and how a share too small to split rounds.
+- [ ] Public racer pages, linked from the score board, and each score
+      board row split into racing and royalties.
 - [ ] Admins feature or safety-unpublish karts without changing stats,
       eligibility, history, or audit data. Unpublished karts leave discovery
       and guest play.
