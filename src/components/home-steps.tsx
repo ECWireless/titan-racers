@@ -27,8 +27,8 @@ export type HomeKart = {
   thumbnailSource: string | null;
 };
 
-/** A course's picture for the course choice, captured from the game. */
-const COURSE_THUMBNAILS: Partial<Record<string, string>> = {
+/** A course's picture wherever it is chosen, captured from the game. */
+export const COURSE_THUMBNAILS: Partial<Record<string, string>> = {
   [FALLS_VIEW_PARK_COURSE_ID]: "/images/courses/falls-view-park.webp",
 };
 
@@ -231,7 +231,7 @@ export function HomeStartStep({
           href="/leaderboard"
         >
           <MenuItemContent
-            detail="Best times and ghosts to race"
+            detail="High scores, best times, and ghosts to race"
             icon={<LeaderboardIcon className={MENU_ICON} />}
             id="home-leaderboard"
             label="Leaderboard"

@@ -22,6 +22,9 @@ const heldRunSchema = z.strictObject({
   // newest layout's run waits, even on a board kept across publications.
   // Missing on runs held before this was named, which any new run replaces.
   board: z.string().min(1).optional(),
+  // The course it raced, whose board says what became of it. Missing on
+  // runs held before this was named, which all raced Falls View Park.
+  courseId: z.string().min(1).optional(),
   expiresAt: z.number().int().positive(),
   recording: z.string().min(1),
   ticket: z.string().min(1),
@@ -31,10 +34,12 @@ type HeldRun = z.infer<typeof heldRunSchema>;
 
 const heldRunNoteSchema = z.discriminatedUnion("status", [
   verifiedStandingSchema.extend({
+    courseId: z.string().min(1).optional(),
     status: z.literal("verified"),
     timeMicroseconds: microsecondsSchema,
   }),
   z.strictObject({
+    courseId: z.string().min(1).optional(),
     status: z.enum(["expired", "rejected", "unavailable"]),
     timeMicroseconds: microsecondsSchema,
   }),
@@ -44,6 +49,7 @@ export type HeldRunNote = z.infer<typeof heldRunNoteSchema>;
 
 /** Why a held run is still waiting after an attempt to send it. */
 export type HeldRunWait = {
+  courseId?: string;
   reason: "failed" | "login" | "username";
   timeMicroseconds: number;
 };
@@ -130,28 +136,30 @@ function noteOutcome(
   run: HeldRun,
   sent: RunSubmissionResponse | { httpStatus: number },
 ): HeldRunNote | HeldRunWait | null {
-  const { timeMicroseconds } = run;
+  // Left out when unknown, so the note stays readable once stored.
+  const about = {
+    ...(run.courseId ? { courseId: run.courseId } : {}),
+    timeMicroseconds: run.timeMicroseconds,
+  };
   if ("status" in sent) {
-    if (sent.status === "rejected") {
-      return { status: "rejected", timeMicroseconds };
-    }
+    if (sent.status === "rejected") return { ...about, status: "rejected" };
     const { entries, personalBest, rank } = sent;
-    return { entries, personalBest, rank, status: "verified", timeMicroseconds };
+    return { ...about, entries, personalBest, rank, status: "verified" };
   }
   switch (sent.httpStatus) {
     case 401:
-      return { reason: "login", timeMicroseconds };
+      return { ...about, reason: "login" };
     case 428:
-      return { reason: "username", timeMicroseconds };
+      return { ...about, reason: "username" };
     case 400:
-      return { status: "expired", timeMicroseconds };
+      return { ...about, status: "expired" };
     // Already on the board, from another tab.
     case 409:
       return null;
     case 422:
-      return { status: "unavailable", timeMicroseconds };
+      return { ...about, status: "unavailable" };
     default:
-      return { reason: "failed", timeMicroseconds };
+      return { ...about, reason: "failed" };
   }
 }
 

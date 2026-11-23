@@ -46,12 +46,20 @@ course versions' boards stay to look at, read-only.
   change gets a new picture past preview caches.
 - `src/app/api/runs/tickets/route.ts`, `src/app/api/runs/route.ts`,
   `src/app/api/leaderboards/[courseId]/route.ts`, and its `ghost/route.ts`.
+- `src/game/race/scores.ts`, `src/server/scores.ts`, and
+  `src/app/api/scores/route.ts`: scores, worked out on each read from the
+  top 20 of each course's current board, and the score board's contract.
 - `src/app/leaderboard/page.tsx` and `src/components/leaderboard-view.tsx`:
   the page, linked from home's first screen and menu, and the result
-  screen, with each row's Race and Copy link buttons for that racer's ghost
+  screen. It opens on the score board (`src/components/score-board.tsx`),
+  and `src/components/course-selector.tsx` opens each course's board
+  (`?course=<id>`, built by `src/lib/leaderboard-path.ts`), with each
+  row's Race and Copy link buttons for that racer's ghost
   ([ghosts](../ghosts/README.md)), and the Course versions list. The page's
   controller and arrow-key navigation belongs to
   [editor controller input](../editor-controller-input/README.md).
+- `src/components/held-run-status.tsx`: what became of a kept run, on its
+  course's board and on the score board.
 - `src/components/medal-icon.tsx`: the podium medal on rows and results.
 - `src/components/run-standing.tsx`: the result screen's standing, or its
   prompt to sign in or choose a username.
@@ -83,8 +91,9 @@ course versions' boards stay to look at, read-only.
    device instead (the fastest such run wins), and the result asks the
    player to sign in or choose a username. Starting a racer on this browser
    counts as signing in. It is sent once their account is complete, after any sign-in or onboarding, or when they open
-   `/leaderboard`, which sends it before loading the board and says what
-   became of it.
+   `/leaderboard`, which sends it before loading the scores or a board, and
+   says what became of it on the score board and on its own course's
+   current board.
 3. The server reads the ticket (signature, expiry, and the same racer, or
    any signed-in racer with a username for a ticket naming none), decodes
    the recording strictly, checks it against that course revision's stored
@@ -99,9 +108,19 @@ course versions' boards stay to look at, read-only.
    personal best, and the racer's username, which the result screen shows
    with the medal for a
    top-three rank.
-5. `/leaderboard` shows the official course's current board: the board its
-   newest published revision races on under the current physics, the top 50
-   bests with their karts, and the viewer's own rank if they are lower.
+5. `/leaderboard` opens on the score board: every account with a score,
+   ranked (equal scores share a rank), without medals. A signed-in viewer's
+   score sits above the list, takes them to their own row, and shows a
+   score of 0. The course selector lists the score board and then each
+   course from `GET /api/scores`, under its picture where home has one, and
+   only rewrites the address. The result screen and a kept run's sign-in
+   open the raced course's board instead.
+6. `/leaderboard?course=<id>` shows that course's current board: the board
+   its newest published revision races on under the current physics, the
+   top 50 bests with their karts, and the viewer's own rank if they are
+   lower. A link naming only `?board=` or `?sort=` opens Falls View Park's,
+   as links made before the score board did; one naming a course without a
+   leaderboard shows the scores.
    Fastest lap (`?sort=lap`, switched on the page without reloading) ranks
    the same best races by their fastest lap; each row shows the other time
    below. A
@@ -147,9 +166,11 @@ course versions' boards stay to look at, read-only.
   its podium, fastest laps and their ranking, boards kept and started
   across publications and their numbers, earlier boards, a ghost link's
   standing and preview, and anonymization against Postgres.
-- `tests/leaderboard.spec.ts`: the page, its podium, the Fastest lap
-  ranking, its empty state,
-  sending a kept run, and the Course versions list.
+- `tests/leaderboard.spec.ts`: the score board and the viewer's place on
+  it, the course selector by touch, keys, and controller, links made
+  before the score board, a course's board with its podium, Fastest lap
+  ranking, and empty state, sending a kept run, and the Course versions
+  list.
 - `tests/social-card.spec.ts`: the preview tags, including the head that
   link-preview crawlers read, and the card.
 - `tests/held-run.spec.ts`: which run the device keeps, and blocked storage.

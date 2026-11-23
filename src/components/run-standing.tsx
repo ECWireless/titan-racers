@@ -6,6 +6,7 @@ import {
   ANONYMOUS_START_FAILURES,
   continueAnonymously,
 } from "@/lib/browser-racer";
+import { courseBoardPath } from "@/lib/leaderboard-path";
 import { racerOnboardingPath } from "@/lib/racer-username";
 import { MedalIcon } from "@/components/medal-icon";
 import { OrDivider } from "@/components/or-divider";
@@ -36,11 +37,9 @@ const NOTES = {
   rejected: "This run could not be verified.",
 };
 
-const HELD_RUN_PATH = racerOnboardingPath("/leaderboard");
-
 // Instead of signing in, a guest can start a racer kept in this browser;
 // choosing a username then puts the waiting run on the board.
-function ContinueAnonymously() {
+function ContinueAnonymously({ heldRunPath }: { heldRunPath: string }) {
   const router = useRouter();
   const [pending, setPending] = useState(false);
   const [failure, setFailure] = useState<string | null>(null);
@@ -49,7 +48,7 @@ function ContinueAnonymously() {
     setFailure(null);
     const started = await continueAnonymously();
     if (started === "started") {
-      router.push(HELD_RUN_PATH);
+      router.push(heldRunPath);
       return;
     }
     setFailure(ANONYMOUS_START_FAILURES[started]);
@@ -100,13 +99,18 @@ function StandingRow({
 
 /**
  * Always rendered while the result is open, so screen readers announce the
- * standing when it fills in.
+ * standing when it fills in. Its links open the raced course's board, where
+ * a waiting run is sent and its outcome shown.
  */
 export function RunStandingSummary({
+  courseId,
   standing,
 }: {
+  courseId: string;
   standing: RunStanding | null;
 }) {
+  const boardPath = courseBoardPath(courseId);
+  const heldRunPath = racerOnboardingPath(boardPath);
   let content: React.ReactNode = null;
   if (standing?.status === "verified") {
     const medal = medalForRank(standing.rank);
@@ -131,7 +135,7 @@ export function RunStandingSummary({
         </dl>
         <Link
           className="justify-self-center text-xs font-bold uppercase tracking-[0.16em] text-titan-hazard underline-offset-4 hover:underline"
-          href="/leaderboard"
+          href={boardPath}
         >
           View leaderboard
         </Link>
@@ -156,10 +160,12 @@ export function RunStandingSummary({
             minute: "2-digit",
           })}
         </p>
-        <Link className="titan-button titan-button-primary" href={HELD_RUN_PATH}>
+        <Link className="titan-button titan-button-primary" href={heldRunPath}>
           {standing.reason === "login" ? "Sign in" : "Choose username"}
         </Link>
-        {standing.reason === "login" ? <ContinueAnonymously /> : null}
+        {standing.reason === "login" ? (
+          <ContinueAnonymously heldRunPath={heldRunPath} />
+        ) : null}
       </div>
     );
   } else if (standing) {

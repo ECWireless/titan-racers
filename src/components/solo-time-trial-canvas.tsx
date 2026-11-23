@@ -3971,6 +3971,7 @@ export function SoloTimeTrialCanvas({
                 const { courseId, courseRevision } = raceIdentityRef.current;
                 const held = holdRun({
                   board: `${courseId}:${courseRevision}:${CURRENT_PHYSICS_VERSION}`,
+                  courseId,
                   expiresAt: outcome.expiresAt,
                   recording: encodeRunRecording(recording),
                   ticket: outcome.ticket,
@@ -5191,7 +5192,10 @@ export function SoloTimeTrialCanvas({
                     </li>
                   ))}
                 </ol>
-                <RunStandingSummary standing={runStanding} />
+                <RunStandingSummary
+                  courseId={courseDocument.courseId}
+                  standing={runStanding}
+                />
                 <div className="grid gap-3">
                   <button
                     type="button"

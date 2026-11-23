@@ -19,6 +19,7 @@ import {
 import { z } from "zod";
 
 import { OrDivider } from "@/components/or-divider";
+import { ProfileScore } from "@/components/profile-score";
 import { useControllerMenuNavigation } from "@/game/input/use-controller-menu-navigation";
 import { sendHeldRun } from "@/game/race/held-run";
 import {
@@ -1199,6 +1200,7 @@ export function ProfileAccess({
                 @{profileState.username}
               </p>
             </div>
+            {mode === "profile" ? <ProfileScore /> : null}
             {mode === "profile" ? (
               <section
                 aria-labelledby="login-methods-heading"

@@ -1,0 +1,576 @@
+{
+ "scores": {
+  "courses": [
+   {
+    "courseId": "falls-view-park",
+    "courseName": "Falls View Park"
+   },
+   {
+    "courseId": "second-course",
+    "courseName": "Second Course"
+   }
+  ],
+  "entries": [
+   {
+    "rank": 1,
+    "score": 495,
+    "username": "mossbank",
+    "viewer": false
+   },
+   {
+    "rank": 1,
+    "score": 495,
+    "username": "quick_racer",
+    "viewer": false
+   },
+   {
+    "rank": 3,
+    "score": 378,
+    "username": "lowgear_lu",
+    "viewer": false
+   },
+   {
+    "rank": 4,
+    "score": 270,
+    "username": "drift_owl",
+    "viewer": false
+   },
+   {
+    "rank": 5,
+    "score": 171,
+    "username": "rc_rosa",
+    "viewer": false
+   },
+   {
+    "rank": 6,
+    "score": 162,
+    "username": "fresh_finn",
+    "viewer": false
+   },
+   {
+    "rank": 7,
+    "score": 144,
+    "username": "levee_lou",
+    "viewer": false
+   },
+   {
+    "rank": 7,
+    "score": 144,
+    "username": "pitlane_pia",
+    "viewer": false
+   },
+   {
+    "rank": 9,
+    "score": 135,
+    "username": "chicane_chi",
+    "viewer": false
+   },
+   {
+    "rank": 9,
+    "score": 135,
+    "username": "torque_tom",
+    "viewer": false
+   },
+   {
+    "rank": 11,
+    "score": 126,
+    "username": "kerb_kat",
+    "viewer": false
+   },
+   {
+    "rank": 11,
+    "score": 126,
+    "username": "spur_sam",
+    "viewer": false
+   },
+   {
+    "rank": 11,
+    "score": 126,
+    "username": "steady_racer",
+    "viewer": true
+   },
+   {
+    "rank": 14,
+    "score": 117,
+    "username": "apex_ari",
+    "viewer": false
+   },
+   {
+    "rank": 14,
+    "score": 117,
+    "username": "ditch_dan",
+    "viewer": false
+   },
+   {
+    "rank": 16,
+    "score": 108,
+    "username": "coil_cora",
+    "viewer": false
+   },
+   {
+    "rank": 16,
+    "score": 108,
+    "username": "gearbox_gus",
+    "viewer": false
+   },
+   {
+    "rank": 18,
+    "score": 99,
+    "username": "slipstream",
+    "viewer": false
+   },
+   {
+    "rank": 19,
+    "score": 81,
+    "username": "tight_line",
+    "viewer": false
+   },
+   {
+    "rank": 20,
+    "score": 72,
+    "username": "bumper_bo",
+    "viewer": false
+   },
+   {
+    "rank": 21,
+    "score": 63,
+    "username": "hairpin_hal",
+    "viewer": false
+   },
+   {
+    "rank": 22,
+    "score": 54,
+    "username": "late_brake",
+    "viewer": false
+   },
+   {
+    "rank": 23,
+    "score": 45,
+    "username": "throttle_tia",
+    "viewer": false
+   },
+   {
+    "rank": 24,
+    "score": 36,
+    "username": "gravel_gil",
+    "viewer": false
+   },
+   {
+    "rank": 25,
+    "score": 9,
+    "username": "pinion_pete",
+    "viewer": false
+   }
+  ],
+  "karts": [
+   {
+    "kartId": "balanced-kart",
+    "royalties": 145
+   },
+   {
+    "kartId": "speed-kart",
+    "royalties": 149
+   },
+   {
+    "kartId": "handling-kart",
+    "royalties": 130
+   }
+  ],
+  "viewer": {
+   "rank": 11,
+   "score": 126
+  }
+ },
+ "scoresGuest": {
+  "courses": [
+   {
+    "courseId": "falls-view-park",
+    "courseName": "Falls View Park"
+   },
+   {
+    "courseId": "second-course",
+    "courseName": "Second Course"
+   }
+  ],
+  "entries": [
+   {
+    "rank": 1,
+    "score": 495,
+    "username": "mossbank",
+    "viewer": false
+   },
+   {
+    "rank": 1,
+    "score": 495,
+    "username": "quick_racer",
+    "viewer": false
+   },
+   {
+    "rank": 3,
+    "score": 378,
+    "username": "lowgear_lu",
+    "viewer": false
+   },
+   {
+    "rank": 4,
+    "score": 270,
+    "username": "drift_owl",
+    "viewer": false
+   },
+   {
+    "rank": 5,
+    "score": 171,
+    "username": "rc_rosa",
+    "viewer": false
+   },
+   {
+    "rank": 6,
+    "score": 162,
+    "username": "fresh_finn",
+    "viewer": false
+   },
+   {
+    "rank": 7,
+    "score": 144,
+    "username": "levee_lou",
+    "viewer": false
+   },
+   {
+    "rank": 7,
+    "score": 144,
+    "username": "pitlane_pia",
+    "viewer": false
+   },
+   {
+    "rank": 9,
+    "score": 135,
+    "username": "chicane_chi",
+    "viewer": false
+   },
+   {
+    "rank": 9,
+    "score": 135,
+    "username": "torque_tom",
+    "viewer": false
+   },
+   {
+    "rank": 11,
+    "score": 126,
+    "username": "kerb_kat",
+    "viewer": false
+   },
+   {
+    "rank": 11,
+    "score": 126,
+    "username": "spur_sam",
+    "viewer": false
+   },
+   {
+    "rank": 11,
+    "score": 126,
+    "username": "steady_racer",
+    "viewer": false
+   },
+   {
+    "rank": 14,
+    "score": 117,
+    "username": "apex_ari",
+    "viewer": false
+   },
+   {
+    "rank": 14,
+    "score": 117,
+    "username": "ditch_dan",
+    "viewer": false
+   },
+   {
+    "rank": 16,
+    "score": 108,
+    "username": "coil_cora",
+    "viewer": false
+   },
+   {
+    "rank": 16,
+    "score": 108,
+    "username": "gearbox_gus",
+    "viewer": false
+   },
+   {
+    "rank": 18,
+    "score": 99,
+    "username": "slipstream",
+    "viewer": false
+   },
+   {
+    "rank": 19,
+    "score": 81,
+    "username": "tight_line",
+    "viewer": false
+   },
+   {
+    "rank": 20,
+    "score": 72,
+    "username": "bumper_bo",
+    "viewer": false
+   },
+   {
+    "rank": 21,
+    "score": 63,
+    "username": "hairpin_hal",
+    "viewer": false
+   },
+   {
+    "rank": 22,
+    "score": 54,
+    "username": "late_brake",
+    "viewer": false
+   },
+   {
+    "rank": 23,
+    "score": 45,
+    "username": "throttle_tia",
+    "viewer": false
+   },
+   {
+    "rank": 24,
+    "score": 36,
+    "username": "gravel_gil",
+    "viewer": false
+   },
+   {
+    "rank": 25,
+    "score": 9,
+    "username": "pinion_pete",
+    "viewer": false
+   }
+  ],
+  "karts": [
+   {
+    "kartId": "balanced-kart",
+    "royalties": 145
+   },
+   {
+    "kartId": "speed-kart",
+    "royalties": 149
+   },
+   {
+    "kartId": "handling-kart",
+    "royalties": 130
+   }
+  ],
+  "viewer": null
+ },
+ "scoresEmpty": {
+  "courses": [
+   {
+    "courseId": "falls-view-park",
+    "courseName": "Falls View Park"
+   },
+   {
+    "courseId": "second-course",
+    "courseName": "Second Course"
+   }
+  ],
+  "entries": [],
+  "karts": [
+   {
+    "kartId": "balanced-kart",
+    "royalties": 0
+   },
+   {
+    "kartId": "speed-kart",
+    "royalties": 0
+   },
+   {
+    "kartId": "handling-kart",
+    "royalties": 0
+   }
+  ],
+  "viewer": {
+   "rank": null,
+   "score": 0
+  }
+ },
+ "scoresSignedInZero": {
+  "courses": [
+   {
+    "courseId": "falls-view-park",
+    "courseName": "Falls View Park"
+   },
+   {
+    "courseId": "second-course",
+    "courseName": "Second Course"
+   }
+  ],
+  "entries": [
+   {
+    "rank": 1,
+    "score": 495,
+    "username": "mossbank",
+    "viewer": false
+   },
+   {
+    "rank": 1,
+    "score": 495,
+    "username": "quick_racer",
+    "viewer": false
+   },
+   {
+    "rank": 3,
+    "score": 378,
+    "username": "lowgear_lu",
+    "viewer": false
+   },
+   {
+    "rank": 4,
+    "score": 270,
+    "username": "drift_owl",
+    "viewer": false
+   },
+   {
+    "rank": 5,
+    "score": 171,
+    "username": "rc_rosa",
+    "viewer": false
+   },
+   {
+    "rank": 6,
+    "score": 162,
+    "username": "fresh_finn",
+    "viewer": false
+   },
+   {
+    "rank": 7,
+    "score": 144,
+    "username": "levee_lou",
+    "viewer": false
+   },
+   {
+    "rank": 7,
+    "score": 144,
+    "username": "pitlane_pia",
+    "viewer": false
+   },
+   {
+    "rank": 9,
+    "score": 135,
+    "username": "chicane_chi",
+    "viewer": false
+   },
+   {
+    "rank": 9,
+    "score": 135,
+    "username": "torque_tom",
+    "viewer": false
+   },
+   {
+    "rank": 11,
+    "score": 126,
+    "username": "kerb_kat",
+    "viewer": false
+   },
+   {
+    "rank": 11,
+    "score": 126,
+    "username": "spur_sam",
+    "viewer": false
+   },
+   {
+    "rank": 11,
+    "score": 126,
+    "username": "steady_racer",
+    "viewer": false
+   },
+   {
+    "rank": 14,
+    "score": 117,
+    "username": "apex_ari",
+    "viewer": false
+   },
+   {
+    "rank": 14,
+    "score": 117,
+    "username": "ditch_dan",
+    "viewer": false
+   },
+   {
+    "rank": 16,
+    "score": 108,
+    "username": "coil_cora",
+    "viewer": false
+   },
+   {
+    "rank": 16,
+    "score": 108,
+    "username": "gearbox_gus",
+    "viewer": false
+   },
+   {
+    "rank": 18,
+    "score": 99,
+    "username": "slipstream",
+    "viewer": false
+   },
+   {
+    "rank": 19,
+    "score": 81,
+    "username": "tight_line",
+    "viewer": false
+   },
+   {
+    "rank": 20,
+    "score": 72,
+    "username": "bumper_bo",
+    "viewer": false
+   },
+   {
+    "rank": 21,
+    "score": 63,
+    "username": "hairpin_hal",
+    "viewer": false
+   },
+   {
+    "rank": 22,
+    "score": 54,
+    "username": "late_brake",
+    "viewer": false
+   },
+   {
+    "rank": 23,
+    "score": 45,
+    "username": "throttle_tia",
+    "viewer": false
+   },
+   {
+    "rank": 24,
+    "score": 36,
+    "username": "gravel_gil",
+    "viewer": false
+   },
+   {
+    "rank": 25,
+    "score": 9,
+    "username": "pinion_pete",
+    "viewer": false
+   }
+  ],
+  "karts": [
+   {
+    "kartId": "balanced-kart",
+    "royalties": 145
+   },
+   {
+    "kartId": "speed-kart",
+    "royalties": 149
+   },
+   {
+    "kartId": "handling-kart",
+    "royalties": 130
+   }
+  ],
+  "viewer": {
+   "rank": null,
+   "score": 0
+  }
+ }
+}
