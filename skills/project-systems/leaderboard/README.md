@@ -1,14 +1,15 @@
 # Leaderboard System
 
-**Maturity:** Validated (PRs 5.1–5.5 and 6.0, 2026-11-03).
+**Maturity:** Validated (PRs 5.1–5.5 and 6.0, 2026-11-03; scores, PR 7.3,
+2026-11-23).
 
 ## Purpose And Scope
 
 How a logged-in racer's run becomes a verified result: signed run tickets,
 the server's check of the run's ghost recording, results and their fastest
 laps, each racer's best and its ghost per board, the leaderboard page ranked
-by total time or fastest lap with podium medals, and the standing on the
-result screen. Runs are verified, not
+by total time or fastest lap with podium medals, the standing on the
+result screen, and scores. Runs are verified, not
 cheat-proof: a forged recording that obeys the checks still passes.
 
 The recording format and recorder belong to [ghosts](../ghosts/README.md),
@@ -49,6 +50,14 @@ course versions' boards stay to look at, read-only.
 - `src/game/race/scores.ts`, `src/server/scores.ts`, and
   `src/app/api/scores/route.ts`: scores, worked out on each read from the
   top 20 of each course's current board, and the score board's contract.
+  The top 20 by total time earn 300, 250, 210, 180, 160, then 150 down by
+  10 to 10; the racer keeps 90% and the kart's assembler gets 10%, the
+  "use" payment of `STANDARD_KART_LICENCE` (shaped like an RSL licence,
+  never shown to players). Official karts' share goes to Titan Racers,
+  which has no account, so it shows nowhere. Players see a "score", always
+  as a noun; never "points" or "royalties".
+- `src/lib/scores-client.ts` and `src/components/profile-score.tsx`: the
+  profile's score, read after any kept run is sent.
 - `src/app/leaderboard/page.tsx` and `src/components/leaderboard-view.tsx`:
   the page, linked from home's first screen and menu, and the result
   screen. It opens on the score board (`src/components/score-board.tsx`),
@@ -108,12 +117,12 @@ course versions' boards stay to look at, read-only.
    personal best, and the racer's username, which the result screen shows
    with the medal for a
    top-three rank.
-5. `/leaderboard` opens on the score board: every account with a score,
-   ranked (equal scores share a rank), without medals. A signed-in viewer's
-   score sits above the list, takes them to their own row, and shows a
-   score of 0. The course selector lists the score board and then each
-   course from `GET /api/scores`, under its picture where home has one, and
-   only rewrites the address. The result screen and a kept run's sign-in
+5. `/leaderboard` opens on the score board, titled High scores: every
+   account with a score, ranked (equal scores share a rank), without
+   medals. A signed-in viewer's score sits above the list, takes them to
+   their own row, and shows a score of 0. The course selector lists the
+   score board and then each course from `GET /api/scores`, under its
+   picture where home has one, and only rewrites the address. The result screen and a kept run's sign-in
    open the raced course's board instead.
 6. `/leaderboard?course=<id>` shows that course's current board: the board
    its newest published revision races on under the current physics, the

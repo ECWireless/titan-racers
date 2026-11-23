@@ -431,39 +431,42 @@ render version from the admin roster.
 
 **PR 7.3: Scores and royalties**
 
-- [ ] One standard kart licence, shaped like an RSL licence and fixed in
+- [x] One standard kart licence, shaped like an RSL licence and fixed in
       code: every published kart may be raced and remixed, and pays a fee
       of the "use" kind, 10% of the points earned with it. Players never
       choose terms or see them; a change to the fee applies to every
       score from then on.
-- [ ] Points come only from time-trial standings: on each official
+- [x] Points come only from time-trial standings: on each official
       course's current board (its live revision under the current physics),
       ranked by total time as the leaderboard ranks, the top 20 earn 300,
       250, 210, 180, and 160, then 150 for 6th down by 10 a place to 10 for
       20th. Fastest laps, older boards, and multiplayer earn nothing. Points
       follow the live standings, so they can be lost, and a course's new
       board starts its points again from zero.
-- [ ] The racer keeps 90% and the kart's assembler gets 10%. An official
+- [x] The racer keeps 90% and the kart's assembler gets 10%. An official
       kart's share goes to Titan Racers, which has no account and is not on
       the score board, so players' royalties start with community karts.
-- [ ] Scores are worked out on each read from each racer's best per board,
+- [x] Scores are worked out on each read from each racer's best per board,
       with no stored ledger, new telemetry, or migration. Responses name
       usernames only.
-- [ ] Players see a "score". The leaderboard opens on a score board (rank,
-      racer, score; no medals, which stay with race results), with a course
-      selector that opens a course's race leaderboard as it is today; old
-      board links still work. The profile shows your score, and each kart
-      card what the kart has earned in royalties.
-- [ ] Claude Fable 5.2 and Codex `gpt-6.2-astra` each design the score board
-      and course selector on the same seeded scores, with a stand-in second
-      course, and the lead picks one blind.
+- [x] Players see a "score", always as a noun. The leaderboard opens on
+      High scores (rank, username, score; no medals, which stay with race
+      results), with a row of courses under their pictures that opens a
+      course's race leaderboard as it was (`?course=<id>`); old board links
+      still open Falls View Park's. A run kept from before signing in
+      records its course and lands on that course's board. The profile
+      shows your score. Kart cards show no earnings: an official kart's
+      share goes to Titan Racers, which players never see earning.
+- [x] Claude Fable 5.2 and Codex `gpt-6.2-astra` each designed the score
+      board and course selector on the same seeded scores, with a stand-in
+      second course, and the lead picked Fable 5.2's blind.
 
 **Done when:** a rebuilt part shows on every kart that uses it without changing
 any derived stats, within the phone budget; karts assemble by mounting points
 with clearance checks, and older revisions still race unchanged; and each
-published kart credits its assembler and shows what it has earned, and the
-leaderboard ranks racers by score, with nothing paid out. Phase 7's
-integration review runs before the phase closes.
+published kart credits its assembler and earns it a share of the points
+raced with it, and the leaderboard ranks racers by score, with nothing paid
+out. Phase 7's integration review runs before the phase closes.
 
 References (concepts, not dependencies):
 
@@ -493,7 +496,9 @@ Park's rural parkland and Phase 10's city.
       axis, to change.
 - [ ] Remove rough-course and Falls View Park assumptions from shared race
       systems while keeping official-course selection and recovery working,
-      and let a room's host pick either official course.
+      and let a room's host pick either official course. A course board's
+      Race and Copy link ghost buttons must name its course; today they
+      assume Falls View Park.
 
 **Done when:** the second course is published, races two laps solo and in a
 room, has its own leaderboard, and holds the phone budget.
@@ -542,7 +547,8 @@ Publishing is immediate, with no approval queue.
       nothing. Also decide how the royalty splits once part engineers share
       it, and how a share too small to split rounds.
 - [ ] Public racer pages, linked from the score board, and each score
-      board row split into racing and royalties.
+      board row split into racing and royalties. Kart cards show what a
+      community kart has earned its assembler.
 - [ ] Admins feature or safety-unpublish karts without changing stats,
       eligibility, history, or audit data. Unpublished karts leave discovery
       and guest play.
