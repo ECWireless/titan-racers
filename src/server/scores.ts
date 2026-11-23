@@ -7,7 +7,7 @@ import { CURRENT_PHYSICS_VERSION } from "@/game/physics/physics-version";
 import {
   pointsForPlace,
   SCORING_PLACES,
-  type ScoreBoardResponse,
+  type ScoreBoard,
   splitPoints,
 } from "@/game/race/scores";
 import { loadLatestPublishedRevision } from "@/server/course-repository";
@@ -26,7 +26,7 @@ export async function loadScoreBoard(
     courseIds = LEADERBOARD_COURSE_IDS,
     kartIds = OFFICIAL_KART_IDS,
   }: { courseIds?: readonly string[]; kartIds?: readonly string[] } = {},
-): Promise<ScoreBoardResponse> {
+): Promise<ScoreBoard> {
   const courses = (
     await Promise.all(
       courseIds.map(async (courseId) => {

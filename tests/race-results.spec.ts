@@ -987,7 +987,7 @@ test.describe("verified runs", () => {
       loadScoreBoard(racers[0].id, {
         courseIds: [first.courseId, second.courseId],
         kartIds: [first.kartId, second.kartId],
-      }).then((response) => scoreBoardResponseSchema.parse(response));
+      });
     const usernames = new Map(
       (
         await db
@@ -1029,7 +1029,8 @@ test.describe("verified runs", () => {
       { kartId: second.kartId, royalties: 30 + 25 },
     ]);
 
-    // The route says whose score it is, never stored by a cache.
+    // The route says whose score it is, never stored by a cache, and its
+    // strict contract leaves out what karts earn.
     for (const [headers, viewer] of [
       [new Headers(), null],
       [racers[0].headers, expect.any(Object)],

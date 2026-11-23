@@ -162,20 +162,6 @@
     "viewer": false
    }
   ],
-  "karts": [
-   {
-    "kartId": "balanced-kart",
-    "royalties": 145
-   },
-   {
-    "kartId": "speed-kart",
-    "royalties": 149
-   },
-   {
-    "kartId": "handling-kart",
-    "royalties": 130
-   }
-  ],
   "viewer": {
    "rank": 11,
    "score": 126
@@ -344,20 +330,6 @@
     "viewer": false
    }
   ],
-  "karts": [
-   {
-    "kartId": "balanced-kart",
-    "royalties": 145
-   },
-   {
-    "kartId": "speed-kart",
-    "royalties": 149
-   },
-   {
-    "kartId": "handling-kart",
-    "royalties": 130
-   }
-  ],
   "viewer": null
  },
  "scoresEmpty": {
@@ -372,20 +344,6 @@
    }
   ],
   "entries": [],
-  "karts": [
-   {
-    "kartId": "balanced-kart",
-    "royalties": 0
-   },
-   {
-    "kartId": "speed-kart",
-    "royalties": 0
-   },
-   {
-    "kartId": "handling-kart",
-    "royalties": 0
-   }
-  ],
   "viewer": {
    "rank": null,
    "score": 0
@@ -552,20 +510,6 @@
     "score": 9,
     "username": "pinion_pete",
     "viewer": false
-   }
-  ],
-  "karts": [
-   {
-    "kartId": "balanced-kart",
-    "royalties": 145
-   },
-   {
-    "kartId": "speed-kart",
-    "royalties": 149
-   },
-   {
-    "kartId": "handling-kart",
-    "royalties": 130
    }
   ],
   "viewer": {

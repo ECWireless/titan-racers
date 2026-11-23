@@ -37,8 +37,8 @@ const scoreSchema = z.number().int().nonnegative();
 
 /**
  * Every racer with a score, ranked (equal scores share a rank), the
- * viewer's own score if signed in, the courses whose boards score, and what
- * each official kart has earned in royalties.
+ * viewer's own score if signed in, and the courses whose boards count.
+ * What karts earn their assemblers stays on the server.
  */
 export const scoreBoardResponseSchema = z.strictObject({
   courses: z.array(
@@ -52,7 +52,6 @@ export const scoreBoardResponseSchema = z.strictObject({
       viewer: z.boolean(),
     }),
   ),
-  karts: z.array(z.strictObject({ kartId: z.string(), royalties: scoreSchema })),
   // Null for a guest; a rank only with a score.
   viewer: z
     .strictObject({
@@ -62,3 +61,8 @@ export const scoreBoardResponseSchema = z.strictObject({
     .nullable(),
 });
 export type ScoreBoardResponse = z.infer<typeof scoreBoardResponseSchema>;
+
+/** The score board, with what each official kart has earned its assembler. */
+export type ScoreBoard = ScoreBoardResponse & {
+  karts: { kartId: string; royalties: number }[];
+};

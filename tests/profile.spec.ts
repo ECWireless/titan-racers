@@ -218,7 +218,6 @@ test.describe("racer onboarding and profile", () => {
             { courseId: "falls-view-park", courseName: "Falls View Park" },
           ],
           entries: [],
-          karts: [],
           viewer: { rank: null, score: 0 },
         },
       }),
@@ -253,7 +252,7 @@ test.describe("racer onboarding and profile", () => {
     let viewer: { rank: number | null; score: number } = { rank: 4, score: 189 };
     await page.route("**/api/scores", (route) =>
       route.fulfill({
-        json: { courses: [], entries: [], karts: [], viewer },
+        json: { courses: [], entries: [], viewer },
       }),
     );
 
@@ -314,7 +313,6 @@ test.describe("racer onboarding and profile", () => {
         json: {
           courses: [],
           entries: [],
-          karts: [],
           viewer: sent ? { rank: 2, score: 225 } : { rank: null, score: 0 },
         },
       }),
@@ -567,6 +565,55 @@ test.describe("racer onboarding and profile", () => {
     );
     expect(order).toEqual(["DELETE", "POST"]);
     expect(cancels).toBe(1);
+  });
+
+  test("shows the other account's score once a passkey brings this one into it", async ({
+    page,
+  }) => {
+    await stubPasskeys(page);
+    let merged = false;
+    await page.route(profileApiPattern, (route) =>
+      route.fulfill({
+        json: merged
+          ? {
+              loginMethods: [{ id: "passkey-1", kind: "passkey", label: "Passkey" }],
+              status: "complete",
+              username: "elliott",
+            }
+          : { loginMethods: [], status: "complete", username: "nova_racer" },
+      }),
+    );
+    await page.route("**/api/profile/merge", (route) => route.fulfill({ status: 204 }));
+    await page.route("**/api/auth/passkey/generate-authenticate-options", (route) =>
+      route.fulfill({
+        json: { challenge: "AQID", rpId: "127.0.0.1", userVerification: "preferred" },
+      }),
+    );
+    await page.route("**/api/auth/passkey/verify-authentication", (route) => {
+      merged = true;
+      return route.fulfill({ json: {} });
+    });
+    await page.route("**/api/scores", (route) =>
+      route.fulfill({
+        json: {
+          courses: [],
+          entries: [],
+          viewer: merged ? { rank: 1, score: 495 } : { rank: 3, score: 189 },
+        },
+      }),
+    );
+
+    await page.goto("/profile");
+    const score = page.getByRole("region", { name: "Your score" });
+    await expect(score).toContainText("Rank 3");
+    await page.getByRole("button", { name: "Bring @nova_racer into it" }).click();
+    await page
+      .getByRole("group", { name: "Bring @nova_racer into your other account?" })
+      .getByRole("button", { name: "Continue with a passkey" })
+      .click();
+    await expect(page.getByText("@nova_racer is now part of @elliott.")).toBeVisible();
+    await expect(score).toContainText("Rank 1");
+    await expect(score).toContainText("495");
   });
 
   test("says nothing was brought together when the Google sign-in can't start", async ({

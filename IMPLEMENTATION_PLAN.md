@@ -544,8 +544,10 @@ Publishing is immediate, with no approval queue.
 - [ ] Players can bring a published community kart into a private room.
 - [ ] Decide how community karts earn points: they race casually and never
       reach a leaderboard, so under PR 7.3's scores their assemblers earn
-      nothing. Also decide how the royalty splits once part engineers share
-      it, and how a share too small to split rounds.
+      nothing. Scores count only official karts' shares today, so a
+      community kart's share must go to its assembler's score. Also decide
+      how the royalty splits once part engineers share it, and how a share
+      too small to split rounds.
 - [ ] Public racer pages, linked from the score board, and each score
       board row split into racing and royalties. Kart cards show what a
       community kart has earned its assembler.

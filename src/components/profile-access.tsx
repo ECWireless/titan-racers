@@ -433,6 +433,8 @@ export function ProfileAccess({
   const [unlinkPending, setUnlinkPending] = useState<string | null>(null);
   const [confirmingSignOut, setConfirmingSignOut] = useState(false);
   const [confirmingMerge, setConfirmingMerge] = useState(false);
+  // Bumped to read the score again once the account it belongs to changes.
+  const [scoreReads, setScoreReads] = useState(0);
   const methodChangePending = signInPending !== null || unlinkPending !== null;
   const walletPending =
     signInPending !== null &&
@@ -534,6 +536,8 @@ export function ProfileAccess({
   async function finishMerge(broughtIn: string) {
     const nextState = await loadProfile();
     setProfileState(nextState);
+    // The score shown may have been the account just brought in.
+    setScoreReads((reads) => reads + 1);
     const merged = mergeOutcome(nextState, broughtIn);
     setFeedback(merged);
     if (merged?.kind === "success") {
@@ -1200,7 +1204,7 @@ export function ProfileAccess({
                 @{profileState.username}
               </p>
             </div>
-            {mode === "profile" ? <ProfileScore /> : null}
+            {mode === "profile" ? <ProfileScore key={scoreReads} /> : null}
             {mode === "profile" ? (
               <section
                 aria-labelledby="login-methods-heading"
