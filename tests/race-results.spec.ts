@@ -1,10 +1,11 @@
 import { randomUUID } from "node:crypto";
 
 import { expect, test } from "@playwright/test";
-import { eq } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
 
 import { GET as getGhost } from "../src/app/api/leaderboards/[courseId]/ghost/route";
 import { POST as postRun } from "../src/app/api/runs/route";
+import { GET as getScores } from "../src/app/api/scores/route";
 import { postRunTicket } from "../src/app/api/runs/tickets/route";
 import { db } from "../src/db/client";
 import {
@@ -39,6 +40,11 @@ import {
 import { leaderboardResponseSchema } from "../src/game/race/leaderboard";
 import { medalForRank } from "../src/game/race/race-medals";
 import { formatRaceTime } from "../src/game/race/race-presentation";
+import {
+  pointsForPlace,
+  scoreBoardResponseSchema,
+  splitPoints,
+} from "../src/game/race/scores";
 import { parseGhostRecord } from "../src/game/ghost/device-ghost";
 import {
   loadBoardGhost,
@@ -50,6 +56,7 @@ import {
 import { drawSocialCard } from "../src/app/social-card/card";
 import { ghostLinkMetadata } from "../src/lib/social-metadata";
 import { issueRunTicket, readRunTicket } from "../src/server/run-tickets";
+import { loadScoreBoard } from "../src/server/scores";
 import { anonymizeUserByEmail } from "../src/server/user-anonymization";
 import { recordRace, routeThroughGates } from "./support/race-recording";
 import { testAuth } from "./support/test-auth";
@@ -925,5 +932,132 @@ test.describe("verified runs", () => {
       (await loadLeaderboard(board.courseId, first.id, earlier[0].number))
         ?.board?.viewer,
     ).toMatchObject({ rank: 1 });
+  });
+
+  test("scores the top 20 on each current board, 10% to the kart", async () => {
+    // Every place's points, splitting 90/10 into whole numbers.
+    const places = Array.from({ length: 21 }, (_, index) => index + 1);
+    expect(places.map(pointsForPlace)).toEqual([
+      300, 250, 210, 180, 160, 150, 140, 130, 120, 110, 100, 90, 80, 70, 60,
+      50, 40, 30, 20, 10, 0,
+    ]);
+    for (const place of places) {
+      const points = pointsForPlace(place);
+      expect(splitPoints(points)).toEqual({
+        assembler: points / 10,
+        racer: points - points / 10,
+      });
+    }
+
+    const [first, second] = [await publishedBoard(), await publishedBoard()];
+    const ghost = Buffer.from(encodeGhostTrace(race(10).samples));
+    const run = (
+      board: typeof first,
+      userId: string,
+      seconds: number,
+      lapSeconds = seconds / 2,
+    ) =>
+      recordRunSubmission(readRunTicket(board.ticket(userId))!, userId, {
+        fastestLapMicroseconds: lapSeconds * 1e6,
+        ghost,
+        timeMicroseconds: seconds * 1e6,
+        verified: true,
+      });
+    // 21 racers on the first board, 61 s for 1st down to 80 s for 20th; the
+    // 21st ties 20th's time later, with a faster lap, and scores nothing:
+    // places follow total time, then who set it first.
+    const racers: Awaited<ReturnType<typeof racer>>[] = [];
+    while (racers.length < places.length) racers.push(await racer());
+    for (const [index, { id }] of racers.entries()) {
+      await run(first, id, 60 + Math.min(index + 1, 20), index === 20 ? 20 : 40);
+    }
+    await db
+      .update(boardBests)
+      .set({ achievedAt: new Date("2026-01-01T00:00:00Z") })
+      .where(eq(boardBests.userId, racers[19].id));
+    await db
+      .update(boardBests)
+      .set({ achievedAt: new Date("2026-01-01T00:00:01Z") })
+      .where(eq(boardBests.userId, racers[20].id));
+    // On the second, its 1st wins again and another racer takes 2nd.
+    const tied = await racer();
+    await run(second, racers[0].id, 70);
+    await run(second, tied.id, 71);
+    const scores = () =>
+      loadScoreBoard(racers[0].id, {
+        courseIds: [first.courseId, second.courseId],
+        kartIds: [first.kartId, second.kartId],
+      }).then((response) => scoreBoardResponseSchema.parse(response));
+    const usernames = new Map(
+      (
+        await db
+          .select({ id: users.id, username: users.username })
+          .from(users)
+          .where(inArray(users.id, [...racers, tied].map(({ id }) => id)))
+      ).map(({ id, username }) => [id, username!]),
+    );
+    const row = (id: string, rank: number, score: number, viewer = false) => ({
+      rank,
+      score,
+      username: usernames.get(id),
+      viewer,
+    });
+
+    const board = await scores();
+    expect(board.courses.map(({ courseId }) => courseId)).toEqual([
+      first.courseId,
+      second.courseId,
+    ]);
+    // 1st on both boards earns 270 twice; 2nd on either earns 225, and
+    // equal scores share a rank, listed by username.
+    expect(board.entries.slice(0, 4)).toEqual([
+      row(racers[0].id, 1, 540, true),
+      ...[row(racers[1].id, 2, 225), row(tied.id, 2, 225)].sort((left, right) =>
+        left.username! < right.username! ? -1 : 1,
+      ),
+      row(racers[2].id, 4, 189),
+    ]);
+    // 20th earns 9, and 21st nothing.
+    expect(board.entries).toHaveLength(21);
+    expect(board.entries.at(-1)).toEqual(row(racers[19].id, 21, 9));
+    expect(board.entries.map(({ username }) => username)).not.toContain(
+      usernames.get(racers[20].id),
+    );
+    expect(board.viewer).toEqual({ rank: 1, score: 540 });
+    expect(board.karts).toEqual([
+      { kartId: first.kartId, royalties: 230 },
+      { kartId: second.kartId, royalties: 30 + 25 },
+    ]);
+
+    // The route says whose score it is, never stored by a cache.
+    for (const [headers, viewer] of [
+      [new Headers(), null],
+      [racers[0].headers, expect.any(Object)],
+    ] as const) {
+      const response = await getScores(
+        new Request(`${ORIGIN}/api/scores`, { headers }),
+      );
+      expect(response.headers.get("cache-control")).toBe("no-store");
+      expect(scoreBoardResponseSchema.parse(await response.json()).viewer).toEqual(
+        viewer,
+      );
+    }
+
+    // A guest has no score of their own; a racer without one scores zero.
+    const outside = await racer();
+    expect((await loadScoreBoard(null, { courseIds: [first.courseId] })).viewer).toBeNull();
+    expect(
+      (await loadScoreBoard(outside.id, { courseIds: [first.courseId] })).viewer,
+    ).toEqual({ rank: null, score: 0 });
+
+    // A new board on the first course starts its points again from zero.
+    await publishNext(first, true);
+    const reset = await scores();
+    expect(reset.entries).toEqual([
+      row(racers[0].id, 1, 270, true),
+      row(tied.id, 2, 225),
+    ]);
+    expect(reset.courses).toHaveLength(2);
+    expect(reset.karts[0]).toEqual({ kartId: first.kartId, royalties: 0 });
   });
 });
