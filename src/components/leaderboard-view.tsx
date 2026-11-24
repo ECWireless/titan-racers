@@ -16,13 +16,17 @@ import { useControllerMenuNavigation } from "@/game/input/use-controller-menu-na
 import {
   type LeaderboardResponse,
   leaderboardResponseSchema,
+  parseBoardNumber,
 } from "@/game/race/leaderboard";
 import { medalForRank } from "@/game/race/race-medals";
 import { formatRaceTime } from "@/game/race/race-presentation";
-import { racerOnboardingPath } from "@/lib/racer-username";
+import { courseBoardPath, SCORE_BOARD_PATH } from "@/lib/leaderboard-path";
+import { fetchScores } from "@/lib/scores-client";
 import { copyLink, ghostLinkUrl, copyNoteFor } from "@/lib/share-link";
 
 import { ActionHint } from "./action-hint";
+import { CourseSelector } from "./course-selector";
+import { HeldRunStatus } from "./held-run-status";
 import { HomeBackdrop } from "./home-steps";
 import { MedalIcon } from "./medal-icon";
 import {
@@ -32,26 +36,29 @@ import {
   CourseVersionsIcon,
   RaceGhostIcon,
 } from "./menu-icons";
+import { ScoreBoard, type ScoresState } from "./score-board";
 
 type BoardState =
   | { status: "loading" }
-  // An earlier board this link names no longer has times to show.
+  // The course has no leaderboard, or the earlier board this link names
+  // no longer has times to show.
   | { status: "missing" }
   | { status: "unavailable" }
   | { leaderboard: LeaderboardResponse; status: "ready" };
 
-/** The current board when null, or an earlier one by its number. */
-async function loadBoard(boardNumber: number | null): Promise<BoardState> {
+/** A course's current board when null, or an earlier one by its number. */
+async function loadBoard(
+  courseId: string,
+  boardNumber: number | null,
+): Promise<BoardState> {
   try {
     const response = await fetch(
-      `/api/leaderboards/${FALLS_VIEW_PARK_COURSE_ID}${
+      `/api/leaderboards/${encodeURIComponent(courseId)}${
         boardNumber === null ? "" : `?board=${boardNumber}`
       }`,
       { cache: "no-store" },
     );
-    if (response.status === 404 && boardNumber !== null) {
-      return { status: "missing" };
-    }
+    if (response.status === 404) return { status: "missing" };
     if (!response.ok) return { status: "unavailable" };
     return {
       leaderboard: leaderboardResponseSchema.parse(await response.json()),
@@ -62,16 +69,17 @@ async function loadBoard(boardNumber: number | null): Promise<BoardState> {
   }
 }
 
-const time = (microseconds: number) => formatRaceTime(microseconds, 3);
-
-/** A board's page, current when `number` is null, ranked by lap or time. */
-function boardHref(number: number | null, byLap: boolean) {
-  const query = new URLSearchParams();
-  if (number !== null) query.set("board", String(number));
-  if (byLap) query.set("sort", "lap");
-  const search = query.toString();
-  return search ? `/leaderboard?${search}` : "/leaderboard";
+async function loadScores(): Promise<ScoresState> {
+  const scores = await fetchScores();
+  return scores ? { scores, status: "ready" } : { status: "unavailable" };
 }
+
+// Offered before the scores name the courses, and if they cannot be loaded.
+const KNOWN_COURSES = [
+  { courseId: FALLS_VIEW_PARK_COURSE_ID, courseName: "Falls View Park" },
+];
+
+const time = (microseconds: number) => formatRaceTime(microseconds, 3);
 
 const RANKINGS = [
   { byLap: false, label: "Total time" },
@@ -95,81 +103,52 @@ function timesSetBetween(board: LeaderboardResponse["earlier"][number]) {
 const rowActionClass =
   "grid size-10 place-items-center border border-titan-ice/20 text-titan-ice/76 transition hover:border-titan-hazard hover:text-titan-hazard focus-visible:border-titan-hazard focus-visible:text-titan-hazard focus-visible:outline-none";
 
-/** What became of a run held from a race before signing in. */
-function HeldRunStatus({ note }: { note: HeldRunNote | HeldRunWait }) {
-  const run = time(note.timeMicroseconds);
-  if ("reason" in note) {
-    if (note.reason === "failed") {
-      return (
-        <p className="text-sm leading-6 text-titan-ice/76">
-          Your {run} couldn&apos;t be sent. We&apos;ll try again next time you
-          open the leaderboard.
-        </p>
-      );
-    }
-    return (
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <p className="text-sm leading-6 text-titan-ice/76">
-          {note.reason === "login"
-            ? `Sign in to put your ${run} on the leaderboard.`
-            : `Choose a username to put your ${run} on the leaderboard.`}
-        </p>
-        <Link
-          className="titan-button titan-button-secondary"
-          href={racerOnboardingPath("/leaderboard")}
-        >
-          {note.reason === "login" ? "Sign in" : "Choose username"}
-        </Link>
-      </div>
-    );
-  }
-  if (note.status === "verified") {
-    const { entries, personalBest, rank } = note;
-    return (
-      <p className="text-sm leading-6">
-        {personalBest.improved
-          ? `Your ${time(personalBest.timeMicroseconds)} is on the leaderboard, rank ${rank} of ${entries}.`
-          : `Your ${run} is saved. Your best, ${time(personalBest.timeMicroseconds)}, ranks ${rank} of ${entries}.`}
-      </p>
-    );
-  }
-  return (
-    <p className="text-sm leading-6 text-titan-ice/76">
-      {note.status === "rejected"
-        ? `We couldn't verify your ${run}, so it isn't on the leaderboard.`
-        : note.status === "expired"
-          ? `Your ${run} wasn't added in time, so it isn't on the leaderboard.`
-          : `Your ${run} couldn't be added to the leaderboard.`}
-    </p>
-  );
-}
-
 /**
- * The current board, or an earlier course version's after a new leaderboard
- * started: read-only, so its times are honoured without racing an older
- * layout. Earlier versions sit behind a quiet icon by the course name.
+ * The leaderboard: the score board, and behind the course selector each
+ * course's race leaderboard (`?course=<id>`). That is its current board, or
+ * an earlier course version's after a new leaderboard started: read-only,
+ * so its times are honoured without racing an older layout. Earlier
+ * versions sit behind a quiet icon by the course name.
  */
-export function LeaderboardView({ boardNumber }: { boardNumber: number | null }) {
+export function LeaderboardView() {
   const router = useRouter();
+  // The address says what is open, so a choice only rewrites it.
+  const params = useSearchParams();
+  // Links from before the score board name no course: they open Falls View
+  // Park's, the only course then.
+  const courseId =
+    params.get("course") ??
+    (params.has("board") || params.has("sort")
+      ? FALLS_VIEW_PARK_COURSE_ID
+      : null);
+  const boardNumber =
+    courseId === null ? null : parseBoardNumber(params.get("board"));
   // Both rankings are loaded, so switching only rewrites the address.
-  const byLap = useSearchParams().get("sort") === "lap";
+  const byLap = params.get("sort") === "lap";
   const mainRef = useRef<HTMLElement>(null);
+  const [scores, setScores] = useState<ScoresState>({ status: "loading" });
   // The board loaded for a choice; switching shows loading until it comes.
   const [loaded, setLoaded] = useState<{
     boardNumber: number | null;
+    courseId: string;
     state: BoardState;
   } | null>(null);
-  const state: BoardState =
-    loaded?.boardNumber === boardNumber ? loaded.state : { status: "loading" };
+  const shown =
+    loaded?.courseId === courseId && loaded.boardNumber === boardNumber
+      ? loaded
+      : null;
+  const state: BoardState = shown?.state ?? { status: "loading" };
   const [earlierOpen, setEarlierOpen] = useState(false);
   const earlierButtonRef = useRef<HTMLButtonElement>(null);
   // Announces a copy to screen readers; the copied row shows it itself.
   const [copyNote, setCopyNote] = useState<string | null>(null);
   const [copiedUsername, setCopiedUsername] = useState<string | null>(null);
   const copiedTimerRef = useRef<number | null>(null);
-  const [heldRunNote, setHeldRunNote] = useState<
-    HeldRunNote | HeldRunWait | null
-  >(null);
+  // Null until a run held from before signing in has been sent, if any.
+  const [heldRun, setHeldRun] = useState<{
+    note: HeldRunNote | HeldRunWait | null;
+  } | null>(null);
+  const heldRunSent = heldRun !== null;
   useControllerMenuNavigation({
     containerRef: mainRef,
     enabled: true,
@@ -199,38 +178,98 @@ export function LeaderboardView({ boardNumber }: { boardNumber: number | null })
     return () => document.removeEventListener("pointerdown", closeOutside);
   }, [earlierOpen]);
 
+  // A run held from before signing in goes first, so the scores and its
+  // course's board have it.
   useEffect(() => {
     let active = true;
-    void (async () => {
-      // A run held from before signing in goes first, so the board has it.
-      const wait = await sendHeldRun().catch(() => null);
-      const next = await loadBoard(boardNumber);
-      if (!active) return;
-      if (next.status === "missing") {
-        // Keeps the ranking in view without reloading for each switch.
-        const sort = new URLSearchParams(window.location.search).get("sort");
-        router.replace(boardHref(null, sort === "lap"));
-        return;
-      }
-      setHeldRunNote((current) => takeHeldRunNote() ?? wait ?? current);
-      setLoaded({ boardNumber, state: next });
-    })();
+    void sendHeldRun()
+      .catch(() => null)
+      .then((wait) => {
+        if (active) setHeldRun({ note: takeHeldRunNote() ?? wait });
+      });
     return () => {
       active = false;
     };
-  }, [boardNumber, router]);
+  }, []);
+
+  useEffect(() => {
+    if (!heldRunSent) return;
+    let active = true;
+    void loadScores().then((next) => {
+      if (active) setScores(next);
+    });
+    return () => {
+      active = false;
+    };
+  }, [heldRunSent]);
+
+  useEffect(() => {
+    if (!heldRunSent || courseId === null) return;
+    let active = true;
+    void loadBoard(courseId, boardNumber).then((next) => {
+      if (!active) return;
+      if (next.status === "missing") {
+        // A course without a leaderboard shows the scores, even when they
+        // cannot be loaded to say so; a missing earlier board, the current
+        // one, keeping the ranking in view.
+        const sort = new URLSearchParams(window.location.search).get("sort");
+        router.replace(
+          boardNumber === null
+            ? SCORE_BOARD_PATH
+            : courseBoardPath(courseId, { byLap: sort === "lap" }),
+        );
+        return;
+      }
+      setLoaded({ boardNumber, courseId, state: next });
+    });
+    return () => {
+      active = false;
+    };
+  }, [boardNumber, courseId, heldRunSent, router]);
+
+  // The course's last answer decides these while another of its boards
+  // loads, so the icon and title don't change under the racer.
+  const lastAnswer =
+    loaded?.courseId === courseId && loaded.state.status === "ready"
+      ? loaded.state.leaderboard
+      : null;
+  // Without the scores, the open course stays a choice once its board
+  // names it.
+  const answeredCourse = lastAnswer?.board?.courseName;
+  const courses =
+    scores.status === "ready"
+      ? scores.scores.courses
+      : courseId !== null &&
+          answeredCourse &&
+          !KNOWN_COURSES.some((course) => course.courseId === courseId)
+        ? [...KNOWN_COURSES, { courseId, courseName: answeredCourse }]
+        : KNOWN_COURSES;
+  // A link to a course without a leaderboard shows the scores.
+  const unknownCourse =
+    scores.status === "ready" &&
+    courseId !== null &&
+    !courses.some((course) => course.courseId === courseId);
+  useEffect(() => {
+    if (unknownCourse) router.replace(SCORE_BOARD_PATH);
+  }, [router, unknownCourse]);
 
   const board = state.status === "ready" ? state.leaderboard.board : null;
   const readOnly = boardNumber !== null;
-  // The last answer decides these while another board loads, so the icon
-  // and title don't change under the racer.
-  const earlier =
-    loaded?.state.status === "ready" ? loaded.state.leaderboard.earlier : [];
+  const earlier = lastAnswer?.earlier ?? [];
   const viewing = earlier.find(({ number }) => number === boardNumber);
   const courseName =
-    (loaded?.state.status === "ready"
-      ? loaded.state.leaderboard.board?.courseName
-      : null) ?? "Falls View Park";
+    lastAnswer?.board?.courseName ??
+    courses.find((course) => course.courseId === courseId)?.courseName ??
+    "";
+  // The held run's outcome belongs to its course: shown on that course's
+  // current board, and on the score board by the course's name.
+  const heldCourseId = heldRun?.note
+    ? (heldRun.note.courseId ?? FALLS_VIEW_PARK_COURSE_ID)
+    : null;
+  const heldRunOutcome =
+    heldRun?.note && heldCourseId !== null
+      ? { boardPath: courseBoardPath(heldCourseId), note: heldRun.note }
+      : null;
 
   async function copyGhostLink(username: string) {
     // Cleared first, so a repeated note is announced again.
@@ -259,6 +298,13 @@ export function LeaderboardView({ boardNumber }: { boardNumber: number | null })
   const rows = (byLap ? board?.lapEntries : board?.entries) ?? [];
   const viewerListed = rows.some((entry) => entry.viewer);
   const viewerStanding = byLap ? board?.viewer?.fastestLap : board?.viewer;
+  // A controller's first move starts from the viewer's own place where the
+  // open board shows one, and otherwise from the open choice.
+  const viewerHasStop =
+    courseId === null
+      ? scores.status === "ready" &&
+        scores.scores.entries.some((entry) => entry.viewer)
+      : readOnly || viewerListed || Boolean(viewerStanding);
 
   return (
     <main
@@ -269,7 +315,7 @@ export function LeaderboardView({ boardNumber }: { boardNumber: number | null })
       <div className="pointer-events-none fixed inset-0">
         <HomeBackdrop dim />
       </div>
-      <section className="relative mx-auto grid w-full max-w-3xl content-start gap-8 px-4 py-6 sm:px-8">
+      <section className="relative mx-auto grid w-full max-w-3xl content-start gap-6 px-4 py-6 sm:gap-8 sm:px-8">
         <header className="flex flex-wrap items-center justify-between gap-5">
           <Link
             aria-label="Back to racing"
@@ -297,6 +343,28 @@ export function LeaderboardView({ boardNumber }: { boardNumber: number | null })
           </ActionHint>
         </header>
 
+        {courses.length > 0 ? (
+          <CourseSelector
+            courses={courses}
+            defaultChoice={!viewerHasStop}
+            selectedCourseId={courseId}
+          />
+        ) : null}
+
+        {courseId === null ? (
+          <ScoreBoard
+            heldRun={
+              heldRunOutcome && {
+                ...heldRunOutcome,
+                courseName: courses.find(
+                  (course) => course.courseId === heldCourseId,
+                )?.courseName,
+              }
+            }
+            state={scores}
+          />
+        ) : (
+        <>
         <div className="grid gap-3">
           {/* The versions sit on the label's line, leaving the title its
               full width. */}
@@ -345,12 +413,12 @@ export function LeaderboardView({ boardNumber }: { boardNumber: number | null })
                   >
                     {[
                       {
-                        href: boardHref(null, byLap),
+                        href: courseBoardPath(courseId, { byLap }),
                         label: "Latest course version",
                         number: null,
                       },
                       ...earlier.map((version) => ({
-                        href: boardHref(version.number, byLap),
+                        href: courseBoardPath(courseId, { board: version.number, byLap }),
                         label: `Course version · ${timesSetBetween(version)}`,
                         number: version.number,
                       })),
@@ -375,7 +443,8 @@ export function LeaderboardView({ boardNumber }: { boardNumber: number | null })
               </div>
             ) : null}
           </div>
-          <h1 className="text-[2.5rem] font-bold uppercase leading-[0.95] tracking-[-0.01em] sm:text-7xl">
+          {/* As tall while the name loads. */}
+          <h1 className="min-h-[0.95em] text-[2.5rem] font-bold uppercase leading-[0.95] tracking-[-0.01em] sm:text-7xl">
             {courseName}
           </h1>
           {readOnly ? (
@@ -386,17 +455,10 @@ export function LeaderboardView({ boardNumber }: { boardNumber: number | null })
           ) : null}
         </div>
 
-        <div
-          className={
-            heldRunNote && !readOnly
-              ? "border border-titan-ice/18 bg-titan-black px-4 py-3"
-              : "sr-only"
-          }
-          role="status"
-        >
-          {/* It describes the current board. */}
-          {heldRunNote && !readOnly ? <HeldRunStatus note={heldRunNote} /> : null}
-        </div>
+        {/* It describes its own course's current board. */}
+        <HeldRunStatus
+          outcome={heldCourseId === courseId && !readOnly ? heldRunOutcome : null}
+        />
 
         {state.status === "loading" ? (
           <p className="font-mono text-sm text-titan-ice/70" role="status">
@@ -431,7 +493,10 @@ export function LeaderboardView({ boardNumber }: { boardNumber: number | null })
                     window.history.replaceState(
                       null,
                       "",
-                      boardHref(boardNumber, option.byLap),
+                      courseBoardPath(courseId, {
+                        board: boardNumber,
+                        byLap: option.byLap,
+                      }),
                     )
                   }
                 >
@@ -572,6 +637,8 @@ export function LeaderboardView({ boardNumber }: { boardNumber: number | null })
             {time(viewerStanding.timeMicroseconds)}, rank {viewerStanding.rank}
           </p>
         ) : null}
+        </>
+        )}
       </section>
     </main>
   );

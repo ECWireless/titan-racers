@@ -311,7 +311,7 @@ rendering or adds per-frame work reports its measurements against it.
 | Shadows | One shadow-casting light with one 2048² map holding two 1024² cascades, covering ≤ 60 m. PCF5 filtering on course lights, PCF3 elsewhere. |
 | Resolution | 1× device pixels with MSAA. |
 | Post-processing | None. |
-| Startup | Race mount to first frame adds ≤ 300 ms over the "Before lighting" baseline below (63–136 ms warm). |
+| Startup | Race mount to first frame adds ≤ 300 ms over the "Before lighting" baseline below (63–136 ms warm). Accepted over it: PR 7.1's CAD parts took the first frame from 424 to 524 ms (PR 7.2.1: 437–447 ms); compare new work with `main` in the same sitting. |
 
 ### How To Measure
 

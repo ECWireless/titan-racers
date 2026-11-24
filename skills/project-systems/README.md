@@ -54,7 +54,7 @@ The source code and authoritative project documents remain the final authority f
   contact, and stored room results.
 - [Leaderboard](leaderboard/README.md): signed run tickets, the server's
   check of a run's recording, results, each racer's best per board, the
-  leaderboard page, and podium medals.
+  leaderboard page, podium medals, and scores.
 - [Player input](player-input/README.md): normalized fixed-step driving actions,
   keyboard, multi-touch, and standard-gamepad adapters, intentional-activity
   arbitration, cancellation, accessible touch controls, reset, and pause.

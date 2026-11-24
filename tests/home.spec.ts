@@ -2376,7 +2376,7 @@ test.describe("home screen", () => {
     await expect(standing).toContainText("Silver");
     await expect(
       standing.getByRole("link", { name: "View leaderboard" }),
-    ).toHaveAttribute("href", "/leaderboard");
+    ).toHaveAttribute("href", "/leaderboard?course=rough-course");
     await expect(finishDialog.getByRole("listitem")).toHaveCount(2);
     await expect(
       finishDialog.getByRole("listitem").filter({ hasText: "Fastest" }),
@@ -2470,7 +2470,7 @@ test.describe("home screen", () => {
     await expect(standing).toContainText(/Kept until \d{1,2}:\d{2}/);
     await expect(standing.getByRole("link", { name: "Sign in" })).toHaveAttribute(
       "href",
-      "/onboarding?returnTo=%2Fleaderboard",
+      "/onboarding?returnTo=%2Fleaderboard%3Fcourse%3Drough-course",
     );
     // Instead of signing in, a guest can continue anonymously.
     await page.route("**/api/auth/sign-in/anonymous", (route) =>
@@ -2494,7 +2494,9 @@ test.describe("home screen", () => {
     expect(held.expiresAt).toBeGreaterThan(Date.now() + 25 * 60 * 1_000);
     expect(submissions).toBe(0);
     await standing.getByRole("button", { name: "Continue anonymously" }).click();
-    await expect(page).toHaveURL(/\/onboarding\?returnTo=%2Fleaderboard$/);
+    await expect(page).toHaveURL(
+      /\/onboarding\?returnTo=%2Fleaderboard%3Fcourse%3Drough-course$/,
+    );
   });
 
   test("races the course best or your own, hidden on the kart and by its switch", async ({

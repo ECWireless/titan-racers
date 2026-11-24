@@ -196,7 +196,10 @@ Cables keep clear of parts and linkages but not entirely of each other:
 where leads fan into a port, or one leaves its port under a bundle laid
 tight against its part, wires can press into each other by a millimetre or
 two. A lead whose port has no room to leave, or that would run through a
-part crowding its port, is not drawn.
+part crowding its port, is not drawn. Cables route only over the top face
+of a box chassis plate: a round structural root gets none, and a lead from
+a part mounted under the plate can pass through it. The official karts
+have neither; Phase 9 must handle both before players assemble.
 
 Thin solid primitives (2 mm plates) are collision geometry too. Above top
 speed a kart can travel farther per physics step than a thin wall is deep,

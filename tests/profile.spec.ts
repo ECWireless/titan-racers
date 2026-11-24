@@ -173,6 +173,7 @@ test.describe("racer onboarding and profile", () => {
         localStorage.setItem("titan-racers.held-run.v1", run);
       }
     }, JSON.stringify({
+      courseId: "falls-view-park",
       expiresAt: Date.now() + 20 * 60 * 1_000,
       recording: "test-recording",
       ticket: "guest-ticket",
@@ -199,15 +200,35 @@ test.describe("racer onboarding and profile", () => {
     await page.route("**/api/leaderboards/falls-view-park", (route) =>
       route.fulfill({
         json: {
-          board: { courseName: "Falls View Park", entries: [], viewer: null },
+          board: {
+            courseName: "Falls View Park",
+            entries: [],
+            lapEntries: [],
+            viewer: null,
+          },
           earlier: [],
         },
       }),
     );
 
-    // Signing in returns through onboarding, which carries a complete racer on.
-    await page.goto("/onboarding?returnTo=%2Fleaderboard");
-    await expect(page).toHaveURL(/\/leaderboard$/);
+    await page.route("**/api/scores", (route) =>
+      route.fulfill({
+        json: {
+          courses: [
+            { courseId: "falls-view-park", courseName: "Falls View Park" },
+          ],
+          entries: [],
+          viewer: { rank: null, score: 0 },
+        },
+      }),
+    );
+
+    // Signing in returns through onboarding, which carries a complete racer
+    // on to the board of the course the run raced.
+    await page.goto(
+      "/onboarding?returnTo=%2Fleaderboard%3Fcourse%3Dfalls-view-park",
+    );
+    await expect(page).toHaveURL(/\/leaderboard\?course=falls-view-park$/);
     await expect(
       page.getByText("Your 1:32.250 is on the leaderboard, rank 2 of 4."),
     ).toBeVisible();
@@ -228,11 +249,79 @@ test.describe("racer onboarding and profile", () => {
         status: 200,
       });
     });
+    let viewer: { rank: number | null; score: number } = { rank: 4, score: 189 };
+    await page.route("**/api/scores", (route) =>
+      route.fulfill({
+        json: { courses: [], entries: [], viewer },
+      }),
+    );
 
     await page.goto("/profile");
     await expect(page.getByText("@nova_racer", { exact: true })).toBeVisible();
     await expect(page.getByRole("textbox")).toHaveCount(0);
     await expect(page.getByRole("button", { name: /save|create/i })).toHaveCount(0);
+    const score = page.getByRole("region", { name: "Your score" });
+    await expect(score).toContainText("189");
+    await expect(score).toContainText("Rank 4");
+    await expect(score.getByRole("link", { name: "High scores" })).toHaveAttribute(
+      "href",
+      "/leaderboard",
+    );
+
+    // No score yet: 0, and how to get one.
+    viewer = { rank: null, score: 0 };
+    await page.reload();
+    await expect(score).toHaveText(
+      "Your score0Set a top-20 time on any course to get a score.High scores",
+    );
+  });
+
+  test("shows a score that counts a run kept before signing in", async ({
+    page,
+  }) => {
+    await page.addInitScript((run) => {
+      localStorage.setItem("titan-racers.held-run.v1", run);
+    }, JSON.stringify({
+      courseId: "falls-view-park",
+      expiresAt: Date.now() + 20 * 60 * 1_000,
+      recording: "test-recording",
+      ticket: "guest-ticket",
+      timeMicroseconds: 92_250_000,
+    }));
+    await page.route(profileApiPattern, (route) =>
+      route.fulfill({
+        json: { loginMethods: [], status: "complete", username: "nova_racer" },
+      }),
+    );
+    // A slow send: the score is only asked for once it has landed.
+    let sent = false;
+    await page.route("**/api/runs", async (route) => {
+      await new Promise((resolve) => setTimeout(resolve, 500));
+      sent = true;
+      await route.fulfill({
+        json: {
+          entries: 4,
+          personalBest: { improved: true, timeMicroseconds: 92_250_000 },
+          rank: 2,
+          status: "verified",
+          username: "nova_racer",
+        },
+      });
+    });
+    await page.route("**/api/scores", (route) =>
+      route.fulfill({
+        json: {
+          courses: [],
+          entries: [],
+          viewer: sent ? { rank: 2, score: 225 } : { rank: null, score: 0 },
+        },
+      }),
+    );
+
+    await page.goto("/profile");
+    await expect(page.getByRole("region", { name: "Your score" })).toContainText(
+      "Rank 2",
+    );
   });
 
   test("lists login methods and unlinks while another remains", async ({
@@ -476,6 +565,55 @@ test.describe("racer onboarding and profile", () => {
     );
     expect(order).toEqual(["DELETE", "POST"]);
     expect(cancels).toBe(1);
+  });
+
+  test("shows the other account's score once a passkey brings this one into it", async ({
+    page,
+  }) => {
+    await stubPasskeys(page);
+    let merged = false;
+    await page.route(profileApiPattern, (route) =>
+      route.fulfill({
+        json: merged
+          ? {
+              loginMethods: [{ id: "passkey-1", kind: "passkey", label: "Passkey" }],
+              status: "complete",
+              username: "elliott",
+            }
+          : { loginMethods: [], status: "complete", username: "nova_racer" },
+      }),
+    );
+    await page.route("**/api/profile/merge", (route) => route.fulfill({ status: 204 }));
+    await page.route("**/api/auth/passkey/generate-authenticate-options", (route) =>
+      route.fulfill({
+        json: { challenge: "AQID", rpId: "127.0.0.1", userVerification: "preferred" },
+      }),
+    );
+    await page.route("**/api/auth/passkey/verify-authentication", (route) => {
+      merged = true;
+      return route.fulfill({ json: {} });
+    });
+    await page.route("**/api/scores", (route) =>
+      route.fulfill({
+        json: {
+          courses: [],
+          entries: [],
+          viewer: merged ? { rank: 1, score: 495 } : { rank: 3, score: 189 },
+        },
+      }),
+    );
+
+    await page.goto("/profile");
+    const score = page.getByRole("region", { name: "Your score" });
+    await expect(score).toContainText("Rank 3");
+    await page.getByRole("button", { name: "Bring @nova_racer into it" }).click();
+    await page
+      .getByRole("group", { name: "Bring @nova_racer into your other account?" })
+      .getByRole("button", { name: "Continue with a passkey" })
+      .click();
+    await expect(page.getByText("@nova_racer is now part of @elliott.")).toBeVisible();
+    await expect(score).toContainText("Rank 1");
+    await expect(score).toContainText("495");
   });
 
   test("says nothing was brought together when the Google sign-in can't start", async ({
