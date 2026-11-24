@@ -27,3 +27,8 @@ export const CURRENT_GUEST_COURSE_ID = FALLS_VIEW_PARK_COURSE_ID;
 
 // Only the official circuit has a leaderboard; the sandbox never does.
 export const LEADERBOARD_COURSE_IDS = [FALLS_VIEW_PARK_COURSE_ID] as const;
+
+/** A course's picture wherever it is chosen, captured from the game. */
+export const COURSE_THUMBNAILS: Partial<Record<string, string>> = {
+  [FALLS_VIEW_PARK_COURSE_ID]: "/images/courses/falls-view-park.webp",
+};

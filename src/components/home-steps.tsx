@@ -5,7 +5,7 @@ import Link from "next/link";
 import { type MouseEvent, type ReactNode, useId } from "react";
 
 import type { CourseDocument } from "@/game/course/course-document";
-import { FALLS_VIEW_PARK_COURSE_ID } from "@/game/course/course-ids";
+import { COURSE_THUMBNAILS } from "@/game/course/course-ids";
 import type { KartAssemblyDocument } from "@/game/kart/kart-assembly-document";
 import type { PersistedResolvedKartSnapshot } from "@/game/kart/kart-derivation";
 
@@ -25,11 +25,6 @@ export type HomeKart = {
   document: KartAssemblyDocument;
   resolvedSnapshot: PersistedResolvedKartSnapshot;
   thumbnailSource: string | null;
-};
-
-/** A course's picture wherever it is chosen, captured from the game. */
-export const COURSE_THUMBNAILS: Partial<Record<string, string>> = {
-  [FALLS_VIEW_PARK_COURSE_ID]: "/images/courses/falls-view-park.webp",
 };
 
 // Every choice in the flow: a panel whose border turns gold when focused or

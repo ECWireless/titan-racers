@@ -3,9 +3,9 @@
 import Image from "next/image";
 import { type MouseEvent, type ReactNode, useEffect, useRef } from "react";
 
+import { COURSE_THUMBNAILS } from "@/game/course/course-ids";
 import { courseBoardPath, SCORE_BOARD_PATH } from "@/lib/leaderboard-path";
 
-import { COURSE_THUMBNAILS } from "./home-steps";
 import { LeaderboardIcon, RaceFlagIcon } from "./menu-icons";
 
 /**

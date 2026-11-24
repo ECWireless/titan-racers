@@ -17,10 +17,11 @@ accepted; the app, README, and durable docs take over from there.
 
 - **Done:** Phases 0–6 (PRs #1–#24, the Phase 3 closeout and its
   follow-ups, #30–#57 with the PR 4.5.2 closeout, #59–#63, and #64–#70
-  with the Phase 6 closeout), the Phase 6 addendum (#71–#76), and PRs 7.1
-  (#77), 7.2 (#78), and 7.2.1 (#79).
-- **Now:** [Phase 7](#phase-7-cad-assembly-and-kart-royalties), PR 7.3.
-- **Next:** Phase 7's integration review, then Phase 8 after its debrief.
+  with the Phase 6 closeout), the Phase 6 addendum (#71–#76), PRs 7.1
+  (#77), 7.2 (#78), and 7.2.1 (#79), and PR 7.3 (#80) with Phase 7's
+  integration review.
+- **Now:** merging PR 7.3 (#80), which closes Phase 7.
+- **Next:** Phase 8, after its debrief.
 
 ## Guiding Decisions
 
@@ -292,8 +293,9 @@ Decisions from completed phases that later phases rely on:
 ### Phase 7: CAD Assembly And Kart Royalties
 
 **Goal:** make kart assembly feel like CAD, rebuild selected approved parts with
-new authoring approaches, and credit assemblers with tracked, displayed
-royalties.
+new authoring approaches, and credit assemblers with tracked royalties:
+players see their score now, and what karts earn their assemblers once
+community karts earn it (PR 9.2).
 
 Phase decisions:
 
@@ -305,8 +307,10 @@ Phase decisions:
   game reads the meshes it writes. text-to-cad is not used: its installer
   sets itself up in every agent app it finds, and it sends usage stats and
   checks for updates by default.
-- **Royalties are tracked and displayed, never paid.** Payments, balances, and
-  on-chain actions need a separately accepted scope.
+- **Royalties are tracked, never paid.** Official karts' share goes to
+  Titan Racers and is never shown; a community kart's is shown from PR 9.2.
+  Payments, balances, and on-chain actions need a separately accepted
+  scope.
 
 **PR 7.1: Admin parts with new approaches**
 
@@ -465,8 +469,8 @@ render version from the admin roster.
 any derived stats, within the phone budget; karts assemble by mounting points
 with clearance checks, and older revisions still race unchanged; and each
 published kart credits its assembler and earns it a share of the points
-raced with it, and the leaderboard ranks racers by score, with nothing paid
-out. Phase 7's integration review runs before the phase closes.
+raced with it (worked out on the server; shown from PR 9.2), and the
+leaderboard ranks racers by score, with nothing paid out. Phase 7's integration review runs before the phase closes.
 
 References (concepts, not dependencies):
 
@@ -499,6 +503,10 @@ Park's rural parkland and Phase 10's city.
       and let a room's host pick either official course. A course board's
       Race and Copy link ghost buttons must name its course; today they
       assume Falls View Park.
+- [ ] Measure a four-kart room race on the iPhone (`?perf=1`) with Phase 7's
+      CAD parts, linkages, and cables, which no room race has measured yet:
+      an opponent may draw more than twice when its parts use several
+      finishes.
 
 **Done when:** the second course is published, races two laps solo and in a
 room, has its own leaderboard, and holds the phone budget.
@@ -518,7 +526,9 @@ Publishing is immediate, with no approval queue.
 - [ ] Players create, edit, and save only their own private drafts.
 - [ ] A racer kept in one browser that owns a kart can't be brought into
       another (PR 6.3): decide whether a merge moves its karts.
-- [ ] Players assemble with Phase 7's CAD-style tools.
+- [ ] Players assemble with Phase 7's CAD-style tools. Cables route only
+      over a box chassis plate's top face, so first route them under the
+      plate and around a round root (or keep players from those layouts).
 - [ ] Players remix any published kart: the draft starts from that
       revision, and the published remix credits the original assembler and
       links its source revision. Decide whether a remix passes part of its
