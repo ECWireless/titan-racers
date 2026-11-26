@@ -23415,7 +23415,7 @@
       "collision": {
         "friction": 0.7,
         "halfExtents": {
-          "x": 2.25,
+          "x": 2.4,
           "y": 0.15,
           "z": 1.01
         },
@@ -23456,7 +23456,7 @@
       "visual": {
         "material": "asphalt",
         "scale": {
-          "x": 4.5,
+          "x": 4.8,
           "y": 0.3,
           "z": 2.02
         },
@@ -30519,7 +30519,7 @@
       "collision": {
         "friction": 0.7,
         "halfExtents": {
-          "x": 2.23,
+          "x": 2.38,
           "y": 1.445,
           "z": 1
         },
@@ -30560,7 +30560,7 @@
       "visual": {
         "material": "obstacleBlock",
         "scale": {
-          "x": 4.46,
+          "x": 4.76,
           "y": 2.89,
           "z": 2
         },
@@ -38061,7 +38061,7 @@
         "halfExtents": {
           "x": 0.075,
           "y": 0.075,
-          "z": 1.01
+          "z": 1.01286
         },
         "offset": {
           "position": {
@@ -38087,13 +38087,13 @@
       "id": "downhill-kerb-left-1",
       "transform": {
         "position": {
-          "x": -58.175,
+          "x": -58.249475,
           "y": 3.075,
-          "z": 19
+          "z": 18.994367
         },
         "rotation": {
           "x": 0,
-          "y": 0,
+          "y": -4.306989,
           "z": 0
         }
       },
@@ -38102,7 +38102,7 @@
         "scale": {
           "x": 0.15,
           "y": 0.15,
-          "z": 2.02
+          "z": 2.025721
         },
         "shape": "box"
       }
@@ -38115,7 +38115,7 @@
         "halfExtents": {
           "x": 0.075,
           "y": 0.075,
-          "z": 1.01
+          "z": 1.01286
         },
         "offset": {
           "position": {
@@ -38141,13 +38141,13 @@
       "id": "downhill-kerb-right-1",
       "transform": {
         "position": {
-          "x": -53.825,
+          "x": -53.750525,
           "y": 3.075,
-          "z": 19
+          "z": 18.994367
         },
         "rotation": {
           "x": 0,
-          "y": 0,
+          "y": 4.306989,
           "z": 0
         }
       },
@@ -38156,7 +38156,7 @@
         "scale": {
           "x": 0.15,
           "y": 0.15,
-          "z": 2.02
+          "z": 2.025721
         },
         "shape": "box"
       }
@@ -41889,7 +41889,7 @@
       "collision": {
         "friction": 0.7,
         "halfExtents": {
-          "x": 1.119,
+          "x": 1.227848,
           "y": 0.5595,
           "z": 0.05
         },
@@ -41919,20 +41919,20 @@
       "label": "Crowd barrier (downhill west 26)",
       "transform": {
         "position": {
-          "x": -59.528591,
+          "x": -59.399745,
           "y": 0.075,
-          "z": -37.585704
+          "z": -37.566184
         },
         "rotation": {
           "x": 0,
-          "y": 26.565051,
+          "y": 23.00414,
           "z": 0
         }
       },
       "visual": {
         "material": "timber",
         "scale": {
-          "x": 2.2,
+          "x": 2.417695,
           "y": 0.15,
           "z": 0.025
         },
@@ -43401,7 +43401,7 @@
       "collision": {
         "friction": 0.7,
         "halfExtents": {
-          "x": 1.119,
+          "x": 1.071693,
           "y": 0.5595,
           "z": 0.05
         },
@@ -43431,20 +43431,20 @@
       "label": "Crowd barrier (downhill east 27)",
       "transform": {
         "position": {
-          "x": -53.263565,
+          "x": -53.366987,
           "y": 0.075,
-          "z": -37.074568
+          "z": -36.997838
         },
         "rotation": {
           "x": 0,
-          "y": 101.86439,
+          "y": 108.244978,
           "z": 0
         }
       },
       "visual": {
         "material": "timber",
         "scale": {
-          "x": 2.2,
+          "x": 2.105387,
           "y": 0.15,
           "z": 0.025
         },
@@ -61935,222 +61935,6 @@
         },
         "material": "line",
         "shape": "arc"
-      }
-    },
-    {
-      "availability": "standard",
-      "category": "obstacle",
-      "collision": {
-        "friction": 0.7,
-        "halfExtents": {
-          "x": 0.075,
-          "y": 0.075,
-          "z": 0.15
-        },
-        "offset": {
-          "position": {
-            "x": 0,
-            "y": 0,
-            "z": 0
-          },
-          "rotation": {
-            "x": 0,
-            "y": 0,
-            "z": 0
-          }
-        },
-        "restitution": 0,
-        "role": "solid-obstacle",
-        "shape": "box",
-        "surfaceMaterial": {
-          "id": "surface.standard-course",
-          "version": 1
-        }
-      },
-      "editable": true,
-      "id": "return-turn-join-outer",
-      "transform": {
-        "position": {
-          "x": -58.325,
-          "y": 0.075,
-          "z": -37.85
-        },
-        "rotation": {
-          "x": 0,
-          "y": 0,
-          "z": 0
-        }
-      },
-      "visual": {
-        "material": "kerb",
-        "scale": {
-          "x": 0.15,
-          "y": 0.15,
-          "z": 0.3
-        },
-        "shape": "box"
-      }
-    },
-    {
-      "availability": "standard",
-      "category": "obstacle",
-      "collision": {
-        "friction": 0.7,
-        "halfExtents": {
-          "x": 0.18749999999999717,
-          "y": 0.075,
-          "z": 0.075
-        },
-        "offset": {
-          "position": {
-            "x": 0,
-            "y": 0,
-            "z": 0
-          },
-          "rotation": {
-            "x": 0,
-            "y": 0,
-            "z": 0
-          }
-        },
-        "restitution": 0,
-        "role": "solid-obstacle",
-        "shape": "box",
-        "surfaceMaterial": {
-          "id": "surface.standard-course",
-          "version": 1
-        }
-      },
-      "editable": true,
-      "id": "return-turn-seal-outer",
-      "transform": {
-        "position": {
-          "x": -58.4375,
-          "y": 0.075,
-          "z": -38.12
-        },
-        "rotation": {
-          "x": 0,
-          "y": 0,
-          "z": 0
-        }
-      },
-      "visual": {
-        "material": "kerb",
-        "scale": {
-          "x": 0.37499999999999434,
-          "y": 0.15,
-          "z": 0.15
-        },
-        "shape": "box"
-      }
-    },
-    {
-      "availability": "standard",
-      "category": "obstacle",
-      "collision": {
-        "friction": 0.7,
-        "halfExtents": {
-          "x": 0.075,
-          "y": 0.075,
-          "z": 0.15
-        },
-        "offset": {
-          "position": {
-            "x": 0,
-            "y": 0,
-            "z": 0
-          },
-          "rotation": {
-            "x": 0,
-            "y": 0,
-            "z": 0
-          }
-        },
-        "restitution": 0,
-        "role": "solid-obstacle",
-        "shape": "box",
-        "surfaceMaterial": {
-          "id": "surface.standard-course",
-          "version": 1
-        }
-      },
-      "editable": true,
-      "id": "return-turn-join-inner",
-      "transform": {
-        "position": {
-          "x": -53.675,
-          "y": 0.075,
-          "z": -37.85
-        },
-        "rotation": {
-          "x": 0,
-          "y": 0,
-          "z": 0
-        }
-      },
-      "visual": {
-        "material": "kerb",
-        "scale": {
-          "x": 0.15,
-          "y": 0.15,
-          "z": 0.3
-        },
-        "shape": "box"
-      }
-    },
-    {
-      "availability": "standard",
-      "category": "obstacle",
-      "collision": {
-        "friction": 0.7,
-        "halfExtents": {
-          "x": 0.18749999999999717,
-          "y": 0.075,
-          "z": 0.075
-        },
-        "offset": {
-          "position": {
-            "x": 0,
-            "y": 0,
-            "z": 0
-          },
-          "rotation": {
-            "x": 0,
-            "y": 0,
-            "z": 0
-          }
-        },
-        "restitution": 0,
-        "role": "solid-obstacle",
-        "shape": "box",
-        "surfaceMaterial": {
-          "id": "surface.standard-course",
-          "version": 1
-        }
-      },
-      "editable": true,
-      "id": "return-turn-seal-inner",
-      "transform": {
-        "position": {
-          "x": -53.5625,
-          "y": 0.075,
-          "z": -38.12
-        },
-        "rotation": {
-          "x": 0,
-          "y": 0,
-          "z": 0
-        }
-      },
-      "visual": {
-        "material": "kerb",
-        "scale": {
-          "x": 0.37499999999999434,
-          "y": 0.15,
-          "z": 0.15
-        },
-        "shape": "box"
       }
     },
     {

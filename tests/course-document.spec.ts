@@ -15,6 +15,7 @@ import {
   countCourseTrees,
   type CourseDocument,
   courseDocumentSchema,
+  type CourseObject,
   FALLS_VIEW_PARK_DOCUMENT,
   getCourseStartTransform,
   isCoursePrimitiveObject,
@@ -1393,6 +1394,108 @@ test("connects both return-turn kerbs to the downhill and return straight", () =
         5,
       );
     }
+  }
+});
+
+test("meets the downhill's kerbs flush with the walls and barriers beside them", () => {
+  const find = (id: string) =>
+    FALLS_VIEW_PARK_DOCUMENT.objects.find((object) => object.id === id)!;
+  // A corner of an object's collision box, in the world's plan.
+  const corner = (object: CourseObject, along: 1 | -1, across: 1 | -1) => {
+    if (object.collision?.shape !== "box") throw new Error("Expected a box");
+    const { halfExtents, offset } = object.collision;
+    expect(offset.rotation).toEqual({ x: 0, y: 0, z: 0 });
+    const local = {
+      x: offset.position.x + along * halfExtents.x,
+      y: 0,
+      z: offset.position.z + across * halfExtents.z,
+    };
+    const turned = rotateCourseDirection(
+      local,
+      { x: 0, y: 0, z: 0 },
+      object.transform.rotation,
+    );
+    return {
+      x: object.transform.position.x + turned.x,
+      z: object.transform.position.z + turned.z,
+    };
+  };
+
+  type Point = { x: number; z: number };
+  // How far a point lies from the line through a and b.
+  const offLine = (point: Point, a: Point, b: Point) =>
+    Math.abs(
+      (b.x - a.x) * (point.z - a.z) - (b.z - a.z) * (point.x - a.x),
+    ) / Math.hypot(b.x - a.x, b.z - a.z);
+
+  // Each crowd barrier's road face ends on its return-turn kerb's road
+  // corner, where the kerb ends.
+  for (const [barrierId, kerbId, face, edge] of [
+    ["downhill-barrier-east-27-plank", "return-turn-kerb-inner", -1, 1],
+    ["downhill-barrier-west-26-plank", "return-turn-kerb-outer", 1, 0],
+  ] as const) {
+    const kerb = find(kerbId);
+    if (kerb.visual.shape !== "arc") throw new Error("Expected a curved kerb");
+    // It collides as drawn, within the arc's collision tolerance.
+    expect(kerb.collision).toMatchObject({ role: "solid-obstacle", shape: "arc" });
+    const { innerRadius, sweep, width } = kerb.visual.arc;
+    const radius = innerRadius + edge * width;
+    const end = rotateCourseDirection(
+      {
+        x: radius * Math.cos((sweep * Math.PI) / 180),
+        y: 0,
+        z: -radius * Math.sin((sweep * Math.PI) / 180),
+      },
+      { x: 0, y: 0, z: 0 },
+      kerb.transform.rotation,
+    );
+    const kerbCorner = {
+      x: kerb.transform.position.x + end.x,
+      z: kerb.transform.position.z + end.z,
+    };
+    const barrier = find(barrierId);
+    const tip = corner(barrier, 1, face);
+    expect(
+      offLine(kerbCorner, corner(barrier, -1, face), tip),
+      barrierId,
+    ).toBeLessThan(0.001);
+    expect(
+      Math.hypot(tip.x - kerbCorner.x, tip.z - kerbCorner.z),
+      barrierId,
+    ).toBeLessThan(0.002);
+  }
+  // Nothing joins them.
+  expect(
+    FALLS_VIEW_PARK_DOCUMENT.objects.filter(({ id }) =>
+      /^return-turn-(join|seal)-/.test(id),
+    ),
+  ).toEqual([]);
+
+  // Each first kerb leaving the stream bridge runs its road face from its
+  // wall's road corner to the next kerb's.
+  for (const [side, face] of [
+    ["left", 1],
+    ["right", -1],
+  ] as const) {
+    const kerb = find(`downhill-kerb-${side}-1`);
+    const north = corner(kerb, face, 1);
+    const south = corner(kerb, face, -1);
+    const wall = corner(find(`stream-bridge-wall-${side[0]}`), 1, face);
+    const next = corner(find(`downhill-kerb-${side}-2`), face, 1);
+    for (const [label, point] of [
+      ["wall", wall],
+      ["kerb 2", next],
+    ] as const) {
+      expect(offLine(point, north, south), `${side} ${label}`).toBeLessThan(
+        0.001,
+      );
+    }
+    // It reaches a little under the wall's end and into kerb 2: no gap,
+    // and no tail standing out past kerb 2's face.
+    expect(north.z - wall.z, side).toBeGreaterThan(0);
+    expect(north.z - wall.z, side).toBeLessThan(0.03);
+    expect(next.z - south.z, side).toBeGreaterThan(0);
+    expect(next.z - south.z, side).toBeLessThan(0.03);
   }
 });
 
