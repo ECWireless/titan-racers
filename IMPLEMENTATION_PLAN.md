@@ -19,9 +19,8 @@ accepted; the app, README, and durable docs take over from there.
   follow-ups, #30–#57 with the PR 4.5.2 closeout, #59–#63, #64–#70 with
   the Phase 6 closeout, the Phase 6 addendum #71–#76, and #77–#80 with
   Phase 7's integration review).
-- **Now:** Phase 8's debrief, starting with its three changes before the
-  course.
-- **Next:** Phase 8's second official course.
+- **Now:** PR 8.2, room codes and QR.
+- **Next:** PR 8.3 (Steam Deck), then Phase 8's second official course.
 
 ## Guiding Decisions
 
@@ -335,17 +334,30 @@ Decisions from completed phases that later phases rely on:
 **Goal:** a second official course, in a village or town, between Falls View
 Park's rural parkland and Phase 10's city.
 
-First, three changes the lead asked for before the course (debrief each):
+First, three small PRs before the course:
 
-- [ ] Shorter room codes: the shortest a host can comfortably read out and
-      others type, while staying hard to guess. Today a code is 10
-      characters from a 31-character alphabet, and `room_races` checks
-      that shape.
-- [ ] A QR code of the room's join link beside its code, for a host who is
-      screen sharing.
-- [ ] The game works on a Steam Deck, both in its browser and launched as
-      an ordinary non-Steam game added from Desktop Mode, with the Deck's
-      controls and screen.
+- [x] PR 8.1: Kerb fix. No step at a wall's or barrier's end catches a
+      kart sliding along it: the downhill's crowd barriers end flush on the
+      return turn's kerbs, with no blocks joining them, and the downhill's
+      first kerbs start flush with the stream bridge's walls. Production
+      resets Falls View Park to the seed and publishes it without starting
+      a new leaderboard.
+- [ ] PR 8.2: Room codes and QR. A room code is 5 characters from the same
+      31-character alphabet (no 0/O or 1/I/L), shown in capitals and typed
+      in either case; `room_races` accepts the new shape. A "Join with a
+      code" field on the home screen sits beside Create room, and join
+      attempts are rate-limited. Each join token states why the page joins,
+      and the room decides as it joins (room protocol 5): creating refuses
+      an occupied room and the page picks another code, a typed code refuses
+      an empty room ("No one's in that room"), and a link or QR code opens
+      or joins as today. The lobby shows the code large beside a QR code of
+      its join link (`qrcode.react`, dark on a light tile) and Copy room
+      link, on phones too.
+- [ ] PR 8.3: Steam Deck. The game plays well in a browser on a Steam Deck
+      (Chrome in Desktop Mode first): its sticks, buttons, and touchscreen,
+      and the 1280×800 screen with the browser's bar. Today the d-pad
+      steers and the left stick doesn't; find out first whether Chrome sees
+      a gamepad at all. A non-Steam-game launcher is not planned.
 
 Then the course:
 
