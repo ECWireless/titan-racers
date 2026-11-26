@@ -15,13 +15,13 @@ accepted; the app, README, and durable docs take over from there.
 
 ## Status
 
-- **Done:** Phases 0–6 (PRs #1–#24, the Phase 3 closeout and its
-  follow-ups, #30–#57 with the PR 4.5.2 closeout, #59–#63, and #64–#70
-  with the Phase 6 closeout), the Phase 6 addendum (#71–#76), PRs 7.1
-  (#77), 7.2 (#78), and 7.2.1 (#79), and PR 7.3 (#80) with Phase 7's
-  integration review.
-- **Now:** merging PR 7.3 (#80), which closes Phase 7.
-- **Next:** Phase 8, after its debrief.
+- **Done:** Phases 0–7 (PRs #1–#24, the Phase 3 closeout and its
+  follow-ups, #30–#57 with the PR 4.5.2 closeout, #59–#63, #64–#70 with
+  the Phase 6 closeout, the Phase 6 addendum #71–#76, and #77–#80 with
+  Phase 7's integration review).
+- **Now:** Phase 8's debrief, starting with its three changes before the
+  course.
+- **Next:** Phase 8's second official course.
 
 ## Guiding Decisions
 
@@ -176,6 +176,7 @@ Details live in git history, `docs/kart-system/`, and `skills/project-systems/`.
 | 5. Solo, ghosts, results, leaderboard | Races record their course and kart revisions; one see-through ghost recorded at 20 Hz, from your device, the course best, your account best, or a friend's link; Google plus SIWE wallet login and account linking; signed run tickets and server-verified runs, a best and its ghost per racer per board, and a leaderboard with podium medals; a guest's run kept until they sign in, link copying, and ghost links by username; a Phase 5 dashboard panel; a step-by-step home with keyboard, touch, and controller navigation, course pictures, menu sounds and one Volume, the levee kicker, and link preview cards; integration review. | #59–#63 |
 | 6. Private multiplayer | Leaderboards across course publications, with earlier versions kept; a clearer admin dashboard; accounts kept in a browser, passkeys, and sign-in rate limits; bringing a browser's account into another; private rooms of up to 4 on Cloudflare Durable Objects, with a lobby, one room clock, results, and Race again; opponents drawn smoothly through lateness, with their sound, and races that survive dropped connections; kart-to-kart contact answered at once on each page and recorded once by the room; Multiplayer on home's first screen; integration review. | #64–#70 |
 | 6 addendum. Feedback before Phase 7 | Race screens that never select text, zoom, or open the long-press menu; each race's fastest lap on the result screen and as a second leaderboard ranking; Restart in the pause menu; course objects that change state during a race, starting with the utility tunnel's door 4 and its store room, the same for every racer in a room; the Floodlit look on home, the result screen, leaderboard, rooms, and the main site, with real renders in place of AI images; a park of benches, bins, trees, shrubs, and flower beds, clipped privet hedges, and service-road planting, grown behind the loading screen; races drawn 1.15 times as colourful; room-server logs and a fix for doubled draws; integration review. | #71–#76 |
+| 7. CAD assembly and kart royalties | Admin part models in build123d, with committed meshes the game reads, for the motor, transmissions, and servo, and tie rods and driveshafts that follow the steering and suspension; kart assembly by named mounting points with snapping, clearance and linkage clash checks that block saving, a real 2WD rear end on all three official karts, and Explode, Motion, X-ray, and Measure in the admin builder; cables drawn from each kart's connections; scores from the top 20 on each official course's current board, a 10% assembler share under one fixed licence, High scores and a course row on the leaderboard, and your score on the profile; integration review. | #77–#80 |
 
 Decisions from completed phases that later phases rely on:
 
@@ -282,6 +283,45 @@ Decisions from completed phases that later phases rely on:
   time trial goes on to the kart, course, and ghost; Multiplayer opens a new
   room, where each racer chooses a kart and the host the course (only Falls
   View Park so far).
+- **CAD stays out of the game** (Phase 7). build123d is an admin authoring
+  tool pinned in a development-only environment under `cad/`; each part is
+  a script of named parameters modelled on a real 1:10 part, and writes a
+  committed mesh that the part's code-built visual reads directly, with no
+  model loader. Visuals stay presentation only. text-to-cad is not used:
+  its installer sets itself up in every agent app it finds and sends usage
+  stats by default.
+- **Karts assemble by mounting points** (PR 7.2). Parts declare named
+  points; kart schema 3 names the point at each end of a structural
+  attachment, and schema 1 and 2 documents migrate with none, so stored
+  revisions load and race unchanged. Solid overlaps, linkage clashes, and
+  unsnapped parts block saving. A part that changes ships as a new part
+  version, with the old one kept for older revisions; a new version takes
+  the real part's published weight, else its CAD mass, and its centre of
+  mass from CAD. Leaderboards keep bests set with earlier official karts.
+  Cables are drawn from a kart's existing connections, store
+  nothing, and stay out of the save gate.
+- **Each official kart holds the phone budget's kart caps:** 30k
+  triangles with its springs and arms, each CAD part and each kart's cables
+  within 2,000, the racer's own kart within 30 draws, and a ghost or
+  opponent at 2 (tested). PR 7.1's first frame, about 100 ms slower than
+  before, is an accepted exception recorded in the budget.
+- **Scores and royalties are worked out, never paid** (PR 7.3). Every
+  published kart carries one standard licence fixed in code, shaped like
+  an [RSL 1.0](https://rslstandard.org/) licence: it may be raced and
+  remixed and pays 10% of the points earned with it to its assembler.
+  Players never choose or see terms. Points come only from the top 20 of
+  each official course's current board by total time (300, 250, 210, 180,
+  160, then 150 down by 10 to 10), the racer keeping 90%; fastest laps,
+  older boards, and multiplayer earn nothing. Scores are worked out on each
+  read from each racer's best per board, with no stored ledger, and
+  responses name usernames only. An official kart's share goes to Titan
+  Racers, which has no account and players never see earning, so kart
+  cards show no earnings. Payments, balances, and on-chain actions need a
+  separately accepted scope.
+- **"Score" is always a noun in player copy** ("your score"). The
+  leaderboard opens on High scores, with a row of courses opening each
+  course's race board at `?course=<id>`; old `?board=` links open Falls View
+  Park's.
 - **Component engineering is a separate later phase.** Kart assembly uses
   sealed, freely available parts with no progression tiers. If component
   engineering is planned, progression unlocks engineered *parts*, an engineered
@@ -290,205 +330,24 @@ Decisions from completed phases that later phases rely on:
 
 ## Remaining Phases
 
-### Phase 7: CAD Assembly And Kart Royalties
-
-**Goal:** make kart assembly feel like CAD, rebuild selected approved parts with
-new authoring approaches, and credit assemblers with tracked royalties:
-players see their score now, and what karts earn their assemblers once
-community karts earn it (PR 9.2).
-
-Phase decisions:
-
-- **Racing and assembly only.** Players assemble approved parts and engineer
-  nothing. Only admins engineer parts, and the component-engineering boundary
-  in `docs/kart-system/components-and-materials.md` still holds.
-- **CAD stays out of the game.** build123d (on OpenCASCADE) is an admin
-  authoring tool used only in development, never in the app runtime; the
-  game reads the meshes it writes. text-to-cad is not used: its installer
-  sets itself up in every agent app it finds, and it sends usage stats and
-  checks for updates by default.
-- **Royalties are tracked, never paid.** Official karts' share goes to
-  Titan Racers and is never shown; a community kart's is shown from PR 9.2.
-  Payments, balances, and on-chain actions need a separately accepted
-  scope.
-
-**PR 7.1: Admin parts with new approaches**
-
-- [x] build123d is pinned in a development-only Python environment under
-      `cad/`. Each part is a script of named parameters, modelled on a real
-      1:10 part, with no vendor models.
-- [x] Each script writes a committed mesh, triangles per finish, that the
-      part's code-built visual reads directly: no model loader, so the race,
-      editor, thumbnails, ghost, and opponents use it unchanged. Running a
-      script again reproduces its mesh exactly.
-- [x] The motor, the three transmissions, and the steering servo get CAD
-      visuals. Tie rods follow the steering, and rear driveshafts follow
-      each wheel's travel, posed from the same inputs as the wheels.
-- [x] Visuals stay presentation-only, so registry fingerprints, derivation,
-      revisions, and hashes do not change. Each CAD part's measured mass and
-      centre of mass are reported beside the registry's; any correction
-      joins PR 7.2's new part versions, so the official karts change once.
-- [x] Claude Fable 5.2, Claude Opus 5.5, and Codex `gpt-6-astra` each build
-      the parts and linkages to one brief on the shared pipeline. Two fresh
-      judges from models that built nothing (Claude Sonnet 5.5 and Codex
-      `gpt-6.1-sol`) score all three from the same renders and numbers, and
-      the lead decides blind, category by category: motor, transmission,
-      servo, and linkages. Fable's entry won every category and landed
-      whole.
-- [x] Each official kart stays within 28k triangles, counting its springs
-      and arms (tested), each CAD part within 2,000, the racer's own kart
-      within 30 draws, and a ghost or opponent at 2, so a four-kart room
-      holds the phone budget. Measured on the iPhone at the PR's end
-      against `main` in one sitting
-      ([numbers](docs/visual-identity.md#baseline)): no new draws, and a
-      first frame about 100 ms slower, which the lead accepted. The room
-      race was skipped, as the linkages join the kart's batches.
-
-After merge, the official karts' thumbnails are captured again at the new
-render version from the admin roster.
-
-**PR 7.2: CAD-style assembly**
-
-- [x] Parts declare named mounting points, each with a position, an outward
-      direction, and a type: a base footprint that sits and slides on any
-      flat structural face, a motor face that meets a gearbox's motor plate,
-      and a gearbox tower pad. Authored boxes offer their six faces. Parts
-      snap when two points meet with opposed directions, and a footprint
-      rests fully on its face. Suspensions and wheels keep their named
-      points. In the builder a part snaps when dropped or attached within
-      10 mm of a matching point, and then stays on it: a footprint slides
-      and turns on its face, the motor turns about its shaft, and pins and
-      hubs hold still. Detaching frees it.
-- [x] Mounting points ship as new part versions, not a separate registry:
-      the battery, controller, motor, servo, brakes, and three
-      transmissions. The `@1` parts and their CAD meshes stay for older
-      revisions.
-- [x] Kart schema version 3 names the mounting point at each end of a
-      structural attachment. Version 1 and 2 documents migrate with none,
-      so stored revisions load, verify, and race unchanged; a draft saves
-      again once its parts are swapped and snapped. Derivation stays at
-      version 5, and the database needs no migration.
-- [x] Each new version declares the published weight of the real part it
-      copies, or else its CAD-measured mass, and takes its centre of mass
-      from CAD: servo 44.5 g, motor 190 g, 4:1 103.4 g, 5:1 104.1 g, and
-      8:1 182.9 g. The motor and servo take the real parts' proportions.
-      Each transmission gains a motor plate and a full-size spur, so the
-      motor bolts on ahead of it as on a real laydown gearbox, and a pad on
-      top for the rear tower.
-- [x] All three official karts get a real 2WD rear end: the gearbox outputs
-      sit on the rear axle line, each rear hinge-pin mount splits into a
-      block under each arm leg so the driveshaft passes between them, the
-      rear tower stands on the gearbox, and the motor bolts to the gearbox.
-      The karts change once, and the lead drive-checks all three.
-- [x] Clearance and interference checks measure overlap and closest points
-      between parts' solid shapes, and between tie rods and driveshafts
-      swept through suspension travel and steering lock. Either kind of
-      clash blocks saving, as does a part not snapped by mounting points.
-      The builder runs the same check in the background as you edit.
-- [x] Exploded and x-ray views, with the suspension posed from wheel travel
-      and steering, and measured readouts for the kart, the selected part,
-      and the gap between any two parts. Presentation only. The builder
-      shows Build, Explode, and Motion views, with X-ray over any of them;
-      Motion poses all four wheels from one pad, and parts move only in
-      Build. A Measure tool reads the gap from the selection to another
-      part, live as the kart moves. The kart shows its ground clearance,
-      each part its dimensions, and one line says whether the kart can be
-      saved.
-- [x] Ships in the admin kart builder; players get it in Phase 9.
-- [x] Leaderboards keep bests set with the earlier official karts.
-
-After merge, each official kart's stored draft is still schema 2, so it is
-loaded from its bundled design (**Actions → Load official design**), saved,
-and published again from the admin roster.
-
-**PR 7.2.1: Wiring**
-
-- [x] Cables drawn from each kart's existing functional connections: the
-      battery to the controller (red and black), the controller to the
-      motor (three phase wires) and to the steering servo and brakes (one
-      lead each). They change nothing the kart stores: no document fields,
-      part versions, derivation, or hashes.
-- [x] Ports keep saying which connections exist; where a wire leaves a part
-      comes from its visual: named points in the motor's and servo's CAD
-      models, as the linkages use, and points the battery, controller, and
-      brakes export beside the shapes they build. Older part versions get
-      them too.
-- [x] Cables lie along the parts they cross: routed over a height map of
-      the chassis plate, round the parts resting on it and clear of the
-      space the tie rods and driveshafts sweep. A lead of several wires
-      runs as one bundle. They are left out of the clearance check and the
-      save gate; tests show the official karts' cables clear every part's
-      solid shape and every linkage.
-- [x] In the builder, cables re-route live as parts are dragged, hide in
-      the Explode view, and fade in X-ray with the parts around a focus.
-- [x] No new race draws: cables reuse the kart's materials and join its
-      batches. The per-kart cap rises to 30k triangles, with each kart's
-      cables within 2,000 (tested), and the kart thumbnail render version
-      advances. Measured on the iPhone
-      ([numbers](docs/visual-identity.md#baseline)): no new draws, and frame
-      time, CPU work, and the first frame unchanged.
-- [x] The drawn coilover and the clearance check share one set of coilover
-      sizes, so resizing the drawn shock moves its clash shape too.
-
-After merge, the official karts' thumbnails are captured again at the new
-render version from the admin roster.
-
-**PR 7.3: Scores and royalties**
-
-- [x] One standard kart licence, shaped like an RSL licence and fixed in
-      code: every published kart may be raced and remixed, and pays a fee
-      of the "use" kind, 10% of the points earned with it. Players never
-      choose terms or see them; a change to the fee applies to every
-      score from then on.
-- [x] Points come only from time-trial standings: on each official
-      course's current board (its live revision under the current physics),
-      ranked by total time as the leaderboard ranks, the top 20 earn 300,
-      250, 210, 180, and 160, then 150 for 6th down by 10 a place to 10 for
-      20th. Fastest laps, older boards, and multiplayer earn nothing. Points
-      follow the live standings, so they can be lost, and a course's new
-      board starts its points again from zero.
-- [x] The racer keeps 90% and the kart's assembler gets 10%. An official
-      kart's share goes to Titan Racers, which has no account and is not on
-      the score board, so players' royalties start with community karts.
-- [x] Scores are worked out on each read from each racer's best per board,
-      with no stored ledger, new telemetry, or migration. Responses name
-      usernames only.
-- [x] Players see a "score", always as a noun. The leaderboard opens on
-      High scores (rank, username, score; no medals, which stay with race
-      results), with a row of courses under their pictures that opens a
-      course's race leaderboard as it was (`?course=<id>`); old board links
-      still open Falls View Park's. A run kept from before signing in
-      records its course and lands on that course's board. The profile
-      shows your score. Kart cards show no earnings: an official kart's
-      share goes to Titan Racers, which players never see earning.
-- [x] Claude Fable 5.2 and Codex `gpt-6.2-astra` each designed the score
-      board and course selector on the same seeded scores, with a stand-in
-      second course, and the lead picked Fable 5.2's blind.
-
-**Done when:** a rebuilt part shows on every kart that uses it without changing
-any derived stats, within the phone budget; karts assemble by mounting points
-with clearance checks, and older revisions still race unchanged; and each
-published kart credits its assembler and earns it a share of the points
-raced with it (worked out on the server; shown from PR 9.2), and the
-leaderboard ranks racers by score, with nothing paid out. Phase 7's integration review runs before the phase closes.
-
-References (concepts, not dependencies):
-
-- [text-to-cad](https://github.com/earthtojake/text-to-cad) (MIT): agents
-  write build123d models; mass from volume times density; overlap and
-  closest-point checks; STEP, GLB, STL, and 3MF export.
-- [SindriCAD](https://tinkeratlas.com/sindricad) (AGPL-3.0, concepts only):
-  documents store the recipe (named parameters and ordered features), not
-  the shapes.
-- [RSL 1.0](https://rslstandard.org/): per-asset license terms, what is
-  permitted or prohibited, and a fixed set of payment types.
-- [teardown](https://github.com/elvarofficial/teardown) (MIT): one input drives
-  every pose; isolate, x-ray, cut away, or explode the part doing the work.
-
 ### Phase 8: Second Official Course
 
 **Goal:** a second official course, in a village or town, between Falls View
 Park's rural parkland and Phase 10's city.
+
+First, three changes the lead asked for before the course (debrief each):
+
+- [ ] Shorter room codes: the shortest a host can comfortably read out and
+      others type, while staying hard to guess. Today a code is 10
+      characters from a 31-character alphabet, and `room_races` checks
+      that shape.
+- [ ] A QR code of the room's join link beside its code, for a host who is
+      screen sharing.
+- [ ] The game works on a Steam Deck, both in its browser and launched as
+      an ordinary non-Steam game added from Desktop Mode, with the Deck's
+      controls and screen.
+
+Then the course:
 
 - [ ] Debrief its site in Island Three, its route, and its layout at kart
       scale before building.
