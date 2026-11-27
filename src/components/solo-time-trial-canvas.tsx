@@ -24,6 +24,7 @@ import {
   RunStandingSummary,
 } from "@/components/run-standing";
 import {
+  FirstPersonToggle,
   GhostToggle,
   SoundToggle,
   VolumeControl,
@@ -79,7 +80,15 @@ import {
   selectStrongerImpact,
   type ChaseCameraImpact,
   type ChaseCameraSnapshot,
+  type ObstructionQuery,
 } from "@/game/camera/chase-camera";
+import {
+  collectKartBoxes,
+  findFirstPersonMounts,
+  FIRST_PERSON_NEAR_CLIP,
+  FirstPersonCamera,
+} from "@/game/camera/first-person-camera";
+import { readFirstPersonView } from "@/game/camera/first-person-setting";
 import {
   buildCourseLighting,
   ENCLOSURE_SUN_ID,
@@ -814,6 +823,11 @@ export function SoloTimeTrialCanvas({
   const [gamePaused, setGamePaused] = useState(false);
   // Races mount only after a click, so this never renders on the server.
   const [soundOn, setSoundOn] = useState(readSoundOn);
+  const [firstPersonOn, setFirstPersonOn] = useState(readFirstPersonView);
+  const firstPersonOnRef = useRef(firstPersonOn);
+  useEffect(() => {
+    firstPersonOnRef.current = firstPersonOn;
+  }, [firstPersonOn]);
   const soundOnRef = useRef(soundOn);
   const [kartDynamicsOpen, setKartDynamicsOpen] = useState(false);
   const [raceSpeed, setRaceSpeed] = useState(0);
@@ -1343,6 +1357,12 @@ export function SoloTimeTrialCanvas({
       // little further away, so a close race does not make it blink.
       const ghostFadeDistance = 0.25 * kartRuntime.dimensions.z;
       const ghostShowDistance = 0.35 * kartRuntime.dimensions.z;
+      // On board, a kart passing through this one would fill the lens: it
+      // fades within about half a kart length of the lens's side of it.
+      const lensFadeDistance = 0.6 * kartRuntime.dimensions.z;
+      const lensShowDistance = 0.75 * kartRuntime.dimensions.z;
+      // Opponents faded at the lens, see-through ones only.
+      const lensFadedOpponents = new Set<string>();
       let ghostFaded = false;
       runtime.addCleanup(() => {
         ghostVisual?.destroy();
@@ -1601,29 +1621,65 @@ export function SoloTimeTrialCanvas({
         clearColor: new pc.Color(0.52, 0.7, 0.86),
       });
       app.root.addChild(camera);
+      // Course walls and ground between a point on the kart and a camera.
+      const queryCameraObstruction: ObstructionQuery = (
+        pivot,
+        desiredPosition,
+      ) => {
+        const hit = rigidBodySystem.raycastFirst(pivot, desiredPosition, {
+          filterCollisionGroup: PHYSICS_GROUP.kart,
+          filterCollisionMask: PHYSICS_MASK.kart,
+          filterCallback: (entity: pc.Entity) =>
+            entity !== kart &&
+            (entity.tags.has("obstacle") ||
+              entity.tags.has("drivable-surface")),
+        });
+
+        return hit
+          ? {
+              normal: hit.normal.clone(),
+              point: hit.point.clone(),
+            }
+          : null;
+      };
       const chaseCamera = new ChaseCamera(
         camera,
         activeCanvas,
-        (pivot, desiredPosition) => {
-          const hit = rigidBodySystem.raycastFirst(pivot, desiredPosition, {
-            filterCollisionGroup: PHYSICS_GROUP.kart,
-            filterCollisionMask: PHYSICS_MASK.kart,
-            filterCallback: (entity: pc.Entity) =>
-              entity !== kart &&
-              (entity.tags.has("obstacle") ||
-                entity.tags.has("drivable-surface")),
-          });
-
-          return hit
-            ? {
-                normal: hit.normal.clone(),
-                point: hit.point.clone(),
-              }
-            : null;
-        },
+        queryCameraObstruction,
         activeDynamics.kart.drivetrain.noLoadSpeed,
       );
-      steadyShadowFit(camera.camera!, () => chaseCamera.maximumFov);
+      const firstPersonCamera = new FirstPersonCamera(
+        camera,
+        activeCanvas,
+        chaseCamera,
+        findFirstPersonMounts(collectKartBoxes(kartVisual)),
+        queryCameraObstruction,
+      );
+      const chaseNearClip = camera.camera!.nearClip;
+      // The onboard view showed at the last camera update. A switch made
+      // in the pause menu takes effect when updates resume.
+      let onboardShown = false;
+      steadyShadowFit(camera.camera!, () =>
+        onboardShown ? firstPersonCamera.maximumFov : chaseCamera.maximumFov,
+      );
+      // After the chase has placed itself, the onboard view takes over when
+      // it's on and the kart isn't tumbling.
+      function showCamera(frameSeconds: number, snapshot: ChaseCameraSnapshot) {
+        if (firstPersonOnRef.current) {
+          firstPersonCamera.update(frameSeconds, snapshot);
+        } else {
+          firstPersonCamera.reset();
+        }
+        onboardShown = firstPersonOnRef.current && firstPersonCamera.onboard;
+        camera.camera!.nearClip = onboardShown
+          ? FIRST_PERSON_NEAR_CLIP
+          : chaseNearClip;
+      }
+      // Resets, recovery, and teleports, paused or not.
+      function snapCameras(snapshot: ChaseCameraSnapshot) {
+        chaseCamera.snap(snapshot);
+        showCamera(0, snapshot);
+      }
       let kartTapRightingRequested = false;
       let manualRightingCapturePending = false;
       let manualRightingCooldownSeconds = 0;
@@ -1786,7 +1842,7 @@ export function SoloTimeTrialCanvas({
         previousRacePosition.copy(kart.getPosition());
         latestCameraImpact = null;
         inputManager?.clear();
-        chaseCamera.snap(getChaseCameraSnapshot(dynamicWheels.length));
+        snapCameras(getChaseCameraSnapshot(dynamicWheels.length));
         activeCanvas.focus();
       }
 
@@ -2076,7 +2132,7 @@ export function SoloTimeTrialCanvas({
         latestCameraImpact = null;
         inputManager?.clear();
         clearTouchPresentation();
-        chaseCamera.snap(getChaseCameraSnapshot(dynamicWheels.length));
+        snapCameras(getChaseCameraSnapshot(dynamicWheels.length));
         activeCanvas.focus();
         return true;
       }
@@ -2732,6 +2788,9 @@ export function SoloTimeTrialCanvas({
         inputManager.setEnabled(false);
         // A paused race draws no camera updates: cut forward first.
         chaseCamera.lookForward();
+        if (onboardShown) {
+          firstPersonCamera.lookForward(chaseCameraSnapshot.up);
+        }
         previousRacePosition.copy(kart.getPosition());
         const resuming = raceSession.snapshot.state === "resuming";
         runtime.setPaused(paused || resuming);
@@ -3263,7 +3322,7 @@ export function SoloTimeTrialCanvas({
 
         snapKartPresentationState();
         previousRacePosition.copy(kart.getPosition());
-        chaseCamera.snap(
+        snapCameras(
           getChaseCameraSnapshot(
             pose.position.y > KART_ROOT_HEIGHT + scaleReferenceKartLength(0.5)
               ? 0
@@ -3356,7 +3415,15 @@ export function SoloTimeTrialCanvas({
       const detachSceneTestAdapter = ENABLE_SCENE_TEST_HOOKS
         ? attachSceneTestAdapter(activeCanvas, {
             getAudioDebugState: () => raceAudio?.getDebugState() ?? null,
-            getCameraDebugState: () => chaseCamera.getDiagnostics(),
+            getCameraDebugState: () => {
+              const shown = camera.getPosition();
+              return {
+                ...chaseCamera.getDiagnostics(),
+                firstPerson: onboardShown,
+                nearClip: camera.camera!.nearClip,
+                shownPosition: { x: shown.x, y: shown.y, z: shown.z },
+              };
+            },
             getCollisionDebugState,
             getCollisionResponseDebugState,
             getKartDebugState,
@@ -3436,7 +3503,7 @@ export function SoloTimeTrialCanvas({
         : () => undefined;
       runtime.addCleanup(detachSceneTestAdapter);
 
-      chaseCamera.snap(getChaseCameraSnapshot(dynamicWheels.length));
+      snapCameras(getChaseCameraSnapshot(dynamicWheels.length));
 
       let latestRequestedDrivingInput =
         inputManager.sampleDrivingInput().driving;
@@ -4106,6 +4173,11 @@ export function SoloTimeTrialCanvas({
         kartVisual.setPosition(interpolatedKartVisualPosition);
         kartVisual.setRotation(interpolatedKartAssemblyRotation);
         renderWheelPresentation(accumulatorFraction, frameSeconds);
+        // The camera first, so the ghost and opponents fade by the view
+        // that will show.
+        const cameraSnapshot = getChaseCameraSnapshot();
+        chaseCamera.update(frameSeconds, cameraSnapshot);
+        showCamera(frameSeconds, cameraSnapshot);
         if (ghostVisual && ghostPlayback) {
           // The kart is drawn between its last two steps; draw the ghost
           // at the same moment of race time. A stopped clock (paused,
@@ -4124,13 +4196,19 @@ export function SoloTimeTrialCanvas({
             ? ghostPlayback.sample(ghostTime, ghostPose)
             : null;
           if (pose) {
+            // On board, it fades as it passes the lens instead.
+            const lens = onboardShown;
+            const from = lens ? camera.getPosition() : interpolatedKartPosition;
             const gap = Math.hypot(
-              pose.position.x - interpolatedKartPosition.x,
-              pose.position.y - interpolatedKartPosition.y,
-              pose.position.z - interpolatedKartPosition.z,
+              pose.position.x - from.x,
+              pose.position.y - from.y,
+              pose.position.z - from.z,
             );
-            if (gap < ghostFadeDistance) ghostFaded = true;
-            else if (gap > ghostShowDistance) ghostFaded = false;
+            if (gap < (lens ? lensFadeDistance : ghostFadeDistance)) {
+              ghostFaded = true;
+            } else if (gap > (lens ? lensShowDistance : ghostShowDistance)) {
+              ghostFaded = false;
+            }
           }
           ghostVisual.update(
             pose,
@@ -4179,7 +4257,7 @@ export function SoloTimeTrialCanvas({
                       : roomTime,
                   viewer: interpolatedKartPosition,
                 };
-          // Heard from the camera, as it stood at the last frame.
+          // Heard from the camera, as placed this frame.
           const cameraPosition = camera.getPosition();
           heardCamera.follow(cameraPosition, opponentSeconds);
           listener.right.copy(camera.right);
@@ -4196,9 +4274,25 @@ export function SoloTimeTrialCanvas({
                     opponentPose,
                     near,
                   );
-            opponent.visual.update(pose, opponentSeconds);
-            opponent.visual.setSeeThrough(
-              pageContacts?.seeThrough(opponent.id) ?? false,
+            const seeThrough = pageContacts?.seeThrough(opponent.id) ?? false;
+            opponent.visual.setSeeThrough(seeThrough);
+            if (pose && seeThrough && onboardShown) {
+              const gap = Math.hypot(
+                pose.position.x - cameraPosition.x,
+                pose.position.y - cameraPosition.y,
+                pose.position.z - cameraPosition.z,
+              );
+              if (gap < lensFadeDistance) lensFadedOpponents.add(opponent.id);
+              else if (gap > lensShowDistance) {
+                lensFadedOpponents.delete(opponent.id);
+              }
+            } else {
+              lensFadedOpponents.delete(opponent.id);
+            }
+            opponent.visual.update(
+              pose,
+              opponentSeconds,
+              lensFadedOpponents.has(opponent.id),
             );
             if (!pose) {
               shadow.entity.enabled = false;
@@ -4235,7 +4329,6 @@ export function SoloTimeTrialCanvas({
         if (warmingSeeThrough) seeThroughWarmFrames -= 1;
         contactShadow.update(kartVisual, findGroundBelowKart);
 
-        chaseCamera.update(frameSeconds, getChaseCameraSnapshot());
         const { habitat } = kartController;
         activeSurfaceEffects.setHabitat(
           habitat.gravity(interpolatedKartPosition),
@@ -5144,6 +5237,10 @@ export function SoloTimeTrialCanvas({
                   )}
                   <SoundToggle on={soundOn} onChange={setSoundOn} />
                   <VolumeControl />
+                  <FirstPersonToggle
+                    on={firstPersonOn}
+                    onChange={setFirstPersonOn}
+                  />
                   {ghosts ? (
                     <GhostToggle
                       on={ghostOn}

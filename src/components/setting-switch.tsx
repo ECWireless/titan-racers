@@ -8,6 +8,10 @@ import {
   writeSoundOn,
   writeVolume,
 } from "@/game/audio/race-audio";
+import {
+  readFirstPersonView,
+  writeFirstPersonView,
+} from "@/game/camera/first-person-setting";
 import { writeGhostSwitch } from "@/game/ghost/device-ghost";
 
 type StoredSwitchProps = {
@@ -46,6 +50,26 @@ export function GhostToggle({ on, onChange }: StoredSwitchProps) {
       }}
     />
   );
+}
+
+/** The player's First-person view switch, saved on this device as it changes. */
+export function FirstPersonToggle({ on, onChange }: StoredSwitchProps) {
+  return (
+    <SettingSwitch
+      label="First-person view"
+      on={on}
+      onToggle={() => {
+        writeFirstPersonView(!on);
+        onChange(!on);
+      }}
+    />
+  );
+}
+
+/** The First-person view switch outside a race, as StoredSoundToggle. */
+export function StoredFirstPersonToggle() {
+  const [on, setOn] = useState(readFirstPersonView);
+  return <FirstPersonToggle on={on} onChange={setOn} />;
 }
 
 function SettingSwitch({

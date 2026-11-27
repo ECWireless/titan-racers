@@ -128,6 +128,39 @@ progression.
 - Camera diagnostics are ordinary copied data and cannot mutate the camera,
   kart, PlayCanvas entities, or Ammo objects.
 
+## First-Person View
+
+The First-person view switch (`src/game/camera/first-person-setting.ts`,
+saved on the device; in home's menu and the race's pause menu) races from an
+onboard camera, `src/game/camera/first-person-camera.ts`, placed after the
+chase updates each frame. The chase keeps running underneath, so its snaps,
+hit nudge, and speed carry over, and it shows instead while the kart tumbles.
+
+- The mount comes from the kart's drawn parts (`collectKartBoxes`, in the kart
+  visual's frame): a nose camera, centred, 2 cm ahead of the nose and 11 cm
+  above the centre-band parts in the front 15% of the kart (about 26 cm up
+  on the default kart), so none of the kart, its
+  frame, or a future body shell is in view. Look behind cuts to the
+  matching tail camera, facing back.
+- About 90° across a wide screen, opening 5° at top speed; the vertical view
+  is capped at 75° (which limits the widening on squarer screens), and an
+  upright phone keeps at least 70° across.
+- Heading follows the kart at once; position moves with the kart across the
+  ground at once while bumps, pitch, and lean settle over about 0.1 s, the
+  lens never more than 2 cm from its mount (climbs, rises, landings) and the
+  aim's pitch never more than 20° behind the kart's; a quarter of the kart's
+  lean tilts the horizon. The chase's obstruction ray, cast from the kart's
+  middle at lens height to 3 cm past the lens, holds the lens 3 cm short of
+  a wall the nose or tail is pressed against.
+- Tipped past about 70° (on its side or roof), the chase shows until the
+  kart is upright for 0.5 s; spins and wall hits stay onboard. A snap
+  (reset, recovery, teleport) starts afresh. Snaps place both views at once,
+  paused or not.
+- The near clip drops to 1 cm while it shows. A ghost, or a see-through room
+  opponent, fades within 0.6 kart lengths of the lens.
+- A switch made in the pause menu takes effect when camera updates resume,
+  after the resume countdown.
+
 ## Verification
 
 Focused coverage includes:
@@ -161,3 +194,7 @@ hands-on desktop and narrow-mobile driving.
   per-runtime tuning after comparable player QA.
 - Player camera orbit, replay, ghost, spectator, multiplayer, and
   split-screen cameras remain later scope.
+- The first-person view is unmeasured against the iPhone budget, and its 1 cm
+  near clip coarsens distant depth precision; raise it if far surfaces
+  flicker. `tests/first-person-camera.spec.ts` covers the mounts, view width,
+  riding, lean, look behind, and tumble.

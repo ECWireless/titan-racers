@@ -19,9 +19,8 @@ accepted; the app, README, and durable docs take over from there.
   follow-ups, #30–#57 with the PR 4.5.2 closeout, #59–#63, #64–#70 with
   the Phase 6 closeout, the Phase 6 addendum #71–#76, and #77–#80 with
   Phase 7's integration review).
-- **Now:** PR 8.3, look behind and first person.
-- **Next:** PR 8.4, a wider touch steering dead zone, then Phase 8's second
-  official course.
+- **Now:** PR 8.4, a wider touch steering dead zone.
+- **Next:** Phase 8's second official course.
 
 ## Guiding Decisions
 
@@ -358,12 +357,13 @@ First, small PRs before the course:
       or joins as today. The lobby shows the code large beside a QR code of
       its join link (`qrcode.react`, dark on a light tile) and Copy room
       link, on phones too.
-- [ ] PR 8.3: Look behind and first person. Holding C, a controller's Y,
+- [x] PR 8.3: Look behind and first person. Holding C, a controller's Y,
       or the touch button above the pedals cuts the race camera to face
       back, and letting go cuts it forward; a pause, a reset, or leaving the
       tab ends it until pressed again. A First-person view switch, saved on
       the device like Sound, in home's menu and the race's pause menu, races
-      from a camera on top of the kart's body instead of the chase camera.
+      from a camera at the kart's nose instead of the chase camera
+      ([camera guide](skills/project-systems/chase-camera/README.md)).
 - [ ] PR 8.4: Touch steering dead zone. Driving straight on the touch
       joystick is too hard: widen the dead zone for steering alone.
 

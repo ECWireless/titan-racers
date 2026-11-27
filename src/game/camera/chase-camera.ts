@@ -107,7 +107,7 @@ export type ChaseCameraDiagnostics = {
   uprightness: number;
 };
 
-type ObstructionQuery = (
+export type ObstructionQuery = (
   pivot: pc.Vec3,
   desiredPosition: pc.Vec3,
 ) => ChaseCameraObstruction | null;
@@ -275,6 +275,21 @@ export class ChaseCamera {
     private readonly queryObstruction: ObstructionQuery = () => null,
     private maximumSpeed = DEFAULT_MAXIMUM_SPEED,
   ) {}
+
+  /** Counts snaps, so a camera following this one knows to snap too. */
+  get snaps() {
+    return this.snapCount;
+  }
+
+  /** The current hit nudge, world metres; read only. */
+  get impactNudge(): Readonly<pc.Vec3> {
+    return this.impactOffset;
+  }
+
+  /** Smoothed ground speed as a share of top speed, 0–1. */
+  get speedRatio() {
+    return clamp(this.planarSpeed / this.maximumSpeed, 0, 1);
+  }
 
   /** The widest view the camera opens to at speed, degrees. */
   get maximumFov() {
@@ -561,7 +576,7 @@ export class ChaseCamera {
       (this.signedSlipDegrees / MAXIMUM_SLIP_DEGREES) *
       MAXIMUM_SLIP_OFFSET *
       (1 - this.stabilizationBlend);
-    const speedRatio = clamp(this.planarSpeed / this.maximumSpeed, 0, 1);
+    const speedRatio = this.speedRatio;
     this.composeShot(
       snapshot,
       settings,
@@ -732,7 +747,7 @@ export class ChaseCamera {
     return lerp(
       settings.fov,
       settings.maximumFov,
-      clamp(this.planarSpeed / this.maximumSpeed, 0, 1),
+      this.speedRatio,
     );
   }
 

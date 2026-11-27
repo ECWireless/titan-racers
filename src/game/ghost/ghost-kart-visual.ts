@@ -53,13 +53,15 @@ export function createSeeThroughSwitch(
     }
   });
   let current = false;
+  /** Returns whether it changed, marking the batch for a rebuild. */
   return (on: boolean) => {
-    if (on === current) return;
+    if (on === current) return false;
     current = on;
     for (const { instance, solid } of parts) {
       instance.material = on ? seeThrough() : solid;
     }
     app.batcher.markGroupDirty(batchGroupId);
+    return true;
   };
 }
 
@@ -115,9 +117,20 @@ export function createGhostKartVisual(
   const rotation = new pc.Quat();
   const position = new pc.Vec3();
   let faded = false;
-  const setSeeThrough = seeThrough
+  const switchSeeThrough = seeThrough
     ? createSeeThroughSwitch(app, visual, batchGroup.id, seeThrough)
-    : () => undefined;
+    : () => false;
+  const applyFade = () => {
+    for (const instance of getBatchMeshInstances(app, batchGroup.id)) {
+      instance.visible = !faded;
+    }
+  };
+  // The rebuilt batch's draws start visible: rebuild now and keep a fade.
+  const setSeeThrough = (on: boolean) => {
+    if (!switchSeeThrough(on) || !root.enabled) return;
+    app.batcher.updateAll();
+    applyFade();
+  };
 
   return {
     /**
@@ -134,9 +147,7 @@ export function createGhostKartVisual(
       // replace its draws later, so they are looked up every frame.
       if (!wasEnabled) app.batcher.updateAll();
       faded = fade;
-      for (const instance of getBatchMeshInstances(app, batchGroup.id)) {
-        instance.visible = !fade;
-      }
+      applyFade();
       rotation.set(pose.rotation.x, pose.rotation.y, pose.rotation.z, pose.rotation.w);
       rotation.transformVector(geometryOffset, position);
       position.x += pose.position.x;
