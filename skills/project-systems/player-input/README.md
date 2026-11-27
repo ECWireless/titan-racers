@@ -123,12 +123,18 @@ The joystick maps horizontal travel to steering, upward travel to acceleration,
 and downward travel to brake/reverse. It clamps raw displacement to a circle,
 applies the touch adapter's `0.08` radial dead zone, then raises the remaining
 magnitude to the `1.75` power while preserving vector direction. This touch-only
-curve reduces gain near center while preserving full authority at the rim. The
-portrait pad is `8.5rem` square and compact-landscape pad is `6.75rem`, increasing
-input travel by roughly 17% over the accepted steering-only baseline.
-Joystick-down remains ordinary service brake/reverse intent at every steering
-angle. While forward intent is active and the brake/reverse pedal is held,
-rear-handbrake intent follows a smoothstep ramp once shaped lateral steering
+curve reduces gain near center while preserving full authority at the rim.
+Steering is then zero for a push within `8°` of straight up or down, whatever
+its length, and eases back (smoothstep) to the unchanged value by `20°`, so a
+thumb drifting a little off straight drives straight; full sideways is
+unchanged. The portrait pad is `8.5rem` square and compact-landscape pad is
+`6.75rem`, increasing input travel by roughly 17% over the accepted
+steering-only baseline.
+Joystick-down is service brake/reverse intent, except within `10°` of
+horizontal, where a sideways push only steers, and at speed, where a
+back-diagonal pull requests the handbrake instead. While forward intent is
+active and the brake/reverse pedal is held, rear-handbrake intent follows a
+smoothstep ramp once shaped lateral travel (before the steering dead zone)
 crosses `0.3`, reaching full lateral authority at `0.7`; forward authority is
 normalized to reach full at `0.5`. A forward turn plus brake pedal can
 therefore retain a bounded `0.2` service-brake floor while requesting the same
