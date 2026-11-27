@@ -19,8 +19,9 @@ accepted; the app, README, and durable docs take over from there.
   follow-ups, #30–#57 with the PR 4.5.2 closeout, #59–#63, #64–#70 with
   the Phase 6 closeout, the Phase 6 addendum #71–#76, and #77–#80 with
   Phase 7's integration review).
-- **Now:** PR 8.4, a wider touch steering dead zone.
-- **Next:** Phase 8's second official course.
+- **Now:** Phase 8's second official course: debrief its site, route, and
+  layout.
+- **Next:** Phase 9, starting with PR 9.1, Steam Deck.
 
 ## Guiding Decisions
 
@@ -364,8 +365,9 @@ First, small PRs before the course:
       the device like Sound, in home's menu and the race's pause menu, races
       from a camera at the kart's nose instead of the chase camera
       ([camera guide](skills/project-systems/chase-camera/README.md)).
-- [ ] PR 8.4: Touch steering dead zone. Driving straight on the touch
-      joystick is too hard: widen the dead zone for steering alone.
+- [x] PR 8.4: Touch steering dead zone. A touch-joystick push within 8° of
+      straight up or down steers zero, easing back to normal steering by
+      20°, so a thumb drifting off straight drives straight.
 
 Then the course:
 

@@ -24,6 +24,11 @@ export const TOUCH_PULL_HANDBRAKE_MAGNITUDE = [0.5, 0.8] as const;
 export const TOUCH_PULL_HANDBRAKE_SPEED_RATIO = [0.3, 0.4] as const;
 // The gesture's handbrake rises over this time but releases at once.
 export const TOUCH_PULL_HANDBRAKE_RISE_SECONDS = 0.3;
+// A push within this many degrees of straight up or down drives straight;
+// steering eases back in until it is as before at the second angle. A
+// thumb's drift off straight is about the angle, however far it pushes.
+const TOUCH_STEER_DEAD_BAND_DEGREES = [8, 20] as const;
+
 
 export type TouchJoystickValue = {
   x: number;
@@ -131,6 +136,15 @@ export function getTouchPullHandbrake(
   );
 }
 
+// The joystick's steering, kept at zero near straight up or down. Pure
+// sideways steers as before.
+function getTouchSteer(joystickX: number, joystickY: number) {
+  if (!Number.isFinite(joystickX) || !Number.isFinite(joystickY)) return 0;
+  const fromStraight =
+    (Math.atan2(Math.abs(joystickX), Math.abs(joystickY)) * 180) / Math.PI;
+  return joystickX * smoothRamp(fromStraight, ...TOUCH_STEER_DEAD_BAND_DEGREES) || 0;
+}
+
 export class TouchInput implements PlayerInputSource {
   private readonly buttonPointers = new Map<number, TouchButtonAction>();
   private joystickPointer: (TouchJoystickValue & { pointerId: number }) | null =
@@ -211,10 +225,9 @@ export class TouchInput implements PlayerInputSource {
     // components available from separate keyboard controls. As deliberate
     // handbrake intent rises, restore that missing steering authority smoothly
     // so the touch gesture can request the same physical maneuver.
+    const steer = getTouchSteer(joystickX, joystickY);
     const handbrakeSteer =
-      joystickX === 0
-        ? 0
-        : joystickX + (Math.sign(joystickX) - joystickX) * handbrake;
+      steer === 0 ? 0 : steer + (Math.sign(steer) - steer) * handbrake;
     return {
       accelerate,
       brakeReverse: Math.max(

@@ -262,6 +262,41 @@ test.describe("player input", () => {
     });
   });
 
+  test("touch drives straight within 8 degrees of straight up or down, easing back to full by 20", () => {
+    const touch = new TouchInput();
+    // The sampled steer at `degrees` off straight up (or down), at a push
+    // already shaped to `magnitude`: the joystick's shaping is undone so the
+    // adapter sees exactly this vector.
+    const steerAt = (degrees: number, magnitude = 1, up = true) => {
+      const radians = (degrees * Math.PI) / 180;
+      const raw = (shaped: number) =>
+        0.08 + (1 - 0.08) * Math.pow(shaped, 1 / 1.75);
+      const length = raw(magnitude);
+      touch.setJoystick(
+        1,
+        length * Math.sin(radians),
+        (up ? -1 : 1) * length * Math.cos(radians),
+      );
+      return touch.sample().steer;
+    };
+    for (const magnitude of [0.3, 1]) {
+      expect(steerAt(7.9, magnitude)).toBe(0);
+      expect(steerAt(-7.9, magnitude, false)).toBe(0);
+    }
+    // Smoothstep between 8 and 20 degrees, then steering as before.
+    const eased = (degrees: number) => {
+      const progress = (degrees - 8) / 12;
+      return (
+        Math.sin((degrees * Math.PI) / 180) *
+        progress * progress * (3 - 2 * progress)
+      );
+    };
+    expect(steerAt(11)).toBeCloseTo(eased(11), 6);
+    expect(steerAt(-11, 1, false)).toBeCloseTo(-eased(11), 6);
+    expect(steerAt(20)).toBeCloseTo(Math.sin((20 * Math.PI) / 180), 6);
+    expect(steerAt(90)).toBeCloseTo(1, 6);
+  });
+
   test("touch progressively rear-biases the brake pedal from light through strong turns", () => {
     const touch = new TouchInput();
 
