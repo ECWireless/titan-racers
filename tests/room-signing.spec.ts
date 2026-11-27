@@ -33,7 +33,8 @@ const NOW = 1_800_000_000_000;
 function fields(player: Partial<RoomTokenFields["player"]> = {}) {
   return {
     protocol: ROOM_PROTOCOL,
-    room: "abcdefghjk",
+    room: "abcde",
+    join: "link",
     courseId: "falls-view-park",
     courseRevision: 11,
     course: straightRoomCourse(2, [10, 20]),
@@ -121,11 +122,11 @@ test.describe("room tokens", () => {
   });
 
   test("give an account one key per room", async () => {
-    const key = await roomPlayerKey(SECRET, "abcdefghjk", "user-1");
+    const key = await roomPlayerKey(SECRET, "abcde", "user-1");
     expect(key).toMatch(/^[A-Za-z0-9_-]{43}$/);
-    expect(await roomPlayerKey(SECRET, "abcdefghjk", "user-1")).toBe(key);
-    expect(await roomPlayerKey(SECRET, "abcdefghjm", "user-1")).not.toBe(key);
-    expect(await roomPlayerKey(SECRET, "abcdefghjk", "user-2")).not.toBe(key);
+    expect(await roomPlayerKey(SECRET, "abcde", "user-1")).toBe(key);
+    expect(await roomPlayerKey(SECRET, "abcdf", "user-1")).not.toBe(key);
+    expect(await roomPlayerKey(SECRET, "abcde", "user-2")).not.toBe(key);
     expect(randomRoomPlayerKey()).not.toBe(randomRoomPlayerKey());
   });
 });

@@ -7,6 +7,7 @@ import {
   ROOM_RESEND_BATCH,
   ROOM_SEAT_HOLD_MS,
   type RoomClientMessage,
+  type RoomJoin,
   type RoomSnapshot,
 } from "./room-protocol";
 import { OpponentTracks, type RoomContactRecord } from "./room-race";
@@ -27,6 +28,8 @@ export type RoomView = {
   results: Record<string, NonNullable<RoomSnapshot["lastRace"]>>;
   /** Why the room is gone, in player copy. */
   closedReason: string | null;
+  /** A new room's code was in use, so the page should pick another. */
+  taken: boolean;
 };
 
 type KartStateMessage = Extract<RoomClientMessage, { type: "state" }>;
@@ -61,6 +64,7 @@ export const CONNECTING_ROOM_VIEW: RoomView = {
   room: null,
   results: {},
   closedReason: null,
+  taken: false,
 };
 
 const CLOSE_COPY: Record<number, string> = {
@@ -70,6 +74,8 @@ const CLOSE_COPY: Record<number, string> = {
   [ROOM_CLOSE.token]: "Couldn't join this room. Refresh to try again.",
   [ROOM_CLOSE.replaced]: "You joined this room in another tab.",
   [ROOM_CLOSE.protocol]: "Lost the room. Refresh to rejoin.",
+  [ROOM_CLOSE.busy]: "Too many tries to join. Wait a minute, then try again.",
+  [ROOM_CLOSE.empty]: "No one's in that room. Check the code and try again.",
 };
 const LOST_COPY = "Lost connection to the room. Refresh to rejoin.";
 
@@ -145,9 +151,11 @@ export class RoomConnection {
   })();
   private netDueAt = 0;
 
+  /** Why the page first joins; once in, it comes back as by its link. */
   constructor(
     private readonly code: string,
     private readonly serverUrl: string,
+    private readonly join: RoomJoin = "link",
   ) {}
 
   subscribe = (listener: () => void) => {
@@ -181,7 +189,11 @@ export class RoomConnection {
     let token: string;
     try {
       const response = await fetch(`/api/rooms/${this.code}/token`, {
-        body: JSON.stringify({ seat: this.seat, protocol: ROOM_PROTOCOL }),
+        body: JSON.stringify({
+          seat: this.seat,
+          protocol: ROOM_PROTOCOL,
+          join: this.view.you === null ? this.join : "link",
+        }),
         cache: "no-store",
         headers: { "content-type": "application/json" },
         method: "POST",
@@ -246,6 +258,17 @@ export class RoomConnection {
       if (this.socket !== socket) return;
       this.socket = null;
       this.stopTimers();
+      if (event.code === ROOM_CLOSE.taken) {
+        this.cancelReconnect();
+        this.update({ status: "closed", taken: true });
+        return;
+      }
+      // Too many joins from this network: a page already in keeps trying,
+      // at its slowing pace, while its seat holds.
+      if (event.code === ROOM_CLOSE.busy && this.view.you !== null) {
+        this.reconnect();
+        return;
+      }
       const terminal = CLOSE_COPY[event.code];
       if (terminal) this.finish(terminal);
       else this.reconnect();

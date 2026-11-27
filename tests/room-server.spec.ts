@@ -57,6 +57,7 @@ function tokenFields(
   return {
     protocol: ROOM_PROTOCOL,
     room,
+    join: "link",
     courseId: "falls-view-park",
     courseRevision: 11,
     // One lap past a checkpoint at 2 m: two gates.
@@ -72,6 +73,8 @@ function tokenFields(
     ...overrides,
   };
 }
+
+const randomAddress = () => `10.${[...randomBytes(3)].join(".")}`;
 
 class Client {
   readonly messages: RoomServerMessage[] = [];
@@ -90,13 +93,18 @@ class Client {
     );
   }
 
-  static async join(token: string, origin = ORIGIN) {
+  /**
+   * Joins from its own address unless given one, so only the limit's test
+   * meets the room server's limit on joins from one address.
+   */
+  static async join(token: string, origin = ORIGIN, address = randomAddress()) {
     const url = `ws://127.0.0.1:${PORT}/v1/rooms/${JSON.parse(
       Buffer.from(token.split(".")[0], "base64url").toString(),
     ).room}?token=${token}`;
-    // Node's WebSocket (undici) takes headers, so it can send an Origin.
+    // Node's WebSocket (undici) takes headers, so it can send an Origin and,
+    // under `wrangler dev`, the address Cloudflare would set.
     const socket = new WebSocket(url, {
-      headers: { origin },
+      headers: { origin, "cf-connecting-ip": address },
     } as unknown as string[]);
     return new Client(socket);
   }
@@ -460,6 +468,38 @@ test("refuses bad joins with a reason the page can show", async () => {
     "https://elsewhere.example",
   );
   expect(await foreign.closed).toBe(1006);
+});
+
+test("refuses a new room in use, a typed code no one's in, and too many joins", async () => {
+  const room = createRoomCode();
+  const join = (how: RoomTokenFields["join"]) =>
+    Client.signed(tokenFields(room, {}, { join: how }));
+  expect(await (await join("code")).closed).toBe(ROOM_CLOSE.empty);
+  const host = await join("new");
+  await host.next(isRoom);
+  expect(await (await join("new")).closed).toBe(ROOM_CLOSE.taken);
+  const typed = await join("code");
+  expect((await typed.next(isRoom)).players).toHaveLength(2);
+  typed.socket.close(1000);
+  host.socket.close(1000);
+
+  // Any join counts, even one refused for its token, and an IPv6 network's
+  // addresses count as one, however they're written.
+  const [a, b] = [...randomBytes(4)].map((byte) => byte.toString(16));
+  const network = [`2001:db8:${a}:${b}::1`, `2001:0db8:${a}:${b}:9:8:7:6`];
+  const stale = await signRoomToken(SECRET, tokenFields(room), Date.now() - 120_000);
+  const codes = [];
+  for (let attempt = 0; attempt < 31; attempt += 1) {
+    codes.push(
+      await (await Client.join(stale, ORIGIN, network[attempt % 2])).closed,
+    );
+  }
+  expect(codes.slice(0, 30)).toEqual(Array(30).fill(ROOM_CLOSE.token));
+  expect(codes[30]).toBe(ROOM_CLOSE.busy);
+  // Another network still joins.
+  expect(
+    await (await Client.join(stale, ORIGIN, `2001:db9:${a}:${b}::1`)).closed,
+  ).toBe(ROOM_CLOSE.token);
 });
 
 test("fills at four, gives a new tab the seat, and drops bad messages", async () => {

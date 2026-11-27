@@ -18,6 +18,7 @@ import {
   createRoomCode,
   parseServerMessage,
   ROOM_PROTOCOL,
+  type RoomJoin,
   type RoomServerMessage,
 } from "../src/game/room/room-protocol";
 import {
@@ -68,10 +69,16 @@ test.afterAll(async () => {
 });
 
 /** A join token for the test's room, as the app signs one. */
-async function roomToken(code: string, username: string | null, key: string) {
+async function roomToken(
+  code: string,
+  username: string | null,
+  key: string,
+  join: RoomJoin = "link",
+) {
   return signRoomToken(SECRET, {
     protocol: ROOM_PROTOCOL,
     room: code,
+    join,
     courseId: COURSE.courseId,
     courseRevision: 1,
     course: createRoomCourse(COURSE),
@@ -87,7 +94,12 @@ async function roomToken(code: string, username: string | null, key: string) {
   });
 }
 
-async function joinAs(page: Page, code: string, username: string | null) {
+async function joinAs(
+  page: Page,
+  code: string,
+  username: string | null,
+  join?: "new",
+) {
   // One seat per page, as the app's keys give, so a reconnect retakes it.
   const key = randomRoomPlayerKey();
   await Promise.all([
@@ -125,11 +137,16 @@ async function joinAs(page: Page, code: string, username: string | null) {
         },
       }),
     ),
-    page.route(`**/api/rooms/${code}/token`, async (route) =>
-      route.fulfill({ json: { token: await roomToken(code, username, key) } }),
-    ),
+    // Any room's, since a page whose new room is taken moves to another.
+    page.route("**/api/rooms/*/token", async (route) => {
+      const room = new URL(route.request().url()).pathname.split("/")[3];
+      const { join } = route.request().postDataJSON() as { join: RoomJoin };
+      await route.fulfill({
+        json: { token: await roomToken(room, username, key, join) },
+      });
+    }),
   ]);
-  await page.goto(`/room/${code}`);
+  await page.goto(join ? `/room/${code}?join=${join}` : `/room/${code}`);
 }
 
 /**
@@ -368,6 +385,34 @@ async function driveTwoLaps(canvas: Locator) {
     );
   }
 }
+
+test("a new room whose code is in use opens under another", async ({
+  page,
+}) => {
+  const code = createRoomCode();
+  const token = await roomToken(code, null, randomRoomPlayerKey());
+  const someone = new WebSocket(
+    `ws://127.0.0.1:${ROOM_PORT}/v1/rooms/${code}?token=${token}`,
+    { headers: { origin: "http://127.0.0.1:3873" } } as unknown as string[],
+  );
+  try {
+    await new Promise((resolve, reject) => {
+      someone.addEventListener("message", resolve, { once: true });
+      someone.addEventListener("close", reject, { once: true });
+    });
+    await joinAs(page, code, null, "new");
+    await expect(
+      page.getByRole("heading", { name: "Private room" }),
+    ).toBeVisible();
+    // Its address is the new room's own link, ready to share.
+    const address = new URL(page.url());
+    expect(address.pathname).toMatch(/^\/room\/[a-z2-9]{5}$/);
+    expect(address.pathname).not.toBe(`/room/${code}`);
+    expect(address.search).toBe("");
+  } finally {
+    someone.close(1000);
+  }
+});
 
 test("two players race a room on one clock to the same results", async ({
   browser,

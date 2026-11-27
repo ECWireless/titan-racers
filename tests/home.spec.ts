@@ -930,7 +930,8 @@ test.describe("home screen", () => {
       page.getByRole("main").locator(".home-menu-item"),
     ).toHaveText([/Time Trial/, /Multiplayer/, /Leaderboard/]);
     await page.getByRole("button", { exact: true, name: "Multiplayer" }).click();
-    await expect(page).toHaveURL(/\/room\/[a-z2-9]{10}$/);
+    // A new room, which the room checks no one is using.
+    await expect(page).toHaveURL(/\/room\/[a-z2-9]{5}\?join=new$/);
   });
 
   test("plays menu sounds, keeps one volume, and goes quiet with Sound effects off", async ({

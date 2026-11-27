@@ -1,0 +1,2 @@
+ALTER TABLE "room_races" DROP CONSTRAINT "room_races_room_code";--> statement-breakpoint
+ALTER TABLE "room_races" ADD CONSTRAINT "room_races_room_code" CHECK ("room_races"."room_code" ~ '^[a-z2-9]{5}([a-z2-9]{5})?$');

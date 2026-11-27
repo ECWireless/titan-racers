@@ -10,10 +10,19 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
 
-type PageProps = { params: Promise<{ code: string }> };
+type PageProps = {
+  params: Promise<{ code: string }>;
+  searchParams: Promise<{ join?: string | string[] }>;
+};
 
-export default async function RoomPage({ params }: PageProps) {
+export default async function RoomPage({ params, searchParams }: PageProps) {
   const { code } = await params;
   if (!isRoomCode(code)) notFound();
-  return <RoomPlay code={code} />;
+  const { join } = await searchParams;
+  return (
+    <RoomPlay
+      code={code}
+      join={join === "new" || join === "code" ? join : "link"}
+    />
+  );
 }

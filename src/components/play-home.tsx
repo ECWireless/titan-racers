@@ -915,7 +915,7 @@ export function PlayHome() {
         // course.
         onMultiplayer={() => {
           if (roomsAvailable) {
-            window.location.assign(`/room/${createRoomCode()}`);
+            window.location.assign(`/room/${createRoomCode()}?join=new`);
           }
         }}
         onTimeTrial={() => {

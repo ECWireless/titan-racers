@@ -147,7 +147,7 @@ export type RoomOutcome = {
    */
   persist?: boolean;
   /** Why a join was refused; the socket closes with that code. */
-  refused?: "full" | "version";
+  refused?: "full" | "version" | "taken" | "empty";
   /** A finished race, to send to the app. */
   report?: RoomRaceReport;
 };
@@ -267,6 +267,17 @@ export function applyRoomEvent(
 
 function join(outcome: RoomOutcome, token: RoomToken) {
   const { state } = outcome;
+  const existing = state.players.find(({ key }) => key === token.player.key);
+  // A seat held for a dropped player still counts as someone in the room,
+  // but its own page (or account) takes it back, whyever it joins.
+  if (!existing && token.join === "new" && state.players.length > 0) {
+    outcome.refused = "taken";
+    return;
+  }
+  if (token.join === "code" && state.players.length === 0) {
+    outcome.refused = "empty";
+    return;
+  }
   if (
     token.protocol !== state.protocol ||
     token.courseId !== state.courseId ||
@@ -275,7 +286,6 @@ function join(outcome: RoomOutcome, token: RoomToken) {
     outcome.refused = "version";
     return;
   }
-  const existing = state.players.find(({ key }) => key === token.player.key);
   if (existing) {
     // The same account from another tab, or this page reconnecting, takes
     // its seat.

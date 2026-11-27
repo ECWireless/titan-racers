@@ -48,6 +48,8 @@ export interface Env {
   APP_ORIGINS: string;
   /** Where finished races are reported. */
   APP_RESULTS_URL: string;
+  /** Joins from one address, so a room's code can't be guessed quickly. */
+  JOINS: RateLimit;
 }
 
 const ROOM_PATH = /^\/v1\/rooms\/([^/]+)$/;
@@ -67,6 +69,24 @@ const RESENT_RELAY_US = 500_000;
 /** The close code a page sends to leave; any other holds its seat. */
 const LEAVING = 1000;
 const REPORT_ATTEMPTS = 20;
+
+/**
+ * Whose joins count together: an IPv4 address, or an IPv6 address's /64,
+ * since one network is given a whole /64 to take addresses from.
+ */
+function joinLimitKey(address: string | null) {
+  if (!address?.includes(":")) return address ?? "unknown";
+  const [head, tail] = address.toLowerCase().split("::");
+  const front = head ? head.split(":") : [];
+  const back = tail ? tail.split(":") : [];
+  const groups = [
+    ...front,
+    ...Array(Math.max(0, 8 - front.length - back.length)).fill("0"),
+    ...back,
+  ];
+  const network = groups.slice(0, 4).map((group) => group.replace(/^0+\B/, ""));
+  return `${network.join(":")}::/64`;
+}
 
 /**
  * Accepts and closes at once, so the page can read why. It is not a
@@ -93,6 +113,11 @@ export default {
     if (!origins.has(request.headers.get("Origin") ?? "")) {
       return new Response("Forbidden", { status: 403 });
     }
+    // Every attempt counts, good token or not. Cloudflare sets the address.
+    const { success } = await env.JOINS.limit({
+      key: joinLimitKey(request.headers.get("CF-Connecting-IP")),
+    });
+    if (!success) return refuse(ROOM_CLOSE.busy);
     const token = await readRoomToken(
       env.ROOM_SERVER_SECRET,
       url.searchParams.get("token") ?? "",
@@ -265,9 +290,7 @@ export class Room extends DurableObject<Env> {
       token,
     });
     if (!outcome.joined) {
-      return refuse(
-        outcome.refused === "full" ? ROOM_CLOSE.full : ROOM_CLOSE.version,
-      );
+      return refuse(ROOM_CLOSE[outcome.refused ?? "version"]);
     }
     const { 0: client, 1: server } = new WebSocketPair();
     const { playerId, replaced } = outcome.joined;

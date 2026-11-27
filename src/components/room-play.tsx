@@ -28,7 +28,12 @@ import {
   CONNECTING_ROOM_VIEW,
   RoomConnection,
 } from "@/game/room/room-connection";
-import { ROOM_MIN_RACERS, type RoomSnapshot } from "@/game/room/room-protocol";
+import {
+  createRoomCode,
+  ROOM_MIN_RACERS,
+  type RoomJoin,
+  type RoomSnapshot,
+} from "@/game/room/room-protocol";
 import {
   type CanvasRoom,
   opponentFootprint,
@@ -97,11 +102,15 @@ async function loadRoomCourse(courseId: string, revision: number) {
   return publishedCourseRuntimeSchema.parse(await response.json()).document;
 }
 
-export function RoomPlay({ code }: { code: string }) {
+/**
+ * A room's page. `join` comes from the link that opened it (`?join=new`
+ * from Create room, `?join=code` from a typed code).
+ */
+export function RoomPlay({ code, join }: { code: string; join: RoomJoin }) {
   const serverUrl = process.env.NEXT_PUBLIC_ROOM_SERVER_URL?.trim() ?? "";
   const connection = useMemo(
-    () => (serverUrl ? new RoomConnection(code, serverUrl) : null),
-    [code, serverUrl],
+    () => (serverUrl ? new RoomConnection(code, serverUrl, join) : null),
+    [code, join, serverUrl],
   );
   useEffect(() => {
     if (!connection) return;
@@ -113,6 +122,17 @@ export function RoomPlay({ code }: { code: string }) {
     connection?.getView ?? (() => CONNECTING_ROOM_VIEW),
     () => CONNECTING_ROOM_VIEW,
   );
+  // Someone already has this new room's code: start another.
+  useEffect(() => {
+    if (view.taken) window.location.replace(`/room/${createRoomCode()}?join=new`);
+  }, [view.taken]);
+  // Once in, the address is the room's own link; until then a reload asks
+  // again, so a mistyped code isn't opened as a room.
+  const joined = view.you !== null;
+  useEffect(() => {
+    if (!joined || join === "link") return;
+    window.history.replaceState(window.history.state, "", `/room/${code}`);
+  }, [code, join, joined]);
 
   const [karts, setKarts] = useState<PlayableOfficialKart[] | null>(null);
   useEffect(() => {
@@ -248,7 +268,7 @@ export function RoomPlay({ code }: { code: string }) {
       />
     );
   }
-  if (view.status === "closed") {
+  if (view.status === "closed" && !view.taken) {
     return (
       <RoomMessage
         message={view.closedReason ?? "This room has closed."}

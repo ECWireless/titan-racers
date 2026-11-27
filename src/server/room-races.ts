@@ -11,6 +11,7 @@ import {
   ROOM_DOOR_LIMIT,
   ROOM_PROTOCOL,
   ROOM_RACE_LIMIT_MS,
+  type RoomJoin,
   type RoomRaceReport,
 } from "@/game/room/room-protocol";
 import {
@@ -49,6 +50,7 @@ export function roomServerSecret() {
  */
 export async function issueRoomToken(
   roomCode: string,
+  join: RoomJoin,
   user: { id: string; username: string | null } | null,
   seat: string | null = null,
 ) {
@@ -77,6 +79,7 @@ export async function issueRoomToken(
   const fields = {
     protocol: ROOM_PROTOCOL,
     room: roomCode,
+    join,
     courseId: publication.courseId,
     courseRevision: publication.revision,
     course: createRoomCourse(publication.document),

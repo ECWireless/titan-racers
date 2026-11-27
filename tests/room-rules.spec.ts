@@ -54,7 +54,8 @@ function token(
   return {
     version: 1,
     protocol: ROOM_PROTOCOL,
-    room: "abcdefghjk",
+    room: "abcde",
+    join: "link",
     expiresAt: 1,
     courseId: "falls-view-park",
     courseRevision: 11,
@@ -206,6 +207,28 @@ test.describe("room joining", () => {
           .refused,
       ).toBe("version");
     }
+  });
+
+  test("opens a new room only if it's unused, and a typed code only if someone's in", () => {
+    const join = (state: RoomState, key: string, how: RoomToken["join"]) =>
+      run(state, { type: "join", now: 1, token: token(key, {}, { join: how }) });
+    const empty = createRoomState(token("a"));
+    expect(join(empty, "a", "code").refused).toBe("empty");
+    const opened = join(empty, "a", "new");
+    expect(opened.joined).toEqual({ playerId: "p1", replaced: false });
+    expect(join(opened.state, "b", "new").refused).toBe("taken");
+    // Its own page, back before it heard it was in, takes its seat again.
+    expect(join(opened.state, "a", "new").joined).toEqual({
+      playerId: "p1",
+      replaced: true,
+    });
+    // A dropped player's held seat still counts.
+    const away = run(opened.state, { type: "disconnect", now: 2, playerId: "p1" });
+    expect(away.state.players[0].awaySince).not.toBeNull();
+    expect(join(away.state, "b", "new").refused).toBe("taken");
+    expect(join(away.state, "b", "code").joined?.playerId).toBe("p2");
+    expect(join(away.state, "c", "link").joined?.playerId).toBe("p2");
+    expect(join(empty, "a", "link").joined?.playerId).toBe("p1");
   });
 
   test("passes the host on and never mutates the state it was given", () => {
@@ -524,7 +547,7 @@ test.describe("room racing", () => {
     });
     expect(outcome.report).toMatchObject({
       raceId: RACE,
-      roomCode: "abcdefghjk",
+      roomCode: "abcde",
       courseRevision: 11,
       racingAt: RACING_AT,
       endedAt: RACING_AT + 61_000,
@@ -979,7 +1002,7 @@ test.describe("the room's log", () => {
       { event: "left", seat: "p2" },
     ]);
     const written = JSON.stringify(lines);
-    for (const secret of ["secret_racer", "k0x", "k1x", "abcdefghjk", "kestrel", "mule"]) {
+    for (const secret of ["secret_racer", "k0x", "k1x", "abcde", "kestrel", "mule"]) {
       expect(written).not.toContain(secret);
     }
   });

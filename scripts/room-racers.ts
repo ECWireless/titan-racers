@@ -256,6 +256,7 @@ async function main() {
       const token = await signRoomToken(secret, {
         protocol: ROOM_PROTOCOL,
         room: code,
+        join: "link",
         courseId: publication.courseId,
         courseRevision: publication.revision,
         course,

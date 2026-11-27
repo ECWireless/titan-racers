@@ -294,7 +294,8 @@ test.describe("the room's record of contacts", () => {
     const token = (key: string) => ({
       version: 1 as const,
       protocol: ROOM_PROTOCOL,
-      room: "abcdefghjk",
+      room: "abcde",
+      join: "link" as const,
       expiresAt: 1,
       courseId: "falls-view-park",
       courseRevision: 1,

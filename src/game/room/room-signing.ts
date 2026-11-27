@@ -9,6 +9,7 @@ import {
 import {
   ROOM_CODE_PATTERN,
   ROOM_DOOR_LIMIT,
+  ROOM_JOINS,
   ROOM_MAX_PLAYERS,
   roomCourseIdSchema,
   roomObjectIdSchema,
@@ -25,7 +26,7 @@ export const ROOM_TOKEN_LIFETIME_MS = 60_000;
 /** How far ahead of the room server's clock the app's may run. */
 export const ROOM_TOKEN_CLOCK_SKEW_MS = 5_000;
 /** Room tokens travel in a URL, which Cloudflare caps at 16 KB. */
-export const ROOM_TOKEN_MAX_CHARS = 12_288;
+export const ROOM_TOKEN_MAX_CHARS = 13_312;
 /** A result report older or newer than this is refused. */
 export const ROOM_REPORT_WINDOW_MS = 5 * 60_000;
 
@@ -232,6 +233,7 @@ const roomTokenSchema = z.strictObject({
   version: z.literal(1),
   protocol: z.number().int().positive(),
   room: z.string().regex(ROOM_CODE_PATTERN),
+  join: z.enum(ROOM_JOINS),
   expiresAt: z.number().int().positive(),
   courseId: roomCourseIdSchema,
   courseRevision: roomRevisionSchema,

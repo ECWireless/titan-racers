@@ -10,7 +10,7 @@ import { kartStableIdSchema } from "../kart/kart-assembly-document";
  * a message's shape or meaning changes, then deploy the room server and the
  * app back to back.
  */
-export const ROOM_PROTOCOL = 4;
+export const ROOM_PROTOCOL = 5;
 
 export const ROOM_MAX_PLAYERS = 4;
 /** The most doors a room's course may have, so its token fits a URL. */
@@ -48,14 +48,35 @@ export const ROOM_CLOSE = {
   protocol: 4005,
   /** The room heard nothing for too long; the page may reconnect. */
   silent: 4006,
+  /** Too many joins from one address; it may try again in a minute. */
+  busy: 4007,
+  /** A new room's code is in use; the page picks another. */
+  taken: 4008,
+  /** A typed code names a room no one is in. */
+  empty: 4009,
 } as const;
+
+/**
+ * Why a page joins, which the room checks: a new room must be unused, a
+ * typed code must name a room someone is in, and a link (or its QR code)
+ * opens the room or joins it.
+ */
+export const ROOM_JOINS = ["new", "code", "link"] as const;
+export type RoomJoin = (typeof ROOM_JOINS)[number];
 
 // 31 letters and digits, without look-alikes (0/o, 1/i/l).
 const ROOM_CODE_ALPHABET = "abcdefghjkmnpqrstuvwxyz23456789";
-const ROOM_CODE_LENGTH = 10;
-export const ROOM_CODE_PATTERN = /^[abcdefghjkmnpqrstuvwxyz2-9]{10}$/;
+const ROOM_CODE_LENGTH = 5;
+export const ROOM_CODE_PATTERN = /^[abcdefghjkmnpqrstuvwxyz2-9]{5}$/;
+/** Races are kept with their room's code, which before protocol 5 had 10. */
+const ROOM_RACE_CODE_PATTERN =
+  /^[abcdefghjkmnpqrstuvwxyz2-9]{5}([abcdefghjkmnpqrstuvwxyz2-9]{5})?$/;
 
-/** A random room code: about 50 bits, so a link can't be guessed. */
+/**
+ * A random room code, short enough to read out: 31^5, about 28.6 million.
+ * The room server's limit on joins from one address keeps guessing one
+ * slow.
+ */
 export function createRoomCode() {
   const limit = 256 - (256 % ROOM_CODE_ALPHABET.length);
   let code = "";
@@ -314,7 +335,7 @@ export function parseServerMessage(frame: unknown) {
 export const roomRaceReportSchema = z.strictObject({
   version: z.literal(1),
   raceId,
-  roomCode: z.string().regex(ROOM_CODE_PATTERN),
+  roomCode: z.string().regex(ROOM_RACE_CODE_PATTERN),
   courseId: roomCourseIdSchema,
   courseRevision: roomRevisionSchema,
   physicsVersion: roomPhysicsVersionSchema,
