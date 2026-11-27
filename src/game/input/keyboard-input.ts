@@ -19,6 +19,7 @@ const HANDLED_KEYS = new Set([
   "KeyA",
   "KeyS",
   "KeyD",
+  "KeyC",
   "KeyR",
   "ShiftLeft",
   "ShiftRight",
@@ -33,6 +34,7 @@ const DRIVING_KEYS = new Set([
   "KeyA",
   "KeyS",
   "KeyD",
+  "KeyC",
   "ShiftLeft",
   "ShiftRight",
 ]);
@@ -93,6 +95,7 @@ export class KeyboardInput implements PlayerInputSource {
   sample(): PlayerInputSourceSnapshot {
     const snapshot = {
       ...this.getContinuousInput(),
+      lookBehind: this.pressedKeys.has("KeyC"),
       pauseRequested: this.pauseRequested,
       resetRequested: this.resetRequested,
     };
@@ -127,6 +130,13 @@ export class KeyboardInput implements PlayerInputSource {
 
     if (event.code === "Escape") {
       this.pauseRequested = true;
+      return;
+    }
+
+    // Looking behind moves the camera, not the kart: it never takes driving
+    // from another device.
+    if (event.code === "KeyC") {
+      this.pressedKeys.add(event.code);
       return;
     }
 

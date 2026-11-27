@@ -113,6 +113,18 @@ progression.
   than ordinary/outward position damping.
 - Initial readiness, gameplay reset, invalid recovery, debug teleport, and
   replay snap every retained camera signal immediately.
+- Look behind (`ChaseCameraSnapshot.lookBehind`, from the input manager)
+  cuts on press and release. The rear shot is separate state: the camera
+  sits the chase distance ahead at chase height and looks back past the
+  kart with the base look-ahead, placed at once on the press frame (or by
+  a snap while held). It moves with the kart across the ground at once, so
+  a kart driving at it never catches it, while its offset from the kart
+  (wall pull-in and release, sway) and bumps still smooth, and a ray to its
+  final position holds it short of walls. The forward chase, reverse
+  framing included, keeps updating underneath, so letting go shows it
+  exactly where it would have been, already trailing at speed. Pausing
+  calls `lookForward()`, a cut that resets nothing, since a paused race
+  draws no camera updates.
 - Camera diagnostics are ordinary copied data and cannot mutate the camera,
   kart, PlayCanvas entities, or Ammo objects.
 
@@ -147,5 +159,5 @@ hands-on desktop and narrow-mobile driving.
 - Spin/tumble thresholds and release timing remain one shared comfort baseline;
   materially different future kart angular envelopes may justify reviewed
   per-runtime tuning after comparable player QA.
-- Player camera orbit, look-back, replay, ghost, spectator, multiplayer, and
+- Player camera orbit, replay, ghost, spectator, multiplayer, and
   split-screen cameras remain later scope.

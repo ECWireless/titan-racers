@@ -1,6 +1,3 @@
-import { createRequire } from "node:module";
-import path from "node:path";
-
 import { expect, test } from "@playwright/test";
 import type * as Pc from "playcanvas";
 
@@ -8,25 +5,13 @@ import { createBalancedKartDocument } from "../src/game/kart/balanced-kart-docum
 import { createHandlingKartDocument } from "../src/game/kart/handling-kart-document";
 import type * as KartAssemblyVisual from "../src/game/kart/kart-assembly-visual";
 import { createSpeedKartDocument } from "../src/game/kart/speed-kart-document";
+import { loadPlayCanvasForNode } from "./helpers/node-playcanvas";
 
 let pc: typeof Pc;
 let visual: typeof KartAssemblyVisual;
 
 test.beforeAll(async () => {
-  // PlayCanvas's CommonJS build exports nothing in Node, so the visual's
-  // `import * as pc from "playcanvas"` gets the ES module instead.
-  pc = (await import(
-    "playcanvas/build/playcanvas/src/index.js"
-  )) as unknown as typeof Pc;
-  const require = createRequire(__filename);
-  const id = require.resolve("playcanvas");
-  require.cache[id] = { exports: pc, filename: id, id, loaded: true } as NodeJS.Module;
-  // A spec run earlier in this worker may have loaded the game's modules
-  // against the empty build; load them afresh.
-  const game = path.resolve(__dirname, "../src/game");
-  for (const key of Object.keys(require.cache)) {
-    if (key.startsWith(game)) delete require.cache[key];
-  }
+  pc = await loadPlayCanvasForNode();
   visual = await import("../src/game/kart/kart-assembly-visual");
 });
 

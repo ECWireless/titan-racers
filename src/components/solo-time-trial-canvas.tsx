@@ -131,7 +131,7 @@ import {
 import { playUiSound } from "@/game/audio/ui-sounds";
 import {
   normalizeTouchJoystick,
-  type TouchPedalAction,
+  type TouchButtonAction,
 } from "@/game/input/touch-input";
 import {
   DynamicKartController,
@@ -441,7 +441,7 @@ type SoloTimeTrialCanvasProps = {
 };
 type SoloSceneControls = {
   clearInput: () => void;
-  pressTouchPedal: (pointerId: number, action: TouchPedalAction) => void;
+  pressTouchButton: (pointerId: number, action: TouchButtonAction) => void;
   releaseTouch: (pointerId: number) => void;
   requestKartTapRighting: (clientX: number, clientY: number) => boolean;
   requestTouchReset: () => void;
@@ -459,11 +459,27 @@ type KartTapCandidate = {
   startY: number;
 };
 
-const TOUCH_KEYBOARD_POINTER_IDS: Record<TouchPedalAction, number> = {
+const TOUCH_KEYBOARD_POINTER_IDS: Record<TouchButtonAction, number> = {
   accelerate: -1,
   brakeReverse: -2,
+  lookBehind: -4,
 };
 const TOUCH_KEYBOARD_JOYSTICK_POINTER_ID = -3;
+const TOUCH_BUTTON_CLASSES: Record<TouchButtonAction, string> = {
+  accelerate: "race-touch-pedal race-touch-accelerator",
+  brakeReverse: "race-touch-pedal race-touch-brake",
+  lookBehind: "race-touch-utility race-touch-look-behind",
+};
+
+function LookBehindIcon() {
+  // A rear-view mirror with an arrow pointing back.
+  return (
+    <svg aria-hidden="true" viewBox="0 0 24 24">
+      <rect height="9" rx="4.5" width="18" x="3" y="5" />
+      <path d="M12 14v4M9 18h6M15 9.5H9m2-2-2 2 2 2" />
+    </svg>
+  );
+}
 
 function ResetIcon() {
   return (
@@ -500,19 +516,20 @@ function BrakeIcon() {
   );
 }
 
-function setTouchPedalPresentation(
-  elements: Partial<Record<TouchPedalAction, HTMLButtonElement>>,
-  action: TouchPedalAction,
+function setTouchButtonPresentation(
+  elements: Partial<Record<TouchButtonAction, HTMLButtonElement>>,
+  action: TouchButtonAction,
   active: boolean,
 ) {
   elements[action]?.setAttribute("aria-pressed", String(active));
 }
 
-function clearTouchPedalPresentation(
-  elements: Partial<Record<TouchPedalAction, HTMLButtonElement>>,
+function clearTouchButtonPresentation(
+  elements: Partial<Record<TouchButtonAction, HTMLButtonElement>>,
 ) {
-  setTouchPedalPresentation(elements, "accelerate", false);
-  setTouchPedalPresentation(elements, "brakeReverse", false);
+  setTouchButtonPresentation(elements, "accelerate", false);
+  setTouchButtonPresentation(elements, "brakeReverse", false);
+  setTouchButtonPresentation(elements, "lookBehind", false);
 }
 
 function setTouchJoystickPresentation(
@@ -773,8 +790,8 @@ export function SoloTimeTrialCanvas({
   const onLoadedRef = useRef(onLoaded);
   // What `onLoaded` last said: nothing yet, ready, or failed.
   const loadedReportedRef = useRef<boolean | null>(null);
-  const touchPedalElementsRef = useRef<
-    Partial<Record<TouchPedalAction, HTMLButtonElement>>
+  const touchButtonElementsRef = useRef<
+    Partial<Record<TouchButtonAction, HTMLButtonElement>>
   >({});
   const touchJoystickElementRef = useRef<HTMLDivElement | null>(null);
   const touchJoystickKnobRef = useRef<HTMLSpanElement | null>(null);
@@ -2424,6 +2441,7 @@ export function SoloTimeTrialCanvas({
         angularVelocity: new pc.Vec3(),
         impact: null,
         linearVelocity: new pc.Vec3(),
+        lookBehind: false,
         position: new pc.Vec3(),
         rotation: new pc.Quat(),
         supportCount: 0,
@@ -2498,6 +2516,7 @@ export function SoloTimeTrialCanvas({
         supportCount = kartController.state.supportCount,
       ): ChaseCameraSnapshot {
         chaseCameraSnapshot.impact = latestCameraImpact;
+        chaseCameraSnapshot.lookBehind = inputManager?.lookingBehind ?? false;
         chaseCameraSnapshot.angularVelocity.copy(
           kart.rigidbody?.angularVelocity ?? pc.Vec3.ZERO,
         );
@@ -2647,7 +2666,7 @@ export function SoloTimeTrialCanvas({
       runtime.addCleanup(() => inputManager.detach());
       const clearTouchPresentation = () => {
         touchJoystickPointerRef.current = null;
-        clearTouchPedalPresentation(touchPedalElementsRef.current);
+        clearTouchButtonPresentation(touchButtonElementsRef.current);
         setTouchJoystickPresentation(
           touchJoystickElementRef.current,
           touchJoystickKnobRef.current,
@@ -2711,6 +2730,8 @@ export function SoloTimeTrialCanvas({
           stopResumeCountdown();
         }
         inputManager.setEnabled(false);
+        // A paused race draws no camera updates: cut forward first.
+        chaseCamera.lookForward();
         previousRacePosition.copy(kart.getPosition());
         const resuming = raceSession.snapshot.state === "resuming";
         runtime.setPaused(paused || resuming);
@@ -2812,8 +2833,8 @@ export function SoloTimeTrialCanvas({
 
       sceneApiRef.current = {
         clearInput: () => inputManager.clear(),
-        pressTouchPedal: (pointerId, action) =>
-          inputManager.pressTouchPedal(pointerId, action),
+        pressTouchButton: (pointerId, action) =>
+          inputManager.pressTouchButton(pointerId, action),
         releaseTouch: (pointerId) => inputManager.releaseTouch(pointerId),
         requestKartTapRighting,
         requestTouchReset: () => inputManager.requestTouchReset(),
@@ -3584,6 +3605,12 @@ export function SoloTimeTrialCanvas({
         }
 
         if (sample.actions.resetRequested) {
+          inputManager.endLookBehind();
+          setTouchButtonPresentation(
+            touchButtonElementsRef.current,
+            "lookBehind",
+            false,
+          );
           requestPlayerRecovery();
         }
 
@@ -4504,7 +4531,7 @@ export function SoloTimeTrialCanvas({
     }
     sceneApiRef.current?.clearInput();
     touchJoystickPointerRef.current = null;
-    clearTouchPedalPresentation(touchPedalElementsRef.current);
+    clearTouchButtonPresentation(touchButtonElementsRef.current);
     setTouchJoystickPresentation(
       touchJoystickElementRef.current,
       touchJoystickKnobRef.current,
@@ -4547,7 +4574,7 @@ export function SoloTimeTrialCanvas({
   function pauseRace() {
     sceneApiRef.current?.setPaused(true);
     touchJoystickPointerRef.current = null;
-    clearTouchPedalPresentation(touchPedalElementsRef.current);
+    clearTouchButtonPresentation(touchButtonElementsRef.current);
     setTouchJoystickPresentation(
       touchJoystickElementRef.current,
       touchJoystickKnobRef.current,
@@ -4574,7 +4601,7 @@ export function SoloTimeTrialCanvas({
 
   function pressTouchControl(
     event: ReactPointerEvent<HTMLButtonElement>,
-    action: TouchPedalAction,
+    action: TouchButtonAction,
   ) {
     event.preventDefault();
     try {
@@ -4583,48 +4610,48 @@ export function SoloTimeTrialCanvas({
       // Synthetic browser tests may not create an active native pointer stream.
       // The adapter still receives the same semantic press and release events.
     }
-    sceneApiRef.current?.pressTouchPedal(event.pointerId, action);
-    setTouchPedalPresentation(touchPedalElementsRef.current, action, true);
+    sceneApiRef.current?.pressTouchButton(event.pointerId, action);
+    setTouchButtonPresentation(touchButtonElementsRef.current, action, true);
   }
 
   function releaseTouchControl(
     event: ReactPointerEvent<HTMLButtonElement>,
-    action: TouchPedalAction,
+    action: TouchButtonAction,
   ) {
     sceneApiRef.current?.releaseTouch(event.pointerId);
-    setTouchPedalPresentation(touchPedalElementsRef.current, action, false);
+    setTouchButtonPresentation(touchButtonElementsRef.current, action, false);
   }
 
   function pressTouchControlFromKeyboard(
     event: ReactKeyboardEvent<HTMLButtonElement>,
-    action: TouchPedalAction,
+    action: TouchButtonAction,
   ) {
     if ((event.key !== " " && event.key !== "Enter") || event.repeat) {
       return;
     }
     event.preventDefault();
-    sceneApiRef.current?.pressTouchPedal(
+    sceneApiRef.current?.pressTouchButton(
       TOUCH_KEYBOARD_POINTER_IDS[action],
       action,
     );
-    setTouchPedalPresentation(touchPedalElementsRef.current, action, true);
+    setTouchButtonPresentation(touchButtonElementsRef.current, action, true);
   }
 
   function releaseTouchControlFromKeyboard(
     event: ReactKeyboardEvent<HTMLButtonElement>,
-    action: TouchPedalAction,
+    action: TouchButtonAction,
   ) {
     if (event.key !== " " && event.key !== "Enter") {
       return;
     }
     event.preventDefault();
     sceneApiRef.current?.releaseTouch(TOUCH_KEYBOARD_POINTER_IDS[action]);
-    setTouchPedalPresentation(touchPedalElementsRef.current, action, false);
+    setTouchButtonPresentation(touchButtonElementsRef.current, action, false);
   }
 
-  function blurTouchControl(action: TouchPedalAction) {
+  function blurTouchControl(action: TouchButtonAction) {
     sceneApiRef.current?.releaseTouch(TOUCH_KEYBOARD_POINTER_IDS[action]);
-    setTouchPedalPresentation(touchPedalElementsRef.current, action, false);
+    setTouchButtonPresentation(touchButtonElementsRef.current, action, false);
   }
 
   function updateTouchJoystick(pointerId: number, x: number, y: number) {
@@ -4747,7 +4774,7 @@ export function SoloTimeTrialCanvas({
   function resetTouchKart() {
     sceneApiRef.current?.requestTouchReset();
     touchJoystickPointerRef.current = null;
-    clearTouchPedalPresentation(touchPedalElementsRef.current);
+    clearTouchButtonPresentation(touchButtonElementsRef.current);
     setTouchJoystickPresentation(
       touchJoystickElementRef.current,
       touchJoystickKnobRef.current,
@@ -5316,6 +5343,7 @@ export function SoloTimeTrialCanvas({
                   <div className="race-touch-pedals">
                     {(
                       [
+                        ["lookBehind", "Look behind"],
                         ["brakeReverse", "Brake / Reverse"],
                         ["accelerate", "Accelerate"],
                       ] as const
@@ -5324,12 +5352,12 @@ export function SoloTimeTrialCanvas({
                         key={action}
                         aria-label={label}
                         aria-pressed="false"
-                        className={`race-touch-action race-touch-pedal ${action === "accelerate" ? "race-touch-accelerator" : "race-touch-brake"}`}
+                        className={`race-touch-action ${TOUCH_BUTTON_CLASSES[action]}`}
                         ref={(element) => {
                           if (element) {
-                            touchPedalElementsRef.current[action] = element;
+                            touchButtonElementsRef.current[action] = element;
                           } else {
-                            delete touchPedalElementsRef.current[action];
+                            delete touchButtonElementsRef.current[action];
                           }
                         }}
                         type="button"
@@ -5356,8 +5384,10 @@ export function SoloTimeTrialCanvas({
                       >
                         {action === "accelerate" ? (
                           <AcceleratorIcon />
-                        ) : (
+                        ) : action === "brakeReverse" ? (
                           <BrakeIcon />
+                        ) : (
+                          <LookBehindIcon />
                         )}
                       </button>
                     ))}
@@ -5365,7 +5395,7 @@ export function SoloTimeTrialCanvas({
                 </div>
               ) : null}
               <div className="pointer-events-none absolute bottom-4 right-4 z-10 hidden font-mono text-[0.68rem] font-bold uppercase tracking-[0.14em] text-titan-ice/55 lg:block">
-                T · Stats&nbsp;&nbsp; Esc · Pause
+                C · Look behind&nbsp;&nbsp; T · Stats&nbsp;&nbsp; Esc · Pause
               </div>
             </>
           ) : null}

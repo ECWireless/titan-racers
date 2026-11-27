@@ -71,6 +71,8 @@ export type ChaseCameraSnapshot = {
   angularVelocity: pc.Vec3;
   impact: ChaseCameraImpact | null;
   linearVelocity: pc.Vec3;
+  /** The player holds look behind: the shot cuts to face back. */
+  lookBehind: boolean;
   position: pc.Vec3;
   rotation: pc.Quat;
   supportCount: number;
@@ -92,6 +94,7 @@ export type ChaseCameraDiagnostics = {
   fov: number;
   forwardSpeed: number;
   impactOffset: Position3;
+  lookingBehind: boolean;
   lookTarget: Position3;
   maximumSpeed: number;
   obstructed: boolean;
@@ -239,6 +242,11 @@ export class ChaseCamera {
   private readonly desiredImpactOffset = new pc.Vec3();
   private readonly correctedPosition = new pc.Vec3();
   private readonly trackedPosition = new pc.Vec3();
+  private readonly kartTravel = new pc.Vec3();
+  // The rear shot, shown while looking behind. The forward shot keeps
+  // following underneath, so letting go cuts straight to it, settled.
+  private readonly rearPosition = new pc.Vec3();
+  private readonly rearLookTarget = new pc.Vec3();
   private readonly scaledHeading = new pc.Vec3();
   private readonly scaledRight = new pc.Vec3();
   private readonly scaledUp = new pc.Vec3();
@@ -255,6 +263,8 @@ export class ChaseCamera {
   private obstructed = false;
   private obstructionDistance: number | null = null;
   private stabilizationBlend = 0;
+  private lookingBehind = false;
+  private slipOffset = 0;
   private angularSpeed = 0;
   private uprightness = 1;
   private readonly up = new pc.Vec3(0, 1, 0);
@@ -278,6 +288,7 @@ export class ChaseCamera {
   snap(snapshot: ChaseCameraSnapshot) {
     const settings = this.getSettings();
 
+    this.lookingBehind = snapshot.lookBehind;
     this.smoothedVelocity.copy(snapshot.linearVelocity);
     this.airborneBlend = snapshot.supportCount === 0 ? 1 : 0;
     this.impactOffset.set(0, 0, 0);
@@ -297,10 +308,20 @@ export class ChaseCamera {
     this.smoothedFov = this.getDesiredFov(settings);
     this.snapCount += 1;
     this.enforceReverseFraming(settings);
+    if (this.lookingBehind) this.updateRearShot(snapshot, settings, null);
+    this.applyCameraTransform();
+  }
+
+  /** Cuts to the forward shot at once, as when a race pauses. */
+  lookForward() {
+    this.lookingBehind = false;
     this.applyCameraTransform();
   }
 
   update(deltaSeconds: number, snapshot: ChaseCameraSnapshot) {
+    // Looking behind and back again are cuts, not swings.
+    const cutBehind = snapshot.lookBehind && !this.lookingBehind;
+    this.lookingBehind = snapshot.lookBehind;
     const frameSeconds = clamp(deltaSeconds, 0, 0.1);
     const settings = this.getSettings();
 
@@ -326,6 +347,7 @@ export class ChaseCamera {
     );
     this.impactCooldown = Math.max(this.impactCooldown - frameSeconds, 0);
     this.consumeImpact(snapshot.impact);
+    this.kartTravel.copy(snapshot.position).sub(this.trackedPosition);
     this.updateDesiredState(snapshot, settings, frameSeconds);
     this.resolveObstruction();
 
@@ -358,7 +380,50 @@ export class ChaseCamera {
       smoothFactor(FOV_SHARPNESS, frameSeconds),
     );
     this.enforceReverseFraming(settings);
+    if (this.lookingBehind) {
+      this.updateRearShot(snapshot, settings, cutBehind ? null : frameSeconds);
+    }
     this.applyCameraTransform();
+  }
+
+  // The rear shot mirrors the chase: ahead of the kart, looking back past it
+  // without the forward look-ahead's growth. `frameSeconds` null places it
+  // at once.
+  private updateRearShot(
+    snapshot: ChaseCameraSnapshot,
+    settings: CameraSettings,
+    frameSeconds: number | null,
+  ) {
+    this.composeShot(snapshot, settings, -1, -settings.lookAhead);
+    this.resolveObstruction();
+    this.correctedPosition.add(this.impactOffset);
+    if (frameSeconds === null) {
+      this.rearPosition.copy(this.correctedPosition);
+      this.rearLookTarget.copy(this.desiredLookTarget);
+    } else {
+      // Ahead of a kart driving at it, a lagging camera would be caught up.
+      // The rear shot moves with the kart across the ground at once; its
+      // offset from the kart (walls, sway) and bumps still smooth out.
+      this.kartTravel.sub(
+        this.scaledUp.copy(this.up).mulScalar(this.kartTravel.dot(this.up)),
+      );
+      this.rearPosition.add(this.kartTravel).lerp(
+        this.rearPosition,
+        this.correctedPosition,
+        smoothFactor(
+          this.obstructed ? OBSTRUCTED_POSITION_SHARPNESS : POSITION_SHARPNESS,
+          frameSeconds,
+        ),
+      );
+      this.rearLookTarget.add(this.kartTravel).lerp(
+        this.rearLookTarget,
+        this.desiredLookTarget,
+        smoothFactor(LOOK_SHARPNESS, frameSeconds),
+      );
+    }
+    // Carried toward a wall the kart drives or turns at, the rear shot could
+    // pass through it before the lerp caught up: check where it ends up.
+    this.holdShortOfObstruction(this.rearPosition);
   }
 
   getTrackedPosition() {
@@ -369,13 +434,18 @@ export class ChaseCamera {
     return {
       airborneBlend: this.airborneBlend,
       angularSpeed: this.angularSpeed,
-      cameraPosition: copyPosition(this.smoothedPosition),
+      cameraPosition: copyPosition(
+        this.lookingBehind ? this.rearPosition : this.smoothedPosition,
+      ),
       chaseHeading: copyPosition(this.chaseHeading),
       desiredPosition: copyPosition(this.desiredPosition),
       fov: this.smoothedFov,
       forwardSpeed: this.forwardSpeed,
       impactOffset: copyPosition(this.impactOffset),
-      lookTarget: copyPosition(this.smoothedLookTarget),
+      lookingBehind: this.lookingBehind,
+      lookTarget: copyPosition(
+        this.lookingBehind ? this.rearLookTarget : this.smoothedLookTarget,
+      ),
       maximumSpeed: this.maximumSpeed,
       obstructed: this.obstructed,
       obstructionDistance: this.obstructionDistance,
@@ -487,19 +557,34 @@ export class ChaseCamera {
       -MAXIMUM_SLIP_DEGREES,
       MAXIMUM_SLIP_DEGREES,
     );
-    const slipOffset =
+    this.slipOffset =
       (this.signedSlipDegrees / MAXIMUM_SLIP_DEGREES) *
       MAXIMUM_SLIP_OFFSET *
       (1 - this.stabilizationBlend);
     const speedRatio = clamp(this.planarSpeed / this.maximumSpeed, 0, 1);
-    const lookAhead =
+    this.composeShot(
+      snapshot,
+      settings,
+      1,
       lerp(settings.lookAhead, settings.maximumLookAhead, speedRatio) *
-      lerp(1, STABILIZED_LOOK_AHEAD_RATIO, this.stabilizationBlend);
+        lerp(1, STABILIZED_LOOK_AHEAD_RATIO, this.stabilizationBlend),
+    );
+  }
 
+  // `facing` 1 is the chase, behind the kart; -1 mirrors it ahead.
+  private composeShot(
+    snapshot: ChaseCameraSnapshot,
+    settings: CameraSettings,
+    facing: 1 | -1,
+    lookAhead: number,
+  ) {
+    const slipOffset = this.slipOffset;
     this.desiredPosition
       .copy(snapshot.position)
       .sub(
-        this.scaledHeading.copy(this.chaseHeading).mulScalar(settings.distance),
+        this.scaledHeading
+          .copy(this.chaseHeading)
+          .mulScalar(facing * settings.distance),
       );
     this.desiredPosition.add(
       this.scaledUp
@@ -551,6 +636,25 @@ export class ChaseCamera {
       .copy(this.cameraPivot)
       .add(this.desiredDirection.mulScalar(correctedDistance));
     this.obstructionDistance = correctedDistance;
+  }
+
+  private holdShortOfObstruction(position: pc.Vec3) {
+    const obstruction = this.queryObstruction(this.cameraPivot, position);
+    if (!obstruction) return;
+    const hitDistance = this.pivotToHit
+      .copy(obstruction.point)
+      .sub(this.cameraPivot)
+      .length();
+    const heldDistance = Math.max(hitDistance - OBSTRUCTION_MARGIN, 0);
+    this.desiredDirection.copy(position).sub(this.cameraPivot).normalize();
+    position
+      .copy(this.cameraPivot)
+      .add(this.desiredDirection.mulScalar(heldDistance));
+    this.obstructed = true;
+    this.obstructionDistance = Math.min(
+      this.obstructionDistance ?? heldDistance,
+      heldDistance,
+    );
   }
 
   private calculateTrailingDistance() {
@@ -615,8 +719,13 @@ export class ChaseCamera {
       cameraComponent.fov = this.smoothedFov;
     }
 
-    this.camera.setPosition(this.smoothedPosition);
-    this.camera.lookAt(this.smoothedLookTarget, this.up);
+    this.camera.setPosition(
+      this.lookingBehind ? this.rearPosition : this.smoothedPosition,
+    );
+    this.camera.lookAt(
+      this.lookingBehind ? this.rearLookTarget : this.smoothedLookTarget,
+      this.up,
+    );
   }
 
   private getDesiredFov(settings: CameraSettings) {

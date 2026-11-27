@@ -11,6 +11,7 @@ export type GamepadProvider = () => ArrayLike<Gamepad | null>;
 const ACTIVITY_CHANGE_THRESHOLD = 0.08;
 const BUTTON_RESET = 0;
 const BUTTON_HANDBRAKE = 2;
+const BUTTON_LOOK_BEHIND = 3;
 const BUTTON_BRAKE_REVERSE = 6;
 const BUTTON_ACCELERATE = 7;
 const BUTTON_PAUSE = 9;
@@ -50,6 +51,7 @@ export class GamepadInput implements PlayerInputSource {
   };
   private lastPausePressed = false;
   private lastResetPressed = false;
+  private lookBehind = false;
   private requiresNeutral = false;
 
   constructor(
@@ -76,6 +78,12 @@ export class GamepadInput implements PlayerInputSource {
     const supportedGamepads = gamepads.filter(
       (candidate): candidate is Gamepad =>
         Boolean(candidate?.connected && candidate.mapping === "standard"),
+    );
+    // Y on any pad looks behind. It is camera only: it never picks the
+    // driving pad or holds back re-arming, and it shows even while driving
+    // waits for neutral, so the manager sees it held until it is let go.
+    this.lookBehind = supportedGamepads.some((candidate) =>
+      buttonPressed(candidate, BUTTON_LOOK_BEHIND),
     );
 
     if (this.requiresNeutral) {
@@ -169,6 +177,7 @@ export class GamepadInput implements PlayerInputSource {
     const resetPressed = buttonPressed(gamepad, BUTTON_RESET);
     const snapshot = {
       ...continuous,
+      lookBehind: this.lookBehind,
       pauseRequested: pausePressed && !this.lastPausePressed,
       resetRequested: resetPressed && !this.lastResetPressed,
     };
@@ -183,6 +192,7 @@ export class GamepadInput implements PlayerInputSource {
       accelerate: 0,
       brakeReverse: 0,
       handbrake: 0,
+      lookBehind: this.lookBehind,
       pauseRequested: false,
       resetRequested: false,
       steer: 0,

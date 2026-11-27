@@ -281,6 +281,7 @@ async function getCameraDebugState(canvas: Locator) {
         fov: number;
         forwardSpeed: number;
         impactOffset: { x: number; y: number; z: number };
+        lookingBehind: boolean;
         lookTarget: { x: number; y: number; z: number };
         maximumSpeed: number;
         obstructed: boolean;
@@ -3644,6 +3645,71 @@ test.describe("home screen", () => {
     expect(closeCamera.obstructionDistance).not.toBeNull();
     expect(closeCamera.obstructionDistance).toBeGreaterThanOrEqual(0);
     expect(closeCamera.obstructionDistance).toBeLessThan(1);
+  });
+
+  test("cuts to the rear view while look behind is held, and back", async ({
+    page,
+  }, testInfo) => {
+    await page.goto("/?sandbox-course");
+    await startSoloRace(page);
+    const canvas = page.getByTestId("solo-time-trial-canvas");
+    // Positive while the camera faces back along the chase heading.
+    const facingBack = async () => {
+      const camera = await getCameraDebugState(canvas);
+      return {
+        facing: Math.sign(
+          (camera.cameraPosition.x - camera.lookTarget.x) *
+            camera.chaseHeading.x +
+            (camera.cameraPosition.z - camera.lookTarget.z) *
+              camera.chaseHeading.z,
+        ),
+        lookingBehind: camera.lookingBehind,
+      };
+    };
+    expect(await facingBack()).toEqual({ facing: -1, lookingBehind: false });
+
+    const mobile = testInfo.project.name === "mobile";
+    const button = page.getByRole("button", { name: "Look behind" });
+    if (mobile) {
+      const bounds = await button.boundingBox();
+      expect(bounds?.width ?? 0).toBeGreaterThanOrEqual(44);
+      expect(bounds?.height ?? 0).toBeGreaterThanOrEqual(44);
+      await button.dispatchEvent("pointerdown", {
+        buttons: 1,
+        pointerId: 31,
+        pointerType: "touch",
+      });
+      await expect(button).toHaveAttribute("aria-pressed", "true");
+    } else {
+      await expect(button).toBeHidden();
+      await page.keyboard.down("KeyC");
+    }
+    await expect
+      .poll(facingBack)
+      .toEqual({ facing: 1, lookingBehind: true });
+
+    if (mobile) {
+      await button.dispatchEvent("pointerup", {
+        pointerId: 31,
+        pointerType: "touch",
+      });
+    } else {
+      await page.keyboard.up("KeyC");
+    }
+    await expect
+      .poll(facingBack)
+      .toEqual({ facing: -1, lookingBehind: false });
+    if (mobile) return;
+
+    // Pausing while it's held cuts forward before the race freezes.
+    await page.keyboard.down("KeyC");
+    await expect
+      .poll(facingBack)
+      .toEqual({ facing: 1, lookingBehind: true });
+    await page.keyboard.press("Escape");
+    await expect(page.getByRole("button", { name: "Resume" })).toBeVisible();
+    expect(await facingBack()).toEqual({ facing: -1, lookingBehind: false });
+    await page.keyboard.up("KeyC");
   });
 
   test("registers course collision and lighting setup", async ({ page }) => {

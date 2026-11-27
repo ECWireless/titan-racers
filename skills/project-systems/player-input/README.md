@@ -30,9 +30,10 @@ remain owned by the kart-physics system.
 - `src/game/input/player-input.ts` owns clamping, dead-zone rescaling, neutral
   values, the device/source types, and the explicit sign conversion into the
   accepted kart-controller steering convention.
-- `src/game/input/keyboard-input.ts` owns WASD/arrow driving state, either Shift
-  key as the held handbrake, one-shot R reset and Escape pause edges, and the
-  editable-control guard that leaves native form-key behavior untouched.
+- `src/game/input/keyboard-input.ts` owns WASD/arrow driving state, either
+  Shift key as the held handbrake, C held to look behind, one-shot R reset
+  and Escape pause edges, and the editable-control guard that leaves native
+  form-key behavior untouched.
 - `src/game/input/touch-input.ts` owns a continuous pointer-specific steering
   value with a rescaled `0.08` dead zone and touch-only `1.75` response exponent,
   a smooth forward-brake-and-steer mapping into normalized rear-handbrake intent,
@@ -52,7 +53,9 @@ remain owned by the kart-physics system.
   presentation, and clears input and presentation on blur, hidden visibility,
   controller disconnect, disable, and unmount.
 - `src/game/input/player-input-manager.ts` owns device-family arbitration,
-  action-edge aggregation, and conversion to existing kart driving intent.
+  action-edge aggregation, held look behind from any family (it never takes
+  driving and is ended by a clear or reset until every device lets go), and
+  conversion to existing kart driving intent.
 - `src/components/solo-time-trial-canvas.tsx` attaches the manager, samples once
   before each 120 Hz physics step, applies reset/pause requests, clears input at
   lifecycle boundaries, renders touch controls without using React state as
@@ -110,8 +113,9 @@ It never writes driving state or synthesizes keyboard events.
 ## Touch Presentation
 
 The race HUD exposes a fixed analog drive joystick at the lower left, accelerator
-and brake/reverse pedals at the lower right, and compact reset/pause utilities
-in the top corners on coarse/no-hover devices. Original inline SVG glyphs
+and brake/reverse pedals at the lower right with a held Look behind button above
+the brake, and compact reset/pause utilities in the top corners on
+coarse/no-hover devices. Original inline SVG glyphs
 replace visible text while native or ARIA semantics retain accessible names.
 Primary controls remain at least 44 CSS pixels in portrait and compact landscape.
 
@@ -158,6 +162,8 @@ One active browser controller with `mapping === "standard"` is supported:
 - button 6: brake/reverse;
 - button 7: accelerate;
 - button 2: handbrake;
+- button 3 (Y) on any connected pad: look behind, held; camera only, it
+  never picks the driving pad or holds back re-arming;
 - button 0: reset; and
 - button 9: pause.
 
