@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import { QRCodeSVG } from "qrcode.react";
 import {
   type KeyboardEvent,
   type ReactNode,
@@ -427,6 +428,9 @@ function RoomLobby({
   onStart: () => void;
 }) {
   const [copyNote, setCopyNote] = useState<string | null>(null);
+  // The lobby shows only once the room has let this page in, so in the
+  // browser.
+  const link = new URL(`/room/${code}`, window.location.origin).href;
   // Opening, or back from a race, it focuses what comes next: Start race
   // for a host who can start, or the kart choice.
   const lobbyRef = useRef<HTMLElement | null>(null);
@@ -488,7 +492,7 @@ function RoomLobby({
       ? "A race is under way. You're in the next one."
       : "A race is under way. Choose a kart to race the next one.";
   } else if (room.players.length < ROOM_MIN_RACERS) {
-    startNote = "Share the link: a race needs at least 2 players.";
+    startNote = "Share the code: a race needs at least 2 players.";
   } else if (host && !me?.ready) {
     startNote = "Choose your kart to start the race.";
   } else if (ready < ROOM_MIN_RACERS) {
@@ -513,7 +517,7 @@ function RoomLobby({
         className="grid gap-6"
         ref={lobbyRef}
       >
-        <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
+        <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
           <div className="grid gap-2">
             <p className={LABEL}>Multiplayer</p>
             <h1
@@ -523,42 +527,64 @@ function RoomLobby({
               Private room
             </h1>
             <p className="max-w-xl text-sm leading-6 text-titan-ice/72">
-              Up to 4 can race. Anyone with this room&apos;s link can join,
-              with or without an account.
+              Up to 4 can race. Anyone with this room&apos;s code or link can
+              join, with or without an account.
             </p>
           </div>
-          <ActionHint
-            className="grid"
-            hint={copied === "failed" ? "Couldn't copy" : "Copied"}
-            shown={copied !== null}
-          >
-            <button
-              className="titan-button titan-button-secondary gap-3"
-              type="button"
-              onClick={async () => {
-                // Cleared first, so a repeated note is announced again.
-                setCopyNote(null);
-                const outcome = await copyLink(
-                  new URL(`/room/${code}`, window.location.origin).href,
-                );
-                setCopyNote(copyNoteFor(outcome));
-                setCopied(outcome);
-                if (copiedTimerRef.current !== null) {
-                  window.clearTimeout(copiedTimerRef.current);
-                  copiedTimerRef.current = null;
-                }
-                // A failure stays until the next press, so it's seen.
-                if (outcome !== "copied") return;
-                copiedTimerRef.current = window.setTimeout(() => {
-                  copiedTimerRef.current = null;
-                  setCopied(null);
-                }, 1_600);
-              }}
+          {/* The code to read out, the link to scan from a phone held up to
+              this screen, and the link to send. */}
+          <div className="grid gap-4 border border-titan-ice/18 bg-titan-black/72 p-4 backdrop-blur min-[360px]:grid-cols-[minmax(0,1fr)_auto]">
+            <div className="grid content-center gap-1">
+              <p className={LABEL}>Room code</p>
+              <p className="font-mono text-4xl font-black uppercase tracking-[0.1em] min-[400px]:text-5xl sm:text-6xl">
+                <span aria-hidden="true">{code}</span>
+                {/* Read out a character at a time, and left out of a copy. */}
+                <span className="sr-only select-none">{code.split("").join(" ")}</span>
+              </p>
+            </div>
+            {/* Dark on light, with its full quiet margin, as phone cameras
+                read best. Beside the code and the button on a wide screen;
+                under the code on the narrowest phones. */}
+            <QRCodeSVG
+              aria-label="QR code for this room's link"
+              bgColor="#f7f2e8"
+              className="size-32 self-center justify-self-center sm:row-span-2 sm:size-40"
+              fgColor="#070706"
+              marginSize={4}
+              size={160}
+              value={link}
+            />
+            <ActionHint
+              className="grid self-end min-[360px]:col-span-2 sm:col-span-1"
+              hint={copied === "failed" ? "Couldn't copy" : "Copied"}
+              shown={copied !== null}
             >
-              {copied === "copied" ? <CheckIcon /> : <CopyLinkIcon />}
-              Copy room link
-            </button>
-          </ActionHint>
+              <button
+                className="titan-button titan-button-secondary gap-3"
+                type="button"
+                onClick={async () => {
+                  // Cleared first, so a repeated note is announced again.
+                  setCopyNote(null);
+                  const outcome = await copyLink(link);
+                  setCopyNote(copyNoteFor(outcome));
+                  setCopied(outcome);
+                  if (copiedTimerRef.current !== null) {
+                    window.clearTimeout(copiedTimerRef.current);
+                    copiedTimerRef.current = null;
+                  }
+                  // A failure stays until the next press, so it's seen.
+                  if (outcome !== "copied") return;
+                  copiedTimerRef.current = window.setTimeout(() => {
+                    copiedTimerRef.current = null;
+                    setCopied(null);
+                  }, 1_600);
+                }}
+              >
+                {copied === "copied" ? <CheckIcon /> : <CopyLinkIcon />}
+                Copy room link
+              </button>
+            </ActionHint>
+          </div>
           <p aria-live="polite" className="sr-only">
             {copyNote}
           </p>

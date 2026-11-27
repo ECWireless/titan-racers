@@ -923,13 +923,47 @@ test.describe("home screen", () => {
     await page.unrouteAll({ behavior: "ignoreErrors" });
   });
 
-  test("Multiplayer opens a new room straight away", async ({ page }) => {
+  test("Multiplayer creates a room or joins one by its code", async ({
+    page,
+  }) => {
     await page.goto("/");
     // The first screen's three, in order.
     await expect(
       page.getByRole("main").locator(".home-menu-item"),
     ).toHaveText([/Time Trial/, /Multiplayer/, /Leaderboard/]);
     await page.getByRole("button", { exact: true, name: "Multiplayer" }).click();
+    await expect(
+      page.getByRole("heading", { name: "Multiplayer" }),
+    ).toBeVisible();
+    await expect(page.getByRole("button", { name: /Create room/ })).toBeFocused();
+
+    // A code is typed in either case; one that can't be a code goes nowhere,
+    // as does one with a character too many.
+    const code = page.getByLabel("Join with a code");
+    for (const wrong of ["AB1CD", "Ab2cD7"]) {
+      await code.fill(wrong);
+      await page.getByRole("button", { exact: true, name: "Join" }).click();
+      await expect(code).toHaveAccessibleDescription(
+        "That isn't a room code. Check it and try again.",
+      );
+    }
+    // Escape from the field goes back, as from the step's choices.
+    await code.press("Escape");
+    await page.getByRole("button", { exact: true, name: "Multiplayer" }).click();
+    await code.fill(" Ab2 cD ");
+    await code.press("Enter");
+    // The room checks someone is in it before letting this page in.
+    await expect(page).toHaveURL(/\/room\/ab2cd\?join=code$/);
+
+    // Back comes back to the step, as does a reload, and back again to the
+    // first screen.
+    await page.goBack();
+    await expect(page.getByRole("button", { name: /Create room/ })).toBeVisible();
+    await page.reload();
+    await expect(page.getByRole("button", { name: /Create room/ })).toBeFocused();
+    await page.keyboard.press("Escape");
+    await page.getByRole("button", { exact: true, name: "Multiplayer" }).click();
+    await page.getByRole("button", { name: /Create room/ }).click();
     // A new room, which the room checks no one is using.
     await expect(page).toHaveURL(/\/room\/[a-z2-9]{5}\?join=new$/);
   });

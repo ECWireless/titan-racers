@@ -2,12 +2,19 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { type MouseEvent, type ReactNode, useId } from "react";
+import {
+  type FormEvent,
+  type MouseEvent,
+  type ReactNode,
+  useId,
+  useState,
+} from "react";
 
 import type { CourseDocument } from "@/game/course/course-document";
 import { COURSE_THUMBNAILS } from "@/game/course/course-ids";
 import type { KartAssemblyDocument } from "@/game/kart/kart-assembly-document";
 import type { PersistedResolvedKartSnapshot } from "@/game/kart/kart-derivation";
+import { isRoomCode } from "@/game/room/room-protocol";
 
 import { KartThumbnail } from "./kart-thumbnail";
 import {
@@ -17,8 +24,11 @@ import {
   RaceGhostIcon,
 } from "./menu-icons";
 
-/** The home flow's steps, in order. A race starts from the last. */
-export type HomeStep = "start" | "kart" | "course" | "race";
+/**
+ * The home flow's steps: a time trial's, in order (a race starts from the
+ * last), and Multiplayer's own.
+ */
+export type HomeStep = "start" | "kart" | "course" | "race" | "room";
 
 export type HomeKart = {
   assemblerCredit: string;
@@ -91,13 +101,14 @@ export function firstClickOnly(action: () => void) {
 export function HomeStepFrame({
   children,
   onBack,
-  rail,
+  rail = [],
   title,
   titleId,
 }: {
   children: ReactNode;
   onBack: () => void;
-  rail: Array<{ current: boolean; label: string; value: string | null }>;
+  /** A time trial's steps; Multiplayer's step has none. */
+  rail?: Array<{ current: boolean; label: string; value: string | null }>;
   title: string;
   titleId: string;
 }) {
@@ -120,30 +131,32 @@ export function HomeStepFrame({
             Back
           </span>
         </button>
-        <ol
-          aria-label="Race setup"
-          className="flex flex-wrap items-center gap-x-4 gap-y-1 font-mono text-[0.62rem] font-bold uppercase tracking-[0.16em]"
-        >
-          {rail.map(({ current, label, value }, index) => (
-            <li
-              aria-current={current ? "step" : undefined}
-              className={`flex items-center gap-2 ${
-                current ? "text-titan-hazard" : "text-titan-ice/55"
-              }`}
-              key={label}
-            >
-              <span className="tabular-nums">
-                {String(index + 1).padStart(2, "0")}
-              </span>
-              <span>{label}</span>
-              {value ? (
-                <span className="max-w-60 truncate text-titan-ice/85">
-                  · {value}
+        {rail.length > 0 ? (
+          <ol
+            aria-label="Race setup"
+            className="flex flex-wrap items-center gap-x-4 gap-y-1 font-mono text-[0.62rem] font-bold uppercase tracking-[0.16em]"
+          >
+            {rail.map(({ current, label, value }, index) => (
+              <li
+                aria-current={current ? "step" : undefined}
+                className={`flex items-center gap-2 ${
+                  current ? "text-titan-hazard" : "text-titan-ice/55"
+                }`}
+                key={label}
+              >
+                <span className="tabular-nums">
+                  {String(index + 1).padStart(2, "0")}
                 </span>
-              ) : null}
-            </li>
-          ))}
-        </ol>
+                <span>{label}</span>
+                {value ? (
+                  <span className="max-w-60 truncate text-titan-ice/85">
+                    · {value}
+                  </span>
+                ) : null}
+              </li>
+            ))}
+          </ol>
+        ) : null}
       </div>
       <h1
         className="text-[2.5rem] font-bold uppercase leading-[0.95] tracking-[-0.01em] sm:text-7xl"
@@ -210,7 +223,7 @@ export function HomeStartStep({
           controllerDefault={false}
           detail={
             multiplayerAvailable
-              ? "A private room for up to 4"
+              ? "Create a room, or join one with a code"
               : "Coming soon"
           }
           icon={<MultiplayerIcon className={MENU_ICON} />}
@@ -239,6 +252,109 @@ export function HomeStartStep({
         </p>
       ) : null}
     </section>
+  );
+}
+
+/**
+ * Multiplayer's step: create a private room, or join one by the code its
+ * host reads out. A code is shown in capitals and typed in either case.
+ */
+export function HomeRoomStep({
+  onBack,
+  onCreate,
+  onJoin,
+}: {
+  onBack: () => void;
+  onCreate: () => void;
+  /** A valid code, lowercased as in a room's link. */
+  onJoin: (code: string) => void;
+}) {
+  const [typed, setTyped] = useState("");
+  const [problem, setProblem] = useState<string | null>(null);
+  function join(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    // Spaces are dropped, as from a paste or a code written "AB2 CD".
+    const code = typed.replace(/\s+/g, "").toLowerCase();
+    if (isRoomCode(code)) {
+      onJoin(code);
+    } else {
+      setProblem(
+        code === ""
+          ? "Type the room's code first."
+          : "That isn't a room code. Check it and try again.",
+      );
+    }
+  }
+  return (
+    <HomeStepFrame
+      onBack={onBack}
+      title="Multiplayer"
+      titleId="room-step-title"
+    >
+      <div className="grid max-w-xl gap-6">
+        <MenuItem
+          controllerDefault
+          detail="A private room for up to 4"
+          icon={<MultiplayerIcon className={MENU_ICON} />}
+          label="Create room"
+          primary
+          onClick={onCreate}
+        />
+        <form
+          className="grid gap-3"
+          onSubmit={join}
+        >
+          <label
+            className="font-mono text-[0.62rem] font-bold uppercase tracking-[0.18em] text-titan-muted"
+            htmlFor="room-code"
+          >
+            Join with a code
+          </label>
+          <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-3">
+            <input
+              aria-describedby={problem ? "room-code-problem" : undefined}
+              aria-invalid={problem ? true : undefined}
+              autoCapitalize="characters"
+              autoComplete="off"
+              autoCorrect="off"
+              className="min-h-14 min-w-0 border border-titan-ice/24 bg-titan-black/72 px-4 font-mono text-2xl font-bold uppercase tracking-[0.3em] text-titan-ice placeholder:text-titan-ice/30 focus-visible:border-titan-hazard focus-visible:outline-none"
+              id="room-code"
+              placeholder="ABCDE"
+              spellCheck={false}
+              // In the controller's reach, as a menu item.
+              tabIndex={0}
+              value={typed}
+              onChange={(event) => {
+                setTyped(event.target.value);
+                setProblem(null);
+              }}
+              // Menus leave keys in a field to it, but Escape still goes back.
+              onKeyDown={(event) => {
+                if (event.key === "Escape" && !event.nativeEvent.isComposing) {
+                  event.preventDefault();
+                  onBack();
+                }
+              }}
+            />
+            <button
+              className="titan-button titan-button-secondary min-h-14 px-6"
+              type="submit"
+            >
+              Join
+            </button>
+          </div>
+          {problem ? (
+            <p
+              className="text-sm leading-6 text-titan-ice/76"
+              id="room-code-problem"
+              role="alert"
+            >
+              {problem}
+            </p>
+          ) : null}
+        </form>
+      </div>
+    </HomeStepFrame>
   );
 }
 

@@ -98,7 +98,7 @@ async function joinAs(
   page: Page,
   code: string,
   username: string | null,
-  join?: "new",
+  join?: "new" | "code",
 ) {
   // One seat per page, as the app's keys give, so a reconnect retakes it.
   const key = randomRoomPlayerKey();
@@ -409,6 +409,22 @@ test("a new room whose code is in use opens under another", async ({
     expect(address.pathname).toMatch(/^\/room\/[a-z2-9]{5}$/);
     expect(address.pathname).not.toBe(`/room/${code}`);
     expect(address.search).toBe("");
+    // The lobby shows the code to read out, and its link to scan, apart at
+    // any width.
+    const shown = address.pathname.replace("/room/", "");
+    await expect(page.getByText(shown.split("").join(" "))).toBeAttached();
+    const qr = page.getByRole("img", { name: "QR code for this room's link" });
+    for (const width of [320, 360, 390, 640, 1024]) {
+      await page.setViewportSize({ width, height: 800 });
+      const codeBox = await page.getByText(shown, { exact: true }).boundingBox();
+      const qrBox = await qr.boundingBox();
+      if (!codeBox || !qrBox) throw new Error("The code or its QR is missing");
+      expect(
+        codeBox.x + codeBox.width <= qrBox.x ||
+          codeBox.y + codeBox.height <= qrBox.y,
+        `${width}px`,
+      ).toBe(true);
+    }
   } finally {
     someone.close(1000);
   }
@@ -435,7 +451,8 @@ test("two players race a room on one clock to the same results", async ({
     await expect(
       host.getByRole("heading", { name: "Private room" }),
     ).toBeVisible();
-    await joinAs(guest, code, null);
+    // The guest types the code the host reads out.
+    await joinAs(guest, code, null, "code");
     // The host chooses the course; the guest sees it.
     await expect(
       host

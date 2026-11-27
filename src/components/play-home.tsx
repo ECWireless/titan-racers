@@ -67,6 +67,7 @@ import {
   HomeCourseCard,
   HomeKartCard,
   HomeBackdrop,
+  HomeRoomStep,
   HomeStartStep,
   type HomeStep,
   HomeStepFrame,
@@ -169,7 +170,13 @@ const HISTORY_KART_KEY = "titanHomeKart";
 const HISTORY_COURSE_SKIPPED_KEY = "titanHomeCourseSkipped";
 // A race adds its own entry on the last step's, so back leaves the race.
 const HISTORY_RACING_KEY = "titanHomeRacing";
-const HOME_STEPS: readonly HomeStep[] = ["start", "kart", "course", "race"];
+const HOME_STEPS: readonly HomeStep[] = [
+  "start",
+  "kart",
+  "course",
+  "race",
+  "room",
+];
 
 function historyField(state: unknown, key: string): unknown {
   return state && typeof state === "object"
@@ -911,12 +918,8 @@ export function PlayHome() {
         }
         multiplayerAvailable={roomsAvailable}
         note={racerGhostNote}
-        // A new room, where each racer chooses a kart and the host the
-        // course.
         onMultiplayer={() => {
-          if (roomsAvailable) {
-            window.location.assign(`/room/${createRoomCode()}?join=new`);
-          }
+          if (roomsAvailable) showStep("room");
         }}
         onTimeTrial={() => {
           setCourseSkipped(false);
@@ -927,6 +930,19 @@ export function PlayHome() {
           setCourseSkipped(true);
           showStep("kart", { courseSkipped: true });
         }}
+      />
+    );
+  } else if (step === "room") {
+    stepContent = (
+      <HomeRoomStep
+        onBack={goBack}
+        // A new room, where each racer chooses a kart and the host the
+        // course.
+        onCreate={() =>
+          window.location.assign(`/room/${createRoomCode()}?join=new`)
+        }
+        // The room checks someone is in it before letting this page in.
+        onJoin={(code) => window.location.assign(`/room/${code}?join=code`)}
       />
     );
   } else if (step === "kart") {
