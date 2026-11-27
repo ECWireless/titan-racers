@@ -50,7 +50,13 @@ what a finished room race stores.
   issuing join tokens; `src/app/api/rooms/results/route.ts`: storing
   reports in `room_races` and `room_race_entries` (migration 0029).
 - `src/app/room/[code]/page.tsx` and `src/components/room-play.tsx`: the
-  lobby, the race view, and results.
+  lobby (with the code, a QR code of the room link, and Copy room link),
+  the race view, and results. Home's Multiplayer step
+  (`HomeRoomStep` in `src/components/home-steps.tsx`) creates a room or
+  joins one by its code.
+- `src/components/site-analytics.tsx`: page views of a room reach Vercel
+  Analytics as `/room/[code]`, without the code, since the code lets anyone
+  in.
 - `src/components/solo-time-trial-canvas.tsx`, its `room` prop: the grid
   slot, the countdown and clock, kart states, drawing opponents, and each
   step's contacts (`stepKartContacts`).
@@ -63,11 +69,33 @@ what a finished room race stores.
 - A room exists while someone is in it. Its first join, or the first after
   it empties, fixes its course (gates, reset points, and grid, from that
   join's token, rounded to micrometres; a course over 16 checkpoints, or
-  whose token would pass 12 KB, can't host rooms), course revision, and
+  whose token would pass 13 KB, can't host rooms), course revision, and
   physics and protocol versions. A join on another protocol or physics version, or
   another course, is refused with "refresh"; later joiners race the room's
   course revision. Its storage is deleted 10 minutes after it empties and
   any report is delivered.
+- A room code is 5 characters from a 31-character alphabet with no 0/O or
+  1/I/L, about 28.6 million codes, shown in capitals and typed in either
+  case. Each token says why its page joins (protocol 5): `new` (Create
+  room, `?join=new`) is refused `taken` if anyone holds a seat, even one
+  held for a dropped player, and the page quietly picks another code;
+  `code` (a typed code, `?join=code`) is refused `empty` if no one is in;
+  `link` (a link, a QR code, or any rejoin after the first welcome) opens
+  or joins. A reload before the room lets the page in joins as it was
+  asked again; after, as `link`. A page whose key already holds a seat retakes
+  it whatever it joins with. The page keeps `?join=` in its address until
+  the room lets it in, then shows the plain room link. A `new` join tells
+  a guesser whether a code is in use, unseen by the room; the join limit
+  below keeps that as slow as guessing by link.
+- The Worker allows each address (an IPv6 address by its /64) 120 join
+  attempts a minute, enough for a venue's phones sharing one address, with
+  Cloudflare's rate-limiting binding `JOINS` declared in
+  `room-server/wrangler.jsonc`, and refuses the rest `busy` ("Too many
+  tries to join"). The limit comes before the token, so a page already in
+  the room is refused too; it keeps trying while its seat is held, then
+  gives up after about 40 s. The count is per Cloudflare location and
+  approximate. Locally every page comes from 127.0.0.1, so they share one
+  limit.
 - The app signs a 60-second token per connection. A signed-in account,
   including one kept only in a browser, joins with an HMAC of the room code
   and its ID, so a second tab takes the same seat and the room server never
@@ -75,8 +103,8 @@ what a finished room race stores.
   secret its page holds in memory, so the page retakes its seat when it
   reconnects and a reload is a new guest; without a secret, the key is
   random. The Worker checks the
-  origin, the token, its room, and its protocol version before anything
-  reaches the room's object.
+  origin, the join limit, the token, its room, and its protocol version
+  before anything reaches the room's object.
 - The room server owns membership, host (the longest-present connected
   player), readiness, the start, gates, finishes, places, and the end;
   clients simulate only their own kart, and predict their own gates and

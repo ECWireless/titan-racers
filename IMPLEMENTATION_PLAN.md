@@ -19,8 +19,8 @@ accepted; the app, README, and durable docs take over from there.
   follow-ups, #30–#57 with the PR 4.5.2 closeout, #59–#63, #64–#70 with
   the Phase 6 closeout, the Phase 6 addendum #71–#76, and #77–#80 with
   Phase 7's integration review).
-- **Now:** PR 8.2, room codes and QR.
-- **Next:** PR 8.3 (Steam Deck), then Phase 8's second official course.
+- **Now:** PR 8.3, Steam Deck.
+- **Next:** Phase 8's second official course.
 
 ## Guiding Decisions
 
@@ -272,16 +272,16 @@ Decisions from completed phases that later phases rely on:
   only a seat (`p1`–`p4`) and a race ID, and the platform's own request
   logs stay off, since a join's URL carries its token (PR 6.12).
 - **One room protocol version is live at a time,** raised for each change
-  to its messages (4 since PR 6.9): deploy the room server just before the
+  to its messages (5 since PR 8.2): deploy the room server just before the
   app's PR merges, with no race running. Rooms stay on Cloudflare's Free
   plan until a shared demo; before any shared link, move to Workers Paid
   with the protections Phase 12 lists.
 - **Home is a step-by-step flow**, one history entry a step, with no Quick
   race, and menus sound on every action except in the admin tools. Its
   first screen offers Time Trial, Multiplayer, and Leaderboard (PR 6.6). A
-  time trial goes on to the kart, course, and ghost; Multiplayer opens a new
-  room, where each racer chooses a kart and the host the course (only Falls
-  View Park so far).
+  time trial goes on to the kart, course, and ghost; Multiplayer creates a
+  room or joins one by its code (PR 8.2), where each racer chooses a kart
+  and the host the course (only Falls View Park so far).
 - **CAD stays out of the game** (Phase 7). build123d is an admin authoring
   tool pinned in a development-only environment under `cad/`; each part is
   a script of named parameters modelled on a real 1:10 part, and writes a
@@ -342,11 +342,15 @@ First, three small PRs before the course:
       first kerbs start flush with the stream bridge's walls. Production
       resets Falls View Park to the seed and publishes it without starting
       a new leaderboard.
-- [ ] PR 8.2: Room codes and QR. A room code is 5 characters from the same
+- [x] PR 8.2: Room codes and QR. A room code is 5 characters from the same
       31-character alphabet (no 0/O or 1/I/L), shown in capitals and typed
-      in either case; `room_races` accepts the new shape. A "Join with a
-      code" field on the home screen sits beside Create room, and join
-      attempts are rate-limited. Each join token states why the page joins,
+      in either case; `room_races` accepts the new shape (migration 0031)
+      and keeps past races' 10. Multiplayer on home opens a step with
+      Create room and a "Join with a code" field, and the room server
+      limits join attempts from each address
+      ([room guide](skills/project-systems/multiplayer-rooms/README.md)).
+      Old 10-character links
+      stop working. Each join token states why the page joins,
       and the room decides as it joins (room protocol 5): creating refuses
       an occupied room and the page picks another code, a typed code refuses
       an empty room ("No one's in that room"), and a link or QR code opens
