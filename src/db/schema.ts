@@ -814,7 +814,11 @@ export const roomRaces = pgTable(
       foreignColumns: [courseRevisions.courseId, courseRevisions.revision],
     }).onDelete("restrict"),
     index("room_races_ended_at_idx").on(table.endedAt),
-    check("room_races_room_code", sql`${table.roomCode} ~ '^[a-z2-9]{10}$'`),
+    // Codes have 5 characters; races from before protocol 5 keep their 10.
+    check(
+      "room_races_room_code",
+      sql`${table.roomCode} ~ '^[a-z2-9]{5}([a-z2-9]{5})?$'`,
+    ),
     check(
       "room_races_physics_version",
       sql`char_length(${table.physicsVersion}) between 1 and 80`,

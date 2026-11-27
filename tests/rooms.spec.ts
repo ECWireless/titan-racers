@@ -49,7 +49,7 @@ process.env.ROOM_SERVER_SECRET = SECRET;
 function tokenRequest(
   code: string,
   {
-    body = JSON.stringify({ protocol: ROOM_PROTOCOL }),
+    body = JSON.stringify({ protocol: ROOM_PROTOCOL, join: "link" }),
     headers = new Headers(),
     origin = ORIGIN,
   } = {},
@@ -197,6 +197,7 @@ test.describe("private rooms", () => {
     expect(token).toMatchObject({
       protocol: ROOM_PROTOCOL,
       room: code,
+      join: "link",
       courseId: FALLS_VIEW_PARK_COURSE_ID,
       courseRevision: publication.revision,
       // JSON carries -0 as 0.
@@ -214,9 +215,15 @@ test.describe("private rooms", () => {
       JSON.stringify({
         seat: name.repeat(43).slice(0, 43),
         protocol: ROOM_PROTOCOL,
+        join: "link",
       });
     const held = (await tokenFor(code, undefined, seat("a"))).player.key;
     expect(held).not.toBe(token.player.key);
+    // The page says why it joins, and the room checks it.
+    for (const join of ["new", "code"] as const) {
+      const body = JSON.stringify({ protocol: ROOM_PROTOCOL, join });
+      expect((await tokenFor(code, undefined, body)).join).toBe(join);
+    }
     expect((await tokenFor(code, undefined, seat("a"))).player.key).toBe(held);
     expect((await tokenFor(code, undefined, seat("b"))).player.key).not.toBe(
       held,
@@ -245,7 +252,11 @@ test.describe("private rooms", () => {
         await tokenFor(
           code,
           named.headers,
-          JSON.stringify({ seat: "c".repeat(43), protocol: ROOM_PROTOCOL }),
+          JSON.stringify({
+            seat: "c".repeat(43),
+            protocol: ROOM_PROTOCOL,
+            join: "link",
+          }),
         )
       ).player.key,
     ).toBe(token.player.key);
@@ -269,7 +280,13 @@ test.describe("private rooms", () => {
   test("refuses joins it can't sign", async () => {
     expect((await tokenRequest("not-a-room")).status).toBe(404);
     const code = createRoomCode();
-    for (const body of ['{"x":1}', '{"seat":"short"}', "not json"]) {
+    for (const body of [
+      '{"x":1}',
+      '{"seat":"short"}',
+      "not json",
+      JSON.stringify({ protocol: ROOM_PROTOCOL }),
+      JSON.stringify({ protocol: ROOM_PROTOCOL, join: "guess" }),
+    ]) {
       expect((await tokenRequest(code, { body })).status).toBe(400);
     }
     // A page left open across a deploy, on another protocol or from before
@@ -302,6 +319,11 @@ test.describe("private rooms", () => {
       .select()
       .from(roomRaces)
       .where(eq(roomRaces.id, race.raceId));
+    // A race from a room opened before codes were shortened still stores.
+    const older = await publishedRace();
+    older.roomCode = "abcdeabcde";
+    expect((await report(JSON.stringify(older))).status).toBe(201);
+
     expect(row).toMatchObject({
       roomCode: race.roomCode,
       courseId: race.courseId,

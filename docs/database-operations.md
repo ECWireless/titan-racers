@@ -231,6 +231,15 @@ finished race to `/api/rooms/results`, which stores it once in `room_races`
 and `room_race_entries`. These rows name no account, so merges and
 anonymization pass them by.
 
+Migration `0031` (PR 8.2) lets `room_races.room_code` hold the 5-character
+codes of room protocol 5 as well as the 10-character codes of earlier races.
+Apply it before deploying the room server and the app, or a race reported
+from a new room is refused. To roll back code, keep it: earlier builds only
+ever send 10. Roll back the room server and the app together, with no room
+racing: an earlier app refuses a 5-character report, and an earlier room
+server drops a newer room's state, so a race report still waiting in a room
+is lost.
+
 - **Secret:** the app and the room server share `ROOM_SERVER_SECRET`, at
   least 32 random characters. Locally it goes in `.env` and in the
   gitignored `room-server/.dev.vars`; in production, in Vercel and with
@@ -255,7 +264,16 @@ anonymization pass them by.
   it as a custom-domain route, keep `workers_dev` on while the app's
   variable changes, then turn it off. A deploy closes live races within about five
   minutes, so avoid deploying mid-race. A protocol change deploys the room
-  server, then the app, back to back.
+  server, then the app, back to back. With protocol 5 (PR 8.2), room links
+  from before have 10 characters and no longer open: a tab left on one
+  can't rejoin after the deploy (the token route answers 404, not the 409
+  that says "The game has updated"), and reloading it shows the not-found
+  page.
+- **Join limit:** the room server's `JOINS` rate-limiting binding
+  ([how it counts](../skills/project-systems/multiplayer-rooms/README.md#behavior-and-invariants))
+  needs no setup beyond deploying `wrangler.jsonc`. `pnpm rooms:dev`
+  enforces it too, with every local page sharing 127.0.0.1, so heavy local
+  testing can briefly see "Too many tries to join".
 - **Logs:** the production room server keeps its own log lines in Workers
   Logs ([limits](../skills/tools/cloudflare-durable-objects/README.md#logs-2026-11-15)).
   Read them in the Cloudflare dashboard under Workers & Pages →

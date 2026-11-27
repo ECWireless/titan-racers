@@ -53,8 +53,9 @@ overrides how opponents near the player's kart are drawn and estimated.
 - **Version the protocol.** Messages carry or inherit a protocol version,
   and a room refuses a mismatched client with a clear "refresh" message
   rather than misreading its messages.
-- **Rooms are private and lightweight.** Joining is by an unguessable link.
-  A room needs no stored record to exist, and what it keeps after a race
+- **Rooms are private and lightweight.** Joining is by a short code or its
+  link, too many to guess quickly while the room server limits join
+  attempts. A room needs no stored record to exist, and what it keeps after a race
   holds no account identity.
 
 ### Authority And Motion

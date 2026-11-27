@@ -1,6 +1,7 @@
 import { expect, test } from "@playwright/test";
 
 import {
+  ROOM_CLOSE,
   ROOM_PROTOCOL,
   ROOM_RESEND_BATCH,
   type RoomServerMessage,
@@ -101,7 +102,8 @@ function token(key: string): RoomToken {
   return {
     version: 1,
     protocol: ROOM_PROTOCOL,
-    room: "abcdefghjk",
+    room: "abcde",
+    join: "link",
     expiresAt: 1,
     courseId: "falls-view-park",
     courseRevision: 1,
@@ -138,7 +140,7 @@ const settle = (ms: number) =>
 /** Opens a connection and its first socket, welcomed as p1. */
 async function connected(racing: boolean) {
   const { RoomConnection } = await import("../src/game/room/room-connection");
-  const connection = new RoomConnection("abcdefghjk", "ws://rooms.test");
+  const connection = new RoomConnection("abcde", "ws://rooms.test");
   opened.push(connection);
   await connection.open();
   const [socket] = FakeSocket.sockets;
@@ -277,7 +279,7 @@ test.describe("the page's room connection", () => {
       return { ok: false, status: 409, json: async () => ({}) };
     };
     const { RoomConnection } = await import("../src/game/room/room-connection");
-    const connection = new RoomConnection("abcdefghjk", "ws://rooms.test");
+    const connection = new RoomConnection("abcde", "ws://rooms.test");
     opened.push(connection);
     await connection.open();
     expect(JSON.parse(requests[0])).toMatchObject({ protocol: ROOM_PROTOCOL });
@@ -286,6 +288,48 @@ test.describe("the page's room connection", () => {
       status: "closed",
       closedReason: "The game has updated. Refresh to join this room.",
     });
+  });
+
+  test("joins as it was asked once, then comes back by its link", async () => {
+    const joins: string[] = [];
+    globals.fetch = async (_url: string, init: { body: string }) => {
+      joins.push(JSON.parse(init.body).join);
+      return { ok: true, json: async () => ({ token: "signed" }) };
+    };
+    const { RoomConnection } = await import("../src/game/room/room-connection");
+    const refusedWith = async (join: "new" | "code", code: number) => {
+      const connection = new RoomConnection("abcde", "ws://rooms.test", join);
+      opened.push(connection);
+      await connection.open();
+      const socket = FakeSocket.sockets.at(-1)!;
+      socket.dispatchEvent(Object.assign(new Event("close"), { code }));
+      return connection.getView();
+    };
+    // A new room's code in use: the page picks another, and says nothing.
+    expect(await refusedWith("new", ROOM_CLOSE.taken)).toMatchObject({
+      status: "closed",
+      closedReason: null,
+      taken: true,
+    });
+    expect(await refusedWith("code", ROOM_CLOSE.empty)).toMatchObject({
+      status: "closed",
+      closedReason: "No one's in that room. Check the code and try again.",
+      taken: false,
+    });
+    expect(FakeSocket.sockets).toHaveLength(2);
+
+    const connection = new RoomConnection("abcde", "ws://rooms.test", "new");
+    opened.push(connection);
+    await connection.open();
+    FakeSocket.sockets.at(-1)!.open();
+    FakeSocket.sockets.at(-1)!.receive({ type: "welcome", you: "p1", resume: null });
+    const socket = await reconnect();
+    expect(joins).toEqual(["new", "code", "new", "link"]);
+    // Too many joins from its network: once in, it keeps trying.
+    socket.dispatchEvent(
+      Object.assign(new Event("close"), { code: ROOM_CLOSE.busy }),
+    );
+    expect(connection.getView().status).toBe("reconnecting");
   });
 
   test("judges from its pings whether it can answer a contact in time", async () => {

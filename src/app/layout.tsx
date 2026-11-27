@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
-import { Analytics } from "@vercel/analytics/next";
 
+import { SiteAnalytics } from "@/components/site-analytics";
 import { UiSounds } from "@/components/ui-sounds";
 import {
   SITE_DESCRIPTION,
@@ -32,7 +32,7 @@ export default function RootLayout({
       <body>
         {children}
         <UiSounds />
-        <Analytics />
+        <SiteAnalytics />
       </body>
     </html>
   );

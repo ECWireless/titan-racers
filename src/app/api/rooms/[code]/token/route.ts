@@ -1,6 +1,10 @@
 import { z } from "zod";
 
-import { isRoomCode, ROOM_PROTOCOL } from "@/game/room/room-protocol";
+import {
+  isRoomCode,
+  ROOM_JOINS,
+  ROOM_PROTOCOL,
+} from "@/game/room/room-protocol";
 import { ROOM_SEAT_SECRET_PATTERN } from "@/game/room/room-signing";
 import {
   protectedJsonMutationError,
@@ -14,6 +18,8 @@ const joinRequestSchema = z.strictObject({
   seat: z.string().regex(ROOM_SEAT_SECRET_PATTERN).optional(),
   /** The page's room protocol; a page from before 3 sends none. */
   protocol: z.number().int().positive().max(1_000).optional(),
+  /** Why the page joins; a page from before 5 sends none. */
+  join: z.enum(ROOM_JOINS).optional(),
 });
 const NO_STORE_HEADERS = { "cache-control": "no-store" };
 
@@ -46,9 +52,13 @@ export async function POST(request: Request, context: RouteContext) {
   if (parsed.data.protocol !== ROOM_PROTOCOL) {
     return jsonError("The game has updated.", 409);
   }
+  if (!parsed.data.join) {
+    return jsonError("Invalid room join request.", 400);
+  }
   try {
     const token = await issueRoomToken(
       code,
+      parsed.data.join,
       await signedInUserOrNull(request),
       parsed.data.seat ?? null,
     );
