@@ -11,10 +11,10 @@
     "bindings": [{ "name": "ROOMS", "class_name": "Room" }]
   },
   "migrations": [{ "tag": "v1", "new_sqlite_classes": ["Room"] }],
-  // Joins per address a minute (env JOINS). Bindings aren't inherited, so
-  // production repeats it.
+  // Joins per address a minute (env JOINS), enough for a venue's phones
+  // sharing one address. Bindings aren't inherited, so production repeats it.
   "ratelimits": [
-    { "name": "JOINS", "namespace_id": "1001", "simple": { "limit": 30, "period": 60 } }
+    { "name": "JOINS", "namespace_id": "1001", "simple": { "limit": 120, "period": 60 } }
   ],
   "vars": {
     "APP_ORIGINS": "http://localhost:3000,http://127.0.0.1:3000",
@@ -29,7 +29,7 @@
         "bindings": [{ "name": "ROOMS", "class_name": "Room" }]
       },
       "ratelimits": [
-        { "name": "JOINS", "namespace_id": "1001", "simple": { "limit": 30, "period": 60 } }
+        { "name": "JOINS", "namespace_id": "1001", "simple": { "limit": 120, "period": 60 } }
       ],
       // Keeps the room's own log lines (room-log.ts). Cloudflare's
       // per-request logs stay off, and query strings are redacted, since a

@@ -488,14 +488,16 @@ test("refuses a new room in use, a typed code no one's in, and too many joins", 
   const [a, b] = [...randomBytes(4)].map((byte) => byte.toString(16));
   const network = [`2001:db8:${a}:${b}::1`, `2001:0db8:${a}:${b}:9:8:7:6`];
   const stale = await signRoomToken(SECRET, tokenFields(room), Date.now() - 120_000);
+  // The limit in room-server/wrangler.jsonc.
+  const limit = 120;
   const codes = [];
-  for (let attempt = 0; attempt < 31; attempt += 1) {
+  for (let attempt = 0; attempt <= limit; attempt += 1) {
     codes.push(
       await (await Client.join(stale, ORIGIN, network[attempt % 2])).closed,
     );
   }
-  expect(codes.slice(0, 30)).toEqual(Array(30).fill(ROOM_CLOSE.token));
-  expect(codes[30]).toBe(ROOM_CLOSE.busy);
+  expect(codes.slice(0, limit)).toEqual(Array(limit).fill(ROOM_CLOSE.token));
+  expect(codes[limit]).toBe(ROOM_CLOSE.busy);
   // Another network still joins.
   expect(
     await (await Client.join(stale, ORIGIN, `2001:db9:${a}:${b}::1`)).closed,
