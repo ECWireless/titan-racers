@@ -46,9 +46,11 @@ class KeyboardTarget {
     code: string,
     repeat = false,
     target?: { isContentEditable?: boolean; tagName?: string },
+    modifiers: { ctrlKey?: boolean } = {},
   ) {
     let prevented = false;
     const event = {
+      ...modifiers,
       code,
       preventDefault: () => {
         prevented = true;
@@ -173,6 +175,7 @@ test.describe("player input", () => {
       accelerate: 1,
       brakeReverse: 0,
       handbrake: 1,
+      lookBehind: false,
       pauseRequested: true,
       resetRequested: true,
       steer: -1,
@@ -206,6 +209,7 @@ test.describe("player input", () => {
       accelerate: 0,
       brakeReverse: 0,
       handbrake: 0,
+      lookBehind: false,
       pauseRequested: false,
       resetRequested: false,
       steer: 0,
@@ -221,7 +225,7 @@ test.describe("player input", () => {
     touch.setJoystick(1, -0.54, -0.54);
     const diagonalMagnitude = Math.hypot(0.54, 0.54);
     const shapedMagnitude = ((diagonalMagnitude - 0.08) / (1 - 0.08)) ** 1.75;
-    touch.pressPedal(2, "accelerate");
+    touch.pressButton(2, "accelerate");
     expect(touch.getContinuousInput()).toMatchObject({
       accelerate: 1,
       brakeReverse: 0,
@@ -278,7 +282,7 @@ test.describe("player input", () => {
     touch.setJoystick(1, 0.8, -0.6);
     expect(touch.getContinuousInput().handbrake).toBe(0);
 
-    touch.pressPedal(2, "brakeReverse");
+    touch.pressButton(2, "brakeReverse");
     expect(touch.getContinuousInput()).toMatchObject({
       accelerate: 0.6,
       handbrake: 1,
@@ -530,6 +534,7 @@ test.describe("player input", () => {
       accelerate: 0,
       brakeReverse: 0,
       handbrake: 0,
+      lookBehind: false,
       pauseRequested: false,
       resetRequested: false,
       steer: 0,
@@ -599,6 +604,99 @@ test.describe("player input", () => {
     expect(activityCount).toBeGreaterThan(0);
   });
 
+  test("holds look behind from any device without taking driving, until a clear or reset", () => {
+    const target = new KeyboardTarget();
+    let current = standardGamepad({ buttons: { 7: gamepadButton(1) } });
+    const manager = new PlayerInputManager(target as unknown as Window, () => [
+      current,
+    ]);
+    manager.attach();
+    const lookingBehind = () => {
+      const actions = manager.sample();
+      return { accelerate: actions.accelerate, lookBehind: manager.lookingBehind };
+    };
+
+    // The controller drives; C and the touch button only move the camera.
+    expect(lookingBehind()).toEqual({ accelerate: 1, lookBehind: false });
+    target.dispatch("keydown", "KeyC");
+    expect(lookingBehind()).toEqual({ accelerate: 1, lookBehind: true });
+    target.dispatch("keyup", "KeyC");
+    expect(lookingBehind()).toEqual({ accelerate: 1, lookBehind: false });
+    manager.pressTouchButton(7, "lookBehind");
+    expect(lookingBehind()).toEqual({ accelerate: 1, lookBehind: true });
+    manager.releaseTouch(7);
+    expect(lookingBehind()).toEqual({ accelerate: 1, lookBehind: false });
+
+    // The keyboard drives while the controller's Y looks behind.
+    target.dispatch("keydown", "KeyW");
+    current = standardGamepad({ buttons: { 3: gamepadButton(1) } });
+    expect(lookingBehind()).toEqual({ accelerate: 1, lookBehind: true });
+    target.dispatch("keyup", "KeyW");
+
+    // A reset (as the race does it) ends it while Y is still held, until Y
+    // is let go.
+    manager.endLookBehind();
+    manager.clear();
+    expect(manager.lookingBehind).toBe(false);
+    for (let sample = 0; sample < 3; sample += 1) {
+      expect(lookingBehind().lookBehind).toBe(false);
+    }
+    current = standardGamepad();
+    expect(lookingBehind().lookBehind).toBe(false);
+    current = standardGamepad({ buttons: { 3: gamepadButton(1) } });
+    expect(lookingBehind().lookBehind).toBe(true);
+
+    // Y held through a pause stays forward, and doesn't keep the trigger
+    // dead once the trigger is pressed afresh.
+    manager.clear();
+    current = standardGamepad({
+      buttons: { 3: gamepadButton(1), 7: gamepadButton(1) },
+    });
+    expect(lookingBehind()).toEqual({ accelerate: 0, lookBehind: false });
+    current = standardGamepad({ buttons: { 3: gamepadButton(1) } });
+    expect(lookingBehind()).toEqual({ accelerate: 0, lookBehind: false });
+    current = standardGamepad({
+      buttons: { 3: gamepadButton(1), 7: gamepadButton(1) },
+    });
+    expect(lookingBehind()).toEqual({ accelerate: 1, lookBehind: false });
+    current = standardGamepad({ buttons: { 7: gamepadButton(1) } });
+    expect(lookingBehind()).toEqual({ accelerate: 1, lookBehind: false });
+
+    // A fresh press right after a clear counts at once.
+    current = standardGamepad();
+    lookingBehind();
+    manager.clear();
+    manager.pressTouchButton(8, "lookBehind");
+    expect(lookingBehind().lookBehind).toBe(true);
+    manager.releaseTouch(8);
+    lookingBehind();
+
+    // Copy stays the browser's.
+    expect(target.dispatch("keydown", "KeyC", false, undefined, { ctrlKey: true })).toBe(false);
+    expect(lookingBehind().lookBehind).toBe(false);
+
+    // A clear ends a held key too: its repeats don't restart it.
+    target.dispatch("keydown", "KeyC");
+    manager.clear();
+    target.dispatch("keydown", "KeyC", true);
+    expect(lookingBehind().lookBehind).toBe(false);
+    manager.detach();
+  });
+
+  test("lets one controller's Y look behind without blocking another's throttle", () => {
+    const lookingPad = standardGamepad({
+      buttons: { 3: gamepadButton(1) },
+      index: 0,
+    });
+    const drivingPad = standardGamepad({
+      buttons: { 7: gamepadButton(1) },
+      index: 1,
+    });
+    const input = new GamepadInput(() => [lookingPad, drivingPad]);
+
+    expect(input.sample()).toMatchObject({ accelerate: 1, lookBehind: true });
+  });
+
   test("clears queued keyboard edges before re-enabling the manager", () => {
     const target = new KeyboardTarget();
     const manager = new PlayerInputManager(
@@ -628,7 +726,7 @@ test.describe("player input", () => {
     // Dead-zone noise cannot steal continuous control from the keyboard.
     expect(manager.sample().accelerate).toBe(1);
 
-    manager.pressTouchPedal(21, "brakeReverse");
+    manager.pressTouchButton(21, "brakeReverse");
     expect(manager.sample()).toMatchObject({ accelerate: 0, brakeReverse: 1 });
 
     current = standardGamepad({

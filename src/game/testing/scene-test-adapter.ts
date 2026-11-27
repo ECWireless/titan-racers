@@ -51,7 +51,13 @@ export type CollisionDebugState = {
   sunShadowResolution: number | null;
 };
 
-export type CameraDebugState = ChaseCameraDiagnostics;
+export type CameraDebugState = ChaseCameraDiagnostics & {
+  /** The onboard view shows, not the chase. */
+  firstPerson: boolean;
+  nearClip: number;
+  /** Where the race camera is drawn from, either view. */
+  shownPosition: Position3;
+};
 
 export type KartDebugState = {
   actualTurnRadius: number | null;

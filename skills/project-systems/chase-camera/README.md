@@ -113,8 +113,53 @@ progression.
   than ordinary/outward position damping.
 - Initial readiness, gameplay reset, invalid recovery, debug teleport, and
   replay snap every retained camera signal immediately.
+- Look behind (`ChaseCameraSnapshot.lookBehind`, from the input manager)
+  cuts on press and release. The rear shot is separate state: the camera
+  sits the chase distance ahead at chase height and looks back past the
+  kart with the base look-ahead, placed at once on the press frame (or by
+  a snap while held). It moves with the kart across the ground at once, so
+  a kart driving at it never catches it, while its offset from the kart
+  (wall pull-in and release, sway) and bumps still smooth, and a ray to its
+  final position holds it short of walls. The forward chase, reverse
+  framing included, keeps updating underneath, so letting go shows it
+  exactly where it would have been, already trailing at speed. Pausing
+  calls `lookForward()`, a cut that resets nothing, since a paused race
+  draws no camera updates.
 - Camera diagnostics are ordinary copied data and cannot mutate the camera,
   kart, PlayCanvas entities, or Ammo objects.
+
+## First-Person View
+
+The First-person view switch (`src/game/camera/first-person-setting.ts`,
+saved on the device; in home's menu and the race's pause menu) races from an
+onboard camera, `src/game/camera/first-person-camera.ts`, placed after the
+chase updates each frame. The chase keeps running underneath, so its snaps,
+hit nudge, and speed carry over, and it shows instead while the kart tumbles.
+
+- The mount comes from the kart's drawn parts (`collectKartBoxes`, in the kart
+  visual's frame): a nose camera, centred, 2 cm ahead of the nose and 11 cm
+  above the centre-band parts in the front 15% of the kart (about 26 cm up
+  on the default kart), so none of the kart, its
+  frame, or a future body shell is in view. Look behind cuts to the
+  matching tail camera, facing back.
+- About 90° across a wide screen, opening 5° at top speed; the vertical view
+  is capped at 75° (which limits the widening on squarer screens), and an
+  upright phone keeps at least 70° across.
+- Heading follows the kart at once; position moves with the kart across the
+  ground at once while bumps, pitch, and lean settle over about 0.1 s, the
+  lens never more than 2 cm from its mount (climbs, rises, landings) and the
+  aim's pitch never more than 20° behind the kart's; a quarter of the kart's
+  lean tilts the horizon. The chase's obstruction ray, cast from midway
+  between the two mounts to 3 cm past the lens, holds the lens 3 cm short of
+  a wall the nose or tail is pressed against.
+- Tipped past about 70° (on its side or roof), the chase shows until the
+  kart is upright for 0.5 s; spins and wall hits stay onboard. A snap
+  (reset, recovery, teleport) starts afresh. Snaps place both views at once,
+  paused or not.
+- The near clip drops to 1 cm while it shows. A ghost, or a see-through room
+  opponent, fades within 0.6 kart lengths of the lens.
+- A switch made in the pause menu takes effect when camera updates resume,
+  after the resume countdown.
 
 ## Verification
 
@@ -122,12 +167,15 @@ Focused coverage includes:
 
 - `tests/chase-camera.spec.ts` for reliable-speed signed slip, reverse sign
   stability, stabilization thresholds/release, wrap-safe heading slew, impact
-  severity bounds, and equivalent exponential smoothing;
+  severity bounds, equivalent exponential smoothing, and the rear shot
+  (no lag ahead of the kart, walls, the cut back to a settled chase);
+- `tests/first-person-camera.spec.ts` for the mounts, view width, riding,
+  lean, look behind, tumble handover, walls, and pitch lag;
 - `tests/course-document.spec.ts` for visible large-wall/L-corner geometry
   beyond the normal loop;
-- `tests/home.spec.ts` for wall obstruction and release in the live scene
-  (the other camera scene fixtures were removed on 2026-10-17 in favor of
-  `tests/chase-camera.spec.ts`);
+- `tests/home.spec.ts` for wall obstruction and release, look behind
+  (keyboard, touch, pause), and the First-person view switch in the live
+  scene;
 - `pnpm lint`, `pnpm typecheck`, and `pnpm build`; and
 - the complete desktop and mobile Playwright projects.
 
@@ -147,5 +195,8 @@ hands-on desktop and narrow-mobile driving.
 - Spin/tumble thresholds and release timing remain one shared comfort baseline;
   materially different future kart angular envelopes may justify reviewed
   per-runtime tuning after comparable player QA.
-- Player camera orbit, look-back, replay, ghost, spectator, multiplayer, and
+- Player camera orbit, replay, ghost, spectator, multiplayer, and
   split-screen cameras remain later scope.
+- The first-person view is unmeasured against the iPhone budget, and its 1 cm
+  near clip coarsens distant depth precision; raise it if far surfaces
+  flicker.

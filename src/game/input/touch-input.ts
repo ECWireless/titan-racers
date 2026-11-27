@@ -4,7 +4,7 @@ import type {
   PlayerInputSourceSnapshot,
 } from "./player-input";
 
-export type TouchPedalAction = "accelerate" | "brakeReverse";
+export type TouchButtonAction = "accelerate" | "brakeReverse" | "lookBehind";
 
 export const TOUCH_JOYSTICK_DEAD_ZONE = 0.08;
 export const TOUCH_JOYSTICK_RESPONSE_EXPONENT = 1.75;
@@ -132,7 +132,7 @@ export function getTouchPullHandbrake(
 }
 
 export class TouchInput implements PlayerInputSource {
-  private readonly pedalPointers = new Map<number, TouchPedalAction>();
+  private readonly buttonPointers = new Map<number, TouchButtonAction>();
   private joystickPointer: (TouchJoystickValue & { pointerId: number }) | null =
     null;
   private pauseRequested = false;
@@ -143,9 +143,10 @@ export class TouchInput implements PlayerInputSource {
     private readonly onDrivingActivity: () => void = () => undefined,
   ) {}
 
-  pressPedal(pointerId: number, action: TouchPedalAction) {
-    this.pedalPointers.set(pointerId, action);
-    this.onDrivingActivity();
+  pressButton(pointerId: number, action: TouchButtonAction) {
+    this.buttonPointers.set(pointerId, action);
+    // Looking behind never takes driving from another device.
+    if (action !== "lookBehind") this.onDrivingActivity();
   }
 
   setJoystick(pointerId: number, x: number, y: number) {
@@ -157,7 +158,7 @@ export class TouchInput implements PlayerInputSource {
   }
 
   release(pointerId: number) {
-    this.pedalPointers.delete(pointerId);
+    this.buttonPointers.delete(pointerId);
     if (this.joystickPointer?.pointerId === pointerId) {
       this.joystickPointer = null;
     }
@@ -172,16 +173,23 @@ export class TouchInput implements PlayerInputSource {
   }
 
   clear() {
-    this.pedalPointers.clear();
+    this.buttonPointers.clear();
     this.joystickPointer = null;
     this.pauseRequested = false;
     this.resetRequested = false;
     this.pullHandbrake = 0;
   }
 
+  private holds(action: TouchButtonAction) {
+    for (const held of this.buttonPointers.values()) {
+      if (held === action) return true;
+    }
+    return false;
+  }
+
   getContinuousInput(): ContinuousPlayerInput {
     const pullHandbrake = this.pullHandbrake;
-    const actions = new Set(this.pedalPointers.values());
+    const actions = new Set(this.buttonPointers.values());
     const joystickX = this.joystickPointer?.x ?? 0;
     const joystickY = this.joystickPointer?.y ?? 0;
     const accelerate = Math.max(
@@ -236,6 +244,7 @@ export class TouchInput implements PlayerInputSource {
           );
     const snapshot = {
       ...this.getContinuousInput(),
+      lookBehind: this.holds("lookBehind"),
       pauseRequested: this.pauseRequested,
       resetRequested: this.resetRequested,
     };

@@ -3,11 +3,12 @@ import { GamepadInput, type GamepadProvider } from "./gamepad-input";
 import { KeyboardInput } from "./keyboard-input";
 import {
   NEUTRAL_CONTINUOUS_INPUT,
+  NEUTRAL_PLAYER_INPUT,
   normalizeContinuousInput,
   toDrivingInput,
   type PlayerInputDevice,
 } from "./player-input";
-import { TouchInput, type TouchPedalAction } from "./touch-input";
+import { TouchInput, type TouchButtonAction } from "./touch-input";
 
 export class PlayerInputManager {
   readonly keyboard: KeyboardInput;
@@ -15,6 +16,16 @@ export class PlayerInputManager {
   readonly gamepad: GamepadInput;
   private activeDevice: PlayerInputDevice = "keyboard";
   private enabled = true;
+  // Set by a clear or a reset while looking behind: look behind waits for
+  // every device to let go, so a held key, button, or touch does not carry
+  // over.
+  private lookBehindNeedsRelease = false;
+  private lookingBehindNow = false;
+
+  /** Whether the last sample held look behind, on any device. */
+  get lookingBehind() {
+    return this.lookingBehindNow;
+  }
 
   constructor(
     target: Window,
@@ -41,6 +52,16 @@ export class PlayerInputManager {
     this.keyboard.clear();
     this.touch.clear();
     this.gamepad.clear();
+    this.endLookBehind();
+  }
+
+  /**
+   * Looks forward again. A control holding look behind now must be let go
+   * and pressed again; a fresh press counts at once.
+   */
+  endLookBehind() {
+    this.lookBehindNeedsRelease ||= this.lookingBehindNow;
+    this.lookingBehindNow = false;
   }
 
   setEnabled(enabled: boolean) {
@@ -48,11 +69,11 @@ export class PlayerInputManager {
     this.enabled = enabled;
   }
 
-  pressTouchPedal(pointerId: number, action: TouchPedalAction) {
+  pressTouchButton(pointerId: number, action: TouchButtonAction) {
     if (!this.enabled) {
       return;
     }
-    this.touch.pressPedal(pointerId, action);
+    this.touch.pressButton(pointerId, action);
   }
 
   setTouchJoystick(pointerId: number, x: number, y: number) {
@@ -77,7 +98,7 @@ export class PlayerInputManager {
   // Touch uses it and the step time to gate and ramp the pull-back handbrake.
   sample(forwardSpeedRatio = 0, deltaSeconds = 0): PlayerInputActions {
     if (!this.enabled) {
-      return { ...NEUTRAL_CONTINUOUS_INPUT, pauseRequested: false, resetRequested: false };
+      return { ...NEUTRAL_PLAYER_INPUT };
     }
     const keyboard = this.keyboard.sample();
     const touch = this.touch.sample(forwardSpeedRatio, deltaSeconds);
@@ -86,6 +107,14 @@ export class PlayerInputManager {
     const continuous = normalizeContinuousInput(
       sources[this.activeDevice] ?? NEUTRAL_CONTINUOUS_INPUT,
     );
+
+    // Any device looks behind, as any can pause or reset.
+    const lookBehindHeld =
+      keyboard.lookBehind || touch.lookBehind || gamepad.lookBehind;
+    if (!lookBehindHeld) {
+      this.lookBehindNeedsRelease = false;
+    }
+    this.lookingBehindNow = lookBehindHeld && !this.lookBehindNeedsRelease;
 
     return {
       ...continuous,

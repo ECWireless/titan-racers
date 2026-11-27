@@ -8,6 +8,7 @@ export type ContinuousPlayerInput = Pick<
 >;
 
 export type PlayerInputSourceSnapshot = ContinuousPlayerInput & {
+  lookBehind: boolean;
   pauseRequested: boolean;
   resetRequested: boolean;
 };

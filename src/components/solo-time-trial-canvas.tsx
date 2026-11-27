@@ -24,6 +24,7 @@ import {
   RunStandingSummary,
 } from "@/components/run-standing";
 import {
+  FirstPersonToggle,
   GhostToggle,
   SoundToggle,
   VolumeControl,
@@ -79,7 +80,15 @@ import {
   selectStrongerImpact,
   type ChaseCameraImpact,
   type ChaseCameraSnapshot,
+  type ObstructionQuery,
 } from "@/game/camera/chase-camera";
+import {
+  collectKartBoxes,
+  findFirstPersonMounts,
+  FIRST_PERSON_NEAR_CLIP,
+  FirstPersonCamera,
+} from "@/game/camera/first-person-camera";
+import { readFirstPersonView } from "@/game/camera/first-person-setting";
 import {
   buildCourseLighting,
   ENCLOSURE_SUN_ID,
@@ -131,7 +140,7 @@ import {
 import { playUiSound } from "@/game/audio/ui-sounds";
 import {
   normalizeTouchJoystick,
-  type TouchPedalAction,
+  type TouchButtonAction,
 } from "@/game/input/touch-input";
 import {
   DynamicKartController,
@@ -441,7 +450,7 @@ type SoloTimeTrialCanvasProps = {
 };
 type SoloSceneControls = {
   clearInput: () => void;
-  pressTouchPedal: (pointerId: number, action: TouchPedalAction) => void;
+  pressTouchButton: (pointerId: number, action: TouchButtonAction) => void;
   releaseTouch: (pointerId: number) => void;
   requestKartTapRighting: (clientX: number, clientY: number) => boolean;
   requestTouchReset: () => void;
@@ -459,11 +468,27 @@ type KartTapCandidate = {
   startY: number;
 };
 
-const TOUCH_KEYBOARD_POINTER_IDS: Record<TouchPedalAction, number> = {
+const TOUCH_KEYBOARD_POINTER_IDS: Record<TouchButtonAction, number> = {
   accelerate: -1,
   brakeReverse: -2,
+  lookBehind: -4,
 };
 const TOUCH_KEYBOARD_JOYSTICK_POINTER_ID = -3;
+const TOUCH_BUTTON_CLASSES: Record<TouchButtonAction, string> = {
+  accelerate: "race-touch-pedal race-touch-accelerator",
+  brakeReverse: "race-touch-pedal race-touch-brake",
+  lookBehind: "race-touch-utility race-touch-look-behind",
+};
+
+function LookBehindIcon() {
+  // A rear-view mirror with an arrow pointing back.
+  return (
+    <svg aria-hidden="true" viewBox="0 0 24 24">
+      <rect height="9" rx="4.5" width="18" x="3" y="5" />
+      <path d="M12 14v4M9 18h6M15 9.5H9m2-2-2 2 2 2" />
+    </svg>
+  );
+}
 
 function ResetIcon() {
   return (
@@ -500,19 +525,20 @@ function BrakeIcon() {
   );
 }
 
-function setTouchPedalPresentation(
-  elements: Partial<Record<TouchPedalAction, HTMLButtonElement>>,
-  action: TouchPedalAction,
+function setTouchButtonPresentation(
+  elements: Partial<Record<TouchButtonAction, HTMLButtonElement>>,
+  action: TouchButtonAction,
   active: boolean,
 ) {
   elements[action]?.setAttribute("aria-pressed", String(active));
 }
 
-function clearTouchPedalPresentation(
-  elements: Partial<Record<TouchPedalAction, HTMLButtonElement>>,
+function clearTouchButtonPresentation(
+  elements: Partial<Record<TouchButtonAction, HTMLButtonElement>>,
 ) {
-  setTouchPedalPresentation(elements, "accelerate", false);
-  setTouchPedalPresentation(elements, "brakeReverse", false);
+  setTouchButtonPresentation(elements, "accelerate", false);
+  setTouchButtonPresentation(elements, "brakeReverse", false);
+  setTouchButtonPresentation(elements, "lookBehind", false);
 }
 
 function setTouchJoystickPresentation(
@@ -773,8 +799,8 @@ export function SoloTimeTrialCanvas({
   const onLoadedRef = useRef(onLoaded);
   // What `onLoaded` last said: nothing yet, ready, or failed.
   const loadedReportedRef = useRef<boolean | null>(null);
-  const touchPedalElementsRef = useRef<
-    Partial<Record<TouchPedalAction, HTMLButtonElement>>
+  const touchButtonElementsRef = useRef<
+    Partial<Record<TouchButtonAction, HTMLButtonElement>>
   >({});
   const touchJoystickElementRef = useRef<HTMLDivElement | null>(null);
   const touchJoystickKnobRef = useRef<HTMLSpanElement | null>(null);
@@ -797,6 +823,11 @@ export function SoloTimeTrialCanvas({
   const [gamePaused, setGamePaused] = useState(false);
   // Races mount only after a click, so this never renders on the server.
   const [soundOn, setSoundOn] = useState(readSoundOn);
+  const [firstPersonOn, setFirstPersonOn] = useState(readFirstPersonView);
+  const firstPersonOnRef = useRef(firstPersonOn);
+  useEffect(() => {
+    firstPersonOnRef.current = firstPersonOn;
+  }, [firstPersonOn]);
   const soundOnRef = useRef(soundOn);
   const [kartDynamicsOpen, setKartDynamicsOpen] = useState(false);
   const [raceSpeed, setRaceSpeed] = useState(0);
@@ -1326,6 +1357,12 @@ export function SoloTimeTrialCanvas({
       // little further away, so a close race does not make it blink.
       const ghostFadeDistance = 0.25 * kartRuntime.dimensions.z;
       const ghostShowDistance = 0.35 * kartRuntime.dimensions.z;
+      // On board, a kart passing through this one would fill the lens: it
+      // fades within 0.6 kart lengths of the lens.
+      const lensFadeDistance = 0.6 * kartRuntime.dimensions.z;
+      const lensShowDistance = 0.75 * kartRuntime.dimensions.z;
+      // Opponents faded at the lens, see-through ones only.
+      const lensFadedOpponents = new Set<string>();
       let ghostFaded = false;
       runtime.addCleanup(() => {
         ghostVisual?.destroy();
@@ -1584,29 +1621,65 @@ export function SoloTimeTrialCanvas({
         clearColor: new pc.Color(0.52, 0.7, 0.86),
       });
       app.root.addChild(camera);
+      // Course walls and ground between a point on the kart and a camera.
+      const queryCameraObstruction: ObstructionQuery = (
+        pivot,
+        desiredPosition,
+      ) => {
+        const hit = rigidBodySystem.raycastFirst(pivot, desiredPosition, {
+          filterCollisionGroup: PHYSICS_GROUP.kart,
+          filterCollisionMask: PHYSICS_MASK.kart,
+          filterCallback: (entity: pc.Entity) =>
+            entity !== kart &&
+            (entity.tags.has("obstacle") ||
+              entity.tags.has("drivable-surface")),
+        });
+
+        return hit
+          ? {
+              normal: hit.normal.clone(),
+              point: hit.point.clone(),
+            }
+          : null;
+      };
       const chaseCamera = new ChaseCamera(
         camera,
         activeCanvas,
-        (pivot, desiredPosition) => {
-          const hit = rigidBodySystem.raycastFirst(pivot, desiredPosition, {
-            filterCollisionGroup: PHYSICS_GROUP.kart,
-            filterCollisionMask: PHYSICS_MASK.kart,
-            filterCallback: (entity: pc.Entity) =>
-              entity !== kart &&
-              (entity.tags.has("obstacle") ||
-                entity.tags.has("drivable-surface")),
-          });
-
-          return hit
-            ? {
-                normal: hit.normal.clone(),
-                point: hit.point.clone(),
-              }
-            : null;
-        },
+        queryCameraObstruction,
         activeDynamics.kart.drivetrain.noLoadSpeed,
       );
-      steadyShadowFit(camera.camera!, () => chaseCamera.maximumFov);
+      const firstPersonCamera = new FirstPersonCamera(
+        camera,
+        activeCanvas,
+        chaseCamera,
+        findFirstPersonMounts(collectKartBoxes(kartVisual)),
+        queryCameraObstruction,
+      );
+      const chaseNearClip = camera.camera!.nearClip;
+      // The onboard view showed at the last camera update. A switch made
+      // in the pause menu takes effect when updates resume.
+      let onboardShown = false;
+      steadyShadowFit(camera.camera!, () =>
+        onboardShown ? firstPersonCamera.maximumFov : chaseCamera.maximumFov,
+      );
+      // After the chase has placed itself, the onboard view takes over when
+      // it's on and the kart isn't tumbling.
+      function showCamera(frameSeconds: number, snapshot: ChaseCameraSnapshot) {
+        if (firstPersonOnRef.current) {
+          firstPersonCamera.update(frameSeconds, snapshot);
+        } else {
+          firstPersonCamera.reset();
+        }
+        onboardShown = firstPersonOnRef.current && firstPersonCamera.onboard;
+        camera.camera!.nearClip = onboardShown
+          ? FIRST_PERSON_NEAR_CLIP
+          : chaseNearClip;
+      }
+      // Resets, recovery, and teleports, paused or not.
+      function snapCameras(snapshot: ChaseCameraSnapshot) {
+        chaseCamera.snap(snapshot);
+        showCamera(0, snapshot);
+      }
       let kartTapRightingRequested = false;
       let manualRightingCapturePending = false;
       let manualRightingCooldownSeconds = 0;
@@ -1769,7 +1842,7 @@ export function SoloTimeTrialCanvas({
         previousRacePosition.copy(kart.getPosition());
         latestCameraImpact = null;
         inputManager?.clear();
-        chaseCamera.snap(getChaseCameraSnapshot(dynamicWheels.length));
+        snapCameras(getChaseCameraSnapshot(dynamicWheels.length));
         activeCanvas.focus();
       }
 
@@ -2059,7 +2132,7 @@ export function SoloTimeTrialCanvas({
         latestCameraImpact = null;
         inputManager?.clear();
         clearTouchPresentation();
-        chaseCamera.snap(getChaseCameraSnapshot(dynamicWheels.length));
+        snapCameras(getChaseCameraSnapshot(dynamicWheels.length));
         activeCanvas.focus();
         return true;
       }
@@ -2424,6 +2497,7 @@ export function SoloTimeTrialCanvas({
         angularVelocity: new pc.Vec3(),
         impact: null,
         linearVelocity: new pc.Vec3(),
+        lookBehind: false,
         position: new pc.Vec3(),
         rotation: new pc.Quat(),
         supportCount: 0,
@@ -2498,6 +2572,7 @@ export function SoloTimeTrialCanvas({
         supportCount = kartController.state.supportCount,
       ): ChaseCameraSnapshot {
         chaseCameraSnapshot.impact = latestCameraImpact;
+        chaseCameraSnapshot.lookBehind = inputManager?.lookingBehind ?? false;
         chaseCameraSnapshot.angularVelocity.copy(
           kart.rigidbody?.angularVelocity ?? pc.Vec3.ZERO,
         );
@@ -2647,7 +2722,7 @@ export function SoloTimeTrialCanvas({
       runtime.addCleanup(() => inputManager.detach());
       const clearTouchPresentation = () => {
         touchJoystickPointerRef.current = null;
-        clearTouchPedalPresentation(touchPedalElementsRef.current);
+        clearTouchButtonPresentation(touchButtonElementsRef.current);
         setTouchJoystickPresentation(
           touchJoystickElementRef.current,
           touchJoystickKnobRef.current,
@@ -2711,6 +2786,11 @@ export function SoloTimeTrialCanvas({
           stopResumeCountdown();
         }
         inputManager.setEnabled(false);
+        // A paused race draws no camera updates: cut forward first.
+        chaseCamera.lookForward();
+        if (onboardShown) {
+          firstPersonCamera.lookForward(chaseCameraSnapshot.up);
+        }
         previousRacePosition.copy(kart.getPosition());
         const resuming = raceSession.snapshot.state === "resuming";
         runtime.setPaused(paused || resuming);
@@ -2812,8 +2892,8 @@ export function SoloTimeTrialCanvas({
 
       sceneApiRef.current = {
         clearInput: () => inputManager.clear(),
-        pressTouchPedal: (pointerId, action) =>
-          inputManager.pressTouchPedal(pointerId, action),
+        pressTouchButton: (pointerId, action) =>
+          inputManager.pressTouchButton(pointerId, action),
         releaseTouch: (pointerId) => inputManager.releaseTouch(pointerId),
         requestKartTapRighting,
         requestTouchReset: () => inputManager.requestTouchReset(),
@@ -3242,7 +3322,7 @@ export function SoloTimeTrialCanvas({
 
         snapKartPresentationState();
         previousRacePosition.copy(kart.getPosition());
-        chaseCamera.snap(
+        snapCameras(
           getChaseCameraSnapshot(
             pose.position.y > KART_ROOT_HEIGHT + scaleReferenceKartLength(0.5)
               ? 0
@@ -3335,7 +3415,15 @@ export function SoloTimeTrialCanvas({
       const detachSceneTestAdapter = ENABLE_SCENE_TEST_HOOKS
         ? attachSceneTestAdapter(activeCanvas, {
             getAudioDebugState: () => raceAudio?.getDebugState() ?? null,
-            getCameraDebugState: () => chaseCamera.getDiagnostics(),
+            getCameraDebugState: () => {
+              const shown = camera.getPosition();
+              return {
+                ...chaseCamera.getDiagnostics(),
+                firstPerson: onboardShown,
+                nearClip: camera.camera!.nearClip,
+                shownPosition: { x: shown.x, y: shown.y, z: shown.z },
+              };
+            },
             getCollisionDebugState,
             getCollisionResponseDebugState,
             getKartDebugState,
@@ -3415,7 +3503,7 @@ export function SoloTimeTrialCanvas({
         : () => undefined;
       runtime.addCleanup(detachSceneTestAdapter);
 
-      chaseCamera.snap(getChaseCameraSnapshot(dynamicWheels.length));
+      snapCameras(getChaseCameraSnapshot(dynamicWheels.length));
 
       let latestRequestedDrivingInput =
         inputManager.sampleDrivingInput().driving;
@@ -3584,6 +3672,12 @@ export function SoloTimeTrialCanvas({
         }
 
         if (sample.actions.resetRequested) {
+          inputManager.endLookBehind();
+          setTouchButtonPresentation(
+            touchButtonElementsRef.current,
+            "lookBehind",
+            false,
+          );
           requestPlayerRecovery();
         }
 
@@ -4079,6 +4173,11 @@ export function SoloTimeTrialCanvas({
         kartVisual.setPosition(interpolatedKartVisualPosition);
         kartVisual.setRotation(interpolatedKartAssemblyRotation);
         renderWheelPresentation(accumulatorFraction, frameSeconds);
+        // The camera first, so the ghost and opponents fade by the view
+        // that will show.
+        const cameraSnapshot = getChaseCameraSnapshot();
+        chaseCamera.update(frameSeconds, cameraSnapshot);
+        showCamera(frameSeconds, cameraSnapshot);
         if (ghostVisual && ghostPlayback) {
           // The kart is drawn between its last two steps; draw the ghost
           // at the same moment of race time. A stopped clock (paused,
@@ -4097,13 +4196,19 @@ export function SoloTimeTrialCanvas({
             ? ghostPlayback.sample(ghostTime, ghostPose)
             : null;
           if (pose) {
+            // On board, it fades as it passes the lens instead.
+            const lens = onboardShown;
+            const from = lens ? camera.getPosition() : interpolatedKartPosition;
             const gap = Math.hypot(
-              pose.position.x - interpolatedKartPosition.x,
-              pose.position.y - interpolatedKartPosition.y,
-              pose.position.z - interpolatedKartPosition.z,
+              pose.position.x - from.x,
+              pose.position.y - from.y,
+              pose.position.z - from.z,
             );
-            if (gap < ghostFadeDistance) ghostFaded = true;
-            else if (gap > ghostShowDistance) ghostFaded = false;
+            if (gap < (lens ? lensFadeDistance : ghostFadeDistance)) {
+              ghostFaded = true;
+            } else if (gap > (lens ? lensShowDistance : ghostShowDistance)) {
+              ghostFaded = false;
+            }
           }
           ghostVisual.update(
             pose,
@@ -4152,7 +4257,7 @@ export function SoloTimeTrialCanvas({
                       : roomTime,
                   viewer: interpolatedKartPosition,
                 };
-          // Heard from the camera, as it stood at the last frame.
+          // Heard from the camera, as placed this frame.
           const cameraPosition = camera.getPosition();
           heardCamera.follow(cameraPosition, opponentSeconds);
           listener.right.copy(camera.right);
@@ -4169,9 +4274,25 @@ export function SoloTimeTrialCanvas({
                     opponentPose,
                     near,
                   );
-            opponent.visual.update(pose, opponentSeconds);
-            opponent.visual.setSeeThrough(
-              pageContacts?.seeThrough(opponent.id) ?? false,
+            const seeThrough = pageContacts?.seeThrough(opponent.id) ?? false;
+            opponent.visual.setSeeThrough(seeThrough);
+            if (pose && seeThrough && onboardShown) {
+              const gap = Math.hypot(
+                pose.position.x - cameraPosition.x,
+                pose.position.y - cameraPosition.y,
+                pose.position.z - cameraPosition.z,
+              );
+              if (gap < lensFadeDistance) lensFadedOpponents.add(opponent.id);
+              else if (gap > lensShowDistance) {
+                lensFadedOpponents.delete(opponent.id);
+              }
+            } else {
+              lensFadedOpponents.delete(opponent.id);
+            }
+            opponent.visual.update(
+              pose,
+              opponentSeconds,
+              lensFadedOpponents.has(opponent.id),
             );
             if (!pose) {
               shadow.entity.enabled = false;
@@ -4208,7 +4329,6 @@ export function SoloTimeTrialCanvas({
         if (warmingSeeThrough) seeThroughWarmFrames -= 1;
         contactShadow.update(kartVisual, findGroundBelowKart);
 
-        chaseCamera.update(frameSeconds, getChaseCameraSnapshot());
         const { habitat } = kartController;
         activeSurfaceEffects.setHabitat(
           habitat.gravity(interpolatedKartPosition),
@@ -4504,7 +4624,7 @@ export function SoloTimeTrialCanvas({
     }
     sceneApiRef.current?.clearInput();
     touchJoystickPointerRef.current = null;
-    clearTouchPedalPresentation(touchPedalElementsRef.current);
+    clearTouchButtonPresentation(touchButtonElementsRef.current);
     setTouchJoystickPresentation(
       touchJoystickElementRef.current,
       touchJoystickKnobRef.current,
@@ -4547,7 +4667,7 @@ export function SoloTimeTrialCanvas({
   function pauseRace() {
     sceneApiRef.current?.setPaused(true);
     touchJoystickPointerRef.current = null;
-    clearTouchPedalPresentation(touchPedalElementsRef.current);
+    clearTouchButtonPresentation(touchButtonElementsRef.current);
     setTouchJoystickPresentation(
       touchJoystickElementRef.current,
       touchJoystickKnobRef.current,
@@ -4574,7 +4694,7 @@ export function SoloTimeTrialCanvas({
 
   function pressTouchControl(
     event: ReactPointerEvent<HTMLButtonElement>,
-    action: TouchPedalAction,
+    action: TouchButtonAction,
   ) {
     event.preventDefault();
     try {
@@ -4583,48 +4703,48 @@ export function SoloTimeTrialCanvas({
       // Synthetic browser tests may not create an active native pointer stream.
       // The adapter still receives the same semantic press and release events.
     }
-    sceneApiRef.current?.pressTouchPedal(event.pointerId, action);
-    setTouchPedalPresentation(touchPedalElementsRef.current, action, true);
+    sceneApiRef.current?.pressTouchButton(event.pointerId, action);
+    setTouchButtonPresentation(touchButtonElementsRef.current, action, true);
   }
 
   function releaseTouchControl(
     event: ReactPointerEvent<HTMLButtonElement>,
-    action: TouchPedalAction,
+    action: TouchButtonAction,
   ) {
     sceneApiRef.current?.releaseTouch(event.pointerId);
-    setTouchPedalPresentation(touchPedalElementsRef.current, action, false);
+    setTouchButtonPresentation(touchButtonElementsRef.current, action, false);
   }
 
   function pressTouchControlFromKeyboard(
     event: ReactKeyboardEvent<HTMLButtonElement>,
-    action: TouchPedalAction,
+    action: TouchButtonAction,
   ) {
     if ((event.key !== " " && event.key !== "Enter") || event.repeat) {
       return;
     }
     event.preventDefault();
-    sceneApiRef.current?.pressTouchPedal(
+    sceneApiRef.current?.pressTouchButton(
       TOUCH_KEYBOARD_POINTER_IDS[action],
       action,
     );
-    setTouchPedalPresentation(touchPedalElementsRef.current, action, true);
+    setTouchButtonPresentation(touchButtonElementsRef.current, action, true);
   }
 
   function releaseTouchControlFromKeyboard(
     event: ReactKeyboardEvent<HTMLButtonElement>,
-    action: TouchPedalAction,
+    action: TouchButtonAction,
   ) {
     if (event.key !== " " && event.key !== "Enter") {
       return;
     }
     event.preventDefault();
     sceneApiRef.current?.releaseTouch(TOUCH_KEYBOARD_POINTER_IDS[action]);
-    setTouchPedalPresentation(touchPedalElementsRef.current, action, false);
+    setTouchButtonPresentation(touchButtonElementsRef.current, action, false);
   }
 
-  function blurTouchControl(action: TouchPedalAction) {
+  function blurTouchControl(action: TouchButtonAction) {
     sceneApiRef.current?.releaseTouch(TOUCH_KEYBOARD_POINTER_IDS[action]);
-    setTouchPedalPresentation(touchPedalElementsRef.current, action, false);
+    setTouchButtonPresentation(touchButtonElementsRef.current, action, false);
   }
 
   function updateTouchJoystick(pointerId: number, x: number, y: number) {
@@ -4747,7 +4867,7 @@ export function SoloTimeTrialCanvas({
   function resetTouchKart() {
     sceneApiRef.current?.requestTouchReset();
     touchJoystickPointerRef.current = null;
-    clearTouchPedalPresentation(touchPedalElementsRef.current);
+    clearTouchButtonPresentation(touchButtonElementsRef.current);
     setTouchJoystickPresentation(
       touchJoystickElementRef.current,
       touchJoystickKnobRef.current,
@@ -5117,6 +5237,10 @@ export function SoloTimeTrialCanvas({
                   )}
                   <SoundToggle on={soundOn} onChange={setSoundOn} />
                   <VolumeControl />
+                  <FirstPersonToggle
+                    on={firstPersonOn}
+                    onChange={setFirstPersonOn}
+                  />
                   {ghosts ? (
                     <GhostToggle
                       on={ghostOn}
@@ -5316,6 +5440,7 @@ export function SoloTimeTrialCanvas({
                   <div className="race-touch-pedals">
                     {(
                       [
+                        ["lookBehind", "Look behind"],
                         ["brakeReverse", "Brake / Reverse"],
                         ["accelerate", "Accelerate"],
                       ] as const
@@ -5324,12 +5449,12 @@ export function SoloTimeTrialCanvas({
                         key={action}
                         aria-label={label}
                         aria-pressed="false"
-                        className={`race-touch-action race-touch-pedal ${action === "accelerate" ? "race-touch-accelerator" : "race-touch-brake"}`}
+                        className={`race-touch-action ${TOUCH_BUTTON_CLASSES[action]}`}
                         ref={(element) => {
                           if (element) {
-                            touchPedalElementsRef.current[action] = element;
+                            touchButtonElementsRef.current[action] = element;
                           } else {
-                            delete touchPedalElementsRef.current[action];
+                            delete touchButtonElementsRef.current[action];
                           }
                         }}
                         type="button"
@@ -5356,8 +5481,10 @@ export function SoloTimeTrialCanvas({
                       >
                         {action === "accelerate" ? (
                           <AcceleratorIcon />
-                        ) : (
+                        ) : action === "brakeReverse" ? (
                           <BrakeIcon />
+                        ) : (
+                          <LookBehindIcon />
                         )}
                       </button>
                     ))}
@@ -5365,7 +5492,7 @@ export function SoloTimeTrialCanvas({
                 </div>
               ) : null}
               <div className="pointer-events-none absolute bottom-4 right-4 z-10 hidden font-mono text-[0.68rem] font-bold uppercase tracking-[0.14em] text-titan-ice/55 lg:block">
-                T · Stats&nbsp;&nbsp; Esc · Pause
+                C · Look behind&nbsp;&nbsp; T · Stats&nbsp;&nbsp; Esc · Pause
               </div>
             </>
           ) : null}

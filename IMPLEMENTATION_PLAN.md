@@ -19,7 +19,7 @@ accepted; the app, README, and durable docs take over from there.
   follow-ups, #30–#57 with the PR 4.5.2 closeout, #59–#63, #64–#70 with
   the Phase 6 closeout, the Phase 6 addendum #71–#76, and #77–#80 with
   Phase 7's integration review).
-- **Now:** PR 8.3, Steam Deck.
+- **Now:** PR 8.4, a wider touch steering dead zone.
 - **Next:** Phase 8's second official course.
 
 ## Guiding Decisions
@@ -334,7 +334,7 @@ Decisions from completed phases that later phases rely on:
 **Goal:** a second official course, in a village or town, between Falls View
 Park's rural parkland and Phase 10's city.
 
-First, three small PRs before the course:
+First, small PRs before the course:
 
 - [x] PR 8.1: Kerb fix. No step at a wall's or barrier's end catches a
       kart sliding along it: the downhill's crowd barriers end flush on the
@@ -357,11 +357,15 @@ First, three small PRs before the course:
       or joins as today. The lobby shows the code large beside a QR code of
       its join link (`qrcode.react`, dark on a light tile) and Copy room
       link, on phones too.
-- [ ] PR 8.3: Steam Deck. The game plays well in a browser on a Steam Deck
-      (Chrome in Desktop Mode first): its sticks, buttons, and touchscreen,
-      and the 1280×800 screen with the browser's bar. Today the d-pad
-      steers and the left stick doesn't; find out first whether Chrome sees
-      a gamepad at all. A non-Steam-game launcher is not planned.
+- [x] PR 8.3: Look behind and first person. Holding C, a controller's Y,
+      or the touch button above the pedals cuts the race camera to face
+      back, and letting go cuts it forward; a pause, a reset, or leaving the
+      tab ends it until pressed again. A First-person view switch, saved on
+      the device like Sound, in home's menu and the race's pause menu, races
+      from a camera at the kart's nose instead of the chase camera
+      ([camera guide](skills/project-systems/chase-camera/README.md)).
+- [ ] PR 8.4: Touch steering dead zone. Driving straight on the touch
+      joystick is too hard: widen the dead zone for steering alone.
 
 Then the course:
 
@@ -395,7 +399,17 @@ Reuse the Phase 3 kart document, derivation, editor, and revision pipeline. No
 second format, raw tuning, or creator-set stat or joint-strength numbers.
 Publishing is immediate, with no approval queue.
 
-**PR 9.1: Player kart ownership and publishing**
+First, the Steam Deck, before the kart work:
+
+**PR 9.1: Steam Deck**
+
+- [ ] The game plays well in a browser on a Steam Deck (Chrome in Desktop
+      Mode first): its sticks, buttons, and touchscreen, and the 1280×800
+      screen with the browser's bar. Today the d-pad steers and the left
+      stick doesn't; find out first whether Chrome sees a gamepad at all. A
+      non-Steam-game launcher is not planned.
+
+**PR 9.2: Player kart ownership and publishing**
 
 - [ ] Role-aware player kart editor without admin or roster controls.
 - [ ] Players create, edit, and save only their own private drafts.
@@ -422,7 +436,7 @@ Publishing is immediate, with no approval queue.
 - [ ] Send `no-store` on every admin and profile response, cap JSON request
       sizes, and restrict or server-render thumbnail PNG chunks.
 
-**PR 9.2: Community kart discovery, play, and safety**
+**PR 9.3: Community kart discovery, play, and safety**
 
 - [ ] Public catalog that clearly separates official and community karts.
 - [ ] Anyone can race any published community kart in casual modes.
@@ -440,7 +454,7 @@ Publishing is immediate, with no approval queue.
       eligibility, history, or audit data. Unpublished karts leave discovery
       and guest play.
 
-**PR 9.3: Structural joints and forgiving breakage**
+**PR 9.4: Structural joints and forgiving breakage**
 
 - [ ] Research and approve the damage standard and its PlayCanvas/Ammo mapping
       first.
@@ -537,7 +551,9 @@ course-specific ghosts or leaderboards.
 
 - [ ] Controller polish.
 - [ ] Mobile performance pass.
-- [ ] Lobby polish, onboarding copy, and UI clarity.
+- [ ] Lobby polish, onboarding copy, and UI clarity, including a controls
+      screen: no page explains the keys and buttons (Shift, R, C, or the
+      controller's), and only wide screens show a few keys in the race.
 - [ ] Final visual pass against the Titan Racers site.
 - [ ] Ambience left from Phase 4: machinery at Falls View Park's valve and
       junction kits, and sprinkler or drip irrigation over the nursery rows,

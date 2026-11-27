@@ -280,12 +280,16 @@ async function getCameraDebugState(canvas: Locator) {
         desiredPosition: { x: number; y: number; z: number };
         fov: number;
         forwardSpeed: number;
+        firstPerson: boolean;
         impactOffset: { x: number; y: number; z: number };
+        lookingBehind: boolean;
         lookTarget: { x: number; y: number; z: number };
         maximumSpeed: number;
         obstructed: boolean;
         obstructionDistance: number | null;
+        nearClip: number;
         planarSpeed: number;
+        shownPosition: { x: number; y: number; z: number };
         signedSlipDegrees: number;
         snapCount: number;
         stabilizationBlend: number;
@@ -3644,6 +3648,128 @@ test.describe("home screen", () => {
     expect(closeCamera.obstructionDistance).not.toBeNull();
     expect(closeCamera.obstructionDistance).toBeGreaterThanOrEqual(0);
     expect(closeCamera.obstructionDistance).toBeLessThan(1);
+  });
+
+  test("cuts to the rear view while look behind is held, and back", async ({
+    page,
+  }, testInfo) => {
+    await page.goto("/?sandbox-course");
+    await startSoloRace(page);
+    const canvas = page.getByTestId("solo-time-trial-canvas");
+    // Positive while the camera faces back along the chase heading.
+    const facingBack = async () => {
+      const camera = await getCameraDebugState(canvas);
+      return {
+        facing: Math.sign(
+          (camera.cameraPosition.x - camera.lookTarget.x) *
+            camera.chaseHeading.x +
+            (camera.cameraPosition.z - camera.lookTarget.z) *
+              camera.chaseHeading.z,
+        ),
+        lookingBehind: camera.lookingBehind,
+      };
+    };
+    expect(await facingBack()).toEqual({ facing: -1, lookingBehind: false });
+
+    const mobile = testInfo.project.name === "mobile";
+    const button = page.getByRole("button", { name: "Look behind" });
+    if (mobile) {
+      const bounds = await button.boundingBox();
+      expect(bounds?.width ?? 0).toBeGreaterThanOrEqual(44);
+      expect(bounds?.height ?? 0).toBeGreaterThanOrEqual(44);
+      await button.dispatchEvent("pointerdown", {
+        buttons: 1,
+        pointerId: 31,
+        pointerType: "touch",
+      });
+      await expect(button).toHaveAttribute("aria-pressed", "true");
+    } else {
+      await expect(button).toBeHidden();
+      await page.keyboard.down("KeyC");
+    }
+    await expect
+      .poll(facingBack)
+      .toEqual({ facing: 1, lookingBehind: true });
+
+    if (mobile) {
+      await button.dispatchEvent("pointerup", {
+        pointerId: 31,
+        pointerType: "touch",
+      });
+    } else {
+      await page.keyboard.up("KeyC");
+    }
+    await expect
+      .poll(facingBack)
+      .toEqual({ facing: -1, lookingBehind: false });
+    if (mobile) return;
+
+    // Pausing while it's held cuts forward before the race freezes.
+    await page.keyboard.down("KeyC");
+    await expect
+      .poll(facingBack)
+      .toEqual({ facing: 1, lookingBehind: true });
+    await page.keyboard.press("Escape");
+    await expect(page.getByRole("button", { name: "Resume" })).toBeVisible();
+    expect(await facingBack()).toEqual({ facing: -1, lookingBehind: false });
+    await page.keyboard.up("KeyC");
+  });
+
+  test("races from the onboard camera when First-person view is on, and back to the chase when switched off", async ({
+    page,
+  }) => {
+    await page.goto("/?sandbox-course");
+    await page.getByRole("button", { name: "Open utility menu" }).click();
+    await page.getByRole("switch", { name: "First-person view" }).click();
+    expect(
+      await page.evaluate(() =>
+        window.localStorage.getItem("titan-racers.first-person.v1"),
+      ),
+    ).toBe("on");
+    await page.keyboard.press("Escape");
+    await startSoloRace(page);
+    const canvas = page.getByTestId("solo-time-trial-canvas");
+    const lensGap = async () => {
+      const [camera, { visualPosition: kart }] = await Promise.all([
+        getCameraDebugState(canvas),
+        getPresentationDebugState(canvas),
+      ]);
+      return {
+        firstPerson: camera.firstPerson,
+        gap: Math.hypot(
+          camera.shownPosition.x - kart.x,
+          camera.shownPosition.y - kart.y,
+          camera.shownPosition.z - kart.z,
+        ),
+        nearClip: camera.nearClip,
+      };
+    };
+    await expect
+      .poll(async () => (await lensGap()).firstPerson, { timeout: 15_000 })
+      .toBe(true);
+    const onboard = await lensGap();
+    expect(onboard.nearClip).toBeCloseTo(0.01, 5);
+    // On the kart, where the chase sits metres back.
+    expect(onboard.gap).toBeLessThan(0.45);
+
+    await page.keyboard.press("Escape");
+    const toggle = page.getByRole("switch", { name: "First-person view" });
+    await expect(toggle).toHaveAttribute("aria-checked", "true");
+    await toggle.click();
+    await expect(toggle).toHaveAttribute("aria-checked", "false");
+    expect(
+      await page.evaluate(() =>
+        window.localStorage.getItem("titan-racers.first-person.v1"),
+      ),
+    ).toBe("off");
+    await page.getByRole("button", { name: "Resume" }).click();
+    // The switch shows once the resume countdown hands back to the race.
+    await expect
+      .poll(async () => (await lensGap()).firstPerson, { timeout: 15_000 })
+      .toBe(false);
+    const chase = await lensGap();
+    expect(chase.nearClip).toBeCloseTo(0.1, 5);
+    expect(chase.gap).toBeGreaterThan(1);
   });
 
   test("registers course collision and lighting setup", async ({ page }) => {

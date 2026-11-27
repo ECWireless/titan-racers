@@ -214,7 +214,8 @@ FOV, and snaps.
 
 Out of scope:
 
-- player-controlled camera orbit or look-back input;
+- player-controlled camera orbit (a held look-back is a cut to a mirrored
+  shot, not an orbit);
 - cinematic replay, spectator, ghost, multiplayer, or split-screen cameras;
 - camera behavior authored per final Falls View Park segment;
 - motion blur, chromatic aberration, depth of field, or other post-processing;

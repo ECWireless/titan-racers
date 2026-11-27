@@ -88,7 +88,11 @@ import {
   playableOfficialKarts,
 } from "./official-karts";
 import { SoloTimeTrialCanvas } from "./solo-time-trial-canvas";
-import { StoredSoundToggle, VolumeControl } from "./setting-switch";
+import {
+  StoredFirstPersonToggle,
+  StoredSoundToggle,
+  VolumeControl,
+} from "./setting-switch";
 
 const UTILITY_MENU_ITEM =
   "flex items-center gap-3 border border-transparent px-4 py-3 font-mono text-xs font-bold uppercase tracking-[0.14em] text-titan-ice/78 transition hover:border-titan-ice/20 hover:bg-titan-ice/[0.06] hover:text-titan-hazard focus-visible:border-titan-hazard focus-visible:bg-titan-hazard/[0.08] focus-visible:text-titan-hazard focus-visible:outline-none";
@@ -1240,6 +1244,7 @@ export function PlayHome() {
                 <div className="grid gap-2">
                   <StoredSoundToggle icon={<SoundIcon />} />
                   <VolumeControl />
+                  <StoredFirstPersonToggle />
                 </div>
               </div>
             </div>

@@ -19,12 +19,14 @@ const HANDLED_KEYS = new Set([
   "KeyA",
   "KeyS",
   "KeyD",
+  "KeyC",
   "KeyR",
   "ShiftLeft",
   "ShiftRight",
 ]);
 
-const DRIVING_KEYS = new Set([
+// Keys held down, released on keyup.
+const HELD_KEYS = new Set([
   "ArrowUp",
   "ArrowDown",
   "ArrowLeft",
@@ -33,6 +35,7 @@ const DRIVING_KEYS = new Set([
   "KeyA",
   "KeyS",
   "KeyD",
+  "KeyC",
   "ShiftLeft",
   "ShiftRight",
 ]);
@@ -93,6 +96,7 @@ export class KeyboardInput implements PlayerInputSource {
   sample(): PlayerInputSourceSnapshot {
     const snapshot = {
       ...this.getContinuousInput(),
+      lookBehind: this.pressedKeys.has("KeyC"),
       pauseRequested: this.pauseRequested,
       resetRequested: this.resetRequested,
     };
@@ -109,7 +113,10 @@ export class KeyboardInput implements PlayerInputSource {
   private readonly onKeyDown = (event: KeyboardEvent) => {
     if (
       !HANDLED_KEYS.has(event.code) ||
-      isEditableKeyboardTarget(event.target)
+      isEditableKeyboardTarget(event.target) ||
+      // Copy and other shortcuts stay the browser's.
+      (event.code === "KeyC" &&
+        (event.ctrlKey || event.metaKey || event.altKey))
     ) {
       return;
     }
@@ -130,6 +137,13 @@ export class KeyboardInput implements PlayerInputSource {
       return;
     }
 
+    // Looking behind moves the camera, not the kart: it never takes driving
+    // from another device.
+    if (event.code === "KeyC") {
+      this.pressedKeys.add(event.code);
+      return;
+    }
+
     if (!this.pressedKeys.has(event.code)) {
       this.pressedKeys.add(event.code);
       this.onDrivingActivity();
@@ -144,7 +158,7 @@ export class KeyboardInput implements PlayerInputSource {
     if (!isEditableKeyboardTarget(event.target)) {
       event.preventDefault();
     }
-    if (DRIVING_KEYS.has(event.code)) {
+    if (HELD_KEYS.has(event.code)) {
       this.pressedKeys.delete(event.code);
     }
   };
