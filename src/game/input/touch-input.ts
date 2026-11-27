@@ -180,7 +180,7 @@ export class TouchInput implements PlayerInputSource {
     this.pullHandbrake = 0;
   }
 
-  holds(action: TouchButtonAction) {
+  private holds(action: TouchButtonAction) {
     for (const held of this.buttonPointers.values()) {
       if (held === action) return true;
     }

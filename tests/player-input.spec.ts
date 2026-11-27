@@ -46,9 +46,11 @@ class KeyboardTarget {
     code: string,
     repeat = false,
     target?: { isContentEditable?: boolean; tagName?: string },
+    modifiers: { ctrlKey?: boolean } = {},
   ) {
     let prevented = false;
     const event = {
+      ...modifiers,
       code,
       preventDefault: () => {
         prevented = true;
@@ -668,6 +670,10 @@ test.describe("player input", () => {
     expect(lookingBehind().lookBehind).toBe(true);
     manager.releaseTouch(8);
     lookingBehind();
+
+    // Copy stays the browser's.
+    expect(target.dispatch("keydown", "KeyC", false, undefined, { ctrlKey: true })).toBe(false);
+    expect(lookingBehind().lookBehind).toBe(false);
 
     // A clear ends a held key too: its repeats don't restart it.
     target.dispatch("keydown", "KeyC");

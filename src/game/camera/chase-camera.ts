@@ -653,15 +653,25 @@ export class ChaseCamera {
     this.obstructionDistance = correctedDistance;
   }
 
+  // Probes the margin past `position`, so a wall just beyond it holds it
+  // the margin short, as one it has crossed does.
   private holdShortOfObstruction(position: pc.Vec3) {
-    const obstruction = this.queryObstruction(this.cameraPivot, position);
+    this.desiredDirection.copy(position).sub(this.cameraPivot);
+    const reach = this.desiredDirection.length();
+    if (reach < Number.EPSILON) return;
+    this.desiredDirection.mulScalar(1 / reach);
+    this.pivotToHit
+      .copy(this.desiredDirection)
+      .mulScalar(reach + OBSTRUCTION_MARGIN)
+      .add(this.cameraPivot);
+    const obstruction = this.queryObstruction(this.cameraPivot, this.pivotToHit);
     if (!obstruction) return;
     const hitDistance = this.pivotToHit
       .copy(obstruction.point)
       .sub(this.cameraPivot)
       .length();
     const heldDistance = Math.max(hitDistance - OBSTRUCTION_MARGIN, 0);
-    this.desiredDirection.copy(position).sub(this.cameraPivot).normalize();
+    if (heldDistance >= reach) return;
     position
       .copy(this.cameraPivot)
       .add(this.desiredDirection.mulScalar(heldDistance));

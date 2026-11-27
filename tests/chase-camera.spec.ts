@@ -264,9 +264,15 @@ test("holds the rear shot on the near side of a wall the kart drives at", () => 
     up: new pc.Vec3(0, 1, 0),
   };
   camera.snap(snapshot);
+  let nearest = Infinity;
   while (snapshot.position.z > wallZ + 0.4) {
-    snapshot.position.z -= 8 / 60;
-    camera.update(1 / 60, snapshot);
+    snapshot.position.z -= 8 / 120;
+    camera.update(1 / 120, snapshot);
     expect(placed.z).toBeGreaterThan(wallZ);
+    if (camera.getDiagnostics().obstructed) {
+      nearest = Math.min(nearest, placed.z - wallZ);
+    }
   }
+  // Held a clear margin short of it the whole way, not just on its side.
+  expect(nearest).toBeGreaterThan(0.06);
 });

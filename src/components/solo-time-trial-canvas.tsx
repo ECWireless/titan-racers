@@ -1358,7 +1358,7 @@ export function SoloTimeTrialCanvas({
       const ghostFadeDistance = 0.25 * kartRuntime.dimensions.z;
       const ghostShowDistance = 0.35 * kartRuntime.dimensions.z;
       // On board, a kart passing through this one would fill the lens: it
-      // fades within about half a kart length of the lens's side of it.
+      // fades within 0.6 kart lengths of the lens.
       const lensFadeDistance = 0.6 * kartRuntime.dimensions.z;
       const lensShowDistance = 0.75 * kartRuntime.dimensions.z;
       // Opponents faded at the lens, see-through ones only.

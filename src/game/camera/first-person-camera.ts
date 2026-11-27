@@ -11,10 +11,10 @@ import {
 // The onboard camera rides at the kart's nose, centred, on a short mast a
 // hand's height above the parts there, as a nose camera on a real RC car
 // does: none of the kart is in view, so no frame or body shell can block
-// it, and it sees the road from about 26 cm up on the default kart. Looking behind cuts to a
-// matching camera at the tail. Each sits a little beyond the kart so that,
-// however far it settles from its mount, nothing of the kart is in front of
-// the lens.
+// it, and it sees the road from about 26 cm up on the default kart. Looking
+// behind cuts to a matching camera at the tail. Each sits a little beyond
+// the kart so that, however far it settles from its mount, nothing of the
+// kart is in front of the lens.
 const NOSE_DEPTH = 0.15;
 const MOUNT_AHEAD = 0.02;
 // Half the centre band checked for parts, as a share of the kart's width;
@@ -22,7 +22,9 @@ const MOUNT_AHEAD = 0.02;
 const MOUNT_BAND = 0.25;
 const MOUNT_CLEARANCE = 0.11;
 // Side to side on a wide screen, the least on an upright phone, and what
-// top speed adds; tall views are capped so a phone isn't a fisheye.
+// top speed adds. A squarer screen caps the view's height so it isn't a
+// fisheye; an upright phone keeps its 70 degrees across, which takes about
+// 113 degrees top to bottom, above the cap.
 const HORIZONTAL_FOV = 90;
 const MINIMUM_HORIZONTAL_FOV = 70;
 const SPEED_HORIZONTAL_FOV = 5;

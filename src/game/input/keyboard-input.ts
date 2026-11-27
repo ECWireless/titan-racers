@@ -25,7 +25,8 @@ const HANDLED_KEYS = new Set([
   "ShiftRight",
 ]);
 
-const DRIVING_KEYS = new Set([
+// Keys held down, released on keyup.
+const HELD_KEYS = new Set([
   "ArrowUp",
   "ArrowDown",
   "ArrowLeft",
@@ -112,7 +113,10 @@ export class KeyboardInput implements PlayerInputSource {
   private readonly onKeyDown = (event: KeyboardEvent) => {
     if (
       !HANDLED_KEYS.has(event.code) ||
-      isEditableKeyboardTarget(event.target)
+      isEditableKeyboardTarget(event.target) ||
+      // Copy and other shortcuts stay the browser's.
+      (event.code === "KeyC" &&
+        (event.ctrlKey || event.metaKey || event.altKey))
     ) {
       return;
     }
@@ -154,7 +158,7 @@ export class KeyboardInput implements PlayerInputSource {
     if (!isEditableKeyboardTarget(event.target)) {
       event.preventDefault();
     }
-    if (DRIVING_KEYS.has(event.code)) {
+    if (HELD_KEYS.has(event.code)) {
       this.pressedKeys.delete(event.code);
     }
   };

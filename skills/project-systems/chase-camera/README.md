@@ -149,8 +149,8 @@ hit nudge, and speed carry over, and it shows instead while the kart tumbles.
   ground at once while bumps, pitch, and lean settle over about 0.1 s, the
   lens never more than 2 cm from its mount (climbs, rises, landings) and the
   aim's pitch never more than 20° behind the kart's; a quarter of the kart's
-  lean tilts the horizon. The chase's obstruction ray, cast from the kart's
-  middle at lens height to 3 cm past the lens, holds the lens 3 cm short of
+  lean tilts the horizon. The chase's obstruction ray, cast from midway
+  between the two mounts to 3 cm past the lens, holds the lens 3 cm short of
   a wall the nose or tail is pressed against.
 - Tipped past about 70° (on its side or roof), the chase shows until the
   kart is upright for 0.5 s; spins and wall hits stay onboard. A snap
@@ -167,12 +167,15 @@ Focused coverage includes:
 
 - `tests/chase-camera.spec.ts` for reliable-speed signed slip, reverse sign
   stability, stabilization thresholds/release, wrap-safe heading slew, impact
-  severity bounds, and equivalent exponential smoothing;
+  severity bounds, equivalent exponential smoothing, and the rear shot
+  (no lag ahead of the kart, walls, the cut back to a settled chase);
+- `tests/first-person-camera.spec.ts` for the mounts, view width, riding,
+  lean, look behind, tumble handover, walls, and pitch lag;
 - `tests/course-document.spec.ts` for visible large-wall/L-corner geometry
   beyond the normal loop;
-- `tests/home.spec.ts` for wall obstruction and release in the live scene
-  (the other camera scene fixtures were removed on 2026-10-17 in favor of
-  `tests/chase-camera.spec.ts`);
+- `tests/home.spec.ts` for wall obstruction and release, look behind
+  (keyboard, touch, pause), and the First-person view switch in the live
+  scene;
 - `pnpm lint`, `pnpm typecheck`, and `pnpm build`; and
 - the complete desktop and mobile Playwright projects.
 
@@ -196,5 +199,4 @@ hands-on desktop and narrow-mobile driving.
   split-screen cameras remain later scope.
 - The first-person view is unmeasured against the iPhone budget, and its 1 cm
   near clip coarsens distant depth precision; raise it if far surfaces
-  flicker. `tests/first-person-camera.spec.ts` covers the mounts, view width,
-  riding, lean, look behind, and tumble.
+  flicker.
